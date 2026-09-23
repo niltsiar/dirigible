@@ -1,5 +1,5 @@
 Dirigible
 Copyright 2026 Borja Quevedo
 
-This product includes agent skills adapted from https://github.com/cursor/plugins,
-licensed under the MIT License. See .claude/skills/THIRD_PARTY.md.
+This product includes agent skills adapted from https://github.com/cursor/plugins
+and https://github.com/mattpocock/skills, licensed under the MIT License. See .claude/skills/THIRD_PARTY.md.

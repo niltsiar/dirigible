@@ -13,7 +13,7 @@ A process tap can only be read through an aggregate device. The user confirmed o
 
 - Use Core Audio process taps. The tap aggregate is a device like any other, so it uses the IOProc, ring, writer, and segment path of 0004 without changes.
 - One tap and one private aggregate device per app source. Set `privateTap` and `.unmuted`, so the user still hears the call.
-- The main sub-device of the tap aggregate is the default output device, so the output device clocks the tap. When that device goes away or the default output changes, rebuild the aggregate on the new output device and start a new segment (0004). The guest track keeps recording.
+- The main sub-device of the tap aggregate is the output device of the tapped process (`kAudioProcessPropertyDevices`), or the default output device if the process reports none. Set `kAudioSubTapDriftCompensationKey` to true on the sub-tap. When the main sub-device goes away or the process changes its output, rebuild the aggregate on the new device and start a new segment (0004). The guest track keeps recording.
 - The user picks an app, not a process. Tap every process whose executable is inside the app bundle. Watch `kAudioHardwarePropertyProcessObjectList` and update the tap when helper processes start or stop. Call apps often play audio from a helper process.
 - Add `NSAudioCaptureUsageDescription` to `Support/Info.plist` in English and to `es.lproj/InfoPlist.strings` in Spanish. `AppBundleTests` checks both.
 - No public API reads the System Audio Recording permission. A denied tap gives silence. If a tap gives only zero samples for some seconds while the app plays audio (`IsRunningOutput` is 1), show a warning with a link to the privacy settings.
@@ -24,7 +24,7 @@ A process tap can only be read through an aggregate device. The user confirmed o
 
 - R12 needs macOS 14.2 or later. The rest of the app still runs on macOS 14.0.
 - The header says 14.2. A sample project says 14.4. A hardware check on 14.2 and 14.3 decides the real floor.
-- Hardware checks: a real Teams call, a Zoom call, a Slack huddle, and a meeting in Chrome and Safari; the permission prompt for the ad-hoc signed app; the tap does not change the output device, its rate, or its latency; a change of the output device during a recorded call.
+- Hardware checks: a real Teams call, a Zoom call, a Slack huddle, and a meeting in Chrome and Safari; the permission prompt for the ad-hoc signed app; the tap does not change the output device, its rate, or its latency; a change of the output device during a recorded call; Teams on a USB headset while the default output is the built-in speakers, for 30 minutes.
 
 ## Alternatives considered
 

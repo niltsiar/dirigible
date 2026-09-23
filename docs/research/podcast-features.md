@@ -133,6 +133,7 @@ Goal: record two or more devices, make a rough edit, and export one file.
 - Features: F01, F02, F03, F04, F10, F11, F12, F13, F14, F15, F16, F17, F19, F41, F43, F50, F51, F52, F60, F65.
 - Brief: R2, R3, R4, R5, R6, R11 (WAV, AAC, FLAC), R13 (strings), R14 (mitigation only), R15.
 - R14 in Release 1 is only a default: use headphones. F43 shows a warning when the output is the built-in speakers.
+- Update 2026-09-24: `docs/requirements/releases.md` moves F43 to Release 2, because its trigger needs an app source (R12). Release 1 has no R14 work.
 - Every Release 1 command has a menu item with a key equivalent: record, play and stop, JKL shuttle, split, delete, undo, add marker, zoom, previous and next clip.
 - Delete leaves a gap in Release 1. Ripple edit comes in Release 2.
 - F41 mono or stereo per track and for the mix export is in Release 1 (R15, user request 2026-09-23). The session schema must hold the channel layout from version 1.
@@ -149,6 +150,7 @@ Goal: record a remote guest, level the clips, and publish at the podcast loudnes
 - R9 comes here: one BS.1770 loudness engine serves F30, F40, and F54.
 - MP3 needs an encoder decision record (brief open question), so it is not in Release 1.
 - Loudness targets: -16 LUFS for stereo and -1 dBTP ([AP]). The -19 LUFS mono target is common practice (unconfirmed). Hindenburg recommends mono MP3 at -16 LUFS ([HL]).
+- Update 2026-09-24: decision 0008 sets -19 LUFS for a mono export, from the BS.1770 channel rule. A Buzzsprout review says that Hindenburg PRO changes the loudness for mono at export, which contradicts the [HL] reading above.
 
 ### Release 3: Hindenburg-style production
 

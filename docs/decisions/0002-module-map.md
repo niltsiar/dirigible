@@ -14,7 +14,7 @@ Two designs were compared: few targets, and one target for each capability (capt
 | Target | Owns | Imports | First release |
 |---|---|---|---|
 | `DirigibleCore` | `Session`, `Track`, `Clip`, `AudioFile`, capture timing, `Marker`, `Frames`, `ChannelLayout`, track routes, edits and their invariants, snapshot undo (`History`), session XML read and atomic write, take alignment and auto-level math | Foundation | 1 |
-| `DirigibleAudio` | Device list, `Recorder` (IOProcs, rings, writers, CAF segments, finalize, recovery), `Player` (AVAudioEngine), `exportMix`, waveform peaks, headphone check. Later: loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | CoreAudio, AudioToolbox, AVFoundation, Accelerate, `Atomics`, `DirigibleCore` | 1 |
+| `DirigibleAudio` | Device list, `Recorder` (IOProcs, rings, writers, CAF segments, finalize, recovery), `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | CoreAudio, AudioToolbox, AVFoundation, Accelerate, `Atomics`, `DirigibleCore` | 1 |
 | `CLame` | libmp3lame with the decoder off (0007) | none | 2 |
 | `Dirigible` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, both libraries | 1 |
 

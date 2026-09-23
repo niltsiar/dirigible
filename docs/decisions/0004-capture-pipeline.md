@@ -17,10 +17,11 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 
 **Capture.**
 
-- Before a take, read `AVCaptureDevice.authorizationStatus(for: .audio)`. If it is not determined, request access and wait. If it is denied or restricted, refuse the take and show a link to the privacy settings.
+- The app target checks the microphone permission before it calls `Studio.startRecording`: it reads `AVCaptureDevice.authorizationStatus(for: .audio)`, requests access if it is not determined, and refuses the take with a link to the privacy settings if it is denied. This is a UI flow, so it is not in the library.
+- The test seam is the ring. Tests push synthetic ring records (a sine with known timestamps) into the device writer, then drive stop, finalize, and save through `Studio`. No protocol is needed.
 - `startRecording` refuses a route with a channel that the device does not have (`.channelOutOfRange`), and a device channel that feeds two tracks (`.channelInUse`).
 - One IOProc per input device, from `AudioDeviceCreateIOProcIDWithBlock` with a NULL queue. AUHAL is the fallback if the IOProc path fails on hardware. This replaces the "AUHAL, one input unit per device" text in 0001.
-- The IOProc copies the whole input buffer list into one SPSC ring per device (0005) and does nothing else. Each ring record header holds the sample time, the host time, the frame count, `mNumberBuffers`, each `mDataByteSize`, and the nominal rate. A property listener stores the new nominal rate in an atomic, and the IOProc copies it into each header, so the writer finds the exact first record at the new rate. If the ring is full, the IOProc adds the lost frames to an atomic counter. The UI shows this counter during a take.
+- The IOProc copies the whole input buffer list into one SPSC ring per device (0005) and does nothing else. Each ring record header holds the sample time, the host time, the frame count, `mNumberBuffers`, each `mDataByteSize`, and the nominal rate. A property listener stores the new nominal rate in an atomic, and the IOProc copies it into each header. The header rate can lag the real change by one listener delay, so it is a hint. Finalize checks it (see below). If the ring is full, the IOProc adds the lost frames to an atomic counter. The UI shows this counter during a take.
 - Each ring holds 10 s of audio. It is allocated before the IOProc starts.
 - Each device has one writer on its own serial `DispatchQueue`, never on the cooperative pool. The writer drains the ring every 50 ms and takes out the channels of each track (0002, `Track.route`). It writes one float32 CAF per track with synchronous writes.
 - The writer checks each record's byte sizes against frames x channels x 4. On a mismatch, it closes the segment at that record.
@@ -45,7 +46,8 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 
 - Fit a line through the checkpoints of each device segment. The slope is the real rate.
 - Always write a 24-bit WAV at the session rate (0003) with `AudioConverter`. Resample from the fitted rate when the drift over the segment is more than 1 ms. Store `resampledFromRate` in the `<capture>` element.
-- If the fitted rate is more than 1000 ppm from nominal, do not trust it. Convert from the nominal rate and set `driftCorrected="false"`. The clip gets a warning mark.
+- If the fitted rate is more than 1000 ppm from the header rate but within 1000 ppm of another standard rate (44.1, 48, 88.2, or 96 kHz), the header rate lagged. Use that standard rate. A test covers a segment with a wrong header rate.
+- If the fitted rate is more than 1000 ppm from every standard rate, do not trust it. Convert from the header rate and set `driftCorrected="false"`. The clip gets a warning mark.
 - Release 1 keeps every raw CAF until the hardware drift spike confirms the fit. A later run deletes a CAF only after its WAV passes the frame-count check.
 - The player and the export never read a CAF.
 
@@ -54,11 +56,17 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 - The `<recording>` element in `session.xml` (0003) is the single source of truth. An active-recordings list in Application Support is only a hint that tells the app which sessions to reopen at launch.
 - Start order: (1) save `session.xml` atomically with the new tracks and the `<recording>` element; (2) add the session URL to the list; (3) start the IOProcs. A crash between (1) and (2): the app does not reopen the session at launch, but the next open recovers it.
 - Stop order: (1) finalize; (2) save `session.xml` atomically with the clips and without `<recording>`; (3) remove the URL from the list. A crash between (2) and (3): open finds no `<recording>` and removes the stale entry.
-- Before the launch code reopens a listed session, it marks the entry "attempted" on disk. At the next launch, it does not reopen an entry that is still marked. It shows a message, and the user opens the session by hand. So a recovery that crashes the app cannot crash every launch.
-- `Studio.open` is `async`. It reads `session.xml` off the main actor. If `<recording>` is present, it runs finalize on the segment files it finds, saves, and then returns the studio. It discards a torn last sidecar record. A segment with no usable checkpoint goes on the timeline from its first record at the nominal rate, with a warning mark. Recovery is idempotent. Nothing else writes `session.xml` during recovery.
-- If finalize fails, for example on a full disk, the `<recording>` element stays. `Studio.open` still returns the studio, in the `recoveryPending` state, with the tracks of the take. It tells the user how much free space finalize needs, and it runs finalize again when the user asks. The CAF files stay untouched.
+- `Studio.open` is `async`. It reads `session.xml` off the main actor. If `<recording>` is present, it writes a `recovery-attempt` marker file in the package, runs finalize on the segment files it finds, saves, removes the marker, and then returns the studio.
+- If the `recovery-attempt` marker is already present at open, an earlier recovery crashed. Open skips finalize and returns the studio with a pending take. So a recovery that crashes the app cannot crash every launch or every open. It discards a torn last sidecar record. A segment with no usable checkpoint goes on the timeline from its first record at the nominal rate, with a warning mark. Recovery is idempotent. Nothing else writes `session.xml` during recovery.
+- If finalize fails, at stop or at open, for example on a full disk, the `<recording>` element stays and the studio has a pending take. The CAF files stay untouched.
 
-**Studio state.** `Studio` has one state: `idle`, `playing`, `recording(Take)`, `finalizing(Take)`, or `recoveryPending(Take)`. The state stays `finalizing` until stop step (2) is complete. In Release 1, an edit, an undo, a save, or a new take throws `.busy` in `recording` and `finalizing`. Stop records one History entry.
+**Studio state.** The transport state is `idle`, `playing`, `recording(Take)`, or `finalizing(Take)`. The state stays `finalizing` until stop step (2) completes or finalize fails. In Release 1, an edit, an undo, a save, or a new take throws `.busy` in `recording` and `finalizing`. Stop records one History entry.
+
+**Pending take.** `pendingTake: Take?` is separate from the transport state, because `<recording>` in `session.xml` already stores it. Play and stop do not clear it.
+
+- While `pendingTake` is set, a new take throws `.busy`, and every save writes `<recording>` back.
+- The studio tells the user how much free space finalize needs, and it runs finalize again when the user asks. A retry that succeeds clears `pendingTake` and the marker.
+- The free-space estimate before a take subtracts the space that the pending finalize needs.
 
 **Disk and sleep.**
 

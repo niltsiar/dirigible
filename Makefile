@@ -21,6 +21,7 @@ test-hooks:
 	.claude/hooks/git-guardrails.test.sh
 
 check-docs:
+	scripts/check-docs.test.sh
 	scripts/check-docs.sh
 
 run: app

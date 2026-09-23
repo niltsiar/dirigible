@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg PRO. It runs on macOS 14 Sonoma and later. It records several audio devices and other apps (for example a call in Teams or Zoom) at the same time, each to its own track, without an aggregate device. The product brief and requirement IDs are in `docs/requirements/brief.md`.
+Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg PRO. It runs on macOS 14 Sonoma and later. It records several audio devices and other apps (for example a call in Teams or Zoom) at the same time, each to its own track, without an aggregate device. The product brief and requirement IDs are in `docs/requirements/brief.md`. The release order is in `docs/requirements/releases.md`.
 
 ## Communication
 
@@ -20,7 +20,7 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 | `make run` | Builds the app, quits a running copy, and opens the new one. |
 | `make lint` | `swift format lint --strict` on all Swift files. |
 | `make format` | Formats all Swift files in place. |
-| `make check-docs` | Checks the docs structure: every research file has a date and a Sources section. |
+| `make check-docs` | Checks the docs: every research file has a date and a Sources section, every brief ID has a release in `releases.md`, and every answered question links to an existing, accepted decision. |
 | `make check` | `lint`, `check-docs`, `test`, `test-hooks`, and `test-app`. Run it before every commit. It must be green. |
 
 The toolchain is Xcode 26 with Swift 6.2. There is no Xcode project. See `docs/decisions/0001-native-swift-stack.md`.

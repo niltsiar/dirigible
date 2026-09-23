@@ -13,10 +13,10 @@ const intent = (args && args.intent) || 'No intent given. Derive it from the pla
 const scope = (args && args.scope) || (target === 'plan' ? '.scratchpads/runs (newest run)/plan.md' : 'main')
 
 const LENSES = [
-  { key: 'premortem', agentType: 'premortem', gates: ['plan', 'diff'] },
-  { key: 'devils-advocate', agentType: 'devils-advocate', gates: ['plan', 'diff'] },
-  { key: 'architecture', agentType: 'architecture-reviewer', gates: ['plan', 'diff'] },
-  { key: 'code-quality', agentType: 'code-quality-reviewer', gates: ['diff'] },
+  { key: 'premortem', agentType: 'premortem', model: 'opus', gates: ['plan', 'diff'] },
+  { key: 'devils-advocate', agentType: 'devils-advocate', model: 'sonnet', gates: ['plan', 'diff'] },
+  { key: 'architecture', agentType: 'architecture-reviewer', model: 'opus', gates: ['plan', 'diff'] },
+  { key: 'code-quality', agentType: 'code-quality-reviewer', model: 'sonnet', gates: ['diff'] },
 ].filter(l => l.gates.includes(target))
 
 const FINDINGS = {
@@ -73,10 +73,10 @@ async function review(lens) {
   try {
     return await agent(`Review with your ${lens.key} lens.\n\n${task}`, { ...opts, agentType: lens.agentType })
   } catch (error) {
-    log(`${lens.agentType} agent type not available, using a general agent with .claude/agents/${lens.agentType}.md`)
+    log(`${lens.key}: typed agent failed (${error && error.message}). Retrying as a general agent that reads .claude/agents/${lens.agentType}.md`)
     return agent(
       `Read .claude/agents/${lens.agentType}.md. Act as that reviewer and follow its rules. Do not modify files.\n\n${task}`,
-      opts,
+      { ...opts, model: lens.model },
     )
   }
 }
@@ -85,7 +85,9 @@ const results = await pipeline(
   LENSES,
   review,
   (review, lens) => {
-    const findings = (review && review.findings) || []
+    // A reviewer that returned nothing failed. Count it as missing, not as a clean review.
+    if (!review || !Array.isArray(review.findings)) return null
+    const findings = review.findings
     if (!findings.length) return { lens: lens.key, raised: 0, survived: [] }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
     return agent(

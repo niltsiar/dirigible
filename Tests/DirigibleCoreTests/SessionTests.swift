@@ -129,6 +129,35 @@ struct SessionTests {
         #expect(session.captures.isEmpty)
     }
 
+    /// XML 1.0 cannot hold these characters, or reads them back as spaces.
+    @Test(arguments: ["a\u{0B}b", "a\u{0}b", "a\nb", "a\tb", "a\rb", "a\u{FFFE}b"])
+    func textThatXMLCannotHoldIsRefused(text: String) throws {
+        var session = Session(sampleRate: 48_000)
+        #expect(throws: SessionError.invalidText(text)) {
+            try session.addTrack(TrackID(text), name: "A", layout: .mono)
+        }
+        try session.addTrack("t1", name: "A", layout: .mono)
+        #expect(throws: SessionError.invalidText(text)) { try session.renameTrack("t1", to: text) }
+        #expect(throws: SessionError.invalidText(text)) {
+            try session.setRoute(Route(deviceUID: text, channels: .mono(1)), track: "t1")
+        }
+        #expect(throws: SessionError.invalidText(text)) {
+            try session.setMarker(Marker(id: "m1", name: text, position: 0, kind: .marker))
+        }
+        var device = capture
+        device.deviceName = text
+        #expect(throws: SessionError.invalidText(text)) { try session.addCapture(device) }
+        #expect(throws: SessionError.invalidText(text)) {
+            try session.addFile(AudioFile(id: "f1", path: text, layout: .mono, length: 10))
+        }
+        try session.addFile(AudioFile(id: "f1", path: "a.wav", layout: .mono, length: 10))
+        #expect(throws: SessionError.invalidText(text)) {
+            try session.place(Clip(id: ClipID(text), file: "f1", start: 0, offset: 0, length: 10), on: "t1")
+        }
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 10), on: "t1")
+        #expect(throws: SessionError.invalidText(text)) { try session.split("c1", at: 5, rightID: ClipID(text)) }
+    }
+
     @Test func aRemoveLeavesNoDanglingReference() throws {
         var session = Session(sampleRate: 48_000)
         try session.addCapture(capture)

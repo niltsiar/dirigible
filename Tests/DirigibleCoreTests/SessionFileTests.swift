@@ -206,7 +206,8 @@ struct SessionFileTests {
         try session.place(
             Clip(id: "c2", file: "f2", start: 96_000, offset: 500, length: 400_000, gain: Gain(dB: 3.25)!), on: "t2")
         try session.setMarker(Marker(id: "m1", name: "Intro", position: 0, kind: .marker))
-        try session.setMarker(Marker(id: "m2", name: "Kapitel 1 – Gäste", position: 96_000, kind: .chapter))
+        try session.setMarker(
+            Marker(id: "m2", name: "Kapitel 1 – Gäste \u{7F} <&> \"' 🎙️", position: 96_000, kind: .chapter))
         try session.setRecording(
             Recording(take: 2, playheadFrame: 600_000, takeStartHostTimeNanos: 999_000, armedTracks: ["t2", "t1"]))
         return session

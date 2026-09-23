@@ -13,6 +13,7 @@ extension Session {
     public mutating func place(_ clip: Clip, on track: TrackID) throws(SessionError) {
         let index = try trackIndex(track)
         if tracks[index].clips.contains(clip) { return }
+        try Self.checkText(clip.id.rawValue)
         try check(clip, on: tracks[index])
         if self.clip(clip.id) != nil { throw .duplicateID(clip.id.rawValue) }
         let taken = clipIDs.union([clip.id])
@@ -34,6 +35,7 @@ extension Session {
         let clip = tracks[track].clips[index]
         guard clip.start < frame, frame < clip.end else { throw .frameOutsideClip(id, frame) }
         let right = rightID ?? Self.derivedID(of: id, at: frame, taken: clipIDs)
+        try Self.checkText(right.rawValue)
         if self.clip(right) != nil { throw .duplicateID(right.rawValue) }
         tracks[track].clips.split(at: index, frame: frame, rightID: right)
         return right

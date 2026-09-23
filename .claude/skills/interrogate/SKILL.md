@@ -41,7 +41,7 @@ If the Workflow tool is not available (for example, another agent harness reads 
 
 ## Step 4: Synthesize
 
-1. Parse all surviving findings.
+1. Parse all surviving findings. The Workflow output file holds JSON; the verdict is under `result.panel[].survived[]`. Read it with a short `python3` script (`json.JSONDecoder().raw_decode` from the first `{`) and print only the severity, title, and suggestion. Do not read the whole file into the context.
 2. Findings from two or more lenses independently are the highest signal.
 3. Merge duplicates and note which lenses raised them.
 4. Note disagreements. One lens that contradicts another is useful context.

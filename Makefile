@@ -12,12 +12,13 @@ app:
 	scripts/bundle.sh
 
 test:
-	swift test
+	swift test --skip AppBundleTests
 
 test-app: app
 	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" swift test --filter AppBundleTests
 
 run: app
+	pkill -x Dirigible || true
 	open build/Dirigible.app
 
 lint:

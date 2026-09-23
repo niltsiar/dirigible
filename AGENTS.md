@@ -14,10 +14,10 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 |---|---|
 | `make setup` | Enables the pre-commit hook in `.githooks/` (format check and debug build). Run it once per clone. |
 | `make build` | Debug build with `swift build`. |
-| `make test` | Runs the tests with `swift test`. Fast. Use it in the red-green loop. |
+| `make test` | Runs all tests except `AppBundleTests`. Fast. Use it in the red-green loop. A bare `swift test` fails `AppBundleTests` on purpose. |
 | `make app` | Release build of `build/Dirigible.app` (universal, ad-hoc signed). |
 | `make test-app` | Builds the app, then runs `AppBundleTests` on that bundle. |
-| `make run` | Builds and opens the app. |
+| `make run` | Builds the app, quits a running copy, and opens the new one. |
 | `make lint` | `swift format lint --strict` on all Swift files. |
 | `make format` | Formats all Swift files in place. |
 | `make check` | `lint`, `test`, and `test-app`. Run it before every commit. It must be green. |
@@ -73,7 +73,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Never force-push. Never push a `main` that fails `make check`.
 - `.claude/settings.json` allows the build, test, and local git commands of the deliver flow without a prompt. It denies commands that discard work (`git branch -D`, `git stash drop`, `git reset --hard`, a force push). Long runs also need a permission mode that allows file edits, for example auto mode.
 - Commit signing is off for this repo only (`git config --local commit.gpgsign false`), so long runs do not stop for a signing prompt. Do not change global git config.
-- The pre-commit hook refuses a commit that fails `make lint` or does not build. Never use `--no-verify`. Never rewrite commits that are on `main`.
+- The pre-commit hook refuses a commit that fails `make lint` or does not build (tests included). It checks the working tree, so stage whole changes. Never use `--no-verify`. Never rewrite commits that are on `main`.
 
 ## Architecture rules
 

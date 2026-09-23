@@ -1,11 +1,16 @@
 import Foundation
 import Testing
 
-/// Checks the app bundle that `scripts/bundle.sh` builds. `make check` builds the bundle
+/// Checks the app bundle that `scripts/bundle.sh` builds. `make test-app` builds the bundle
 /// and sets `DIRIGIBLE_APP` to its path, so these tests never read a stale bundle.
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_APP"] != nil, "Run through make check"))
+/// Without the variable they fail: `make test` skips this suite by name instead.
 struct AppBundleTests {
-    let app = URL(filePath: ProcessInfo.processInfo.environment["DIRIGIBLE_APP"] ?? "")
+    let app: URL
+
+    init() throws {
+        let path = try #require(ProcessInfo.processInfo.environment["DIRIGIBLE_APP"], "Run through make test-app")
+        app = URL(filePath: path)
+    }
 
     var executable: String { app.appending(path: "Contents/MacOS/Dirigible").path }
 

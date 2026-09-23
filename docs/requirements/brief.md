@@ -10,7 +10,7 @@ This file keeps the original request from the user, word for word, and an Englis
 
 ## Requirements (English, STE)
 
-R1-R10 come from the original request. R11-R13 come from later messages of the user (2026-09-23).
+R1-R10 come from the original request. R11-R15 come from later messages of the user (2026-09-23).
 
 | ID | Requirement |
 |---|---|
@@ -27,6 +27,8 @@ R1-R10 come from the original request. R11-R13 come from later messages of the u
 | R11 | The app exports the final mix in the usual podcast formats: MP3 and AAC (in an `.m4a` MP4 container), plus WAV and FLAC. |
 | R12 | The app records audio from other apps, for example a Microsoft Teams, Slack, or Zoom call, so the user can record a remote guest. Each source goes to its own track, the same as a device (R3). |
 | R13 | The UI is in English and Spanish. English is the default. The app follows the language of macOS. A preference lets the user select English, Spanish, or the macOS language. |
+| R14 | The app removes the remote guest's audio that leaks into the local microphone track, by echo cancellation or offline bleed removal. It is not in the first release. |
+| R15 | The user sets each track to mono or stereo, and exports the mix in mono or stereo. |
 
 ## Constraints from the team
 
@@ -37,21 +39,22 @@ R1-R10 come from the original request. R11-R13 come from later messages of the u
 | C3 | The app is native. |
 | C4 | Code, docs, and commits are English. The UI languages are in R13. |
 
-## Open questions
+## Answered questions
 
-The first planning run answers these questions and records each answer as a decision in `docs/decisions/`.
+The first planning run (2026-09-24) answered the open questions. Each answer links to its decision.
 
-- Which features are in the first release, and in which order? R7 and R10 are too wide to build at one time. Method from the user: mine the features of Hindenburg PRO, GarageBand, and Logic Pro that are really useful for podcasters. Write the catalog to `docs/research/`, rank it by value for a podcaster, and order the releases from it. The first release is a thin path from record to edit to export.
-- What is the XML schema of a session? Guidance from the user: use our own format, because it can follow our features, unless a strong open format already fits. Check the open formats first (for example AES31-3, OpenTimelineIO, AAF, FCPXML) and record why each fits or does not. An open format can still be an import or export target.
-- How does the app align tracks from devices that have different clocks (R3, R4)?
-- How does capture survive a crash? `AVAudioFile` writes the WAV data size only at close. Options: capture to CAF and convert to WAV or FLAC at stop, or update the WAV header while recording and repair it at launch.
-- How does the input callback of each device hand buffers to its file writer without allocation or locks? Options: a ring buffer with preallocated storage in Swift, or a small C target.
-- How does the app capture the audio of another app (R12)? Options: Core Audio process taps (`AudioHardwareCreateProcessTap`, macOS 14.2 and later) or ScreenCaptureKit audio (macOS 13 and later, needs the Screen Recording permission). macOS 14.0 and 14.1 have no process taps. Which permission text does each need?
-- How does the app stop the remote guest from leaking into the local microphone track? Headphones, echo cancellation, or both?
-- Which encoder does MP3 export use (R11)? AudioToolbox encodes AAC but has no MP3 encoder. An MP3 library (for example LAME, LGPL) needs a decision record and a license check against Apache-2.0.
-- Do exports carry podcast metadata (title, artwork, chapter markers)? Hindenburg PRO does. The user did not ask for it, so the feature mining decides its release.
-- How does SwiftPM ship localized UI strings (R13) in the app bundle? Options: `.lproj/*.strings` files in `Support/Resources`, or a String Catalog with `defaultLocalization` and a copy of the SwiftPM resource bundle. How does the language preference override the macOS language?
-- Which loudness target does export use? Common podcast targets are -16 LUFS for stereo and -19 LUFS for mono.
-- WAV or FLAC by default? FLAC needs an encoder. Check what macOS 14 gives through AudioToolbox before you add a library.
-- Which noise reduction method (R8): spectral gating, RNNoise, or an Apple voice-processing unit?
-- What loudness target does auto-leveling use (R9)? Hindenburg uses loudness (LUFS) targets per clip.
+- Which features are in the first release, and in which order? A thin record, edit, and export path first. See [releases.md](releases.md) and the feature catalog in `docs/research/podcast-features.md`.
+- What is the XML schema of a session? Our own versioned XML in a document package. No open format stores the capture timing of each device. See [0003](../decisions/0003-session-file-format.md).
+- How does the app align tracks from devices that have different clocks? Timing checkpoints for each device, a drift fit, and a resample at stop. See [0004](../decisions/0004-capture-pipeline.md).
+- How does capture survive a crash? Capture to CAF segments, finalize to WAV at stop, and recovery when the session opens. See [0004](../decisions/0004-capture-pipeline.md).
+- How does the input callback hand buffers to its writer without allocation or locks? An SPSC ring with apple/swift-atomics. See [0005](../decisions/0005-swift-atomics.md).
+- How does the app capture the audio of another app, and which permission text does it need? Core Audio process taps with `NSAudioCaptureUsageDescription`. See [0006](../decisions/0006-app-audio-process-taps.md).
+- How does the app stop the remote guest from leaking into the local microphone track? Headphones and a warning first, offline removal later (R14). See [0004](../decisions/0004-capture-pipeline.md).
+- Which encoder does MP3 export use? LAME as a static C target, with the LGPL obligations. See [0007](../decisions/0007-export-formats-and-encoders.md).
+- Do exports carry podcast metadata? Yes, in Release 3. See [releases.md](releases.md).
+- How does SwiftPM ship localized UI strings, and how does the preference override the macOS language? `.lproj` tables with `Bundle.main`, and `AppleLanguages`. See [0010](../decisions/0010-ui-strings.md).
+- Which loudness target does export use? -16 LUFS and -1 dBTP for stereo and mono. See [0008](../decisions/0008-loudness-and-auto-level.md).
+- WAV or FLAC by default? 24-bit WAV, because FLAC seeks slowly. AudioToolbox encodes FLAC for export. See [0003](../decisions/0003-session-file-format.md) and [0007](../decisions/0007-export-formats-and-encoders.md).
+- Which noise reduction method? AUSoundIsolation offline, with vDSP spectral gating as the fallback. See [0009](../decisions/0009-noise-reduction.md).
+- What loudness target does auto-leveling use? -16 LUFS for a stereo clip and -19 LUFS for a mono clip, as a static clip gain. See [0008](../decisions/0008-loudness-and-auto-level.md).
+- Which SwiftPM targets make up the app? Two libraries and a thin app. See [0002](../decisions/0002-module-map.md).

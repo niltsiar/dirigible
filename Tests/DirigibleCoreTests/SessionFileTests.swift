@@ -64,6 +64,20 @@ struct SessionFileTests {
         #expect(try Session(contentsOf: package) == session)
     }
 
+    @Test func savesThatOverlapLeaveOneWholeFile() async throws {
+        let small = Session(sampleRate: 48_000)
+        let large = try fullSession()
+        let package = package
+        for _ in 0..<20 {
+            async let first: Void = Task.detached { try small.write(to: package) }.value
+            async let second: Void = Task.detached { try large.write(to: package) }.value
+            _ = try await (first, second)
+            let read = try Session(contentsOf: package)
+            #expect(read == small || read == large)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == ["Clips", "session.xml"])
+    }
+
     @Test func aFailedSaveKeepsTheOldFile() throws {
         try Session(sampleRate: 48_000).write(to: package)
         let old = try Data(contentsOf: sessionXML)

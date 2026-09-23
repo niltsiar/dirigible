@@ -145,7 +145,8 @@ private func text(_ value: Double) -> String {
 /// a part: write a temporary file, flush it to the disk, rename it, then flush the folder.
 private func replaceDurably(_ target: URL, with data: Data) throws(SessionFileError) {
     let folder = target.deletingLastPathComponent()
-    let temporary = folder.appending(path: ".session.xml.tmp")
+    // One name per save, so two saves that overlap never write into the same file.
+    let temporary = folder.appending(path: ".session.xml.\(UUID().uuidString).tmp")
 
     do throws(SessionFileError) {
         try writeAndFlush(data, to: temporary.path)
@@ -158,7 +159,7 @@ private func replaceDurably(_ target: URL, with data: Data) throws(SessionFileEr
 }
 
 private func writeAndFlush(_ data: Data, to path: String) throws(SessionFileError) {
-    let descriptor = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0o644)
+    let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL, 0o644)
     guard descriptor >= 0 else { throw posixError("open") }
     defer { close(descriptor) }
     let written = data.withUnsafeBytes { write(descriptor, $0.baseAddress, $0.count) }

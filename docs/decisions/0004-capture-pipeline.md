@@ -17,8 +17,10 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 
 **Capture.**
 
+- Before a take, read `AVCaptureDevice.authorizationStatus(for: .audio)`. If it is not determined, request access and wait. If it is denied or restricted, refuse the take and show a link to the privacy settings.
+- `startRecording` refuses a route with a channel that the device does not have (`.channelOutOfRange`), and a device channel that feeds two tracks (`.channelInUse`).
 - One IOProc per input device, from `AudioDeviceCreateIOProcIDWithBlock` with a NULL queue. AUHAL is the fallback if the IOProc path fails on hardware. This replaces the "AUHAL, one input unit per device" text in 0001.
-- The IOProc copies the whole input buffer list into one SPSC ring per device (0005) and does nothing else. Each ring record header holds the sample time, the host time, the frame count, `mNumberBuffers`, and each `mDataByteSize`. If the ring is full, the IOProc adds the lost frames to an atomic counter. The UI shows this counter during a take.
+- The IOProc copies the whole input buffer list into one SPSC ring per device (0005) and does nothing else. Each ring record header holds the sample time, the host time, the frame count, `mNumberBuffers`, each `mDataByteSize`, and the nominal rate. A property listener stores the new nominal rate in an atomic, and the IOProc copies it into each header, so the writer finds the exact first record at the new rate. If the ring is full, the IOProc adds the lost frames to an atomic counter. The UI shows this counter during a take.
 - Each ring holds 10 s of audio. It is allocated before the IOProc starts.
 - Each device has one writer on its own serial `DispatchQueue`, never on the cooperative pool. The writer drains the ring every 50 ms and takes out the channels of each track (0002, `Track.route`). It writes one float32 CAF per track with synchronous writes.
 - The writer checks each record's byte sizes against frames x channels x 4. On a mismatch, it closes the segment at that record.
@@ -31,8 +33,8 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 
 **Segments.** A new segment file starts on any of these events:
 
-- a nominal rate change, a stream format change, or IsAlive false (property listeners on each device);
-- a byte size mismatch in a ring record;
+- a new nominal rate or a byte size mismatch in a ring record header;
+- a stream format change or IsAlive false (property listeners on each device);
 - a backward jump of the sample time, or a forward jump of more than 2 s.
 
 A forward jump of 2 s or less gets silence, and the writer logs the gap. The names are `<trackID>-<take>-<segment>.caf` and `.sidecar`.
@@ -52,22 +54,25 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 - The `<recording>` element in `session.xml` (0003) is the single source of truth. An active-recordings list in Application Support is only a hint that tells the app which sessions to reopen at launch.
 - Start order: (1) save `session.xml` atomically with the new tracks and the `<recording>` element; (2) add the session URL to the list; (3) start the IOProcs. A crash between (1) and (2): the app does not reopen the session at launch, but the next open recovers it.
 - Stop order: (1) finalize; (2) save `session.xml` atomically with the clips and without `<recording>`; (3) remove the URL from the list. A crash between (2) and (3): open finds no `<recording>` and removes the stale entry.
+- Before the launch code reopens a listed session, it marks the entry "attempted" on disk. At the next launch, it does not reopen an entry that is still marked. It shows a message, and the user opens the session by hand. So a recovery that crashes the app cannot crash every launch.
 - `Studio.open` is `async`. It reads `session.xml` off the main actor. If `<recording>` is present, it runs finalize on the segment files it finds, saves, and then returns the studio. It discards a torn last sidecar record. A segment with no usable checkpoint goes on the timeline from its first record at the nominal rate, with a warning mark. Recovery is idempotent. Nothing else writes `session.xml` during recovery.
+- If finalize fails, for example on a full disk, the `<recording>` element stays. `Studio.open` still returns the studio, in the `recoveryPending` state, with the tracks of the take. It tells the user how much free space finalize needs, and it runs finalize again when the user asks. The CAF files stay untouched.
 
-**Studio state.** `Studio` has one state: `idle`, `playing`, or `recording(Take)`. In Release 1, an edit or an undo throws `.busy` while the state is `recording`. Stop records one History entry.
+**Studio state.** `Studio` has one state: `idle`, `playing`, `recording(Take)`, `finalizing(Take)`, or `recoveryPending(Take)`. The state stays `finalizing` until stop step (2) is complete. In Release 1, an edit, an undo, a save, or a new take throws `.busy` in `recording` and `finalizing`. Stop records one History entry.
 
 **Disk and sleep.**
 
-- Before a take, check the free space against the armed tracks x rate x 4 bytes, plus the finalize headroom. Show the remaining record time. Below a threshold, stop the take cleanly and tell the user.
+- A take needs 7 bytes per sample and channel on disk: 4 for the float32 CAF and 3 for the 24-bit WAV, because Release 1 keeps the CAF. The rate of use is the sum over the armed tracks of channels x rate x 7 bytes per second.
+- Before a take, show the remaining record time from the free space and that rate. During a take, stop cleanly and tell the user when the free space is less than the WAV size of the take so far plus 1 GB.
 - Hold a `kIOPMAssertPreventUserIdleSystemSleep` assertion while recording. It does not stop sleep on lid close, from the Apple menu, or on low battery (IOPMLib.h). A segment break catches the sample-time jump after a wake.
 
-**Echo (R14, Releases 1 and 2).** Headphones are the only live measure. When a session has an app source (0006) and the output is the built-in speakers, show "Use headphones". Voice processing is not used: it needs AVAudioEngine, builds its own aggregate device, ducks the call, and changes the raw signal. Offline bleed removal is R14 work in Release 3.
+**Echo (R14).** Headphones are the only live measure. From Release 2, when a session has an app source (0006) and the output is the built-in speakers, show "Use headphones". Voice processing is not used: it needs AVAudioEngine, builds its own aggregate device, ducks the call, and changes the raw signal. Offline bleed removal is R14 work in Release 3.
 
 ## Consequences
 
 - "No data loss" means: a process crash loses nothing that the writer wrote; a power loss or a kernel panic loses at most 5 s; an unplug loses the time until the device comes back.
 - Release 1 uses double disk space for each take (CAF and WAV) until the drift spike passes.
-- Hardware checks go in the run ledger as manual checks: two USB microphones for one hour (drift in ppm), a clap on two devices (alignment within 1 ms, latency sign), an unplug and replug, a rate change in Audio MIDI Setup during a take, `kill -9` during a four-track take, a forced power-off, 44.1 kHz and 48 kHz devices together.
+- Hardware checks go in the run ledger as manual checks: two USB microphones for one hour (drift in ppm), a clap on two devices (alignment within 1 ms, latency sign), an unplug and replug, a rate change in Audio MIDI Setup during a take, `kill -9` during a four-track take, a forced power-off, 44.1 kHz and 48 kHz devices together, a full disk during a take and an open after space is freed, and `tccutil reset Microphone` before a take.
 
 ## Alternatives considered
 

@@ -11,7 +11,7 @@ The Swift `Synchronization` module (`Atomic`, `Mutex`) needs macOS 15. The SDK i
 
 ## Decision
 
-Use `apple/swift-atomics` (product `Atomics`) in `DirigibleAudio`. Allocate the ring storage and its `UnsafeAtomic` or `ManagedAtomic` indexes before capture starts. The IOProc only calls atomic loads and stores on them.
+Use `apple/swift-atomics` (product `Atomics`) in `DirigibleAudio`. Use `UnsafeAtomic` only, never `ManagedAtomic` (a class) in the IOProc. The `Recorder` allocates the ring storage and its atomic indexes before capture starts, and frees them only after the IOProc is destroyed. The IOProc only calls atomic loads and stores on them.
 
 - License: Apache-2.0, the same as this repository. Apple maintains it.
 - Version: `from: "1.2.0"`.

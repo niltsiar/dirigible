@@ -49,11 +49,11 @@ The first planning run (2026-09-24) answered the open questions. Each answer lin
 - How does capture survive a crash? Capture to CAF segments, finalize to WAV at stop, and recovery when the session opens. See [0004](../decisions/0004-capture-pipeline.md).
 - How does the input callback hand buffers to its writer without allocation or locks? An SPSC ring with apple/swift-atomics. See [0005](../decisions/0005-swift-atomics.md).
 - How does the app capture the audio of another app, and which permission text does it need? Core Audio process taps with `NSAudioCaptureUsageDescription`. See [0006](../decisions/0006-app-audio-process-taps.md).
-- How does the app stop the remote guest from leaking into the local microphone track? Headphones and a warning first, offline removal later (R14). See [0004](../decisions/0004-capture-pipeline.md).
+- How does the app stop the remote guest from leaking into the local microphone track? Headphones and a warning in Release 2, offline removal in Release 3 (R14). See [0004](../decisions/0004-capture-pipeline.md).
 - Which encoder does MP3 export use? LAME as a static C target, with the LGPL obligations. See [0007](../decisions/0007-export-formats-and-encoders.md).
 - Do exports carry podcast metadata? Yes, in Release 3. See [releases.md](releases.md).
 - How does SwiftPM ship localized UI strings, and how does the preference override the macOS language? `.lproj` tables with `Bundle.main`, and `AppleLanguages`. See [0010](../decisions/0010-ui-strings.md).
-- Which loudness target does export use? -16 LUFS and -1 dBTP for stereo and mono. See [0008](../decisions/0008-loudness-and-auto-level.md).
+- Which loudness target does export use? -16 LUFS for stereo, -19 LUFS for mono, and -1 dBTP. See [0008](../decisions/0008-loudness-and-auto-level.md).
 - WAV or FLAC by default? 24-bit WAV, because FLAC seeks slowly. AudioToolbox encodes FLAC for export. See [0003](../decisions/0003-session-file-format.md) and [0007](../decisions/0007-export-formats-and-encoders.md).
 - Which noise reduction method? AUSoundIsolation offline, with vDSP spectral gating as the fallback. See [0009](../decisions/0009-noise-reduction.md).
 - What loudness target does auto-leveling use? -16 LUFS for a stereo clip and -19 LUFS for a mono clip, as a static clip gain. See [0008](../decisions/0008-loudness-and-auto-level.md).

@@ -28,6 +28,8 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 
 - Every position and length is an integer frame count at the session rate. No decimal seconds.
 - Gain is in dB. Zero values are written, not left out.
+- The model keeps the layout rule on every edit, not only at parse time. Adding, moving, or routing a clip or a file of the other layout throws `.layoutMismatch`. A layout change of a track that has clips throws too.
+- The reader refuses a file with a dangling ID (a clip whose file, or a file whose capture, does not exist in the XML). A missing or short audio file does not refuse the load: the clip gets a "missing media" state, and the player renders it as silence.
 - The take anchor: timeline start = playhead at record start + (first-frame host time - take start host time) - latency. Host time is compared only inside one take.
 - Save atomically: write a temporary file, then replace `session.xml`.
 - The reader refuses a version higher than it knows, with a clear error. Each new element or attribute that carries user data raises the version. An old app that skips an unknown element and saves would delete that data.

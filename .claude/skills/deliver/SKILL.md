@@ -47,7 +47,7 @@ Write `plan.md`:
 Run the **interrogate** skill with target `plan`. It runs the `review-panel` workflow (premortem, devil's advocate, architecture) and gives a judged verdict.
 
 - Change the plan for every "Act on" item. Record each change in `decisions.tsv`.
-- If the verdict had a critical item, run the gate again. At most two rounds. After that, record the open risk in `run.md` and continue.
+- If the verdict had a critical item, run the gate again. At most two rounds. Round 2 is the convergence round: it checks only the round-1 fixes (see the **interrogate** skill). After its fixes, record any open risk in `run.md` and continue.
 
 ## Phase 4: Implement
 
@@ -66,7 +66,7 @@ Run the **interrogate** skill with target `diff`. It runs the `review-panel` wor
 
 - Fix every "Act on" item with its own commit. A bug fix gets a regression test first.
 - Put "Consider" items you do not do now in `.scratchpads/backlog.md` with the reason.
-- If the verdict had a critical item, run the gate again after the fixes. At most three rounds.
+- If the verdict had a critical item, run the gate again after the fixes. At most three rounds. Round 2 follows up on round 1. Round 3 is the convergence round: it checks only the earlier fixes. After its fixes, the gate is closed. Its out-of-scope findings go to the backlog.
 
 ## Phase 7: Verify
 

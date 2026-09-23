@@ -5,14 +5,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-OUT="${OUT:-build}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 SWIFT_FLAGS=(-c release --arch arm64 --arch x86_64)
 
 swift build "${SWIFT_FLAGS[@]}"
 BIN_DIR="$(swift build "${SWIFT_FLAGS[@]}" --show-bin-path)"
 
-APP="$OUT/Dirigible.app"
+APP="build/Dirigible.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Dirigible" "$APP/Contents/MacOS/Dirigible"

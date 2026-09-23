@@ -12,13 +12,15 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 
 | Command | What it does |
 |---|---|
+| `make setup` | Enables the pre-commit hook in `.githooks/` (format check and debug build). Run it once per clone. |
 | `make build` | Debug build with `swift build`. |
+| `make test` | Runs the tests with `swift test`. Fast. Use it in the red-green loop. |
 | `make app` | Release build of `build/Dirigible.app` (universal, ad-hoc signed). |
-| `make test` | Builds the app, then runs all tests with `swift test`. |
+| `make test-app` | Builds the app, then runs `AppBundleTests` on that bundle. |
 | `make run` | Builds and opens the app. |
 | `make lint` | `swift format lint --strict` on all Swift files. |
 | `make format` | Formats all Swift files in place. |
-| `make check` | `lint` and `test`. Run it before every commit. It must be green. |
+| `make check` | `lint`, `test`, and `test-app`. Run it before every commit. It must be green. |
 
 The toolchain is Xcode 26 with Swift 6.2. There is no Xcode project. See `docs/decisions/0001-native-swift-stack.md`.
 
@@ -69,7 +71,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why.
 - There is no remote. Do not add one and do not push.
 - Commit signing is off for this repo only (`git config --local commit.gpgsign false`), so long runs do not stop for a signing prompt. Do not change global git config.
-- Never use `--no-verify`. Never rewrite commits that are on `main`.
+- The pre-commit hook refuses a commit that fails `make lint` or does not build. Never use `--no-verify`. Never rewrite commits that are on `main`.
 
 ## Architecture rules
 

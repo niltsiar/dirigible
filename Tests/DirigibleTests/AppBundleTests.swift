@@ -1,12 +1,11 @@
 import Foundation
 import Testing
 
-/// Checks the app bundle that `scripts/bundle.sh` builds. Run through `make test`,
-/// which builds the bundle first.
-@Suite struct AppBundleTests {
-    let app = URL(filePath: #filePath)
-        .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        .appending(path: "build/Dirigible.app")
+/// Checks the app bundle that `scripts/bundle.sh` builds. `make check` builds the bundle
+/// and sets `DIRIGIBLE_APP` to its path, so these tests never read a stale bundle.
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_APP"] != nil, "Run through make check"))
+struct AppBundleTests {
+    let app = URL(filePath: ProcessInfo.processInfo.environment["DIRIGIBLE_APP"] ?? "")
 
     var executable: String { app.appending(path: "Contents/MacOS/Dirigible").path }
 

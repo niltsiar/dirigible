@@ -12,6 +12,7 @@ Status: the project is new. The build, the tests, and the agent workflow are rea
 ## Build and run
 
 ```sh
+make setup   # once per clone: enables the pre-commit hook
 make run
 ```
 
@@ -20,8 +21,8 @@ make run
 | Command | What it does |
 |---|---|
 | `make app` | Builds `build/Dirigible.app`, universal and ad-hoc signed. |
-| `make test` | Builds the app and runs the tests. |
-| `make check` | Runs the format check and the tests. |
+| `make test` | Runs the tests. |
+| `make check` | Runs the format check, the tests, and the checks on the built app. |
 | `make format` | Formats the Swift code. |
 
 ## Keep the microphone permission across builds

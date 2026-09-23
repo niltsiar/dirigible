@@ -1,6 +1,6 @@
 # Dirigible
 
-Dirigible is a podcast recorder and editor for macOS 14 Sonoma and later. It records several microphones and audio interfaces at the same time, each to its own track, without a macOS aggregate device. It is modeled on Hindenburg PRO.
+Dirigible is a podcast recorder and editor for macOS 14 Sonoma and later. It records several microphones, audio interfaces, and other apps (for example a Teams or Zoom call) at the same time, each to its own track, without a macOS aggregate device. The app is in English and Spanish. It is modeled on Hindenburg PRO.
 
 Status: the project is new. The build, the tests, and the agent workflow are ready. The recorder and the editor are not built yet. `docs/requirements/brief.md` lists what the app will do.
 

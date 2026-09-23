@@ -72,16 +72,16 @@ const targetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read it and every file it references.`
   : `The target is the diff of the current branch against ${scope}: run \`git diff ${scope}...HEAD\` and \`git diff\` for uncommitted work. Read the surrounding code, not only the hunks.`
 
-// Agent types load at session start. When the session started before an agent file
-// existed, or another harness runs this script, fall back to a general agent that
-// reads the same agent file as its role.
 const priorText = prior.length ? `Earlier rounds of this gate wrote these verdicts. Read them first:\n${prior.map(p => `- ${p}`).join('\n')}` : ''
 const MODE_TEXT = {
   open: '',
   followup: `Round ${round} of ${maxRounds}. ${priorText}\nDo not raise an item that an earlier round already fixed, unless the fix is wrong. Set priorItem on each finding.`,
-  converge: `Round ${round} of ${maxRounds}: the convergence round. It closes the gate. ${priorText}\nCheck only these two things. (1) Is each earlier "Act on" item fixed, correctly, and consistently with the other fixes? (2) Did a fix introduce a new defect in the text or code that it changed? Report nothing else. Do not review areas that no earlier item or fix touched. Each finding must set priorItem to the item or fix it concerns.`,
+  converge: `Round ${round} of ${maxRounds}: the convergence round. It closes the gate. ${priorText}\nCheck only these two things. (1) Is each earlier "Act on" item fixed, correctly, and consistently with the other fixes? (2) Did a fix introduce a new defect in the text or code that it changed? Do not review areas that no earlier item or fix touched. Each finding must set priorItem to the item or fix it concerns. Exception: report a critical defect (data loss, crash, security) wherever you see it, with priorItem "none".`,
 }
 
+// Agent types load at session start. When the session started before an agent file
+// existed, or another harness runs this script, fall back to a general agent that
+// reads the same agent file as its role.
 async function review(lens) {
   const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings. An empty list is a valid result.`
   const opts = { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS }
@@ -102,24 +102,22 @@ const results = await pipeline(
   (review, lens) => {
     // A reviewer that returned nothing failed. Count it as missing, not as a clean review.
     if (!review || !Array.isArray(review.findings)) return null
-    const findings = review.findings
-    if (!findings.length) return { lens: lens.key, raised: 0, survived: [] }
+    // In the convergence round, a finding that names no earlier item or fix is out of scope,
+    // unless it is critical. Split by the reviewer's own field, not by the skeptic's wording.
+    const unscoped = f => mode === 'converge' && f.severity !== 'critical' && (!f.priorItem || /^none$/i.test(f.priorItem.trim()))
+    const outOfScope = review.findings.filter(unscoped)
+    const findings = review.findings.filter(f => !unscoped(f))
+    if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], outOfScope }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
-    const scopeRule = mode === 'converge'
-      ? ` This is the convergence round. Also refute a finding that does not concern an earlier "Act on" item or a defect in text or code that a fix changed, and say "out of scope" in its reason. ${priorText}`
-      : ''
     return agent(
-      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld.${scopeRule} Do not modify files.\n\nFindings:\n${list}`,
+      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. Do not modify files.\n\nFindings:\n${list}`,
       { label: `verify:${lens.key}`, phase: 'Verify', schema: VERDICTS, effort: 'medium' },
     ).then(v => {
       const upheld = new Map(((v && v.verdicts) || []).map(x => [x.index, x]))
-      const judged = findings.map((f, i) => ({ ...f, skeptic: upheld.get(i) }))
-      const survived = judged.filter(f => !f.skeptic || f.skeptic.upheld)
-      // Out-of-scope findings of a convergence round go to the backlog, not to the verdict.
-      const outOfScope = mode === 'converge'
-        ? judged.filter(f => f.skeptic && !f.skeptic.upheld && /out of scope/i.test(f.skeptic.reason))
-        : []
-      return { lens: lens.key, raised: findings.length, survived, outOfScope }
+      const survived = findings
+        .map((f, i) => ({ ...f, skeptic: upheld.get(i) }))
+        .filter(f => !f.skeptic || f.skeptic.upheld)
+      return { lens: lens.key, raised: review.findings.length, survived, outOfScope }
     })
   },
 )

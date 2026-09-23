@@ -30,7 +30,7 @@ Pass `round` and the verdict files of the earlier rounds in `prior`. The workflo
 |---|---|---|
 | 1 | open | Review the whole target. |
 | middle | follow-up | Read `prior`. Do not re-raise an item that is fixed, unless the fix is wrong. |
-| last (`round` = `maxRounds`) | convergence | Check only that each earlier "Act on" item is fixed correctly and consistently, and that no fix added a defect in what it changed. Nothing else. |
+| last (`round` = `maxRounds`) | convergence | Check only that each earlier "Act on" item is fixed correctly and consistently, and that no fix added a defect in what it changed. Report a critical defect anywhere. Nothing else. |
 
 Each round of review finds new edge cases. An open last round widens the review and never closes the gate. The convergence round closes it.
 
@@ -71,8 +71,8 @@ For each finding, give the lens that raised it, the bucket, and one line of rati
 
 In the convergence round:
 
-- Only a finding about an earlier item or a fix can be "Act on".
-- The workflow returns other findings in `outOfScope`. Put them in `.scratchpads/backlog.md` as "Consider" items with their lens. They do not block the gate.
+- Only a finding about an earlier item or a fix can be "Act on". Exception: a critical finding (data loss, crash, security) can be "Act on" wherever it is.
+- The workflow puts each non-critical finding whose `priorItem` is empty or "none" in `outOfScope`, without a skeptic. Put these in `.scratchpads/backlog.md` as "Consider" items with their lens. They do not block the gate.
 - After you fix its "Act on" items, the gate is closed. Do not run another round. Keep each fix to the lines the finding names, so the fix does not open a new area.
 
 ## Output format

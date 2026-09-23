@@ -85,7 +85,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - **No data loss.** Audio that the app captured stays on disk and readable after a crash, a device unplug, or a full disk. Session saves are atomic. A WAV header gets its data size only when the file closes, so write captured audio to a format that survives a crash (for example CAF) or repair the header at launch.
 - **Every device has its own clock.** Store the timing data (host time and sample time) needed to align tracks from different devices.
 - **Apple frameworks first.** Core Audio, AVFoundation, AudioToolbox, Accelerate. A third-party dependency needs a decision record in `docs/decisions/`.
-- **Localized UI.** Every user-facing string has an English text and a Spanish translation. No UI text is only in code. Today the only strings are the Info.plist permission texts: English in `Support/Info.plist`, Spanish in `Support/Resources/es.lproj/InfoPlist.strings`, checked by `AppBundleTests`. The first R13 run decides how SwiftPM ships the UI strings in the app bundle.
+- **Localized UI.** Every user-facing string has an English text and a Spanish translation. No UI text is only in code. Today the only strings are the Info.plist permission texts: English in `Support/Info.plist`, Spanish in `Support/Resources/es.lproj/InfoPlist.strings`, checked by `AppBundleTests`. UI strings go in `Support/Resources/<lang>.lproj/Localizable.strings` and views look them up in `Bundle.main`, never `Bundle.module` (decision 0010).
 - **File size.** A Swift file over 400 lines needs a reason. Split by responsibility, not by execution order.
 
 ## Testing rules

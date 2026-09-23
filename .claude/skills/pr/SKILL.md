@@ -38,7 +38,7 @@ Use this template for writing the PR body:
 Requirements: <IDs from docs/requirements/brief.md>
 ```
 
-Put the evidence and the verdict in the body. `.scratchpads/` is local only, so never link to it. Write the body in STE (the **technical-writing** skill). The PR title is the Conventional Commits summary of the run, for example `feat(capture): record each device to its own track`.
+Put the evidence and the verdict in the body. `.scratchpads/` is local only, so never link to it. Write the body in STE (the **technical-writing** skill). The PR title is a plain sentence that says what the PR gives, in sentence case, with no `type(scope):` prefix. Example: `Record each device to its own track`. Conventional Commits apply to commit subjects, not to PR titles.
 
 ## Sections
 

@@ -5,7 +5,7 @@ import Testing
 struct SessionFileTests {
     let package: URL
 
-    init() throws {
+    init() {
         package = FileManager.default.temporaryDirectory
             .appending(path: "SessionFileTests-\(UUID().uuidString)/Episode.dirigible")
     }

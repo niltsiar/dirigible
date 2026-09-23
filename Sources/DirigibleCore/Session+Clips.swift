@@ -45,7 +45,7 @@ extension Session {
         var moved = tracks[source].clips[index]
         moved.start = start
         var copy = self
-        _ = copy.tracks[source].clips.remove(at: index)
+        copy.tracks[source].clips.remove(at: index)
         try copy.place(moved, on: track)
         self = copy
     }

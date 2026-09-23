@@ -58,7 +58,7 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         storage.insert(clip.cut(to: frame..<clip.end, id: rightID), at: index + 1)
     }
 
-    mutating func remove(at index: Int) -> Clip {
+    mutating func remove(at index: Int) {
         storage.remove(at: index)
     }
 
@@ -66,7 +66,7 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         storage[index] = clip
     }
 
-    mutating func insert(_ clip: Clip) {
+    private mutating func insert(_ clip: Clip) {
         let index = storage.firstIndex { $0.start > clip.start } ?? storage.endIndex
         storage.insert(clip, at: index)
     }

@@ -75,6 +75,17 @@ extension Session {
         tracks[track].clips.replace(at: index, with: clip)
     }
 
+    /// Sets the clips of a track from a file: checks each clip and refuses two clips that overlap.
+    mutating func setClips(_ clips: [Clip], on track: TrackID) throws(SessionError) {
+        let index = try trackIndex(track)
+        var taken = clipIDs
+        for clip in clips {
+            try check(clip, on: tracks[index])
+            guard taken.insert(clip.id).inserted else { throw .duplicateID(clip.id.rawValue) }
+        }
+        tracks[index].clips = try ClipLane(validating: clips)
+    }
+
     /// Checks the clip against its file and its track. The comparisons cannot overflow:
     /// the start is in `0...Frames.limit`, and the length is not more than the file length.
     func check(_ clip: Clip, on track: Track) throws(SessionError) {

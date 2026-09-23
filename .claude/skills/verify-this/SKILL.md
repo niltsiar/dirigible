@@ -1,6 +1,6 @@
 ---
 name: verify-this
-description: "Verify a claim with fresh local evidence: restate it falsifiably, capture baseline and treatment, compare artifacts, and return VERIFIED, NOT VERIFIED, or INCONCLUSIVE."
+description: "Use for \"verify this\", \"prove it works\", \"did this fix it\", or before a run marks a task done. Verify a claim with fresh local evidence: restate it falsifiably, capture baseline and treatment, compare artifacts, and return VERIFIED, NOT VERIFIED, or INCONCLUSIVE."
 ---
 
 # Verify This
@@ -28,18 +28,19 @@ Do not use this for vague claims like "the code is cleaner". Ask for a measurabl
 ## Local Surfaces
 
 - Code behavior: focused unit/integration tests or a minimal repro script.
-- CLI/TUI behavior: `control-cli`, terminal transcript, or demo recording.
-- UI behavior: `control-ui`, screenshots, accessibility snapshots, or browser traces.
-- API behavior: local HTTP/RPC request and response diff.
-- Performance: same-machine baseline/treatment timings or CPU profiles.
-- Memory: heap snapshots before and after the suspected operation.
+- Audio files: `afinfo <file>` for format, channels, sample rate, and duration. `ffprobe -hide_banner <file>` for container facts.
+- Audio levels: `ffmpeg -i <file> -af ebur128 -f null -` for integrated loudness (LUFS) and true peak. `ffmpeg -i <file> -af astats -f null -` for RMS, peak, and noise floor.
+- Session files: `xmllint --noout <file>` for well-formed XML, then read the actual elements.
+- App behavior: launch the bundle with `make run`, then capture a screenshot with `screencapture -l <windowid>` or `screencapture -x <file>`.
+- Performance: same-machine baseline and treatment timings, or an Instruments trace from `xcrun xctrace record`.
+- Memory: `leaks <pid>` or `footprint <pid>` before and after the suspected operation.
 
 ## Artifact Layout
 
 When safe to write artifacts:
 
 ```text
-/tmp/verify-this/<claim-slug>/
+./.scratchpads/verify/<claim-slug>/
 ├── claim.md
 ├── timeline.md
 ├── baseline/
@@ -48,7 +49,7 @@ When safe to write artifacts:
 └── verdict.md
 ```
 
-If artifacts may contain sensitive code, prompts, screenshots, HTTP bodies, or heap data, keep only the minimal inline evidence unless the user agrees to disk storage.
+`.scratchpads/` is gitignored. Recordings of real voices are personal data: keep them there, never commit them.
 
 ## Verdict Rules
 

@@ -1,110 +1,81 @@
 ---
 name: interrogate
-description: "Use for \"interrogate\", \"adversarial review\", \"multi-model review\", \"challenge this\", \"stress test this code\", \"find blind spots\", or \"tear this apart\". Multiple LLM reviewers challenge changes from independent angles."
-disable-model-invocation: true
+description: "Use for \"interrogate\", \"review panel\", \"adversarial review\", \"premortem\", \"devil's advocate\", \"challenge this\", or \"tear this apart\", and at the plan gate and the code gate of the deliver skill. Several reviewer subagents with different lenses attack a plan or a diff, then the lead judges the findings."
 ---
 
 # Interrogate
 
-Spawn one reviewer per configured model to adversarially review code changes. Each model gets the same prompt and rubric. The adversarial signal comes from model diversity, not assigned personas.
+Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a different lens. The adversarial signal comes from lens diversity and model diversity. The deliverable is a judged verdict. Do NOT auto-apply changes inside this skill. The caller (usually the deliver skill) acts on the verdict.
 
-The deliverable is a synthesized verdict. Do NOT auto-apply changes.
+## Step 1: Determine the target and the scope
 
-## Step 1, Determine Scope
+- **Plan gate.** The target is a plan file, usually `.scratchpads/runs/<run>/plan.md`, plus any design sketch.
+- **Code gate.** The target is the diff of the current branch: `git diff main...HEAD` plus the working tree. If the user points at files or a commit range, use that.
 
-Identify what to review from context:
+## Step 2: State the intent
 
-- If the user points at specific files or a diff, use that
-- If on a feature branch, run `git diff main...HEAD` (or the appropriate base branch) for the full changeset
-- If the user's message references recent work, gather the relevant files
+Write one paragraph that states the intent. Derive it from the plan, the commit messages, and the task in the run ledger. If you are unsure about the intent, stop and resolve it first. Reviewers judge the execution against this paragraph.
 
-Package the diff (or file contents) plus any surrounding context files the reviewers need to understand the code.
+## Step 3: Run the panel
 
-## Step 2, State the Intent
+Run the saved workflow `review-panel` with the Workflow tool:
 
-Before spawning reviewers, state the intent explicitly. Derive this from:
+```
+Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent: "<paragraph>", scope: "<plan path, or base ref such as main>" } })
+```
 
-- The user's message
-- Commit messages
-- PR description if one exists
-- The code itself
+The workflow runs these reviewer agents from `.claude/agents/` in parallel, then asks independent skeptics to refute each finding:
 
-Write one clear paragraph. If you're unsure about the intent, ask the user before proceeding.
+| Lens | Agent | Plan gate | Code gate |
+|---|---|---|---|
+| Premortem | `premortem` | yes | yes |
+| Devil's advocate | `devils-advocate` | yes | yes |
+| Architecture | `architecture-reviewer` | yes | yes |
+| Correctness and code quality | `code-quality-reviewer` | no | yes |
 
-## Step 3, Spawn Reviewers
+If the Workflow tool is not available (for example, another agent harness reads this file), spawn the same agents with the Agent tool in one message, one call per lens. Fill each prompt from `references/reviewer-prompt.md` with the intent, the target, `references/rubric.md`, and, at the code gate, `references/code-quality-review.md`.
 
-Launch all reviewers in a single message using the Task tool. Use the `interrogate reviewers` list from `~/.cursor/rules/pstack-models.mdc` when present, one reviewer per entry, extending or shrinking the Reviewer A/B/C labels below to the configured entry count. Otherwise use the table defaults.
+## Step 4: Synthesize
 
-| Subagent | Default model |
-|----------|---------------|
-| Reviewer A | `claude-opus-5-5-max` |
-| Reviewer B | `gpt-5.6-sol-max` |
-| Reviewer C | `grok-4.7-xhigh-fast` |
+1. Parse all surviving findings.
+2. Findings from two or more lenses independently are the highest signal.
+3. Merge duplicates and note which lenses raised them.
+4. Note disagreements. One lens that contradicts another is useful context.
 
-For each reviewer:
-- `subagent_type`: `generalPurpose`
-- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line
-- `readonly`: `true`
+## Step 5: Lead judgment
 
-If a model slug is rejected as unresolvable when you try to spawn the subagent, check the valid slugs in the Task tool's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with the valid slug, and open a separate PR to update the configured value or default table. Do not block the review on the slug issue. If the configured value is `inherit-parent` or `auto`, omit `model` instead. Never treat those aliases as broken slugs or enter this fallback for them.
+You are the lead reviewer, a pragmatic senior engineer, not a neutral aggregator. Read `references/lead-judgment.md`.
 
-Read `references/reviewer-prompt.md` and fill in the template with:
-1. The stated intent
-2. The diff or file contents
-3. The review rubric from `references/rubric.md`
-4. The code-quality lens from `references/code-quality-review.md`
+Put every finding in one bucket:
 
-The same filled template goes to all reviewers, so every model applies the code-quality lens.
+- **Act on.** Real issues for correctness, data safety, or maintainability given the actual goals. These block the gate.
+- **Consider.** Legitimate points, but the cost of acting now is not clearly worth it.
+- **Noted.** Valid but not actionable at this stage.
+- **Dismissed.** Wrong, nitpicky, or missing context. Give the reason.
 
-## Step 4, Synthesize
+For each finding, give the lens that raised it, the bucket, and one line of rationale.
 
-As results come back, build a unified picture:
+## Output format
 
-1. **Parse all findings** from the reviewers
-2. **Identify consensus**. Findings raised by 2+ models independently are highest signal.
-3. **Identify lone-model findings**. Still worth reading, but weight accordingly.
-4. **Deduplicate**. Different models may describe the same issue differently. Merge these and note which models raised it.
-5. **Note disagreements**. If one model flags something and another explicitly says the opposite, that's useful context for the verdict.
-
-## Step 5, Lead Judgment
-
-You are the lead reviewer, a pragmatic senior engineer, not a neutral aggregator.
-
-Read `references/lead-judgment.md` for the full framework.
-
-Categorize every finding using these buckets:
-
-- **Act on**. Real issues affecting correctness, security, or maintainability given the actual goals. These would block a real PR.
-- **Consider**. Legitimate points, but you're not sure they outweigh the cost of addressing them right now. Worth the user's attention.
-- **Noted**. Technically valid but not actionable. Context-dependent, premature optimization, or low-impact given the current stage.
-- **Dismissed**. Wrong, nitpicky, or missing context. Brief explanation why.
-
-For each finding, include:
-- Which model(s) raised it
-- The category (act on / consider / noted / dismissed)
-- A one-line rationale for the categorization
-
-## Output Format
-
-Present the verdict in this structure:
+Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return it:
 
 ### Intent
-> [The stated intent paragraph from Step 2]
+> [The paragraph from step 2]
 
-### Reviewers
-- Reviewer [label]: [model name], [N findings] (one bullet per reviewer)
+### Panel
+- [lens]: [N findings raised], [N survived refutation]
 
-### Act On
-[Findings that should be addressed. For each: description, which models raised it, why it matters.]
+### Act on
+[Description, lenses, why it matters.]
 
 ### Consider
-[Findings worth thinking about. For each: description, which models raised it, tradeoff involved.]
+[Description, lenses, tradeoff.]
 
 ### Noted
-[Valid but low-priority. Brief list.]
+[Brief list.]
 
 ### Dismissed
-[Rejected findings with brief rationale.]
+[Finding and reason.]
 
-### Agreement Map
-[Where did models agree, where did they diverge, and what does the pattern of agreement/disagreement tell us?]
+### Agreement map
+[Where the lenses agreed or diverged, and what the pattern says.]

@@ -1,71 +1,64 @@
 ---
 name: reflect
-description: Spawn three parallel review subagents over the active transcript, surface learnings, and route each to a concrete edit on an existing skill. Use when the user says reflect.
-disable-model-invocation: true
+description: Mine the session for durable learnings with three parallel reviewer subagents, then route each learning to a concrete edit on a repo skill, AGENTS.md, or a structural check. Use when the user says reflect, and as the last step of every deliver run.
 ---
 
 # Reflect
 
-Mine the current conversation for durable learnings, then route them into skill edits.
+Mine the current session for durable learnings, then route them into edits. This skill is how the workflow of this repo improves itself.
 
 ## When to invoke
 
-Invoke when the user says "reflect" or "/reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
+Invoke when the user says "reflect" or "/reflect", and at the end of every deliver run. Skip when the session was trivial or when every step followed an existing skill without friction. One-offs are not learnings.
 
 ## Process
 
-### 1. Locate the active transcript
+### 1. Locate the session transcript
 
-The parent finds its own transcript file before fanning out. The system prompt names the active workspace's `agent-transcripts/` directory. Use that path. Do not glob across `~/.cursor/projects/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.
+Claude Code stores transcripts at `~/.claude/projects/<project-slug>/<session-id>.jsonl`. The project slug is the absolute repo path with every `/` and `.` replaced by `-`. Only read the transcript of this project. Do not glob across other project folders. That reads private chats from unrelated work.
 
 ```bash
-ls -t <agent-transcripts>/*.jsonl <agent-transcripts>/*/*.jsonl <agent-transcripts>/*/subagents/*.jsonl 2>/dev/null | head -10
+ls -t ~/.claude/projects/-Users-*-audio-sw-for-delineas/*.jsonl | head -3
 ```
 
-Three transcript layouts: legacy flat (`<id>.jsonl`), current nested (`<id>/<id>.jsonl`), and subagent (`<parent>/subagents/<child>.jsonl`).
-
-For each candidate, read the first JSONL line and check that `message.content[0].text` contains the conversation's opening user prompt. Take the matching path. If no path resolves, write a tight digest of the session and pass that instead.
+Take the newest file whose first user message matches this session. If no path resolves, write a tight digest of the session and pass that instead. Also pass the run ledger (`.scratchpads/runs/<run>/`), which records decisions and review verdicts.
 
 ### 2. Spawn three reviewers in parallel
 
-One message, three `Task` calls, `subagent_type: generalPurpose`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly strips MCPs.
+One message, three `Agent` calls with `subagent_type: general-purpose`. Use different models where possible to get different angles.
 
 | Lens | `model` | Prompt template |
 |---|---|---|
-| Judgment | your configured reflect-judgment model (default `claude-opus-5-5-max`) | `references/judgment-reviewer.md` |
-| Tooling | your configured reflect-tooling model (default `gpt-5.6-sol-max`) | `references/tooling-reviewer.md` |
-| Divergent | your configured reflect-judgment model (default `claude-opus-5-5-max`) | `references/divergent-reviewer.md` |
+| Judgment | `opus` | `references/judgment-reviewer.md` |
+| Tooling | `sonnet` | `references/tooling-reviewer.md` |
+| Divergent | `opus` | `references/divergent-reviewer.md` |
 
-Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in the `Task` response body.
+Pass each template verbatim, with the transcript path or digest where marked. Reviewers return findings in their final message.
 
 ### 3. Synthesize
 
-One `Task` call, `subagent_type: generalPurpose`, using your configured reflect-judgment model (default `claude-opus-5-5-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly strips MCPs. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `Agent` call, `subagent_type: general-purpose`, `model: opus`. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns an Accepted, Rejected, and Backlog list.
 
 ### 4. Structural enforcement check
 
-Sanity-check the synthesizer's Accepted list. For any item that would be enforced more reliably by a lint rule, script, metadata flag, or runtime check, move it from Accepted to Backlog. See the **encode-lessons-in-structure** principle skill.
+For each Accepted item that a lint rule, script, test, or `Makefile` target would enforce more reliably, change the proposal to that mechanism. See the **encode-lessons-in-structure** principle in `docs/principles.md`. A mechanism beats a sentence.
 
 ### 5. Apply
 
-Before applying any Accepted edit, present the synthesizer's full Accepted/Rejected/Backlog output to the user and wait for explicit approval. The user picks which subset to apply and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
+This repo allows the workflow to improve itself without a human in the loop, because every change is a git commit that a human can read and revert.
 
-Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval.
+- Apply each Accepted edit to repo files only: `.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `docs/`, `Makefile`, `scripts/`. Never edit user-level files under `~/.claude/`.
+- Commit each learning as its own commit, for example `docs(skills): tdd requires tolerance on DSP asserts`. The body says which session moment caused it.
+- Do not apply an edit that deletes a rule from `AGENTS.md` or weakens a test gate. Put it in the backlog for the user.
+- Append Backlog items to `.scratchpads/backlog.md`.
+- Append one line per applied learning to `.scratchpads/learnings.md` with the date and the commit hash.
 
-For each approved Accepted item, follow the Routing field exactly:
+If the user is present and asked for a checkpoint, show the Accepted list first and wait for approval.
 
-- Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
-- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to Cursor's built-in `create-skill` skill and run its draft / test / iterate loop.
-- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to `create-skill` and run its description-optimization loop.
-- `new skill via create-skill: <kebab-name>`: hand creation to `create-skill`. Do not invent the shape ad hoc.
-
-If your environment ships a SKILL.md validator, run it on every touched skill before declaring done. Skip this step if it doesn't.
-
-### 6. Summarize for the user
+### 6. Summarize
 
 Short list, no preamble:
 
-- Edits applied: `<skill path>`. What changed, one line each.
-- New skills created: `<skill path>`. One line each (rare).
-- Backlog filed to the devex tracker: `<issue title>` (`<tags>`). One line each.
-- Dropped: one line per rejected finding + reason from the synthesizer.
+- Edits applied: `<path>` and commit hash, one line each.
+- Backlog: one line each.
+- Dropped: one line per rejected finding and its reason.

@@ -67,6 +67,16 @@ Is the complexity justified by what the code accomplishes?
 
 Simpler is better unless simpler is wrong. Three lines of duplication beat a premature abstraction.
 
+## Audio and real-time safety
+
+Only for code that touches audio I/O or DSP.
+
+- No allocation, locks, file I/O, logging, or Swift `async` work on a real-time audio thread (render or input callbacks). Hand data to another thread through a lock-free ring buffer or `AVAudioFile` on a writer queue.
+- Every capture device has its own clock. Look for code that assumes two devices share a sample clock or a start time. Recording must store enough timing data (host time, sample time) to align tracks later.
+- A recording must survive a crash or a device disconnect: data already captured stays on disk and readable.
+- Sample-rate and channel-count conversions are explicit. No silent resampling.
+- DSP output is compared with a tolerance, not exact equality.
+
 ## Security
 
 Only flag security issues you can actually trace through the code. "This could be an injection vector" without showing the input path is not useful.

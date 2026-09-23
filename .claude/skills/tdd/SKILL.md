@@ -1,43 +1,39 @@
 ---
 name: tdd
-description: "Use only when the user explicitly asks for TDD, a failing test, or a regression test, OR when the bug has an obvious cheap local test target. Skip when the test path is unclear, expensive, integration-heavy, or not requested."
-disable-model-invocation: true
+description: "Write the failing test first, then the code. Use for every behavior change in this repo: a new feature slice, a bug fix, or a regression test. Prefer an integration test that drives the real module with real files and real audio buffers."
 ---
 
-# TDD Bug Fix
+# Test-first delivery
 
-When fixing a bug with a clear, cheap test path, make the broken behavior executable before changing production code. The goal is a focused regression test that fails before the fix and passes after it.
+Make the intended behavior executable before you change production code. The test fails before the change and passes after it.
 
-Do not force a test when it would be impractical. If the available test would require broad harness setup, brittle mocks, slow end-to-end infrastructure, production-only state, vague reproduction steps, or large unrelated fixture churn, skip adding a new test and use the closest useful verification instead.
+This repo prefers integration tests over unit tests. An integration test calls a module through its public API, the same way the app calls it, with real inputs: real WAV or FLAC files on disk, real `AVAudioPCMBuffer` data, real session XML. Write a unit test only for a pure function with many edge cases, where an integration test would be slow or hide the failing case.
 
 ## Workflow
 
-1. **Understand the bug.** Identify the intended behavior, current behavior, affected path, and smallest observable reproduction.
-2. **Choose the narrowest executable check.** Prefer the closest unit, component, integration, or regression test already used for that codepath. If no practical test path is obvious, do not create one from scratch just to satisfy the workflow.
-3. **Write the failing test first.** Add the smallest focused test that would have caught the bug. The test should encode intended behavior, not mirror the current implementation.
-4. **Run the new test before fixing.** Confirm it fails for the intended reason. If it passes or fails for an unrelated reason, correct the test or reproduction before editing the implementation.
-5. **Fix the bug.** Make the smallest production change that satisfies the intended behavior while preserving nearby contracts.
-6. **Rerun the regression test.** Confirm the test now passes.
+1. **Understand the behavior.** Identify the intended behavior, the current behavior, the affected path, and the smallest observable result.
+2. **Choose the check.** Prefer the integration test target of the module that owns the behavior. Generate audio fixtures in the test (a sine tone, silence, white noise at a known level) instead of committing large binary files.
+3. **Write the failing test first.** The test encodes intended behavior, not the current implementation. Assert a literal expected value or an observable effect: a file on disk, a sample count, a level in dBFS within a stated tolerance, a parsed XML element.
+4. **Run the new test before the fix.** Confirm that it fails for the intended reason. If it passes, or fails for an unrelated reason, correct the test first.
+5. **Make the change.** Write the smallest production change that satisfies the test.
+6. **Rerun the test and the full suite.** Run `make test`. Confirm the new test passes and nothing else broke.
+7. **Commit in order.** When the change is a bug fix, you can commit the failing test first (`test:`) and the fix on top (`fix:`). For a feature, commit the test and the code together (`feat:`).
 
-## If a Failing Test Is Impractical
+## If a failing test is impractical
 
-Do not silently skip the regression step. Before fixing, explicitly explain why a failing test is impossible or not worth the cost, then choose the closest executable regression check available. Examples include a targeted script, manual reproduction command, browser automation, snapshot comparison, log assertion, or focused integration check.
+Some behavior needs hardware: a real microphone, two physical audio interfaces, a permission prompt. Do not silently skip the regression step. Before the change, explain why an automated test is impossible, then pick the closest executable check: an offline render, a virtual device, a script that records five seconds and prints the file facts with `afinfo` or `ffprobe`. Record the manual check in the run ledger so a human can repeat it.
 
-Prefer no new test over a bad test. A bad test is one that mostly tests mocks, encodes current implementation details, depends on timing or unrelated global state, needs expensive infrastructure for a small fix, or would be deleted immediately after proving the fix.
+Prefer no new test over a bad test. A bad test mostly tests mocks, encodes implementation details, depends on timing or global state, or would still pass if every function it calls returned nothing.
 
 ## Guardrails
 
-- Do not change tests merely to match a wrong implementation.
-- Do not weaken existing assertions unless the expected behavior has genuinely changed and the reason is clear.
-- Keep the regression test focused on the bug. Avoid broad fixture churn or unrelated coverage expansion.
-- Do not add tests when the practical signal is weak. Use manual or scripted verification and say why.
-- If the bug is flaky, make the test deterministic where possible and document the signal being locked down.
-- If the bug exposes a broader class of failures, first land the focused regression path, then consider additional sibling coverage.
+- Do not change tests to match a wrong implementation.
+- Do not weaken existing assertions unless the expected behavior changed, and say why.
+- Audio comparisons use a stated tolerance, never exact float equality on processed samples.
+- If a test is flaky, make it deterministic or delete it. Do not retry until green.
 
-## Final Response
+## Final response
 
-Report the evidence, not just the outcome:
-
-- Name the failing-before test or executable check and the failure it produced.
-- Name the passing-after test run and any nearby validation performed.
-- If failing-before evidence could not be demonstrated, state why and describe the closest regression check used instead.
+- Name the failing-before test and the failure it produced.
+- Name the passing-after run (`make test`) and its result.
+- If failing-before evidence was impossible, state why and name the closest check you used.

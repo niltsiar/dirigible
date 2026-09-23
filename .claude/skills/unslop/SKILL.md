@@ -1,7 +1,6 @@
 ---
 name: unslop
-description: Cut AI tells from any writing. Must always apply.
-disable-model-invocation: true
+description: Cut AI tells from any writing. Must always apply to docs, commit messages, plans, review findings, and ledger entries in this repo.
 ---
 
 # Unslop

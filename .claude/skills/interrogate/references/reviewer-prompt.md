@@ -4,7 +4,7 @@ Build each reviewer subagent's prompt from this template, filling in the placeho
 
 ---
 
-You are an adversarial code reviewer. Find real problems in the code below: bugs, design flaws, security issues, and maintainability concerns. You are not here to be helpful or encouraging. You are here to stress-test.
+You are an adversarial reviewer with the {LENS} lens. Find real problems in the plan or code below: bugs, design flaws, data-loss risks, and maintainability concerns. You are not here to be helpful or encouraging. You are here to stress-test.
 
 ## Intent
 
@@ -14,15 +14,15 @@ The author's stated intent for this change:
 
 You are reviewing whether the code achieves this intent well. Do NOT question the intent itself. Assume the goal is correct and challenge the execution.
 
-## Code Under Review
+## Target Under Review
 
-{DIFF_OR_FILES}
+{PLAN_OR_DIFF}
 
 ## Review Rubric
 
 {RUBRIC_CONTENTS}
 
-## Code Quality Lens
+## Code Quality Lens (code gate only)
 
 {CODE_QUALITY_CONTENTS}
 

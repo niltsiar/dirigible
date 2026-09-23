@@ -16,13 +16,26 @@ We adapted them to Claude Code and to this project. The git history shows each c
 | `deslop` | `cursor-team-kit/skills/deslop` | Cursor |
 | `verify-this` | `cursor-team-kit/skills/verify-this` | Cursor |
 
-Both sources use the MIT License:
+More skills come from `mattpocock/skills` (https://github.com/mattpocock/skills, commit `c55ee46073ed923f86ce59a5eb3b6d895095d1b7`, 2026-09-18):
+
+| Skill | Source path | Copyright |
+|---|---|---|
+| `diagnosing-bugs` | `skills/engineering/diagnosing-bugs` | Matt Pocock |
+| `domain-modeling` | `skills/engineering/domain-modeling` | Matt Pocock |
+| `pr` | `skills/in-progress/pr` (see `pr/CREDITS.md`) | Matt Pocock |
+| `research` | `skills/engineering/research` | Matt Pocock |
+| `resolving-merge-conflicts` | `skills/engineering/resolving-merge-conflicts` | Matt Pocock |
+| `writing-for-agents` | `skills/productivity/writing-for-agents` | Matt Pocock |
+| `.claude/hooks/git-guardrails.sh` | `skills/misc/git-guardrails-claude-code/scripts/block-dangerous-git.sh` | Matt Pocock |
+
+All sources use the MIT License:
 
 ```
 MIT License
 
 Copyright (c) 2026 Lauren Tan
 Copyright (c) 2026 Cursor
+Copyright (c) 2026 Matt Pocock
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(swift:*)",
+      "Bash(xcrun:*)",
+      "Bash(scripts/bundle.sh:*)",
+      "Bash(.claude/skills/deliver/scripts/new-run.sh:*)",
+      "Bash(codesign:*)",
+      "Bash(plutil:*)",
+      "Bash(lipo:*)",
+      "Bash(vtool:*)",
+      "Bash(otool:*)",
+      "Bash(afinfo:*)",
+      "Bash(afconvert:*)",
+      "Bash(ffprobe:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(xmllint:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git switch:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge --ff-only:*)",
+      "Bash(git rebase main:*)",
+      "Bash(git stash:*)",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git config --global:*)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  }
+}

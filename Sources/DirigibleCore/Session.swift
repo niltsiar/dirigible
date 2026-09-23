@@ -30,6 +30,7 @@ public struct Session: Hashable, Sendable {
             guard present == capture else { throw .duplicateID(capture.id.rawValue) }
             return
         }
+        try Self.checkText(capture.id.rawValue, capture.deviceUID, capture.deviceName)
         let rates =
             [capture.nominalSampleRate, capture.measuredSampleRate] + [capture.resampledFromRate].compactMap { $0 }
         guard capture.sampleTime.isFinite, rates.allSatisfy({ $0.isFinite && $0 > 0 }) else {
@@ -50,6 +51,7 @@ public struct Session: Hashable, Sendable {
             guard present == file else { throw .duplicateID(file.id.rawValue) }
             return
         }
+        try Self.checkText(file.id.rawValue, file.path)
         guard Self.isInsideClips(file.path) else { throw .invalidPath(file.path) }
         guard file.length.isInRange else { throw .frameOutOfRange }
         if let capture = file.capture, captures[capture] == nil { throw .unknownCapture(capture) }
@@ -70,6 +72,7 @@ public struct Session: Hashable, Sendable {
     // MARK: Tracks
 
     public mutating func addTrack(_ id: TrackID = TrackID(), name: String, layout: ChannelLayout) throws(SessionError) {
+        try Self.checkText(id.rawValue, name)
         guard track(id) == nil else { throw .duplicateID(id.rawValue) }
         tracks.append(Track(id: id, name: name, layout: layout))
     }
@@ -82,6 +85,7 @@ public struct Session: Hashable, Sendable {
     }
 
     public mutating func renameTrack(_ id: TrackID, to name: String) throws(SessionError) {
+        try Self.checkText(name)
         tracks[try trackIndex(id)].name = name
     }
 
@@ -109,8 +113,18 @@ public struct Session: Hashable, Sendable {
 
     private static func check(_ route: Route?, layout: ChannelLayout, track: TrackID) throws(SessionError) {
         guard let route else { return }
+        try checkText(route.deviceUID)
         guard route.channels.numbers.allSatisfy({ $0 >= 1 }) else { throw .invalidRoute }
         guard route.channels.layout == layout else { throw .layoutMismatch(track, .route) }
+    }
+
+    /// XML 1.0 cannot hold the other control characters, and it reads tab, LF, and CR in an
+    /// attribute back as spaces. Refusing them here keeps every saved session readable.
+    static func checkText(_ texts: String...) throws(SessionError) {
+        for text in texts
+        where text.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0xFFFE || $0.value == 0xFFFF }) {
+            throw .invalidText(text)
+        }
     }
 
     func trackIndex(_ id: TrackID) throws(SessionError) -> Int {
@@ -122,6 +136,7 @@ public struct Session: Hashable, Sendable {
 
     /// Adds the marker, or replaces the marker with its ID.
     public mutating func setMarker(_ marker: Marker) throws(SessionError) {
+        try Self.checkText(marker.id.rawValue, marker.name)
         guard marker.position.isInRange else { throw .frameOutOfRange }
         markers[marker.id] = marker
     }
@@ -161,6 +176,7 @@ public enum SessionError: Error, Hashable, Sendable {
     case layoutMismatch(TrackID, LayoutConflict)
     case invalidRoute
     case invalidPath(String)
+    case invalidText(String)
     case frameOutOfRange
     case clipOutsideFile(ClipID)
     case overlap(ClipID, ClipID)

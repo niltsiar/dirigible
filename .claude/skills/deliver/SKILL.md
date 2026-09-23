@@ -81,7 +81,7 @@ Run the **reflect** skill on the branch. It turns durable learnings into commits
 1. `git fetch origin && git rebase origin/main`, then `make check`. Rebase before the first push, so the branch never needs a force push.
 2. `git push -u origin <branch>`.
 3. Write the PR body with the **pr** skill to `<run>/pr.md`. Then `gh pr create --base main --head <branch> --title "<Conventional Commits summary>" --body-file <run>/pr.md`.
-4. `gh pr merge <branch> --rebase --delete-branch`. Rebase merge keeps each atomic commit on `main` and keeps history linear.
+4. Make sure `main` did not move after step 1: `git fetch origin && git merge-base --is-ancestor origin/main HEAD`. If this fails, `make check` did not test the result of the merge. Go back to step 1 on a fresh branch. Then `gh pr merge <branch> --rebase --delete-branch`. Rebase merge keeps each atomic commit on `main` and keeps history linear.
 5. `git switch main && git pull --ff-only origin main`. `gh pr merge --delete-branch` also deletes the local branch. A rebase merge gives the commits new hashes, so `git branch -d` refuses a leftover branch. Leave it and record it in `run.md`.
 6. If `main` moved after the push and the merge fails, stop the land step. Record the conflict in `run.md`, and resolve it with the **resolving-merge-conflicts** skill on a fresh branch. Never force-push.
 7. In `run.md`, set the status to `done`, and write a summary: what landed (PR and commit range), what is verified, manual checks for the human, and open risks.

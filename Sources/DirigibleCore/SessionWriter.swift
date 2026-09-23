@@ -162,8 +162,20 @@ private func writeAndFlush(_ data: Data, to path: String) throws(SessionFileErro
     let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL, 0o644)
     guard descriptor >= 0 else { throw posixError("open") }
     defer { close(descriptor) }
-    let written = data.withUnsafeBytes { write(descriptor, $0.baseAddress, $0.count) }
-    guard written == data.count else { throw posixError("write") }
+    // write() can return a short count; the next call then gives the real error, such as ENOSPC.
+    let failure: Int32? = data.withUnsafeBytes { bytes in
+        var offset = 0
+        while offset < bytes.count {
+            let written = write(descriptor, bytes.baseAddress.map { $0 + offset }, bytes.count - offset)
+            if written >= 0 {
+                offset += written
+            } else if errno != EINTR {
+                return errno
+            }
+        }
+        return nil
+    }
+    if let failure { throw .writeFailed(step: "write", errno: failure) }
     try flush(descriptor)
 }
 

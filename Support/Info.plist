@@ -3,13 +3,18 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>es</string>
+	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>Dirigible</string>
 	<key>CFBundleExecutable</key>
 	<string>Dirigible</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.delineas.dirigible</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>es</string>
+	</array>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -27,6 +32,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Dirigible graba el audio de tus micrófonos e interfaces de audio.</string>
+	<string>Dirigible records audio from your microphones and audio interfaces.</string>
 </dict>
 </plist>

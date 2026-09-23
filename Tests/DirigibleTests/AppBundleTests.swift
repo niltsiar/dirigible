@@ -15,14 +15,26 @@ struct AppBundleTests {
     var executable: String { app.appending(path: "Contents/MacOS/Dirigible").path }
 
     @Test func infoPlistDeclaresSonomaAndMicrophoneUse() throws {
-        let data = try Data(contentsOf: app.appending(path: "Contents/Info.plist"))
-        let plist = try #require(
-            try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        let plist = try propertyList(at: "Contents/Info.plist")
 
         #expect(plist["LSMinimumSystemVersion"] as? String == "14.0")
         #expect(plist["CFBundleExecutable"] as? String == "Dirigible")
         let micReason = try #require(plist["NSMicrophoneUsageDescription"] as? String)
         #expect(!micReason.isEmpty)
+    }
+
+    @Test func permissionTextsAreInEnglishWithSpanishTranslation() throws {
+        let plist = try propertyList(at: "Contents/Info.plist")
+        #expect(plist["CFBundleDevelopmentRegion"] as? String == "en")
+        #expect(plist["CFBundleLocalizations"] as? [String] == ["en", "es"])
+        #expect(
+            plist["NSMicrophoneUsageDescription"] as? String
+                == "Dirigible records audio from your microphones and audio interfaces.")
+
+        let spanish = try propertyList(at: "Contents/Resources/es.lproj/InfoPlist.strings")
+        #expect(
+            spanish["NSMicrophoneUsageDescription"] as? String
+                == "Dirigible graba el audio de tus micrófonos e interfaces de audio.")
     }
 
     @Test func binaryRunsOnSonomaOnIntelAndAppleSilicon() throws {
@@ -36,6 +48,11 @@ struct AppBundleTests {
 
     @Test func bundleSignatureIsValid() throws {
         _ = try run("/usr/bin/codesign", "--verify", "--strict", app.path)
+    }
+
+    private func propertyList(at path: String) throws -> [String: Any] {
+        let data = try Data(contentsOf: app.appending(path: path))
+        return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
     }
 
     private func run(_ tool: String, _ arguments: String...) throws -> String {

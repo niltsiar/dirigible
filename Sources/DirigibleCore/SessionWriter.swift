@@ -11,6 +11,9 @@ public enum SessionFileError: Error, Hashable, Sendable {
     /// The POSIX error code, so the app can tell a missing file (ENOENT) or a full disk (ENOSPC).
     case readFailed(errno: Int32)
     case writeFailed(step: String, errno: Int32)
+    /// The written XML does not read back as the same session. The old file stays. This is a
+    /// bug in the model, not a user error.
+    case wouldNotReadBack
 }
 
 /// The POSIX code under a Foundation file error, or EIO when there is none.
@@ -27,14 +30,16 @@ extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
     /// they do not exist. The old file stays until the new file is complete and on the disk.
     public func write(to package: URL) throws(SessionFileError) {
+        let data = xmlDocument().xmlData(options: .nodePrettyPrint)
+        // A file that does not read back would lock the user out of the session.
+        guard (try? Session(xml: data)) == self else { throw .wouldNotReadBack }
         do {
             try FileManager.default.createDirectory(
                 at: package.appending(path: "Clips"), withIntermediateDirectories: true)
         } catch {
             throw .writeFailed(step: "createDirectory", errno: posixCode(of: error))
         }
-        try replaceDurably(
-            package.appending(path: "session.xml"), with: xmlDocument().xmlData(options: .nodePrettyPrint))
+        try replaceDurably(package.appending(path: "session.xml"), with: data)
     }
 
     func xmlDocument() -> XMLDocument {

@@ -15,10 +15,11 @@ Invoke when the user says "reflect" or "/reflect", and at the end of every deliv
 
 ### 1. Locate the session transcript
 
-Claude Code stores transcripts at `~/.claude/projects/<project-slug>/<session-id>.jsonl`. The project slug is the absolute repo path with every `/` and `.` replaced by `-`. Only read the transcript of this project. Do not glob across other project folders. That reads private chats from unrelated work.
+Claude Code stores transcripts at `~/.claude/projects/<project-slug>/<session-id>.jsonl`. The project slug is the absolute repo path with every character that is not a letter or a digit replaced by `-`. Only read the transcript of this project. Do not glob across other project folders. That reads private chats from unrelated work.
 
 ```bash
-ls -t ~/.claude/projects/-Users-*-audio-sw-for-delineas/*.jsonl | head -3
+slug="$(git rev-parse --show-toplevel | sed 's/[^A-Za-z0-9]/-/g')"
+ls -t ~/.claude/projects/"$slug"/*.jsonl | head -3
 ```
 
 Take the newest file whose first user message matches this session. If no path resolves, write a tight digest of the session and pass that instead. Also pass the run ledger (`.scratchpads/runs/<run>/`), which records decisions and review verdicts.

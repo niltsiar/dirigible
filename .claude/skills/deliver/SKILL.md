@@ -20,7 +20,7 @@ Open a todo list with the phases below before you start. Do not skip a phase. A 
 
 1. Read `.scratchpads/learnings.md`, `.scratchpads/backlog.md`, and `.scratchpads/ledger.md`.
 2. Look for unfinished work: `git status --porcelain`, `git branch`, and any run with status `open` in the ledger. If a run is open, resume it: switch to its branch, read its `run.md` and `decisions.tsv`, and continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
-3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug>`. It creates `.scratchpads/runs/<date>-<slug>/` with `run.md` and `decisions.tsv`, and adds a line to `.scratchpads/ledger.md`. For a slug that already has a run, it returns the existing folder.
+3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug>`. It creates `.scratchpads/runs/<date>-<slug>/` with `run.md` and `decisions.tsv`, and adds a line to `.scratchpads/ledger.md`. For the slug of an open run, it returns that folder. It never reopens a done run.
 4. For a new goal, make sure `main` is green: `git switch main && make check`. If it is red, fixing it is the goal of this run.
 5. Create the branch now, before any file changes: `git switch -c <type>/<slug>`, for example `feat/multitrack-capture`. Write it in `run.md`. Every commit of the run, including decision records and reflect learnings, goes on this branch.
 

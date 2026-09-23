@@ -15,7 +15,7 @@ extension Session {
         if tracks[index].clips.contains(clip) { return }
         try check(clip, on: tracks[index])
         if self.clip(clip.id) != nil { throw .duplicateID(clip.id.rawValue) }
-        let taken = clipIDs
+        let taken = clipIDs.union([clip.id])
         tracks[index].clips.overwrite(with: clip) { Self.derivedID(of: $0.id, at: $1, taken: taken) }
     }
 

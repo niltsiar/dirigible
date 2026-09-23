@@ -24,7 +24,7 @@ R1-R10 come from the original request. R11-R13 come from later messages of the u
 | R8 | The user can apply noise reduction filters. |
 | R9 | The app levels the volume of each clip automatically. |
 | R10 | The app includes the podcast-focused features that make Hindenburg PRO better than GarageBand for podcast work. |
-| R11 | The app exports the final mix in the usual podcast formats: MP3 and AAC (in an `.m4a` MP4 container), plus WAV and FLAC. Exports carry podcast metadata (title, artwork, chapters). |
+| R11 | The app exports the final mix in the usual podcast formats: MP3 and AAC (in an `.m4a` MP4 container), plus WAV and FLAC. |
 | R12 | The app records audio from other apps, for example a Microsoft Teams, Slack, or Zoom call, so the user can record a remote guest. Each source goes to its own track, the same as a device (R3). |
 | R13 | The UI is in English and Spanish. English is the default. The app follows the language of macOS. A preference lets the user select English, Spanish, or the macOS language. |
 
@@ -49,6 +49,8 @@ The first planning run answers these questions and records each answer as a deci
 - How does the app capture the audio of another app (R12)? Options: Core Audio process taps (`AudioHardwareCreateProcessTap`, macOS 14.2 and later) or ScreenCaptureKit audio (macOS 13 and later, needs the Screen Recording permission). macOS 14.0 and 14.1 have no process taps. Which permission text does each need?
 - How does the app stop the remote guest from leaking into the local microphone track? Headphones, echo cancellation, or both?
 - Which encoder does MP3 export use (R11)? AudioToolbox encodes AAC but has no MP3 encoder. An MP3 library (for example LAME, LGPL) needs a decision record and a license check against Apache-2.0.
+- Do exports carry podcast metadata (title, artwork, chapter markers)? Hindenburg PRO does. The user did not ask for it, so the feature mining decides its release.
+- How does SwiftPM ship localized UI strings (R13) in the app bundle? Options: `.lproj/*.strings` files in `Support/Resources`, or a String Catalog with `defaultLocalization` and a copy of the SwiftPM resource bundle. How does the language preference override the macOS language?
 - Which loudness target does export use? Common podcast targets are -16 LUFS for stereo and -19 LUFS for mono.
 - WAV or FLAC by default? FLAC needs an encoder. Check what macOS 14 gives through AudioToolbox before you add a library.
 - Which noise reduction method (R8): spectral gating, RNNoise, or an Apple voice-processing unit?

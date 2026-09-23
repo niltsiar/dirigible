@@ -29,13 +29,13 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 
 **Timing.**
 
-- Each segment has a sidecar file next to it. The first record holds the capture header: device UID, device name, nominal rate, the available nominal rates of the device (`kAudioDevicePropertyAvailableNominalSampleRates`), channel count, input latency, and the host time and sample time of the first frame. After that, the writer appends a checkpoint about once per second, and one at the last record of each segment: the file frame index, the sample time, and the host time. So every segment has at least two points.
+- Each segment has a sidecar file next to it. The first record holds the capture header: device UID, device name, nominal rate, the available nominal rates of the device (`kAudioDevicePropertyAvailableNominalSampleRates`), channel count, input latency, and the host time and sample time of the first frame. After that, the writer appends a checkpoint about once per second, and one at the last record of each segment: the file frame index, the sample time, and the host time. A segment shorter than 0.5 s, or with a zero host-time span, has no usable fit and takes the "no usable checkpoint" path of finalize.
 - The take anchor: timeline start = playhead at record start + (first-frame host time - take start host time) - latency. Host time never crosses a take, because host time is valid for one boot only.
 
 **Segments.** A new segment file starts on any of these events:
 
 - a new nominal rate or a byte size mismatch in a ring record header;
-- a jump of more than 1% in the sample-time to host-time slope of a drained batch, which catches a rate change before the header rate shows it;
+- a jump of more than 1% in the sample-time to host-time slope, measured over the last 0.5 s of records and compared with the running fit of the segment. This catches a rate change before the header rate shows it. Host-time jitter between single records does not split a segment;
 - a stream format change or IsAlive false (property listeners on each device);
 - a backward jump of the sample time, or a forward jump of more than 2 s.
 
@@ -47,20 +47,21 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 
 - Fit a line through the checkpoints of each device segment. The slope is the real rate. Choose the rate in this order:
   1. The fit is within 1000 ppm of the header rate: use the fit.
-  2. Otherwise, the fit is within 1000 ppm of an available nominal rate of the device (from the sidecar header): the header rate lagged, so snap to that rate.
+  2. Otherwise, the fit is within 1000 ppm of a discrete available nominal rate of the device (an `AudioValueRange` with min equal to max, from the sidecar header): the header rate lagged, so snap to that rate. A continuous range (min less than max) is not a snap target.
   3. Otherwise, the fit is not trusted: convert from the header rate, set `driftCorrected="false"`, and give the clip a warning mark.
-- Tests cover a 24 kHz segment with a correct header rate (rule 1), a segment with a lagged header rate (rule 2), and a bad fit (rule 3).
+- Tests cover a 24 kHz segment with a correct header rate (rule 1), a segment with a lagged header rate made by the real writer (rule 2), a bad fit on a device with a continuous range (rule 3), and a long synthetic take with host-time jitter that stays one segment.
 - Discard a torn last sidecar record. A segment with no usable checkpoint goes on the timeline from its first record at the header rate, with a warning mark.
-- Always write a 24-bit WAV at the session rate (0003) with `AudioConverter`. Resample from the chosen rate when it differs from the session rate, or when the drift over the segment is more than 1 ms. Store `resampledFromRate` in the `<capture>` element.
+- Always write a 24-bit WAV at the session rate (0003) with `AudioConverter`. The nominal rate is the header rate, or the snapped rate of rule 2. Resample when the nominal rate differs from the session rate. Use the fitted rate instead of the nominal rate only when the drift over the segment at the nominal rate is more than 1 ms. Store `resampledFromRate` in the `<capture>` element when finalize resampled. `resampledFromRate` and `driftCorrected="false"` can be on the same `<capture>`.
+- Finalize is deterministic: the clip IDs and the WAV paths come from the take and segment identity. A second run of finalize on the same take overwrites the output of the first.
 - Release 1 keeps every raw CAF until the hardware drift spike confirms the fit. A later run deletes a CAF only after its WAV passes the frame-count check.
 - The player and the export never read a CAF.
 
 **Recovery has one owner: `Studio.open`.**
 
 - The `<recording>` element in `session.xml` (0003) is the single source of truth. An active-recordings list in Application Support is only a hint that tells the app which sessions to reopen at launch.
-- Start order: (1) save `session.xml` atomically with the new tracks and the `<recording>` element; (2) add the session URL to the list; (3) start the IOProcs. A crash between (1) and (2): the app does not reopen the session at launch, but the next open recovers it.
+- Start order: (1) delete any `recovery-attempt` marker, then save `session.xml` atomically with the new tracks and the `<recording>` element; (2) add the session URL to the list; (3) start the IOProcs. A crash between (1) and (2): the app does not reopen the session at launch, but the next open recovers it.
 - Stop order: (1) finalize; (2) save `session.xml` atomically with the clips and without `<recording>`; (3) remove the URL from the list. A crash between (2) and (3): open finds no `<recording>` and removes the stale entry.
-- `Studio.open` is `async`. It reads `session.xml` off the main actor. If `<recording>` is absent, it deletes a leftover `recovery-attempt` marker and opens normally. If `<recording>` is present and no marker exists, it writes the `recovery-attempt` marker file in the package, runs finalize on the segment files it finds, removes the marker, saves, and then returns the studio. A crash between the marker removal and the save looks like a recovery not yet tried, which is safe to run again.
+- `Studio.open` is `async`. It reads `session.xml` off the main actor. If `<recording>` is absent, it deletes a leftover `recovery-attempt` marker and opens normally. If `<recording>` is present and no marker exists, it writes the `recovery-attempt` marker file in the package, runs finalize on the segment files it finds, removes the marker, saves, and then returns the studio. Every finalize that succeeds (at stop, at open, or in a retry) removes the marker before the save that removes `<recording>`. A crash between the marker removal and the save looks like a recovery not yet tried, which is safe to run again.
 - If `<recording>` and the marker are both present, the process died during an earlier recovery. Open skips finalize and returns the studio with a pending take. So a recovery that crashes the app cannot crash every launch or every open. Recovery is idempotent. Nothing else writes `session.xml` during recovery.
 - If finalize throws, at stop or at open, for example on a full disk, it removes the marker, the `<recording>` element stays, and the studio has a pending take. The CAF files stay untouched. The marker stays only when the process dies.
 
@@ -68,7 +69,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 
 **Pending take.** `pendingTake: Take?` is separate from the transport state, because `<recording>` in `session.xml` already stores it. Play and stop do not clear it.
 
-- While `pendingTake` is set, these actions throw `.busy`: a new take; delete, a route change, or a layout change of a track of the take; an undo that removes a track of the take. Every save writes `<recording>` back.
+- While `pendingTake` is set, these actions throw `.busy`: a new take; delete, a route change, or a layout change of a track of the take; an undo that removes a track of the take or changes its route or layout. Every save writes `<recording>` back.
 - The studio tells the user how much free space finalize needs. When the user asks, it runs finalize again in the `finalizing` state, so edits, undo, and save throw `.busy` during the retry. A retry that succeeds clears `pendingTake`.
 - The remaining-record-time display (see "Disk and sleep") subtracts the space that the pending finalize needs.
 
@@ -84,7 +85,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 
 - "No data loss" means: a process crash loses nothing that the writer wrote; a power loss or a kernel panic loses at most 5 s; an unplug loses the time until the device comes back.
 - Release 1 uses double disk space for each take (CAF and WAV) until the drift spike passes.
-- Hardware checks go in the run ledger as manual checks: two USB microphones for one hour (drift in ppm), a clap on two devices (alignment within 1 ms, latency sign), an unplug and replug, a rate change in Audio MIDI Setup during a take, `kill -9` during a four-track take, a forced power-off, 44.1 kHz and 48 kHz devices together, a full disk during a take and an open after space is freed, and `tccutil reset Microphone` before a take.
+- Hardware checks go in the run ledger as manual checks: two USB microphones for one hour (drift in ppm), a clap on two devices (alignment within 1 ms, latency sign), an unplug and replug, a rate change in Audio MIDI Setup during a take, `kill -9` during a four-track take, a forced power-off, 44.1 kHz and 48 kHz devices together, a full disk during a take and an open after space is freed, and `tccutil reset Microphone` before a take, and one hour on a Bluetooth headset that must stay one segment.
 
 ## Alternatives considered
 

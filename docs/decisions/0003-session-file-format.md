@@ -17,7 +17,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 
 **Schema, version 1.** Our own XML, namespace `https://github.com/niltsiar/dirigible/session`.
 
-- `<session version="1" sampleRate="48000">` holds `<captures>`, `<files>`, `<tracks>`, `<markers>`, and, during a take, `<recording>`.
+- `<session version="1" sampleRate="48000">` holds `<captures>`, `<files>`, `<tracks>`, `<markers>`, and, while a take runs or is pending, `<recording>`.
 - `<capture id>` is one device segment (0004): `deviceUID`, `deviceName`, `hostTimeNanos` and `sampleTime` of the first frame, `nominalSampleRate`, `measuredSampleRate`, `latency`, and `resampledFromRate` or `driftCorrected="false"` when finalize applied or refused a correction.
 - `<file id path channels length capture>`: `channels` is 1 or 2; the parser refuses any other value. `capture` refers to a `<capture id>`. An imported file has no `capture`.
 - `<track id name gain layout="mono|stereo">` with an optional `<route device="UID" channels="1 2"/>` and its `<clip id file start offset length gain/>` children. A file's channel count must match its track's layout; the parser refuses a mismatch.

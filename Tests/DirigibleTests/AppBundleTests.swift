@@ -37,6 +37,30 @@ struct AppBundleTests {
                 == "Dirigible graba el audio de tus micrófonos e interfaces de audio.")
     }
 
+    /// A session is a document package (decision 0003): Finder shows it as one file.
+    @Test func sessionIsAPackageDocumentWithASpanishName() throws {
+        let plist = try propertyList(at: "Contents/Info.plist")
+
+        let types = try #require(plist["UTExportedTypeDeclarations"] as? [[String: Any]])
+        #expect(types.count == 1)
+        #expect(types[0]["UTTypeIdentifier"] as? String == "com.delineas.dirigible.session")
+        #expect(types[0]["UTTypeDescription"] as? String == "Dirigible Session")
+        #expect(types[0]["UTTypeConformsTo"] as? [String] == ["com.apple.package", "public.composite-content"])
+        let tags = try #require(types[0]["UTTypeTagSpecification"] as? [String: Any])
+        #expect(tags["public.filename-extension"] as? [String] == ["dirigible"])
+
+        let documents = try #require(plist["CFBundleDocumentTypes"] as? [[String: Any]])
+        #expect(documents.count == 1)
+        #expect(documents[0]["CFBundleTypeName"] as? String == "Dirigible Session")
+        #expect(documents[0]["CFBundleTypeRole"] as? String == "Editor")
+        #expect(documents[0]["LSHandlerRank"] as? String == "Owner")
+        #expect(documents[0]["LSTypeIsPackage"] as? Bool == true)
+        #expect(documents[0]["LSItemContentTypes"] as? [String] == ["com.delineas.dirigible.session"])
+
+        let spanish = try propertyList(at: "Contents/Resources/es.lproj/InfoPlist.strings")
+        #expect(spanish["Dirigible Session"] as? String == "Sesión de Dirigible")
+    }
+
     @Test func binaryRunsOnSonomaOnIntelAndAppleSilicon() throws {
         #expect(try run("/usr/bin/lipo", "-archs", executable).split(separator: " ").sorted() == ["arm64", "x86_64"])
 

@@ -19,7 +19,6 @@ Goal: record two or more devices, make a rough edit, and export one file. This i
 | R7 | Part: transport, select, cut, copy, paste, delete, split, move, trim, undo, zoom, previous and next clip, JKL, markers (F10 to F15, F17, F19). |
 | R11 | Part: export to WAV, AAC, and FLAC (F50, F51, F52, 0007). |
 | R13 | Part: every UI string in English and Spanish, following the macOS language (F65, 0010). |
-| R14 | Part: "Use headphones" warning on the built-in speakers (F43). |
 | R15 | Mono or stereo per track, and a mono or stereo mix export (F41). |
 
 Rules for Release 1:
@@ -32,7 +31,7 @@ Run order. Each run lands through its own pull request.
 
 1. **Session core.** `DirigibleCore`: session, tracks, clips, routes, markers, snapshot undo, XML version 1 in a package, the import-rule test.
 2. **Capture.** `Recorder` in `DirigibleAudio`: IOProcs, rings, writers, segments, finalize, recovery. Hardware checks from 0004.
-3. **Record UI.** `Studio`, the window, tracks with routes and meters, record and stop, headphone warning, the first `.lproj` strings.
+3. **Record UI.** `Studio`, the window, tracks with routes and meters, record and stop, the microphone permission check, the first `.lproj` strings.
 4. **Timeline and playback.** Waveforms, `Player`, selection, edit commands with keys, markers.
 5. **Export.** `exportMix` to WAV, AAC, and FLAC, mono or stereo.
 
@@ -48,6 +47,7 @@ Goal: record a remote guest, level the clips, and publish at the podcast loudnes
 | R11 | MP3 through LAME (F53, 0007). |
 | R12 | Audio from other apps through process taps, and a call preset (F05, F06, 0006). |
 | R13 | The language preference in Settings (F66, 0010). |
+| R14 | Part: a "Use headphones" warning when a session has an app source and the output is the built-in speakers (F43, 0004). The feature catalog put F43 in Release 1, but its trigger needs an app source. |
 
 ## Release 3: Hindenburg-style production
 

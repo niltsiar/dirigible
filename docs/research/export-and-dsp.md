@@ -110,7 +110,7 @@ Update 2026-09-23: decision 0002 puts the DSP code in the `DirigibleAudio` targe
 - Default: -16 LUFS integrated for a stereo export, -19 LUFS for a mono export, true peak at or below -1 dBTP.
 - Preset list: -16 (podcast), -18 (AES77 speech), -23 (EBU R 128), -24 (US broadcast, ATSC A/85, unconfirmed source). Each preset uses -3 LU for mono.
 
-Update 2026-09-23: decision 0008 sets -16 LUFS for stereo and mono exports. Apple Podcasts and Hindenburg ask for -16 for all files, and -19 mono has no primary source. -19 mono is a preset.
+Update 2026-09-24: decision 0008 keeps this recommendation: -16 LUFS for stereo and -19 LUFS for mono.
 - The export report shows the measured integrated loudness and true peak after processing.
 
 ## 5. Auto-leveling per clip (R9)

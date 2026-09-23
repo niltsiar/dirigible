@@ -35,7 +35,7 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 **Segments.** A new segment file starts on any of these events:
 
 - a new nominal rate or a byte size mismatch in a ring record header;
-- a jump of more than 1% in the sample-time to host-time slope, measured over the last 0.5 s of records and compared with the running fit of the segment. This catches a rate change before the header rate shows it. Host-time jitter between single records does not split a segment;
+- a jump of more than 1% in the sample-time to host-time slope, measured over the last 0.5 s of records and compared with the running fit of the segment. This catches a rate change before the header rate shows it. Host-time jitter between single records does not split a segment. The new segment starts at the record where the jump is found; the records of the window stay in the old segment, but its fit leaves them out;
 - a stream format change or IsAlive false (property listeners on each device);
 - a backward jump of the sample time, or a forward jump of more than 2 s.
 
@@ -51,8 +51,10 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
   3. Otherwise, the fit is not trusted: convert from the header rate, set `driftCorrected="false"`, and give the clip a warning mark.
 - Tests cover a 24 kHz segment with a correct header rate (rule 1), a segment with a lagged header rate made by the real writer (rule 2), a bad fit on a device with a continuous range (rule 3), and a long synthetic take with host-time jitter that stays one segment.
 - Discard a torn last sidecar record. A segment with no usable checkpoint goes on the timeline from its first record at the header rate, with a warning mark.
-- Always write a 24-bit WAV at the session rate (0003) with `AudioConverter`. The nominal rate is the header rate, or the snapped rate of rule 2. Resample when the nominal rate differs from the session rate. Use the fitted rate instead of the nominal rate only when the drift over the segment at the nominal rate is more than 1 ms. Store `resampledFromRate` in the `<capture>` element when finalize resampled. `resampledFromRate` and `driftCorrected="false"` can be on the same `<capture>`.
-- Finalize is deterministic: the clip IDs and the WAV paths come from the take and segment identity. A second run of finalize on the same take overwrites the output of the first.
+- Always write a 24-bit WAV at the session rate (0003) with `AudioConverter`. Resample when the source rate differs from the session rate. The source rate is:
+  - under rule 1 or 2: the nominal rate (the header rate, or the snapped rate of rule 2), or the fitted rate when the drift over the segment at the nominal rate is more than 1 ms;
+  - under rule 3, or with no usable checkpoint: always the header rate. Store `resampledFromRate` in the `<capture>` element when finalize resampled. `resampledFromRate` and `driftCorrected="false"` can be on the same `<capture>`.
+- Finalize is deterministic: the clip IDs and the WAV paths come from the take and segment identity. A take number is never reused in a package. A second run of finalize on the same take overwrites the output of the first.
 - Release 1 keeps every raw CAF until the hardware drift spike confirms the fit. A later run deletes a CAF only after its WAV passes the frame-count check.
 - The player and the export never read a CAF.
 

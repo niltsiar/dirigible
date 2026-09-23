@@ -70,23 +70,23 @@ struct SessionFileTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: package.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: package.path) }
 
-        #expect(throws: SessionFileError.self) { try fullSession().write(to: package) }
+        #expect(throws: SessionFileError.writeFailed(step: "open", errno: EACCES)) {
+            try fullSession().write(to: package)
+        }
         #expect(try Data(contentsOf: sessionXML) == old)
         #expect(try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == ["Clips", "session.xml"])
     }
 
     @Test func aFailedRenameRemovesTheTemporaryFile() throws {
         try FileManager.default.createDirectory(at: sessionXML, withIntermediateDirectories: true)
-        #expect(throws: SessionFileError.self) { try fullSession().write(to: package) }
+        #expect(throws: SessionFileError.writeFailed(step: "rename", errno: EISDIR)) {
+            try fullSession().write(to: package)
+        }
         #expect(try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == ["Clips", "session.xml"])
     }
 
     @Test func aMissingFileIsAReadFailure() {
-        #expect {
-            try Session(contentsOf: package)
-        } throws: { error in
-            if case SessionFileError.readFailed = error { true } else { false }
-        }
+        #expect(throws: SessionFileError.readFailed(errno: ENOENT)) { try Session(contentsOf: package) }
     }
 
     // MARK: Refused files

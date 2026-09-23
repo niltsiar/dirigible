@@ -99,6 +99,16 @@ struct SessionFileTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == ["Clips", "session.xml"])
     }
 
+    @Test func aPrefixedFileInTheSessionNamespaceReads() throws {
+        let xml = """
+            <d:session xmlns:d="https://github.com/niltsiar/dirigible/session" version="1" sampleRate="48000">
+            <d:tracks><d:track id="t1" name="Host" gain="0" layout="mono"/></d:tracks></d:session>
+            """
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+        try Data(xml.utf8).write(to: sessionXML)
+        #expect(try Session(contentsOf: package).tracks.map(\.id) == ["t1"])
+    }
+
     @Test func aMissingFileIsAReadFailure() {
         #expect(throws: SessionFileError.readFailed(errno: ENOENT)) { try Session(contentsOf: package) }
     }

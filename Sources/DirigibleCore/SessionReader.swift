@@ -32,7 +32,7 @@ extension Session {
         for node in root.children("tracks", "track") { tracks.append(try ParsedTrack(node)) }
         var markers: [Marker] = []
         for node in root.children("markers", "marker") { markers.append(try Marker(node)) }
-        let recording = try root.elements(forName: "recording").first.map { node throws(SessionFileError) in
+        let recording = try root.sessionElements("recording").first.map { node throws(SessionFileError) in
             try Recording(node)
         }
 
@@ -75,11 +75,11 @@ private struct ParsedTrack {
             throw .invalidValue(element: "track", attribute: "layout")
         }
         self.layout = layout
-        route = try node.elements(forName: "route").first.map { route throws(SessionFileError) in
+        route = try node.sessionElements("route").first.map { route throws(SessionFileError) in
             try Route(route)
         }
         var clips: [Clip] = []
-        for clip in node.elements(forName: "clip") {
+        for clip in node.sessionElements("clip") {
             clips.append(
                 Clip(
                     id: ClipID(try clip.string("id")), file: FileID(try clip.string("file")),
@@ -147,7 +147,7 @@ extension Marker {
 extension Recording {
     fileprivate init(_ node: XMLElement) throws(SessionFileError) {
         var armed: [TrackID] = []
-        for arm in node.elements(forName: "arm") { armed.append(TrackID(try arm.string("track"))) }
+        for arm in node.sessionElements("arm") { armed.append(TrackID(try arm.string("track"))) }
         self.init(
             take: try node.value("take"), playheadFrame: try node.frames("playheadFrame"),
             takeStartHostTimeNanos: try node.value("takeStartHostTimeNanos"), armedTracks: armed)
@@ -156,7 +156,12 @@ extension Recording {
 
 extension XMLElement {
     fileprivate func children(_ list: String, _ name: String) -> [XMLElement] {
-        elements(forName: list).first?.elements(forName: name) ?? []
+        sessionElements(list).first?.sessionElements(name) ?? []
+    }
+
+    /// Children by local name in the session namespace, so a prefixed file (`<d:tracks>`) reads too.
+    fileprivate func sessionElements(_ name: String) -> [XMLElement] {
+        elements(forLocalName: name, uri: sessionNamespace)
     }
 
     fileprivate func optionalString(_ attribute: String) -> String? {

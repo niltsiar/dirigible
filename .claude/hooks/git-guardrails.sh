@@ -4,12 +4,26 @@
 # this hook matches the flag anywhere in the command.
 # Exit 2 blocks the command and shows the message to the agent.
 
-COMMAND="$(jq -r '.tool_input.command // empty' 2>/dev/null)"
-[[ -z "$COMMAND" ]] && exit 0
+block() {
+  echo "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1. This command can discard work or bypass the checks. Use the deliver flow: push the run branch and merge through a pull request." >&2
+  exit 2
+}
+
+# plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
+input="$(mktemp)"
+trap 'rm -f "$input"' EXIT
+cat > "$input"
+if ! COMMAND="$(plutil -extract tool_input.command raw -o - "$input" 2>/dev/null)"; then
+  COMMAND="(unreadable hook input)"
+  block "cannot be checked"
+fi
+
+# Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
+NORMALIZED="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$COMMAND")"
 
 DANGEROUS_PATTERNS=(
-  'git push .*(--force|-f( |$)|--force-with-lease| \+)'
-  'git push( .*)? (origin )?(HEAD:)?main( |$)'
+  'git push( .*)? (--force|-[a-zA-Z]*f|\+)'
+  'git push .*[ :/]main( |$)'
   'git reset --hard'
   'git clean -[a-z]*f'
   'git branch .*(-D|--delete --force|-d -f|-d --force|-f )'
@@ -21,18 +35,15 @@ DANGEROUS_PATTERNS=(
   'gh pr merge .*--admin'
 )
 
-block() {
-  echo "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1. This command can discard work or bypass the checks. Use the deliver flow: push the run branch and merge through a pull request." >&2
-  exit 2
-}
-
 # The only allowed change to the hooks path is the one `make setup` makes.
-if grep -qE 'core\.hooksPath' <<< "$COMMAND" && ! grep -qE -- '--get' <<< "$COMMAND" && ! grep -qE 'core\.hooksPath \.githooks( |;|&|$)' <<< "$COMMAND"; then
+if grep -qE 'core\.hooksPath' <<< "$COMMAND" \
+  && ! grep -qE -- '--get' <<< "$COMMAND" \
+  && ! grep -qE 'core\.hooksPath \.githooks( |;|&|$)' <<< "$COMMAND"; then
   block "changes core.hooksPath"
 fi
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
-  if grep -qE -- "$pattern" <<< "$COMMAND"; then
+  if grep -qE -- "$pattern" <<< "$NORMALIZED"; then
     block "matches '$pattern'"
   fi
 done

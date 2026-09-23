@@ -31,7 +31,7 @@ Do not use this for vague claims like "the code is cleaner". Ask for a measurabl
 - Audio files: `afinfo <file>` for format, channels, sample rate, and duration. `ffprobe -hide_banner <file>` for container facts.
 - Audio levels: `ffmpeg -i <file> -af ebur128 -f null -` for integrated loudness (LUFS) and true peak. `ffmpeg -i <file> -af astats -f null -` for RMS, peak, and noise floor.
 - Session files: `xmllint --noout <file>` for well-formed XML, then read the actual elements.
-- App behavior: launch the bundle with `make run`, then capture a screenshot with `screencapture -l <windowid>` or `screencapture -x <file>`.
+- App behavior: launch the bundle with `make run`, then run `scripts/screenshot.sh <out.png>`. It captures only the Dirigible window, never the whole screen. Stop the app afterwards with `pkill -f build/Dirigible.app/Contents/MacOS/Dirigible`.
 - Performance: same-machine baseline and treatment timings, or an Instruments trace from `xcrun xctrace record`.
 - Memory: `leaks <pid>` or `footprint <pid>` before and after the suspected operation.
 

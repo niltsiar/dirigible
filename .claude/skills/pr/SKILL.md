@@ -30,7 +30,15 @@ Use this template for writing the PR body:
 **Blast Radius:** <one-word description>
 
 <optional: potential ramifications of merge>
+
+## Review
+
+<the code gate verdict: each "Act on" item and the commit that fixed it>
+
+Run: `.scratchpads/runs/<run>` · Requirements: <IDs from docs/requirements/brief.md>
 ```
+
+Write the body in STE (the **technical-writing** skill). The PR title is the Conventional Commits summary of the run, for example `feat(capture): record each device to its own track`.
 
 ## Sections
 
@@ -157,7 +165,7 @@ You may use one of these, you may use several, it is unlikely you will use all o
 
 Concrete evidence that the change works. Show a before and after.
 
-Screenshots are S-tier - when the environment is set up for it and the change is visual.
+Screenshots are S-tier - when the change is visual. Capture them with `scripts/screenshot.sh`. GitHub cannot show a local file, so describe the screenshot or attach it through the web UI.
 
 Execution-based evidence is A-tier. Test results, console output. Show the exact test that now fails and passes, using pseudocode.
 

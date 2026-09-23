@@ -71,7 +71,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why.
 - The remote `origin` is https://github.com/niltsiar/dirigible. After a run lands on `main`, push it: `git push origin main`. Keep feature branches local.
 - Never force-push. Never push a `main` that fails `make check`.
-- `.claude/settings.json` allows the build, test, and local git commands of the deliver flow without a prompt. It denies commands that discard work (`git branch -D`, `git stash drop`, `git reset --hard`, a force push). Long runs also need a permission mode that allows file edits, for example auto mode.
+- `.claude/settings.json` allows the build, test, and local git commands of the deliver flow without a prompt. It denies commands that discard work (`git branch -D`, `git stash drop`, `git reset --hard`, a force push). The rules match command prefixes, so they guard against mistakes, not against a determined agent. Long runs also need a permission mode that allows file edits, for example auto mode.
 - Commit signing is off for this repo only (`git config --local commit.gpgsign false`), so long runs do not stop for a signing prompt. Do not change global git config.
 - The pre-commit hook refuses a commit that fails `make lint` or does not build (tests included). It checks the working tree, so stage whole changes. Never use `--no-verify`. Never rewrite commits that are on `main`.
 

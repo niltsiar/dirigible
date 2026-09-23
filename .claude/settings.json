@@ -45,7 +45,7 @@
       "Bash(git stash push:*)",
       "Bash(git stash pop)",
       "Bash(git stash list)",
-      "Bash(git config --local core.hooksPath:*)",
+      "Bash(git config --local core.hooksPath .githooks)",
       "WebSearch",
       "WebFetch"
     ],
@@ -62,7 +62,13 @@
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
       "Bash(git push origin +*)",
-      "Bash(git push --force-with-lease:*)"
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git commit -n:*)",
+      "Bash(git branch -d -f:*)",
+      "Bash(git branch -d --force:*)",
+      "Bash(git branch --delete --force:*)",
+      "Bash(git branch -f:*)",
+      "Bash(git config --local --unset core.hooksPath:*)"
     ]
   }
 }

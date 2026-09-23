@@ -39,6 +39,8 @@ The first planning run answers these questions and records each answer as a deci
 - Which Hindenburg PRO features are in the first release, and in which order? R7 and R10 are too wide to build at one time.
 - What is the XML schema of a session? Is it compatible with a known format, or our own format?
 - How does the app align tracks from devices that have different clocks (R3, R4)?
+- How does capture survive a crash? `AVAudioFile` writes the WAV data size only at close. Options: capture to CAF and convert to WAV or FLAC at stop, or update the WAV header while recording and repair it at launch.
+- How does the input callback of each device hand buffers to its file writer without allocation or locks? Options: a ring buffer with preallocated storage in Swift, or a small C target.
 - WAV or FLAC by default? FLAC needs an encoder. Check what macOS 14 gives through AudioToolbox before you add a library.
 - Which noise reduction method (R8): spectral gating, RNNoise, or an Apple voice-processing unit?
 - What loudness target does auto-leveling use (R9)? Hindenburg uses loudness (LUFS) targets per clip.

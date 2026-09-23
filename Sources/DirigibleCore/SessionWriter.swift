@@ -33,6 +33,7 @@ extension Session {
         let data = xmlDocument().xmlData(options: .nodePrettyPrint)
         // A file that does not read back would lock the user out of the session.
         guard (try? Session(xml: data)) == self else { throw .wouldNotReadBack }
+        let isNew = !FileManager.default.fileExists(atPath: package.path)
         do {
             try FileManager.default.createDirectory(
                 at: package.appending(path: "Clips"), withIntermediateDirectories: true)
@@ -40,6 +41,8 @@ extension Session {
             throw .writeFailed(step: "createDirectory", errno: posixCode(of: error))
         }
         try replaceDurably(package.appending(path: "session.xml"), with: data)
+        // A new package is an entry in its parent folder, which a power loss can lose too.
+        if isNew { try flush(package.deletingLastPathComponent().path) }
     }
 
     func xmlDocument() -> XMLDocument {

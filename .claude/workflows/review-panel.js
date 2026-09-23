@@ -125,7 +125,7 @@ const results = await pipeline(
 const panel = results.filter(Boolean)
 const missing = LENSES.filter(l => !panel.some(p => p.lens === l.key)).map(l => l.key)
 if (missing.length) log(`NO RESULT from lenses: ${missing.join(', ')}. The panel is incomplete.`)
-log(panel.map(p => `${p.lens}: ${p.survived.length}/${p.raised} survived`).join(', '))
+log(panel.map(p => `${p.lens}: ${p.survived.length}/${p.raised} survived, ${(p.outOfScope || []).length} out of scope`).join(', '))
 const outOfScope = panel.flatMap(p => (p.outOfScope || []).map(f => ({ lens: p.lens, ...f })))
 if (outOfScope.length) log(`${outOfScope.length} out-of-scope findings for the backlog.`)
 return { target, intent, scope, round, maxRounds, mode, panel, outOfScope, missing }

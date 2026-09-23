@@ -12,6 +12,7 @@ A process tap can only be read through an aggregate device. The user confirmed o
 ## Decision
 
 - Use Core Audio process taps. The tap aggregate is a device like any other, so it uses the IOProc, ring, writer, and segment path of 0004 without changes.
+- A mono guest track uses a mono mixdown tap (`CATapDescription(monoMixdownOfProcesses:)`), and a stereo guest track uses a stereo mixdown tap.
 - One tap and one private aggregate device per app source. Set `privateTap` and `.unmuted`, so the user still hears the call.
 - The main sub-device of the tap aggregate is the output device of the tapped process (`kAudioProcessPropertyDevices`), or the default output device if the process reports none. Set `kAudioSubTapDriftCompensationKey` to true on the sub-tap. When the main sub-device goes away or the process changes its output, rebuild the aggregate on the new device and start a new segment (0004). The guest track keeps recording.
 - The user picks an app, not a process. Tap every process whose executable is inside the app bundle. Watch `kAudioHardwarePropertyProcessObjectList` and update the tap when helper processes start or stop. Call apps often play audio from a helper process.

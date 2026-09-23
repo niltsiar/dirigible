@@ -22,7 +22,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 - `<file id path channels length capture>`: `channels` is 1 or 2; the parser refuses any other value. `capture` refers to a `<capture id>`. An imported file has no `capture`.
 - `<track id name gain layout="mono|stereo">` with an optional `<route device="UID" channels="1 2"/>` and its `<clip id file start offset length gain/>` children. A file's channel count must match its track's layout; the parser refuses a mismatch.
 - `<marker id name position kind="marker|chapter"/>`.
-- `<recording takeStart="..." take="3">` lists the armed track IDs. It is present only while a take runs, and recovery removes it (0004).
+- `<recording take="3" playheadFrame="..." takeStartHostTimeNanos="...">` lists the armed track IDs. It holds both values of the take anchor, so recovery after a relaunch can place the clips. It is present while a take runs or is pending, and a finalize that succeeds removes it (0004). The reader refuses a `<recording>` with an unknown track ID.
 
 **Rules.**
 

@@ -112,6 +112,23 @@ struct SessionTests {
         }
     }
 
+    @Test func aCaptureHasFiniteTimingAndPositiveRates() {
+        var session = Session(sampleRate: 48_000)
+        var bad: [Capture] = []
+        for change: (inout Capture) -> Void in [
+            { $0.measuredSampleRate = .nan }, { $0.nominalSampleRate = 0 }, { $0.sampleTime = .infinity },
+            { $0.resampledFromRate = -44_100 },
+        ] {
+            var capture = capture
+            change(&capture)
+            bad.append(capture)
+        }
+        for capture in bad {
+            #expect(throws: SessionError.invalidCapture("cap1")) { try session.addCapture(capture) }
+        }
+        #expect(session.captures.isEmpty)
+    }
+
     @Test func aRemoveLeavesNoDanglingReference() throws {
         var session = Session(sampleRate: 48_000)
         try session.addCapture(capture)

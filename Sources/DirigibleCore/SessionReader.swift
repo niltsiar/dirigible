@@ -83,20 +83,19 @@ private struct ParsedTrack {
 
 extension Capture {
     fileprivate init(_ node: XMLElement) throws(SessionFileError) {
-        let resampled = node.optionalString("resampledFromRate") == nil ? nil : try node.rate("resampledFromRate")
+        let resampled: Double? =
+            node.optionalString("resampledFromRate") == nil ? nil : try node.value("resampledFromRate")
         let driftCorrected: Bool
         switch node.optionalString("driftCorrected") {
         case nil: driftCorrected = true
         case "false": driftCorrected = false
         default: throw .invalidValue(element: "capture", attribute: "driftCorrected")
         }
-        let sampleTime: Double = try node.value("sampleTime")
-        guard sampleTime.isFinite else { throw .invalidValue(element: "capture", attribute: "sampleTime") }
         self.init(
             id: CaptureID(try node.string("id")), deviceUID: try node.string("deviceUID"),
             deviceName: try node.string("deviceName"), hostTimeNanos: try node.value("hostTimeNanos"),
-            sampleTime: sampleTime, nominalSampleRate: try node.rate("nominalSampleRate"),
-            measuredSampleRate: try node.rate("measuredSampleRate"), latency: try node.value("latency"),
+            sampleTime: try node.value("sampleTime"), nominalSampleRate: try node.value("nominalSampleRate"),
+            measuredSampleRate: try node.value("measuredSampleRate"), latency: try node.value("latency"),
             resampledFromRate: resampled, driftCorrected: driftCorrected)
     }
 }
@@ -174,13 +173,6 @@ extension XMLElement {
     fileprivate func gain(_ attribute: String) throws(SessionFileError) -> Gain {
         guard let gain = Gain(dB: try value(attribute)) else { throw invalid(attribute) }
         return gain
-    }
-
-    /// A sample rate: finite and positive.
-    fileprivate func rate(_ attribute: String) throws(SessionFileError) -> Double {
-        let rate: Double = try value(attribute)
-        guard rate.isFinite, rate > 0 else { throw invalid(attribute) }
-        return rate
     }
 
     private func invalid(_ attribute: String) -> SessionFileError {

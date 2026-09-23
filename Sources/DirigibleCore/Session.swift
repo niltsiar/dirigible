@@ -23,11 +23,17 @@ public struct Session: Hashable, Sendable {
 
     // MARK: Captures and files
 
-    /// Adding a capture that is equal to the one with its ID changes nothing.
+    /// Adding a capture that is equal to the one with its ID changes nothing. The sample time is
+    /// finite and every rate is finite and positive: finalize divides by them.
     public mutating func addCapture(_ capture: Capture) throws(SessionError) {
         if let present = captures[capture.id] {
             guard present == capture else { throw .duplicateID(capture.id.rawValue) }
             return
+        }
+        let rates =
+            [capture.nominalSampleRate, capture.measuredSampleRate] + [capture.resampledFromRate].compactMap { $0 }
+        guard capture.sampleTime.isFinite, rates.allSatisfy({ $0.isFinite && $0 > 0 }) else {
+            throw .invalidCapture(capture.id)
         }
         captures[capture.id] = capture
     }
@@ -149,6 +155,7 @@ public enum SessionError: Error, Hashable, Sendable {
     case unknownClip(ClipID)
     case unknownMarker(MarkerID)
     case captureInUse(CaptureID)
+    case invalidCapture(CaptureID)
     case fileInUse(FileID)
     case trackInRecording(TrackID)
     case layoutMismatch(TrackID, LayoutConflict)

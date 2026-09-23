@@ -163,7 +163,7 @@ struct SessionFileTests {
             document(
                 captures:
                     #"<capture id="k1" deviceUID="d" deviceName="D" hostTimeNanos="1" sampleTime="0" nominalSampleRate="48000" measuredSampleRate="nan" latency="0"/>"#
-            ), .invalidValue(element: "capture", attribute: "measuredSampleRate")
+            ), .invalidSession(.invalidCapture("k1"))
         ),
         (
             document(tracks: #"<track id="t1" name="A" gain="inf" layout="mono"/>"#),

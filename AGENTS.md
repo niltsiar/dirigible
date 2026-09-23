@@ -66,14 +66,13 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 
 ## Git
 
-- Never commit on `main` directly. Work on a branch `<type>/<slug>`. Land with `git merge --ff-only`, so history stays linear.
+- The code is on GitHub: https://github.com/niltsiar/dirigible (`origin`). Use the `gh` CLI for pull requests.
+- Never commit on `main` directly. Work on a branch `<type>/<slug>`. Every run lands through a pull request that `deliver` Phase 9 opens and merges with `gh pr merge --rebase`, so history on `main` stays linear and keeps each commit.
 - Use Conventional Commits: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`. Add a scope when it helps: `feat(capture): ...`.
-- One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why.
-- The remote `origin` is https://github.com/niltsiar/dirigible. After a run lands on `main`, push it: `git push origin main`. Keep feature branches local.
-- Never force-push. Never push a `main` that fails `make check`.
-- `.claude/settings.json` allows the build, test, and local git commands of the deliver flow without a prompt. It denies commands that discard work (`git branch -D`, `git stash drop`, `git reset --hard`, a force push). The rules match command prefixes, so they guard against mistakes, not against a determined agent. Long runs also need a permission mode that allows file edits, for example auto mode.
-- Commit signing is off for this repo only (`git config --local commit.gpgsign false`), so long runs do not stop for a signing prompt. Do not change global git config.
-- The pre-commit hook refuses a commit that fails `make lint` or does not build (tests included). It checks the working tree, so stage whole changes. Never use `--no-verify`. Never rewrite commits that are on `main`.
+- One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why. For a long message, write it to `.scratchpads/commit-msg.txt` and run `git commit -F .scratchpads/commit-msg.txt`.
+- The pre-commit hook refuses a commit that fails `make lint` or does not build (tests included). It checks the working tree, so stage whole changes.
+- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks: force push, push to `main`, hard reset, clean, forced branch delete, stash drop, skipped hooks. It matches the whole command, so a commit message that quotes one of these flags is blocked too. Reword the message. `make test-hooks` checks the hook.
+- `.claude/settings.json` allows the build, test, git, and `gh pr` commands of the deliver flow without a prompt. Long runs also need a permission mode that allows file edits, for example auto mode.
 
 ## Architecture rules
 

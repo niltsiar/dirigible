@@ -5,14 +5,14 @@ description: "End-to-end flow for any feature, requirement, or bug in this repo:
 
 # Deliver
 
-One run takes one goal from request to landed commits on `main`. A goal is a requirement (`R3`), a slice of one, or a bug. Every step writes to the run ledger, so a human or the next agent can see what happened and why.
+One run takes one goal from request to a merged pull request on `main`. A goal is a requirement (`R3`), a slice of one, or a bug. Every step writes to the run ledger, so a human or the next agent can see what happened and why.
 
 Open a todo list with the phases below before you start. Do not skip a phase. A phase can be short when the goal is small, but it must leave its artifact.
 
 ## Autonomy rules
 
 - Do not block on the human for reversible work. Choose a sensible default, record it in `decisions.tsv`, and continue. The human corrects it later.
-- Stop and ask only for irreversible or outward-facing actions: deleting user data, publishing anything, rewriting `main` history.
+- Stop and ask only for irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. Pushing a run branch, opening its pull request, and merging it are part of the flow and need no question.
 - When a check needs hardware you cannot drive (a second audio interface, a permission prompt), write the manual check in `run.md` under "Manual checks" and continue with the closest automated check.
 - Keep the main context small. Send bulk reading and research to subagents. Keep their conclusions, not their raw output.
 
@@ -76,18 +76,20 @@ Run the **verify-this** skill for each acceptance criterion from Phase 1 against
 
 Run the **reflect** skill on the branch. It turns durable learnings into commits on skills, agents, `AGENTS.md`, or checks. Run `make check` after its commits. When the run had no friction, reflect records "no learnings" in `decisions.tsv` and makes no commit.
 
-## Phase 9: Land and close
+## Phase 9: Land through a pull request
 
-1. `git rebase main` on the branch, then `make check`.
-2. `git switch main && git merge --ff-only <branch>`, then `git branch -d <branch>`.
-3. `git push origin main`. If the push fails, record it in `run.md` and continue. Never force-push.
-4. History on `main` stays linear. Never rewrite `main`. Never commit on `main` directly.
-5. In `run.md`, set the status to `done`, and write a summary: what landed (commit range), what is verified, manual checks for the human, and open risks.
-6. Update the run line in `.scratchpads/ledger.md`.
+1. `git fetch origin && git rebase origin/main`, then `make check`. Rebase before the first push, so the branch never needs a force push.
+2. `git push -u origin <branch>`.
+3. Write the PR body with the **pr** skill to `<run>/pr.md`. Then `gh pr create --base main --head <branch> --title "<Conventional Commits summary>" --body-file <run>/pr.md`.
+4. `gh pr merge <branch> --rebase --delete-branch`. Rebase merge keeps each atomic commit on `main` and keeps history linear.
+5. `git switch main && git pull --ff-only origin main`. `gh pr merge --delete-branch` also deletes the local branch. A rebase merge gives the commits new hashes, so `git branch -d` refuses a leftover branch. Leave it and record it in `run.md`.
+6. If `main` moved after the push and the merge fails, stop the land step. Record the conflict in `run.md`, and resolve it with the **resolving-merge-conflicts** skill on a fresh branch. Never force-push.
+7. In `run.md`, set the status to `done`, and write a summary: what landed (PR and commit range), what is verified, manual checks for the human, and open risks.
+8. Write the PR URL in `run.md` and in the run line of `.scratchpads/ledger.md`.
 
 ## Long autonomous runs
 
-To work through several goals, repeat the phases for the next goal from `.scratchpads/backlog.md` or the order agreed in the first planning run. Close each run before you open the next one. Every run lands on `main` green, so the human can stop the loop at any time and find a working app.
+To work through several goals, repeat the phases for the next goal from `.scratchpads/backlog.md` or the order agreed in the first planning run. Close each run before you open the next one. Every run lands on `main` green through its own pull request, so the human can stop the loop at any time and find a working app.
 
 ## Write everything in STE
 

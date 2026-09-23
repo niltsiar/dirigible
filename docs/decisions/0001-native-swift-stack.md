@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-23
+- Amended: 2026-09-24. Capture uses one IOProc per device, not AUHAL (see 0004). The module names are in 0002.
 
 ## Context
 

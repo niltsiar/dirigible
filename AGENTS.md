@@ -1,12 +1,12 @@
 # AGENTS.md
 
-Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg PRO. It runs on macOS 14 Sonoma and later. It records several audio devices at the same time, each to its own track, without an aggregate device. The product brief and requirement IDs are in `docs/requirements/brief.md`.
+Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg PRO. It runs on macOS 14 Sonoma and later. It records several audio devices and other apps (for example a call in Teams or Zoom) at the same time, each to its own track, without an aggregate device. The product brief and requirement IDs are in `docs/requirements/brief.md`.
 
 ## Communication
 
 - Write every document, plan, ledger row, review finding, code comment, and commit message in ASD-STE100 Simplified Technical English. Use the **technical-writing** skill, and the **unslop** skill for AI tells.
 - STE in short: one idea per sentence, 20 words or fewer for an instruction, active voice, imperative for instructions, one word for one meaning, keep "the" and "a".
-- Code, docs, and commits are English. The app UI is Spanish.
+- Code, docs, and commits are English. The app UI is English (default) and Spanish (R13).
 
 ## Commands
 
@@ -84,6 +84,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - **No data loss.** Audio that the app captured stays on disk and readable after a crash, a device unplug, or a full disk. Session saves are atomic. A WAV header gets its data size only when the file closes, so write captured audio to a format that survives a crash (for example CAF) or repair the header at launch.
 - **Every device has its own clock.** Store the timing data (host time and sample time) needed to align tracks from different devices.
 - **Apple frameworks first.** Core Audio, AVFoundation, AudioToolbox, Accelerate. A third-party dependency needs a decision record in `docs/decisions/`.
+- **Localized UI.** Every user-facing string, the Info.plist permission texts included, comes from a String Catalog with English and Spanish. No hard-coded UI text.
 - **File size.** A Swift file over 400 lines needs a reason. Split by responsibility, not by execution order.
 
 ## Testing rules

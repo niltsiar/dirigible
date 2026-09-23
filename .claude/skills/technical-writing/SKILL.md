@@ -101,7 +101,7 @@ Source: Kohl, The Global English Style Guide (SAS Press). Guideline text fetched
 
 - Apply the **unslop** skill to every doc this skill touches. That skill owns the slop-pattern catalog: AI vocabulary, filler, hedging, formatting tells.
 - PR descriptions and commit messages are writing too. Every layer except Diátaxis applies to them. A PR body is a briefing that a reviewer can read in under a minute. Do not paste swarm logs, SHA lists, or metric tables. Link them.
-- Product UI strings are not documentation, but they follow the STE layer too: short, active, one word per action. The user-facing language of the app is Spanish; code, docs, and commits are English.
+- Product UI strings are not documentation, but they follow the STE layer too: short, active, one word per action. The app UI is English (default) and Spanish; code, docs, and commits are English.
 - Indent Swift snippets with four spaces, as the code does. Write real paths and real symbols. Make every count or tree claim true at the commit that lands it, and include the command that regenerates it.
 
 ## Worked example

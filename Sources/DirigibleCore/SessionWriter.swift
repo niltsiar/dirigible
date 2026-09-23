@@ -8,8 +8,16 @@ public enum SessionFileError: Error, Hashable, Sendable {
     case invalidValue(element: String, attribute: String)
     /// The file breaks a rule of the model, for example a clip whose file does not exist.
     case invalidSession(SessionError)
-    case readFailed(String)
-    case writeFailed(String)
+    /// The POSIX error code, so the app can tell a missing file (ENOENT) or a full disk (ENOSPC).
+    case readFailed(errno: Int32)
+    case writeFailed(step: String, errno: Int32)
+}
+
+/// The POSIX code under a Foundation file error, or EIO when there is none.
+func posixCode(of error: any Error) -> Int32 {
+    let underlying = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError
+    guard let underlying, underlying.domain == NSPOSIXErrorDomain else { return EIO }
+    return Int32(underlying.code)
 }
 
 let sessionNamespace = "https://github.com/niltsiar/dirigible/session"
@@ -23,7 +31,7 @@ extension Session {
             try FileManager.default.createDirectory(
                 at: package.appending(path: "Clips"), withIntermediateDirectories: true)
         } catch {
-            throw .writeFailed(error.localizedDescription)
+            throw .writeFailed(step: "createDirectory", errno: posixCode(of: error))
         }
         try replaceDurably(
             package.appending(path: "session.xml"), with: xmlDocument().xmlData(options: .nodePrettyPrint))
@@ -165,5 +173,5 @@ private func flush(_ descriptor: Int32) throws(SessionFileError) {
 }
 
 private func posixError(_ call: String) -> SessionFileError {
-    .writeFailed("\(call): \(String(cString: strerror(errno)))")
+    .writeFailed(step: call, errno: errno)
 }

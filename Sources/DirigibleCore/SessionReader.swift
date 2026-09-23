@@ -8,7 +8,7 @@ extension Session {
         do {
             data = try Data(contentsOf: package.appending(path: "session.xml"))
         } catch {
-            throw .readFailed(error.localizedDescription)
+            throw .readFailed(errno: posixCode(of: error))
         }
         guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
             root.localName == "session"

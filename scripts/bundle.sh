@@ -16,6 +16,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Dirigible" "$APP/Contents/MacOS/Dirigible"
 cp Support/Info.plist "$APP/Contents/Info.plist"
+cp -R Support/Resources/. "$APP/Contents/Resources/"
 codesign --force --sign "$SIGN_IDENTITY" --timestamp=none "$APP"
 
 echo "$APP"

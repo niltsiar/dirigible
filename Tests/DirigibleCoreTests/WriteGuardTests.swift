@@ -15,7 +15,9 @@ struct WriteGuardTests {
         var broken = Session(sampleRate: 48_000)
         broken.recording = Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["ghost"])
 
-        #expect(throws: SessionFileError.wouldNotReadBack) { try broken.write(to: package) }
+        #expect(throws: SessionFileError.wouldNotReadBack(.invalidSession(.unknownTrack("ghost")))) {
+            try broken.write(to: package)
+        }
         #expect(try Data(contentsOf: package.appending(path: "session.xml")) == old)
     }
 }

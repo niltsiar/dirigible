@@ -13,7 +13,8 @@ public enum SessionFileError: Error, Hashable, Sendable {
     case writeFailed(step: String, errno: Int32)
     /// The written XML does not read back as the same session. The old file stays. This is a
     /// bug in the model, not a user error.
-    case wouldNotReadBack
+    /// Holds the reader error, or nil when the XML reads back as a different session.
+    indirect case wouldNotReadBack(SessionFileError?)
 }
 
 /// The POSIX code under a Foundation file error, or EIO when there is none.
@@ -32,7 +33,13 @@ extension Session {
     public func write(to package: URL) throws(SessionFileError) {
         let data = xmlDocument().xmlData(options: .nodePrettyPrint)
         // A file that does not read back would lock the user out of the session.
-        guard (try? Session(xml: data)) == self else { throw .wouldNotReadBack }
+        let readBack: Session
+        do throws(SessionFileError) {
+            readBack = try Session(xml: data)
+        } catch {
+            throw .wouldNotReadBack(error)
+        }
+        guard readBack == self else { throw .wouldNotReadBack(nil) }
         let isNew = !FileManager.default.fileExists(atPath: package.path)
         do {
             try FileManager.default.createDirectory(

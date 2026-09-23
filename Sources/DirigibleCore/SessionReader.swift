@@ -10,6 +10,10 @@ extension Session {
         } catch {
             throw .readFailed(errno: posixCode(of: error))
         }
+        try self.init(xml: data)
+    }
+
+    init(xml data: Data) throws(SessionFileError) {
         guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
             root.localName == "session"
         else { throw .malformedXML }

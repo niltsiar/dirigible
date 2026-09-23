@@ -80,9 +80,10 @@ Run the **reflect** skill on the branch. It turns durable learnings into commits
 
 1. `git rebase main` on the branch, then `make check`.
 2. `git switch main && git merge --ff-only <branch>`, then `git branch -d <branch>`.
-3. History on `main` stays linear. Never force-push or rewrite `main`. Never commit on `main` directly.
-4. In `run.md`, set the status to `done`, and write a summary: what landed (commit range), what is verified, manual checks for the human, and open risks.
-5. Update the run line in `.scratchpads/ledger.md`.
+3. `git push origin main`. If the push fails, record it in `run.md` and continue. Never force-push.
+4. History on `main` stays linear. Never rewrite `main`. Never commit on `main` directly.
+5. In `run.md`, set the status to `done`, and write a summary: what landed (commit range), what is verified, manual checks for the human, and open risks.
+6. Update the run line in `.scratchpads/ledger.md`.
 
 ## Long autonomous runs
 

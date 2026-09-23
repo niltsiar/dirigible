@@ -28,7 +28,7 @@ This file keeps the original request from the user, word for word, and an Englis
 | ID | Constraint |
 |---|---|
 | C1 | No Apple developer account. The app is not on the App Store and is not notarized. Local builds use an ad-hoc signature. |
-| C2 | No remote server and no CI service for now. All checks run locally with `make check`. |
+| C2 | No CI service for now. All checks run locally with `make check`. The code is on GitHub at https://github.com/niltsiar/dirigible. |
 | C3 | The app is native. |
 | C4 | The user-facing language of the app is Spanish. Code, docs, and commits are English. |
 

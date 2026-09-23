@@ -12,6 +12,11 @@ Status: the project is new. The build, the tests, and the agent workflow are rea
 ## Build and run
 
 ```sh
+git clone https://github.com/niltsiar/dirigible.git
+cd dirigible
+```
+
+```sh
 make setup   # once per clone: enables the pre-commit hook
 make run
 ```

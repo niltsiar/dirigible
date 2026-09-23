@@ -69,8 +69,9 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Never commit on `main` directly. Work on a branch `<type>/<slug>`. Land with `git merge --ff-only`, so history stays linear.
 - Use Conventional Commits: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`. Add a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why.
-- There is no remote. Do not add one and do not push.
-- `.claude/settings.json` allows the build, test, and local git commands of the deliver flow without a prompt. It denies commands that discard work (`git branch -D`, `git stash drop`, `git reset --hard`). Long runs also need a permission mode that allows file edits, for example auto mode.
+- The remote `origin` is https://github.com/niltsiar/dirigible. After a run lands on `main`, push it: `git push origin main`. Keep feature branches local.
+- Never force-push. Never push a `main` that fails `make check`.
+- `.claude/settings.json` allows the build, test, and local git commands of the deliver flow without a prompt. It denies commands that discard work (`git branch -D`, `git stash drop`, `git reset --hard`, a force push). Long runs also need a permission mode that allows file edits, for example auto mode.
 - Commit signing is off for this repo only (`git config --local commit.gpgsign false`), so long runs do not stop for a signing prompt. Do not change global git config.
 - The pre-commit hook refuses a commit that fails `make lint` or does not build. Never use `--no-verify`. Never rewrite commits that are on `main`.
 

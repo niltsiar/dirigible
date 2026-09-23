@@ -33,12 +33,12 @@ Use this template for writing the PR body:
 
 ## Review
 
-<the code gate verdict: each "Act on" item and the commit that fixed it>
+<the code gate verdict, inline: each "Act on" item and the commit that fixed it; the manual checks for a human>
 
-Run: `.scratchpads/runs/<run>` · Requirements: <IDs from docs/requirements/brief.md>
+Requirements: <IDs from docs/requirements/brief.md>
 ```
 
-Write the body in STE (the **technical-writing** skill). The PR title is the Conventional Commits summary of the run, for example `feat(capture): record each device to its own track`.
+Put the evidence and the verdict in the body. `.scratchpads/` is local only, so never link to it. Write the body in STE (the **technical-writing** skill). The PR title is the Conventional Commits summary of the run, for example `feat(capture): record each device to its own track`.
 
 ## Sections
 

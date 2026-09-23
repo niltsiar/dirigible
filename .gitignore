@@ -1,0 +1,17 @@
+# Agent working notes: run ledger, plans, learnings. Local only.
+.scratchpads/
+
+# Claude Code per-user settings
+.claude/settings.local.json
+
+# Build output
+.build/
+build/
+dist/
+DerivedData/
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store

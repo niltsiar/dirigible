@@ -20,7 +20,8 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 | `make run` | Builds the app, quits a running copy, and opens the new one. |
 | `make lint` | `swift format lint --strict` on all Swift files. |
 | `make format` | Formats all Swift files in place. |
-| `make check` | `lint`, `test`, and `test-app`. Run it before every commit. It must be green. |
+| `make check-docs` | Checks the docs structure: every research file has a date and a Sources section. |
+| `make check` | `lint`, `check-docs`, `test`, `test-hooks`, and `test-app`. Run it before every commit. It must be green. |
 
 The toolchain is Xcode 26 with Swift 6.2. There is no Xcode project. See `docs/decisions/0001-native-swift-stack.md`.
 

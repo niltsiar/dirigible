@@ -146,6 +146,20 @@ struct ClipEditTests {
         #expect(lane("t1").map(\.id) == ["c1", "p2", "c1@30000-2"])
     }
 
+    @Test mutating func aSplitNeverTakesTheIDOfThePlacedClip() throws {
+        try session.place(clip("a", start: 0, length: 3_000), on: "t1")
+        try session.place(clip("a@100", start: 100, length: 50), on: "t1")
+        #expect(lane("t1").map(\.id) == ["a", "a@100", "a@150"])
+
+        try session.place(clip("b", start: 10_000, length: 3_000), on: "t2")
+        try session.split("b", at: 11_000)
+        try session.move("b@11000", to: "t1", start: 20_000)
+        try session.trim("b", to: 10_000..<13_000)
+        try session.trim("b@11000", to: 20_000..<20_500)
+        try session.move("b@11000", to: "t2", start: 10_500)
+        #expect(lane("t2").map(\.id) == ["b", "b@11000", "b@11000-2"])
+    }
+
     @Test mutating func moveBeyondTheFrameLimitChangesNothing() throws {
         try session.place(clip("c1", start: 0, length: 10_000), on: "t1")
         let before = session

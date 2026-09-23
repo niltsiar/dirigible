@@ -173,6 +173,13 @@ struct SessionFileTests {
             document(tracks: #"<track id="t1" name="A" gain="0"/>"#),
             .missingAttribute(element: "track", attribute: "layout")
         ),
+        (
+            document(
+                markers:
+                    #"<marker id="m1" name="A" position="0" kind="marker"/><marker id="m1" name="B" position="9" kind="chapter"/>"#
+            ), .invalidSession(.duplicateID("m1"))
+        ),
+        (#"<session xmlns="urn:other" version="1" sampleRate="48000"/>"#, .malformedXML),
     ])
     func refusesAnInvalidFile(xml: String, error: SessionFileError) throws {
         try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
@@ -217,12 +224,12 @@ struct SessionFileTests {
 /// A version 1 document with the given parts.
 func document(
     version: String = "1", sampleRate: String = "48000", captures: String = "", files: String = "",
-    tracks: String = "", recording: String = ""
+    tracks: String = "", markers: String = "", recording: String = ""
 ) -> String {
     """
     <?xml version="1.0" encoding="UTF-8"?>
     <session xmlns="https://github.com/niltsiar/dirigible/session" version="\(version)" sampleRate="\(sampleRate)">
-    <captures>\(captures)</captures><files>\(files)</files><tracks>\(tracks)</tracks><markers/>\(recording)
+    <captures>\(captures)</captures><files>\(files)</files><tracks>\(tracks)</tracks><markers>\(markers)</markers>\(recording)
     </session>
     """
 }

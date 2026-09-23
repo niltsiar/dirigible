@@ -1,6 +1,6 @@
 ---
 name: deliver
-description: "End-to-end flow for any feature, requirement, or bug in this repo: analyze, plan, review the plan, implement test-first in atomic commits, review the code, verify, land, and reflect, with a run ledger in .scratchpads/. Use for /deliver, 'implement R3', 'build the next feature', 'plan and implement', or any autonomous run."
+description: "End-to-end flow for any feature, requirement, or bug in this repo: analyze, plan, review the plan, implement test-first in atomic commits, review the code, verify, reflect, and land, with a run ledger in .scratchpads/. Use for /deliver, 'implement R3', 'build the next feature', 'plan and implement', or any autonomous run."
 ---
 
 # Deliver
@@ -18,9 +18,11 @@ Open a todo list with the phases below before you start. Do not skip a phase. A 
 
 ## Phase 0: Open the run
 
-1. Run `.claude/skills/deliver/scripts/new-run.sh <slug>`. It creates `.scratchpads/runs/<date>-<slug>/` with `run.md` and `decisions.tsv`, and adds a line to `.scratchpads/ledger.md`. It is safe to run again.
-2. Read `.scratchpads/learnings.md`, `.scratchpads/backlog.md`, and the `run.md` of the last open or recent run. Resume unfinished work before you start new work.
-3. Make sure `main` is green: `git switch main && make check`. If it is red, fixing it is the goal of this run.
+1. Read `.scratchpads/learnings.md`, `.scratchpads/backlog.md`, and `.scratchpads/ledger.md`.
+2. Look for unfinished work: `git status --porcelain`, `git branch`, and any run with status `open` in the ledger. If a run is open, resume it: switch to its branch, read its `run.md` and `decisions.tsv`, and continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
+3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug>`. It creates `.scratchpads/runs/<date>-<slug>/` with `run.md` and `decisions.tsv`, and adds a line to `.scratchpads/ledger.md`. For a slug that already has a run, it returns the existing folder.
+4. For a new goal, make sure `main` is green: `git switch main && make check`. If it is red, fixing it is the goal of this run.
+5. Create the branch now, before any file changes: `git switch -c <type>/<slug>`, for example `feat/multitrack-capture`. Write it in `run.md`. Every commit of the run, including decision records and reflect learnings, goes on this branch.
 
 ## Phase 1: Analyze
 
@@ -39,7 +41,6 @@ Write `plan.md`:
 - Split the goal into vertical slices. Each slice ends in a state you can check: a test that passes and a commit. Put the riskiest unknown first.
 - For each slice: the test you write first, the modules you touch, and the commit message you expect.
 - If a slice sets a one-way decision (a file format, a module boundary, a threading model, a new dependency), run the **architect** skill for it and write a decision record in `docs/decisions/`.
-- Name the branch: `<type>/<slug>`, for example `feat/multitrack-capture`.
 
 ## Phase 3: Plan gate
 
@@ -50,11 +51,10 @@ Run the **interrogate** skill with target `plan`. It runs the `review-panel` wor
 
 ## Phase 4: Implement
 
-1. `git switch -c <branch>` from `main`.
-2. For each slice, follow the **tdd** skill: failing test, smallest change, `make check`, commit.
-3. One commit is one logical change. Use Conventional Commits (see `AGENTS.md`). Never commit a red `make check`.
-4. After each slice, add a row to `decisions.tsv` and tick the slice in `run.md`.
-5. If the plan proves wrong, stop, update `plan.md`, and record why. Do not bolt workarounds onto a wrong plan.
+1. For each slice, follow the **tdd** skill: failing test, smallest change, `make check`, commit.
+2. One commit is one logical change. Use Conventional Commits (see `AGENTS.md`). Never commit a red `make check`.
+3. After each slice, add a row to `decisions.tsv` and tick the slice in `run.md`.
+4. If the plan proves wrong, stop, update `plan.md`, and record why. Do not bolt workarounds onto a wrong plan.
 
 ## Phase 5: Clean up
 
@@ -72,17 +72,17 @@ Run the **interrogate** skill with target `diff`. It runs the `review-panel` wor
 
 Run the **verify-this** skill for each acceptance criterion from Phase 1 against the real artifact: the built app, the real files, measured levels. Record each verdict (`VERIFIED`, `NOT VERIFIED`, `INCONCLUSIVE`) in `run.md`. A `NOT VERIFIED` criterion sends you back to Phase 4.
 
-## Phase 8: Land
+## Phase 8: Reflect
+
+Run the **reflect** skill on the branch. It turns durable learnings into commits on skills, agents, `AGENTS.md`, or checks. Run `make check` after its commits. When the run had no friction, reflect records "no learnings" in `decisions.tsv` and makes no commit.
+
+## Phase 9: Land and close
 
 1. `git rebase main` on the branch, then `make check`.
 2. `git switch main && git merge --ff-only <branch>`, then `git branch -d <branch>`.
-3. History on `main` stays linear. Never force-push or rewrite `main`.
-
-## Phase 9: Reflect and close
-
-1. Run the **reflect** skill. It turns durable learnings into commits on skills, agents, `AGENTS.md`, or checks.
-2. In `run.md`, set the status to `done`, and write a summary: what landed (commit range), what is verified, manual checks for the human, and open risks.
-3. Update the run line in `.scratchpads/ledger.md`.
+3. History on `main` stays linear. Never force-push or rewrite `main`. Never commit on `main` directly.
+4. In `run.md`, set the status to `done`, and write a summary: what landed (commit range), what is verified, manual checks for the human, and open risks.
+5. Update the run line in `.scratchpads/ledger.md`.
 
 ## Long autonomous runs
 

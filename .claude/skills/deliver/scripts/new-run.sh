@@ -1,13 +1,16 @@
 #!/bin/bash
 # Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md and decisions.tsv,
-# plus one line in .scratchpads/ledger.md. Running it again changes nothing.
+# plus one line in .scratchpads/ledger.md. Running it again for the same slug, on any day,
+# returns the same folder and changes nothing.
 set -euo pipefail
 
 slug="${1:?usage: new-run.sh <slug>}"
 [[ "$slug" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "slug must be kebab-case: $slug" >&2; exit 2; }
 
 root="$(git rev-parse --show-toplevel)/.scratchpads"
-run="$(date +%Y-%m-%d)-$slug"
+# Reuse the run of this slug when one exists, so a run that spans days keeps one folder.
+existing="$(ls -d "$root"/runs/*-"$slug" 2>/dev/null | tail -1 || true)"
+if [[ -n "$existing" ]]; then run="$(basename "$existing")"; else run="$(date +%Y-%m-%d)-$slug"; fi
 dir="$root/runs/$run"
 mkdir -p "$dir"
 touch "$root/learnings.md" "$root/backlog.md"
@@ -34,8 +37,8 @@ grep -q "| $run |" "$root/ledger.md" || printf '| %s | %s | open | |\n' "$run" "
 - [ ] 5 Clean up
 - [ ] 6 Code gate (review-diff-*.md)
 - [ ] 7 Verify
-- [ ] 8 Land
-- [ ] 9 Reflect and close
+- [ ] 8 Reflect
+- [ ] 9 Land and close
 
 ## Slices
 

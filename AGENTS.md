@@ -24,7 +24,7 @@ The toolchain is Xcode 26 with Swift 6.2. There is no Xcode project. See `docs/d
 
 ## How to work
 
-Use the **deliver** skill for every feature, requirement, or bug. It runs these phases: open the run, analyze, plan, plan gate, implement test-first, clean up, code gate, verify, land, reflect.
+Use the **deliver** skill for every feature, requirement, or bug. It runs these phases: open the run, analyze, plan, plan gate, implement test-first, clean up, code gate, verify, reflect, land.
 
 | Skill | Use |
 |---|---|

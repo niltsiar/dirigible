@@ -64,12 +64,26 @@ const targetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read it and every file it references.`
   : `The target is the diff of the current branch against ${scope}: run \`git diff ${scope}...HEAD\` and \`git diff\` for uncommitted work. Read the surrounding code, not only the hunks.`
 
+// Agent types load at session start. When the session started before an agent file
+// existed, or another harness runs this script, fall back to a general agent that
+// reads the same agent file as its role.
+async function review(lens) {
+  const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\nReturn your findings. An empty list is a valid result.`
+  const opts = { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS }
+  try {
+    return await agent(`Review with your ${lens.key} lens.\n\n${task}`, { ...opts, agentType: lens.agentType })
+  } catch (error) {
+    log(`${lens.agentType} agent type not available, using a general agent with .claude/agents/${lens.agentType}.md`)
+    return agent(
+      `Read .claude/agents/${lens.agentType}.md. Act as that reviewer and follow its rules. Do not modify files.\n\n${task}`,
+      opts,
+    )
+  }
+}
+
 const results = await pipeline(
   LENSES,
-  lens => agent(
-    `Review with your ${lens.key} lens.\n\nIntent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\nReturn your findings. An empty list is a valid result.`,
-    { label: `review:${lens.key}`, phase: 'Review', agentType: lens.agentType, schema: FINDINGS },
-  ),
+  review,
   (review, lens) => {
     const findings = (review && review.findings) || []
     if (!findings.length) return { lens: lens.key, raised: 0, survived: [] }
@@ -88,5 +102,7 @@ const results = await pipeline(
 )
 
 const panel = results.filter(Boolean)
+const missing = LENSES.filter(l => !panel.some(p => p.lens === l.key)).map(l => l.key)
+if (missing.length) log(`NO RESULT from lenses: ${missing.join(', ')}. The panel is incomplete.`)
 log(panel.map(p => `${p.lens}: ${p.survived.length}/${p.raised} survived`).join(', '))
-return { target, intent, scope, panel }
+return { target, intent, scope, panel, missing }

@@ -33,6 +33,8 @@ The workflow runs these reviewer agents from `.claude/agents/` in parallel, then
 | Architecture | `architecture-reviewer` | yes | yes |
 | Correctness and code quality | `code-quality-reviewer` | no | yes |
 
+The workflow returns `missing`: the lenses that gave no result. A gate with a missing lens is incomplete. Run the missing lens again with the Agent tool before you judge.
+
 If the Workflow tool is not available (for example, another agent harness reads this file), spawn the same agents with the Agent tool in one message, one call per lens. Fill each prompt from `references/reviewer-prompt.md` with the intent, the target, `references/rubric.md`, and, at the code gate, `references/code-quality-review.md`.
 
 ## Step 4: Synthesize

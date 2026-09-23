@@ -15,7 +15,7 @@ extension Session {
 
     init(xml data: Data) throws(SessionFileError) {
         guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
-            root.localName == "session"
+            root.localName == "session", root.uri == sessionNamespace
         else { throw .malformedXML }
 
         let version: Int = try root.value("version")
@@ -46,7 +46,12 @@ extension Session {
                 try setRoute(track.route, track: track.id)
                 try setClips(track.clips, on: track.id)
             }
-            for marker in markers { try setMarker(marker) }
+            // setMarker replaces a marker with the same ID, so a file with two would lose one.
+            var markerIDs: Set<MarkerID> = []
+            for marker in markers {
+                guard markerIDs.insert(marker.id).inserted else { throw .duplicateID(marker.id.rawValue) }
+                try setMarker(marker)
+            }
             try setRecording(recording)
         } catch {
             throw .invalidSession(error)

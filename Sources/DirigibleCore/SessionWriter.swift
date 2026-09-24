@@ -27,6 +27,8 @@ func posixCode(of error: any Error) -> Int32 {
 }
 
 let sessionNamespace = "https://github.com/niltsiar/dirigible/session"
+/// The folder of the clip files in a package (decision 0003).
+package let clipsFolderName = "Clips"
 let sessionVersion = 1
 
 extension Session {
@@ -45,7 +47,7 @@ extension Session {
         let isNew = !FileManager.default.fileExists(atPath: package.path)
         do {
             try FileManager.default.createDirectory(
-                at: package.appending(path: "Clips"), withIntermediateDirectories: true)
+                at: package.appending(path: clipsFolderName), withIntermediateDirectories: true)
         } catch {
             throw .writeFailed(step: "createDirectory", errno: posixCode(of: error))
         }

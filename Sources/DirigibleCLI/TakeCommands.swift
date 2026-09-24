@@ -38,7 +38,7 @@ private func finalizeTake(url: URL, path: String) async throws(ExitCode) {
     }
     guard !studio.unplacedSegments.isEmpty else { return }
     for stem in studio.unplacedSegments {
-        FileHandle.standardError.write(Data("Warning: Capture/\(stem).caf is not on the timeline.\n".utf8))
+        FileHandle.standardError.write(Data("Warning: \(captureFolderName)/\(stem).caf is not on the timeline.\n".utf8))
     }
     throw ExitCode(unplacedAudio)
 }

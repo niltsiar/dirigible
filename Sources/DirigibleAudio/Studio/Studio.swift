@@ -118,13 +118,13 @@ import Foundation
         } catch {
             throw .session(error)
         }
-        let capture = url.appending(path: "Capture")
+        let capture = url.appending(path: captureFolderName)
         guard mkdir(capture.path, 0o755) == 0 || errno == EEXIST else {
-            throw .file(.writeFailed(step: "Capture", errno: errno))
+            throw .file(.writeFailed(step: captureFolderName, errno: errno))
         }
         // A crash before the save leaves no <recording>, so a stale marker must not skip the
         // recovery of this take.
-        unlink(url.appending(path: "recovery-attempt").path)
+        unlink(marker(in: url).path)
         do { try started.write(to: url) } catch { throw .file(error) }
         history.edit { $0 = started }
 

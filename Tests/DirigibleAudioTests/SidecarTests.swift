@@ -73,6 +73,7 @@ struct SidecarTests {
         with { $0.nominalRate = 0 }
         with { $0.nominalRate = .nan }
         with { $0.nominalRate = .infinity }
+        with { $0.nominalRate = 0.4 }
         with { $0.availableRates = [48_000...48_000, 44_100...44_100, 0...48_000] }
         with { $0.availableRates = [(-Double.infinity)...48_000] }
         with { $0.availableRates = [48_000...Double.infinity] }

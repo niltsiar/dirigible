@@ -40,7 +40,7 @@ struct StopPathTests {
                 frameCount: count, nominalRate: device.nominalRate,
                 buffers: zip(buffers, device.channelsPerBuffer).map { buffer, channels in
                     Array(buffer[(start * channels)..<((start + count) * channels)])
-                })
+                })!
         }
     }
 

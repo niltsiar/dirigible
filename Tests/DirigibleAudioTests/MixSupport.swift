@@ -58,12 +58,27 @@ final class MixPackage {
 
     /// The mix of `range` from a new `MixReader`, as two channel arrays.
     func mix(_ range: Range<Frames>, session: Session? = nil) throws -> [[Float]] {
+        try render(MixReader(package: url, session: session ?? self.session), range)
+    }
+
+    func reader() -> MixReader { MixReader(package: url, session: session) }
+
+    func render(_ reader: MixReader, _ range: Range<Frames>) throws -> [[Float]] {
         let format = try #require(
             AVAudioFormat(standardFormatWithSampleRate: Double(self.session.sampleRate), channels: 2))
         let count = range.upperBound.count - range.lowerBound.count
         let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)))
-        MixReader(package: url, session: session ?? self.session).render(range, into: buffer)
+        reader.render(range, into: buffer)
         return channels(buffer)
+    }
+
+    /// Cuts the WAV of `id` to `bytes` and returns the frames that `AVAudioFile` then gives (E6e).
+    func truncate(_ id: FileID, toBytes bytes: UInt64) throws -> Int {
+        let file = url.appending(path: "\(clipsFolderName)/\(id.rawValue).wav")
+        let handle = try FileHandle(forWritingTo: file)
+        try handle.truncate(atOffset: bytes)
+        try handle.close()
+        return Int(try AVAudioFile(forReading: file).length)
     }
 }
 

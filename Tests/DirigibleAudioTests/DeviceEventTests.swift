@@ -147,6 +147,36 @@ struct DeviceEventTests {
         }
     }
 
+    /// Every record that the ring gives is written or counted as dropped. With no layout event,
+    /// records of a new layout with the routed channel (a second buffer) re-route the track into
+    /// a new segment. Records of a layout without the routed channel, and records without valid
+    /// times, are dropped and counted.
+    @Test(arguments: [
+        ([1, 1], true, ["take1-1-1", "take1-1-2"], 0),
+        ([1], true, ["take1-1-1"], 24_000),
+        ([2], false, ["take1-1-1"], 24_000),
+    ])
+    func eachRecordIsWrittenOrCountedAsDropped(
+        layout: [Int], valid: Bool, expected: [String], dropped: Int
+    ) async throws {
+        let hal = TestHAL([duo])
+        let writer = writer(duo, hal, channel: 2)
+        let input = SyntheticInput(hal, "duo")
+        var clock = DeviceClock()
+        input.play(run(&clock, 0.5, layout: [2]))
+        await input.wait()
+        await drained(hal, "duo")
+
+        input.play(run(&clock, 0.5, layout: layout), flags: valid ? validTimes : [])
+        await input.wait()
+        await drained(hal, "duo")
+        await writer.finish()
+
+        #expect(try stems() == expected)
+        #expect(try expected.map { try samples($0).count } == expected.map { _ in 24_000 })
+        #expect(writer.droppedFrames == dropped)
+    }
+
     @Test func aLayoutWithoutTheRoutedChannelLosesTheDeviceAndTheOtherDeviceRecords() async throws {
         let hal = TestHAL([mic, duo])
         let micWriter = writer(mic, hal)

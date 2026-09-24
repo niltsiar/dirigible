@@ -61,6 +61,19 @@ struct TrackSegments {
         outputs.allSatisfy { $0.channels.allSatisfy { $0 <= device.channelCount } }
     }
 
+    /// Takes `channels` (the channel count of each buffer) as the layout of the next records.
+    /// False, with no change, when a routed channel is not in it.
+    mutating func use(channels: [Int]) -> Bool {
+        guard
+            let changed = InputDevice(
+                uid: device.uid, name: device.name, nominalRate: device.nominalRate,
+                availableRates: device.availableRates, channelsPerBuffer: channels, latency: device.latency),
+            hasRoutedChannels(changed)
+        else { return false }
+        use(changed)
+        return true
+    }
+
     /// Takes the layout of `device` for the next records.
     mutating func use(_ device: InputDevice) {
         self.device = device
@@ -70,15 +83,23 @@ struct TrackSegments {
         for index in outputs.indices { outputs[index].sources = outputs[index].channels.map { channels[$0 - 1] } }
     }
 
-    mutating func write(_ record: InputRecord) {
-        guard record.frameCount > 0 else { return }
-        // A byte-size mismatch closes the segment at the record, and the record is lost.
-        guard record.buffers.count == device.channelsPerBuffer.count,
-            zip(record.buffers, device.channelsPerBuffer).allSatisfy({ $0.count == record.frameCount * $1 })
-        else { return endSegment() }
+    /// Writes `record`. False when it drops the record: its byte sizes do not match its layout,
+    /// or its layout has no routed channel. A record of a new layout ends the segment, and the
+    /// tracks take its layout.
+    mutating func write(_ record: InputRecord) -> Bool {
+        guard record.frameCount > 0 else { return true }
+        let layout = record.channelsPerBuffer
+        guard zip(record.buffers, layout).allSatisfy({ $0.count == record.frameCount * $1 }) else {
+            endSegment()
+            return false
+        }
+        if layout != device.channelsPerBuffer {
+            endSegment()
+            guard use(channels: layout) else { return false }
+        }
         if let segment, segment.breaks(at: record) { endSegment() }
         if segment == nil { open(at: record) }
-        guard var current = segment else { return }
+        guard var current = segment else { return true }
 
         // A forward jump of 2 s or less gets silence.
         let gap = Int((record.sampleTime - current.nextSampleTime).rounded())
@@ -130,6 +151,7 @@ struct TrackSegments {
             current.nextFlush = current.fileFrame + 5 * second
         }
         segment = current
+        return true
     }
 
     /// Opens a segment for every track that has no error. A track with an error waits for its

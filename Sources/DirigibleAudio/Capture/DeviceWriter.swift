@@ -84,7 +84,8 @@ final class DeviceWriter: @unchecked Sendable {
 
     deinit { timer?.cancel() }
 
-    /// The dropped frames of the take. Any thread can read it.
+    /// The frames of the take that the ring or the writer dropped: a full ring, a record without
+    /// valid times, and a record with no routed channel or a wrong size. Any thread can read it.
     var droppedFrames: Int { dropped.load(ordering: .relaxed) }
 
     /// Starts the drain timer and the device-list listener, and attaches. A failed attach makes
@@ -153,15 +154,10 @@ final class DeviceWriter: @unchecked Sendable {
         guard let current = input?.input, current === sender else { return }
         switch event {
         case .layout(let channels):
-            // The records in the ring that do not match the new layout end the segment.
+            // A record in the ring of the other layout ends the segment again and re-routes.
             tracks.endSegment()
-            let device = tracks.device
-            let changed = InputDevice(
-                uid: device.uid, name: device.name, nominalRate: device.nominalRate,
-                availableRates: device.availableRates, channelsPerBuffer: channels, latency: device.latency)
-            guard let changed, tracks.hasRoutedChannels(changed) else { return lose() }
-            tracks.use(changed)
-            growRing(rate: device.nominalRate, channels: changed.channelCount)
+            guard tracks.use(channels: channels) else { return lose() }
+            growRing(rate: tracks.device.nominalRate, channels: tracks.device.channelCount)
         case .rate(let rate):
             // The rate is in the ring already: the next record header breaks the segment.
             growRing(rate: rate, channels: tracks.device.channelCount)
@@ -195,20 +191,23 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// Writes each record that is in the ring when the drain starts, so an event that a listener
     /// posts during a drain acts before the records that come after it. A record without valid
-    /// times ends the segment, and only a valid record restarts the watchdog clock.
+    /// times ends the segment, and only a valid record restarts the watchdog clock. Each record
+    /// is written or counted as dropped.
     private func drain() {
         guard phase != .finished, let ring = input?.input.ring else { return }
         let end = ring.end()
+        var lost = ring.takeDroppedFrames()
         while let popped = ring.pop(before: end) {
             guard let record = popped.record else {
                 tracks.endSegment()
+                lost += popped.frames
                 continue
             }
-            if record.hostTimeNanos < endHostNanos { tracks.write(record) }
+            if record.hostTimeNanos < endHostNanos, !tracks.write(record) { lost += record.frameCount }
             lastValid = .now
             hasRecord = true
         }
-        dropped.wrappingIncrement(by: ring.takeDroppedFrames(), ordering: .relaxed)
+        dropped.wrappingIncrement(by: lost, ordering: .relaxed)
     }
 
     /// Detaches the current input and writes the rest of its ring. A clean detach frees the

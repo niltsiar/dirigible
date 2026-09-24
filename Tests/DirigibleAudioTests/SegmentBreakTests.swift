@@ -102,9 +102,10 @@ struct SegmentBreakTests {
             clock.realRate = 44_100
             expected = (48_000, 48_000)
         case .byteSize:
-            // A buffer of 2 channels on a mono device. The record is dropped; its time passes.
+            // A second buffer whose size is not a whole number of frames. The record is dropped;
+            // its time passes. (A record of another layout re-routes: DeviceEventTests.)
             var bad = clock.run(seconds: 0.01)[0]
-            bad.buffers = [[Float](repeating: 0.25, count: 960)]
+            bad.buffers = [[Float](repeating: 0.25, count: 480), [Float](repeating: 0.25, count: 481)]
             records.append(bad)
             expected = (48_480, 48_000)
         case .backwardJump:

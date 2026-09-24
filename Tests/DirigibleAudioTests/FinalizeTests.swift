@@ -61,6 +61,21 @@ struct FinalizeTests {
         #expect(try clip(session).length.count == wav.count)
     }
 
+    /// The control of criterion 14: with no resample, the impulse keeps its exact frame.
+    @Test func aSegmentAt48000KeepsTheImpulseAtTheExactFrame() throws {
+        var samples = [Float](repeating: 0, count: 96_000)
+        samples[24_000] = 0.5
+        try package.segment(header: TakePackage.header(rate: 48_000), samples: samples)
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        #expect(session.captures["take1-1-1"]?.resampledFromRate == nil)
+        let wav = try readAudio(package.url.appending(path: "Clips/take1-1-1.wav")).samples
+        #expect(wav.count == 96_000)
+        #expect(wav.indices.filter { wav[$0] != 0 } == [24_000])
+        #expect(wav[24_000] == 0.5)
+    }
+
     @Test func aHeaderWithNoCheckpointIsPlacedAtTheHeaderRateWithAWarning() throws {
         try package.segment(samples: sine(seconds: 2, rate: 48_000), checkpoints: [])
 

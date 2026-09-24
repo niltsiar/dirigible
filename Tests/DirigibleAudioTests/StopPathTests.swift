@@ -35,7 +35,7 @@ struct StopPathTests {
     func recordThreeSeconds(_ studio: Studio) async throws -> [String: DeviceWriter] {
         let hal = TestHAL([mic, box])
         studio.environment = .test(hal)
-        let writers = try studio.startTake(
+        let writers = try await studio.startTake(
             armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
         let micInput = SyntheticInput(hal, "mic")
         let boxInput = SyntheticInput(hal, "box")
@@ -93,7 +93,7 @@ struct StopPathTests {
 
         let hal = TestHAL([quad])
         studio.environment = .test(hal)
-        let writers = try studio.startTake(armed: ["t1"], devices: [quad], playhead: 0, hostTimeNanos: takeStart)
+        let writers = try await studio.startTake(armed: ["t1"], devices: [quad], playhead: 0, hostTimeNanos: takeStart)
         let input = SyntheticInput(hal, "quad")
         input.play(records([first, second], layout: [2, 2], rate: 48_000))
         await input.wait()
@@ -113,8 +113,8 @@ struct StopPathTests {
         let studio = try await Studio.open(url)
         let before = try Data(contentsOf: sessionXML)
 
-        #expect(throws: StudioError.session(.takeOutOfRange(1_000_000_000))) {
-            _ = try studio.startTake(
+        await #expect(throws: StudioError.session(.takeOutOfRange(1_000_000_000))) {
+            _ = try await studio.startTake(
                 armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         }
         #expect(try Data(contentsOf: sessionXML) == before)
@@ -125,28 +125,35 @@ struct StopPathTests {
 
     @Test func aStartWithABadRouteThrowsAndChangesNothing() async throws {
         let studio = try await Studio.open(url)
-        let before = try Data(contentsOf: sessionXML)
+        var before = try Data(contentsOf: sessionXML)
         let stereoMic = try #require(
             InputDevice(
                 uid: "mic", name: "USB Mic", nominalRate: 48_000, availableRates: [], channelsPerBuffer: [2],
                 latency: 0))
-        func start(_ armed: [TrackID], _ devices: [InputDevice]) throws(StudioError) {
-            _ = try studio.startTake(
+        func start(_ armed: [TrackID], _ devices: [InputDevice]) async throws(StudioError) {
+            _ = try await studio.startTake(
                 armed: armed, devices: devices, playhead: 0, hostTimeNanos: takeStart)
         }
 
-        #expect(throws: StudioError.deviceMissing("t2")) { try start(["t1", "t2"], [mic]) }
+        await #expect(throws: StudioError.deviceMissing("t2")) { try await start(["t1", "t2"], [mic]) }
+        #expect(try Data(contentsOf: sessionXML) == before)
         try studio.edit { session throws(SessionError) in
             try session.setRoute(Route(deviceUID: "mic", channels: .mono(3)), track: "t1")
             try session.setLayout(.mono, route: Route(deviceUID: "mic", channels: .mono(1)), track: "t2")
             try session.addTrack("t3", name: "Music", layout: .mono)
         }
-        #expect(throws: StudioError.channelOutOfRange("t1")) { try start(["t1"], [stereoMic]) }
+        // Each edit saves (decision 0014), so the bytes to compare are the bytes after its save.
+        await studio.settle()
+        before = try Data(contentsOf: sessionXML)
+        await #expect(throws: StudioError.channelOutOfRange("t1")) { try await start(["t1"], [stereoMic]) }
+        #expect(try Data(contentsOf: sessionXML) == before)
         try studio.edit { session throws(SessionError) in
             try session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: "t1")
         }
-        #expect(throws: StudioError.channelInUse("t1", "t2")) { try start(["t1", "t2"], [stereoMic]) }
-        #expect(throws: StudioError.noRoute("t3")) { try start(["t3"], [stereoMic]) }
+        await studio.settle()
+        before = try Data(contentsOf: sessionXML)
+        await #expect(throws: StudioError.channelInUse("t1", "t2")) { try await start(["t1", "t2"], [stereoMic]) }
+        await #expect(throws: StudioError.noRoute("t3")) { try await start(["t3"], [stereoMic]) }
         #expect(try Data(contentsOf: sessionXML) == before)
         #expect(studio.transport == .idle)
     }
@@ -159,9 +166,8 @@ struct StopPathTests {
             try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "X") }
         }
         #expect(throws: StudioError.busy) { try studio.undo() }
-        #expect(throws: StudioError.busy) { try studio.save() }
-        #expect(throws: StudioError.busy) {
-            _ = try studio.startTake(
+        await #expect(throws: StudioError.busy) {
+            _ = try await studio.startTake(
                 armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         }
         await #expect(throws: StudioError.busy) { try await studio.retryFinalize() }
@@ -193,8 +199,8 @@ struct StopPathTests {
         #expect(studio.pendingTake?.take == 1)
         #expect(try Session(contentsOf: url).recording?.take == 1)
         // A new take waits for the pending take.
-        #expect(throws: StudioError.busy) {
-            _ = try studio.startTake(
+        await #expect(throws: StudioError.busy) {
+            _ = try await studio.startTake(
                 armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         }
     }

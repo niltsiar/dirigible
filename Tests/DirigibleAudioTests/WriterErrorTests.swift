@@ -21,7 +21,8 @@ extension DeviceEventTests {
         let studio = try await Studio.open(url)
         let hal = TestHAL([duo])
         studio.environment = .test(hal)
-        let writers = try studio.startTake(armed: ["t1", "t2"], devices: [duo], playhead: 0, hostTimeNanos: takeStart)
+        let writers = try await studio.startTake(
+            armed: ["t1", "t2"], devices: [duo], playhead: 0, hostTimeNanos: takeStart)
         // After the start, so the take number stays 1; before the first record, so the open fails.
         if blocked {
             try FileManager.default.createDirectory(
@@ -91,7 +92,7 @@ extension DeviceEventTests {
         let studio = try await Studio.open(url)
         let hal = TestHAL([mic])
         studio.environment = .test(hal)
-        _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+        _ = try await studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         let filler = volume.appending(path: "filler")
         // 3 s of mono is 576,000 bytes of CAF.
         try await offMainActor { try FullDiskTests.fill(volume, leaving: 300_000, with: filler) }

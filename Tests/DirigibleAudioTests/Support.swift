@@ -177,3 +177,57 @@ func until(limit: Duration = .seconds(1), _ message: String, _ condition: () -> 
         try? await Task.sleep(for: .milliseconds(10))
     }
 }
+
+/// Holds the first caller of `waitOnce` until `open`, with a limit of 5 s; later callers pass.
+/// A test holds a write with it and waits with `entered` until the write is inside the gate.
+final class Gate: @unchecked Sendable {
+    private let lock = NSLock()
+    private let semaphore = DispatchSemaphore(value: 0)
+    private var used = false
+    private var inside = false
+
+    func waitOnce() {
+        guard
+            lock.withLock({ () -> Bool in
+                defer { used = true }
+                return !used
+            })
+        else { return }
+        lock.withLock { inside = true }
+        if semaphore.wait(timeout: .now() + 5) == .timedOut { Issue.record("The gate was not opened in 5 s") }
+    }
+
+    func open() { semaphore.signal() }
+
+    /// Returns when the first caller is inside `waitOnce`. After `limit`, it records a failure.
+    func entered(limit: Duration = .seconds(5)) async {
+        let end = ContinuousClock.now + limit
+        while !lock.withLock({ inside }) {
+            guard ContinuousClock.now < end else {
+                Issue.record("No write entered the gate (limit \(limit))")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+}
+
+/// Counts the calls of a test step and throws on the calls that `fails` names (1-based).
+final class StepCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    private let fails: @Sendable (Int) -> Bool
+
+    init(fails: @escaping @Sendable (Int) -> Bool = { _ in false }) { self.fails = fails }
+
+    var calls: Int { lock.withLock { count } }
+
+    /// Adds one call. True when this call must fail.
+    func next() -> Bool {
+        fails(
+            lock.withLock { () -> Int in
+                count += 1
+                return count
+            })
+    }
+}

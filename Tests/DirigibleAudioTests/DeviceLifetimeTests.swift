@@ -165,7 +165,7 @@ extension DeviceEventTests {
     func aLostDeviceComesBackIntoANewSegment(lost: Bool) async throws {
         let hal = TestHAL([mic, box])
         let studio = try await studio(first: "mic", hal: hal)
-        let writers = try studio.startTake(
+        let writers = try await studio.startTake(
             armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
         let micInput = SyntheticInput(hal, "mic")
         let boxInput = SyntheticInput(hal, "box")
@@ -208,7 +208,8 @@ extension DeviceEventTests {
             hal.attachLive("mic")
         }
         let studio = try await studio(first: "mic", hal: hal)
-        _ = try studio.startTake(armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
+        _ = try await studio.startTake(
+            armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
         let micInput = SyntheticInput(hal, "mic")
         let boxInput = SyntheticInput(hal, "box")
         var micClock = DeviceClock()

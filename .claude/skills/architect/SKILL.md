@@ -23,6 +23,8 @@ Build a real mental model of every system the new code touches. Spawn `Explore` 
 
 Naming a file isn't grounding. Produce the traced model: the types, the call path, and who owns each piece of state. If the design redefines ownership or layering, also read the decision records in `docs/decisions/` and the `git log` of the touched files, so the rationale becomes a constraint, not a guess.
 
+When the design depends on framework behavior that the documentation does not state (an error value, a format limit, a frame count), write a small probe with `swiftc -O`. Record the command, the macOS and Swift versions, and the result in `.scratchpads/runs/<run>/probe/output.txt`. Delete large generated files after the probe.
+
 Skip Phase A only when the work is genuinely greenfield with no surrounding system to integrate.
 
 ## Phase B: Sketch

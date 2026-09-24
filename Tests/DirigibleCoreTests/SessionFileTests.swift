@@ -160,6 +160,10 @@ struct SessionFileTests {
             .invalidSession(.unknownTrack("t9"))
         ),
         (
+            document(recording: #"<recording take="1000000000" playheadFrame="0" takeStartHostTimeNanos="5"/>"#),
+            .invalidSession(.takeOutOfRange(1_000_000_000))
+        ),
+        (
             document(
                 tracks: #"<track id="t1" name="A" gain="0" layout="mono"><route device="d" channels="1 2"/></track>"#),
             .invalidSession(.layoutMismatch("t1", .route))

@@ -194,6 +194,10 @@ public struct Marker: Identifiable, Hashable, Sendable {
 
 /// A take that runs or waits for finalize (decisions 0003 and 0004). It holds the take anchor.
 public struct Recording: Hashable, Sendable {
+    /// The take numbers that a stem can hold: 1 to 9 digits (decision 0012).
+    public static let takes = 1...999_999_999
+
+    /// In `takes`; `Session.setRecording` refuses other values.
     public var take: Int
     public var playheadFrame: Frames
     public var takeStartHostTimeNanos: UInt64

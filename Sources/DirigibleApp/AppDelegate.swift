@@ -94,7 +94,7 @@ import UniformTypeIdentifiers
         Task { await key?.studio?.perform(command) }
     }
 
-    /// Drops the auto-repeat of J and L, and pauses at the key-up of a hold (probe H1). The
+    /// Drops the auto-repeat of J, L, and Space, and pauses at the key-up of a hold (probe H1). The
     /// release calls the pause directly, with no key forward (plan gate 2 item 6).
     private func watchKeys() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in

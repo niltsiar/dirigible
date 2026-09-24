@@ -107,17 +107,18 @@ const results = await pipeline(
     const unscoped = f => mode === 'converge' && f.severity !== 'critical' && (!f.priorItem || /^none$/i.test(f.priorItem.trim()))
     const outOfScope = review.findings.filter(unscoped)
     const findings = review.findings.filter(f => !unscoped(f))
-    if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], outOfScope }
+    if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
     return agent(
       `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. Do not modify files.${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
       { label: `verify:${lens.key}`, phase: 'Verify', schema: VERDICTS, effort: 'medium' },
     ).then(v => {
       const upheld = new Map(((v && v.verdicts) || []).map(x => [x.index, x]))
-      const survived = findings
-        .map((f, i) => ({ ...f, skeptic: upheld.get(i) }))
-        .filter(f => !f.skeptic || f.skeptic.upheld)
-      return { lens: lens.key, raised: review.findings.length, survived, outOfScope }
+      const judged = findings.map((f, i) => ({ ...f, skeptic: upheld.get(i) }))
+      const survived = judged.filter(f => !f.skeptic || f.skeptic.upheld)
+      // Keep the refuted findings with the skeptic reason, so the lead can list them under Dismissed.
+      const refuted = judged.filter(f => f.skeptic && !f.skeptic.upheld)
+      return { lens: lens.key, raised: review.findings.length, survived, refuted, outOfScope }
     })
   },
 )

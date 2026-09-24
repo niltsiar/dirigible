@@ -1,5 +1,6 @@
 import DirigibleCore
 import Foundation
+import Testing
 
 /// The exit code, stdout, and stderr of one run of the `dirigible` binary.
 struct CLIResult: Equatable {
@@ -9,7 +10,8 @@ struct CLIResult: Equatable {
 }
 
 /// Runs the `dirigible` binary that `swift test` builds next to the test bundle. stdout and
-/// stderr go to files, not pipes, so a large output cannot block the child process.
+/// stderr go to files, not pipes, so a large output cannot block the child process. A run over
+/// 30 s is stopped and fails the test, so a hang cannot stop the suite.
 func dirigible(_ arguments: String...) throws -> CLIResult { try dirigible(arguments) }
 
 func dirigible(_ arguments: [String]) throws -> CLIResult {
@@ -27,8 +29,14 @@ func dirigible(_ arguments: [String]) throws -> CLIResult {
     process.arguments = arguments
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
+    let exited = DispatchSemaphore(value: 0)
+    process.terminationHandler = { _ in exited.signal() }
     try process.run()
-    process.waitUntilExit()
+    if exited.wait(timeout: .now() + 30) == .timedOut {
+        process.terminate()
+        process.waitUntilExit()
+        Issue.record("\(process.executableURL!.path) \(arguments.joined(separator: " ")) ran for more than 30 s")
+    }
     return CLIResult(
         status: process.terminationStatus,
         stdout: String(decoding: try Data(contentsOf: output), as: UTF8.self),

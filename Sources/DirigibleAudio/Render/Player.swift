@@ -1,0 +1,198 @@
+import AVFoundation
+import Accelerate
+import DirigibleCore
+import Foundation
+
+/// Plays the session mix (decision 0016): one `AVAudioEngine` with one `AVAudioPlayerNode` into
+/// the main mixer, on the system default output or in offline manual rendering. An actor, so
+/// the engine start and the file reads never run on the main actor.
+///
+/// A play schedules chunks of 0.1 s ahead of the node. Each `.dataConsumed` handler asks for a
+/// refill, and the refill reads the node position, so a late handler of an earlier play only
+/// tops up the current feed.
+actor Player {
+    enum Output { case device, offline }
+    /// Only these change the feed number. A seek or a shuttle change is a new play.
+    enum Command: Sendable {
+        case play(from: Frames, shuttle: Shuttle)
+        case stop
+    }
+
+    /// `played` is the number of the last play that the Player started; `frame` is the position.
+    struct Reading: Sendable {
+        var number: Int
+        var played: Int
+        var frame: Frames
+    }
+
+    /// The chunks that one play keeps scheduled ahead of the node (a calibration knob).
+    static let depth = 3
+
+    private struct Graph {
+        let engine: AVAudioEngine
+        let node: AVAudioPlayerNode
+        let format: AVAudioFormat
+    }
+
+    /// The running play. `scheduled` counts output frames from the play start.
+    private struct Feed {
+        let anchor: Frames
+        let shuttle: Shuttle
+        let mix: MixReader
+        var scheduled = 0
+    }
+
+    private let package: @Sendable () throws -> URL
+    private let output: Output
+    /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
+    private let chunk: Int
+    private var session: Session
+    private var revision = 0
+    private var number = 0
+    private var played = 0
+    /// The position while no feed runs.
+    private var frame: Frames = .zero
+    private var graph: Graph?
+    private var feed: Feed?
+
+    /// Stores values only. The engine is made at the first play.
+    init(package: @escaping @Sendable () throws -> URL, output: Output, session: Session) {
+        self.package = package
+        self.output = output
+        self.session = session
+        chunk = max(1, session.sampleRate / 10)
+    }
+
+    /// Does nothing when `number` is not newer than the last feed number.
+    func apply(_ command: Command, number: Int) {
+        guard number > self.number else { return }
+        self.number = number
+        frame = position()
+        graph?.node.stop()
+        feed = nil
+        guard case .play(let start, let shuttle) = command else {
+            graph?.engine.stop()
+            return
+        }
+        frame = start
+        guard let graph = makeGraph(), let url = try? package() else { return }
+        do {
+            if !graph.engine.isRunning { try graph.engine.start() }
+        } catch {
+            return
+        }
+        played = number
+        feed = Feed(anchor: start, shuttle: shuttle, mix: MixReader(package: url, session: session))
+        refill()
+        graph.node.play()
+    }
+
+    /// The session of the next chunks. The running feed goes on. Does nothing when `revision`
+    /// is not newer than the last revision.
+    func update(_ session: Session, revision: Int) {
+        guard revision > self.revision else { return }
+        self.revision = revision
+        self.session = session
+        feed?.mix.session = session
+    }
+
+    func reading() -> Reading { Reading(number: number, played: played, frame: position()) }
+
+    /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
+    /// Before each pull it waits (at most 2 s) until the handlers have scheduled the frames, as
+    /// the device clock gives them time to.
+    func renderOffline(frames: Int) async -> [[Float]] {
+        var out: [[Float]] = [[], []]
+        var left = frames
+        while left > 0 {
+            let count = min(left, chunk)
+            await waitForFeed(count)
+            let pulled = pull(count)
+            for channel in 0..<2 { out[channel] += pulled?[channel] ?? [Float](repeating: 0, count: count) }
+            left -= count
+        }
+        return out
+    }
+
+    private func waitForFeed(_ count: Int) async {
+        let end = ContinuousClock.now + .seconds(2)
+        while let feed, feed.scheduled - nodeFrames() < count, ContinuousClock.now < end {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+    }
+
+    private func pull(_ count: Int) -> [[Float]]? {
+        guard let engine = graph?.engine, engine.isRunning,
+            let buffer = AVAudioPCMBuffer(
+                pcmFormat: engine.manualRenderingFormat, frameCapacity: AVAudioFrameCount(count)),
+            (try? engine.renderOffline(AVAudioFrameCount(count), to: buffer)) == .success
+        else { return nil }
+        return (0..<2).map { Array(UnsafeBufferPointer(start: buffer.floatChannelData![$0], count: count)) }
+    }
+
+    /// Schedules chunks until the feed is `depth` chunks ahead of the node.
+    private func refill() {
+        guard var feed, let graph else { return }
+        let target = nodeFrames() + chunk * Self.depth
+        while feed.scheduled < target {
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: graph.format, frameCapacity: AVAudioFrameCount(chunk))
+            else { return }
+            let from = Frames(feed.scheduled)
+            let size = Frames(chunk)
+            let forward = feed.shuttle.direction == .forward
+            let range =
+                forward
+                ? feed.anchor + from..<feed.anchor + from + size : feed.anchor - from - size..<feed.anchor - from
+            feed.mix.render(range, into: buffer)
+            if !forward {
+                for channel in 0..<2 { vDSP_vrvrs(buffer.floatChannelData![channel], 1, vDSP_Length(chunk)) }
+            }
+            graph.node.scheduleBuffer(
+                buffer, completionCallbackType: .dataConsumed, completionHandler: Self.consumed(self))
+            feed.scheduled += chunk
+        }
+        self.feed = feed
+    }
+
+    /// Made outside the actor: an AVFAudio thread calls it (AGENTS.md).
+    private nonisolated static func consumed(_ player: Player)
+        -> @Sendable (AVAudioPlayerNodeCompletionCallbackType) -> Void
+    {
+        { [weak player] _ in
+            guard let player else { return }
+            Task { await player.refill() }
+        }
+    }
+
+    private func position() -> Frames {
+        guard let feed else { return frame }
+        let moved = Frames(Int(Double(min(nodeFrames(), feed.scheduled)) * feed.shuttle.rate.rawValue))
+        return feed.shuttle.direction == .forward ? feed.anchor + moved : feed.anchor - moved
+    }
+
+    /// The output frames that the node played since its play; 0 before the first render.
+    private func nodeFrames() -> Int {
+        guard let node = graph?.node, let time = node.lastRenderTime, time.isSampleTimeValid || time.isHostTimeValid,
+            let player = node.playerTime(forNodeTime: time)
+        else { return 0 }
+        return max(0, Int(player.sampleTime))
+    }
+
+    private func makeGraph() -> Graph? {
+        if let graph { return graph }
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: Double(session.sampleRate), channels: 2)
+        else { return nil }
+        let engine = AVAudioEngine()
+        let node = AVAudioPlayerNode()
+        engine.attach(node)
+        engine.connect(node, to: engine.mainMixerNode, format: format)
+        if output == .offline {
+            guard
+                (try? engine.enableManualRenderingMode(
+                    .offline, format: format, maximumFrameCount: AVAudioFrameCount(chunk))) != nil
+            else { return nil }
+        }
+        graph = Graph(engine: engine, node: node, format: format)
+        return graph
+    }
+}

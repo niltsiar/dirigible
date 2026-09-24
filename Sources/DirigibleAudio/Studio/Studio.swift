@@ -127,19 +127,24 @@ import Foundation
     }
 
     /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low
-    /// stop can end it early. Throws what `startRecording` throws, or the finalize error; then
-    /// `lastTake` still has the result and the take stays pending.
+    /// stop or a stop from another caller can end it early; then it returns soon after that end.
+    /// Throws what `startRecording` throws, or the finalize error; then `lastTake` still has the
+    /// result and the take stays pending.
     public func record(armed: [TrackID], playhead: Frames, for duration: Duration) async throws(StudioError)
         -> TakeResult
     {
         try await startRecording(armed: armed, playhead: playhead)
+        guard case .recording(let take) = transport else { preconditionFailure("A started take records") }
         // The take ends at its start host time + duration, also when the stop comes late.
         let end = (session.recording?.takeStartHostTimeNanos ?? 0) + UInt64(duration / .nanoseconds(1))
         for writer in writers.values { writer.end(atHostNanos: end) }
-        try? await Task.sleep(for: duration)
-        if case .recording = transport { try await stopRecording() }
-        // The disk watcher stops the take on its own; wait for its finalize.
-        while case .finalizing = transport { try? await Task.sleep(for: .milliseconds(10)) }
+        let deadline = ContinuousClock.now + duration
+        while transport == .recording(take: take), ContinuousClock.now < deadline {
+            try? await Task.sleep(for: min(.milliseconds(50), deadline - .now))
+        }
+        if transport == .recording(take: take) { try await stopRecording() }
+        // Another stop ended the take; wait for its finalize.
+        while transport == .finalizing(take: take) { try? await Task.sleep(for: .milliseconds(10)) }
         if let takeError { throw takeError }
         guard let lastTake else { preconditionFailure("A take that stopped has a result") }
         return lastTake

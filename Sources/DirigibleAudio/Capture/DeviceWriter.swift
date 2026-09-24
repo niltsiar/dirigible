@@ -39,6 +39,8 @@ final class DeviceWriter: @unchecked Sendable {
     private let silenceLimit: Duration
     private let firstRecordLimit: Duration
     private let ringSeconds: Double
+    /// At this many kept inputs, the writer attaches no more (decision 0015).
+    private let keepLimit: Int
     private let queue: DispatchQueue
     private var tracks: TrackSegments
     private var phase = Phase.ready
@@ -46,6 +48,10 @@ final class DeviceWriter: @unchecked Sendable {
     private var input: (input: DeviceInput, detach: Detach)?
     /// The detaches that failed: a late IOProc call can still use their ring bytes.
     private var failedDetaches = 0
+    /// The inputs that `keep` kept for the process life.
+    private var kept = 0
+    /// True after the writer reported `.retryStopped`.
+    private var retryStopped = false
     /// The ring of an attach that threw before its IOProc existed: no call can reach it.
     private var spare: CaptureRing?
     private var unwatch: Detach?
@@ -68,7 +74,8 @@ final class DeviceWriter: @unchecked Sendable {
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?, hal: DeviceHAL,
         report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
-        silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10
+        silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10,
+        keepLimit: Int = .max
     ) {
         take = files?.take ?? 0
         self.hal = hal
@@ -77,6 +84,7 @@ final class DeviceWriter: @unchecked Sendable {
         self.silenceLimit = silenceLimit
         self.firstRecordLimit = firstRecordLimit
         self.ringSeconds = ringSeconds
+        self.keepLimit = keepLimit
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
         self.tracks = TrackSegments(device: device, tracks: tracks, files: files, report: report)
     }
@@ -227,6 +235,7 @@ final class DeviceWriter: @unchecked Sendable {
     /// take. A clean detach frees the ring bytes, because no IOProc call can come.
     private func keep(_ input: DeviceInput, clean: Bool) {
         _ = Unmanaged.passRetained(input)
+        kept += 1
         if clean { input.ring.deallocateBytes() } else { failedDetaches += 1 }
     }
 
@@ -251,8 +260,16 @@ final class DeviceWriter: @unchecked Sendable {
     }
 
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
-    /// checked before a ring exists, and a ring of an attach that threw is used again.
+    /// checked before a ring exists, and a ring of an attach that threw is used again. At the
+    /// keep limit it attaches no more, and it reports `.retryStopped` once.
     private func attach() -> Bool {
+        guard kept < keepLimit else {
+            if !retryStopped {
+                retryStopped = true
+                for arm in tracks.arms { report(.state(take: take, arm: arm, .retryStopped, status: nil)) }
+            }
+            return false
+        }
         guard failedDetaches < Self.failedDetachLimit, let found = hal.lookUp(tracks.device.uid),
             tracks.hasRoutedChannels(found.device)
         else { return false }

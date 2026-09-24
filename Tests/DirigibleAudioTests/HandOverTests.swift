@@ -181,4 +181,37 @@ extension MonitorTests {
         await studio.settle()
         _ = folder
     }
+
+    // MARK: Criterion 8
+
+    /// Control: a device-list event with `duo` present keeps the same input (the probe Q3
+    /// look-alike).
+    @Test func aDeviceThatGoesShowsLostAndComesBack() async throws {
+        let (folder, url) = try await package()
+        let hal = TestHAL([duo])
+        let studio = try await open(url, hal)
+        let first = try #require(try await monitorT1(studio, hal))
+        SyntheticInput(hal, "duo").play(await toneRecords(), pace: .realTime)
+        await until(limit: busy, "no peak") { abs(peak(studio, "t1") - 0.5) <= 0.01 }
+
+        studio.monitorWriter("duo")?.post(.devicesChanged, from: nil)
+        await studio.monitorWriter("duo")?.started()
+        #expect(hal.current("duo") === first)
+        #expect(studio.liveTracks["t1"]?.state == .monitoring)
+
+        hal.set("duo", id: nil)
+        studio.monitorWriter("duo")?.post(.devicesChanged, from: nil)
+        await until(limit: busy, "t1 is not lost") { studio.liveTracks["t1"]?.state == .deviceLost }
+        #expect(peak(studio, "t1") == 0)
+        #expect(hal.current("duo") == nil)
+
+        hal.set("duo", id: 7)
+        studio.monitorWriter("duo")?.post(.devicesChanged, from: nil)
+        await until(limit: busy, "t1 did not come back") { studio.liveTracks["t1"]?.state == .monitoring }
+        SyntheticInput(hal, "duo").play(await toneRecords(), pace: .realTime)
+        await until(limit: busy, "no peak after the come back") { abs(peak(studio, "t1") - 0.5) <= 0.01 }
+        #expect(hal.inputs("duo").count == 2)
+        await studio.settle()
+        _ = folder
+    }
 }

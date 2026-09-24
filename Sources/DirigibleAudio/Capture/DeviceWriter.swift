@@ -114,8 +114,8 @@ final class DeviceWriter: @unchecked Sendable {
     /// Detaches, writes the rest of the ring, closes every segment, and ends the timer. Returns
     /// the gaps of the take. A second call returns the same gaps.
     @discardableResult
-    func finish() async -> [Int: LiveTrack.State] {
-        await withCheckedContinuation { (done: CheckedContinuation<[Int: LiveTrack.State], Never>) in
+    func finish() async -> [Int: TakeResult.Gap] {
+        await withCheckedContinuation { (done: CheckedContinuation<[Int: TakeResult.Gap], Never>) in
             queue.async { [self] in
                 if phase != .finished {
                     detach()

@@ -20,7 +20,7 @@ struct DeviceClock {
             let noise = jitter == 0 ? 0 : Double.random(in: -jitter...jitter, using: &generator)
             let record = InputRecord(
                 sampleTime: sampleTime, hostTimeNanos: UInt64(hostNanos + noise), frameCount: frames,
-                nominalRate: headerRate, buffers: [[Float](repeating: 0.25, count: frames)])
+                nominalRate: headerRate, buffers: [[Float](repeating: 0.25, count: frames)])!
             sampleTime += Double(frames)
             hostNanos += Double(frames) / realRate * 1e9
             return record

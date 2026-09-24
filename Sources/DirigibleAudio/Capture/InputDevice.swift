@@ -1,7 +1,7 @@
 import DirigibleCore
 
 /// The device facts that a sidecar header stores. The failable init is the boundary: a rate
-/// that is not finite and positive, a negative latency, no buffers, or a UID with a scalar that
+/// that is not `isValidRate`, a negative latency, no buffers, or a UID with a scalar that
 /// is not `isStorableInSession` gives nil (a changed UID would not match `Route.deviceUID`).
 /// Such scalars in the name become spaces, so `Session.addCapture` never refuses the name.
 struct InputDevice: Hashable, Sendable {
@@ -36,8 +36,10 @@ struct InputDevice: Hashable, Sendable {
     var channelCount: Int { channelsPerBuffer.reduce(0, +) }
 }
 
-/// Finite and positive: finalize divides by a rate.
-func isValidRate(_ rate: Double) -> Bool { rate.isFinite && rate > 0 }
+/// 1 Hz to 10 MHz. Finalize divides by a rate. The device writer rounds it to whole frames per
+/// second, so a rate under 0.5 gives a checkpoint step of 0 that never ends, and NaN or a rate
+/// past `Int64.max` traps. It also fills a gap of up to 2 s with silence.
+func isValidRate(_ rate: Double) -> Bool { (1...10_000_000).contains(rate) }
 
 func isValidRange(_ range: ClosedRange<Double>) -> Bool {
     isValidRate(range.lowerBound) && isValidRate(range.upperBound)
@@ -47,10 +49,22 @@ func isValidRange(_ range: ClosedRange<Double>) -> Bool {
 /// `buffers[i]` holds `frameCount x channelsPerBuffer[i]` interleaved samples when the record
 /// matches the device layout.
 struct InputRecord: Sendable {
-    var sampleTime: Double
-    var hostTimeNanos: UInt64
-    var frameCount: Int
+    let sampleTime: Double
+    let hostTimeNanos: UInt64
+    let frameCount: Int
     /// The nominal rate of the device when the record was made: a hint (decision 0004).
-    var nominalRate: Double
+    let nominalRate: Double
     var buffers: [[Float]]
+
+    /// The boundary of the device writer: nil when the rate is not `isValidRate` or the sample
+    /// time is not finite. When the hint of a ring record is bad, capture-live gives the rate of
+    /// the open segment.
+    init?(sampleTime: Double, hostTimeNanos: UInt64, frameCount: Int, nominalRate: Double, buffers: [[Float]]) {
+        guard sampleTime.isFinite, isValidRate(nominalRate) else { return nil }
+        self.sampleTime = sampleTime
+        self.hostTimeNanos = hostTimeNanos
+        self.frameCount = frameCount
+        self.nominalRate = nominalRate
+        self.buffers = buffers
+    }
 }

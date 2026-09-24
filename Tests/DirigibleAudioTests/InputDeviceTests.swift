@@ -30,10 +30,24 @@ struct InputDeviceTests {
         #expect(make(uid: "usb\u{FFFE}1") == nil)
         #expect(make(rate: 0) == nil)
         #expect(make(rate: .nan) == nil)
+        #expect(make(rate: 0.4) == nil)
+        #expect(make(rate: 1e300) == nil)
         #expect(make(rates: [0...48_000]) == nil)
         #expect(make(rates: [48_000...Double.infinity]) == nil)
         #expect(make(buffers: []) == nil)
         #expect(make(buffers: [0]) == nil)
         #expect(make(latency: -1) == nil)
+    }
+
+    func record(sampleTime: Double = 512, rate: Double = 48_000) -> InputRecord? {
+        InputRecord(sampleTime: sampleTime, hostTimeNanos: 1, frameCount: 1, nominalRate: rate, buffers: [[0]])
+    }
+
+    /// The device writer rounds the rate to whole frames per second: a step of 0 never ends, and
+    /// NaN or a rate past `Int64.max` traps. A sample time that is not finite traps in the gap math.
+    @Test func aRecordWithABadRateOrSampleTimeIsRefused() {
+        #expect(record() != nil)
+        for rate in [0, 0.4, -48_000, .nan, .infinity, 1e300] { #expect(record(rate: rate) == nil) }
+        for time in [Double.nan, .infinity, -.infinity] { #expect(record(sampleTime: time) == nil) }
     }
 }

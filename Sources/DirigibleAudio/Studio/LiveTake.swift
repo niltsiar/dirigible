@@ -61,11 +61,12 @@ struct CaptureEnvironment: Sendable {
     var firstRecordLimit: Duration
     /// Nil when the access is granted.
     var microphoneAccess: @Sendable () -> MicrophoneAccess?
-    /// The free bytes of the volume of a URL. Called off the main actor.
-    var freeBytes: @Sendable (URL) -> Int64
+    /// The free bytes of the volume of the package. Called off the main actor.
+    var freeBytes: @Sendable (PackageLock) -> Int64
     var diskCheckInterval: Duration
-    /// The autosave write of a session into its package. Called off the main actor.
-    var saveSession: @Sendable (Session, URL) throws(SessionFileError) -> Void
+    /// The autosave write of a session into the package that the lock holds. Returns the package
+    /// path that it wrote. Called off the main actor.
+    var saveSession: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
 
     static let live = CaptureEnvironment(
         hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),
@@ -77,17 +78,8 @@ struct CaptureEnvironment: Sendable {
             default: .denied
             }
         },
-        freeBytes: availableBytes, diskCheckInterval: .seconds(1),
-        saveSession: { session, package throws(SessionFileError) in try session.write(to: package) })
-}
-
-/// `statfs` free blocks for a normal process. `volumeAvailableCapacityForImportantUsage` also
-/// counts purgeable space, which a write cannot use now (probe P4). An errno gives 0, so a take
-/// stops cleanly.
-private func availableBytes(_ url: URL) -> Int64 {
-    var info = statfs()
-    guard statfs(url.path, &info) == 0 else { return 0 }
-    return Int64(info.f_bavail) * Int64(info.f_bsize)
+        freeBytes: { $0.freeBytes() }, diskCheckInterval: .seconds(1),
+        saveSession: { session, lock throws(SessionFileError) in try session.write(under: lock) })
 }
 
 /// `kIOPMAssertPreventUserIdleSystemSleep` for the life of the value (decision 0004). A refused
@@ -116,11 +108,13 @@ struct ArmedRoute: Sendable {
     let device: InputDevice
 }
 
-/// A take that `session.xml` holds: the session with `<recording>`, the take, and the routes.
+/// A take that `session.xml` holds: the session with `<recording>`, the take, the routes, and
+/// the package path of the save (`packageIdentity` form).
 struct StartedTake: Sendable {
     let session: Session
     let take: Int
     let routes: [ArmedRoute]
+    let package: URL
 }
 
 /// Checks the route of each armed track against `devices`.
@@ -141,11 +135,14 @@ func checkRoutes(_ session: Session, armed: [TrackID], devices: [InputDevice]) t
     return routes
 }
 
-/// The file part of the 0004 start order: `mkdir Capture/`, then save `session.xml` with
-/// `<recording>`. A throw leaves `session.xml` unchanged.
+/// The file part of the 0004 start order in the package that `lock` holds now: `mkdir
+/// Capture/`, then save `session.xml` with `<recording>`. It resolves the package path once
+/// (decision 0014). A throw leaves `session.xml` unchanged.
 func saveTakeStart(
-    _ session: Session, in package: URL, routes: [ArmedRoute], playhead: Frames, hostTimeNanos: UInt64
+    _ session: Session, lock: PackageLock, routes: [ArmedRoute], playhead: Frames, hostTimeNanos: UInt64
 ) throws(StudioError) -> StartedTake {
+    let package: URL
+    do { package = try lock.package() } catch { throw .file(error) }
     let take = SegmentName.nextTake(in: package, session: session)
     var started = session
     do throws(SessionError) {
@@ -163,14 +160,14 @@ func saveTakeStart(
     // A crash before the save leaves no <recording>, so a stale marker must not skip the
     // recovery of this take.
     unlink(marker(in: package).path)
-    do { try started.write(to: package) } catch { throw .file(error) }
-    return StartedTake(session: started, take: take, routes: routes)
+    do { try started.write(under: lock) } catch { throw .file(error) }
+    return StartedTake(session: started, take: take, routes: routes, package: packageIdentity(package))
 }
 
 /// Steps 2 to 5 of the start order of decision 0013, off the main actor: the device lookup and
 /// the route checks, the microphone access, the disk check, and the save.
 @concurrent nonisolated func prepareTake(
-    of session: Session, in package: URL, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment
+    of session: Session, lock: PackageLock, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment
 ) async throws(StudioError) -> StartedTake {
     dispatchPrecondition(condition: .notOnQueue(.main))
     var devices: [InputDevice] = []
@@ -182,15 +179,15 @@ func saveTakeStart(
     }
     let routes = try checkRoutes(session, armed: armed, devices: devices)
     if let access = environment.microphoneAccess() { throw .microphoneAccess(access) }
-    guard environment.freeBytes(package) >= diskMargin else { throw .diskLow }
+    guard environment.freeBytes(lock) >= diskMargin else { throw .diskLow }
     return try saveTakeStart(
-        session, in: package, routes: routes, playhead: playhead,
+        session, lock: lock, routes: routes, playhead: playhead,
         hostTimeNanos: AudioConvertHostTimeToNanos(AudioGetCurrentHostTime()))
 }
 
-/// The free bytes of the volume of `package`, off the main actor.
-@concurrent nonisolated func freeBytes(of package: URL, _ environment: CaptureEnvironment) async -> Int64 {
-    environment.freeBytes(package)
+/// The free bytes of the volume of the package that `lock` holds, off the main actor.
+@concurrent nonisolated func freeBytes(of lock: PackageLock, _ environment: CaptureEnvironment) async -> Int64 {
+    environment.freeBytes(lock)
 }
 
 /// The WAV bytes that the finalize of pending take `take` needs: 3 for each 4 CAF bytes.

@@ -28,7 +28,8 @@ struct AutosaveTests {
 
     func studio(
         _ hal: TestHAL = TestHAL([]),
-        save: @escaping @Sendable (Session, URL) throws(SessionFileError) -> Void = CaptureEnvironment.live.saveSession
+        save: @escaping @Sendable (Session, PackageLock) throws(SessionFileError) -> URL = CaptureEnvironment.live
+            .saveSession
     ) async throws -> Studio {
         let studio = try await Studio.open(url)
         studio.environment = .test(hal, saveSession: save)
@@ -43,9 +44,9 @@ struct AutosaveTests {
 
     @Test func anOldAutosaveNeverLandsAfterTheRecordingSave() async throws {
         let gate = Gate()
-        let studio = try await studio(TestHAL([mic])) { session, url throws(SessionFileError) in
+        let studio = try await studio(TestHAL([mic])) { session, lock throws(SessionFileError) in
             gate.waitOnce()
-            try session.write(to: url)
+            return try session.write(under: lock)
         }
         try rename(studio, to: "Guest")
         await gate.entered()
@@ -93,9 +94,9 @@ struct AutosaveTests {
     /// Control: an edit that throws starts no write.
     @Test func aRefusedEditWritesNothing() async throws {
         let calls = StepCounter()
-        let studio = try await studio { session, url throws(SessionFileError) in
+        let studio = try await studio { session, lock throws(SessionFileError) in
             _ = calls.next()
-            try session.write(to: url)
+            return try session.write(under: lock)
         }
         let before = try Data(contentsOf: sessionXML)
 
@@ -109,9 +110,9 @@ struct AutosaveTests {
     // MARK: Criterion 3
 
     @Test func anEditReturnsBeforeItsWrite() async throws {
-        let studio = try await studio { session, url throws(SessionFileError) in
+        let studio = try await studio { session, lock throws(SessionFileError) in
             usleep(300_000)
-            try session.write(to: url)
+            return try session.write(under: lock)
         }
 
         let clock = ContinuousClock()
@@ -174,9 +175,9 @@ struct AutosaveTests {
 
     @Test func settleWritesAFailedAutosaveOnceMore() async throws {
         let calls = StepCounter { $0 == 1 }
-        let studio = try await studio { session, url throws(SessionFileError) in
+        let studio = try await studio { session, lock throws(SessionFileError) in
             if calls.next() { throw .writeFailed(step: "test", errno: EIO) }
-            try session.write(to: url)
+            return try session.write(under: lock)
         }
 
         try rename(studio, to: "Guest")
@@ -191,7 +192,7 @@ struct AutosaveTests {
     /// only.
     @Test func settleKeepsTheErrorWhenTheRetryFails() async throws {
         let calls = StepCounter { _ in true }
-        let studio = try await studio { _, _ throws(SessionFileError) in
+        let studio = try await studio { _, _ throws(SessionFileError) -> URL in
             _ = calls.next()
             throw .writeFailed(step: "test", errno: EIO)
         }
@@ -209,9 +210,9 @@ struct AutosaveTests {
 
     @Test func anAutosaveErrorShowsUntilTheNextGoodSave() async throws {
         let calls = StepCounter { $0 == 1 }
-        let studio = try await studio { session, url throws(SessionFileError) in
+        let studio = try await studio { session, lock throws(SessionFileError) in
             if calls.next() { throw .writeFailed(step: "test", errno: ENOSPC) }
-            try session.write(to: url)
+            return try session.write(under: lock)
         }
 
         try rename(studio, to: "Guest")

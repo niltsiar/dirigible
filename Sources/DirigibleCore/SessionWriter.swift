@@ -17,6 +17,9 @@ public enum SessionFileError: Error, Hashable, Sendable {
     indirect case wouldNotReadBack(SessionFileError?)
     /// Another holder has the package lock (decision 0012).
     case locked
+    /// The package that the lock holds is no longer on its volume: it moved to another volume or
+    /// was deleted (decision 0014). Nothing was written.
+    case packageMoved
 }
 
 /// The POSIX code under a Foundation file error, or EIO when there is none.
@@ -35,15 +38,7 @@ extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
     /// they do not exist. The old file stays until the new file is complete and on the disk.
     public func write(to package: URL) throws(SessionFileError) {
-        let data = xmlDocument().xmlData(options: .nodePrettyPrint)
-        // A file that does not read back would lock the user out of the session.
-        let readBack: Session
-        do throws(SessionFileError) {
-            readBack = try Session(xml: data)
-        } catch {
-            throw .wouldNotReadBack(error)
-        }
-        guard readBack == self else { throw .wouldNotReadBack(nil) }
+        let data = try checkedData()
         let isNew = !FileManager.default.fileExists(atPath: package.path)
         do {
             try FileManager.default.createDirectory(
@@ -54,6 +49,34 @@ extension Session {
         try replaceDurably(package.appending(path: "session.xml"), with: data)
         // A new package is an entry in its parent folder, which a power loss can lose too.
         if isNew { try flush(package.deletingLastPathComponent().path) }
+    }
+
+    /// The write of a lock holder (decision 0014): writes `session.xml` in the package that `lock`
+    /// holds now, which a rename can have moved, and returns that package path. It never makes the
+    /// package folder, so a stale path gets no new package. Throws `.packageMoved` when the package
+    /// left its volume.
+    @discardableResult
+    public func write(under lock: PackageLock) throws(SessionFileError) -> URL {
+        let data = try checkedData()
+        let package = try lock.package()
+        let clips = package.appending(path: clipsFolderName)
+        guard mkdir(clips.path, 0o755) == 0 || errno == EEXIST else { throw posixError("createDirectory") }
+        try replaceDurably(package.appending(path: "session.xml"), with: data)
+        return package
+    }
+
+    /// The XML of the session. A file that does not read back would lock the user out of the
+    /// session, so it throws `.wouldNotReadBack` then.
+    private func checkedData() throws(SessionFileError) -> Data {
+        let data = xmlDocument().xmlData(options: .nodePrettyPrint)
+        let readBack: Session
+        do throws(SessionFileError) {
+            readBack = try Session(xml: data)
+        } catch {
+            throw .wouldNotReadBack(error)
+        }
+        guard readBack == self else { throw .wouldNotReadBack(nil) }
+        return data
     }
 
     /// Deletes the leftover `.session.xml.<UUID>.tmp` files of a crashed save. Call it only under

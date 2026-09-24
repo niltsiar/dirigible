@@ -14,7 +14,7 @@ struct LockCommandTests {
         let before = try package.xml()
 
         let asError: (SessionFileError) -> any Error = { $0 }
-        let locked = try PackageLock.withLock(package.url, locked: asError) {
+        let locked = try PackageLock.withLock(package.url, locked: asError) { _ in
             try package.run("track", "add", "PKG", "--id", "t1", "--name", "A", "--layout", "mono")
         }
 

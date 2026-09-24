@@ -7,6 +7,8 @@ public final class PackageLock: Sendable {
     /// -1 when the value is unlocked: a volume without flock (ENOTSUP), or a package that no
     /// process of the user can write and that has no lock file (EROFS, EACCES, EPERM).
     private let descriptor: Int32
+    /// The package path of the open.
+    private let url: URL
 
     /// Throws `.locked` when another holder has the lock, and `.readFailed(ENOENT)` when the
     /// package does not exist. A volume without flock (ENOTSUP) gives an unlocked value
@@ -17,6 +19,7 @@ public final class PackageLock: Sendable {
     /// its last use, before the save. A scoped caller uses `withLock`; a long holder keeps the
     /// value in a stored property.
     package init(_ package: URL) throws(SessionFileError) {
+        url = package
         // Read-only, so an existing lock file opens in a package folder without write access.
         let descriptor = open(package.appending(path: ".lock").path, O_RDONLY | O_CREAT | O_CLOEXEC, 0o644)
         guard descriptor >= 0 else {
@@ -49,10 +52,41 @@ public final class PackageLock: Sendable {
         close(descriptor)
     }
 
+    /// The current path of the package that the lock holds (decision 0014, probe P11). A rename or
+    /// a move on the same volume moves the lock file with the package, and `F_GETPATH` gives the
+    /// new path. After a move to another volume or a delete, `F_GETPATH` gives the old path with
+    /// no error, so the path must still hold the locked file: the same device and inode. Else it
+    /// throws `.packageMoved`. An unlocked value gives the path of the open.
+    public func package() throws(SessionFileError) -> URL {
+        guard descriptor >= 0 else { return url }
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        var locked = stat()
+        var there = stat()
+        guard fcntl(descriptor, F_GETPATH, &buffer) == 0, fstat(descriptor, &locked) == 0 else {
+            throw .packageMoved
+        }
+        let path = String(cString: buffer)
+        guard stat(path, &there) == 0, there.st_dev == locked.st_dev, there.st_ino == locked.st_ino else {
+            throw .packageMoved
+        }
+        return URL(filePath: path).deletingLastPathComponent()
+    }
+
+    /// The free bytes of the volume of the package for a normal process: `fstatfs` on the lock
+    /// descriptor, which follows a rename (probe P14). An unlocked value runs `statfs` on the path
+    /// of the open. `volumeAvailableCapacityForImportantUsage` also counts purgeable space, which a
+    /// write cannot use now. An errno gives 0, so a take stops cleanly.
+    public func freeBytes() -> Int64 {
+        var info = statfs()
+        let status = descriptor >= 0 ? fstatfs(descriptor, &info) : statfs(url.path, &info)
+        guard status == 0 else { return 0 }
+        return Int64(info.f_bavail) * Int64(info.f_bsize)
+    }
+
     /// Takes the lock, runs `body`, and releases the lock after `body` returns or throws. A lock
     /// error goes through `locked`, and then `body` does not run.
     public static func withLock<Result, Failure: Error>(
-        _ package: URL, locked: (SessionFileError) -> Failure, _ body: () throws(Failure) -> Result
+        _ package: URL, locked: (SessionFileError) -> Failure, _ body: (PackageLock) throws(Failure) -> Result
     ) throws(Failure) -> Result {
         let lock: PackageLock
         do {
@@ -60,6 +94,6 @@ public final class PackageLock: Sendable {
         } catch {
             throw locked(error)
         }
-        return try withExtendedLifetime(lock) { () throws(Failure) -> Result in try body() }
+        return try withExtendedLifetime(lock) { () throws(Failure) -> Result in try body(lock) }
     }
 }

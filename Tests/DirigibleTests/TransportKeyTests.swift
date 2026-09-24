@@ -46,16 +46,18 @@ import Testing
         #expect(takesTransportKeys(window) == !focus)
     }
 
-    /// A panel is not a session window: it gets the key (the New Session and Open panels).
-    @Test func aPlainKeyGoesToAPanelField() throws {
+    /// A panel is not a session window: it gets the key (the New Session and Open panels), also
+    /// with no text focus. With no focus, only the window check keeps the key from the transport.
+    @Test(arguments: [true, false])
+    func aPlainKeyGoesToAPanel(focus: Bool) throws {
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: [.titled], backing: .buffered,
             defer: false)
-        let field = try window(panel, focus: true)
+        let field = try window(panel, focus: focus)
 
         #expect(forwardTypingKey(key(.keyDown, "k", code: 40, in: panel), in: panel))
 
-        #expect(field.stringValue == "k")
+        #expect(field.stringValue == (focus ? "k" : ""))
         #expect(!takesTransportKeys(panel))
     }
 }

@@ -36,6 +36,7 @@ final class DeviceWriter: @unchecked Sendable {
     private let report: @Sendable (Report) -> Void
     private let drainInterval: Duration
     private let silenceLimit: Duration
+    private let firstRecordLimit: Duration
     private let ringSeconds: Double
     private let queue: DispatchQueue
     private var tracks: TrackSegments
@@ -50,6 +51,9 @@ final class DeviceWriter: @unchecked Sendable {
     private var timer: DispatchSourceTimer?
     /// The watchdog clock: the last valid record, or the attach.
     private var lastValid = ContinuousClock.now
+    /// True after the first valid record of the current appearance. Before it, the watchdog
+    /// uses `firstRecordLimit`.
+    private var hasRecord = false
     /// The retry clock: the loss, or the last try.
     private var lastTry = ContinuousClock.now
     private let dropped = ManagedAtomic<Int>(0)
@@ -57,17 +61,19 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
     /// checks of `Studio` make every channel exist on the device. `drainInterval`,
-    /// `silenceLimit`, and `ringSeconds` are parameters so that tests stay fast.
+    /// `silenceLimit`, `firstRecordLimit`, and `ringSeconds` are parameters so that tests stay
+    /// fast.
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int, folder: URL, hal: DeviceHAL,
         report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
-        silenceLimit: Duration = .seconds(2), ringSeconds: Double = 10
+        silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10
     ) {
         self.take = take
         self.hal = hal
         self.report = report
         self.drainInterval = drainInterval
         self.silenceLimit = silenceLimit
+        self.firstRecordLimit = firstRecordLimit
         self.ringSeconds = ringSeconds
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
         self.tracks = TrackSegments(device: device, tracks: tracks, take: take, folder: folder, report: report)
@@ -175,7 +181,7 @@ final class DeviceWriter: @unchecked Sendable {
     private func tick() {
         drain()
         let now = ContinuousClock.now
-        if phase == .running, now - lastValid >= silenceLimit {
+        if phase == .running, now - lastValid >= (hasRecord ? silenceLimit : firstRecordLimit) {
             lose()
         } else if phase == .lost, now - lastTry >= Self.retryInterval {
             comeBack()
@@ -195,6 +201,7 @@ final class DeviceWriter: @unchecked Sendable {
             }
             if record.hostTimeNanos < endHostNanos { tracks.write(record) }
             lastValid = .now
+            hasRecord = true
         }
         dropped.wrappingIncrement(by: ring.takeDroppedFrames(), ordering: .relaxed)
     }
@@ -256,6 +263,7 @@ final class DeviceWriter: @unchecked Sendable {
         }
         phase = .running
         lastValid = .now
+        hasRecord = false
         return true
     }
 }

@@ -32,13 +32,15 @@ struct DeviceEventTests {
     init() throws { folder = try TemporaryFolder() }
 
     /// A started writer of arm `arm` on channel `channel` of `device`. The watchdog limit is long
-    /// unless a test sets it.
+    /// unless a test sets it. The first-record limit is the watchdog limit unless a test sets it.
     func writer(
-        _ device: InputDevice, _ hal: TestHAL, arm: Int = 1, channel: Int = 1, silenceLimit: Duration = .seconds(60)
+        _ device: InputDevice, _ hal: TestHAL, arm: Int = 1, channel: Int = 1, silenceLimit: Duration = .seconds(60),
+        firstRecordLimit: Duration? = nil
     ) -> DeviceWriter {
         let writer = DeviceWriter(
             device: device, tracks: [(arm: arm, channels: .mono(channel))], take: 1, folder: folder.url,
-            hal: hal.hal, report: log.closure, silenceLimit: silenceLimit)
+            hal: hal.hal, report: log.closure, silenceLimit: silenceLimit,
+            firstRecordLimit: firstRecordLimit ?? silenceLimit)
         writer.start()
         return writer
     }
@@ -253,6 +255,31 @@ struct DeviceEventTests {
         #expect(hal.tries("mic").count == 1)
         #expect(try stems() == ["take1-1-1"])
         #expect(gaps == [:])
+    }
+
+    /// A device that starts its IO 3 s after the attach keeps its first attach: the first
+    /// record of an appearance has a longer limit. Control: a first-record limit of 1 s (the
+    /// watchdog limit) loses the device before its first record.
+    @Test(arguments: [Duration.seconds(10), .seconds(1)])
+    func aSlowStartKeepsTheFirstAttach(firstRecordLimit: Duration) async throws {
+        let hal = TestHAL([mic])
+        let input = SyntheticInput(hal, "mic")
+        var clock = DeviceClock()
+        input.play(run(&clock, 10), pace: .realTime, delay: .seconds(3))
+        let writer = writer(mic, hal, silenceLimit: .seconds(1), firstRecordLimit: firstRecordLimit)
+        let slow = firstRecordLimit > .seconds(3)
+
+        await until(limit: .seconds(10), "no segment and no second attach") {
+            (try? stems().isEmpty) == false || hal.tries("mic").count >= 2
+        }
+        let gaps = await writer.finish()
+        await input.wait()
+
+        // The control can try more than twice when the finish comes late.
+        let tries = hal.tries("mic").count
+        #expect(slow ? tries == 1 : tries >= 2, "tries \(tries)")
+        #expect(try stems() == (slow ? ["take1-1-1"] : []))
+        #expect(gaps == (slow ? [:] : [1: .deviceLost]))
     }
 
     @Test(arguments: [false, true])

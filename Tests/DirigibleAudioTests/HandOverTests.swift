@@ -46,6 +46,31 @@ extension MonitorTests {
         _ = folder
     }
 
+    /// Code gate round 1, item 1: a take starts while a monitor change waits for the finish of
+    /// its old writer. The take keeps its entries, and no monitor entry comes back.
+    @Test func aTakeDuringAMonitorChangeKeepsItsEntries() async throws {
+        let (folder, url) = try await package()
+        let hal = TestHAL([duo])
+        let studio = try await open(url, hal)
+        _ = try await monitorT1(studio, hal)
+        let gate = Gate()
+        hal.holdNextDetach(in: gate)
+
+        let change = Task { try await studio.monitor(armed: ["t1", "t2"]) }
+        await gate.entered()
+        let start = Task { try await studio.startRecording(armed: ["t1"], playhead: 0) }
+        await until(limit: busy, "the take did not begin") { studio.transport == .recording(take: 1) }
+        gate.open()
+        try await change.value
+        try await start.value
+
+        #expect(studio.liveTracks.keys.sorted() == ["t1"])
+        #expect(studio.liveTracks["t1"]?.state == .recording)
+        try await studio.stopRecording()
+        await studio.settle()
+        _ = folder
+    }
+
     // MARK: Criterion 5
 
     /// Control: with an empty request before the stop, no attach comes after it.

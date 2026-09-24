@@ -46,6 +46,7 @@ enum L10n: String, CaseIterable {
     case trackRouteMissing = "track.route.missing"
     case trackStateDeviceLost = "track.state.device.lost"
     case trackStateWriteFailed = "track.state.write.failed"
+    case trackStateRetryStopped = "track.state.retry.stopped"
     case trackDropped = "track.dropped"
     case takeRecording = "take.recording"
     case takeFinishing = "take.finishing"

@@ -229,3 +229,29 @@ extension DeviceEventTests {
         #expect(clips(studio, "t2").map(\.id) == ["take1-2-1"])
     }
 }
+
+// MARK: Criterion 10 of input-monitor: the keep limit of a monitor writer
+
+extension DeviceEventTests {
+    /// Each attach throws `.undone`, so each try keeps one input. A monitor writer with a keep
+    /// limit of 2 stops at 2 tries and reports `.retryStopped` once. Control: a take writer (no
+    /// limit) tries at the start and at each of the 5 events, and never stops.
+    @Test(arguments: [true, false])
+    func aMonitorWriterStopsAtItsKeepLimit(monitor: Bool) async throws {
+        let hal = TestHAL([mic])
+        hal.failAttach { _, _ in .undone(kAudioHardwareUnspecifiedError) }
+        let url = folder.url
+        let writer = DeviceWriter(
+            device: mic, tracks: [(arm: 1, channels: .mono(1))],
+            files: monitor ? nil : TakeFiles(take: 1, folder: { url }), hal: hal.hal, report: log.closure,
+            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60), keepLimit: monitor ? 2 : .max)
+        writer.start()
+
+        for _ in 0..<5 { writer.post(.devicesChanged, from: nil) }
+        await writer.started()
+        await writer.finish()
+
+        #expect(hal.tries("mic").count == (monitor ? 2 : 6))
+        #expect(log.states(arm: 1).filter { $0 == .retryStopped }.count == (monitor ? 1 : 0))
+    }
+}

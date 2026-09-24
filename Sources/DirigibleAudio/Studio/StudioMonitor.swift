@@ -3,6 +3,8 @@ import Foundation
 
 /// The reason of the latency activity of a monitor.
 let monitorReason = "Dirigible monitors inputs"
+/// The kept inputs of one monitor writer: about 200 bytes each (decision 0015).
+let monitorKeepLimit = 64
 
 /// One device of the monitor: its writer, its tracks in arm order, and the number of its reports.
 struct Monitor {
@@ -18,7 +20,8 @@ struct MonitoredTrack: Hashable, Sendable {
 
 extension Studio {
     /// Meters `armed` while no take writer exists (decision 0015). Each armed track with a route
-    /// gets an entry in `liveTracks`: `.monitoring`, or `.deviceLost` while its device is gone.
+    /// gets an entry in `liveTracks`: `.monitoring`, `.deviceLost` while its device is gone, or
+    /// `.retryStopped` at the keep limit.
     /// It writes no file. An empty request (or no routed track) releases every monitor device
     /// before it returns. It runs in the monitor order, not in the package write chain, so it
     /// never waits for an autosave, a start save, or a finalize. While take writers exist, it
@@ -84,7 +87,8 @@ extension Studio {
                 device: device, tracks: tracks.enumerated().map { (arm: $0.offset + 1, channels: $0.element.channels) },
                 files: nil, hal: environment.hal,
                 report: Self.monitorReporter(to: self, number: reportNumber, uid: uid),
-                silenceLimit: environment.silenceLimit, firstRecordLimit: environment.firstRecordLimit, ringSeconds: 1)
+                silenceLimit: environment.silenceLimit, firstRecordLimit: environment.firstRecordLimit, ringSeconds: 1,
+                keepLimit: monitorKeepLimit)
             monitors[uid] = Monitor(writer: writer, tracks: tracks, number: reportNumber)
             for track in tracks { liveTracks[track.id] = LiveTrack(state: .monitoring, droppedFrames: 0, peak: 0) }
             writer.start()

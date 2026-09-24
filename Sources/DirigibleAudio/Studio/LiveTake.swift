@@ -13,6 +13,9 @@ public struct LiveTrack: Hashable, Sendable {
         case writeFailed
         /// The monitor meters the track and writes no file.
         case monitoring
+        /// The monitor writer of the device kept its limit of inputs and tries no more attach
+        /// until the next monitor start (decision 0015).
+        case retryStopped
     }
 
     public var state: State

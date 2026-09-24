@@ -41,7 +41,7 @@ extension Studio {
             guard monitor.tracks.indices.contains(arm - 1) else { return }
             let id = monitor.tracks[arm - 1].id
             liveTracks[id]?.state = state == .recording ? .monitoring : state
-            if state == .deviceLost { liveTracks[id]?.peak = 0 }
+            if state == .deviceLost || state == .retryStopped { liveTracks[id]?.peak = 0 }
         case .levels(_, let peaks, let droppedFrames):
             for (arm, peak) in peaks where monitor.tracks.indices.contains(arm - 1) {
                 liveTracks[monitor.tracks[arm - 1].id]?.peak = peak

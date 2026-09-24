@@ -200,6 +200,7 @@ private struct LiveState: View {
         case .recording, .monitoring: EmptyView()
         case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)
         case .writeFailed: Text(L10n.trackStateWriteFailed.key).foregroundStyle(.red)
+        case .retryStopped: Text(L10n.trackStateRetryStopped.key).foregroundStyle(.red)
         }
         if live.droppedFrames > 0 {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)

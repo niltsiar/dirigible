@@ -4,6 +4,7 @@
 - Date: 2026-09-24
 - Amended: 2026-09-24. The app target is `DirigibleApp`, so its binary does not clash with the `dirigible` command (see 0011). The bundle executable is still `Dirigible`.
 - Amended: 2026-09-24. The command-line front end adds the targets `DirigibleCLI` and `DirigibleCLITests` (see 0011).
+- Amended: 2026-09-24. The first capture run has no `Recorder`: `DeviceWriter`, `finalizeTake`, and `Studio` hold its work. It adds `DirigibleAudioTests`. `DirigibleCLI` depends on `DirigibleAudio` for `take finalize` (see 0012).
 
 ## Context
 

@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-24. `take finalize` adds exit code 3, and the edit commands take the package lock (see 0012).
 
 ## Context
 
@@ -41,6 +42,7 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 | 0 | The command succeeded. |
 | 1 | The session refused the edit (`SessionError`). The package does not change. |
 | 2 | The package cannot be read, written, or made (`SessionFileError`, `create` on a path that exists, or an edit command on a package with a pending take). |
+| 3 | The command succeeded, but captured audio is not on the timeline (take finalize). |
 | 64 | Usage error: the arguments do not parse, or a value cannot become a domain type. The package does not change. |
 
 **Errors.** Library errors stay enums (0002). The CLI maps each case of `SessionError` and `SessionFileError` to one English line, `Error: <message>`, on stderr. The switch has no `default`, so a new error case does not compile until it has a message.

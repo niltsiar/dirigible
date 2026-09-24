@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-24. A clip file over 4 GiB is RF64 (EBU Tech 3306) with the .wav name (see 0012).
 
 ## Context
 

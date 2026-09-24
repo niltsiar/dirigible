@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-24. The file names, the sidecar bytes, the take number rule, the package lock, and the armed-track rules are in 0012. A fault of one segment leaves that segment unplaced and ends the take; only a fault that can go away keeps the take pending (0012). A clip over 4 GiB is RF64 (0012).
 
 ## Context
 

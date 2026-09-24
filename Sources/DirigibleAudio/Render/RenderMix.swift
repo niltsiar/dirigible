@@ -18,15 +18,16 @@ public enum RenderError: Error, Hashable, Sendable {
 /// `url`, then moves it with `renamex_np(RENAME_EXCL)`, which never replaces an item. Where that
 /// gives ENOTSUP or EPERM (exFAT, probe X1), it claims `url` with `O_CREAT | O_EXCL`, then
 /// renames over the claim. Every exit removes the temporary file; a throw also removes its own
-/// claim. Returns the faults of the files that the range reads.
+/// claim. At the start it removes the leftovers of a render to `url` that died. Returns the
+/// faults of the files that the range reads.
 public func renderMix(
     _ session: Session, package: URL, range: Range<Frames>, to url: URL, chunk: Int = 48_000
 ) throws(RenderError) -> [FileID: MediaFault] {
     guard let format = AVAudioFormat(standardFormatWithSampleRate: Double(session.sampleRate), channels: 2),
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(chunk))
     else { throw .writeFailed(kAudio_ParamError) }
-    let temporary = url.deletingLastPathComponent().appending(
-        path: ".\(url.lastPathComponent).\(UUID().uuidString).tmp")
+    removeRenderLeftovers(of: url)
+    let temporary = url.deletingLastPathComponent().appending(path: "\(leftoverPrefix(url))\(UUID().uuidString).tmp")
     defer { unlink(temporary.path) }
     let mix = MixReader(package: package, session: session)
     try writeCAF(temporary, format: format) { file throws(RenderError) in
@@ -42,6 +43,22 @@ public func renderMix(
     try move(temporary, to: url)
     return mix.faults
 }
+
+/// Removes the temporary files of the renders to `url`: `.<name>.<UUID>.tmp` in the folder of
+/// `url`. A render that died (a kill, a crash) leaves one. `dirigible render` also calls it at
+/// SIGINT. A name with no UUID stays: the render did not make it.
+public func removeRenderLeftovers(of url: URL) {
+    let folder = url.deletingLastPathComponent()
+    let prefix = leftoverPrefix(url)
+    for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+    where name.hasPrefix(prefix) && name.hasSuffix(".tmp")
+        && UUID(uuidString: String(name.dropFirst(prefix.count).dropLast(4))) != nil
+    {
+        unlink(folder.appending(path: name).path)
+    }
+}
+
+private func leftoverPrefix(_ url: URL) -> String { ".\(url.lastPathComponent)." }
 
 /// Makes a float CAF with the channels of `format`, runs `body`, and closes the file.
 private func writeCAF(

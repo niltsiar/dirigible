@@ -130,7 +130,17 @@ struct SessionTests {
     }
 
     /// XML 1.0 cannot hold these characters, or reads them back as spaces.
-    @Test(arguments: ["a\u{0B}b", "a\u{0}b", "a\nb", "a\tb", "a\rb", "a\u{FFFE}b"])
+    /// The one text rule of the session file (decision 0012): capture code uses it too.
+    @Test func theTextRuleRefusesControlCharactersAndNonCharacters() {
+        for value: UInt32 in [0x00, 0x09, 0x1F, 0xFFFE, 0xFFFF] {
+            #expect(!Unicode.Scalar(value)!.isStorableInSession, "U+\(String(value, radix: 16))")
+        }
+        for value: UInt32 in [0x20, 0x7F, 0xE9, 0xFFFD, 0x1F399] {
+            #expect(Unicode.Scalar(value)!.isStorableInSession, "U+\(String(value, radix: 16))")
+        }
+    }
+
+    @Test(arguments: ["a\u{0B}b", "a\u{0}b", "a\nb", "a\tb", "a\rb", "a\u{FFFE}b", "a\u{FFFF}b"])
     func textThatXMLCannotHoldIsRefused(text: String) throws {
         var session = Session(sampleRate: 48_000)
         #expect(throws: SessionError.invalidText(text)) {

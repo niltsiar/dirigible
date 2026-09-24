@@ -4,10 +4,10 @@ import DirigibleCore
 /// that is not `isValidRate`, a negative latency, no buffers, or a UID with a scalar that
 /// is not `isStorableInSession` gives nil (a changed UID would not match `Route.deviceUID`).
 /// Such scalars in the name become spaces, so `Session.addCapture` never refuses the name.
-struct InputDevice: Hashable, Sendable {
-    let uid: String
-    let name: String
-    let nominalRate: Double
+public struct InputDevice: Hashable, Sendable {
+    public let uid: String
+    public let name: String
+    public let nominalRate: Double
     let availableRates: [ClosedRange<Double>]
     /// The channel count of each buffer of an input record.
     let channelsPerBuffer: [Int]
@@ -33,7 +33,7 @@ struct InputDevice: Hashable, Sendable {
         self.latency = latency
     }
 
-    var channelCount: Int { channelsPerBuffer.reduce(0, +) }
+    public var channelCount: Int { channelsPerBuffer.reduce(0, +) }
 }
 
 /// 1 Hz to 10 MHz. Finalize divides by a rate. The device writer rounds it to whole frames per

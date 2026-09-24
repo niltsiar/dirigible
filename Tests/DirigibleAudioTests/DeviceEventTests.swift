@@ -259,13 +259,14 @@ struct DeviceEventTests {
 
     /// A device that starts its IO 3 s after the attach keeps its first attach: the first
     /// record of an appearance has a longer limit. Control: a first-record limit of 1 s (the
-    /// watchdog limit) loses the device before its first record.
+    /// watchdog limit) loses the device before its first record. The producer sends for 60 s,
+    /// longer than a full suite can hold the main actor, and `finish()` stops it.
     @Test(arguments: [Duration.seconds(10), .seconds(1)])
     func aSlowStartKeepsTheFirstAttach(firstRecordLimit: Duration) async throws {
         let hal = TestHAL([mic])
         let input = SyntheticInput(hal, "mic")
         var clock = DeviceClock()
-        input.play(run(&clock, 10), pace: .realTime, delay: .seconds(3))
+        input.play(run(&clock, 60), pace: .realTime, delay: .seconds(3))
         let writer = writer(mic, hal, silenceLimit: .seconds(1), firstRecordLimit: firstRecordLimit)
         let slow = firstRecordLimit > .seconds(3)
 

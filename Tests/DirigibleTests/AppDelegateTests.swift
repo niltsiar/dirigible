@@ -210,6 +210,21 @@ import os
         await window.close()
     }
 
+    /// Code gate 1, item 4: New Session makes the package through `Studio.create` and shows its
+    /// studio. Control: a path that exists gives `.exists` and no second window (criterion 10).
+    @Test func newSessionCreatesThePackageAndShowsIt() async throws {
+        let url = folder.url.appending(path: "New.dirigible")
+
+        #expect(await app.createSession(at: url) == nil)
+
+        let window = try #require(app.windows[packageIdentity(url)])
+        #expect(window.studio?.session == Session(sampleRate: 48_000))
+        #expect(try Session(contentsOf: url) == Session(sampleRate: 48_000))
+        #expect(await app.createSession(at: url) == .file(.exists))
+        #expect(app.windows.count == 1)
+        await window.close()
+    }
+
     private func closeAll() async {
         for window in app.windows.values { await window.close() }
     }

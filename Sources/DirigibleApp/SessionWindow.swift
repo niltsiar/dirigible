@@ -98,16 +98,21 @@ enum WindowAlert: Hashable {
                     phase = .closing(studio)
                     return
                 }
-                armed = Set(studio.session.tracks.filter { $0.route != nil }.map(\.id))
-                phase = .open(studio)
-                follow(studio)
-                // Not in this task: the task holds the studio, and a close waits for it.
-                Task { await refreshDevices() }
+                adopt(studio)
             } catch {
                 if case .closing = phase { return }
                 phase = .failed(error)
             }
         }
+    }
+
+    /// Shows an open studio: each track with a route arms, and the window follows `Studio.url`.
+    func adopt(_ studio: Studio) {
+        armed = Set(studio.session.tracks.filter { $0.route != nil }.map(\.id))
+        phase = .open(studio)
+        follow(studio)
+        // Not in the open task: that task holds the studio, and a close waits for it.
+        Task { await refreshDevices() }
     }
 
     /// The close button and Close: during a take, ask first.

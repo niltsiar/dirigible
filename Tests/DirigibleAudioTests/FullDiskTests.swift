@@ -4,8 +4,8 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Takes on a disk image: a full disk (criterion 18) and a volume that goes away during a read.
-/// Slow: each test makes and attaches a disk image.
+/// Packages on a disk image: a full disk (criterion 18), a volume that goes away during a read,
+/// and a read-only volume. Slow: each test makes and attaches a disk image.
 @MainActor
 struct FullDiskTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
@@ -64,6 +64,27 @@ struct FullDiskTests {
 
         #expect(throws: FinalizeError.readFailed(file: "Capture/take1-1-1.caf", errno: EIO)) {
             try finalizeTake(of: session, in: package, readFault: detach)
+        }
+    }
+
+    /// Decision 0012: a read-only volume opens without a lock, with and without a `.lock` file.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aPackageOnAReadOnlyVolumeOpensUnlocked() async throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "readonly.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleReadOnly", image.path)
+        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let names = ["New.dirigible", "Opened.dirigible"]
+        for name in names { try Session(sampleRate: 48_000).write(to: volume.appending(path: name)) }
+        try Data().write(to: volume.appending(path: "Opened.dirigible/.lock"))
+        try Self.hdiutil("detach", volume.path)
+        try Self.hdiutil("attach", image.path, "-readonly", "-nobrowse", "-mountpoint", volume.path)
+
+        for name in names {
+            let studio = try await Studio.open(volume.appending(path: name))
+            #expect(studio.session == Session(sampleRate: 48_000), "\(name)")
         }
     }
 

@@ -88,6 +88,17 @@ import Testing
         #expect(hold.handle(key(.keyDown, "k", code: 40, at: 50), forTransport: true) == .pass)
         #expect(hold.handle(key(.keyUp, "k", code: 40, at: 51), forTransport: true) == .pass)
     }
+
+    /// A held Space does not toggle play and stop at the key-repeat rate. Control: the first
+    /// key-down passes, and a text field gets the repeats. Found by the code gate.
+    @Test func aHeldSpaceActsOnce() {
+        var hold = ShuttleHold()
+
+        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 10), forTransport: true) == .pass)
+        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 10.5, repeat: true), forTransport: true) == .drop)
+        #expect(hold.handle(key(.keyUp, " ", code: 49, at: 11), forTransport: true) == .pass)
+        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 20.5, repeat: true), forTransport: false) == .pass)
+    }
 }
 
 /// The text of the transport bar (criterion 20).

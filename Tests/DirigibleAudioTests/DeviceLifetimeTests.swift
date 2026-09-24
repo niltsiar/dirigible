@@ -54,6 +54,41 @@ extension DeviceEventTests {
         #expect(Set(try samples("take1-1-2")) == [0.5])
     }
 
+    /// (d) A listener call of an old appearance can be in progress while its removal returns
+    /// noErr. Its effect (the rate store into the ring of that appearance) after a clean detach
+    /// and a back must use memory that is still allocated. Before the fix, it crashed with
+    /// SIGSEGV.
+    @Test func aLateListenerCallAfterACleanDetachUsesLiveMemory() async throws {
+        let hal = TestHAL([mic])
+        let writer = writer(mic, hal)
+        await until("no first attach") { hal.inputs("mic").count == 1 }
+        writer.post(.alive(false), from: hal.current("mic"))
+        writer.post(.devicesChanged, from: nil)
+        await until("no back") { hal.inputs("mic").count == 2 }
+
+        hal.inputs("mic")[0].ring.setRate(44_100)
+        let gaps = await writer.finish()
+
+        #expect(gaps == [1: .deviceLost])
+    }
+
+    /// (e) An attach that failed after its listeners existed (`.undone`) gives its ring to no
+    /// other attach: a late listener call of that attach must not set the rate of the next
+    /// appearance. Control: an attach that failed before (`.status`) gives its ring to the next.
+    @Test(arguments: [HALError.undone(kAudioHardwareUnspecifiedError), .status(kAudioHardwareBadDeviceError)])
+    func anAttachThatFailsAfterItsListenersKeepsItsRing(error: HALError) async throws {
+        let hal = TestHAL([mic])
+        hal.failAttach { _, count in count == 1 ? error : nil }
+        let writer = writer(mic, hal)
+        await until(limit: .seconds(3), "no attach after the retry") { hal.inputs("mic").count == 1 }
+
+        let tries = hal.tries("mic")
+        tries[0].ring.setRate(44_100)
+        await writer.finish()
+
+        #expect((tries[0].ring.context == tries[1].ring.context) == (error == .status(kAudioHardwareBadDeviceError)))
+    }
+
     /// (c) Each failed detach keeps one input; after 8, the device stays lost. Control: a clean
     /// detach gives an attach for each of the 10 backs.
     @Test(arguments: [false, true])

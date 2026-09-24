@@ -45,7 +45,10 @@ final class DeviceWriter: @unchecked Sendable {
     private var input: (input: DeviceInput, detach: Detach)?
     /// Inputs whose detach failed: a late call can still use their rings, so they stay.
     private var kept: [DeviceInput] = []
-    /// The ring of an attach that threw with no IOProc left: no call can reach it.
+    /// Inputs of a clean detach, without their ring bytes. A listener call in progress during
+    /// the removal can still use the input and the ring atomics, so `finish()` frees them.
+    private var detached: [DeviceInput] = []
+    /// The ring of an attach that threw before its IOProc existed: no call can reach it.
     private var spare: CaptureRing?
     private var unwatch: Detach?
     private var timer: DispatchSourceTimer?
@@ -117,6 +120,8 @@ final class DeviceWriter: @unchecked Sendable {
                     detach()
                     tracks.endSegment()
                     _ = unwatch?()
+                    for input in detached { input.ring.deallocateAtomics() }
+                    detached = []
                     spare?.deallocate()
                     spare = nil
                     timer?.cancel()
@@ -207,12 +212,17 @@ final class DeviceWriter: @unchecked Sendable {
     }
 
     /// Detaches the current input and writes the rest of its ring. A clean detach frees the
-    /// ring; a failed one keeps the input.
+    /// ring bytes and keeps the rest until `finish()`; a failed one keeps the input.
     private func detach() {
         guard let (current, detach) = input else { return }
         let clean = detach()
         drain()
-        if clean { current.ring.deallocate() } else { kept.append(current) }
+        if clean {
+            current.ring.deallocateBytes()
+            detached.append(current)
+        } else {
+            kept.append(current)
+        }
         input = nil
     }
 
@@ -256,6 +266,11 @@ final class DeviceWriter: @unchecked Sendable {
             self.input = (input, try hal.attach(input))
         } catch .undoFailed {
             kept.append(input)
+            return false
+        } catch .undone {
+            // A listener call can still be in progress, as after a clean detach.
+            ring.deallocateBytes()
+            detached.append(input)
             return false
         } catch {
             spare = ring

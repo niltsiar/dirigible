@@ -23,8 +23,8 @@ struct DeviceHAL: Sendable {
     var lookUp: @Sendable (_ uid: String) -> (id: AudioObjectID, device: InputDevice)?
     /// Checks the virtual format (packed float32), creates the IOProc with `input.ring.context`,
     /// adds the C listeners (rate, stream configuration, IsAlive) with `input` as client data,
-    /// and starts. A throw after the IOProc exists first runs the detach; when that detach
-    /// returns false, the throw is `.undoFailed`.
+    /// and starts. A throw after the IOProc exists first runs the detach: `.undone` when that
+    /// detach returns true, `.undoFailed` when it returns false.
     var attach: @Sendable (_ input: DeviceInput) throws(HALError) -> Detach
     /// Adds the device-list listener for the life of the take. Its client data holds the writer
     /// weakly, so a failed removal never keeps the writer alive.
@@ -37,8 +37,12 @@ struct DeviceHAL: Sendable {
 typealias Detach = @Sendable () -> Bool
 
 enum HALError: Error, Hashable, Sendable {
+    /// No IOProc and no listener exist.
     case status(OSStatus)
     case unsupportedFormat
+    /// The attach failed after the IOProc existed, and its detach returned true. A listener call
+    /// can still be in progress.
+    case undone(OSStatus)
     case undoFailed
 }
 
@@ -275,7 +279,7 @@ private func attachLive(_ input: DeviceInput) throws(HALError) -> Detach {
         }
         return clean
     }
-    guard status == noErr else { throw detach() ? .status(status) : .undoFailed }
+    guard status == noErr else { throw detach() ? .undone(status) : .undoFailed }
     return detach
 }
 

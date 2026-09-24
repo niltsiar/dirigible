@@ -20,7 +20,7 @@ func sine(seconds: Double, rate: Double, channels: Int = 1, frequency: Double = 
     return samples
 }
 
-/// A unique temporary folder, removed at deinit.
+/// A unique temporary folder, removed after deinit.
 final class TemporaryFolder {
     let url: URL
 
@@ -29,7 +29,13 @@ final class TemporaryFolder {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     }
 
-    deinit { try? FileManager.default.removeItem(at: url) }
+    /// The removal runs off the calling thread. Most suites are `@MainActor`, and under the disk
+    /// load of `make test-slow` one removal takes 100 ms or more on the main actor (the tdd skill).
+    /// Limit: a removal that has not run when the process exits leaves its folder.
+    deinit {
+        let url = url
+        DispatchQueue.global(qos: .utility).async { try? FileManager.default.removeItem(at: url) }
+    }
 }
 
 /// SplitMix64: a small seeded generator, so a random test gives the same values on each run.

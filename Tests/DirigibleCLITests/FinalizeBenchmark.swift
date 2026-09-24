@@ -69,15 +69,41 @@ struct FinalizeBenchmark {
         Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(path: "dirigible")
     }
 
+    /// The child of `measure` gets no descriptor but standard input, output, and error. Found
+    /// by a flaky full-disk test: the finalize child kept its filler file open.
+    @Test func aMeasuredChildGetsOnlyTheStandardDescriptors() throws {
+        let descriptor = open("/dev/null", O_RDONLY)
+        try #require(descriptor > STDERR_FILENO)
+        defer { close(descriptor) }
+
+        let inherited = try measure("/bin/sh", ["-c", "test -e /dev/fd/\(descriptor)"])
+        let standard = try measure("/bin/sh", ["-c", "test -e /dev/fd/2"])
+
+        #expect(inherited.status == 1)
+        #expect(standard.status == 0)
+    }
+
     /// Runs `path` as a child process and returns its exit status, its peak resident memory
     /// (`ru_maxrss` from `wait4`, in bytes on macOS), and its wall time. A run over 300 s is
-    /// killed, so a hang cannot stop the suite.
+    /// killed, so a hang cannot stop the suite. The child gets only standard input, output, and
+    /// error. A copy of another descriptor keeps a file of a parallel test open: a deleted filler
+    /// file keeps its space, and a volume does not detach.
     func measure(_ path: String, _ arguments: [String]) throws -> (status: Int32, peakBytes: Int, seconds: Double) {
         let argv = ([path] + arguments).map { strdup($0) } + [nil]
         defer { for pointer in argv { free(pointer) } }
+        var attributes: posix_spawnattr_t?
+        posix_spawnattr_init(&attributes)
+        defer { posix_spawnattr_destroy(&attributes) }
+        posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))
+        var actions: posix_spawn_file_actions_t?
+        posix_spawn_file_actions_init(&actions)
+        defer { posix_spawn_file_actions_destroy(&actions) }
+        for descriptor in [STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO] {
+            posix_spawn_file_actions_addinherit_np(&actions, descriptor)
+        }
         var pid: pid_t = 0
         let start = ContinuousClock.now
-        try #require(posix_spawn(&pid, path, nil, nil, argv, environ) == 0)
+        try #require(posix_spawn(&pid, path, &actions, &attributes, argv, environ) == 0)
         var status: Int32 = 0
         var usage = rusage()
         while wait4(pid, &status, WNOHANG, &usage) == 0 {

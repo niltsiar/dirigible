@@ -70,6 +70,29 @@ struct RecordTests {
         #expect(studio.session.track("t1")?.clips.first?.start == 0)
     }
 
+    /// A take that ends early returns soon after its end, not after the full duration: a disk
+    /// low stop, and a stop from another caller. The limit is long, because a full suite can
+    /// hold the main actor for seconds.
+    @Test(arguments: [TakeEnd.diskLow, .requested])
+    func aTimedTakeThatEndsEarlyReturnsSoon(end: TakeEnd) async throws {
+        let free = FreeBytes()
+        let hal = TestHAL([mic])
+        let studio = try await Studio.open(url)
+        studio.environment = .test(hal, free: free)
+        let stopper = Task { @MainActor in
+            await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
+            if end == .diskLow { free.value = 0 } else { try? await studio.stopRecording() }
+        }
+        let start = ContinuousClock.now
+
+        let result = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(30))
+        await stopper.value
+
+        #expect(ContinuousClock.now - start < .seconds(10), "returned after \(ContinuousClock.now - start)")
+        #expect(result.end == end)
+        #expect(studio.transport == .idle)
+    }
+
     // MARK: Criterion 23: the take result
 
     /// The attach of each device in `failing` always throws. Control: none fails, no gap.

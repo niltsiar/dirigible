@@ -126,7 +126,8 @@ import Foundation
     }
 
     /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low
-    /// stop or a stop from another caller can end it early; then it returns soon after that end.
+    /// stop, a stop from another caller, or a cancel of this call can end it early; then it
+    /// returns soon after that end.
     /// Throws what `startRecording` throws, or the finalize error; then `lastTake` still has the
     /// result and the take stays pending.
     public func record(armed: [TrackID], playhead: Frames, for duration: Duration) async throws(StudioError)
@@ -139,11 +140,15 @@ import Foundation
         for writer in writers.values { writer.end(atHostNanos: end) }
         let deadline = ContinuousClock.now + duration
         while transport == .recording(take: take), ContinuousClock.now < deadline {
-            try? await Task.sleep(for: min(.milliseconds(50), deadline - .now))
+            // A cancel ends the take now, as an early end.
+            do { try await Task.sleep(for: min(.milliseconds(50), deadline - .now)) } catch { break }
         }
         if transport == .recording(take: take) { try await stopRecording() }
-        // Another stop ended the take; wait for its finalize.
-        while transport == .finalizing(take: take) { try? await Task.sleep(for: .milliseconds(10)) }
+        // Another stop ended the take; wait for its finalize. The sleep is in a task of its own,
+        // so a cancel of this call does not make the wait spin.
+        while transport == .finalizing(take: take) {
+            await Task { try? await Task.sleep(for: .milliseconds(10)) }.value
+        }
         if let takeError { throw takeError }
         // Another caller can start a new take before this call wakes; that start clears it.
         guard let lastTake, lastTake.take == take else { throw .busy }

@@ -133,11 +133,15 @@ import Foundation
     public func record(armed: [TrackID], playhead: Frames, for duration: Duration) async throws(StudioError)
         -> TakeResult
     {
+        // Before the start: a conversion that traps after the save of <recording> would leave a
+        // pending take. The length saturates, so a very long duration cannot trap.
+        let nanos = max(0, duration / .nanoseconds(1))
+        let length = nanos < 0x1p64 ? UInt64(nanos) : .max
         try await startRecording(armed: armed, playhead: playhead)
         guard case .recording(let take) = transport else { preconditionFailure("A started take records") }
         // The take ends at its start host time + duration, also when the stop comes late.
-        let end = (session.recording?.takeStartHostTimeNanos ?? 0) + UInt64(duration / .nanoseconds(1))
-        for writer in writers.values { writer.end(atHostNanos: end) }
+        let (end, overflow) = (session.recording?.takeStartHostTimeNanos ?? 0).addingReportingOverflow(length)
+        for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
         let deadline = ContinuousClock.now + duration
         while transport == .recording(take: take), ContinuousClock.now < deadline {
             // A cancel ends the take now, as an early end.

@@ -22,7 +22,7 @@ import os
     }
 }
 
-/// A unique temporary folder under `parent`, removed after deinit.
+/// A unique temporary folder under `parent`, removed at deinit.
 final class TemporaryFolder {
     let url: URL
 
@@ -31,13 +31,7 @@ final class TemporaryFolder {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     }
 
-    /// The removal runs off the calling thread. Most suites are `@MainActor`, and under the disk
-    /// load of `make test-slow` one removal takes 100 ms or more on the main actor (the tdd skill).
-    /// Limit: a removal that has not run when the process exits leaves its folder.
-    deinit {
-        let url = url
-        DispatchQueue.global(qos: .utility).async { try? FileManager.default.removeItem(at: url) }
-    }
+    deinit { try? FileManager.default.removeItem(at: url) }
 
     /// A new session package in the folder.
     func package(_ name: String) throws -> URL {

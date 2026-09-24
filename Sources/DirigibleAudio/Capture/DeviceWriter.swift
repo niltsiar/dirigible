@@ -53,6 +53,7 @@ final class DeviceWriter: @unchecked Sendable {
     /// The retry clock: the loss, or the last try.
     private var lastTry = ContinuousClock.now
     private let dropped = ManagedAtomic<Int>(0)
+    private var endHostNanos = UInt64.max
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
     /// checks of `Studio` make every channel exist on the device. `drainInterval`,
@@ -120,6 +121,13 @@ final class DeviceWriter: @unchecked Sendable {
         }
     }
 
+    /// The writer writes no record that starts at or after `end` (host time), so a timed take
+    /// does not grow while the stop waits for the queue. Such a record still restarts the
+    /// watchdog clock.
+    func end(atHostNanos end: UInt64) {
+        queue.async { [self] in endHostNanos = end }
+    }
+
     /// The WAV bytes of the take so far, for the disk rule.
     func wavBytes() async -> Int64 {
         await withCheckedContinuation { done in queue.async { [self] in done.resume(returning: tracks.wavBytes) } }
@@ -170,7 +178,7 @@ final class DeviceWriter: @unchecked Sendable {
                 tracks.endSegment()
                 continue
             }
-            tracks.write(record)
+            if record.hostTimeNanos < endHostNanos { tracks.write(record) }
             lastValid = .now
         }
         dropped.wrappingIncrement(by: ring.takeDroppedFrames(), ordering: .relaxed)

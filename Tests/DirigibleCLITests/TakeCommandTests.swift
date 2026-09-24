@@ -4,7 +4,8 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// `dirigible take finalize` (criteria 17, 19, and 21).
+/// `dirigible take finalize` (criteria 17, 19, and 21 of capture-finalize; criterion 23 of
+/// capture-live: the clip IDs of the take, and exit 5 for an armed track with no clip).
 struct TakeCommandTests {
     static let takeStart: UInt64 = 1_000_000_000_000
     let package: TemporaryPackage
@@ -51,23 +52,43 @@ struct TakeCommandTests {
         return (view.tracks.map { $0.clips.map(\.id) }, view.recording?.take)
     }
 
+    static let noClip = "Warning: track \"t2\" has no clip from take 1.\n"
+
+    /// Control of the exit 5 rule: segments for both armed tracks.
     @Test func aRecoverablePackageIsFinalized() throws {
         try segment(arm: 1)
+        try segment(arm: 2)
         #expect(try info().take == 1)
 
-        #expect(try package.run("take", "finalize", "PKG") == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(
+            try package.run("take", "finalize", "PKG")
+                == CLIResult(status: 0, stdout: "take1-1-1\ntake1-2-1\n", stderr: ""))
 
         let after = try info()
-        #expect(after.clips == [["take1-1-1"], []])
+        #expect(after.clips == [["take1-1-1"], ["take1-2-1"]])
         #expect(after.take == nil)
     }
 
+    /// The recovery of the open finalizes the take; the armed tracks come from `recoveredTake`.
+    @Test func anArmedTrackWithNoClipExitsFive() throws {
+        try segment(arm: 1)
+
+        #expect(
+            try package.run("take", "finalize", "PKG")
+                == CLIResult(status: 5, stdout: "take1-1-1\n", stderr: Self.noClip))
+
+        #expect(try info().clips == [["take1-1-1"], []])
+    }
+
+    /// The open skips the finalize; the armed tracks come from the pending take before the retry.
     @Test func aPackageWithAMarkerIsRetried() throws {
         try segment(arm: 1)
         let marker = package.url.appending(path: "recovery-attempt")
         FileManager.default.createFile(atPath: marker.path, contents: nil)
 
-        #expect(try package.run("take", "finalize", "PKG") == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(
+            try package.run("take", "finalize", "PKG")
+                == CLIResult(status: 5, stdout: "take1-1-1\n", stderr: Self.noClip))
 
         #expect(try info().clips == [["take1-1-1"], []])
         #expect(!FileManager.default.fileExists(atPath: marker.path))
@@ -94,15 +115,20 @@ struct TakeCommandTests {
         let handle = try FileHandle(forWritingTo: package.url.appending(path: "Capture/take1-1-1.sidecar"))
         try handle.write(contentsOf: Data("XXXXXXXX".utf8))
         try handle.close()
-        let warning = CLIResult(
-            status: 3, stdout: "", stderr: "Warning: Capture/take1-1-1.caf is not on the timeline.\n")
+        let unplaced = "Warning: Capture/take1-1-1.caf is not on the timeline.\n"
 
-        #expect(try package.run("take", "finalize", "PKG") == warning)
+        // Exit 3 wins over exit 5, and both lines are written.
+        #expect(
+            try package.run("take", "finalize", "PKG")
+                == CLIResult(
+                    status: 3, stdout: "take1-2-1\n",
+                    stderr: unplaced + "Warning: track \"t1\" has no clip from take 1.\n"))
 
         let after = try info()
         #expect(after.clips == [[], ["take1-2-1"]])
         #expect(after.take == nil)
-        #expect(try package.run("take", "finalize", "PKG") == warning)
+        // No take is pending now, so only the unplaced line stays.
+        #expect(try package.run("take", "finalize", "PKG") == CLIResult(status: 3, stdout: "", stderr: unplaced))
     }
 
     @Test func takeFinalizeHasHelp() throws {

@@ -219,6 +219,19 @@ struct SessionTests {
         #expect(session.recording == recording)
     }
 
+    /// A take number is a stem part of decision 0012: 1 to 9 digits.
+    @Test(arguments: [0, -1, 1_000_000_000, Int.max])
+    func aTakeNumberOutsideTheStemRangeIsRefused(take: Int) throws {
+        var session = Session(sampleRate: 48_000)
+        let recording = Recording(take: take, playheadFrame: 0, takeStartHostTimeNanos: 7, armedTracks: [])
+        #expect(throws: SessionError.takeOutOfRange(take)) { try session.setRecording(recording) }
+        #expect(session.recording == nil)
+
+        try session.setRecording(
+            Recording(take: 999_999_999, playheadFrame: 0, takeStartHostTimeNanos: 7, armedTracks: []))
+        #expect(session.recording?.take == 999_999_999)
+    }
+
     @Test func markersAreAddedChangedAndRemoved() throws {
         var session = Session(sampleRate: 48_000)
         try session.setMarker(Marker(id: "m1", name: "Intro", position: 0, kind: .marker))

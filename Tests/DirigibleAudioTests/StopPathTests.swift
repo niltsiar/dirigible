@@ -103,6 +103,25 @@ struct StopPathTests {
         try await studio.stopRecording()
     }
 
+    /// A clip ID from package content can hold the last take number of decision 0012. The next
+    /// take has no stem, so the start throws and changes nothing.
+    @Test func aTakeNumberPastTheStemRangeThrowsAndChangesNothing() async throws {
+        var session = try Session(contentsOf: url)
+        try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 100))
+        try session.place(Clip(id: "take999999999-1-1", file: "f", start: 0, offset: 0, length: 100), on: "t1")
+        try session.write(to: url)
+        let studio = try await Studio.open(url)
+        let before = try Data(contentsOf: sessionXML)
+
+        #expect(throws: StudioError.session(.takeOutOfRange(1_000_000_000))) {
+            _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+        }
+        #expect(try Data(contentsOf: sessionXML) == before)
+        #expect(studio.transport == .idle)
+        #expect(studio.session.recording == nil)
+        #expect(!FileManager.default.fileExists(atPath: url.appending(path: "Capture").path))
+    }
+
     @Test func aStartWithABadRouteThrowsAndChangesNothing() async throws {
         let studio = try await Studio.open(url)
         let before = try Data(contentsOf: sessionXML)

@@ -154,6 +154,7 @@ public struct Session: Hashable, Sendable {
 
     /// Nil removes the recording.
     public mutating func setRecording(_ recording: Recording?) throws(SessionError) {
+        if let recording, !Recording.takes.contains(recording.take) { throw .takeOutOfRange(recording.take) }
         if let recording, !recording.playheadFrame.isInRange { throw .frameOutOfRange }
         if let missing = recording?.armedTracks.first(where: { track($0) == nil }) {
             throw .unknownTrack(missing)
@@ -191,6 +192,8 @@ public enum SessionError: Error, Hashable, Sendable {
     case invalidPath(String)
     case invalidText(String)
     case frameOutOfRange
+    /// A take number that is not a stem part of decision 0012 (1 to 9 digits).
+    case takeOutOfRange(Int)
     case clipOutsideFile(ClipID)
     case overlap(ClipID, ClipID)
     case frameOutsideClip(ClipID, Frames)

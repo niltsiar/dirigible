@@ -109,6 +109,7 @@ extension SessionError {
         case .invalidPath(let path): "the path \"\(path)\" is not inside Clips/."
         case .invalidText(let text): "the text \(String(reflecting: text)) has a control character."
         case .frameOutOfRange: "a frame is negative or more than 2^40."
+        case .takeOutOfRange(let take): "take \(take) is not in 1...999999999."
         case .clipOutsideFile(let id): "clip \"\(id)\" is not inside its file."
         case .overlap(let clip, let other): "clip \"\(clip)\" overlaps clip \"\(other)\"."
         case .frameOutsideClip(let id, let frame): "frame \(frame) is not inside clip \"\(id)\"."

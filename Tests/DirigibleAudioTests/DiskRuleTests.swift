@@ -74,8 +74,8 @@ struct DiskRuleTests {
         #expect(await studio.remainingRecordTime(armed: ["t1", "t2"]) == .seconds(60))
     }
 
-    /// The WAV of a pending take needs 3 bytes for each 4 CAF bytes.
-    @Test func aPendingTakeTakesItsWAVBytesFromTheRemainingTime() async throws {
+    /// A pending take 1 with a CAF of 4,000,000 bytes, and `free` bytes.
+    func pendingStudio(free: Int64) async throws -> Studio {
         var session = try Session(contentsOf: url)
         try session.setRecording(
             Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: takeStart, armedTracks: ["t1"]))
@@ -85,13 +85,36 @@ struct DiskRuleTests {
         try Data(count: 4_000_000).write(to: capture.appending(path: "take1-1-1.caf"))
         // An earlier recovery died, so the open keeps the take pending.
         try Data().write(to: marker(in: url))
-        let studio = try await studio(TestHAL([mic]), free: FreeBytes(Self.margin + 40_320_000))
+        let studio = try await studio(TestHAL([mic]), free: FreeBytes(free))
         try #require(studio.pendingTake?.take == 1)
+        return studio
+    }
+
+    /// The WAV of a pending take needs 3 bytes for each 4 CAF bytes.
+    @Test func aPendingTakeTakesItsWAVBytesFromTheRemainingTime() async throws {
+        let studio = try await pendingStudio(free: Self.margin + 40_320_000)
 
         let left = try #require(await studio.remainingRecordTime(armed: ["t1", "t2"]))
 
         let expected = 60 - 3_000_000.0 / 672_000
         #expect(abs(Double(left.components.seconds) + Double(left.components.attoseconds) / 1e18 - expected) < 1e-6)
+    }
+
+    /// Record-ui criterion 11: the finalize of 4,000,000 CAF bytes needs 3,000,000 WAV bytes.
+    @Test func pendingSpaceGivesTheWAVBytesAndTheFreeBytes() async throws {
+        let studio = try await pendingStudio(free: 5_000_000_000)
+
+        let space = try #require(await studio.pendingSpace())
+
+        #expect(space.needed == 3_000_000)
+        #expect(space.free == 5_000_000_000)
+    }
+
+    /// Control: no pending take gives nil.
+    @Test func pendingSpaceWithNoPendingTakeIsNil() async throws {
+        let studio = try await studio(TestHAL([mic]), free: FreeBytes())
+
+        #expect(await studio.pendingSpace() == nil)
     }
 
     /// Less than 1 GB free throws and changes nothing. Control: 1 GB + 1 byte starts.

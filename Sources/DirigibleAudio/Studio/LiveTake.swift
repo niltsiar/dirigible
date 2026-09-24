@@ -90,9 +90,16 @@ struct CaptureEnvironment: Sendable {
 }
 
 /// `kIOPMAssertPreventUserIdleSystemSleep` for the life of the value (decision 0004). A refused
-/// assertion gives no ID, and the take goes on without it.
+/// assertion gives no ID, and the take goes on without it. It also holds a latency-critical
+/// activity, so App Nap does not slow the drain of a hidden app (decision 0014). The activity
+/// lets the system sleep, so the IOPM assertion stays the only sleep assertion (probe P3).
 final class SleepAssertion: Sendable {
+    /// The reason of the activity. It is not the name of the IOPM assertion, so a test can tell
+    /// them apart.
+    static let activityReason = "Dirigible records a take"
     let id: IOPMAssertionID?
+    /// `ProcessInfo` gives an `NSObjectProtocol` token that is only passed back to `endActivity`.
+    nonisolated(unsafe) private let activity: any NSObjectProtocol
 
     init() {
         var id = IOPMAssertionID(0)
@@ -100,10 +107,13 @@ final class SleepAssertion: Sendable {
             kIOPMAssertPreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
             "Dirigible is recording" as CFString, &id)
         self.id = status == kIOReturnSuccess ? id : nil
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: Self.activityReason)
     }
 
     deinit {
         if let id { IOPMAssertionRelease(id) }
+        ProcessInfo.processInfo.endActivity(activity)
     }
 }
 

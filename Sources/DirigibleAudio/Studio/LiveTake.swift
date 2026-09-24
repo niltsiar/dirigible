@@ -81,6 +81,10 @@ struct CaptureEnvironment: Sendable {
     var saveSession: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
     /// A step before each finalize. Tests hold a finalize with it; `live` does nothing.
     var beforeFinalize: @Sendable () async -> Void = {}
+    /// The output of the Player that the next play makes (decision 0016). Tests render offline.
+    var playerOutput: Player.Output = .device
+    /// A step before the Player stop of a take start, off the main actor. Tests hold it.
+    var beforePlayerStop: @Sendable () async -> Void = {}
 
     static let live = CaptureEnvironment(
         hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),

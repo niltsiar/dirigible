@@ -43,8 +43,12 @@ import Observation
     /// nothing, and after a new take starts. `take finalize` reads its armed tracks.
     public private(set) var recoveredTake: Recording?
 
-    /// The Core Audio calls of a take. Tests give their own.
-    @ObservationIgnored var environment = CaptureEnvironment.live
+    /// The Core Audio calls of a take and the player output. Tests give their own.
+    @ObservationIgnored var environment = CaptureEnvironment.live {
+        didSet { if environment.playerOutput != oldValue.playerOutput { outputChanged() } }
+    }
+    /// The playback state (decision 0016), in `Studio+Transport.swift`.
+    var play: PlayState
     /// Held from the start of a take until its finalize ends.
     @ObservationIgnored private(set) var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
@@ -89,6 +93,7 @@ import Observation
         self.takeError = opened.takeError
         self.segmentsWithAudio = opened.segmentsWithAudio
         self.recoveredTake = opened.recoveredTake
+        self.play = PlayState(at: opened.session.end)
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
@@ -126,6 +131,7 @@ import Observation
     /// more; `saveError` stays set only when that write also fails. After it returns, no device
     /// is held, no take records, and no write runs.
     public func settle() async {
+        await stopPlay()
         // The monitor order does not wait for a finalize in progress.
         monitorRequest = []
         await monitorTurns.run { await applyMonitor() }
@@ -158,7 +164,7 @@ import Observation
     /// entry point throws `.busy`. A throw changes nothing. A device that does not attach after
     /// the save is lost, and the take goes on. The take attaches before a running monitor
     /// releases its devices (decision 0015).
-    public func startRecording(armed: [TrackID], playhead: Frames) async throws(StudioError) {
+    public func startRecording(armed: [TrackID], playhead: Frames? = nil) async throws(StudioError) {
         _ = try await beginRecording(armed: armed, playhead: playhead)
     }
 
@@ -166,15 +172,17 @@ import Observation
     /// can end that take before this call returns. With `length` (nanoseconds), each writer
     /// writes no record at or after the take start + `length`. The end is set before the
     /// hand-over waits, so no drain writes past it.
-    func beginRecording(armed: [TrackID], playhead: Frames, length: UInt64? = nil) async throws(StudioError) -> (
+    func beginRecording(armed: [TrackID], playhead: Frames?, length: UInt64? = nil) async throws(StudioError) -> (
         take: Int, generation: Int
     ) {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
         isStarting = true
+        let stopped = endPlayForTake()
         // The whole start is one step of the chain, so a stop or a settle never sees half of it.
         let result = await serialized { () async -> Result<(take: Int, generation: Int), StudioError> in
             defer { isStarting = false }
+            let playhead = await takePlayhead(stopped, playhead)
             let started: StartedTake
             do throws(StudioError) {
                 started = try await prepareTake(
@@ -260,14 +268,16 @@ import Observation
     /// then, after the write in progress, saves `session.xml` with `<recording>` on the main
     /// actor, then starts each device writer on the environment HAL. A throw changes nothing.
     func startTake(
-        armed: [TrackID], devices: [InputDevice], playhead: Frames, hostTimeNanos: UInt64
+        armed: [TrackID], devices: [InputDevice], playhead: Frames? = nil, hostTimeNanos: UInt64
     ) async throws(StudioError) -> [String: DeviceWriter] {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
         let routes = try checkRoutes(session, armed: armed, devices: devices)
         isStarting = true
+        let stopped = endPlayForTake()
         let error = await serialized { () async -> StudioError? in
             defer { isStarting = false }
+            let playhead = await takePlayhead(stopped, playhead)
             do throws(StudioError) {
                 begin(
                     try saveTakeStart(
@@ -332,6 +342,7 @@ import Observation
         takeError = outcome.error
         segmentsWithAudio = outcome.segmentsWithAudio
         if let error = outcome.error { throw error }
+        takeEnded(outcome.session)
         history.edit { $0 = outcome.session }
     }
 

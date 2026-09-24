@@ -228,8 +228,8 @@ extension CaptureEnvironment {
     /// The test HAL, a watchdog limit that other tests on the main actor cannot reach (also for
     /// the first record), the
     /// microphone access `access` (nil: authorized), `free` bytes (default 100 GB), a disk
-    /// check each 50 ms, the autosave step `saveSession` (default: the live write), and a step
-    /// before each finalize (default: none).
+    /// check each 50 ms, the autosave step `saveSession` (default: the live write), a step
+    /// before each finalize (default: none), and an offline Player.
     static func test(
         _ hal: TestHAL, silenceLimit: Duration = .seconds(60), access: MicrophoneAccess? = nil,
         free: FreeBytes = FreeBytes(),
@@ -239,7 +239,7 @@ extension CaptureEnvironment {
         CaptureEnvironment(
             hal: hal.hal, silenceLimit: silenceLimit, firstRecordLimit: silenceLimit, microphoneAccess: { access },
             freeBytes: { _ in free.value }, diskCheckInterval: .milliseconds(50), saveSession: saveSession,
-            beforeFinalize: beforeFinalize)
+            beforeFinalize: beforeFinalize, playerOutput: .offline)
     }
 }
 

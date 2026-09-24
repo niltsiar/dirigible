@@ -27,7 +27,13 @@ enum WindowAlert: Hashable {
 
     /// The package path in `packageIdentity` form. It follows `Studio.url` after a move.
     private(set) var url: URL
-    private(set) var phase: Phase = .opening
+    /// Each change to `.open` (the open, a cancelled close) sends the monitor request, so a
+    /// toggle change in another phase reaches the studio.
+    private(set) var phase: Phase = .opening {
+        didSet {
+            if case .open = phase { Task { await updateMonitor() } }
+        }
+    }
     /// True when the list of active recordings had the package at launch.
     private(set) var recovering = false
     var alert: WindowAlert?

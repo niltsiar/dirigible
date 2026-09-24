@@ -18,9 +18,9 @@ import os
 
     init() throws { folder = try TemporaryFolder() }
 
-    /// A window on a package with `t1` on channel 1 of `duo` and `t2` on channel 2, with the
-    /// counting HAL. The package write runs off the main actor (the tdd skill).
-    func window() async throws -> (SessionWindow, Studio) {
+    /// A package with `t1` on channel 1 of `duo` and `t2` on channel 2. The write runs off the
+    /// main actor (the tdd skill).
+    func package() async throws -> URL {
         let package = folder.url.appending(path: "monitor.dirigible")
         try await Task.detached {
             var session = Session(sampleRate: 48_000)
@@ -30,7 +30,12 @@ import os
             try session.setRoute(Route(deviceUID: "duo", channels: .mono(2)), track: "t2")
             try session.write(to: package)
         }.value
-        let window = await app.open(package)
+        return package
+    }
+
+    /// A window on the package, with the counting HAL.
+    func window() async throws -> (SessionWindow, Studio) {
+        let window = await app.open(try await package())
         let studio = try #require(await window.opened() ? window.studio : nil)
         studio.environment = hal.environment
         return (window, studio)
@@ -91,6 +96,45 @@ import os
         window.armed = ["t1"]
         await until("arm did not start the monitor") { hal.attaches == 2 && studio.liveTracks["t1"] != nil }
         await window.close()
+        #expect(hal.isFree)
+    }
+
+    /// Code gate round 1, item 3: the toggle goes on while the window opens. The open starts the
+    /// monitor. Control: criterion 15, the toggle after the open.
+    @Test func aToggleDuringTheOpenStartsTheMonitor() async throws {
+        let studio = try await Studio.open(try await package())
+        studio.environment = hal.environment
+        let window = SessionWindow(url: studio.url, recordings: nil, app: app)
+        window.monitoring = true
+
+        window.adopt(studio)
+        await until("the open did not start the monitor") {
+            hal.attaches == 1 && studio.liveTracks["t2"]?.state == .monitoring
+        }
+        await window.close()
+        #expect(hal.isFree)
+    }
+
+    /// Code gate round 1, item 3 sibling: the toggle goes on while a close waits for "Close
+    /// anyway?". Cancel opens the window again and starts the monitor.
+    @Test func aToggleDuringACancelledCloseStartsTheMonitor() async throws {
+        let (window, studio) = try await window()
+        studio.environment.saveSession = { _, _ throws(SessionFileError) in
+            throw .writeFailed(step: "test", errno: EIO)
+        }
+        try studio.edit { s throws(SessionError) in try s.renameTrack("t1", to: "Hostess") }
+        await window.close()
+        #expect(window.alert == .confirmUnsavedClose)
+
+        window.monitoring = true
+        // The follow of the toggle runs now, in the closing phase.
+        await Task.yield()
+        #expect(hal.attaches == 0)
+        window.cancelUnsavedClose()
+        await until("the cancel did not start the monitor") { hal.attaches == 1 }
+
+        await window.close()
+        window.closeAnyway()
         #expect(hal.isFree)
     }
 

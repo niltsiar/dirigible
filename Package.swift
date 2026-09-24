@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     targets: [
         .target(name: "DirigibleCore"),
-        .executableTarget(name: "Dirigible", dependencies: ["DirigibleCore"]),
+        .executableTarget(name: "DirigibleApp", dependencies: ["DirigibleCore"]),
         .testTarget(name: "DirigibleCoreTests", dependencies: ["DirigibleCore"]),
         .testTarget(name: "DirigibleTests"),
     ]

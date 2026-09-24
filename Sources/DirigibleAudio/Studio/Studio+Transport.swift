@@ -11,6 +11,14 @@ public enum Playback: Hashable, Sendable {
     }
 }
 
+/// A stop of playback that the user did not ask for.
+public enum PlaybackStop: Hashable, Sendable {
+    /// The output device changed or went away. The user presses Space again.
+    case outputChanged
+    /// The engine did not start; the value is the error code.
+    case outputUnavailable(Int)
+}
+
 /// The playback state of a studio (decision 0016). `Studio` stores one value of it.
 struct PlayState {
     var playback: Playback = .stopped
@@ -18,16 +26,22 @@ struct PlayState {
     var playhead: Frames
     /// Where Shift-Space goes: set by a play from stopped and by a seek.
     var startPoint: Frames
+    /// From the media checks and the read faults of the Player.
+    var missingMedia: [FileID: MediaFault]
+    var playbackStop: PlaybackStop?
     /// The last feed number. Only a play, a stop, a seek, and a shuttle change take a new one.
     var feed = 0
+    /// The last session revision sent to the Player. An edit takes a revision, not a feed number.
+    var revision = 0
     /// Made at the first play from `environment.playerOutput`.
     var player: Player?
     /// Reads the Player every 33 ms while `playback` is `.playing`.
     var poll: Task<Void, Never>?
 
-    init(at playhead: Frames) {
+    init(at playhead: Frames, missingMedia: [FileID: MediaFault]) {
         self.playhead = playhead
         startPoint = playhead
+        self.missingMedia = missingMedia
     }
 }
 
@@ -35,6 +49,17 @@ extension Studio {
     public var playback: Playback { play.playback }
     /// Live while playing: the poll sets it every 33 ms.
     public var playhead: Frames { play.playhead }
+    /// The pool files that give no frames or fewer frames. The clips of these files play as
+    /// silence (decision 0003).
+    public var missingMedia: [FileID: MediaFault] { play.missingMedia }
+    /// The last stop of playback that the user did not ask for. A new play clears it.
+    public var playbackStop: PlaybackStop? { play.playbackStop }
+
+    /// Checks each pool file off the main actor (decision 0016). The window calls it at focus;
+    /// `open`, a finalize, and a play from stopped check too.
+    public func checkMedia() async {
+        play.missingMedia = await mediaFaults(session, lock: lock, before: environment.beforeMediaCheck)
+    }
 
     /// The one entry of the transport commands (decision 0016). It never throws: a command that
     /// the state refuses does nothing. While a take starts, records, or finalizes, only Space
@@ -78,8 +103,14 @@ extension Studio {
             return
         }
         play.feed += 1
+        let number = play.feed
         play.startPoint = play.playhead
-        await startPlay(next, from: play.playhead, number: play.feed)
+        play.playbackStop = nil
+        // Only a play from stopped checks the media, not each shuttle key (plan gate 1 item 7).
+        await checkMedia()
+        // A stop, a seek, a shuttle change, or Record in the check makes this play old.
+        guard play.feed == number else { return }
+        await startPlay(next, from: play.playhead, number: number)
     }
 
     /// Tests only: pulls frames from the offline Player.
@@ -143,12 +174,25 @@ extension Studio {
         return number
     }
 
+    /// Sends the session to the Player with a new revision and no feed number: the running feed
+    /// goes on with the new session (plan gate 1 item 2). Each autosave calls it.
+    func sendSession() {
+        guard let player = play.player else { return }
+        play.revision += 1
+        let (session, revision) = (session, play.revision)
+        Task { await player.update(session, revision: revision) }
+    }
+
     private func startPlay(_ shuttle: Shuttle, from: Frames, number: Int) async {
-        guard play.feed == number else { return }
         let player =
             play.player
-            ?? Player(package: { [lock] in try lock.package() }, output: environment.playerOutput, session: session)
+            ?? Player(
+                package: { [lock] in try lock.package() }, output: environment.playerOutput, session: session,
+                start: environment.startEngine)
         play.player = player
+        // Awaited, so a play after a take hears the take (plan gate 2 item 5).
+        play.revision += 1
+        await player.update(session, revision: play.revision)
         await player.apply(.play(from: from, shuttle: shuttle), number: number)
         guard play.poll == nil else { return }
         play.poll = Task { [weak self] in
@@ -166,14 +210,23 @@ extension Studio {
             let number = play.feed
             let reading = await player.reading()
             if play.feed == number, reading.played == number {
-                play.playhead = reading.frame
-                if reading.ended {
+                play.missingMedia.merge(reading.faults) { $1 }
+                // The engine stops before the system posts the change, so its position can be
+                // gone: the playhead keeps the last poll.
+                if let stop = reading.stop ?? (reading.running ? nil : .outputChanged) {
+                    play.playbackStop = stop
+                    play.playback = .stopped
+                    play.feed += 1
+                    await player.apply(.stop, number: play.feed)
+                } else if reading.ended {
                     // At 2x and 4x the Player position can pass the end by less than the rate.
                     play.playhead =
                         shuttle.direction == .forward ? min(reading.frame, session.end) : max(reading.frame, .zero)
                     play.playback = .stopped
                     play.feed += 1
                     await player.apply(.stop, number: play.feed)
+                } else {
+                    play.playhead = reading.frame
                 }
             }
         }
@@ -191,4 +244,14 @@ extension Studio {
         case .frame(let frame): max(.zero, frame)
         }
     }
+}
+
+/// The media check of `Studio.checkMedia`, off the main actor, in the package that the lock
+/// holds now. A package that left its volume gives no fault.
+@concurrent nonisolated func mediaFaults(
+    _ session: Session, lock: PackageLock, before: @Sendable () -> Void
+) async -> [FileID: MediaFault] {
+    before()
+    guard let package = try? lock.package() else { return [:] }
+    return checkMedia(session, package: package)
 }

@@ -93,7 +93,7 @@ import Observation
         self.takeError = opened.takeError
         self.segmentsWithAudio = opened.segmentsWithAudio
         self.recoveredTake = opened.recoveredTake
-        self.play = PlayState(at: opened.session.end)
+        self.play = PlayState(at: opened.session.end, missingMedia: opened.missingMedia)
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
@@ -214,7 +214,7 @@ import Observation
         try await stop(.requested)
     }
 
-    private func stop(_ end: TakeEnd) async throws(StudioError) {
+    func stop(_ end: TakeEnd) async throws(StudioError) {
         if case .finalizing = transport { throw .busy }
         guard !isStarting else { throw .busy }
         guard case .recording(let take) = transport else { return }
@@ -242,22 +242,6 @@ import Observation
             return nil
         }
         if let error { throw error }
-    }
-
-    /// Each check interval: stops the take when the free space is less than the WAV bytes of
-    /// the take plus 1 GB. The reads run off the main actor.
-    private func watchDisk() -> Task<Void, Never> {
-        let (lock, environment, writers) = (lock, environment, Array(writers.values))
-        return Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: environment.diskCheckInterval)
-                var wav: Int64 = 0
-                for writer in writers { wav += await writer.wavBytes() }
-                guard await freeBytes(of: lock, environment) < wav + diskMargin, !Task.isCancelled else { continue }
-                try? await self?.stop(.diskLow)
-                return
-            }
-        }
     }
 
     /// The device writer of `uid` in the take that records. For tests.
@@ -341,6 +325,7 @@ import Observation
         transport = .idle
         takeError = outcome.error
         segmentsWithAudio = outcome.segmentsWithAudio
+        play.missingMedia = outcome.missingMedia
         if let error = outcome.error { throw error }
         takeEnded(outcome.session)
         history.edit { $0 = outcome.session }
@@ -353,6 +338,7 @@ import Observation
     /// Writes a copy of the session off the main actor, after the previous package write. It
     /// takes its ticket now, so a later start or finalize writes after it.
     private func scheduleSave() {
+        sendSession()
         let (snapshot, lock, save, ticket) = (session, lock, environment.saveSession, writes.ticket())
         Task {
             await writes.wait(for: ticket)

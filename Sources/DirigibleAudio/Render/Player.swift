@@ -19,6 +19,7 @@ actor Player {
     }
 
     /// `played` is the number of the last play that the Player started; `frame` is the position.
+    /// `stop` is a stop that the user did not ask for; `faults` are the read faults of the feed.
     struct Reading: Sendable {
         var number: Int
         var played: Int
@@ -26,6 +27,8 @@ actor Player {
         var ended: Bool
         /// The engine runs: a play started and no stop came.
         var running: Bool
+        var stop: PlaybackStop?
+        var faults: [FileID: MediaFault]
     }
 
     /// The chunks that one play keeps scheduled ahead of the node (a calibration knob).
@@ -47,6 +50,8 @@ actor Player {
 
     private let package: @Sendable () throws -> URL
     private let output: Output
+    /// Starts the engine. Tests give one that throws.
+    private let start: @Sendable (AVAudioEngine) throws -> Void
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
     private let chunk: Int
     private var session: Session
@@ -57,14 +62,21 @@ actor Player {
     private var frame: Frames = .zero
     private var graph: Graph?
     private var feed: Feed?
+    private var stop: PlaybackStop?
+    /// The configuration-change observer of the engine, removed with the Player.
+    private var observer: Observer?
     /// The mix frames under one chunk, reused.
     private var source: AVAudioPCMBuffer?
 
     /// Stores values only. The engine is made at the first play.
-    init(package: @escaping @Sendable () throws -> URL, output: Output, session: Session) {
+    init(
+        package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
+        start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() }
+    ) {
         self.package = package
         self.output = output
         self.session = session
+        self.start = start
         chunk = max(1, session.sampleRate / 10)
     }
 
@@ -80,13 +92,16 @@ actor Player {
             return
         }
         frame = start
+        played = number
+        stop = nil
         guard let graph = makeGraph(), let url = try? package() else { return }
+        dispatchPrecondition(condition: .notOnQueue(.main))
         do {
-            if !graph.engine.isRunning { try graph.engine.start() }
+            if !graph.engine.isRunning { try self.start(graph.engine) }
         } catch {
+            stop = .outputUnavailable((error as NSError).code)
             return
         }
-        played = number
         feed = Feed(anchor: start, shuttle: shuttle, mix: MixReader(package: url, session: session))
         refill()
         graph.node.play()
@@ -105,7 +120,17 @@ actor Player {
     func reading() -> Reading {
         let ended = feed.map { $0.scheduled >= length($0) && nodeFrames() >= $0.scheduled } ?? false
         return Reading(
-            number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false)
+            number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false,
+            stop: stop, faults: feed?.mix.faults ?? [:])
+    }
+
+    /// Tests only: posts the configuration change of this engine, as the system does.
+    func postConfigurationChange() {
+        NotificationCenter.default.post(name: .AVAudioEngineConfigurationChange, object: graph?.engine)
+    }
+
+    private func outputChanged() {
+        stop = .outputChanged
     }
 
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
@@ -203,6 +228,14 @@ actor Player {
         }
     }
 
+    /// Made outside the actor: NotificationCenter calls it on an internal queue.
+    private nonisolated static func changed(_ player: Player) -> @Sendable (Notification) -> Void {
+        { [weak player] _ in
+            guard let player else { return }
+            Task { await player.outputChanged() }
+        }
+    }
+
     private func position() -> Frames {
         guard let feed else { return frame }
         let moved = Frames(Int(Double(min(nodeFrames(), feed.scheduled)) * feed.shuttle.rate.rawValue))
@@ -231,7 +264,20 @@ actor Player {
                     .offline, format: format, maximumFrameCount: AVAudioFrameCount(chunk))) != nil
             else { return nil }
         }
+        observer = Observer(
+            NotificationCenter.default.addObserver(
+                forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil, using: Self.changed(self)))
         graph = Graph(engine: engine, node: node, format: format)
         return graph
     }
+}
+
+/// A NotificationCenter observer for the life of the value.
+private final class Observer: Sendable {
+    /// NotificationCenter gives an opaque token that is only passed back to `removeObserver`.
+    nonisolated(unsafe) private let token: any NSObjectProtocol
+
+    init(_ token: any NSObjectProtocol) { self.token = token }
+
+    deinit { NotificationCenter.default.removeObserver(token) }
 }

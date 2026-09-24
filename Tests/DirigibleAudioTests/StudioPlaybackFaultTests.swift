@@ -1,0 +1,199 @@
+import AVFoundation
+import DirigibleCore
+import Foundation
+import Testing
+
+@testable import DirigibleAudio
+
+/// Missing media, edits during play, and output faults in the Studio (timeline-playback criteria
+/// 10, 11, 14, 15, 16, and 22). The fixture is in `StudioPlaybackTests`. Tolerance: ± 1e-4 with
+/// a gain, ± 1e-6 without.
+extension StudioPlaybackTests {
+    var wav: URL { package.url.appending(path: "Clips/f1.wav") }
+
+    func expectMix(_ out: [[Float]], _ mix: [[Float]], tolerance: Float = 1e-6, _ comment: Comment) {
+        #expect(out.count == 2, comment)
+        for (a, b) in zip(out, mix) { #expect(maxError(a, b) <= tolerance, comment) }
+    }
+
+    /// Sets the clip gain of `c1` to -6.0206 dB (0.5).
+    func halve(_ studio: Studio) throws {
+        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: -6.0206)!, clip: "c1") }
+    }
+
+    // MARK: Criterion 14
+
+    /// Control: a package with every file gives no entry.
+    @Test func missingMediaShowsAtOpenAndClearsAtCheck() async throws {
+        do {
+            let whole = try await studio()
+            #expect(whole.missingMedia == [:])
+        }
+        let aside = package.folder.url.appending(path: "f1.wav")
+        try FileManager.default.moveItem(at: wav, to: aside)
+        let studio = try await studio()
+        #expect(studio.missingMedia == ["f1": .missing])
+
+        try FileManager.default.moveItem(at: aside, to: wav)
+        await studio.checkMedia()
+        #expect(studio.missingMedia == [:])
+
+        try FileManager.default.moveItem(at: wav, to: aside)
+        await studio.checkMedia()
+        #expect(studio.missingMedia == ["f1": .missing])
+        try FileManager.default.moveItem(at: aside, to: wav)
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        #expect(studio.missingMedia == [:], "a play from stopped checks")
+        await studio.perform(.playStop)
+    }
+
+    // MARK: Criterion 10
+
+    @Test func anEditDuringPlayIsHeardWithinTheLookahead() async throws {
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        expectMix(await studio.renderOffline(frames: 4800), try package.mix(0..<4800), "before the edit")
+
+        try halve(studio)
+        // The update task reaches the Player before the next pull.
+        await Task.yield()
+        let out = await studio.renderOffline(frames: 8 * 4800)
+
+        expectMix(
+            slice(out, 3 * 4800..<8 * 4800), try package.mix(19_200..<43_200, session: studio.session),
+            tolerance: 1e-4, "5 chunks after the lookahead")
+        #expect(maxError(out[0], try package.mix(4800..<43_200)[0]) > 1e-2, "the old level")
+        #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .one)))
+    }
+
+    /// Space and K first, so the edit finds a Player (plan gate 1 item 2).
+    @Test func anEditWhileAPlayWaitsForItsMediaCheckDoesNotDropThePlay() async throws {
+        let gate = Gate()
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        await studio.perform(.pause)
+        studio.environment.beforeMediaCheck = { gate.waitOnce() }
+
+        let play = Task { @MainActor in await studio.perform(.playStop) }
+        await gate.entered()
+        try halve(studio)
+        gate.open()
+        await play.value
+
+        #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .one)))
+        expectMix(
+            await studio.renderOffline(frames: 9600), try package.mix(0..<9600, session: studio.session),
+            tolerance: 1e-4, "the edited mix")
+    }
+
+    /// A play that waits for its media check when a take starts never plays, and the take starts
+    /// at the seek frame, not at the position of an earlier play (plan gate 1 item 3, gate 2
+    /// item 1). With no earlier play, no Player exists when the take starts.
+    @Test(arguments: [true, false])
+    func aPlayWaitingForItsMediaCheckDoesNotPlayIntoATake(earlierPlay: Bool) async throws {
+        let gate = Gate()
+        let studio = try await studio()
+        if earlierPlay {
+            await studio.perform(.seek(.start))
+            await studio.perform(.playStop)
+            _ = await studio.renderOffline(frames: 24_000)
+            await studio.perform(.pause)
+            #expect(studio.playhead == 24_000)
+        }
+        await studio.perform(.seek(.frame(12_000)))
+        studio.environment.beforeMediaCheck = { gate.waitOnce() }
+
+        let play = Task { @MainActor in await studio.perform(.playStop) }
+        await gate.entered()
+        _ = try await studio.startTake(armed: ["t1"], devices: [mic], hostTimeNanos: takeStart)
+        gate.open()
+        await play.value
+
+        #expect(studio.session.recording?.playheadFrame == 12_000)
+        #expect(studio.playback == .stopped)
+        #expect(await studio.play.player?.reading().running != true, "the play went into the take")
+        try await studio.stopRecording()
+    }
+
+    /// Space and K first, so the Player has the session before the take (plan gate 2 item 5).
+    @Test func aPlayAfterATakeHearsTheTake() async throws {
+        let hal = TestHAL([mic])
+        let studio = try await studio(hal)
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        await studio.perform(.pause)
+        await studio.perform(.seek(.end))
+        _ = try await studio.startTake(armed: ["t1"], devices: [mic], hostTimeNanos: takeStart)
+        let input = SyntheticInput(hal, "mic")
+        input.play(records([sine(seconds: 1, rate: 48_000)], layout: [1], rate: 48_000, hostStart: takeStart))
+        await input.wait()
+        try await studio.stopRecording()
+        #expect(studio.missingMedia == [:], "the finalize checks its new files")
+
+        await studio.perform(.seek(.frame(48_000)))
+        await studio.perform(.playStop)
+        let out = await studio.renderOffline(frames: 4800)
+
+        let mix = try package.mix(48_000..<52_800, session: studio.session)
+        expectMix(out, mix, "the first chunk has the take")
+        #expect(mix[0].contains { abs($0) > 0.1 }, "the take is not silence")
+    }
+
+    // MARK: Criterion 22
+
+    /// Control: a stop and L again checks again.
+    @Test func repeatedLDuringAShuttleChecksMediaOnce() async throws {
+        let calls = StepCounter()
+        let studio = try await studio()
+        studio.environment.beforeMediaCheck = { _ = calls.next() }
+        await studio.perform(.seek(.start))
+
+        for _ in 0..<3 { await studio.perform(.forward) }
+        #expect(calls.calls == 1)
+        await studio.perform(.pause)
+        await studio.perform(.forward)
+        #expect(calls.calls == 2)
+    }
+
+    // MARK: Criteria 15 and 16
+
+    /// Control: a change of another engine changes nothing.
+    @Test func anOutputChangeStopsAtThePosition() async throws {
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        _ = await studio.renderOffline(frames: 4800)
+        await until(limit: .seconds(10), "the poll did not read the position") { studio.playhead == 4800 }
+
+        NotificationCenter.default.post(name: .AVAudioEngineConfigurationChange, object: AVAudioEngine())
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(studio.playback != .stopped && studio.playbackStop == nil)
+
+        await studio.play.player?.postConfigurationChange()
+        await until(limit: .seconds(10), "the output change did not stop the play") { studio.playback == .stopped }
+        #expect(studio.playbackStop == .outputChanged && studio.playhead == 4800)
+    }
+
+    /// Control: a start that works plays and shows no stop.
+    @Test(arguments: [true, false])
+    func aStartFailureShowsOutputUnavailable(fails: Bool) async throws {
+        let studio = try await studio()
+        studio.environment.startEngine = { engine in
+            if fails { throw NSError(domain: NSOSStatusErrorDomain, code: -10_851) }
+            try engine.start()
+        }
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+
+        if fails {
+            await until(limit: .seconds(10), "the failure did not stop the play") { studio.playback == .stopped }
+            #expect(studio.playbackStop == .outputUnavailable(-10_851) && studio.playhead == 0)
+        } else {
+            try await Task.sleep(for: .milliseconds(200))
+            #expect(studio.playback != .stopped && studio.playbackStop == nil)
+        }
+    }
+}

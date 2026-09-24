@@ -120,6 +120,11 @@ final class DeviceWriter: @unchecked Sendable {
         }
     }
 
+    /// The WAV bytes of the take so far, for the disk rule.
+    func wavBytes() async -> Int64 {
+        await withCheckedContinuation { done in queue.async { [self] in done.resume(returning: tracks.wavBytes) } }
+    }
+
     private func handle(_ event: Event, from sender: DeviceInput?) {
         guard phase == .running || phase == .lost else { return }
         if case .devicesChanged = event {

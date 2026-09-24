@@ -255,3 +255,31 @@ extension DeviceEventTests {
         #expect(log.states(arm: 1).filter { $0 == .retryStopped }.count == (monitor ? 1 : 0))
     }
 }
+
+// MARK: Code gate round 2, item 1: the keep limit and a ring growth
+
+extension DeviceEventTests {
+    /// A monitor writer with a keep limit of 1 runs its first input. A rate event that needs a
+    /// larger ring detaches that input, which is the last one that the limit allows. The writer
+    /// stopped retrying, so the last state is `.retryStopped`, not `.deviceLost`. Control: the
+    /// same event with no limit gives a new appearance (`aHigherRateStartsANewAppearanceWithALargerRing`).
+    @Test func aRingGrowthAtTheKeepLimitKeepsRetryStopped() async throws {
+        let hal = TestHAL([mic])
+        let writer = DeviceWriter(
+            device: mic, tracks: [(arm: 1, channels: .mono(1))], files: nil, hal: hal.hal, report: log.closure,
+            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60), keepLimit: 1)
+        writer.start()
+        await until("no first attach") { hal.inputs("mic").count == 1 }
+        let faster = try #require(
+            InputDevice(
+                uid: "mic", name: "USB Mic", nominalRate: 192_000, availableRates: mic.availableRates,
+                channelsPerBuffer: [1], latency: 0))
+        hal.set("mic", id: 1, device: faster)
+
+        writer.post(.rate(192_000), from: hal.current("mic"))
+        await writer.finish()
+
+        #expect(hal.inputs("mic").count == 1)
+        #expect(log.states(arm: 1).last == .retryStopped)
+    }
+}

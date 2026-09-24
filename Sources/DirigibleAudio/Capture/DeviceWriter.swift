@@ -237,7 +237,8 @@ final class DeviceWriter: @unchecked Sendable {
         if clean { input.ring.deallocateBytes() } else { failedDetaches += 1 }
     }
 
-    /// Running or ready to lost: detach, end the segments, report, and record the gaps.
+    /// Running or ready to lost: detach, end the segments, report, and record the gaps. A writer
+    /// that stopped retrying keeps its `.retryStopped` state.
     private func lose() {
         detach()
         tracks.endSegment()
@@ -245,7 +246,7 @@ final class DeviceWriter: @unchecked Sendable {
         lastTry = .now
         for arm in tracks.arms {
             tracks.gaps[arm] = tracks.gaps[arm] ?? .deviceLost
-            report(.state(take: tracks.take, arm: arm, .deviceLost, status: nil))
+            if !retryStopped { report(.state(take: tracks.take, arm: arm, .deviceLost, status: nil)) }
         }
     }
 

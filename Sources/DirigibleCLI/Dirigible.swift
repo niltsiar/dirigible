@@ -45,8 +45,12 @@ struct Info: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Show the contents of a session package.")
 
     @OptionGroup var package: PackageArgument
+    @Flag(help: "Write the session as JSON.") var json = false
 
     func run() throws {
-        print(summary(of: try readPackage(package), name: package.url.lastPathComponent), terminator: "")
+        let session = try readPackage(package)
+        print(
+            json ? try SessionView(session).json() : summary(of: session, name: package.url.lastPathComponent),
+            terminator: "")
     }
 }

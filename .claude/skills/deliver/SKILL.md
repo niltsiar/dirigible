@@ -38,7 +38,7 @@ Write `analysis.md` in the run folder:
 
 Write `plan.md`:
 
-- Split the goal into vertical slices. Each slice ends in a state you can check: a test that passes and a commit. Put the riskiest unknown first.
+- Split the goal into vertical slices. Each slice ends in a state you can check: a test that passes and a commit. Put the riskiest unknown first. Types that reference each other go in one slice.
 - For each slice: the test you write first, the modules you touch, and the commit message you expect.
 - If a slice sets a one-way decision (a file format, a module boundary, a threading model, a new dependency), run the **architect** skill for it and write a decision record in `docs/decisions/`.
 
@@ -46,12 +46,14 @@ Write `plan.md`:
 
 Run the **interrogate** skill with target `plan`. It runs the `review-panel` workflow (premortem, devil's advocate, architecture) and gives a judged verdict.
 
+Keep `Sources/` and `Tests/` unchanged until the gate closes. While the panel runs, prototype in the run folder only.
+
 - Change the plan for every "Act on" item. Record each change in `decisions.tsv`.
 - If the verdict had a critical item, run the gate again. At most two rounds. Round 2 is the convergence round: it checks only the round-1 fixes (see the **interrogate** skill). After its fixes and one fix check, record any open risk in `run.md` and continue.
 
 ## Phase 4: Implement
 
-1. For each slice, follow the **tdd** skill: failing test, smallest change, `make check`, commit.
+1. For each slice, follow the **tdd** skill: failing test, smallest change, `make check`, commit. Commit the slice before you write a file of the next slice.
 2. One commit is one logical change. Use Conventional Commits (see `AGENTS.md`). Never commit a red `make check`.
 3. After each slice, add a row to `decisions.tsv` and tick the slice in `run.md`.
 4. If the plan proves wrong, stop, update `plan.md`, and record why. Do not bolt workarounds onto a wrong plan.

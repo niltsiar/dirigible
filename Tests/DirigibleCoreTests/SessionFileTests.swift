@@ -99,6 +99,23 @@ struct SessionFileTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == ["Clips", "session.xml"])
     }
 
+    /// A crash during a save leaves its temporary file (criterion 26).
+    @Test func removeTemporaryFilesDeletesOnlyTheTemporaryFilesOfASave() throws {
+        try fullSession().write(to: package)
+        let leftover = ".session.xml.\(UUID().uuidString).tmp"
+        for name in [leftover, "x.tmp", ".session.xml.tmp.bak", ".session.xml.not-a-uuid.tmp"] {
+            FileManager.default.createFile(atPath: package.appending(path: name).path, contents: Data("x".utf8))
+        }
+
+        Session.removeTemporaryFiles(in: package)
+
+        #expect(
+            try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == [
+                ".session.xml.not-a-uuid.tmp", ".session.xml.tmp.bak", "Clips", "session.xml", "x.tmp",
+            ])
+        #expect(try Session(contentsOf: package) == fullSession())
+    }
+
     @Test func aPrefixedFileInTheSessionNamespaceReads() throws {
         let xml = """
             <d:session xmlns:d="https://github.com/niltsiar/dirigible/session" version="1" sampleRate="48000">

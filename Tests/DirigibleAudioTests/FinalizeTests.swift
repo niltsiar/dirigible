@@ -1,10 +1,13 @@
+import AVFoundation
+import Accelerate
 import DirigibleCore
 import Foundation
 import Testing
 
 @testable import DirigibleAudio
 
-/// Finalize on disk: segment files in, WAVs and session edits out (criteria 4, 6, 7, 14, 24).
+/// Finalize on disk: segment files in, WAVs and session edits out (criteria 4, 6, 7, 13, 14, 23,
+/// 24).
 struct FinalizeTests {
     let package: TakePackage
 
@@ -133,5 +136,114 @@ struct FinalizeTests {
 
         #expect(second == first)
         #expect(try Data(contentsOf: wav) == bytes)
+    }
+
+    @Test func aSegmentAt24kHzIsRuleOneAndGetsTwiceItsFrames() throws {
+        try package.segment(header: TakePackage.header(rate: 24_000), samples: sine(seconds: 1, rate: 24_000))
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        let capture = try #require(session.captures["take1-1-1"])
+        #expect(capture.resampledFromRate == 24_000)
+        #expect(capture.driftCorrected)
+        #expect(abs(try clip(session).length.count - 48_000) <= 1)
+    }
+
+    @Test func aFitThatIsNoAvailableRateIsRuleThree() throws {
+        var header = TakePackage.header()
+        header.availableRates = [44_100...48_000]
+        let checkpoints = TakePackage.checkpoints(frames: 48_000, header: header, realRate: 44_100)
+        try package.segment(header: header, samples: sine(seconds: 1, rate: 48_000), checkpoints: checkpoints)
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        let capture = try #require(session.captures["take1-1-1"])
+        #expect(capture.driftCorrected == false)
+        #expect(capture.resampledFromRate == nil)
+        #expect(abs(capture.measuredSampleRate - 44_100) < 0.01)
+        #expect(try clip(session).length == 48_000)
+    }
+
+    /// 48002.4 Hz is 50 ppm over the header rate: 1 ms of drift at 48000 Hz is 960,048 frames.
+    @Test(arguments: [(2_880_144, 2_880_000), (480_024, 480_024)])
+    func aDriftOver1MillisecondIsCorrected(frames: Int, expected: Int) throws {
+        let header = TakePackage.header()
+        let checkpoints = TakePackage.checkpoints(frames: frames, header: header, realRate: 48_002.4)
+        try package.segment(
+            header: header, samples: [Float](repeating: 0, count: frames), checkpoints: checkpoints)
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        let capture = try #require(session.captures["take1-1-1"])
+        #expect(capture.driftCorrected)
+        #expect(abs(capture.measuredSampleRate - 48_002.4) < 0.01)
+        if frames == expected {
+            // 10 s: 0.5 ms of drift.
+            #expect(capture.resampledFromRate == nil)
+            #expect(try clip(session).length.count == expected)
+        } else {
+            // 60 s: 3 ms of drift.
+            #expect(abs(try #require(capture.resampledFromRate) - 48_002.4) < 0.01)
+            #expect(abs(try clip(session).length.count - expected) <= 2)
+        }
+    }
+
+    /// One converter for all blocks keeps its state, so 4096-frame blocks give the output of one
+    /// whole-buffer conversion (criterion 23).
+    @Test func smallBlocksGiveTheOutputOfOneWholeConversion() throws {
+        let header = TakePackage.header()
+        var samples = [Float](repeating: 0, count: 2_880_120)
+        samples[2_400_100] = 1
+        let checkpoints = TakePackage.checkpoints(frames: samples.count, header: header, realRate: 48_002.4)
+        try package.segment(header: header, samples: samples, checkpoints: checkpoints)
+        let session = try package.read()
+        let rate = try #require(fittedRate(checkpoints))
+
+        _ = try finalizeTake(of: session, in: package.url, blockFrames: 4096)
+
+        let wav = try readAudio(package.url.appending(path: "Clips/take1-1-1.wav")).samples
+        let whole = try convertWhole(samples, from: rate, to: 48_000)
+        #expect(wav.count == 2_879_977)
+        #expect(whole.count == wav.count)
+        // vDSP, because a Swift closure over 2.9 million samples takes seconds in a debug build.
+        #expect(vDSP.indexOfMaximumMagnitude(wav).0 == 2_399_980)
+        #expect(vDSP.indexOfMaximumMagnitude(whole).0 == 2_399_980)
+        #expect(vDSP.maximumMagnitude(vDSP.subtract(wav, whole)) <= 0x1p-22)
+    }
+
+    /// One call of one converter on the whole buffer, with the settings of finalize.
+    func convertWhole(_ samples: [Float], from source: Double, to rate: Double) throws -> [Float] {
+        let input = try #require(AVAudioFormat(standardFormatWithSampleRate: source, channels: 1))
+        let output = try #require(AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1))
+        let converter = try #require(AVAudioConverter(from: input, to: output))
+        converter.sampleRateConverterQuality = AVAudioQuality.max.rawValue
+        converter.sampleRateConverterAlgorithm = AVSampleRateConverterAlgorithm_Normal
+        let whole = try #require(AVAudioPCMBuffer(pcmFormat: input, frameCapacity: AVAudioFrameCount(samples.count)))
+        whole.frameLength = whole.frameCapacity
+        try #require(whole.floatChannelData)[0].update(from: samples, count: samples.count)
+        let converted = try #require(
+            AVAudioPCMBuffer(pcmFormat: output, frameCapacity: AVAudioFrameCount(samples.count + 4096)))
+        let feed = OneBuffer(whole)
+        var error: NSError?
+        let status = converter.convert(to: converted, error: &error) { _, inputStatus in
+            let buffer = feed.take()
+            inputStatus.pointee = buffer == nil ? .endOfStream : .haveData
+            return buffer
+        }
+        try #require(status != .error)
+        return Array(
+            UnsafeBufferPointer(start: try #require(converted.floatChannelData)[0], count: Int(converted.frameLength)))
+    }
+}
+
+/// Gives its buffer once, then nil. The converter calls the input block on the calling thread.
+private final class OneBuffer: @unchecked Sendable {
+    private var buffer: AVAudioPCMBuffer?
+
+    init(_ buffer: AVAudioPCMBuffer) { self.buffer = buffer }
+
+    func take() -> AVAudioPCMBuffer? {
+        defer { buffer = nil }
+        return buffer
     }
 }

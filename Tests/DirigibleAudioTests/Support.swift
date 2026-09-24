@@ -54,11 +54,17 @@ func readAudio(_ url: URL) throws -> (rate: Double, bits: Int?, samples: [Float]
     let channels = Int(file.processingFormat.channelCount)
     let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 4096))
     var samples: [Float] = []
+    samples.reserveCapacity(Int(file.length) * channels)
     while file.framePosition < file.length {
         try file.read(into: buffer)
         if buffer.frameLength == 0 { break }
         let data = try #require(buffer.floatChannelData)
-        for frame in 0..<Int(buffer.frameLength) {
+        let frames = Int(buffer.frameLength)
+        if channels == 1 {
+            samples.append(contentsOf: UnsafeBufferPointer(start: data[0], count: frames))
+            continue
+        }
+        for frame in 0..<frames {
             for channel in 0..<channels { samples.append(data[channel][frame]) }
         }
     }

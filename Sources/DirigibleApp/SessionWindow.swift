@@ -198,6 +198,12 @@ enum WindowAlert: Hashable {
         return true
     }
 
+    /// Monitor Inputs: only in the open phase, like the other Record items.
+    var canMonitor: Bool {
+        if case .open = phase { return true }
+        return false
+    }
+
     var canRetry: Bool { idleStudio?.pendingTake != nil }
     var canEdit: Bool { idleStudio != nil }
     var canUndo: Bool { idleStudio?.canUndo == true }

@@ -36,7 +36,7 @@ struct DirigibleApp: App {
                     Toggle(
                         L10n.menuRecordMonitor.key,
                         isOn: Binding(get: { app.key?.monitoring == true }, set: { app.key?.monitoring = $0 })
-                    ).disabled(app.key == nil)
+                    ).disabled(app.key?.canMonitor != true)
                 }
             }
     }

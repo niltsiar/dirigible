@@ -19,16 +19,16 @@ import os
     @Test func twoSpellingsOfOnePackageGiveOneWindow() async throws {
         let tmp = try TemporaryFolder(in: URL(filePath: "/tmp"))
         let package = try tmp.package("x")
-        let first = app.open(package)
-        let second = app.open(URL(filePath: "/private" + package.path))
+        let first = await app.open(package)
+        let second = await app.open(URL(filePath: "/private" + package.path))
         #expect(first === second)
         #expect(app.windows.count == 1)
         await closeAll()
     }
 
     @Test func twoPackagesGiveTwoWindows() async throws {
-        app.open(try folder.package("a"))
-        app.open(try folder.package("b"))
+        await app.open(try folder.package("a"))
+        await app.open(try folder.package("b"))
         #expect(app.windows.count == 2)
         await closeAll()
     }
@@ -42,7 +42,7 @@ import os
         try PropertyListEncoder().encode(["/private" + listed.path]).write(to: list)
         let app = AppDelegate(recordings: ActiveRecordings(file: list))
 
-        let (a, b) = (app.open(listed), app.open(other))
+        let (a, b) = (await app.open(listed), await app.open(other))
         #expect(await a.opened())
         #expect(await b.opened())
         #expect(a.recovering)
@@ -54,7 +54,7 @@ import os
     /// removes the window also after the move.
     @Test func aMovedPackageKeepsOneEntryAndACloseRemovesIt() async throws {
         let old = try folder.package("old")
-        let window = app.open(old)
+        let window = await app.open(old)
         let new = folder.url.appending(path: "new.dirigible")
         weak var closedStudio: Studio?
         do {
@@ -73,7 +73,7 @@ import os
         // The lock goes with the studio. A SwiftUI update that waits on a busy main actor can
         // hold the view, and so the studio, a little after the close.
         await until("the closed window drops its studio") { closedStudio == nil }
-        let again = app.open(new)
+        let again = await app.open(new)
         #expect(again !== window)
         #expect(await again.opened())
         await again.close()
@@ -82,7 +82,7 @@ import os
     /// Round 2, item 3 control: a write with no move keeps the URL and the key.
     @Test func anEditWithNoMoveKeepsTheKey() async throws {
         let package = packageIdentity(try folder.package("still"))
-        let window = app.open(package)
+        let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
         try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await studio.settle()
@@ -95,7 +95,7 @@ import os
     /// Criterion 25: a close after a failed autosave asks, and the window stays. Cancel keeps the
     /// same studio (round 2, item 4).
     @Test func aCloseWithAFailedSaveAsksAndCancelKeepsTheStudio() async throws {
-        let window = app.open(try folder.package("failing"))
+        let window = await app.open(try folder.package("failing"))
         let studio = try #require(await window.opened() ? window.studio : nil)
         studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
         }
@@ -121,7 +121,7 @@ import os
 
     /// Criterion 25 control: a good save closes with no question.
     @Test func aCloseAfterAGoodSaveAsksNothing() async throws {
-        let window = app.open(try folder.package("good"))
+        let window = await app.open(try folder.package("good"))
         let studio = try #require(await window.opened() ? window.studio : nil)
         try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await window.close()
@@ -143,7 +143,7 @@ import os
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.setRoute(Route(deviceUID: mic.uid, channels: .mono(1)), track: "t1")
         try session.write(to: package)
-        let window = app.open(package)
+        let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
         let granted = OSAllocatedUnfairLock(initialState: false)
         studio.environment = CaptureEnvironment(
@@ -178,7 +178,7 @@ import os
     @Test(arguments: ["record", "close", "quit"])
     func aTypedNameThatIsNotSubmittedIsSaved(by action: String) async throws {
         let package = try folder.package("typed")
-        let window = app.open(package)
+        let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
         try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
@@ -197,7 +197,7 @@ import os
 
     /// Code gate 1, item 2: a refused name goes, so the field shows the saved name again.
     @Test func aRefusedNameGivesBackTheSavedName() async throws {
-        let window = app.open(try folder.package("refused"))
+        let window = await app.open(try folder.package("refused"))
         let studio = try #require(await window.opened() ? window.studio : nil)
         try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 

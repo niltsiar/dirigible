@@ -13,8 +13,12 @@ import UniformTypeIdentifiers
     private(set) var recent: [URL] = NSDocumentController.shared.recentDocumentURLs
 
     @ObservationIgnored let recordings: ActiveRecordings?
-    /// The packages of the list at launch, read once off the main actor (decision 0004).
+    /// The packages of the list at launch that exist, read once off the main actor (decision
+    /// 0004).
     @ObservationIgnored let listedAtLaunch: Task<Set<URL>, Never>
+    /// The open events whose windows are not in the registry yet. The launch shows the Open
+    /// panel only when none waits.
+    @ObservationIgnored private var openEvents = 0
 
     /// The app: the list of active recordings in Application Support.
     override convenience init() {
@@ -26,12 +30,18 @@ import UniformTypeIdentifiers
 
     init(recordings: ActiveRecordings?) {
         self.recordings = recordings
-        listedAtLaunch = Task.detached { Set(recordings?.packages().map(packageIdentity) ?? []) }
+        listedAtLaunch = Task.detached {
+            Set(
+                (recordings?.packages() ?? []).map(packageIdentity).filter {
+                    FileManager.default.fileExists(atPath: $0.path)
+                })
+        }
     }
 
-    /// Brings the window of the package to the front, or makes one.
-    @discardableResult func open(_ url: URL) -> SessionWindow {
-        let key = packageIdentity(url)
+    /// Brings the window of the package to the front, or makes one. The identity reads the file
+    /// system (symbolic links), so it resolves off the main actor.
+    @discardableResult func open(_ url: URL) async -> SessionWindow {
+        let key = await identity(of: url)
         if let existing = windows[key] {
             existing.bringToFront()
             return existing
@@ -69,7 +79,8 @@ import UniformTypeIdentifiers
         panel.allowsMultipleSelection = true
         panel.begin { [weak self] response in
             guard response == .OK else { return }
-            MainActor.assumeIsolated { for url in panel.urls { self?.open(url) } }
+            let urls = panel.urls
+            Task { @MainActor in for url in urls { await self?.open(url) } }
         }
     }
 
@@ -91,7 +102,7 @@ import UniformTypeIdentifiers
                 if let created {
                     self?.showError(.file(created))
                 } else {
-                    self?.open(url)
+                    await self?.open(url)
                 }
             }
         }
@@ -106,7 +117,11 @@ import UniformTypeIdentifiers
     // MARK: NSApplicationDelegate
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls { open(url) }
+        openEvents += 1
+        Task {
+            for url in urls { await open(url) }
+            openEvents -= 1
+        }
     }
 
     /// Open events come before this call (probe P7). The packages of the list open next; with no
@@ -114,11 +129,8 @@ import UniformTypeIdentifiers
     func applicationDidFinishLaunching(_ notification: Notification) {
         let listed = listedAtLaunch
         Task {
-            for url in await listed.value.sorted(by: { $0.path < $1.path })
-            where FileManager.default.fileExists(atPath: url.path) {
-                open(url)
-            }
-            if windows.isEmpty { showOpenPanel() }
+            for url in await listed.value.sorted(by: { $0.path < $1.path }) { await open(url) }
+            if windows.isEmpty && openEvents == 0 { showOpenPanel() }
         }
     }
 
@@ -161,4 +173,10 @@ import UniformTypeIdentifiers
         alert.addButton(withTitle: L10n.alertCancel.text)
         return alert.runModal() == .alertFirstButtonReturn
     }
+}
+
+/// `packageIdentity` off the main actor.
+@concurrent nonisolated func identity(of url: URL) async -> URL {
+    dispatchPrecondition(condition: .notOnQueue(.main))
+    return packageIdentity(url)
 }

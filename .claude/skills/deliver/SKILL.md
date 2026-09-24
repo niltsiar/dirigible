@@ -34,7 +34,7 @@ Write `analysis.md` in the run folder:
 - The requirement IDs from `docs/requirements/brief.md` that this run covers.
 - How Hindenburg PRO behaves for this feature. Research it with the **research** skill. Cite the sources.
 - Acceptance criteria as falsifiable statements. Each criterion names how a test or command proves it. Example: "A 10 s recording from two devices gives two WAV files of 10 s ± 20 ms and one session XML with two `<track>` elements."
-- Assumptions and open questions. Answer each question with a default and record it in `decisions.tsv`.
+- Assumptions and open questions. Answer each question with a default and record it in `decisions.tsv`. When a default departs from the researched reference behavior because of an assumed platform limit, probe that limit first. An unprobed limit is a guess.
 - What is out of scope for this run. Put the rest in `.scratchpads/backlog.md`.
 
 ## Phase 2: Plan

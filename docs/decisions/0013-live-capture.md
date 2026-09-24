@@ -29,7 +29,7 @@ Decision 0004 fixes the capture pipeline, 0005 the ring dependency, and 0012 the
 
 - Each device listener posts its event with its `DeviceInput`. The writer ignores a rate, layout, or IsAlive event from an input that is not the current one, so a late call of an old appearance never acts on the current one.
 - A rate change: the listener stores the new rate in the ring atomic of its appearance first, and then posts the event. The next record header has the new rate and breaks the segment (0004). When the new rate needs a larger ring, the device attaches again (see Ring). If that attach fails, the device is lost.
-- A layout change ends the segment. If a routed channel is gone, the device is lost.
+- A layout change ends the segment. If a routed channel is gone, the device is lost. A record whose layout (the channel count of each buffer, from its sizes) is not the device layout also ends the segment, and the tracks take its layout, so the records on each side of a layout event are written. A record with no routed channel, a wrong size, or no valid times is dropped, and its frames go to the dropped-frame counter.
 - IsAlive false, or a device-list change where the UID gives no object, ends the segments and detaches: the device is lost. The other devices record.
 - A device-list change where the UID gives an object ID that is not the attached one: the device is lost, and it attaches again at once.
 - A running device that gives no valid record for 2 s: the watchdog on the drain timer ends the segment and detaches; the device is lost. From an attach to the first valid record of that appearance, the limit is 10 s (`CaptureEnvironment.firstRecordLimit`), because a device (for example a Bluetooth headset) can need seconds to start its IO.

@@ -46,8 +46,7 @@ func isValidRange(_ range: ClosedRange<Double>) -> Bool {
 }
 
 /// One ring record of decision 0004 as a value. capture-live builds it from the ring bytes.
-/// `buffers[i]` holds `frameCount x channelsPerBuffer[i]` interleaved samples when the record
-/// matches the device layout.
+/// `buffers[i]` holds `frameCount x channelsPerBuffer[i]` interleaved samples.
 struct InputRecord: Sendable {
     let sampleTime: Double
     let hostTimeNanos: UInt64
@@ -67,4 +66,8 @@ struct InputRecord: Sendable {
         self.nominalRate = nominalRate
         self.buffers = buffers
     }
+
+    /// The channel count of each buffer, from its sample count: the layout of the record. A
+    /// buffer whose sample count is not a multiple of `frameCount` does not match it.
+    var channelsPerBuffer: [Int] { buffers.map { frameCount > 0 ? $0.count / frameCount : 0 } }
 }

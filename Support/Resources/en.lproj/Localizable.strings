@@ -49,3 +49,32 @@
 "alert.quit.recording.confirm" = "Stop and Quit";
 "alert.quit.unsaved" = "The last changes of these sessions could not be saved: %@. Quit anyway?";
 "alert.quit.unsaved.confirm" = "Quit";
+
+/* Tracks and takes */
+"alert.microphone.settings" = "Open Privacy Settings";
+"track.none" = "No tracks. Use Track > Add Track.";
+"track.default.name" = "Track %lld";
+"track.name" = "Name";
+"track.arm" = "Arm";
+"track.layout.mono" = "Mono";
+"track.layout.stereo" = "Stereo";
+"track.route" = "%1$@, %2$@";
+"track.route.none" = "No Input";
+"track.route.channel" = "Channel %lld";
+"track.route.channels" = "Channels %1$lld and %2$lld";
+"track.route.missing" = "Device not connected";
+"track.state.device.lost" = "Device lost";
+"track.state.write.failed" = "Write error";
+"track.dropped" = "Dropped frames: %lld";
+"take.recording" = "Recording take %lld";
+"take.finishing" = "Finishing take %lld…";
+"take.pending" = "Take %lld is not finished.";
+"take.pending.space" = "The finish needs %1$@ free. %2$@ is free now.";
+"take.ended" = "Take %lld is finished.";
+"take.ended.disk.low" = "Take %lld stopped because the disk is almost full.";
+"take.gap.device.lost" = "Track “%@” has a gap: the device was lost.";
+"take.gap.write.failed" = "Track “%@” has a gap: a write failed.";
+"take.dropped" = "Track “%1$@” lost %2$lld frames.";
+"take.recovered" = "Take %lld was recovered.";
+"take.unplaced" = "Audio that is on no track: %@";
+"banner.save.error" = "The last change is not saved. %@";

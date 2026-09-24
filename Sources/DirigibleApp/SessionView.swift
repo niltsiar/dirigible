@@ -1,4 +1,5 @@
 import DirigibleAudio
+import DirigibleCore
 import SwiftUI
 
 /// The content of a session window. It reads `SessionWindow` and `Studio` and sends the actions
@@ -8,7 +9,7 @@ struct SessionView: View {
 
     var body: some View {
         content
-            .frame(minWidth: 560, minHeight: 320)
+            .frame(minWidth: 640, minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),
                 isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),
@@ -21,7 +22,10 @@ struct SessionView: View {
                 case .confirmUnsavedClose:
                     Button(L10n.alertCloseUnsavedConfirm.key, role: .destructive) { model.closeAnyway() }
                     Button(L10n.alertCancel.key, role: .cancel) { model.cancelUnsavedClose() }
-                case .error, .microphone:
+                case .microphone:
+                    Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
+                    Button(L10n.alertCancel.key, role: .cancel) {}
+                case .error:
                     Button(L10n.alertOK.key, role: .cancel) {}
                 }
             }
@@ -37,10 +41,179 @@ struct SessionView: View {
                 Button(L10n.windowTryAgain.key) { model.open(recovering: model.recovering) }
             }
         case .open(let studio), .closing(let studio?):
-            Text(verbatim: studio.session.tracks.map(\.name).joined(separator: ", "))
+            VStack(alignment: .leading, spacing: 0) {
+                if let error = studio.saveError {
+                    Banner(text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
+                }
+                TakeBanner(model: model, studio: studio)
+                if studio.session.tracks.isEmpty {
+                    Text(L10n.trackNone.key).foregroundStyle(.secondary).frame(
+                        maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(studio.session.tracks) { track in TrackRow(model: model, studio: studio, track: track) }
+                }
+            }
         case .closing(nil), .closed:
             EmptyView()
         }
+    }
+}
+
+/// The take state: recording, finishing, pending, or the result of the last take.
+private struct TakeBanner: View {
+    let model: SessionWindow
+    let studio: Studio
+
+    var body: some View {
+        switch studio.transport {
+        case .recording(let take):
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Banner(text: L10n.takeRecording.format(take) + "  " + elapsed(at: context.date), tint: .red)
+            }
+        case .finalizing(let take):
+            Banner(text: L10n.takeFinishing.format(take))
+        case .idle:
+            if let pending = studio.pendingTake {
+                HStack {
+                    Banner(text: pendingText(pending.take), tint: .orange)
+                    Button(L10n.menuRecordRetry.key) { Task { await model.retry() } }.padding(.trailing)
+                }
+                .task(id: pending.take) { await model.refreshPendingSpace() }
+            } else if let text = resultText {
+                Banner(text: text)
+            }
+        }
+    }
+
+    private func elapsed(at date: Date) -> String {
+        guard let since = studio.recordingSince else { return "" }
+        let seconds = Int((ContinuousClock.now - since) / .seconds(1))
+        return Duration.seconds(seconds).formatted(.time(pattern: .hourMinuteSecond))
+    }
+
+    private func pendingText(_ take: Int) -> String {
+        var lines = [L10n.takePending.format(take)]
+        if let error = studio.takeError { lines.append(L10n.message(for: error, session: studio.session)) }
+        if let space = model.pendingSpace {
+            let bytes = { (count: Int64) in ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
+            lines.append(L10n.takePendingSpace.format(bytes(space.needed), bytes(space.free)))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// The last take (gaps, dropped frames, a disk-low stop), a recovered take, and the audio
+    /// that no clip holds.
+    private var resultText: String? {
+        let name = { (id: TrackID) in studio.session.track(id)?.name ?? id.rawValue }
+        var lines: [String] = []
+        if let take = studio.lastTake {
+            lines.append(
+                take.end == .diskLow ? L10n.takeEndedDiskLow.format(take.take) : L10n.takeEnded.format(take.take))
+            for (track, gap) in take.gaps.sorted(by: { $0.key < $1.key }) {
+                lines.append(
+                    (gap == .deviceLost ? L10n.takeGapDeviceLost : L10n.takeGapWriteFailed).format(name(track)))
+            }
+            for (track, frames) in take.droppedFrames.sorted(by: { $0.key < $1.key }) {
+                lines.append(L10n.takeDropped.format(name(track), frames))
+            }
+        }
+        if let take = studio.recoveredTake { lines.append(L10n.takeRecovered.format(take.take)) }
+        if !studio.unplacedSegments.isEmpty {
+            lines.append(L10n.takeUnplaced.format(studio.unplacedSegments.joined(separator: ", ")))
+        }
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+}
+
+/// One track: arm, name, layout, route, and during a take the meter and the state.
+private struct TrackRow: View {
+    let model: SessionWindow
+    let studio: Studio
+    let track: Track
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit)
+            TextField(L10n.trackName.key, text: $draft)
+                .focused($focused)
+                .onSubmit { model.rename(track.id, to: draft) }
+                .onChange(of: focused) { if !focused { model.rename(track.id, to: draft) } }
+                .onChange(of: track.name, initial: true) { draft = track.name }
+                .disabled(!model.canEdit)
+                .frame(width: 160)
+            Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
+                .foregroundStyle(.secondary).frame(width: 60, alignment: .leading)
+            routeMenu.frame(width: 260).disabled(!model.canEdit)
+            if let live = studio.liveTracks[track.id] { LiveState(live: live) }
+            Spacer()
+        }
+    }
+
+    private var armed: Binding<Bool> {
+        Binding(
+            get: { model.armed.contains(track.id) },
+            set: { if $0 { model.armed.insert(track.id) } else { model.armed.remove(track.id) } })
+    }
+
+    private var routeMenu: some View {
+        Menu {
+            Button(L10n.trackRouteNone.key) { model.setRoute(nil, device: nil, track: track.id) }
+            ForEach(model.devices, id: \.uid) { device in
+                Section(device.name) {
+                    ForEach(routeOptions(channelCount: device.channelCount), id: \.self) { channels in
+                        Button(channelsText(channels)) { model.setRoute(channels, device: device, track: track.id) }
+                    }
+                }
+            }
+        } label: {
+            Text(verbatim: routeText)
+        }
+    }
+
+    private var routeText: String {
+        guard let route = track.route else { return L10n.trackRouteNone.text }
+        let device = model.devices.first { $0.uid == route.deviceUID }?.name ?? L10n.trackRouteMissing.text
+        return L10n.trackRoute.format(device, channelsText(route.channels))
+    }
+}
+
+private func channelsText(_ channels: Route.Channels) -> String {
+    switch channels {
+    case .mono(let channel): L10n.trackRouteChannel.format(channel)
+    case .stereo(let left, let right): L10n.trackRouteChannels.format(left, right)
+    }
+}
+
+/// The meter and the state of an armed track during a take.
+private struct LiveState: View {
+    let live: LiveTrack
+
+    var body: some View {
+        // -60 dBFS to 0 dBFS.
+        let level = live.peak > 0 ? max(0, min(1, (20 * log10(Double(live.peak)) + 60) / 60)) : 0
+        ProgressView(value: level).frame(width: 120)
+        switch live.state {
+        case .recording: EmptyView()
+        case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)
+        case .writeFailed: Text(L10n.trackStateWriteFailed.key).foregroundStyle(.red)
+        }
+        if live.droppedFrames > 0 {
+            Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)
+        }
+    }
+}
+
+private struct Banner: View {
+    let text: String
+    var tint: Color = .secondary
+
+    var body: some View {
+        Text(verbatim: text)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(8)
+            .background(tint.opacity(0.15))
     }
 }
 

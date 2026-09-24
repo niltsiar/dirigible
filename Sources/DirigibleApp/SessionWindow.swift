@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import DirigibleAudio
 import DirigibleCore
@@ -30,12 +31,20 @@ enum WindowAlert: Hashable {
     /// True when the list of active recordings had the package at launch.
     private(set) var recovering = false
     var alert: WindowAlert?
+    /// Window state, not saved: at open, the tracks with a route; a new route arms (decision 0014).
+    var armed: Set<TrackID> = []
+    private(set) var devices: [InputDevice] = []
+    /// The space for the finalize of the pending take, when one waits.
+    private(set) var pendingSpace: (needed: Int64, free: Int64)?
 
     @ObservationIgnored private let recordings: ActiveRecordings?
     /// The registry: a move changes the key, and a close removes the entry.
     @ObservationIgnored private weak var app: AppDelegate?
     @ObservationIgnored private(set) var window: NSWindow?
     @ObservationIgnored private var opening: Task<Void, Never>?
+    /// ponytail: a poll of the device list every 2 s while the window is key and idle; the
+    /// input-monitor run adds a listener.
+    @ObservationIgnored private var devicePoll: Task<Void, Never>?
 
     init(url: URL, recordings: ActiveRecordings?, app: AppDelegate) {
         self.url = url
@@ -60,7 +69,8 @@ enum WindowAlert: Hashable {
     }
 
     func show() {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SessionView(model: self)))
+        let window = UndoRoutingWindow(contentViewController: NSHostingController(rootView: SessionView(model: self)))
+        window.model = self
         window.isReleasedWhenClosed = false
         window.delegate = self
         self.window = window
@@ -81,8 +91,11 @@ enum WindowAlert: Hashable {
                     phase = .closing(studio)
                     return
                 }
+                armed = Set(studio.session.tracks.filter { $0.route != nil }.map(\.id))
                 phase = .open(studio)
                 follow(studio)
+                // Not in this task: the task holds the studio, and a close waits for it.
+                Task { await refreshDevices() }
             } catch {
                 if case .closing = phase { return }
                 phase = .failed(error)
@@ -141,13 +154,127 @@ enum WindowAlert: Hashable {
         await studio?.settle()
     }
 
+    // MARK: Actions
+
+    /// The studio when it takes a command: open, no take, no start.
+    private var idleStudio: Studio? {
+        guard case .open(let studio) = phase, studio.transport == .idle, !studio.isStarting else { return nil }
+        return studio
+    }
+
+    var canRecord: Bool {
+        guard let studio = idleStudio, studio.pendingTake == nil else { return false }
+        return studio.session.tracks.contains { armed.contains($0.id) }
+    }
+
+    var canStop: Bool {
+        guard case .open(let studio) = phase, case .recording = studio.transport else { return false }
+        return true
+    }
+
+    var canRetry: Bool { idleStudio?.pendingTake != nil }
+    var canEdit: Bool { idleStudio != nil }
+    var canUndo: Bool { idleStudio?.canUndo == true }
+    var canRedo: Bool { idleStudio?.canRedo == true }
+
+    /// Command-R. The library reads the microphone access; the app requests it (decision 0013).
+    func record() async {
+        guard canRecord, let studio = idleStudio else { return }
+        let armed = studio.session.tracks.map(\.id).filter(armed.contains)
+        // ponytail: the take goes after the last clip; the timeline run adds a playhead.
+        let playhead = studio.session.tracks.flatMap(\.clips).map(\.end).max() ?? .zero
+        do throws(StudioError) {
+            do throws(StudioError) {
+                try await studio.startRecording(armed: armed, playhead: playhead)
+            } catch .microphoneAccess(let access) {
+                switch microphoneStep(access) {
+                case .request:
+                    guard await AVCaptureDevice.requestAccess(for: .audio) else { throw .microphoneAccess(.denied) }
+                    try await studio.startRecording(armed: armed, playhead: playhead)
+                case .privacyLink: throw .microphoneAccess(access)
+                }
+            }
+        } catch .microphoneAccess(let access) {
+            alert = .microphone(access)
+        } catch {
+            alert = .error(error)
+        }
+    }
+
+    /// A finalize error keeps the take pending, and the take banner shows it.
+    func stop() async {
+        guard canStop else { return }
+        try? await studio?.stopRecording()
+    }
+
+    func retry() async {
+        guard canRetry else { return }
+        try? await idleStudio?.retryFinalize()
+        await refreshPendingSpace()
+    }
+
+    func undo() { perform { studio throws(StudioError) in try studio.undo() } }
+    func redo() { perform { studio throws(StudioError) in try studio.redo() } }
+
+    func addTrack() {
+        edit { s throws(SessionError) in
+            try s.addTrack(name: L10n.trackDefaultName.format(s.tracks.count + 1), layout: .mono)
+        }
+    }
+
+    func rename(_ track: TrackID, to name: String) {
+        guard idleStudio?.session.track(track)?.name != name else { return }
+        edit { s throws(SessionError) in try s.renameTrack(track, to: name) }
+    }
+
+    /// A route sets the layout of its channels, and it arms the track.
+    func setRoute(_ channels: Route.Channels?, device: InputDevice?, track: TrackID) {
+        guard let channels, let device else {
+            edit { s throws(SessionError) in try s.setRoute(nil, track: track) }
+            armed.remove(track)
+            return
+        }
+        let route = Route(deviceUID: device.uid, channels: channels)
+        edit { s throws(SessionError) in try s.setLayout(channels.layout, route: route, track: track) }
+        if idleStudio?.session.track(track)?.route == route { armed.insert(track) }
+    }
+
+    func refreshDevices() async {
+        let list = await Task.detached { InputDevice.all() }.value
+        if list != devices { devices = list }
+    }
+
+    func refreshPendingSpace() async {
+        pendingSpace = await idleStudio?.pendingSpace()
+    }
+
+    func openPrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+        else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func edit(_ body: (inout Session) throws(SessionError) -> Void) {
+        perform { studio throws(StudioError) in try studio.edit(body) }
+    }
+
+    private func perform(_ action: (Studio) throws(StudioError) -> Void) {
+        guard let studio = idleStudio else { return }
+        do { try action(studio) } catch { alert = .error(error) }
+    }
+
     /// Drops the studio, so its lock goes, and breaks the cycle of the window and its view.
     private func finishClose() {
+        devicePoll?.cancel()
         phase = .closed
-        let window = window
-        self.window = nil
-        window?.close()
-        window?.contentViewController = nil
+        // The pool releases the view now, not at the end of the main-queue job, so the studio
+        // and its lock go before this call returns, and an open right after it works.
+        autoreleasepool {
+            let window = window
+            self.window = nil
+            window?.close()
+            window?.contentViewController = nil
+        }
         app?.forget(self)
     }
 
@@ -181,9 +308,35 @@ enum WindowAlert: Hashable {
         return false
     }
 
-    func windowDidBecomeKey(_ notification: Notification) { app?.key = self }
+    func windowDidBecomeKey(_ notification: Notification) {
+        app?.key = self
+        devicePoll?.cancel()
+        devicePoll = Task { [weak self] in
+            while !Task.isCancelled {
+                if self?.idleStudio != nil { await self?.refreshDevices() }
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
 
     func windowDidResignKey(_ notification: Notification) {
         if app?.key === self { app?.key = nil }
+        devicePoll?.cancel()
     }
+}
+
+enum MicrophoneStep: Equatable {
+    case request
+    case privacyLink
+}
+
+/// Only an undecided access can change through the prompt (decision 0013).
+func microphoneStep(_ access: MicrophoneAccess) -> MicrophoneStep {
+    access == .notDetermined ? .request : .privacyLink
+}
+
+/// The routes of a device: mono 1 to n, then the stereo pairs (1, 2), (3, 4), and so on.
+func routeOptions(channelCount: Int) -> [Route.Channels] {
+    (0..<max(0, channelCount)).map { .mono($0 + 1) }
+        + stride(from: 1, to: channelCount, by: 2).map { .stereo($0, $0 + 1) }
 }

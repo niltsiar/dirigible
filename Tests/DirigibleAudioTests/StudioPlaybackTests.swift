@@ -163,6 +163,24 @@ struct StudioPlaybackTests {
         }
     }
 
+    /// A punch-in splits `c1`, and the right part gets a new clip ID. The playhead goes to the
+    /// end of the take (24 000), not to the end of that right part (48 000). Found by the code gate.
+    @Test func thePlayheadGoesToTheEndOfAPunchIn() async throws {
+        let hal = TestHAL([mic])
+        let studio = try await studio(hal)
+        await studio.perform(.seek(.frame(12_000)))
+        _ = try await studio.startTake(armed: ["t1"], devices: [mic], hostTimeNanos: takeStart)
+        let input = SyntheticInput(hal, "mic")
+        input.play(records([sine(seconds: 0.25, rate: 48_000)], layout: [1], rate: 48_000, hostStart: takeStart))
+        await input.wait()
+
+        try await studio.stopRecording()
+
+        let ends = try #require(studio.session.track("t1")?.clips.map(\.end))
+        #expect(ends == [12_000, 24_000, 48_000], "the take splits c1")
+        #expect(studio.playhead == 24_000)
+    }
+
     // MARK: Criterion 13
 
     /// Every command but Space does nothing while a take starts or records. Space stops a

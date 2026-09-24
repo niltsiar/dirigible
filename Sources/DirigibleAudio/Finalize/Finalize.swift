@@ -8,7 +8,7 @@ public enum FinalizeError: Error, Hashable, Sendable {
     /// example EACCES, EIO, EMFILE). A CAF read that fails in the middle with an errno is this
     /// case, not an unplaced segment.
     case readFailed(file: String, errno: Int32)
-    /// `Clips/` or a WAV cannot be made, written, or closed (for example ENOSPC, EACCES).
+    /// `Clips/` or a WAV cannot be made, written, flushed, or closed (for example ENOSPC, EACCES).
     case writeFailed(file: String, status: Int32)
 }
 
@@ -26,7 +26,9 @@ struct ReadFault: Sendable {
 ///
 /// A fault of one segment skips that segment: its capture, file, and clip are not added, and it
 /// stays unplaced. Only a fault that can go away throws, and then nothing is placed. Each segment
-/// is read and converted in blocks, so the memory does not grow with the take length.
+/// is read and converted in blocks, so the memory does not grow with the take length. Each WAV and
+/// then `Clips/` are flushed before it returns, so the save never points to a WAV that is not on
+/// the disk; a flush error throws.
 func finalizeTake(
     of session: Session, in package: URL, readFault: ReadFault? = nil, blockFrames: Int = 65_536
 ) throws(FinalizeError) -> Session {
@@ -38,6 +40,10 @@ func finalizeTake(
             name: name, track: recording.armedTracks[name.arm - 1], recording: recording, package: package,
             readFault: readFault, blockFrames: blockFrames)
         if let placed = try segment.place(on: result) { result = placed }
+    }
+    let clips = package.appending(path: "Clips")
+    if result.files.count > session.files.count, let code = fullFlush(path: clips.path) {
+        throw .writeFailed(file: "Clips", status: code)
     }
     try? result.setRecording(nil)  // Removing the recording never throws.
     return result
@@ -213,6 +219,7 @@ private struct SegmentFinalize {
         guard !reader.unreadable else { return nil }
         try writer.close()
         guard (try? AVAudioFile(forReading: url).length) == AVAudioFramePosition(length) else { return nil }
+        if let code = fullFlush(path: url.path) { throw .writeFailed(file: wav, status: code) }
         return length
     }
 

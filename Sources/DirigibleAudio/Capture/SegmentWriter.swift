@@ -1,4 +1,5 @@
 import AudioToolbox
+import DirigibleCore
 import Foundation
 
 enum CaptureError: Error, Hashable, Sendable {
@@ -44,6 +45,8 @@ final class SegmentWriter {
         // AudioFile has no flush call; a second descriptor flushes the same file.
         cafDescriptor = open(caf.path, O_RDONLY | O_CLOEXEC)
         guard cafDescriptor >= 0 else { throw .writeFailed(file: caf.lastPathComponent, status: errno) }
+        // The folder entries of both files, so a power loss cannot lose flushed frames.
+        if let code = fullFlush(path: folder.path) { throw .writeFailed(file: folder.lastPathComponent, status: code) }
     }
 
     deinit {
@@ -67,23 +70,25 @@ final class SegmentWriter {
         try append(Sidecar.encode(checkpoint))
     }
 
-    /// `F_FULLFSYNC` on both files.
+    /// `F_FULLFSYNC` on both files, or `fsync` where the volume refuses it.
     func flush() throws(CaptureError) {
         try Self.flush(sidecarDescriptor, file: sidecar)
         try Self.flush(cafDescriptor, file: caf)
     }
 
-    /// Flushes both files and closes them. The CAF gets its data size.
+    /// Closes both files and flushes them. The CAF gets its data size.
     func close() throws(CaptureError) {
         guard let audioFile else { return }
-        try flush()
         self.audioFile = nil
         let status = AudioFileClose(audioFile)
+        // After AudioFileClose, so the data size that it writes is on the disk too.
+        let flushed = Result { () throws(CaptureError) in try flush() }
         Darwin.close(sidecarDescriptor)
         Darwin.close(cafDescriptor)
         sidecarDescriptor = -1
         cafDescriptor = -1
         guard status == noErr else { throw .writeFailed(file: caf.lastPathComponent, status: status) }
+        try flushed.get()
     }
 
     private func append(_ data: Data) throws(CaptureError) {
@@ -94,7 +99,6 @@ final class SegmentWriter {
     }
 
     private static func flush(_ descriptor: Int32, file: URL) throws(CaptureError) {
-        if fcntl(descriptor, F_FULLFSYNC) == 0 { return }
-        guard fsync(descriptor) == 0 else { throw .writeFailed(file: file.lastPathComponent, status: errno) }
+        if let code = fullFlush(descriptor) { throw .writeFailed(file: file.lastPathComponent, status: code) }
     }
 }

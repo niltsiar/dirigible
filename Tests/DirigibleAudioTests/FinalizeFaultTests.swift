@@ -91,6 +91,20 @@ struct FinalizeFaultTests {
         #expect(file == "Clips/take1-1-1.wav")
     }
 
+    /// Finalize flushes each WAV and then `Clips/` before the save, so `session.xml` never points
+    /// to a WAV that a power loss can lose. Without read access to `Clips/`, the WAVs are made and
+    /// read back, and only the folder flush fails: a take-wide fault, so the take stays pending.
+    @Test func aClipsFolderThatCannotBeFlushedKeepsTheTakePending() async throws {
+        let clips = package.url.appending(path: "Clips")
+        chmod(clips.path, 0o300)
+        defer { chmod(clips.path, 0o755) }
+
+        let outcome = await completeTake(of: try package.read(), in: package.url)
+
+        #expect(outcome.error == .finalize(.writeFailed(file: "Clips", status: EACCES)))
+        #expect(try package.read().recording?.take == 1)
+    }
+
     @Test func anErrnoInTheMiddleOfACAFReadThrows() throws {
         let fault = ReadFault(stem: "take1-1-1", block: 1, errno: EIO)
 

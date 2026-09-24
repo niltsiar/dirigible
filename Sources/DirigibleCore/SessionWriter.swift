@@ -213,11 +213,23 @@ private func flush(_ path: String) throws(SessionFileError) {
     try flush(descriptor)
 }
 
-/// `F_FULLFSYNC` asks the drive to empty its cache. Some volumes (SMB, some external drives)
-/// refuse it; then `fsync` is the best flush that they give.
 private func flush(_ descriptor: Int32) throws(SessionFileError) {
-    if fcntl(descriptor, F_FULLFSYNC) == 0 { return }
-    guard fsync(descriptor) == 0 else { throw posixError("fsync") }
+    if let code = fullFlush(descriptor) { throw .writeFailed(step: "fsync", errno: code) }
+}
+
+/// `F_FULLFSYNC` asks the drive to empty its cache. Some volumes (SMB, some external drives)
+/// refuse it; then `fsync` is the best flush that they give. Returns the errno, or nil.
+package func fullFlush(_ descriptor: Int32) -> Int32? {
+    if fcntl(descriptor, F_FULLFSYNC) == 0 { return nil }
+    return fsync(descriptor) == 0 ? nil : errno
+}
+
+/// Opens the file or folder at `path` for reading and flushes it. Returns the errno, or nil.
+package func fullFlush(path: String) -> Int32? {
+    let descriptor = open(path, O_RDONLY | O_CLOEXEC)
+    guard descriptor >= 0 else { return errno }
+    defer { close(descriptor) }
+    return fullFlush(descriptor)
 }
 
 private func posixError(_ call: String) -> SessionFileError {

@@ -35,12 +35,15 @@ struct Record: AsyncParsableCommand {
             has a gap or no clip of the take. Ctrl-C ends the process; `dirigible take finalize` recovers the take.
             """)
     @OptionGroup var package: PackageArgument
-    @Option(parsing: .unconditional, help: "The length of the take in seconds.") var seconds: Double
+    @Option(parsing: .unconditional, help: "The length of the take in seconds, 86400 (24 h) or less.")
+    var seconds: Double
     @Option(help: "An armed track. Repeat it for each track.") var arm: [String] = []
     @Option(parsing: .unconditional, help: "The timeline frame of the take start.") var playhead = 0
 
     func validate() throws {
-        guard seconds.isFinite, seconds > 0 else { throw ValidationError("The seconds must be more than 0.") }
+        guard seconds.isFinite, seconds > 0, seconds <= 86_400 else {
+            throw ValidationError("The seconds must be more than 0 and 86400 (24 h) or less.")
+        }
         guard !arm.isEmpty else { throw ValidationError("Arm one track or more with --arm.") }
         guard playhead >= 0 else { throw ValidationError("The playhead must be 0 or more.") }
     }

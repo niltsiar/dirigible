@@ -28,6 +28,8 @@ struct RecordCommandTests {
 
     @Test func usageErrorsExitSixtyFour() throws {
         #expect(try refused("record", "PKG", "--seconds", "0", "--arm", "t1").status == 64)
+        #expect(try refused("record", "PKG", "--seconds", "86400.001", "--arm", "t1").status == 64)
+        #expect(try refused("record", "PKG", "--seconds", "1e12", "--arm", "t1").status == 64)
         #expect(try refused("record", "PKG", "--seconds", "1").status == 64)
         #expect(try refused("record", "PKG", "--seconds", "1", "--arm", "t1", "--playhead", "-1").status == 64)
     }

@@ -95,11 +95,15 @@ struct RecordTests {
 
     /// A cancelled call stops its take at once, as an early end, and returns its result. Before
     /// the fix, the wait spun on the main actor until the deadline. The limit is 10 s less than
-    /// the duration, because a full suite can hold the main actor for 30 s.
-    @Test func aCancelledRecordStopsItsTake() async throws {
+    /// the shorter duration, because a full suite can hold the main actor for 30 s. A duration
+    /// of 1e12 s trapped in the end time after the save of `<recording>`.
+    @Test(arguments: [60, 1e12])
+    func aCancelledRecordStopsItsTake(seconds: Double) async throws {
         let hal = TestHAL([mic])
         let studio = try await studio(hal)
-        let recorder = Task { @MainActor in try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(60)) }
+        let recorder = Task { @MainActor in
+            try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(seconds))
+        }
         await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
         let start = ContinuousClock.now
 

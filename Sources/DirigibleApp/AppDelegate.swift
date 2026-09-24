@@ -39,9 +39,11 @@ import UniformTypeIdentifiers
     }
 
     /// Brings the window of the package to the front, or makes one. The identity reads the file
-    /// system (symbolic links), so it resolves off the main actor.
-    @discardableResult func open(_ url: URL) async -> SessionWindow {
-        let key = await identity(of: url)
+    /// system (symbolic links), so it resolves off the main actor. `created` is the studio of
+    /// New Session, which is open already.
+    @discardableResult func open(_ url: URL, created: Studio? = nil) async -> SessionWindow {
+        let key: URL
+        if let created { key = created.url } else { key = await identity(of: url) }
         if let existing = windows[key] {
             existing.bringToFront()
             return existing
@@ -50,8 +52,12 @@ import UniformTypeIdentifiers
         // Before the open, so a Quit sees the window.
         windows[key] = window
         window.show()
-        let listed = listedAtLaunch
-        Task { window.open(recovering: await listed.value.contains(key)) }
+        if let created {
+            window.adopt(created)
+        } else {
+            let listed = listedAtLaunch
+            Task { window.open(recovering: await listed.value.contains(key)) }
+        }
         NSDocumentController.shared.noteNewRecentDocumentURL(key)
         recent = NSDocumentController.shared.recentDocumentURLs
         return window
@@ -84,7 +90,7 @@ import UniformTypeIdentifiers
         }
     }
 
-    /// A new package at 48 kHz. `Session.create` refuses a path that exists, so the "Replace"
+    /// A new package at 48 kHz. `Studio.create` refuses a path that exists, so the "Replace"
     /// answer of the panel gives the `.exists` alert, and the item on disk does not change.
     func newSession() {
         let panel = NSSavePanel()
@@ -93,19 +99,19 @@ import UniformTypeIdentifiers
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             Task { @MainActor in
-                let created = await Task.detached { () -> SessionFileError? in
-                    do throws(SessionFileError) { try Session.create(at: url, sampleRate: 48_000) } catch {
-                        return error
-                    }
-                    return nil
-                }.value
-                if let created {
-                    self?.showError(.file(created))
-                } else {
-                    await self?.open(url)
-                }
+                if let error = await self?.createSession(at: url) { self?.showError(error) }
             }
         }
+    }
+
+    /// Makes the package with `Studio.create` and shows it in a window. Returns the error.
+    func createSession(at url: URL) async -> StudioError? {
+        do throws(StudioError) {
+            await open(url, created: try await Studio.create(url, sampleRate: 48_000, recordings: recordings))
+        } catch {
+            return error
+        }
+        return nil
     }
 
     private func showError(_ error: StudioError) {

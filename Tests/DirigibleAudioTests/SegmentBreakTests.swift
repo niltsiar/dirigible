@@ -55,8 +55,11 @@ struct SegmentBreakTests {
     /// Records take 1 from `records` and stops it. Returns the studio after the stop.
     func take(_ records: [InputRecord]) async throws -> Studio {
         let studio = try await Studio.open(url)
-        let writers = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
-        for record in records { writers["mic"]?.append(record) }
+        let hal = TestHAL([mic])
+        _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: hal.hal)
+        let input = SyntheticInput(hal, "mic")
+        input.play(records)
+        input.wait()
         try await studio.stopRecording()
         #expect(studio.takeError == nil)
         return studio
@@ -96,9 +99,9 @@ struct SegmentBreakTests {
             clock.realRate = 44_100
             expected = (48_000, 48_000)
         case .byteSize:
-            // Half the samples that 480 frames need. The record is dropped; its time passes.
+            // A buffer of 2 channels on a mono device. The record is dropped; its time passes.
             var bad = clock.run(seconds: 0.01)[0]
-            bad.buffers = [[Float](repeating: 0.25, count: 240)]
+            bad.buffers = [[Float](repeating: 0.25, count: 960)]
             records.append(bad)
             expected = (48_480, 48_000)
         case .backwardJump:

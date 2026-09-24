@@ -1,11 +1,13 @@
+import Atomics
 import DirigibleCore
 import Foundation
 
-/// The writer of one device (decision 0004). It splits each record into the channels of each
-/// track and writes one segment per track: a checkpoint at the first record, at the first record
-/// at or after each further second of device frames, and at the last record, and a flush every
-/// 5 s of device frames. A clock event closes the segments of every track, and the next record
-/// opens new ones. All state is confined to its serial queue, so it is `@unchecked Sendable`.
+/// The writer of one device (decisions 0004 and 0013). A drain timer on its serial queue pops
+/// the ring of the current `DeviceInput`. It splits each record into the channels of each track
+/// and writes one segment per track: a checkpoint at the first record, at the first record at or
+/// after each further second of device frames, and at the last record, and a flush every 5 s of
+/// device frames. A clock event closes the segments of every track, and the next record opens
+/// new ones. All state is confined to its serial queue, so it is `@unchecked Sendable`.
 final class DeviceWriter: @unchecked Sendable {
     private struct Output {
         let arm: Int
@@ -17,6 +19,9 @@ final class DeviceWriter: @unchecked Sendable {
     private let device: InputDevice
     private let take: Int
     private let folder: URL
+    private let hal: DeviceHAL
+    private let drainInterval: Duration
+    private let ringSeconds: Double
     private let queue: DispatchQueue
     private var outputs: [Output]
     /// The open segment of every track, or nil between segments.
@@ -24,13 +29,26 @@ final class DeviceWriter: @unchecked Sendable {
     /// The number of the last segment that opened.
     private var segments = 0
     private var finished = false
+    /// The attached appearance of the device and its detach.
+    private var input: (input: DeviceInput, detach: Detach)?
+    /// Inputs whose detach failed: a late IOProc call can still use their rings, so they stay.
+    private var kept: [DeviceInput] = []
+    private var timer: DispatchSourceTimer?
+    private let dropped = ManagedAtomic<Int>(0)
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
-    /// checks of `Studio` make every channel exist on the device.
-    init(device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int, folder: URL) {
+    /// checks of `Studio` make every channel exist on the device. `drainInterval` and
+    /// `ringSeconds` are parameters so that tests can make a ring overflow.
+    init(
+        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int, folder: URL, hal: DeviceHAL,
+        drainInterval: Duration = .milliseconds(50), ringSeconds: Double = 10
+    ) {
         self.device = device
         self.take = take
         self.folder = folder
+        self.hal = hal
+        self.drainInterval = drainInterval
+        self.ringSeconds = ringSeconds
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
         let channels = device.channelsPerBuffer.enumerated().flatMap { buffer, count in
             (0..<count).map { (buffer: buffer, channel: $0) }
@@ -40,20 +58,58 @@ final class DeviceWriter: @unchecked Sendable {
         }
     }
 
-    /// Queues the record. It never blocks the caller.
-    func append(_ record: InputRecord) {
-        queue.async { self.write(record) }
+    deinit { timer?.cancel() }
+
+    /// The dropped frames of the take. Any thread can read it.
+    var droppedFrames: Int { dropped.load(ordering: .relaxed) }
+
+    /// Starts the drain timer, makes a `DeviceInput` with a new ring, and attaches it.
+    func start() {
+        queue.async { [self] in
+            guard !finished, timer == nil else { return }
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            let nanos = Int(drainInterval / .nanoseconds(1))
+            timer.schedule(
+                deadline: .now() + .nanoseconds(nanos), repeating: .nanoseconds(nanos), leeway: .nanoseconds(0))
+            timer.setEventHandler { [weak self] in self?.drain() }
+            timer.resume()
+            self.timer = timer
+            guard let found = hal.lookUp(device.uid) else { return }
+            let input = DeviceInput(id: found.id, ring: CaptureRing(device: device, seconds: ringSeconds), writer: self)
+            do {
+                self.input = (input, try hal.attach(input))
+            } catch {
+                input.ring.deallocate()
+            }
+        }
     }
 
-    /// Writes the queued records and closes every segment. A second call does nothing more.
+    /// Detaches, writes the rest of the ring, and closes every segment. A second call does
+    /// nothing more.
     func finish() async {
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
-            queue.async {
-                self.endSegment()
-                self.finished = true
+            queue.async { [self] in
+                if !finished, let (input, detach) = input {
+                    let clean = detach()
+                    drain()
+                    if clean { input.ring.deallocate() } else { kept.append(input) }
+                    self.input = nil
+                }
+                endSegment()
+                timer?.cancel()
+                finished = true
                 done.resume()
             }
         }
+    }
+
+    /// Writes each record in the ring. A record without valid times ends the segment.
+    private func drain() {
+        guard !finished, let ring = input?.input.ring else { return }
+        while let popped = ring.pop() {
+            if let record = popped.record { write(record) } else { endSegment() }
+        }
+        dropped.wrappingIncrement(by: ring.takeDroppedFrames(), ordering: .relaxed)
     }
 
     private func write(_ record: InputRecord) {

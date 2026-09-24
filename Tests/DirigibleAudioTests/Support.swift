@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreAudio
 import DirigibleCore
 import Foundation
 import Testing
@@ -135,5 +136,196 @@ final class TakePackage {
         try samples.withUnsafeBufferPointer { try writer.write($0, frames: frames) }
         if !open { try writer.close() }
         return writer
+    }
+}
+
+/// Records of `frames` frames from interleaved samples. `buffers[i]` holds the samples of buffer
+/// `i` with `layout[i]` channels. The host time runs at `rate` from `hostStart`.
+func records(
+    _ buffers: [[Float]], layout: [Int], rate: Double, frames: Int = 512, sampleStart: Double = 0,
+    hostStart: UInt64 = takeStart
+) -> [InputRecord] {
+    let total = buffers[0].count / layout[0]
+    return stride(from: 0, to: total, by: frames).map { start in
+        let count = min(frames, total - start)
+        return InputRecord(
+            sampleTime: sampleStart + Double(start), hostTimeNanos: hostStart + UInt64(Double(start) / rate * 1e9),
+            frameCount: count, nominalRate: rate,
+            buffers: zip(buffers, layout).map { buffer, channels in
+                Array(buffer[(start * channels)..<((start + count) * channels)])
+            })!
+    }
+}
+
+/// Polls `condition` every 10 ms. After `limit`, it records `message` as a test failure.
+@MainActor
+func until(limit: Duration = .seconds(1), _ message: String, _ condition: () -> Bool) async {
+    let end = ContinuousClock.now + limit
+    while !condition() {
+        guard ContinuousClock.now < end else {
+            Issue.record("\(message) (limit \(limit))")
+            return
+        }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+}
+
+/// The sample and host times of a HAL call that are valid.
+let validTimes: AudioTimeStampFlags = [.sampleTimeValid, .hostTimeValid]
+
+/// Makes the `AudioBufferList` and the `AudioTimeStamp` of one IOProc call from `record`. The
+/// channel count of buffer `i` is `buffers[i].count / frameCount`.
+func withIOProcArguments<Result>(
+    _ record: InputRecord, flags: AudioTimeStampFlags = validTimes,
+    _ body: (UnsafePointer<AudioTimeStamp>, UnsafePointer<AudioBufferList>) -> Result
+) -> Result {
+    let list = AudioBufferList.allocate(maximumBuffers: record.buffers.count)
+    var data: [UnsafeMutablePointer<Float>] = []
+    defer {
+        for pointer in data { pointer.deallocate() }
+        free(list.unsafeMutablePointer)
+    }
+    for (index, samples) in record.buffers.enumerated() {
+        let pointer = UnsafeMutablePointer<Float>.allocate(capacity: max(1, samples.count))
+        pointer.initialize(from: samples, count: samples.count)
+        data.append(pointer)
+        list[index] = AudioBuffer(
+            mNumberChannels: UInt32(samples.count / max(1, record.frameCount)),
+            mDataByteSize: UInt32(samples.count * 4), mData: pointer)
+    }
+    var time = AudioTimeStamp()
+    time.mSampleTime = record.sampleTime
+    time.mHostTime = AudioConvertNanosToHostTime(record.hostTimeNanos)
+    time.mRateScalar = 1
+    time.mFlags = flags
+    return body(&time, list.unsafePointer)
+}
+
+/// Calls `CaptureRing.ioProc` once, as the HAL does, after the rate listener effect.
+func send(_ record: InputRecord, to ring: CaptureRing, flags: AudioTimeStampFlags = validTimes) {
+    ring.setRate(record.nominalRate)
+    withIOProcArguments(record, flags: flags) { time, list in
+        var output = AudioBufferList()
+        _ = CaptureRing.ioProc(1, time, list, time, &output, time, ring.context)
+    }
+}
+
+/// The test `DeviceHAL` (plan slice 1): a device set, the inputs of each attach, and the
+/// producers that a clean detach stops. Object IDs start at 1 in the order of `devices`.
+final class TestHAL: @unchecked Sendable {
+    private let lock = NSLock()
+    private var present: [String: (id: AudioObjectID, device: InputDevice)] = [:]
+    private var attached: [String: [DeviceInput]] = [:]
+    private var producers: [String: SyntheticInput] = [:]
+
+    init(_ devices: [InputDevice]) {
+        for (index, device) in devices.enumerated() { present[device.uid] = (AudioObjectID(index + 1), device) }
+    }
+
+    var hal: DeviceHAL {
+        DeviceHAL(
+            lookUp: { [self] uid in lock.withLock { present[uid] } },
+            attach: { [self] input throws(HALError) in
+                let uid = lock.withLock {
+                    let uid = present.first { $0.value.id == input.id }!.key
+                    attached[uid, default: []].append(input)
+                    return uid
+                }
+                return { [self] in
+                    lock.withLock { producers[uid] }?.stop()
+                    return true
+                }
+            })
+    }
+
+    /// The inputs of each attach of `uid`, in order.
+    func inputs(_ uid: String) -> [DeviceInput] { lock.withLock { attached[uid] ?? [] } }
+
+    func register(_ producer: SyntheticInput, for uid: String) { lock.withLock { producers[uid] = producer } }
+}
+
+/// A `Thread` that calls `CaptureRing.ioProc` with records, into the ring of the last attach of
+/// its device. It waits for that attach. Real-time pace sends one record each 10 ms; burst mode
+/// sends as fast as the ring has room; `ignoreRoom` sends at once and lets a full ring drop.
+final class SyntheticInput: @unchecked Sendable {
+    enum Pace { case realTime, burst, ignoreRoom }
+
+    let hal: TestHAL
+    let uid: String
+    private let lock = NSLock()
+    private var stopped = false
+    private var done: DispatchSemaphore?
+
+    init(_ hal: TestHAL, _ uid: String) {
+        self.hal = hal
+        self.uid = uid
+        hal.register(self, for: uid)
+    }
+
+    private var isStopped: Bool { lock.withLock { stopped } }
+
+    func play(_ records: [InputRecord], pace: Pace = .burst, flags: AudioTimeStampFlags = validTimes) {
+        let done = DispatchSemaphore(value: 0)
+        lock.withLock {
+            stopped = false
+            self.done = done
+        }
+        Thread { [self] in
+            send(records, pace: pace, flags: flags)
+            done.signal()
+        }.start()
+    }
+
+    /// Waits until the records of the last `play` are sent, with a limit.
+    func wait(limit: Double = 10) {
+        guard let done = lock.withLock({ done }) else { return }
+        if done.wait(timeout: .now() + limit) == .timedOut {
+            Issue.record("SyntheticInput \(uid) did not end in \(limit) s")
+        } else {
+            done.signal()  // A later wait or stop returns at once.
+        }
+    }
+
+    /// Stops the sends and waits for the thread, with a limit of 1 s. The test detach calls it.
+    func stop() {
+        guard
+            let done = lock.withLock({ () -> DispatchSemaphore? in
+                stopped = true
+                return self.done
+            })
+        else { return }
+        if done.wait(timeout: .now() + 1) == .timedOut {
+            Issue.record("SyntheticInput \(uid) did not stop in 1 s")
+        } else {
+            done.signal()
+        }
+    }
+
+    private func send(_ records: [InputRecord], pace: Pace, flags: AudioTimeStampFlags) {
+        let end = Date.now + 10
+        var input = hal.inputs(uid).last
+        while input == nil, Date.now < end, !isStopped {
+            usleep(1000)
+            input = hal.inputs(uid).last
+        }
+        guard let input else { return }
+        let start = Date.now
+        for (index, record) in records.enumerated() {
+            if isStopped { return }
+            if pace == .realTime {
+                let delay = start.addingTimeInterval(Double(index) / 100).timeIntervalSinceNow
+                if delay > 0 { usleep(UInt32(delay * 1e6)) }
+            }
+            input.ring.setRate(record.nominalRate)
+            withIOProcArguments(record, flags: flags) { time, list in
+                let full = Date.now
+                while pace != .ignoreRoom, !input.ring.hasRoom(for: list) {
+                    guard !isStopped, Date.now < full + 10 else { return }
+                    usleep(500)
+                }
+                var output = AudioBufferList()
+                _ = CaptureRing.ioProc(input.id, time, list, time, &output, time, input.ring.context)
+            }
+        }
     }
 }

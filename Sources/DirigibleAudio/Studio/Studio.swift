@@ -91,11 +91,12 @@ import Foundation
         try await complete(take)
     }
 
-    /// The test seam of decision 0004: starts a take from device descriptions, with no IOProc.
-    /// capture-live adds the public `startRecording` on top of it. Checks the route of each armed
-    /// track, then saves `session.xml` with `<recording>`. A throw changes nothing.
+    /// The test seam of decision 0004: starts a take from device descriptions. capture-live adds
+    /// the public `startRecording` on top of it. Checks the route of each armed track, then saves
+    /// `session.xml` with `<recording>`, then starts each device writer on `hal`. A throw changes
+    /// nothing.
     func startTake(
-        armed: [TrackID], devices: [InputDevice], playhead: Frames, hostTimeNanos: UInt64
+        armed: [TrackID], devices: [InputDevice], playhead: Frames, hostTimeNanos: UInt64, hal: DeviceHAL
     ) throws(StudioError) -> [String: DeviceWriter] {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
@@ -133,9 +134,10 @@ import Foundation
         var result: [String: DeviceWriter] = [:]
         for device in devices where routes.contains(where: { $0.device == device }) {
             let tracks = routes.filter { $0.device == device }.map { (arm: $0.arm, channels: $0.route.channels) }
-            result[device.uid] = DeviceWriter(device: device, tracks: tracks, take: take, folder: capture)
+            result[device.uid] = DeviceWriter(device: device, tracks: tracks, take: take, folder: capture, hal: hal)
         }
         writers = Array(result.values)
+        for writer in writers { writer.start() }
         transport = .recording(take: take)
         return result
     }

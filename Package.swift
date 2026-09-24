@@ -8,11 +8,14 @@ let package = Package(
         .executable(name: "dirigible", targets: ["DirigibleCLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.8.0")
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.8.0"),
+        .package(url: "https://github.com/apple/swift-atomics", from: "1.2.0"),
     ],
     targets: [
         .target(name: "DirigibleCore"),
-        .target(name: "DirigibleAudio", dependencies: ["DirigibleCore"]),
+        .target(
+            name: "DirigibleAudio",
+            dependencies: ["DirigibleCore", .product(name: "Atomics", package: "swift-atomics")]),
         .executableTarget(name: "DirigibleApp", dependencies: ["DirigibleCore"]),
         .executableTarget(
             name: "DirigibleCLI",

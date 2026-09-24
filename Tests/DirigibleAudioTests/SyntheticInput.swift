@@ -62,6 +62,7 @@ final class TestHAL: @unchecked Sendable {
     private var gate: DispatchSemaphore?
     private var held = 0
     private var attachGate: DispatchSemaphore?
+    private var detachGate: Gate?
     private var log: [String: [Event]] = [:]
 
     /// A successful attach or a clean detach of one input.
@@ -121,6 +122,7 @@ final class TestHAL: @unchecked Sendable {
             log[uid, default: []].append(.attach(input))
         }
         return { [self] in
+            lock.withLock { detachGate }?.waitOnce()
             let (running, clean) = lock.withLock { (self.producers[uid] ?? [], detachResult) }
             guard clean else { return false }
             for producer in running { producer.stop(input) }
@@ -168,6 +170,9 @@ final class TestHAL: @unchecked Sendable {
         // More signals than waiters do no harm: the gate is not used again.
         for _ in 0..<8 { gate?.signal() }
     }
+
+    /// The next detach waits in `gate` (`Gate.waitOnce`) before it runs.
+    func holdNextDetach(in gate: Gate) { lock.withLock { detachGate = gate } }
 
     /// Each successful attach and each clean detach of `uid`, in order.
     func events(_ uid: String) -> [Event] { lock.withLock { log[uid] ?? [] } }

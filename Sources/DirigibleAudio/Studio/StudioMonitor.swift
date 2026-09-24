@@ -69,14 +69,17 @@ extension Studio {
 
     /// Makes the monitor writers match the request: a device with the same tracks keeps its
     /// writer, and a device whose tracks changed or went is finished. The caller holds a monitor
-    /// turn. With take writers, it changes nothing.
+    /// turn. With take writers, it changes nothing. It makes the whole state change before its
+    /// first await and then waits for the finish of each released writer, so a take that begins
+    /// meanwhile keeps its entries of `liveTracks`.
     func applyMonitor() async {
         guard writers.isEmpty else { return }
         let plan = monitorPlan()
+        var released: [DeviceWriter] = []
         for (uid, monitor) in monitors where plan[uid] != monitor.tracks {
             monitors[uid] = nil
             for track in monitor.tracks { liveTracks[track.id] = nil }
-            await monitor.writer.finish()
+            released.append(monitor.writer)
         }
         for (uid, tracks) in plan where monitors[uid] == nil {
             guard
@@ -93,6 +96,7 @@ extension Studio {
             for track in tracks { liveTracks[track.id] = LiveTrack(state: .monitoring, droppedFrames: 0, peak: 0) }
             writer.start()
         }
+        for writer in released { await writer.finish() }
     }
 }
 

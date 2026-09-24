@@ -1,13 +1,21 @@
 import DirigibleCore
 import Foundation
 
+/// The take of a device writer: its number, and the `Capture/` folder when a segment opens. The
+/// package can move during a take (decision 0014), so the folder is a closure.
+struct TakeFiles: Sendable {
+    let take: Int
+    let folder: @Sendable () throws(SessionFileError) -> URL
+}
+
 /// The segment files of the tracks of one device for a take (decisions 0004, 0012, and 0013).
 /// It splits each record into the channels of each track and writes one segment per track: a
 /// checkpoint at the first record, at the first record at or after each further second of device
 /// frames, and at the last record, and a flush every 5 s of device frames. A clock event closes
 /// the segments of every track, and the next record opens new ones. A write error closes the
 /// segment of one track, and that track opens its next segment number after 1 s of device frames.
-/// Its `DeviceWriter` uses it on the writer queue only.
+/// With no take files, it is a monitor (decision 0015): it computes the peaks and opens no
+/// segment. Its `DeviceWriter` uses it on the writer queue only.
 struct TrackSegments {
     private struct Output {
         let arm: Int
@@ -24,10 +32,8 @@ struct TrackSegments {
         var failedAt: Int64?
     }
 
-    private let take: Int
-    /// The `Capture/` folder when a segment opens: the package can move during a take (decision
-    /// 0014).
-    private let folder: @Sendable () throws(SessionFileError) -> URL
+    /// Nil for a monitor.
+    private let files: TakeFiles?
     private let report: @Sendable (Report) -> Void
     /// The device layout of the next records.
     private(set) var device: InputDevice
@@ -45,18 +51,20 @@ struct TrackSegments {
     private var peaks: [Int: Float] = [:]
 
     init(
-        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int,
-        folder: @escaping @Sendable () throws(SessionFileError) -> URL, report: @escaping @Sendable (Report) -> Void
+        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?,
+        report: @escaping @Sendable (Report) -> Void
     ) {
         self.device = device
-        self.take = take
-        self.folder = folder
+        self.files = files
         self.report = report
         outputs = tracks.map { Output(arm: $0.arm, channels: $0.channels.numbers) }
         use(device)
     }
 
     var arms: [Int] { outputs.map(\.arm) }
+
+    /// The take number of the reports: 0 for a monitor.
+    var take: Int { files?.take ?? 0 }
 
     /// The 24-bit WAV bytes of every track for the device frames so far. ponytail: it counts
     /// a track with an error too, so the disk rule stops a little early.
@@ -102,6 +110,11 @@ struct TrackSegments {
             endSegment()
             guard use(channels: layout) else { return false }
         }
+        // A monitor writes no file.
+        guard files != nil else {
+            for index in outputs.indices { _ = samples(index, of: record) }
+            return true
+        }
         if let segment, segment.breaks(at: record) { endSegment() }
         if segment == nil { open(at: record) }
         guard var current = segment else { return true }
@@ -134,17 +147,7 @@ struct TrackSegments {
         while current.nextCheckpoint <= current.fileFrame { current.nextCheckpoint += second }
         current.last = checkpoint
         for index in outputs.indices {
-            let sources = outputs[index].sources
-            var samples = [Float](repeating: 0, count: record.frameCount * sources.count)
-            for (position, source) in sources.enumerated() {
-                let buffer = record.buffers[source.buffer]
-                let width = device.channelsPerBuffer[source.buffer]
-                for frame in 0..<record.frameCount {
-                    samples[frame * sources.count + position] = buffer[frame * width + source.channel]
-                }
-            }
-            let arm = outputs[index].arm
-            peaks[arm] = samples.reduce(peaks[arm] ?? 0) { max($0, abs($1)) }
+            let samples = samples(index, of: record)
             write(index) { writer in
                 try samples.withUnsafeBufferPointer { try writer.write($0, frames: record.frameCount) }
             }
@@ -159,6 +162,23 @@ struct TrackSegments {
         }
         segment = current
         return true
+    }
+
+    /// The interleaved samples of the track of output `index` in `record`. It also takes them into
+    /// the peak of the arm.
+    private mutating func samples(_ index: Int, of record: InputRecord) -> [Float] {
+        let sources = outputs[index].sources
+        var samples = [Float](repeating: 0, count: record.frameCount * sources.count)
+        for (position, source) in sources.enumerated() {
+            let buffer = record.buffers[source.buffer]
+            let width = device.channelsPerBuffer[source.buffer]
+            for frame in 0..<record.frameCount {
+                samples[frame * sources.count + position] = buffer[frame * width + source.channel]
+            }
+        }
+        let arm = outputs[index].arm
+        peaks[arm] = samples.reduce(peaks[arm] ?? 0) { max($0, abs($1)) }
+        return samples
     }
 
     /// The peak of each arm since the last call, 0 for an arm with no samples, and a new start.
@@ -181,6 +201,8 @@ struct TrackSegments {
     /// `fileFrame` of the device segment. An open error is a write error.
     @discardableResult
     private mutating func open(_ index: Int, at record: InputRecord, fileFrame: Int64, number: Int? = nil) -> Bool {
+        // `write` opens no segment for a monitor.
+        guard let files else { return false }
         if number == nil { segments += 1 }
         let header = CaptureHeader(
             deviceUID: device.uid, deviceName: device.name, nominalRate: record.nominalRate,
@@ -189,7 +211,7 @@ struct TrackSegments {
         let name = SegmentName(take: take, arm: outputs[index].arm, segment: number ?? segments)
         let capture: URL
         do throws(SessionFileError) {
-            capture = try folder()
+            capture = try files.folder()
         } catch {
             // The package left its volume: the track gets a write error.
             fail(index, status: ENOENT)

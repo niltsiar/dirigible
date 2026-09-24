@@ -14,7 +14,8 @@ enum Report: Sendable {
 /// The recorder of one device for the whole take (decisions 0004 and 0013). A drain timer on its
 /// serial queue pops the ring of the current `DeviceInput`, runs the watchdog while the device
 /// runs, and tries to attach again each 1 s while it is lost. `TrackSegments` writes the records
-/// to the segment files of the tracks. All state is confined to its serial queue, so it is
+/// to the segment files of the tracks. A writer with no take files is a monitor (decision 0015):
+/// it computes the peaks and writes no file. All state is confined to its serial queue, so it is
 /// `@unchecked Sendable`.
 final class DeviceWriter: @unchecked Sendable {
     enum Event: Sendable {
@@ -60,16 +61,16 @@ final class DeviceWriter: @unchecked Sendable {
     private var endHostNanos = UInt64.max
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
-    /// checks of `Studio` make every channel exist on the device. `drainInterval`,
+    /// checks of `Studio` make every channel exist on the device. `files` is nil for a monitor,
+    /// which reports take 0. `drainInterval`,
     /// `silenceLimit`, `firstRecordLimit`, and `ringSeconds` are parameters so that tests stay
     /// fast.
     init(
-        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int,
-        folder: @escaping @Sendable () throws(SessionFileError) -> URL, hal: DeviceHAL,
+        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?, hal: DeviceHAL,
         report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
         silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10
     ) {
-        self.take = take
+        take = files?.take ?? 0
         self.hal = hal
         self.report = report
         self.drainInterval = drainInterval
@@ -77,7 +78,7 @@ final class DeviceWriter: @unchecked Sendable {
         self.firstRecordLimit = firstRecordLimit
         self.ringSeconds = ringSeconds
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
-        self.tracks = TrackSegments(device: device, tracks: tracks, take: take, folder: folder, report: report)
+        self.tracks = TrackSegments(device: device, tracks: tracks, files: files, report: report)
     }
 
     deinit { timer?.cancel() }

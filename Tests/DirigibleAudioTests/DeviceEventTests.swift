@@ -46,7 +46,7 @@ struct DeviceEventTests {
     ) -> DeviceWriter {
         let url = folder.url
         let writer = DeviceWriter(
-            device: device, tracks: [(arm: arm, channels: .mono(channel))], take: 1, folder: { url },
+            device: device, tracks: [(arm: arm, channels: .mono(channel))], files: TakeFiles(take: 1, folder: { url }),
             hal: hal.hal, report: log.closure, silenceLimit: silenceLimit,
             firstRecordLimit: firstRecordLimit ?? silenceLimit)
         writer.start()

@@ -30,8 +30,8 @@ import Observation
     private var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
     private var segmentsWithAudio: [SegmentName]
-    /// The live state of each armed track of the take, from the reports of the drain. Empty while
-    /// no take records.
+    /// The live state of each armed track of the take or of the monitor (decision 0015), from
+    /// the reports of the drain. Empty while no take records and no monitor runs.
     public internal(set) var liveTracks: [TrackID: LiveTrack] = [:]
     /// The start of the take that records. The view computes the elapsed time.
     public private(set) var recordingSince: ContinuousClock.Instant?
@@ -61,6 +61,20 @@ import Observation
     /// The write chain: each package write (an autosave, a start, or a finalize) runs in its
     /// turn, so the writes run one at a time in the order of their calls.
     @ObservationIgnored private let writes = TurnQueue()
+    /// The monitor order (decision 0015): each change of the monitor runs in one turn. Code that
+    /// holds a monitor turn never waits for a package write, so the two orders cannot wait for
+    /// each other.
+    @ObservationIgnored let monitorTurns = TurnQueue()
+    /// The armed tracks that the monitor meters while no take records. `monitor(armed:)` sets it.
+    @ObservationIgnored var monitorRequest: [TrackID] = []
+    /// The monitor writer of each device UID. Every write keeps `monitorActivity` true.
+    @ObservationIgnored var monitors: [String: Monitor] = [:] {
+        didSet { monitorActivity = monitors.isEmpty ? nil : monitorActivity ?? LatencyActivity(reason: monitorReason) }
+    }
+    /// Held while a monitor writer exists, so App Nap does not slow the drain of its 1 s ring.
+    @ObservationIgnored private(set) var monitorActivity: LatencyActivity?
+    /// One more for each monitor writer, so a late report of a finished one changes nothing.
+    @ObservationIgnored var reportNumber = 0
     /// Held for the life of the studio. Dropping the studio releases it. Every write goes to the
     /// package that it holds.
     @ObservationIgnored let lock: PackageLock
@@ -107,10 +121,14 @@ import Observation
         scheduleSave()
     }
 
-    /// Stops a take that records, then waits for a start, a finalize, and every write in
-    /// progress. When `saveError` is set, it writes the session once more; `saveError` stays set
-    /// only when that write also fails. After it returns, no take records and no write runs.
+    /// Releases every monitor device, stops a take that records, then waits for a start, a
+    /// finalize, and every write in progress. When `saveError` is set, it writes the session once
+    /// more; `saveError` stays set only when that write also fails. After it returns, no device
+    /// is held, no take records, and no write runs.
     public func settle() async {
+        // The monitor order does not wait for a finalize in progress.
+        monitorRequest = []
+        await monitorTurns.run { await applyMonitor() }
         while true {
             // A start or a finalize in progress holds an earlier ticket.
             await serialized {}
@@ -271,7 +289,8 @@ import Observation
                 (arm: $0.arm, channels: $0.route.channels)
             }
             writers[device.uid] = DeviceWriter(
-                device: device, tracks: tracks, take: started.take, folder: capture, hal: environment.hal,
+                device: device, tracks: tracks, files: TakeFiles(take: started.take, folder: capture),
+                hal: environment.hal,
                 report: report, silenceLimit: environment.silenceLimit,
                 firstRecordLimit: environment.firstRecordLimit, ringSeconds: environment.ringSeconds)
         }

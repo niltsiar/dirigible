@@ -34,6 +34,14 @@ public struct InputDevice: Hashable, Sendable {
     }
 
     public var channelCount: Int { channelsPerBuffer.reduce(0, +) }
+
+    /// The device of a monitor writer before its first lookup (decision 0015): one buffer with
+    /// `channels` channels. The first attach takes the facts of the found device. A monitor
+    /// writes no sidecar, so these facts never reach a file.
+    static func placeholder(uid: String, channels: Int) -> InputDevice? {
+        InputDevice(
+            uid: uid, name: uid, nominalRate: 48_000, availableRates: [], channelsPerBuffer: [channels], latency: 0)
+    }
 }
 
 /// 1 Hz to 10 MHz. Finalize divides by a rate. The device writer rounds it to whole frames per

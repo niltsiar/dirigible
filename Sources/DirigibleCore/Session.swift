@@ -121,8 +121,7 @@ public struct Session: Hashable, Sendable {
     /// XML 1.0 cannot hold the other control characters, and it reads tab, LF, and CR in an
     /// attribute back as spaces. Refusing them here keeps every saved session readable.
     static func checkText(_ texts: String...) throws(SessionError) {
-        for text in texts
-        where text.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0xFFFE || $0.value == 0xFFFF }) {
+        for text in texts where !text.unicodeScalars.allSatisfy(\.isStorableInSession) {
             throw .invalidText(text)
         }
     }
@@ -153,6 +152,12 @@ public struct Session: Hashable, Sendable {
         }
         self.recording = recording
     }
+}
+
+extension Unicode.Scalar {
+    /// The one text rule of the session file (decision 0012): false for U+0000...U+001F,
+    /// U+FFFE, and U+FFFF. XML 1.0 cannot hold them, or reads tab, LF, and CR back as spaces.
+    public var isStorableInSession: Bool { value >= 0x20 && value != 0xFFFE && value != 0xFFFF }
 }
 
 public enum SessionError: Error, Hashable, Sendable {

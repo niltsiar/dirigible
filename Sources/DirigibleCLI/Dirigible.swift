@@ -7,7 +7,7 @@ struct Dirigible: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "dirigible",
         abstract: "Make, change, and read Dirigible session packages.",
-        subcommands: [Create.self, Info.self])
+        subcommands: [Create.self, Info.self, TrackCommand.self])
 }
 
 struct PackageArgument: ParsableArguments {

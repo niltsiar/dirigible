@@ -62,56 +62,69 @@ import Testing
 
 /// J and L: a tap latches, a hold of 0.3 s or more plays while held (criterion 23, probe H1).
 @MainActor struct TransportKeyTests {
+    /// The Studio of the key window: any object will do.
+    let studio = NSObject()
+
     @Test func aHoldReleasesAndATapLatches() {
-        var hold = ShuttleHold()
+        var hold = ShuttleHold<NSObject>()
         let l = { (type: NSEvent.EventType, time: TimeInterval, again: Bool) in
             key(type, "l", code: 37, at: time, repeat: again)
         }
 
-        #expect(hold.handle(l(.keyDown, 10, false), forTransport: true) == .pass)
-        #expect(hold.handle(l(.keyDown, 10.2, true), forTransport: true) == .drop, "an auto-repeat")
-        #expect(hold.handle(l(.keyUp, 10.3, false), forTransport: true) == .release, "a hold of 0.3 s")
+        #expect(hold.handle(l(.keyDown, 10, false), target: studio) == .pass)
+        #expect(hold.handle(l(.keyDown, 10.2, true), target: studio) == .drop, "an auto-repeat")
+        #expect(hold.handle(l(.keyUp, 10.3, false), target: studio) == .release(studio), "a hold of 0.3 s")
 
-        #expect(hold.handle(l(.keyDown, 20, false), forTransport: true) == .pass)
-        #expect(hold.handle(l(.keyUp, 20.1, false), forTransport: true) == .pass, "a tap latches")
+        #expect(hold.handle(l(.keyDown, 20, false), target: studio) == .pass)
+        #expect(hold.handle(l(.keyUp, 20.1, false), target: studio) == .pass, "a tap latches")
 
         // Text focus: every key-down passes, and its key-up does nothing.
-        #expect(hold.handle(l(.keyDown, 30, false), forTransport: false) == .pass)
-        #expect(hold.handle(l(.keyDown, 30.2, true), forTransport: false) == .pass)
-        #expect(hold.handle(l(.keyUp, 30.5, false), forTransport: false) == .pass)
+        #expect(hold.handle(l(.keyDown, 30, false), target: nil) == .pass)
+        #expect(hold.handle(l(.keyDown, 30.2, true), target: nil) == .pass)
+        #expect(hold.handle(l(.keyUp, 30.5, false), target: nil) == .pass)
 
         // The key-up reads only the stored key-down (plan gate 2 item 6).
-        #expect(hold.handle(l(.keyDown, 40, false), forTransport: true) == .pass)
-        #expect(hold.handle(l(.keyUp, 40.5, false), forTransport: false) == .release)
+        #expect(hold.handle(l(.keyDown, 40, false), target: studio) == .pass)
+        #expect(hold.handle(l(.keyUp, 40.5, false), target: nil) == .release(studio))
 
         // K is not a hold key.
-        #expect(hold.handle(key(.keyDown, "k", code: 40, at: 50), forTransport: true) == .pass)
-        #expect(hold.handle(key(.keyUp, "k", code: 40, at: 51), forTransport: true) == .pass)
+        #expect(hold.handle(key(.keyDown, "k", code: 40, at: 50), target: studio) == .pass)
+        #expect(hold.handle(key(.keyUp, "k", code: 40, at: 51), target: studio) == .pass)
+    }
+
+    /// Key focus moves to another session window during a hold: the release pauses the Studio of
+    /// the key-down, not the new key window. Found by the code gate.
+    @Test func aHoldReleasesIntoTheStudioOfTheKeyDown() {
+        var hold = ShuttleHold<NSObject>()
+        let other = NSObject()
+
+        #expect(hold.handle(key(.keyDown, "j", code: 38, at: 10), target: studio) == .pass)
+        #expect(hold.handle(key(.keyUp, "j", code: 38, at: 10.5), target: other) == .release(studio))
     }
 
     /// The hold follows the character, as the menu key equivalents do, not the ANSI key code. On
     /// Dvorak, key code 35 gives "l" and key code 37 gives "n". Found by the code gate.
     @Test func aHoldFollowsTheCharacter() {
-        var hold = ShuttleHold()
+        var hold = ShuttleHold<NSObject>()
 
-        #expect(hold.handle(key(.keyDown, "l", code: 35, at: 10), forTransport: true) == .pass)
-        #expect(hold.handle(key(.keyDown, "l", code: 35, at: 10.2, repeat: true), forTransport: true) == .drop)
-        #expect(hold.handle(key(.keyUp, "l", code: 35, at: 10.4), forTransport: true) == .release)
+        #expect(hold.handle(key(.keyDown, "l", code: 35, at: 10), target: studio) == .pass)
+        #expect(hold.handle(key(.keyDown, "l", code: 35, at: 10.2, repeat: true), target: studio) == .drop)
+        #expect(hold.handle(key(.keyUp, "l", code: 35, at: 10.4), target: studio) == .release(studio))
 
-        #expect(hold.handle(key(.keyDown, "n", code: 37, at: 20), forTransport: true) == .pass)
-        #expect(hold.handle(key(.keyDown, "n", code: 37, at: 20.2, repeat: true), forTransport: true) == .pass)
-        #expect(hold.handle(key(.keyUp, "n", code: 37, at: 20.4), forTransport: true) == .pass)
+        #expect(hold.handle(key(.keyDown, "n", code: 37, at: 20), target: studio) == .pass)
+        #expect(hold.handle(key(.keyDown, "n", code: 37, at: 20.2, repeat: true), target: studio) == .pass)
+        #expect(hold.handle(key(.keyUp, "n", code: 37, at: 20.4), target: studio) == .pass)
     }
 
     /// A held Space does not toggle play and stop at the key-repeat rate. Control: the first
     /// key-down passes, and a text field gets the repeats. Found by the code gate.
     @Test func aHeldSpaceActsOnce() {
-        var hold = ShuttleHold()
+        var hold = ShuttleHold<NSObject>()
 
-        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 10), forTransport: true) == .pass)
-        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 10.5, repeat: true), forTransport: true) == .drop)
-        #expect(hold.handle(key(.keyUp, " ", code: 49, at: 11), forTransport: true) == .pass)
-        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 20.5, repeat: true), forTransport: false) == .pass)
+        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 10), target: studio) == .pass)
+        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 10.5, repeat: true), target: studio) == .drop)
+        #expect(hold.handle(key(.keyUp, " ", code: 49, at: 11), target: studio) == .pass)
+        #expect(hold.handle(key(.keyDown, " ", code: 49, at: 20.5, repeat: true), target: nil) == .pass)
     }
 }
 

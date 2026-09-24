@@ -79,6 +79,29 @@ import os
         await again.close()
     }
 
+    /// Code gate 1, item 5: a move onto the stale key of another window keeps both windows in
+    /// the registry, so Quit still settles both.
+    @Test func aMoveOntoTheStaleKeyOfAnotherWindowKeepsBoth() async throws {
+        let (a, b) = (try folder.package("a"), try folder.package("b"))
+        let first = await app.open(a)
+        let second = await app.open(b)
+        #expect(await second.opened())
+        let studio = try #require(await first.opened() ? first.studio : nil)
+        // B moves and does not write, so the registry still has B at its old path. Then A
+        // moves to that path.
+        try FileManager.default.moveItem(at: b, to: folder.url.appending(path: "c.dirigible"))
+        try FileManager.default.moveItem(at: a, to: b)
+        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        await studio.settle()
+        await until("the first window follows the move") { first.url == packageIdentity(b) }
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(
+            Set(app.windows.values.map(ObjectIdentifier.init)) == [ObjectIdentifier(first), ObjectIdentifier(second)])
+        #expect(app.windows[packageIdentity(b)] === second)
+        await closeAll()
+    }
+
     /// Round 2, item 3 control: a write with no move keeps the URL and the key.
     @Test func anEditWithNoMoveKeepsTheKey() async throws {
         let package = packageIdentity(try folder.package("still"))

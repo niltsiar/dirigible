@@ -314,10 +314,9 @@ enum WindowAlert: Hashable {
             Task { @MainActor in
                 guard let self, let studio, self.studio === studio else { return }
                 if studio.url != self.url {
-                    let old = self.url
                     self.url = studio.url
                     self.showTitle()
-                    self.app?.rekey(old, to: studio.url)
+                    self.app?.rekey(self, to: studio.url)
                 }
                 self.follow(studio)
             }

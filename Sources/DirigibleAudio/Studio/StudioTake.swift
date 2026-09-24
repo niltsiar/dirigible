@@ -51,7 +51,7 @@ extension Studio {
     /// 0013) and the free bytes of the volume now. Nil with no pending take.
     public func pendingSpace() async -> (needed: Int64, free: Int64)? {
         guard let take = pendingTake?.take else { return nil }
-        return (await pendingWAVBytes(take: take, in: url), await freeBytes(of: lock, environment))
+        return (await pendingWAVBytes(take: take, of: lock), await freeBytes(of: lock, environment))
     }
 
     /// The IDs of the clips of take `take` on every track, in segment name order.
@@ -74,7 +74,7 @@ extension Studio {
         guard perSecond > 0 else { return nil }
         let free = await freeBytes(of: lock, environment)
         var pending: Int64 = 0
-        if let take = pendingTake?.take { pending = await pendingWAVBytes(take: take, in: url) }
+        if let take = pendingTake?.take { pending = await pendingWAVBytes(take: take, of: lock) }
         return .seconds(Double(max(0, free - diskMargin - pending)) / Double(perSecond))
     }
 }

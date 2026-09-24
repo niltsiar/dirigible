@@ -110,6 +110,18 @@ struct DiskRuleTests {
         #expect(space.free == 5_000_000_000)
     }
 
+    /// Code gate 1, item 5: after a Finder rename and before the next write, `Studio.url` still
+    /// has the old path. The WAV bytes come from the package that the lock holds.
+    @Test func aRenamedPackageKeepsThePendingBytes() async throws {
+        let studio = try await pendingStudio(free: Self.margin + 40_320_000)
+        try #require(rename(url.path, folder.url.appending(path: "Renamed.dirigible").path) == 0)
+
+        #expect(await studio.pendingSpace()?.needed == 3_000_000)
+        let left = try #require(await studio.remainingRecordTime(armed: ["t1", "t2"]))
+        let expected = 60 - 3_000_000.0 / 672_000
+        #expect(abs(Double(left.components.seconds) + Double(left.components.attoseconds) / 1e18 - expected) < 1e-6)
+    }
+
     /// Control: no pending take gives nil.
     @Test func pendingSpaceWithNoPendingTakeIsNil() async throws {
         let studio = try await studio(TestHAL([mic]), free: FreeBytes())

@@ -211,8 +211,12 @@ func saveTakeStart(
     environment.freeBytes(lock)
 }
 
-/// The WAV bytes that the finalize of pending take `take` needs: 3 for each 4 CAF bytes.
-@concurrent nonisolated func pendingWAVBytes(take: Int, in package: URL) async -> Int64 {
+/// The WAV bytes that the finalize of pending take `take` needs: 3 for each 4 CAF bytes. It
+/// reads the package that `lock` holds now, not `Studio.url`, which follows a move only at the
+/// next write (decision 0014). A package that left its volume gives 0.
+@concurrent nonisolated func pendingWAVBytes(take: Int, of lock: PackageLock) async -> Int64 {
+    dispatchPrecondition(condition: .notOnQueue(.main))
+    guard let package = try? lock.package() else { return 0 }
     let capture = package.appending(path: captureFolderName)
     let bytes = ((try? captureSegments(in: package)) ?? []).filter { $0.take == take }.reduce(Int64(0)) { sum, name in
         let size = try? FileManager.default.attributesOfItem(atPath: capture.appending(path: "\(name.stem).caf").path)[

@@ -52,7 +52,7 @@ struct AutosaveTests {
         await gate.entered()
 
         async let start: Void = studio.startRecording(armed: ["t1"], playhead: 0)
-        await until(limit: .seconds(5), "the start waits for the chain") { studio.isStarting }
+        await until(limit: .seconds(30), "the start waits for the chain") { studio.isStarting }
         gate.open()
         try await start
 
@@ -216,11 +216,11 @@ struct AutosaveTests {
         }
 
         try rename(studio, to: "Guest")
-        await until(limit: .seconds(5), "the first autosave did not fail") { studio.saveError != nil }
+        await until(limit: .seconds(30), "the first autosave did not fail") { studio.saveError != nil }
         #expect(studio.saveError == .file(.writeFailed(step: "test", errno: ENOSPC)))
 
         try rename(studio, to: "Band")
-        await until(limit: .seconds(5), "the second autosave did not clear the error") { studio.saveError == nil }
+        await until(limit: .seconds(30), "the second autosave did not clear the error") { studio.saveError == nil }
         await studio.settle()
 
         #expect(try Session(contentsOf: url).track("t1")?.name == "Band")

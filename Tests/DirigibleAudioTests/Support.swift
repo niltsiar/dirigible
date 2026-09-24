@@ -178,8 +178,10 @@ func until(limit: Duration = .seconds(1), _ message: String, _ condition: () -> 
     }
 }
 
-/// Holds the first caller of `waitOnce` until `open`, with a limit of 5 s; later callers pass.
+/// Holds the first caller of `waitOnce` until `open`, with a limit of 30 s; later callers pass.
 /// A test holds a write with it and waits with `entered` until the write is inside the gate.
+/// The autosave starts on the main actor, and in a full suite the `@MainActor` suites hold it
+/// for more than 5 s (their inits write packages with `F_FULLFSYNC`), so both limits are 30 s.
 final class Gate: @unchecked Sendable {
     private let lock = NSLock()
     private let semaphore = DispatchSemaphore(value: 0)
@@ -194,13 +196,13 @@ final class Gate: @unchecked Sendable {
             })
         else { return }
         lock.withLock { inside = true }
-        if semaphore.wait(timeout: .now() + 5) == .timedOut { Issue.record("The gate was not opened in 5 s") }
+        if semaphore.wait(timeout: .now() + 30) == .timedOut { Issue.record("The gate was not opened in 30 s") }
     }
 
     func open() { semaphore.signal() }
 
     /// Returns when the first caller is inside `waitOnce`. After `limit`, it records a failure.
-    func entered(limit: Duration = .seconds(5)) async {
+    func entered(limit: Duration = .seconds(30)) async {
         let end = ContinuousClock.now + limit
         while !lock.withLock({ inside }) {
             guard ContinuousClock.now < end else {

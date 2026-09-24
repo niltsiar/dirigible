@@ -57,6 +57,8 @@ final class TestHAL: @unchecked Sendable {
     private var detachResult = true
     private var failure: @Sendable (_ uid: String, _ try: Int) -> HALError? = { _, _ in nil }
     private var live: Set<String> = []
+    private var gate: DispatchSemaphore?
+    private var held = 0
 
     init(_ devices: [InputDevice]) {
         for (index, device) in devices.enumerated() {
@@ -67,9 +69,22 @@ final class TestHAL: @unchecked Sendable {
 
     var hal: DeviceHAL {
         DeviceHAL(
-            lookUp: { [self] uid in lock.withLock { present[uid] } },
+            lookUp: { [self] uid in lookUp(uid) },
             attach: { [self] input throws(HALError) in try attach(input) },
             watchDevices: { _ in { true } })
+    }
+
+    /// A held lookup waits until `releaseLookUps`, with a limit of 10 s; after the limit it
+    /// finds nothing. The limit is long, because a full suite can hold the main actor of the
+    /// test for seconds.
+    private func lookUp(_ uid: String) -> (id: AudioObjectID, device: InputDevice)? {
+        if let gate = lock.withLock({ () -> DispatchSemaphore? in
+            held += gate == nil ? 0 : 1
+            return gate
+        }) {
+            guard gate.wait(timeout: .now() + 10) == .success else { return nil }
+        }
+        return lock.withLock { present[uid] }
     }
 
     private func attach(_ input: DeviceInput) throws(HALError) -> Detach {
@@ -102,6 +117,21 @@ final class TestHAL: @unchecked Sendable {
         }
     }
 
+    /// The next lookups wait until `releaseLookUps`.
+    func holdLookUps() { lock.withLock { gate = DispatchSemaphore(value: 0) } }
+
+    /// Lets the held lookups go on, and stops holding new ones.
+    func releaseLookUps() {
+        let (gate, count) = lock.withLock {
+            defer { self.gate = nil }
+            return (self.gate, held)
+        }
+        for _ in 0..<count { gate?.signal() }
+    }
+
+    /// The lookups that waited at the gate.
+    var heldLookUps: Int { lock.withLock { held } }
+
     /// The detach result of the attaches after this call.
     func detach(returns result: Bool) { lock.withLock { detachResult = result } }
 
@@ -129,10 +159,30 @@ final class TestHAL: @unchecked Sendable {
     }
 }
 
+/// The free bytes that the test environment gives. A test can change them during a take.
+final class FreeBytes: @unchecked Sendable {
+    private let lock = NSLock()
+    private var bytes: Int64
+
+    init(_ bytes: Int64 = 100_000_000_000) { self.bytes = bytes }
+
+    var value: Int64 {
+        get { lock.withLock { bytes } }
+        set { lock.withLock { bytes = newValue } }
+    }
+}
+
 extension CaptureEnvironment {
-    /// The test HAL, and a watchdog limit that other tests on the main actor cannot reach.
-    static func test(_ hal: TestHAL, silenceLimit: Duration = .seconds(60)) -> CaptureEnvironment {
-        CaptureEnvironment(hal: hal.hal, silenceLimit: silenceLimit)
+    /// The test HAL, a watchdog limit that other tests on the main actor cannot reach, the
+    /// microphone access `access` (nil: authorized), `free` bytes (default 100 GB), and a disk
+    /// check each 50 ms.
+    static func test(
+        _ hal: TestHAL, silenceLimit: Duration = .seconds(60), access: MicrophoneAccess? = nil,
+        free: FreeBytes = FreeBytes()
+    ) -> CaptureEnvironment {
+        CaptureEnvironment(
+            hal: hal.hal, silenceLimit: silenceLimit, microphoneAccess: { access }, freeBytes: { _ in free.value },
+            diskCheckInterval: .milliseconds(50))
     }
 }
 

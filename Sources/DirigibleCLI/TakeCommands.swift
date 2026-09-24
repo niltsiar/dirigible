@@ -58,6 +58,9 @@ extension StudioError {
         case .finalize(.readFailed(let file, let code)):
             "cannot read \(package)/\(file): \(String(cString: strerror(code)))."
         case .finalize(.writeFailed(let file, let status)): "cannot write \(package)/\(file) (status \(status))."
+        case .microphoneAccess:
+            "the terminal has no microphone access. Allow it in System Settings > Privacy & Security > Microphone."
+        case .diskLow: "the disk of \(package) has less than 1 GB free."
         }
     }
 }

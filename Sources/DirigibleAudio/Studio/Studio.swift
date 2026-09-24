@@ -38,8 +38,17 @@ import Foundation
             })
     }
 
+    /// The result of the last take, set when its writers finish, before its finalize. So a
+    /// finalize error keeps it.
+    public private(set) var lastTake: TakeResult?
+
     /// The Core Audio calls of a take. Tests give their own.
     var environment = CaptureEnvironment.live
+    /// Held from the start of a take until its finalize ends.
+    private(set) var sleepAssertion: SleepAssertion?
+    /// True while `startRecording` works off the main actor: every other entry point is busy.
+    private var starting = false
+    private var diskWatcher: Task<Void, Never>?
     /// The device writers of the take that records, by device UID.
     private var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.
@@ -96,75 +105,119 @@ import Foundation
         try await complete(take)
     }
 
+    /// Starts a take on the armed tracks (decision 0013). The device lookup, the microphone
+    /// access read, the disk check, and the save run off the main actor; meanwhile every other
+    /// entry point throws `.busy`. A throw changes nothing. A device that does not attach after
+    /// the save is lost, and the take goes on.
+    public func startRecording(armed: [TrackID], playhead: Frames) async throws(StudioError) {
+        try checkIdle()
+        guard pendingTake == nil else { throw .busy }
+        starting = true
+        defer { starting = false }
+        let started = try await prepareTake(
+            of: session, in: url, armed: armed, playhead: playhead, environment: environment)
+        begin(started)
+        sleepAssertion = SleepAssertion()
+        diskWatcher = watchDisk()
+    }
+
     /// Stops the take: drains and closes each device writer, then finalizes and saves
     /// (decision 0004). With no take, it does nothing. A success records one undo entry. A
     /// failure keeps the take pending and throws.
     public func stopRecording() async throws(StudioError) {
+        try await stop(.requested)
+    }
+
+    /// The record time that the free space gives the armed tracks: 7 bytes for each sample and
+    /// channel after 1 GB and the WAV bytes of a pending take (decision 0004). Nil when a track
+    /// is not in the session or no track is armed. ponytail: the session rate for every track;
+    /// a device at a higher rate uses its CAF bytes faster.
+    public func remainingRecordTime(armed: [TrackID]) async -> Duration? {
+        var channels = 0
+        for id in armed {
+            guard let track = session.track(id) else { return nil }
+            channels += track.layout.channelCount
+        }
+        let perSecond = Int64(channels * session.sampleRate * 7)
+        guard perSecond > 0 else { return nil }
+        let free = await freeBytes(of: url, environment)
+        var pending: Int64 = 0
+        if let take = pendingTake?.take { pending = await pendingWAVBytes(take: take, in: url) }
+        return .seconds(Double(max(0, free - diskMargin - pending)) / Double(perSecond))
+    }
+
+    private func stop(_ end: TakeEnd) async throws(StudioError) {
         if case .finalizing = transport { throw .busy }
+        guard !starting else { throw .busy }
         guard case .recording(let take) = transport else { return }
         transport = .finalizing(take: take)
-        for writer in writers.values { await writer.finish() }
+        diskWatcher?.cancel()
+        diskWatcher = nil
+        var gaps: [TrackID: LiveTrack.State] = [:]
+        for writer in writers.values {
+            for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
+        }
+        lastTake = TakeResult(take: take, end: end, gaps: gaps)
         writers = [:]
         armed = []
         trackStates = [:]
+        defer { sleepAssertion = nil }
         try await complete(take)
+    }
+
+    /// Each check interval: stops the take when the free space is less than the WAV bytes of
+    /// the take plus 1 GB. The reads run off the main actor.
+    private func watchDisk() -> Task<Void, Never> {
+        let (url, environment, writers) = (url, environment, Array(writers.values))
+        return Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: environment.diskCheckInterval)
+                var wav: Int64 = 0
+                for writer in writers { wav += await writer.wavBytes() }
+                guard await freeBytes(of: url, environment) < wav + diskMargin, !Task.isCancelled else { continue }
+                try? await self?.stop(.diskLow)
+                return
+            }
+        }
     }
 
     /// The device writer of `uid` in the take that records. For tests.
     func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
 
-    /// The test seam of decision 0004: starts a take from device descriptions. capture-live adds
-    /// the public `startRecording` on top of it. Checks the route of each armed track, then saves
-    /// `session.xml` with `<recording>`, then starts each device writer on the environment HAL. A
-    /// throw changes nothing.
+    /// The test seam of decision 0004: starts a take from device descriptions, on the main
+    /// actor, with no access or disk check, no sleep assertion, and no disk watcher. Checks the
+    /// route of each armed track, then saves `session.xml` with `<recording>`, then starts each
+    /// device writer on the environment HAL. A throw changes nothing.
     func startTake(
         armed: [TrackID], devices: [InputDevice], playhead: Frames, hostTimeNanos: UInt64
     ) throws(StudioError) -> [String: DeviceWriter] {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
-        var routes: [(track: TrackID, arm: Int, route: Route, device: InputDevice)] = []
-        var owners: [String: [Int: TrackID]] = [:]
-        for (index, id) in armed.enumerated() {
-            guard let route = session.track(id)?.route else { throw .noRoute(id) }
-            guard let device = devices.first(where: { $0.uid == route.deviceUID }) else { throw .deviceMissing(id) }
-            for channel in route.channels.numbers {
-                guard channel <= device.channelCount else { throw .channelOutOfRange(id) }
-                if let owner = owners[device.uid, default: [:]][channel] { throw .channelInUse(owner, id) }
-                owners[device.uid, default: [:]][channel] = id
-            }
-            routes.append((id, index + 1, route, device))
-        }
-        let take = SegmentName.nextTake(in: url, session: session)
-        var started = session
-        do throws(SessionError) {
-            try started.setRecording(
-                Recording(
-                    take: take, playheadFrame: playhead, takeStartHostTimeNanos: hostTimeNanos, armedTracks: armed))
-        } catch {
-            throw .session(error)
-        }
-        let capture = url.appending(path: captureFolderName)
-        guard mkdir(capture.path, 0o755) == 0 || errno == EEXIST else {
-            throw .file(.writeFailed(step: captureFolderName, errno: errno))
-        }
-        // A crash before the save leaves no <recording>, so a stale marker must not skip the
-        // recovery of this take.
-        unlink(marker(in: url).path)
-        do { try started.write(to: url) } catch { throw .file(error) }
-        history.edit { $0 = started }
-
-        let report = Self.reporter(to: self)
-        for device in devices where routes.contains(where: { $0.device == device }) {
-            let tracks = routes.filter { $0.device == device }.map { (arm: $0.arm, channels: $0.route.channels) }
-            writers[device.uid] = DeviceWriter(
-                device: device, tracks: tracks, take: take, folder: capture, hal: environment.hal, report: report,
-                silenceLimit: environment.silenceLimit)
-        }
-        self.armed = routes.map { ($0.track, writers[$0.device.uid]!) }
-        trackStates = [:]
-        transport = .recording(take: take)
-        for writer in writers.values { writer.start() }
+        let routes = try checkRoutes(session, armed: armed, devices: devices)
+        begin(try saveTakeStart(session, in: url, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
         return writers
+    }
+
+    /// Step 6 of the start order, on the main actor with no throw: the history entry, the
+    /// writers, and the transport; then each writer attaches on its queue.
+    private func begin(_ started: StartedTake) {
+        history.edit { $0 = started.session }
+        let report = Self.reporter(to: self)
+        let capture = url.appending(path: captureFolderName)
+        var devices: [InputDevice] = []
+        for route in started.routes where !devices.contains(route.device) { devices.append(route.device) }
+        for device in devices {
+            let tracks = started.routes.filter { $0.device == device }.map {
+                (arm: $0.arm, channels: $0.route.channels)
+            }
+            writers[device.uid] = DeviceWriter(
+                device: device, tracks: tracks, take: started.take, folder: capture, hal: environment.hal,
+                report: report, silenceLimit: environment.silenceLimit)
+        }
+        armed = started.routes.map { ($0.track, writers[$0.device.uid]!) }
+        trackStates = [:]
+        transport = .recording(take: started.take)
+        for writer in writers.values { writer.start() }
     }
 
     /// The report closure of the device writers. They call it on their queues, so it is built
@@ -192,7 +245,7 @@ import Foundation
 
     /// Edits, saves, and a new take wait while a take records or finalizes (decision 0004).
     private func checkIdle() throws(StudioError) {
-        guard transport == .idle else { throw .busy }
+        guard transport == .idle, !starting else { throw .busy }
     }
 }
 
@@ -212,4 +265,8 @@ public enum StudioError: Error, Hashable, Sendable {
     case session(SessionError)
     case file(SessionFileError)
     case finalize(FinalizeError)
+    /// The front end requests the access and starts again (decision 0013).
+    case microphoneAccess(MicrophoneAccess)
+    /// Less than 1 GB is free (decision 0004).
+    case diskLow
 }

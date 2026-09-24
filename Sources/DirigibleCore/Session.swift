@@ -80,8 +80,13 @@ public struct Session: Hashable, Sendable {
     /// Removes the track and its clips. The files stay in the pool.
     public mutating func removeTrack(_ id: TrackID) throws(SessionError) {
         let index = try trackIndex(id)
-        if recording?.armedTracks.contains(id) == true { throw .trackInRecording(id) }
+        try checkNotArmed(id)
         tracks.remove(at: index)
+    }
+
+    /// Finalize needs the tracks of a pending take as they were at the take start (decision 0012).
+    private func checkNotArmed(_ id: TrackID) throws(SessionError) {
+        if recording?.armedTracks.contains(id) == true { throw .trackInRecording(id) }
     }
 
     public mutating func renameTrack(_ id: TrackID, to name: String) throws(SessionError) {
@@ -93,16 +98,19 @@ public struct Session: Hashable, Sendable {
         tracks[try trackIndex(id)].gain = gain
     }
 
+    /// An armed track keeps its route while `<recording>` exists (decision 0012).
     public mutating func setRoute(_ route: Route?, track id: TrackID) throws(SessionError) {
         let index = try trackIndex(id)
+        try checkNotArmed(id)
         try Self.check(route, layout: tracks[index].layout, track: id)
         tracks[index].route = route
     }
 
     /// Changes the layout and the route in one call, so no step has a route of the other layout.
-    /// A track with clips keeps its layout.
+    /// A track with clips, and an armed track, keep their layout.
     public mutating func setLayout(_ layout: ChannelLayout, route: Route?, track id: TrackID) throws(SessionError) {
         let index = try trackIndex(id)
+        try checkNotArmed(id)
         if layout != tracks[index].layout, !tracks[index].clips.isEmpty {
             throw .layoutMismatch(id, .trackHasClips)
         }

@@ -8,6 +8,10 @@ import Testing
 /// writes no file. Each test has its control.
 @MainActor
 struct MonitorTests {
+    /// The limit of a wait for work on the main actor. In a full suite, the `@MainActor` suites
+    /// hold it for seconds (see `Gate`). It is less than one suite run, and each producer and
+    /// held attach of these tests runs longer.
+    let busy = Duration.seconds(20)
     let duo = InputDevice(
         uid: "duo", name: "Duo", nominalRate: 48_000, availableRates: [48_000...48_000], channelsPerBuffer: [2],
         latency: 0)!
@@ -35,14 +39,6 @@ struct MonitorTests {
         return studio
     }
 
-    /// Records of `duo` with a 1 kHz sine of amplitude 0.5 on channel 1 and silence on channel 2.
-    func tone(seconds: Double) -> [InputRecord] {
-        let one = sine(seconds: seconds, rate: 48_000)
-        var samples = [Float](repeating: 0, count: one.count * 2)
-        for (frame, value) in one.enumerated() { samples[frame * 2] = value }
-        return records([samples], layout: [2], rate: 48_000, frames: 480)
-    }
-
     /// The recursive file list of the package and the bytes of `session.xml`.
     func files(_ url: URL) async throws -> (paths: [String], session: Data) {
         let result = LockedBox<([String], Data)>()
@@ -65,8 +61,8 @@ struct MonitorTests {
         let before = try await files(url)
 
         try await studio.monitor(armed: ["t1", "t2"])
-        SyntheticInput(hal, "duo").play(tone(seconds: 10), pace: .realTime)
-        await until(limit: .seconds(5), "no monitor peak on t1") { abs(peak(studio, "t1") - 0.5) <= 0.01 }
+        SyntheticInput(hal, "duo").play(await toneRecords(), pace: .realTime)
+        await until(limit: busy, "no monitor peak on t1") { abs(peak(studio, "t1") - 0.5) <= 0.01 }
 
         #expect(studio.liveTracks["t1"]?.state == .monitoring)
         // The control in the same poll: channel 2 is silent.
@@ -94,7 +90,7 @@ struct MonitorTests {
 
         // The control: an armed routed track holds the device.
         try await studio.monitor(armed: ["t1"])
-        await until("no monitor attach") { hal.current("duo") != nil }
+        await until(limit: busy, "no monitor attach") { hal.current("duo") != nil }
 
         try await studio.monitor(armed: [])
         #expect(hal.current("duo") == nil)
@@ -113,7 +109,7 @@ struct MonitorTests {
         do {
             let studio = try await open(url, hal)
             try await studio.monitor(armed: ["t1"])
-            await until("no monitor attach") { hal.current("duo") != nil }
+            await until(limit: busy, "no monitor attach") { hal.current("duo") != nil }
             await studio.settle()
             #expect(hal.current("duo") == nil)
             #expect(studio.liveTracks.isEmpty)
@@ -121,9 +117,9 @@ struct MonitorTests {
 
         let studio = try await open(url, hal)
         try await studio.monitor(armed: ["t1"])
-        await until("no second attach") { hal.inputs("duo").count == 2 && hal.current("duo") != nil }
-        SyntheticInput(hal, "duo").play(tone(seconds: 10), pace: .realTime)
-        await until(limit: .seconds(5), "no peak after the reopen") { abs(peak(studio, "t1") - 0.5) <= 0.01 }
+        await until(limit: busy, "no second attach") { hal.inputs("duo").count == 2 && hal.current("duo") != nil }
+        SyntheticInput(hal, "duo").play(await toneRecords(), pace: .realTime)
+        await until(limit: busy, "no peak after the reopen") { abs(peak(studio, "t1") - 0.5) <= 0.01 }
         await studio.settle()
         #expect(hal.current("duo") == nil)
         _ = folder
@@ -140,7 +136,7 @@ struct MonitorTests {
         guard let access else {
             // The control: a granted access attaches.
             try await studio.monitor(armed: ["t1"])
-            await until("no monitor attach") { hal.current("duo") != nil }
+            await until(limit: busy, "no monitor attach") { hal.current("duo") != nil }
             await studio.settle()
             return
         }
@@ -160,12 +156,12 @@ struct MonitorTests {
         let studio = try await open(url, hal)
 
         try await studio.monitor(armed: ["t1"])
-        await until("t1 is not lost") { studio.liveTracks["t1"]?.state == .deviceLost }
+        await until(limit: busy, "t1 is not lost") { studio.liveTracks["t1"]?.state == .deviceLost }
         #expect(hal.tries("duo").isEmpty)
 
         hal.set("duo", id: 7)
         studio.monitorWriter("duo")?.post(.devicesChanged, from: nil)
-        await until("t1 did not come back") { studio.liveTracks["t1"]?.state == .monitoring }
+        await until(limit: busy, "t1 did not come back") { studio.liveTracks["t1"]?.state == .monitoring }
         #expect(hal.current("duo") != nil)
         await studio.settle()
         _ = folder
@@ -180,13 +176,13 @@ struct MonitorTests {
         let studio = try await open(url, hal)
 
         try await studio.monitor(armed: ["t1"])
-        await until("no monitor attach") { hal.current("duo") != nil }
+        await until(limit: busy, "no monitor attach") { hal.current("duo") != nil }
         #expect(hal.capacities("duo") == [524_288])
         #expect(CaptureRing.capacity(rate: 48_000, channels: 2, seconds: 1) == 524_288)
 
         try await studio.monitor(armed: [])
         try await studio.startRecording(armed: ["t1"], playhead: 0)
-        await until("no take attach") { hal.capacities("duo").count == 2 }
+        await until(limit: busy, "no take attach") { hal.capacities("duo").count == 2 }
         #expect(hal.capacities("duo").last == 8_388_608)
         try await studio.stopRecording()
         _ = folder
@@ -228,3 +224,15 @@ final class LockedBox<Value>: @unchecked Sendable {
         set { lock.withLock { stored = newValue } }
     }
 }
+
+/// 30 s of records of `duo` with a 1 kHz sine of amplitude 0.5 on channel 1 and silence on
+/// channel 2. It runs longer than each wait of the monitor tests. A global is made once.
+private let monitorTone: [InputRecord] = {
+    let one = sine(seconds: 30, rate: 48_000)
+    var samples = [Float](repeating: 0, count: one.count * 2)
+    for (frame, value) in one.enumerated() { samples[frame * 2] = value }
+    return records([samples], layout: [2], rate: 48_000, frames: 480)
+}()
+
+/// The tone, made off the main actor, so it does not hold the main-actor tests.
+@concurrent nonisolated func toneRecords() async -> [InputRecord] { monitorTone }

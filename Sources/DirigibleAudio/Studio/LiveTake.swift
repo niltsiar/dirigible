@@ -76,6 +76,8 @@ struct CaptureEnvironment: Sendable {
     /// The autosave write of a session into the package that the lock holds. Returns the package
     /// path that it wrote. Called off the main actor.
     var saveSession: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
+    /// A step before each finalize. Tests hold a finalize with it; `live` does nothing.
+    var beforeFinalize: @Sendable () async -> Void = {}
 
     static let live = CaptureEnvironment(
         hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),

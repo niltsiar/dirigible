@@ -25,10 +25,8 @@ extension Studio {
         let length = nanos < 0x1p64 ? UInt64(nanos) : .max
         // A take with no segment gives its number to the next take, so the number alone cannot
         // tell this take from a new one that another caller starts.
-        let (take, mine) = try await beginRecording(armed: armed, playhead: playhead)
         // The take ends at its start host time + duration, also when the stop comes late.
-        let (end, overflow) = (session.recording?.takeStartHostTimeNanos ?? 0).addingReportingOverflow(length)
-        for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
+        let (take, mine) = try await beginRecording(armed: armed, playhead: playhead, length: length)
         let deadline = ContinuousClock.now + duration
         while generation == mine, transport == .recording(take: take), ContinuousClock.now < deadline {
             // A cancel ends the take now, as an early end.

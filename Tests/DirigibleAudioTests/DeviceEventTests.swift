@@ -269,13 +269,13 @@ struct DeviceEventTests {
         #expect(log.states(arm: 1).starts(with: [.deviceLost, .recording]))
     }
 
-    /// Control of the watchdog: records with no pause keep the device. The producer still sends
-    /// when `finish()` detaches it.
+    /// Control of the watchdog: records with no pause keep the device. The producer sends for
+    /// 60 s, longer than a full suite can hold the main actor, and `finish()` stops it.
     @Test func aDeviceWithNoPauseKeepsItsFirstAttach() async throws {
         let hal = TestHAL([mic])
         let input = SyntheticInput(hal, "mic")
         var clock = DeviceClock()
-        input.play(run(&clock, 10), pace: .realTime)
+        input.play(run(&clock, 60), pace: .realTime)
         let writer = writer(mic, hal, silenceLimit: .seconds(1))
 
         try await Task.sleep(for: .seconds(2))

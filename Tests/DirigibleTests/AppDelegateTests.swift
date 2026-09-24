@@ -2,6 +2,7 @@ import AppKit
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
@@ -127,6 +128,49 @@ import Testing
         #expect(window.alert == nil)
         #expect(window.window == nil)
         #expect(app.windows.isEmpty)
+    }
+
+    /// Code gate 1, item 1: a grant that comes after a close during the first microphone prompt
+    /// starts no take. Control: a grant with the window open starts the take (criterion 14).
+    @Test(arguments: [true, false])
+    func aGrantAfterACloseStartsNoTake(closed: Bool) async throws {
+        let mic = try #require(
+            InputDevice(
+                uid: "mic", name: "USB Mic", nominalRate: 48_000, availableRates: [48_000...48_000],
+                channelsPerBuffer: [1], latency: 0))
+        let package = folder.url.appending(path: "prompt.dirigible")
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.setRoute(Route(deviceUID: mic.uid, channels: .mono(1)), track: "t1")
+        try session.write(to: package)
+        let window = app.open(package)
+        let studio = try #require(await window.opened() ? window.studio : nil)
+        let granted = OSAllocatedUnfairLock(initialState: false)
+        studio.environment = CaptureEnvironment(
+            hal: DeviceHAL(
+                lookUp: { $0 == mic.uid ? (1, mic) : nil }, attach: { _ in { true } }, watchDevices: { _ in { true } }),
+            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            microphoneAccess: { granted.withLock { $0 } ? nil : .notDetermined }, freeBytes: { _ in .max },
+            diskCheckInterval: .seconds(60), saveSession: CaptureEnvironment.live.saveSession)
+        let (answer, give) = AsyncStream<Void>.makeStream()
+        var asked = false
+        window.requestMicrophoneAccess = {
+            asked = true
+            for await _ in answer { break }
+            granted.withLock { $0 = true }
+            return true
+        }
+
+        let record = Task { await window.record() }
+        await until("Record asks for the access") { asked }
+        if closed { await window.close() }
+        give.yield()
+        await record.value
+
+        #expect(try Session(contentsOf: package).recording == nil ? closed : !closed)
+        #expect(studio.transport == (closed ? .idle : .recording(take: 1)))
+        try? await studio.stopRecording()
+        await window.close()
     }
 
     private func closeAll() async {

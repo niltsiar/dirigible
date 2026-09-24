@@ -45,6 +45,10 @@ enum WindowAlert: Hashable {
     /// ponytail: a poll of the device list every 2 s while the window is key and idle; the
     /// input-monitor run adds a listener.
     @ObservationIgnored private var devicePoll: Task<Void, Never>?
+    /// The macOS microphone prompt (decision 0013). Tests give their own.
+    @ObservationIgnored var requestMicrophoneAccess: () async -> Bool = {
+        await AVCaptureDevice.requestAccess(for: .audio)
+    }
 
     init(url: URL, recordings: ActiveRecordings?, app: AppDelegate) {
         self.url = url
@@ -189,7 +193,10 @@ enum WindowAlert: Hashable {
             } catch .microphoneAccess(let access) {
                 switch microphoneStep(access) {
                 case .request:
-                    guard await AVCaptureDevice.requestAccess(for: .audio) else { throw .microphoneAccess(.denied) }
+                    guard await requestMicrophoneAccess() else { throw .microphoneAccess(.denied) }
+                    // The prompt waits for the user. A close can end the window meanwhile, and a
+                    // take starts only in an open window with the same studio.
+                    guard case .open(let current) = phase, current === studio else { return }
                     try await studio.startRecording(armed: armed, playhead: playhead)
                 case .privacyLink: throw .microphoneAccess(access)
                 }

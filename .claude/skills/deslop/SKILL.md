@@ -14,7 +14,7 @@ Check the diff of the current branch against `main` (`git diff main...HEAD` plus
 - Force operations used only to silence the compiler: `!`, `as!`, `try!`, `@unchecked Sendable`, `nonisolated(unsafe)`, `Any` or `AnyObject` where a real type exists.
 - Deeply nested code that early returns or `guard` make flat.
 - Protocols with one conformer, wrappers that only forward calls, and configuration for values that never change.
-- Dead code, unused parameters, and `TODO` notes without a ledger entry in `.scratchpads/`.
+- Dead code, unused parameters, and `TODO` notes without a ledger entry in `.scratchpads/`. For each new public function, find a caller outside `Tests/`. A function that only tests call proves nothing about the app. Also look for a second copy of its logic in the app target.
 - Other patterns inconsistent with the file and surrounding codebase.
 
 ## Guardrails

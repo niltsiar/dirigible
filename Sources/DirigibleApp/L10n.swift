@@ -16,6 +16,7 @@ enum L10n: String, CaseIterable {
     case menuRecordStart = "menu.record.start"
     case menuRecordStop = "menu.record.stop"
     case menuRecordRetry = "menu.record.retry"
+    case menuRecordMonitor = "menu.record.monitor"
 
     case panelNewName = "panel.new.name"
     case windowOpening = "window.opening"

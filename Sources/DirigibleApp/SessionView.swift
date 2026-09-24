@@ -31,6 +31,10 @@ struct SessionView: View {
             }
     }
 
+    private var monitoring: Binding<Bool> {
+        Binding(get: { model.monitoring }, set: { model.monitoring = $0 })
+    }
+
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .opening:
@@ -46,6 +50,7 @@ struct SessionView: View {
                     Banner(text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
                 }
                 TakeBanner(model: model, studio: studio)
+                Toggle(L10n.menuRecordMonitor.key, isOn: monitoring).toggleStyle(.checkbox).padding(8)
                 if studio.session.tracks.isEmpty {
                     Text(L10n.trackNone.key).foregroundStyle(.secondary).frame(
                         maxWidth: .infinity, maxHeight: .infinity)
@@ -125,7 +130,7 @@ private struct TakeBanner: View {
     }
 }
 
-/// One track: arm, name, layout, route, and during a take the meter and the state.
+/// One track: arm, name, layout, route, and during a take or a monitor the meter and the state.
 private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
@@ -176,9 +181,13 @@ private struct TrackRow: View {
 
     private var routeText: String {
         guard let route = track.route else { return L10n.trackRouteNone.text }
-        let device = model.devices.first { $0.uid == route.deviceUID }?.name ?? L10n.trackRouteMissing.text
-        return L10n.trackRoute.format(device, channelsText(route.channels))
+        return L10n.trackRoute.format(routeLabel(route: route, devices: model.devices), channelsText(route.channels))
     }
+}
+
+/// The device of a route: its name, or the "missing" text when it is not in `devices`.
+func routeLabel(route: Route, devices: [InputDevice]) -> String {
+    devices.first { $0.uid == route.deviceUID }?.name ?? L10n.trackRouteMissing.text
 }
 
 private func channelsText(_ channels: Route.Channels) -> String {
@@ -188,7 +197,7 @@ private func channelsText(_ channels: Route.Channels) -> String {
     }
 }
 
-/// The meter and the state of an armed track during a take.
+/// The meter and the state of an armed track during a take or a monitor.
 private struct LiveState: View {
     let live: LiveTrack
 

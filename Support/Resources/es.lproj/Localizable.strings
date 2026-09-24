@@ -10,6 +10,7 @@
 "menu.record.start" = "Grabar";
 "menu.record.stop" = "Detener";
 "menu.record.retry" = "Reintentar la finalización";
+"menu.record.monitor" = "Monitorizar entradas";
 
 /* Errores */
 "error.studio.busy" = "Hay una toma en curso o terminando. Espera a que termine.";

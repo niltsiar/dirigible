@@ -1,8 +1,10 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
+@testable import DirigibleAudio
 
 /// Polls `condition` every 10 ms. At the limit, it records `message` as an issue and returns.
 /// The default limit is 60 s, longer than the whole suite: in a full run, the DirigibleAudio
@@ -45,5 +47,37 @@ extension SessionWindow {
         await until("the window opens its package") { studio != nil }
         if studio == nil { Issue.record("The phase is \(phase)") }
         return studio != nil
+    }
+}
+
+/// A closure `DeviceHAL` with one device `duo` (2 channels, 48 kHz, object 7). It counts the
+/// attaches and the clean detaches; "the device is free" is `attaches == cleanDetaches`. The app
+/// test target cannot import `TestHAL` of `DirigibleAudioTests`.
+final class CountingHAL: Sendable {
+    private let counts = OSAllocatedUnfairLock(initialState: (attaches: 0, cleanDetaches: 0))
+
+    var attaches: Int { counts.withLock { $0.attaches } }
+    var isFree: Bool { counts.withLock { $0.attaches == $0.cleanDetaches } }
+
+    /// The live environment with this HAL, the access granted, and a watchdog limit of 60 s, so
+    /// a device with no records is never lost in a test.
+    var environment: CaptureEnvironment {
+        let duo = InputDevice(
+            uid: "duo", name: "Duo", nominalRate: 48_000, availableRates: [48_000...48_000], channelsPerBuffer: [2],
+            latency: 0)!
+        var environment = CaptureEnvironment.live
+        environment.hal = DeviceHAL(
+            lookUp: { $0 == duo.uid ? (7, duo) : nil },
+            attach: { [counts] _ in
+                counts.withLock { $0.attaches += 1 }
+                return {
+                    counts.withLock { $0.cleanDetaches += 1 }
+                    return true
+                }
+            }, watchDevices: { _ in { true } })
+        environment.microphoneAccess = { nil }
+        environment.silenceLimit = .seconds(60)
+        environment.firstRecordLimit = .seconds(60)
+        return environment
     }
 }

@@ -49,17 +49,20 @@ func finalizeTake(
     return result
 }
 
-/// The stems of the CAFs in `Capture/` that have frames (or do not open), whose take is not the
-/// pending take, and that no file of the session refers to. In name order. Nothing stores this
-/// list; the disk holds the fact (decision 0012).
-func unplacedSegments(in package: URL, session: Session) -> [String] {
+/// The segments of the CAFs in `Capture/` that have frames or do not open: the disk fact under
+/// the unplaced list (decision 0012). In name order. It reads files, so call it off the main actor.
+func segmentsWithAudio(in package: URL) -> [SegmentName] {
+    ((try? captureSegments(in: package)) ?? []).filter { name in
+        let file = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.stem).caf"))
+        return (file?.length ?? 1) > 0
+    }
+}
+
+/// The stems of `segments` whose take is not the pending take and that no file of the session
+/// refers to. In the order of `segments`. No file I/O, so a caller can derive it on each read.
+func unplacedSegments(_ segments: [SegmentName], session: Session) -> [String] {
     let referenced = Set(session.files.values.compactMap(\.capture))
-    return ((try? captureSegments(in: package)) ?? [])
-        .filter { $0.take != session.recording?.take && !referenced.contains(CaptureID($0.stem)) }
-        .filter { name in
-            let file = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.stem).caf"))
-            return (file?.length ?? 1) > 0
-        }
+    return segments.filter { $0.take != session.recording?.take && !referenced.contains(CaptureID($0.stem)) }
         .map(\.stem)
 }
 

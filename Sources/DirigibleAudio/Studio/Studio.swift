@@ -17,13 +17,15 @@ import Foundation
     public var pendingTake: Recording? { transport == .idle ? session.recording : nil }
     /// The last error of a finalize or of the save after it. Nil after a success.
     public private(set) var takeError: StudioError?
-    /// The stems of CAFs with audio that no pool file points to. Open, stop, and retry refresh
-    /// it; the disk holds the fact (decision 0012).
-    public private(set) var unplacedSegments: [String]
+    /// The stems of CAFs with audio that no pool file points to (decision 0012). Derived from
+    /// the session on each read, so an edit, an undo, or a redo changes it.
+    public var unplacedSegments: [String] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
     public var canUndo: Bool { history.canUndo }
     public var canRedo: Bool { history.canRedo }
 
     private var history: History
+    /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
+    private var segmentsWithAudio: [SegmentName]
     /// The device writers of the take that records.
     private var writers: [DeviceWriter] = []
     /// Held for the life of the studio. Dropping the studio releases it.
@@ -34,7 +36,7 @@ import Foundation
         self.lock = opened.lock
         self.history = History(opened.session)
         self.takeError = opened.takeError
-        self.unplacedSegments = opened.unplaced
+        self.segmentsWithAudio = opened.segmentsWithAudio
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
@@ -144,7 +146,7 @@ import Foundation
         let outcome = await completeTake(of: session, in: url)
         transport = .idle
         takeError = outcome.error
-        unplacedSegments = outcome.unplaced
+        segmentsWithAudio = outcome.segmentsWithAudio
         if let error = outcome.error { throw error }
         history.edit { $0 = outcome.session }
     }

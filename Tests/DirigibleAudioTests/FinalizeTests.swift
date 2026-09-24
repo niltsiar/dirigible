@@ -78,7 +78,7 @@ struct FinalizeTests {
 
         #expect(session.recording == nil)
         #expect(session.files.isEmpty)
-        #expect(unplacedSegments(in: package.url, session: session) == [])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == [])
     }
 
     @Test func aCAFWithNoSidecarIsUnplacedAndTheTakeEnds() throws {
@@ -89,7 +89,7 @@ struct FinalizeTests {
 
         #expect(session.recording == nil)
         #expect(session.files.isEmpty)
-        #expect(unplacedSegments(in: package.url, session: session) == ["take1-1-1"])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take1-1-1"])
         #expect(FileManager.default.fileExists(atPath: package.capture.appending(path: "take1-1-1.caf").path))
     }
 

@@ -3,7 +3,7 @@ import CoreAudio
 import DirigibleCore
 import IOKit.pwr_mgt
 
-/// The state of one armed track during a take.
+/// The state of one armed track during a take or a monitor (decision 0015).
 public struct LiveTrack: Hashable, Sendable {
     /// `writeFailed` has no cause: a full disk and a volume that goes away give the same status
     /// (decision 0013).
@@ -11,6 +11,8 @@ public struct LiveTrack: Hashable, Sendable {
         case recording
         case deviceLost
         case writeFailed
+        /// The monitor meters the track and writes no file.
+        case monitoring
     }
 
     public var state: State
@@ -89,17 +91,29 @@ struct CaptureEnvironment: Sendable {
         saveSession: { session, lock throws(SessionFileError) in try session.write(under: lock) })
 }
 
+/// A latency-critical `ProcessInfo` activity for the life of the value, so App Nap does not slow
+/// the drain of a hidden app (decisions 0014 and 0015). It lets the system sleep (probe P3).
+final class LatencyActivity: Sendable {
+    /// `ProcessInfo` gives an `NSObjectProtocol` token that is only passed back to `endActivity`.
+    nonisolated(unsafe) private let activity: any NSObjectProtocol
+
+    init(reason: String) {
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: reason)
+    }
+
+    deinit { ProcessInfo.processInfo.endActivity(activity) }
+}
+
 /// `kIOPMAssertPreventUserIdleSystemSleep` for the life of the value (decision 0004). A refused
-/// assertion gives no ID, and the take goes on without it. It also holds a latency-critical
-/// activity, so App Nap does not slow the drain of a hidden app (decision 0014). The activity
-/// lets the system sleep, so the IOPM assertion stays the only sleep assertion (probe P3).
+/// assertion gives no ID, and the take goes on without it. It also holds a latency activity
+/// (decision 0014), so the IOPM assertion stays the only sleep assertion (probe P3).
 final class SleepAssertion: Sendable {
     /// The reason of the activity. It is not the name of the IOPM assertion, so a test can tell
     /// them apart.
     static let activityReason = "Dirigible records a take"
     let id: IOPMAssertionID?
-    /// `ProcessInfo` gives an `NSObjectProtocol` token that is only passed back to `endActivity`.
-    nonisolated(unsafe) private let activity: any NSObjectProtocol
+    private let activity = LatencyActivity(reason: activityReason)
 
     init() {
         var id = IOPMAssertionID(0)
@@ -107,13 +121,10 @@ final class SleepAssertion: Sendable {
             kIOPMAssertPreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
             "Dirigible is recording" as CFString, &id)
         self.id = status == kIOReturnSuccess ? id : nil
-        activity = ProcessInfo.processInfo.beginActivity(
-            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: Self.activityReason)
     }
 
     deinit {
         if let id { IOPMAssertionRelease(id) }
-        ProcessInfo.processInfo.endActivity(activity)
     }
 }
 

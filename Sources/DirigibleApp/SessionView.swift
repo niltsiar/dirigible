@@ -197,7 +197,7 @@ private struct LiveState: View {
         let level = live.peak > 0 ? max(0, min(1, (20 * log10(Double(live.peak)) + 60) / 60)) : 0
         ProgressView(value: level).frame(width: 120)
         switch live.state {
-        case .recording: EmptyView()
+        case .recording, .monitoring: EmptyView()
         case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)
         case .writeFailed: Text(L10n.trackStateWriteFailed.key).foregroundStyle(.red)
         }

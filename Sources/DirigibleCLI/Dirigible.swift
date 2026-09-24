@@ -7,11 +7,12 @@ struct Dirigible: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "dirigible",
         abstract: "Make, change, and read Dirigible session packages.",
-        subcommands: [Create.self, Info.self, TrackCommand.self])
+        subcommands: [Create.self, Info.self, TrackCommand.self, FileCommand.self, CaptureCommand.self])
 }
 
 struct PackageArgument: ParsableArguments {
-    @Argument(help: "The session package, for example Show.dirigible.") var path: String
+    @Argument(help: ArgumentHelp("The session package, for example Show.dirigible.", valueName: "package"))
+    var path: String
     var url: URL { URL(filePath: path) }
 }
 

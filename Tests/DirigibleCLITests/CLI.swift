@@ -55,6 +55,10 @@ final class TemporaryPackage {
     func read() throws -> Session { try Session(contentsOf: url) }
     func xml() throws -> Data { try Data(contentsOf: sessionXML) }
 
+    /// Runs `dirigible` with each "PKG" argument replaced by the package path.
+    func run(_ arguments: String...) throws -> CLIResult { try run(arguments) }
+    func run(_ arguments: [String]) throws -> CLIResult { try dirigible(arguments.map { $0 == "PKG" ? path : $0 }) }
+
     /// Changes the package through the library, not the CLI.
     func edit(_ body: (inout Session) throws -> Void) throws {
         var session = try read()

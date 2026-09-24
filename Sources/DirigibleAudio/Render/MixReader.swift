@@ -11,14 +11,15 @@ final class MixReader {
     var session: Session
     /// The faults of the files that this reader opened or read.
     private(set) var faults: [FileID: MediaFault] = [:]
-    private let clips: URL
+    /// The package path. The Player sets it to the path that the lock holds at each refill.
+    var package: URL
     /// The open files. Nil for a file that did not open.
     private var files: [FileID: AVAudioFile?] = [:]
     private var scratch: [AVAudioFormat: AVAudioPCMBuffer] = [:]
 
     init(package: URL, session: Session) {
         self.session = session
-        clips = package.appending(path: clipsFolderName)
+        self.package = package
     }
 
     /// Sets `buffer.frameLength` to the range length. `buffer` is stereo float32 and holds the range.
@@ -71,7 +72,7 @@ final class MixReader {
     private func open(_ id: FileID) -> AVAudioFile? {
         if let file = files[id] { return file }
         guard let entry = session.files[id] else { return nil }
-        let (file, fault) = openMedia(entry, in: clips, rate: session.sampleRate)
+        let (file, fault) = openMedia(entry, in: package.appending(path: clipsFolderName), rate: session.sampleRate)
         files[id] = file
         faults[id] = fault
         return file

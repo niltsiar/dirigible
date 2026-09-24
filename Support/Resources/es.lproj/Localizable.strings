@@ -101,4 +101,5 @@
 "transport.record.over" = "El cursor está sobre un clip de una pista armada. Grabar sustituye ese audio.";
 "transport.stop.output.changed" = "La reproducción se detuvo: cambió el dispositivo de salida.";
 "transport.stop.output.unavailable" = "No se puede reproducir: el dispositivo de salida no está disponible (error %lld).";
+"transport.stop.package.unavailable" = "La reproducción se detuvo: el paquete de la sesión no está disponible. Comprueba que su disco está conectado.";
 "media.missing" = "Faltan archivos de audio o están dañados. Sus clips suenan como silencio: %@";

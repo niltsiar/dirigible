@@ -94,7 +94,11 @@ actor Player {
         frame = start
         played = number
         stop = nil
-        guard let graph = makeGraph(), let url = try? package() else { return }
+        guard let graph = makeGraph() else { return }
+        guard let url = try? package() else {
+            stop = .packageUnavailable
+            return
+        }
         dispatchPrecondition(condition: .notOnQueue(.main))
         do {
             if !graph.engine.isRunning { try self.start(graph.engine) }
@@ -166,9 +170,15 @@ actor Player {
         return (0..<2).map { Array(UnsafeBufferPointer(start: buffer.floatChannelData![$0], count: count)) }
     }
 
-    /// Schedules chunks until the feed is `depth` chunks ahead of the node, or at its end.
+    /// Schedules chunks until the feed is `depth` chunks ahead of the node, or at its end. The
+    /// chunks read the package that the lock holds now; a package that left its volume stops.
     private func refill() {
         guard var feed, let graph else { return }
+        guard let url = try? package() else {
+            stop = .packageUnavailable
+            return
+        }
+        feed.mix.package = url
         let total = length(feed)
         let target = min(total, nodeFrames() + chunk * Self.depth)
         while feed.scheduled < target {

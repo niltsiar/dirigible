@@ -17,6 +17,8 @@ public enum PlaybackStop: Hashable, Sendable {
     case outputChanged
     /// The engine did not start; the value is the error code.
     case outputUnavailable(Int)
+    /// The package left its volume or was deleted (decision 0016).
+    case packageUnavailable
 }
 
 /// The playback state of a studio (decision 0016). `Studio` stores one value of it.
@@ -56,9 +58,11 @@ extension Studio {
     public var playbackStop: PlaybackStop? { play.playbackStop }
 
     /// Checks each pool file off the main actor (decision 0016). The window calls it at focus;
-    /// `open`, a finalize, and a play from stopped check too.
+    /// `open`, a finalize, and a play from stopped check too. A package that left its volume
+    /// keeps the last state: the check cannot read it.
     public func checkMedia() async {
-        play.missingMedia = await mediaFaults(session, lock: lock, before: environment.beforeMediaCheck)
+        guard let faults = await mediaFaults(session, lock: lock, before: environment.beforeMediaCheck) else { return }
+        play.missingMedia = faults
     }
 
     /// The one entry of the transport commands (decision 0016). It never throws: a command that
@@ -248,11 +252,11 @@ extension Studio {
 }
 
 /// The media check of `Studio.checkMedia`, off the main actor, in the package that the lock
-/// holds now. A package that left its volume gives no fault.
+/// holds now. Nil when the package left its volume.
 @concurrent nonisolated func mediaFaults(
     _ session: Session, lock: PackageLock, before: @Sendable () -> Void
-) async -> [FileID: MediaFault] {
+) async -> [FileID: MediaFault]? {
     before()
-    guard let package = try? lock.package() else { return [:] }
+    guard let package = try? lock.package() else { return nil }
     return checkMedia(session, package: package)
 }

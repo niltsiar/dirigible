@@ -24,7 +24,8 @@ struct TakeOutcome: Sendable {
     /// The package path that the lock holds (`packageIdentity` form). Nil when the package left
     /// its volume.
     var package: URL?
-    var missingMedia: [FileID: MediaFault] = [:]
+    /// Nil when the package left its volume: the check cannot read it.
+    var missingMedia: [FileID: MediaFault]? = nil
 }
 
 /// The recovery marker of decision 0004, in the package root.
@@ -73,7 +74,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     return OpenedPackage(
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
         segmentsWithAudio: outcome.segmentsWithAudio, recoveredTake: outcome.error == nil ? session.recording : nil,
-        missingMedia: outcome.missingMedia)
+        missingMedia: outcome.missingMedia ?? [:])
 }
 
 /// The one step that open, stop, and retry share, in the package that `lock` holds now (decision

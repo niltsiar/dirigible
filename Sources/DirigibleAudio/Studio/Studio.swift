@@ -328,7 +328,7 @@ import Observation
         transport = .idle
         takeError = outcome.error
         segmentsWithAudio = outcome.segmentsWithAudio
-        play.missingMedia = outcome.missingMedia
+        if let missingMedia = outcome.missingMedia { play.missingMedia = missingMedia }
         if let error = outcome.error { throw error }
         takeEnded(outcome.session)
         history.edit { $0 = outcome.session }

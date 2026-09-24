@@ -101,4 +101,5 @@
 "transport.record.over" = "The playhead is on a clip of an armed track. Record replaces that audio.";
 "transport.stop.output.changed" = "Playback stopped: the output device changed.";
 "transport.stop.output.unavailable" = "Playback cannot start: the output device is not available (error %lld).";
+"transport.stop.package.unavailable" = "Playback stopped: the session package is not available. Check that its disk is connected.";
 "media.missing" = "Some audio files are missing or damaged. Their clips play as silence: %@";

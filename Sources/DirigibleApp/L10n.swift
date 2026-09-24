@@ -80,6 +80,7 @@ enum L10n: String, CaseIterable {
     case transportRecordOver = "transport.record.over"
     case transportStopOutputChanged = "transport.stop.output.changed"
     case transportStopOutputUnavailable = "transport.stop.output.unavailable"
+    case transportStopPackageUnavailable = "transport.stop.package.unavailable"
     case mediaMissing = "media.missing"
 
     case errorBusy = "error.studio.busy"
@@ -142,6 +143,7 @@ enum L10n: String, CaseIterable {
         switch stop {
         case .outputChanged: transportStopOutputChanged.text
         case .outputUnavailable(let code): transportStopOutputUnavailable.format(code)
+        case .packageUnavailable: transportStopPackageUnavailable.text
         }
     }
 

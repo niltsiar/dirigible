@@ -177,6 +177,54 @@ extension StudioPlaybackTests {
         #expect(studio.playbackStop == .outputChanged && studio.playhead == 4800)
     }
 
+    /// A package that left its volume (here: deleted) stops the play with its own cause, at a
+    /// play from stopped, at a shuttle change, and during a play. The last media state stays.
+    /// Found by the code gate.
+    @Test(arguments: ["from stopped", "shuttle", "during play"])
+    func aPackageThatLeftStopsThePlayWithItsCause(when: String) async throws {
+        let studio = try await studio()
+        try FileManager.default.moveItem(at: wav, to: package.folder.url.appending(path: "f1.wav"))
+        await studio.checkMedia()
+        await studio.perform(.seek(.start))
+        if when != "from stopped" {
+            await studio.perform(.playStop)
+            _ = await studio.renderOffline(frames: 4800)
+        }
+
+        try FileManager.default.removeItem(at: package.url)
+        await studio.checkMedia()
+        switch when {
+        case "from stopped": await studio.perform(.playStop)
+        case "shuttle": await studio.perform(.forward)
+        default: _ = await studio.renderOffline(frames: 9600)
+        }
+
+        await until(limit: .seconds(10), "the play did not stop") { studio.playback == .stopped }
+        #expect(studio.playbackStop == .packageUnavailable)
+        #expect(studio.missingMedia == ["f1": .missing], "the last media state")
+    }
+
+    /// A rename during a play: a file that first opens after the rename opens in the renamed
+    /// package, not as missing at the old path (the stored package path of the feed).
+    @Test func aRenameDuringAPlayReadsTheRenamedPackage() async throws {
+        try package.addFile("f2", channels: [ramp(frames: 24_000, channel: 1)])
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 24_000, offset: 0, length: 24_000)
+        try package.session.write(to: package.url)
+        let mix = try package.mix(0..<28_800)
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        var out = await studio.renderOffline(frames: 4800)
+
+        let renamed = package.folder.url.appending(path: "Renamed.dirigible")
+        try #require(rename(package.url.path, renamed.path) == 0)
+        for (channel, more) in await studio.renderOffline(frames: 24_000).enumerated() { out[channel] += more }
+
+        expectMix(out, mix, "f2 plays from the renamed package")
+        #expect(studio.missingMedia == [:])
+        #expect(studio.playback != .stopped)
+    }
+
     /// Control: a start that works plays and shows no stop.
     @Test(arguments: [true, false])
     func aStartFailureShowsOutputUnavailable(fails: Bool) async throws {

@@ -50,6 +50,7 @@ This repo allows the workflow to improve itself without a human in the loop, bec
 
 - Follow the **writing-for-agents** skill when an edit touches a skill, an agent, or `AGENTS.md`.
 - Apply each Accepted edit to repo files only: `.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `docs/`, `Makefile`, `scripts/`. Never edit user-level files under `~/.claude/`.
+- Edit `.claude/hooks/` only when `make test-hooks` covers the change and no existing block case is removed or changed to allow. When one class of hook false positive is in `learnings.md` twice, fix the hook with a test case. Do not add another workaround line.
 - Commit each learning as its own commit, for example `docs(skills): tdd requires tolerance on DSP asserts`. The body says which session moment caused it.
 - Do not apply an edit that deletes a rule from `AGENTS.md` or weakens a test gate. Put it in the backlog for the user.
 - Append Backlog items to `.scratchpads/backlog.md`.

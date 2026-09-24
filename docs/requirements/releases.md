@@ -31,7 +31,8 @@ Run order. Each run lands through its own pull request.
 
 1. **Session core.** `DirigibleCore`: session, tracks, clips, routes, markers, snapshot undo, XML version 1 in a package, the import-rule test.
 2. **Capture.** Two runs in `DirigibleAudio`. capture-finalize: segments, finalize, recovery, the `Studio` core, and the package lock. capture-live: IOProcs, rings, device events, and the hardware checks from 0004.
-3. **Record UI.** The window, tracks with routes and meters, record and stop, the microphone permission check, the first `.lproj` strings.
+3. **Record UI.** The window, tracks with routes and meters during a take, record and stop, the microphone permission check, the first `.lproj` strings.
+   - **Input monitor** (run 3b). The meter of an armed track before a take, and a device-list listener. The record UI run split it off (0014).
 4. **Timeline and playback.** Waveforms, `Player`, selection, edit commands with keys, markers.
 5. **Export.** `exportMix` to WAV, AAC, and FLAC, mono or stereo.
 

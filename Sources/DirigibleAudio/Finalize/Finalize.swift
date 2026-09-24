@@ -5,19 +5,19 @@ import Foundation
 /// Only faults that can go away (decision 0012). The take stays pending and a retry can succeed.
 public enum FinalizeError: Error, Hashable, Sendable {
     /// `Capture/` or a segment file does not open or read, with an errno other than ENOENT (for
-    /// example EACCES, EIO, EMFILE). A CAF read that fails in the middle with an errno is this
-    /// case, not an unplaced segment.
+    /// example EACCES, EIO, EMFILE). A CAF or WAV read that fails with an errno (from the error,
+    /// or else from a POSIX read of the file: `ioErrno`) is this case, not an unplaced segment.
     case readFailed(file: String, errno: Int32)
     /// `Clips/` or a WAV cannot be made, written, flushed, or closed (for example ENOSPC, EACCES).
     case writeFailed(file: String, status: Int32)
 }
 
-/// A test seam: fails the read of block `block` (0-based) of one segment with `errno`. Only tests
-/// pass it; `Studio` and the CLI never do.
+/// A test seam: `before` runs before the read of block `block` (0-based) of one segment, and an
+/// error that it throws is the read error. Only tests pass it; `Studio` and the CLI never do.
 struct ReadFault: Sendable {
     var stem: String
     var block: Int
-    var errno: Int32
+    var before: @Sendable () throws -> Void
 }
 
 /// Reads every segment of `session.recording` in `Capture/`, writes each WAV to `Clips/`, and
@@ -84,6 +84,25 @@ func openErrno(_ path: String) -> Int32? {
     return nil
 }
 
+/// The errno of an I/O fault under an AVAudioFile error on the file at `descriptor`, or nil when
+/// the file is bad, not the disk. A real I/O fault reaches AVAudioFile with no errno (probe
+/// 2026-09-24, probe-read-error.swift: -40 on a block read, 'wht?' on an open), and an empty CAF
+/// also gives 'wht?'. So with no errno in the error, a POSIX read of every byte decides.
+func ioErrno(of error: any Error, file descriptor: Int32) -> Int32? {
+    if let code = posixCode(of: error) { return code }
+    var bytes = [UInt8](repeating: 0, count: 1 << 20)
+    var offset: off_t = 0
+    while true {
+        let count = pread(descriptor, &bytes, bytes.count, offset)
+        if count == 0 { return nil }
+        if count > 0 {
+            offset += off_t(count)
+        } else if errno != EINTR {
+            return errno
+        }
+    }
+}
+
 /// The POSIX code under a Foundation or AVFoundation error, or nil when there is none.
 func posixCode(of error: any Error) -> Int32? {
     var current: NSError? = error as NSError
@@ -110,18 +129,28 @@ private struct SegmentFinalize {
     /// The session with the capture, the file, and the clip of the segment added. Nil when the
     /// segment has no frames, or has a fault of its own and stays unplaced.
     func place(on session: Session) throws(FinalizeError) -> Session? {
-        if let code = openErrno(package.appending(path: caf).path) {
-            if code == ENOENT { return nil }
-            throw .readFailed(file: caf, errno: code)
+        // Held open, so a read error with no errno can be checked on the same file.
+        let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_CLOEXEC)
+        guard descriptor >= 0 else {
+            if errno == ENOENT { return nil }
+            throw .readFailed(file: caf, errno: errno)
         }
-        guard let input = try? AVAudioFile(forReading: package.appending(path: caf)), input.length > 0,
-            let sidecar = try readSidecar(), input.fileFormat.sampleRate == sidecar.header.nominalRate,
+        defer { close(descriptor) }
+        let input: AVAudioFile
+        do {
+            input = try AVAudioFile(forReading: package.appending(path: caf))
+        } catch {
+            if let code = ioErrno(of: error, file: descriptor) { throw .readFailed(file: caf, errno: code) }
+            return nil
+        }
+        guard input.length > 0, let sidecar = try readSidecar(),
+            input.fileFormat.sampleRate == sidecar.header.nominalRate,
             Int(input.fileFormat.channelCount) == sidecar.header.channelCount
         else { return nil }
         let header = sidecar.header
         let choice = RateChoice(header: header, checkpoints: sidecar.checkpoints, frames: Int(input.length))
         let rate = Double(session.sampleRate)
-        guard let length = try convert(input, from: choice.source, to: rate) else { return nil }
+        guard let length = try convert(input, file: descriptor, from: choice.source, to: rate) else { return nil }
 
         let latency = (Double(header.latency) * rate / choice.nominal).rounded()
         let hostOffset =
@@ -173,10 +202,12 @@ private struct SegmentFinalize {
         }
     }
 
-    /// Reads `input` in blocks, converts it from `source` to `rate` through one converter when
-    /// the rates differ, and writes the WAV. Returns the frame count of the WAV, or nil for a
-    /// read or converter error with no errno, or a WAV length that does not read back.
-    func convert(_ input: AVAudioFile, from source: Double, to rate: Double) throws(FinalizeError) -> Int? {
+    /// Reads `input` (open at `descriptor` too) in blocks, converts it from `source` to `rate`
+    /// through one converter when the rates differ, and writes the WAV. Returns the frame count of
+    /// the WAV, or nil for a bad CAF, a converter error, or a WAV length that does not read back.
+    func convert(
+        _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double
+    ) throws(FinalizeError) -> Int? {
         let channels = input.processingFormat.channelCount
         let capacity = AVAudioFrameCount(blockFrames)
         guard let output = AVAudioFormat(standardFormatWithSampleRate: rate, channels: channels),
@@ -186,7 +217,8 @@ private struct SegmentFinalize {
         try createClipsFolder()
         let url = package.appending(path: wav)
         let writer = try ClipWriter(url: url, file: wav, format: output)
-        let reader = BlockReader(input: input, buffer: read, fault: readFault?.stem == name.stem ? readFault : nil)
+        let reader = BlockReader(
+            input: input, descriptor: descriptor, buffer: read, fault: readFault?.stem == name.stem ? readFault : nil)
         var length = 0
 
         if source == rate {
@@ -218,8 +250,16 @@ private struct SegmentFinalize {
         if let failure = reader.failure { throw .readFailed(file: caf, errno: failure) }
         guard !reader.unreadable else { return nil }
         try writer.close()
-        guard (try? AVAudioFile(forReading: url).length) == AVAudioFramePosition(length) else { return nil }
-        if let code = fullFlush(path: url.path) { throw .writeFailed(file: wav, status: code) }
+        let clip = open(url.path, O_RDONLY | O_CLOEXEC)
+        guard clip >= 0 else { throw .readFailed(file: wav, errno: errno) }
+        defer { close(clip) }
+        if let code = fullFlush(clip) { throw .writeFailed(file: wav, status: code) }
+        do {
+            guard try AVAudioFile(forReading: url).length == AVAudioFramePosition(length) else { return nil }
+        } catch {
+            if let code = ioErrno(of: error, file: clip) { throw .readFailed(file: wav, errno: code) }
+            return nil
+        }
         return length
     }
 
@@ -233,12 +273,13 @@ private struct SegmentFinalize {
     }
 }
 
-/// Reads a file in blocks into one buffer. A read error with an errno sets `failure`; one
-/// without an errno sets `unreadable`. `@unchecked Sendable`: the converter input block is
+/// Reads a file in blocks into one buffer. A read error that `ioErrno` gives an errno sets
+/// `failure`; any other read error sets `unreadable`. `@unchecked Sendable`: the converter input block is
 /// `@Sendable`, but the converter calls it synchronously inside `convert`, so one thread at a time
 /// uses the reader.
 private final class BlockReader: @unchecked Sendable {
     let input: AVAudioFile
+    let descriptor: Int32
     let buffer: AVAudioPCMBuffer
     let fault: ReadFault?
     /// A buffer at the source rate that gets a copy of each block, for the converter.
@@ -247,8 +288,9 @@ private final class BlockReader: @unchecked Sendable {
     private(set) var failure: Int32?
     private(set) var unreadable = false
 
-    init(input: AVAudioFile, buffer: AVAudioPCMBuffer, fault: ReadFault?) {
+    init(input: AVAudioFile, descriptor: Int32, buffer: AVAudioPCMBuffer, fault: ReadFault?) {
         self.input = input
+        self.descriptor = descriptor
         self.buffer = buffer
         self.fault = fault
     }
@@ -257,14 +299,11 @@ private final class BlockReader: @unchecked Sendable {
     func next() -> Bool {
         guard failure == nil, !unreadable, input.framePosition < input.length else { return false }
         defer { block += 1 }
-        if let fault, fault.block == block {
-            failure = fault.errno
-            return false
-        }
         do {
+            if let fault, fault.block == block { try fault.before() }
             try input.read(into: buffer, frameCount: buffer.frameCapacity)
         } catch {
-            if let code = posixCode(of: error) { failure = code } else { unreadable = true }
+            if let code = ioErrno(of: error, file: descriptor) { failure = code } else { unreadable = true }
             return false
         }
         return buffer.frameLength > 0

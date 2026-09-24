@@ -19,7 +19,7 @@ struct FinalizeFaultTests {
     func file(_ name: String) -> URL { package.capture.appending(path: name) }
 
     enum Fault: String, CaseIterable, CustomTestStringConvertible {
-        case badMagic, randomCAF, rateNotTheHeaderRate, clipIDInUse
+        case badMagic, randomCAF, emptyCAF, rateNotTheHeaderRate, clipIDInUse
         var testDescription: String { rawValue }
     }
 
@@ -33,6 +33,9 @@ struct FinalizeFaultTests {
             var random = SeededGenerator(seed: 7)
             try Data((0..<10_000).map { _ in UInt8.random(in: 0...255, using: &random) }).write(
                 to: file("take1-1-1.caf"))
+        case .emptyCAF:
+            // AVAudioFile gives 'wht?', the open code of a real I/O fault too.
+            try Data().write(to: file("take1-1-1.caf"))
         case .rateNotTheHeaderRate:
             // The CAF is at 44.1 kHz; the sidecar says 48 kHz.
             let sidecar = try Data(contentsOf: file("take1-1-1.sidecar"))
@@ -106,11 +109,24 @@ struct FinalizeFaultTests {
     }
 
     @Test func anErrnoInTheMiddleOfACAFReadThrows() throws {
-        let fault = ReadFault(stem: "take1-1-1", block: 1, errno: EIO)
+        let fault = ReadFault(stem: "take1-1-1", block: 1) { throw NSError(domain: NSPOSIXErrorDomain, code: Int(EIO)) }
 
         #expect(throws: FinalizeError.readFailed(file: "Capture/take1-1-1.caf", errno: EIO)) {
             try finalizeTake(of: package.read(), in: package.url, readFault: fault)
         }
+    }
+
+    /// The shape of a real I/O fault (probe 2026-09-24): AVAudioFile -40 with no errno. Here every
+    /// byte of the CAF reads with POSIX, so it is a bad file, and only that segment stays unplaced.
+    @Test func aReadErrorWithNoErrnoOnAFileThatReadsLeavesTheSegmentUnplaced() throws {
+        let fault = ReadFault(stem: "take1-1-1", block: 1) {
+            throw NSError(domain: "com.apple.coreaudio.avfaudio", code: -40)
+        }
+
+        let session = try finalizeTake(of: package.read(), in: package.url, readFault: fault)
+
+        #expect(session.track("t1")?.clips.isEmpty == true)
+        #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
     }
 
     @Test func unplacedSegmentsSkipEmptyPlacedAndPendingCAFs() throws {

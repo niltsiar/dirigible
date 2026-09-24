@@ -4,8 +4,11 @@ import Foundation
 
 /// The exit code for an edit that the session refuses (decision 0011).
 let editRefused: Int32 = 1
-/// The exit code for a package that cannot be read, written, or made (decision 0011).
+/// The exit code for a package that cannot be read, written, or made, is locked, or keeps a
+/// pending take (decisions 0011 and 0012).
 let packageError: Int32 = 2
+/// The exit code for captured audio that is not on the timeline (`take finalize`, decision 0012).
+let unplacedAudio: Int32 = 3
 
 /// Writes one line `Error: <message>` to stderr and returns the exit code to throw.
 func fail(_ message: String, code: Int32) -> ExitCode {
@@ -21,10 +24,22 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
     }
 }
 
-/// Reads the package, refuses one whose `session.xml` holds `<recording>` (decision 0004),
-/// applies `body`, and saves. The package does not change when the read, the refusal, the edit,
-/// or the save fails. Writes one error line to stderr and throws the exit code.
+/// Takes the package lock (decision 0012), removes the leftover temporary files of a crashed
+/// save, reads the package, refuses one whose `session.xml` holds `<recording>` (decision 0004),
+/// applies `body`, and saves. The lock is held until the save ends. The package does not change
+/// when the lock, the read, the refusal, the edit, or the save fails. Writes one error line to
+/// stderr and throws the exit code.
 func editPackage<Result>(
+    _ package: PackageArgument, _ body: (inout Session) throws(SessionError) -> Result
+) throws(ExitCode) -> Result {
+    let locked = { (error: SessionFileError) in fail(error.message(package: package.path), code: packageError) }
+    return try PackageLock.withLock(package.url, locked: locked) { () throws(ExitCode) -> Result in
+        Session.removeTemporaryFiles(in: package.url)
+        return try editLocked(package, body)
+    }
+}
+
+private func editLocked<Result>(
     _ package: PackageArgument, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
     var session = try readPackage(package)

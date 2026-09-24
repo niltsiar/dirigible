@@ -3,13 +3,13 @@ import DirigibleCore
 import Foundation
 
 @main
-struct Dirigible: ParsableCommand {
+struct Dirigible: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "dirigible",
         abstract: "Make, change, and read Dirigible session packages.",
         subcommands: [
             Create.self, Info.self, TrackCommand.self, FileCommand.self, CaptureCommand.self, ClipCommand.self,
-            MarkerCommand.self,
+            MarkerCommand.self, TakeCommand.self,
         ])
 }
 

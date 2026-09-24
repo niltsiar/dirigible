@@ -93,6 +93,25 @@ struct RecordTests {
         #expect(studio.transport == .idle)
     }
 
+    /// A cancelled call stops its take at once, as an early end, and returns its result. Before
+    /// the fix, the wait spun on the main actor until the deadline. The limit is long, because a
+    /// full suite can hold the main actor for seconds.
+    @Test func aCancelledRecordStopsItsTake() async throws {
+        let hal = TestHAL([mic])
+        let studio = try await studio(hal)
+        let recorder = Task { @MainActor in try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(30)) }
+        await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
+        let start = ContinuousClock.now
+
+        recorder.cancel()
+        let result = try await recorder.value
+
+        #expect(ContinuousClock.now - start < .seconds(10), "returned after \(ContinuousClock.now - start)")
+        #expect(result == TakeResult(take: 1, end: .requested, gaps: [:]))
+        #expect(studio.transport == .idle)
+        #expect(studio.pendingTake == nil)
+    }
+
     // MARK: Criterion 23: the take result
 
     /// The attach of each device in `failing` always throws. Control: none fails, no gap.

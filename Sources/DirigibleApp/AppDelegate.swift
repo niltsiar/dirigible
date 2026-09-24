@@ -20,7 +20,7 @@ import UniformTypeIdentifiers
     /// panel only when none waits.
     @ObservationIgnored private var openEvents = 0
     /// The J and L hold of the key monitor (decision 0016).
-    @ObservationIgnored private var hold = ShuttleHold()
+    @ObservationIgnored private var hold = ShuttleHold<Studio>()
     @ObservationIgnored private var keyMonitor: Any?
 
     /// The app: the list of active recordings in Application Support.
@@ -95,13 +95,15 @@ import UniformTypeIdentifiers
     }
 
     /// Drops the auto-repeat of J, L, and Space, and pauses at the key-up of a hold (probe H1). The
-    /// release calls the pause directly, with no key forward (plan gate 2 item 6).
+    /// release calls the pause directly, with no key forward (plan gate 2 item 6), on the Studio
+    /// of the key-down, also when the key window changed during the hold.
     private func watchKeys() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             guard let self else { return event }
-            switch hold.handle(event, forTransport: takesTransportKeys(NSApp.keyWindow)) {
+            let target = takesTransportKeys(NSApp.keyWindow) ? key?.studio : nil
+            switch hold.handle(event, target: target) {
             case .drop: return nil
-            case .release: Task { await self.key?.studio?.perform(.pause) }
+            case .release(let studio): Task { await studio.perform(.pause) }
             case .pass: break
             }
             return event

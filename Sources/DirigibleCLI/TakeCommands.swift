@@ -48,6 +48,11 @@ extension StudioError {
     func message(package: String) -> String {
         switch self {
         case .locked: SessionFileError.locked.message(package: package)
+        case .busy: "\(package) is busy with a take."
+        case .noRoute(let track): "track \"\(track)\" has no route."
+        case .deviceMissing(let track): "the device of track \"\(track)\" is missing."
+        case .channelOutOfRange(let track): "the device of track \"\(track)\" does not have its channel."
+        case .channelInUse(let first, let second): "tracks \"\(first)\" and \"\(second)\" use the same channel."
         case .session(let error): error.message
         case .file(let error): error.message(package: package)
         case .finalize(.readFailed(let file, let code)):

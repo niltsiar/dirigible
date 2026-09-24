@@ -33,6 +33,9 @@ enum WindowAlert: Hashable {
     var alert: WindowAlert?
     /// Window state, not saved: at open, the tracks with a route; a new route arms (decision 0014).
     var armed: Set<TrackID> = []
+    /// The typed name of each track that no rename has saved yet. A name field shows its draft,
+    /// else the saved name.
+    var drafts: [TrackID: String] = [:]
     private(set) var devices: [InputDevice] = []
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
@@ -120,6 +123,7 @@ enum WindowAlert: Hashable {
     /// Waits for the open, stops a take, and waits for every write. When the last save failed,
     /// it asks before it closes.
     func close() async {
+        commitNames()
         alert = nil
         switch phase {
         case .closing, .closed: return
@@ -155,6 +159,7 @@ enum WindowAlert: Hashable {
     /// For Quit: waits for the open, stops a take, and waits for every write.
     func settle() async {
         await opening?.value
+        commitNames()
         await studio?.settle()
     }
 
@@ -183,6 +188,7 @@ enum WindowAlert: Hashable {
 
     /// Command-R. The library reads the microphone access; the app requests it (decision 0013).
     func record() async {
+        commitNames()
         guard canRecord, let studio = idleStudio else { return }
         let armed = studio.session.tracks.map(\.id).filter(armed.contains)
         // ponytail: the take goes after the last clip; the timeline run adds a playhead.
@@ -229,9 +235,19 @@ enum WindowAlert: Hashable {
         }
     }
 
-    func rename(_ track: TrackID, to name: String) {
-        guard idleStudio?.session.track(track)?.name != name else { return }
+    /// Saves the typed name of the track. The draft goes also when the rename is refused, so
+    /// the field shows the saved name again.
+    func commitName(_ track: TrackID) {
+        guard let name = drafts.removeValue(forKey: track), idleStudio?.session.track(track)?.name != name else {
+            return
+        }
         edit { s throws(SessionError) in try s.renameTrack(track, to: name) }
+    }
+
+    /// Record, Close, and Quit save each typed name first, also a name with no Return and with
+    /// the focus still in its field.
+    private func commitNames() {
+        for track in drafts.keys { commitName(track) }
     }
 
     /// A route sets the layout of its channels, and it arms the track.

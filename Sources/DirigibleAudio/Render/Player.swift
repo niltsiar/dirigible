@@ -63,6 +63,9 @@ actor Player {
     private var graph: Graph?
     private var feed: Feed?
     private var stop: PlaybackStop?
+    /// The output presentation latency in session frames, read at each play start. The node
+    /// frames run ahead of the heard frames by this much. 0 in offline rendering.
+    private var latency = 0
     /// The configuration-change observer of the engine, removed with the Player.
     private var observer: Observer?
     /// The mix frames under one chunk, reused.
@@ -106,6 +109,9 @@ actor Player {
             stop = .outputUnavailable((error as NSError).code)
             return
         }
+        latency =
+            output == .device
+            ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded()) : 0
         feed = Feed(anchor: start, shuttle: shuttle, mix: MixReader(package: url, session: session))
         refill()
         graph.node.play()
@@ -120,9 +126,10 @@ actor Player {
         feed?.mix.session = session
     }
 
-    /// `ended`: the feed scheduled its last frame and the node played it.
+    /// `ended`: the feed scheduled its last frame, and the output played it (the output latency
+    /// after the node).
     func reading() -> Reading {
-        let ended = feed.map { $0.scheduled >= length($0) && nodeFrames() >= $0.scheduled } ?? false
+        let ended = feed.map { $0.scheduled >= length($0) && nodeFrames() - latency >= $0.scheduled } ?? false
         return Reading(
             number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false,
             stop: stop, faults: feed?.mix.faults ?? [:])
@@ -139,13 +146,14 @@ actor Player {
 
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
     /// Before each pull it waits (at most 2 s) until the handlers have scheduled the frames, as
-    /// the device clock gives them time to.
-    func renderOffline(frames: Int) async -> [[Float]] {
+    /// the device clock gives them time to. `starve` pulls with no wait and no suspension, so
+    /// no refill runs and the node can run dry, as a late refill on a slow disk does.
+    func renderOffline(frames: Int, starve: Bool = false) async -> [[Float]] {
         var out: [[Float]] = [[], []]
         var left = frames
         while left > 0 {
             let count = min(left, chunk)
-            await waitForFeed(count)
+            if !starve { await waitForFeed(count) }
             let pulled = pull(count)
             for channel in 0..<2 { out[channel] += pulled?[channel] ?? [Float](repeating: 0, count: count) }
             left -= count
@@ -179,6 +187,17 @@ actor Player {
             return
         }
         feed.mix.package = url
+        // An underrun (a late refill, a slow disk): the node ran dry and its time went on, so
+        // the next buffer would play later than its frames say, and the playhead would run
+        // ahead of the heard audio. Start the node again at the last frame that it played.
+        let (scheduled, played) = (feed.scheduled, nodeFrames())
+        let dry = scheduled < length(feed) && played > scheduled
+        if dry {
+            graph.node.stop()
+            feed = Feed(anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, mix: feed.mix)
+            self.feed = feed
+        }
+        defer { if dry { graph.node.play() } }
         let total = length(feed)
         let target = min(total, nodeFrames() + chunk * Self.depth)
         while feed.scheduled < target {
@@ -246,9 +265,16 @@ actor Player {
         }
     }
 
+    /// The frame that the user hears: the node frames less the output latency, at most the
+    /// scheduled frames.
     private func position() -> Frames {
         guard let feed else { return frame }
-        let moved = Frames(Int(Double(min(nodeFrames(), feed.scheduled)) * feed.shuttle.rate.rawValue))
+        return frame(feed, played: min(max(0, nodeFrames() - latency), feed.scheduled))
+    }
+
+    /// The session frame after `played` output frames of the feed.
+    private func frame(_ feed: Feed, played: Int) -> Frames {
+        let moved = Frames(Int(Double(played) * feed.shuttle.rate.rawValue))
         return feed.shuttle.direction == .forward ? feed.anchor + moved : feed.anchor - moved
     }
 

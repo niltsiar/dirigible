@@ -139,6 +139,22 @@ struct PlayerTests {
         #expect(reading.ended && reading.frame == 0)
     }
 
+    /// A refill that comes late (a slow disk): the node runs dry for one chunk, and its time goes
+    /// on. The playhead stays on the frame that the user hears, and the next chunk plays the
+    /// frames after the last heard frame. Found by the code gate.
+    @Test func anUnderrunKeepsThePlayheadOnTheHeardFrame() async throws {
+        let player = player()
+        await player.apply(.play(from: 2400, shuttle: forward), number: 1)
+
+        let starved = await player.renderOffline(frames: 4 * 4800, starve: true)
+        expectEqual(slice(starved, 0..<14_400), try package.mix(2400..<16_800), "the 3 chunks ahead")
+        #expect(starved.allSatisfy { $0[14_400...].allSatisfy { $0 == 0 } }, "the node ran dry")
+        let out = await player.renderOffline(frames: 4800)
+
+        expectEqual(out, try package.mix(16_800..<21_600), "the chunk after the last heard frame")
+        #expect(await player.reading().frame == 21_600)
+    }
+
     @Test func aPlayWithFramesLeftIsNotEnded() async throws {
         let player = player()
         await player.apply(.play(from: 0, shuttle: forward), number: 1)

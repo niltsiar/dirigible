@@ -4,8 +4,8 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The stop path from input records (criteria 11, 12, and 19): `startTake`, records to each
-/// device writer, and `stopRecording`.
+/// The stop path from input records (criteria 11, 12, and 19): `startTake`, records through
+/// the ring of each device writer, and `stopRecording`.
 @MainActor
 struct StopPathTests {
     let folder: TemporaryFolder
@@ -30,30 +30,19 @@ struct StopPathTests {
         try session.write(to: url)
     }
 
-    /// Records of 512 frames. `buffers` holds the interleaved samples of each device buffer.
-    func records(_ buffers: [[Float]], of device: InputDevice, hostStart: UInt64) -> [InputRecord] {
-        let frames = buffers[0].count / device.channelsPerBuffer[0]
-        return stride(from: 0, to: frames, by: 512).map { start in
-            let count = min(512, frames - start)
-            return InputRecord(
-                sampleTime: Double(start), hostTimeNanos: hostStart + UInt64(Double(start) / device.nominalRate * 1e9),
-                frameCount: count, nominalRate: device.nominalRate,
-                buffers: zip(buffers, device.channelsPerBuffer).map { buffer, channels in
-                    Array(buffer[(start * channels)..<((start + count) * channels)])
-                })!
-        }
-    }
-
-    /// Starts take 1 on `t1` and `t2` and sends 3.0 s of records from each device.
+    /// Starts take 1 on `t1` and `t2` and sends 3.0 s of records from each device through its
+    /// ring, in burst mode.
     func recordThreeSeconds(_ studio: Studio) throws -> [String: DeviceWriter] {
+        let hal = TestHAL([mic, box])
         let writers = try studio.startTake(
-            armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
-        for record in records([sine(seconds: 3, rate: 48_000)], of: mic, hostStart: takeStart + 1_000_000) {
-            writers["mic"]?.append(record)
-        }
-        for record in records([sine(seconds: 3, rate: 44_100, channels: 2)], of: box, hostStart: takeStart) {
-            writers["box"]?.append(record)
-        }
+            armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart, hal: hal.hal)
+        let micInput = SyntheticInput(hal, "mic")
+        let boxInput = SyntheticInput(hal, "box")
+        micInput.play(
+            records([sine(seconds: 3, rate: 48_000)], layout: [1], rate: 48_000, hostStart: takeStart + 1_000_000))
+        boxInput.play(records([sine(seconds: 3, rate: 44_100, channels: 2)], layout: [2], rate: 44_100))
+        micInput.wait()
+        boxInput.wait()
         return writers
     }
 
@@ -101,8 +90,12 @@ struct StopPathTests {
         let second = tone.flatMap { sample -> [Float] in [sample, 0] }
         let first = [Float](repeating: 0, count: second.count)
 
-        let writers = try studio.startTake(armed: ["t1"], devices: [quad], playhead: 0, hostTimeNanos: takeStart)
-        for record in records([first, second], of: quad, hostStart: takeStart) { writers["quad"]?.append(record) }
+        let hal = TestHAL([quad])
+        let writers = try studio.startTake(
+            armed: ["t1"], devices: [quad], playhead: 0, hostTimeNanos: takeStart, hal: hal.hal)
+        let input = SyntheticInput(hal, "quad")
+        input.play(records([first, second], layout: [2, 2], rate: 48_000))
+        input.wait()
         await writers["quad"]?.finish()
 
         #expect(try readAudio(url.appending(path: "Capture/take1-1-1.caf")).samples == tone)
@@ -120,7 +113,8 @@ struct StopPathTests {
         let before = try Data(contentsOf: sessionXML)
 
         #expect(throws: StudioError.session(.takeOutOfRange(1_000_000_000))) {
-            _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+            _ = try studio.startTake(
+                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: TestHAL([mic]).hal)
         }
         #expect(try Data(contentsOf: sessionXML) == before)
         #expect(studio.transport == .idle)
@@ -136,7 +130,8 @@ struct StopPathTests {
                 uid: "mic", name: "USB Mic", nominalRate: 48_000, availableRates: [], channelsPerBuffer: [2],
                 latency: 0))
         func start(_ armed: [TrackID], _ devices: [InputDevice]) throws(StudioError) {
-            _ = try studio.startTake(armed: armed, devices: devices, playhead: 0, hostTimeNanos: takeStart)
+            _ = try studio.startTake(
+                armed: armed, devices: devices, playhead: 0, hostTimeNanos: takeStart, hal: TestHAL(devices).hal)
         }
 
         #expect(throws: StudioError.deviceMissing("t2")) { try start(["t1", "t2"], [mic]) }
@@ -165,7 +160,8 @@ struct StopPathTests {
         #expect(throws: StudioError.busy) { try studio.undo() }
         #expect(throws: StudioError.busy) { try studio.save() }
         #expect(throws: StudioError.busy) {
-            _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+            _ = try studio.startTake(
+                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: TestHAL([mic]).hal)
         }
         await #expect(throws: StudioError.busy) { try await studio.retryFinalize() }
 
@@ -197,7 +193,8 @@ struct StopPathTests {
         #expect(try Session(contentsOf: url).recording?.take == 1)
         // A new take waits for the pending take.
         #expect(throws: StudioError.busy) {
-            _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+            _ = try studio.startTake(
+                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: TestHAL([mic]).hal)
         }
     }
 

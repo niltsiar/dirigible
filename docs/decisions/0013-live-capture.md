@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-24. A device writer with no take is a monitor. It writes no file, its ring holds 1 s, and it keeps at most 64 detached inputs (see 0015).
 
 ## Context
 

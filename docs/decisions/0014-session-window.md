@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-24. The meter before a take and the device-list listener are in 0015. The 2 s poll of the device list goes.
 
 ## Context
 

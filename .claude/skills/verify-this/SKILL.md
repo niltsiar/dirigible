@@ -20,7 +20,7 @@ Do not use this for vague claims like "the code is cleaner". Ask for a measurabl
 
 1. Restate the claim in falsifiable form: condition, metric, and threshold.
 2. Pick the smallest local surface that can disprove it.
-3. Capture a baseline from the old state: merge base, parent commit, failing branch, or current broken repro. For new code with no old state, the baseline is a negative control: break the input or remove the guard, and show that the same check fails. A green check with no baseline is `INCONCLUSIVE`. Run the control under the exact conditions that the claim states. If a condition is off (for example a compiler feature), turn it on for the control, for example with a temporary change that you revert. A control under other conditions proves only itself.
+3. Capture a baseline from the old state: merge base, parent commit, failing branch, or current broken repro. For new code with no old state, the baseline is a negative control: break the input or remove the guard, and show that the same check fails. A green check with no baseline is `INCONCLUSIVE`. Run the control under the exact conditions that the claim states. If a condition is off (for example a compiler feature), turn it on for the control, for example with a temporary change that you revert. A control under other conditions proves only itself. The control must break the mechanism that the claim is about, for example a source mutation that relaxes a memory order or removes a guard, then revert it. A control that only corrupts the input of the checker proves only the checker. If this machine cannot make the claim fail (for example a memory-order bug on x86), the verdict is `INCONCLUSIVE` and names the manual check that can. A mutation that does not reproduce the failure is a finding: record it, then find the mutation that does.
 4. Capture treatment from the changed state with the same command, data, warmup, and environment.
 5. Compare raw artifacts: numbers, screenshots, terminal transcripts, HTTP responses, profiles, heap snapshots, or test output.
 6. Return exactly one verdict: `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE`.
@@ -55,7 +55,7 @@ When safe to write artifacts:
 
 - `VERIFIED`: baseline and treatment differ in the predicted direction, by the claimed threshold, with no obvious confound.
 - `NOT VERIFIED`: the behavior is unchanged, moves the wrong way, or misses the threshold.
-- `INCONCLUSIVE`: no valid baseline, noisy signal, failed measurement, or an environment difference invalidates the comparison.
+- `INCONCLUSIVE`: no valid baseline, noisy signal, failed measurement, or an environment difference invalidates the comparison. This includes a control that cannot fail on this machine, and a code review with no control.
 
 ## Output
 

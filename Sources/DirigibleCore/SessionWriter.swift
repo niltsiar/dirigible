@@ -20,6 +20,8 @@ public enum SessionFileError: Error, Hashable, Sendable {
     /// The package that the lock holds is no longer on its volume: it moved to another volume or
     /// was deleted (decision 0014). Nothing was written.
     case packageMoved
+    /// `Session.create` found a file or a folder at the path. Nothing changed.
+    case exists
 }
 
 /// The POSIX code under a Foundation file error, or EIO when there is none.
@@ -49,6 +51,24 @@ extension Session {
         try replaceDurably(package.appending(path: "session.xml"), with: data)
         // A new package is an entry in its parent folder, which a power loss can lose too.
         if isNew { try flush(package.deletingLastPathComponent().path) }
+    }
+
+    /// Makes a new package with an empty session (decision 0014): `mkdir` of the package, the
+    /// write, then a flush of the parent folder. Throws `.exists` when anything is at the path.
+    /// A failure after `mkdir` removes the new folder, so the path has a complete package or
+    /// nothing.
+    public static func create(at package: URL, sampleRate: Int) throws(SessionFileError) {
+        guard mkdir(package.path, 0o755) == 0 else { throw errno == EEXIST ? .exists : posixError("mkdir") }
+        do throws(SessionFileError) {
+            // `write(to:)` flushes the parent only when it makes the package folder.
+            try Session(sampleRate: sampleRate).write(to: package)
+            if let code = fullFlush(path: package.deletingLastPathComponent().path) {
+                throw .writeFailed(step: "flushParent", errno: code)
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: package)
+            throw error
+        }
     }
 
     /// The write of a lock holder (decision 0014): writes `session.xml` in the package that `lock`

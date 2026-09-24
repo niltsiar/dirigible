@@ -2,6 +2,15 @@ import DirigibleCore
 import Foundation
 
 extension Studio {
+    /// Makes a package where nothing exists, then opens it. Throws `.file(.exists)` and changes
+    /// nothing when anything is at the path.
+    public static func create(_ package: URL, sampleRate: Int, recordings: ActiveRecordings? = nil)
+        async throws(StudioError) -> Studio
+    {
+        try await createPackage(package, sampleRate: sampleRate)
+        return try await open(package, recordings: recordings)
+    }
+
     /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low
     /// stop, a stop from another caller, or a cancel of this call can end it early; then it
     /// returns soon after that end.
@@ -61,6 +70,12 @@ extension Studio {
         if let take = pendingTake?.take { pending = await pendingWAVBytes(take: take, in: url) }
         return .seconds(Double(max(0, free - diskMargin - pending)) / Double(perSecond))
     }
+}
+
+/// `Session.create` off the main actor.
+@concurrent nonisolated func createPackage(_ package: URL, sampleRate: Int) async throws(StudioError) {
+    dispatchPrecondition(condition: .notOnQueue(.main))
+    do { try Session.create(at: package, sampleRate: sampleRate) } catch { throw .file(error) }
 }
 
 /// The autosave step, off the main actor. Returns the package path that it wrote, in

@@ -34,11 +34,8 @@ struct Create: ParsableCommand {
     }
 
     func run() throws {
-        guard !FileManager.default.fileExists(atPath: package.path) else {
-            throw fail("\(package.path) exists.", code: packageError)
-        }
         do {
-            try Session(sampleRate: sampleRate).write(to: package.url)
+            try Session.create(at: package.url, sampleRate: sampleRate)
         } catch {
             throw fail(error.message(package: package.path), code: packageError)
         }

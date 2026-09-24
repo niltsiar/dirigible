@@ -41,6 +41,9 @@ import Foundation
     /// The result of the last take, set when its writers finish, before its finalize. So a
     /// finalize error keeps it.
     public private(set) var lastTake: TakeResult?
+    /// The pending take that the recovery of `open` finalized. Nil when the open finalized
+    /// nothing, and after a new take starts. `take finalize` reads its armed tracks.
+    public private(set) var recoveredTake: Recording?
 
     /// The Core Audio calls of a take. Tests give their own.
     var environment = CaptureEnvironment.live
@@ -63,6 +66,7 @@ import Foundation
         self.history = History(opened.session)
         self.takeError = opened.takeError
         self.segmentsWithAudio = opened.segmentsWithAudio
+        self.recoveredTake = opened.recoveredTake
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
@@ -117,8 +121,34 @@ import Foundation
         let started = try await prepareTake(
             of: session, in: url, armed: armed, playhead: playhead, environment: environment)
         begin(started)
+        recoveredTake = nil
         sleepAssertion = SleepAssertion()
         diskWatcher = watchDisk()
+    }
+
+    /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low
+    /// stop can end it early. Throws what `startRecording` throws, or the finalize error; then
+    /// `lastTake` still has the result and the take stays pending.
+    public func record(armed: [TrackID], playhead: Frames, for duration: Duration) async throws(StudioError)
+        -> TakeResult
+    {
+        try await startRecording(armed: armed, playhead: playhead)
+        // The take ends at its start host time + duration, also when the stop comes late.
+        let end = (session.recording?.takeStartHostTimeNanos ?? 0) + UInt64(duration / .nanoseconds(1))
+        for writer in writers.values { writer.end(atHostNanos: end) }
+        try? await Task.sleep(for: duration)
+        if case .recording = transport { try await stopRecording() }
+        // The disk watcher stops the take on its own; wait for its finalize.
+        while case .finalizing = transport { try? await Task.sleep(for: .milliseconds(10)) }
+        if let takeError { throw takeError }
+        guard let lastTake else { preconditionFailure("A take that stopped has a result") }
+        return lastTake
+    }
+
+    /// The IDs of the clips of take `take` on every track, in segment name order.
+    public func clipIDs(ofTake take: Int) -> [ClipID] {
+        session.tracks.flatMap(\.clips).compactMap { clip in SegmentName(id: clip.id.rawValue).map { ($0, clip.id) } }
+            .filter { $0.0.take == take }.sorted { ($0.0, $0.1) < ($1.0, $1.1) }.map(\.1)
     }
 
     /// Stops the take: drains and closes each device writer, then finalizes and saves

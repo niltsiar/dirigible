@@ -7,6 +7,8 @@ struct OpenedPackage: Sendable {
     var session: Session
     var takeError: StudioError?
     var segmentsWithAudio: [SegmentName]
+    /// The pending take that the recovery finalized.
+    var recoveredTake: Recording? = nil
 }
 
 /// The result of `completeTake`. On a thrown finalize or save, `session` is the input (it keeps
@@ -55,7 +57,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     close(descriptor)
     let outcome = await completeTake(of: session, in: package)
     return OpenedPackage(
-        lock: lock, session: outcome.session, takeError: outcome.error, segmentsWithAudio: outcome.segmentsWithAudio)
+        lock: lock, session: outcome.session, takeError: outcome.error, segmentsWithAudio: outcome.segmentsWithAudio,
+        recoveredTake: outcome.error == nil ? session.recording : nil)
 }
 
 /// The one step that open, stop, and retry share: finalize, delete the marker, save, and read

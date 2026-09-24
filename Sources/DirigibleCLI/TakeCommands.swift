@@ -9,8 +9,12 @@ struct TakeCommand: AsyncParsableCommand {
 
     struct Finalize: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Run the recovery of the app on a package, and list the audio that is not on the timeline.",
-            discussion: "Exit 2 when the take stays pending, 3 when captured audio is not on the timeline.")
+            abstract:
+                "Run the recovery of the app on a package, write the ID of each clip of the take, and list the audio "
+                + "that is not on the timeline.",
+            discussion:
+                "Exit 2 when the take stays pending, 3 when captured audio is not on the timeline, 5 when an armed "
+                + "track has no clip of the take.")
         @OptionGroup var package: PackageArgument
 
         func run() async throws {
@@ -20,8 +24,9 @@ struct TakeCommand: AsyncParsableCommand {
 }
 
 /// Opens the package with `Studio.open`, which runs the recovery of decision 0004. A take that
-/// open left pending with no error (an earlier recovery died) gets one retry. Writes one warning
-/// line for each unplaced segment (decision 0012).
+/// open left pending with no error (an earlier recovery died) gets one retry. Then the report of
+/// `record` (decision 0013). After a crash no gap is known, so only an armed track with no clip
+/// gives exit 5.
 @MainActor
 private func finalizeTake(url: URL, path: String) async throws(ExitCode) {
     let studio: Studio
@@ -30,17 +35,15 @@ private func finalizeTake(url: URL, path: String) async throws(ExitCode) {
     } catch {
         throw fail(error.message(package: path), code: packageError)
     }
+    let take = studio.pendingTake ?? studio.recoveredTake
     if studio.pendingTake != nil, studio.takeError == nil {
         try? await studio.retryFinalize()
     }
     if let error = studio.takeError {
         throw fail("\(error.message(package: path)) The take is still pending.", code: packageError)
     }
-    guard !studio.unplacedSegments.isEmpty else { return }
-    for stem in studio.unplacedSegments {
-        FileHandle.standardError.write(Data("Warning: \(captureFolderName)/\(stem).caf is not on the timeline.\n".utf8))
-    }
-    throw ExitCode(unplacedAudio)
+    let code = reportTake(studio, take: take?.take, armed: take?.armedTracks ?? [], result: nil)
+    if code != 0 { throw ExitCode(code) }
 }
 
 extension StudioError {

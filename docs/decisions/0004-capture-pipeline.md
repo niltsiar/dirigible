@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-09-24. The file names, the sidecar bytes, the take number rule, the package lock, and the armed-track rules are in 0012. A fault of one segment leaves that segment unplaced and ends the take; only a fault that can go away keeps the take pending (0012). A clip over 4 GiB is RF64 (0012).
+- Amended: 2026-09-24. The IOProc and the listeners use the C APIs (`AudioDeviceCreateIOProcID`, `AudioObjectAddPropertyListener`), not the block APIs. The library reads the microphone status in `Studio.startRecording`, and the front ends request access. A write error on one track reopens that track after 1 s (see 0013).
 
 ## Context
 

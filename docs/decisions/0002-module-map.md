@@ -5,6 +5,7 @@
 - Amended: 2026-09-24. The app target is `DirigibleApp`, so its binary does not clash with the `dirigible` command (see 0011). The bundle executable is still `Dirigible`.
 - Amended: 2026-09-24. The command-line front end adds the targets `DirigibleCLI` and `DirigibleCLITests` (see 0011).
 - Amended: 2026-09-24. The first capture run has no `Recorder`: `DeviceWriter`, `finalizeTake`, and `Studio` hold its work. It adds `DirigibleAudioTests`. `DirigibleCLI` depends on `DirigibleAudio` for `take finalize` (see 0012).
+- Amended: 2026-09-24. There is no `Recorder`. `DeviceWriter` is the recorder of one device, and its `DeviceInput` holds one appearance of the device: the IOProc and the ring. Each IOProc is a static C function (see 0013).
 
 ## Context
 
@@ -17,7 +18,7 @@ Two designs were compared: few targets, and one target for each capability (capt
 | Target | Owns | Imports | First release |
 |---|---|---|---|
 | `DirigibleCore` | `Session`, `Track`, `Clip`, `AudioFile`, capture timing, `Marker`, `Frames`, `ChannelLayout`, track routes, edits and their invariants, snapshot undo (`History`), session XML read and atomic write, take alignment and auto-level math | Foundation | 1 |
-| `DirigibleAudio` | Device list, `Recorder` (IOProcs, rings, writers, CAF segments, finalize, recovery), `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | CoreAudio, AudioToolbox, AVFoundation, Accelerate, `Atomics`, `DirigibleCore` | 1 |
+| `DirigibleAudio` | Device list, `DeviceWriter` (IOProcs, rings, CAF segments), finalize, recovery, `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | CoreAudio, AudioToolbox, AVFoundation, Accelerate, `Atomics`, `DirigibleCore` | 1 |
 | `CLame` | libmp3lame with the decoder off (0007) | none | 2 |
 | `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, both libraries | 1 |
 | `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the read-edit-save step, error text, the text and JSON views of a session. No logic that the app needs | Foundation, `ArgumentParser`, `DirigibleCore` | CLI run |
@@ -31,7 +32,7 @@ Rules that come with the map:
 - **Import-rule test.** SwiftPM cannot stop a target from importing a system framework. A test in `DirigibleTests` reads every file in `Sources/DirigibleCore` and fails on any `import` other than Foundation.
 - **Studio is in the library.** "Stop, finalize, add the take as one undo step, save" is logic. Integration tests drive it through `Studio`. The app only maps views and menu commands to `Studio` calls.
 - **Snapshot undo.** `History` keeps `Session` values. `edit { }` records one entry; an edit that changes nothing records none. There is no command protocol with inverse commands.
-- **Actors.** `Studio`, `Player`, and the views are `@MainActor`. `Recorder` is an actor. Each device writer has its own serial dispatch queue. A `nonisolated static` function builds each IOProc block, which is `@Sendable` and captures only the ring storage. Finalize, export, and peak calculation run off the main actor.
+- **Actors.** `Studio`, `Player`, and the views are `@MainActor`. Each device writer has its own serial dispatch queue. Each IOProc and listener is a static C function that captures nothing and gets a client-data pointer (0013). Finalize, export, and peak calculation run off the main actor.
 - **Library code has no UI text.** Errors are enums. The app maps each case to a `.lproj` key.
 - **Folders inside `DirigibleAudio`.** `Capture/`, `Render/`, `DSP/`, and `Studio/`. The 400-line file rule applies.
 

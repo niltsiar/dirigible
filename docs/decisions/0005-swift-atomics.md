@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-24. There is no `Recorder`. Each appearance of a device has its own ring, owned by its `DeviceInput`, which the `DeviceWriter` owns (see 0013).
 
 ## Context
 

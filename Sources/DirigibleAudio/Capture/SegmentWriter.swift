@@ -6,6 +6,12 @@ enum CaptureError: Error, Hashable, Sendable {
     /// A segment file cannot be made, written, flushed, or closed. `status` is an OSStatus or
     /// an errno.
     case writeFailed(file: String, status: Int32)
+
+    var status: Int32 {
+        switch self {
+        case .writeFailed(_, let status): status
+        }
+    }
 }
 
 /// One segment on disk: `<stem>.caf` (float32, interleaved, at the header rate) and

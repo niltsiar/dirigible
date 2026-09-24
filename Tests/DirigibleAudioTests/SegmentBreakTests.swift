@@ -60,7 +60,9 @@ struct SegmentBreakTests {
         _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         let input = SyntheticInput(hal, "mic")
         input.play(records)
-        await input.wait()
+        // The slow suite writes 1.4 GB at the same time, so the 24 flushes of a 120 s take can
+        // take more than the default limit.
+        await input.wait(limit: .seconds(60))
         try await studio.stopRecording()
         #expect(studio.takeError == nil)
         return studio

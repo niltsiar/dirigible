@@ -13,6 +13,7 @@ final class ReportLog: @unchecked Sendable {
     var closure: @Sendable (Report) -> Void { { [self] report in lock.withLock { reports.append(report) } } }
     var count: Int { lock.withLock { reports.count } }
     func states(arm: Int) -> [LiveTrack.State] { lock.withLock { reports.filter { $0.arm == arm }.map(\.state) } }
+    func statuses(arm: Int) -> [Int32?] { lock.withLock { reports.filter { $0.arm == arm }.map(\.status) } }
 }
 
 /// The device events of one writer (criteria 6 to 9, 19 to 21), and the take with a device that

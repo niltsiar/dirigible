@@ -25,7 +25,7 @@ struct FullDiskTests {
         let caf = package.appending(path: "Capture/take1-1-1.caf")
         let cafBytes = try Data(contentsOf: caf)
         let filler = volume.appending(path: "filler")
-        try fill(volume, leaving: 400_000, with: filler)
+        try Self.fill(volume, leaving: 400_000, with: filler)
 
         let studio = try await Studio.open(package)
 
@@ -89,7 +89,7 @@ struct FullDiskTests {
     }
 
     /// Writes zeros to `file` until the volume has about `bytes` free.
-    func fill(_ volume: URL, leaving bytes: Int, with file: URL) throws {
+    nonisolated static func fill(_ volume: URL, leaving bytes: Int, with file: URL) throws {
         let free = try #require(
             try FileManager.default.attributesOfFileSystem(forPath: volume.path)[.systemFreeSize] as? Int)
         FileManager.default.createFile(atPath: file.path, contents: nil)

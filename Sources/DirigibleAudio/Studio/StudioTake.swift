@@ -47,6 +47,13 @@ extension Studio {
         return lastTake
     }
 
+    /// The WAV bytes that the finalize of the pending take needs (3 for each 4 CAF bytes, decision
+    /// 0013) and the free bytes of the volume now. Nil with no pending take.
+    public func pendingSpace() async -> (needed: Int64, free: Int64)? {
+        guard let take = pendingTake?.take else { return nil }
+        return (await pendingWAVBytes(take: take, in: url), await freeBytes(of: lock, environment))
+    }
+
     /// The IDs of the clips of take `take` on every track, in segment name order.
     public func clipIDs(ofTake take: Int) -> [ClipID] {
         session.tracks.flatMap(\.clips).compactMap { clip in SegmentName(id: clip.id.rawValue).map { ($0, clip.id) } }

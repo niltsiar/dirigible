@@ -5,7 +5,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The sleep assertion of a take (criterion 13). Tests run in parallel in one process, so each
+/// The sleep assertion and the activity of a take (criterion 13 of run 2, criterion 8). Tests run in parallel in one process, so each
 /// test looks only for the assertion ID of its own studio.
 @MainActor
 struct SleepAssertionTests {
@@ -34,6 +34,14 @@ struct SleepAssertionTests {
         }
     }
 
+    /// The assertions of this process named `name`.
+    func listed(named name: String) throws -> [NSDictionary] {
+        var byProcess: Unmanaged<CFDictionary>?
+        try #require(IOPMCopyAssertionsByProcess(&byProcess) == kIOReturnSuccess)
+        let processes = try #require(byProcess?.takeRetainedValue() as? [NSNumber: [NSDictionary]])
+        return (processes[NSNumber(value: getpid())] ?? []).filter { $0["AssertName"] as? String == name }
+    }
+
     /// Control: no assertion before the start.
     @Test func aTakeHoldsTheSleepAssertionUntilTheStopEnds() async throws {
         let studio = try await Studio.open(url)
@@ -49,6 +57,21 @@ struct SleepAssertionTests {
 
         #expect(studio.sleepAssertion == nil)
         #expect(try listed(id).isEmpty)
+    }
+
+    /// Criterion 8: the take also holds a latency-critical activity against App Nap. Its options
+    /// let the system sleep, so it adds no second sleep assertion (P3). Control: the same lookup
+    /// finds the IOPM assertion of the take.
+    @Test func theActivityOfATakeAddsNoSleepAssertion() async throws {
+        let studio = try await Studio.open(url)
+        studio.environment = .test(TestHAL([mic]))
+        try await studio.startRecording(armed: ["t1"], playhead: 0)
+        let id = try #require(studio.sleepAssertion?.id)
+
+        #expect(try listed(id).first?["AssertName"] as? String == "Dirigible is recording")
+        #expect(try listed(named: SleepAssertion.activityReason).isEmpty)
+        try await studio.stopRecording()
+        #expect(studio.sleepAssertion == nil)
     }
 
     @Test func aDiskLowStopEndsTheSleepAssertion() async throws {

@@ -6,6 +6,7 @@
 - Amended: 2026-09-24. The command-line front end adds the targets `DirigibleCLI` and `DirigibleCLITests` (see 0011).
 - Amended: 2026-09-24. The first capture run has no `Recorder`: `DeviceWriter`, `finalizeTake`, and `Studio` hold its work. It adds `DirigibleAudioTests`. `DirigibleCLI` depends on `DirigibleAudio` for `take finalize` (see 0012).
 - Amended: 2026-09-24. There is no `Recorder`. `DeviceWriter` is the recorder of one device, and its `DeviceInput` holds one appearance of the device: the IOProc and the ring. Each IOProc is a static C function (see 0013).
+- Amended: 2026-09-24. The Imports cells list the packages (swift-atomics, swift-argument-parser), IOKit in `DirigibleAudio`, and AVFoundation and `DirigibleAudio` in `DirigibleCLI` (see 0013).
 
 ## Context
 
@@ -18,12 +19,12 @@ Two designs were compared: few targets, and one target for each capability (capt
 | Target | Owns | Imports | First release |
 |---|---|---|---|
 | `DirigibleCore` | `Session`, `Track`, `Clip`, `AudioFile`, capture timing, `Marker`, `Frames`, `ChannelLayout`, track routes, edits and their invariants, snapshot undo (`History`), session XML read and atomic write, take alignment and auto-level math | Foundation | 1 |
-| `DirigibleAudio` | Device list, `DeviceWriter` (IOProcs, rings, CAF segments), finalize, recovery, `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | CoreAudio, AudioToolbox, AVFoundation, Accelerate, `Atomics`, `DirigibleCore` | 1 |
+| `DirigibleAudio` | Device list, `DeviceWriter` (IOProcs, rings, CAF segments), finalize, recovery, `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | Foundation, CoreAudio, AudioToolbox, AVFoundation, Accelerate, IOKit (the sleep assertion), `Atomics` (swift-atomics, 0005), `DirigibleCore` | 1 |
 | `CLame` | libmp3lame with the decoder off (0007) | none | 2 |
 | `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, both libraries | 1 |
-| `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the read-edit-save step, error text, the text and JSON views of a session. No logic that the app needs | Foundation, `ArgumentParser`, `DirigibleCore` | CLI run |
+| `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the read-edit-save step, error text, the text and JSON views of a session. No logic that the app needs | Foundation, AVFoundation (the microphone access request), `ArgumentParser` (swift-argument-parser), `DirigibleCore`, `DirigibleAudio` | CLI run |
 
-Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCLI` depends only on `DirigibleCore` of these targets. `DirigibleCore` depends on no target.
+Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCLI` depends on `DirigibleCore` and `DirigibleAudio` (0012). `DirigibleCore` depends on no target.
 
 Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), and `DirigibleTests` (bundle, localization, import rule).
 

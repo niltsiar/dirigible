@@ -1,4 +1,9 @@
+import AVFoundation
+import DirigibleCore
 import Foundation
+import Testing
+
+@testable import DirigibleAudio
 
 /// Interleaved sine samples with amplitude 0.5. Channel `c` has the frequency
 /// `frequency * (c + 1)`, so a test can tell the channels apart.
@@ -38,5 +43,91 @@ struct SeededGenerator: RandomNumberGenerator {
         value = (value ^ (value >> 30)) &* 0xBF58_476D_1CE4_E5B9
         value = (value ^ (value >> 27)) &* 0x94D0_49BB_1331_11EB
         return value ^ (value >> 31)
+    }
+}
+
+/// The frames of an audio file as `AVAudioFile` reads them, interleaved. It reads in blocks: one
+/// read of the whole length of an unclosed CAF gives fewer frames (probe 2026-09-24: 95232 of
+/// 96000), and reads in blocks give all of them.
+func readAudio(_ url: URL) throws -> (rate: Double, bits: Int?, samples: [Float]) {
+    let file = try AVAudioFile(forReading: url)
+    let channels = Int(file.processingFormat.channelCount)
+    let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 4096))
+    var samples: [Float] = []
+    while file.framePosition < file.length {
+        try file.read(into: buffer)
+        if buffer.frameLength == 0 { break }
+        let data = try #require(buffer.floatChannelData)
+        for frame in 0..<Int(buffer.frameLength) {
+            for channel in 0..<channels { samples.append(data[channel][frame]) }
+        }
+    }
+    return (file.fileFormat.sampleRate, file.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int, samples)
+}
+
+/// The host time of the take start in the take packages: 1000 s after boot.
+let takeStart: UInt64 = 1_000_000_000_000
+
+/// A package with tracks and a `<recording>` in `session.xml`, and segments made by the real
+/// `SegmentWriter`. It is removed at deinit.
+final class TakePackage {
+    let folder: TemporaryFolder
+    let url: URL
+    var capture: URL { url.appending(path: "Capture") }
+
+    init(
+        sampleRate: Int = 48_000, tracks: [(TrackID, ChannelLayout)] = [("t1", .mono)], take: Int = 1,
+        playhead: Frames = 96_000
+    ) throws {
+        folder = try TemporaryFolder()
+        url = folder.url.appending(path: "Show.dirigible")
+        var session = Session(sampleRate: sampleRate)
+        for (id, layout) in tracks { try session.addTrack(id, name: id.rawValue, layout: layout) }
+        try session.setRecording(
+            Recording(
+                take: take, playheadFrame: playhead, takeStartHostTimeNanos: takeStart,
+                armedTracks: tracks.map(\.0)))
+        try session.write(to: url)
+        try FileManager.default.createDirectory(at: capture, withIntermediateDirectories: true)
+    }
+
+    func read() throws -> Session { try Session(contentsOf: url) }
+
+    static func header(
+        rate: Double = 48_000, channels: Int = 1, latency: Int = 48, firstHost: UInt64 = takeStart + 10_000_000
+    ) -> CaptureHeader {
+        CaptureHeader(
+            deviceUID: "usb-1", deviceName: "USB Mic", nominalRate: rate, availableRates: [rate...rate],
+            channelCount: channels, latency: latency, firstSampleTime: 512, firstHostTimeNanos: firstHost)
+    }
+
+    /// Checkpoints at frame 0, at each whole second, and at the last frame, on a clock that runs
+    /// at `realRate` (default: the header rate).
+    static func checkpoints(frames: Int, header: CaptureHeader, realRate: Double? = nil) -> [Checkpoint] {
+        let rate = realRate ?? header.nominalRate
+        let second = Int(rate.rounded())
+        return (Array(stride(from: 0, to: frames, by: second)) + [frames - 1]).map { frame in
+            Checkpoint(
+                fileFrame: Int64(frame), sampleTime: header.firstSampleTime + Double(frame),
+                hostTimeNanos: header.firstHostTimeNanos + UInt64((Double(frame) / rate * 1e9).rounded()))
+        }
+    }
+
+    /// Writes one segment with the real writer. It closes the writer unless `open` is true; the
+    /// caller then keeps the returned writer alive as a crashed process.
+    @discardableResult
+    func segment(
+        take: Int = 1, arm: Int = 1, segment: Int = 1, header: CaptureHeader = TakePackage.header(), samples: [Float],
+        checkpoints: [Checkpoint]? = nil, open: Bool = false
+    ) throws -> SegmentWriter {
+        let frames = samples.count / header.channelCount
+        let writer = try SegmentWriter(
+            folder: capture, name: SegmentName(take: take, arm: arm, segment: segment), header: header)
+        for checkpoint in checkpoints ?? Self.checkpoints(frames: frames, header: header) {
+            try writer.checkpoint(checkpoint)
+        }
+        try samples.withUnsafeBufferPointer { try writer.write($0, frames: frames) }
+        if !open { try writer.close() }
+        return writer
     }
 }

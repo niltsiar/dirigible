@@ -38,6 +38,22 @@ struct SegmentName: Hashable, Comparable, Sendable {
 
     var stem: String { "take\(take)-\(arm)-\(segment)" }
 
+    /// 1 plus the highest take number in the file names of `Capture/` and `Clips/`, the capture,
+    /// file, and clip IDs of the session, and the pending take. So a take number is never reused,
+    /// also after a user empties a folder (decision 0012).
+    static func nextTake(in package: URL, session: Session) -> Int {
+        let files = ["Capture", "Clips"].flatMap {
+            (try? FileManager.default.contentsOfDirectory(atPath: package.appending(path: $0).path)) ?? []
+        }
+        let ids =
+            session.captures.keys.map(\.rawValue) + session.files.keys.map(\.rawValue)
+            + session.tracks.flatMap { $0.clips.map(\.id.rawValue) }
+        let takes =
+            files.compactMap { SegmentName(fileName: $0)?.take } + ids.compactMap { SegmentName(id: $0)?.take }
+            + [session.recording?.take ?? 0]
+        return takes.max()! + 1
+    }
+
     static func < (a: Self, b: Self) -> Bool { (a.take, a.arm, a.segment) < (b.take, b.arm, b.segment) }
 }
 

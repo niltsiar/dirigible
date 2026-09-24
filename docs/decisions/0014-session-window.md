@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-09-24. The meter before a take and the device-list listener are in 0015. The 2 s poll of the device list goes.
+- Amended: 2026-09-24. A Transport menu holds the plain-key commands (Space, Shift-Space, J, K, L, Home, End, Shift-Left, Shift-Right). A take starts at the Studio playhead, not after the last clip (see 0016).
 
 ## Context
 

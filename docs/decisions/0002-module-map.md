@@ -8,6 +8,7 @@
 - Amended: 2026-09-24. There is no `Recorder`. `DeviceWriter` is the recorder of one device, and its `DeviceInput` holds one appearance of the device: the IOProc and the ring. Each IOProc is a static C function (see 0013).
 - Amended: 2026-09-24. The Imports cells list the packages (swift-atomics, swift-argument-parser), IOKit in `DirigibleAudio`, and AVFoundation and `DirigibleAudio` in `DirigibleCLI` (see 0013).
 - Amended: 2026-09-24. `DirigibleApp` depends on `DirigibleAudio`, because the window calls `Studio`. `DirigibleTests` depends on `DirigibleApp`, `DirigibleAudio`, and `DirigibleCore`, so the string test and the window tests can use `@testable import DirigibleApp` (see 0014).
+- Amended: 2026-09-24. The `Player` is an actor, not `@MainActor`, so the engine start and the file reads run off the main actor. `Render/` holds the `Player`, `MixReader`, and the media check (see 0016).
 
 ## Context
 

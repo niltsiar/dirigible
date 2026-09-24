@@ -51,7 +51,7 @@ If the Workflow tool is not available (for example, another agent harness reads 
 
 ## Step 4: Synthesize
 
-1. Parse all surviving findings. The Workflow output file holds JSON; the verdict is under `result.panel[].survived[]`. Read it with a short `python3` script (`json.JSONDecoder().raw_decode` from the first `{`) and print only the severity, title, and suggestion. Do not read the whole file into the context.
+1. Parse all surviving findings. The Workflow output file holds JSON; the verdict is under `result.panel[].survived[]`, and the findings that the skeptics refuted are under `result.panel[].refuted[]` with `skeptic.reason`. Read it with a short `python3` script (`json.JSONDecoder().raw_decode` from the first `{`) and print only the severity, title, and suggestion. Do not read the whole file into the context.
 2. Findings from two or more lenses independently are the highest signal.
 3. Merge duplicates and note which lenses raised them.
 4. Note disagreements. One lens that contradicts another is useful context.
@@ -98,7 +98,7 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 [Brief list.]
 
 ### Dismissed
-[Finding and reason.]
+[Finding and reason. Include each refuted finding with the skeptic reason. Read each reason: overrule a skeptic that refuted a real premise.]
 
 ### Agreement map
 [Where the lenses agreed or diverged, and what the pattern says.]

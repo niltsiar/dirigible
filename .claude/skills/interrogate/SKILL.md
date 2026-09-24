@@ -76,7 +76,7 @@ In the convergence round:
 - Only a finding about an earlier item or a fix can be "Act on". Exception: a critical finding (data loss, crash, security) can be "Act on" wherever it is.
 - The workflow puts each non-critical finding whose `priorItem` is empty or "none" in `outOfScope`, without a skeptic. Put these in `.scratchpads/backlog.md` as "Consider" items with their lens. They do not block the gate.
 - After you fix its "Act on" items, the gate is closed. Do not run another round. Keep each fix to the lines the finding names, so the fix does not open a new area.
-- Then run one fix check: one `general-purpose` agent with the convergence findings and the diff of the fixes (at the code gate, `git diff` of the fix commits; at the plan gate, a before and after copy of `plan.md` and `design.md`). It answers two questions for each fix: does the fix answer its finding, and does it add a rule or behavior that no finding asked for? Correct a wrong fix. Move an added rule out of the fix and into `.scratchpads/backlog.md`. The fix check is not a review round, so it opens no new areas.
+- Then run one fix check: one `general-purpose` agent with the convergence findings and the diff of the fixes (at the code gate, `git diff` of the fix commits; at the plan gate, a before and after copy of `plan.md` and `design.md`). It answers three questions for each fix. Does the fix answer its finding? Does it add a rule or behavior that no finding asked for? What new failure mode does it add, for example a shared name, path, or constant that concurrent callers collide on? Correct a wrong fix. Move an added rule out of the fix and into `.scratchpads/backlog.md`. The fix check is not a review round, so it opens no new areas.
 
 ## Output format
 

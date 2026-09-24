@@ -45,7 +45,7 @@ The workflow runs these reviewer agents from `.claude/agents/` in parallel, then
 
 The Workflow tool caches saved workflows by name when the session starts. If `.claude/workflows/review-panel.js` changed in this session, run it with `scriptPath: ".claude/workflows/review-panel.js"` instead of `name`.
 
-The workflow returns `missing`: the lenses that gave no result. A gate with a missing lens is incomplete. Run the missing lens again with the Agent tool before you judge.
+The workflow returns `missing`: the lenses that gave no result. A lens that returns no `checked` list (the files it read and the commands it ran) is also in `missing`, because an empty result looks the same as "no findings". A gate with a missing lens is incomplete. Run the missing lens again with the Agent tool before you judge.
 
 If the Workflow tool is not available (for example, another agent harness reads this file), spawn the same agents with the Agent tool in one message, one call per lens. Fill each prompt from `references/reviewer-prompt.md` with the intent, the target, `references/rubric.md`, and, at the code gate, `references/code-quality-review.md`.
 

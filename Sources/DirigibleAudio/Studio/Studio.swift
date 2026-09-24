@@ -32,7 +32,7 @@ import Observation
     private var segmentsWithAudio: [SegmentName]
     /// The live state of each armed track of the take, from the reports of the drain. Empty while
     /// no take records.
-    public private(set) var liveTracks: [TrackID: LiveTrack] = [:]
+    public internal(set) var liveTracks: [TrackID: LiveTrack] = [:]
     /// The start of the take that records. The view computes the elapsed time.
     public private(set) var recordingSince: ContinuousClock.Instant?
 
@@ -55,14 +55,12 @@ import Observation
     /// The device writers of the take that records, by device UID.
     @ObservationIgnored private(set) var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.
-    @ObservationIgnored private var armed: [(id: TrackID, writer: DeviceWriter)] = []
+    @ObservationIgnored private(set) var armed: [(id: TrackID, writer: DeviceWriter)] = []
     /// One more for each take that begins. Two takes can have the same number.
     @ObservationIgnored private(set) var generation = 0
-    /// The write chain: each package write (an autosave, a start, or a finalize) takes the next
-    /// ticket and runs when `serving` reaches it, so the writes run one at a time in ticket order.
-    @ObservationIgnored private var tickets = 0
-    @ObservationIgnored private var serving = 0
-    @ObservationIgnored private var waiting: [Int: CheckedContinuation<Void, Never>] = [:]
+    /// The write chain: each package write (an autosave, a start, or a finalize) runs in its
+    /// turn, so the writes run one at a time in the order of their calls.
+    @ObservationIgnored private let writes = TurnQueue()
     /// Held for the life of the studio. Dropping the studio releases it. Every write goes to the
     /// package that it holds.
     @ObservationIgnored let lock: PackageLock
@@ -288,30 +286,6 @@ import Observation
         for writer in writers.values { writer.start() }
     }
 
-    /// The report closure of the device writers. They call it on their queues, so it is built
-    /// in a nonisolated context (AGENTS.md) and hops to the main actor.
-    private nonisolated static func reporter(to studio: Studio, generation: Int) -> @Sendable (Report) -> Void {
-        { [weak studio] report in Task { @MainActor in studio?.apply(report, generation: generation) } }
-    }
-
-    /// A report of another take, also one with the same number, or of a take that ended,
-    /// changes nothing.
-    private func apply(_ report: Report, generation: Int) {
-        guard generation == self.generation else { return }
-        switch report {
-        case .state(let take, let arm, let state, _):
-            guard transport == .recording(take: take), armed.indices.contains(arm - 1) else { return }
-            liveTracks[armed[arm - 1].id]?.state = state
-            if state == .deviceLost { liveTracks[armed[arm - 1].id]?.peak = 0 }
-        case .levels(let take, let peaks, let droppedFrames):
-            guard transport == .recording(take: take) else { return }
-            for (arm, peak) in peaks where armed.indices.contains(arm - 1) {
-                liveTracks[armed[arm - 1].id]?.peak = peak
-                liveTracks[armed[arm - 1].id]?.droppedFrames = droppedFrames
-            }
-        }
-    }
-
     /// Finalize, the marker, and the save off the main actor, then the outcome here.
     private func complete(_ take: Int) async throws(StudioError) {
         transport = .finalizing(take: take)
@@ -326,21 +300,14 @@ import Observation
 
     /// Runs `body` after every package write that started before this call. `body` runs in the
     /// task of the caller, so no actor hop comes between its end and the caller.
-    private func serialized<T>(_ body: () async -> T) async -> T {
-        let ticket = tickets
-        tickets += 1
-        await waitForTurn(ticket)
-        defer { endTurn() }
-        return await body()
-    }
+    private func serialized<T>(_ body: () async -> T) async -> T { await writes.run(body) }
 
     /// Writes a copy of the session off the main actor, after the previous package write. It
     /// takes its ticket now, so a later start or finalize writes after it.
     private func scheduleSave() {
-        let (snapshot, lock, save, ticket) = (session, lock, environment.saveSession, tickets)
-        tickets += 1
+        let (snapshot, lock, save, ticket) = (session, lock, environment.saveSession, writes.ticket())
         Task {
-            await waitForTurn(ticket)
+            await writes.wait(for: ticket)
             switch await writeSession(snapshot, lock: lock, previous: url, recordings: recordings, save) {
             case .success(let package):
                 url = package
@@ -348,18 +315,8 @@ import Observation
             case .failure(let error):
                 saveError = error
             }
-            endTurn()
+            writes.end()
         }
-    }
-
-    private func waitForTurn(_ ticket: Int) async {
-        guard ticket != serving else { return }
-        await withCheckedContinuation { waiting[ticket] = $0 }
-    }
-
-    private func endTurn() {
-        serving += 1
-        waiting.removeValue(forKey: serving)?.resume()
     }
 
     /// Edits, saves, and a new take wait while a take records or finalizes (decision 0004).

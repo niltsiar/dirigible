@@ -9,6 +9,7 @@ struct Dirigible: ParsableCommand {
         abstract: "Make, change, and read Dirigible session packages.",
         subcommands: [
             Create.self, Info.self, TrackCommand.self, FileCommand.self, CaptureCommand.self, ClipCommand.self,
+            MarkerCommand.self,
         ])
 }
 

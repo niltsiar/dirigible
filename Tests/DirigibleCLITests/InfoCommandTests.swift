@@ -39,8 +39,8 @@ struct InfoCommandTests {
               clip c1@96000 file f1 start 96000 offset 96000 length 384000 -6.0 dB
             track guest "Guest" stereo 0.0 dB
               clip c3 file f2 start 0 offset 0 length 1000 0.0 dB
-            file f1 "host-1.wav" mono length 480000 capture k1
-            file f2 "guest.wav" stereo length 1000
+            file f1 "host-1.wav" mono length 480000 capture k1 media missing
+            file f2 "guest.wav" stereo length 1000 media missing
             capture k1 "USB Mic" device "usb-1" host time 123456789 sample time 1234.5 rate 48000.0 \
             measured 48000.1 latency 12 resampled from 44100.0 drift not corrected
             marker m2 "Intro" chapter at 48000
@@ -74,12 +74,14 @@ struct InfoCommandTests {
                   "id" : "f1",
                   "layout" : "mono",
                   "length" : 480000,
+                  "media" : "missing",
                   "path" : "host-1.wav"
                 },
                 {
                   "id" : "f2",
                   "layout" : "stereo",
                   "length" : 1000,
+                  "media" : "missing",
                   "path" : "guest.wav"
                 }
               ],

@@ -60,18 +60,13 @@ struct CaptureRing: @unchecked Sendable {
         storage.pointee.head.load(ordering: .acquiring) == storage.pointee.tail.load(ordering: .acquiring)
     }
 
-    /// Frees the ring bytes and the atomics. Only when no IOProc or listener call can use them.
-    func deallocate() {
-        deallocateBytes()
-        deallocateAtomics()
-    }
-
     /// Frees the ring bytes after a clean detach: no IOProc call can come. A listener call in
-    /// progress can still store the rate, so the atomics stay until `deallocateAtomics()`.
+    /// progress can still store the rate, so the atomics stay for the process life.
     func deallocateBytes() { storage.pointee.bytes.deallocate() }
 
-    /// After `deallocateBytes()`, at the end of the take.
-    func deallocateAtomics() {
+    /// Frees the ring bytes and the atomics. Only for a ring that no IOProc or listener reached.
+    func deallocate() {
+        deallocateBytes()
         let storage = storage.pointee
         storage.head.destroy()
         storage.tail.destroy()

@@ -292,12 +292,10 @@ private func watchLive(_ writer: DeviceWriter) -> Detach {
         Unmanaged<WriterBox>.fromOpaque(client.pointer).release()
         return { true }
     }
+    // The box stays for the process life: a call in progress during the removal can use it
+    // after the removal returns (decision 0013).
     return {
         var address = propertyAddress(kAudioHardwarePropertyDevices)
-        guard AudioObjectRemovePropertyListener(system, &address, deviceListListener, client.pointer) == noErr else {
-            return false
-        }
-        Unmanaged<WriterBox>.fromOpaque(client.pointer).release()
-        return true
+        return AudioObjectRemovePropertyListener(system, &address, deviceListListener, client.pointer) == noErr
     }
 }

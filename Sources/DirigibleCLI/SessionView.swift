@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -24,6 +25,10 @@ struct SessionView: Encodable {
         let layout: String
         let length: Int
         let capture: String?
+        /// "ok", "missing", "short", or "unreadable" (decision 0016).
+        let media: String
+        /// The real length of a short file.
+        let mediaLength: Int?
     }
 
     struct RouteView: Encodable {
@@ -70,7 +75,7 @@ struct SessionView: Encodable {
     let markers: [MarkerView]
     let recording: RecordingView?
 
-    init(_ session: Session) {
+    init(_ session: Session, media: [FileID: MediaFault]) {
         sampleRate = session.sampleRate
         captures = session.sortedCaptures.map {
             CaptureView(
@@ -82,7 +87,8 @@ struct SessionView: Encodable {
         files = session.sortedFiles.map {
             FileView(
                 id: $0.id.rawValue, path: $0.path, layout: $0.layout.rawValue, length: $0.length.count,
-                capture: $0.capture?.rawValue)
+                capture: $0.capture?.rawValue, media: media[$0.id].map(\.word) ?? "ok",
+                mediaLength: media[$0.id].flatMap(\.length))
         }
         tracks = session.tracks.map { track in
             TrackView(
@@ -112,7 +118,7 @@ struct SessionView: Encodable {
 }
 
 /// The text summary of `info`: one line for the session, then one line for each object.
-func summary(of session: Session, name: String) -> String {
+func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> String {
     var lines = ["\(name): \(session.sampleRate) Hz"]
     for track in session.tracks {
         var line = "track \(track.id) \(quoted(track.name)) \(track.layout.rawValue) \(track.gain)"
@@ -129,7 +135,9 @@ func summary(of session: Session, name: String) -> String {
     }
     for file in session.sortedFiles {
         let capture = file.capture.map { " capture \($0)" } ?? ""
-        lines.append("file \(file.id) \(quoted(file.path)) \(file.layout.rawValue) length \(file.length)\(capture)")
+        let state = media[file.id].map { " media \($0.word)" + ($0.length.map { " \($0)" } ?? "") } ?? ""
+        lines.append(
+            "file \(file.id) \(quoted(file.path)) \(file.layout.rawValue) length \(file.length)\(capture)\(state)")
     }
     for capture in session.sortedCaptures {
         var line =
@@ -154,6 +162,21 @@ func summary(of session: Session, name: String) -> String {
 
 /// Quotes and escapes free text, so a quote or a space in a name keeps one line readable.
 private func quoted(_ text: String) -> String { String(reflecting: text) }
+
+extension MediaFault {
+    fileprivate var word: String {
+        switch self {
+        case .missing: "missing"
+        case .short: "short"
+        case .unreadable: "unreadable"
+        }
+    }
+
+    fileprivate var length: Int? {
+        if case .short(let frames) = self { return frames.count }
+        return nil
+    }
+}
 
 extension Session {
     fileprivate var sortedCaptures: [Capture] { captures.values.sorted { $0.id < $1.id } }

@@ -88,6 +88,60 @@ struct FullDiskTests {
         }
     }
 
+    /// A 10 s stereo render (3.84 MB) to a volume with 400 KB free throws and leaves no output
+    /// and no temporary file (plan gate 1 item 5).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aRenderOnAFullDiskLeavesNoOutput() throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "full.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleRender", image.path)
+        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let package = try RenderMixTests.package()
+        try Self.fill(volume, leaving: 400_000, with: volume.appending(path: "filler"))
+        let out = volume.appending(path: "mix.caf")
+
+        #expect(throws: RenderError.self) {
+            try renderMix(package.session, package: package.url, range: 0..<480_000, to: out)
+        }
+        #expect(try Self.visibleFiles(volume) == ["filler"])
+    }
+
+    /// exFAT gives ENOTSUP for `renamex_np(RENAME_EXCL)` (probe X1), so the render claims the
+    /// path and renames over the claim. A second render to that path changes nothing. An exFAT
+    /// volume name has 11 characters or fewer.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aRenderToExFATClaimsAndRenames() throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "exfat.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try Self.hdiutil("create", "-size", "20m", "-fs", "ExFAT", "-volname", "DirExFAT", image.path)
+        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let package = try RenderMixTests.package()
+        let out = volume.appending(path: "mix.caf")
+
+        _ = try renderMix(package.session, package: package.url, range: 0..<9600, to: out)
+        let bytes = try Data(contentsOf: out)
+        for (a, b) in zip(try RenderMixTests.read(out), try package.mix(0..<9600)) { #expect(maxError(a, b) <= 1e-6) }
+        #expect(try Self.visibleFiles(volume) == ["mix.caf"])
+
+        #expect(throws: RenderError.exists) {
+            try renderMix(package.session, package: package.url, range: 0..<4800, to: out)
+        }
+        #expect(try Data(contentsOf: out) == bytes)
+        #expect(try Self.visibleFiles(volume) == ["mix.caf"])
+    }
+
+    /// The files in `volume` with no leading dot (the system adds some), and every `.tmp` file.
+    nonisolated static func visibleFiles(_ volume: URL) throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: volume.path).filter {
+            !$0.hasPrefix(".") || $0.hasSuffix(".tmp")
+        }
+        .sorted()
+    }
+
     /// Writes zeros to `file` until the volume has about `bytes` free.
     nonisolated static func fill(_ volume: URL, leaving bytes: Int, with file: URL) throws {
         let free = try #require(

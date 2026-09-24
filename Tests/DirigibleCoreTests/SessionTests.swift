@@ -185,6 +185,25 @@ struct SessionTests {
         #expect(session == Session(sampleRate: 48_000))
     }
 
+    @Test func anArmedTrackKeepsItsRouteAndLayout() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.addTrack("t2", name: "Guest", layout: .mono)
+        try session.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 5, armedTracks: ["t1"]))
+        let before = session
+        let route = Route(deviceUID: "usb-1", channels: .mono(1))
+
+        #expect(throws: SessionError.trackInRecording("t1")) { try session.setRoute(route, track: "t1") }
+        #expect(throws: SessionError.trackInRecording("t1")) {
+            try session.setLayout(.stereo, route: nil, track: "t1")
+        }
+        #expect(session == before)
+
+        try session.setRoute(route, track: "t2")
+        try session.setLayout(.stereo, route: nil, track: "t2")
+        #expect(session.track("t2")?.layout == .stereo)
+    }
+
     @Test func aRecordingNamesKnownTracks() throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)

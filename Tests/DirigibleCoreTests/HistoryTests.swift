@@ -24,7 +24,7 @@ struct HistoryTests {
         try history.undo()
         #expect(history.canRedo)
 
-        try history.edit { _ in }
+        history.edit { _ in }
         #expect(!history.canUndo)
         #expect(history.canRedo)
     }
@@ -97,6 +97,21 @@ struct HistoryTests {
         let before = history
 
         #expect(throws: SessionError.trackInRecording("t1")) { try history.undo() }
+        #expect(history == before)
+    }
+
+    @Test mutating func undoAndRedoRefuseAnotherRouteOrLayoutOnAnArmedTrack() throws {
+        try history.edit { try $0.addTrack("t1", name: "Host", layout: .mono) }
+        try history.edit { try $0.setRoute(Route(deviceUID: "usb-1", channels: .mono(1)), track: "t1") }
+        try history.edit { try $0.setLayout(.stereo, route: nil, track: "t1") }
+        try history.undo()
+        // The undo entry has no route on t1, and the redo entry has the stereo layout.
+        let take = Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 9, armedTracks: ["t1"])
+        try history.edit { try $0.setRecording(take) }
+        let before = history
+
+        #expect(throws: SessionError.trackInRecording("t1")) { try history.undo() }
+        #expect(throws: SessionError.trackInRecording("t1")) { try history.redo() }
         #expect(history == before)
     }
 

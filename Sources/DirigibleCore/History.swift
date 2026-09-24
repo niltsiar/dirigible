@@ -19,7 +19,9 @@ public struct History: Hashable, Sendable {
     /// Runs `body` on a copy of the session. A throw discards the copy. An edit that changes
     /// only `recording` records no entry, because undo could not change it back.
     @discardableResult
-    public mutating func edit<Result>(_ body: (inout Session) throws -> Result) rethrows -> Result {
+    public mutating func edit<Result, Failure: Error>(
+        _ body: (inout Session) throws(Failure) -> Result
+    ) throws(Failure) -> Result {
         var copy = session
         let result = try body(&copy)
         var withOldRecording = copy
@@ -32,8 +34,8 @@ public struct History: Hashable, Sendable {
         return result
     }
 
-    /// Throws `.trackInRecording` and changes nothing if the entry has no track that the
-    /// current recording arms.
+    /// Throws `.trackInRecording` and changes nothing if the entry removes a track that the
+    /// current recording arms, or changes its route or layout (decision 0012).
     public mutating func undo() throws(SessionError) {
         guard let entry = undoStack.last else { return }
         let restored = try keepingRecording(entry)
@@ -51,9 +53,12 @@ public struct History: Hashable, Sendable {
     }
 
     private func keepingRecording(_ entry: Session) throws(SessionError) -> Session {
-        if let missing = session.recording?.armedTracks.first(where: { entry.track($0) == nil }) {
-            throw .trackInRecording(missing)
+        let changed = session.recording?.armedTracks.first { id in
+            let old = session.track(id)
+            let new = entry.track(id)
+            return new == nil || new?.route != old?.route || new?.layout != old?.layout
         }
+        if let changed { throw .trackInRecording(changed) }
         var restored = entry
         restored.recording = session.recording
         return restored

@@ -144,6 +144,38 @@ struct RenderCommandTests {
         #expect(!FileManager.default.fileExists(atPath: out.path))
     }
 
+    /// 40 audio files, one clip each, and a limit of `limit` descriptors: the render cannot keep
+    /// its 32 files open. It fails with a clear error and leaves no output, not a mix with silence
+    /// where the audio is. Control: the same render with the default limit works. Found by the
+    /// code gate.
+    @Test(arguments: [20, 256])
+    func aRenderWithNoFreeDescriptorFails(limit: Int) throws {
+        try package.edit { session in
+            for k in 0..<40 {
+                try session.addFile(AudioFile(id: FileID("m\(k)"), path: "m\(k).wav", layout: .mono, length: 100))
+                try session.addTrack(TrackID("m\(k)"), name: "M\(k)", layout: .mono)
+                try session.place(
+                    Clip(id: ClipID("m\(k)"), file: FileID("m\(k)"), start: Frames(100 * k), offset: 0, length: 100),
+                    on: TrackID("m\(k)"))
+            }
+        }
+        for k in 0..<40 { try Self.writeWAV(package.url.appending(path: "Clips/m\(k).wav"), frames: 100) }
+        let binary = Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(
+            path: "dirigible")
+
+        let result = try dirigible(
+            shell: "ulimit -n \(limit) && exec \"$0\" \"$@\"", binary.path, "render", package.path, "--out", out.path)
+
+        if limit == 20 {
+            #expect(result.status == 2 && result.stdout == "")
+            #expect(result.stderr == "Error: cannot open the audio files: Too many open files.\n")
+            #expect(!FileManager.default.fileExists(atPath: out.path))
+        } else {
+            #expect(result == CLIResult(status: 0, stdout: "", stderr: ""))
+        }
+        #expect(try temporaryFiles() == [])
+    }
+
     /// 10 min of stereo at 48 kHz: one buffer for the range would be 230 MB. `wait4` gives the
     /// maximum resident size of the child alone, so the parallel tests do not count. The child
     /// inherits no descriptor of the test process.

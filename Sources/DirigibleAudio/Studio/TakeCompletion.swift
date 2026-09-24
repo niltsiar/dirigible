@@ -56,7 +56,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         recordings?.set(identity, active: session.recording != nil)
         return OpenedPackage(
             lock: lock, package: identity, session: session, takeError: error,
-            segmentsWithAudio: segmentsWithAudio(in: package), missingMedia: checkMedia(session, package: package))
+            segmentsWithAudio: segmentsWithAudio(in: package),
+            missingMedia: (try? checkMedia(session, package: package)) ?? [:])
     }
 
     guard session.recording != nil else {
@@ -96,7 +97,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         recordings?.set(identity, active: session.recording != nil, previous: previous)
         return TakeOutcome(
             session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity,
-            missingMedia: checkMedia(session, package: package))
+            missingMedia: try? checkMedia(session, package: package))
     }
     let finalized: Session
     do {

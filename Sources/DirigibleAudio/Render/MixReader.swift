@@ -5,16 +5,26 @@ import DirigibleCore
 /// Renders the mix of a session (decision 0016): stereo float32, non-interleaved, at the session
 /// rate. Clip gain plus track gain in dB is one linear factor. A mono clip goes to both channels,
 /// a stereo clip left to left and right to right (0007). Where no clip or no media is, the mix is
-/// silence. One owner, not Sendable: the Player or the command-line render. It opens each file at
-/// most once, and each read stops at the real length of the file (probe E6c).
+/// silence. One owner, not Sendable: the Player or the command-line render. It keeps at most
+/// `openLimit` files open and closes the least recently used one, so a session with many files
+/// does not use up the descriptors of the process. Each read stops at the real length of the file
+/// (probe E6c).
 final class MixReader {
+    /// A calibration knob: the process limit is 256 descriptors by default.
+    static let openLimit = 32
+
     var session: Session
     /// The faults of the files that this reader opened or read.
     private(set) var faults: [FileID: MediaFault] = [:]
+    /// The last open that failed because the process had no free descriptor. The mix of that
+    /// file is silence, so a render must fail.
+    private(set) var openError: POSIXError?
     /// The package path. The Player sets it to the path that the lock holds at each refill.
     var package: URL
-    /// The open files. Nil for a file that did not open.
-    private var files: [FileID: AVAudioFile?] = [:]
+    /// The open files, the most recently used last.
+    private var files: [(id: FileID, file: AVAudioFile)] = []
+    /// The files that did not open. They hold no descriptor.
+    private var failed: Set<FileID> = []
     private var scratch: [AVAudioFormat: AVAudioPCMBuffer] = [:]
 
     init(package: URL, session: Session) {
@@ -70,11 +80,26 @@ final class MixReader {
     }
 
     private func open(_ id: FileID) -> AVAudioFile? {
-        if let file = files[id] { return file }
-        guard let entry = session.files[id] else { return nil }
-        let (file, fault) = openMedia(entry, in: package.appending(path: clipsFolderName), rate: session.sampleRate)
-        files[id] = file
-        faults[id] = fault
-        return file
+        if let index = files.firstIndex(where: { $0.id == id }) {
+            let entry = files.remove(at: index)
+            files.append(entry)
+            return entry.file
+        }
+        guard !failed.contains(id), let entry = session.files[id] else { return nil }
+        do {
+            let (file, fault) = try openMedia(
+                entry, in: package.appending(path: clipsFolderName), rate: session.sampleRate)
+            faults[id] = fault
+            guard let file else {
+                failed.insert(id)
+                return nil
+            }
+            if files.count == Self.openLimit { files.removeFirst() }
+            files.append((id, file))
+            return file
+        } catch {
+            openError = error
+            return nil
+        }
     }
 }

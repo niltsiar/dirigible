@@ -13,22 +13,32 @@ public enum MediaFault: Hashable, Sendable {
 }
 
 /// The fault of each pool file of the session that is not whole. It reads the disk, so never
-/// call it on the main actor.
-public func checkMedia(_ session: Session, package: URL) -> [FileID: MediaFault] {
+/// call it on the main actor. Throws when the process has no free descriptor: that is not a
+/// fault of a file.
+public func checkMedia(_ session: Session, package: URL) throws(POSIXError) -> [FileID: MediaFault] {
     let clips = package.appending(path: clipsFolderName)
     var faults: [FileID: MediaFault] = [:]
     for file in session.files.values {
-        faults[file.id] = openMedia(file, in: clips, rate: session.sampleRate).fault
+        faults[file.id] = try openMedia(file, in: clips, rate: session.sampleRate).fault
     }
     return faults
 }
 
-/// Opens a pool file: `stat`, open, rate, channel count, length. The file is nil when it gives
-/// no frames. The fault is nil for a whole file.
-func openMedia(_ file: AudioFile, in clips: URL, rate: Int) -> (file: AVAudioFile?, fault: MediaFault?) {
+/// Opens a pool file: `open(2)`, then `AVAudioFile`, rate, channel count, length. The file is
+/// nil when it gives no frames. The fault is nil for a whole file. `open(2)` tells a missing
+/// file (ENOENT) and a process with no free descriptor (EMFILE, ENFILE, thrown) from the other
+/// faults; `AVAudioFile` gives neither its own code (probe E6a).
+func openMedia(_ file: AudioFile, in clips: URL, rate: Int) throws(POSIXError) -> (
+    file: AVAudioFile?, fault: MediaFault?
+) {
     let url = clips.appending(path: file.path)
-    var status = stat()
-    guard stat(url.path, &status) == 0 else { return (nil, errno == ENOENT ? .missing : .unreadable) }
+    let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)
+    guard descriptor >= 0 else {
+        let code = errno
+        if code == EMFILE || code == ENFILE { throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE) }
+        return (nil, code == ENOENT ? .missing : .unreadable)
+    }
+    close(descriptor)
     guard let audio = try? AVAudioFile(forReading: url), audio.fileFormat.sampleRate == Double(rate),
         Int(audio.fileFormat.channelCount) == file.layout.channelCount
     else { return (nil, .unreadable) }

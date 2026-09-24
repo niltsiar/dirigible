@@ -98,4 +98,42 @@ struct MixTests {
         }
         #expect(reader.faults == ["f1": .short(Frames(real))])
     }
+
+    /// The descriptors of this process whose path is in `folder`. `F_GETPATH` gives the real path
+    /// (/private/var, not /var).
+    func openDescriptors(in folder: URL) throws -> Int {
+        let real = try #require(realpath(folder.path, nil))
+        defer { free(real) }
+        let prefix = String(cString: real) + "/"
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        return (0..<getdtablesize()).filter {
+            fcntl($0, F_GETPATH, &buffer) == 0 && String(cString: buffer).hasPrefix(prefix)
+        }
+        .count
+    }
+
+    /// 40 pool files, one clip each, 100 frames apart. The reader keeps at most 32 files open,
+    /// and a file that it closed opens again with the same frames. Control: the first render
+    /// opens each file (the ramp of file k is at frame 100 k). Found by the code gate.
+    @Test func theReaderKeepsAtMost32FilesOpen() throws {
+        let package = try MixPackage()
+        for k in 0..<40 {
+            try package.addFile(FileID("f\(k)"), channels: [ramp(frames: 100, channel: k)])
+            try package.addTrack(
+                TrackID("t\(k)"), clip: ClipID("c\(k)"), file: FileID("f\(k)"), start: Frames(100 * k), offset: 0,
+                length: 100)
+        }
+        let expected = (0..<40).flatMap { ramp(frames: 100, channel: $0) }
+        let reader = package.reader()
+
+        let first = try package.render(reader, 0..<4000)
+        #expect(try openDescriptors(in: package.url) <= 32)
+        let second = try package.render(reader, 0..<4000)
+
+        for out in [first, second] {
+            #expect(maxError(out[0], expected) <= 1e-6 && maxError(out[1], expected) <= 1e-6)
+        }
+        #expect(reader.faults == [:])
+        #expect(try openDescriptors(in: package.url) <= 32)
+    }
 }

@@ -18,7 +18,7 @@ struct MediaTests {
 
         #expect(real > 0 && real < 6000)
         #expect(
-            checkMedia(package.session, package: package.url) == [
+            try checkMedia(package.session, package: package.url) == [
                 "gone": .missing, "short": .short(Frames(real)), "text": .unreadable, "rate": .unreadable,
             ])
     }

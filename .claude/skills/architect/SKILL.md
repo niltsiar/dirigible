@@ -25,6 +25,8 @@ Naming a file isn't grounding. Produce the traced model: the types, the call pat
 
 When the design depends on framework behavior that the documentation does not state (an error value, a format limit, a frame count), write a small probe with `swiftc -O`. Record the command, the macOS and Swift versions, and the result in `.scratchpads/runs/<run>/probe/output.txt`. Delete large generated files after the probe.
 
+A probe proves only the objects and the conditions it ran with. Probe the object that the design will query, in the production setup (for example a key window and the real responder chain, not a window delegate that production does not have). Mark each conclusion that goes past the printed result as an inference. When the design depends on an inference, the first slice that uses it starts with a test on the real object.
+
 Skip Phase A only when the work is genuinely greenfield with no surrounding system to integrate.
 
 ## Phase B: Sketch

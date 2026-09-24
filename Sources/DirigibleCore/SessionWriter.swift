@@ -15,6 +15,8 @@ public enum SessionFileError: Error, Hashable, Sendable {
     /// bug in the model, not a user error.
     /// Holds the reader error, or nil when the XML reads back as a different session.
     indirect case wouldNotReadBack(SessionFileError?)
+    /// Another holder has the package lock (decision 0012).
+    case locked
 }
 
 /// The POSIX code under a Foundation file error, or EIO when there is none.
@@ -50,6 +52,16 @@ extension Session {
         try replaceDurably(package.appending(path: "session.xml"), with: data)
         // A new package is an entry in its parent folder, which a power loss can lose too.
         if isNew { try flush(package.deletingLastPathComponent().path) }
+    }
+
+    /// Deletes the leftover `.session.xml.<UUID>.tmp` files of a crashed save. Call it only under
+    /// the package lock: without the lock it can delete the file of a save in progress (that save
+    /// then throws; no loss).
+    public static func removeTemporaryFiles(in package: URL) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: package.path)) ?? []
+        for name in names where isTemporaryName(name) {
+            unlink(package.appending(path: name).path)
+        }
     }
 
     func xmlDocument() -> XMLDocument {
@@ -153,7 +165,7 @@ private func text(_ value: Double) -> String {
 private func replaceDurably(_ target: URL, with data: Data) throws(SessionFileError) {
     let folder = target.deletingLastPathComponent()
     // One name per save, so two saves that overlap never write into the same file.
-    let temporary = folder.appending(path: ".session.xml.\(UUID().uuidString).tmp")
+    let temporary = folder.appending(path: temporaryName(UUID()))
 
     do throws(SessionFileError) {
         try writeAndFlush(data, to: temporary.path)
@@ -163,6 +175,14 @@ private func replaceDurably(_ target: URL, with data: Data) throws(SessionFileEr
         throw error
     }
     try flush(folder.path)
+}
+
+private func temporaryName(_ uuid: UUID) -> String { ".session.xml.\(uuid.uuidString).tmp" }
+
+private func isTemporaryName(_ name: String) -> Bool {
+    guard let match = name.wholeMatch(of: /\.session\.xml\.(.+)\.tmp/), let uuid = UUID(uuidString: String(match.1))
+    else { return false }
+    return name == temporaryName(uuid)
 }
 
 private func writeAndFlush(_ data: Data, to path: String) throws(SessionFileError) {

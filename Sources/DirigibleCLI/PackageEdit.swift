@@ -117,6 +117,7 @@ extension SessionFileError {
         case .readFailed(let code): "cannot read \(file): \(String(cString: strerror(code)))."
         case .writeFailed(let step, let code): "cannot write \(file) (\(step)): \(String(cString: strerror(code)))."
         case .wouldNotReadBack: "the new session would not read back, so \(file) did not change. This is a bug."
+        case .locked: "\(package) is open in Dirigible."
         }
     }
 }

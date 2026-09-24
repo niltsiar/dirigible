@@ -30,6 +30,7 @@ Prefer no new test over a bad test. A bad test mostly tests mocks, encodes imple
 - Do not change tests to match a wrong implementation.
 - Do not weaken existing assertions unless the expected behavior changed, and say why.
 - Audio comparisons use a stated tolerance, never exact float equality on processed samples.
+- For a writer and reader pair, add one seeded random round-trip test beside the literal tests. Build values through the public edits, write, read, and assert `==`. It tests the claim "every value an edit accepts, the reader accepts".
 - If a test is flaky, make it deterministic or delete it. Do not retry until green.
 
 ## Final response

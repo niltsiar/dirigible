@@ -41,8 +41,12 @@ public final class PackageLock: Sendable {
         self.descriptor = descriptor
     }
 
+    /// Unlocks before the close. flock belongs to the open file, and a child process between
+    /// posix_spawn and exec holds a copy of it, so a close alone can leave the lock held.
     deinit {
-        if descriptor >= 0 { close(descriptor) }
+        guard descriptor >= 0 else { return }
+        flock(descriptor, LOCK_UN)
+        close(descriptor)
     }
 
     /// Takes the lock, runs `body`, and releases the lock after `body` returns or throws. A lock

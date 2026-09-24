@@ -173,6 +173,43 @@ import os
         await window.close()
     }
 
+    /// Code gate 1, item 2: Record, Close, and Quit (`settle`) save a typed name that the user
+    /// did not submit.
+    @Test(arguments: ["record", "close", "quit"])
+    func aTypedNameThatIsNotSubmittedIsSaved(by action: String) async throws {
+        let package = try folder.package("typed")
+        let window = app.open(package)
+        let studio = try #require(await window.opened() ? window.studio : nil)
+        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+
+        window.drafts["t1"] = "Guest"
+        switch action {
+        case "record": await window.record()
+        case "close": await window.close()
+        default: await window.settle()
+        }
+        await studio.settle()
+
+        #expect(try Session(contentsOf: package).track("t1")?.name == "Guest")
+        #expect(window.drafts.isEmpty)
+        await window.close()
+    }
+
+    /// Code gate 1, item 2: a refused name goes, so the field shows the saved name again.
+    @Test func aRefusedNameGivesBackTheSavedName() async throws {
+        let window = app.open(try folder.package("refused"))
+        let studio = try #require(await window.opened() ? window.studio : nil)
+        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+
+        window.drafts["t1"] = "Tab\t"
+        window.commitName("t1")
+
+        #expect(window.alert == .error(.session(.invalidText("Tab\t"))))
+        #expect(window.drafts["t1"] == nil)
+        #expect(studio.session.track("t1")?.name == "Host")
+        await window.close()
+    }
+
     private func closeAll() async {
         for window in app.windows.values { await window.close() }
     }

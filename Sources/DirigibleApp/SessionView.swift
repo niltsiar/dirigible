@@ -130,17 +130,15 @@ private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
     let track: Track
-    @State private var draft = ""
     @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit)
-            TextField(L10n.trackName.key, text: $draft)
+            TextField(L10n.trackName.key, text: name)
                 .focused($focused)
-                .onSubmit { model.rename(track.id, to: draft) }
-                .onChange(of: focused) { if !focused { model.rename(track.id, to: draft) } }
-                .onChange(of: track.name, initial: true) { draft = track.name }
+                .onSubmit { model.commitName(track.id) }
+                .onChange(of: focused) { if !focused { model.commitName(track.id) } }
                 .disabled(!model.canEdit)
                 .frame(width: 160)
             Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
@@ -149,6 +147,10 @@ private struct TrackRow: View {
             if let live = studio.liveTracks[track.id] { LiveState(live: live) }
             Spacer()
         }
+    }
+
+    private var name: Binding<String> {
+        Binding(get: { model.drafts[track.id] ?? track.name }, set: { model.drafts[track.id] = $0 })
     }
 
     private var armed: Binding<Bool> {

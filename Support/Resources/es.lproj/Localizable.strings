@@ -33,3 +33,19 @@
 "error.file.exists" = "Ya existe un elemento con este nombre. Elige otro nombre.";
 "error.finalize.read" = "No se puede leer el audio grabado en %1$@ (error %2$lld).";
 "error.finalize.write" = "No se puede escribir el clip %1$@ (error %2$lld).";
+
+/* Window, panels, and alerts */
+"panel.new.name" = "Sesión";
+"window.opening" = "Abriendo la sesión…";
+"window.recovering" = "Recuperando la última toma…";
+"window.try.again" = "Reintentar";
+"alert.ok" = "Aceptar";
+"alert.cancel" = "Cancelar";
+"alert.close.recording" = "¿Detener la grabación y cerrar la ventana?";
+"alert.close.recording.confirm" = "Detener y cerrar";
+"alert.close.unsaved" = "No se pudieron guardar los últimos cambios. ¿Cerrar de todos modos?";
+"alert.close.unsaved.confirm" = "Cerrar";
+"alert.quit.recording" = "¿Detener la grabación y salir?";
+"alert.quit.recording.confirm" = "Detener y salir";
+"alert.quit.unsaved" = "No se pudieron guardar los últimos cambios de estas sesiones: %@. ¿Salir de todos modos?";
+"alert.quit.unsaved.confirm" = "Salir";

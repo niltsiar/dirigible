@@ -247,7 +247,8 @@ import Foundation
             }
             writers[device.uid] = DeviceWriter(
                 device: device, tracks: tracks, take: started.take, folder: capture, hal: environment.hal,
-                report: report, silenceLimit: environment.silenceLimit)
+                report: report, silenceLimit: environment.silenceLimit,
+                firstRecordLimit: environment.firstRecordLimit)
         }
         // Every route's device is in `devices` above, so its writer exists.
         armed = started.routes.map { ($0.track, writers[$0.device.uid]!) }

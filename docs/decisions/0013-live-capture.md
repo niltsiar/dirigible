@@ -32,7 +32,7 @@ Decision 0004 fixes the capture pipeline, 0005 the ring dependency, and 0012 the
 - A layout change ends the segment. If a routed channel is gone, the device is lost.
 - IsAlive false, or a device-list change where the UID gives no object, ends the segments and detaches: the device is lost. The other devices record.
 - A device-list change where the UID gives an object ID that is not the attached one: the device is lost, and it attaches again at once.
-- A running device that gives no valid record for 2 s: the watchdog on the drain timer ends the segment and detaches; the device is lost.
+- A running device that gives no valid record for 2 s: the watchdog on the drain timer ends the segment and detaches; the device is lost. From an attach to the first valid record of that appearance, the limit is 10 s (`CaptureEnvironment.firstRecordLimit`), because a device (for example a Bluetooth headset) can need seconds to start its IO.
 - A lost device tries to come back each 1 s on the drain timer, and at once on a device-list change. When the UID gives an object that is alive, with the routed channels, it attaches again. The next record opens a new segment.
 - Stop cancels the drain timer after the final drain, so the watchdog and the retry end with it. An event or a tick after the stop does nothing.
 - A record without valid sample and host times ends the segment. It does not restart the watchdog clock.
@@ -64,6 +64,7 @@ Decision 0004 fixes the capture pipeline, 0005 the ring dependency, and 0012 the
 - The ring order has no check that can fail on x86. `CaptureRingStressTests` (2,000,000 records, behind `DIRIGIBLE_SLOW_TESTS`, so `make test-slow` runs it) is the check, and a run on arm64 is part of the run's manual checks.
 - A failed detach leaks up to 8 rings per device per take, and a device that fails 8 detaches stays lost until the take ends.
 - A device that pauses its IO for 2 s or more gets a new segment and a gap.
+- A device that needs more than 10 s from the attach to its first valid record is lost at each attach. A device that gives only records without valid times is lost after 10 s, not 2 s.
 - A rate change to a higher rate stops and starts the IO of the device. The frames of that restart are lost, in a segment break that the rate change makes anyway.
 - A device with more than 64 MiB for 10 s (for example 64 channels at 768 kHz) has a ring for less than 10 s: 0.34 s at the cap, more than 6 drains.
 

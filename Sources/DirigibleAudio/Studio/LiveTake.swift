@@ -50,6 +50,9 @@ struct CaptureEnvironment: Sendable {
     var hal: DeviceHAL
     /// A running device with no valid record for this long is lost (the watchdog).
     var silenceLimit: Duration
+    /// The watchdog limit from an attach to the first valid record of that appearance. A device
+    /// (for example a Bluetooth headset) can need seconds to start its IO.
+    var firstRecordLimit: Duration
     /// Nil when the access is granted.
     var microphoneAccess: @Sendable () -> MicrophoneAccess?
     /// The free bytes of the volume of a URL. Called off the main actor.
@@ -57,7 +60,7 @@ struct CaptureEnvironment: Sendable {
     var diskCheckInterval: Duration
 
     static let live = CaptureEnvironment(
-        hal: .live, silenceLimit: .seconds(2),
+        hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),
         microphoneAccess: {
             switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized: nil

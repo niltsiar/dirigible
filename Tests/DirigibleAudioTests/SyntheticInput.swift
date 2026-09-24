@@ -181,7 +181,8 @@ final class FreeBytes: @unchecked Sendable {
 }
 
 extension CaptureEnvironment {
-    /// The test HAL, a watchdog limit that other tests on the main actor cannot reach, the
+    /// The test HAL, a watchdog limit that other tests on the main actor cannot reach (also for
+    /// the first record), the
     /// microphone access `access` (nil: authorized), `free` bytes (default 100 GB), and a disk
     /// check each 50 ms.
     static func test(
@@ -189,8 +190,8 @@ extension CaptureEnvironment {
         free: FreeBytes = FreeBytes()
     ) -> CaptureEnvironment {
         CaptureEnvironment(
-            hal: hal.hal, silenceLimit: silenceLimit, microphoneAccess: { access }, freeBytes: { _ in free.value },
-            diskCheckInterval: .milliseconds(50))
+            hal: hal.hal, silenceLimit: silenceLimit, firstRecordLimit: silenceLimit, microphoneAccess: { access },
+            freeBytes: { _ in free.value }, diskCheckInterval: .milliseconds(50))
     }
 }
 
@@ -219,14 +220,15 @@ final class SyntheticInput: @unchecked Sendable {
     private func isStopped(_ input: DeviceInput) -> Bool { lock.withLock { stopped.contains(ObjectIdentifier(input)) } }
 
     /// Sends `records` into `input`, or into the input of attach number `attach` of the device,
-    /// or into the current input. It waits for that attach.
+    /// or into the current input. It waits for that attach, and then for `delay`: a device that
+    /// is slow to start its IO.
     func play(
         _ records: [InputRecord], pace: Pace = .burst, flags: AudioTimeStampFlags = validTimes,
-        into input: DeviceInput? = nil, attach: Int? = nil
+        into input: DeviceInput? = nil, attach: Int? = nil, delay: Duration = .zero
     ) {
         lock.withLock { sending += 1 }
         let thread = Thread { [self] in
-            send(records, pace: pace, flags: flags, into: input, attach: attach)
+            send(records, pace: pace, flags: flags, into: input, attach: attach, delay: delay)
             lock.withLock { sending -= 1 }
         }
         // A real IOProc runs on a real-time thread; a busy suite must not starve this one.
@@ -263,7 +265,8 @@ final class SyntheticInput: @unchecked Sendable {
     }
 
     private func send(
-        _ records: [InputRecord], pace: Pace, flags: AudioTimeStampFlags, into target: DeviceInput?, attach: Int?
+        _ records: [InputRecord], pace: Pace, flags: AudioTimeStampFlags, into target: DeviceInput?, attach: Int?,
+        delay: Duration
     ) {
         let end = Date.now + 10
         func find() -> DeviceInput? {
@@ -277,6 +280,7 @@ final class SyntheticInput: @unchecked Sendable {
             usleep(1000)
             found = find()
         }
+        if found != nil, delay > .zero { usleep(UInt32(delay / .microseconds(1))) }
         // The check and the count are one step, so a stop either sees this thread or ends it.
         guard let input = found,
             lock.withLock({ () -> Bool in

@@ -71,7 +71,7 @@ Put every finding in one bucket:
 
 For each finding, give the lens that raised it, the bucket, and one line of rationale.
 
-For each "Act on" item in an open or follow-up round, name the invariant that it breaks. List the sibling paths: every other path that can break the same invariant (split and place, the reader and the edits, the temporary file and the rename). The fix covers the finding and every sibling path in the same commit. Findings in the next round are usually at the edge of a fix that covered only the named path.
+For each "Act on" item in an open or follow-up round, name the invariant that it breaks. Name it by the state, not by the operation in the finding: "each use of the package path is the path the lock holds", not "each write goes to the locked path". List the sibling paths: search the code for every read, every write, and every stored copy of that state (split and place, the reader and the edits, the temporary file and the rename). A copy that changes only at a write is a sibling. The fix covers the finding and every sibling path in the same commit. Findings in the next round are usually at the edge of a fix that covered only the named path.
 
 In the convergence round:
 

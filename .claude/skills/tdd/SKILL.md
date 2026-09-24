@@ -32,7 +32,7 @@ Prefer no new test over a bad test. A bad test mostly tests mocks, encodes imple
 - Audio comparisons use a stated tolerance, never exact float equality on processed samples.
 - For a writer and reader pair, add one seeded random round-trip test beside the literal tests. Build values through the public edits, write, read, and assert `==`. It tests the claim "every value an edit accepts, the reader accepts".
 - Give every wait in a test a limit and a failure message: a poll loop, a yield loop, a child process. When a bug or a mutation removes the state that the test waits for, the test must fail, not hang the suite.
-- If a test is flaky, make it deterministic or delete it. Do not retry until green.
+- If a test is flaky, make it deterministic or delete it. Do not retry until green. First run the full suite and the test alone, 15 times each. When only the full suite fails, look for a process-wide resource in the code under test: a file descriptor, a lock, a temporary path, an environment variable. Parallel tests share these. Delete the test only when the cause is in the test itself.
 
 ## Final response
 

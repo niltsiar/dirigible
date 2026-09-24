@@ -69,6 +69,8 @@ Put every finding in one bucket:
 
 For each finding, give the lens that raised it, the bucket, and one line of rationale.
 
+For each "Act on" item in an open or follow-up round, name the invariant that it breaks. List the sibling paths: every other path that can break the same invariant (split and place, the reader and the edits, the temporary file and the rename). The fix covers the finding and every sibling path in the same commit. Findings in the next round are usually at the edge of a fix that covered only the named path.
+
 In the convergence round:
 
 - Only a finding about an earlier item or a fix can be "Act on". Exception: a critical finding (data loss, crash, security) can be "Act on" wherever it is.

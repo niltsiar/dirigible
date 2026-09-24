@@ -24,6 +24,8 @@ actor Player {
         var played: Int
         var frame: Frames
         var ended: Bool
+        /// The engine runs: a play started and no stop came.
+        var running: Bool
     }
 
     /// The chunks that one play keeps scheduled ahead of the node (a calibration knob).
@@ -102,7 +104,8 @@ actor Player {
     /// `ended`: the feed scheduled its last frame and the node played it.
     func reading() -> Reading {
         let ended = feed.map { $0.scheduled >= length($0) && nodeFrames() >= $0.scheduled } ?? false
-        return Reading(number: number, played: played, frame: position(), ended: ended)
+        return Reading(
+            number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false)
     }
 
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.

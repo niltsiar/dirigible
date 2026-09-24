@@ -15,6 +15,7 @@ Open a todo list with the phases below before you start. Do not skip a phase. A 
 - Stop and ask only for irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. Pushing a run branch, opening its pull request, and merging it are part of the flow and need no question.
 - When a check needs hardware you cannot drive (a second audio interface, a permission prompt), write the manual check in `run.md` under "Manual checks" and continue with the closest automated check.
 - Keep the main context small. Send bulk reading to subagents. Keep their conclusions, not their raw output.
+- When a subagent does a phase, its prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file of this flow. Use an agent type that has the Write tool. The default rules of a subagent forbid report files, so without this line it refuses the Write tool or goes around it.
 - Send every research request, from a phase or from the user in the middle of a run, through the **research** skill. Its output goes to `docs/research/`, where `make check-docs` checks it.
 
 ## Phase 0: Open the run

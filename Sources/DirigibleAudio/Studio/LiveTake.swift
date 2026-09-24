@@ -14,7 +14,10 @@ public struct LiveTrack: Hashable, Sendable {
     }
 
     public var state: State
+    /// The frames that the device dropped in the take so far (decision 0004).
     public var droppedFrames: Int
+    /// The largest absolute sample of the last drain (linear, 0 or more). 0 after `.deviceLost`.
+    public var peak: Float
 }
 
 /// Why a take ended.
@@ -36,6 +39,8 @@ public struct TakeResult: Hashable, Sendable {
     public let end: TakeEnd
     /// The armed tracks with a gap, each with the cause of its first gap.
     public let gaps: [TrackID: Gap]
+    /// The armed tracks whose device dropped frames, each with the count.
+    public var droppedFrames: [TrackID: Int] = [:]
 }
 
 /// A microphone access that is not granted. The library reads it and never requests it; the
@@ -64,6 +69,8 @@ struct CaptureEnvironment: Sendable {
     /// The free bytes of the volume of the package. Called off the main actor.
     var freeBytes: @Sendable (PackageLock) -> Int64
     var diskCheckInterval: Duration
+    /// The ring length of each device appearance.
+    var ringSeconds: Double = 10
     /// The autosave write of a session into the package that the lock holds. Returns the package
     /// path that it wrote. Called off the main actor.
     var saveSession: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL

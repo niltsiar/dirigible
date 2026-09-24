@@ -11,9 +11,16 @@ final class ReportLog: @unchecked Sendable {
     private var reports: [Report] = []
 
     var closure: @Sendable (Report) -> Void { { [self] report in lock.withLock { reports.append(report) } } }
-    var count: Int { lock.withLock { reports.count } }
-    func states(arm: Int) -> [LiveTrack.State] { lock.withLock { reports.filter { $0.arm == arm }.map(\.state) } }
-    func statuses(arm: Int) -> [Int32?] { lock.withLock { reports.filter { $0.arm == arm }.map(\.status) } }
+    /// The state reports. Each drain also sends a `.levels` report.
+    var count: Int {
+        lock.withLock {
+            reports.count {
+                if case .state = $0 { true } else { false }
+            }
+        }
+    }
+    func states(arm: Int) -> [LiveTrack.State] { lock.withLock { reports.compactMap { $0.state(arm: arm) }.map(\.0) } }
+    func statuses(arm: Int) -> [Int32?] { lock.withLock { reports.compactMap { $0.state(arm: arm) }.map(\.1) } }
 }
 
 /// The device events of one writer (criteria 6 to 9, 19 to 21), and the take with a device that
@@ -409,5 +416,13 @@ struct DeviceEventTests {
             #expect(log.states(arm: 1) == [.deviceLost])
             #expect(try stems() == ["take1-1-1"])
         }
+    }
+}
+
+extension Report {
+    /// The state and the status of a `.state` report of `arm`. Nil for another arm and for `.levels`.
+    func state(arm: Int) -> (LiveTrack.State, Int32?)? {
+        guard case .state(_, arm, let state, let status) = self else { return nil }
+        return (state, status)
     }
 }

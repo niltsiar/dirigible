@@ -99,6 +99,32 @@ struct MonitorTests {
         _ = folder
     }
 
+    /// Code gate round 1, item 2: a route change replaces the monitor writer of `duo`. A report
+    /// with the number of the old writer changes nothing. Control: the same report with the
+    /// number of the new writer.
+    @Test func aReportOfAReplacedMonitorWriterChangesNothing() async throws {
+        let (folder, url) = try await package()
+        let hal = TestHAL([duo])
+        let studio = try await open(url, hal)
+        try await studio.monitor(armed: ["t1"])
+        let old = try #require(studio.monitors["duo"]?.number)
+
+        try studio.edit { s throws(SessionError) in
+            try s.setRoute(Route(deviceUID: "duo", channels: .mono(2)), track: "t1")
+        }
+        try await studio.monitor(armed: ["t1"])
+        let new = try #require(studio.monitors["duo"]?.number)
+        #expect(new != old)
+
+        let lost = Report.state(take: 0, arm: 1, .deviceLost, status: nil)
+        studio.applyMonitor(lost, number: old, uid: "duo")
+        #expect(studio.liveTracks["t1"]?.state == .monitoring)
+        studio.applyMonitor(lost, number: new, uid: "duo")
+        #expect(studio.liveTracks["t1"]?.state == .deviceLost)
+        await studio.settle()
+        _ = folder
+    }
+
     // MARK: Criterion 3
 
     /// The test holds the first studio after its `settle()`, so only an explicit release can

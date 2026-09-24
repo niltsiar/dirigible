@@ -97,4 +97,53 @@ struct PlayerTests {
         let reading = await player.reading()
         #expect(reading.number == 1 && reading.frame == 43_200)
     }
+
+    @Test(arguments: [(Shuttle.Rate.two, 2.0), (.four, 4.0), (.half, 0.5), (.one, 1.0)])
+    func aRateMovesThePlayheadAtThatRate(rate: Shuttle.Rate, factor: Double) async throws {
+        let player = player()
+        await player.apply(.play(from: 1000, shuttle: Shuttle(direction: .forward, rate: rate)), number: 1)
+        let out = await player.renderOffline(frames: 9600)
+        #expect(await player.reading().frame == Frames(1000 + Int(9600 * factor)))
+        let mix = try package.mix(0..<50_000)
+        for channel in 0..<2 {
+            let expected = (0..<9600).map { i -> Float in
+                let position = 1000 + Double(i) * factor
+                let low = Int(position)
+                let fraction = Float(position - Double(low))
+                return mix[channel][low] + fraction * (mix[channel][low + 1] - mix[channel][low])
+            }
+            #expect(maxError(out[channel], expected) <= 1e-6, "output frame i is mix frame 1000 + \(factor) i")
+        }
+    }
+
+    @Test func jAtTwiceTheRatePlaysEveryOtherFrameBackward() async throws {
+        let player = player()
+        await player.apply(.play(from: 48_000, shuttle: Shuttle(direction: .reverse, rate: .two)), number: 1)
+        let out = await player.renderOffline(frames: 9600)
+        let mix = try package.mix(0..<48_000)
+        let expected = (0..<9600).map { mix[0][47_999 - 2 * $0] }
+        #expect(maxError(out[0], expected) <= 1e-6 && maxError(out[1], expected) <= 1e-6)
+        #expect(await player.reading().frame == 28_800)
+    }
+
+    @Test func playStopsAtTheEndOfTheMaterial() async throws {
+        let player = player()
+        await player.apply(.play(from: 95_000, shuttle: forward), number: 1)
+        let out = await player.renderOffline(frames: 9600)
+        expectEqual(slice(out, 0..<1000), try package.mix(95_000..<96_000), "the last 1000 frames")
+        var reading = await player.reading()
+        #expect(reading.ended && reading.frame == 96_000)
+        await player.apply(.play(from: 1000, shuttle: reverse), number: 2)
+        _ = await player.renderOffline(frames: 9600)
+        reading = await player.reading()
+        #expect(reading.ended && reading.frame == 0)
+    }
+
+    @Test func aPlayWithFramesLeftIsNotEnded() async throws {
+        let player = player()
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        _ = await player.renderOffline(frames: 9600)
+        let reading = await player.reading()
+        #expect(!reading.ended && reading.frame == 9600)
+    }
 }

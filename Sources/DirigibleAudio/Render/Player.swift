@@ -23,6 +23,7 @@ actor Player {
         var number: Int
         var played: Int
         var frame: Frames
+        var ended: Bool
     }
 
     /// The chunks that one play keeps scheduled ahead of the node (a calibration knob).
@@ -54,6 +55,8 @@ actor Player {
     private var frame: Frames = .zero
     private var graph: Graph?
     private var feed: Feed?
+    /// The mix frames under one chunk, reused.
+    private var source: AVAudioPCMBuffer?
 
     /// Stores values only. The engine is made at the first play.
     init(package: @escaping @Sendable () throws -> URL, output: Output, session: Session) {
@@ -96,7 +99,11 @@ actor Player {
         feed?.mix.session = session
     }
 
-    func reading() -> Reading { Reading(number: number, played: played, frame: position()) }
+    /// `ended`: the feed scheduled its last frame and the node played it.
+    func reading() -> Reading {
+        let ended = feed.map { $0.scheduled >= length($0) && nodeFrames() >= $0.scheduled } ?? false
+        return Reading(number: number, played: played, frame: position(), ended: ended)
+    }
 
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
     /// Before each pull it waits (at most 2 s) until the handlers have scheduled the frames, as
@@ -116,7 +123,8 @@ actor Player {
 
     private func waitForFeed(_ count: Int) async {
         let end = ContinuousClock.now + .seconds(2)
-        while let feed, feed.scheduled - nodeFrames() < count, ContinuousClock.now < end {
+        while let feed, feed.scheduled - nodeFrames() < count, feed.scheduled < length(feed), ContinuousClock.now < end
+        {
             try? await Task.sleep(for: .milliseconds(1))
         }
     }
@@ -130,28 +138,56 @@ actor Player {
         return (0..<2).map { Array(UnsafeBufferPointer(start: buffer.floatChannelData![$0], count: count)) }
     }
 
-    /// Schedules chunks until the feed is `depth` chunks ahead of the node.
+    /// Schedules chunks until the feed is `depth` chunks ahead of the node, or at its end.
     private func refill() {
         guard var feed, let graph else { return }
-        let target = nodeFrames() + chunk * Self.depth
+        let total = length(feed)
+        let target = min(total, nodeFrames() + chunk * Self.depth)
         while feed.scheduled < target {
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: graph.format, frameCapacity: AVAudioFrameCount(chunk))
+            let count = min(chunk, total - feed.scheduled)
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: graph.format, frameCapacity: AVAudioFrameCount(count)),
+                render(feed, count: count, into: buffer)
             else { return }
-            let from = Frames(feed.scheduled)
-            let size = Frames(chunk)
-            let forward = feed.shuttle.direction == .forward
-            let range =
-                forward
-                ? feed.anchor + from..<feed.anchor + from + size : feed.anchor - from - size..<feed.anchor - from
-            feed.mix.render(range, into: buffer)
-            if !forward {
-                for channel in 0..<2 { vDSP_vrvrs(buffer.floatChannelData![channel], 1, vDSP_Length(chunk)) }
-            }
             graph.node.scheduleBuffer(
                 buffer, completionCallbackType: .dataConsumed, completionHandler: Self.consumed(self))
-            feed.scheduled += chunk
+            feed.scheduled += count
         }
         self.feed = feed
+    }
+
+    /// The output frames of the whole feed: to the session end (forward) or to 0 (reverse).
+    private func length(_ feed: Feed) -> Int {
+        let distance = feed.shuttle.direction == .forward ? feed.mix.session.end - feed.anchor : feed.anchor
+        return max(0, Int((Double(distance.count) / feed.shuttle.rate.rawValue).rounded(.up)))
+    }
+
+    /// Renders the next `count` output frames of the feed. Output frame k is the mix at
+    /// anchor + k x rate (forward) or anchor - 1 - k x rate (reverse), by linear interpolation
+    /// (tape pitch). Reverse renders its positions in forward order, then flips them.
+    private func render(_ feed: Feed, count: Int, into buffer: AVAudioPCMBuffer) -> Bool {
+        let rate = feed.shuttle.rate.rawValue
+        let forward = feed.shuttle.direction == .forward
+        let anchor = Double(feed.anchor.count)
+        let first =
+            forward ? anchor + Double(feed.scheduled) * rate : anchor - 1 - Double(feed.scheduled + count - 1) * rate
+        let low = Int(first.rounded(.down))
+        let span = Int((first + Double(count - 1) * rate).rounded(.down)) - low + 2
+        if source.map({ Int($0.frameCapacity) < span }) ?? true {
+            source = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: AVAudioFrameCount(span))
+        }
+        guard let source else { return false }
+        feed.mix.render(Frames(low)..<Frames(low + span), into: source)
+        var start = Float(first - Double(low))
+        var step = Float(rate)
+        var positions = [Float](repeating: 0, count: count)
+        vDSP_vramp(&start, &step, &positions, 1, vDSP_Length(count))
+        buffer.frameLength = AVAudioFrameCount(count)
+        for channel in 0..<2 {
+            let out = buffer.floatChannelData![channel]
+            vDSP_vlint(source.floatChannelData![channel], positions, 1, out, 1, vDSP_Length(count), vDSP_Length(span))
+            if !forward { vDSP_vrvrs(out, 1, vDSP_Length(count)) }
+        }
+        return true
     }
 
     /// Made outside the actor: an AVFAudio thread calls it (AGENTS.md).

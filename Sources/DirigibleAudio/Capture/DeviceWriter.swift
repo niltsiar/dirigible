@@ -32,7 +32,6 @@ final class DeviceWriter: @unchecked Sendable {
     static let failedDetachLimit = 8
     static let retryInterval = Duration.seconds(1)
 
-    private let take: Int
     private let hal: DeviceHAL
     private let report: @Sendable (Report) -> Void
     private let drainInterval: Duration
@@ -68,7 +67,7 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
     /// checks of `Studio` make every channel exist on the device. `files` is nil for a monitor,
-    /// which reports take 0. `drainInterval`,
+    /// which reports take 0 (`tracks.take`). `drainInterval`,
     /// `silenceLimit`, `firstRecordLimit`, and `ringSeconds` are parameters so that tests stay
     /// fast.
     init(
@@ -77,7 +76,6 @@ final class DeviceWriter: @unchecked Sendable {
         silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10,
         keepLimit: Int = .max
     ) {
-        take = files?.take ?? 0
         self.hal = hal
         self.report = report
         self.drainInterval = drainInterval
@@ -218,7 +216,7 @@ final class DeviceWriter: @unchecked Sendable {
             hasRecord = true
         }
         dropped.wrappingIncrement(by: lost, ordering: .relaxed)
-        report(.levels(take: take, peaks: tracks.takePeaks(), droppedFrames: droppedFrames))
+        report(.levels(take: tracks.take, peaks: tracks.takePeaks(), droppedFrames: droppedFrames))
     }
 
     /// Detaches the current input and writes the rest of its ring, then keeps the input.
@@ -247,7 +245,7 @@ final class DeviceWriter: @unchecked Sendable {
         lastTry = .now
         for arm in tracks.arms {
             tracks.gaps[arm] = tracks.gaps[arm] ?? .deviceLost
-            report(.state(take: take, arm: arm, .deviceLost, status: nil))
+            report(.state(take: tracks.take, arm: arm, .deviceLost, status: nil))
         }
     }
 
@@ -256,7 +254,7 @@ final class DeviceWriter: @unchecked Sendable {
         guard phase == .lost else { return }
         lastTry = .now
         guard attach() else { return }
-        for arm in tracks.arms { report(.state(take: take, arm: arm, .recording, status: nil)) }
+        for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, .recording, status: nil)) }
     }
 
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
@@ -266,7 +264,7 @@ final class DeviceWriter: @unchecked Sendable {
         guard kept < keepLimit else {
             if !retryStopped {
                 retryStopped = true
-                for arm in tracks.arms { report(.state(take: take, arm: arm, .retryStopped, status: nil)) }
+                for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, .retryStopped, status: nil)) }
             }
             return false
         }

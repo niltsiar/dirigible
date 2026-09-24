@@ -61,6 +61,21 @@ final class TestHAL: @unchecked Sendable {
     private var live: Set<String> = []
     private var gate: DispatchSemaphore?
     private var held = 0
+    private var attachGate: DispatchSemaphore?
+    private var log: [String: [Event]] = [:]
+
+    /// A successful attach or a clean detach of one input.
+    enum Event: Equatable {
+        case attach(DeviceInput)
+        case detach(DeviceInput)
+
+        static func == (a: Event, b: Event) -> Bool {
+            switch (a, b) {
+            case (.attach(let x), .attach(let y)), (.detach(let x), .detach(let y)): x === y
+            default: false
+            }
+        }
+    }
 
     init(_ devices: [InputDevice]) {
         for (index, device) in devices.enumerated() {
@@ -90,6 +105,9 @@ final class TestHAL: @unchecked Sendable {
     }
 
     private func attach(_ input: DeviceInput) throws(HALError) -> Detach {
+        if let gate = lock.withLock({ attachGate }), gate.wait(timeout: .now() + 30) == .timedOut {
+            Issue.record("A held attach was not released in 30 s")
+        }
         let (uid, error, live) = lock.withLock {
             let uid = present.first { $0.value.id == input.id }?.key ?? "id \(input.id)"
             tries[uid, default: []].append(input)
@@ -100,12 +118,16 @@ final class TestHAL: @unchecked Sendable {
         lock.withLock {
             attached[uid, default: []].append(input)
             capacities[uid, default: []].append(input.ring.capacity)
+            log[uid, default: []].append(.attach(input))
         }
         return { [self] in
             let (running, clean) = lock.withLock { (self.producers[uid] ?? [], detachResult) }
             guard clean else { return false }
             for producer in running { producer.stop(input) }
-            lock.withLock { _ = detached.insert(ObjectIdentifier(input)) }
+            lock.withLock {
+                detached.insert(ObjectIdentifier(input))
+                log[uid, default: []].append(.detach(input))
+            }
             return true
         }
     }
@@ -133,6 +155,22 @@ final class TestHAL: @unchecked Sendable {
         }
         for _ in 0..<count { gate?.signal() }
     }
+
+    /// The next attaches wait until `releaseAttaches`, with a limit of 30 s.
+    func holdAttaches() { lock.withLock { attachGate = DispatchSemaphore(value: 0) } }
+
+    /// Lets the held attaches go on, and stops holding new ones.
+    func releaseAttaches() {
+        let gate = lock.withLock {
+            defer { attachGate = nil }
+            return attachGate
+        }
+        // More signals than waiters do no harm: the gate is not used again.
+        for _ in 0..<8 { gate?.signal() }
+    }
+
+    /// Each successful attach and each clean detach of `uid`, in order.
+    func events(_ uid: String) -> [Event] { lock.withLock { log[uid] ?? [] } }
 
     /// The lookups that waited at the gate.
     var heldLookUps: Int { lock.withLock { held } }
@@ -185,15 +223,18 @@ extension CaptureEnvironment {
     /// The test HAL, a watchdog limit that other tests on the main actor cannot reach (also for
     /// the first record), the
     /// microphone access `access` (nil: authorized), `free` bytes (default 100 GB), a disk
-    /// check each 50 ms, and the autosave step `saveSession` (default: the live write).
+    /// check each 50 ms, the autosave step `saveSession` (default: the live write), and a step
+    /// before each finalize (default: none).
     static func test(
         _ hal: TestHAL, silenceLimit: Duration = .seconds(60), access: MicrophoneAccess? = nil,
         free: FreeBytes = FreeBytes(),
-        saveSession: @escaping @Sendable (Session, PackageLock) throws(SessionFileError) -> URL = live.saveSession
+        saveSession: @escaping @Sendable (Session, PackageLock) throws(SessionFileError) -> URL = live.saveSession,
+        beforeFinalize: @escaping @Sendable () async -> Void = {}
     ) -> CaptureEnvironment {
         CaptureEnvironment(
             hal: hal.hal, silenceLimit: silenceLimit, firstRecordLimit: silenceLimit, microphoneAccess: { access },
-            freeBytes: { _ in free.value }, diskCheckInterval: .milliseconds(50), saveSession: saveSession)
+            freeBytes: { _ in free.value }, diskCheckInterval: .milliseconds(50), saveSession: saveSession,
+            beforeFinalize: beforeFinalize)
     }
 }
 

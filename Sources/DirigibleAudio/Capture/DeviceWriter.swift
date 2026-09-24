@@ -104,6 +104,11 @@ final class DeviceWriter: @unchecked Sendable {
         }
     }
 
+    /// Returns after the first attach try of `start()`: a barrier on the queue.
+    func started() async {
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in queue.async { done.resume() } }
+    }
+
     /// A device listener passes its own `DeviceInput`; the device-list listener passes nil. A
     /// rate, layout, or IsAlive event from an input that is not the current one does nothing.
     func post(_ event: Event, from sender: DeviceInput?) {

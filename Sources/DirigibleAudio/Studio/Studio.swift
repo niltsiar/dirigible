@@ -156,14 +156,19 @@ import Observation
     /// Starts a take on the armed tracks (decision 0013). The device lookup, the microphone
     /// access read, the disk check, and the save run off the main actor; meanwhile every other
     /// entry point throws `.busy`. A throw changes nothing. A device that does not attach after
-    /// the save is lost, and the take goes on.
+    /// the save is lost, and the take goes on. The take attaches before a running monitor
+    /// releases its devices (decision 0015).
     public func startRecording(armed: [TrackID], playhead: Frames) async throws(StudioError) {
         _ = try await beginRecording(armed: armed, playhead: playhead)
     }
 
     /// `startRecording`, which also returns the take and the generation that it started. A stop
-    /// can end that take before this call returns.
-    func beginRecording(armed: [TrackID], playhead: Frames) async throws(StudioError) -> (take: Int, generation: Int) {
+    /// can end that take before this call returns. With `length` (nanoseconds), each writer
+    /// writes no record at or after the take start + `length`. The end is set before the
+    /// hand-over waits, so no drain writes past it.
+    func beginRecording(armed: [TrackID], playhead: Frames, length: UInt64? = nil) async throws(StudioError) -> (
+        take: Int, generation: Int
+    ) {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
         isStarting = true
@@ -179,16 +184,24 @@ import Observation
                 return .failure(error)
             }
             begin(started)
+            if let length {
+                let (end, overflow) = (started.session.recording?.takeStartHostTimeNanos ?? 0)
+                    .addingReportingOverflow(length)
+                for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
+            }
             sleepAssertion = SleepAssertion()
             diskWatcher = watchDisk()
+            // A stop from now on waits for this step and does not throw `.busy`.
+            isStarting = false
+            await handOver()
             return .success((started.take, generation))
         }
         return try result.get()
     }
 
-    /// Stops the take: drains and closes each device writer, then finalizes and saves
-    /// (decision 0004). With no take, it does nothing. A success records one undo entry. A
-    /// failure keeps the take pending and throws.
+    /// Stops the take: drains and closes each device writer, starts the monitor of the request
+    /// again, then finalizes and saves (decision 0004). With no take, it does nothing. A success
+    /// records one undo entry. A failure keeps the take pending and throws.
     public func stopRecording() async throws(StudioError) {
         try await stop(.requested)
     }
@@ -214,6 +227,8 @@ import Observation
             armed = []
             liveTracks = [:]
             recordingSince = nil
+            // The come back returns its monitor turn before the finalize (decision 0015).
+            await monitorTurns.run { await applyMonitor() }
             defer { sleepAssertion = nil }
             do throws(StudioError) { try await complete(take) } catch { return error }
             return nil
@@ -260,6 +275,8 @@ import Observation
             } catch {
                 return error
             }
+            isStarting = false
+            await handOver()
             return nil
         }
         if let error { throw error }
@@ -308,6 +325,7 @@ import Observation
     /// Finalize, the marker, and the save off the main actor, then the outcome here.
     private func complete(_ take: Int) async throws(StudioError) {
         transport = .finalizing(take: take)
+        await environment.beforeFinalize()
         let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: url)
         if let package = outcome.package { url = package }
         transport = .idle

@@ -14,7 +14,8 @@ Open a todo list with the phases below before you start. Do not skip a phase. A 
 - Do not block on the human for reversible work. Choose a sensible default, record it in `decisions.tsv`, and continue. The human corrects it later.
 - Stop and ask only for irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. Pushing a run branch, opening its pull request, and merging it are part of the flow and need no question.
 - When a check needs hardware you cannot drive (a second audio interface, a permission prompt), write the manual check in `run.md` under "Manual checks" and continue with the closest automated check.
-- Keep the main context small. Send bulk reading and research to subagents. Keep their conclusions, not their raw output.
+- Keep the main context small. Send bulk reading to subagents. Keep their conclusions, not their raw output.
+- Send every research request, from a phase or from the user in the middle of a run, through the **research** skill. Its output goes to `docs/research/`, where `make check-docs` checks it.
 
 ## Phase 0: Open the run
 
@@ -29,7 +30,7 @@ Open a todo list with the phases below before you start. Do not skip a phase. A 
 Write `analysis.md` in the run folder:
 
 - The requirement IDs from `docs/requirements/brief.md` that this run covers.
-- How Hindenburg PRO behaves for this feature. Use a subagent with web search to research it. Cite the sources.
+- How Hindenburg PRO behaves for this feature. Research it with the **research** skill. Cite the sources.
 - Acceptance criteria as falsifiable statements. Each criterion names how a test or command proves it. Example: "A 10 s recording from two devices gives two WAV files of 10 s ± 20 ms and one session XML with two `<track>` elements."
 - Assumptions and open questions. Answer each question with a default and record it in `decisions.tsv`.
 - What is out of scope for this run. Put the rest in `.scratchpads/backlog.md`.

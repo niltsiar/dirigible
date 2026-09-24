@@ -15,6 +15,7 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 | `make setup` | Enables the pre-commit hook in `.githooks/` (format check and debug build). Run it once per clone. |
 | `make build` | Debug build with `swift build`. |
 | `make test` | Runs all tests except `AppBundleTests`. Fast. Use it in the red-green loop. A bare `swift test` fails `AppBundleTests` on purpose. |
+| `make test-slow` | Runs `make test` with `DIRIGIBLE_SLOW_TESTS=1`, so the slow tests run too (disk images, the finalize benchmark). Run it before the push of a branch that changes `Sources/DirigibleAudio`. |
 | `make app` | Release build of `build/Dirigible.app` (universal, ad-hoc signed). |
 | `make test-app` | Builds the app, then runs `AppBundleTests` on that bundle. |
 | `make run` | Builds the app, quits a running copy, and opens the new one. |
@@ -98,7 +99,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Assert literal expected values. For processed audio, assert with a stated tolerance, for example "level is -16 LUFS ± 0.5".
 - A test that still passes when the code under test returns nothing is not a test. Rewrite it or delete it.
 - Tests do not use the network, the real microphone, or a permission prompt. Hardware checks go in the run ledger as manual checks.
-- Keep the suite fast. Put slow benchmarks behind an environment variable.
+- Keep the suite fast. Put a slow test behind `DIRIGIBLE_SLOW_TESTS=1`. `make test-slow` runs it.
 
 ## Keep this file true
 

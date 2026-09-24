@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app test test-app test-hooks check-docs run lint format check clean
+.PHONY: setup build app test test-slow test-app test-hooks check-docs run lint format check clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -13,6 +13,9 @@ app:
 
 test:
 	swift test --skip AppBundleTests
+
+test-slow:
+	DIRIGIBLE_SLOW_TESTS=1 swift test --skip AppBundleTests
 
 test-app: app
 	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" swift test --filter AppBundleTests

@@ -61,6 +61,17 @@ struct AppBundleTests {
         #expect(spanish["Dirigible Session"] as? String == "Sesión de Dirigible")
     }
 
+    /// The UI tables are in the bundle (decision 0010). The English table is the control: the
+    /// same key gives a different value, so the Spanish value comes from `es.lproj`.
+    @Test func uiStringsResolveInEnglishAndSpanish() throws {
+        let bundle = try #require(Bundle(url: app))
+        #expect(Set(bundle.localizations).isSuperset(of: ["en", "es"]))
+        let spanish = try propertyList(at: "Contents/Resources/es.lproj/Localizable.strings")
+        let english = try propertyList(at: "Contents/Resources/en.lproj/Localizable.strings")
+        #expect(spanish["menu.record.start"] as? String == "Grabar")
+        #expect(english["menu.record.start"] as? String == "Record")
+    }
+
     @Test func binaryRunsOnSonomaOnIntelAndAppleSilicon() throws {
         #expect(try run("/usr/bin/lipo", "-archs", executable).split(separator: " ").sorted() == ["arm64", "x86_64"])
 

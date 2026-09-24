@@ -1,0 +1,35 @@
+/* The Spanish UI strings (decision 0010). The key is a dotted name; L10n.swift lists each key. */
+
+/* Menus */
+"menu.file.new" = "Nueva sesión…";
+"menu.file.open" = "Abrir…";
+"menu.file.open.recent" = "Abrir recientes";
+"menu.track" = "Pista";
+"menu.track.add" = "Añadir pista";
+"menu.record" = "Grabación";
+"menu.record.start" = "Grabar";
+"menu.record.stop" = "Detener";
+"menu.record.retry" = "Reintentar la finalización";
+
+/* Errores */
+"error.studio.busy" = "Hay una toma en curso o terminando. Espera a que termine.";
+"error.studio.locked" = "Otra ventana o la herramienta dirigible tiene abierta esta sesión.";
+"error.studio.no.route" = "La pista «%@» no tiene entrada.";
+"error.studio.device.missing" = "El dispositivo de entrada de la pista «%@» no está conectado.";
+"error.studio.channel.range" = "El dispositivo de entrada de la pista «%@» no tiene el canal elegido.";
+"error.studio.channel.in.use" = "Las pistas «%1$@» y «%2$@» usan el mismo canal de entrada.";
+"error.studio.disk.low" = "Queda menos de 1 GB libre en el disco de esta sesión.";
+"error.microphone.denied" = "Dirigible no tiene acceso al micrófono. Permite el acceso en Ajustes del Sistema.";
+"error.microphone.restricted" = "Un perfil de este Mac bloquea el acceso al micrófono.";
+"error.session.name" = "El nombre de una pista no puede tener caracteres de control.";
+"error.session.layout" = "La disposición de la pista «%@» no puede cambiar.";
+"error.session.track.in.take" = "La pista «%@» está en la toma que espera a terminar.";
+"error.session.other" = "La sesión rechazó el cambio.";
+"error.file.unreadable" = "El archivo de la sesión está dañado o es de una versión más nueva de Dirigible.";
+"error.file.read" = "No se puede leer el archivo de la sesión (error %lld).";
+"error.file.write" = "No se puede guardar la sesión (error %lld).";
+"error.file.internal" = "Un error interno detuvo el guardado. Se conserva el último archivo guardado.";
+"error.file.moved" = "La sesión se movió a otro disco o se eliminó. No se guardó nada.";
+"error.file.exists" = "Ya existe un elemento con este nombre. Elige otro nombre.";
+"error.finalize.read" = "No se puede leer el audio grabado en %1$@ (error %2$lld).";
+"error.finalize.write" = "No se puede escribir el clip %1$@ (error %2$lld).";

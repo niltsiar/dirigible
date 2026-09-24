@@ -61,7 +61,7 @@ struct FinalizeFaultTests {
         #expect(session.captures["take1-1-1"] == nil)
         #expect(session.files["take1-1-1"] == nil)
         #expect(session.track("t1")?.clips.isEmpty == true)
-        #expect(unplacedSegments(in: package.url, session: session) == ["take1-1-1"])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take1-1-1"])
     }
 
     @Test func withNoFaultBothSegmentsArePlaced() throws {
@@ -69,7 +69,7 @@ struct FinalizeFaultTests {
 
         #expect(session.track("t1")?.clips.map(\.id) == ["take1-1-1"])
         #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
-        #expect(unplacedSegments(in: package.url, session: session) == [])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == [])
     }
 
     @Test func aCAFThatDoesNotOpenThrowsAndPlacesNothing() throws {
@@ -131,13 +131,17 @@ struct FinalizeFaultTests {
 
     @Test func unplacedSegmentsSkipEmptyPlacedAndPendingCAFs() throws {
         let pending = try package.read()
-        #expect(unplacedSegments(in: package.url, session: pending) == [], "the pending take is not listed")
+        #expect(
+            unplacedSegments(segmentsWithAudio(in: package.url), session: pending) == [],
+            "the pending take is not listed")
 
         let session = try finalizeTake(of: pending, in: package.url)
-        #expect(unplacedSegments(in: package.url, session: session) == [], "placed segments are not listed")
+        #expect(
+            unplacedSegments(segmentsWithAudio(in: package.url), session: session) == [],
+            "placed segments are not listed")
 
         try package.segment(take: 2, samples: [], checkpoints: [])
         try package.segment(take: 3, samples: sine(seconds: 0.1, rate: 48_000))
-        #expect(unplacedSegments(in: package.url, session: session) == ["take3-1-1"])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take3-1-1"])
     }
 }

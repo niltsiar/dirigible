@@ -76,9 +76,15 @@ struct StopPathTests {
         let sidecar = try #require(Sidecar.decode(Data(contentsOf: url.appending(path: "Capture/take1-1-1.sidecar"))))
         #expect(sidecar.checkpoints.map(\.fileFrame) == [0, 48_128, 96_256, 143_872])
 
+        #expect(studio.unplacedSegments == [])
+
+        // The unplaced list follows the session (decision 0012): the undo takes the files away.
         try studio.undo()
         #expect(studio.session.tracks.map(\.clips.count) == [0, 0])
         #expect(studio.session.recording == nil)
+        #expect(studio.unplacedSegments == ["take1-1-1", "take1-2-1"])
+        try studio.redo()
+        #expect(studio.unplacedSegments == [])
     }
 
     @Test func aTrackGetsOnlyItsChannel() async throws {

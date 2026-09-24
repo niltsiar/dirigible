@@ -6,7 +6,7 @@ struct OpenedPackage: Sendable {
     let lock: PackageLock
     var session: Session
     var takeError: StudioError?
-    var unplaced: [String]
+    var segmentsWithAudio: [SegmentName]
 }
 
 /// The result of `completeTake`. On a thrown finalize or save, `session` is the input (it keeps
@@ -14,14 +14,14 @@ struct OpenedPackage: Sendable {
 struct TakeOutcome: Sendable {
     var session: Session
     var error: StudioError?
-    var unplaced: [String]
+    var segmentsWithAudio: [SegmentName]
 }
 
 /// The recovery marker of decision 0004, in the package root.
 func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt") }
 
 /// Opens a package off the main actor: the lock, `Session.removeTemporaryFiles`, the read, the
-/// marker rules of decision 0004, `completeTake`, and the unplaced segments. `@concurrent` keeps
+/// marker rules of decision 0004, `completeTake`, and the segments with audio. `@concurrent` keeps
 /// it off the caller's actor also with `NonisolatedNonsendingByDefault`.
 @concurrent nonisolated func openPackage(_ package: URL) async throws(StudioError) -> OpenedPackage {
     dispatchPrecondition(condition: .notOnQueue(.main))
@@ -39,7 +39,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     let marker = marker(in: package)
     func opened(_ session: Session, _ error: StudioError? = nil) -> OpenedPackage {
         OpenedPackage(
-            lock: lock, session: session, takeError: error, unplaced: unplacedSegments(in: package, session: session))
+            lock: lock, session: session, takeError: error, segmentsWithAudio: segmentsWithAudio(in: package))
     }
 
     guard session.recording != nil else {
@@ -54,11 +54,12 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     }
     close(descriptor)
     let outcome = await completeTake(of: session, in: package)
-    return OpenedPackage(lock: lock, session: outcome.session, takeError: outcome.error, unplaced: outcome.unplaced)
+    return OpenedPackage(
+        lock: lock, session: outcome.session, takeError: outcome.error, segmentsWithAudio: outcome.segmentsWithAudio)
 }
 
-/// The one step that open, stop, and retry share: finalize, delete the marker, save, and derive
-/// the unplaced segments.
+/// The one step that open, stop, and retry share: finalize, delete the marker, save, and read
+/// the segments with audio.
 @concurrent nonisolated func completeTake(of session: Session, in package: URL) async -> TakeOutcome {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let finalized: Session
@@ -66,8 +67,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         finalized = try finalizeTake(of: session, in: package)
     } catch {
         unlink(marker(in: package).path)
-        return TakeOutcome(
-            session: session, error: .finalize(error), unplaced: unplacedSegments(in: package, session: session))
+        return TakeOutcome(session: session, error: .finalize(error), segmentsWithAudio: segmentsWithAudio(in: package))
     }
     // A crash between this delete and the save looks like a recovery not yet tried, which is safe
     // to run again.
@@ -75,8 +75,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     do {
         try finalized.write(to: package)
     } catch {
-        return TakeOutcome(
-            session: session, error: .file(error), unplaced: unplacedSegments(in: package, session: session))
+        return TakeOutcome(session: session, error: .file(error), segmentsWithAudio: segmentsWithAudio(in: package))
     }
-    return TakeOutcome(session: finalized, error: nil, unplaced: unplacedSegments(in: package, session: finalized))
+    return TakeOutcome(session: finalized, error: nil, segmentsWithAudio: segmentsWithAudio(in: package))
 }

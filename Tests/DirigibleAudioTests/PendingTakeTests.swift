@@ -36,7 +36,7 @@ struct PendingTakeTests {
         let studio = try await openPending()
 
         try studio.edit { session throws(SessionError) in try session.renameTrack("t3", to: "Jingle") }
-        try studio.save()
+        await studio.settle()
 
         let saved = try package.read()
         #expect(saved.track("t3")?.name == "Jingle")

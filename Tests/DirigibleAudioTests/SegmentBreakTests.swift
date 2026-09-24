@@ -57,7 +57,7 @@ struct SegmentBreakTests {
         let studio = try await Studio.open(url)
         let hal = TestHAL([mic])
         studio.environment = .test(hal)
-        _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+        _ = try await studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         let input = SyntheticInput(hal, "mic")
         input.play(records)
         // The slow suite writes 1.4 GB at the same time, so the 24 flushes of a 120 s take can

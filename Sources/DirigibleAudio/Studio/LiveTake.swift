@@ -64,6 +64,8 @@ struct CaptureEnvironment: Sendable {
     /// The free bytes of the volume of a URL. Called off the main actor.
     var freeBytes: @Sendable (URL) -> Int64
     var diskCheckInterval: Duration
+    /// The autosave write of a session into its package. Called off the main actor.
+    var saveSession: @Sendable (Session, URL) throws(SessionFileError) -> Void
 
     static let live = CaptureEnvironment(
         hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),
@@ -75,7 +77,8 @@ struct CaptureEnvironment: Sendable {
             default: .denied
             }
         },
-        freeBytes: availableBytes, diskCheckInterval: .seconds(1))
+        freeBytes: availableBytes, diskCheckInterval: .seconds(1),
+        saveSession: { session, package throws(SessionFileError) in try session.write(to: package) })
 }
 
 /// `statfs` free blocks for a normal process. `volumeAvailableCapacityForImportantUsage` also

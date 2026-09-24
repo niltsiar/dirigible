@@ -1,8 +1,9 @@
 import DirigibleCore
 import Foundation
 
-/// The facade that the app calls for one open package (decisions 0002 and 0004). It holds the
-/// package lock, runs recovery at open, and keeps the pending take.
+/// The facade that the app calls for one open package (decisions 0002, 0004, and 0014). It holds
+/// the package lock, runs recovery at open, keeps the pending take, and saves each edit. Every
+/// package write runs in one chain, so no write lands after a later one.
 @MainActor public final class Studio {
     public enum Transport: Hashable, Sendable {
         case idle
@@ -50,15 +51,22 @@ import Foundation
     /// Held from the start of a take until its finalize ends.
     private(set) var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
-    private var starting = false
+    public private(set) var isStarting = false
+    /// The last autosave error. Nil after a good save.
+    public private(set) var saveError: StudioError?
     private var diskWatcher: Task<Void, Never>?
     /// The device writers of the take that records, by device UID.
-    private var writers: [String: DeviceWriter] = [:]
+    private(set) var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.
     private var armed: [(id: TrackID, writer: DeviceWriter)] = []
     private var trackStates: [TrackID: LiveTrack.State] = [:]
     /// One more for each take that begins. Two takes can have the same number.
-    private var generation = 0
+    private(set) var generation = 0
+    /// The write chain: each package write (an autosave, a start, or a finalize) takes the next
+    /// ticket and runs when `serving` reaches it, so the writes run one at a time in ticket order.
+    private var tickets = 0
+    private var serving = 0
+    private var waiting: [Int: CheckedContinuation<Void, Never>] = [:]
     /// Held for the life of the studio. Dropping the studio releases it.
     private let lock: PackageLock
 
@@ -77,30 +85,42 @@ import Foundation
         Studio(url: package, opened: try await openPackage(package))
     }
 
-    /// Runs `body` on a copy of the session and records one undo entry if it changed.
+    /// Runs `body` on a copy of the session and records one undo entry if it changed. A change
+    /// schedules one autosave of the new session; `edit` does not wait for it.
     public func edit<Result>(_ body: (inout Session) throws(SessionError) -> Result) throws(StudioError) -> Result {
         try checkIdle()
-        do {
-            return try history.edit(body)
-        } catch {
-            throw .session(error)
-        }
+        let before = session
+        let result: Result
+        do { result = try history.edit(body) } catch { throw .session(error) }
+        if session != before { scheduleSave() }
+        return result
     }
 
     public func undo() throws(StudioError) {
         try checkIdle()
         do { try history.undo() } catch { throw .session(error) }
+        scheduleSave()
     }
 
     public func redo() throws(StudioError) {
         try checkIdle()
         do { try history.redo() } catch { throw .session(error) }
+        scheduleSave()
     }
 
-    /// Saves `session.xml` atomically. With a pending take, it writes `<recording>` back.
-    public func save() throws(StudioError) {
-        try checkIdle()
-        do { try session.write(to: url) } catch { throw .file(error) }
+    /// Stops a take that records, then waits for a start, a finalize, and every write in
+    /// progress. When `saveError` is set, it writes the session once more; `saveError` stays set
+    /// only when that write also fails. After it returns, no take records and no write runs.
+    public func settle() async {
+        while true {
+            // A start or a finalize in progress holds an earlier ticket.
+            await serialized {}
+            guard case .recording = transport else { break }
+            try? await stop(.requested)
+        }
+        guard saveError != nil else { return }
+        scheduleSave()
+        await serialized {}
     }
 
     /// Runs finalize again for the pending take (decision 0004). With no pending take, it does
@@ -108,7 +128,12 @@ import Foundation
     public func retryFinalize() async throws(StudioError) {
         try checkIdle()
         guard let take = pendingTake?.take else { return }
-        try await complete(take)
+        transport = .finalizing(take: take)
+        let error = await serialized { () async -> StudioError? in
+            do throws(StudioError) { try await complete(take) } catch { return error }
+            return nil
+        }
+        if let error { throw error }
     }
 
     /// Starts a take on the armed tracks (decision 0013). The device lookup, the microphone
@@ -116,59 +141,31 @@ import Foundation
     /// entry point throws `.busy`. A throw changes nothing. A device that does not attach after
     /// the save is lost, and the take goes on.
     public func startRecording(armed: [TrackID], playhead: Frames) async throws(StudioError) {
+        _ = try await beginRecording(armed: armed, playhead: playhead)
+    }
+
+    /// `startRecording`, which also returns the take and the generation that it started. A stop
+    /// can end that take before this call returns.
+    func beginRecording(armed: [TrackID], playhead: Frames) async throws(StudioError) -> (take: Int, generation: Int) {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
-        starting = true
-        defer { starting = false }
-        let started = try await prepareTake(
-            of: session, in: url, armed: armed, playhead: playhead, environment: environment)
-        begin(started)
-        sleepAssertion = SleepAssertion()
-        diskWatcher = watchDisk()
-    }
-
-    /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low
-    /// stop, a stop from another caller, or a cancel of this call can end it early; then it
-    /// returns soon after that end.
-    /// Throws what `startRecording` throws, or the finalize error; then `lastTake` still has the
-    /// result and the take stays pending.
-    public func record(armed: [TrackID], playhead: Frames, for duration: Duration) async throws(StudioError)
-        -> TakeResult
-    {
-        // Before the start: a conversion that traps after the save of <recording> would leave a
-        // pending take. The length saturates, so a very long duration cannot trap.
-        let nanos = max(0, duration / .nanoseconds(1))
-        let length = nanos < 0x1p64 ? UInt64(nanos) : .max
-        try await startRecording(armed: armed, playhead: playhead)
-        guard case .recording(let take) = transport else { preconditionFailure("A started take records") }
-        // A take with no segment gives its number to the next take, so the number alone cannot
-        // tell this take from a new one that another caller starts.
-        let mine = generation
-        // The take ends at its start host time + duration, also when the stop comes late.
-        let (end, overflow) = (session.recording?.takeStartHostTimeNanos ?? 0).addingReportingOverflow(length)
-        for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
-        let deadline = ContinuousClock.now + duration
-        while generation == mine, transport == .recording(take: take), ContinuousClock.now < deadline {
-            // A cancel ends the take now, as an early end.
-            do { try await Task.sleep(for: min(.milliseconds(50), deadline - .now)) } catch { break }
+        isStarting = true
+        // The whole start is one step of the chain, so a stop or a settle never sees half of it.
+        let result = await serialized { () async -> Result<(take: Int, generation: Int), StudioError> in
+            defer { isStarting = false }
+            let started: StartedTake
+            do throws(StudioError) {
+                started = try await prepareTake(
+                    of: session, in: url, armed: armed, playhead: playhead, environment: environment)
+            } catch {
+                return .failure(error)
+            }
+            begin(started)
+            sleepAssertion = SleepAssertion()
+            diskWatcher = watchDisk()
+            return .success((started.take, generation))
         }
-        if generation == mine, transport == .recording(take: take) { try await stopRecording() }
-        // Another stop ended the take; wait for its finalize. The sleep is in a task of its own,
-        // so a cancel of this call does not make the wait spin.
-        while generation == mine, transport == .finalizing(take: take) {
-            await Task { try? await Task.sleep(for: .milliseconds(10)) }.value
-        }
-        // Another caller can start a new take before this call wakes; that start clears the
-        // result, and a finalize error is then of the new take.
-        guard generation == mine, let lastTake else { throw .busy }
-        if let takeError { throw takeError }
-        return lastTake
-    }
-
-    /// The IDs of the clips of take `take` on every track, in segment name order.
-    public func clipIDs(ofTake take: Int) -> [ClipID] {
-        session.tracks.flatMap(\.clips).compactMap { clip in SegmentName(id: clip.id.rawValue).map { ($0, clip.id) } }
-            .filter { $0.0.take == take }.sorted { ($0.0, $0.1) < ($1.0, $1.1) }.map(\.1)
+        return try result.get()
     }
 
     /// Stops the take: drains and closes each device writer, then finalizes and saves
@@ -178,41 +175,27 @@ import Foundation
         try await stop(.requested)
     }
 
-    /// The record time that the free space gives the armed tracks: 7 bytes for each sample and
-    /// channel after 1 GB and the WAV bytes of a pending take (decision 0004). Nil when a track
-    /// is not in the session or no track is armed. ponytail: the session rate for every track;
-    /// a device at a higher rate uses its CAF bytes faster.
-    public func remainingRecordTime(armed: [TrackID]) async -> Duration? {
-        var channels = 0
-        for id in armed {
-            guard let track = session.track(id) else { return nil }
-            channels += track.layout.channelCount
-        }
-        let perSecond = Int64(channels * session.sampleRate * 7)
-        guard perSecond > 0 else { return nil }
-        let free = await freeBytes(of: url, environment)
-        var pending: Int64 = 0
-        if let take = pendingTake?.take { pending = await pendingWAVBytes(take: take, in: url) }
-        return .seconds(Double(max(0, free - diskMargin - pending)) / Double(perSecond))
-    }
-
     private func stop(_ end: TakeEnd) async throws(StudioError) {
         if case .finalizing = transport { throw .busy }
-        guard !starting else { throw .busy }
+        guard !isStarting else { throw .busy }
         guard case .recording(let take) = transport else { return }
         transport = .finalizing(take: take)
         diskWatcher?.cancel()
         diskWatcher = nil
-        var gaps: [TrackID: TakeResult.Gap] = [:]
-        for writer in writers.values {
-            for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
+        let error = await serialized { () async -> StudioError? in
+            var gaps: [TrackID: TakeResult.Gap] = [:]
+            for writer in writers.values {
+                for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
+            }
+            lastTake = TakeResult(take: take, end: end, gaps: gaps)
+            writers = [:]
+            armed = []
+            trackStates = [:]
+            defer { sleepAssertion = nil }
+            do throws(StudioError) { try await complete(take) } catch { return error }
+            return nil
         }
-        lastTake = TakeResult(take: take, end: end, gaps: gaps)
-        writers = [:]
-        armed = []
-        trackStates = [:]
-        defer { sleepAssertion = nil }
-        try await complete(take)
+        if let error { throw error }
     }
 
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
@@ -234,17 +217,29 @@ import Foundation
     /// The device writer of `uid` in the take that records. For tests.
     func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
 
-    /// The test seam of decision 0004: starts a take from device descriptions, on the main
-    /// actor, with no access or disk check, no sleep assertion, and no disk watcher. Checks the
-    /// route of each armed track, then saves `session.xml` with `<recording>`, then starts each
-    /// device writer on the environment HAL. A throw changes nothing.
+    /// The test seam of decision 0004: starts a take from device descriptions, with no access or
+    /// disk check, no sleep assertion, and no disk watcher. Checks the route of each armed track,
+    /// then, after the write in progress, saves `session.xml` with `<recording>` on the main
+    /// actor, then starts each device writer on the environment HAL. A throw changes nothing.
     func startTake(
         armed: [TrackID], devices: [InputDevice], playhead: Frames, hostTimeNanos: UInt64
-    ) throws(StudioError) -> [String: DeviceWriter] {
+    ) async throws(StudioError) -> [String: DeviceWriter] {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
         let routes = try checkRoutes(session, armed: armed, devices: devices)
-        begin(try saveTakeStart(session, in: url, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
+        isStarting = true
+        let error = await serialized { () async -> StudioError? in
+            defer { isStarting = false }
+            do throws(StudioError) {
+                begin(
+                    try saveTakeStart(
+                        session, in: url, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
+            } catch {
+                return error
+            }
+            return nil
+        }
+        if let error { throw error }
         return writers
     }
 
@@ -253,6 +248,7 @@ import Foundation
     /// attaches on its queue.
     private func begin(_ started: StartedTake) {
         history.edit { $0 = started.session }
+        saveError = nil  // The start save wrote the whole session.
         lastTake = nil
         recoveredTake = nil
         generation += 1
@@ -302,9 +298,41 @@ import Foundation
         history.edit { $0 = outcome.session }
     }
 
+    /// Runs `body` after every package write that started before this call. `body` runs in the
+    /// task of the caller, so no actor hop comes between its end and the caller.
+    private func serialized<T>(_ body: () async -> T) async -> T {
+        let ticket = tickets
+        tickets += 1
+        await waitForTurn(ticket)
+        defer { endTurn() }
+        return await body()
+    }
+
+    /// Writes a copy of the session off the main actor, after the previous package write. It
+    /// takes its ticket now, so a later start or finalize writes after it.
+    private func scheduleSave() {
+        let (snapshot, url, save, ticket) = (session, url, environment.saveSession, tickets)
+        tickets += 1
+        Task {
+            await waitForTurn(ticket)
+            saveError = await writeSession(snapshot, to: url, save)
+            endTurn()
+        }
+    }
+
+    private func waitForTurn(_ ticket: Int) async {
+        guard ticket != serving else { return }
+        await withCheckedContinuation { waiting[ticket] = $0 }
+    }
+
+    private func endTurn() {
+        serving += 1
+        waiting.removeValue(forKey: serving)?.resume()
+    }
+
     /// Edits, saves, and a new take wait while a take records or finalizes (decision 0004).
     private func checkIdle() throws(StudioError) {
-        guard transport == .idle, !starting else { throw .busy }
+        guard transport == .idle, !isStarting else { throw .busy }
     }
 }
 

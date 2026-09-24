@@ -126,7 +126,7 @@ struct RecordTests {
         let other = Task { @MainActor in
             await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
             try await studio.stopRecording()
-            _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: 1_000)
+            _ = try await studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: 1_000)
             try await studio.stopRecording()
         }
 

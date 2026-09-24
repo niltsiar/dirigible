@@ -26,10 +26,13 @@ final class MixReader {
     /// The files that did not open. They hold no descriptor.
     private var failed: Set<FileID> = []
     private var scratch: [AVAudioFormat: AVAudioPCMBuffer] = [:]
+    /// Opens a pool file. Tests give one that throws EMFILE.
+    private let openFile: MediaOpen
 
-    init(package: URL, session: Session) {
+    init(package: URL, session: Session, open: @escaping MediaOpen = openMedia) {
         self.session = session
         self.package = package
+        openFile = open
     }
 
     /// Sets `buffer.frameLength` to the range length. `buffer` is stereo float32 and holds the range.
@@ -87,8 +90,8 @@ final class MixReader {
         }
         guard !failed.contains(id), let entry = session.files[id] else { return nil }
         do {
-            let (file, fault) = try openMedia(
-                entry, in: package.appending(path: clipsFolderName), rate: session.sampleRate)
+            let (file, fault) = try openFile(
+                entry, package.appending(path: clipsFolderName), session.sampleRate)
             faults[id] = fault
             guard let file else {
                 failed.insert(id)

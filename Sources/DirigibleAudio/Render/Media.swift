@@ -24,6 +24,9 @@ public func checkMedia(_ session: Session, package: URL) throws(POSIXError) -> [
     return faults
 }
 
+/// The type of `openMedia`, so that tests can give an open that fails.
+typealias MediaOpen = @Sendable (AudioFile, URL, Int) throws(POSIXError) -> (file: AVAudioFile?, fault: MediaFault?)
+
 /// Opens a pool file: `open(2)`, then `AVAudioFile`, rate, channel count, length. The file is
 /// nil when it gives no frames. The fault is nil for a whole file. `open(2)` tells a missing
 /// file (ENOENT) and a process with no free descriptor (EMFILE, ENFILE, thrown) from the other

@@ -52,6 +52,8 @@ actor Player {
     private let output: Output
     /// Starts the engine. Tests give one that throws.
     private let start: @Sendable (AVAudioEngine) throws -> Void
+    /// Opens a pool file. Tests give one that fails.
+    private let open: MediaOpen
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
     private let chunk: Int
     private var session: Session
@@ -74,12 +76,14 @@ actor Player {
     /// Stores values only. The engine is made at the first play.
     init(
         package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
-        start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() }
+        start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() },
+        open: @escaping MediaOpen = openMedia
     ) {
         self.package = package
         self.output = output
         self.session = session
         self.start = start
+        self.open = open
         chunk = max(1, session.sampleRate / 10)
     }
 
@@ -112,7 +116,7 @@ actor Player {
         latency =
             output == .device
             ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded()) : 0
-        feed = Feed(anchor: start, shuttle: shuttle, mix: MixReader(package: url, session: session))
+        feed = Feed(anchor: start, shuttle: shuttle, mix: MixReader(package: url, session: session, open: open))
         refill()
         graph.node.play()
     }
@@ -205,6 +209,11 @@ actor Player {
             guard let buffer = AVAudioPCMBuffer(pcmFormat: graph.format, frameCapacity: AVAudioFrameCount(count)),
                 render(feed, count: count, into: buffer)
             else { return }
+            // The chunk plays a file that did not open as silence: stop, as the render fails.
+            if let error = feed.mix.openError {
+                stop = .noFreeDescriptor(Int(error.code.rawValue))
+                return
+            }
             graph.node.scheduleBuffer(
                 buffer, completionCallbackType: .dataConsumed, completionHandler: Self.consumed(self))
             feed.scheduled += count

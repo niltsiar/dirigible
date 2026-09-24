@@ -2,9 +2,12 @@ import DirigibleCore
 
 /// The state of one armed track during a take.
 public struct LiveTrack: Hashable, Sendable {
+    /// `writeFailed` has no cause: a full disk and a volume that goes away give the same status
+    /// (decision 0013).
     public enum State: Hashable, Sendable {
         case recording
         case deviceLost
+        case writeFailed
     }
 
     public var state: State

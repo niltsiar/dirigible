@@ -13,11 +13,8 @@ struct Report: Sendable {
 
 /// The recorder of one device for the whole take (decisions 0004 and 0013). A drain timer on its
 /// serial queue pops the ring of the current `DeviceInput`, runs the watchdog while the device
-/// runs, and tries to attach again each 1 s while it is lost. The writer splits each record into
-/// the channels of each track and writes one segment per track: a checkpoint at the first record,
-/// at the first record at or after each further second of device frames, and at the last record,
-/// and a flush every 5 s of device frames. A clock event closes the segments of every track, and
-/// the next record opens new ones. All state is confined to its serial queue, so it is
+/// runs, and tries to attach again each 1 s while it is lost. `TrackSegments` writes the records
+/// to the segment files of the tracks. All state is confined to its serial queue, so it is
 /// `@unchecked Sendable`.
 final class DeviceWriter: @unchecked Sendable {
     enum Event: Sendable {
@@ -30,33 +27,18 @@ final class DeviceWriter: @unchecked Sendable {
 
     private enum Phase { case ready, running, lost, finished }
 
-    private struct Output {
-        let arm: Int
-        /// The 1-based device channels of the track.
-        let channels: [Int]
-        /// (buffer index, channel index in the buffer) of each track channel.
-        var sources: [(buffer: Int, channel: Int)] = []
-        var writer: SegmentWriter?
-    }
-
     /// A writer with this many kept inputs attaches no more in the take (decision 0013).
     static let keptLimit = 8
     static let retryInterval = Duration.seconds(1)
 
-    private var device: InputDevice
     private let take: Int
-    private let folder: URL
     private let hal: DeviceHAL
     private let report: @Sendable (Report) -> Void
     private let drainInterval: Duration
     private let silenceLimit: Duration
     private let ringSeconds: Double
     private let queue: DispatchQueue
-    private var outputs: [Output]
-    /// The open segment of every track, or nil between segments.
-    private var segment: Segment?
-    /// The number of the last segment that opened.
-    private var segments = 0
+    private var tracks: TrackSegments
     private var phase = Phase.ready
     /// The attached appearance of the device and its detach.
     private var input: (input: DeviceInput, detach: Detach)?
@@ -70,8 +52,6 @@ final class DeviceWriter: @unchecked Sendable {
     private var lastValid = ContinuousClock.now
     /// The retry clock: the loss, or the last try.
     private var lastTry = ContinuousClock.now
-    /// The state that started the first gap of each arm.
-    private var gaps: [Int: LiveTrack.State] = [:]
     private let dropped = ManagedAtomic<Int>(0)
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
@@ -82,17 +62,14 @@ final class DeviceWriter: @unchecked Sendable {
         report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
         silenceLimit: Duration = .seconds(2), ringSeconds: Double = 10
     ) {
-        self.device = device
         self.take = take
-        self.folder = folder
         self.hal = hal
         self.report = report
         self.drainInterval = drainInterval
         self.silenceLimit = silenceLimit
         self.ringSeconds = ringSeconds
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
-        outputs = tracks.map { Output(arm: $0.arm, channels: $0.channels.numbers) }
-        use(device)
+        self.tracks = TrackSegments(device: device, tracks: tracks, take: take, folder: folder, report: report)
     }
 
     deinit { timer?.cancel() }
@@ -131,14 +108,14 @@ final class DeviceWriter: @unchecked Sendable {
             queue.async { [self] in
                 if phase != .finished {
                     detach()
-                    endSegment()
+                    tracks.endSegment()
                     _ = unwatch?()
                     spare?.deallocate()
                     spare = nil
                     timer?.cancel()
                     phase = .finished
                 }
-                done.resume(returning: gaps)
+                done.resume(returning: tracks.gaps)
             }
         }
     }
@@ -146,18 +123,19 @@ final class DeviceWriter: @unchecked Sendable {
     private func handle(_ event: Event, from sender: DeviceInput?) {
         guard phase == .running || phase == .lost else { return }
         if case .devicesChanged = event {
-            if phase == .running, hal.lookUp(device.uid)?.id != input?.input.id { lose() }
+            if phase == .running, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose() }
             return comeBack()
         }
         guard let current = input?.input, current === sender else { return }
         switch event {
         case .layout(let channels):
             // The records in the ring that do not match the new layout end the segment.
-            endSegment()
+            tracks.endSegment()
+            let device = tracks.device
             let changed = InputDevice(
                 uid: device.uid, name: device.name, nominalRate: device.nominalRate,
                 availableRates: device.availableRates, channelsPerBuffer: channels, latency: device.latency)
-            if let changed, hasRoutedChannels(changed) { use(changed) } else { lose() }
+            if let changed, tracks.hasRoutedChannels(changed) { tracks.use(changed) } else { lose() }
         case .alive(false):
             lose()
         case .rate, .alive(true), .devicesChanged:
@@ -184,10 +162,10 @@ final class DeviceWriter: @unchecked Sendable {
         let end = ring.end()
         while let popped = ring.pop(before: end) {
             guard let record = popped.record else {
-                endSegment()
+                tracks.endSegment()
                 continue
             }
-            write(record)
+            tracks.write(record)
             lastValid = .now
         }
         dropped.wrappingIncrement(by: ring.takeDroppedFrames(), ordering: .relaxed)
@@ -206,12 +184,12 @@ final class DeviceWriter: @unchecked Sendable {
     /// Running or ready to lost: detach, end the segments, report, and record the gaps.
     private func lose() {
         detach()
-        endSegment()
+        tracks.endSegment()
         phase = .lost
         lastTry = .now
-        for output in outputs {
-            gaps[output.arm] = gaps[output.arm] ?? .deviceLost
-            report(Report(take: take, arm: output.arm, state: .deviceLost, status: nil))
+        for arm in tracks.arms {
+            tracks.gaps[arm] = tracks.gaps[arm] ?? .deviceLost
+            report(Report(take: take, arm: arm, state: .deviceLost, status: nil))
         }
     }
 
@@ -220,23 +198,24 @@ final class DeviceWriter: @unchecked Sendable {
         guard phase == .lost else { return }
         lastTry = .now
         guard attach() else { return }
-        for output in outputs { report(Report(take: take, arm: output.arm, state: .recording, status: nil)) }
+        for arm in tracks.arms { report(Report(take: take, arm: arm, state: .recording, status: nil)) }
     }
 
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
     /// checked before a ring exists, and a ring of an attach that threw is used again.
     private func attach() -> Bool {
-        guard kept.count < Self.keptLimit, let found = hal.lookUp(device.uid), hasRoutedChannels(found.device)
+        guard kept.count < Self.keptLimit, let found = hal.lookUp(tracks.device.uid),
+            tracks.hasRoutedChannels(found.device)
         else { return false }
-        use(found.device)
-        let capacity = CaptureRing.capacity(for: device, seconds: ringSeconds)
+        tracks.use(found.device)
+        let capacity = CaptureRing.capacity(for: found.device, seconds: ringSeconds)
         if let spare, spare.capacity != capacity {
             spare.deallocate()
             self.spare = nil
         }
-        let ring = spare ?? CaptureRing(capacity: capacity, rate: device.nominalRate)
+        let ring = spare ?? CaptureRing(capacity: capacity, rate: found.device.nominalRate)
         spare = nil
-        ring.setRate(device.nominalRate)
+        ring.setRate(found.device.nominalRate)
         let input = DeviceInput(id: found.id, ring: ring, writer: self)
         do throws(HALError) {
             self.input = (input, try hal.attach(input))
@@ -250,110 +229,5 @@ final class DeviceWriter: @unchecked Sendable {
         phase = .running
         lastValid = .now
         return true
-    }
-
-    private func hasRoutedChannels(_ device: InputDevice) -> Bool {
-        outputs.allSatisfy { $0.channels.allSatisfy { $0 <= device.channelCount } }
-    }
-
-    /// Takes the layout of `device` for the next records.
-    private func use(_ device: InputDevice) {
-        self.device = device
-        let channels = device.channelsPerBuffer.enumerated().flatMap { buffer, count in
-            (0..<count).map { (buffer: buffer, channel: $0) }
-        }
-        for index in outputs.indices { outputs[index].sources = outputs[index].channels.map { channels[$0 - 1] } }
-    }
-
-    private func write(_ record: InputRecord) {
-        guard phase != .finished, record.frameCount > 0 else { return }
-        // A byte-size mismatch closes the segment at the record, and the record is lost.
-        guard record.buffers.count == device.channelsPerBuffer.count,
-            zip(record.buffers, device.channelsPerBuffer).allSatisfy({ $0.count == record.frameCount * $1 })
-        else { return endSegment() }
-        if let segment, segment.breaks(at: record) { endSegment() }
-        if segment == nil { open(at: record) }
-        guard var current = segment else { return }
-
-        // A forward jump of 2 s or less gets silence.
-        let gap = Int((record.sampleTime - current.nextSampleTime).rounded())
-        if gap > 0 {
-            for index in outputs.indices {
-                let silence = [Float](repeating: 0, count: gap * outputs[index].sources.count)
-                write(index) { writer in try silence.withUnsafeBufferPointer { try writer.write($0, frames: gap) } }
-            }
-            current.fileFrame += Int64(gap)
-        }
-
-        let second = Int64(current.rate.rounded())
-        let checkpoint = Checkpoint(
-            fileFrame: current.fileFrame, sampleTime: record.sampleTime, hostTimeNanos: record.hostTimeNanos)
-        current.lastWritten = current.fileFrame >= current.nextCheckpoint
-        if current.lastWritten {
-            each { try $0.checkpoint(checkpoint) }
-            while current.nextCheckpoint <= current.fileFrame { current.nextCheckpoint += second }
-        }
-        current.last = checkpoint
-        for index in outputs.indices {
-            let sources = outputs[index].sources
-            var samples = [Float](repeating: 0, count: record.frameCount * sources.count)
-            for (position, source) in sources.enumerated() {
-                let buffer = record.buffers[source.buffer]
-                let width = device.channelsPerBuffer[source.buffer]
-                for frame in 0..<record.frameCount {
-                    samples[frame * sources.count + position] = buffer[frame * width + source.channel]
-                }
-            }
-            write(index) { writer in
-                try samples.withUnsafeBufferPointer { try writer.write($0, frames: record.frameCount) }
-            }
-        }
-        current.fileFrame += Int64(record.frameCount)
-        current.nextSampleTime = record.sampleTime + Double(record.frameCount)
-        current.remember(record)
-        if current.fileFrame >= current.nextFlush {
-            each { try $0.flush() }
-            current.nextFlush = current.fileFrame + 5 * second
-        }
-        segment = current
-    }
-
-    private func open(at record: InputRecord) {
-        segments += 1
-        segment = Segment(first: record)
-        for index in outputs.indices {
-            let header = CaptureHeader(
-                deviceUID: device.uid, deviceName: device.name, nominalRate: record.nominalRate,
-                availableRates: device.availableRates, channelCount: outputs[index].sources.count,
-                latency: device.latency, firstSampleTime: record.sampleTime, firstHostTimeNanos: record.hostTimeNanos)
-            let name = SegmentName(take: take, arm: outputs[index].arm, segment: segments)
-            outputs[index].writer = try? SegmentWriter(folder: folder, name: name, header: header)
-        }
-    }
-
-    /// Writes the checkpoint of the last record if the sidecar does not have it, and closes the
-    /// segment of every track.
-    private func endSegment() {
-        guard let current = segment else { return }
-        if let last = current.last, !current.lastWritten { each { try $0.checkpoint(last) } }
-        each { try $0.close() }
-        for index in outputs.indices { outputs[index].writer = nil }
-        segment = nil
-    }
-
-    private func each(_ body: (SegmentWriter) throws -> Void) {
-        for index in outputs.indices { write(index, body) }
-    }
-
-    /// Runs `body` on the segment of output `index`. A write error closes that segment; the
-    /// frames on disk stay. ponytail: capture-live shows the error in the UI.
-    private func write(_ index: Int, _ body: (SegmentWriter) throws -> Void) {
-        guard let writer = outputs[index].writer else { return }
-        do {
-            try body(writer)
-        } catch {
-            try? writer.close()
-            outputs[index].writer = nil
-        }
     }
 }

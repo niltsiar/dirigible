@@ -157,6 +157,10 @@ func records(
     }
 }
 
+/// Runs `body` off the main actor, so a slow child process or disk write does not hold the
+/// main-actor tests that measure time.
+@concurrent nonisolated func offMainActor(_ body: @Sendable () throws -> Void) async throws { try body() }
+
 /// Polls `condition` every 10 ms. After `limit`, it records `message` as a test failure. It
 /// checks once more after a sleep past the limit, so a main-actor job that another test held
 /// back (a report hop) runs before the last check.

@@ -19,9 +19,8 @@ struct Segment {
     var fileFrame: Int64 = 0
     var nextCheckpoint: Int64 = 0
     var nextFlush: Int64
-    /// The checkpoint of the last record, and whether the sidecar has it.
+    /// The checkpoint of the last record.
     var last: Checkpoint?
-    var lastWritten = false
 
     static let windowNanos: Int64 = 500_000_000
 

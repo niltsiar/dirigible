@@ -23,7 +23,7 @@ Then list the settled choices: the scope, the run order, and the choices that th
 Run the saved workflow `review-panel` with the Workflow tool:
 
 ```
-Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent: "<paragraph>", scope: "<plan path, or base ref such as main>", round: <n>, maxRounds: <2 for plan, 3 for diff>, prior: ["<review-*-1.md>", ...], settled: ["<one settled choice>", ...] } })
+Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent: "<paragraph>", scope: "<plan path, or base ref such as main>", round: <n>, maxRounds: <2 for plan, 3 for diff>, prior: ["<review-*-1.md>", ...], settled: ["<one settled choice>", ...], ledger: ".scratchpads/runs/<run>/decisions.tsv" } })
 ```
 
 Pass `round` and the verdict files of the earlier rounds in `prior`. The workflow picks the mode:

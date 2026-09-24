@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its findings' },
@@ -15,6 +15,7 @@ const round = Number(args && args.round) || 1
 const maxRounds = Number(args && args.maxRounds) || (target === 'plan' ? 2 : 3)
 const prior = (args && Array.isArray(args.prior)) ? args.prior : []
 const settled = (args && Array.isArray(args.settled)) ? args.settled : []
+const ledger = (args && args.ledger) || ''
 // Round 1 reviews openly. A middle round must not re-raise fixed items. The last round checks
 // convergence only: an open last round keeps widening the review and never closes the gate.
 const mode = round === 1 && !prior.length ? 'open' : round >= maxRounds ? 'converge' : 'followup'
@@ -120,7 +121,7 @@ const results = await pipeline(
     if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
     return agent(
-      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. A finding that attacks a settled choice without new evidence is not upheld. Do not modify files.${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
+      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. A finding that attacks a settled choice without new evidence is not upheld.${ledger ? ` Read ${ledger} first: a finding whose failure already happened in this run is upheld, even if it looks hypothetical.` : ''} Do not modify files.${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
       { label: `verify:${lens.key}`, phase: 'Verify', schema: VERDICTS, effort: 'medium' },
     ).then(v => {
       const upheld = new Map(((v && v.verdicts) || []).map(x => [x.index, x]))

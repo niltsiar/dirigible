@@ -42,3 +42,15 @@ func isValidRate(_ rate: Double) -> Bool { rate.isFinite && rate > 0 }
 func isValidRange(_ range: ClosedRange<Double>) -> Bool {
     isValidRate(range.lowerBound) && isValidRate(range.upperBound)
 }
+
+/// One ring record of decision 0004 as a value. capture-live builds it from the ring bytes.
+/// `buffers[i]` holds `frameCount x channelsPerBuffer[i]` interleaved samples when the record
+/// matches the device layout.
+struct InputRecord: Sendable {
+    var sampleTime: Double
+    var hostTimeNanos: UInt64
+    var frameCount: Int
+    /// The nominal rate of the device when the record was made: a hint (decision 0004).
+    var nominalRate: Double
+    var buffers: [[Float]]
+}

@@ -56,18 +56,27 @@ extension Studio {
         }
         let perSecond = Int64(channels * session.sampleRate * 7)
         guard perSecond > 0 else { return nil }
-        let free = await freeBytes(of: url, environment)
+        let free = await freeBytes(of: lock, environment)
         var pending: Int64 = 0
         if let take = pendingTake?.take { pending = await pendingWAVBytes(take: take, in: url) }
         return .seconds(Double(max(0, free - diskMargin - pending)) / Double(perSecond))
     }
 }
 
-/// The autosave step, off the main actor. Returns the error of the write, or nil.
+/// The autosave step, off the main actor. Returns the package path that it wrote, in
+/// `packageIdentity` form, or the error of the write.
 @concurrent nonisolated func writeSession(
-    _ session: Session, to package: URL, _ save: @Sendable (Session, URL) throws(SessionFileError) -> Void
-) async -> StudioError? {
+    _ session: Session, lock: PackageLock,
+    _ save: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
+) async -> Result<URL, StudioError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
-    do { try save(session, package) } catch { return .file(error) }
-    return nil
+    do throws(SessionFileError) {
+        return .success(packageIdentity(try save(session, lock)))
+    } catch {
+        return .failure(.file(error))
+    }
 }
+
+/// The one spelling of a package path: `F_GETPATH` gives `/private/var` where the open had
+/// `/var`, and a symbolic link names the same package. It reads the file system.
+public func packageIdentity(_ url: URL) -> URL { url.standardizedFileURL.resolvingSymlinksInPath() }

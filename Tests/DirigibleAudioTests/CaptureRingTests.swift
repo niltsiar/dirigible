@@ -19,8 +19,9 @@ struct CaptureRingTests {
     func writer(
         _ hal: TestHAL, drainInterval: Duration = .milliseconds(50), ringSeconds: Double = 10
     ) -> DeviceWriter {
+        let url = folder.url
         let writer = DeviceWriter(
-            device: stereo, tracks: [(arm: 1, channels: .stereo(1, 2))], take: 1, folder: folder.url, hal: hal.hal,
+            device: stereo, tracks: [(arm: 1, channels: .stereo(1, 2))], take: 1, folder: { url }, hal: hal.hal,
             drainInterval: drainInterval, silenceLimit: .seconds(60), ringSeconds: ringSeconds)
         writer.start()
         return writer

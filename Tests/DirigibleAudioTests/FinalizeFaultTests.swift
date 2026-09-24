@@ -102,7 +102,8 @@ struct FinalizeFaultTests {
         chmod(clips.path, 0o300)
         defer { chmod(clips.path, 0o755) }
 
-        let outcome = await completeTake(of: try package.read(), in: package.url)
+        let lock = try PackageLock(package.url)
+        let outcome = await completeTake(of: try package.read(), lock: lock)
 
         #expect(outcome.error == .finalize(.writeFailed(file: "Clips", status: EACCES)))
         #expect(try package.read().recording?.take == 1)
@@ -127,6 +128,52 @@ struct FinalizeFaultTests {
 
         #expect(session.track("t1")?.clips.isEmpty == true)
         #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
+    }
+
+    // MARK: A moved package (decision 0014)
+
+    /// The package moves during the read of the first segment. The WAV of that segment is gone
+    /// from the old path, so the finalize throws, and no folder comes back at the old path. A
+    /// second finalize on the new path places both segments.
+    @Test func aRenameDuringTheFinalizeMakesNoGhostPackage() throws {
+        let moved = package.folder.url.appending(path: "Moved.dirigible")
+        let (old, new) = (package.url, moved)
+        let fault = ReadFault(stem: "take1-1-1", block: 0) { _ = rename(old.path, new.path) }
+
+        #expect(throws: FinalizeError.readFailed(file: "Clips/take1-1-1.wav", errno: ENOENT)) {
+            try finalizeTake(of: package.read(), in: package.url, readFault: fault)
+        }
+        #expect(!FileManager.default.fileExists(atPath: package.url.path))
+        let pending = try Session(contentsOf: moved)
+        #expect(pending.recording?.take == 1)
+
+        let session = try finalizeTake(of: pending, in: moved)
+        #expect(session.track("t1")?.clips.map(\.id) == ["take1-1-1"])
+        #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
+    }
+
+    /// A listed CAF that goes away during the finalize is a take-wide fault, not an unplaced
+    /// segment.
+    @Test func aListedCAFThatGoesAwayThrows() throws {
+        let second = file("take1-2-1.caf")
+        let fault = ReadFault(stem: "take1-1-1", block: 0) { _ = unlink(second.path) }
+
+        #expect(throws: FinalizeError.readFailed(file: "Capture/take1-2-1.caf", errno: ENOENT)) {
+            try finalizeTake(of: package.read(), in: package.url, readFault: fault)
+        }
+    }
+
+    /// The clips folder is made with `mkdir` of `Clips/` only, so a stale path gets no folder.
+    /// Control: an existing package gets `Clips/`.
+    @Test func createClipsFolderRefusesAMissingPackage() throws {
+        let missing = package.folder.url.appending(path: "Missing.dirigible")
+
+        #expect(throws: FinalizeError.writeFailed(file: "Clips", status: ENOENT)) {
+            try createClipsFolder(in: missing)
+        }
+        #expect(!FileManager.default.fileExists(atPath: missing.path))
+        try createClipsFolder(in: package.url)
+        #expect(FileManager.default.fileExists(atPath: package.url.appending(path: "Clips").path))
     }
 
     @Test func unplacedSegmentsSkipEmptyPlacedAndPendingCAFs() throws {

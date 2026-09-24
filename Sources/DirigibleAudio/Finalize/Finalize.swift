@@ -33,6 +33,11 @@ func finalizeTake(
     of session: Session, in package: URL, readFault: ReadFault? = nil, blockFrames: Int = 65_536
 ) throws(FinalizeError) -> Session {
     guard let recording = session.recording else { return session }
+    // `mkdir Capture/` comes before the save of <recording>, so a missing folder is a package
+    // that moved or lost it (decision 0014), not a take with no audio.
+    if openErrno(package.appending(path: captureFolderName).path) == ENOENT {
+        throw .readFailed(file: captureFolderName, errno: ENOENT)
+    }
     var result = session
     for name in try captureSegments(in: package)
     where name.take == recording.take && name.arm <= recording.armedTracks.count {
@@ -133,11 +138,9 @@ private struct SegmentFinalize {
     /// segment has no frames, or has a fault of its own and stays unplaced.
     func place(on session: Session) throws(FinalizeError) -> Session? {
         // Held open, so a read error with no errno can be checked on the same file.
+        // A listed CAF that is gone is take-wide too: the package moved during the finalize.
         let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_CLOEXEC)
-        guard descriptor >= 0 else {
-            if errno == ENOENT { return nil }
-            throw .readFailed(file: caf, errno: errno)
-        }
+        guard descriptor >= 0 else { throw .readFailed(file: caf, errno: errno) }
         defer { close(descriptor) }
         let input: AVAudioFile
         do {
@@ -218,7 +221,7 @@ private struct SegmentFinalize {
             let read = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: capacity),
             let written = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: capacity)
         else { return nil }
-        try createClipsFolder()
+        try createClipsFolder(in: package)
         let url = package.appending(path: wav)
         let writer = try ClipWriter(url: url, file: wav, format: output)
         let reader = BlockReader(
@@ -271,13 +274,13 @@ private struct SegmentFinalize {
         return length
     }
 
-    func createClipsFolder() throws(FinalizeError) {
-        do {
-            try FileManager.default.createDirectory(
-                at: package.appending(path: clipsFolderName), withIntermediateDirectories: true)
-        } catch {
-            throw .writeFailed(file: clipsFolderName, status: posixCode(of: error) ?? EIO)
-        }
+}
+
+/// `mkdir` of `Clips/` only: a package path that moved gives ENOENT and no new package folder
+/// (decision 0014). A folder that exists is fine.
+func createClipsFolder(in package: URL) throws(FinalizeError) {
+    guard mkdir(package.appending(path: clipsFolderName).path, 0o755) == 0 || errno == EEXIST else {
+        throw .writeFailed(file: clipsFolderName, status: errno)
     }
 }
 

@@ -66,7 +66,7 @@ struct PackageLockTests {
     }
 
     @Test func withLockHoldsTheLockForTheBodyOnly() throws {
-        let result = try PackageLock.withLock(package, locked: Mapped.init) { () throws(Mapped) -> Int in
+        let result = try PackageLock.withLock(package, locked: Mapped.init) { _ throws(Mapped) -> Int in
             #expect(throws: SessionFileError.locked) { try PackageLock(package) }
             return 7
         }
@@ -74,7 +74,7 @@ struct PackageLockTests {
         #expect(throws: Never.self) { try PackageLock(package) }
 
         #expect(throws: Mapped(error: .invalidValue(element: "x", attribute: "y"))) {
-            try PackageLock.withLock(package, locked: Mapped.init) { () throws(Mapped) in
+            try PackageLock.withLock(package, locked: Mapped.init) { _ throws(Mapped) in
                 throw Mapped(error: .invalidValue(element: "x", attribute: "y"))
             }
         }
@@ -86,7 +86,7 @@ struct PackageLockTests {
         let held = try PackageLock(package)
         var ran = false
         #expect(throws: Mapped(error: .locked)) {
-            try PackageLock.withLock(package, locked: Mapped.init) { () throws(Mapped) in ran = true }
+            try PackageLock.withLock(package, locked: Mapped.init) { _ throws(Mapped) in ran = true }
         }
         #expect(!ran)
         withExtendedLifetime(held) {}
@@ -129,6 +129,57 @@ struct PackageLockTests {
         defer { try? FileManager.default.removeItem(at: folder) }
 
         #expect(throws: SessionFileError.writeFailed(step: "lock", errno: EACCES)) { try PackageLock(package) }
+    }
+
+    // MARK: A moved package (decision 0014, probe P11)
+
+    /// `rename(2)` of the locked package: the lock and its path follow the package.
+    @Test func packageFollowsARename() throws {
+        let lock = try PackageLock(package)
+        let moved = folder.appending(path: "Moved.dirigible")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try #require(rename(package.path, moved.path) == 0)
+
+        #expect(try lock.package().resolvingSymlinksInPath() == moved.resolvingSymlinksInPath())
+    }
+
+    /// Control: after a delete, `F_GETPATH` alone gives the old path with no error (P11e), so
+    /// `package()` checks the device and the inode of the lock file.
+    @Test func packageRefusesADeletedPackage() throws {
+        let lock = try PackageLock(package)
+        try FileManager.default.removeItem(at: package)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        #expect(throws: SessionFileError.packageMoved) { try lock.package() }
+    }
+
+    /// The write of a lock holder (the CLI edit and every `Studio` write) never makes the
+    /// package folder. Control: the package that the lock holds gets the file.
+    @Test(arguments: [false, true])
+    func writeUnderALockNeverMakesThePackage(deleted: Bool) throws {
+        let lock = try PackageLock(package)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        if deleted { try FileManager.default.removeItem(at: package) }
+        let session = Session(sampleRate: 48_000)
+
+        guard deleted else {
+            let written = try session.write(under: lock)
+            #expect(written.resolvingSymlinksInPath() == package.resolvingSymlinksInPath())
+            #expect(try Session(contentsOf: package) == session)
+            return
+        }
+        #expect(throws: SessionFileError.packageMoved) { try session.write(under: lock) }
+        #expect(!FileManager.default.fileExists(atPath: package.path))
+    }
+
+    /// The free space of the volume of the lock descriptor follows a rename (P14): `statfs` of
+    /// the old path fails.
+    @Test func freeBytesFollowsARename() throws {
+        let lock = try PackageLock(package)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try #require(rename(package.path, folder.appending(path: "Moved.dirigible").path) == 0)
+
+        #expect(lock.freeBytes() > 0)
     }
 
     @Test func aPackageThatDoesNotExistCannotBeRead() {

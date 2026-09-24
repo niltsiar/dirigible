@@ -25,7 +25,9 @@ struct TrackSegments {
     }
 
     private let take: Int
-    private let folder: URL
+    /// The `Capture/` folder when a segment opens: the package can move during a take (decision
+    /// 0014).
+    private let folder: @Sendable () throws(SessionFileError) -> URL
     private let report: @Sendable (Report) -> Void
     /// The device layout of the next records.
     private(set) var device: InputDevice
@@ -40,8 +42,8 @@ struct TrackSegments {
     var gaps: [Int: TakeResult.Gap] = [:]
 
     init(
-        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int, folder: URL,
-        report: @escaping @Sendable (Report) -> Void
+        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int,
+        folder: @escaping @Sendable () throws(SessionFileError) -> URL, report: @escaping @Sendable (Report) -> Void
     ) {
         self.device = device
         self.take = take
@@ -174,8 +176,16 @@ struct TrackSegments {
             availableRates: device.availableRates, channelCount: outputs[index].sources.count,
             latency: device.latency, firstSampleTime: record.sampleTime, firstHostTimeNanos: record.hostTimeNanos)
         let name = SegmentName(take: take, arm: outputs[index].arm, segment: number ?? segments)
+        let capture: URL
+        do throws(SessionFileError) {
+            capture = try folder()
+        } catch {
+            // The package left its volume: the track gets a write error.
+            fail(index, status: ENOENT)
+            return false
+        }
         do {
-            outputs[index].writer = try SegmentWriter(folder: folder, name: name, header: header)
+            outputs[index].writer = try SegmentWriter(folder: capture, name: name, header: header)
         } catch {
             fail(index, status: error.status)
             return false

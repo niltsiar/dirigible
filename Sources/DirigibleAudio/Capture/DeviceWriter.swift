@@ -64,7 +64,8 @@ final class DeviceWriter: @unchecked Sendable {
     /// `silenceLimit`, `firstRecordLimit`, and `ringSeconds` are parameters so that tests stay
     /// fast.
     init(
-        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int, folder: URL, hal: DeviceHAL,
+        device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int,
+        folder: @escaping @Sendable () throws(SessionFileError) -> URL, hal: DeviceHAL,
         report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
         silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10
     ) {

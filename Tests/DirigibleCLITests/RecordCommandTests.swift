@@ -48,7 +48,7 @@ struct RecordCommandTests {
 
     @Test func aLockedPackageExitsTwo() throws {
         let asError: (SessionFileError) -> any Error = { $0 }
-        let result = try PackageLock.withLock(package.url, locked: asError) {
+        let result = try PackageLock.withLock(package.url, locked: asError) { _ in
             try refused("record", "PKG", "--seconds", "1", "--arm", "t1")
         }
 

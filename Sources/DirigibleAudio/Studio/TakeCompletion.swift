@@ -4,6 +4,8 @@ import Foundation
 /// The result of `openPackage`. The studio stores the lock for its whole life.
 struct OpenedPackage: Sendable {
     let lock: PackageLock
+    /// The package path in `packageIdentity` form.
+    var package: URL
     var session: Session
     var takeError: StudioError?
     var segmentsWithAudio: [SegmentName]
@@ -17,6 +19,9 @@ struct TakeOutcome: Sendable {
     var session: Session
     var error: StudioError?
     var segmentsWithAudio: [SegmentName]
+    /// The package path that the lock holds (`packageIdentity` form). Nil when the package left
+    /// its volume.
+    var package: URL?
 }
 
 /// The recovery marker of decision 0004, in the package root.
@@ -39,9 +44,11 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         throw .file(error)
     }
     let marker = marker(in: package)
+    let identity = packageIdentity(package)
     func opened(_ session: Session, _ error: StudioError? = nil) -> OpenedPackage {
         OpenedPackage(
-            lock: lock, session: session, takeError: error, segmentsWithAudio: segmentsWithAudio(in: package))
+            lock: lock, package: identity, session: session, takeError: error,
+            segmentsWithAudio: segmentsWithAudio(in: package))
     }
 
     guard session.recording != nil else {
@@ -55,30 +62,42 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         return opened(session, .file(.writeFailed(step: marker.lastPathComponent, errno: errno)))
     }
     close(descriptor)
-    let outcome = await completeTake(of: session, in: package)
+    let outcome = await completeTake(of: session, lock: lock)
     return OpenedPackage(
-        lock: lock, session: outcome.session, takeError: outcome.error, segmentsWithAudio: outcome.segmentsWithAudio,
-        recoveredTake: outcome.error == nil ? session.recording : nil)
+        lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
+        segmentsWithAudio: outcome.segmentsWithAudio, recoveredTake: outcome.error == nil ? session.recording : nil)
 }
 
-/// The one step that open, stop, and retry share: finalize, delete the marker, save, and read
-/// the segments with audio.
-@concurrent nonisolated func completeTake(of session: Session, in package: URL) async -> TakeOutcome {
+/// The one step that open, stop, and retry share, in the package that `lock` holds now (decision
+/// 0014): finalize, delete the marker, save, and read the segments with audio. It resolves the
+/// package path once, before the finalize.
+@concurrent nonisolated func completeTake(of session: Session, lock: PackageLock) async -> TakeOutcome {
     dispatchPrecondition(condition: .notOnQueue(.main))
+    let package: URL
+    do {
+        package = try lock.package()
+    } catch {
+        return TakeOutcome(session: session, error: .file(error), segmentsWithAudio: [], package: nil)
+    }
+    func outcome(_ session: Session, _ error: StudioError?) -> TakeOutcome {
+        TakeOutcome(
+            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package),
+            package: packageIdentity(package))
+    }
     let finalized: Session
     do {
         finalized = try finalizeTake(of: session, in: package)
     } catch {
         unlink(marker(in: package).path)
-        return TakeOutcome(session: session, error: .finalize(error), segmentsWithAudio: segmentsWithAudio(in: package))
+        return outcome(session, .finalize(error))
     }
     // A crash between this delete and the save looks like a recovery not yet tried, which is safe
     // to run again.
     unlink(marker(in: package).path)
     do {
-        try finalized.write(to: package)
+        try finalized.write(under: lock)
     } catch {
-        return TakeOutcome(session: session, error: .file(error), segmentsWithAudio: segmentsWithAudio(in: package))
+        return outcome(session, .file(error))
     }
-    return TakeOutcome(session: finalized, error: nil, segmentsWithAudio: segmentsWithAudio(in: package))
+    return outcome(finalized, nil)
 }

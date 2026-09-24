@@ -11,7 +11,9 @@ import Foundation
         case finalizing(take: Int)
     }
 
-    public let url: URL
+    /// The package path in `packageIdentity` form. A write that finds the package moved on its
+    /// volume sets it (decision 0014).
+    public private(set) var url: URL
     public private(set) var transport: Transport = .idle
     public var session: Session { history.session }
     /// Derived, not stored: `session.recording` while the transport is idle (decision 0004).
@@ -67,11 +69,12 @@ import Foundation
     private var tickets = 0
     private var serving = 0
     private var waiting: [Int: CheckedContinuation<Void, Never>] = [:]
-    /// Held for the life of the studio. Dropping the studio releases it.
-    private let lock: PackageLock
+    /// Held for the life of the studio. Dropping the studio releases it. Every write goes to the
+    /// package that it holds.
+    let lock: PackageLock
 
-    private init(url: URL, opened: OpenedPackage) {
-        self.url = url
+    private init(opened: OpenedPackage) {
+        self.url = opened.package
         self.lock = opened.lock
         self.history = History(opened.session)
         self.takeError = opened.takeError
@@ -82,7 +85,7 @@ import Foundation
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
     /// Throws `.locked` when another studio or the CLI has the package.
     public static func open(_ package: URL) async throws(StudioError) -> Studio {
-        Studio(url: package, opened: try await openPackage(package))
+        Studio(opened: try await openPackage(package))
     }
 
     /// Runs `body` on a copy of the session and records one undo entry if it changed. A change
@@ -156,7 +159,7 @@ import Foundation
             let started: StartedTake
             do throws(StudioError) {
                 started = try await prepareTake(
-                    of: session, in: url, armed: armed, playhead: playhead, environment: environment)
+                    of: session, lock: lock, armed: armed, playhead: playhead, environment: environment)
             } catch {
                 return .failure(error)
             }
@@ -201,13 +204,13 @@ import Foundation
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
     /// the take plus 1 GB. The reads run off the main actor.
     private func watchDisk() -> Task<Void, Never> {
-        let (url, environment, writers) = (url, environment, Array(writers.values))
+        let (lock, environment, writers) = (lock, environment, Array(writers.values))
         return Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: environment.diskCheckInterval)
                 var wav: Int64 = 0
                 for writer in writers { wav += await writer.wavBytes() }
-                guard await freeBytes(of: url, environment) < wav + diskMargin, !Task.isCancelled else { continue }
+                guard await freeBytes(of: lock, environment) < wav + diskMargin, !Task.isCancelled else { continue }
                 try? await self?.stop(.diskLow)
                 return
             }
@@ -233,7 +236,7 @@ import Foundation
             do throws(StudioError) {
                 begin(
                     try saveTakeStart(
-                        session, in: url, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
+                        session, lock: lock, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
             } catch {
                 return error
             }
@@ -249,11 +252,16 @@ import Foundation
     private func begin(_ started: StartedTake) {
         history.edit { $0 = started.session }
         saveError = nil  // The start save wrote the whole session.
+        url = started.package
         lastTake = nil
         recoveredTake = nil
         generation += 1
         let report = Self.reporter(to: self, generation: generation)
-        let capture = url.appending(path: captureFolderName)
+        // A segment opens in the `Capture/` of the package that the lock holds at that time.
+        let lock = lock
+        let capture: @Sendable () throws(SessionFileError) -> URL = {
+            try lock.package().appending(path: captureFolderName)
+        }
         var devices: [InputDevice] = []
         for route in started.routes where !devices.contains(route.device) { devices.append(route.device) }
         for device in devices {
@@ -290,7 +298,8 @@ import Foundation
     /// Finalize, the marker, and the save off the main actor, then the outcome here.
     private func complete(_ take: Int) async throws(StudioError) {
         transport = .finalizing(take: take)
-        let outcome = await completeTake(of: session, in: url)
+        let outcome = await completeTake(of: session, lock: lock)
+        if let package = outcome.package { url = package }
         transport = .idle
         takeError = outcome.error
         segmentsWithAudio = outcome.segmentsWithAudio
@@ -311,11 +320,17 @@ import Foundation
     /// Writes a copy of the session off the main actor, after the previous package write. It
     /// takes its ticket now, so a later start or finalize writes after it.
     private func scheduleSave() {
-        let (snapshot, url, save, ticket) = (session, url, environment.saveSession, tickets)
+        let (snapshot, lock, save, ticket) = (session, lock, environment.saveSession, tickets)
         tickets += 1
         Task {
             await waitForTurn(ticket)
-            saveError = await writeSession(snapshot, to: url, save)
+            switch await writeSession(snapshot, lock: lock, save) {
+            case .success(let package):
+                url = package
+                saveError = nil
+            case .failure(let error):
+                saveError = error
+            }
             endTurn()
         }
     }

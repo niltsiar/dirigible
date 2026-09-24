@@ -33,14 +33,14 @@ func editPackage<Result>(
     _ package: PackageArgument, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
     let locked = { (error: SessionFileError) in fail(error.message(package: package.path), code: packageError) }
-    return try PackageLock.withLock(package.url, locked: locked) { () throws(ExitCode) -> Result in
+    return try PackageLock.withLock(package.url, locked: locked) { lock throws(ExitCode) -> Result in
         Session.removeTemporaryFiles(in: package.url)
-        return try editLocked(package, body)
+        return try editLocked(package, lock, body)
     }
 }
 
 private func editLocked<Result>(
-    _ package: PackageArgument, _ body: (inout Session) throws(SessionError) -> Result
+    _ package: PackageArgument, _ lock: PackageLock, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
     var session = try readPackage(package)
     guard session.recording == nil else {
@@ -54,7 +54,8 @@ private func editLocked<Result>(
         throw fail(error.message, code: editRefused)
     }
     do {
-        try session.write(to: package.url)
+        // The package that the lock holds, also after a rename (decision 0014).
+        try session.write(under: lock)
     } catch {
         throw fail(error.message(package: package.path), code: packageError)
     }
@@ -134,6 +135,7 @@ extension SessionFileError {
         case .writeFailed(let step, let code): "cannot write \(file) (\(step)): \(String(cString: strerror(code)))."
         case .wouldNotReadBack: "the new session would not read back, so \(file) did not change. This is a bug."
         case .locked: "\(package) is open in Dirigible."
+        case .packageMoved: "\(package) moved to another volume or was deleted, so \(file) did not change."
         }
     }
 }

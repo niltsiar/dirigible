@@ -108,8 +108,11 @@ struct FinalizeTests {
         #expect(FileManager.default.fileExists(atPath: package.capture.appending(path: "take1-1-1.caf").path))
     }
 
+    /// An empty `Capture/`. A missing `Capture/` is a take-wide fault (decision 0014,
+    /// `MovedPackageTests`).
     @Test func noSegmentFilesGiveNoClipAndTheTakeEnds() throws {
         try FileManager.default.removeItem(at: package.capture)
+        try FileManager.default.createDirectory(at: package.capture, withIntermediateDirectories: false)
         let before = try package.read()
 
         let session = try finalizeTake(of: before, in: package.url)

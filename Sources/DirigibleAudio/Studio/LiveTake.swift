@@ -172,9 +172,11 @@ func saveTakeStart(
 }
 
 /// Steps 2 to 5 of the start order of decision 0013, off the main actor: the device lookup and
-/// the route checks, the microphone access, the disk check, and the save.
+/// the route checks, the microphone access, the disk check, and the save. Then the list entry,
+/// before the attach (decision 0004).
 @concurrent nonisolated func prepareTake(
-    of session: Session, lock: PackageLock, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment
+    of session: Session, lock: PackageLock, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment,
+    recordings: ActiveRecordings?
 ) async throws(StudioError) -> StartedTake {
     dispatchPrecondition(condition: .notOnQueue(.main))
     var devices: [InputDevice] = []
@@ -187,9 +189,11 @@ func saveTakeStart(
     let routes = try checkRoutes(session, armed: armed, devices: devices)
     if let access = environment.microphoneAccess() { throw .microphoneAccess(access) }
     guard environment.freeBytes(lock) >= diskMargin else { throw .diskLow }
-    return try saveTakeStart(
+    let started = try saveTakeStart(
         session, lock: lock, routes: routes, playhead: playhead,
         hostTimeNanos: AudioConvertHostTimeToNanos(AudioGetCurrentHostTime()))
+    recordings?.set(started.package, active: true)
+    return started
 }
 
 /// The free bytes of the volume of the package that `lock` holds, off the main actor.

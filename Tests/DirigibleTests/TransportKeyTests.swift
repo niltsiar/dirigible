@@ -89,6 +89,20 @@ import Testing
         #expect(hold.handle(key(.keyUp, "k", code: 40, at: 51), forTransport: true) == .pass)
     }
 
+    /// The hold follows the character, as the menu key equivalents do, not the ANSI key code. On
+    /// Dvorak, key code 35 gives "l" and key code 37 gives "n". Found by the code gate.
+    @Test func aHoldFollowsTheCharacter() {
+        var hold = ShuttleHold()
+
+        #expect(hold.handle(key(.keyDown, "l", code: 35, at: 10), forTransport: true) == .pass)
+        #expect(hold.handle(key(.keyDown, "l", code: 35, at: 10.2, repeat: true), forTransport: true) == .drop)
+        #expect(hold.handle(key(.keyUp, "l", code: 35, at: 10.4), forTransport: true) == .release)
+
+        #expect(hold.handle(key(.keyDown, "n", code: 37, at: 20), forTransport: true) == .pass)
+        #expect(hold.handle(key(.keyDown, "n", code: 37, at: 20.2, repeat: true), forTransport: true) == .pass)
+        #expect(hold.handle(key(.keyUp, "n", code: 37, at: 20.4), forTransport: true) == .pass)
+    }
+
     /// A held Space does not toggle play and stop at the key-repeat rate. Control: the first
     /// key-down passes, and a text field gets the repeats. Found by the code gate.
     @Test func aHeldSpaceActsOnce() {

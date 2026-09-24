@@ -16,30 +16,31 @@ struct ShuttleHold {
 
     /// A shorter press latches (a calibration knob).
     static let threshold: TimeInterval = 0.3
-    /// The key codes of J and L; Shift-J and Shift-L have the same codes.
-    private static let codes: Set<UInt16> = [38, 37]
-    /// The key code of Space.
-    private static let space: UInt16 = 49
+    /// The characters of J and L, as the menu key equivalents match them: by character, not by
+    /// key code, so a layout that moves the keys (Dvorak) still works. Shift gives "J" and "L".
+    private static let keys: Set<String> = ["j", "l"]
 
-    /// The key code and the time of the last J or L key-down that went to the transport.
-    private var down: (code: UInt16, time: TimeInterval)?
+    /// The character and the time of the last J or L key-down that went to the transport.
+    private var down: (key: String, time: TimeInterval)?
 
     /// `forTransport`: the key window takes transport keys now. Only a key-down reads it; a
     /// key-up reads only the stored key-down (plan gate 2 item 6).
     mutating func handle(_ event: NSEvent, forTransport: Bool) -> Action {
-        guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return .pass }
-        if event.keyCode == Self.space {
+        guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+            let key = event.charactersIgnoringModifiers?.lowercased()
+        else { return .pass }
+        if key == " " {
             return event.type == .keyDown && event.isARepeat && forTransport ? .drop : .pass
         }
-        guard Self.codes.contains(event.keyCode) else { return .pass }
+        guard Self.keys.contains(key) else { return .pass }
         switch event.type {
         case .keyDown:
             guard forTransport else { return .pass }
             if event.isARepeat { return .drop }
-            down = (event.keyCode, event.timestamp)
+            down = (key, event.timestamp)
             return .pass
         case .keyUp:
-            guard let down, down.code == event.keyCode else { return .pass }
+            guard let down, down.key == key else { return .pass }
             self.down = nil
             return event.timestamp - down.time >= Self.threshold ? .release : .pass
         default:

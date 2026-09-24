@@ -85,6 +85,10 @@ struct CaptureEnvironment: Sendable {
     var playerOutput: Player.Output = .device
     /// A step before the Player stop of a take start, off the main actor. Tests hold it.
     var beforePlayerStop: @Sendable () async -> Void = {}
+    /// A step at the start of each media check of `Studio.checkMedia`, off the main actor.
+    var beforeMediaCheck: @Sendable () -> Void = {}
+    /// Starts the engine of the Player. Tests give one that throws.
+    var startEngine: @Sendable (AVAudioEngine) throws -> Void = { try $0.start() }
 
     static let live = CaptureEnvironment(
         hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),

@@ -11,6 +11,8 @@ struct OpenedPackage: Sendable {
     var segmentsWithAudio: [SegmentName]
     /// The pending take that the recovery finalized.
     var recoveredTake: Recording? = nil
+    /// The pool files that are not whole (decision 0016).
+    var missingMedia: [FileID: MediaFault] = [:]
 }
 
 /// The result of `completeTake`. On a thrown finalize or save, `session` is the input (it keeps
@@ -22,6 +24,7 @@ struct TakeOutcome: Sendable {
     /// The package path that the lock holds (`packageIdentity` form). Nil when the package left
     /// its volume.
     var package: URL?
+    var missingMedia: [FileID: MediaFault] = [:]
 }
 
 /// The recovery marker of decision 0004, in the package root.
@@ -52,7 +55,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         recordings?.set(identity, active: session.recording != nil)
         return OpenedPackage(
             lock: lock, package: identity, session: session, takeError: error,
-            segmentsWithAudio: segmentsWithAudio(in: package))
+            segmentsWithAudio: segmentsWithAudio(in: package), missingMedia: checkMedia(session, package: package))
     }
 
     guard session.recording != nil else {
@@ -69,7 +72,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: identity)
     return OpenedPackage(
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
-        segmentsWithAudio: outcome.segmentsWithAudio, recoveredTake: outcome.error == nil ? session.recording : nil)
+        segmentsWithAudio: outcome.segmentsWithAudio, recoveredTake: outcome.error == nil ? session.recording : nil,
+        missingMedia: outcome.missingMedia)
 }
 
 /// The one step that open, stop, and retry share, in the package that `lock` holds now (decision
@@ -90,7 +94,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         let identity = packageIdentity(package)
         recordings?.set(identity, active: session.recording != nil, previous: previous)
         return TakeOutcome(
-            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity)
+            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity,
+            missingMedia: checkMedia(session, package: package))
     }
     let finalized: Session
     do {

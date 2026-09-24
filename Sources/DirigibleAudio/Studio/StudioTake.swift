@@ -45,6 +45,22 @@ extension Studio {
         return lastTake
     }
 
+    /// Each check interval: stops the take when the free space is less than the WAV bytes of
+    /// the take plus 1 GB. The reads run off the main actor.
+    func watchDisk() -> Task<Void, Never> {
+        let (lock, environment, writers) = (lock, environment, Array(writers.values))
+        return Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: environment.diskCheckInterval)
+                var wav: Int64 = 0
+                for writer in writers { wav += await writer.wavBytes() }
+                guard await freeBytes(of: lock, environment) < wav + diskMargin, !Task.isCancelled else { continue }
+                try? await self?.stop(.diskLow)
+                return
+            }
+        }
+    }
+
     /// The WAV bytes that the finalize of the pending take needs (3 for each 4 CAF bytes, decision
     /// 0013) and the free bytes of the volume now. Nil with no pending take.
     public func pendingSpace() async -> (needed: Int64, free: Int64)? {

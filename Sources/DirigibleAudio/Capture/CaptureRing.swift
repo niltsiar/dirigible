@@ -37,12 +37,20 @@ struct CaptureRing: @unchecked Sendable {
                 rate: .create(rate.bitPattern)))
     }
 
-    /// Room for `seconds` at the highest available rate (or the nominal rate) of every input
-    /// channel, plus 25% for the record headers, rounded up to a power of two.
+    /// The largest ring: 64 MiB. A 64-channel device at 768 kHz fills it in 0.34 s, more than 6
+    /// drains.
+    static let maxCapacity = 1 << 26
+
+    /// Room for `seconds` at the nominal rate of every input channel of `device`.
     static func capacity(for device: InputDevice, seconds: Double) -> Int {
-        let rate = device.availableRates.map(\.upperBound).reduce(device.nominalRate, max)
-        let bytes = Int((seconds * rate * Double(device.channelCount) * 4 * 1.25).rounded(.up))
-        return max(64, 1 << (Int.bitWidth - (bytes - 1).leadingZeroBitCount))
+        capacity(rate: device.nominalRate, channels: device.channelCount, seconds: seconds)
+    }
+
+    /// Room for `seconds` at `rate` of `channels`, plus 25% for the record headers, rounded up to
+    /// a power of two, and at most `maxCapacity`.
+    static func capacity(rate: Double, channels: Int, seconds: Double) -> Int {
+        let bytes = min(Double(maxCapacity), (seconds * rate * Double(channels) * 4 * 1.25).rounded(.up))
+        return max(64, 1 << (Int.bitWidth - (Int(bytes) - 1).leadingZeroBitCount))
     }
 
     var capacity: Int { storage.pointee.capacity }

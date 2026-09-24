@@ -156,6 +156,23 @@ struct CaptureRingWrapTests {
         #expect(ring.takeDroppedFrames() == 0)
     }
 
+    /// 10 s at the nominal rate of the input channels, plus 25%, rounded up to a power of two,
+    /// and at most 64 MiB. A higher available rate does not count.
+    @Test(arguments: [
+        (48_000.0, 1, 4_194_304),
+        (48_000.0, 64, 67_108_864),
+        (768_000.0, 64, 67_108_864),
+        (8_000.0, 1, 524_288),
+    ])
+    func theRingIsSizedFromTheNominalRateWithACap(rate: Double, channels: Int, expected: Int) throws {
+        let device = try #require(
+            InputDevice(
+                uid: "d", name: "D", nominalRate: rate, availableRates: [8_000...768_000],
+                channelsPerBuffer: [channels], latency: 0))
+
+        #expect(CaptureRing.capacity(for: device, seconds: 10) == expected)
+    }
+
     @Test func recordsThatCrossTheEndReadBackEqual() {
         roundTrip { Int.random(in: 1...4_096, using: &$0) }
     }

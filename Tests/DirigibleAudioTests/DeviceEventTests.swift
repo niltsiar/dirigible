@@ -97,6 +97,27 @@ struct DeviceEventTests {
         }
     }
 
+    /// A rate that needs a larger ring starts a new appearance with a new ring, and no gap.
+    /// Control: a lower rate keeps the first appearance.
+    @Test(arguments: [44_100.0, 192_000.0])
+    func aHigherRateStartsANewAppearanceWithALargerRing(rate: Double) async throws {
+        let hal = TestHAL([mic])
+        let writer = writer(mic, hal)
+        await until("no first attach") { hal.inputs("mic").count == 1 }
+        let faster = try #require(
+            InputDevice(
+                uid: "mic", name: "USB Mic", nominalRate: rate, availableRates: mic.availableRates,
+                channelsPerBuffer: [1], latency: 0))
+        hal.set("mic", id: 1, device: faster)
+
+        writer.post(.rate(rate), from: hal.current("mic"))
+        let gaps = await writer.finish()
+
+        #expect(hal.capacities("mic") == (rate > 48_000 ? [4_194_304, 16_777_216] : [4_194_304]))
+        #expect(gaps == [:])
+        #expect(!log.states(arm: 1).contains(.deviceLost))
+    }
+
     // MARK: Criterion 7: format
 
     @Test(arguments: [false, true])

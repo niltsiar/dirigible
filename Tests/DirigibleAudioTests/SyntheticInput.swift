@@ -52,6 +52,7 @@ final class TestHAL: @unchecked Sendable {
     private var present: [String: (id: AudioObjectID, device: InputDevice)] = [:]
     private var tries: [String: [DeviceInput]] = [:]
     private var attached: [String: [DeviceInput]] = [:]
+    private var capacities: [String: [Int]] = [:]
     private var detached: Set<ObjectIdentifier> = []
     private var producers: [String: [SyntheticInput]] = [:]
     private var detachResult = true
@@ -95,7 +96,10 @@ final class TestHAL: @unchecked Sendable {
         }
         if live { return try DeviceHAL.live.attach(input) }
         if let error { throw error }
-        lock.withLock { attached[uid, default: []].append(input) }
+        lock.withLock {
+            attached[uid, default: []].append(input)
+            capacities[uid, default: []].append(input.ring.capacity)
+        }
         return { [self] in
             let (running, clean) = lock.withLock { (self.producers[uid] ?? [], detachResult) }
             guard clean else { return false }
@@ -148,6 +152,10 @@ final class TestHAL: @unchecked Sendable {
 
     /// The inputs of each successful attach of `uid`, in order.
     func inputs(_ uid: String) -> [DeviceInput] { lock.withLock { attached[uid] ?? [] } }
+
+    /// The ring capacity of each successful attach of `uid`, read at the attach: a clean detach
+    /// frees the ring.
+    func capacities(_ uid: String) -> [Int] { lock.withLock { capacities[uid] ?? [] } }
 
     /// The last successful attach of `uid` that a clean detach did not end.
     func current(_ uid: String) -> DeviceInput? {

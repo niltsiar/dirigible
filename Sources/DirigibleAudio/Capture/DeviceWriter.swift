@@ -148,13 +148,28 @@ final class DeviceWriter: @unchecked Sendable {
             let changed = InputDevice(
                 uid: device.uid, name: device.name, nominalRate: device.nominalRate,
                 availableRates: device.availableRates, channelsPerBuffer: channels, latency: device.latency)
-            if let changed, tracks.hasRoutedChannels(changed) { tracks.use(changed) } else { lose() }
+            guard let changed, tracks.hasRoutedChannels(changed) else { return lose() }
+            tracks.use(changed)
+            growRing(rate: device.nominalRate, channels: changed.channelCount)
+        case .rate(let rate):
+            // The rate is in the ring already: the next record header breaks the segment.
+            growRing(rate: rate, channels: tracks.device.channelCount)
         case .alive(false):
             lose()
-        case .rate, .alive(true), .devicesChanged:
-            // The rate is in the ring already: the next record header breaks the segment.
+        case .alive(true), .devicesChanged:
             break
         }
+    }
+
+    /// A rate or a layout that needs a larger ring starts a new appearance, so the IO thread
+    /// never writes into a ring that is too small or touches a new page. A failed attach makes
+    /// the device lost.
+    private func growRing(rate: Double, channels: Int) {
+        guard let current = input?.input,
+            CaptureRing.capacity(rate: rate, channels: channels, seconds: ringSeconds) > current.ring.capacity
+        else { return }
+        detach()
+        if !attach() { lose() }
     }
 
     private func tick() {

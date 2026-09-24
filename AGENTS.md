@@ -21,6 +21,7 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 | `make lint` | `swift format lint --strict` on all Swift files. |
 | `make format` | Formats all Swift files in place. |
 | `make check-docs` | Checks the docs: every research file has a date and a Sources section, every brief ID has a row in a release table of `releases.md`, and every answered question links to an existing, accepted decision. `scripts/check-docs.test.sh` tests the check. |
+| `swift run dirigible --help` | Builds and runs the command-line tool. It makes, changes, and reads session packages (decision 0011). |
 | `make check` | `lint`, `check-docs`, `test`, `test-hooks`, and `test-app`. Run it before every commit. It must be green. |
 
 The toolchain is Xcode 26 with Swift 6.2. There is no Xcode project. See `docs/decisions/0001-native-swift-stack.md`.

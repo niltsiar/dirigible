@@ -138,6 +138,28 @@ import os
         #expect(hal.isFree)
     }
 
+    /// Code gate round 2, item 2: the toggle is enabled only in the open phase, like the other
+    /// Record items. Control in the same test: the open phase enables it.
+    @Test func theToggleIsEnabledOnlyWhenTheWindowIsOpen() async throws {
+        let (window, studio) = try await window()
+        #expect(window.canMonitor)
+        studio.environment.saveSession = { _, _ throws(SessionFileError) in
+            throw .writeFailed(step: "test", errno: EIO)
+        }
+        try studio.edit { s throws(SessionError) in try s.renameTrack("t1", to: "Hostess") }
+        await window.close()
+        #expect(window.alert == .confirmUnsavedClose)
+        #expect(!window.canMonitor)
+        window.closeAnyway()
+
+        let failed = SessionWindow(url: folder.url.appending(path: "none.dirigible"), recordings: nil, app: app)
+        failed.open(recovering: false)
+        await until("the open did not fail") {
+            if case .failed = failed.phase { true } else { false }
+        }
+        #expect(!failed.canMonitor)
+    }
+
     // MARK: Criterion 23
 
     /// Control: with the toggle on, `updateMonitor()` attaches.

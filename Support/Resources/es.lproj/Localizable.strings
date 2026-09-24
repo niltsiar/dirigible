@@ -49,3 +49,32 @@
 "alert.quit.recording.confirm" = "Detener y salir";
 "alert.quit.unsaved" = "No se pudieron guardar los últimos cambios de estas sesiones: %@. ¿Salir de todos modos?";
 "alert.quit.unsaved.confirm" = "Salir";
+
+/* Tracks and takes */
+"alert.microphone.settings" = "Abrir los ajustes de privacidad";
+"track.none" = "No hay pistas. Usa Pista > Añadir pista.";
+"track.default.name" = "Pista %lld";
+"track.name" = "Nombre";
+"track.arm" = "Armar";
+"track.layout.mono" = "Mono";
+"track.layout.stereo" = "Estéreo";
+"track.route" = "%1$@, %2$@";
+"track.route.none" = "Sin entrada";
+"track.route.channel" = "Canal %lld";
+"track.route.channels" = "Canales %1$lld y %2$lld";
+"track.route.missing" = "Dispositivo no conectado";
+"track.state.device.lost" = "Dispositivo perdido";
+"track.state.write.failed" = "Error de escritura";
+"track.dropped" = "Tramas perdidas: %lld";
+"take.recording" = "Grabando la toma %lld";
+"take.finishing" = "Terminando la toma %lld…";
+"take.pending" = "La toma %lld no está terminada.";
+"take.pending.space" = "Para terminar hacen falta %1$@ libres. Ahora hay %2$@ libres.";
+"take.ended" = "La toma %lld está terminada.";
+"take.ended.disk.low" = "La toma %lld se detuvo porque el disco está casi lleno.";
+"take.gap.device.lost" = "La pista «%@» tiene un hueco: se perdió el dispositivo.";
+"take.gap.write.failed" = "La pista «%@» tiene un hueco: falló una escritura.";
+"take.dropped" = "La pista «%1$@» perdió %2$lld tramas.";
+"take.recovered" = "Se recuperó la toma %lld.";
+"take.unplaced" = "Audio que no está en ninguna pista: %@";
+"banner.save.error" = "El último cambio no está guardado. %@";

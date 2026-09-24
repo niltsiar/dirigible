@@ -19,6 +19,21 @@ struct DirigibleApp: App {
                         }
                     }
                 }
+                // No CommandGroup for Undo and Redo: the default items send undo: and redo: along
+                // the responder chain, so a focused text field keeps its typing undo (P12).
+                CommandMenu(L10n.menuTrack.key) {
+                    Button(L10n.menuTrackAdd.key) { app.key?.addTrack() }
+                        .keyboardShortcut("n", modifiers: [.command, .option])
+                        .disabled(app.key?.canEdit != true)
+                }
+                CommandMenu(L10n.menuRecord.key) {
+                    Button(L10n.menuRecordStart.key) { Task { await app.key?.record() } }
+                        .keyboardShortcut("r").disabled(app.key?.canRecord != true)
+                    Button(L10n.menuRecordStop.key) { Task { await app.key?.stop() } }
+                        .keyboardShortcut(".").disabled(app.key?.canStop != true)
+                    Button(L10n.menuRecordRetry.key) { Task { await app.key?.retry() } }
+                        .keyboardShortcut("r", modifiers: [.command, .option]).disabled(app.key?.canRetry != true)
+                }
             }
     }
 }

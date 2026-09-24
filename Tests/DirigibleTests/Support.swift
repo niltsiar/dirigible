@@ -5,7 +5,11 @@ import Testing
 @testable import DirigibleApp
 
 /// Polls `condition` every 10 ms. At the limit, it records `message` as an issue and returns.
-@MainActor func until(limit: Duration = .seconds(10), _ message: String, _ condition: () -> Bool) async {
+/// The default limit is 60 s, longer than the whole suite: in a full run, the DirigibleAudio
+/// tests hold the main actor (`PendingTakeTests.init` and `Studio.startTake` write with
+/// `F_FULLFSYNC`) and the cooperative threads (blocking file writes) for most of the run, and a
+/// window open needs both.
+@MainActor func until(limit: Duration = .seconds(60), _ message: String, _ condition: () -> Bool) async {
     let end = ContinuousClock.now + limit
     while !condition() {
         guard ContinuousClock.now < end else {
@@ -39,6 +43,7 @@ extension SessionWindow {
     /// Waits until the open of the package ends with a studio.
     func opened() async -> Bool {
         await until("the window opens its package") { studio != nil }
+        if studio == nil { Issue.record("The phase is \(phase)") }
         return studio != nil
     }
 }

@@ -55,9 +55,10 @@ import Testing
         let old = try folder.package("old")
         let window = app.open(old)
         let new = folder.url.appending(path: "new.dirigible")
+        weak var closedStudio: Studio?
         do {
-            // The studio goes out of scope before the reopen, so its lock goes with the close.
             let studio = try #require(await window.opened() ? window.studio : nil)
+            closedStudio = studio
             try FileManager.default.moveItem(at: old, to: new)
             try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
             await studio.settle()
@@ -68,6 +69,9 @@ import Testing
 
         await window.close()
         #expect(app.windows.isEmpty)
+        // The lock goes with the studio. A SwiftUI update that waits on a busy main actor can
+        // hold the view, and so the studio, a little after the close.
+        await until("the closed window drops its studio") { closedStudio == nil }
         let again = app.open(new)
         #expect(again !== window)
         #expect(await again.opened())

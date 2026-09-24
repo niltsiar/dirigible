@@ -39,10 +39,17 @@ struct CaptureRing: @unchecked Sendable {
 
     /// Room for `seconds` at the highest available rate (or the nominal rate) of every input
     /// channel, plus 25% for the record headers, rounded up to a power of two.
-    init(device: InputDevice, seconds: Double) {
+    static func capacity(for device: InputDevice, seconds: Double) -> Int {
         let rate = device.availableRates.map(\.upperBound).reduce(device.nominalRate, max)
         let bytes = Int((seconds * rate * Double(device.channelCount) * 4 * 1.25).rounded(.up))
-        self.init(capacity: max(64, 1 << (Int.bitWidth - (bytes - 1).leadingZeroBitCount)), rate: device.nominalRate)
+        return max(64, 1 << (Int.bitWidth - (bytes - 1).leadingZeroBitCount))
+    }
+
+    var capacity: Int { storage.pointee.capacity }
+
+    /// True when the consumer has popped every record.
+    var isEmpty: Bool {
+        storage.pointee.head.load(ordering: .acquiring) == storage.pointee.tail.load(ordering: .acquiring)
     }
 
     /// Only after every IOProc call that can use the ring has returned: a clean detach.
@@ -85,12 +92,16 @@ struct CaptureRing: @unchecked Sendable {
         storage.pointee.dropped.exchange(0, ordering: .relaxed)
     }
 
-    /// Consumer only. Allocates. `record` is nil when the record has no valid sample and host
-    /// times: the writer ends the segment.
-    func pop() -> RingRecord? {
+    /// Consumer only. The byte count at the end of the complete records now. A drain pops up to
+    /// it, so a record that comes later waits for the next drain.
+    func end() -> Int { storage.pointee.head.load(ordering: .acquiring) }
+
+    /// Consumer only. Allocates. Nil when no record starts before `end`. `record` is nil when the
+    /// record has no valid sample and host times: the writer ends the segment.
+    func pop(before end: Int? = nil) -> RingRecord? {
         let ring = storage.pointee
         let tail = ring.tail.load(ordering: .relaxed)
-        guard ring.head.load(ordering: .acquiring) != tail else { return nil }
+        guard tail != (end ?? ring.head.load(ordering: .acquiring)) else { return nil }
         func load<T>(_ offset: Int, as type: T.Type) -> T {
             ring.bytes.load(fromByteOffset: (tail + offset) & (ring.capacity - 1), as: type)
         }

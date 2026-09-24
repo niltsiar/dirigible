@@ -21,7 +21,7 @@ struct CaptureRingTests {
     ) -> DeviceWriter {
         let writer = DeviceWriter(
             device: stereo, tracks: [(arm: 1, channels: .stereo(1, 2))], take: 1, folder: folder.url, hal: hal.hal,
-            drainInterval: drainInterval, ringSeconds: ringSeconds)
+            drainInterval: drainInterval, silenceLimit: .seconds(60), ringSeconds: ringSeconds)
         writer.start()
         return writer
     }
@@ -35,7 +35,7 @@ struct CaptureRingTests {
         let input = SyntheticInput(hal, "mic")
 
         input.play(records([samples], layout: [2], rate: 48_000, frames: 480), pace: .realTime)
-        input.wait()
+        await input.wait()
         await writer.finish()
 
         #expect(try readAudio(caf).samples == samples)
@@ -54,17 +54,17 @@ struct CaptureRingTests {
         let input = SyntheticInput(hal, "mic")
 
         input.play(Array(all[..<30]), pace: .ignoreRoom)
-        input.wait()
+        await input.wait()
         await until(limit: .seconds(2), "the first drain did not come") { writer.droppedFrames > 0 }
         input.play(Array(all[30...]))
-        input.wait()
+        await input.wait()
         await writer.finish()
 
         let dropped = writer.droppedFrames
         #expect(dropped > 0)
         #expect(dropped % 480 == 0)
         let written = try readAudio(caf).samples
-        #expect(written.count == samples.count)
+        try #require(written.count == samples.count)
         var silent = 0
         for block in stride(from: 0, to: samples.count, by: 960) {
             let range = block..<min(block + 960, samples.count)
@@ -85,11 +85,11 @@ struct CaptureRingTests {
         let input = SyntheticInput(hal, "mic")
 
         input.play(Array(all[..<50]))
-        input.wait()
+        await input.wait()
         input.play([all[50]], flags: [])
-        input.wait()
+        await input.wait()
         input.play(Array(all[51...]))
-        input.wait()
+        await input.wait()
         await writer.finish()
 
         #expect(try readAudio(caf).samples.count == 50 * 480 * 2)
@@ -103,14 +103,18 @@ struct CaptureRingTests {
         weak let gone = writer
         let input = SyntheticInput(hal, "mic")
         input.play(records([sine(seconds: 0.1, rate: 48_000, channels: 2)], layout: [2], rate: 48_000))
-        input.wait()
+        await input.wait()
 
         await writer?.finish()
         writer = nil
 
         await until("the writer is still alive after finish") { gone == nil }
     }
+}
 
+/// The wrap of the ring (criterion 3). Not on the main actor: it is CPU work that would hold
+/// back the main-actor jobs of other tests.
+struct CaptureRingWrapTests {
     /// 10,000 records of 1 to 4,096 frames with a seeded size, pushed while the ring has room and
     /// popped on the same thread, so records cross the end of the ring (criterion 3).
     func roundTrip(frames: (inout SeededGenerator) -> Int) {

@@ -56,10 +56,11 @@ struct SegmentBreakTests {
     func take(_ records: [InputRecord]) async throws -> Studio {
         let studio = try await Studio.open(url)
         let hal = TestHAL([mic])
-        _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: hal.hal)
+        studio.environment = .test(hal)
+        _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         let input = SyntheticInput(hal, "mic")
         input.play(records)
-        input.wait()
+        await input.wait()
         try await studio.stopRecording()
         #expect(studio.takeError == nil)
         return studio

@@ -2,25 +2,54 @@ import Atomics
 import DirigibleCore
 import Foundation
 
-/// The writer of one device (decisions 0004 and 0013). A drain timer on its serial queue pops
-/// the ring of the current `DeviceInput`. It splits each record into the channels of each track
-/// and writes one segment per track: a checkpoint at the first record, at the first record at or
-/// after each further second of device frames, and at the last record, and a flush every 5 s of
-/// device frames. A clock event closes the segments of every track, and the next record opens
-/// new ones. All state is confined to its serial queue, so it is `@unchecked Sendable`.
+/// A device fact for the studio: the state of one track of a take. `status` is the raw OSStatus
+/// or errno of a write error, for tests. It never reaches the public API.
+struct Report: Sendable {
+    let take: Int
+    let arm: Int
+    let state: LiveTrack.State
+    let status: Int32?
+}
+
+/// The recorder of one device for the whole take (decisions 0004 and 0013). A drain timer on its
+/// serial queue pops the ring of the current `DeviceInput`, runs the watchdog while the device
+/// runs, and tries to attach again each 1 s while it is lost. The writer splits each record into
+/// the channels of each track and writes one segment per track: a checkpoint at the first record,
+/// at the first record at or after each further second of device frames, and at the last record,
+/// and a flush every 5 s of device frames. A clock event closes the segments of every track, and
+/// the next record opens new ones. All state is confined to its serial queue, so it is
+/// `@unchecked Sendable`.
 final class DeviceWriter: @unchecked Sendable {
+    enum Event: Sendable {
+        case rate(Double)
+        /// The channel count of each input buffer.
+        case layout([Int])
+        case alive(Bool)
+        case devicesChanged
+    }
+
+    private enum Phase { case ready, running, lost, finished }
+
     private struct Output {
         let arm: Int
+        /// The 1-based device channels of the track.
+        let channels: [Int]
         /// (buffer index, channel index in the buffer) of each track channel.
-        let sources: [(buffer: Int, channel: Int)]
+        var sources: [(buffer: Int, channel: Int)] = []
         var writer: SegmentWriter?
     }
 
-    private let device: InputDevice
+    /// A writer with this many kept inputs attaches no more in the take (decision 0013).
+    static let keptLimit = 8
+    static let retryInterval = Duration.seconds(1)
+
+    private var device: InputDevice
     private let take: Int
     private let folder: URL
     private let hal: DeviceHAL
+    private let report: @Sendable (Report) -> Void
     private let drainInterval: Duration
+    private let silenceLimit: Duration
     private let ringSeconds: Double
     private let queue: DispatchQueue
     private var outputs: [Output]
@@ -28,34 +57,42 @@ final class DeviceWriter: @unchecked Sendable {
     private var segment: Segment?
     /// The number of the last segment that opened.
     private var segments = 0
-    private var finished = false
+    private var phase = Phase.ready
     /// The attached appearance of the device and its detach.
     private var input: (input: DeviceInput, detach: Detach)?
-    /// Inputs whose detach failed: a late IOProc call can still use their rings, so they stay.
+    /// Inputs whose detach failed: a late call can still use their rings, so they stay.
     private var kept: [DeviceInput] = []
+    /// The ring of an attach that threw with no IOProc left: no call can reach it.
+    private var spare: CaptureRing?
+    private var unwatch: Detach?
     private var timer: DispatchSourceTimer?
+    /// The watchdog clock: the last valid record, or the attach.
+    private var lastValid = ContinuousClock.now
+    /// The retry clock: the loss, or the last try.
+    private var lastTry = ContinuousClock.now
+    /// The state that started the first gap of each arm.
+    private var gaps: [Int: LiveTrack.State] = [:]
     private let dropped = ManagedAtomic<Int>(0)
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
-    /// checks of `Studio` make every channel exist on the device. `drainInterval` and
-    /// `ringSeconds` are parameters so that tests can make a ring overflow.
+    /// checks of `Studio` make every channel exist on the device. `drainInterval`,
+    /// `silenceLimit`, and `ringSeconds` are parameters so that tests stay fast.
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int, folder: URL, hal: DeviceHAL,
-        drainInterval: Duration = .milliseconds(50), ringSeconds: Double = 10
+        report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
+        silenceLimit: Duration = .seconds(2), ringSeconds: Double = 10
     ) {
         self.device = device
         self.take = take
         self.folder = folder
         self.hal = hal
+        self.report = report
         self.drainInterval = drainInterval
+        self.silenceLimit = silenceLimit
         self.ringSeconds = ringSeconds
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
-        let channels = device.channelsPerBuffer.enumerated().flatMap { buffer, count in
-            (0..<count).map { (buffer: buffer, channel: $0) }
-        }
-        outputs = tracks.map { track in
-            Output(arm: track.arm, sources: track.channels.numbers.map { channels[$0 - 1] }, writer: nil)
-        }
+        outputs = tracks.map { Output(arm: $0.arm, channels: $0.channels.numbers) }
+        use(device)
     }
 
     deinit { timer?.cancel() }
@@ -63,57 +100,173 @@ final class DeviceWriter: @unchecked Sendable {
     /// The dropped frames of the take. Any thread can read it.
     var droppedFrames: Int { dropped.load(ordering: .relaxed) }
 
-    /// Starts the drain timer, makes a `DeviceInput` with a new ring, and attaches it.
+    /// Starts the drain timer and the device-list listener, and attaches. A failed attach makes
+    /// the device lost, and the retry goes on.
     func start() {
         queue.async { [self] in
-            guard !finished, timer == nil else { return }
+            guard phase == .ready else { return }
             let timer = DispatchSource.makeTimerSource(queue: queue)
             let nanos = Int(drainInterval / .nanoseconds(1))
             timer.schedule(
                 deadline: .now() + .nanoseconds(nanos), repeating: .nanoseconds(nanos), leeway: .nanoseconds(0))
-            timer.setEventHandler { [weak self] in self?.drain() }
+            timer.setEventHandler { [weak self] in self?.tick() }
             timer.resume()
             self.timer = timer
-            guard let found = hal.lookUp(device.uid) else { return }
-            let input = DeviceInput(id: found.id, ring: CaptureRing(device: device, seconds: ringSeconds), writer: self)
-            do {
-                self.input = (input, try hal.attach(input))
-            } catch {
-                input.ring.deallocate()
-            }
+            unwatch = hal.watchDevices(self)
+            if !attach() { lose() }
         }
     }
 
-    /// Detaches, writes the rest of the ring, and closes every segment. A second call does
-    /// nothing more.
-    func finish() async {
-        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+    /// A device listener passes its own `DeviceInput`; the device-list listener passes nil. A
+    /// rate, layout, or IsAlive event from an input that is not the current one does nothing.
+    func post(_ event: Event, from sender: DeviceInput?) {
+        queue.async { [self] in handle(event, from: sender) }
+    }
+
+    /// Detaches, writes the rest of the ring, closes every segment, and ends the timer. Returns
+    /// the gaps of the take. A second call returns the same gaps.
+    @discardableResult
+    func finish() async -> [Int: LiveTrack.State] {
+        await withCheckedContinuation { (done: CheckedContinuation<[Int: LiveTrack.State], Never>) in
             queue.async { [self] in
-                if !finished, let (input, detach) = input {
-                    let clean = detach()
-                    drain()
-                    if clean { input.ring.deallocate() } else { kept.append(input) }
-                    self.input = nil
+                if phase != .finished {
+                    detach()
+                    endSegment()
+                    _ = unwatch?()
+                    spare?.deallocate()
+                    spare = nil
+                    timer?.cancel()
+                    phase = .finished
                 }
-                endSegment()
-                timer?.cancel()
-                finished = true
-                done.resume()
+                done.resume(returning: gaps)
             }
         }
     }
 
-    /// Writes each record in the ring. A record without valid times ends the segment.
+    private func handle(_ event: Event, from sender: DeviceInput?) {
+        guard phase == .running || phase == .lost else { return }
+        if case .devicesChanged = event {
+            if phase == .running, hal.lookUp(device.uid)?.id != input?.input.id { lose() }
+            return comeBack()
+        }
+        guard let current = input?.input, current === sender else { return }
+        switch event {
+        case .layout(let channels):
+            // The records in the ring that do not match the new layout end the segment.
+            endSegment()
+            let changed = InputDevice(
+                uid: device.uid, name: device.name, nominalRate: device.nominalRate,
+                availableRates: device.availableRates, channelsPerBuffer: channels, latency: device.latency)
+            if let changed, hasRoutedChannels(changed) { use(changed) } else { lose() }
+        case .alive(false):
+            lose()
+        case .rate, .alive(true), .devicesChanged:
+            // The rate is in the ring already: the next record header breaks the segment.
+            break
+        }
+    }
+
+    private func tick() {
+        drain()
+        let now = ContinuousClock.now
+        if phase == .running, now - lastValid >= silenceLimit {
+            lose()
+        } else if phase == .lost, now - lastTry >= Self.retryInterval {
+            comeBack()
+        }
+    }
+
+    /// Writes each record that is in the ring when the drain starts, so an event that a listener
+    /// posts during a drain acts before the records that come after it. A record without valid
+    /// times ends the segment, and only a valid record restarts the watchdog clock.
     private func drain() {
-        guard !finished, let ring = input?.input.ring else { return }
-        while let popped = ring.pop() {
-            if let record = popped.record { write(record) } else { endSegment() }
+        guard phase != .finished, let ring = input?.input.ring else { return }
+        let end = ring.end()
+        while let popped = ring.pop(before: end) {
+            guard let record = popped.record else {
+                endSegment()
+                continue
+            }
+            write(record)
+            lastValid = .now
         }
         dropped.wrappingIncrement(by: ring.takeDroppedFrames(), ordering: .relaxed)
     }
 
+    /// Detaches the current input and writes the rest of its ring. A clean detach frees the
+    /// ring; a failed one keeps the input.
+    private func detach() {
+        guard let (current, detach) = input else { return }
+        let clean = detach()
+        drain()
+        if clean { current.ring.deallocate() } else { kept.append(current) }
+        input = nil
+    }
+
+    /// Running or ready to lost: detach, end the segments, report, and record the gaps.
+    private func lose() {
+        detach()
+        endSegment()
+        phase = .lost
+        lastTry = .now
+        for output in outputs {
+            gaps[output.arm] = gaps[output.arm] ?? .deviceLost
+            report(Report(take: take, arm: output.arm, state: .deviceLost, status: nil))
+        }
+    }
+
+    /// Lost to running when the device is present with the routed channels and attaches.
+    private func comeBack() {
+        guard phase == .lost else { return }
+        lastTry = .now
+        guard attach() else { return }
+        for output in outputs { report(Report(take: take, arm: output.arm, state: .recording, status: nil)) }
+    }
+
+    /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
+    /// checked before a ring exists, and a ring of an attach that threw is used again.
+    private func attach() -> Bool {
+        guard kept.count < Self.keptLimit, let found = hal.lookUp(device.uid), hasRoutedChannels(found.device)
+        else { return false }
+        use(found.device)
+        let capacity = CaptureRing.capacity(for: device, seconds: ringSeconds)
+        if let spare, spare.capacity != capacity {
+            spare.deallocate()
+            self.spare = nil
+        }
+        let ring = spare ?? CaptureRing(capacity: capacity, rate: device.nominalRate)
+        spare = nil
+        ring.setRate(device.nominalRate)
+        let input = DeviceInput(id: found.id, ring: ring, writer: self)
+        do throws(HALError) {
+            self.input = (input, try hal.attach(input))
+        } catch .undoFailed {
+            kept.append(input)
+            return false
+        } catch {
+            spare = ring
+            return false
+        }
+        phase = .running
+        lastValid = .now
+        return true
+    }
+
+    private func hasRoutedChannels(_ device: InputDevice) -> Bool {
+        outputs.allSatisfy { $0.channels.allSatisfy { $0 <= device.channelCount } }
+    }
+
+    /// Takes the layout of `device` for the next records.
+    private func use(_ device: InputDevice) {
+        self.device = device
+        let channels = device.channelsPerBuffer.enumerated().flatMap { buffer, count in
+            (0..<count).map { (buffer: buffer, channel: $0) }
+        }
+        for index in outputs.indices { outputs[index].sources = outputs[index].channels.map { channels[$0 - 1] } }
+    }
+
     private func write(_ record: InputRecord) {
-        guard !finished, record.frameCount > 0 else { return }
+        guard phase != .finished, record.frameCount > 0 else { return }
         // A byte-size mismatch closes the segment at the record, and the record is lost.
         guard record.buffers.count == device.channelsPerBuffer.count,
             zip(record.buffers, device.channelsPerBuffer).allSatisfy({ $0.count == record.frameCount * $1 })
@@ -201,72 +354,6 @@ final class DeviceWriter: @unchecked Sendable {
         } catch {
             try? writer.close()
             outputs[index].writer = nil
-        }
-    }
-}
-
-/// The clock state of one open segment, and the break rules of decision 0004.
-private struct Segment {
-    /// The sample time and the host time at the start of a record.
-    struct Point {
-        var sampleTime: Double
-        var hostTimeNanos: UInt64
-    }
-
-    /// The header rate.
-    let rate: Double
-    let origin: Point
-    /// The record starts of about the last 0.5 s. The first point is at least 0.5 s old when
-    /// the segment is that long.
-    var window: [Point] = []
-    var nextSampleTime: Double
-    /// Frames written to each segment so far.
-    var fileFrame: Int64 = 0
-    var nextCheckpoint: Int64 = 0
-    var nextFlush: Int64
-    /// The checkpoint of the last record, and whether the sidecar has it.
-    var last: Checkpoint?
-    var lastWritten = false
-
-    static let windowNanos: Int64 = 500_000_000
-
-    init(first record: InputRecord) {
-        rate = record.nominalRate
-        origin = Point(sampleTime: record.sampleTime, hostTimeNanos: record.hostTimeNanos)
-        nextSampleTime = record.sampleTime
-        nextFlush = 5 * Int64(record.nominalRate.rounded())
-    }
-
-    /// True when `record` starts a new segment: a new header rate, a backward sample-time jump,
-    /// a forward jump of more than 2 s, or a slope change of more than 1%.
-    func breaks(at record: InputRecord) -> Bool {
-        let jump = record.sampleTime - nextSampleTime
-        return record.nominalRate != rate || jump < 0 || jump > 2 * rate
-            || slopeChanges(at: Point(sampleTime: record.sampleTime, hostTimeNanos: record.hostTimeNanos))
-    }
-
-    /// Compares the sample-time to host-time slope of the last 0.5 s with the two-point slope of
-    /// the segment before that window. Both spans are 0.5 s or more, so a host-time jitter of
-    /// 200 µs moves each slope by 0.08% at most.
-    func slopeChanges(at point: Point) -> Bool {
-        guard
-            let start = window.last(where: {
-                nanos(from: $0.hostTimeNanos, to: point.hostTimeNanos) >= Self.windowNanos
-            })
-        else { return false }
-        let before = nanos(from: origin.hostTimeNanos, to: start.hostTimeNanos)
-        guard before >= Self.windowNanos else { return false }
-        let running = (start.sampleTime - origin.sampleTime) / Double(before)
-        let recent =
-            (point.sampleTime - start.sampleTime) / Double(nanos(from: start.hostTimeNanos, to: point.hostTimeNanos))
-        return abs(recent / running - 1) > 0.01
-    }
-
-    mutating func remember(_ record: InputRecord) {
-        let point = Point(sampleTime: record.sampleTime, hostTimeNanos: record.hostTimeNanos)
-        window.append(point)
-        while window.count > 1, nanos(from: window[1].hostTimeNanos, to: point.hostTimeNanos) >= Self.windowNanos {
-            window.removeFirst()
         }
     }
 }

@@ -91,7 +91,9 @@ Run the **reflect** skill on the branch. It turns durable learnings into commits
 
 ## Long autonomous runs
 
-To work through several goals, repeat the phases for the next goal from `.scratchpads/backlog.md` or the order agreed in the first planning run. Close each run before you open the next one. Every run lands on `main` green through its own pull request, so the human can stop the loop at any time and find a working app.
+To work through several goals, repeat the phases for the next goal from `.scratchpads/backlog.md` or the order agreed in the first planning run. Close each run before you open the next one.
+
+Before the first run of an unattended loop, check that Phase 9 can run without a prompt: `git ls-remote origin` and `gh auth status`. If one fails, stack each run branch on the previous one, record it in `run.md`, and land them when the human is back. Use only the access these two commands already have; leave credential stores closed. Every run lands on `main` green through its own pull request, so the human can stop the loop at any time and find a working app.
 
 ## Write everything in STE
 

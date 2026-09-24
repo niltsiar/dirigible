@@ -113,7 +113,7 @@ private struct SegmentFinalize {
             Int(input.fileFormat.channelCount) == sidecar.header.channelCount
         else { return nil }
         let header = sidecar.header
-        let choice = RateChoice(header: header, checkpoints: sidecar.checkpoints)
+        let choice = RateChoice(header: header, checkpoints: sidecar.checkpoints, frames: Int(input.length))
         let rate = Double(session.sampleRate)
         guard let length = try convert(input, from: choice.source, to: rate) else { return nil }
 

@@ -1,6 +1,6 @@
 /// The rates of one segment, by the rules of decision 0004.
 struct RateChoice: Hashable, Sendable {
-    /// The nominal rate of the device: the header rate.
+    /// The nominal rate of the device: the header rate, or the snapped rate of rule 2.
     let nominal: Double
     /// The rate of the CAF frames that finalize converts from.
     let source: Double
@@ -9,15 +9,27 @@ struct RateChoice: Hashable, Sendable {
     /// False when finalize did not trust the fit (the warning mark of 0004).
     let driftCorrected: Bool
 
-    init(header: CaptureHeader, checkpoints: [Checkpoint]) {
+    /// `frames` is the frame count of the segment, for the drift limit.
+    init(header: CaptureHeader, checkpoints: [Checkpoint], frames: Int) {
         let rate = header.nominalRate
         let fit = fittedRate(checkpoints)
-        nominal = rate
-        source = rate
+        // Rule 1: the fit is within 1000 ppm of the header rate. Rule 2: of a discrete available
+        // rate; the header rate lagged. A continuous range is not a snap target.
+        let discrete = header.availableRates.filter { $0.lowerBound == $0.upperBound }.map(\.lowerBound)
+        let snap = fit.flatMap { fit in ([rate] + discrete).first { abs(fit - $0) <= $0 * 1e-3 } }
         measured = fit ?? rate
-        // Rule 1: the fit is within 1000 ppm of the header rate. Rules 2 and 3 come in slice 7;
-        // until then, any other fit takes the rule 3 path.
-        driftCorrected = fit.map { abs($0 - rate) <= rate * 1e-3 } ?? false
+        guard let fit, let snap else {
+            // Rule 3, or no usable fit: the header rate, with the warning mark.
+            nominal = rate
+            source = rate
+            driftCorrected = false
+            return
+        }
+        nominal = snap
+        driftCorrected = true
+        // The fitted rate only when the drift over the segment at the nominal rate passes 1 ms.
+        let drift = Double(frames) * abs(1 / snap - 1 / fit)
+        source = drift > 1e-3 ? fit : snap
     }
 }
 

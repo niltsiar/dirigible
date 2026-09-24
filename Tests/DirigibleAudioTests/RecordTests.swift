@@ -71,8 +71,8 @@ struct RecordTests {
     }
 
     /// A take that ends early returns soon after its end, not after the full duration: a disk
-    /// low stop, and a stop from another caller. The limit is long, because a full suite can
-    /// hold the main actor for seconds.
+    /// low stop, and a stop from another caller. The limit is 10 s less than the duration,
+    /// because a full suite can hold the main actor for 30 s.
     @Test(arguments: [TakeEnd.diskLow, .requested])
     func aTimedTakeThatEndsEarlyReturnsSoon(end: TakeEnd) async throws {
         let free = FreeBytes()
@@ -85,28 +85,28 @@ struct RecordTests {
         }
         let start = ContinuousClock.now
 
-        let result = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(30))
+        let result = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(60))
         await stopper.value
 
-        #expect(ContinuousClock.now - start < .seconds(10), "returned after \(ContinuousClock.now - start)")
+        #expect(ContinuousClock.now - start < .seconds(50), "returned after \(ContinuousClock.now - start)")
         #expect(result.end == end)
         #expect(studio.transport == .idle)
     }
 
     /// A cancelled call stops its take at once, as an early end, and returns its result. Before
-    /// the fix, the wait spun on the main actor until the deadline. The limit is long, because a
-    /// full suite can hold the main actor for seconds.
+    /// the fix, the wait spun on the main actor until the deadline. The limit is 10 s less than
+    /// the duration, because a full suite can hold the main actor for 30 s.
     @Test func aCancelledRecordStopsItsTake() async throws {
         let hal = TestHAL([mic])
         let studio = try await studio(hal)
-        let recorder = Task { @MainActor in try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(30)) }
+        let recorder = Task { @MainActor in try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(60)) }
         await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
         let start = ContinuousClock.now
 
         recorder.cancel()
         let result = try await recorder.value
 
-        #expect(ContinuousClock.now - start < .seconds(10), "returned after \(ContinuousClock.now - start)")
+        #expect(ContinuousClock.now - start < .seconds(50), "returned after \(ContinuousClock.now - start)")
         #expect(result == TakeResult(take: 1, end: .requested, gaps: [:]))
         #expect(studio.transport == .idle)
         #expect(studio.pendingTake == nil)

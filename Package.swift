@@ -16,7 +16,7 @@ let package = Package(
         .target(
             name: "DirigibleAudio",
             dependencies: ["DirigibleCore", .product(name: "Atomics", package: "swift-atomics")]),
-        .executableTarget(name: "DirigibleApp", dependencies: ["DirigibleCore"]),
+        .executableTarget(name: "DirigibleApp", dependencies: ["DirigibleCore", "DirigibleAudio"]),
         .executableTarget(
             name: "DirigibleCLI",
             dependencies: [
@@ -25,6 +25,6 @@ let package = Package(
         .testTarget(name: "DirigibleCoreTests", dependencies: ["DirigibleCore"]),
         .testTarget(name: "DirigibleAudioTests", dependencies: ["DirigibleAudio", "DirigibleCore"]),
         .testTarget(name: "DirigibleCLITests", dependencies: ["DirigibleCLI", "DirigibleCore", "DirigibleAudio"]),
-        .testTarget(name: "DirigibleTests"),
+        .testTarget(name: "DirigibleTests", dependencies: ["DirigibleApp", "DirigibleAudio", "DirigibleCore"]),
     ]
 )

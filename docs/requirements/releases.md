@@ -33,7 +33,10 @@ Run order. Each run lands through its own pull request.
 2. **Capture.** Two runs in `DirigibleAudio`. capture-finalize: segments, finalize, recovery, the `Studio` core, and the package lock. capture-live: IOProcs, rings, device events, and the hardware checks from 0004.
 3. **Record UI.** The window, tracks with routes and meters during a take, record and stop, the microphone permission check, the first `.lproj` strings.
    - **Input monitor** (run 3b). The meter of an armed track before a take, and a device-list listener. The record UI run split it off (0014).
-4. **Timeline and playback.** Waveforms, `Player`, selection, edit commands with keys, markers.
+4. **Timeline and playback.** Waveforms, `Player`, selection, edit commands with keys, markers. The timeline-playback run splits it into three runs:
+   - **4a Player and transport.** The `Player` (AVAudioEngine), the playhead, record from the playhead, the transport bar, JKL, previous and next clip, the missing-media state, and `dirigible render` (F10, F15 part, F17).
+   - **4b Timeline view.** The track lanes with clips and waveforms (peak files), the playhead line, the markers ruler, zoom, and the selection (F15 part).
+   - **4c Edit commands.** Cut, copy, paste, delete with a gap, split, move, trim, markers and chapters, remove track, and "Reveal clips in Finder", each with its key and its `dirigible` command (F11 to F14, F19).
 5. **Export.** `exportMix` to WAV, AAC, and FLAC, mono or stereo.
 
 ## Release 2: a podcast-ready episode

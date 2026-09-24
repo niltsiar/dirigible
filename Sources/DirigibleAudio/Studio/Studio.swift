@@ -1,10 +1,11 @@
 import DirigibleCore
 import Foundation
+import Observation
 
 /// The facade that the app calls for one open package (decisions 0002, 0004, and 0014). It holds
 /// the package lock, runs recovery at open, keeps the pending take, and saves each edit. Every
-/// package write runs in one chain, so no write lands after a later one.
-@MainActor public final class Studio {
+/// package write runs in one chain, so no write lands after a later one. The views observe it.
+@Observable @MainActor public final class Studio {
     public enum Transport: Hashable, Sendable {
         case idle
         case recording(take: Int)
@@ -29,17 +30,11 @@ import Foundation
     private var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
     private var segmentsWithAudio: [SegmentName]
-    /// The live state of each armed track of the take. Empty while no take records.
-    public var liveTracks: [TrackID: LiveTrack] {
-        Dictionary(
-            uniqueKeysWithValues: armed.map { track in
-                (
-                    track.id,
-                    LiveTrack(
-                        state: trackStates[track.id] ?? .recording, droppedFrames: track.writer.droppedFrames)
-                )
-            })
-    }
+    /// The live state of each armed track of the take, from the reports of the drain. Empty while
+    /// no take records.
+    public private(set) var liveTracks: [TrackID: LiveTrack] = [:]
+    /// The start of the take that records. The view computes the elapsed time.
+    public private(set) var recordingSince: ContinuousClock.Instant?
 
     /// The result of the last take, set when its writers finish, before its finalize. So a
     /// finalize error keeps it. Nil from the start of the next take.
@@ -49,29 +44,28 @@ import Foundation
     public private(set) var recoveredTake: Recording?
 
     /// The Core Audio calls of a take. Tests give their own.
-    var environment = CaptureEnvironment.live
+    @ObservationIgnored var environment = CaptureEnvironment.live
     /// Held from the start of a take until its finalize ends.
-    private(set) var sleepAssertion: SleepAssertion?
+    @ObservationIgnored private(set) var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
     public private(set) var isStarting = false
     /// The last autosave error. Nil after a good save.
     public private(set) var saveError: StudioError?
-    private var diskWatcher: Task<Void, Never>?
+    @ObservationIgnored private var diskWatcher: Task<Void, Never>?
     /// The device writers of the take that records, by device UID.
-    private(set) var writers: [String: DeviceWriter] = [:]
+    @ObservationIgnored private(set) var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.
-    private var armed: [(id: TrackID, writer: DeviceWriter)] = []
-    private var trackStates: [TrackID: LiveTrack.State] = [:]
+    @ObservationIgnored private var armed: [(id: TrackID, writer: DeviceWriter)] = []
     /// One more for each take that begins. Two takes can have the same number.
-    private(set) var generation = 0
+    @ObservationIgnored private(set) var generation = 0
     /// The write chain: each package write (an autosave, a start, or a finalize) takes the next
     /// ticket and runs when `serving` reaches it, so the writes run one at a time in ticket order.
-    private var tickets = 0
-    private var serving = 0
-    private var waiting: [Int: CheckedContinuation<Void, Never>] = [:]
+    @ObservationIgnored private var tickets = 0
+    @ObservationIgnored private var serving = 0
+    @ObservationIgnored private var waiting: [Int: CheckedContinuation<Void, Never>] = [:]
     /// Held for the life of the studio. Dropping the studio releases it. Every write goes to the
     /// package that it holds.
-    let lock: PackageLock
+    @ObservationIgnored let lock: PackageLock
 
     private init(opened: OpenedPackage) {
         self.url = opened.package
@@ -190,10 +184,15 @@ import Foundation
             for writer in writers.values {
                 for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
             }
-            lastTake = TakeResult(take: take, end: end, gaps: gaps)
+            let dropped = armed.compactMap { track in
+                track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil
+            }
+            lastTake = TakeResult(
+                take: take, end: end, gaps: gaps, droppedFrames: Dictionary(uniqueKeysWithValues: dropped))
             writers = [:]
             armed = []
-            trackStates = [:]
+            liveTracks = [:]
+            recordingSince = nil
             defer { sleepAssertion = nil }
             do throws(StudioError) { try await complete(take) } catch { return error }
             return nil
@@ -271,11 +270,15 @@ import Foundation
             writers[device.uid] = DeviceWriter(
                 device: device, tracks: tracks, take: started.take, folder: capture, hal: environment.hal,
                 report: report, silenceLimit: environment.silenceLimit,
-                firstRecordLimit: environment.firstRecordLimit)
+                firstRecordLimit: environment.firstRecordLimit, ringSeconds: environment.ringSeconds)
         }
         // Every route's device is in `devices` above, so its writer exists.
         armed = started.routes.map { ($0.track, writers[$0.device.uid]!) }
-        trackStates = [:]
+        liveTracks = Dictionary(
+            uniqueKeysWithValues: started.routes.map {
+                ($0.track, LiveTrack(state: .recording, droppedFrames: 0, peak: 0))
+            })
+        recordingSince = .now
         transport = .recording(take: started.take)
         for writer in writers.values { writer.start() }
     }
@@ -289,10 +292,19 @@ import Foundation
     /// A report of another take, also one with the same number, or of a take that ended,
     /// changes nothing.
     private func apply(_ report: Report, generation: Int) {
-        guard generation == self.generation, transport == .recording(take: report.take),
-            armed.indices.contains(report.arm - 1)
-        else { return }
-        trackStates[armed[report.arm - 1].id] = report.state
+        guard generation == self.generation else { return }
+        switch report {
+        case .state(let take, let arm, let state, _):
+            guard transport == .recording(take: take), armed.indices.contains(arm - 1) else { return }
+            liveTracks[armed[arm - 1].id]?.state = state
+            if state == .deviceLost { liveTracks[armed[arm - 1].id]?.peak = 0 }
+        case .levels(let take, let peaks, let droppedFrames):
+            guard transport == .recording(take: take) else { return }
+            for (arm, peak) in peaks where armed.indices.contains(arm - 1) {
+                liveTracks[armed[arm - 1].id]?.peak = peak
+                liveTracks[armed[arm - 1].id]?.droppedFrames = droppedFrames
+            }
+        }
     }
 
     /// Finalize, the marker, and the save off the main actor, then the outcome here.

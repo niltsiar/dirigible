@@ -40,6 +40,9 @@ struct TrackSegments {
     private var deviceFrames: Int64 = 0
     /// The cause of the first gap of each arm.
     var gaps: [Int: TakeResult.Gap] = [:]
+    /// The largest absolute sample of each arm since the last `takePeaks`. A track with a write
+    /// error still gets its peak: the device is alive.
+    private var peaks: [Int: Float] = [:]
 
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int,
@@ -119,7 +122,7 @@ struct TrackSegments {
         for index in outputs.indices {
             guard let failed = outputs[index].failedAt, deviceFrames - failed >= second else { continue }
             if open(index, at: record, fileFrame: current.fileFrame) {
-                report(Report(take: take, arm: outputs[index].arm, state: .recording, status: nil))
+                report(.state(take: take, arm: outputs[index].arm, .recording, status: nil))
             }
         }
         let checkpoint = Checkpoint(
@@ -140,6 +143,8 @@ struct TrackSegments {
                     samples[frame * sources.count + position] = buffer[frame * width + source.channel]
                 }
             }
+            let arm = outputs[index].arm
+            peaks[arm] = samples.reduce(peaks[arm] ?? 0) { max($0, abs($1)) }
             write(index) { writer in
                 try samples.withUnsafeBufferPointer { try writer.write($0, frames: record.frameCount) }
             }
@@ -154,6 +159,12 @@ struct TrackSegments {
         }
         segment = current
         return true
+    }
+
+    /// The peak of each arm since the last call, 0 for an arm with no samples, and a new start.
+    mutating func takePeaks() -> [Int: Float] {
+        defer { peaks = [:] }
+        return Dictionary(uniqueKeysWithValues: outputs.map { ($0.arm, peaks[$0.arm] ?? 0) })
     }
 
     /// Opens a segment for every track that has no error. A track with an error waits for its
@@ -246,6 +257,6 @@ struct TrackSegments {
         outputs[index].failedAt = deviceFrames
         let arm = outputs[index].arm
         gaps[arm] = gaps[arm] ?? .writeFailed
-        report(Report(take: take, arm: arm, state: .writeFailed, status: status))
+        report(.state(take: take, arm: arm, .writeFailed, status: status))
     }
 }

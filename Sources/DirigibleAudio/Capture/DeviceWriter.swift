@@ -2,13 +2,13 @@ import Atomics
 import DirigibleCore
 import Foundation
 
-/// A device fact for the studio: the state of one track of a take. `status` is the raw OSStatus
-/// or errno of a write error, for tests. It never reaches the public API.
-struct Report: Sendable {
-    let take: Int
-    let arm: Int
-    let state: LiveTrack.State
-    let status: Int32?
+/// A device fact for the studio. `state` is the state of one track of a take; `status` is the
+/// raw OSStatus or errno of a write error, for tests, and never reaches the public API. `levels`
+/// comes once per drain: the peak of each arm in that drain (0 with no records) and the dropped
+/// frames of the device in the take.
+enum Report: Sendable {
+    case state(take: Int, arm: Int, LiveTrack.State, status: Int32?)
+    case levels(take: Int, peaks: [Int: Float], droppedFrames: Int)
 }
 
 /// The recorder of one device for the whole take (decisions 0004 and 0013). A drain timer on its
@@ -204,6 +204,7 @@ final class DeviceWriter: @unchecked Sendable {
             hasRecord = true
         }
         dropped.wrappingIncrement(by: lost, ordering: .relaxed)
+        report(.levels(take: take, peaks: tracks.takePeaks(), droppedFrames: droppedFrames))
     }
 
     /// Detaches the current input and writes the rest of its ring, then keeps the input.
@@ -231,7 +232,7 @@ final class DeviceWriter: @unchecked Sendable {
         lastTry = .now
         for arm in tracks.arms {
             tracks.gaps[arm] = tracks.gaps[arm] ?? .deviceLost
-            report(Report(take: take, arm: arm, state: .deviceLost, status: nil))
+            report(.state(take: take, arm: arm, .deviceLost, status: nil))
         }
     }
 
@@ -240,7 +241,7 @@ final class DeviceWriter: @unchecked Sendable {
         guard phase == .lost else { return }
         lastTry = .now
         guard attach() else { return }
-        for arm in tracks.arms { report(Report(take: take, arm: arm, state: .recording, status: nil)) }
+        for arm in tracks.arms { report(.state(take: take, arm: arm, .recording, status: nil)) }
     }
 
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are

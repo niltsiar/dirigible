@@ -25,10 +25,19 @@ struct Render: ParsableCommand {
             throw ValidationError(
                 "The range must be 0 or more, with --to more than --from; the session end is \(session.end).")
         }
+        let output = URL(filePath: out)
+        // Control-C: remove the temporary file, then exit as the default action does.
+        signal(SIGINT, SIG_IGN)
+        let interrupt = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global())
+        interrupt.setEventHandler {
+            removeRenderLeftovers(of: output)
+            Foundation.exit(128 + SIGINT)
+        }
+        interrupt.resume()
+        defer { interrupt.cancel() }
         let faults: [FileID: MediaFault]
         do {
-            faults = try renderMix(
-                session, package: package.url, range: Frames(from)..<Frames(end), to: URL(filePath: out))
+            faults = try renderMix(session, package: package.url, range: Frames(from)..<Frames(end), to: output)
         } catch .exists {
             throw fail("\(out) exists.", code: packageError)
         } catch .writeFailed(let status) {

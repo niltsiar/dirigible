@@ -83,22 +83,73 @@ struct RenderCommandTests {
         #expect(try temporaryFiles() == [])
     }
 
-    /// 10 min of stereo at 48 kHz: one buffer for the range would be 230 MB. `wait4` gives the
-    /// maximum resident size of the child alone, so the parallel tests do not count. The child
-    /// inherits no descriptor of the test process.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func aLongRenderKeepsMemoryBounded() throws {
+    /// Starts `dirigible` with `arguments` and returns its process ID. The child inherits no
+    /// descriptor of the test process, and SIGINT has its default action and is not blocked, also
+    /// when the test runner ignores or blocks it.
+    func spawn(_ arguments: String...) throws -> pid_t {
         let binary = Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(
             path: "dirigible")
         var attributes: posix_spawnattr_t?
         posix_spawnattr_init(&attributes)
         defer { posix_spawnattr_destroy(&attributes) }
-        posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))
-        let arguments = [binary.path, "render", package.path, "--out", out.path, "--to", "\(48_000 * 600)"]
-        var argv: [UnsafeMutablePointer<CChar>?] = arguments.map { strdup($0) } + [nil]
+        posix_spawnattr_setflags(
+            &attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK))
+        var signals = sigset_t()
+        sigemptyset(&signals)
+        posix_spawnattr_setsigmask(&attributes, &signals)
+        sigaddset(&signals, SIGINT)
+        posix_spawnattr_setsigdefault(&attributes, &signals)
+        var argv: [UnsafeMutablePointer<CChar>?] = ([binary.path] + arguments).map { strdup($0) } + [nil]
         defer { for argument in argv { free(argument) } }
         var pid = pid_t()
         try #require(posix_spawn(&pid, binary.path, nil, &attributes, &argv, environ) == 0)
+        return pid
+    }
+
+    /// A render that died leaves `.<name>.<UUID>.tmp`. The next render to the same output removes
+    /// it. Control: a file of another output and a name with no UUID stay. Found by the code gate.
+    @Test func renderRemovesTheLeftoversOfItsOutput() throws {
+        let leftover = ".mix.caf.\(UUID().uuidString).tmp"
+        let kept = [".mix.caf.notes.tmp", ".other.caf.\(UUID().uuidString).tmp"]
+        for name in [leftover] + kept {
+            try Data("old".utf8).write(to: package.folder.appending(path: name))
+        }
+
+        let result = try package.run("render", "PKG", "--out", out.path, "--to", "9600")
+
+        #expect(result.status == 0)
+        #expect(try temporaryFiles().sorted() == kept.sorted())
+    }
+
+    /// Control-C during a render removes its temporary file and leaves no output. Found by the
+    /// code gate.
+    @Test func anInterruptedRenderLeavesNoTemporaryFile() throws {
+        let pid = try spawn("render", package.path, "--out", out.path, "--to", "\(48_000 * 3600)")
+        var status: Int32 = 0
+        defer {
+            if waitpid(pid, &status, WNOHANG) == 0 {
+                kill(pid, SIGKILL)
+                waitpid(pid, &status, 0)
+            }
+        }
+        let end = ContinuousClock.now + .seconds(20)
+        while try temporaryFiles().isEmpty, ContinuousClock.now < end { usleep(1000) }
+        try #require(try !temporaryFiles().isEmpty, "the render wrote no temporary file in 20 s")
+
+        kill(pid, SIGINT)
+        let stop = ContinuousClock.now + .seconds(20)
+        while waitpid(pid, &status, WNOHANG) == 0, ContinuousClock.now < stop { usleep(1000) }
+
+        #expect(try temporaryFiles() == [])
+        #expect(!FileManager.default.fileExists(atPath: out.path))
+    }
+
+    /// 10 min of stereo at 48 kHz: one buffer for the range would be 230 MB. `wait4` gives the
+    /// maximum resident size of the child alone, so the parallel tests do not count. The child
+    /// inherits no descriptor of the test process.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aLongRenderKeepsMemoryBounded() throws {
+        let pid = try spawn("render", package.path, "--out", out.path, "--to", "\(48_000 * 600)")
 
         var status: Int32 = 0
         var usage = rusage()

@@ -39,7 +39,7 @@ Probes on 2026-09-24 (macOS 15.7.9, x86_64, Swift 6.2.4; `.scratchpads/runs/2026
 
 **Keys.** A Transport menu has: Play or Stop (Space), Stop and Return (Shift-Space), J, K, L, Shift-J, Shift-L, Go to Start (Home), Go to End (End), Previous and Next Clip (Shift-Left, Shift-Right). A menu item with a plain key takes the key also when it is disabled (K1), so these items are never disabled. Each action first reads the key window. When it is not a session window (a panel, an alert), or its first responder is text, the action gives the key event to that first responder (K3) and does nothing else. Record stays Command-R: Hindenburg PRO 2 uses Command-Space (Spotlight) or Control-Space (input source).
 
-**CLI (0011).** `dirigible render <package> --out <file> [--from N] [--to N]` writes the mix as a 32-bit float stereo CAF at the session rate. It renders in chunks into one reused buffer, so the memory does not grow with the range. It writes a temporary file next to `--out`, then moves it with `renamex_np(RENAME_EXCL)`, which never replaces an item. Where that call gives ENOTSUP or EPERM (exFAT, X1), it claims `--out` with `O_CREAT | O_EXCL`, then renames over the claim. So it refuses an output path that exists (exit 2), and a render that fails leaves no `--out`. Every exit removes the temporary file. A missing file gives one warning line on stderr and exit 0. `dirigible info` shows the media state of each file (JSON key `media`).
+**CLI (0011).** `dirigible render <package> --out <file> [--from N] [--to N]` writes the mix as a 32-bit float stereo CAF at the session rate. It renders in chunks into one reused buffer, so the memory does not grow with the range. It writes a temporary file next to `--out`, then moves it with `renamex_np(RENAME_EXCL)`, which never replaces an item. Where that call gives ENOTSUP or EPERM (exFAT, X1), it claims `--out` with `O_CREAT | O_EXCL`, then renames over the claim. So it refuses an output path that exists (exit 2), and a render that fails leaves no `--out`. Every exit removes the temporary file, and Control-C (SIGINT) does too. At its start, a render removes the `.<name>.<UUID>.tmp` files that a render to the same output left when it died (code gate 1 item 6). A missing file gives one warning line on stderr and exit 0. `dirigible info` shows the media state of each file (JSON key `media`).
 
 ## Consequences
 
@@ -53,6 +53,7 @@ Probes on 2026-09-24 (macOS 15.7.9, x86_64, Swift 6.2.4; `.scratchpads/runs/2026
 - A headphone unplug is a manual check: the probe did not reproduce the notification.
 - A user who holds J or L for 0.3 s or more gets a pause at the release. The threshold is a calibration knob.
 - A reopened session loses the playhead of the last visit.
+- Two renders to the same output at the same time: the second removes the temporary file of the first, and the first fails its move. Neither leaves a bad output.
 - Run 5 builds `exportMix` on `MixReader`, and adds the mono fold and the missing-media confirm.
 
 ## Alternatives considered

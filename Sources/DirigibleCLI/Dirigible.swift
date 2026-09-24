@@ -51,7 +51,12 @@ struct Info: ParsableCommand {
 
     func run() throws {
         let session = try readPackage(package)
-        let media = checkMedia(session, package: package.url)
+        let media: [FileID: MediaFault]
+        do {
+            media = try checkMedia(session, package: package.url)
+        } catch {
+            throw fail("cannot check the audio files: \(error.localizedDescription)", code: packageError)
+        }
         print(
             json
                 ? try SessionView(session, media: media).json()

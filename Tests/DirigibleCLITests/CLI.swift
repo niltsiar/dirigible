@@ -15,6 +15,18 @@ struct CLIResult: Equatable {
 func dirigible(_ arguments: String...) throws -> CLIResult { try dirigible(arguments) }
 
 func dirigible(_ arguments: [String]) throws -> CLIResult {
+    try run(
+        Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(path: "dirigible"),
+        arguments)
+}
+
+/// Runs `/bin/sh -c script` with `arguments` as `$0`, `$1`, and so on, for example to set a
+/// resource limit before an `exec` of the binary.
+func dirigible(shell script: String, _ arguments: String...) throws -> CLIResult {
+    try run(URL(filePath: "/bin/sh"), ["-c", script] + arguments)
+}
+
+private func run(_ executable: URL, _ arguments: [String]) throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -24,8 +36,7 @@ func dirigible(_ arguments: [String]) throws -> CLIResult {
     FileManager.default.createFile(atPath: errors.path, contents: nil)
 
     let process = Process()
-    process.executableURL = Bundle(for: TemporaryPackage.self).bundleURL
-        .deletingLastPathComponent().appending(path: "dirigible")
+    process.executableURL = executable
     process.arguments = arguments
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)

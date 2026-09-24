@@ -252,11 +252,11 @@ extension Studio {
 }
 
 /// The media check of `Studio.checkMedia`, off the main actor, in the package that the lock
-/// holds now. Nil when the package left its volume.
+/// holds now. Nil when the package left its volume or the process has no free descriptor.
 @concurrent nonisolated func mediaFaults(
     _ session: Session, lock: PackageLock, before: @Sendable () -> Void
 ) async -> [FileID: MediaFault]? {
     before()
     guard let package = try? lock.package() else { return nil }
-    return checkMedia(session, package: package)
+    return try? checkMedia(session, package: package)
 }

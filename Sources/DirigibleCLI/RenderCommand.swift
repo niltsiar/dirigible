@@ -42,6 +42,8 @@ struct Render: ParsableCommand {
             throw fail("\(out) exists.", code: packageError)
         } catch .writeFailed(let status) {
             throw fail("cannot write \(out) (status \(status)).", code: packageError)
+        } catch .openFailed(let code) {
+            throw fail("cannot open the audio files: \(String(cString: strerror(code))).", code: packageError)
         } catch .moveFailed(let code) {
             throw fail("cannot move the render to \(out): \(String(cString: strerror(code))).", code: packageError)
         }

@@ -10,6 +10,8 @@ public enum RenderError: Error, Hashable, Sendable {
     case writeFailed(OSStatus)
     /// The move to the output path gave this errno.
     case moveFailed(Int32)
+    /// An audio file did not open because the process had no free descriptor (this errno).
+    case openFailed(Int32)
 }
 
 /// Renders the mix of `range` to a 32-bit float stereo CAF at the session rate (decision 0016),
@@ -35,6 +37,7 @@ public func renderMix(
         while start < range.upperBound {
             let end = min(start + Frames(chunk), range.upperBound)
             mix.render(start..<end, into: buffer)
+            if let error = mix.openError { throw .openFailed(error.code.rawValue) }
             let status = ExtAudioFileWrite(file, buffer.frameLength, buffer.audioBufferList)
             guard status == noErr else { throw .writeFailed(status) }
             start = end

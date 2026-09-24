@@ -33,25 +33,6 @@ struct SegmentWriterTests {
         }
     }
 
-    /// The frames of the CAF as an `AVAudioFile` reads them, interleaved. It reads in blocks: one
-    /// read of the whole length of an unclosed CAF gives fewer frames (probe 2026-09-24: 95232 of
-    /// 96000), and reads in blocks give all of them.
-    func read(_ url: URL) throws -> (rate: Double, samples: [Float]) {
-        let file = try AVAudioFile(forReading: url)
-        let channels = Int(file.processingFormat.channelCount)
-        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 4096))
-        var samples: [Float] = []
-        while file.framePosition < file.length {
-            try file.read(into: buffer)
-            if buffer.frameLength == 0 { break }
-            let data = try #require(buffer.floatChannelData)
-            for frame in 0..<Int(buffer.frameLength) {
-                for channel in 0..<channels { samples.append(data[channel][frame]) }
-            }
-        }
-        return (file.fileFormat.sampleRate, samples)
-    }
-
     /// An open writer stands for a crashed process: synchronous writes are in the kernel, so
     /// another reader sees them, and the CAF data size is still "to the end of the file".
     @Test func anUnclosedWriterLeavesAReadableCAF() throws {
@@ -61,7 +42,7 @@ struct SegmentWriterTests {
         try write(samples, channels: 1, to: writer)
 
         let caf = folder.url.appending(path: "take1-1-1.caf")
-        let open = try read(caf)
+        let open = try readAudio(caf)
         #expect(open.rate == 48_000)
         #expect(open.samples.count == 96_000)
         #expect(open.samples == samples)
@@ -70,7 +51,7 @@ struct SegmentWriterTests {
         #expect(sidecar.checkpoints.map(\.fileFrame) == [0, 48_128])
 
         try writer.close()
-        #expect(try read(caf).samples == samples)
+        #expect(try readAudio(caf).samples == samples)
     }
 
     @Test func aStereoWriterKeepsTheChannelOrder() throws {
@@ -80,7 +61,7 @@ struct SegmentWriterTests {
         try write(samples, channels: 2, to: writer)
         try writer.close()
 
-        let back = try read(folder.url.appending(path: "take2-1-1.caf"))
+        let back = try readAudio(folder.url.appending(path: "take2-1-1.caf"))
         #expect(back.samples.count == 48_000)
         #expect(back.samples == samples)
     }

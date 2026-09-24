@@ -244,6 +244,7 @@ import Foundation
                 device: device, tracks: tracks, take: started.take, folder: capture, hal: environment.hal,
                 report: report, silenceLimit: environment.silenceLimit)
         }
+        // Every route's device is in `devices` above, so its writer exists.
         armed = started.routes.map { ($0.track, writers[$0.device.uid]!) }
         trackStates = [:]
         transport = .recording(take: started.take)

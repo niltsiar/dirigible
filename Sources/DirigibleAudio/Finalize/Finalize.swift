@@ -41,9 +41,9 @@ func finalizeTake(
             readFault: readFault, blockFrames: blockFrames)
         if let placed = try segment.place(on: result) { result = placed }
     }
-    let clips = package.appending(path: "Clips")
+    let clips = package.appending(path: clipsFolderName)
     if result.files.count > session.files.count, let code = fullFlush(path: clips.path) {
-        throw .writeFailed(file: "Clips", status: code)
+        throw .writeFailed(file: clipsFolderName, status: code)
     }
     try? result.setRecording(nil)  // Removing the recording never throws.
     return result
@@ -57,7 +57,7 @@ func unplacedSegments(in package: URL, session: Session) -> [String] {
     return ((try? captureSegments(in: package)) ?? [])
         .filter { $0.take != session.recording?.take && !referenced.contains(CaptureID($0.stem)) }
         .filter { name in
-            let file = try? AVAudioFile(forReading: package.appending(path: "Capture/\(name.stem).caf"))
+            let file = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.stem).caf"))
             return (file?.length ?? 1) > 0
         }
         .map(\.stem)
@@ -65,13 +65,13 @@ func unplacedSegments(in package: URL, session: Session) -> [String] {
 
 /// The segment names of the CAFs in `Capture/`, in name order. A missing folder has none.
 func captureSegments(in package: URL) throws(FinalizeError) -> [SegmentName] {
-    let folder = package.appending(path: "Capture")
+    let folder = package.appending(path: captureFolderName)
     if let code = openErrno(folder.path) {
         if code == ENOENT { return [] }
-        throw .readFailed(file: "Capture", errno: code)
+        throw .readFailed(file: captureFolderName, errno: code)
     }
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else {
-        throw .readFailed(file: "Capture", errno: EIO)
+        throw .readFailed(file: captureFolderName, errno: EIO)
     }
     return names.filter { $0.hasSuffix(".caf") }.compactMap(SegmentName.init(fileName:)).sorted()
 }
@@ -122,9 +122,9 @@ private struct SegmentFinalize {
     let readFault: ReadFault?
     let blockFrames: Int
 
-    var caf: String { "Capture/\(name.stem).caf" }
-    var sidecar: String { "Capture/\(name.stem).sidecar" }
-    var wav: String { "Clips/\(name.stem).wav" }
+    var caf: String { "\(captureFolderName)/\(name.stem).caf" }
+    var sidecar: String { "\(captureFolderName)/\(name.stem).sidecar" }
+    var wav: String { "\(clipsFolderName)/\(name.stem).wav" }
 
     /// The session with the capture, the file, and the clip of the segment added. Nil when the
     /// segment has no frames, or has a fault of its own and stays unplaced.
@@ -266,9 +266,9 @@ private struct SegmentFinalize {
     func createClipsFolder() throws(FinalizeError) {
         do {
             try FileManager.default.createDirectory(
-                at: package.appending(path: "Clips"), withIntermediateDirectories: true)
+                at: package.appending(path: clipsFolderName), withIntermediateDirectories: true)
         } catch {
-            throw .writeFailed(file: "Clips", status: posixCode(of: error) ?? EIO)
+            throw .writeFailed(file: clipsFolderName, status: posixCode(of: error) ?? EIO)
         }
     }
 }

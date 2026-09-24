@@ -18,7 +18,7 @@ struct TakeOutcome: Sendable {
 }
 
 /// The recovery marker of decision 0004, in the package root.
-private func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt") }
+func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt") }
 
 /// Opens a package off the main actor: the lock, `Session.removeTemporaryFiles`, the read, the
 /// marker rules of decision 0004, `completeTake`, and the unplaced segments. `@concurrent` keeps
@@ -49,7 +49,9 @@ private func marker(in package: URL) -> URL { package.appending(path: "recovery-
     // An earlier recovery died: skip finalize, so a crash in it cannot repeat on every open.
     if FileManager.default.fileExists(atPath: marker.path) { return opened(session) }
     let descriptor = open(marker.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
-    guard descriptor >= 0 else { return opened(session, .file(.writeFailed(step: "recovery-attempt", errno: errno))) }
+    guard descriptor >= 0 else {
+        return opened(session, .file(.writeFailed(step: marker.lastPathComponent, errno: errno)))
+    }
     close(descriptor)
     let outcome = await completeTake(of: session, in: package)
     return OpenedPackage(lock: lock, session: outcome.session, takeError: outcome.error, unplaced: outcome.unplaced)

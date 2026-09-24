@@ -102,4 +102,5 @@
 "transport.stop.output.changed" = "La reproducción se detuvo: cambió el dispositivo de salida.";
 "transport.stop.output.unavailable" = "No se puede reproducir: el dispositivo de salida no está disponible (error %lld).";
 "transport.stop.package.unavailable" = "La reproducción se detuvo: el paquete de la sesión no está disponible. Comprueba que su disco está conectado.";
+"transport.stop.no.descriptor" = "La reproducción se detuvo: la app no puede abrir más archivos (error %lld). Cierra otras apps y pulsa Espacio otra vez.";
 "media.missing" = "Faltan archivos de audio o están dañados. Sus clips suenan como silencio: %@";

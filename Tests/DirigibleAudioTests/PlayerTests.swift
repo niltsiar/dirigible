@@ -162,4 +162,26 @@ struct PlayerTests {
         let reading = await player.reading()
         #expect(!reading.ended && reading.frame == 9600)
     }
+
+    /// A file that does not open because the process has no free descriptor stops the play with
+    /// its own cause at the refill, and the file gets no media fault. The open of f2 gives
+    /// EMFILE. Control: an open that works plays with no stop. Found by the code gate (sibling
+    /// of item 2).
+    @Test(arguments: [true, false])
+    func noFreeDescriptorStopsThePlay(fails: Bool) async throws {
+        try package.addFile("f2", channels: [ramp(frames: 24_000, channel: 1)])
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 0, offset: 0, length: 24_000)
+        let url = package.url
+        let player = Player(
+            package: { url }, output: .offline, session: package.session,
+            open: { file, clips, rate throws(POSIXError) in
+                if fails && file.id == "f2" { throw POSIXError(.EMFILE) }
+                return try openMedia(file, in: clips, rate: rate)
+            })
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+
+        let reading = await player.reading()
+        #expect(reading.stop == (fails ? .noFreeDescriptor(Int(EMFILE)) : nil))
+        #expect(reading.faults == [:], "not a fault of the file")
+    }
 }

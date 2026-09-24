@@ -19,6 +19,9 @@ public enum PlaybackStop: Hashable, Sendable {
     case outputUnavailable(Int)
     /// The package left its volume or was deleted (decision 0016).
     case packageUnavailable
+    /// An audio file did not open because the process had no free descriptor; the value is the
+    /// errno (EMFILE or ENFILE). It is not a fault of the file (decision 0016).
+    case noFreeDescriptor(Int)
 }
 
 /// The playback state of a studio (decision 0016). `Studio` stores one value of it.

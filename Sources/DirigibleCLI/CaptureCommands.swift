@@ -124,12 +124,12 @@ func reportTake(_ studio: Studio, take: Int?, armed: [TrackID], result: TakeResu
 
 /// One line for each armed track with a gap, in arm order. True when it wrote a line.
 @discardableResult
-private func writeGaps(_ gaps: [TrackID: LiveTrack.State], armed: [TrackID]) -> Bool {
+private func writeGaps(_ gaps: [TrackID: TakeResult.Gap], armed: [TrackID]) -> Bool {
     for track in armed {
         switch gaps[track] {
         case .deviceLost: warn("track \"\(track)\" lost its device during the take.")
         case .writeFailed: warn("track \"\(track)\" had a write error during the take.")
-        case .recording, nil: continue
+        case nil: continue
         }
     }
     return !gaps.isEmpty

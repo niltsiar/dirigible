@@ -36,8 +36,8 @@ struct TrackSegments {
     private var segments = 0
     /// The device frames of the take that the writer handled: records and silence.
     private var deviceFrames: Int64 = 0
-    /// The state that started the first gap of each arm.
-    var gaps: [Int: LiveTrack.State] = [:]
+    /// The cause of the first gap of each arm.
+    var gaps: [Int: TakeResult.Gap] = [:]
 
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], take: Int, folder: URL,

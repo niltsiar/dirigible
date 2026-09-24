@@ -113,7 +113,7 @@ struct RecordTests {
         await boxInput.wait()
 
         let gaps = Dictionary(
-            uniqueKeysWithValues: failing.map { (TrackID($0 == "mic" ? "t1" : "t2"), LiveTrack.State.deviceLost) })
+            uniqueKeysWithValues: failing.map { (TrackID($0 == "mic" ? "t1" : "t2"), TakeResult.Gap.deviceLost) })
         #expect(result == TakeResult(take: 1, end: .requested, gaps: gaps))
         #expect(clipIDs(studio, "t1") == (failing.contains("mic") ? [] : ["take1-1-1"]))
         #expect(clipIDs(studio, "t2") == (failing.contains("box") ? [] : ["take1-2-1"]))

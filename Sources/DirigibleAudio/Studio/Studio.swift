@@ -188,7 +188,7 @@ import Foundation
         transport = .finalizing(take: take)
         diskWatcher?.cancel()
         diskWatcher = nil
-        var gaps: [TrackID: LiveTrack.State] = [:]
+        var gaps: [TrackID: TakeResult.Gap] = [:]
         for writer in writers.values {
             for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
         }

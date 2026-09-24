@@ -26,10 +26,16 @@ public enum TakeEnd: Hashable, Sendable {
 
 /// The result of a take, set when its writers finish and before its finalize.
 public struct TakeResult: Hashable, Sendable {
+    /// The cause of the first gap of a track.
+    public enum Gap: Hashable, Sendable {
+        case deviceLost
+        case writeFailed
+    }
+
     public let take: Int
     public let end: TakeEnd
-    /// The armed tracks with a gap, each with the state that started its first gap.
-    public let gaps: [TrackID: LiveTrack.State]
+    /// The armed tracks with a gap, each with the cause of its first gap.
+    public let gaps: [TrackID: Gap]
 }
 
 /// A microphone access that is not granted. The library reads it and never requests it; the

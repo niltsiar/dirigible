@@ -11,10 +11,7 @@ struct TrackCommandTests {
         package = try TemporaryPackage(session)
     }
 
-    /// Runs `dirigible track` with PKG replaced by the package path.
-    private func track(_ arguments: [String]) throws -> CLIResult {
-        try dirigible(["track"] + arguments.map { $0 == "PKG" ? package.path : $0 })
-    }
+    private func track(_ arguments: [String]) throws -> CLIResult { try package.run(["track"] + arguments) }
 
     @Test func eachVerbAppliesItsEdit() throws {
         let fresh = try TemporaryPackage(Session(sampleRate: 48_000))

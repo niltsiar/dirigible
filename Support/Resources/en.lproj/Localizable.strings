@@ -10,6 +10,7 @@
 "menu.record.start" = "Record";
 "menu.record.stop" = "Stop";
 "menu.record.retry" = "Retry Finalize";
+"menu.record.monitor" = "Monitor Inputs";
 
 /* Errors */
 "error.studio.busy" = "A take records or finishes. Wait until it ends.";

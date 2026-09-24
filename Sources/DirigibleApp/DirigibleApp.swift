@@ -33,6 +33,10 @@ struct DirigibleApp: App {
                         .keyboardShortcut(".").disabled(app.key?.canStop != true)
                     Button(L10n.menuRecordRetry.key) { Task { await app.key?.retry() } }
                         .keyboardShortcut("r", modifiers: [.command, .option]).disabled(app.key?.canRetry != true)
+                    Toggle(
+                        L10n.menuRecordMonitor.key,
+                        isOn: Binding(get: { app.key?.monitoring == true }, set: { app.key?.monitoring = $0 })
+                    ).disabled(app.key == nil)
                 }
             }
     }

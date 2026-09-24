@@ -36,7 +36,11 @@ enum WindowAlert: Hashable {
     /// The typed name of each track that no rename has saved yet. A name field shows its draft,
     /// else the saved name.
     var drafts: [TrackID: String] = [:]
-    private(set) var devices: [InputDevice] = []
+    /// Monitor Inputs (decision 0015): off at open, not saved. With the armed tracks, it drives
+    /// `Studio.monitor(armed:)`.
+    var monitoring = false
+    /// The input devices of the menus, from the process device list.
+    var devices: [InputDevice] { deviceList.devices }
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
 
@@ -45,9 +49,8 @@ enum WindowAlert: Hashable {
     @ObservationIgnored private weak var app: AppDelegate?
     @ObservationIgnored private(set) var window: NSWindow?
     @ObservationIgnored private var opening: Task<Void, Never>?
-    /// ponytail: a poll of the device list every 2 s while the window is key and idle; the
-    /// input-monitor run adds a listener.
-    @ObservationIgnored private var devicePoll: Task<Void, Never>?
+    /// Tests give their own list.
+    @ObservationIgnored var deviceList = DeviceList.shared
     /// The macOS microphone prompt (decision 0013). Tests give their own.
     @ObservationIgnored var requestMicrophoneAccess: () async -> Bool = {
         await AVCaptureDevice.requestAccess(for: .audio)
@@ -111,8 +114,7 @@ enum WindowAlert: Hashable {
         armed = Set(studio.session.tracks.filter { $0.route != nil }.map(\.id))
         phase = .open(studio)
         follow(studio)
-        // Not in the open task: that task holds the studio, and a close waits for it.
-        Task { await refreshDevices() }
+        followMonitor(studio)
     }
 
     /// The close button and Close: during a take, ask first.
@@ -140,6 +142,8 @@ enum WindowAlert: Hashable {
         await opening?.value
         guard case .closing(let studio) = phase else { return }
         if let studio {
+            // `settle` empties the monitor request, so the toggle goes off too.
+            monitoring = false
             await studio.settle()
             if studio.saveError != nil {
                 alert = .confirmUnsavedClose
@@ -161,10 +165,12 @@ enum WindowAlert: Hashable {
         if case .closing(let studio?) = phase { phase = .open(studio) }
     }
 
-    /// For Quit: waits for the open, stops a take, and waits for every write.
+    /// For Quit: waits for the open, turns the monitor off, stops a take, and waits for every
+    /// write.
     func settle() async {
         await opening?.value
         commitNames()
+        monitoring = false
         await studio?.settle()
     }
 
@@ -199,23 +205,32 @@ enum WindowAlert: Hashable {
         // ponytail: the take goes after the last clip; the timeline run adds a playhead.
         let playhead = studio.session.tracks.flatMap(\.clips).map(\.end).max() ?? .zero
         do throws(StudioError) {
-            do throws(StudioError) {
+            try await withMicrophoneAccess(studio) { () async throws(StudioError) in
                 try await studio.startRecording(armed: armed, playhead: playhead)
-            } catch .microphoneAccess(let access) {
-                switch microphoneStep(access) {
-                case .request:
-                    guard await requestMicrophoneAccess() else { throw .microphoneAccess(.denied) }
-                    // The prompt waits for the user. A close can end the window meanwhile, and a
-                    // take starts only in an open window with the same studio.
-                    guard case .open(let current) = phase, current === studio else { return }
-                    try await studio.startRecording(armed: armed, playhead: playhead)
-                case .privacyLink: throw .microphoneAccess(access)
-                }
             }
         } catch .microphoneAccess(let access) {
             alert = .microphone(access)
         } catch {
             alert = .error(error)
+        }
+    }
+
+    /// Runs `body`. When it throws an undecided access, it shows the macOS prompt and runs `body`
+    /// once more after a grant (decision 0013). The prompt waits for the user; a close can end
+    /// the window meanwhile, so `body` runs again only in an open window with the same studio.
+    func withMicrophoneAccess(_ studio: Studio, _ body: () async throws(StudioError) -> Void)
+        async throws(StudioError)
+    {
+        do throws(StudioError) {
+            try await body()
+        } catch .microphoneAccess(let access) {
+            switch microphoneStep(access) {
+            case .request:
+                guard await requestMicrophoneAccess() else { throw .microphoneAccess(.denied) }
+                guard case .open(let current) = phase, current === studio else { return }
+                try await body()
+            case .privacyLink: throw .microphoneAccess(access)
+            }
         }
     }
 
@@ -267,11 +282,6 @@ enum WindowAlert: Hashable {
         if idleStudio?.session.track(track)?.route == route { armed.insert(track) }
     }
 
-    func refreshDevices() async {
-        let list = await Task.detached { InputDevice.all() }.value
-        if list != devices { devices = list }
-    }
-
     func refreshPendingSpace() async {
         pendingSpace = await idleStudio?.pendingSpace()
     }
@@ -293,7 +303,6 @@ enum WindowAlert: Hashable {
 
     /// Drops the studio, so its lock goes, and breaks the cycle of the window and its view.
     private func finishClose() {
-        devicePoll?.cancel()
         phase = .closed
         // The pool releases the view now, not at the end of the main-queue job, so the studio
         // and its lock go before this call returns, and an open right after it works.
@@ -335,35 +344,13 @@ enum WindowAlert: Hashable {
         return false
     }
 
+    /// A focus reads the device list again, so a channel change of a present device shows.
     func windowDidBecomeKey(_ notification: Notification) {
         app?.key = self
-        devicePoll?.cancel()
-        devicePoll = Task { [weak self] in
-            while !Task.isCancelled {
-                if self?.idleStudio != nil { await self?.refreshDevices() }
-                try? await Task.sleep(for: .seconds(2))
-            }
-        }
+        deviceList.changed()
     }
 
     func windowDidResignKey(_ notification: Notification) {
         if app?.key === self { app?.key = nil }
-        devicePoll?.cancel()
     }
-}
-
-enum MicrophoneStep: Equatable {
-    case request
-    case privacyLink
-}
-
-/// Only an undecided access can change through the prompt (decision 0013).
-func microphoneStep(_ access: MicrophoneAccess) -> MicrophoneStep {
-    access == .notDetermined ? .request : .privacyLink
-}
-
-/// The routes of a device: mono 1 to n, then the stereo pairs (1, 2), (3, 4), and so on.
-func routeOptions(channelCount: Int) -> [Route.Channels] {
-    (0..<max(0, channelCount)).map { .mono($0 + 1) }
-        + stride(from: 1, to: channelCount, by: 2).map { .stereo($0, $0 + 1) }
 }

@@ -10,7 +10,9 @@ struct CLIResult: Equatable {
 
 /// Runs the `dirigible` binary that `swift test` builds next to the test bundle. stdout and
 /// stderr go to files, not pipes, so a large output cannot block the child process.
-func dirigible(_ arguments: String...) throws -> CLIResult {
+func dirigible(_ arguments: String...) throws -> CLIResult { try dirigible(arguments) }
+
+func dirigible(_ arguments: [String]) throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -52,4 +54,11 @@ final class TemporaryPackage {
 
     func read() throws -> Session { try Session(contentsOf: url) }
     func xml() throws -> Data { try Data(contentsOf: sessionXML) }
+
+    /// Changes the package through the library, not the CLI.
+    func edit(_ body: (inout Session) throws -> Void) throws {
+        var session = try read()
+        try body(&session)
+        try session.write(to: url)
+    }
 }

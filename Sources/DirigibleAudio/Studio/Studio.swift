@@ -57,6 +57,8 @@ import Foundation
     /// The armed tracks of the take that records, in arm order, with the writer of each.
     private var armed: [(id: TrackID, writer: DeviceWriter)] = []
     private var trackStates: [TrackID: LiveTrack.State] = [:]
+    /// One more for each take that begins. Two takes can have the same number.
+    private var generation = 0
     /// Held for the life of the studio. Dropping the studio releases it.
     private let lock: PackageLock
 
@@ -139,23 +141,27 @@ import Foundation
         let length = nanos < 0x1p64 ? UInt64(nanos) : .max
         try await startRecording(armed: armed, playhead: playhead)
         guard case .recording(let take) = transport else { preconditionFailure("A started take records") }
+        // A take with no segment gives its number to the next take, so the number alone cannot
+        // tell this take from a new one that another caller starts.
+        let mine = generation
         // The take ends at its start host time + duration, also when the stop comes late.
         let (end, overflow) = (session.recording?.takeStartHostTimeNanos ?? 0).addingReportingOverflow(length)
         for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
         let deadline = ContinuousClock.now + duration
-        while transport == .recording(take: take), ContinuousClock.now < deadline {
+        while generation == mine, transport == .recording(take: take), ContinuousClock.now < deadline {
             // A cancel ends the take now, as an early end.
             do { try await Task.sleep(for: min(.milliseconds(50), deadline - .now)) } catch { break }
         }
-        if transport == .recording(take: take) { try await stopRecording() }
+        if generation == mine, transport == .recording(take: take) { try await stopRecording() }
         // Another stop ended the take; wait for its finalize. The sleep is in a task of its own,
         // so a cancel of this call does not make the wait spin.
-        while transport == .finalizing(take: take) {
+        while generation == mine, transport == .finalizing(take: take) {
             await Task { try? await Task.sleep(for: .milliseconds(10)) }.value
         }
+        // Another caller can start a new take before this call wakes; that start clears the
+        // result, and a finalize error is then of the new take.
+        guard generation == mine, let lastTake else { throw .busy }
         if let takeError { throw takeError }
-        // Another caller can start a new take before this call wakes; that start clears it.
-        guard let lastTake, lastTake.take == take else { throw .busy }
         return lastTake
     }
 
@@ -249,7 +255,8 @@ import Foundation
         history.edit { $0 = started.session }
         lastTake = nil
         recoveredTake = nil
-        let report = Self.reporter(to: self)
+        generation += 1
+        let report = Self.reporter(to: self, generation: generation)
         let capture = url.appending(path: captureFolderName)
         var devices: [InputDevice] = []
         for route in started.routes where !devices.contains(route.device) { devices.append(route.device) }
@@ -271,13 +278,16 @@ import Foundation
 
     /// The report closure of the device writers. They call it on their queues, so it is built
     /// in a nonisolated context (AGENTS.md) and hops to the main actor.
-    private nonisolated static func reporter(to studio: Studio) -> @Sendable (Report) -> Void {
-        { [weak studio] report in Task { @MainActor in studio?.apply(report) } }
+    private nonisolated static func reporter(to studio: Studio, generation: Int) -> @Sendable (Report) -> Void {
+        { [weak studio] report in Task { @MainActor in studio?.apply(report, generation: generation) } }
     }
 
-    /// A report of another take, or of a take that ended, changes nothing.
-    private func apply(_ report: Report) {
-        guard transport == .recording(take: report.take), armed.indices.contains(report.arm - 1) else { return }
+    /// A report of another take, also one with the same number, or of a take that ended,
+    /// changes nothing.
+    private func apply(_ report: Report, generation: Int) {
+        guard generation == self.generation, transport == .recording(take: report.take),
+            armed.indices.contains(report.arm - 1)
+        else { return }
         trackStates[armed[report.arm - 1].id] = report.state
     }
 

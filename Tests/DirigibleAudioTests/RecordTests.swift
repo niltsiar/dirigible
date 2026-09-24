@@ -116,6 +116,29 @@ struct RecordTests {
         #expect(studio.pendingTake == nil)
     }
 
+    /// Another caller stops the take, then starts and stops a new one, before the call wakes.
+    /// Neither take has a segment, so both are take 1. The call throws `.busy`; before the fix,
+    /// it returned the result of the other take. A stop sets `.finalizing` before it suspends,
+    /// so the call never sees the new take record.
+    @Test func aNewTakeWithTheSameNumberMakesTheCallBusy() async throws {
+        let hal = TestHAL([mic])
+        let studio = try await studio(hal)
+        let other = Task { @MainActor in
+            await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
+            try await studio.stopRecording()
+            _ = try studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: 1_000)
+            try await studio.stopRecording()
+        }
+
+        await #expect(throws: StudioError.busy) {
+            try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(60))
+        }
+        try await other.value
+
+        #expect(studio.lastTake?.take == 1)
+        #expect(studio.transport == .idle)
+    }
+
     // MARK: Criterion 23: the take result
 
     /// The attach of each device in `failing` always throws. Control: none fails, no gap.

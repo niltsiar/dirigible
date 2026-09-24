@@ -20,6 +20,9 @@ fi
 
 # Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
 NORMALIZED="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$COMMAND")"
+# Put each command of a chain (&&, ||, ;, |) on its own line. grep matches one line at a time,
+# so a pattern cannot match a word of the next command, for example `--base main` of gh.
+NORMALIZED="$(awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' <<< "$NORMALIZED")"
 
 DANGEROUS_PATTERNS=(
   'git push( .*)? (--force|-[a-zA-Z]*f|\+)'

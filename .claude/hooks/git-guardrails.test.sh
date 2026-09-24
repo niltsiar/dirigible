@@ -44,6 +44,11 @@ expect block 'git -c core.hooksPath=/dev/null commit -m x'
 expect block 'git push origin feat/x:main'
 expect block 'git push origin HEAD:refs/heads/main'
 expect block 'git push -uf origin feat/x'
+expect block 'make check && git push origin main'
+expect block 'git status; git reset --hard'
+expect block 'env X=1 git push -f origin feat/x'
+expect block 'bash -c "git push -f origin feat/x"'
+expect block 'git commit -n -m x | cat'
 
 expect allow 'git push -u origin feat/multitrack-capture'
 expect allow 'git push origin chore/refine-setup'
@@ -59,6 +64,11 @@ expect allow 'make check'
 expect allow 'git -C /repo status'
 expect allow 'git push -u origin feat/main-window'
 expect allow 'git push --follow-tags origin feat/x'
+# One segment of a chained command must not match a pattern with a word of the next segment.
+expect allow 'git push -u origin feat/x && gh pr create --base main --title x'
+expect allow 'git commit -F msg.txt; sed -n 1p file'
+expect allow 'git commit -F msg.txt && sed -n 1p file'
+expect allow 'git push -u origin feat/x || gh pr view --json baseRefName | grep main'
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

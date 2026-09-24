@@ -5,27 +5,34 @@ import Testing
 @testable import DirigibleAudio
 
 /// Packages on a disk image: a full disk (criterion 18), a volume that goes away during a read,
-/// and a read-only volume. Slow: each test makes and attaches a disk image.
-@MainActor
+/// and a read-only volume. Slow: each test makes and attaches a disk image. The disk work runs
+/// off the main actor: under load it takes seconds, and the `@MainActor` record tests wait for
+/// the main actor (the tdd skill). Only the two tests that open a Studio are `@MainActor`.
 struct FullDiskTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func aTakeOnAFullDiskStaysPendingUntilARetryAfterSpaceIsFree() async throws {
+    @MainActor func aTakeOnAFullDiskStaysPendingUntilARetryAfterSpaceIsFree() async throws {
         let folder = try TemporaryFolder()
         let image = folder.url.appending(path: "full.dmg")
         let volume = folder.url.appending(path: "volume")
-        try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleFull", image.path)
-        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        try await offMainActor {
+            try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleFull", image.path)
+            try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        }
         defer { try? Self.hdiutil("detach", volume.path, "-force") }
 
-        // 10 s of mono: a 1.92 MB CAF and a 1.44 MB WAV.
-        let source = try TakePackage()
-        try source.segment(samples: sine(seconds: 10, rate: 48_000))
         let package = volume.appending(path: "Show.dirigible")
-        try FileManager.default.copyItem(at: source.url, to: package)
         let caf = package.appending(path: "Capture/take1-1-1.caf")
-        let cafBytes = try Data(contentsOf: caf)
         let filler = volume.appending(path: "filler")
-        try Self.fill(volume, leaving: 400_000, with: filler)
+        let before = LockedBox<Data>()
+        try await offMainActor {
+            // 10 s of mono: a 1.92 MB CAF and a 1.44 MB WAV.
+            let source = try TakePackage()
+            try source.segment(samples: sine(seconds: 10, rate: 48_000))
+            try FileManager.default.copyItem(at: source.url, to: package)
+            before.value = try Data(contentsOf: caf)
+            try Self.fill(volume, leaving: 400_000, with: filler)
+        }
+        let cafBytes = try #require(before.value)
 
         let studio = try await Studio.open(package)
 
@@ -69,18 +76,22 @@ struct FullDiskTests {
 
     /// Decision 0012: a read-only volume opens without a lock, with and without a `.lock` file.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func aPackageOnAReadOnlyVolumeOpensUnlocked() async throws {
+    @MainActor func aPackageOnAReadOnlyVolumeOpensUnlocked() async throws {
         let folder = try TemporaryFolder()
         let image = folder.url.appending(path: "readonly.dmg")
         let volume = folder.url.appending(path: "volume")
-        try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleReadOnly", image.path)
-        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        try await offMainActor {
+            try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleReadOnly", image.path)
+            try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        }
         defer { Self.run(["detach", volume.path, "-force"]) }
         let names = ["New.dirigible", "Opened.dirigible"]
-        for name in names { try Session(sampleRate: 48_000).write(to: volume.appending(path: name)) }
-        try Data().write(to: volume.appending(path: "Opened.dirigible/.lock"))
-        try Self.hdiutil("detach", volume.path)
-        try Self.hdiutil("attach", image.path, "-readonly", "-nobrowse", "-mountpoint", volume.path)
+        try await offMainActor {
+            for name in names { try Session(sampleRate: 48_000).write(to: volume.appending(path: name)) }
+            try Data().write(to: volume.appending(path: "Opened.dirigible/.lock"))
+            try Self.hdiutil("detach", volume.path)
+            try Self.hdiutil("attach", image.path, "-readonly", "-nobrowse", "-mountpoint", volume.path)
+        }
 
         for name in names {
             let studio = try await Studio.open(volume.appending(path: name))
@@ -135,7 +146,7 @@ struct FullDiskTests {
     }
 
     /// The files in `volume` with no leading dot (the system adds some), and every `.tmp` file.
-    nonisolated static func visibleFiles(_ volume: URL) throws -> [String] {
+    static func visibleFiles(_ volume: URL) throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: volume.path).filter {
             !$0.hasPrefix(".") || $0.hasSuffix(".tmp")
         }
@@ -143,7 +154,7 @@ struct FullDiskTests {
     }
 
     /// Writes zeros to `file` until the volume has about `bytes` free.
-    nonisolated static func fill(_ volume: URL, leaving bytes: Int, with file: URL) throws {
+    static func fill(_ volume: URL, leaving bytes: Int, with file: URL) throws {
         let free = try #require(
             try FileManager.default.attributesOfFileSystem(forPath: volume.path)[.systemFreeSize] as? Int)
         FileManager.default.createFile(atPath: file.path, contents: nil)
@@ -158,13 +169,13 @@ struct FullDiskTests {
         try handle.synchronize()
     }
 
-    nonisolated static func hdiutil(_ arguments: String...) throws {
+    static func hdiutil(_ arguments: String...) throws {
         try #require(run(arguments) == 0, "hdiutil \(arguments.joined(separator: " ")) failed")
     }
 
     /// Runs hdiutil and returns its exit status.
     @discardableResult
-    nonisolated static func run(_ arguments: [String]) -> Int32 {
+    static func run(_ arguments: [String]) -> Int32 {
         let process = Process()
         process.executableURL = URL(filePath: "/usr/bin/hdiutil")
         process.arguments = arguments

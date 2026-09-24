@@ -40,7 +40,7 @@ Write `analysis.md` in the run folder:
 Write `plan.md`:
 
 - Split the goal into vertical slices. Each slice ends in a state you can check: a test that passes and a commit. Put the riskiest unknown first. Types that reference each other go in one slice.
-- For each slice: the test you write first, the modules you touch, and the commit message you expect.
+- For each slice: the test you write first, the modules you touch, and the commit message you expect. When the slice covers an acceptance criterion, also name the test that asserts its negative control. The slice commits that test. A control that exists only as prose in `analysis.md` is first run in Phase 7, too late to change the slice.
 - If a slice sets a one-way decision (a file format, a module boundary, a threading model, a new dependency), run the **architect** skill for it and write a decision record in `docs/decisions/`.
 
 ## Phase 3: Plan gate

@@ -20,7 +20,7 @@ Do not use this for vague claims like "the code is cleaner". Ask for a measurabl
 
 1. Restate the claim in falsifiable form: condition, metric, and threshold.
 2. Pick the smallest local surface that can disprove it.
-3. Capture a baseline from the old state: merge base, parent commit, failing branch, or current broken repro. For new code with no old state, the baseline is a negative control: break the input or remove the guard, and show that the same check fails. A green check with no baseline is `INCONCLUSIVE`.
+3. Capture a baseline from the old state: merge base, parent commit, failing branch, or current broken repro. For new code with no old state, the baseline is a negative control: break the input or remove the guard, and show that the same check fails. A green check with no baseline is `INCONCLUSIVE`. Run the control under the exact conditions that the claim states. If a condition is off (for example a compiler feature), turn it on for the control, for example with a temporary change that you revert. A control under other conditions proves only itself.
 4. Capture treatment from the changed state with the same command, data, warmup, and environment.
 5. Compare raw artifacts: numbers, screenshots, terminal transcripts, HTTP responses, profiles, heap snapshots, or test output.
 6. Return exactly one verdict: `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE`.

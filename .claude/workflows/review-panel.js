@@ -29,6 +29,11 @@ const LENSES = [
 const FINDINGS = {
   type: 'object',
   properties: {
+    checked: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'the files you read and the commands you ran for this review',
+    },
     findings: {
       type: 'array',
       items: {
@@ -46,7 +51,7 @@ const FINDINGS = {
       },
     },
   },
-  required: ['findings'],
+  required: ['checked', 'findings'],
 }
 
 const VERDICTS = {
@@ -83,7 +88,7 @@ const MODE_TEXT = {
 // existed, or another harness runs this script, fall back to a general agent that
 // reads the same agent file as its role.
 async function review(lens) {
-  const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings. An empty list is a valid result.`
+  const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings, and in \`checked\` the files you read and the commands you ran. An empty findings list is a valid result. An empty \`checked\` list is not.`
   const opts = { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS }
   try {
     return await agent(`Review with your ${lens.key} lens.\n\n${task}`, { ...opts, agentType: lens.agentType })
@@ -100,8 +105,9 @@ const results = await pipeline(
   LENSES,
   review,
   (review, lens) => {
-    // A reviewer that returned nothing failed. Count it as missing, not as a clean review.
-    if (!review || !Array.isArray(review.findings)) return null
+    // A reviewer that returned nothing, or no record of what it checked, failed. Count it as
+    // missing, not as a clean review: an empty result looks the same as "no findings".
+    if (!review || !Array.isArray(review.findings) || !Array.isArray(review.checked) || !review.checked.length) return null
     // In the convergence round, a finding that names no earlier item or fix is out of scope,
     // unless it is critical. Split by the reviewer's own field, not by the skeptic's wording.
     const unscoped = f => mode === 'converge' && f.severity !== 'critical' && (!f.priorItem || /^none$/i.test(f.priorItem.trim()))

@@ -70,6 +70,12 @@ struct AppBundleTests {
         #expect(minimums == ["minos 14.0", "minos 14.0"])
     }
 
+    /// The command-line tool is not in the bundle (decision 0011).
+    @Test func bundleHoldsOneExecutable() throws {
+        let names = try FileManager.default.contentsOfDirectory(atPath: app.appending(path: "Contents/MacOS").path)
+        #expect(names == ["Dirigible"])
+    }
+
     @Test func bundleSignatureIsValid() throws {
         _ = try run("/usr/bin/codesign", "--verify", "--strict", app.path)
     }

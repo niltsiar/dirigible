@@ -26,8 +26,25 @@ import Foundation
     private var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
     private var segmentsWithAudio: [SegmentName]
-    /// The device writers of the take that records.
-    private var writers: [DeviceWriter] = []
+    /// The live state of each armed track of the take. Empty while no take records.
+    public var liveTracks: [TrackID: LiveTrack] {
+        Dictionary(
+            uniqueKeysWithValues: armed.map { track in
+                (
+                    track.id,
+                    LiveTrack(
+                        state: trackStates[track.id] ?? .recording, droppedFrames: track.writer.droppedFrames)
+                )
+            })
+    }
+
+    /// The Core Audio calls of a take. Tests give their own.
+    var environment = CaptureEnvironment.live
+    /// The device writers of the take that records, by device UID.
+    private var writers: [String: DeviceWriter] = [:]
+    /// The armed tracks of the take that records, in arm order, with the writer of each.
+    private var armed: [(id: TrackID, writer: DeviceWriter)] = []
+    private var trackStates: [TrackID: LiveTrack.State] = [:]
     /// Held for the life of the studio. Dropping the studio releases it.
     private let lock: PackageLock
 
@@ -86,17 +103,22 @@ import Foundation
         if case .finalizing = transport { throw .busy }
         guard case .recording(let take) = transport else { return }
         transport = .finalizing(take: take)
-        for writer in writers { await writer.finish() }
-        writers = []
+        for writer in writers.values { await writer.finish() }
+        writers = [:]
+        armed = []
+        trackStates = [:]
         try await complete(take)
     }
 
+    /// The device writer of `uid` in the take that records. For tests.
+    func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
+
     /// The test seam of decision 0004: starts a take from device descriptions. capture-live adds
     /// the public `startRecording` on top of it. Checks the route of each armed track, then saves
-    /// `session.xml` with `<recording>`, then starts each device writer on `hal`. A throw changes
-    /// nothing.
+    /// `session.xml` with `<recording>`, then starts each device writer on the environment HAL. A
+    /// throw changes nothing.
     func startTake(
-        armed: [TrackID], devices: [InputDevice], playhead: Frames, hostTimeNanos: UInt64, hal: DeviceHAL
+        armed: [TrackID], devices: [InputDevice], playhead: Frames, hostTimeNanos: UInt64
     ) throws(StudioError) -> [String: DeviceWriter] {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
@@ -131,15 +153,30 @@ import Foundation
         do { try started.write(to: url) } catch { throw .file(error) }
         history.edit { $0 = started }
 
-        var result: [String: DeviceWriter] = [:]
+        let report = Self.reporter(to: self)
         for device in devices where routes.contains(where: { $0.device == device }) {
             let tracks = routes.filter { $0.device == device }.map { (arm: $0.arm, channels: $0.route.channels) }
-            result[device.uid] = DeviceWriter(device: device, tracks: tracks, take: take, folder: capture, hal: hal)
+            writers[device.uid] = DeviceWriter(
+                device: device, tracks: tracks, take: take, folder: capture, hal: environment.hal, report: report,
+                silenceLimit: environment.silenceLimit)
         }
-        writers = Array(result.values)
-        for writer in writers { writer.start() }
+        self.armed = routes.map { ($0.track, writers[$0.device.uid]!) }
+        trackStates = [:]
         transport = .recording(take: take)
-        return result
+        for writer in writers.values { writer.start() }
+        return writers
+    }
+
+    /// The report closure of the device writers. They call it on their queues, so it is built
+    /// in a nonisolated context (AGENTS.md) and hops to the main actor.
+    private nonisolated static func reporter(to studio: Studio) -> @Sendable (Report) -> Void {
+        { [weak studio] report in Task { @MainActor in studio?.apply(report) } }
+    }
+
+    /// A report of another take, or of a take that ended, changes nothing.
+    private func apply(_ report: Report) {
+        guard transport == .recording(take: report.take), armed.indices.contains(report.arm - 1) else { return }
+        trackStates[armed[report.arm - 1].id] = report.state
     }
 
     /// Finalize, the marker, and the save off the main actor, then the outcome here.

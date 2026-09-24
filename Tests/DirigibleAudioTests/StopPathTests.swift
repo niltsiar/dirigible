@@ -32,24 +32,25 @@ struct StopPathTests {
 
     /// Starts take 1 on `t1` and `t2` and sends 3.0 s of records from each device through its
     /// ring, in burst mode.
-    func recordThreeSeconds(_ studio: Studio) throws -> [String: DeviceWriter] {
+    func recordThreeSeconds(_ studio: Studio) async throws -> [String: DeviceWriter] {
         let hal = TestHAL([mic, box])
+        studio.environment = .test(hal)
         let writers = try studio.startTake(
-            armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart, hal: hal.hal)
+            armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
         let micInput = SyntheticInput(hal, "mic")
         let boxInput = SyntheticInput(hal, "box")
         micInput.play(
             records([sine(seconds: 3, rate: 48_000)], layout: [1], rate: 48_000, hostStart: takeStart + 1_000_000))
         boxInput.play(records([sine(seconds: 3, rate: 44_100, channels: 2)], layout: [2], rate: 44_100))
-        micInput.wait()
-        boxInput.wait()
+        await micInput.wait()
+        await boxInput.wait()
         return writers
     }
 
     @Test func twoDevicesRecordAndStopToTwoClips() async throws {
         let studio = try await Studio.open(url)
 
-        _ = try recordThreeSeconds(studio)
+        _ = try await recordThreeSeconds(studio)
         #expect(studio.transport == .recording(take: 1))
         #expect(try Session(contentsOf: url).recording?.armedTracks == ["t1", "t2"])
         try await studio.stopRecording()
@@ -91,11 +92,11 @@ struct StopPathTests {
         let first = [Float](repeating: 0, count: second.count)
 
         let hal = TestHAL([quad])
-        let writers = try studio.startTake(
-            armed: ["t1"], devices: [quad], playhead: 0, hostTimeNanos: takeStart, hal: hal.hal)
+        studio.environment = .test(hal)
+        let writers = try studio.startTake(armed: ["t1"], devices: [quad], playhead: 0, hostTimeNanos: takeStart)
         let input = SyntheticInput(hal, "quad")
         input.play(records([first, second], layout: [2, 2], rate: 48_000))
-        input.wait()
+        await input.wait()
         await writers["quad"]?.finish()
 
         #expect(try readAudio(url.appending(path: "Capture/take1-1-1.caf")).samples == tone)
@@ -114,7 +115,7 @@ struct StopPathTests {
 
         #expect(throws: StudioError.session(.takeOutOfRange(1_000_000_000))) {
             _ = try studio.startTake(
-                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: TestHAL([mic]).hal)
+                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         }
         #expect(try Data(contentsOf: sessionXML) == before)
         #expect(studio.transport == .idle)
@@ -131,7 +132,7 @@ struct StopPathTests {
                 latency: 0))
         func start(_ armed: [TrackID], _ devices: [InputDevice]) throws(StudioError) {
             _ = try studio.startTake(
-                armed: armed, devices: devices, playhead: 0, hostTimeNanos: takeStart, hal: TestHAL(devices).hal)
+                armed: armed, devices: devices, playhead: 0, hostTimeNanos: takeStart)
         }
 
         #expect(throws: StudioError.deviceMissing("t2")) { try start(["t1", "t2"], [mic]) }
@@ -152,7 +153,7 @@ struct StopPathTests {
 
     @Test func aRecordingStudioIsBusy() async throws {
         let studio = try await Studio.open(url)
-        _ = try recordThreeSeconds(studio)
+        _ = try await recordThreeSeconds(studio)
 
         #expect(throws: StudioError.busy) {
             try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "X") }
@@ -161,7 +162,7 @@ struct StopPathTests {
         #expect(throws: StudioError.busy) { try studio.save() }
         #expect(throws: StudioError.busy) {
             _ = try studio.startTake(
-                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: TestHAL([mic]).hal)
+                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         }
         await #expect(throws: StudioError.busy) { try await studio.retryFinalize() }
 
@@ -180,7 +181,7 @@ struct StopPathTests {
         try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
         chmod(clips.path, 0o500)
         defer { chmod(clips.path, 0o755) }
-        _ = try recordThreeSeconds(studio)
+        _ = try await recordThreeSeconds(studio)
 
         await #expect {
             try await studio.stopRecording()
@@ -194,13 +195,13 @@ struct StopPathTests {
         // A new take waits for the pending take.
         #expect(throws: StudioError.busy) {
             _ = try studio.startTake(
-                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart, hal: TestHAL([mic]).hal)
+                armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
         }
     }
 
     @Test func aStopLeavesASegmentWithABadSidecarUnplaced() async throws {
         let studio = try await Studio.open(url)
-        let writers = try recordThreeSeconds(studio)
+        let writers = try await recordThreeSeconds(studio)
         await writers["mic"]?.finish()
         let handle = try FileHandle(forWritingTo: url.appending(path: "Capture/take1-1-1.sidecar"))
         try handle.write(contentsOf: Data("XXXXXXXX".utf8))
@@ -217,7 +218,7 @@ struct StopPathTests {
 
     @Test func aStopWhoseSaveFailsKeepsTheTakePending() async throws {
         let studio = try await Studio.open(url)
-        _ = try recordThreeSeconds(studio)
+        _ = try await recordThreeSeconds(studio)
         // A non-empty folder in place of session.xml fails only the rename of the save.
         try FileManager.default.removeItem(at: sessionXML)
         try FileManager.default.createDirectory(at: sessionXML, withIntermediateDirectories: false)

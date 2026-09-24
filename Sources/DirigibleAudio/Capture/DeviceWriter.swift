@@ -27,8 +27,8 @@ final class DeviceWriter: @unchecked Sendable {
 
     private enum Phase { case ready, running, lost, finished }
 
-    /// A writer with this many kept inputs attaches no more in the take (decision 0013).
-    static let keptLimit = 8
+    /// A writer with this many failed detaches attaches no more in the take (decision 0013).
+    static let failedDetachLimit = 8
     static let retryInterval = Duration.seconds(1)
 
     private let take: Int
@@ -43,11 +43,8 @@ final class DeviceWriter: @unchecked Sendable {
     private var phase = Phase.ready
     /// The attached appearance of the device and its detach.
     private var input: (input: DeviceInput, detach: Detach)?
-    /// Inputs whose detach failed: a late call can still use their rings, so they stay.
-    private var kept: [DeviceInput] = []
-    /// Inputs of a clean detach, without their ring bytes. A listener call in progress during
-    /// the removal can still use the input and the ring atomics, so `finish()` frees them.
-    private var detached: [DeviceInput] = []
+    /// The detaches that failed: a late IOProc call can still use their ring bytes.
+    private var failedDetaches = 0
     /// The ring of an attach that threw before its IOProc existed: no call can reach it.
     private var spare: CaptureRing?
     private var unwatch: Detach?
@@ -121,8 +118,6 @@ final class DeviceWriter: @unchecked Sendable {
                     detach()
                     tracks.endSegment()
                     _ = unwatch?()
-                    for input in detached { input.ring.deallocateAtomics() }
-                    detached = []
                     spare?.deallocate()
                     spare = nil
                     timer?.cancel()
@@ -210,19 +205,21 @@ final class DeviceWriter: @unchecked Sendable {
         dropped.wrappingIncrement(by: lost, ordering: .relaxed)
     }
 
-    /// Detaches the current input and writes the rest of its ring. A clean detach frees the
-    /// ring bytes and keeps the rest until `finish()`; a failed one keeps the input.
+    /// Detaches the current input and writes the rest of its ring, then keeps the input.
     private func detach() {
         guard let (current, detach) = input else { return }
         let clean = detach()
         drain()
-        if clean {
-            current.ring.deallocateBytes()
-            detached.append(current)
-        } else {
-            kept.append(current)
-        }
+        keep(current, clean: clean)
         input = nil
+    }
+
+    /// Keeps `input` and its ring atomics for the process life (decision 0013): a listener call
+    /// that was in progress during its removal can use them at any later time, also after the
+    /// take. A clean detach frees the ring bytes, because no IOProc call can come.
+    private func keep(_ input: DeviceInput, clean: Bool) {
+        _ = Unmanaged.passRetained(input)
+        if clean { input.ring.deallocateBytes() } else { failedDetaches += 1 }
     }
 
     /// Running or ready to lost: detach, end the segments, report, and record the gaps.
@@ -248,7 +245,7 @@ final class DeviceWriter: @unchecked Sendable {
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
     /// checked before a ring exists, and a ring of an attach that threw is used again.
     private func attach() -> Bool {
-        guard kept.count < Self.keptLimit, let found = hal.lookUp(tracks.device.uid),
+        guard failedDetaches < Self.failedDetachLimit, let found = hal.lookUp(tracks.device.uid),
             tracks.hasRoutedChannels(found.device)
         else { return false }
         tracks.use(found.device)
@@ -264,12 +261,11 @@ final class DeviceWriter: @unchecked Sendable {
         do throws(HALError) {
             self.input = (input, try hal.attach(input))
         } catch .undoFailed {
-            kept.append(input)
+            keep(input, clean: false)
             return false
         } catch .undone {
             // A listener call can still be in progress, as after a clean detach.
-            ring.deallocateBytes()
-            detached.append(input)
+            keep(input, clean: true)
             return false
         } catch {
             spare = ring

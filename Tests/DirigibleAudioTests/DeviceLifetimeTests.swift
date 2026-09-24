@@ -72,6 +72,31 @@ extension DeviceEventTests {
         #expect(gaps == [1: .deviceLost])
     }
 
+    /// (f) A listener call in progress during its removal can end after the take and after the
+    /// writer is gone. So the input of a detach and its ring atomics stay for the process life,
+    /// for a clean detach and a failed one. Before the fix, they went with the writer.
+    @Test(arguments: [true, false])
+    func theInputOfADetachOutlivesTheWriter(clean: Bool) async throws {
+        weak var first: DeviceInput?
+        weak var gone: DeviceWriter?
+        do {
+            let hal = TestHAL([mic])
+            hal.detach(returns: clean)
+            let writer = writer(mic, hal)
+            gone = writer
+            await until("no first attach") { hal.inputs("mic").count == 1 }
+            writer.post(.alive(false), from: hal.current("mic"))
+            writer.post(.devicesChanged, from: nil)
+            await until("no back") { hal.inputs("mic").count == 2 }
+            first = hal.inputs("mic")[0]
+            await writer.finish()
+        }
+        await until("the writer is still alive after finish") { gone == nil }
+
+        let late = try #require(first, "the input of the first appearance went with the writer")
+        late.ring.setRate(44_100)
+    }
+
     /// (e) An attach that failed after its listeners existed (`.undone`) gives its ring to no
     /// other attach: a late listener call of that attach must not set the rate of the next
     /// appearance. Control: an attach that failed before (`.status`) gives its ring to the next.

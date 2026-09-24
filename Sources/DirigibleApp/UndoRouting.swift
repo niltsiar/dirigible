@@ -41,3 +41,19 @@ final class UndoRoutingWindow: NSWindow {
         }
     }
 }
+
+/// True when a plain transport key acts: the key window is a session window, and its first
+/// responder is not text (decision 0016, plan gate 1 item 4).
+@MainActor func takesTransportKeys(_ keyWindow: NSWindow?) -> Bool {
+    keyWindow is UndoRoutingWindow && undoTarget(firstResponder: keyWindow?.firstResponder) == .session
+}
+
+/// A plain-key menu item takes its key also when it is disabled (probe K1). So each plain-key
+/// action first calls this. When the key window does not take transport keys (a panel, an
+/// alert, a focused text field), it gives the key-down to the first responder of that window,
+/// which inserts it (probe K3), and returns true. With no key window, it returns false.
+@MainActor func forwardTypingKey(_ event: NSEvent, in keyWindow: NSWindow?) -> Bool {
+    guard event.type == .keyDown, let keyWindow, !takesTransportKeys(keyWindow) else { return false }
+    (keyWindow.firstResponder ?? keyWindow).keyDown(with: event)
+    return true
+}

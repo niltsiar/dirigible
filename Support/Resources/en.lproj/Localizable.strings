@@ -80,3 +80,25 @@
 "take.recovered" = "Take %lld was recovered.";
 "take.unplaced" = "Audio that is on no track: %@";
 "banner.save.error" = "The last change is not saved. %@";
+
+/* Transport (decision 0016) */
+"menu.transport" = "Transport";
+"menu.transport.play" = "Play or Stop";
+"menu.transport.return" = "Stop and Return";
+"menu.transport.reverse" = "Play Backward";
+"menu.transport.pause" = "Pause";
+"menu.transport.forward" = "Play Forward";
+"menu.transport.slow.reverse" = "Play Backward Slowly";
+"menu.transport.slow.forward" = "Play Forward Slowly";
+"menu.transport.start" = "Go to Start";
+"menu.transport.end" = "Go to End";
+"menu.transport.previous" = "Previous Clip Edge";
+"menu.transport.next" = "Next Clip Edge";
+"transport.record" = "Record";
+"transport.stop" = "Stop";
+"transport.play" = "Play";
+"transport.remaining" = "Record time left: %@";
+"transport.record.over" = "The playhead is on a clip of an armed track. Record replaces that audio.";
+"transport.stop.output.changed" = "Playback stopped: the output device changed.";
+"transport.stop.output.unavailable" = "Playback cannot start: the output device is not available (error %lld).";
+"media.missing" = "Some audio files are missing or damaged. Their clips play as silence: %@";

@@ -38,6 +38,33 @@ struct DirigibleApp: App {
                         isOn: Binding(get: { app.key?.monitoring == true }, set: { app.key?.monitoring = $0 })
                     ).disabled(app.key?.canMonitor != true)
                 }
+                // Plain keys: never disabled, because a disabled item still takes its key (probe
+                // K1). Each action gives a typing key to text or to a panel first.
+                CommandMenu(L10n.menuTransport.key) {
+                    Button(L10n.menuTransportPlay.key) { app.transport(.playStop) }
+                        .keyboardShortcut(.space, modifiers: [])
+                    Button(L10n.menuTransportReturn.key) { app.transport(.stopAndReturn) }
+                        .keyboardShortcut(.space, modifiers: .shift)
+                    Divider()
+                    Button(L10n.menuTransportReverse.key) { app.transport(.reverse) }.keyboardShortcut(
+                        "j", modifiers: [])
+                    Button(L10n.menuTransportPause.key) { app.transport(.pause) }.keyboardShortcut("k", modifiers: [])
+                    Button(L10n.menuTransportForward.key) { app.transport(.forward) }.keyboardShortcut(
+                        "l", modifiers: [])
+                    Button(L10n.menuTransportSlowReverse.key) { app.transport(.slowReverse) }
+                        .keyboardShortcut("j", modifiers: .shift)
+                    Button(L10n.menuTransportSlowForward.key) { app.transport(.slowForward) }
+                        .keyboardShortcut("l", modifiers: .shift)
+                    Divider()
+                    Button(L10n.menuTransportStart.key) { app.transport(.seek(.start)) }
+                        .keyboardShortcut(.home, modifiers: [])
+                    Button(L10n.menuTransportEnd.key) { app.transport(.seek(.end)) }.keyboardShortcut(
+                        .end, modifiers: [])
+                    Button(L10n.menuTransportPrevious.key) { app.transport(.seek(.previousClip)) }
+                        .keyboardShortcut(.leftArrow, modifiers: .shift)
+                    Button(L10n.menuTransportNext.key) { app.transport(.seek(.nextClip)) }
+                        .keyboardShortcut(.rightArrow, modifiers: .shift)
+                }
             }
     }
 }

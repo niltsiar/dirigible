@@ -47,14 +47,22 @@ extension Studio {
 
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
     /// the take plus 1 GB. The reads run off the main actor.
+    /// It also sets `recordTimeLeft` for the transport bar.
     func watchDisk() -> Task<Void, Never> {
         let (lock, environment, writers) = (lock, environment, Array(writers.values))
+        let channels = armed.compactMap { session.track($0.id)?.layout.channelCount }.reduce(0, +)
+        let rate = session.sampleRate
         return Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: environment.diskCheckInterval)
                 var wav: Int64 = 0
                 for writer in writers { wav += await writer.wavBytes() }
-                guard await freeBytes(of: lock, environment) < wav + diskMargin, !Task.isCancelled else { continue }
+                let free = await freeBytes(of: lock, environment)
+                // The stop cancels on the main actor, so a tick after it sets nothing.
+                guard !Task.isCancelled else { return }
+                self?.recordTimeLeft = DirigibleAudio.remainingRecordTime(
+                    free: free, wav: wav, channels: channels, rate: rate)
+                guard free < wav + diskMargin else { continue }
                 try? await self?.stop(.diskLow)
                 return
             }
@@ -84,13 +92,22 @@ extension Studio {
             guard let track = session.track(id) else { return nil }
             channels += track.layout.channelCount
         }
-        let perSecond = Int64(channels * session.sampleRate * 7)
-        guard perSecond > 0 else { return nil }
+        guard channels > 0 else { return nil }
         let free = await freeBytes(of: lock, environment)
         var pending: Int64 = 0
         if let take = pendingTake?.take { pending = await pendingWAVBytes(take: take, of: lock) }
-        return .seconds(Double(max(0, free - diskMargin - pending)) / Double(perSecond))
+        return DirigibleAudio.remainingRecordTime(
+            free: free, wav: pending, channels: channels, rate: session.sampleRate)
     }
+}
+
+/// The record time that `free` bytes give `channels` channels at `rate`: 7 bytes for each sample
+/// and channel (a CAF and its WAV) after 1 GB and the WAV bytes `wav` (decision 0004). Never
+/// below 0.
+public func remainingRecordTime(free: Int64, wav: Int64, channels: Int, rate: Int) -> Duration {
+    let perSecond = Int64(channels * rate * 7)
+    guard perSecond > 0 else { return .zero }
+    return .seconds(Double(max(0, free - diskMargin - wav)) / Double(perSecond))
 }
 
 /// `Session.create` off the main actor.

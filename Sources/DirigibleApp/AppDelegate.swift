@@ -19,6 +19,9 @@ import UniformTypeIdentifiers
     /// The open events whose windows are not in the registry yet. The launch shows the Open
     /// panel only when none waits.
     @ObservationIgnored private var openEvents = 0
+    /// The J and L hold of the key monitor (decision 0016).
+    @ObservationIgnored private var hold = ShuttleHold()
+    @ObservationIgnored private var keyMonitor: Any?
 
     /// The app: the list of active recordings in Application Support.
     override convenience init() {
@@ -76,6 +79,33 @@ import UniformTypeIdentifiers
     func forget(_ closed: SessionWindow) {
         windows = windows.filter { $0.value !== closed }
         if key === closed { key = nil }
+    }
+
+    // MARK: Transport
+
+    /// The action of each plain-key Transport item: a key that belongs to text or to a panel
+    /// goes there (probes K1, K3); else the key session window performs the command.
+    func transport(_ command: TransportCommand) {
+        transport(command, event: NSApp.currentEvent, in: NSApp.keyWindow)
+    }
+
+    func transport(_ command: TransportCommand, event: NSEvent?, in keyWindow: NSWindow?) {
+        if let event, forwardTypingKey(event, in: keyWindow) { return }
+        Task { await key?.studio?.perform(command) }
+    }
+
+    /// Drops the auto-repeat of J and L, and pauses at the key-up of a hold (probe H1). The
+    /// release calls the pause directly, with no key forward (plan gate 2 item 6).
+    private func watchKeys() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+            guard let self else { return event }
+            switch hold.handle(event, forTransport: takesTransportKeys(NSApp.keyWindow)) {
+            case .drop: return nil
+            case .release: Task { await self.key?.studio?.perform(.pause) }
+            case .pass: break
+            }
+            return event
+        }
     }
 
     // MARK: Panels
@@ -136,6 +166,7 @@ import UniformTypeIdentifiers
     /// Open events come before this call (probe P7). The packages of the list open next; with no
     /// window, the Open panel shows.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        watchKeys()
         let listed = listedAtLaunch
         Task {
             for url in await listed.value.sorted(by: { $0.path < $1.path }) { await open(url) }

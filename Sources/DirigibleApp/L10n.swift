@@ -17,6 +17,18 @@ enum L10n: String, CaseIterable {
     case menuRecordStop = "menu.record.stop"
     case menuRecordRetry = "menu.record.retry"
     case menuRecordMonitor = "menu.record.monitor"
+    case menuTransport = "menu.transport"
+    case menuTransportPlay = "menu.transport.play"
+    case menuTransportReturn = "menu.transport.return"
+    case menuTransportReverse = "menu.transport.reverse"
+    case menuTransportPause = "menu.transport.pause"
+    case menuTransportForward = "menu.transport.forward"
+    case menuTransportSlowReverse = "menu.transport.slow.reverse"
+    case menuTransportSlowForward = "menu.transport.slow.forward"
+    case menuTransportStart = "menu.transport.start"
+    case menuTransportEnd = "menu.transport.end"
+    case menuTransportPrevious = "menu.transport.previous"
+    case menuTransportNext = "menu.transport.next"
 
     case panelNewName = "panel.new.name"
     case windowOpening = "window.opening"
@@ -61,6 +73,14 @@ enum L10n: String, CaseIterable {
     case takeRecovered = "take.recovered"
     case takeUnplaced = "take.unplaced"
     case bannerSaveError = "banner.save.error"
+    case transportRecord = "transport.record"
+    case transportStop = "transport.stop"
+    case transportPlay = "transport.play"
+    case transportRemaining = "transport.remaining"
+    case transportRecordOver = "transport.record.over"
+    case transportStopOutputChanged = "transport.stop.output.changed"
+    case transportStopOutputUnavailable = "transport.stop.output.unavailable"
+    case mediaMissing = "media.missing"
 
     case errorBusy = "error.studio.busy"
     case errorLocked = "error.studio.locked"
@@ -114,6 +134,14 @@ enum L10n: String, CaseIterable {
         case .file(let error): return message(for: error)
         case .finalize(.readFailed(let file, let errno)): return errorFinalizeRead.format(file, Int(errno))
         case .finalize(.writeFailed(let file, let status)): return errorFinalizeWrite.format(file, Int(status))
+        }
+    }
+
+    /// The text of a stop of playback that the user did not ask for.
+    static func message(for stop: PlaybackStop) -> String {
+        switch stop {
+        case .outputChanged: transportStopOutputChanged.text
+        case .outputUnavailable(let code): transportStopOutputUnavailable.format(code)
         }
     }
 

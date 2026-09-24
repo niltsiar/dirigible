@@ -56,7 +56,11 @@ struct DiskRuleTests {
         } else {
             try await Task.sleep(for: .milliseconds(300))
             #expect(studio.transport == .recording(take: 1))
+            // The transport bar value: 1 mono track, 72,000 WAV bytes (timeline-playback criterion 20).
+            let left = Duration.seconds(Double(2_000_000_000 - Self.margin - 72_000) / 336_000)
+            await until(limit: .seconds(10), "no record time left") { studio.recordTimeLeft == left }
             try await studio.stopRecording()
+            #expect(studio.recordTimeLeft == nil)
         }
 
         #expect(studio.lastTake == TakeResult(take: 1, end: low ? .diskLow : .requested, gaps: [:]))

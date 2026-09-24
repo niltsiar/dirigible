@@ -37,6 +37,31 @@ struct StartRecordingTests {
         return false
     }
 
+    /// A new take clears the result of the last take, so `lastTake` never describes an older
+    /// take while a new one records. Control: a start that throws keeps it.
+    @Test(arguments: [false, true])
+    func aNewTakeClearsTheLastResult(startThrows: Bool) async throws {
+        let hal = TestHAL([mic])
+        let studio = try await studio(hal)
+        try await studio.startRecording(armed: ["t1"], playhead: 0)
+        try await studio.stopRecording()
+        let first = try #require(studio.lastTake)
+
+        if startThrows {
+            hal.set("mic", id: nil)
+            await #expect(throws: StudioError.deviceMissing("t1")) {
+                try await studio.startRecording(armed: ["t1"], playhead: 0)
+            }
+            #expect(studio.lastTake == first)
+        } else {
+            try await studio.startRecording(armed: ["t1"], playhead: 0)
+            #expect(studio.lastTake == nil)
+            try await studio.stopRecording()
+            // Take 1 has no segment, so the second take is number 1 too.
+            #expect(studio.lastTake == first)
+        }
+    }
+
     // MARK: Criterion 24
 
     /// The lookup waits on the gate while the main actor runs the test. Control: after the

@@ -39,7 +39,7 @@ import Foundation
     }
 
     /// The result of the last take, set when its writers finish, before its finalize. So a
-    /// finalize error keeps it.
+    /// finalize error keeps it. Nil from the start of the next take.
     public private(set) var lastTake: TakeResult?
     /// The pending take that the recovery of `open` finalized. Nil when the open finalized
     /// nothing, and after a new take starts. `take finalize` reads its armed tracks.
@@ -121,7 +121,6 @@ import Foundation
         let started = try await prepareTake(
             of: session, in: url, armed: armed, playhead: playhead, environment: environment)
         begin(started)
-        recoveredTake = nil
         sleepAssertion = SleepAssertion()
         diskWatcher = watchDisk()
     }
@@ -146,7 +145,8 @@ import Foundation
         // Another stop ended the take; wait for its finalize.
         while transport == .finalizing(take: take) { try? await Task.sleep(for: .milliseconds(10)) }
         if let takeError { throw takeError }
-        guard let lastTake else { preconditionFailure("A take that stopped has a result") }
+        // Another caller can start a new take before this call wakes; that start clears it.
+        guard let lastTake, lastTake.take == take else { throw .busy }
         return lastTake
     }
 
@@ -234,9 +234,12 @@ import Foundation
     }
 
     /// Step 6 of the start order, on the main actor with no throw: the history entry, the
-    /// writers, and the transport; then each writer attaches on its queue.
+    /// results of earlier takes cleared, the writers, and the transport; then each writer
+    /// attaches on its queue.
     private func begin(_ started: StartedTake) {
         history.edit { $0 = started.session }
+        lastTake = nil
+        recoveredTake = nil
         let report = Self.reporter(to: self)
         let capture = url.appending(path: captureFolderName)
         var devices: [InputDevice] = []

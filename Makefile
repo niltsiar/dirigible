@@ -14,8 +14,15 @@ app:
 test:
 	swift test --skip AppBundleTests
 
-test-slow:
-	DIRIGIBLE_SLOW_TESTS=1 swift test --skip AppBundleTests
+# The name of each slow test: the function after its DIRIGIBLE_SLOW_TESTS gate.
+SLOW_TESTS = $(shell grep -rh -A1 DIRIGIBLE_SLOW_TESTS Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)
+
+# The slow tests run in their own process after the other tests. Their disk and CPU load
+# makes the timed tests fail when both run in one process.
+test-slow: test
+	@test "$$(echo '$(SLOW_TESTS)' | tr '|' '\n' | grep -c .)" -eq "$$(grep -r DIRIGIBLE_SLOW_TESTS Tests | wc -l | tr -d ' ')" \
+		|| { echo "test-slow: put the func of each slow test on the line after its gate"; exit 1; }
+	DIRIGIBLE_SLOW_TESTS=1 swift test --skip AppBundleTests --filter '$(SLOW_TESTS)'
 
 test-app: app
 	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" swift test --filter AppBundleTests

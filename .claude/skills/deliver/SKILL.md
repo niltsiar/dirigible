@@ -16,6 +16,7 @@ Open a todo list with the phases below before you start. Do not skip a phase. A 
 - When a check needs hardware you cannot drive (a second audio interface, a permission prompt), write the manual check in `run.md` under "Manual checks" and continue with the closest automated check.
 - Keep the main context small. Send bulk reading to subagents. Keep their conclusions, not their raw output.
 - When a subagent does a phase, its prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file of this flow. Use an agent type that has the Write tool. The default rules of a subagent forbid report files, so without this line it refuses the Write tool or goes around it.
+- A subagent runs a repeat loop (a flake check, a set of mutations) in the foreground, with a Bash timeout of 10 min or less per call. Split a longer loop into more calls. A background loop makes the subagent wait, and the caller gets many interim notifications.
 - Send every research request, from a phase or from the user in the middle of a run, through the **research** skill. Its output goes to `docs/research/`, where `make check-docs` checks it.
 
 ## Phase 0: Open the run

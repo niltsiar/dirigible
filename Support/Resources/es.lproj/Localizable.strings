@@ -80,3 +80,25 @@
 "take.recovered" = "Se recuperó la toma %lld.";
 "take.unplaced" = "Audio que no está en ninguna pista: %@";
 "banner.save.error" = "El último cambio no está guardado. %@";
+
+/* Transporte (decisión 0016) */
+"menu.transport" = "Transporte";
+"menu.transport.play" = "Reproducir o detener";
+"menu.transport.return" = "Detener y volver";
+"menu.transport.reverse" = "Reproducir hacia atrás";
+"menu.transport.pause" = "Pausa";
+"menu.transport.forward" = "Reproducir hacia delante";
+"menu.transport.slow.reverse" = "Reproducir hacia atrás despacio";
+"menu.transport.slow.forward" = "Reproducir hacia delante despacio";
+"menu.transport.start" = "Ir al inicio";
+"menu.transport.end" = "Ir al final";
+"menu.transport.previous" = "Borde de clip anterior";
+"menu.transport.next" = "Borde de clip siguiente";
+"transport.record" = "Grabar";
+"transport.stop" = "Detener";
+"transport.play" = "Reproducir";
+"transport.remaining" = "Tiempo de grabación restante: %@";
+"transport.record.over" = "El cursor está sobre un clip de una pista armada. Grabar sustituye ese audio.";
+"transport.stop.output.changed" = "La reproducción se detuvo: cambió el dispositivo de salida.";
+"transport.stop.output.unavailable" = "No se puede reproducir: el dispositivo de salida no está disponible (error %lld).";
+"media.missing" = "Faltan archivos de audio o están dañados. Sus clips suenan como silencio: %@";

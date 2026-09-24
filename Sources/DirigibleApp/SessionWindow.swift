@@ -214,11 +214,10 @@ enum WindowAlert: Hashable {
         commitNames()
         guard canRecord, let studio = idleStudio else { return }
         let armed = studio.session.tracks.map(\.id).filter(armed.contains)
-        // ponytail: the take goes after the last clip; the timeline run adds a playhead.
-        let playhead = studio.session.tracks.flatMap(\.clips).map(\.end).max() ?? .zero
         do throws(StudioError) {
+            // The take starts at the Studio playhead; a play stops first (decision 0016).
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
-                try await studio.startRecording(armed: armed, playhead: playhead)
+                try await studio.startRecording(armed: armed)
             }
         } catch .microphoneAccess(let access) {
             alert = .microphone(access)
@@ -356,10 +355,12 @@ enum WindowAlert: Hashable {
         return false
     }
 
-    /// A focus reads the device list again, so a channel change of a present device shows.
+    /// A focus reads the device list again, so a channel change of a present device shows, and
+    /// checks the media, so a file that the user put back shows (decision 0016).
     func windowDidBecomeKey(_ notification: Notification) {
         app?.key = self
         deviceList.changed()
+        Task { await idleStudio?.checkMedia() }
     }
 
     func windowDidResignKey(_ notification: Notification) {

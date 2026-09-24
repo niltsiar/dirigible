@@ -50,6 +50,7 @@ struct SessionView: View {
                     Banner(text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
                 }
                 TakeBanner(model: model, studio: studio)
+                TransportBar(model: model, studio: studio)
                 Toggle(L10n.menuRecordMonitor.key, isOn: monitoring).toggleStyle(.checkbox).disabled(!model.canMonitor)
                     .padding(8)
                 if studio.session.tracks.isEmpty {

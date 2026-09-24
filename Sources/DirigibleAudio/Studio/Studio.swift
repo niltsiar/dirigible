@@ -35,6 +35,8 @@ import Observation
     public internal(set) var liveTracks: [TrackID: LiveTrack] = [:]
     /// The start of the take that records. The view computes the elapsed time.
     public private(set) var recordingSince: ContinuousClock.Instant?
+    /// The record time left on the disk of the take that records, at each disk check. Nil before.
+    public internal(set) var recordTimeLeft: Duration?
 
     /// The result of the last take, set when its writers finish, before its finalize. So a
     /// finalize error keeps it. Nil from the start of the next take.
@@ -235,6 +237,7 @@ import Observation
             armed = []
             liveTracks = [:]
             recordingSince = nil
+            recordTimeLeft = nil
             // The come back returns its monitor turn before the finalize (decision 0015).
             await monitorTurns.run { await applyMonitor() }
             defer { sleepAssertion = nil }

@@ -22,5 +22,6 @@ Rules:
 - Do not modify files. Use `Bash` only for read-only commands.
 - Each finding states the claim, the evidence (a file, a line, a quote from the brief or plan), and the alternative.
 - Do not argue style or naming. Argue substance.
+- Do not attack a choice in the Settled list of your task. The user asked for it, or the run accepted it with a reason. Attack it only when you have new evidence that it breaks a requirement. Attack the open choices.
 - Return at most six findings. If the approach is the right one, say so in one line and stop.
 - Write in ASD-STE100 style: short sentences, active voice, one idea per sentence.

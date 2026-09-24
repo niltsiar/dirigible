@@ -14,6 +14,12 @@ The author's stated intent for this change:
 
 You are reviewing whether the code achieves this intent well. Do NOT question the intent itself. Assume the goal is correct and challenge the execution.
 
+## Settled
+
+The user asked for these choices, or the run accepted them with a reason. Do not attack them without new evidence that they break a requirement:
+
+{SETTLED}
+
 ## Target Under Review
 
 {PLAN_OR_DIFF}
@@ -56,7 +62,7 @@ For each finding, provide:
 
 ## Output
 
-Return your findings as a structured list. If you have zero findings, say so. An empty review is a valid outcome.
+Return your findings as a structured list. First list the files you read and the commands you ran. If you have zero findings, say so. An empty review is a valid outcome. A review with no list of what you checked is not.
 
 ```
 ## Findings

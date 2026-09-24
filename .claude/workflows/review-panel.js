@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its findings' },
@@ -14,6 +14,7 @@ const scope = (args && args.scope) || (target === 'plan' ? '.scratchpads/runs (n
 const round = Number(args && args.round) || 1
 const maxRounds = Number(args && args.maxRounds) || (target === 'plan' ? 2 : 3)
 const prior = (args && Array.isArray(args.prior)) ? args.prior : []
+const settled = (args && Array.isArray(args.settled)) ? args.settled : []
 // Round 1 reviews openly. A middle round must not re-raise fixed items. The last round checks
 // convergence only: an open last round keeps widening the review and never closes the gate.
 const mode = round === 1 && !prior.length ? 'open' : round >= maxRounds ? 'converge' : 'followup'
@@ -77,6 +78,9 @@ const targetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read it and every file it references.`
   : `The target is the diff of the current branch against ${scope}: run \`git diff ${scope}...HEAD\` and \`git diff\` for uncommitted work. Read the surrounding code, not only the hunks.`
 
+// Without this list, the devil's advocate attacked user requests and accepted tradeoffs,
+// and the skeptics refuted every such finding. That gave no signal.
+const settledText = settled.length ? `Settled: the user asked for these, or the run already accepted them. Do not attack them without new evidence that they break a requirement:\n${settled.map(s => `- ${s}`).join('\n')}` : ''
 const priorText = prior.length ? `Earlier rounds of this gate wrote these verdicts. Read them first:\n${prior.map(p => `- ${p}`).join('\n')}` : ''
 const MODE_TEXT = {
   open: '',
@@ -88,7 +92,7 @@ const MODE_TEXT = {
 // existed, or another harness runs this script, fall back to a general agent that
 // reads the same agent file as its role.
 async function review(lens) {
-  const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings, and in \`checked\` the files you read and the commands you ran. An empty findings list is a valid result. An empty \`checked\` list is not.`
+  const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${settledText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings, and in \`checked\` the files you read and the commands you ran. An empty findings list is a valid result. An empty \`checked\` list is not.`
   const opts = { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS }
   try {
     return await agent(`Review with your ${lens.key} lens.\n\n${task}`, { ...opts, agentType: lens.agentType })
@@ -116,7 +120,7 @@ const results = await pipeline(
     if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
     return agent(
-      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. Do not modify files.${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
+      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. A finding that attacks a settled choice without new evidence is not upheld. Do not modify files.${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
       { label: `verify:${lens.key}`, phase: 'Verify', schema: VERDICTS, effort: 'medium' },
     ).then(v => {
       const upheld = new Map(((v && v.verdicts) || []).map(x => [x.index, x]))

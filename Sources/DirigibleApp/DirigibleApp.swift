@@ -15,7 +15,7 @@ struct DirigibleApp: App {
                     Button(L10n.menuFileOpen.key) { app.showOpenPanel() }.keyboardShortcut("o")
                     Menu(L10n.menuFileOpenRecent.key) {
                         ForEach(app.recent, id: \.self) { url in
-                            Button(url.deletingPathExtension().lastPathComponent) { app.open(url) }
+                            Button(url.deletingPathExtension().lastPathComponent) { Task { await app.open(url) } }
                         }
                     }
                 }

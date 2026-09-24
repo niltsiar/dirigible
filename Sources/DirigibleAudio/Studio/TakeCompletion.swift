@@ -30,7 +30,9 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
 /// Opens a package off the main actor: the lock, `Session.removeTemporaryFiles`, the read, the
 /// marker rules of decision 0004, `completeTake`, and the segments with audio. `@concurrent` keeps
 /// it off the caller's actor also with `NonisolatedNonsendingByDefault`.
-@concurrent nonisolated func openPackage(_ package: URL) async throws(StudioError) -> OpenedPackage {
+@concurrent nonisolated func openPackage(_ package: URL, recordings: ActiveRecordings?) async throws(StudioError)
+    -> OpenedPackage
+{
     dispatchPrecondition(condition: .notOnQueue(.main))
     let lock: PackageLock
     let session: Session
@@ -45,8 +47,10 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     }
     let marker = marker(in: package)
     let identity = packageIdentity(package)
+    // The list follows `session.xml`: a stale entry goes, and a pending take keeps its entry.
     func opened(_ session: Session, _ error: StudioError? = nil) -> OpenedPackage {
-        OpenedPackage(
+        recordings?.set(identity, active: session.recording != nil)
+        return OpenedPackage(
             lock: lock, package: identity, session: session, takeError: error,
             segmentsWithAudio: segmentsWithAudio(in: package))
     }
@@ -62,16 +66,19 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         return opened(session, .file(.writeFailed(step: marker.lastPathComponent, errno: errno)))
     }
     close(descriptor)
-    let outcome = await completeTake(of: session, lock: lock)
+    let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: identity)
     return OpenedPackage(
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
         segmentsWithAudio: outcome.segmentsWithAudio, recoveredTake: outcome.error == nil ? session.recording : nil)
 }
 
 /// The one step that open, stop, and retry share, in the package that `lock` holds now (decision
-/// 0014): finalize, delete the marker, save, and read the segments with audio. It resolves the
-/// package path once, before the finalize.
-@concurrent nonisolated func completeTake(of session: Session, lock: PackageLock) async -> TakeOutcome {
+/// 0014): finalize, delete the marker, save, update the list entry, and read the segments with
+/// audio. It resolves the package path once, before the finalize. The entry of `previous`, the
+/// path before a move, goes.
+@concurrent nonisolated func completeTake(
+    of session: Session, lock: PackageLock, recordings: ActiveRecordings? = nil, previous: URL? = nil
+) async -> TakeOutcome {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
     do {
@@ -80,9 +87,10 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         return TakeOutcome(session: session, error: .file(error), segmentsWithAudio: [], package: nil)
     }
     func outcome(_ session: Session, _ error: StudioError?) -> TakeOutcome {
-        TakeOutcome(
-            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package),
-            package: packageIdentity(package))
+        let identity = packageIdentity(package)
+        recordings?.set(identity, active: session.recording != nil, previous: previous)
+        return TakeOutcome(
+            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity)
     }
     let finalized: Session
     do {

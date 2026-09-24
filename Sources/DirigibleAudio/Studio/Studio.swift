@@ -67,7 +67,10 @@ import Observation
     /// package that it holds.
     @ObservationIgnored let lock: PackageLock
 
-    private init(opened: OpenedPackage) {
+    @ObservationIgnored let recordings: ActiveRecordings?
+
+    private init(opened: OpenedPackage, recordings: ActiveRecordings?) {
+        self.recordings = recordings
         self.url = opened.package
         self.lock = opened.lock
         self.history = History(opened.session)
@@ -77,9 +80,10 @@ import Observation
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
-    /// Throws `.locked` when another studio or the CLI has the package.
-    public static func open(_ package: URL) async throws(StudioError) -> Studio {
-        Studio(opened: try await openPackage(package))
+    /// Throws `.locked` when another studio or the CLI has the package. `recordings` is the list
+    /// of decision 0004 that the studio keeps; the default is none.
+    public static func open(_ package: URL, recordings: ActiveRecordings? = nil) async throws(StudioError) -> Studio {
+        Studio(opened: try await openPackage(package, recordings: recordings), recordings: recordings)
     }
 
     /// Runs `body` on a copy of the session and records one undo entry if it changed. A change
@@ -153,7 +157,8 @@ import Observation
             let started: StartedTake
             do throws(StudioError) {
                 started = try await prepareTake(
-                    of: session, lock: lock, armed: armed, playhead: playhead, environment: environment)
+                    of: session, lock: lock, armed: armed, playhead: playhead, environment: environment,
+                    recordings: recordings)
             } catch {
                 return .failure(error)
             }
@@ -310,7 +315,7 @@ import Observation
     /// Finalize, the marker, and the save off the main actor, then the outcome here.
     private func complete(_ take: Int) async throws(StudioError) {
         transport = .finalizing(take: take)
-        let outcome = await completeTake(of: session, lock: lock)
+        let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: url)
         if let package = outcome.package { url = package }
         transport = .idle
         takeError = outcome.error
@@ -336,7 +341,7 @@ import Observation
         tickets += 1
         Task {
             await waitForTurn(ticket)
-            switch await writeSession(snapshot, lock: lock, save) {
+            switch await writeSession(snapshot, lock: lock, previous: url, recordings: recordings, save) {
             case .success(let package):
                 url = package
                 saveError = nil

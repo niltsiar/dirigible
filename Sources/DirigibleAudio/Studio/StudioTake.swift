@@ -65,18 +65,18 @@ extension Studio {
 
 /// The autosave step, off the main actor. Returns the package path that it wrote, in
 /// `packageIdentity` form, or the error of the write.
+/// A write into a package that moved from `previous` moves its list entry.
 @concurrent nonisolated func writeSession(
-    _ session: Session, lock: PackageLock,
+    _ session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
     _ save: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
 ) async -> Result<URL, StudioError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
+    let package: URL
     do throws(SessionFileError) {
-        return .success(packageIdentity(try save(session, lock)))
+        package = packageIdentity(try save(session, lock))
     } catch {
         return .failure(.file(error))
     }
+    if package != previous { recordings?.set(package, active: session.recording != nil, previous: previous) }
+    return .success(package)
 }
-
-/// The one spelling of a package path: `F_GETPATH` gives `/private/var` where the open had
-/// `/var`, and a symbolic link names the same package. It reads the file system.
-public func packageIdentity(_ url: URL) -> URL { url.standardizedFileURL.resolvingSymlinksInPath() }

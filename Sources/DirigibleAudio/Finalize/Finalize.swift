@@ -204,7 +204,8 @@ private struct SegmentFinalize {
 
     /// Reads `input` (open at `descriptor` too) in blocks, converts it from `source` to `rate`
     /// through one converter when the rates differ, and writes the WAV. Returns the frame count of
-    /// the WAV, or nil for a bad CAF, a converter error, or a WAV length that does not read back.
+    /// the WAV, or nil for a bad CAF, a converter that stops before the end of the stream, or a WAV
+    /// length that does not read back.
     func convert(
         _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double
     ) throws(FinalizeError) -> Int? {
@@ -220,6 +221,8 @@ private struct SegmentFinalize {
         let reader = BlockReader(
             input: input, descriptor: descriptor, buffer: read, fault: readFault?.stem == name.stem ? readFault : nil)
         var length = 0
+        // The same-rate path has no converter and ends at the end of the stream.
+        var status = AVAudioConverterOutputStatus.endOfStream
 
         if source == rate {
             while reader.next() {
@@ -234,7 +237,7 @@ private struct SegmentFinalize {
             converter.sampleRateConverterQuality = AVAudioQuality.max.rawValue
             converter.sampleRateConverterAlgorithm = AVSampleRateConverterAlgorithm_Normal
             reader.relabeled = fed
-            var status = AVAudioConverterOutputStatus.haveData
+            status = .haveData
             while status == .haveData {
                 var error: NSError?
                 status = converter.convert(to: written, error: &error) { _, inputStatus in
@@ -248,7 +251,9 @@ private struct SegmentFinalize {
             }
         }
         if let failure = reader.failure { throw .readFailed(file: caf, errno: failure) }
-        guard !reader.unreadable else { return nil }
+        // A converter that ends in .error or .inputRanDry gives a short clip; a placed clip holds
+        // the whole segment.
+        guard !reader.unreadable, status == .endOfStream else { return nil }
         try writer.close()
         let clip = open(url.path, O_RDONLY | O_CLOEXEC)
         guard clip >= 0 else { throw .readFailed(file: wav, errno: errno) }
@@ -274,9 +279,9 @@ private struct SegmentFinalize {
 }
 
 /// Reads a file in blocks into one buffer. A read error that `ioErrno` gives an errno sets
-/// `failure`; any other read error sets `unreadable`. `@unchecked Sendable`: the converter input block is
-/// `@Sendable`, but the converter calls it synchronously inside `convert`, so one thread at a time
-/// uses the reader.
+/// `failure`; any other read error, or a read of no frames before the end, sets `unreadable`.
+/// `@unchecked Sendable`: the converter input block is `@Sendable`, but the converter calls it
+/// synchronously inside `convert`, so one thread at a time uses the reader.
 private final class BlockReader: @unchecked Sendable {
     let input: AVAudioFile
     let descriptor: Int32
@@ -306,7 +311,9 @@ private final class BlockReader: @unchecked Sendable {
             if let code = ioErrno(of: error, file: descriptor) { failure = code } else { unreadable = true }
             return false
         }
-        return buffer.frameLength > 0
+        // A read of no frames before the end would give a short clip.
+        if buffer.frameLength == 0 { unreadable = true }
+        return !unreadable
     }
 
     /// The next block, copied into `relabeled`. Nil at the end of the file or after an error.

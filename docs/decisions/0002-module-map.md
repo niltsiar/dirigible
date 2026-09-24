@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-09-24. The app target is `DirigibleApp`, so its binary does not clash with the `dirigible` command (see 0011). The bundle executable is still `Dirigible`.
+- Amended: 2026-09-24. The command-line front end adds the targets `DirigibleCLI` and `DirigibleCLITests` (see 0011).
 
 ## Context
 
@@ -18,10 +19,11 @@ Two designs were compared: few targets, and one target for each capability (capt
 | `DirigibleAudio` | Device list, `Recorder` (IOProcs, rings, writers, CAF segments, finalize, recovery), `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | CoreAudio, AudioToolbox, AVFoundation, Accelerate, `Atomics`, `DirigibleCore` | 1 |
 | `CLame` | libmp3lame with the decoder off (0007) | none | 2 |
 | `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, both libraries | 1 |
+| `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the read-edit-save step, error text, the text and JSON views of a session. No logic that the app needs | Foundation, `ArgumentParser`, `DirigibleCore` | CLI run |
 
-Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCore` depends on no target.
+Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCLI` depends only on `DirigibleCore` of these targets. `DirigibleCore` depends on no target.
 
-Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, and `DirigibleTests` (bundle, localization, import rule).
+Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), and `DirigibleTests` (bundle, localization, import rule).
 
 Rules that come with the map:
 

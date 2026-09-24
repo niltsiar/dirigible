@@ -16,12 +16,14 @@ Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a dif
 
 Write one paragraph that states the intent. Derive it from the plan, the commit messages, and the task in the run ledger. If you are unsure about the intent, stop and resolve it first. Reviewers judge the execution against this paragraph.
 
+Then list the settled choices: the scope, the run order, and the choices that the user asked for, and the tradeoffs that `decisions.tsv` already accepted with a reason. One line each. Pass them as `settled`. Without this list, the devil's advocate attacks user requests, the skeptics refute every such finding, and the lens gives no signal.
+
 ## Step 3: Run the panel
 
 Run the saved workflow `review-panel` with the Workflow tool:
 
 ```
-Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent: "<paragraph>", scope: "<plan path, or base ref such as main>", round: <n>, maxRounds: <2 for plan, 3 for diff>, prior: ["<review-*-1.md>", ...] } })
+Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent: "<paragraph>", scope: "<plan path, or base ref such as main>", round: <n>, maxRounds: <2 for plan, 3 for diff>, prior: ["<review-*-1.md>", ...], settled: ["<one settled choice>", ...] } })
 ```
 
 Pass `round` and the verdict files of the earlier rounds in `prior`. The workflow picks the mode:
@@ -47,7 +49,7 @@ The Workflow tool caches saved workflows by name when the session starts. If `.c
 
 The workflow returns `missing`: the lenses that gave no result. A lens that returns no `checked` list (the files it read and the commands it ran) is also in `missing`, because an empty result looks the same as "no findings". A gate with a missing lens is incomplete. Run the missing lens again with the Agent tool before you judge.
 
-If the Workflow tool is not available (for example, another agent harness reads this file), spawn the same agents with the Agent tool in one message, one call per lens. Fill each prompt from `references/reviewer-prompt.md` with the intent, the target, `references/rubric.md`, and, at the code gate, `references/code-quality-review.md`.
+If the Workflow tool is not available (for example, another agent harness reads this file), spawn the same agents with the Agent tool in one message, one call per lens. Fill each prompt from `references/reviewer-prompt.md` with the intent, the settled list, the target, `references/rubric.md`, and, at the code gate, `references/code-quality-review.md`.
 
 ## Step 4: Synthesize
 

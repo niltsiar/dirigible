@@ -16,10 +16,12 @@ let package = Package(
         .executableTarget(name: "DirigibleApp", dependencies: ["DirigibleCore"]),
         .executableTarget(
             name: "DirigibleCLI",
-            dependencies: ["DirigibleCore", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+            dependencies: [
+                "DirigibleCore", "DirigibleAudio", .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]),
         .testTarget(name: "DirigibleCoreTests", dependencies: ["DirigibleCore"]),
         .testTarget(name: "DirigibleAudioTests", dependencies: ["DirigibleAudio", "DirigibleCore"]),
-        .testTarget(name: "DirigibleCLITests", dependencies: ["DirigibleCLI", "DirigibleCore"]),
+        .testTarget(name: "DirigibleCLITests", dependencies: ["DirigibleCLI", "DirigibleCore", "DirigibleAudio"]),
         .testTarget(name: "DirigibleTests"),
     ]
 )

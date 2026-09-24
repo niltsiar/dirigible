@@ -63,9 +63,12 @@ import UniformTypeIdentifiers
         return window
     }
 
-    /// A write found the package moved on its volume.
-    func rekey(_ old: URL, to new: URL) {
-        guard let window = windows.removeValue(forKey: old) else { return }
+    /// A write found the package of `window` moved on its volume. The entry of another window
+    /// stays: its key can be stale until its next write (decision 0014). Then `window` keeps
+    /// its old key, and both windows stay in the registry.
+    func rekey(_ window: SessionWindow, to new: URL) {
+        guard windows[new] == nil, let old = windows.first(where: { $0.value === window })?.key else { return }
+        windows[old] = nil
         windows[new] = window
     }
 

@@ -109,7 +109,7 @@ extension Studio {
             peakLoad.states[id] = .unavailable
             fault = kept
         }
-        if let fault { play.missingMedia[id] = fault }
+        if let fault { missingMedia[id] = fault }
         return true
     }
 }

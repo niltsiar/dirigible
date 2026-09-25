@@ -51,6 +51,9 @@ import Observation
     }
     /// The playback state (decision 0016), in `Studio+Transport.swift`.
     var play: PlayState
+    /// The pool files that give no frames or fewer frames. Their clips play as silence (decision
+    /// 0003). Not in `play`, so the playhead poll does not update a view that reads it (0017).
+    public internal(set) var missingMedia: [FileID: MediaFault]
     /// Held from the start of a take until its finalize ends.
     @ObservationIgnored private(set) var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
@@ -98,7 +101,8 @@ import Observation
         self.takeError = opened.takeError
         self.segmentsWithAudio = opened.segmentsWithAudio
         self.recoveredTake = opened.recoveredTake
-        self.play = PlayState(at: opened.session.end, missingMedia: opened.missingMedia)
+        self.play = PlayState(at: opened.session.end)
+        self.missingMedia = opened.missingMedia
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
@@ -348,7 +352,7 @@ import Observation
         transport = .idle
         takeError = outcome.error
         segmentsWithAudio = outcome.segmentsWithAudio
-        if let missingMedia = outcome.missingMedia { play.missingMedia = missingMedia }
+        if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let error = outcome.error { throw error }
         takeEnded(outcome.session)
         let before = session.files

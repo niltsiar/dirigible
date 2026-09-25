@@ -159,6 +159,7 @@ enum PeakResult: Sendable {
         if stamp == job.known { return .keep(opened.fault) }
         let path = job.file.path
         if let peaks = PeakFile.read(path: path, stamp: stamp, channels: channels, rate: job.rate, in: job.cache) {
+            PeakFile.touch(path: path, stamp: stamp, in: job.cache)
             return .ready(peaks, opened.fault)
         }
         do {

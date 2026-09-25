@@ -144,6 +144,26 @@ struct StudioPeaksTests {
         #expect(blocks.calls == 0)
     }
 
+    /// Code gate 1 item 2: a cache hit marks the cache file as used, so the launch prune of
+    /// unused files keeps it.
+    @Test @MainActor func aCacheHitMarksTheCacheFileUsed() async throws {
+        let fixture = try await PeakPackage.make()
+        var first: Studio? = try await fixture.studio()
+        _ = try #require(await waitForPeaks(first!))
+        await first?.settle()
+        first = nil
+        let file = fixture.cache.appending(path: try #require(fixture.cacheFiles().first))
+        try PeakFileTests.age(file, days: 100)
+
+        let second = try await fixture.studio()
+        _ = try #require(await waitForPeaks(second))
+
+        let modified = try #require(
+            try file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+        #expect(modified > .now.addingTimeInterval(-3600), "\(modified)")
+        await second.settle()
+    }
+
     @Test @MainActor func aRewrittenWavComputesAgain() async throws {
         let fixture = try await PeakPackage.make()
         var first: Studio? = try await fixture.studio()

@@ -116,6 +116,32 @@ public enum PeakFile {
         throw posix(failure)
     }
 
+    /// The time after which the launch removes a cache file that no pass used.
+    public static let unusedLimit: TimeInterval = 90 * 86_400
+
+    /// Marks the cache file of `path` with `stamp` as used: its modification time is now. The
+    /// stamp of the WAV is in the name and the header, so the time of the cache file has no
+    /// other use. An error leaves the time.
+    static func touch(path: String, stamp: FileStamp, in folder: URL) {
+        utimes(folder.appending(path: name(path: path, stamp: stamp)).path, nil)
+    }
+
+    /// Removes each file in `folder` that was not used since `cutoff`: a cache file, or the
+    /// temporary file of a write that stopped. An error leaves the file. There is no prune at a
+    /// write: pool paths repeat in each package, so a cache file of the same pool path with
+    /// another stamp can be the peaks of another package.
+    public static func prune(_ folder: URL, before cutoff: Date) {
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .contentModificationDateKey]
+        let files = try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: Array(keys))
+        for file in files ?? [] {
+            guard let values = try? file.resourceValues(forKeys: keys), values.isRegularFile == true,
+                let modified = values.contentModificationDate, modified < cutoff
+            else { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
     private static func append<T: FixedWidthInteger>(_ value: T, to data: inout Data) {
         withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) }
     }

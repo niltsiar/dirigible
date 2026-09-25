@@ -160,4 +160,55 @@ struct PeakFileTests {
 
         #expect(try FileManager.default.contentsOfDirectory(atPath: cache.path) == [blocker.lastPathComponent])
     }
+
+    /// Sets the modification time of `url` to `days` days ago.
+    static func age(_ url: URL, days: Double) throws {
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(-days * 86_400)], ofItemAtPath: url.path)
+    }
+
+    /// Code gate 1 item 2: a prune removes the cache files and the temporary files that were not
+    /// used since the cutoff, and keeps the others.
+    @Test func aPruneRemovesOnlyTheFilesUnusedSinceTheCutoff() async throws {
+        let folder = try TemporaryFolder()
+        let cache = folder.url.appending(path: "Peaks")
+        let peaks = try await Self.peaks()
+        try PeakFile.write(peaks, path: "old.wav", in: cache)
+        try PeakFile.write(peaks, path: "used.wav", in: cache)
+        let old = cache.appending(path: PeakFile.name(path: "old.wav", stamp: Self.stamp))
+        let temporary = cache.appending(path: ".x.peaks.1.tmp")
+        try Data([1]).write(to: temporary)
+        try Self.age(old, days: 91)
+        try Self.age(temporary, days: 91)
+        try Self.age(cache.appending(path: PeakFile.name(path: "used.wav", stamp: Self.stamp)), days: 89)
+
+        PeakFile.prune(cache, before: .now.addingTimeInterval(-90 * 86_400))
+
+        #expect(
+            try FileManager.default.contentsOfDirectory(atPath: cache.path) == [
+                PeakFile.name(path: "used.wav", stamp: Self.stamp)
+            ])
+    }
+
+    /// Code gate 1 item 2: a write keeps the cache file of the same pool path with another stamp.
+    /// Pool paths repeat in each package (`take1-1-1.wav`), so that file can be the peaks of
+    /// another package.
+    @Test func aWriteKeepsTheSamePoolPathOfAnotherStamp() async throws {
+        let folder = try TemporaryFolder()
+        let cache = folder.url.appending(path: "Peaks")
+        let peaks = try await Self.peaks()
+        let other = FileStamp(size: 1, seconds: 2, nanoseconds: 3)
+        let otherPeaks = try await {
+            let package = try MixPackage()
+            try package.addFile("a", channels: [ramp(frames: 70_000)])
+            let file = try AVAudioFile(forReading: package.url.appending(path: "Clips/a.wav"))
+            return try await computePeaks(file, stamp: other) { .go }
+        }()
+
+        try PeakFile.write(otherPeaks, path: "take1-1-1.wav", in: cache)
+        try PeakFile.write(peaks, path: "take1-1-1.wav", in: cache)
+
+        #expect(PeakFile.read(path: "take1-1-1.wav", stamp: other, channels: 1, rate: 48_000, in: cache) == otherPeaks)
+        #expect(PeakFile.read(path: "take1-1-1.wav", stamp: Self.stamp, channels: 1, rate: 48_000, in: cache) == peaks)
+    }
 }

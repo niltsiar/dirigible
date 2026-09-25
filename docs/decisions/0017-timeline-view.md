@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-09-25
 - Accepted: 2026-09-25, after plan gates 1 and 2 of the timeline-view run. The gates added the settle order with the `settling` flag, the pass that Studio starts after a pool change, the media open through `openMedia` with its stamp, the redraw only on a change of the drawn inputs, the narrowed record-over warning, and the read-only `dirigible peaks` command.
-- Amended: 2026-09-25, after code gate 1 of the timeline-view run: the lanes scroll vertically, and the track headers scroll with them.
+- Amended: 2026-09-25, after code gate 1 of the timeline-view run: the lanes scroll vertically, and the track headers scroll with them. The launch prunes the peak cache.
 
 ## Context
 
@@ -25,7 +25,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 
 **Close.** `settle()` first sets a flag: from then, a request for a pass does nothing, and a running pass stops at its next file, its next block, or its next 100 ms wait. `settle()` ends the take, then cancels the pass and waits for it, then clears the flag. The last two steps run on every exit of `settle()`. So settle always ends a take within a bound, and no task holds the package lock after a close. A cancelled close or a cancelled Quit asks for a pass again.
 
-**Cache.** One file per pool WAV in `~/Library/Caches/com.delineas.dirigible/Peaks/`, named by the pool path, the size, and the mtime of the WAV. The format is version 1 of the table in the run design: a 64-byte little-endian header with the magic `DIRPEAKS`, then the bins. The reader refuses a file whose fields do not match the WAV, and a refusal is a miss. A write error keeps the peaks in memory. The package does not change, so 0003 does not change.
+**Cache.** One file per pool WAV in `~/Library/Caches/com.delineas.dirigible/Peaks/`, named by the pool path, the size, and the mtime of the WAV. The format is version 1 of the table in the run design: a 64-byte little-endian header with the magic `DIRPEAKS`, then the bins. The reader refuses a file whose fields do not match the WAV, and a refusal is a miss. A write error keeps the peaks in memory. The package does not change, so 0003 does not change. A cache hit of a pass sets the modification time of the cache file to now. At launch, the app removes each file in the cache folder that has a modification time older than 90 days, off the main actor. A write removes no other cache file: pool paths repeat in each package (`take1-1-1.wav`), so a cache file of the same pool path with another stamp can be the peaks of another package.
 
 **Selection and view state.** The in point, the out point, and the selected tracks, the zoom, and Automatic Scroll are window state. None is saved. The selection has one read: a range and at least one track that exists now, or nothing.
 
@@ -45,7 +45,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 - A package on another Mac, or after a cache purge, computes its peaks again: under 1 s per 2 h track on an SSD, about 10 s on a USB hard disk (inference).
 - Closer than 256 frames per pixel, the waveform is blocky. The zoom stops at 128 frames per point.
 - An exFAT rewrite of a WAV with the same length within 10 ms keeps a stale cache hit. No in-app path rewrites a WAV that fast.
-- Orphan cache files stay after a WAV rewrite until the system purges Caches.
+- Orphan cache files stay after a WAV rewrite or a package delete for 90 days after their last use, or until the system purges Caches.
 - The pass does not pause during play. A manual check on a USB hard disk decides it; if play drops out, the pass also pauses during play.
 
 ## Alternatives considered

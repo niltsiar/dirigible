@@ -34,8 +34,8 @@ import Testing
     }
 
     /// Cut, Paste, Delete, Split, Nudge, the marker edits, and Remove Track change nothing and show no alert
-    /// while a take records; a refused Cut keeps the clipboard, and a refused Delete Marker keeps
-    /// the current marker. Copy runs. The take goes on: after the stop, each track has a take
+    /// while a take records; Rename Marker opens no alert; a refused Cut keeps the clipboard, and a
+    /// refused Delete Marker keeps the current marker. Copy runs. The take goes on: after the stop, each track has a take
     /// clip with frames. Controls: an edit with no idle check shows the `.busy` alert; a clipboard
     /// set before the edit changes on the refused Cut.
     @Test func editsDoNothingDuringATake() async throws {
@@ -62,10 +62,9 @@ import Testing
         ] {
             model.run(command)
         }
-        model.timeline.renaming?.name = "Intro"
-        model.commitRename()
 
         #expect(studio.session == before && studio.canUndo == undo && model.alert == nil)
+        #expect(model.timeline.renaming == nil, "the rename alert opened during the take")
         #expect(model.clipboard == copied && model.timeline.marker == marker)
         model.run(.copy)
         #expect(model.clipboard?.length == 96_000)
@@ -75,6 +74,35 @@ import Testing
         for track in studio.session.tracks {
             #expect(track.clips.contains { $0.file != "f1" && $0.length > .zero }, "\(track.id) has no take clip")
         }
+        await model.close()
+    }
+
+    /// A take that starts while the rename alert is open: OK saves nothing and keeps the typed name
+    /// in the alert state; OK after the take saves it (code gate 1 item 1). Controls: an OK that
+    /// drops the state during the take fails; an OK that always keeps the state fails
+    /// `MarkerCommandTests.renameActsOnTheCurrentMarker`.
+    @Test func aRenameOpenAtATakeStartKeepsItsName() async throws {
+        let model = await app.open(try await package())
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        studio.environment = hal.environment
+        model.run(.addMarker)
+        let marker = try #require(model.timeline.marker)
+        model.run(.renameMarker)
+        model.timeline.renaming?.name = "Intro"
+
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+        hal.feed(seconds: 0.5)
+        let before = studio.session
+        model.commitRename()
+
+        #expect(studio.session == before && model.alert == nil)
+        #expect(model.timeline.renaming == MarkerRename(id: marker, name: "Intro"))
+        hal.feed(seconds: 0.5)
+        await model.stop()
+        await until("the take finalizes") { studio.transport == .idle }
+        model.commitRename()
+        #expect(studio.session.markers[marker]?.name == "Intro" && model.timeline.renaming == nil)
         await model.close()
     }
 

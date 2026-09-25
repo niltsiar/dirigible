@@ -6,6 +6,7 @@
 - Amended: 2026-09-24. The commands `devices` and `record`, exit codes 4 (the disk is almost full) and 5 (a track has a gap or no clip of the take), and the gap lines (see 0013).
 - Amended: 2026-09-24. No command meters inputs, and `devices` has no watch mode: the monitor writes nothing to a package, and `record` drives the same path (see 0015).
 - Amended: 2026-09-24. `dirigible render` writes the mix as a 32-bit float stereo CAF and refuses an output path that exists (exit 2). `info` shows the media state of each file (JSON key `media`) (see 0016).
+- Amended: 2026-09-25. `dirigible peaks` reads the peak cache of each pool file and writes nothing (see 0017).
 
 ## Context
 

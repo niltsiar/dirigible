@@ -68,6 +68,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Read `learnings.md`, `backlog.md`, and the last `run.md` at the start of every session.
 - `decisions.tsv` is append-only. Add rows with `.claude/skills/deliver/scripts/log-decision.sh`, which writes the time from the clock. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
+- A probe or a script that creates, renames, or deletes files works only in a new folder under `.scratchpads/` or the session scratchpad, with absolute paths. Never in the home folder or the repo root: a probe once deleted files in `~`.
 
 ## Git
 

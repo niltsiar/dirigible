@@ -79,7 +79,7 @@ private struct TimelinePane: View {
             let free = geometry.size.height - TimelineRuler.thickness - 16
             let height = min(120, max(40, (free / Double(max(1, tracks.count))).rounded(.down)))
             HStack(spacing: 0) {
-                VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     Color.clear.frame(height: TimelineRuler.thickness)
                     ForEach(tracks) { track in
                         TrackRow(model: model, studio: studio, track: track)

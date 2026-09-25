@@ -56,6 +56,7 @@ When safe to write artifacts:
 - `VERIFIED`: baseline and treatment differ in the predicted direction, by the claimed threshold, with no obvious confound.
 - `NOT VERIFIED`: the behavior is unchanged, moves the wrong way, or misses the threshold.
 - `INCONCLUSIVE`: no valid baseline, noisy signal, failed measurement, or an environment difference invalidates the comparison. This includes a control that cannot fail on this machine, and a code review with no control.
+- A claim that depends on an open manual check gets no `VERIFIED (M-n)`. Restate the automated part as a narrower claim and give it its own verdict. The manual part is `INCONCLUSIVE` and names the check. The run summary counts these parts.
 
 ## Output
 

@@ -100,8 +100,11 @@ extension SessionWindow {
     }
 
     /// Runs the export. A fault shows its alert, a cancel shows nothing, and a finish shows the
-    /// report only when a file rendered as silence.
+    /// report only when a file rendered as silence. A refused Record shows in the sheet until the
+    /// end.
     func run(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
+        recordRefusal = nil
+        defer { recordRefusal = nil }
         do throws(StudioError) {
             let faults = try await studio.export(
                 source, target.options, to: target.url, replacing: target.confirmed)

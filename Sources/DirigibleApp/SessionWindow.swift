@@ -57,6 +57,9 @@ enum WindowAlert: Hashable {
     @ObservationIgnored var clipboard: Excerpt?
     /// The step of Export before the export runs (decision 0019). Nil: no step.
     var exportStep: ExportStep?
+    /// The error of a take start that its checks refused while an export runs. The progress
+    /// sheet shows it: a window alert would wait behind the sheet until the export ends.
+    var recordRefusal: StudioError?
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
 
@@ -238,6 +241,9 @@ enum WindowAlert: Hashable {
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
                 try await studio.startRecording(armed: armed)
             }
+        } catch let error where studio.exportProgress != nil {
+            // A refused start keeps the export, and its sheet hides a window alert until the end.
+            recordRefusal = error
         } catch .microphoneAccess(let access) {
             alert = .microphone(access)
         } catch {

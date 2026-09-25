@@ -81,7 +81,10 @@ const targetText = target === 'plan'
 
 // Without this list, the devil's advocate attacked user requests and accepted tradeoffs,
 // and the skeptics refuted every such finding. That gave no signal.
-const settledText = settled.length ? `Settled: the user asked for these, or the run already accepted them. Do not attack them without new evidence that they break a requirement:\n${settled.map(s => `- ${s}`).join('\n')}` : ''
+// A settled scope line can be false in the code ("no vertical scroll" while the view scrolled),
+// so at the code gate the reviewers check that the diff keeps each line.
+const settledCheck = target === 'diff' ? `\nEach settled line is also a claim about the code. Check that the diff keeps it. A line that the code contradicts is a finding, not a settled choice.` : ''
+const settledText = settled.length ? `Settled: the user asked for these, or the run already accepted them. Do not attack them without new evidence that they break a requirement:\n${settled.map(s => `- ${s}`).join('\n')}${settledCheck}` : ''
 const priorText = prior.length ? `Earlier rounds of this gate wrote these verdicts. Read them first:\n${prior.map(p => `- ${p}`).join('\n')}` : ''
 const MODE_TEXT = {
   open: '',

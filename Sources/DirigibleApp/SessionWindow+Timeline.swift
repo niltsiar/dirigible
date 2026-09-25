@@ -53,7 +53,7 @@ enum TimelineCommand: Hashable {
     case cut, copy, paste, delete
     case split, nudgeLeft, nudgeRight
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
-    case removeTrack, showInFinder
+    case removeTrack, showInFinder, export, exportSelection
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
     /// responder of the key window, so a focused text field takes it before the window (probe E3).
@@ -77,6 +77,7 @@ enum TimelineCommand: Hashable {
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         case .removeTrack, .showInFinder: true
         case .zoomIn, .zoomOut, .zoomToSession, .toggleFollow, .deselectAll, .selectAll, .cut, .copy, .paste: false
+        case .export, .exportSelection: false
         }
     }
 
@@ -132,9 +133,11 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .removeTrack, title: .menuTrackRemove, key: .delete, modifiers: [.command, .option])
     ]
 
-    /// The Show Clips in Finder item of the File menu.
+    /// The Show Clips in Finder, Export, and Export Selection items of the File menu.
     static let fileItems = [
-        MenuItem(command: .showInFinder, title: .menuFileShowClips, key: "r", modifiers: [.command, .shift])
+        MenuItem(command: .showInFinder, title: .menuFileShowClips, key: "r", modifiers: [.command, .shift]),
+        MenuItem(command: .export, title: .menuFileExport, key: "e", modifiers: .command),
+        MenuItem(command: .exportSelection, title: .menuFileExportSelection, key: "e", modifiers: [.command, .shift]),
     ]
 }
 
@@ -163,6 +166,8 @@ extension SessionWindow {
             runMarker(command, studio)
         case .removeTrack: removeTracks(studio.session.tracks.map(\.id).filter(timeline.marks.tracks.contains))
         case .showInFinder: Task { await showClipsInFinder() }
+        case .export: Task { await export(.session) }
+        case .exportSelection: Task { await export(.selection) }
         }
     }
 }

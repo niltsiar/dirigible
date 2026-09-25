@@ -37,9 +37,17 @@ struct SessionView: View {
                 case .microphone:
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
-                case .error:
+                case .error, .exported:
                     Button(L10n.alertOK.key, role: .cancel) {}
                 }
+            }
+            // Only the buttons answer: a set of the binding comes before the action of Export.
+            .alert(
+                Text(verbatim: L10n.alertExportMissing.format(model.exportQuestionPaths.joined(separator: "\n"))),
+                isPresented: Binding(get: { model.isAskingExportQuestion }, set: { _ in })
+            ) {
+                Button(L10n.alertExportConfirm.key) { model.answerExportQuestion(export: true) }
+                Button(L10n.alertCancel.key, role: .cancel) { model.answerExportQuestion(export: false) }
             }
     }
 
@@ -71,6 +79,10 @@ struct SessionView: View {
                 } else {
                     TimelinePane(model: model, studio: studio)
                 }
+            }
+            // An AppKit sheet: the close button is off while it shows (probe S1).
+            .sheet(isPresented: Binding(get: { studio.exportProgress != nil }, set: { _ in })) {
+                ExportSheet(model: model, studio: studio)
             }
         case .closing(nil), .closed:
             EmptyView()
@@ -272,6 +284,27 @@ private struct LiveState: View {
     }
 }
 
+/// The progress of a running export, with Cancel and Record (decision 0019). The sheet can hold
+/// the key status, so the Record menu item may not reach the window: its button is the Record
+/// path. Studio cancels the export when the take checks pass.
+private struct ExportSheet: View {
+    let model: SessionWindow
+    let studio: Studio
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.sheetExportTitle.key).font(.headline)
+            ProgressView(value: studio.exportProgress ?? 1).frame(width: 320)
+            HStack {
+                Button(L10n.transportRecord.key) { Task { await model.record() } }.disabled(!model.canRecord)
+                Spacer()
+                Button(L10n.sheetExportCancel.key) { model.cancelExport() }.keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(20)
+    }
+}
+
 private struct Banner: View {
     let text: String
     var tint: Color = .secondary
@@ -291,6 +324,7 @@ extension WindowAlert {
         case .microphone(let access): L10n.message(for: .microphoneAccess(access))
         case .confirmStopAndClose: L10n.alertCloseRecording.text
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text
+        case .exported(let paths): L10n.alertExported.format(paths.joined(separator: "\n"))
         }
     }
 }

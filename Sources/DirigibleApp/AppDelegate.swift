@@ -37,6 +37,12 @@ import UniformTypeIdentifiers
     init(recordings: ActiveRecordings?, peakCache: URL? = nil) {
         self.recordings = recordings
         self.peakCache = peakCache
+        if let peakCache {
+            // A cache file that no pass used for 90 days goes (decision 0017).
+            Task.detached(priority: .background) {
+                PeakFile.prune(peakCache, before: .now.addingTimeInterval(-PeakFile.unusedLimit))
+            }
+        }
         listedAtLaunch = Task.detached {
             Set(
                 (recordings?.packages() ?? []).map(packageIdentity).filter {

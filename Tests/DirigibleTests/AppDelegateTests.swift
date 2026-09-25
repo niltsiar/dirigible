@@ -172,6 +172,24 @@ import os
         await window.close()
     }
 
+    /// Code gate 1 item 2: the launch removes the peak cache files that were not used for 90
+    /// days, off the main actor, and keeps the others.
+    @Test func theLaunchPrunesThePeakCache() async throws {
+        let cache = folder.url.appending(path: "Peaks")
+        try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        let (old, used) = (cache.appending(path: "old.peaks"), cache.appending(path: "used.peaks"))
+        for (url, days) in [(old, 91.0), (used, 89.0)] {
+            try Data([1]).write(to: url)
+            try FileManager.default.setAttributes(
+                [.modificationDate: Date.now.addingTimeInterval(-days * 86_400)], ofItemAtPath: url.path)
+        }
+
+        _ = AppDelegate(recordings: nil, peakCache: cache)
+
+        await until("the launch prunes the peak cache") { !FileManager.default.fileExists(atPath: old.path) }
+        #expect(FileManager.default.fileExists(atPath: used.path))
+    }
+
     /// A session window model (no window on screen) on a package with one 1 s WAV, with a peak
     /// cache folder, after its first pass.
     private func windowWithPeaks() async throws -> (SessionWindow, Studio) {

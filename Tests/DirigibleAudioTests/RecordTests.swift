@@ -35,28 +35,22 @@ struct RecordTests {
         return studio
     }
 
-    /// A clock whose records come 0.1 s after now, so they are after the take start that the
-    /// live start saves.
-    func clock() -> DeviceClock {
-        DeviceClock(hostNanos: Double(AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())) + 100_000_000)
-    }
-
     func clipIDs(_ studio: Studio, _ track: TrackID) -> [ClipID] {
         studio.session.track(track).map { $0.clips.map(\.id) } ?? []
     }
 
     // MARK: Criterion 16
 
-    /// 3 s of records from before the take start: the finalize cuts the frames before the take
-    /// start, and the writer the frames after its end, so the stop time does not matter.
+    /// 3 s of records from 0.5 s before the take start: the finalize cuts the frames before the
+    /// take start, and the writer the frames after its end, so the stop time does not matter.
     /// Control: 0.5 s.
     @Test(arguments: [1.0, 0.5])
     func aTimedRecordStopsAfterItsDuration(seconds: Double) async throws {
         let hal = TestHAL([mic])
         let studio = try await studio(hal)
         let input = SyntheticInput(hal, "mic")
-        var clock = DeviceClock(hostNanos: Double(AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())))
-        input.play(clock.run(seconds: 3))
+        var clock = DeviceClock(hostNanos: Double(takeStart) - 500_000_000)
+        input.play(clock.run(seconds: 3), takeStartIn: url)
 
         let result = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(seconds))
         await input.wait()
@@ -149,10 +143,10 @@ struct RecordTests {
         let studio = try await studio(hal)
         let micInput = SyntheticInput(hal, "mic")
         let boxInput = SyntheticInput(hal, "box")
-        var micClock = clock()
-        var boxClock = clock()
-        if !failing.contains("mic") { micInput.play(micClock.run(seconds: 0.5)) }
-        if !failing.contains("box") { boxInput.play(boxClock.run(seconds: 0.5)) }
+        var micClock = DeviceClock(hostNanos: Double(takeStart) + 100_000_000)
+        var boxClock = micClock
+        if !failing.contains("mic") { micInput.play(micClock.run(seconds: 0.5), takeStartIn: url) }
+        if !failing.contains("box") { boxInput.play(boxClock.run(seconds: 0.5), takeStartIn: url) }
 
         let result = try await studio.record(armed: ["t1", "t2"], playhead: 0, for: .seconds(1))
         await micInput.wait()
@@ -172,8 +166,8 @@ struct RecordTests {
         let hal = TestHAL([mic])
         let studio = try await studio(hal, silenceLimit: .milliseconds(300))
         let input = SyntheticInput(hal, "mic")
-        var clock = clock()
-        input.play(clock.run(seconds: 10), pace: .realTime, flags: invalid ? [] : validTimes)
+        var clock = DeviceClock(hostNanos: Double(takeStart) + 100_000_000)
+        input.play(clock.run(seconds: 10), pace: .realTime, flags: invalid ? [] : validTimes, takeStartIn: url)
 
         let result = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(1))
         await input.wait()

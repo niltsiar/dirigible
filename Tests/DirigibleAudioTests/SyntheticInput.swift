@@ -269,14 +269,16 @@ final class SyntheticInput: @unchecked Sendable {
 
     /// Sends `records` into `input`, or into the input of attach number `attach` of the device,
     /// or into the current input. It waits for that attach, and then for `delay`: a device that
-    /// is slow to start its IO.
+    /// is slow to start its IO. With `package`, the host times of `records` count from
+    /// `takeStart`: after the attach, they move to the take start that `package` saved, so a
+    /// late start of the take does not cut them. Then a miss of the attach in 30 s is an issue.
     func play(
         _ records: [InputRecord], pace: Pace = .burst, flags: AudioTimeStampFlags = validTimes,
-        into input: DeviceInput? = nil, attach: Int? = nil, delay: Duration = .zero
+        into input: DeviceInput? = nil, attach: Int? = nil, delay: Duration = .zero, takeStartIn package: URL? = nil
     ) {
         lock.withLock { sending += 1 }
         let thread = Thread { [self] in
-            send(records, pace: pace, flags: flags, into: input, attach: attach, delay: delay)
+            send(records, pace: pace, flags: flags, into: input, attach: attach, delay: delay, takeStartIn: package)
             lock.withLock { sending -= 1 }
         }
         // A real IOProc runs on a real-time thread; a busy suite must not starve this one.
@@ -285,8 +287,9 @@ final class SyntheticInput: @unchecked Sendable {
     }
 
     /// Waits until the records of each `play` are sent, with a limit. It polls, so it does not
-    /// hold the main actor.
-    func wait(limit: Duration = .seconds(10)) async {
+    /// hold the main actor. The limit is longer than the attach wait of `takeStartIn`, so a
+    /// miss shows as that issue.
+    func wait(limit: Duration = .seconds(40)) async {
         let end = ContinuousClock.now + limit
         while isSending {
             guard ContinuousClock.now < end else {
@@ -314,9 +317,9 @@ final class SyntheticInput: @unchecked Sendable {
 
     private func send(
         _ records: [InputRecord], pace: Pace, flags: AudioTimeStampFlags, into target: DeviceInput?, attach: Int?,
-        delay: Duration
+        delay: Duration, takeStartIn package: URL?
     ) {
-        let end = Date.now + 10
+        let end = Date.now + (package == nil ? 10 : 30)
         func find() -> DeviceInput? {
             if let target { return target }
             guard let attach else { return hal.current(uid) }
@@ -327,6 +330,24 @@ final class SyntheticInput: @unchecked Sendable {
         while found == nil, Date.now < end {
             usleep(1000)
             found = find()
+        }
+        var records = records
+        if let package {
+            guard found != nil else {
+                Issue.record("SyntheticInput \(uid) did not attach in 30 s")
+                return
+            }
+            guard let saved = (try? Session(contentsOf: package))?.recording?.takeStartHostTimeNanos else {
+                Issue.record("SyntheticInput \(uid) found no saved take start")
+                return
+            }
+            // The operators wrap: a record can be before `takeStart`, and `saved` is less than
+            // `takeStart` (1000 s) when the Mac booted less than 1000 s ago. The sum is in range.
+            records = records.map {
+                InputRecord(
+                    sampleTime: $0.sampleTime, hostTimeNanos: $0.hostTimeNanos &- takeStart &+ saved,
+                    frameCount: $0.frameCount, nominalRate: $0.nominalRate, buffers: $0.buffers)!
+            }
         }
         if found != nil, delay > .zero { usleep(UInt32(delay / .microseconds(1))) }
         // The check and the count are one step, so a stop either sees this thread or ends it.

@@ -57,7 +57,7 @@ import Observation
     /// Held from the start of a take until its finalize ends.
     @ObservationIgnored private(set) var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
-    public private(set) var isStarting = false
+    public internal(set) var isStarting = false
     /// The last autosave error. Nil after a good save.
     public private(set) var saveError: StudioError?
     @ObservationIgnored private var diskWatcher: Task<Void, Never>?
@@ -93,6 +93,11 @@ import Observation
     @ObservationIgnored let recordings: ActiveRecordings?
     /// The peak states and the pass (decision 0017), in `Studio+Peaks.swift`.
     var peakLoad: PeakLoad
+    /// The running export (decision 0019), in `Studio+Export.swift`.
+    var exportJob: ExportJob?
+    @ObservationIgnored var exportNumber = 0
+    /// True from the start of `settle()` to its end: no peak pass and no export starts.
+    private(set) var settling = false
 
     private init(opened: OpenedPackage, recordings: ActiveRecordings?, peakCache: URL?) {
         self.recordings = recordings
@@ -148,14 +153,15 @@ import Observation
         poolChanged(from: before)
     }
 
-    /// Releases every monitor device, stops a take that records, then waits for a start, a
-    /// finalize, and every write in progress. When `saveError` is set, it writes the session once
-    /// more; `saveError` stays set only when that write also fails. Then it ends the peak pass
-    /// (decision 0017). After it returns, no device is held, no take records, and no write or
-    /// pass runs.
+    /// Ends a running export (decision 0019), releases every monitor device, stops a take that
+    /// records, then waits for a start, a finalize, and every write in progress. When `saveError`
+    /// is set, it writes the session once more; `saveError` stays set only when that write also
+    /// fails. Then it ends the peak pass (decision 0017). After it returns, no device is held, no
+    /// take records, and no export, write, or pass runs.
     public func settle() async {
-        // Before the first await: from now no pass starts and no block starts.
-        peakLoad.settling = true
+        // Before the first await: from now no pass, no block, and no export starts.
+        settling = true
+        await endExport()
         await stopPlay()
         // The monitor order does not wait for a finalize in progress.
         monitorRequest = []
@@ -171,7 +177,7 @@ import Observation
             await serialized {}
         }
         await stopPeaks()
-        peakLoad.settling = false
+        settling = false
     }
 
     /// Runs finalize again for the pending take (decision 0004). With no pending take, it does
@@ -215,7 +221,7 @@ import Observation
             do throws(StudioError) {
                 started = try await prepareTake(
                     of: session, lock: lock, armed: armed, playhead: playhead, environment: environment,
-                    recordings: recordings)
+                    recordings: recordings, endExport: exportEnd())
             } catch {
                 return .failure(error)
             }
@@ -273,43 +279,10 @@ import Observation
         if let error { throw error }
     }
 
-    /// The device writer of `uid` in the take that records. For tests.
-    func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
-
-    /// The test seam of decision 0004: starts a take from device descriptions, with no access or
-    /// disk check, no sleep assertion, and no disk watcher. Checks the route of each armed track,
-    /// then, after the write in progress, saves `session.xml` with `<recording>` on the main
-    /// actor, then starts each device writer on the environment HAL. A throw changes nothing.
-    func startTake(
-        armed: [TrackID], devices: [InputDevice], playhead: Frames? = nil, hostTimeNanos: UInt64
-    ) async throws(StudioError) -> [String: DeviceWriter] {
-        try checkIdle()
-        guard pendingTake == nil else { throw .busy }
-        let routes = try checkRoutes(session, armed: armed, devices: devices)
-        isStarting = true
-        let stopped = endPlayForTake()
-        let error = await serialized { () async -> StudioError? in
-            defer { isStarting = false }
-            let playhead = await takePlayhead(stopped, playhead)
-            do throws(StudioError) {
-                begin(
-                    try saveTakeStart(
-                        session, lock: lock, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
-            } catch {
-                return error
-            }
-            isStarting = false
-            await handOver()
-            return nil
-        }
-        if let error { throw error }
-        return writers
-    }
-
     /// Step 6 of the start order, on the main actor with no throw: the history entry, the
     /// results of earlier takes cleared, the writers, and the transport; then each writer
     /// attaches on its queue.
-    private func begin(_ started: StartedTake) {
+    func begin(_ started: StartedTake) {
         history.edit { $0 = started.session }
         saveError = nil  // The start save wrote the whole session.
         url = started.package
@@ -364,7 +337,7 @@ import Observation
 
     /// Runs `body` after every package write that started before this call. `body` runs in the
     /// task of the caller, so no actor hop comes between its end and the caller.
-    private func serialized<T>(_ body: () async -> T) async -> T { await writes.run(body) }
+    func serialized<T>(_ body: () async -> T) async -> T { await writes.run(body) }
 
     /// Writes the session off the main actor, after the previous package write. It takes its
     /// ticket now, so a later start or finalize writes after it. A save that waits for its turn
@@ -390,7 +363,7 @@ import Observation
     }
 
     /// Edits, saves, and a new take wait while a take records or finalizes (decision 0004).
-    private func checkIdle() throws(StudioError) {
+    func checkIdle() throws(StudioError) {
         guard transport == .idle, !isStarting else { throw .busy }
     }
 }

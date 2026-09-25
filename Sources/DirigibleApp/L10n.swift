@@ -136,6 +136,13 @@ enum L10n: String, CaseIterable {
     case errorFileExists = "error.file.exists"
     case errorFinalizeRead = "error.finalize.read"
     case errorFinalizeWrite = "error.finalize.write"
+    case errorExportExists = "error.export.exists"
+    case errorExportRate = "error.export.rate"
+    case errorExportDiskFull = "error.export.disk.full"
+    case errorExportWrite = "error.export.write"
+    case errorExportMove = "error.export.move"
+    case errorExportOpen = "error.export.open"
+    case errorExportPackage = "error.export.package"
 
     /// For `Text` and `Button`: SwiftUI looks the key up in `Bundle.main`.
     var key: LocalizedStringKey { LocalizedStringKey(rawValue) }
@@ -167,6 +174,22 @@ enum L10n: String, CaseIterable {
         case .file(let error): return message(for: error)
         case .finalize(.readFailed(let file, let errno)): return errorFinalizeRead.format(file, Int(errno))
         case .finalize(.writeFailed(let file, let status)): return errorFinalizeWrite.format(file, Int(status))
+        case .export(let error): return message(for: error)
+        }
+    }
+
+    /// The text of an export error. The window shows no alert for a cancel, so `.cancelled` has
+    /// no key.
+    private static func message(for error: ExportError) -> String {
+        switch error {
+        case .exists: errorExportExists.text
+        case .rateNotSupported(let rate): errorExportRate.format(rate)
+        case .diskFull: errorExportDiskFull.text
+        case .writeFailed(let status): errorExportWrite.format(Int(status))
+        case .moveFailed(let code): errorExportMove.format(Int(code))
+        case .openFailed(let code): errorExportOpen.format(Int(code))
+        case .packageUnavailable: errorExportPackage.text
+        case .cancelled: ""
         }
     }
 

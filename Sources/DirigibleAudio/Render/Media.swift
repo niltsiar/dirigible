@@ -12,13 +12,24 @@ public enum MediaFault: Hashable, Sendable {
     case unreadable
 }
 
-/// The fault of each pool file of the session that is not whole. It reads the disk, so never
+/// The fault of each pool file of the session that is not whole. With a source, only the files
+/// of the clips that overlap its range on its tracks (decision 0019). It reads the disk, so never
 /// call it on the main actor. Throws when the process has no free descriptor: that is not a
 /// fault of a file.
-public func checkMedia(_ session: Session, package: URL) throws(POSIXError) -> [FileID: MediaFault] {
+public func checkMedia(
+    _ session: Session, package: URL, source: ExportSource? = nil
+) throws(POSIXError) -> [FileID: MediaFault] {
     let clips = package.appending(path: clipsFolderName)
+    var files = Array(session.files.values)
+    if let source {
+        let read = Set(
+            session.tracks.filter { source.tracks?.contains($0.id) ?? true }.flatMap {
+                $0.clips.clips(overlapping: source.range).map(\.file)
+            })
+        files = files.filter { read.contains($0.id) }
+    }
     var faults: [FileID: MediaFault] = [:]
-    for file in session.files.values {
+    for file in files {
         faults[file.id] = try openMedia(file, in: clips, rate: session.sampleRate).fault
     }
     return faults

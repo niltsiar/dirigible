@@ -95,6 +95,9 @@ struct CaptureEnvironment: Sendable {
     /// A step on the thread of each WAV read of a peak pass: at each file start (the open and the
     /// cache read) and after each block read. Tests check that it is never the main thread.
     var peakRead: @Sendable () -> Void = {}
+    /// A step on the export thread at each chunk (decision 0019). Tests record the thread and the
+    /// QoS with it, or hold or slow the export.
+    var exportChunk: @Sendable () -> Void = {}
 
     static let live = CaptureEnvironment(
         hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),
@@ -211,14 +214,12 @@ func saveTakeStart(
     return StartedTake(session: started, take: take, routes: routes, package: packageIdentity(package))
 }
 
-/// Steps 2 to 5 of the start order of decision 0013, off the main actor: the device lookup and
-/// the route checks, the microphone access, the disk check, and the save. Then the list entry,
-/// before the attach (decision 0004).
-@concurrent nonisolated func prepareTake(
-    of session: Session, lock: PackageLock, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment,
-    recordings: ActiveRecordings?
-) async throws(StudioError) -> StartedTake {
-    dispatchPrecondition(condition: .notOnQueue(.main))
+/// Steps 2 and 3 of the start order of decision 0013: the device lookup and the route checks,
+/// then the microphone access. It changes nothing, so a refusal keeps a running export
+/// (decision 0019).
+nonisolated func checkTake(
+    of session: Session, armed: [TrackID], environment: CaptureEnvironment
+) throws(StudioError) -> [ArmedRoute] {
     var devices: [InputDevice] = []
     for id in armed {
         guard let uid = session.track(id)?.route?.deviceUID, !devices.contains(where: { $0.uid == uid }),
@@ -228,6 +229,21 @@ func saveTakeStart(
     }
     let routes = try checkRoutes(session, armed: armed, devices: devices)
     if let access = environment.microphoneAccess() { throw .microphoneAccess(access) }
+    return routes
+}
+
+/// Steps 2 to 5 of the start order of decision 0013, off the main actor: `checkTake`, the disk
+/// check, and the save. Then the list entry, before the attach (decision 0004). `endExport` runs
+/// after the checks and before the disk check (decision 0019), so a refused start keeps the
+/// export and the disk check sees the space that the export frees. It is nil when no export
+/// runs, so the start makes no main-actor turn between its checks and its save.
+@concurrent nonisolated func prepareTake(
+    of session: Session, lock: PackageLock, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment,
+    recordings: ActiveRecordings?, endExport: (@MainActor @Sendable () async -> Void)?
+) async throws(StudioError) -> StartedTake {
+    dispatchPrecondition(condition: .notOnQueue(.main))
+    let routes = try checkTake(of: session, armed: armed, environment: environment)
+    if let endExport { await endExport() }
     guard environment.freeBytes(lock) >= diskMargin else { throw .diskLow }
     let started = try saveTakeStart(
         session, lock: lock, routes: routes, playhead: playhead,

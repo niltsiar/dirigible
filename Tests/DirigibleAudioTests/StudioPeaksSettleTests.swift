@@ -122,7 +122,7 @@ struct StudioPeaksSettleTests {
             await studio.settle()
             _ = done.next()
         }
-        await until(limit: .seconds(10), "settle did not begin") { studio.peakLoad.settling }
+        await until(limit: .seconds(10), "settle did not begin") { studio.settling }
         gate.open()
         await until(limit: .seconds(10), "settle() did not return") { done.calls > 0 }
         return (studio, blocks, done)

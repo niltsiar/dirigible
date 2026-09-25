@@ -45,6 +45,42 @@ extension Studio {
         return lastTake
     }
 
+    /// The device writer of `uid` in the take that records. For tests.
+    func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
+
+    /// The test seam of decision 0004: starts a take from device descriptions, with no access or
+    /// disk check, no sleep assertion, and no disk watcher. Checks the route of each armed track,
+    /// then, after the write in progress, saves `session.xml` with `<recording>` on the main
+    /// actor, then starts each device writer on the environment HAL. A throw changes nothing, but
+    /// a running export ends before the save.
+    func startTake(
+        armed: [TrackID], devices: [InputDevice], playhead: Frames? = nil, hostTimeNanos: UInt64
+    ) async throws(StudioError) -> [String: DeviceWriter] {
+        try checkIdle()
+        guard pendingTake == nil else { throw .busy }
+        let routes = try checkRoutes(session, armed: armed, devices: devices)
+        isStarting = true
+        let stopped = endPlayForTake()
+        let error = await serialized { () async -> StudioError? in
+            defer { isStarting = false }
+            let playhead = await takePlayhead(stopped, playhead)
+            // After the route checks and before the save, as `beginRecording` (decision 0019).
+            await endExport()
+            do throws(StudioError) {
+                begin(
+                    try saveTakeStart(
+                        session, lock: lock, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
+            } catch {
+                return error
+            }
+            isStarting = false
+            await handOver()
+            return nil
+        }
+        if let error { throw error }
+        return writers
+    }
+
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
     /// the take plus 1 GB. The reads run off the main actor.
     /// It also sets `recordTimeLeft` for the transport bar.

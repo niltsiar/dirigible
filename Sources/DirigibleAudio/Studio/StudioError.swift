@@ -1,7 +1,8 @@
 import DirigibleCore
 
 public enum StudioError: Error, Hashable, Sendable {
-    /// A take records or finalizes, or a new take waits for a pending take.
+    /// A take records or finalizes, a new take waits for a pending take, an export runs, or
+    /// `settle()` runs.
     case busy
     /// Another studio or the CLI has the package.
     case locked
@@ -20,4 +21,6 @@ public enum StudioError: Error, Hashable, Sendable {
     case microphoneAccess(MicrophoneAccess)
     /// Less than 1 GB is free (decision 0004).
     case diskLow
+    /// The export failed or was cancelled (decision 0019).
+    case export(ExportError)
 }

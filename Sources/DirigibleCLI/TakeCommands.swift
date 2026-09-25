@@ -64,6 +64,8 @@ extension StudioError {
         case .microphoneAccess:
             "the terminal has no microphone access. Allow it in System Settings > Privacy & Security > Microphone."
         case .diskLow: "the disk of \(package) has less than 1 GB free."
+        // No command exports through Studio; `dirigible export` calls `exportMix` (decision 0019).
+        case .export(let error): "the export failed (\(error))."
         }
     }
 }

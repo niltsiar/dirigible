@@ -19,8 +19,6 @@ struct PeakLoad {
     var pass: Task<Void, Never>?
     /// `loadPeaks` during a pass: the pass runs once more.
     var again = false
-    /// True from the start of `settle()` to its end.
-    var settling = false
 }
 
 extension Studio {
@@ -31,7 +29,7 @@ extension Studio {
     /// when the Studio has no cache folder or while `settle()` runs. The window calls it at
     /// focus, because a WAV can change outside the app.
     public func loadPeaks() {
-        guard let cache = peakLoad.cache, !peakLoad.settling else { return }
+        guard let cache = peakLoad.cache, !settling else { return }
         guard peakLoad.pass == nil else {
             peakLoad.again = true
             return
@@ -73,7 +71,7 @@ extension Studio {
     }
 
     /// The one stop check of the pass: at each file start and at each step of a wait.
-    func peaksStopped() -> Bool { Task.isCancelled || peakLoad.settling }
+    func peaksStopped() -> Bool { Task.isCancelled || settling }
 
     /// Before each block: `.stop` after a cancel or in settle; a wait in steps of 100 ms while
     /// a take starts, records, or finalizes, then `.waited`; else `.go`.

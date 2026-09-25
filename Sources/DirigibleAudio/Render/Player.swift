@@ -149,15 +149,18 @@ actor Player {
     }
 
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
-    /// Before each pull it waits (at most 2 s) until the handlers have scheduled the frames, as
-    /// the device clock gives them time to. `starve` pulls with no wait and no suspension, so
-    /// no refill runs and the node can run dry, as a late refill on a slow disk does.
+    /// Before each pull it waits until the handlers have scheduled the frames, as the device
+    /// clock gives them time to. In a full suite a refill task can wait seconds for a thread of
+    /// the cooperative pool, so the wait ends on the frames, and one deadline of 30 s for the
+    /// call is only a hang guard. `starve` pulls with no wait and no suspension, so no refill
+    /// runs and the node can run dry, as a late refill on a slow disk does.
     func renderOffline(frames: Int, starve: Bool = false) async -> [[Float]] {
         var out: [[Float]] = [[], []]
         var left = frames
+        let deadline = ContinuousClock.now + .seconds(30)
         while left > 0 {
             let count = min(left, chunk)
-            if !starve { await waitForFeed(count) }
+            if !starve { await waitForFeed(count, until: deadline) }
             let pulled = pull(count)
             for channel in 0..<2 { out[channel] += pulled?[channel] ?? [Float](repeating: 0, count: count) }
             left -= count
@@ -165,9 +168,9 @@ actor Player {
         return out
     }
 
-    private func waitForFeed(_ count: Int) async {
-        let end = ContinuousClock.now + .seconds(2)
-        while let feed, feed.scheduled - nodeFrames() < count, feed.scheduled < length(feed), ContinuousClock.now < end
+    private func waitForFeed(_ count: Int, until deadline: ContinuousClock.Instant) async {
+        while let feed, feed.scheduled - nodeFrames() < count, feed.scheduled < length(feed),
+            ContinuousClock.now < deadline
         {
             try? await Task.sleep(for: .milliseconds(1))
         }

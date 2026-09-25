@@ -16,7 +16,7 @@ Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a dif
 
 Write one paragraph that states the intent. Derive it from the plan, the commit messages, and the task in the run ledger. If you are unsure about the intent, stop and resolve it first. Reviewers judge the execution against this paragraph.
 
-Then list the settled choices: the scope, the run order, and the choices that the user asked for, and the tradeoffs that `decisions.tsv` already accepted with a reason. One line each. Pass them as `settled`. Without this list, the devil's advocate attacks user requests, the skeptics refute every such finding, and the lens gives no signal.
+Then list the settled choices: the scope, the run order, and the choices that the user asked for, and the tradeoffs that `decisions.tsv` already accepted with a reason. One line each. A settled line about behavior or scope ("no vertical scroll this run") is also a claim about the code: name its holder, a test or a file:line. Pass a line with no holder as a claim to check, not as settled. Pass them as `settled`. Without this list, the devil's advocate attacks user requests, the skeptics refute every such finding, and the lens gives no signal.
 
 ## Step 3: Run the panel
 

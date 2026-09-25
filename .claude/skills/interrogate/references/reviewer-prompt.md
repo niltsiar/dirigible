@@ -20,6 +20,8 @@ The user asked for these choices, or the run accepted them with a reason. Do not
 
 {SETTLED}
 
+At the code gate, each settled line is also a claim about the code. Check that the diff keeps it. A line that the code contradicts is a finding.
+
 ## Target Under Review
 
 {PLAN_OR_DIFF}

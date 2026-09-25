@@ -11,8 +11,12 @@ build:
 app:
 	scripts/bundle.sh
 
+# The CLI tests run in their own process. They wait synchronously for a child process, so
+# they block the threads of the concurrency pool, and the async tests of the other targets
+# starve.
 test:
-	swift test --skip AppBundleTests
+	swift test --skip AppBundleTests --skip DirigibleCLITests
+	swift test --filter DirigibleCLITests
 
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
 # variable does not change the count.

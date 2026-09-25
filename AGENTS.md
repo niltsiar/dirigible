@@ -14,7 +14,7 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 |---|---|
 | `make setup` | Enables the pre-commit hook in `.githooks/` (format check and debug build). Run it once per clone. |
 | `make build` | Debug build with `swift build`. |
-| `make test` | Runs all tests except `AppBundleTests`. Fast. Use it in the red-green loop. A bare `swift test` fails `AppBundleTests` on purpose. |
+| `make test` | Runs all tests except `AppBundleTests`. Fast. Use it in the red-green loop. `DirigibleCLITests` runs in a second process, because its synchronous waits block the concurrency pool. A bare `swift test` fails `AppBundleTests` on purpose. |
 | `make test-slow` | Runs `make test`, then the slow tests (disk images, the finalize benchmark) with `DIRIGIBLE_SLOW_TESTS=1` in a second process. Put the `func` of a slow test on the line after its gate. Run it before the push of a branch that changes `Sources/DirigibleAudio`. |
 | `make app` | Release build of `build/Dirigible.app` (universal, ad-hoc signed). |
 | `make test-slow` | Runs the slow tests (the `DIRIGIBLE_SLOW_TESTS` gate) in their own process, one at a time. `make check` does not run them. |

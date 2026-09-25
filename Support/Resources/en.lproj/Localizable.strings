@@ -118,3 +118,8 @@
 "menu.edit.in" = "Set In Point";
 "menu.edit.out" = "Set Out Point";
 "menu.edit.deselect" = "Deselect All";
+"menu.edit.cut" = "Cut";
+"menu.edit.copy" = "Copy";
+"menu.edit.paste" = "Paste";
+"menu.edit.delete" = "Delete";
+"menu.edit.select.all" = "Select All";

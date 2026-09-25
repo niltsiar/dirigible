@@ -1,3 +1,4 @@
+import DirigibleAudio
 import SwiftUI
 
 /// Only a Settings scene: the app delegate makes one AppKit window per package (decision 0014,
@@ -11,8 +12,8 @@ struct DirigibleApp: App {
             .commands {
                 CommandGroup(replacing: .appSettings) {}
                 CommandGroup(replacing: .newItem) {
-                    Button(L10n.menuFileNew.key) { app.newSession() }.keyboardShortcut("n")
-                    Button(L10n.menuFileOpen.key) { app.showOpenPanel() }.keyboardShortcut("o")
+                    Button(L10n.menuFileNew.key) { app.newSession() }.keyboardShortcut(MenuKeys.newSession)
+                    Button(L10n.menuFileOpen.key) { app.showOpenPanel() }.keyboardShortcut(MenuKeys.open)
                     Menu(L10n.menuFileOpenRecent.key) {
                         ForEach(app.recent, id: \.self) { url in
                             Button(url.deletingPathExtension().lastPathComponent) { Task { await app.open(url) } }
@@ -34,23 +35,26 @@ struct DirigibleApp: App {
                         }
                     }
                 }
-                CommandGroup(after: .pasteboard) {
-                    ForEach(TimelineCommand.editItems, id: \.command) { item in menuButton(item) }
+                // The Edit group replaces the system items, so Delete has Backspace (probe E6).
+                CommandGroup(replacing: .pasteboard) {
+                    ForEach(TimelineCommand.pasteboardItems + TimelineCommand.editItems, id: \.command) { item in
+                        menuButton(item)
+                    }
                 }
                 // No CommandGroup for Undo and Redo: the default items send undo: and redo: along
                 // the responder chain, so a focused text field keeps its typing undo (P12).
                 CommandMenu(L10n.menuTrack.key) {
                     Button(L10n.menuTrackAdd.key) { app.key?.addTrack() }
-                        .keyboardShortcut("n", modifiers: [.command, .option])
+                        .keyboardShortcut(MenuKeys.addTrack)
                         .disabled(app.key?.canEdit != true)
                 }
                 CommandMenu(L10n.menuRecord.key) {
                     Button(L10n.menuRecordStart.key) { Task { await app.key?.record() } }
-                        .keyboardShortcut("r").disabled(app.key?.canRecord != true)
+                        .keyboardShortcut(MenuKeys.record).disabled(app.key?.canRecord != true)
                     Button(L10n.menuRecordStop.key) { Task { await app.key?.stop() } }
-                        .keyboardShortcut(".").disabled(app.key?.canStop != true)
+                        .keyboardShortcut(MenuKeys.stop).disabled(app.key?.canStop != true)
                     Button(L10n.menuRecordRetry.key) { Task { await app.key?.retry() } }
-                        .keyboardShortcut("r", modifiers: [.command, .option]).disabled(app.key?.canRetry != true)
+                        .keyboardShortcut(MenuKeys.retry).disabled(app.key?.canRetry != true)
                     Toggle(
                         L10n.menuRecordMonitor.key,
                         isOn: Binding(get: { app.key?.monitoring == true }, set: { app.key?.monitoring = $0 })
@@ -59,31 +63,25 @@ struct DirigibleApp: App {
                 // Plain keys: never disabled, because a disabled item still takes its key (probe
                 // K1). Each action gives a typing key to text or to a panel first.
                 CommandMenu(L10n.menuTransport.key) {
-                    Button(L10n.menuTransportPlay.key) { app.transport(.playStop) }
-                        .keyboardShortcut(.space, modifiers: [])
-                    Button(L10n.menuTransportReturn.key) { app.transport(.stopAndReturn) }
-                        .keyboardShortcut(.space, modifiers: .shift)
+                    transportButton(.menuTransportPlay, .playStop, MenuKeys.play)
+                    transportButton(.menuTransportReturn, .stopAndReturn, MenuKeys.stopAndReturn)
                     Divider()
-                    Button(L10n.menuTransportReverse.key) { app.transport(.reverse) }.keyboardShortcut(
-                        "j", modifiers: [])
-                    Button(L10n.menuTransportPause.key) { app.transport(.pause) }.keyboardShortcut("k", modifiers: [])
-                    Button(L10n.menuTransportForward.key) { app.transport(.forward) }.keyboardShortcut(
-                        "l", modifiers: [])
-                    Button(L10n.menuTransportSlowReverse.key) { app.transport(.slowReverse) }
-                        .keyboardShortcut("j", modifiers: .shift)
-                    Button(L10n.menuTransportSlowForward.key) { app.transport(.slowForward) }
-                        .keyboardShortcut("l", modifiers: .shift)
+                    transportButton(.menuTransportReverse, .reverse, MenuKeys.reverse)
+                    transportButton(.menuTransportPause, .pause, MenuKeys.pause)
+                    transportButton(.menuTransportForward, .forward, MenuKeys.forward)
+                    transportButton(.menuTransportSlowReverse, .slowReverse, MenuKeys.slowReverse)
+                    transportButton(.menuTransportSlowForward, .slowForward, MenuKeys.slowForward)
                     Divider()
-                    Button(L10n.menuTransportStart.key) { app.transport(.seek(.start)) }
-                        .keyboardShortcut(.home, modifiers: [])
-                    Button(L10n.menuTransportEnd.key) { app.transport(.seek(.end)) }.keyboardShortcut(
-                        .end, modifiers: [])
-                    Button(L10n.menuTransportPrevious.key) { app.transport(.seek(.previousClip)) }
-                        .keyboardShortcut(.leftArrow, modifiers: .shift)
-                    Button(L10n.menuTransportNext.key) { app.transport(.seek(.nextClip)) }
-                        .keyboardShortcut(.rightArrow, modifiers: .shift)
+                    transportButton(.menuTransportStart, .seek(.start), MenuKeys.start)
+                    transportButton(.menuTransportEnd, .seek(.end), MenuKeys.end)
+                    transportButton(.menuTransportPrevious, .seek(.previousClip), MenuKeys.previousClip)
+                    transportButton(.menuTransportNext, .seek(.nextClip), MenuKeys.nextClip)
                 }
             }
+    }
+
+    private func transportButton(_ title: L10n, _ command: TransportCommand, _ key: KeyboardShortcut) -> some View {
+        Button(title.key) { app.transport(command) }.keyboardShortcut(key)
     }
 
     private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {

@@ -118,3 +118,8 @@
 "menu.edit.in" = "Marcar entrada";
 "menu.edit.out" = "Marcar salida";
 "menu.edit.deselect" = "Anular selección";
+"menu.edit.cut" = "Cortar";
+"menu.edit.copy" = "Copiar";
+"menu.edit.paste" = "Pegar";
+"menu.edit.delete" = "Eliminar";
+"menu.edit.select.all" = "Seleccionar todo";

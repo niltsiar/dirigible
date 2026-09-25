@@ -18,30 +18,7 @@ import Testing
 
     /// A window with two tracks and a clip of 60 s on each, after SwiftUI shows the lanes.
     func open() async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView) {
-        let model = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
-        let studio = try #require(await model.opened() ? model.studio : nil)
-        let window = try #require(model.window)
-        await until("the window shows the lanes") { model.timelineView?.window != nil }
-        app.key = model
-        return (model, studio, window, try #require(model.timelineView))
-    }
-
-    /// The name field of the first track, focused, with its field editor.
-    func focusName(in window: NSWindow) async throws -> NSTextView {
-        var found: NSTextField?
-        await until("the track header shows its name field") {
-            window.contentView?.layoutSubtreeIfNeeded()
-            found = window.contentView.flatMap(firstField)
-            return found != nil
-        }
-        let field = try #require(found)
-        #expect(window.makeFirstResponder(field))
-        return try #require(window.fieldEditor(false, for: field) as? NSTextView)
-    }
-
-    private func firstField(in view: NSView) -> NSTextField? {
-        if let field = view as? NSTextField, field.isEditable { return field }
-        return view.subviews.lazy.compactMap(firstField).first
+        try await openLanes(app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
     }
 
     @Test func selectAllWithNoFieldFocusedSelectsTheSession() async throws {
@@ -176,6 +153,5 @@ import Testing
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)",
             ])
         #expect(Set(items.map(\.title)).count == items.count)
-        #expect(!items.contains { $0.command == .selectAll }, "Select All is the system item")
     }
 }

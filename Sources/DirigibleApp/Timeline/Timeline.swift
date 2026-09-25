@@ -174,6 +174,19 @@ struct Marks: Hashable {
         return marks
     }
 
+    /// The tracks of a paste (decision 0018): the first selected track in session order and the
+    /// tracks under it, one per lane of `excerpt`; with no selected track, the source tracks. Nil
+    /// when the tracks under it are too few or a source track is gone.
+    func pasteTracks(for excerpt: Excerpt, in session: Session) -> [TrackID]? {
+        let ids = session.tracks.map(\.id)
+        guard let first = ids.firstIndex(where: tracks.contains) else {
+            let sources = excerpt.lanes.map(\.source)
+            return sources.allSatisfy(ids.contains) ? sources : nil
+        }
+        let targets = ids[first...].prefix(excerpt.lanes.count)
+        return targets.count == excerpt.lanes.count ? Array(targets) : nil
+    }
+
     /// Select All: 0 to the end on every track. An empty session gives no Marks.
     static func all(in session: Session) -> Marks {
         session.end == .zero

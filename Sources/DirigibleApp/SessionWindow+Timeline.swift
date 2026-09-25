@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleAudio
 import DirigibleCore
 import SwiftUI
@@ -44,11 +45,25 @@ extension SessionWindow {
     }
 }
 
-/// A timeline command of the View and Edit menus (decision 0017). Esc is `cancelOperation(_:)`
-/// and Select All is the system item; both reach `UndoRoutingWindow`.
+/// A timeline command of the View and Edit menus (decisions 0017, 0018). Esc is
+/// `cancelOperation(_:)` and reaches `UndoRoutingWindow`.
 enum TimelineCommand: Hashable {
     case zoomIn, zoomOut, zoomToSession, zoomToSelection, toggleFollow
     case setIn, setOut, deselectAll, selectAll
+    case cut, copy, paste, delete
+
+    /// The selector of an item of the replaced Edit group. The item sends it from the first
+    /// responder of the key window, so a focused text field takes it before the window (probe E3).
+    var selector: Selector? {
+        switch self {
+        case .cut: #selector(NSText.cut(_:))
+        case .copy: #selector(NSText.copy(_:))
+        case .paste: #selector(NSText.paste(_:))
+        case .delete: #selector(NSText.delete(_:))
+        case .selectAll: #selector(NSResponder.selectAll(_:))
+        default: nil
+        }
+    }
 
     struct MenuItem {
         let command: TimelineCommand
@@ -66,7 +81,16 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option]),
     ]
 
-    /// The Edit items after the system items.
+    /// The items that replace the system pasteboard group (probe E6). Delete has Backspace (F16).
+    static let pasteboardItems = [
+        MenuItem(command: .cut, title: .menuEditCut, key: "x", modifiers: .command),
+        MenuItem(command: .copy, title: .menuEditCopy, key: "c", modifiers: .command),
+        MenuItem(command: .paste, title: .menuEditPaste, key: "v", modifiers: .command),
+        MenuItem(command: .delete, title: .menuEditDelete, key: .delete, modifiers: []),
+        MenuItem(command: .selectAll, title: .menuEditSelectAll, key: "a", modifiers: .command),
+    ]
+
+    /// The Edit items after the pasteboard items.
     static let editItems = [
         MenuItem(command: .setIn, title: .menuEditIn, key: "i", modifiers: []),
         MenuItem(command: .setOut, title: .menuEditOut, key: "o", modifiers: []),
@@ -91,6 +115,7 @@ extension SessionWindow {
         case .setOut: timeline.marks = timeline.marks.settingOut(studio.playhead, in: studio.session)
         case .deselectAll: timeline.marks = Marks()
         case .selectAll: timeline.marks = Marks.all(in: studio.session)
+        case .cut, .copy, .paste, .delete: runClipboard(command, studio)
         }
     }
 }

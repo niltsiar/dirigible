@@ -50,6 +50,9 @@ enum WindowAlert: Hashable {
     /// The marks, the zoom, Automatic Scroll, and the view of the timeline (decision 0017). Not
     /// saved.
     var timeline = TimelineState()
+    /// The Copy and Cut excerpt of this window (decision 0018): not on the macOS pasteboard,
+    /// because a file ID names audio only inside its package. A close drops it.
+    @ObservationIgnored var clipboard: Excerpt?
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
 
@@ -312,8 +315,16 @@ enum WindowAlert: Hashable {
         NSWorkspace.shared.open(url)
     }
 
-    private func edit(_ body: (inout Session) throws(SessionError) -> Void) {
-        perform { studio throws(StudioError) in try studio.edit(body) }
+    /// Runs the edit on an idle studio. Nil when the studio is not idle (no alert), or after a
+    /// throw (with its alert).
+    @discardableResult func edit<Result>(_ body: (inout Session) throws(SessionError) -> Result) -> Result? {
+        guard let studio = idleStudio else { return nil }
+        do throws(StudioError) {
+            return try studio.edit(body)
+        } catch {
+            alert = .error(error)
+            return nil
+        }
     }
 
     private func perform(_ action: (Studio) throws(StudioError) -> Void) {

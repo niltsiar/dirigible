@@ -158,3 +158,27 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
         session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, marks: marks,
         scale: TimelineScale(framesPerPoint: 512), laneHeight: 100)
 }
+
+/// The document view of `session` alone (no window), at 512 frames per point and 100 pt lanes.
+@MainActor func documentView(_ session: Session) -> TimelineDocumentView {
+    let view = TimelineDocumentView()
+    view.inputs = LaneInputs(
+        session: session, peaks: [:], missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 512),
+        laneHeight: 100)
+    return view
+}
+
+/// The pixels darker than 40% gray (the clip label color) of a draw of `rect` of `view`. The lane
+/// and clip colors are lighter.
+@MainActor func darkPixels(_ view: NSView, in rect: NSRect) throws -> Int {
+    let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: rect))
+    view.cacheDisplay(in: rect, to: bitmap)
+    var count = 0
+    for x in 0..<bitmap.pixelsWide {
+        for y in 0..<bitmap.pixelsHigh {
+            guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+            if color.redComponent + color.greenComponent + color.blueComponent < 1.2 { count += 1 }
+        }
+    }
+    return count
+}

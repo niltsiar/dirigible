@@ -82,7 +82,9 @@ final class TimelineDocumentView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        guard let inputs, let context = NSGraphicsContext.current?.cgContext else { return }
+        // A snapshot of a layer-backed view (`cacheDisplay`) gives an infinite rect.
+        let dirtyRect = dirtyRect.intersection(bounds)
+        guard !dirtyRect.isEmpty, let inputs, let context = NSGraphicsContext.current?.cgContext else { return }
         let started = ContinuousClock.now
         draws += 1
         let (x0, x1) = (dirtyRect.minX.rounded(.down), dirtyRect.maxX.rounded(.up))

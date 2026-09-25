@@ -153,6 +153,28 @@ import Testing
         await model.close()
     }
 
+    /// An Undo removes the pool file that the clipboard names: Paste does nothing and shows no
+    /// alert (code gate 1 item 3). Controls: no file check shows the `.unknownFile` alert; a file
+    /// check that refuses a present file fails the other paste tests.
+    @Test func pasteOfAFileThatAnUndoRemovedDoesNothing() async throws {
+        let (model, studio, _, _) = try await open()
+        try studio.edit { s throws(SessionError) in
+            try s.addFile(AudioFile(id: "f2", path: "f2.wav", layout: .mono, length: 48_000))
+            try s.place(Clip(id: "x", file: "f2", start: 0, offset: 0, length: 48_000), on: "t1")
+        }
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
+        model.run(.copy)
+        model.undo()
+        #expect(studio.session.files["f2"] == nil)
+        let before = studio.session
+
+        model.run(.paste)
+
+        #expect(studio.session == before && !studio.canUndo)
+        #expect(model.alert == nil)
+        await model.close()
+    }
+
     /// Criterion 19. Control: a clipboard on the general pasteboard changes its count.
     @Test func theClipboardIsPerWindowAndLeavesThePasteboard() async throws {
         let count = NSPasteboard.general.changeCount

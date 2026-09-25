@@ -101,8 +101,9 @@ public enum ExportError: Error, Hashable, Sendable {
 /// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
 /// folder of `url`, closes and flushes it, then moves it: over `replacing` when the target
 /// still is that item, else with `moveNew`, which never replaces an item. Then it flushes the
-/// folder. Every exit removes the temporary file. At the start it removes the leftovers of an
-/// export to `url` that died. Returns the faults of the files that the source read.
+/// folder. Every exit removes the temporary file. It holds an flock on the temporary file while
+/// it runs. At the start it removes the leftovers of an export to `url` that died. Returns the
+/// faults of the files that the source read.
 public func exportMix(
     _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
     replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
@@ -122,6 +123,18 @@ public func exportMix(
     removeExportLeftovers(of: url)
     let folder = url.deletingLastPathComponent()
     let temporary = folder.appending(path: "\(leftoverPrefix(url))\(UUID().uuidString).tmp")
+    // The flock tells the sweep of another export to this target that the file is live. It holds
+    // on APFS, exFAT, and FAT (probe g1-flock). A volume with no locks gets the file with no lock.
+    var held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_EXLOCK | O_CLOEXEC, 0o644)
+    if held < 0, errno == ENOTSUP || errno == EOPNOTSUPP {
+        held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
+    }
+    guard held >= 0 else {
+        let code = errno
+        throw code == EMFILE || code == ENFILE ? .openFailed(code) : writeFault(status: -40, errno: code)
+    }
+    // The unlink runs before the close, so no sweep sees the file with no lock.
+    defer { close(held) }
     defer { unlink(temporary.path) }
     let first = source.range.lowerBound
     let total = source.range.upperBound.count - first.count
@@ -170,17 +183,21 @@ private func fold(_ stereo: AVAudioPCMBuffer, into mono: AVAudioPCMBuffer) {
     vDSP_vasm(channels[0], 1, channels[1], 1, &half, mono.floatChannelData![0], 1, vDSP_Length(stereo.frameLength))
 }
 
-/// Removes the temporary files of the exports to `url`: `.<name>.<UUID>.tmp` in the folder of
-/// `url`. An export that died (a kill, a crash) leaves one. `dirigible render` also calls it at
-/// SIGINT. A name with no UUID stays: the export did not make it.
-public func removeExportLeftovers(of url: URL) {
+/// Removes the temporary files of the exports to `url` that died (a kill, a crash):
+/// `.<name>.<UUID>.tmp` in the folder of `url` that no export holds an flock on. A live export
+/// holds one, so its file stays. A name with no UUID stays: the export did not make it.
+private func removeExportLeftovers(of url: URL) {
     let folder = url.deletingLastPathComponent()
     let prefix = leftoverPrefix(url)
     for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
     where name.hasPrefix(prefix) && name.hasSuffix(".tmp")
         && UUID(uuidString: String(name.dropFirst(prefix.count).dropLast(4))) != nil
     {
-        unlink(folder.appending(path: name).path)
+        let path = folder.appending(path: name).path
+        let dead = open(path, O_RDONLY | O_EXLOCK | O_NONBLOCK | O_CLOEXEC)
+        guard dead >= 0 else { continue }
+        unlink(path)
+        close(dead)
     }
 }
 

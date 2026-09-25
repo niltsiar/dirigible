@@ -122,3 +122,37 @@ public enum PeakFile {
 
     private static func posix(_ code: Int32) -> POSIXError { POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO) }
 }
+
+/// The state of the cache file of one pool file.
+public enum PeakCacheState: Hashable, Sendable {
+    /// The cache file of the stamp of the WAV now decodes; `bins` is the count of level 0.
+    case hit(bins: Int)
+    /// No cache file of the stamp of the WAV now decodes.
+    case miss
+    /// `openMedia` gives `.missing`.
+    case missing
+}
+
+/// The one public read of the peak cache (decision 0017), for `dirigible peaks`. For each pool
+/// file in ID order: the stamp from `openMedia`, then the cache file of that stamp. It writes
+/// nothing and takes no lock. Throws when the process has no free descriptor.
+public func peakCacheStates(of session: Session, package: URL, cache: URL) throws(POSIXError) -> [(
+    path: String, state: PeakCacheState
+)] {
+    let clips = package.appending(path: clipsFolderName)
+    var states: [(path: String, state: PeakCacheState)] = []
+    for file in session.files.values.sorted(by: { $0.id < $1.id }) {
+        let opened = try openMedia(file, in: clips, rate: session.sampleRate)
+        var state = PeakCacheState.miss
+        if opened.fault == .missing {
+            state = .missing
+        } else if opened.file != nil, let stamp = opened.stamp,
+            let peaks = PeakFile.read(
+                path: file.path, stamp: stamp, channels: file.layout.channelCount, rate: session.sampleRate, in: cache)
+        {
+            state = .hit(bins: peaks.levels[0].count)
+        }
+        states.append((file.path, state))
+    }
+    return states
+}

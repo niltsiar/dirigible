@@ -1,0 +1,72 @@
+import DirigibleCore
+import Foundation
+import Testing
+
+@testable import DirigibleApp
+@testable import DirigibleAudio
+
+/// Timeline-view criterion 9: 6 lanes of 2 h peaks into 2880 x 1200 px, at zoom to fit and at
+/// the closest zoom, 120 draws each. The app budget is a p95 of 8 ms (probe D2: 4 to 5 ms with
+/// -O); the release app measures it. The tests run unoptimized (a test run with -O runs the
+/// `dirigible` main), and this code measured a p95 of 23 to 24 ms there, so the test budget is
+/// 40 ms. A loop of one Swift step per pixel measured 72 to 90 ms.
+struct LaneRenderBenchmark {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func sixLanesOfTwoHoursDrawInTheDebugBudget() throws {
+        let frames = 345_600_000
+        var random = SplitMix(seed: 9)
+        let base = (0..<(frames / 256)).map { _ in
+            let peak = UInt16.random(in: 0...65535, using: &random)
+            return PeakColumn(peak: peak, rms: peak / 2)
+        }
+        func upper(_ factor: Int) -> [PeakColumn] {
+            stride(from: 0, to: base.count, by: factor).map { start in
+                let bins = base[start..<min(start + factor, base.count)]
+                return PeakColumn(peak: bins.map(\.peak).max()!, rms: bins.map(\.rms).max()!)
+            }
+        }
+        let peaks = Peaks(
+            frames: Frames(frames), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,
+            sampleRate: 48_000, levels: [base, upper(16), upper(256)])
+        var session = Session(sampleRate: 48_000)
+        var states: [FileID: PeakState] = [:]
+        for n in 1...6 {
+            let file = FileID("f\(n)")
+            try session.addFile(AudioFile(id: file, path: "f\(n).wav", layout: .mono, length: Frames(frames)))
+            try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
+            try session.place(
+                Clip(id: ClipID("c\(n)"), file: file, start: 0, offset: 0, length: Frames(frames)), on: TrackID("t\(n)")
+            )
+            states[file] = .ready(peaks)
+        }
+        let renderer = LaneRenderer()
+
+        for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
+            let inputs = LaneInputs(
+                session: session, peaks: states, missingMedia: [:], marks: Marks(),
+                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+            var times: [Duration] = []
+            for draw in 0..<120 {
+                let start = ContinuousClock.now
+                _ = renderer.draw(inputs, x: Double(draw % 7), width: 1440, scale: 2)
+                times.append(ContinuousClock.now - start)
+            }
+            let p95 = times.sorted()[113]
+            #expect(renderer.columns == 2880 && renderer.rows == 1200)
+            #expect(p95 <= .milliseconds(40), "\(zoom): p95 \(p95)")
+        }
+    }
+}
+
+/// SplitMix64, so the benchmark draws the same peaks on each run.
+struct SplitMix: RandomNumberGenerator {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var value = state
+        value = (value ^ (value >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        value = (value ^ (value >> 27)) &* 0x94D0_49BB_1331_11EB
+        return value ^ (value >> 31)
+    }
+}

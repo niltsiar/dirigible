@@ -22,6 +22,9 @@ struct ParityTests {
         "split": ["clip split"],
         "move": ["clip move"],
         "trim": ["clip trim"],
+        "paste": ["clip paste"],
+        "splitClips": ["clip split-at"],
+        "nudge": ["clip nudge"],
     ]
 
     static let exemptions: [String: String] = [
@@ -29,10 +32,6 @@ struct ParityTests {
         "edit": "History lives in one process. Each command is one read-edit-save step.",
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
-        // Slice 3 of the edit-commands run adds `clip paste`, `clip split-at`, and `clip nudge`.
-        "paste": "The command comes in the CLI slice of the edit-commands run.",
-        "splitClips": "The command comes in the CLI slice of the edit-commands run.",
-        "nudge": "The command comes in the CLI slice of the edit-commands run.",
     ]
 
     @Test func everyMutatingSessionMethodHasACommandOrAnExemption() throws {

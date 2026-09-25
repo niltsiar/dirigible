@@ -4,7 +4,10 @@ import DirigibleCore
 struct ClipCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
-        subcommands: [Place.self, Clear.self, Split.self, Move.self, Trim.self, SetGain.self])
+        subcommands: [
+            Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, Nudge.self, Move.self, Trim.self,
+            SetGain.self,
+        ])
 
     struct Place: ParsableCommand {
         static let configuration = CommandConfiguration(
@@ -28,14 +31,79 @@ struct ClipCommand: ParsableCommand {
     }
 
     struct Clear: ParsableCommand {
-        static let configuration = CommandConfiguration(abstract: "Remove the frames in a range and leave a gap.")
+        static let configuration = CommandConfiguration(
+            abstract: "Remove the frames in a range on each track and leave a gap. One save for all tracks.")
         @OptionGroup var package: PackageArgument
-        @Option var track: String
+        @Option(help: "A track. Give one or more.") var track: [String] = []
         @OptionGroup var range: FrameRange
+
+        func validate() throws {
+            guard !track.isEmpty else { throw ValidationError("Give one or more --track.") }
+        }
 
         func run() throws {
             try editPackage(package) { session throws(SessionError) in
-                try session.clear(range.frames, on: TrackID(track))
+                for track in track { try session.clear(range.frames, on: TrackID(track)) }
+            }
+        }
+    }
+
+    struct SplitAt: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Split each clip that holds a frame inside it, and write the IDs of the right parts.")
+        @OptionGroup var package: PackageArgument
+        @Option(help: "A track. Give one or more.") var track: [String] = []
+        @Option(parsing: .unconditionalSingleValue, help: "A timeline frame. Give one or more.") var at: [Int] = []
+
+        func validate() throws {
+            guard !track.isEmpty, !at.isEmpty else { throw ValidationError("Give one or more --track and --at.") }
+        }
+
+        func run() throws {
+            let rights = try editPackage(package) { session throws(SessionError) in
+                try session.splitClips(at: at.map { Frames($0) }, on: track.map { TrackID($0) })
+            }
+            for id in rights { print(id) }
+        }
+    }
+
+    struct Paste: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Copy a range of tracks and paste it at a frame over the clips there. Write the pasted IDs.")
+        @OptionGroup var package: PackageArgument
+        @OptionGroup var range: FrameRange
+        @Option(help: "A source track. Give one or more.") var track: [String] = []
+        @Option(parsing: .unconditional, help: "The timeline frame of the paste.") var at: Int
+        @Option(help: "A target track for each --track, in order. The default is the source tracks.")
+        var onto: [String] = []
+
+        func validate() throws {
+            guard !track.isEmpty else { throw ValidationError("Give one or more --track.") }
+            guard onto.isEmpty || onto.count == track.count else {
+                throw ValidationError("Give one --onto for each --track, or none.")
+            }
+        }
+
+        func run() throws {
+            let sources = track.map { TrackID($0) }
+            let targets = onto.isEmpty ? sources : onto.map { TrackID($0) }
+            let pasted = try editPackage(package) { session throws(SessionError) in
+                try session.paste(try session.excerpt(of: range.frames, on: sources), at: Frames(at), on: targets)
+            }
+            for id in pasted { print(id) }
+        }
+    }
+
+    struct Nudge: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Move clips by a number of frames on their tracks. They overwrite the clips under them.")
+        @OptionGroup var package: PackageArgument
+        @Argument var clips: [String] = []
+        @Option(parsing: .unconditional, help: "The frames to move; negative moves left.") var by: Int
+
+        func run() throws {
+            try editPackage(package) { session throws(SessionError) in
+                try session.nudge(clips.map { ClipID($0) }, by: Frames(by))
             }
         }
     }

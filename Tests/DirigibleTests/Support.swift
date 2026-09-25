@@ -1,5 +1,6 @@
 import AVFoundation
 import AppKit
+import CoreAudio
 import DirigibleCore
 import Foundation
 import Testing
@@ -57,6 +58,7 @@ extension SessionWindow {
 /// test target cannot import `TestHAL` of `DirigibleAudioTests`.
 final class CountingHAL: Sendable {
     private let counts = OSAllocatedUnfairLock(initialState: (attaches: 0, cleanDetaches: 0))
+    private let inputs = OSAllocatedUnfairLock(initialState: [DeviceInput]())
 
     var attaches: Int { counts.withLock { $0.attaches } }
     var isFree: Bool { counts.withLock { $0.attaches == $0.cleanDetaches } }
@@ -70,8 +72,9 @@ final class CountingHAL: Sendable {
         var environment = CaptureEnvironment.live
         environment.hal = DeviceHAL(
             lookUp: { $0 == duo.uid ? (7, duo) : nil },
-            attach: { [counts] _ in
+            attach: { [counts, inputs] input in
                 counts.withLock { $0.attaches += 1 }
+                inputs.withLock { $0.append(input) }
                 return {
                     counts.withLock { $0.cleanDetaches += 1 }
                     return true
@@ -82,6 +85,88 @@ final class CountingHAL: Sendable {
         environment.firstRecordLimit = .seconds(60)
         return environment
     }
+
+    /// Pushes `seconds` of stereo silence into the ring of the last attached input, as the IOProc
+    /// does: records of 10 ms from now. The device writer drains them into the take.
+    func feed(seconds: Double) {
+        guard let input = inputs.withLock({ $0.last }) else {
+            Issue.record("No input is attached")
+            return
+        }
+        input.ring.setRate(48_000)
+        let start = AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())
+        for n in 0..<Int(seconds * 100) {
+            var time = AudioTimeStamp()
+            time.mSampleTime = Double(n * 480)
+            time.mHostTime = AudioConvertNanosToHostTime(start + UInt64(n) * 10_000_000)
+            time.mRateScalar = 1
+            time.mFlags = [.sampleTimeValid, .hostTimeValid]
+            var samples = [Float](repeating: 0, count: 960)
+            samples.withUnsafeMutableBytes { bytes in
+                var list = AudioBufferList(
+                    mNumberBuffers: 1,
+                    mBuffers: AudioBuffer(
+                        mNumberChannels: 2, mDataByteSize: UInt32(bytes.count), mData: bytes.baseAddress))
+                var output = AudioBufferList()
+                withUnsafePointer(to: time) { time in
+                    _ = CaptureRing.ioProc(7, time, &list, time, &output, time, input.ring.context)
+                }
+            }
+        }
+    }
+}
+
+/// Counts the package writes of a studio. Each write still goes to the disk.
+final class SaveCounter: Sendable {
+    private let count = OSAllocatedUnfairLock(initialState: 0)
+
+    var writes: Int { count.withLock { $0 } }
+
+    @MainActor init(_ studio: Studio) {
+        let save = studio.environment.saveSession
+        studio.environment.saveSession = { [count] session, lock throws(SessionFileError) in
+            count.withLock { $0 += 1 }
+            return try save(session, lock)
+        }
+    }
+}
+
+/// A key event from `CGEvent`: its key code matches a menu item as a real key does (probe E4).
+/// Backspace is 51, Return 36, Left 123, Right 124, Page Down 121.
+func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
+    let event = try #require(CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: true))
+    event.flags = flags
+    return try #require(NSEvent(cgEvent: event))
+}
+
+/// A real session window of `package` with its lanes, as the key window of `app`.
+@MainActor func openLanes(_ app: AppDelegate, _ package: URL) async throws
+    -> (SessionWindow, Studio, NSWindow, TimelineScrollView)
+{
+    let model = await app.open(package)
+    let studio = try #require(await model.opened() ? model.studio : nil)
+    let window = try #require(model.window)
+    await until("the window shows the lanes") { model.timelineView?.window != nil }
+    app.key = model
+    return (model, studio, window, try #require(model.timelineView))
+}
+
+/// Focuses the name field of the first track and returns its field editor.
+@MainActor func focusName(in window: NSWindow) async throws -> NSTextView {
+    var found: NSTextField?
+    await until("the track header shows its name field") {
+        window.contentView?.layoutSubtreeIfNeeded()
+        found = window.contentView.flatMap(firstEditableField)
+        return found != nil
+    }
+    let field = try #require(found)
+    #expect(window.makeFirstResponder(field))
+    return try #require(window.fieldEditor(false, for: field) as? NSTextView)
+}
+
+@MainActor private func firstEditableField(in view: NSView) -> NSTextField? {
+    if let field = view as? NSTextField, field.isEditable { return field }
+    return view.subviews.lazy.compactMap(firstEditableField).first
 }
 
 /// A package with the mono tracks `t1` to `t<tracks>`, each routed to channel 1 of `mic` and

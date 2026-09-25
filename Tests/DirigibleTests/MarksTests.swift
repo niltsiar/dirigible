@@ -110,4 +110,20 @@ struct MarksTests {
         #expect(marks.selection(in: session)?.range == 0..<100)
         #expect(marks.selection(in: session)?.tracks == ["t3"])
     }
+
+    /// Edit-commands criterion 16: the first selected track in session order and the tracks under
+    /// it, one per lane; with no selected track in the session, the source tracks. Controls: always
+    /// the source tracks fails the first row; no count check fails the t4 row.
+    @Test func pasteTracks() throws {
+        var session = try Self.session()
+        let two = try session.excerpt(of: 0..<100, on: ["t1", "t2"])
+        #expect(Marks(tracks: ["t2"]).pasteTracks(for: two, in: session) == ["t2", "t3"])
+        #expect(Marks(tracks: ["t3", "t1"]).pasteTracks(for: two, in: session) == ["t1", "t2"])
+        #expect(Marks(tracks: ["t4"]).pasteTracks(for: two, in: session) == nil)
+        #expect(Marks().pasteTracks(for: two, in: session) == ["t1", "t2"])
+        #expect(Marks(tracks: ["t9"]).pasteTracks(for: two, in: session) == ["t1", "t2"])
+        try session.removeTrack("t2")
+        #expect(Marks().pasteTracks(for: two, in: session) == nil)
+        #expect(Marks(tracks: ["t3"]).pasteTracks(for: two, in: session) == ["t3", "t4"])
+    }
 }

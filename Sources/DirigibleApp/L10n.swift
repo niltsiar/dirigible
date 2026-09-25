@@ -37,6 +37,11 @@ enum L10n: String, CaseIterable {
     case menuEditIn = "menu.edit.in"
     case menuEditOut = "menu.edit.out"
     case menuEditDeselect = "menu.edit.deselect"
+    case menuEditCut = "menu.edit.cut"
+    case menuEditCopy = "menu.edit.copy"
+    case menuEditPaste = "menu.edit.paste"
+    case menuEditDelete = "menu.edit.delete"
+    case menuEditSelectAll = "menu.edit.select.all"
 
     case panelNewName = "panel.new.name"
     case windowOpening = "window.opening"

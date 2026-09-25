@@ -38,6 +38,13 @@ final class UndoRoutingWindow: NSWindow {
         model?.run(.selectAll)
     }
 
+    /// Cut, Copy, Paste, and Delete with no text focused (decision 0018). A focused text field
+    /// takes these selectors before the window on the responder chain (probe E3).
+    @objc func cut(_ sender: Any?) { model?.run(.cut) }
+    @objc func copy(_ sender: Any?) { model?.run(.copy) }
+    @objc func paste(_ sender: Any?) { model?.run(.paste) }
+    @objc func delete(_ sender: Any?) { model?.run(.delete) }
+
     /// Esc (decision 0017): with no text focused, the Marks empty. There is no Esc menu item, so
     /// alerts and sheets keep the key.
     override func cancelOperation(_ sender: Any?) {

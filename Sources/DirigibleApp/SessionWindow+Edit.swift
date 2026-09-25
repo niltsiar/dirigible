@@ -24,7 +24,8 @@ extension SessionWindow {
             }
             return
         }
-        guard let selection = timeline.marks.selection(in: studio.session) else { return }
+        guard [.cut, .copy, .delete].contains(command), let selection = timeline.marks.selection(in: studio.session)
+        else { return }
         if command == .copy {
             clipboard = (try? studio.session.excerpt(of: selection.range, on: selection.tracks)) ?? clipboard
             return
@@ -48,8 +49,13 @@ extension SessionWindow {
         // ponytail: a fixed step of 10 ms, a calibration knob (manual check M3); a zoom step is the
         // upgrade.
         let step = Frames(studio.session.sampleRate / 100)
-        guard let move = timeline.marks.nudge(by: command == .nudgeLeft ? .zero - step : step, in: studio.session)
-        else { return }
+        let offset: Frames
+        switch command {
+        case .nudgeLeft: offset = .zero - step
+        case .nudgeRight: offset = step
+        default: return
+        }
+        guard let move = timeline.marks.nudge(by: offset, in: studio.session) else { return }
         if edit({ session throws(SessionError) in try session.nudge(move.clips, by: move.offset) }) != nil {
             timeline.marks = move.marks
         }
@@ -76,18 +82,19 @@ extension SessionWindow {
                 session.markers.values.filter { $0.position == frame }
                 .min { ($0.kind == .chapter ? 1 : 0, $0.id) < ($1.kind == .chapter ? 1 : 0, $1.id) }?.id
             Task { await studio.perform(.seek(.frame(frame))) }
-        default:
+        case .renameMarker, .moveMarker, .deleteMarker:
             guard var marker = timeline.marker.flatMap({ session.markers[$0] }) else { return }
             switch command {
             // During a take the alert does not open, as no edit command acts then (decision 0018).
             case .renameMarker where canEdit: timeline.renaming = MarkerRename(id: marker.id, name: marker.name)
-            case .renameMarker: return
             case .moveMarker:
                 marker.position = playhead
                 edit { s throws(SessionError) in try s.setMarker(marker) }
-            default:
+            case .deleteMarker:
                 if edit({ s throws(SessionError) in try s.removeMarker(marker.id) }) != nil { timeline.marker = nil }
+            default: return
             }
+        default: return
         }
     }
 

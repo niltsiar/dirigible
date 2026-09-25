@@ -104,9 +104,10 @@ func peaksOf(_ studio: Studio, _ id: FileID) -> Peaks? {
     return nil
 }
 
-/// Waits until the peaks of `id` are ready, with a limit of 10 s.
+/// Waits until the peaks of `id` are ready, with a limit of 30 s: the pass hops to the main actor
+/// at each file and block, and the window tests of the suite hold the main actor.
 @MainActor
-func waitForPeaks(_ studio: Studio, _ id: FileID = "f1", limit: Duration = .seconds(10)) async -> Peaks? {
+func waitForPeaks(_ studio: Studio, _ id: FileID = "f1", limit: Duration = .seconds(30)) async -> Peaks? {
     await until(limit: limit, "the peaks of \(id) are not ready") { peaksOf(studio, id) != nil }
     return peaksOf(studio, id)
 }
@@ -166,7 +167,7 @@ struct StudioPeaksTests {
 
         let studio = try await fixture.studio()
 
-        await until(limit: .seconds(10), "f1 is not unavailable") { studio.peaks["f1"] == .unavailable }
+        await until(limit: .seconds(30), "f1 is not unavailable") { studio.peaks["f1"] == .unavailable }
         #expect(studio.missingMedia == ["f1": .missing])
         #expect(fixture.cacheFiles() == [])
     }
@@ -226,22 +227,22 @@ struct StudioPeaksTests {
         try studio.edit { session throws(SessionError) in try session.removeFile("f2") }
         try studio.edit { session throws(SessionError) in try session.addFile(f2) }
         try studio.undo()
-        await until(limit: .seconds(10), "the pass of the undo did not end") { studio.peakLoad.pass == nil }
+        await until(limit: .seconds(30), "the pass of the undo did not end") { studio.peakLoad.pass == nil }
         try fixture.rewrite("f2")
 
         try studio.redo()
 
-        await until(limit: .seconds(10), "f2 has the new peaks") {
+        await until(limit: .seconds(30), "f2 has the new peaks") {
             peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak: 16384, rms: 16384)
         }
 
         // An undo of the add removes f2; an undo of the removal brings it back.
         try studio.undo()
-        await until(limit: .seconds(10), "the pass of the undo did not end") { studio.peakLoad.pass == nil }
+        await until(limit: .seconds(30), "the pass of the undo did not end") { studio.peakLoad.pass == nil }
         try fixture.rewrite("f2", level: 0.125)
         try studio.undo()
 
-        await until(limit: .seconds(10), "f2 has the peaks of the last rewrite") {
+        await until(limit: .seconds(30), "f2 has the peaks of the last rewrite") {
             peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak: 8192, rms: 8192)
         }
     }
@@ -309,7 +310,7 @@ struct StudioPeaksTests {
 
         studio.loadPeaks()
 
-        await until(limit: .seconds(10), "the pass did not reach each file") {
+        await until(limit: .seconds(30), "the pass did not reach each file") {
             studio.peaks["gone"] == .unavailable && studio.peaks["rate"] == .unavailable
                 && peaksOf(studio, "short")?.frames == Frames(real)
         }

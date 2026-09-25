@@ -237,7 +237,7 @@ struct StudioPeaksSettleTests {
             if blocks.calls == 2 { FullDiskTests.run(["detach", volume.path, "-force"]) }
         }
 
-        await until(limit: .seconds(10), "f1 is not unavailable") { studio.peaks["f1"] == .unavailable }
+        await until(limit: .seconds(30), "f1 is not unavailable") { studio.peaks["f1"] == .unavailable }
         #expect(blocks.calls == 2)
         #expect(studio.missingMedia["f1"] == .unreadable)
     }

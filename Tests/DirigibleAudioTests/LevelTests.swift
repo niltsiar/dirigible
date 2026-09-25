@@ -52,9 +52,11 @@ struct LevelTests {
         let studio = try await studio(hal)
         try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
         let input = SyntheticInput(hal, "duo")
-        input.play(toneOnChannelOne(seconds: 3), pace: .realTime)
+        // The 30 s tone of the monitor tests: it runs longer than the wait, and the stop ends it.
+        input.play(await toneRecords(), pace: .realTime)
 
-        await until(limit: .seconds(5), "t1 has no peak of 0.5") {
+        // The main-actor suites hold the main actor for seconds (the `busy` limit of MonitorTests).
+        await until(limit: .seconds(20), "t1 has no peak of 0.5") {
             abs((studio.liveTracks["t1"]?.peak ?? 0) - 0.5) <= 0.01
         }
         let silent = try #require(studio.liveTracks["t2"]?.peak)

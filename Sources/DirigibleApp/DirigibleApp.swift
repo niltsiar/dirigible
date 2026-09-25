@@ -28,7 +28,7 @@ struct DirigibleApp: App {
                                 item.title.key,
                                 isOn: Binding(
                                     get: { app.key?.timeline.follows == true },
-                                    set: { _ in app.timeline(.toggleFollow, plain: false) })
+                                    set: { _ in app.timeline(.toggleFollow) })
                             ).keyboardShortcut(item.key, modifiers: item.modifiers)
                         } else {
                             menuButton(item)
@@ -85,7 +85,7 @@ struct DirigibleApp: App {
     }
 
     private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {
-        Button(item.title.key) { app.timeline(item.command, plain: item.modifiers.isEmpty) }
+        Button(item.title.key) { app.timeline(item.command) }
             .keyboardShortcut(item.key, modifiers: item.modifiers)
     }
 }

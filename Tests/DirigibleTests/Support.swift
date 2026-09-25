@@ -139,6 +139,17 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
     return try #require(NSEvent(cgEvent: event))
 }
 
+/// A key-down with Command from `NSEvent.keyEvent`: a CGEvent key-down types nothing in the
+/// field editor of the test process (decisions.tsv, slice 2). An arrow also has the function
+/// and number-pad flags, as a real arrow key has.
+@MainActor func commandKey(_ characters: String, code: UInt16, in window: NSWindow) -> NSEvent {
+    let arrow = code == 123 || code == 124
+    return NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: arrow ? [.command, .function, .numericPad] : .command,
+        timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: characters,
+        charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
+}
+
 /// A real session window of `package` with its lanes, as the key window of `app`.
 @MainActor func openLanes(_ app: AppDelegate, _ package: URL) async throws
     -> (SessionWindow, Studio, NSWindow, TimelineScrollView)

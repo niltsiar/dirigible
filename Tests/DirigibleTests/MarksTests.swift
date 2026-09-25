@@ -126,4 +126,64 @@ struct MarksTests {
         #expect(Marks().pasteTracks(for: two, in: session) == nil)
         #expect(Marks(tracks: ["t3"]).pasteTracks(for: two, in: session) == ["t3", "t4"])
     }
+
+    /// Edit-commands criterion 17: a range splits at in and out on the selected tracks; else the
+    /// playhead on the selected tracks, or on every track. Controls: the first selected track only
+    /// fails the first row; every track also with a selection fails it too.
+    @Test func splitPoints() throws {
+        let session = try Self.session(tracks: 3)
+        let rows: [(Marks, [Frames], [TrackID])] = [
+            (Marks(inPoint: 100, outPoint: 200, tracks: ["t3", "t1"]), [100, 200], ["t1", "t3"]),
+            (Marks(tracks: ["t2"]), [50], ["t2"]),
+            (Marks(inPoint: 100, tracks: ["t2"]), [50], ["t2"]),
+            (Marks(), [50], ["t1", "t2", "t3"]),
+            (Marks(tracks: ["t9"]), [50], ["t1", "t2", "t3"]),
+        ]
+        for (marks, frames, tracks) in rows {
+            let points = marks.splitPoints(playhead: 50, in: session)
+            #expect(points.frames == frames && points.tracks == tracks, "\(marks)")
+        }
+    }
+
+    /// Edit-commands criterion 18: the clips fully inside the range on the selected tracks; a left
+    /// offset stops at frame 0; the Marks move with the clips. Controls: the overlapping clips
+    /// fail the b row; no clamp fails the left rows.
+    @Test func nudge() throws {
+        var session = try Self.session(tracks: 2, clip: false)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 480_000))
+        for (id, start, track) in [("a", 1000, "t1"), ("b", 3000, "t1"), ("c", 1500, "t2")] {
+            try session.place(
+                Clip(id: ClipID(id), file: "f1", start: Frames(start), offset: 0, length: 1000), on: TrackID(track))
+        }
+        let rows: [(Marks, Frames, [ClipID], Frames, Marks)] = [
+            (
+                Marks(inPoint: 1000, outPoint: 4000, tracks: ["t1"]), 480, ["a", "b"], 480,
+                Marks(inPoint: 1480, outPoint: 4480, tracks: ["t1"])
+            ),
+            (
+                Marks(inPoint: 1000, outPoint: 3500, tracks: ["t2", "t1"]), 480, ["a", "c"], 480,
+                Marks(inPoint: 1480, outPoint: 3980, tracks: ["t1", "t2"])
+            ),
+            (
+                Marks(inPoint: 1001, outPoint: 4000, tracks: ["t1"]), 480, ["b"], 480,
+                Marks(inPoint: 1481, outPoint: 4480, tracks: ["t1"])
+            ),
+            (
+                Marks(inPoint: 500, outPoint: 4000, tracks: ["t1"]), -480, ["a", "b"], -480,
+                Marks(inPoint: 20, outPoint: 3520, tracks: ["t1"])
+            ),
+            (
+                Marks(inPoint: 900, outPoint: 2000, tracks: ["t1"]), -1200, ["a"], -1000,
+                Marks(inPoint: 0, outPoint: 1000, tracks: ["t1"])
+            ),
+        ]
+        for (marks, step, clips, offset, moved) in rows {
+            let move = try #require(marks.nudge(by: step, in: session), "\(marks)")
+            #expect(move.clips == clips && move.offset == offset && move.marks == moved, "\(marks)")
+        }
+        #expect(Marks(inPoint: 1100, outPoint: 3900, tracks: ["t1"]).nudge(by: 480, in: session) == nil)
+        #expect(Marks(inPoint: 1000, outPoint: 4000).nudge(by: 480, in: session) == nil)
+        try session.place(Clip(id: "z", file: "f1", start: 0, offset: 0, length: 500), on: "t1")
+        #expect(Marks(inPoint: 0, outPoint: 4000, tracks: ["t1"]).nudge(by: -480, in: session) == nil)
+    }
 }

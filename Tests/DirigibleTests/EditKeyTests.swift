@@ -22,7 +22,8 @@ import Testing
             edit.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
                 "cut x \(command)", "copy c \(command)", "paste v \(command)", "delete \u{8} 0",
                 "selectAll a \(command)", "setIn i 0", "setOut o 0",
-                "deselectAll a \(EventModifiers([.command, .shift]).rawValue)",
+                "deselectAll a \(EventModifiers([.command, .shift]).rawValue)", "split b \(command)",
+                "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)",
             ])
         let items = TimelineCommand.viewItems + edit
         #expect(Set(items.map(\.title)).count == items.count)
@@ -46,6 +47,33 @@ import Testing
 
         #expect(editor.string == "T")
         #expect(studio.session == session && model.timeline.marks == marks)
+        await model.close()
+    }
+
+    /// Criterion 14: Command-Left and Command-Right move the caret of a focused field, and Command-B
+    /// goes there too; the session, the playhead, and the Marks stay. Control: with no forward, the
+    /// caret stays, Split cuts t1, and Nudge Right moves c1.
+    @Test func cmdArrowsAndCmdBGoToAFocusedField() async throws {
+        let (model, studio, window, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
+        await studio.perform(.seek(.frame(96_000)))
+        let editor = try await focusName(in: window)
+        editor.setSelectedRange(NSRange(location: 1, length: 0))
+        let (session, playhead) = (studio.session, studio.playhead)
+        let arrows: [(TimelineCommand, UInt16, String, Int)] = [
+            (.nudgeLeft, 123, "\u{F702}", 0), (.nudgeRight, 124, "\u{F703}", 2),
+        ]
+
+        for (command, code, characters, caret) in arrows {
+            model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+            app.timeline(command, event: commandKey(characters, code: code, in: window), in: window)
+            #expect(editor.selectedRange() == NSRange(location: caret, length: 0), "\(command)")
+        }
+        model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])
+        app.timeline(.split, event: commandKey("b", code: 11, in: window), in: window)
+
+        #expect(studio.session == session && studio.playhead == playhead)
+        #expect(model.timeline.marks == Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
         await model.close()
     }
 }

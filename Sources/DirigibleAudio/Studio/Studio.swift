@@ -70,6 +70,8 @@ import Observation
     /// The write chain: each package write (an autosave, a start, or a finalize) runs in its
     /// turn, so the writes run one at a time in the order of their calls.
     @ObservationIgnored private let writes = TurnQueue()
+    /// True from `scheduleSave` until its write starts.
+    @ObservationIgnored private var saveWaits = false
     /// The monitor order (decision 0015): each change of the monitor runs in one turn. Code that
     /// holds a monitor turn never waits for a package write, so the two orders cannot wait for
     /// each other.
@@ -364,14 +366,19 @@ import Observation
     /// task of the caller, so no actor hop comes between its end and the caller.
     private func serialized<T>(_ body: () async -> T) async -> T { await writes.run(body) }
 
-    /// Writes a copy of the session off the main actor, after the previous package write. It
-    /// takes its ticket now, so a later start or finalize writes after it.
+    /// Writes the session off the main actor, after the previous package write. It takes its
+    /// ticket now, so a later start or finalize writes after it. A save that waits for its turn
+    /// writes the session of that turn, so a later call adds no write: a held Nudge key makes at
+    /// most one write in progress and one that waits (decision 0018).
     private func scheduleSave() {
         sendSession()
-        let (snapshot, lock, save, ticket) = (session, lock, environment.saveSession, writes.ticket())
+        guard !saveWaits else { return }
+        saveWaits = true
+        let (lock, save, ticket) = (lock, environment.saveSession, writes.ticket())
         Task {
             await writes.wait(for: ticket)
-            switch await writeSession(snapshot, lock: lock, previous: url, recordings: recordings, save) {
+            saveWaits = false
+            switch await writeSession(session, lock: lock, previous: url, recordings: recordings, save) {
             case .success(let package):
                 url = package
                 saveError = nil

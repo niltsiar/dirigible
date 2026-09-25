@@ -29,4 +29,22 @@ extension SessionWindow {
         }
         if command == .cut, let excerpt { clipboard = excerpt }
     }
+
+    /// Split and Nudge. A split with no clip at its frames makes no undo entry. Each Nudge press is
+    /// one entry; the Marks move with the clips, so the next press moves them again.
+    func runSplitOrNudge(_ command: TimelineCommand, _ studio: Studio) {
+        if command == .split {
+            let points = timeline.marks.splitPoints(playhead: studio.playhead, in: studio.session)
+            edit { session throws(SessionError) in try session.splitClips(at: points.frames, on: points.tracks) }
+            return
+        }
+        // ponytail: a fixed step of 10 ms, a calibration knob (manual check M3); a zoom step is the
+        // upgrade.
+        let step = Frames(studio.session.sampleRate / 100)
+        guard let move = timeline.marks.nudge(by: command == .nudgeLeft ? .zero - step : step, in: studio.session)
+        else { return }
+        if edit({ session throws(SessionError) in try session.nudge(move.clips, by: move.offset) }) != nil {
+            timeline.marks = move.marks
+        }
+    }
 }

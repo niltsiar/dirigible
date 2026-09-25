@@ -51,6 +51,7 @@ enum TimelineCommand: Hashable {
     case zoomIn, zoomOut, zoomToSession, zoomToSelection, toggleFollow
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
+    case split, nudgeLeft, nudgeRight
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
     /// responder of the key window, so a focused text field takes it before the window (probe E3).
@@ -62,6 +63,16 @@ enum TimelineCommand: Hashable {
         case .delete: #selector(NSText.delete(_:))
         case .selectAll: #selector(NSResponder.selectAll(_:))
         default: nil
+        }
+    }
+
+    /// True when a focused text field uses the key of the item (probes E4b, K1): the item gives
+    /// the key-down to the field first. Cut, Copy, Paste, and Select All need no forward, because
+    /// their selector reaches the field (probe E3).
+    var forwardsKey: Bool {
+        switch self {
+        case .zoomToSelection, .setIn, .setOut, .delete, .split, .nudgeLeft, .nudgeRight: true
+        case .zoomIn, .zoomOut, .zoomToSession, .toggleFollow, .deselectAll, .selectAll, .cut, .copy, .paste: false
         }
     }
 
@@ -95,6 +106,9 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .setIn, title: .menuEditIn, key: "i", modifiers: []),
         MenuItem(command: .setOut, title: .menuEditOut, key: "o", modifiers: []),
         MenuItem(command: .deselectAll, title: .menuEditDeselect, key: "a", modifiers: [.command, .shift]),
+        MenuItem(command: .split, title: .menuEditSplit, key: "b", modifiers: .command),
+        MenuItem(command: .nudgeLeft, title: .menuEditNudgeLeft, key: .leftArrow, modifiers: .command),
+        MenuItem(command: .nudgeRight, title: .menuEditNudgeRight, key: .rightArrow, modifiers: .command),
     ]
 }
 
@@ -116,6 +130,7 @@ extension SessionWindow {
         case .deselectAll: timeline.marks = Marks()
         case .selectAll: timeline.marks = Marks.all(in: studio.session)
         case .cut, .copy, .paste, .delete: runClipboard(command, studio)
+        case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
         }
     }
 }

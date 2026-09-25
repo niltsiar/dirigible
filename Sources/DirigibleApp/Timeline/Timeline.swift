@@ -187,6 +187,35 @@ struct Marks: Hashable {
         return targets.count == excerpt.lanes.count ? Array(targets) : nil
     }
 
+    /// The frames and tracks of a split (decision 0018): with a selection, its in and out points on
+    /// its tracks; else the playhead on the selected tracks, or on every track when none is
+    /// selected.
+    func splitPoints(playhead: Frames, in session: Session) -> (frames: [Frames], tracks: [TrackID]) {
+        if let selection = selection(in: session) {
+            return ([selection.range.lowerBound, selection.range.upperBound], selection.tracks)
+        }
+        let all = session.tracks.map(\.id)
+        let selected = all.filter(tracks.contains)
+        return ([playhead], selected.isEmpty ? all : selected)
+    }
+
+    /// A nudge by `step` (decision 0018): the clips fully inside the selection, the offset that
+    /// keeps every start at 0 or more, and the Marks moved by that offset (the in point not below
+    /// 0). Nil when no clip moves.
+    func nudge(by step: Frames, in session: Session) -> (clips: [ClipID], offset: Frames, marks: Marks)? {
+        guard let selection = selection(in: session) else { return nil }
+        let range = selection.range
+        let clips = selection.tracks.compactMap(session.track).flatMap { track in
+            track.clips.filter { range.lowerBound <= $0.start && $0.end <= range.upperBound }
+        }
+        guard let first = clips.map(\.start).min() else { return nil }
+        let offset = max(step, .zero - first)
+        guard offset != .zero else { return nil }
+        let marks = Marks(
+            inPoint: max(.zero, range.lowerBound + offset), outPoint: range.upperBound + offset, tracks: tracks)
+        return (clips.map(\.id), offset, marks)
+    }
+
     /// Select All: 0 to the end on every track. An empty session gives no Marks.
     static func all(in session: Session) -> Marks {
         session.end == .zero

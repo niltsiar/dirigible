@@ -4,11 +4,11 @@ import Foundation
 extension Studio {
     /// Makes a package where nothing exists, then opens it. Throws `.file(.exists)` and changes
     /// nothing when anything is at the path.
-    public static func create(_ package: URL, sampleRate: Int, recordings: ActiveRecordings? = nil)
-        async throws(StudioError) -> Studio
-    {
+    public static func create(
+        _ package: URL, sampleRate: Int, recordings: ActiveRecordings? = nil, peakCache: URL? = nil
+    ) async throws(StudioError) -> Studio {
         try await createPackage(package, sampleRate: sampleRate)
-        return try await open(package, recordings: recordings)
+        return try await open(package, recordings: recordings, peakCache: peakCache)
     }
 
     /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low

@@ -57,13 +57,50 @@ struct SessionView: View {
                     Text(L10n.trackNone.key).foregroundStyle(.secondary).frame(
                         maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List(studio.session.tracks) { track in TrackRow(model: model, studio: studio, track: track) }
+                    TimelinePane(model: model, studio: studio)
                 }
             }
         case .closing(nil), .closed:
             EmptyView()
         }
     }
+}
+
+/// The track headers on the left and the lanes on the right (decision 0017). The lanes share
+/// the height, 40 to 120 pt each; the headers take the same height.
+private struct TimelinePane: View {
+    let model: SessionWindow
+    let studio: Studio
+
+    var body: some View {
+        GeometryReader { geometry in
+            let tracks = studio.session.tracks
+            // The ruler above, and a scroller below that can take its own height.
+            let free = geometry.size.height - TimelineRuler.thickness - 16
+            let height = min(120, max(40, (free / Double(max(1, tracks.count))).rounded(.down)))
+            HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: TimelineRuler.thickness)
+                    ForEach(tracks) { track in
+                        TrackRow(model: model, studio: studio, track: track)
+                            .frame(height: height, alignment: .leading).clipped()
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(width: 340)
+                Divider()
+                TimelineLanes(model: model, studio: studio, inputs: laneInputs(model, studio, laneHeight: height))
+            }
+        }
+    }
+}
+
+/// The drawn inputs of the lanes. It reads no value that the playhead poll writes, so a play
+/// updates no SwiftUI view of the lanes (decision 0017).
+@MainActor func laneInputs(_ model: SessionWindow, _ studio: Studio, laneHeight: Double) -> LaneInputs {
+    LaneInputs(
+        session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, marks: model.timeline.marks,
+        scale: model.timeline.scale, laneHeight: laneHeight)
 }
 
 /// The take state: recording, finishing, pending, or the result of the last take.
@@ -132,7 +169,8 @@ private struct TakeBanner: View {
     }
 }
 
-/// One track: arm, name, layout, route, and during a take or a monitor the meter and the state.
+/// The header of one lane: arm, name, and layout on the first line; route, and during a take or
+/// a monitor the meter and the state, on the second.
 private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
@@ -140,20 +178,25 @@ private struct TrackRow: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit)
-            TextField(L10n.trackName.key, text: name)
-                .focused($focused)
-                .onSubmit { model.commitName(track.id) }
-                .onChange(of: focused) { if !focused { model.commitName(track.id) } }
-                .disabled(!model.canEdit)
-                .frame(width: 160)
-            Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
-                .foregroundStyle(.secondary).frame(width: 60, alignment: .leading)
-            routeMenu.frame(width: 260).disabled(!model.canEdit)
-            if let live = studio.liveTracks[track.id] { LiveState(live: live) }
-            Spacer()
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit)
+                TextField(L10n.trackName.key, text: name)
+                    .focused($focused)
+                    .onSubmit { model.commitName(track.id) }
+                    .onChange(of: focused) { if !focused { model.commitName(track.id) } }
+                    .disabled(!model.canEdit)
+                    .frame(width: 150)
+                Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 8) {
+                routeMenu.frame(width: 180).disabled(!model.canEdit)
+                if let live = studio.liveTracks[track.id] { LiveState(live: live) }
+            }
         }
+        .controlSize(.small)
+        .padding(.horizontal, 8)
     }
 
     private var name: Binding<String> {
@@ -206,7 +249,7 @@ private struct LiveState: View {
     var body: some View {
         // -60 dBFS to 0 dBFS.
         let level = live.peak > 0 ? max(0, min(1, (20 * log10(Double(live.peak)) + 60) / 60)) : 0
-        ProgressView(value: level).frame(width: 120)
+        ProgressView(value: level).frame(width: 60)
         switch live.state {
         case .recording, .monitoring: EmptyView()
         case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)

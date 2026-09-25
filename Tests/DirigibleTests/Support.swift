@@ -1,4 +1,5 @@
 import AVFoundation
+import AppKit
 import DirigibleCore
 import Foundation
 import Testing
@@ -112,4 +113,47 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
         try session.write(to: url)
     }.value
     return url
+}
+
+/// A session window model with an open studio and no window of its own, so only the lanes of the
+/// test draw and publish.
+@MainActor func timelineModel(_ package: URL, app: AppDelegate) async throws -> (SessionWindow, Studio) {
+    let model = SessionWindow(url: package, recordings: nil, app: app)
+    model.open(recovering: false)
+    let studio = try #require(await model.opened() ? model.studio : nil)
+    return (model, studio)
+}
+
+/// A window of 1440 x 400 pt with the lanes of `model` at 512 frames per point and 100 pt lanes,
+/// drawn once. It is on screen only with `onScreen` (a display link needs a screen); the other
+/// tests keep the window server load of the suite low.
+@MainActor func standaloneLanes(_ model: SessionWindow, _ studio: Studio, onScreen: Bool = false)
+    -> (NSWindow, TimelineScrollView)
+{
+    let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 1440, height: 400), styleMask: [.borderless], backing: .buffered,
+        defer: false)
+    window.isReleasedWhenClosed = false
+    let view = TimelineScrollView(model: model, studio: studio)
+    view.frame = window.contentView!.bounds
+    window.contentView!.addSubview(view)
+    view.update(laneInputs(model, studio))
+    // The first update fits the session; the tests use 512 frames per point.
+    view.update(laneInputs(model, studio))
+    if onScreen { window.orderFront(nil) }
+    drawNow(window)
+    return (window, view)
+}
+
+/// Draws what needs a draw now: a layer-backed view draws at the commit of the Core Animation
+/// transaction, not in `displayIfNeeded()`.
+@MainActor func drawNow(_ window: NSWindow) {
+    window.displayIfNeeded()
+    CATransaction.flush()
+}
+
+@MainActor func laneInputs(_ model: SessionWindow, _ studio: Studio, marks: Marks = Marks()) -> LaneInputs {
+    LaneInputs(
+        session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, marks: marks,
+        scale: TimelineScale(framesPerPoint: 512), laneHeight: 100)
 }

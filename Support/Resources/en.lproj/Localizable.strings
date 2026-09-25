@@ -104,3 +104,6 @@
 "transport.stop.package.unavailable" = "Playback stopped: the session package is not available. Check that its disk is connected.";
 "transport.stop.no.descriptor" = "Playback stopped: the app cannot open more files (error %lld). Quit other apps, then press Space again.";
 "media.missing" = "Some audio files are missing or damaged. Their clips play as silence: %@";
+
+/* Timeline (decision 0017) */
+"timeline.accessibility" = "Timeline";

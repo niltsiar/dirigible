@@ -83,6 +83,7 @@ enum L10n: String, CaseIterable {
     case transportStopPackageUnavailable = "transport.stop.package.unavailable"
     case transportStopNoDescriptor = "transport.stop.no.descriptor"
     case mediaMissing = "media.missing"
+    case timelineAccessibility = "timeline.accessibility"
 
     case errorBusy = "error.studio.busy"
     case errorLocked = "error.studio.locked"

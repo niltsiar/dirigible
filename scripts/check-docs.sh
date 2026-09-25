@@ -43,4 +43,13 @@ while IFS= read -r line; do
     done
 done <<<"$answered"
 
+# The Commands table of AGENTS.md has one row for each make target, and the Makefile has that target.
+if [[ -f "$root/AGENTS.md" ]]; then
+    targets="$(grep -oE '^\| `make [a-z-]+' "$root/AGENTS.md" | cut -c9- || true)"
+    for t in $(sort <<<"$targets" | uniq -d); do err "AGENTS.md: more than one row for make $t"; done
+    for t in $targets; do
+        grep -qE "^$t:" "$root/Makefile" 2>/dev/null || err "AGENTS.md: row for make $t, but the Makefile has no $t target"
+    done
+fi
+
 exit "$fail"

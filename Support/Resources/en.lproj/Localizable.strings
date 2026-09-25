@@ -37,6 +37,13 @@
 "error.file.exists" = "An item with this name exists. Select a different name.";
 "error.finalize.read" = "The recorded audio in %1$@ cannot be read (error %2$lld).";
 "error.finalize.write" = "The clip %1$@ cannot be written (error %2$lld).";
+"error.export.exists" = "An item with this name exists. The export did not replace it.";
+"error.export.rate" = "AAC cannot be exported at %lld Hz. Select 44.1 kHz or 48 kHz.";
+"error.export.disk.full" = "The disk is full. The export stopped, and the old file stays.";
+"error.export.write" = "The export file cannot be written (error %lld).";
+"error.export.move" = "The export cannot be moved to its place (error %lld).";
+"error.export.open" = "Too many files are open. Close other apps and export again (error %lld).";
+"error.export.package" = "The session moved to another disk or was deleted. The export stopped.";
 
 /* Window, panels, and alerts */
 "panel.new.name" = "Session";

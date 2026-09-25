@@ -94,7 +94,7 @@ private func startRefused(_ error: StudioError) -> Int32 {
     switch error {
     case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .session:
         editRefused
-    case .busy, .locked, .file, .finalize: packageError
+    case .busy, .locked, .file, .finalize, .export: packageError
     }
 }
 

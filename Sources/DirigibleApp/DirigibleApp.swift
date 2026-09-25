@@ -19,6 +19,24 @@ struct DirigibleApp: App {
                         }
                     }
                 }
+                // The timeline items (decision 0017). A plain key is never disabled (probe K1).
+                CommandGroup(after: .toolbar) {
+                    ForEach(TimelineCommand.viewItems, id: \.command) { item in
+                        if item.command == .toggleFollow {
+                            Toggle(
+                                item.title.key,
+                                isOn: Binding(
+                                    get: { app.key?.timeline.follows == true },
+                                    set: { _ in app.timeline(.toggleFollow, plain: false) })
+                            ).keyboardShortcut(item.key, modifiers: item.modifiers)
+                        } else {
+                            menuButton(item)
+                        }
+                    }
+                }
+                CommandGroup(after: .pasteboard) {
+                    ForEach(TimelineCommand.editItems, id: \.command) { item in menuButton(item) }
+                }
                 // No CommandGroup for Undo and Redo: the default items send undo: and redo: along
                 // the responder chain, so a focused text field keeps its typing undo (P12).
                 CommandMenu(L10n.menuTrack.key) {
@@ -66,5 +84,10 @@ struct DirigibleApp: App {
                         .keyboardShortcut(.rightArrow, modifiers: .shift)
                 }
             }
+    }
+
+    private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {
+        Button(item.title.key) { app.timeline(item.command, plain: item.modifiers.isEmpty) }
+            .keyboardShortcut(item.key, modifiers: item.modifiers)
     }
 }

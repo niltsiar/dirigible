@@ -1,0 +1,181 @@
+import AppKit
+import DirigibleCore
+import Foundation
+import SwiftUI
+import Testing
+
+@testable import DirigibleApp
+@testable import DirigibleAudio
+
+/// The View and Edit commands of the timeline (decision 0017, criteria 17 and 18) in a real session
+/// window. The tests send the action along the responder chain from the first responder, the
+/// path of a menu item in a key window (P12).
+@Suite(.serialized) @MainActor struct TimelineKeyTests {
+    let folder: TemporaryFolder
+    let app = AppDelegate(recordings: nil)
+
+    init() throws { folder = try TemporaryFolder() }
+
+    /// A window with two tracks and a clip of 60 s on each, after SwiftUI shows the lanes.
+    func open() async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView) {
+        let model = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        let window = try #require(model.window)
+        await until("the window shows the lanes") { model.timelineView?.window != nil }
+        app.key = model
+        return (model, studio, window, try #require(model.timelineView))
+    }
+
+    /// The name field of the first track, focused, with its field editor.
+    func focusName(in window: NSWindow) async throws -> NSTextView {
+        var found: NSTextField?
+        await until("the track header shows its name field") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            found = window.contentView.flatMap(firstField)
+            return found != nil
+        }
+        let field = try #require(found)
+        #expect(window.makeFirstResponder(field))
+        return try #require(window.fieldEditor(false, for: field) as? NSTextView)
+    }
+
+    private func firstField(in view: NSView) -> NSTextField? {
+        if let field = view as? NSTextField, field.isEditable { return field }
+        return view.subviews.lazy.compactMap(firstField).first
+    }
+
+    @Test func selectAllWithNoFieldFocusedSelectsTheSession() async throws {
+        let (model, studio, window, view) = try await open()
+        #expect(window.makeFirstResponder(view.lanes))
+
+        #expect(window.firstResponder?.tryToPerform(#selector(NSResponder.selectAll(_:)), with: nil) == true)
+
+        #expect(model.timeline.marks == Marks.all(in: studio.session))
+        #expect(model.timeline.marks.tracks.count == 2)
+        await model.close()
+    }
+
+    @Test func selectAllInANameFieldSelectsTheText() async throws {
+        let (model, _, window, _) = try await open()
+        let editor = try await focusName(in: window)
+        editor.setSelectedRange(NSRange(location: 0, length: 0))
+
+        #expect(window.firstResponder?.tryToPerform(#selector(NSResponder.selectAll(_:)), with: nil) == true)
+
+        #expect(editor.selectedRange() == NSRange(location: 0, length: (editor.string as NSString).length))
+        #expect(model.timeline.marks == Marks())
+        await model.close()
+    }
+
+    @Test func escapeWithNoFieldFocusedEmptiesTheMarks() async throws {
+        let (model, _, window, view) = try await open()
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 1000, tracks: ["t1"])
+        #expect(window.makeFirstResponder(view.lanes))
+
+        #expect(window.firstResponder?.tryToPerform(#selector(NSResponder.cancelOperation(_:)), with: nil) == true)
+
+        #expect(model.timeline.marks == Marks())
+        await model.close()
+    }
+
+    @Test func escapeInANameFieldLeavesTheMarks() async throws {
+        let (model, _, window, _) = try await open()
+        let marks = Marks(inPoint: 0, outPoint: 1000, tracks: ["t1"])
+        model.timeline.marks = marks
+        _ = try await focusName(in: window)
+
+        _ = window.firstResponder?.tryToPerform(#selector(NSResponder.cancelOperation(_:)), with: nil)
+
+        #expect(model.timeline.marks == marks)
+        await model.close()
+    }
+
+    /// K3: a plain key of a menu item goes to the focused text field.
+    @Test func aPlainIInANameFieldTypesI() async throws {
+        let (model, _, window, _) = try await open()
+        let editor = try await focusName(in: window)
+        editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+        let before = editor.string
+
+        app.timeline(.setIn, event: key(.keyDown, "i", code: 34, in: window), in: window)
+
+        #expect(editor.string == before + "i")
+        #expect(model.timeline.marks == Marks())
+        await model.close()
+    }
+
+    @Test func aPlainIWithTheTimelineFocusedSetsTheInPoint() async throws {
+        let (model, studio, window, view) = try await open()
+        await studio.perform(.seek(.frame(48_000)))
+        #expect(window.makeFirstResponder(view.lanes))
+
+        app.timeline(.setIn, event: key(.keyDown, "i", code: 34, in: window), in: window)
+        await studio.perform(.seek(.frame(96_000)))
+        app.timeline(.setOut, event: key(.keyDown, "o", code: 31, in: window), in: window)
+
+        #expect(model.timeline.marks == Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1", "t2"]))
+        await model.close()
+    }
+
+    /// Zoom In and Zoom Out keep the playhead at its x; the scale halves and doubles.
+    @Test func zoomInAndOutKeepThePlayheadX() async throws {
+        let (model, studio, _, view) = try await open()
+        await studio.perform(.seek(.frame(480_000)))
+        let points = view.framesPerPoint
+        let x = (480_000 - view.origin) / points
+
+        model.run(.zoomIn)
+        #expect(view.framesPerPoint == points / 2)
+        #expect(abs((480_000 - view.origin) / view.framesPerPoint - x) <= 1, "zoom in")
+        model.run(.zoomOut)
+        #expect(view.framesPerPoint == points)
+        #expect(abs((480_000 - view.origin) / view.framesPerPoint - x) <= 1, "zoom out")
+        #expect(model.timeline.scale.framesPerPoint == points)
+        await model.close()
+    }
+
+    @Test func zoomToSelectionShowsTheSelection() async throws {
+        let (model, _, _, view) = try await open()
+        model.timeline.marks = Marks(inPoint: 480_000, outPoint: 960_000, tracks: ["t1"])
+
+        model.run(.zoomToSelection)
+
+        #expect(abs(view.origin - 456_000) <= view.framesPerPoint)
+        #expect(abs(view.visibleFrames - 528_000) <= view.framesPerPoint)
+        await model.close()
+    }
+
+    /// Automatic Scroll: off, then on again; on ends a hold and shows the playhead.
+    @Test func automaticScrollTogglesTheFollow() async throws {
+        let (model, studio, _, view) = try await open()
+        model.run(.zoomIn)
+        model.run(.zoomIn)
+        await studio.perform(.seek(.frame(2_500_000)))
+
+        model.run(.toggleFollow)
+        #expect(!model.timeline.follows)
+        model.timeline.followHeld = true
+        view.scroll(toFrame: 0)
+        model.run(.toggleFollow)
+
+        #expect(model.timeline.follows && !model.timeline.followHeld)
+        #expect(view.origin <= 2_500_000 && 2_500_000 < view.origin + view.visibleFrames, "the playhead shows")
+        await model.close()
+    }
+
+    /// F16: each new command has a menu item with its key. The menus are built from this table.
+    @Test func everyNewMenuItemHasItsKey() {
+        let items = TimelineCommand.viewItems + TimelineCommand.editItems
+        let keys = items.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
+
+        #expect(
+            keys == [
+                "zoomIn + \(EventModifiers.command.rawValue)", "zoomOut - \(EventModifiers.command.rawValue)",
+                "zoomToSession 0 \(EventModifiers.command.rawValue)", "zoomToSelection h 0",
+                "toggleFollow f \(EventModifiers([.command, .option]).rawValue)", "setIn i 0", "setOut o 0",
+                "deselectAll a \(EventModifiers([.command, .shift]).rawValue)",
+            ])
+        #expect(Set(items.map(\.title)).count == items.count)
+        #expect(!items.contains { $0.command == .selectAll }, "Select All is the system item")
+    }
+}

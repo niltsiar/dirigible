@@ -86,8 +86,8 @@ private struct TimelinePane: View {
                         TrackRow(model: model, studio: studio, track: track)
                             .frame(height: height, alignment: .leading).clipped()
                     }
-                    Spacer(minLength: 0)
-                })
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
         }
     }
 }

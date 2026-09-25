@@ -96,6 +96,7 @@ final class TimelineScrollView: NSScrollView {
 
     override func tile() {
         super.tile()
+        keepShownOrigin()
         lanes.resize()
         fitOnce()
         viewMoved()
@@ -104,6 +105,20 @@ final class TimelineScrollView: NSScrollView {
     override func reflectScrolledClipView(_ clipView: NSClipView) {
         super.reflectScrolledClipView(clipView)
         viewMoved()
+    }
+
+    /// The content insets of the clip view at the last tile.
+    private var insets = NSEdgeInsetsZero
+
+    /// The clip view gets the ruler insets at a tile, after the first fit can scroll. A change of
+    /// the insets moves the bounds by the same amount, so the lanes in view start where they did.
+    private func keepShownOrigin() {
+        let new = contentView.contentInsets
+        guard new.left != insets.left || new.top != insets.top else { return }
+        let bounds = contentView.bounds
+        contentView.scroll(
+            to: NSPoint(x: bounds.minX - (new.left - insets.left), y: bounds.minY - (new.top - insets.top)))
+        insets = new
     }
 
     /// The one vertical origin, the top of the clip view, places the headers beside the lanes

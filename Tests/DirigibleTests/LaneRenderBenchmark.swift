@@ -11,8 +11,8 @@ import Testing
 /// is unoptimized (a test run with -O runs the `dirigible` main), and this code measured a p95 of
 /// 23 to 24 ms there, so the debug budget is 40 ms. A loop of one Swift step per pixel measured
 /// 72 to 90 ms. For the optimized run, copy the package, make DirigibleApp a library target with no
-/// `@main`, and run `DIRIGIBLE_SLOW_TESTS=1 swift test -c release -Xswiftc -enable-testing
-/// --filter LaneRenderBenchmark`.
+/// `@main`, and run `swift test -c release -Xswiftc -enable-testing --filter LaneRenderBenchmark`
+/// with the slow-test gate variable set to 1. (`make test-slow` counts each line that names it.)
 struct LaneRenderBenchmark {
     #if DEBUG
         static let budget = Duration.milliseconds(40)

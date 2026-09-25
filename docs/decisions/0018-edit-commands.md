@@ -36,7 +36,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 
 **Clipboard.** One `Excerpt` per window, in memory. It is not on `NSPasteboard`: a `FileID` names audio only inside its package, and a paste into another package needs a file copy (F61). A close drops it.
 
-**Markers.** A current marker (window state) names the marker of Rename (Shift-Return, a sheet), Move Marker to Playhead (Option-Cmd-Return), and Delete Marker (Cmd-Backspace). Add Marker (Cmd-Return, "Marker N"), Add Chapter (Shift-Cmd-Return, "Chapter N"), and Previous and Next Marker (Page Up, Page Down) set it. Esc and Deselect All clear it.
+**Markers.** A current marker (window state) names the marker of Rename (Shift-Return, a sheet), Move Marker to Playhead (Option-Cmd-Return), and Delete Marker (Cmd-Backspace). Add Marker (Cmd-Return, "Marker N"), Add Chapter (Shift-Cmd-Return, "Chapter N"), and Previous and Next Marker (Page Up, Page Down) set it. Esc and Deselect All clear it. During play, Previous Marker and Previous Clip look before the playhead - 0.5 s, so a press just after a marker or a clip edge passes it (code gate 1 of the edit-commands run).
 
 **Tracks and Finder.** Remove Track (Option-Cmd-Backspace, and the track header menu) removes the selected tracks as one undo entry, with no question. A track that a pending take arms is refused (0012), and nothing changes. Show Clips in Finder (Shift-Cmd-R) reveals the existing pool files of the clips in the selection, or of all clips, under the package path that the lock holds (`Studio.clipURLs`, R1).
 

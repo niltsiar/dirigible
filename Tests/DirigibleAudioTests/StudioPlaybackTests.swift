@@ -57,6 +57,27 @@ struct StudioPlaybackTests {
         #expect(studio.playback == .stopped && studio.playhead == 72_000)
     }
 
+    /// During play, Previous Clip looks before the playhead - 0.5 s, so a press just after an edge
+    /// passes it (code gate 1 item 2). The edges are 0, 24 000, 48 000, and 72 000. Controls: no
+    /// 0.5 s during play goes to 48 000; the 0.5 s also when stopped fails
+    /// `homeEndAndClipEdgesMoveThePlayhead`.
+    @Test func previousClipDuringPlayPassesTheEdgeJustPlayed() async throws {
+        let studio = try await studio()
+        try studio.edit { session throws(SessionError) in
+            try session.addTrack("t2", name: "Guest", layout: .mono)
+            try session.place(Clip(id: "c2", file: "f1", start: 24_000, offset: 0, length: 48_000), on: "t2")
+        }
+        await studio.perform(.seek(.frame(43_200)))
+        await studio.perform(.playStop)
+        _ = await studio.renderOffline(frames: 9_600)
+        await until(limit: .seconds(10), "the playhead is 0.1 s past 48 000") { studio.playhead == 52_800 }
+
+        await studio.perform(.seek(.previousClip))
+
+        #expect(studio.playhead == 24_000)
+        await studio.perform(.playStop)
+    }
+
     @Test func aReopenedSessionRecordsAfterTheLastClip() async throws {
         let studio = try await studio()
         #expect(studio.playhead == 48_000)

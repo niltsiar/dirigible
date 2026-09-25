@@ -63,7 +63,7 @@ extension SessionWindow {
         case .previousMarker, .nextMarker:
             let found =
                 command == .nextMarker
-                ? session.markerPosition(after: playhead) : session.markerPosition(before: playhead)
+                ? session.markerPosition(after: playhead) : session.markerPosition(before: studio.previousFrom)
             guard let frame = found else { return }
             // At one position: a marker before a chapter, then by ID.
             timeline.marker =

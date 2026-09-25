@@ -60,6 +60,12 @@ extension Studio {
     public var playheadTime: ContinuousClock.Instant { play.playheadTime }
     /// The last stop of playback that the user did not ask for. A new play clears it.
     public var playbackStop: PlaybackStop? { play.playbackStop }
+    /// The frame that Previous Clip and Previous Marker look before. During play it is 0.5 s
+    /// before the playhead: the playhead is past an edge or a marker when the user hears it, so
+    /// a press just after it goes to the one before it (code gate 1).
+    public var previousFrom: Frames {
+        play.playback == .stopped ? play.playhead : play.playhead - Frames(session.sampleRate / 2)
+    }
 
     /// Checks each pool file off the main actor (decision 0016). The window calls it at focus;
     /// `open`, a finalize, and a play from stopped check too. A package that left its volume
@@ -249,7 +255,7 @@ extension Studio {
         switch seek {
         case .start: .zero
         case .end: session.end
-        case .previousClip: session.edge(before: play.playhead)
+        case .previousClip: session.edge(before: previousFrom)
         case .nextClip: session.edge(after: play.playhead)
         case .frame(let frame): max(.zero, frame)
         }

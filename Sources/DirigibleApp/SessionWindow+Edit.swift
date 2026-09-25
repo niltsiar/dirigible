@@ -73,7 +73,9 @@ extension SessionWindow {
         default:
             guard var marker = timeline.marker.flatMap({ session.markers[$0] }) else { return }
             switch command {
-            case .renameMarker: timeline.renaming = MarkerRename(id: marker.id, name: marker.name)
+            // During a take the alert does not open, as no edit command acts then (decision 0018).
+            case .renameMarker where canEdit: timeline.renaming = MarkerRename(id: marker.id, name: marker.name)
+            case .renameMarker: return
             case .moveMarker:
                 marker.position = playhead
                 edit { s throws(SessionError) in try s.setMarker(marker) }
@@ -83,9 +85,11 @@ extension SessionWindow {
         }
     }
 
-    /// OK of the rename alert: saves the name of its marker, when the session still has it.
+    /// OK of the rename alert: saves the name of its marker, when the session still has it. When a
+    /// take started while the alert was open, OK saves nothing and the typed name stays in the
+    /// alert state, so the alert shows it again until the user presses OK after the take or Cancel.
     func commitRename() {
-        guard let renaming = timeline.renaming else { return }
+        guard let renaming = timeline.renaming, canEdit else { return }
         timeline.renaming = nil
         guard var marker = studio?.session.markers[renaming.id] else { return }
         marker.name = renaming.name

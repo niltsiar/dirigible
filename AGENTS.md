@@ -68,7 +68,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Read `learnings.md`, `backlog.md`, and the last `run.md` at the start of every session.
 - `decisions.tsv` is append-only. Add rows with `.claude/skills/deliver/scripts/log-decision.sh`, which writes the time from the clock. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
-- A probe or a script that creates, renames, or deletes files works only in a new folder under `.scratchpads/` or the session scratchpad, with absolute paths. Never in the home folder or the repo root: a probe once deleted files in `~`.
+- Run every probe with `scripts/probe.sh <folder> <command>`. The folder is a new folder under `.scratchpads/` or the session scratchpad. The script runs the command in that folder and a sandbox refuses a write outside it. A probe once deleted files in `~`.
 
 ## Git
 
@@ -77,7 +77,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Use Conventional Commits: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`. Add a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why. For a long message, write it to `.scratchpads/commit-msg.txt` and run `git commit -F .scratchpads/commit-msg.txt`.
 - The pre-commit hook refuses a commit that fails `make lint` or does not build (tests included). It checks the working tree, so stage whole changes.
-- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks: force push, push to `main`, hard reset, clean, forced branch delete, stash drop, skipped hooks. It matches the whole command, so a commit message that quotes one of these flags is blocked too. Reword the message. `make test-hooks` checks the hook.
+- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks: force push, push to `main`, hard reset, clean, forced branch delete, stash drop, skipped hooks. It matches the whole command, so a commit message that quotes one of these flags is blocked too. Reword the message. `make test-hooks` checks the hook and `scripts/probe.sh`.
 - `.claude/settings.json` allows the build, test, git, and `gh pr` commands of the deliver flow without a prompt. Long runs also need a permission mode that allows file edits, for example auto mode.
 
 ## Architecture rules

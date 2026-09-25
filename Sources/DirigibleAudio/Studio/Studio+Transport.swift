@@ -28,11 +28,14 @@ public enum PlaybackStop: Hashable, Sendable {
 struct PlayState {
     var playback: Playback = .stopped
     /// At open: the session end, so Record in a reopened session appends. Not saved.
-    var playhead: Frames
+    var playhead: Frames {
+        didSet { playheadTime = .now }
+    }
+    /// The instant of the last write of `playhead`: a poll, a seek, or a stop. The timeline draws
+    /// the playhead line from it between two polls (decision 0017).
+    var playheadTime = ContinuousClock.now
     /// Where Shift-Space goes: set by a play from stopped and by a seek.
     var startPoint: Frames
-    /// From the media checks and the read faults of the Player.
-    var missingMedia: [FileID: MediaFault]
     var playbackStop: PlaybackStop?
     /// The last feed number. Only a play, a stop, a seek, and a shuttle change take a new one.
     var feed = 0
@@ -43,10 +46,9 @@ struct PlayState {
     /// Reads the Player every 33 ms while `playback` is `.playing`.
     var poll: Task<Void, Never>?
 
-    init(at playhead: Frames, missingMedia: [FileID: MediaFault]) {
+    init(at playhead: Frames) {
         self.playhead = playhead
         startPoint = playhead
-        self.missingMedia = missingMedia
     }
 }
 
@@ -54,9 +56,8 @@ extension Studio {
     public var playback: Playback { play.playback }
     /// Live while playing: the poll sets it every 33 ms.
     public var playhead: Frames { play.playhead }
-    /// The pool files that give no frames or fewer frames. The clips of these files play as
-    /// silence (decision 0003).
-    public var missingMedia: [FileID: MediaFault] { play.missingMedia }
+    /// The instant of the last poll or set of `playhead`.
+    public var playheadTime: ContinuousClock.Instant { play.playheadTime }
     /// The last stop of playback that the user did not ask for. A new play clears it.
     public var playbackStop: PlaybackStop? { play.playbackStop }
 
@@ -65,7 +66,7 @@ extension Studio {
     /// keeps the last state: the check cannot read it.
     public func checkMedia() async {
         guard let faults = await mediaFaults(session, lock: lock, before: environment.beforeMediaCheck) else { return }
-        play.missingMedia = faults
+        missingMedia = faults
     }
 
     /// The one entry of the transport commands (decision 0016). It never throws: a command that
@@ -218,7 +219,8 @@ extension Studio {
             let number = play.feed
             let reading = await player.reading()
             if play.feed == number, reading.played == number {
-                play.missingMedia.merge(reading.faults) { $1 }
+                // Only a fault writes: the view of the lanes reads `missingMedia` (decision 0017).
+                if !reading.faults.isEmpty { missingMedia.merge(reading.faults) { $1 } }
                 // The engine stops before the system posts the change, so its position can be
                 // gone: the playhead keeps the last poll.
                 if let stop = reading.stop ?? (reading.running ? nil : .outputChanged) {

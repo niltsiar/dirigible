@@ -225,6 +225,37 @@ extension StudioPlaybackTests {
         #expect(studio.playback != .stopped)
     }
 
+    /// A file that goes during a play: the poll merges the read fault of the Player into
+    /// `missingMedia` (decision 0017: the poll writes it only when a reading has a fault).
+    @Test func aFileThatGoesDuringAPlayShowsFromThePoll() async throws {
+        try package.addFile("f2", channels: [ramp(frames: 24_000, channel: 1)])
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 24_000, offset: 0, length: 24_000)
+        try package.session.write(to: package.url)
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        _ = await studio.renderOffline(frames: 4800)
+        #expect(studio.missingMedia == [:])
+
+        try FileManager.default.removeItem(at: package.url.appending(path: "Clips/f2.wav"))
+        _ = await studio.renderOffline(frames: 24_000)
+
+        await until(limit: .seconds(10), "the poll shows the fault") { studio.missingMedia == ["f2": .missing] }
+        #expect(studio.playback != .stopped, "the play goes on")
+        await studio.perform(.playStop)
+    }
+
+    /// The timeline draws the playhead line from the instant of the last playhead write.
+    @Test func aSeekSetsThePlayheadTime() async throws {
+        let studio = try await studio()
+        let before = ContinuousClock.now
+        #expect(studio.playheadTime < before)
+
+        await studio.perform(.seek(.frame(100)))
+
+        #expect(studio.playheadTime >= before)
+    }
+
     /// Control: a start that works plays and shows no stop.
     @Test(arguments: [true, false])
     func aStartFailureShowsOutputUnavailable(fails: Bool) async throws {

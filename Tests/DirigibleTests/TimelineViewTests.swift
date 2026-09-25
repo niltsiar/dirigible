@@ -183,6 +183,16 @@ import Testing
         await window.close()
     }
 
+    /// Code gate 1 item 1: a new window with more lanes than fit shows the top of lane 1 and
+    /// frame 0 at the top left of the lanes in view, not under the rulers. The clip view gets the
+    /// ruler insets after the first fit.
+    @Test func aNewWindowShowsTheStartOfLaneOne() async throws {
+        let (window, _, view) = try await openWindow(tracks: 7)
+
+        #expect(view.shown.minY == 0 && view.shown.minX == 0, "\(view.shown)")
+        await window.close()
+    }
+
     /// Code gate 1 item 1: the record-over warning reads the lanes in view after a vertical
     /// scroll, and a zoom (a page turn) keeps the vertical origin.
     @Test func theWarningSeesAnArmedLaneScrolledAboveTheView() async throws {

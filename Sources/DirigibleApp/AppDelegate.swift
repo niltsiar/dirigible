@@ -26,6 +26,13 @@ import UniformTypeIdentifiers
     @ObservationIgnored private var keyMonitor: Any?
     /// Shows files in Finder. Tests give their own.
     @ObservationIgnored var reveal: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
+    /// The save panel of Export as a sheet of a window: the name, the session rate, and the
+    /// answer. Tests give their own.
+    @ObservationIgnored var chooseExport:
+        (NSWindow, String, Int, @escaping @MainActor (ExportTarget?) -> Void) -> Void = {
+            ExportPanel.begin(
+                for: $0, name: $1, sessionRate: $2, settings: ExportSettings(defaults: .standard), done: $3)
+        }
 
     /// The app: the list of active recordings in Application Support.
     override convenience init() {

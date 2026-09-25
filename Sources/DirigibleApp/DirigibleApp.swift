@@ -20,7 +20,10 @@ struct DirigibleApp: App {
                         }
                     }
                     Divider()
-                    ForEach(TimelineCommand.fileItems, id: \.command) { item in menuButton(item) }
+                    // Export has Command in its keys, so it can be off (probe K1 is about plain keys).
+                    ForEach(TimelineCommand.fileItems, id: \.command) { item in
+                        menuButton(item).disabled(app.key?.isOn(item.command) == false)
+                    }
                 }
                 // The timeline items (decision 0017). A plain key is never disabled (probe K1).
                 CommandGroup(after: .toolbar) {

@@ -146,3 +146,26 @@
 "alert.marker.rename" = "Renombrar marcador";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";
+
+/* Export (decision 0019) */
+"menu.file.export" = "Exportar…";
+"menu.file.export.selection" = "Exportar selección…";
+"panel.export.format" = "Formato";
+"panel.export.format.wav" = "WAV";
+"panel.export.format.aac" = "AAC (.m4a)";
+"panel.export.format.flac" = "FLAC";
+"panel.export.bits" = "Profundidad de bits";
+"panel.export.bitrate" = "Tasa de bits";
+"panel.export.bitrate.value" = "%lld kbit/s";
+"panel.export.channels" = "Canales";
+"panel.export.channels.stereo" = "Estéreo";
+"panel.export.channels.mono" = "Mono";
+"panel.export.rate" = "Frecuencia de muestreo";
+"panel.export.rate.session" = "Frecuencia de la sesión (%lld Hz)";
+"panel.export.rate.44100" = "44,1 kHz";
+"panel.export.rate.48000" = "48 kHz";
+"sheet.export.title" = "Exportando…";
+"sheet.export.cancel" = "Cancelar";
+"alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";
+"alert.export.confirm" = "Exportar";
+"alert.exported" = "La exportación terminó. Estos archivos faltaban o no se podían leer, y se exportaron como silencio:\n%@";

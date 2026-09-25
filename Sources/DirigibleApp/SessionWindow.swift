@@ -11,6 +11,8 @@ enum WindowAlert: Hashable {
     case microphone(MicrophoneAccess)
     case confirmStopAndClose
     case confirmUnsavedClose
+    /// The report after an export: the paths of the files that rendered as silence (decision 0003).
+    case exported([String])
 }
 
 /// The state of one session window and its `NSWindowDelegate` (decision 0014). `Studio` is the
@@ -53,6 +55,8 @@ enum WindowAlert: Hashable {
     /// The Copy and Cut excerpt of this window (decision 0018): not on the macOS pasteboard,
     /// because a file ID names audio only inside its package. A close drops it.
     @ObservationIgnored var clipboard: Excerpt?
+    /// The step of Export before the export runs (decision 0019). Nil: no step.
+    var exportStep: ExportStep?
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
 
@@ -195,12 +199,15 @@ enum WindowAlert: Hashable {
     // MARK: Actions
 
     /// The studio when it takes a command: open, no take, no start.
-    private var idleStudio: Studio? {
+    var idleStudio: Studio? {
         guard case .open(let studio) = phase, studio.transport == .idle, !studio.isStarting else { return nil }
         return studio
     }
 
+    /// Off while the export question or the save panel shows: one Cancel frees it, and a take
+    /// would drop the typed name. On while the media check or the export runs (decision 0019).
     var canRecord: Bool {
+        guard exportStep == nil || exportStep == .checking else { return false }
         guard let studio = idleStudio, studio.pendingTake == nil else { return false }
         return studio.session.tracks.contains { armed.contains($0.id) }
     }

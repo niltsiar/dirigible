@@ -7,13 +7,21 @@ import Testing
 @testable import DirigibleAudio
 
 /// Timeline-view criterion 9: 6 lanes of 2 h peaks into 2880 x 1200 px, at zoom to fit and at
-/// the closest zoom, 120 draws each. The app budget is a p95 of 8 ms (probe D2: 4 to 5 ms with
-/// -O); the release app measures it. The tests run unoptimized (a test run with -O runs the
-/// `dirigible` main), and this code measured a p95 of 23 to 24 ms there, so the test budget is
-/// 40 ms. A loop of one Swift step per pixel measured 72 to 90 ms.
+/// the closest zoom, 120 draws each, with a p95 of 8 ms or less in an optimized build. `make test`
+/// is unoptimized (a test run with -O runs the `dirigible` main), and this code measured a p95 of
+/// 23 to 24 ms there, so the debug budget is 40 ms. A loop of one Swift step per pixel measured
+/// 72 to 90 ms. For the optimized run, copy the package, make DirigibleApp a library target with no
+/// `@main`, and run `DIRIGIBLE_SLOW_TESTS=1 swift test -c release -Xswiftc -enable-testing
+/// --filter LaneRenderBenchmark`.
 struct LaneRenderBenchmark {
+    #if DEBUG
+        static let budget = Duration.milliseconds(40)
+    #else
+        static let budget = Duration.milliseconds(8)
+    #endif
+
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func sixLanesOfTwoHoursDrawInTheDebugBudget() throws {
+    func sixLanesOfTwoHoursDrawInTheBudget() throws {
         let frames = 345_600_000
         var random = SplitMix(seed: 9)
         let base = (0..<(frames / 256)).map { _ in
@@ -54,7 +62,7 @@ struct LaneRenderBenchmark {
             }
             let p95 = times.sorted()[113]
             #expect(renderer.columns == 2880 && renderer.rows == 1200)
-            #expect(p95 <= .milliseconds(40), "\(zoom): p95 \(p95)")
+            #expect(p95 <= Self.budget, "\(zoom): p95 \(p95)")
         }
     }
 }

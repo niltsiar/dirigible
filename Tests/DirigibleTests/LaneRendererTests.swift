@@ -1,3 +1,4 @@
+import CoreGraphics
 import DirigibleCore
 import Foundation
 import Testing
@@ -160,6 +161,34 @@ struct LaneRendererTests {
             #expect((0..<200).allSatisfy { renderer.pixel(column, $0) == color }, "column \(column)")
         }
         #expect(renderer.pixel(0, 50) == LaneColors.clip)
+    }
+
+    /// The image that the view draws shows the pixels of the draw, row 0 at the top.
+    @Test func theImageHoldsThePixelsOfTheDraw() throws {
+        let renderer = LaneRenderer()
+        let bins = [PeakColumn(peak: 65535, rms: 20000), PeakColumn(peak: 32768, rms: 0)]
+        var session = try Self.session(length: 20 * 256)
+        try session.setMarker(Marker(id: "m1", name: "Intro", position: Frames(256 * 7), kind: .marker))
+
+        let image = try #require(
+            renderer.draw(
+                Self.inputs(session, peaks: bins, missing: ["f2": .short(Frames(256 * 12))]), x: 0, width: 20, scale: 1)
+        )
+
+        let (width, height) = (renderer.columns, renderer.rows)
+        #expect(image.width == width && image.height == height)
+        let context = try #require(
+            CGContext(
+                data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let drawn = try #require(context.data).bindMemory(to: UInt32.self, capacity: width * height)
+        let wrong = (0..<height).flatMap { row in
+            (0..<width).filter { drawn[row * width + $0] != renderer.pixel($0, row) }.map { ($0, row) }
+        }
+        #expect(wrong.count == 0, "the first pixel that differs: \(String(describing: wrong.first))")
+        #expect(renderer.pixel(7, 0) == LaneColors.marker && renderer.pixel(15, 150) == LaneColors.missing)
     }
 
     @Test func theBufferIsReusedAcrossDraws() throws {

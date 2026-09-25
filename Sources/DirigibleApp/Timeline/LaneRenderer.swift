@@ -41,13 +41,14 @@ enum LaneColors {
 final class LaneRenderer {
     private(set) var columns = 0
     private(set) var rows = 0
-    private var context: CGContext?
     private var pixels: UnsafeMutablePointer<UInt32>?
     /// The columns of one clip, reused.
     private var values: [PeakColumn] = []
 
+    deinit { pixels?.deallocate() }
+
     /// The bitmap memory, so a test can see that a draw of the same size reuses it.
-    var bufferAddress: UnsafeMutableRawPointer? { context?.data }
+    var bufferAddress: UnsafeMutableRawPointer? { pixels.map { UnsafeMutableRawPointer($0) } }
 
     /// The pixel of the last draw at `column` and `row` (row 0 is the top of lane 1).
     func pixel(_ column: Int, _ row: Int) -> UInt32 { pixels?[row * columns + column] ?? 0 }
@@ -60,7 +61,7 @@ final class LaneRenderer {
         let laneRows = max(1, Int((inputs.laneHeight * scale).rounded()))
         let tracks = inputs.session.tracks
         prepare(columns: max(1, Int((width * scale).rounded())), rows: max(1, tracks.count * laneRows))
-        guard let context, let pixels else { return nil }
+        guard let pixels else { return nil }
         let pointFrames = inputs.scale.framesPerPoint
         let pixelFrames = pointFrames / scale
         let first = x * pointFrames
@@ -149,18 +150,32 @@ final class LaneRenderer {
         }
         line(inputs.marks.inPoint, LaneColors.inPoint)
         line(inputs.marks.outPoint, LaneColors.outPoint)
-        return context.makeImage()
+        return image(of: pixels)
     }
+
+    /// An image over the buffer itself, with no copy (`makeImage()` copied 13.8 MB, about 4 ms at
+    /// 2880 x 1200 px). The next draw changes its pixels, so draw it before the next draw.
+    private func image(of pixels: UnsafeMutablePointer<UInt32>) -> CGImage? {
+        let bytes = columns * rows * 4
+        guard let provider = CGDataProvider(dataInfo: nil, data: pixels, size: bytes, releaseData: { _, _, _ in })
+        else { return nil }
+        return CGImage(
+            width: columns, height: rows, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: columns * 4,
+            space: Self.space,
+            bitmapInfo: CGBitmapInfo(
+                rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+    }
+
+    private static let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
     /// Makes a new bitmap only when the size changes.
     private func prepare(columns: Int, rows: Int) {
-        guard context == nil || columns != self.columns || rows != self.rows else { return }
-        context = CGContext(
-            data: nil, width: columns, height: rows, bitsPerComponent: 8, bytesPerRow: columns * 4,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!,
-            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        guard pixels == nil || columns != self.columns || rows != self.rows else { return }
+        pixels?.deallocate()
+        pixels = .allocate(capacity: columns * rows)
+        pixels?.initialize(repeating: 0, count: columns * rows)
         (self.columns, self.rows) = (columns, rows)
-        pixels = context?.data?.bindMemory(to: UInt32.self, capacity: columns * rows)
     }
 
     /// Sets `rows` of `column` to `color`. `vDSP_vfill` moves the 32 bits of the pixel as a float,

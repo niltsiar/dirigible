@@ -10,7 +10,8 @@ struct Export: ParsableCommand {
             The extension of --out gives the format: .wav, .m4a, or .flac. Exit 2 when the package cannot \
             be read, the output path exists (unless --replace), a file in the range is missing, short, or \
             unreadable (unless --allow-missing), or the write fails; a failed export leaves no output file \
-            and the old file does not change.
+            and the old file does not change. A file that the check finds whole but the export cannot read \
+            also gives exit 2 (unless --allow-missing); then the output file has its clips as silence.
             """)
 
     @OptionGroup var package: PackageArgument
@@ -93,8 +94,9 @@ struct Export: ParsableCommand {
         let confirmed = replace ? ConfirmedFile(at: output) : nil
         let interrupt = cancelOnInterrupt()
         defer { interrupt.source.cancel() }
+        let read: [FileID: MediaFault]
         do {
-            _ = try exportMix(
+            read = try exportMix(
                 session, source: source, options: options, to: output, replacing: confirmed, package: { package.url },
                 isCancelled: interrupt.isCancelled)
         } catch .rateNotSupported(let rate) {
@@ -102,6 +104,16 @@ struct Export: ParsableCommand {
         } catch {
             throw failure(error, out: out, noun: "export")
         }
-        warn(faults, in: session)
+        // The check found no fault, or --allow-missing: a fault of the export itself is a file that
+        // went bad after the check. The file is written, so the error says so.
+        guard read.isEmpty || allowMissing else {
+            let files = read.sorted { $0.key < $1.key }.map {
+                "file \($0.key) \(path(of: $0.key, in: session)) \(describe($0.value))"
+            }
+            throw fail(
+                "\(files.joined(separator: "; ")); its clips in \(out) are silence. Use --allow-missing to accept it.",
+                code: packageError)
+        }
+        warn(read, in: session)
     }
 }

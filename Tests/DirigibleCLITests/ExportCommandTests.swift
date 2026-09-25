@@ -141,6 +141,46 @@ struct ExportCommandTests {
         #expect(try facts(target).frames == 21_000)
     }
 
+    /// Code gate 1, item 5: a FLAC CAF with bad packets opens, so the media check finds it whole,
+    /// but its read fails during the export (probe g1-corrupt). Exit 2 with its path; the output
+    /// has its clips as silence. With `--allow-missing`: exit 0 and one warning line.
+    @Test func aFaultThatOnlyTheExportFindsFailsIt() throws {
+        let bad = package.url.appending(path: "Clips/bad.caf")
+        do {
+            let settings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatFLAC, AVSampleRateKey: 48_000, AVNumberOfChannelsKey: 1,
+            ]
+            let file = try AVAudioFile(forWriting: bad, settings: settings)
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 20_000))
+            buffer.frameLength = 20_000
+            for i in 0..<20_000 { buffer.floatChannelData![0][i] = 0.5 * sin(Float(i) * 0.13) }
+            try file.write(from: buffer)
+        }
+        var bytes = try Data(contentsOf: bad)
+        bytes.replaceSubrange(bytes.count / 3..<bytes.count, with: Data(repeating: 0x5A, count: bytes.count * 2 / 3))
+        try bytes.write(to: bad)
+        try package.edit { session in
+            try session.addFile(AudioFile(id: "bad", path: "bad.caf", layout: .mono, length: 20_000))
+            try session.place(Clip(id: "c2", file: "bad", start: 0, offset: 0, length: 20_000), on: "t2")
+        }
+        let target = out("mix.wav")
+
+        let failed = try package.run("export", "PKG", "--out", target.path)
+
+        #expect(
+            failed
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: file bad \"bad.caf\" cannot be read; its clips in \(target.path) are silence. "
+                        + "Use --allow-missing to accept it.\n"))
+        #expect(try facts(target).frames == 21_000)
+        #expect(
+            try package.run("export", "PKG", "--out", out("allowed.wav").path, "--allow-missing")
+                == CLIResult(
+                    status: 0, stdout: "",
+                    stderr: "Warning: file bad \"bad.caf\" cannot be read; its clips render as silence.\n"))
+    }
+
     /// Criterion 31: AAC takes 48 kHz at most (probe P5). A 96 kHz session exports AAC with
     /// `--rate 48000`.
     @Test func exportAACInA96kHzSession() throws {

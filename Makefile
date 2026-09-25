@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app test test-slow test-app test-hooks check-docs run lint format check clean
+.PHONY: setup build app test test-slow bench test-app test-hooks check-docs run lint format check clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -24,6 +24,10 @@ test-slow: test
 	@test "$$(echo '$(SLOW_TESTS)' | tr '|' '\n' | grep -c .)" -eq "$$(grep -r DIRIGIBLE_SLOW_TESTS Tests | wc -l | tr -d ' ')" \
 		|| { echo "test-slow: put the func of each slow test on the line after its gate"; exit 1; }
 	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
+
+# The slow tests that match FILTER in an optimized build, for a budget that holds only with -O.
+bench:
+	scripts/bench.sh '$(FILTER)'
 
 test-app: app
 	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" swift test --filter AppBundleTests

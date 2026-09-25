@@ -33,7 +33,7 @@ import Testing
         return url
     }
 
-    /// Cut, Paste, Delete, Split, Nudge, and the marker edits change nothing and show no alert
+    /// Cut, Paste, Delete, Split, Nudge, the marker edits, and Remove Track change nothing and show no alert
     /// while a take records; a refused Cut keeps the clipboard, and a refused Delete Marker keeps
     /// the current marker. Copy runs. The take goes on: after the stop, each track has a take
     /// clip with frames. Controls: an edit with no idle check shows the `.busy` alert; a clipboard
@@ -57,7 +57,9 @@ import Testing
         model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
         model.run(.nudgeRight)
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1", "t2"])
-        for command in [TimelineCommand.addMarker, .addChapter, .moveMarker, .renameMarker, .deleteMarker] {
+        for command in [
+            TimelineCommand.addMarker, .addChapter, .moveMarker, .renameMarker, .deleteMarker, .removeTrack,
+        ] {
             model.run(command)
         }
         model.timeline.renaming?.name = "Intro"

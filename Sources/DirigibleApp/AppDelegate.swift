@@ -24,6 +24,8 @@ import UniformTypeIdentifiers
     /// The J and L hold of the key monitor (decision 0016).
     @ObservationIgnored private var hold = ShuttleHold<Studio>()
     @ObservationIgnored private var keyMonitor: Any?
+    /// Shows files in Finder. Tests give their own.
+    @ObservationIgnored var reveal: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
 
     /// The app: the list of active recordings in Application Support.
     override convenience init() {

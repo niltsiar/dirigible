@@ -19,6 +19,8 @@ struct DirigibleApp: App {
                             Button(url.deletingPathExtension().lastPathComponent) { Task { await app.open(url) } }
                         }
                     }
+                    Divider()
+                    ForEach(TimelineCommand.fileItems, id: \.command) { item in menuButton(item) }
                 }
                 // The timeline items (decision 0017). A plain key is never disabled (probe K1).
                 CommandGroup(after: .toolbar) {
@@ -51,6 +53,8 @@ struct DirigibleApp: App {
                     Button(L10n.menuTrackAdd.key) { app.key?.addTrack() }
                         .keyboardShortcut(MenuKeys.addTrack)
                         .disabled(app.key?.canEdit != true)
+                    // Its key is one that a text field uses: never disabled (probe K1).
+                    ForEach(TimelineCommand.trackItems, id: \.command) { item in menuButton(item) }
                 }
                 CommandMenu(L10n.menuRecord.key) {
                     Button(L10n.menuRecordStart.key) { Task { await app.key?.record() } }

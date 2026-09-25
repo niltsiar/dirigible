@@ -206,6 +206,7 @@ private struct TrackRow: View {
         }
         .controlSize(.small)
         .padding(.horizontal, 8)
+        .contextMenu { Button(L10n.menuTrackRemove.key) { model.removeTracks([track.id]) } }
     }
 
     private var name: Binding<String> {

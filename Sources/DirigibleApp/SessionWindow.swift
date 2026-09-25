@@ -58,7 +58,7 @@ enum WindowAlert: Hashable {
 
     @ObservationIgnored private let recordings: ActiveRecordings?
     /// The registry: a move changes the key, and a close removes the entry.
-    @ObservationIgnored private weak var app: AppDelegate?
+    @ObservationIgnored private(set) weak var app: AppDelegate?
     @ObservationIgnored private(set) var window: NSWindow?
     /// The lanes of the window, for the zoom commands.
     @ObservationIgnored weak var timelineView: TimelineScrollView?

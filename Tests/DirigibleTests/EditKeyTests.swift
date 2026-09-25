@@ -32,7 +32,16 @@ import Testing
                 "renameMarker \r \(shift)", "moveMarker \r \(EventModifiers([.command, .option]).rawValue)",
                 "deleteMarker \u{8} \(command)", "previousMarker \u{F72C} 0", "nextMarker \u{F72D} 0",
             ])
-        let items = TimelineCommand.viewItems + edit + TimelineCommand.markerItems
+        #expect(
+            (TimelineCommand.trackItems + TimelineCommand.fileItems).map {
+                "\($0.command) \($0.key.character) \($0.modifiers.rawValue)"
+            } == [
+                "removeTrack \u{8} \(EventModifiers([.command, .option]).rawValue)",
+                "showInFinder r \(EventModifiers([.command, .shift]).rawValue)",
+            ])
+        let items =
+            TimelineCommand.viewItems + edit + TimelineCommand.markerItems + TimelineCommand.trackItems
+            + TimelineCommand.fileItems
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
         let repeated = Dictionary(grouping: keys) { $0 }.filter { $0.value.count > 1 }.keys
@@ -126,6 +135,26 @@ import Testing
         // Shift-Return ends the edit and selects the text; Command-Backspace deletes it. So both
         // keys reached the field.
         #expect(window.firstResponder === editor && editor.string == "")
+        await model.close()
+    }
+
+    /// Criterion 14: with a name field focused, Option-Command-Backspace and Shift-Command-R change
+    /// no track and reveal nothing. Control: with no forward, t1 goes, and the reveal gets f1.
+    @Test func removeTrackAndShowInFinderKeysGoToAFocusedField() async throws {
+        let (model, studio, window, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60, audio: true))
+        var revealed = 0
+        app.reveal = { _ in revealed += 1 }
+        model.timeline.marks = Marks(tracks: ["t1"])
+        _ = try await focusName(in: window)
+        let session = studio.session
+
+        app.timeline(.removeTrack, event: commandKey("\u{7F}", code: 51, in: window), in: window)
+        app.timeline(.showInFinder, event: commandKey("R", code: 15, in: window), in: window)
+        // A reveal reads the disk off the main actor first; give a wrong one the time to arrive.
+        try await Task.sleep(for: .milliseconds(300))
+
+        #expect(studio.session == session && revealed == 0)
         await model.close()
     }
 }

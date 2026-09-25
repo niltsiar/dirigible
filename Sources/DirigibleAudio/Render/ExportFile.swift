@@ -63,7 +63,14 @@ func writeFile(
         throw error
     }
     // The close writes the header sizes and the last packets, so its status counts.
-    try check(ExtAudioFileDispose(file))
+    let closed = ExtAudioFileDispose(file)
+    guard closed == noErr else { throw writeFault(status: closed, errno: errno) }
+}
+
+/// The error of a failed write: -40 with errno ENOSPC is a full disk (probe P8). -40 with
+/// another errno (EIO for a lost volume, P8b) and any other status is `.writeFailed`.
+func writeFault(status: OSStatus, errno code: Int32) -> ExportError {
+    status == -40 && code == ENOSPC ? .diskFull : .writeFailed(status)
 }
 
 /// Sets `kAudioConverterEncodeBitRate` of the converter of `file`, then a nil converter

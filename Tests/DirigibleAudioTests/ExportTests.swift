@@ -74,7 +74,7 @@ struct ExportTests {
     ) throws -> URL {
         let url = package.folder.url.appending(path: name)
         let source = try #require(ExportSource(range: range, tracks: tracks))
-        _ = try exportMix(package.session, source: source, options: options, to: url, package: package.url)
+        _ = try exportMix(package.session, source: source, options: options, to: url, package: { package.url })
         return url
     }
 

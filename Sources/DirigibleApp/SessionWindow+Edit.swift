@@ -12,6 +12,12 @@ extension SessionWindow {
             guard let clipboard, let targets = timeline.marks.pasteTracks(for: clipboard, in: studio.session) else {
                 return
             }
+            // An undo can remove a pool file that the clipboard names (code gate 1).
+            let files = studio.session.files
+            guard clipboard.lanes.allSatisfy({ $0.clips.allSatisfy { files[$0.file] != nil } }) else {
+                NSSound.beep()
+                return
+            }
             let at = studio.playhead
             if edit({ session throws(SessionError) in try session.paste(clipboard, at: at, on: targets) }) != nil {
                 timeline.marks = Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets))

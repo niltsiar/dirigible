@@ -124,14 +124,15 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
     return (model, studio)
 }
 
-/// A window of 1440 x 400 pt with the lanes of `model` at 512 frames per point and 100 pt lanes,
-/// drawn once. It is on screen only with `onScreen` (a display link needs a screen); the other
+/// A window with lanes of 1440 x 400 pt (the track headers take their width on the left), with
+/// the lanes of `model` at 512 frames per point and 100 pt lanes, drawn once. It is on screen only with `onScreen` (a display link needs a screen); the other
 /// tests keep the window server load of the suite low.
 @MainActor func standaloneLanes(_ model: SessionWindow, _ studio: Studio, onScreen: Bool = false)
     -> (NSWindow, TimelineScrollView)
 {
     let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 1440, height: 400), styleMask: [.borderless], backing: .buffered,
+        contentRect: NSRect(x: 0, y: 0, width: 1440 + TrackHeaderRuler.width, height: 400), styleMask: [.borderless],
+        backing: .buffered,
         defer: false)
     window.isReleasedWhenClosed = false
     let view = TimelineScrollView(model: model, studio: studio)

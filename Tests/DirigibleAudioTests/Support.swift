@@ -20,7 +20,9 @@ func sine(seconds: Double, rate: Double, channels: Int = 1, frequency: Double = 
     return samples
 }
 
-/// A unique temporary folder, removed at deinit.
+/// A unique temporary folder, removed at deinit off the calling thread.
+/// The deinit of a folder in a `@MainActor` suite runs on the main thread. A synchronous
+/// remove there held the main actor for a third of a full run (process sample, 2026-09-25).
 final class TemporaryFolder {
     let url: URL
 
@@ -29,7 +31,7 @@ final class TemporaryFolder {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     }
 
-    deinit { try? FileManager.default.removeItem(at: url) }
+    deinit { FolderRemovals.remove(url) }
 }
 
 /// SplitMix64: a small seeded generator, so a random test gives the same values on each run.
@@ -231,5 +233,20 @@ final class StepCounter: @unchecked Sendable {
                 count += 1
                 return count
             })
+    }
+}
+
+/// Removes folders one at a time on a serial utility queue, so parallel deinits do not add
+/// threads that compete for the disk. The process waits for the removals at exit, so no folder
+/// stays in the temporary directory.
+enum FolderRemovals {
+    private static let queue = DispatchQueue(label: "FolderRemovals", qos: .utility)
+    private static let group: DispatchGroup = {
+        atexit { FolderRemovals.group.wait() }
+        return DispatchGroup()
+    }()
+
+    static func remove(_ url: URL) {
+        queue.async(group: group) { try? FileManager.default.removeItem(at: url) }
     }
 }

@@ -96,8 +96,8 @@ public enum ExportError: Error, Hashable, Sendable {
 /// the range. A mono export folds each chunk to 0.5 x (L + R) (probe P10). The file rate is the
 /// chosen rate; the converter of `ExtAudioFile` resamples (P4).
 ///
-/// At each chunk it reads `isCancelled()` and `package()`, so a package that moves keeps its
-/// audio. After each write it calls `progress` when the whole percent changes; the call of 1.0
+/// At each chunk and once after the close it reads `isCancelled()`; at each chunk it reads
+/// `package()`, so a package that moves keeps its audio. After each write it calls `progress` when the whole percent changes; the call of 1.0
 /// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
 /// folder of `url`, closes and flushes it, then moves it: over `replacing` when the target
 /// still is that item, else with `moveNew`, which never replaces an item. Then it flushes the
@@ -148,6 +148,9 @@ public func exportMix(
             }
         }
     }
+    // A cancel after the last chunk skips the flush and the move, so a take start does not
+    // wait for them (code gate 1).
+    if isCancelled() { throw .cancelled }
     if let code = fullFlush(path: temporary.path) { throw writeFault(status: -40, errno: code) }
     if let replacing {
         try moveOver(temporary, to: url, confirmed: replacing)

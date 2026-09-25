@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app test test-slow bench test-app test-hooks check-docs run lint format check clean
+.PHONY: setup build app test test-slow check-slow-gates bench test-app test-hooks check-docs run lint format check clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -14,20 +14,27 @@ app:
 test:
 	swift test --skip AppBundleTests
 
-# The name of each slow test: the function after its DIRIGIBLE_SLOW_TESTS gate.
-SLOW_TESTS = $(shell grep -rh -A1 DIRIGIBLE_SLOW_TESTS Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)
+# The gate of a slow test. The checks match the whole expression, so a comment that names the
+# variable does not change the count.
+SLOW_GATE = environment["DIRIGIBLE_SLOW_TESTS"]
+# The name of each slow test: the function after its gate.
+SLOW_TESTS = $(shell grep -rhF -A1 '$(SLOW_GATE)' Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)
 
 # The slow tests run in their own process after the other tests. Their disk and CPU load
 # makes the timed tests fail when both run in one process. They run one at a time, so the
 # benchmarks do not measure the load of the other slow tests.
-test-slow: test
-	@test "$$(echo '$(SLOW_TESTS)' | tr '|' '\n' | grep -c .)" -eq "$$(grep -r DIRIGIBLE_SLOW_TESTS Tests | wc -l | tr -d ' ')" \
-		|| { echo "test-slow: put the func of each slow test on the line after its gate"; exit 1; }
+test-slow: check-slow-gates test
 	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
 
 # The slow tests that match FILTER in an optimized build, for a budget that holds only with -O.
 bench:
 	scripts/bench.sh '$(FILTER)'
+
+# Each slow-test gate has its func on the next line, so SLOW_TESTS finds every slow test.
+# make check runs this grep, because make check does not run the slow tests.
+check-slow-gates:
+	@test "$$(echo '$(SLOW_TESTS)' | tr '|' '\n' | grep -c .)" -eq "$$(grep -rF '$(SLOW_GATE)' Tests | wc -l | tr -d ' ')" \
+		|| { echo "check-slow-gates: put the func of each slow test on the line after its gate"; exit 1; }
 
 test-app: app
 	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" swift test --filter AppBundleTests
@@ -49,7 +56,7 @@ lint:
 format:
 	swift format format --in-place --recursive $(SWIFT_SOURCES)
 
-check: lint check-docs test test-hooks test-app
+check: lint check-docs check-slow-gates test test-hooks test-app
 
 clean:
 	rm -rf .build build

@@ -115,10 +115,11 @@ struct ExcerptPasteTests {
         #expect(session == before)
     }
 
+    /// A track given twice is a wrong target count, not a used ID (code gate 1 item 6).
     @Test mutating func aPasteRefusesATrackGivenTwiceAndAnUnknownTrack() throws {
         let twice = try session.excerpt(of: 12_000..<36_000, on: ["a", "a"])
         let before = session
-        #expect(throws: SessionError.duplicateID("b")) { try session.paste(twice, at: 0, on: ["b", "b"]) }
+        #expect(throws: SessionError.trackCount(2)) { try session.paste(twice, at: 0, on: ["b", "b"]) }
         #expect(throws: SessionError.unknownTrack("x")) { try session.paste(twice, at: 0, on: ["b", "x"]) }
         #expect(session == before)
     }

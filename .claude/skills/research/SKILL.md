@@ -9,4 +9,5 @@ Its job:
 
 1. Investigate the question against **primary sources** (official docs, source code, specs, first-party APIs), not a secondary write-up of them. Follow every claim back to the source that owns it.
 2. Write the findings to a single Markdown file, citing each claim's source.
-3. Save it as `docs/research/<topic>.md`, with a `Date: YYYY-MM-DD` line and a `## Sources` section. `make check-docs` checks both. Write it in STE (the **technical-writing** skill).
+3. If a claim needs a probe (a small program that tests the real behavior), run it with `scripts/probe.sh <folder> <binary>`. The folder is a new folder under `.scratchpads/` or the session scratchpad that the caller names. The script runs the probe in that folder, and a sandbox refuses a write outside it. Never run a probe that creates, renames, or deletes files without the script.
+4. Save it as `docs/research/<topic>.md`, with a `Date: YYYY-MM-DD` line and a `## Sources` section. `make check-docs` checks both. Write it in STE (the **technical-writing** skill).

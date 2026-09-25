@@ -41,6 +41,7 @@ test-app: app
 
 test-hooks:
 	.claude/hooks/git-guardrails.test.sh
+	scripts/probe.test.sh
 
 check-docs:
 	scripts/check-docs.test.sh

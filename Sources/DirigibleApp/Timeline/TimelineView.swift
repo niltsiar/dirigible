@@ -112,7 +112,9 @@ final class TimelineScrollView: NSScrollView {
 
     /// Zoom to Selection: the range with 5% on each side. With no selection, nothing.
     func zoomToSelection() {
-        guard let inputs = lanes.inputs, let selection = inputs.marks.selection(in: inputs.session) else { return }
+        guard let inputs = lanes.inputs, let selection = model?.timeline.marks.selection(in: inputs.session) else {
+            return
+        }
         let fit = TimelineScale.fit(selection.range, width: Double(contentView.bounds.width), limits: limits(inputs))
         show(fit.scale, origin: fit.origin)
     }
@@ -136,6 +138,15 @@ final class TimelineScrollView: NSScrollView {
         guard !fitted, lanes.inputs != nil, contentView.bounds.width > 0 else { return }
         fitted = true
         zoomToSession()
+    }
+
+    /// Automatic Scroll turned on: the page of the playhead, with the playhead at 11%.
+    func showPlayhead() {
+        guard let studio,
+            let turn = followOrigin(
+                playhead: studio.playhead, origin: origin, frames: visibleFrames, direction: .forward)
+        else { return }
+        scroll(toFrame: turn)
     }
 
     func scroll(toFrame origin: Double) {

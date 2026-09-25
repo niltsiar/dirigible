@@ -32,6 +32,21 @@ final class UndoRoutingWindow: NSWindow {
         }
     }
 
+    /// Select All with no text focused: the whole session on every track (decision 0017). A focused
+    /// text field takes `selectAll:` before the window on the responder chain.
+    @objc override func selectAll(_ sender: Any?) {
+        model?.run(.selectAll)
+    }
+
+    /// Esc (decision 0017): with no text focused, the Marks empty. There is no Esc menu item, so
+    /// alerts and sheets keep the key.
+    override func cancelOperation(_ sender: Any?) {
+        switch undoTarget(firstResponder: firstResponder) {
+        case .text: super.cancelOperation(sender)
+        case .session: model?.run(.deselectAll)
+        }
+    }
+
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let text = undoTarget(firstResponder: firstResponder) == .text
         switch menuItem.action {

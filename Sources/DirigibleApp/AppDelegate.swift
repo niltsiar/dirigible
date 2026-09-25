@@ -98,6 +98,17 @@ import UniformTypeIdentifiers
         Task { await key?.studio?.perform(command) }
     }
 
+    /// The action of each timeline menu item. A plain key (H, I, O) that belongs to text or to a
+    /// panel goes there first, as the transport keys do (probes K1, K3).
+    func timeline(_ command: TimelineCommand, plain: Bool) {
+        timeline(command, event: plain ? NSApp.currentEvent : nil, in: NSApp.keyWindow)
+    }
+
+    func timeline(_ command: TimelineCommand, event: NSEvent?, in keyWindow: NSWindow?) {
+        if let event, forwardTypingKey(event, in: keyWindow) { return }
+        key?.run(command)
+    }
+
     /// Drops the auto-repeat of J, L, and Space, and pauses at the key-up of a hold (probe H1). The
     /// release calls the pause directly, with no key forward (plan gate 2 item 6), on the Studio
     /// of the key-down, also when the key window changed during the hold.

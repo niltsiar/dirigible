@@ -107,3 +107,13 @@
 
 /* Línea de tiempo (decisión 0017) */
 "timeline.accessibility" = "Línea de tiempo";
+
+/* Elementos de Visualización y Edición de la línea de tiempo (decisión 0017) */
+"menu.view.zoom.in" = "Acercar";
+"menu.view.zoom.out" = "Alejar";
+"menu.view.zoom.fit" = "Ajustar a la sesión";
+"menu.view.zoom.selection" = "Ajustar a la selección";
+"menu.view.follow" = "Desplazamiento automático";
+"menu.edit.in" = "Marcar entrada";
+"menu.edit.out" = "Marcar salida";
+"menu.edit.deselect" = "Anular selección";

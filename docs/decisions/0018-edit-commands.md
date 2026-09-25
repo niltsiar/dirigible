@@ -1,0 +1,68 @@
+# 0018. Edit commands: bulk Session edits, a window clipboard, and an Edit menu that routes through the responder chain
+
+- Status: accepted
+- Date: 2026-09-25
+- Accepted: 2026-09-25, after plan gate 1 of the edit-commands run. The gate kept the armed set at Remove Track, added the range check before each sum in paste and nudge, typed the nudge offset as `Frames`, and added the save coalescing.
+
+## Context
+
+Release 1 run 4c (`docs/requirements/releases.md`) adds the edit commands: cut, copy, paste, delete with a gap, split, nudge, markers and chapters, remove track, and a command that shows the clip files in Finder. Each command is one undo step (F14) and has a menu item with a key (F16). Each new package edit has a `dirigible` command (0011). The edit-commands run split the mouse edits (clip select, drag move, edge trim, Shift-drag, ruler drags) off to run 4d. Hindenburg research: `docs/research/edit-commands.md`, `docs/research/timeline-playback.md` section 4.
+
+Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/runs/2026-09-25-edit-commands/probe/output.txt`):
+
+- P4. At 2 h, 6 tracks, and 2,000 clips per track, `Session.place` in a loop is O(n^2): each call builds the set of all clip IDs. A paste of 1,000 clips on 6 tracks by `place` takes 12.6 s; a bulk paste with one taken-ID set takes 9.9 ms p95. Six `split` calls take 19.8 ms p95; a bulk split takes 2.3 ms.
+- E1 to E3. The default SwiftUI Edit items send cut:, copy:, paste:, delete: with a nil target. The session window gets them when the lanes are first responder; a focused text field keeps them. The system Delete item has no key.
+- E4b, E5. The main menu takes Backspace, Cmd-Left, Cmd-Right, Cmd-Return, Shift-Cmd-Return, Shift-Return, Page Down, Cmd-Backspace, and Shift-Cmd-R before a focused text field. A forward of the key-down to the field editor does the text action. E4c: delete: on a field with no selection changes nothing, so Backspace must reach the field as a key-down.
+- E4. A key event from `NSEvent.keyEvent` does not match a menu item like a real key; one from `CGEvent` does.
+- E6. `CommandGroup(replacing: .pasteboard)` removes the system Cut, Copy, Paste, Delete, and Select All items.
+- R1. `NSWorkspace.activateFileViewerSelecting` with a file inside the package opens Finder on `Clips` inside the package.
+- B1. A custom pasteboard type with no declared UTType works on a named pasteboard.
+
+## Decision
+
+**Core edits.** `DirigibleCore/Session+Edits.swift` adds bulk edits with one taken-ID set per edit:
+
+- `excerpt(of:on:) -> Excerpt`: the parts of the clips in a range on some tracks, with starts relative to the range start. Only this function makes an `Excerpt`.
+- `paste(_:at:on:) -> [ClipID]`: lane i goes to track i. It clears the whole block (start ..< start + length) on each target, also under a gap of the excerpt, then inserts the lane clips. A pasted clip gets the first free ID of `<source id>@<start>` (the 0003 rule of a split). `start` and the excerpt length are checked against 0...2^40 before any sum, so a huge `start` refuses instead of trapping. A throw changes nothing. `SessionError.trackCount` refuses a target count that is not the lane count.
+- `splitClips(at:on:) -> [ClipID]`: each clip that holds a frame strictly inside it splits; frames go in descending order.
+- `nudge(_:by: Frames)`: the clips move on their own tracks and keep their IDs; they come out first, so two moved clips never cut each other. The offset is a typed `Frames`, not a raw `Int`, and is checked against the limit before it is added to a clip start, so a huge offset refuses instead of trapping.
+- `markerPosition(after:)` and `markerPosition(before:)`.
+
+`place`, `split`, `move`, `trim`, and `clear` do not change. An edit at 2 h, 6 tracks, and 2,000 clips per track fits 16 ms in an optimized build (`make bench FILTER=EditBenchmark`).
+
+**CLI (0011).** `dirigible clip paste` (a source range and tracks, `--at`, optional `--onto`; writes the pasted IDs), `dirigible clip split-at` (repeatable `--track` and `--at`; writes the right IDs), `dirigible clip nudge <clip>... --by N`, and a repeatable `--track` on `clip clear`. Markers and tracks use the existing `marker set`, `marker remove`, and `track remove`. Show Clips in Finder has no command: it writes nothing, and `info` lists the pool paths.
+
+**Selection policy in the app.** The selection stays window state (0017). Pure functions on `Marks` give the paste targets (the first selected track and the tracks under it; with no selected track, the source tracks), the split points (the in and out points on the selected tracks; with no range, the playhead on the selected tracks or on all tracks), and the nudge (the clips fully inside the range, 10 ms per press, clamped at frame 0; the Marks move with them). After Paste, the selection is the pasted range. 4c has one selection kind: run 4d makes a click on a clip set the range to that clip.
+
+**Clipboard.** One `Excerpt` per window, in memory. It is not on `NSPasteboard`: a `FileID` names audio only inside its package, and a paste into another package needs a file copy (F61). A close drops it.
+
+**Markers.** A current marker (window state) names the marker of Rename (Shift-Return, a sheet), Move Marker to Playhead (Option-Cmd-Return), and Delete Marker (Cmd-Backspace). Add Marker (Cmd-Return, "Marker N"), Add Chapter (Shift-Cmd-Return, "Chapter N"), and Previous and Next Marker (Page Up, Page Down) set it. Esc and Deselect All clear it.
+
+**Tracks and Finder.** Remove Track (Option-Cmd-Backspace, and the track header menu) removes the selected tracks as one undo entry, with no question. A track that a pending take arms is refused (0012), and nothing changes. Show Clips in Finder (Shift-Cmd-R) reveals the existing pool files of the clips in the selection, or of all clips, under the package path that the lock holds (`Studio.clipURLs`, R1).
+
+**Edit menu.** A `CommandGroup(replacing: .pasteboard)` holds Cut, Copy, Paste, Delete (Backspace), and Select All, then Set In, Set Out, Deselect All, Split (Cmd-B), and Nudge Left and Right (Cmd-Left, Cmd-Right). Cut, Copy, Paste, and Select All send their selector along the responder chain from the first responder of the key window (`tryToPerform`, the path of E2 and E3); `UndoRoutingWindow` implements cut:, copy:, paste:, delete: for the timeline, and a focused field takes them first. Every new item whose key a field uses runs `forwardTypingKey` first (K3) and is never disabled (K1). Backspace with a focused field goes to the field as a key-down (E4c). "Paste and Match Style" goes.
+
+**Take rules.** Each edit goes through `Studio.edit`, and the window calls it only on an idle studio: during a take start, a take, or a finalize, a command does nothing and shows no alert. Edits during play apply (0016). Copy, Show Clips in Finder, and the marker seeks change no package state. A queued save coalesces: a ticket that has not started its write takes the latest session at its turn, and a save whose ticket arrives behind an unstarted one is skipped, so a held key (for example Nudge, auto-repeating) does not delay the next Record behind a queue of stale writes.
+
+**Run 4d.** The mouse model (the hit-test zones, the gesture states, the preview on a copy of the session, the commit at mouse-up) is in the design of the edit-commands run. It adds no Core edit and no CLI command.
+
+## Consequences
+
+- 0003 gets an amended line: a pasted clip gets the first free ID of `<source id>@<start>`; a nudged clip keeps its ID. No version change.
+- 0011 gets an amended line: the new commands, and the Show Clips in Finder exemption.
+- 0017 gets an amended line: Esc and Deselect All also clear the current marker; the Edit group is replaced.
+- `ParityTests` maps `paste`, `splitClips`, and `nudge`.
+- Tests that press a key through the menu build the event from `CGEvent` (E4).
+- Each nudge press is one undo entry. `Studio.scheduleSave` coalesces the queued writes, so a fast run of presses (auto-repeat) makes far fewer package writes than presses.
+- The new items look enabled during a take and do nothing then.
+- Derived paste IDs grow with each copy of a copy (`a@500@900`).
+
+## Alternatives considered
+
+- **A selection-aware edit engine in Core** (`EditCommand` with a Core `Selection`). Rejected: the selection policy is window state (0017), the CLI would have to build a selection, and the engine mostly forwards to `Session`.
+- **The app loops `place` and `split`.** Rejected: 12.6 s for a paste of 1,000 clips on 6 tracks (P4).
+- **Paste clears only under the pasted clips.** Rejected: the gaps of the copied range play silence, and the paste must give the same sound.
+- **Fresh UUIDs for pasted clips.** Rejected: not deterministic (0003).
+- **The clipboard on the general pasteboard.** Rejected for Release 1 (B1 shows it works): the pool IDs are per package.
+- **Keep the system Edit items and add a "Clear" item on Backspace.** Rejected: two delete items; the HIG asks for one Delete item.
+- **A marker at the playhead in place of a current marker.** Rejected: Move Marker to Playhead cannot name its marker.

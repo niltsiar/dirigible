@@ -36,7 +36,8 @@ Run order. Each run lands through its own pull request.
 4. **Timeline and playback.** Waveforms, `Player`, selection, edit commands with keys, markers. The timeline-playback run splits it into three runs:
    - **4a Player and transport.** The `Player` (AVAudioEngine), the playhead, record from the playhead, the transport bar, JKL, previous and next clip, the missing-media state, and `dirigible render` (F10, F15 part, F17).
    - **4b Timeline view.** The track lanes with clips and waveforms (peak files), the playhead line, the markers ruler, zoom, and the selection (F15 part).
-   - **4c Edit commands.** Cut, copy, paste, delete with a gap, split, move, trim, markers and chapters, remove track, and "Reveal clips in Finder", each with its key and its `dirigible` command (F11 to F14, F19).
+   - **4c Edit commands.** Cut, copy, paste, delete with a gap, split, nudge, markers and chapters (add, rename, delete, next and previous), remove track, and "Show Clips in Finder", each with its menu item, its key, and a `dirigible` command for each package edit (F11 to F14, F16, F19). The edit-commands run split the mouse edits off to run 4d.
+   - **4d Direct edits on the lanes.** A click that selects a clip, a drag that moves it, an edge drag that trims it, Shift-drag, the drag of a marker and of the in and out triangles, and the ruler menu, with the hit-test zones and a frame budget per mouse event at 2 h (F13). It uses the Core edits of 4c and adds no `dirigible` command.
 5. **Export.** `exportMix` to WAV, AAC, and FLAC, mono or stereo.
 
 ## Release 2: a podcast-ready episode

@@ -7,6 +7,7 @@
 - Amended: 2026-09-24. No command meters inputs, and `devices` has no watch mode: the monitor writes nothing to a package, and `record` drives the same path (see 0015).
 - Amended: 2026-09-24. `dirigible render` writes the mix as a 32-bit float stereo CAF and refuses an output path that exists (exit 2). `info` shows the media state of each file (JSON key `media`) (see 0016).
 - Amended: 2026-09-25. `dirigible peaks` reads the peak cache of each pool file and writes nothing (see 0017).
+- Amended: 2026-09-25. `clip paste`, `clip split-at`, and `clip nudge`, and a repeatable `--track` on `clip clear`. Show Clips in Finder has no command: it writes nothing, and `info` lists the pool paths (see 0018).
 
 ## Context
 

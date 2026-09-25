@@ -13,6 +13,7 @@ Probes on 2026-09-24 (macOS 15.7.9, x86_64, Swift 6.2.4; `.scratchpads/runs/2026
 
 - E1. Consecutive `scheduleBuffer` calls play back to back, sample-exact, in offline manual rendering.
 - E1b. A change of `AVAudioPlayerNode.volume` ramps. A gain on a node is not sample-exact.
+- Amended: 2026-09-25. `exportMix` with `ExportOptions.render` replaces `renderMix`. `MixReader` takes a set of tracks (see 0019).
 - E2. The main mixer converts the session rate to the output rate. The player time counts session-rate frames.
 - E3. `AVAudioUnitVarispeed` changes the signal at rate 1, and adds 47 frames of delay when bypassed.
 - E4. Per-node `scheduleSegment(at:)` places audio at the exact frame, for 16 nodes.

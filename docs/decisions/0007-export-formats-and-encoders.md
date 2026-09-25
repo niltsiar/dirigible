@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-25. The export writes through `ExtAudioFile`, not `AVAudioFile`, because `AVAudioFile` does not convert the rate. WAV and FLAC are 16 or 24-bit. AAC takes 64 to 256 kbit/s at 48 kHz or less (see 0019).
 
 ## Context
 

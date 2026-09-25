@@ -58,6 +58,22 @@ struct EditCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// A target track given twice (code gate 1 item 6): exit 1 with the count message, and the
+    /// same package bytes.
+    @Test func pasteOntoOneTrackTwiceExits1() throws {
+        let before = try package.xml()
+        let result = try package.run(
+            "clip", "paste", "PKG", "--from", "0", "--to", "10", "--track", "a", "--track", "b", "--at", "0", "--onto",
+            "b", "--onto", "b")
+        #expect(
+            result
+                == CLIResult(
+                    status: 1, stdout: "",
+                    stderr: "Error: the excerpt has 2 tracks, so give 2 different target tracks.\n"
+                ))
+        #expect(try package.xml() == before)
+    }
+
     @Test func pasteOfAStereoLaneOnAMonoTrackExits1() throws {
         let before = try package.xml()
         let result = try package.run(

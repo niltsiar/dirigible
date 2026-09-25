@@ -114,7 +114,7 @@ extension SessionError {
         case .clipOutsideFile(let id): "clip \"\(id)\" is not inside its file."
         case .overlap(let clip, let other): "clip \"\(clip)\" overlaps clip \"\(other)\"."
         case .frameOutsideClip(let id, let frame): "frame \(frame) is not inside clip \"\(id)\"."
-        case .trackCount(let count): "the excerpt has \(count) tracks, so give \(count) target tracks."
+        case .trackCount(let count): "the excerpt has \(count) tracks, so give \(count) different target tracks."
         }
     }
 }

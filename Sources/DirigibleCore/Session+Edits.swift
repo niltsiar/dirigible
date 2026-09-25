@@ -41,9 +41,10 @@ extension Session {
     public mutating func paste(_ excerpt: Excerpt, at start: Frames, on tracks: [TrackID]) throws(SessionError)
         -> [ClipID]
     {
-        guard tracks.count == excerpt.lanes.count else { throw .trackCount(excerpt.lanes.count) }
-        var seen: Set<TrackID> = []
-        if let twice = tracks.first(where: { !seen.insert($0).inserted }) { throw .duplicateID(twice.rawValue) }
+        // One different track for each lane: a track given twice is a wrong count, not a used ID.
+        guard tracks.count == excerpt.lanes.count, Set(tracks).count == tracks.count else {
+            throw .trackCount(excerpt.lanes.count)
+        }
         // Both values are in 0...limit before the sum, so the sum cannot overflow.
         guard start.isInRange, excerpt.length.isInRange, (start + excerpt.length).isInRange else {
             throw .frameOutOfRange

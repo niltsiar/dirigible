@@ -134,9 +134,11 @@ import Testing
         await model.close()
     }
 
-    /// Too few tracks under the first selected track, and a source track that an edit removed.
-    /// Control: a paste on every selected track with no count check pastes one lane on t3.
-    @Test func pasteWithTooFewTracksDoesNothing() async throws {
+    /// Too few tracks under the first selected track: nothing changes, and the alert gives the
+    /// track count of the copy (code gate 1 item 4). A source track that an edit removed: nothing
+    /// changes, and no alert shows. Controls: a paste on every selected track with no count check
+    /// pastes one lane on t3; a nil for too few tracks shows no alert.
+    @Test func pasteWithTooFewTracksChangesNothing() async throws {
         let (model, studio, _, _) = try await open()
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1", "t2"])
         model.run(.copy)
@@ -144,7 +146,9 @@ import Testing
         var before = studio.session
         model.run(.paste)
         #expect(studio.session == before && !studio.canUndo)
+        #expect(model.alert == .error(.session(.trackCount(2))))
 
+        model.alert = nil
         try studio.edit { s throws(SessionError) in try s.removeTrack("t1") }
         model.timeline.marks = Marks()
         before = studio.session

@@ -186,16 +186,16 @@ struct Marks: Hashable {
     }
 
     /// The tracks of a paste (decision 0018): the first selected track in session order and the
-    /// tracks under it, one per lane of `excerpt`; with no selected track, the source tracks. Nil
-    /// when the tracks under it are too few or a source track is gone.
+    /// tracks under it, one per lane of `excerpt`; with no selected track, the source tracks. When
+    /// the tracks under it are too few, the list is short, and Core refuses the paste with
+    /// `trackCount`, so the alert gives the count (code gate 1). Nil when a source track is gone.
     func pasteTracks(for excerpt: Excerpt, in session: Session) -> [TrackID]? {
         let ids = session.tracks.map(\.id)
         guard let first = ids.firstIndex(where: tracks.contains) else {
             let sources = excerpt.lanes.map(\.source)
             return sources.allSatisfy(ids.contains) ? sources : nil
         }
-        let targets = ids[first...].prefix(excerpt.lanes.count)
-        return targets.count == excerpt.lanes.count ? Array(targets) : nil
+        return Array(ids[first...].prefix(excerpt.lanes.count))
     }
 
     /// The frames and tracks of a split (decision 0018): with a selection, its in and out points on

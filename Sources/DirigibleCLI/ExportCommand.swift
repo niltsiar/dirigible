@@ -91,11 +91,12 @@ struct Export: ParsableCommand {
         let output = URL(filePath: out)
         // The item at --out now is the one that --replace confirms.
         let confirmed = replace ? ConfirmedFile(at: output) : nil
-        let interrupt = removeLeftoversOnInterrupt(of: output)
-        defer { interrupt.cancel() }
+        let interrupt = cancelOnInterrupt()
+        defer { interrupt.source.cancel() }
         do {
             _ = try exportMix(
-                session, source: source, options: options, to: output, replacing: confirmed, package: { package.url })
+                session, source: source, options: options, to: output, replacing: confirmed, package: { package.url },
+                isCancelled: interrupt.isCancelled)
         } catch .rateNotSupported(let rate) {
             throw fail("cannot write \(out) at \(rate) Hz. Use --rate 44100 or --rate 48000.", code: packageError)
         } catch {

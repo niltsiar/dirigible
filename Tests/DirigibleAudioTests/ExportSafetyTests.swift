@@ -204,4 +204,40 @@ struct ExportSafetyTests {
         #expect(try temporaryFiles() == [".mix.wav.other.tmp"])
         try expectTheExport()
     }
+
+    /// Export A to `url` holds at its first progress call. Export B to the same target runs, and
+    /// its sweep keeps the temporary file of A. B lands; then A finds B at the target. Code gate
+    /// 1, item 4.
+    @Test func theSweepKeepsTheFileOfALiveExport() throws {
+        let (held, release) = (DispatchSemaphore(value: 0), DispatchSemaphore(value: 0))
+        let result = LockedBox<Result<[FileID: MediaFault], ExportError>>()
+        let (session, packageURL, url, source, options) = (package.session, package.url, url, source, options)
+        let first = Thread {
+            var waited = false
+            result.value = Result { () throws(ExportError) in
+                try exportMix(
+                    session, source: source, options: options, to: url, package: { packageURL },
+                    progress: { _ in
+                        guard !waited else { return }
+                        waited = true
+                        held.signal()
+                        _ = release.wait(timeout: .now() + 30)
+                    })
+            }
+            held.signal()
+        }
+        first.start()
+        try #require(held.wait(timeout: .now() + 30) == .success, "export A did not start in 30 s")
+        let live = try temporaryFiles()
+        try #require(live.count == 1)
+
+        try export()
+
+        #expect(try temporaryFiles() == live)
+        try expectTheExport()
+        release.signal()
+        try #require(held.wait(timeout: .now() + 30) == .success, "export A did not end in 30 s")
+        #expect(throws: ExportError.exists) { try result.value?.get() }
+        #expect(try temporaryFiles() == [])
+    }
 }

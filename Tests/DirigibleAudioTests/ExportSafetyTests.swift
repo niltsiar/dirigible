@@ -50,31 +50,36 @@ struct ExportSafetyTests {
         #expect(values.last == 1)
     }
 
-    /// The export task cancels itself at the first progress call. The old target stays. The
-    /// limit runs from the cancel to the throw, so a late start of the task under load does
-    /// not count.
+    /// The export task cancels itself at the first progress call. The export ends at the next
+    /// chunk, so no progress call comes after the cancel. The old target stays. The limit runs
+    /// from the cancel to the throw, so a late start of the task under load does not count.
     @Test func aCancelLeavesNoFileAndKeepsTheOldTarget() async throws {
         try Data("old".utf8).write(to: url)
         let confirmed = try #require(ConfirmedFile(at: url))
         let (session, packageURL, url, source, options) = (package.session, package.url, url, source, options)
 
-        let task = Task { () -> (Result<[FileID: MediaFault], ExportError>, Duration?) in
+        let task = Task { () -> (Result<[FileID: MediaFault], ExportError>, Duration?, Int) in
             let clock = ContinuousClock()
             var cancelled: ContinuousClock.Instant?
+            var late = 0
             let result = Result { () throws(ExportError) in
                 try exportMix(
                     session, source: source, options: options, to: url, replacing: confirmed, package: { packageURL },
                     progress: { _ in
-                        guard cancelled == nil else { return }
+                        guard cancelled == nil else {
+                            late += 1
+                            return
+                        }
                         cancelled = clock.now
                         withUnsafeCurrentTask { $0?.cancel() }
                     }, chunk: 480)
             }
-            return (result, cancelled.map { clock.now - $0 })
+            return (result, cancelled.map { clock.now - $0 }, late)
         }
 
-        let (result, wait) = await task.value
+        let (result, wait, late) = await task.value
         #expect(throws: ExportError.cancelled) { try result.get() }
+        #expect(late == 0, "\(late) progress calls after the cancel")
         #expect(try #require(wait) < .seconds(2))
         #expect(try Data(contentsOf: url) == Data("old".utf8))
         #expect(try temporaryFiles() == [])

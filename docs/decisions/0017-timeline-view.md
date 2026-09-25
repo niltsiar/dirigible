@@ -5,6 +5,7 @@
 - Accepted: 2026-09-25, after plan gates 1 and 2 of the timeline-view run. The gates added the settle order with the `settling` flag, the pass that Studio starts after a pool change, the media open through `openMedia` with its stamp, the redraw only on a change of the drawn inputs, the narrowed record-over warning, and the read-only `dirigible peaks` command.
 - Amended: 2026-09-25, after code gate 1 of the timeline-view run: the lanes scroll vertically, and the track headers scroll with them. The launch prunes the peak cache.
 - Amended: 2026-09-25. Esc and Deselect All also clear the current marker. The app replaces the system Edit group with its own Cut, Copy, Paste, Delete, and Select All (see 0018).
+- Amended: 2026-09-26. A click on the upper two thirds of a clip or at its edge selects the clip and does not seek. A clip label draws only in a box of 60 pt or more (see 0020).
 
 ## Context
 

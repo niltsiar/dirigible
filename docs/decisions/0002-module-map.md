@@ -11,6 +11,7 @@
 - Amended: 2026-09-24. The `Player` is an actor, not `@MainActor`, so the engine start and the file reads run off the main actor. `Render/` holds the `Player`, `MixReader`, and the media check (see 0016).
 - Amended: 2026-09-25. `DirigibleApp/Timeline/` holds the timeline view. `Render/Peaks.swift` and `Render/PeakFile.swift` compute the peaks and keep the cache file. `Studio/Studio+Peaks.swift` loads the peaks off the main actor (see 0017).
 - Amended: 2026-09-25. `Render/Export.swift`, `Render/ExportFile.swift`, and `Render/FileMove.swift` hold the export writer; `Render/RenderMix.swift` goes. `Studio/Studio+Export.swift` runs the export job (see 0019).
+- Amended: 2026-09-26. The library target `DirigibleTimeline` holds the timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, and the gesture model. It imports Foundation and depends on `DirigibleCore`. `DirigibleApp` depends on it. `DirigibleTimelineTests` tests it (see 0020).
 
 ## Context
 

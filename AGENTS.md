@@ -66,7 +66,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 
 - Start a run with `.claude/skills/deliver/scripts/new-run.sh <slug>`.
 - Read `learnings.md`, `backlog.md`, and the last `run.md` at the start of every session.
-- `decisions.tsv` is append-only. A wrong row gets a new row that corrects it.
+- `decisions.tsv` is append-only. Add rows with `.claude/skills/deliver/scripts/log-decision.sh`, which writes the time from the clock. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 
 ## Git

@@ -95,8 +95,8 @@ struct CaptureEnvironment: Sendable {
     /// A step on the thread of each WAV read of a peak pass: at each file start (the open and the
     /// cache read) and after each block read. Tests check that it is never the main thread.
     var peakRead: @Sendable () -> Void = {}
-    /// A step on the export thread at each chunk (decision 0019). Tests record the thread and the
-    /// QoS with it, or hold or slow the export.
+    /// A step on the export thread at each cancel check: each chunk and once after the close
+    /// (decision 0019). Tests record the thread and the QoS with it, or hold or slow the export.
     var exportChunk: @Sendable () -> Void = {}
 
     static let live = CaptureEnvironment(

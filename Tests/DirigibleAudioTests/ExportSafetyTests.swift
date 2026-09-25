@@ -80,6 +80,21 @@ struct ExportSafetyTests {
         #expect(try temporaryFiles() == [])
     }
 
+    /// A cancel at the progress call of 1.0, after the last chunk: the export throws `.cancelled`
+    /// before the flush and the move. The old target stays. Code gate 1, item 3.
+    @Test func aCancelAfterTheLastChunkLeavesNoFile() throws {
+        try Data("old".utf8).write(to: url)
+        var cancelled = false
+
+        #expect(throws: ExportError.cancelled) {
+            _ = try exportMix(
+                package.session, source: source, options: options, to: url, replacing: ConfirmedFile(at: url),
+                package: { package.url }, progress: { if $0 == 1 { cancelled = true } }, isCancelled: { cancelled })
+        }
+        #expect(try Data(contentsOf: url) == Data("old".utf8))
+        #expect(try temporaryFiles() == [])
+    }
+
     @Test func anExistingTargetIsKeptWithNoConfirmation() throws {
         try Data("old".utf8).write(to: url)
 

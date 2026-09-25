@@ -33,7 +33,7 @@ Probes on 2026-09-25 (Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/r
 
 **Range and tracks.** The export takes a frame range and an optional set of track IDs. `MixReader` skips the tracks that are not in the set.
 
-**Progress and Cancel.** `exportMix` renders and writes 1 s chunks. After each write it calls a synchronous progress closure on the export thread when the percent changes (at most 101 calls), and it calls a cancel check (`Task.isCancelled` by default). A cancel throws `.cancelled`. The last call (1.0) comes after the last write and before the close and the move.
+**Progress and Cancel.** `exportMix` renders and writes 1 s chunks. After each write it calls a synchronous progress closure on the export thread when the percent changes (at most 101 calls), and it calls a cancel check (`Task.isCancelled` by default). A cancel throws `.cancelled`. The last call (1.0) comes after the last write and before the close and the move. After the close, the export reads the cancel check once more: a cancel there throws `.cancelled` before the flush and the move, so a take start does not wait for them (code gate 1).
 
 **Package path.** At each chunk the export reads the package path from its source: `lock.package()` in Studio, the fixed path in the CLI. A package that moves on its volume keeps its audio. A package that the lock no longer finds throws `.packageUnavailable`.
 

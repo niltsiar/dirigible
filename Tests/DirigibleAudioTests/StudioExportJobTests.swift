@@ -125,7 +125,8 @@ struct StudioExportJobTests {
 
         _ = try await studio.export(fixture.source, fixture.options, to: fixture.out, replacing: nil)
 
-        #expect(seam.calls == 10)
+        // 10 chunks and the cancel check after the close.
+        #expect(seam.calls == 11)
         #expect(seam.onMain.allSatisfy { !$0 })
     }
 
@@ -140,7 +141,8 @@ struct StudioExportJobTests {
         }
         _ = try await caller.value
 
-        #expect(seam.calls == 10)
+        // 10 chunks and the cancel check after the close.
+        #expect(seam.calls == 11)
         #expect(seam.qos.allSatisfy { $0 == QOS_CLASS_UTILITY }, "\(seam.qos.map(\.rawValue))")
         #expect(seam.priorities.allSatisfy { $0 == .utility }, "\(seam.priorities)")
     }
@@ -162,11 +164,12 @@ struct StudioExportJobTests {
     }
 
     /// A progress hop of an export that ended changes nothing: not after its end, and not in
-    /// the next export.
+    /// the next export. The first export makes 11 cancel checks (10 chunks and the check after
+    /// the close), so the gate holds the first chunk of the second export.
     @Test func aLateProgressDoesNotComeBack() async throws {
         let fixture = try await ExportStudioFixture.make()
         let gate = Gate()
-        let studio = try await fixture.open(seam: ChunkSeam(at: [11: { gate.waitOnce() }]))
+        let studio = try await fixture.open(seam: ChunkSeam(at: [12: { gate.waitOnce() }]))
         _ = try await studio.export(fixture.source, fixture.options, to: fixture.out, replacing: nil)
         try? await Task.sleep(for: .milliseconds(100))
         #expect(studio.exportProgress == nil)

@@ -13,6 +13,8 @@ import UniformTypeIdentifiers
     private(set) var recent: [URL] = NSDocumentController.shared.recentDocumentURLs
 
     @ObservationIgnored let recordings: ActiveRecordings?
+    /// The peak cache folder of every studio (decision 0017). Nil: no peaks (tests).
+    @ObservationIgnored let peakCache: URL?
     /// The packages of the list at launch that exist, read once off the main actor (decision
     /// 0004).
     @ObservationIgnored let listedAtLaunch: Task<Set<URL>, Never>
@@ -28,11 +30,13 @@ import UniformTypeIdentifiers
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         self.init(
             recordings: ActiveRecordings(
-                file: support.appending(path: "com.delineas.dirigible/active-recordings.plist")))
+                file: support.appending(path: "com.delineas.dirigible/active-recordings.plist")),
+            peakCache: PeakFile.folder)
     }
 
-    init(recordings: ActiveRecordings?) {
+    init(recordings: ActiveRecordings?, peakCache: URL? = nil) {
         self.recordings = recordings
+        self.peakCache = peakCache
         listedAtLaunch = Task.detached {
             Set(
                 (recordings?.packages() ?? []).map(packageIdentity).filter {
@@ -142,7 +146,10 @@ import UniformTypeIdentifiers
     /// Makes the package with `Studio.create` and shows it in a window. Returns the error.
     func createSession(at url: URL) async -> StudioError? {
         do throws(StudioError) {
-            await open(url, created: try await Studio.create(url, sampleRate: 48_000, recordings: recordings))
+            await open(
+                url,
+                created: try await Studio.create(
+                    url, sampleRate: 48_000, recordings: recordings, peakCache: peakCache))
         } catch {
             return error
         }
@@ -203,6 +210,8 @@ import UniformTypeIdentifiers
                 || confirm(
                     L10n.alertQuitUnsaved.format(failed.joined(separator: ", ")),
                     button: L10n.alertQuitUnsavedConfirm.text)
+            // A cancelled Quit: the settle started no peak pass (decision 0017).
+            if !quit { for window in open { window.studio?.loadPeaks() } }
             sender.reply(toApplicationShouldTerminate: quit)
         }
         return .terminateLater

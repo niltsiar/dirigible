@@ -57,6 +57,8 @@ enum WindowAlert: Hashable {
     /// The registry: a move changes the key, and a close removes the entry.
     @ObservationIgnored private weak var app: AppDelegate?
     @ObservationIgnored private(set) var window: NSWindow?
+    /// The lanes of the window, for the zoom commands.
+    @ObservationIgnored weak var timelineView: TimelineScrollView?
     @ObservationIgnored private var opening: Task<Void, Never>?
     /// Tests give their own list.
     @ObservationIgnored var deviceList = DeviceList.shared
@@ -105,7 +107,7 @@ enum WindowAlert: Hashable {
         phase = .opening
         opening = Task {
             do throws(StudioError) {
-                let studio = try await Studio.open(url, recordings: recordings)
+                let studio = try await Studio.open(url, recordings: recordings, peakCache: app?.peakCache)
                 if case .closing = phase {
                     phase = .closing(studio)
                     return
@@ -169,9 +171,13 @@ enum WindowAlert: Hashable {
     }
 
     /// "Close anyway?": Cancel. The window stays open with the same studio, which keeps its lock.
+    /// The settle of the close started no peak pass, so the files of a take that it finalized
+    /// get their peaks now (decision 0017).
     func cancelUnsavedClose() {
         alert = nil
-        if case .closing(let studio?) = phase { phase = .open(studio) }
+        guard case .closing(let studio?) = phase else { return }
+        phase = .open(studio)
+        studio.loadPeaks()
     }
 
     /// For Quit: waits for the open, turns the monitor off, stops a take, and waits for every
@@ -359,10 +365,12 @@ enum WindowAlert: Hashable {
     }
 
     /// A focus reads the device list again, so a channel change of a present device shows, and
-    /// checks the media, so a file that the user put back shows (decision 0016).
+    /// checks the media, so a file that the user put back shows (decision 0016). It loads the
+    /// peaks again, because a WAV can change outside the app (decision 0017).
     func windowDidBecomeKey(_ notification: Notification) {
         app?.key = self
         deviceList.changed()
+        if case .open(let studio) = phase { studio.loadPeaks() }
         Task { await idleStudio?.checkMedia() }
     }
 

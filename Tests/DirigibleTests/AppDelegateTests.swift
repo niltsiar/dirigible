@@ -142,6 +142,46 @@ import os
         #expect(app.windows.isEmpty)
     }
 
+    /// Decision 0017: the settle of a close starts no peak pass, so a cancelled unsaved close
+    /// starts one; the files of a take that the settle finalized get their peaks. The test
+    /// empties the peak states after the settle.
+    @Test func aCancelledUnsavedCloseLoadsPeaks() async throws {
+        let (window, studio) = try await windowWithPeaks()
+        studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
+        }
+        try studio.edit { s throws(SessionError) in try s.renameTrack("t1", to: "Host") }
+        await window.close()
+        #expect(window.alert == .confirmUnsavedClose)
+        studio.peakLoad.states = [:]
+
+        window.cancelUnsavedClose()
+
+        await until(limit: .seconds(30), "the cancel loads the peaks") { studio.peaks["f1"]?.peaks != nil }
+        await window.close()
+        window.closeAnyway()
+    }
+
+    /// Decision 0017: a focus loads the peaks again, because a WAV can change outside the app.
+    @Test func aFocusLoadsPeaks() async throws {
+        let (window, studio) = try await windowWithPeaks()
+        studio.peakLoad.states = [:]
+
+        window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+
+        await until(limit: .seconds(30), "the focus loads the peaks") { studio.peaks["f1"]?.peaks != nil }
+        await window.close()
+    }
+
+    /// A session window model (no window on screen) on a package with one 1 s WAV, with a peak
+    /// cache folder, after its first pass.
+    private func windowWithPeaks() async throws -> (SessionWindow, Studio) {
+        let app = AppDelegate(recordings: nil, peakCache: folder.url.appending(path: "Peaks"))
+        let (window, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 1, seconds: 1, audio: true), app: app)
+        await until(limit: .seconds(30), "the open loads the peaks") { studio.peaks["f1"]?.peaks != nil }
+        return (window, studio)
+    }
+
     /// Criterion 25 control: a good save closes with no question.
     @Test func aCloseAfterAGoodSaveAsksNothing() async throws {
         let window = await app.open(try folder.package("good"))

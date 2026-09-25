@@ -141,21 +141,25 @@ import Testing
 
     /// Criterion 14: with a name field focused, Option-Command-Backspace and Shift-Command-R change
     /// no track and reveal nothing. Control: with no forward, t1 goes, and the reveal gets f1.
+    /// The session check comes before the wait: a remove is synchronous, and an end of the edit
+    /// during the wait saves the typed name, as designed.
     @Test func removeTrackAndShowInFinderKeysGoToAFocusedField() async throws {
         let (model, studio, window, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60, audio: true))
         var revealed = 0
         app.reveal = { _ in revealed += 1 }
         model.timeline.marks = Marks(tracks: ["t1"])
-        _ = try await focusName(in: window)
+        let editor = try await focusName(in: window)
         let session = studio.session
 
         app.timeline(.removeTrack, event: commandKey("\u{7F}", code: 51, in: window), in: window)
         app.timeline(.showInFinder, event: commandKey("R", code: 15, in: window), in: window)
+
+        #expect(studio.session == session)
+        #expect(editor.string == "")
         // A reveal reads the disk off the main actor first; give a wrong one the time to arrive.
         try await Task.sleep(for: .milliseconds(300))
-
-        #expect(studio.session == session && revealed == 0)
+        #expect(revealed == 0)
         await model.close()
     }
 }

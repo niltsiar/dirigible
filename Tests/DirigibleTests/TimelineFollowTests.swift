@@ -136,8 +136,11 @@ import os
 
     /// Criterion 24: a play of 1 s (about 30 polls) runs no `updateNSView` in a real window. SwiftUI
     /// also skips `updateNSView` for equal inputs, so the test also tracks the reads of the lane
-    /// inputs: no poll changes them.
+    /// inputs: no poll changes them. With the macOS setting "prefer tabs: always", a window of a
+    /// parallel test joins the tab group of this window and resizes it; the new width writes
+    /// `timeline.visible`. So the window of this test opens with no automatic tabbing.
     @Test func aPlayRunsNoUpdateNSView() async throws {
+        NSWindow.allowsAutomaticWindowTabbing = false
         let window = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 2, audio: true))
         let studio = try #require(await window.opened() ? window.studio : nil)
         await until("the window shows the lanes") { (window.timelineView?.updates ?? 0) > 0 }

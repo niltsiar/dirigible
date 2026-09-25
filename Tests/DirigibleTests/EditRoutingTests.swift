@@ -63,4 +63,26 @@ import Testing
         #expect(studio.session.tracks.map { $0.clips.map(\.range) } == [[48_000..<2_880_000], [0..<2_880_000]])
         await model.close()
     }
+
+    /// Each run function names its commands and ignores the others (code gate 1 item 5). Controls:
+    /// a nested `default:` that runs Delete Marker, Cut or Delete, or Nudge Right for a command of
+    /// another group changes the session.
+    @Test func aRunFunctionIgnoresTheCommandsOfOtherGroups() async throws {
+        let (model, studio, _, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
+        try studio.edit { s throws(SessionError) in
+            try s.setMarker(Marker(id: "m1", name: "One", position: 48_000, kind: .marker))
+        }
+        model.timeline.marker = "m1"
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+        let before = studio.session
+
+        model.runMarker(.split, studio)
+        model.runClipboard(.split, studio)
+        model.runSplitOrNudge(.addMarker, studio)
+
+        #expect(studio.session == before && model.alert == nil)
+        #expect(model.timeline.marker == "m1" && model.clipboard == nil)
+        await model.close()
+    }
 }

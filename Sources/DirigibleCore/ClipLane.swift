@@ -26,29 +26,67 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
 
     /// Clears the range of the clip, then inserts the clip (Hindenburg paste).
     mutating func overwrite(with clip: Clip, rightID: (Clip, Frames) -> ClipID) {
-        clear(clip.range, rightID: rightID)
-        insert(clip)
+        clear([clip.range], rightID: rightID)
+        insert(sorted: [clip])
     }
 
-    /// Removes the frames in `range` and leaves a gap. A clip that covers the whole range on
-    /// both sides becomes two clips; `rightID` names the right one from the clip and its new start.
-    mutating func clear(_ range: Range<Frames>, rightID: (Clip, Frames) -> ClipID) {
-        guard !range.isEmpty else { return }
+    /// Removes the frames in `ranges` and leaves gaps, in one pass. The ranges are sorted and do
+    /// not overlap. The first part of a cut clip keeps its ID; `rightID` names each other part from
+    /// the clip and the start of the part.
+    mutating func clear(_ ranges: [Range<Frames>], rightID: (Clip, Frames) -> ClipID) {
+        let ranges = ranges.filter { !$0.isEmpty }
+        guard !ranges.isEmpty else { return }
         var kept: [Clip] = []
+        var next = 0
         for clip in storage {
-            guard clip.range.overlaps(range) else {
-                kept.append(clip)
-                continue
+            while next < ranges.count, ranges[next].upperBound <= clip.start { next += 1 }
+            var start = clip.start
+            var first = true
+            for range in ranges[next...] {
+                guard range.lowerBound < clip.end else { break }
+                if start < range.lowerBound {
+                    kept.append(clip.cut(to: start..<range.lowerBound, id: first ? clip.id : rightID(clip, start)))
+                    first = false
+                }
+                start = Swift.max(start, range.upperBound)
             }
-            if clip.start < range.lowerBound {
-                kept.append(clip.cut(to: clip.start..<range.lowerBound, id: clip.id))
-            }
-            if clip.end > range.upperBound {
-                let id = clip.start < range.lowerBound ? rightID(clip, range.upperBound) : clip.id
-                kept.append(clip.cut(to: range.upperBound..<clip.end, id: id))
+            if start < clip.end {
+                kept.append(clip.cut(to: start..<clip.end, id: first ? clip.id : rightID(clip, start)))
             }
         }
         storage = kept
+    }
+
+    /// Merges clips that are sorted by start and do not overlap the lane or each other.
+    mutating func insert(sorted clips: [Clip]) {
+        var merged: [Clip] = []
+        merged.reserveCapacity(storage.count + clips.count)
+        var (i, j) = (0, 0)
+        while i < storage.count || j < clips.count {
+            if j == clips.count || (i < storage.count && storage[i].start < clips[j].start) {
+                merged.append(storage[i])
+                i += 1
+            } else {
+                merged.append(clips[j])
+                j += 1
+            }
+        }
+        assert(zip(merged, merged.dropFirst()).allSatisfy { $0.end <= $1.start }, "An insert overlaps a clip")
+        storage = merged
+    }
+
+    /// The index of the clip with `start <= frame < end`, by binary search.
+    func index(holding frame: Frames) -> Int? {
+        var (low, high) = (0, storage.count)
+        while low < high {
+            let middle = (low + high) / 2
+            if storage[middle].start <= frame { low = middle + 1 } else { high = middle }
+        }
+        return low > 0 && frame < storage[low - 1].end ? low - 1 : nil
+    }
+
+    mutating func remove(ids: Set<ClipID>) {
+        storage.removeAll { ids.contains($0.id) }
     }
 
     /// Splits the clip at `frame`, which is inside the clip, not at an edge.
@@ -64,11 +102,6 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
 
     mutating func replace(at index: Int, with clip: Clip) {
         storage[index] = clip
-    }
-
-    private mutating func insert(_ clip: Clip) {
-        let index = storage.firstIndex { $0.start > clip.start } ?? storage.endIndex
-        storage.insert(clip, at: index)
     }
 }
 

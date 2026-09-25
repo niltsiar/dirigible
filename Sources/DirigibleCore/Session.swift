@@ -197,4 +197,6 @@ public enum SessionError: Error, Hashable, Sendable {
     case clipOutsideFile(ClipID)
     case overlap(ClipID, ClipID)
     case frameOutsideClip(ClipID, Frames)
+    /// A paste names a track count that is not the lane count of its excerpt, which this case holds.
+    case trackCount(Int)
 }

@@ -25,6 +25,7 @@
 "error.session.name" = "A track name cannot contain control characters.";
 "error.session.layout" = "The layout of track “%@” cannot change.";
 "error.session.track.in.take" = "Track “%@” is in the take that waits to finish.";
+"error.session.track.count" = "The copy has %lld tracks. Select as many tracks to paste it.";
 "error.session.other" = "The session refused the change.";
 "error.file.unreadable" = "The session file is damaged or from a newer version of Dirigible.";
 "error.file.read" = "The session file cannot be read (error %lld).";

@@ -58,4 +58,20 @@ struct TimelineEdgeTests {
     func hasClipAtTheFrameOnArmedTracks(frame: Frames, armed: [TrackID], expected: Bool) {
         #expect(session.hasClip(at: frame, on: armed) == expected)
     }
+
+    /// Edit-commands criterion 7. A marker and a chapter at 10 000, a marker at 30 000.
+    /// Controls: "after" that includes the frame gives 10 000 at 10 000; "after" that returns the
+    /// farthest gives 30 000 at 0.
+    @Test mutating func markerPositionIsStrictlyAfterAndBefore() throws {
+        #expect(session.markerPosition(after: 0) == nil && session.markerPosition(before: 100) == nil)
+        try session.setMarker(Marker(id: "m1", name: "One", position: 10_000, kind: .marker))
+        try session.setMarker(Marker(id: "c1", name: "Two", position: 10_000, kind: .chapter))
+        try session.setMarker(Marker(id: "m2", name: "Three", position: 30_000, kind: .marker))
+        #expect(session.markerPosition(after: 0) == 10_000)
+        #expect(session.markerPosition(after: 10_000) == 30_000)
+        #expect(session.markerPosition(after: 30_000) == nil)
+        #expect(session.markerPosition(before: 30_000) == 10_000)
+        #expect(session.markerPosition(before: 10_000) == nil)
+        #expect(session.markerPosition(before: 50_000) == 30_000)
+    }
 }

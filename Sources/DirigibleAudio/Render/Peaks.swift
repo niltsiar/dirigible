@@ -41,20 +41,31 @@ public struct Peaks: Hashable, Sendable {
     public func fill(_ columns: inout [PeakColumn], from: Double, step: Double) {
         let level = Self.binFrames.lastIndex { Double($0) <= step } ?? 0
         let bin = Double(Self.binFrames[level])
-        let bins = levels[level]
-        let count = Double(bins.count)
-        for index in columns.indices {
-            let start = from + Double(index) * step
-            var column = PeakColumn.zero
-            if start < Double(frames.count) {
-                let low = Int(min(max((start / bin).rounded(.down), 0), count))
-                let high = Int(min(max(((start + step) / bin).rounded(.up), 0), count))
-                for value in bins[low..<max(low, high)] {
-                    column.peak = max(column.peak, value.peak)
-                    column.rms = max(column.rms, value.rms)
+        let end = Double(frames.count)
+        // Plain loops and pointers: the renderer calls this for each drawn column, also in the
+        // debug build of the tests.
+        levels[level].withUnsafeBufferPointer { bins in
+            let count = Double(bins.count)
+            columns.withUnsafeMutableBufferPointer { out in
+                var index = 0
+                while index < out.count {
+                    let start = from + Double(index) * step
+                    var column = PeakColumn.zero
+                    if start < end {
+                        let low = (start / bin).rounded(.down)
+                        let high = ((start + step) / bin).rounded(.up)
+                        var bin = low < 0 ? 0 : Int(low < count ? low : count)
+                        let last = high < 0 ? 0 : Int(high < count ? high : count)
+                        while bin < last {
+                            if bins[bin].peak > column.peak { column.peak = bins[bin].peak }
+                            if bins[bin].rms > column.rms { column.rms = bins[bin].rms }
+                            bin += 1
+                        }
+                    }
+                    out[index] = column
+                    index += 1
                 }
             }
-            columns[index] = column
         }
     }
 }

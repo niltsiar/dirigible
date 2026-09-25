@@ -1,0 +1,181 @@
+import Accelerate
+import CoreGraphics
+import DirigibleAudio
+import DirigibleCore
+import Foundation
+
+/// Every input that the lane pixels read (decision 0017), except the backing scale. The document
+/// view redraws only when this value changes, so an input outside it never redraws.
+struct LaneInputs: Equatable {
+    var session: Session
+    var peaks: [FileID: PeakState]
+    var missingMedia: [FileID: MediaFault]
+    var marks: Marks
+    var scale: TimelineScale
+    /// Points.
+    var laneHeight: Double
+}
+
+/// The lane colors as pixels: 0xAARRGGBB in a little-endian word (BGRA in memory).
+enum LaneColors {
+    static let lane: UInt32 = 0xFFE8_ECF2
+    static let clip: UInt32 = 0xFFC4_DAF5
+    static let peak: UInt32 = 0xFF7A_A7E0
+    static let rms: UInt32 = 0xFF1F_4F9E
+    static let missing: UInt32 = 0xFFF4_C4C4
+    static let missingOutline: UInt32 = 0xFFC8_2020
+    static let marker: UInt32 = 0xFFF2_8C1A
+    static let chapter: UInt32 = 0xFF8E_44AD
+    static let inPoint: UInt32 = 0xFF2E_A043
+    static let outPoint: UInt32 = 0xFFE0_3A3A
+
+    /// A pixel under the selection band: half as bright.
+    static func selected(_ pixel: UInt32) -> UInt32 { 0xFF00_0000 | ((pixel >> 1) & 0x007F_7F7F) }
+}
+
+/// Draws the lanes into own pixels (decision 0017, probe D2): a background pattern per row, then
+/// the clip boxes, the missing-media tint, and the waveform as column spans, rectified on a
+/// -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain. Then the
+/// selection band and the marker, chapter, in, and out lines. One per document view, on the main
+/// thread. It reuses its bitmap while the size stays the same.
+final class LaneRenderer {
+    private(set) var columns = 0
+    private(set) var rows = 0
+    private var context: CGContext?
+    private var pixels: UnsafeMutablePointer<UInt32>?
+    /// The columns of one clip, reused.
+    private var values: [PeakColumn] = []
+
+    /// The bitmap memory, so a test can see that a draw of the same size reuses it.
+    var bufferAddress: UnsafeMutableRawPointer? { context?.data }
+
+    /// The pixel of the last draw at `column` and `row` (row 0 is the top of lane 1).
+    func pixel(_ column: Int, _ row: Int) -> UInt32 { pixels?[row * columns + column] ?? 0 }
+
+    /// 20 log10(v / 65535) for each magnitude v.
+    private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
+
+    /// Draws the document points `x ..< x + width` of every lane at `scale` pixels per point.
+    func draw(_ inputs: LaneInputs, x: Double, width: Double, scale: Double) -> CGImage? {
+        let laneRows = max(1, Int((inputs.laneHeight * scale).rounded()))
+        let tracks = inputs.session.tracks
+        prepare(columns: max(1, Int((width * scale).rounded())), rows: max(1, tracks.count * laneRows))
+        guard let context, let pixels else { return nil }
+        let pointFrames = inputs.scale.framesPerPoint
+        let pixelFrames = pointFrames / scale
+        let first = x * pointFrames
+        /// The column of a timeline frame, not clamped.
+        func column(_ frame: Frames) -> Double { (Double(frame.count) - first) / pixelFrames }
+        func clamped(_ value: Double) -> Int { Int(min(max(value, 0), Double(columns))) }
+        let visible = Frames(Int(max(0, first)))..<Frames(Int(first + Double(columns) * pixelFrames) + 1)
+
+        // First the boxes of every lane, then the waveforms, so a span that passes its lane shows.
+        for (lane, track) in tracks.enumerated() {
+            let top = lane * laneRows
+            let bottom = top + laneRows - 1
+            fill(LaneColors.lane, columns: 0..<columns, rows: top...bottom)
+            for clip in track.clips.clips(overlapping: visible) {
+                let range = clamped(column(clip.start).rounded(.down))..<clamped(column(clip.end).rounded(.up))
+                guard !range.isEmpty else { continue }
+                fill(LaneColors.clip, columns: range, rows: top...bottom)
+                // The red comes from the media check only, never from the peaks.
+                var red: Int?
+                switch inputs.missingMedia[clip.file] {
+                case .missing, .unreadable: red = range.lowerBound
+                case .short(let real): red = clamped(column(clip.start + real - clip.offset).rounded(.up))
+                case nil: break
+                }
+                if let red, red < range.upperBound {
+                    let tint = max(red, range.lowerBound)..<range.upperBound
+                    fill(LaneColors.missing, columns: tint, rows: top...bottom)
+                    for row in [top, bottom] { fill(LaneColors.missingOutline, columns: tint, rows: row...row) }
+                }
+            }
+        }
+        for (lane, track) in tracks.enumerated() {
+            let bottom = (lane + 1) * laneRows - 1
+            for clip in track.clips.clips(overlapping: visible) {
+                let range = clamped(column(clip.start).rounded(.down))..<clamped(column(clip.end).rounded(.up))
+                guard !range.isEmpty, case .ready(let peaks) = inputs.peaks[clip.file] else { continue }
+                // `fill` sets every column, so only the count matters.
+                if values.count != range.count { values = Array(repeating: PeakColumn.zero, count: range.count) }
+                let from = Double((clip.offset - clip.start).count) + first + Double(range.lowerBound) * pixelFrames
+                peaks.fill(&values, from: from, step: pixelFrames)
+                let gain = clip.gain.dB + track.gain.dB
+                values.withUnsafeBufferPointer { values in
+                    Self.decibels.withUnsafeBufferPointer { decibels in
+                        func height(_ value: UInt16) -> Int {
+                            guard value > 0 else { return 0 }
+                            let fraction = (decibels[Int(value)] + gain + 60) / 60
+                            return fraction <= 0 ? 0 : Int(((fraction < 1 ? fraction : 1) * Double(laneRows)).rounded())
+                        }
+                        var index = 0
+                        while index < values.count {
+                            let column = range.lowerBound + index
+                            let peak = height(values[index].peak)
+                            // A cache file can hold an RMS over its peak; the span never inverts.
+                            let rms = min(height(values[index].rms), peak)
+                            // A column span is a strided fill: one call, not one Swift step per pixel.
+                            span(LaneColors.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
+                            span(LaneColors.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
+                            index += 1
+                        }
+                    }
+                }
+            }
+        }
+
+        if let selection = inputs.marks.selection(in: inputs.session) {
+            let band =
+                clamped(
+                    column(selection.range.lowerBound).rounded(.up))..<clamped(
+                    column(selection.range.upperBound).rounded(.up))
+            for (lane, track) in tracks.enumerated() where selection.tracks.contains(track.id) {
+                for row in lane * laneRows..<(lane + 1) * laneRows {
+                    for column in band {
+                        pixels[row * columns + column] = LaneColors.selected(pixels[row * columns + column])
+                    }
+                }
+            }
+        }
+        func line(_ frame: Frames?, _ color: UInt32) {
+            guard let frame else { return }
+            let at = column(frame).rounded(.down)
+            guard at >= 0, at < Double(columns) else { return }
+            span(color, column: Int(at), rows: 0..<rows)
+        }
+        for marker in inputs.session.markers.values {
+            line(marker.position, marker.kind == .marker ? LaneColors.marker : LaneColors.chapter)
+        }
+        line(inputs.marks.inPoint, LaneColors.inPoint)
+        line(inputs.marks.outPoint, LaneColors.outPoint)
+        return context.makeImage()
+    }
+
+    /// Makes a new bitmap only when the size changes.
+    private func prepare(columns: Int, rows: Int) {
+        guard context == nil || columns != self.columns || rows != self.rows else { return }
+        context = CGContext(
+            data: nil, width: columns, height: rows, bitsPerComponent: 8, bytesPerRow: columns * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        (self.columns, self.rows) = (columns, rows)
+        pixels = context?.data?.bindMemory(to: UInt32.self, capacity: columns * rows)
+    }
+
+    /// Sets `rows` of `column` to `color`. `vDSP_vfill` moves the 32 bits of the pixel as a float,
+    /// with no arithmetic, so the bits stay the same.
+    private func span(_ color: UInt32, column: Int, rows lines: Range<Int>) {
+        guard let pixels, !lines.isEmpty else { return }
+        var value = Float(bitPattern: color)
+        (pixels + lines.lowerBound * columns + column).withMemoryRebound(to: Float.self, capacity: 1) {
+            vDSP_vfill(&value, $0, vDSP_Stride(columns), vDSP_Length(lines.count))
+        }
+    }
+
+    private func fill(_ color: UInt32, columns range: Range<Int>, rows lines: ClosedRange<Int>) {
+        guard let pixels, !range.isEmpty else { return }
+        var pattern = color
+        for row in lines { memset_pattern4(pixels + row * columns + range.lowerBound, &pattern, range.count * 4) }
+    }
+}

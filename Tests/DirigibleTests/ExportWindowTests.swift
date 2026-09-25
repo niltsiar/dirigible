@@ -122,6 +122,34 @@ import os
         await model.close()
     }
 
+    /// Code gate 1, item 1: a Record in the sheet that the route check refuses keeps the export,
+    /// and the sheet shows the error at once. No window alert waits behind the sheet. The error
+    /// goes when the export ends.
+    @Test func aRefusedRecordInTheSheetShowsItsError() async throws {
+        let (model, studio, window) = try await window()
+        try studio.edit { session throws(SessionError) in
+            try session.setRoute(Route(deviceUID: "duo", channels: .mono(3)), track: "t1")
+        }
+        hold(studio)
+        let (source, target) = (try #require(model.source(of: .session, in: studio)), target)
+        let export = Task { await model.run(source, target, studio) }
+        await until("the progress sheet shows") { window.attachedSheet != nil }
+
+        let sheet = try #require(window.attachedSheet)
+        try #require(sheetButton(cancel: false, in: sheet)).performClick(nil)
+        await until("the take start ends") { model.recordRefusal != nil || model.alert != nil }
+
+        #expect(model.recordRefusal == .channelOutOfRange("t1"))
+        #expect(model.alert == nil)
+        #expect(studio.exportProgress != nil && window.attachedSheet != nil)
+        model.cancelExport()
+        release.signal()
+        await export.value
+        #expect(model.recordRefusal == nil)
+        #expect(model.alert == nil)
+        await model.close()
+    }
+
     /// Criterion 26: Export needs an idle studio with no pending take, no export step, and no
     /// export; Export Selection also needs a selection. Record stays on during the media check
     /// and the export, and is off during the question and the panel.

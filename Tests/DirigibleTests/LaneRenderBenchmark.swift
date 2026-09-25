@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleCore
 import Foundation
 import Testing
@@ -55,6 +56,37 @@ struct LaneRenderBenchmark {
             #expect(renderer.columns == 2880 && renderer.rows == 1200)
             #expect(p95 <= .milliseconds(40), "\(zoom): p95 \(p95)")
         }
+    }
+}
+
+/// Code gate 1 item 3: a draw of 10 pt of 6 lanes of 1000 clips each labels only the clips in the
+/// dirty rect. Unoptimized, on the MacBook Pro 2018 of the probes: a median of 10.5 s when the
+/// labels looked up every clip of the session by its ID, 8.5 ms after the fix.
+@MainActor struct ClipLabelBenchmark {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aNarrowDrawOfManyClipsReadsOnlyItsClips() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 4800))
+        for track in 1...6 {
+            try session.addTrack(TrackID("t\(track)"), name: "T\(track)", layout: .mono)
+            for n in 0..<1000 {
+                try session.place(
+                    Clip(id: ClipID("c\(track)x\(n)"), file: "f1", start: Frames(n * 4800), offset: 0, length: 4800),
+                    on: TrackID("t\(track)"))
+            }
+        }
+        let view = documentView(session)
+        let rect = NSRect(x: 4000, y: 0, width: 10, height: 600)
+        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: rect))
+
+        var times: [Duration] = []
+        for _ in 0..<20 {
+            let start = ContinuousClock.now
+            view.cacheDisplay(in: rect, to: bitmap)
+            times.append(ContinuousClock.now - start)
+        }
+        let median = times.sorted()[10]
+        #expect(median <= .milliseconds(20), "median \(median)")
     }
 }
 

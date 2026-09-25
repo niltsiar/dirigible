@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleAudio
 import DirigibleCore
 
@@ -89,6 +90,32 @@ extension SessionWindow {
         guard var marker = studio?.session.markers[renaming.id] else { return }
         marker.name = renaming.name
         edit { s throws(SessionError) in try s.setMarker(marker) }
+    }
+}
+
+extension SessionWindow {
+    /// Removes the tracks in one undo entry, or none: a track of a pending take gives its alert
+    /// (decision 0012). The name drafts of the removed tracks go. The armed set stays, so an undo
+    /// gives back an armed track; every reader of the set filters it by the session tracks.
+    func removeTracks(_ tracks: [TrackID]) {
+        guard !tracks.isEmpty else { return }
+        if edit({ s throws(SessionError) -> Void in for track in tracks { try s.removeTrack(track) } }) != nil {
+            for track in tracks { drafts[track] = nil }
+        }
+    }
+
+    /// Shows in Finder the pool files of the clips that overlap the selection on its tracks, or of
+    /// every clip with no selection. Only files on disk go; with none, a beep.
+    func showClipsInFinder() async {
+        guard let studio else { return }
+        let session = studio.session
+        let selection = timeline.marks.selection(in: session)
+        let tracks = selection?.tracks.compactMap(session.track) ?? session.tracks
+        let files = tracks.flatMap { track in
+            track.clips.filter { clip in selection.map { clip.range.overlaps($0.range) } ?? true }.map(\.file)
+        }
+        let urls = await studio.clipURLs(Set(files))
+        if urls.isEmpty { NSSound.beep() } else { app?.reveal(urls) }
     }
 }
 

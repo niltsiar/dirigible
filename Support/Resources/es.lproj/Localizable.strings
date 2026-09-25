@@ -4,8 +4,10 @@
 "menu.file.new" = "Nueva sesión…";
 "menu.file.open" = "Abrir…";
 "menu.file.open.recent" = "Abrir recientes";
+"menu.file.show.clips" = "Mostrar clips en el Finder";
 "menu.track" = "Pista";
 "menu.track.add" = "Añadir pista";
+"menu.track.remove" = "Eliminar pista";
 "menu.record" = "Grabación";
 "menu.record.start" = "Grabar";
 "menu.record.stop" = "Detener";

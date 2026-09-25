@@ -53,6 +53,7 @@ enum TimelineCommand: Hashable {
     case cut, copy, paste, delete
     case split, nudgeLeft, nudgeRight
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
+    case removeTrack, showInFinder
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
     /// responder of the key window, so a focused text field takes it before the window (probe E3).
@@ -74,6 +75,7 @@ enum TimelineCommand: Hashable {
         switch self {
         case .zoomToSelection, .setIn, .setOut, .delete, .split, .nudgeLeft, .nudgeRight: true
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
+        case .removeTrack, .showInFinder: true
         case .zoomIn, .zoomOut, .zoomToSession, .toggleFollow, .deselectAll, .selectAll, .cut, .copy, .paste: false
         }
     }
@@ -124,6 +126,16 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .previousMarker, title: .menuMarkersPrevious, key: .pageUp, modifiers: []),
         MenuItem(command: .nextMarker, title: .menuMarkersNext, key: .pageDown, modifiers: []),
     ]
+
+    /// The Remove Track item of the Track menu.
+    static let trackItems = [
+        MenuItem(command: .removeTrack, title: .menuTrackRemove, key: .delete, modifiers: [.command, .option])
+    ]
+
+    /// The Show Clips in Finder item of the File menu.
+    static let fileItems = [
+        MenuItem(command: .showInFinder, title: .menuFileShowClips, key: "r", modifiers: [.command, .shift])
+    ]
 }
 
 extension SessionWindow {
@@ -149,6 +161,8 @@ extension SessionWindow {
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
+        case .removeTrack: removeTracks(studio.session.tracks.map(\.id).filter(timeline.marks.tracks.contains))
+        case .showInFinder: Task { await showClipsInFinder() }
         }
     }
 }

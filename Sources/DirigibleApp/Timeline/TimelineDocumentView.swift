@@ -70,6 +70,10 @@ final class TimelineDocumentView: NSView {
         guard let inputs, let (clip, track) = inputs.session.clip(id),
             let lane = inputs.session.tracks.firstIndex(where: { $0.id == track })
         else { return nil }
+        return Self.box(of: clip, lane: lane, inputs)
+    }
+
+    private static func box(of clip: Clip, lane: Int, _ inputs: LaneInputs) -> NSRect {
         let points = inputs.scale.framesPerPoint
         return NSRect(
             x: Double(clip.start.count) / points, y: Double(lane) * inputs.laneHeight,
@@ -104,14 +108,18 @@ final class TimelineDocumentView: NSView {
     }
 
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom
-    /// left of the box.
+    /// left of the box. It reads only the clips in the frames of `rect`, lane by lane.
     private func drawLabels(_ inputs: LaneInputs, in rect: NSRect) {
+        guard inputs.laneHeight > 14 else { return }
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor(white: 0.15, alpha: 1),
         ]
-        for track in inputs.session.tracks {
-            for clip in track.clips {
-                guard let box = clipFrame(clip.id), box.intersects(rect), box.height > 14 else { continue }
+        let points = inputs.scale.framesPerPoint
+        let frames = Frames(Int(rect.minX * points))..<Frames(Int((rect.maxX * points).rounded(.up)) + 1)
+        for (lane, track) in inputs.session.tracks.enumerated() {
+            for clip in track.clips.clips(overlapping: frames) {
+                let box = Self.box(of: clip, lane: lane, inputs)
+                guard box.intersects(rect) else { continue }
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
                 let name = path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
                 name.draw(at: NSPoint(x: box.minX + 4, y: box.maxY - 14), withAttributes: attributes)

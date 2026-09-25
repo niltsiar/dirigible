@@ -90,7 +90,7 @@ final class MixReader {
         }
         guard !failed.contains(id), let entry = session.files[id] else { return nil }
         do {
-            let (file, fault) = try openFile(
+            let (file, fault, _) = try openFile(
                 entry, package.appending(path: clipsFolderName), session.sampleRate)
             faults[id] = fault
             guard let file else {

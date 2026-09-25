@@ -86,9 +86,12 @@ import Observation
     @ObservationIgnored let lock: PackageLock
 
     @ObservationIgnored let recordings: ActiveRecordings?
+    /// The peak states and the pass (decision 0017), in `Studio+Peaks.swift`.
+    var peakLoad: PeakLoad
 
-    private init(opened: OpenedPackage, recordings: ActiveRecordings?) {
+    private init(opened: OpenedPackage, recordings: ActiveRecordings?, peakCache: URL?) {
         self.recordings = recordings
+        self.peakLoad = PeakLoad(cache: peakCache)
         self.url = opened.package
         self.lock = opened.lock
         self.history = History(opened.session)
@@ -100,9 +103,15 @@ import Observation
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
     /// Throws `.locked` when another studio or the CLI has the package. `recordings` is the list
-    /// of decision 0004 that the studio keeps; the default is none.
-    public static func open(_ package: URL, recordings: ActiveRecordings? = nil) async throws(StudioError) -> Studio {
-        Studio(opened: try await openPackage(package, recordings: recordings), recordings: recordings)
+    /// of decision 0004 that the studio keeps; the default is none. With `peakCache`, it starts
+    /// a peak pass (decision 0017); with none, it computes no peaks.
+    public static func open(
+        _ package: URL, recordings: ActiveRecordings? = nil, peakCache: URL? = nil
+    ) async throws(StudioError) -> Studio {
+        let opened = try await openPackage(package, recordings: recordings)
+        let studio = Studio(opened: opened, recordings: recordings, peakCache: peakCache)
+        studio.loadPeaks()
+        return studio
     }
 
     /// Runs `body` on a copy of the session and records one undo entry if it changed. A change
@@ -113,26 +122,34 @@ import Observation
         let result: Result
         do { result = try history.edit(body) } catch { throw .session(error) }
         if session != before { scheduleSave() }
+        poolChanged(from: before.files)
         return result
     }
 
     public func undo() throws(StudioError) {
         try checkIdle()
+        let before = session.files
         do { try history.undo() } catch { throw .session(error) }
         scheduleSave()
+        poolChanged(from: before)
     }
 
     public func redo() throws(StudioError) {
         try checkIdle()
+        let before = session.files
         do { try history.redo() } catch { throw .session(error) }
         scheduleSave()
+        poolChanged(from: before)
     }
 
     /// Releases every monitor device, stops a take that records, then waits for a start, a
     /// finalize, and every write in progress. When `saveError` is set, it writes the session once
-    /// more; `saveError` stays set only when that write also fails. After it returns, no device
-    /// is held, no take records, and no write runs.
+    /// more; `saveError` stays set only when that write also fails. Then it ends the peak pass
+    /// (decision 0017). After it returns, no device is held, no take records, and no write or
+    /// pass runs.
     public func settle() async {
+        // Before the first await: from now no pass starts and no block starts.
+        peakLoad.settling = true
         await stopPlay()
         // The monitor order does not wait for a finalize in progress.
         monitorRequest = []
@@ -143,9 +160,12 @@ import Observation
             guard case .recording = transport else { break }
             try? await stop(.requested)
         }
-        guard saveError != nil else { return }
-        scheduleSave()
-        await serialized {}
+        if saveError != nil {
+            scheduleSave()
+            await serialized {}
+        }
+        await stopPeaks()
+        peakLoad.settling = false
     }
 
     /// Runs finalize again for the pending take (decision 0004). With no pending take, it does
@@ -331,7 +351,9 @@ import Observation
         if let missingMedia = outcome.missingMedia { play.missingMedia = missingMedia }
         if let error = outcome.error { throw error }
         takeEnded(outcome.session)
+        let before = session.files
         history.edit { $0 = outcome.session }
+        poolChanged(from: before)
     }
 
     /// Runs `body` after every package write that started before this call. `body` runs in the
@@ -360,26 +382,4 @@ import Observation
     private func checkIdle() throws(StudioError) {
         guard transport == .idle, !isStarting else { throw .busy }
     }
-}
-
-public enum StudioError: Error, Hashable, Sendable {
-    /// A take records or finalizes, or a new take waits for a pending take.
-    case busy
-    /// Another studio or the CLI has the package.
-    case locked
-    /// The armed track has no route.
-    case noRoute(TrackID)
-    /// The route of the armed track names a device that is not in the list.
-    case deviceMissing(TrackID)
-    /// The route of the armed track names a channel that the device does not have.
-    case channelOutOfRange(TrackID)
-    /// Two armed tracks route the same device channel: the first track and the second.
-    case channelInUse(TrackID, TrackID)
-    case session(SessionError)
-    case file(SessionFileError)
-    case finalize(FinalizeError)
-    /// The front end requests the access and starts again (decision 0013).
-    case microphoneAccess(MicrophoneAccess)
-    /// Less than 1 GB is free (decision 0004).
-    case diskLow
 }

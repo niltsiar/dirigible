@@ -164,6 +164,7 @@ enum L10n: String, CaseIterable {
     case errorExportMove = "error.export.move"
     case errorExportOpen = "error.export.open"
     case errorExportPackage = "error.export.package"
+    case errorExportYielded = "error.export.yielded"
 
     /// For `Text` and `Button`: SwiftUI looks the key up in `Bundle.main`.
     var key: LocalizedStringKey { LocalizedStringKey(rawValue) }
@@ -196,6 +197,7 @@ enum L10n: String, CaseIterable {
         case .finalize(.readFailed(let file, let errno)): return errorFinalizeRead.format(file, Int(errno))
         case .finalize(.writeFailed(let file, let status)): return errorFinalizeWrite.format(file, Int(status))
         case .export(let error): return message(for: error)
+        case .exportYielded: return errorExportYielded.text
         }
     }
 

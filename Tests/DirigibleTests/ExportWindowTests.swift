@@ -42,10 +42,11 @@ import os
         try FileManager.default.contentsOfDirectory(atPath: folder.url.path).filter { $0.hasSuffix(".tmp") }
     }
 
-    /// A window of a package with track `t1` on channel 1 of `duo` (the counting HAL), and a clip
-    /// of `f1`: 10 s of silence, or a missing file with `audio: false`.
-    func window(audio: Bool = true) async throws -> (SessionWindow, Studio, NSWindow) {
-        let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 10, audio: audio)
+    /// A window of a package in `folder` (default: the test folder) with track `t1` on channel 1
+    /// of `duo` (the counting HAL), and a clip of `f1`: 10 s of silence, or a missing file with
+    /// `audio: false`.
+    func window(audio: Bool = true, in folder: URL? = nil) async throws -> (SessionWindow, Studio, NSWindow) {
+        let package = try await timelinePackage(in: folder ?? self.folder.url, tracks: 1, seconds: 10, audio: audio)
         let model = await app.open(package)
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
@@ -148,6 +149,34 @@ import os
         #expect(model.recordRefusal == nil)
         #expect(model.alert == nil)
         await model.close()
+    }
+
+    /// Code gate 1, item 2: Record in window A ends the export of window B before the take
+    /// starts, and B tells why. The app gives each studio the studios of the other windows.
+    @Test func recordInAnotherWindowEndsTheExport() async throws {
+        let (modelA, studioA, _) = try await window()
+        let other = folder.url.appending(path: "b")
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        let (modelB, studioB, _) = try await window(in: other)
+        hold(studioB)
+        let targetB = ExportTarget(url: other.appending(path: "mix.wav"), options: Self.options, confirmed: nil)
+        let source = try #require(modelB.source(of: .session, in: studioB))
+        let export = Task { await modelB.run(source, targetB, studioB) }
+        await until("B exports") { studioB.exportProgress != nil }
+
+        let record = Task { await modelA.record() }
+        release.signal()
+        await record.value
+        await export.value
+
+        #expect(studioA.transport == .recording(take: 1))
+        #expect(modelB.alert == .error(.exportYielded))
+        #expect(!FileManager.default.fileExists(atPath: targetB.url.path))
+        hal.feed(seconds: 0.5)
+        await modelA.stop()
+        await until("the take finalizes") { studioA.transport == .idle }
+        await modelA.close()
+        await modelB.close()
     }
 
     /// Criterion 26: Export needs an idle studio with no pending take, no export step, and no

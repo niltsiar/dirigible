@@ -96,6 +96,10 @@ import Observation
     /// The running export (decision 0019), in `Studio+Export.swift`.
     var exportJob: ExportJob?
     @ObservationIgnored var exportNumber = 0
+    /// The studios of the other windows (decision 0019). The app sets it; the CLI has none.
+    @ObservationIgnored public var otherStudios: () -> [Studio] = { [] }
+    /// The number of the export that a take of another studio ended.
+    @ObservationIgnored var yieldedExport: Int?
     /// True from the start of `settle()` to its end: no peak pass and no export starts.
     private(set) var settling = false
 

@@ -52,7 +52,7 @@ extension Studio {
     /// disk check, no sleep assertion, and no disk watcher. Checks the route of each armed track,
     /// then, after the write in progress, saves `session.xml` with `<recording>` on the main
     /// actor, then starts each device writer on the environment HAL. A throw changes nothing, but
-    /// a running export ends before the save.
+    /// a running export of this studio or of another studio ends before the save.
     func startTake(
         armed: [TrackID], devices: [InputDevice], playhead: Frames? = nil, hostTimeNanos: UInt64
     ) async throws(StudioError) -> [String: DeviceWriter] {
@@ -65,7 +65,7 @@ extension Studio {
             defer { isStarting = false }
             let playhead = await takePlayhead(stopped, playhead)
             // After the route checks and before the save, as `beginRecording` (decision 0019).
-            await endExport()
+            await exportEnd()?()
             do throws(StudioError) {
                 begin(
                     try saveTakeStart(
@@ -82,7 +82,8 @@ extension Studio {
     }
 
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
-    /// the take plus 1 GB. The reads run off the main actor.
+    /// the take plus 1 GB. Before the stop, it ends the exports of the other studios to the
+    /// volume of the package and checks again. The reads run off the main actor.
     /// It also sets `recordTimeLeft` for the transport bar.
     func watchDisk() -> Task<Void, Never> {
         let (lock, environment, writers) = (lock, environment, Array(writers.values))
@@ -99,6 +100,8 @@ extension Studio {
                 self?.recordTimeLeft = DirigibleAudio.remainingRecordTime(
                     free: free, wav: wav, channels: channels, rate: rate)
                 guard free < wav + diskMargin else { continue }
+                // Capture comes first (decision 0019): the next check counts the space again.
+                if await self?.endOtherExports(onVolumeOf: lock) == true { continue }
                 try? await self?.stop(.diskLow)
                 return
             }

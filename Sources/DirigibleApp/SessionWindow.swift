@@ -131,8 +131,12 @@ enum WindowAlert: Hashable {
     }
 
     /// Shows an open studio: each track with a route arms, and the window follows `Studio.url`.
+    /// The studio gets the studios of the other windows: a take ends their exports (decision 0019).
     func adopt(_ studio: Studio) {
         armed = Set(studio.session.tracks.filter { $0.route != nil }.map(\.id))
+        studio.otherStudios = { [weak app, weak studio] in
+            app?.windows.values.compactMap(\.studio).filter { $0 !== studio } ?? []
+        }
         phase = .open(studio)
         follow(studio)
         followMonitor(studio)
@@ -248,25 +252,6 @@ enum WindowAlert: Hashable {
             alert = .microphone(access)
         } catch {
             alert = .error(error)
-        }
-    }
-
-    /// Runs `body`. When it throws an undecided access, it shows the macOS prompt and runs `body`
-    /// once more after a grant (decision 0013). The prompt waits for the user; a close can end
-    /// the window meanwhile, so `body` runs again only in an open window with the same studio.
-    func withMicrophoneAccess(_ studio: Studio, _ body: () async throws(StudioError) -> Void)
-        async throws(StudioError)
-    {
-        do throws(StudioError) {
-            try await body()
-        } catch .microphoneAccess(let access) {
-            switch microphoneStep(access) {
-            case .request:
-                guard await requestMicrophoneAccess() else { throw .microphoneAccess(.denied) }
-                guard case .open(let current) = phase, current === studio else { return }
-                try await body()
-            case .privacyLink: throw .microphoneAccess(access)
-            }
         }
     }
 

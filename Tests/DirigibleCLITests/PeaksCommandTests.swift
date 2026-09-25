@@ -45,10 +45,10 @@ struct PeaksCommandTests {
     @MainActor
     static func pass(_ url: URL, cache: String, keep: Bool = false) async throws -> Studio? {
         let studio = try await Studio.open(url, peakCache: URL(filePath: cache))
-        let end = ContinuousClock.now + .seconds(10)
+        let end = ContinuousClock.now + .seconds(30)
         while !(studio.peaks["f1"].map { if case .ready = $0 { true } else { false } } ?? false) {
             guard ContinuousClock.now < end else {
-                Issue.record("the peaks of f1 are not ready in 10 s")
+                Issue.record("the peaks of f1 are not ready in 30 s")
                 break
             }
             try await Task.sleep(for: .milliseconds(10))

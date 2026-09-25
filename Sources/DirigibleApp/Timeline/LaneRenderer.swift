@@ -41,6 +41,8 @@ enum LaneColors {
 final class LaneRenderer {
     private(set) var columns = 0
     private(set) var rows = 0
+    /// Pixels per row: `columns` rounded up to an odd count of 64-byte cache lines.
+    private var rowLength = 0
     private var pixels: UnsafeMutablePointer<UInt32>?
     /// The columns of one clip, reused.
     private var values: [PeakColumn] = []
@@ -51,7 +53,7 @@ final class LaneRenderer {
     var bufferAddress: UnsafeMutableRawPointer? { pixels.map { UnsafeMutableRawPointer($0) } }
 
     /// The pixel of the last draw at `column` and `row` (row 0 is the top of lane 1).
-    func pixel(_ column: Int, _ row: Int) -> UInt32 { pixels?[row * columns + column] ?? 0 }
+    func pixel(_ column: Int, _ row: Int) -> UInt32 { pixels?[row * rowLength + column] ?? 0 }
 
     /// 20 log10(v / 65535) for each magnitude v.
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
@@ -138,7 +140,7 @@ final class LaneRenderer {
             for (lane, track) in tracks.enumerated() where selection.tracks.contains(track.id) {
                 for row in lane * laneRows..<(lane + 1) * laneRows {
                     for column in band {
-                        pixels[row * columns + column] = LaneColors.selected(pixels[row * columns + column])
+                        pixels[row * rowLength + column] = LaneColors.selected(pixels[row * rowLength + column])
                     }
                 }
             }
@@ -160,11 +162,11 @@ final class LaneRenderer {
     /// An image over the buffer itself, with no copy (`makeImage()` copied 13.8 MB, about 4 ms at
     /// 2880 x 1200 px). The next draw changes its pixels, so draw it before the next draw.
     private func image(of pixels: UnsafeMutablePointer<UInt32>) -> CGImage? {
-        let bytes = columns * rows * 4
+        let bytes = rowLength * rows * 4
         guard let provider = CGDataProvider(dataInfo: nil, data: pixels, size: bytes, releaseData: { _, _, _ in })
         else { return nil }
         return CGImage(
-            width: columns, height: rows, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: columns * 4,
+            width: columns, height: rows, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: rowLength * 4,
             space: Self.space,
             bitmapInfo: CGBitmapInfo(
                 rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue),
@@ -177,8 +179,12 @@ final class LaneRenderer {
     private func prepare(columns: Int, rows: Int) {
         guard pixels == nil || columns != self.columns || rows != self.rows else { return }
         pixels?.deallocate()
-        pixels = .allocate(capacity: columns * rows)
-        pixels?.initialize(repeating: 0, count: columns * rows)
+        // A column span writes one pixel per row. A row of 2880 px is 180 cache lines, so the rows
+        // of a lane fell in 16 of the 64 L1 sets and evicted each other. An odd count uses all 64.
+        let lines = (columns + 15) / 16
+        rowLength = (lines | 1) * 16
+        pixels = .allocate(capacity: rowLength * rows)
+        pixels?.initialize(repeating: 0, count: rowLength * rows)
         (self.columns, self.rows) = (columns, rows)
     }
 
@@ -187,14 +193,14 @@ final class LaneRenderer {
     private func span(_ color: UInt32, column: Int, rows lines: Range<Int>) {
         guard let pixels, !lines.isEmpty else { return }
         var value = Float(bitPattern: color)
-        (pixels + lines.lowerBound * columns + column).withMemoryRebound(to: Float.self, capacity: 1) {
-            vDSP_vfill(&value, $0, vDSP_Stride(columns), vDSP_Length(lines.count))
+        (pixels + lines.lowerBound * rowLength + column).withMemoryRebound(to: Float.self, capacity: 1) {
+            vDSP_vfill(&value, $0, vDSP_Stride(rowLength), vDSP_Length(lines.count))
         }
     }
 
     private func fill(_ color: UInt32, columns range: Range<Int>, rows lines: ClosedRange<Int>) {
         guard let pixels, !range.isEmpty else { return }
         var pattern = color
-        for row in lines { memset_pattern4(pixels + row * columns + range.lowerBound, &pattern, range.count * 4) }
+        for row in lines { memset_pattern4(pixels + row * rowLength + range.lowerBound, &pattern, range.count * 4) }
     }
 }

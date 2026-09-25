@@ -1,6 +1,12 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import os
+
+/// The time of each lane draw, at the debug level: `log stream --level debug --predicate
+/// 'subsystem == "com.delineas.dirigible"'` shows it (decision 0017, the 8 ms budget of the release
+/// build). The system drops debug messages when nothing streams them.
+private let drawLog = Logger(subsystem: "com.delineas.dirigible", category: "timeline")
 
 /// The lanes of the timeline (decision 0017, probe D6): as wide as the session at the zoom,
 /// flipped, and drawn only in its dirty rect with own pixels. It redraws only when `inputs` or the
@@ -76,6 +82,7 @@ final class TimelineDocumentView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let inputs, let context = NSGraphicsContext.current?.cgContext else { return }
+        let started = ContinuousClock.now
         draws += 1
         let (x0, x1) = (dirtyRect.minX.rounded(.down), dirtyRect.maxX.rounded(.up))
         let height = Double(inputs.session.tracks.count) * inputs.laneHeight
@@ -88,6 +95,9 @@ final class TimelineDocumentView: NSView {
         context.draw(image, in: CGRect(x: 0, y: 0, width: x1 - x0, height: height))
         context.restoreGState()
         drawLabels(inputs, in: dirtyRect)
+        let milliseconds = Double((ContinuousClock.now - started) / .microseconds(1)) / 1000
+        let columns = Int((x1 - x0) * scale)
+        drawLog.debug("lanes draw \(milliseconds, format: .fixed(precision: 2)) ms, \(columns) columns")
     }
 
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom

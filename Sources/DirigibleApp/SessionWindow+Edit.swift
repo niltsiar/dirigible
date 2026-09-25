@@ -47,4 +47,53 @@ extension SessionWindow {
             timeline.marks = move.marks
         }
     }
+
+    /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers
+    /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
+    /// marker. Rename, Move, and Delete act on the current marker when the session has it.
+    func runMarker(_ command: TimelineCommand, _ studio: Studio) {
+        let (session, playhead) = (studio.session, studio.playhead)
+        switch command {
+        case .addMarker, .addChapter:
+            let kind: Marker.Kind = command == .addChapter ? .chapter : .marker
+            let name = newMarkerName(kind, in: session)
+            let marker = Marker(id: MarkerID(), name: name.key.format(name.number), position: playhead, kind: kind)
+            if edit({ s throws(SessionError) in try s.setMarker(marker) }) != nil { timeline.marker = marker.id }
+        case .previousMarker, .nextMarker:
+            let found =
+                command == .nextMarker
+                ? session.markerPosition(after: playhead) : session.markerPosition(before: playhead)
+            guard let frame = found else { return }
+            // At one position: a marker before a chapter, then by ID.
+            timeline.marker =
+                session.markers.values.filter { $0.position == frame }
+                .min { ($0.kind == .chapter ? 1 : 0, $0.id) < ($1.kind == .chapter ? 1 : 0, $1.id) }?.id
+            Task { await studio.perform(.seek(.frame(frame))) }
+        default:
+            guard var marker = timeline.marker.flatMap({ session.markers[$0] }) else { return }
+            switch command {
+            case .renameMarker: timeline.renaming = MarkerRename(id: marker.id, name: marker.name)
+            case .moveMarker:
+                marker.position = playhead
+                edit { s throws(SessionError) in try s.setMarker(marker) }
+            default:
+                if edit({ s throws(SessionError) in try s.removeMarker(marker.id) }) != nil { timeline.marker = nil }
+            }
+        }
+    }
+
+    /// OK of the rename alert: saves the name of its marker, when the session still has it.
+    func commitRename() {
+        guard let renaming = timeline.renaming else { return }
+        timeline.renaming = nil
+        guard var marker = studio?.session.markers[renaming.id] else { return }
+        marker.name = renaming.name
+        edit { s throws(SessionError) in try s.setMarker(marker) }
+    }
+}
+
+/// The name of a new marker (decision 0018): "Marker N" or "Chapter N", N the count of the markers
+/// and chapters + 1. It returns the key and N, because a test process has no app strings.
+func newMarkerName(_ kind: Marker.Kind, in session: Session) -> (key: L10n, number: Int) {
+    (kind == .chapter ? .chapterDefaultName : .markerDefaultName, session.markers.count + 1)
 }

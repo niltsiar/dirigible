@@ -41,6 +41,10 @@ struct DirigibleApp: App {
                         menuButton(item)
                     }
                 }
+                // Every marker key is one that a text field uses: never disabled (probe K1).
+                CommandMenu(L10n.menuMarkers.key) {
+                    ForEach(TimelineCommand.markerItems, id: \.command) { item in menuButton(item) }
+                }
                 // No CommandGroup for Undo and Redo: the default items send undo: and redo: along
                 // the responder chain, so a focused text field keeps its typing undo (P12).
                 CommandMenu(L10n.menuTrack.key) {

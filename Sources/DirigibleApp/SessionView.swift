@@ -9,6 +9,18 @@ struct SessionView: View {
 
     var body: some View {
         content
+            .alert(
+                L10n.alertMarkerRename.key,
+                isPresented: Binding(
+                    get: { model.timeline.renaming != nil }, set: { if !$0 { model.timeline.renaming = nil } })
+            ) {
+                TextField(
+                    L10n.trackName.key,
+                    text: Binding(
+                        get: { model.timeline.renaming?.name ?? "" }, set: { model.timeline.renaming?.name = $0 }))
+                Button(L10n.alertOK.key) { model.commitRename() }
+                Button(L10n.alertCancel.key, role: .cancel) {}
+            }
             .frame(minWidth: 640, minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),

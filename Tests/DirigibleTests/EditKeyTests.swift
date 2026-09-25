@@ -25,7 +25,14 @@ import Testing
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)", "split b \(command)",
                 "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)",
             ])
-        let items = TimelineCommand.viewItems + edit
+        let shift = EventModifiers.shift.rawValue
+        #expect(
+            TimelineCommand.markerItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
+                "addMarker \r \(command)", "addChapter \r \(EventModifiers([.command, .shift]).rawValue)",
+                "renameMarker \r \(shift)", "moveMarker \r \(EventModifiers([.command, .option]).rawValue)",
+                "deleteMarker \u{8} \(command)", "previousMarker \u{F72C} 0", "nextMarker \u{F72D} 0",
+            ])
+        let items = TimelineCommand.viewItems + edit + TimelineCommand.markerItems
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
         let repeated = Dictionary(grouping: keys) { $0 }.filter { $0.value.count > 1 }.keys
@@ -74,6 +81,51 @@ import Testing
 
         #expect(studio.session == session && studio.playhead == playhead)
         #expect(model.timeline.marks == Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
+        await model.close()
+    }
+
+    /// Criterion 14: with a name field focused, the marker keys change no marker, no playhead, and
+    /// no rename state. Control: with no
+    /// forward, each command runs (a new marker, a moved or deleted m1, the rename state, or the
+    /// current marker of Next and Previous).
+    @Test func markerKeysGoToAFocusedField() async throws {
+        let (model, studio, window, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
+        try studio.edit { s throws(SessionError) in
+            try s.setMarker(Marker(id: "m1", name: "One", position: 48_000, kind: .marker))
+            try s.setMarker(Marker(id: "m2", name: "Two", position: 96_000, kind: .marker))
+        }
+        await studio.perform(.seek(.frame(72_000)))
+        let editor = try await focusName(in: window)
+        editor.setSelectedRange(NSRange(location: 0, length: 0))
+        let (session, playhead) = (studio.session, studio.playhead)
+        let returnKey = { (flags: NSEvent.ModifierFlags) in
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r",
+                isARepeat: false, keyCode: 36)!
+        }
+        let keys: [(TimelineCommand, NSEvent)] = [
+            (.nextMarker, key(.keyDown, "\u{F72D}", code: 121, in: window)),
+            (.previousMarker, key(.keyDown, "\u{F72C}", code: 116, in: window)),
+            (.addMarker, returnKey(.command)), (.addChapter, returnKey([.command, .shift])),
+            (.renameMarker, returnKey(.shift)), (.moveMarker, returnKey([.command, .option])),
+            (.deleteMarker, commandKey("\u{7F}", code: 51, in: window)),
+        ]
+
+        for (command, event) in keys {
+            model.timeline.marker = command == .nextMarker || command == .previousMarker ? nil : "m1"
+            app.timeline(command, event: event, in: window)
+            #expect(
+                model.timeline.marker == (command == .nextMarker || command == .previousMarker ? nil : "m1"),
+                "\(command)")
+            #expect(model.timeline.renaming == nil, "\(command)")
+        }
+
+        #expect(studio.session == session && studio.playhead == playhead)
+        // Shift-Return ends the edit and selects the text; Command-Backspace deletes it. So both
+        // keys reached the field.
+        #expect(window.firstResponder === editor && editor.string == "")
         await model.close()
     }
 }

@@ -90,6 +90,30 @@ import Testing
         await model.close()
     }
 
+    /// Stopped, Previous Marker looks before the playhead; during play, before the playhead - 0.5 s,
+    /// so a press just after m3 passes it (code gate 1 item 2). Controls: no 0.5 s during play
+    /// gives m3; the 0.5 s also when stopped gives m1 at the first press.
+    @Test func previousDuringPlayPassesTheMarkerJustPlayed() async throws {
+        let (model, studio, _) = try await open(audio: true)
+        studio.environment.playerOutput = .offline
+        try threeMarkers(studio)
+        await seek(studio, 100_800)
+        model.run(.previousMarker)
+        #expect(model.timeline.marker == "m3", "stopped, 0.1 s after m3")
+
+        await seek(studio, 91_200)
+        await studio.perform(.playStop)
+        _ = await studio.renderOffline(frames: 4_800)
+        await until(limit: .seconds(10), "the playhead passes m3") { studio.playhead > 96_000 }
+        try #require(studio.playhead < 120_000, "the playhead is less than 0.5 s past m3")
+        model.run(.previousMarker)
+
+        #expect(model.timeline.marker == "m1")
+        await until(limit: .seconds(10), "Previous seeks to 48 000") { (48_000..<72_000).contains(studio.playhead) }
+        await studio.perform(.playStop)
+        await model.close()
+    }
+
     /// Control: a Next that includes the playhead stays on m1.
     @Test func nextFromAMarkerGoesToTheNextOne() async throws {
         let (model, studio, _) = try await open()

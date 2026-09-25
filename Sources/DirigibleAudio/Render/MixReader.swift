@@ -21,6 +21,8 @@ final class MixReader {
     private(set) var openError: POSIXError?
     /// The package path. The Player sets it to the path that the lock holds at each refill.
     var package: URL
+    /// The tracks that the mix reads. Nil: every track.
+    let tracks: Set<TrackID>?
     /// The open files, the most recently used last.
     private var files: [(id: FileID, file: AVAudioFile)] = []
     /// The files that did not open. They hold no descriptor.
@@ -29,9 +31,10 @@ final class MixReader {
     /// Opens a pool file. Tests give one that throws EMFILE.
     private let openFile: MediaOpen
 
-    init(package: URL, session: Session, open: @escaping MediaOpen = openMedia) {
+    init(package: URL, session: Session, tracks: Set<TrackID>? = nil, open: @escaping MediaOpen = openMedia) {
         self.session = session
         self.package = package
+        self.tracks = tracks
         openFile = open
     }
 
@@ -41,7 +44,7 @@ final class MixReader {
         buffer.frameLength = AVAudioFrameCount(count)
         let out = buffer.floatChannelData!
         for channel in 0..<2 { out[channel].update(repeating: 0, count: count) }
-        for track in session.tracks {
+        for track in session.tracks where tracks?.contains(track.id) ?? true {
             for clip in track.clips.clips(overlapping: range) {
                 let part = max(clip.start, range.lowerBound)..<min(clip.end, range.upperBound)
                 guard let read = read(clip.file, from: clip.offset + (part.lowerBound - clip.start), part) else {

@@ -32,7 +32,9 @@ struct RenderMixTests {
         let package = try Self.package()
         let out = package.folder.url.appending(path: "mix.caf")
 
-        let faults = try renderMix(package.session, package: package.url, range: 0..<9600, to: out, chunk: 4096)
+        let faults = try exportMix(
+            package.session, source: #require(ExportSource(range: 0..<9600)), options: .render, to: out,
+            package: package.url, chunk: 4096)
 
         #expect(faults == [:])
         let rendered = try Self.read(out)

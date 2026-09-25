@@ -84,7 +84,7 @@ Run the **reflect** skill on the branch. It turns durable learnings into commits
 
 ## Phase 9: Land through a pull request
 
-1. `git fetch origin && git rebase origin/main`, then `make check`. Rebase before the first push, so the branch never needs a force push. When the branch changes `Sources/DirigibleAudio`, also run the slow tests: `git diff --quiet origin/main...HEAD -- Sources/DirigibleAudio || make test-slow`. `make check` does not run them.
+1. `git fetch origin && git rebase origin/main`, then `make check`. Rebase before the first push, so the branch never needs a force push. When the branch changes `Sources/`, also run the slow tests: `git diff --quiet origin/main...HEAD -- Sources || make test-slow`. `make check` does not run them, and slow tests are in every test target. Also run `make bench FILTER=<test>` for each optimized budget that a criterion of the run names.
 2. `git push -u origin <branch>`.
 3. Write the PR body with the **pr** skill to `<run>/pr.md`. Then `gh pr create --base main --head <branch> --title "<plain title, see the pr skill>" --body-file <run>/pr.md`.
 4. Make sure `main` did not move after step 1: `git fetch origin && git merge-base --is-ancestor origin/main HEAD`. If this fails, `make check` did not test the result of the merge. Go back to step 1 on a fresh branch. Then `gh pr merge <branch> --rebase --delete-branch`. Rebase merge keeps each atomic commit on `main` and keeps history linear.

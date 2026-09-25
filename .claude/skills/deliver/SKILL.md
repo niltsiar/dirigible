@@ -60,7 +60,7 @@ Keep `Sources/` and `Tests/` unchanged until the gate closes. While the panel ru
 1. For each slice, follow the **tdd** skill: failing test, smallest change, `make check`, commit. Commit the slice before you write a file of the next slice.
 2. One commit is one logical change. Use Conventional Commits (see `AGENTS.md`). Never commit a red `make check`.
 3. After each slice, add a row to `decisions.tsv` and tick the slice in `run.md`. The row gives the `make test` time on `main` and on the branch. When the branch time is two times the `main` time or more, stop and treat the cost as a plan change (step 4). Many small "kept" steps must not add up to a slow suite that nobody decided on.
-4. If the plan proves wrong, stop, update `plan.md`, and record why. Do not bolt workarounds onto a wrong plan.
+4. If the plan proves wrong, stop, update `plan.md`, and record why. Do not bolt workarounds onto a wrong plan. A plan change that makes a criterion weaker (a looser budget, a smaller size, a check moved to a later phase) because a tool "cannot" do something needs a probe first. Try to meet the original conditions, and log the probe in `decisions.tsv`. An untried tool limit is a guess, as in Phase 1.
 
 ## Phase 5: Clean up
 

@@ -141,8 +141,9 @@ import Testing
     }
 
     /// F16: each new command has a menu item with its key. The menus are built from this table.
+    /// The items of decision 0018 after them are in `EditKeyTests`.
     @Test func everyNewMenuItemHasItsKey() {
-        let items = TimelineCommand.viewItems + TimelineCommand.editItems
+        let items = TimelineCommand.viewItems + TimelineCommand.editItems.prefix(3)
         let keys = items.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
 
         #expect(

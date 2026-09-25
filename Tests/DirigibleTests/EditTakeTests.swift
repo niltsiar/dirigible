@@ -33,11 +33,11 @@ import Testing
         return url
     }
 
-    /// Cut, Paste, and Delete change nothing and show no alert while a take records, and a refused
-    /// Cut keeps the clipboard. Copy runs. The take goes on: after the stop, each track has a take
+    /// Cut, Paste, Delete, Split, and Nudge change nothing and show no alert while a take records,
+    /// and a refused Cut keeps the clipboard. Copy runs. The take goes on: after the stop, each track has a take
     /// clip with frames. Controls: an edit with no idle check shows the `.busy` alert; a clipboard
     /// set before the edit changes on the refused Cut.
-    @Test func cutPasteDeleteDoNothingDuringATake() async throws {
+    @Test func editsDoNothingDuringATake() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
@@ -50,7 +50,10 @@ import Testing
         #expect(studio.transport == .recording(take: 1))
         hal.feed(seconds: 0.5)
         let (before, undo) = (studio.session, studio.canUndo)
-        for command in [TimelineCommand.cut, .paste, .delete] { model.run(command) }
+        for command in [TimelineCommand.cut, .paste, .delete, .split] { model.run(command) }
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+        model.run(.nudgeRight)
+        model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1", "t2"])
 
         #expect(studio.session == before && studio.canUndo == undo && model.alert == nil)
         #expect(model.clipboard == copied)

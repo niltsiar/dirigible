@@ -107,6 +107,29 @@ struct AutosaveTests {
         #expect(calls.calls == 0)
     }
 
+    /// Edit-commands criterion 18 (a held Nudge key): 50 edits make at most 2 writes, and the
+    /// last session reaches the disk. Controls: a write for each edit makes 50; a skip of the edits
+    /// that come during a write in progress leaves "Name 1" on disk.
+    @Test func fiftyEditsGiveAtMostTwoWrites() async throws {
+        let gate = Gate()
+        let calls = StepCounter()
+        let studio = try await studio { session, lock throws(SessionFileError) in
+            _ = calls.next()
+            gate.waitOnce()
+            return try session.write(under: lock)
+        }
+
+        try rename(studio, to: "Name 1")
+        await gate.entered()
+        for n in 2...50 { try rename(studio, to: "Name \(n)") }
+        gate.open()
+        await studio.settle()
+
+        #expect(calls.calls <= 2)
+        #expect(try Session(contentsOf: url) == studio.session)
+        #expect(studio.session.track("t1")?.name == "Name 50")
+    }
+
     // MARK: Criterion 3
 
     @Test func anEditReturnsBeforeItsWrite() async throws {

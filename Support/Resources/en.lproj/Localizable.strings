@@ -123,3 +123,6 @@
 "menu.edit.paste" = "Paste";
 "menu.edit.delete" = "Delete";
 "menu.edit.select.all" = "Select All";
+"menu.edit.split" = "Split";
+"menu.edit.nudge.left" = "Nudge Left";
+"menu.edit.nudge.right" = "Nudge Right";

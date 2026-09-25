@@ -17,8 +17,9 @@ import Testing
 
     /// The field text changes; the session, the undo state, the Marks, and the package do not.
     /// Select All and Delete, not Copy: a copy: of the field editor writes the general pasteboard
-    /// of the user. Control: a send that starts at the window runs Select All and Delete on the
-    /// session.
+    /// of the user. Select All gets its Command-A key-down, which the item does not forward.
+    /// Controls: a send that starts at the window runs Select All and Delete on the session; a
+    /// forward of Command-A selects no text.
     @Test func theEditItemsGoToAFocusedFieldAndLeaveTheSession() async throws {
         let (model, studio, window, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
@@ -29,7 +30,7 @@ import Testing
         editor.setSelectedRange(NSRange(location: 0, length: 0))
         let session = studio.session
 
-        app.timeline(.selectAll, event: nil, in: window)
+        app.timeline(.selectAll, event: commandKey("a", code: 0, in: window), in: window)
         #expect(editor.selectedRange() == NSRange(location: 0, length: 2))
         app.timeline(.delete, event: nil, in: window)
 

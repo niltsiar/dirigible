@@ -113,8 +113,10 @@ struct FullDiskTests {
         try Self.fill(volume, leaving: 400_000, with: volume.appending(path: "filler"))
         let out = volume.appending(path: "mix.caf")
 
-        #expect(throws: RenderError.self) {
-            try renderMix(package.session, package: package.url, range: 0..<480_000, to: out)
+        #expect(throws: ExportError.self) {
+            try exportMix(
+                package.session, source: #require(ExportSource(range: 0..<480_000)), options: .render, to: out,
+                package: package.url)
         }
         #expect(try Self.visibleFiles(volume) == ["filler"])
     }
@@ -133,13 +135,17 @@ struct FullDiskTests {
         let package = try RenderMixTests.package()
         let out = volume.appending(path: "mix.caf")
 
-        _ = try renderMix(package.session, package: package.url, range: 0..<9600, to: out)
+        _ = try exportMix(
+            package.session, source: #require(ExportSource(range: 0..<9600)), options: .render, to: out,
+            package: package.url)
         let bytes = try Data(contentsOf: out)
         for (a, b) in zip(try RenderMixTests.read(out), try package.mix(0..<9600)) { #expect(maxError(a, b) <= 1e-6) }
         #expect(try Self.visibleFiles(volume) == ["mix.caf"])
 
-        #expect(throws: RenderError.exists) {
-            try renderMix(package.session, package: package.url, range: 0..<4800, to: out)
+        #expect(throws: ExportError.exists) {
+            try exportMix(
+                package.session, source: #require(ExportSource(range: 0..<4800)), options: .render, to: out,
+                package: package.url)
         }
         #expect(try Data(contentsOf: out) == bytes)
         #expect(try Self.visibleFiles(volume) == ["mix.caf"])

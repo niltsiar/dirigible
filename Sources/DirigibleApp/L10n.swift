@@ -105,6 +105,7 @@ enum L10n: String, CaseIterable {
     case errorSessionName = "error.session.name"
     case errorSessionLayout = "error.session.layout"
     case errorSessionTrackInTake = "error.session.track.in.take"
+    case errorSessionTrackCount = "error.session.track.count"
     case errorSessionOther = "error.session.other"
     case errorFileUnreadable = "error.file.unreadable"
     case errorFileRead = "error.file.read"
@@ -163,6 +164,7 @@ enum L10n: String, CaseIterable {
         case .invalidText: return errorSessionName.text
         case .layoutMismatch(let track, _): return errorSessionLayout.format(name(track))
         case .trackInRecording(let track): return errorSessionTrackInTake.format(name(track))
+        case .trackCount(let count): return errorSessionTrackCount.format(count)
         // The window never makes these edits: they are bugs, not user errors.
         case .duplicateID, .unknownCapture, .unknownFile, .unknownTrack, .unknownClip, .unknownMarker,
             .captureInUse, .invalidCapture, .fileInUse, .invalidRoute, .invalidPath, .frameOutOfRange,

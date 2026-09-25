@@ -25,6 +25,7 @@
 "error.session.name" = "El nombre de una pista no puede tener caracteres de control.";
 "error.session.layout" = "La disposición de la pista «%@» no puede cambiar.";
 "error.session.track.in.take" = "La pista «%@» está en la toma que espera a terminar.";
+"error.session.track.count" = "La copia tiene %lld pistas. Seleccione el mismo número de pistas para pegarla.";
 "error.session.other" = "La sesión rechazó el cambio.";
 "error.file.unreadable" = "El archivo de la sesión está dañado o es de una versión más nueva de Dirigible.";
 "error.file.read" = "No se puede leer el archivo de la sesión (error %lld).";

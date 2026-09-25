@@ -16,15 +16,15 @@ extension Session {
         try Self.checkText(clip.id.rawValue)
         try check(clip, on: tracks[index])
         if self.clip(clip.id) != nil { throw .duplicateID(clip.id.rawValue) }
-        let taken = clipIDs.union([clip.id])
-        tracks[index].clips.overwrite(with: clip) { Self.derivedID(of: $0.id, at: $1, taken: taken) }
+        var taken = clipIDs.union([clip.id])
+        tracks[index].clips.overwrite(with: clip) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
     }
 
     /// Removes the frames in `range` from the track and leaves a gap.
     public mutating func clear(_ range: Range<Frames>, on track: TrackID) throws(SessionError) {
         let index = try trackIndex(track)
-        let taken = clipIDs
-        tracks[index].clips.clear(range) { Self.derivedID(of: $0.id, at: $1, taken: taken) }
+        var taken = clipIDs
+        tracks[index].clips.clear([range]) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
     }
 
     /// Splits the clip at `frame` and returns the ID of the right part. The default ID is the
@@ -34,7 +34,8 @@ extension Session {
         let (track, index) = try position(of: id)
         let clip = tracks[track].clips[index]
         guard clip.start < frame, frame < clip.end else { throw .frameOutsideClip(id, frame) }
-        let right = rightID ?? Self.derivedID(of: id, at: frame, taken: clipIDs)
+        var taken = clipIDs
+        let right = rightID ?? Self.derivedID(of: id, at: frame, taken: &taken)
         try Self.checkText(right.rawValue)
         if self.clip(right) != nil { throw .duplicateID(right.rawValue) }
         tracks[track].clips.split(at: index, frame: frame, rightID: right)
@@ -104,11 +105,13 @@ extension Session {
         throw .unknownClip(id)
     }
 
-    private var clipIDs: Set<ClipID> {
+    var clipIDs: Set<ClipID> {
         Set(tracks.flatMap { $0.clips.map(\.id) })
     }
 
-    private static func derivedID(of id: ClipID, at frame: Frames, taken: Set<ClipID>) -> ClipID {
+    /// The first free ID of "<id>@<frame>", "<id>@<frame>-2", and so on. It goes into `taken`, so
+    /// the next call of one edit does not take it again.
+    static func derivedID(of id: ClipID, at frame: Frames, taken: inout Set<ClipID>) -> ClipID {
         let base = "\(id.rawValue)@\(frame.count)"
         var candidate = ClipID(base)
         var number = 2
@@ -116,6 +119,7 @@ extension Session {
             candidate = ClipID("\(base)-\(number)")
             number += 1
         }
+        taken.insert(candidate)
         return candidate
     }
 }

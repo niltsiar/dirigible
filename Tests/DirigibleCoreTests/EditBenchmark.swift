@@ -1,0 +1,66 @@
+import DirigibleCore
+import Foundation
+import Testing
+
+/// Edit-commands criterion 8: at 2 h, 6 tracks, and 2 000 clips per track (a 3.5 s clip each 3.6 s),
+/// each bulk edit runs as one `History.edit` with a p95 of 16 ms or less in an optimized build
+/// (`make bench FILTER=EditBenchmark`). `make test-slow` runs it unoptimized with a budget of
+/// 200 ms, a proxy only. A paste through a `place` loop took 12.6 s in the probe.
+struct EditBenchmark {
+    #if DEBUG
+        static let budget = Duration.milliseconds(200)
+    #else
+        static let budget = Duration.milliseconds(16)
+    #endif
+
+    static let hour = Frames(172_800_000)
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func eachEditOfTwoHoursFitsOneFrame() throws {
+        let history = History(try Self.session())
+        let tracks = history.session.tracks.map(\.id)
+        let excerpt = try history.session.excerpt(of: .zero..<Self.hour, on: tracks)
+        let firstHour = history.session.tracks.flatMap { $0.clips.prefix(1_000).map(\.id) }
+        #expect(excerpt.lanes.allSatisfy { $0.clips.count == 1_000 } && firstHour.count == 6_000)
+
+        let edits: [(String, (inout Session) throws -> Void)] = [
+            ("paste of 1,000 clips on 6 tracks", { try $0.paste(excerpt, at: Self.hour, on: tracks) }),
+            ("splitClips at 2 frames on 6 tracks", { try $0.splitClips(at: [100_000_000, 200_000_000], on: tracks) }),
+            (
+                "clear of 1 h on 6 tracks",
+                { session in
+                    for track in tracks { try session.clear(Self.hour..<(Self.hour + Self.hour), on: track) }
+                }
+            ),
+            ("nudge of 1,000 clips on 6 tracks", { try $0.nudge(firstHour, by: 480) }),
+        ]
+        for (name, edit) in edits {
+            var times: [Duration] = []
+            for _ in 0..<20 {
+                var copy = history
+                let start = ContinuousClock.now
+                try copy.edit(edit)
+                times.append(ContinuousClock.now - start)
+                #expect(copy.canUndo)
+            }
+            let p95 = times.sorted()[18]
+            print("EditBenchmark \(name): p95 \(p95)")
+            #expect(p95 <= Self.budget, "\(name): p95 \(p95)")
+        }
+    }
+
+    /// Places 2 000 clips on the first track, then pastes that track onto the other five.
+    static func session() throws -> Session {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: hour + hour))
+        for n in 1...6 { try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono) }
+        for n in 0..<2_000 {
+            let start = Frames(n * 172_800)
+            try session.place(
+                Clip(id: ClipID("c\(n)"), file: "f", start: start, offset: start, length: 168_000), on: "t1")
+        }
+        let first = try session.excerpt(of: .zero..<(hour + hour), on: Array(repeating: "t1", count: 5))
+        try session.paste(first, at: .zero, on: ["t2", "t3", "t4", "t5", "t6"])
+        return session
+    }
+}

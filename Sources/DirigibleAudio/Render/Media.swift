@@ -25,26 +25,35 @@ public func checkMedia(_ session: Session, package: URL) throws(POSIXError) -> [
 }
 
 /// The type of `openMedia`, so that tests can give an open that fails.
-typealias MediaOpen = @Sendable (AudioFile, URL, Int) throws(POSIXError) -> (file: AVAudioFile?, fault: MediaFault?)
+typealias MediaOpen =
+    @Sendable (AudioFile, URL, Int) throws(POSIXError) -> (
+        file: AVAudioFile?, fault: MediaFault?, stamp: FileStamp?
+    )
 
 /// Opens a pool file: `open(2)`, then `AVAudioFile`, rate, channel count, length. The file is
 /// nil when it gives no frames. The fault is nil for a whole file. `open(2)` tells a missing
 /// file (ENOENT) and a process with no free descriptor (EMFILE, ENFILE, thrown) from the other
-/// faults; `AVAudioFile` gives neither its own code (probe E6a).
+/// faults; `AVAudioFile` gives neither its own code (probe E6a). The stamp is the `fstat` of the
+/// descriptor that `open(2)` gave, nil when it failed (decision 0017).
 func openMedia(_ file: AudioFile, in clips: URL, rate: Int) throws(POSIXError) -> (
-    file: AVAudioFile?, fault: MediaFault?
+    file: AVAudioFile?, fault: MediaFault?, stamp: FileStamp?
 ) {
     let url = clips.appending(path: file.path)
     let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)
     guard descriptor >= 0 else {
         let code = errno
         if code == EMFILE || code == ENFILE { throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE) }
-        return (nil, code == ENOENT ? .missing : .unreadable)
+        return (nil, code == ENOENT ? .missing : .unreadable, nil)
     }
+    var info = stat()
+    let stamp =
+        fstat(descriptor, &info) == 0
+        ? FileStamp(
+            size: Int64(info.st_size), seconds: info.st_mtimespec.tv_sec, nanoseconds: info.st_mtimespec.tv_nsec) : nil
     close(descriptor)
     guard let audio = try? AVAudioFile(forReading: url), audio.fileFormat.sampleRate == Double(rate),
         Int(audio.fileFormat.channelCount) == file.layout.channelCount
-    else { return (nil, .unreadable) }
+    else { return (nil, .unreadable, stamp) }
     let length = Frames(Int(audio.length))
-    return (audio, length < file.length ? .short(length) : nil)
+    return (audio, length < file.length ? .short(length) : nil, stamp)
 }

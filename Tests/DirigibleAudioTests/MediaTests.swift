@@ -22,4 +22,25 @@ struct MediaTests {
                 "gone": .missing, "short": .short(Frames(real)), "text": .unreadable, "rate": .unreadable,
             ])
     }
+
+    /// Plan gate 2 item 3: the stamp of the peak cache comes from the descriptor that the open
+    /// read, in nanoseconds.
+    @Test func openMediaGivesTheStampOfItsDescriptor() throws {
+        let package = try MixPackage()
+        try package.addFile("a", channels: [ramp(frames: 6000)])
+        let clips = package.url.appending(path: "Clips")
+
+        let opened = try openMedia(try #require(package.session.files["a"]), in: clips, rate: 48_000)
+
+        var info = stat()
+        #expect(stat(clips.appending(path: "a.wav").path, &info) == 0)
+        #expect(
+            opened.stamp
+                == FileStamp(
+                    size: Int64(info.st_size), seconds: info.st_mtimespec.tv_sec, nanoseconds: info.st_mtimespec.tv_nsec
+                ))
+        #expect(opened.stamp?.nanoseconds != 0)
+        let gone = AudioFile(id: "gone", path: "gone.wav", layout: .mono, length: 6000)
+        #expect(try openMedia(gone, in: clips, rate: 48_000).stamp == nil)
+    }
 }

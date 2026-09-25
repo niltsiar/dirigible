@@ -33,8 +33,9 @@ import Testing
         return url
     }
 
-    /// Cut, Paste, Delete, Split, and Nudge change nothing and show no alert while a take records,
-    /// and a refused Cut keeps the clipboard. Copy runs. The take goes on: after the stop, each track has a take
+    /// Cut, Paste, Delete, Split, Nudge, and the marker edits change nothing and show no alert
+    /// while a take records; a refused Cut keeps the clipboard, and a refused Delete Marker keeps
+    /// the current marker. Copy runs. The take goes on: after the stop, each track has a take
     /// clip with frames. Controls: an edit with no idle check shows the `.busy` alert; a clipboard
     /// set before the edit changes on the refused Cut.
     @Test func editsDoNothingDuringATake() async throws {
@@ -44,6 +45,8 @@ import Testing
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
         model.run(.copy)
         let copied = try #require(model.clipboard)
+        model.run(.addMarker)
+        let marker = try #require(model.timeline.marker)
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1", "t2"])
 
         await model.record()
@@ -54,9 +57,14 @@ import Testing
         model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
         model.run(.nudgeRight)
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1", "t2"])
+        for command in [TimelineCommand.addMarker, .addChapter, .moveMarker, .renameMarker, .deleteMarker] {
+            model.run(command)
+        }
+        model.timeline.renaming?.name = "Intro"
+        model.commitRename()
 
         #expect(studio.session == before && studio.canUndo == undo && model.alert == nil)
-        #expect(model.clipboard == copied)
+        #expect(model.clipboard == copied && model.timeline.marker == marker)
         model.run(.copy)
         #expect(model.clipboard?.length == 96_000)
         hal.feed(seconds: 0.5)

@@ -126,3 +126,14 @@
 "menu.edit.split" = "Split";
 "menu.edit.nudge.left" = "Nudge Left";
 "menu.edit.nudge.right" = "Nudge Right";
+"menu.markers" = "Markers";
+"menu.markers.add" = "Add Marker";
+"menu.markers.add.chapter" = "Add Chapter";
+"menu.markers.rename" = "Rename Marker…";
+"menu.markers.move" = "Move Marker to Playhead";
+"menu.markers.delete" = "Delete Marker";
+"menu.markers.previous" = "Previous Marker";
+"menu.markers.next" = "Next Marker";
+"alert.marker.rename" = "Rename Marker";
+"marker.default.name" = "Marker %lld";
+"chapter.default.name" = "Chapter %lld";

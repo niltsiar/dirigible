@@ -52,6 +52,7 @@ enum TimelineCommand: Hashable {
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
     case split, nudgeLeft, nudgeRight
+    case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
     /// responder of the key window, so a focused text field takes it before the window (probe E3).
@@ -72,6 +73,7 @@ enum TimelineCommand: Hashable {
     var forwardsKey: Bool {
         switch self {
         case .zoomToSelection, .setIn, .setOut, .delete, .split, .nudgeLeft, .nudgeRight: true
+        case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         case .zoomIn, .zoomOut, .zoomToSession, .toggleFollow, .deselectAll, .selectAll, .cut, .copy, .paste: false
         }
     }
@@ -110,6 +112,18 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .nudgeLeft, title: .menuEditNudgeLeft, key: .leftArrow, modifiers: .command),
         MenuItem(command: .nudgeRight, title: .menuEditNudgeRight, key: .rightArrow, modifiers: .command),
     ]
+
+    /// The Markers items (decision 0018). Each key is one that a text field uses, so each item
+    /// forwards it first.
+    static let markerItems = [
+        MenuItem(command: .addMarker, title: .menuMarkersAdd, key: .return, modifiers: .command),
+        MenuItem(command: .addChapter, title: .menuMarkersAddChapter, key: .return, modifiers: [.command, .shift]),
+        MenuItem(command: .renameMarker, title: .menuMarkersRename, key: .return, modifiers: .shift),
+        MenuItem(command: .moveMarker, title: .menuMarkersMove, key: .return, modifiers: [.command, .option]),
+        MenuItem(command: .deleteMarker, title: .menuMarkersDelete, key: .delete, modifiers: .command),
+        MenuItem(command: .previousMarker, title: .menuMarkersPrevious, key: .pageUp, modifiers: []),
+        MenuItem(command: .nextMarker, title: .menuMarkersNext, key: .pageDown, modifiers: []),
+    ]
 }
 
 extension SessionWindow {
@@ -127,10 +141,14 @@ extension SessionWindow {
             if timeline.follows { timelineView?.showPlayhead() }
         case .setIn: timeline.marks = timeline.marks.settingIn(studio.playhead, in: studio.session)
         case .setOut: timeline.marks = timeline.marks.settingOut(studio.playhead, in: studio.session)
-        case .deselectAll: timeline.marks = Marks()
+        case .deselectAll:
+            timeline.marks = Marks()
+            timeline.marker = nil
         case .selectAll: timeline.marks = Marks.all(in: studio.session)
         case .cut, .copy, .paste, .delete: runClipboard(command, studio)
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
+        case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
+            runMarker(command, studio)
         }
     }
 }

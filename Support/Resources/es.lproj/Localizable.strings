@@ -126,3 +126,14 @@
 "menu.edit.split" = "Dividir";
 "menu.edit.nudge.left" = "Desplazar a la izquierda";
 "menu.edit.nudge.right" = "Desplazar a la derecha";
+"menu.markers" = "Marcadores";
+"menu.markers.add" = "Añadir marcador";
+"menu.markers.add.chapter" = "Añadir capítulo";
+"menu.markers.rename" = "Renombrar marcador…";
+"menu.markers.move" = "Mover marcador al cursor";
+"menu.markers.delete" = "Eliminar marcador";
+"menu.markers.previous" = "Marcador anterior";
+"menu.markers.next" = "Marcador siguiente";
+"alert.marker.rename" = "Renombrar marcador";
+"marker.default.name" = "Marcador %lld";
+"chapter.default.name" = "Capítulo %lld";

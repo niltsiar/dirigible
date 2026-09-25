@@ -116,7 +116,7 @@ struct FullDiskTests {
         #expect(throws: ExportError.self) {
             try exportMix(
                 package.session, source: #require(ExportSource(range: 0..<480_000)), options: .render, to: out,
-                package: package.url)
+                package: { package.url })
         }
         #expect(try Self.visibleFiles(volume) == ["filler"])
     }
@@ -137,7 +137,7 @@ struct FullDiskTests {
 
         _ = try exportMix(
             package.session, source: #require(ExportSource(range: 0..<9600)), options: .render, to: out,
-            package: package.url)
+            package: { package.url })
         let bytes = try Data(contentsOf: out)
         for (a, b) in zip(try RenderMixTests.read(out), try package.mix(0..<9600)) { #expect(maxError(a, b) <= 1e-6) }
         #expect(try Self.visibleFiles(volume) == ["mix.caf"])
@@ -145,10 +145,61 @@ struct FullDiskTests {
         #expect(throws: ExportError.exists) {
             try exportMix(
                 package.session, source: #require(ExportSource(range: 0..<4800)), options: .render, to: out,
-                package: package.url)
+                package: { package.url })
         }
         #expect(try Data(contentsOf: out) == bytes)
         #expect(try Self.visibleFiles(volume) == ["mix.caf"])
+    }
+
+    /// On exFAT a new target lands through the claim, and a confirmed target is replaced
+    /// (export run criterion 14).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func exportLandsOnExFAT() throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "exfat.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try Self.hdiutil("create", "-size", "20m", "-fs", "ExFAT", "-volname", "DirExport", image.path)
+        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let package = try ExportTests.package([ExportTests.tone(frames: 96_000)])
+        let out = volume.appending(path: "mix.wav")
+        let options = ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .session)
+
+        _ = try exportMix(
+            package.session, source: #require(ExportSource(range: 0..<48_000)), options: options, to: out,
+            package: { package.url })
+        #expect(try ExportTests.read(out).length == 48_000)
+        _ = try exportMix(
+            package.session, source: #require(ExportSource(range: 0..<96_000)), options: options, to: out,
+            replacing: ConfirmedFile(at: out), package: { package.url })
+
+        #expect(try ExportTests.read(out).length == 96_000)
+        #expect(try Self.visibleFiles(volume) == ["mix.wav"])
+    }
+
+    /// A 10 s stereo WAV 24 export (2.88 MB) to a volume with 400 KB free throws `.diskFull`
+    /// and keeps the old target (export run criterion 15).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aFullDiskGivesDiskFullAndKeepsTheTarget() throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "full.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleExport", image.path)
+        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let package = try ExportTests.package([ExportTests.tone(frames: 480_000)])
+        let out = volume.appending(path: "mix.wav")
+        try Data("old".utf8).write(to: out)
+        try Self.fill(volume, leaving: 400_000, with: volume.appending(path: "filler"))
+
+        #expect(throws: ExportError.diskFull) {
+            try exportMix(
+                package.session, source: #require(ExportSource(range: 0..<480_000)),
+                options: ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .session), to: out,
+                replacing: ConfirmedFile(at: out), package: { package.url })
+        }
+        #expect(try Data(contentsOf: out) == Data("old".utf8))
+        #expect(try Self.visibleFiles(volume) == ["filler", "mix.wav"])
     }
 
     /// The files in `volume` with no leading dot (the system adds some), and every `.tmp` file.

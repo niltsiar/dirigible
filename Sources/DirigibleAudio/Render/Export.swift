@@ -81,19 +81,32 @@ public enum ExportError: Error, Hashable, Sendable {
     case writeFailed(OSStatus)
     /// The move to the target gave this errno.
     case moveFailed(Int32)
+    /// A write gave -40 with errno ENOSPC (probe P8).
+    case diskFull
     /// An audio file did not open because the process had no free descriptor (this errno).
     case openFailed(Int32)
+    /// The package source threw: the lock lost the package.
+    case packageUnavailable
+    /// The cancel check was true at a chunk.
+    case cancelled
 }
 
 /// Renders `source` of `session` and writes it in `options` to `url` (decision 0019). It
 /// renders `chunk` frames at a time into one reused buffer, so the memory does not grow with
 /// the range. A mono export folds each chunk to 0.5 x (L + R) (probe P10). The file rate is the
-/// chosen rate; the converter of `ExtAudioFile` resamples (P4). It writes `.<name>.<UUID>.tmp`
-/// in the folder of `url`, then moves it with `moveNew`, which never replaces an item. Every
-/// exit removes the temporary file. At the start it removes the leftovers of an export to
-/// `url` that died. Returns the faults of the files that the source read.
+/// chosen rate; the converter of `ExtAudioFile` resamples (P4).
+///
+/// At each chunk it reads `isCancelled()` and `package()`, so a package that moves keeps its
+/// audio. After each write it calls `progress` when the whole percent changes; the call of 1.0
+/// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
+/// folder of `url`, closes and flushes it, then moves it: over `replacing` when the target
+/// still is that item, else with `moveNew`, which never replaces an item. Then it flushes the
+/// folder. Every exit removes the temporary file. At the start it removes the leftovers of an
+/// export to `url` that died. Returns the faults of the files that the source read.
 public func exportMix(
-    _ session: Session, source: ExportSource, options: ExportOptions, to url: URL, package: URL,
+    _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
+    replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
+    progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
     chunk: Int = 48_000
 ) throws(ExportError) -> [FileID: MediaFault] {
     let rate = options.rate.hertz(session: session.sampleRate)
@@ -107,24 +120,42 @@ public func exportMix(
     else { throw .writeFailed(kAudio_ParamError) }
     let folded = options.layout == .mono ? monoBuffer : nil
     removeExportLeftovers(of: url)
-    let temporary = url.deletingLastPathComponent().appending(path: "\(leftoverPrefix(url))\(UUID().uuidString).tmp")
+    let folder = url.deletingLastPathComponent()
+    let temporary = folder.appending(path: "\(leftoverPrefix(url))\(UUID().uuidString).tmp")
     defer { unlink(temporary.path) }
-    let mix = MixReader(package: package, session: session, tracks: source.tracks)
+    let first = source.range.lowerBound
+    let total = source.range.upperBound.count - first.count
+    let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks)
     try writeFile(temporary, format: options.format, rate: rate, client: folded?.format ?? stereo) {
         file throws(ExportError) in
-        var start = source.range.lowerBound
+        var start = first
+        var percent = 0
         while start < source.range.upperBound {
+            if isCancelled() { throw .cancelled }
+            do { mix.package = try package() } catch { throw .packageUnavailable }
             let end = min(start + Frames(chunk), source.range.upperBound)
             mix.render(start..<end, into: mixBuffer)
             if let error = mix.openError { throw .openFailed(error.code.rawValue) }
             if let folded { fold(mixBuffer, into: folded) }
             let buffer = folded ?? mixBuffer
             let status = ExtAudioFileWrite(file, buffer.frameLength, buffer.audioBufferList)
-            guard status == noErr else { throw .writeFailed(status) }
+            guard status == noErr else { throw writeFault(status: status, errno: errno) }
             start = end
+            let done = end.count - first.count
+            if done * 100 / total > percent {
+                percent = done * 100 / total
+                progress(Double(done) / Double(total))
+            }
         }
     }
-    try moveNew(temporary, to: url)
+    if let code = fullFlush(path: temporary.path) { throw writeFault(status: -40, errno: code) }
+    if let replacing {
+        try moveOver(temporary, to: url, confirmed: replacing)
+    } else {
+        try moveNew(temporary, to: url)
+    }
+    // The file is at the target now. A volume that refuses both flushes does not undo the move.
+    _ = fullFlush(path: folder.path)
     return mix.faults
 }
 

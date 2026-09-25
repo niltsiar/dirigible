@@ -37,7 +37,7 @@ struct Render: ParsableCommand {
         defer { interrupt.cancel() }
         let faults: [FileID: MediaFault]
         do {
-            faults = try exportMix(session, source: source, options: .render, to: output, package: package.url)
+            faults = try exportMix(session, source: source, options: .render, to: output, package: { package.url })
         } catch .exists {
             throw fail("\(out) exists.", code: packageError)
         } catch .writeFailed(let status) {
@@ -48,6 +48,12 @@ struct Render: ParsableCommand {
             throw fail("cannot move the render to \(out): \(String(cString: strerror(code))).", code: packageError)
         } catch .rateNotSupported(let rate) {
             throw fail("cannot write \(out) at \(rate) Hz.", code: packageError)
+        } catch .diskFull {
+            throw fail("cannot write \(out): the disk is full.", code: packageError)
+        } catch .packageUnavailable {
+            throw fail("cannot read the package.", code: packageError)
+        } catch .cancelled {
+            throw fail("the render was cancelled.", code: packageError)
         }
         for (id, fault) in faults.sorted(by: { $0.key < $1.key }) {
             let path = session.files[id].map { String(reflecting: $0.path) } ?? "?"

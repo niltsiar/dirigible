@@ -86,9 +86,12 @@ enum PeakError: Error, Equatable {
 
 /// Reads the file that `openMedia` opened, in blocks of 262,144 frames (a multiple of 256, probe
 /// P1). Calls `pause` before each block: `.stop` ends the compute (`.cancelled`); `.waited` ends
-/// it (`.restart`), so the pass opens the file again with a new stamp. Never on the main actor.
+/// it (`.restart`), so the pass opens the file again with a new stamp. Calls `afterRead` after
+/// each block read, on the thread of the read. Never on the main actor.
 /// The peak of a bin is the maximum over the channels; the RMS is over all channels and frames.
-func computePeaks(_ file: AVAudioFile, stamp: FileStamp, pause: () async -> PeakPause) async throws(PeakError)
+func computePeaks(
+    _ file: AVAudioFile, stamp: FileStamp, afterRead: () -> Void = {}, pause: () async -> PeakPause
+) async throws(PeakError)
     -> Peaks
 {
     let block: AVAudioFrameCount = 262_144
@@ -106,6 +109,7 @@ func computePeaks(_ file: AVAudioFile, stamp: FileStamp, pause: () async -> Peak
         case .stop: throw .cancelled
         }
         do { try file.read(into: buffer, frameCount: block) } catch { throw .readFailed((error as NSError).code) }
+        afterRead()
         let count = Int(buffer.frameLength)
         if count == 0 { break }
         // Plain loops and pointer writes: the debug build of the tests runs this per bin.

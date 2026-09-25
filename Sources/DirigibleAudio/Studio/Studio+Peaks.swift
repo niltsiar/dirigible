@@ -45,7 +45,8 @@ extension Studio {
                     guard let file = session.files[id] else { continue }
                     let job = PeakJob(
                         file: file, lock: lock, rate: session.sampleRate, cache: cache,
-                        known: peakLoad.states[id].flatMap(\.peaks)?.stamp, hook: environment.beforePeakBlock)
+                        known: peakLoad.states[id].flatMap(\.peaks)?.stamp, hook: environment.beforePeakBlock,
+                        read: environment.peakRead)
                     let result = await loadFilePeaks(job) { [weak self] in await self?.peaksMayRun() ?? .stop }
                     guard apply(result, to: id) else { break files }
                 }
@@ -130,6 +131,7 @@ struct PeakJob: Sendable {
     /// The stamp of the peaks in memory.
     let known: FileStamp?
     let hook: @Sendable (isolated (any Actor)?) async -> Void
+    let read: @Sendable () -> Void
 }
 
 enum PeakResult: Sendable {
@@ -150,6 +152,7 @@ enum PeakResult: Sendable {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let channels = job.file.layout.channelCount
     while true {
+        job.read()
         guard let package = try? job.lock.package(),
             let opened = try? openMedia(job.file, in: package.appending(path: clipsFolderName), rate: job.rate)
         else { return .end }
@@ -163,7 +166,7 @@ enum PeakResult: Sendable {
             return .ready(peaks, opened.fault)
         }
         do {
-            let peaks = try await computePeaks(audio, stamp: stamp) {
+            let peaks = try await computePeaks(audio, stamp: stamp, afterRead: job.read) {
                 let next = await pause()
                 if next == .go { await job.hook(#isolation) }
                 return next

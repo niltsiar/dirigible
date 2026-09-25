@@ -15,7 +15,7 @@ extension EditTakeTests {
         let clips = model.url.appending(path: clipsFolderName)
         try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
         await model.record()
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         chmod(clips.path, 0o500)
         defer { chmod(clips.path, 0o755) }
         await model.stop()
@@ -80,7 +80,7 @@ extension EditTakeTests {
 
         await model.record()
         #expect(studio.transport == .recording(take: 1))
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
 

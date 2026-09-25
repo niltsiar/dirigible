@@ -89,8 +89,11 @@ final class CountingHAL: Sendable {
     }
 
     /// Pushes `seconds` of stereo silence into the ring of the last attached input, as the IOProc
-    /// does: records of 10 ms from now. The device writer drains them into the take.
-    func feed(seconds: Double) {
+    /// does: records of 10 ms from now. The device writer drains them into the take. The writer
+    /// attaches on its queue after the transport change, so it first waits (60 s limit) until an
+    /// input is attached and not detached.
+    @MainActor func feed(seconds: Double) async {
+        await until("no input is attached") { !isFree }
         guard let input = inputs.withLock({ $0.last }) else {
             Issue.record("No input is attached")
             return

@@ -51,7 +51,7 @@ import Testing
 
         await model.record()
         #expect(studio.transport == .recording(take: 1))
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         let (before, undo) = (studio.session, studio.canUndo)
         for command in [TimelineCommand.cut, .paste, .delete, .split] { model.run(command) }
         model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
@@ -68,7 +68,7 @@ import Testing
         #expect(model.clipboard == copied && model.timeline.marker == marker)
         model.run(.copy)
         #expect(model.clipboard?.length == 96_000)
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
         for track in studio.session.tracks {
@@ -92,13 +92,13 @@ import Testing
 
         await model.record()
         #expect(studio.transport == .recording(take: 1))
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         let before = studio.session
         model.commitRename()
 
         #expect(studio.session == before && model.alert == nil)
         #expect(model.timeline.renaming == MarkerRename(id: marker, name: "Intro"))
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
         model.commitRename()

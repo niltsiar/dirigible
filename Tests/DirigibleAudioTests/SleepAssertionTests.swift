@@ -74,6 +74,10 @@ struct SleepAssertionTests {
         #expect(studio.sleepAssertion == nil)
     }
 
+    /// The stop takes a watcher tick with three main-actor hops, the drain, and the finalize. A
+    /// full suite holds the main actor for seconds at each hop (process sample 2026-09-25: the
+    /// window tests and the other `@MainActor` suites), so the limit is 30 s. The silence
+    /// watchdog (60 s) is longer, so only the disk rule can end the take.
     @Test func aDiskLowStopEndsTheSleepAssertion() async throws {
         let free = FreeBytes(DiskRuleTests.margin)
         let studio = try await Studio.open(url)
@@ -83,7 +87,7 @@ struct SleepAssertionTests {
         try #require(try listed(id).count == 1)
 
         free.value = DiskRuleTests.margin - 1
-        await until(limit: .seconds(10), "the take did not stop") { studio.transport == .idle }
+        await until(limit: .seconds(30), "the take did not stop") { studio.transport == .idle }
 
         #expect(studio.lastTake?.end == .diskLow)
         #expect(studio.sleepAssertion == nil)

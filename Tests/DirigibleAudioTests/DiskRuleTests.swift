@@ -51,8 +51,9 @@ struct DiskRuleTests {
         await input.wait()
         if low {
             free.value = Self.margin + 72_000 - 1
-            // A watcher tick, three hops, and the finalize: a full suite holds the main actor.
-            await until(limit: .seconds(10), "the take did not stop") { studio.transport == .idle }
+            // A watcher tick, three hops, and the finalize: a full suite holds the main actor for
+            // seconds at each hop. The silence watchdog (60 s) is longer than the limit.
+            await until(limit: .seconds(30), "the take did not stop") { studio.transport == .idle }
         } else {
             try await Task.sleep(for: .milliseconds(300))
             #expect(studio.transport == .recording(take: 1))

@@ -136,6 +136,76 @@ import Testing
         await window.close()
     }
 
+    /// A session window of `tracks` tracks at its default size, after SwiftUI shows the lanes.
+    func openWindow(tracks: Int) async throws -> (SessionWindow, Studio, TimelineScrollView) {
+        let window = await app.open(try await timelinePackage(in: folder.url, tracks: tracks, seconds: 20))
+        let studio = try #require(await window.opened() ? window.studio : nil)
+        await until("the window shows the lanes") {
+            window.timelineView?.window != nil && window.timeline.visible != nil
+        }
+        return (window, studio, try #require(window.timelineView))
+    }
+
+    /// The name field of the track header that shows `name`.
+    func nameField(_ name: String, in view: NSView) -> NSTextField? {
+        if let field = view as? NSTextField, field.isEditable, field.stringValue == name { return field }
+        return view.subviews.lazy.compactMap { self.nameField(name, in: $0) }.first
+    }
+
+    /// Code gate 1 item 1: 7 tracks do not fit the default window. After a vertical scroll to
+    /// each lane, the header of its track (the name field, on the line of the arm toggle) is
+    /// beside the lane and in view. A wheel over a header scrolls the lanes and the headers.
+    @Test func eachTrackHeaderScrollsWithItsLane() async throws {
+        let (window, _, view) = try await openWindow(tracks: 7)
+        let content = try #require(window.window?.contentView)
+        let height = try #require(view.lanes.inputs).laneHeight
+        #expect(view.lanes.frame.height > view.shown.height, "7 lanes fit the default window")
+
+        for lane in 0..<7 {
+            view.lanes.scrollToVisible(
+                NSRect(x: view.shown.minX, y: Double(lane) * height, width: 1, height: height))
+            content.layoutSubtreeIfNeeded()
+            let field = try #require(nameField("T\(lane + 1)", in: content))
+            let row = field.convert(field.bounds, to: nil)
+            let box = view.lanes.convert(NSRect(x: 0, y: Double(lane) * height, width: 1, height: height), to: nil)
+            let shown = view.lanes.convert(view.shown, to: nil)
+            #expect(box.minY <= row.minY && row.maxY <= box.maxY, "the header of lane \(lane + 1) is beside it")
+            #expect(shown.minY <= row.minY && row.maxY <= shown.maxY, "the header of lane \(lane + 1) is in view")
+        }
+
+        let bottom = view.contentView.bounds.minY
+        let wheel = try #require(
+            CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: 5, wheel2: 0, wheel3: 0)
+                .flatMap { NSEvent(cgEvent: $0) })
+        try #require(nameField("T7", in: content)).scrollWheel(with: wheel)
+        // The scroll view animates a wheel scroll.
+        await until("a wheel over the headers scrolls up") { view.contentView.bounds.minY < bottom }
+        await window.close()
+    }
+
+    /// Code gate 1 item 1: the record-over warning reads the lanes in view after a vertical
+    /// scroll, and a zoom (a page turn) keeps the vertical origin.
+    @Test func theWarningSeesAnArmedLaneScrolledAboveTheView() async throws {
+        let (window, studio, view) = try await openWindow(tracks: 7)
+        await studio.perform(.seek(.frame(100_000)))
+        window.armed = ["t1"]
+        let insets = view.contentView.contentInsets
+        view.contentView.scroll(to: NSPoint(x: view.contentView.bounds.minX, y: 10 - insets.top))
+        view.reflectScrolledClipView(view.contentView)
+        #expect(window.showsRecordOver, "the top 10 pt of lane 1 are under the time ruler")
+
+        view.lanes.scrollToVisible(
+            NSRect(x: view.shown.minX, y: view.lanes.frame.height - 1, width: 1, height: 1))
+        let top = view.contentView.bounds.minY
+        #expect(view.shown.minY > 10, "the lanes scroll down")
+        #expect(window.showsRecordOver, "lane 1 is above the view")
+        window.armed = ["t7"]
+        #expect(!window.showsRecordOver, "lane 7 is in view")
+        window.run(.zoomIn)
+        #expect(view.contentView.bounds.minY == top, "a zoom keeps the vertical origin")
+        await window.close()
+    }
+
     /// The display link ends with the window: its target goes, and it ticks while it runs.
     @Test func theDisplayLinkEndsWithTheWindow() async throws {
         let (model, studio) = try await timelineModel(

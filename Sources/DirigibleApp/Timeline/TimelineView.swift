@@ -3,13 +3,15 @@ import DirigibleAudio
 import DirigibleCore
 import SwiftUI
 
-/// The lanes and the ruler of a session window (decision 0017). SwiftUI gives only the drawn
-/// inputs; the view draws when they change. The playhead comes from the display link, outside
-/// SwiftUI, so a playhead poll updates no SwiftUI view here.
-struct TimelineLanes: NSViewRepresentable {
+/// The lanes, the ruler, and the track headers of a session window (decision 0017). SwiftUI gives
+/// only the drawn inputs and the headers; the view draws when the inputs change. The playhead
+/// comes from the display link, outside SwiftUI, so a playhead poll updates no SwiftUI view here.
+struct TimelineLanes<Headers: View>: NSViewRepresentable {
     let model: SessionWindow
     let studio: Studio
     let inputs: LaneInputs
+    /// Row n is the header of lane n, with the lane height.
+    let headers: Headers
 
     func makeNSView(context: Context) -> TimelineScrollView {
         let view = TimelineScrollView(model: model, studio: studio)
@@ -19,19 +21,21 @@ struct TimelineLanes: NSViewRepresentable {
 
     func updateNSView(_ view: TimelineScrollView, context: Context) {
         view.updates += 1
+        view.headers.host.rootView = AnyView(headers)
         view.update(inputs)
     }
 }
 
 /// The scroll view of the lanes: Command-wheel and pinch zoom at the pointer, a user scroll that
-/// holds the follow during play, the page turns of Automatic Scroll, and the visible part that
-/// the record-over warning reads.
+/// holds the follow during play, the page turns of Automatic Scroll, the track headers in the
+/// vertical ruler, and the visible part that the record-over warning reads.
 final class TimelineScrollView: NSScrollView {
     weak var model: SessionWindow?
     /// Weak: a view that outlives its window keeps no studio, and so no package lock.
     weak var studio: Studio?
     let lanes = TimelineDocumentView()
     let ruler: TimelineRuler
+    let headers = TrackHeaderRuler()
     /// The calls of `updateNSView`, for criterion 24.
     var updates = 0
     /// The target of the display link; the link retains it, and it holds this view weakly.
@@ -48,7 +52,7 @@ final class TimelineScrollView: NSScrollView {
         ruler = TimelineRuler(model: model)
         super.init(frame: .zero)
         hasHorizontalScroller = true
-        hasVerticalScroller = false
+        hasVerticalScroller = true
         backgroundColor = .windowBackgroundColor
         documentView = lanes
         lanes.model = model
@@ -56,6 +60,10 @@ final class TimelineScrollView: NSScrollView {
         ruler.orientation = .horizontalRuler
         horizontalRulerView = ruler
         hasHorizontalRuler = true
+        headers.scrollView = self
+        headers.orientation = .verticalRuler
+        verticalRulerView = headers
+        hasVerticalRuler = true
         rulersVisible = true
         NotificationCenter.default.addObserver(
             self, selector: #selector(liveScrollStarted), name: NSScrollView.willStartLiveScrollNotification,
@@ -65,27 +73,43 @@ final class TimelineScrollView: NSScrollView {
     required init?(coder: NSCoder) { nil }
 
     var framesPerPoint: Double { lanes.framesPerPoint }
-    /// The frame at the left edge of the view.
-    var origin: Double { Double(contentView.bounds.minX) * framesPerPoint }
-    var visibleFrames: Double { Double(contentView.bounds.width) * framesPerPoint }
+    /// The part of the lanes in view, in document points. The clip view goes under the rulers, and
+    /// its content insets are the rulers, so the bounds minus the insets is what the user sees.
+    var shown: NSRect {
+        let (bounds, insets) = (contentView.bounds, contentView.contentInsets)
+        return NSRect(
+            x: bounds.minX + insets.left, y: bounds.minY + insets.top,
+            width: max(0, bounds.width - insets.left - insets.right),
+            height: max(0, bounds.height - insets.top - insets.bottom))
+    }
+    /// The frame at the left edge of the lanes in view.
+    var origin: Double { Double(shown.minX) * framesPerPoint }
+    var visibleFrames: Double { Double(shown.width) * framesPerPoint }
 
     func update(_ inputs: LaneInputs) {
         lanes.inputs = inputs
         ruler.inputs = RulerInputs(
             markers: inputs.session.markers, marks: inputs.marks, scale: inputs.scale, rate: inputs.session.sampleRate)
         fitOnce()
-        publishVisible()
+        viewMoved()
     }
 
     override func tile() {
         super.tile()
         lanes.resize()
         fitOnce()
-        publishVisible()
+        viewMoved()
     }
 
     override func reflectScrolledClipView(_ clipView: NSClipView) {
         super.reflectScrolledClipView(clipView)
+        viewMoved()
+    }
+
+    /// The one vertical origin, the top of the clip view, places the headers beside the lanes
+    /// and gives the lanes in view. The header ruler and the clip view have the same top.
+    private func viewMoved() {
+        headers.place(top: contentView.bounds.minY, height: lanes.frame.height)
         publishVisible()
     }
 
@@ -95,7 +119,7 @@ final class TimelineScrollView: NSScrollView {
     /// anchor of the keys: the playhead when it is in view, else the view center.
     func zoom(by factor: Double, at x: Double? = nil) {
         guard let inputs = lanes.inputs, let studio else { return }
-        let width = Double(contentView.bounds.width)
+        let width = Double(shown.width)
         let anchor =
             x.map { (frame: Frames(Int(origin + $0 * framesPerPoint)), x: $0) }
             ?? zoomAnchor(playhead: studio.playhead, origin: origin, width: width, scale: inputs.scale)
@@ -107,7 +131,7 @@ final class TimelineScrollView: NSScrollView {
     func zoomToSession() {
         guard let inputs = lanes.inputs else { return }
         let end = inputs.session.end
-        show(TimelineScale.fit(end: end, width: Double(contentView.bounds.width), limits: limits(inputs)), origin: 0)
+        show(TimelineScale.fit(end: end, width: Double(shown.width), limits: limits(inputs)), origin: 0)
     }
 
     /// Zoom to Selection: the range with 5% on each side. With no selection, nothing.
@@ -115,13 +139,13 @@ final class TimelineScrollView: NSScrollView {
         guard let inputs = lanes.inputs, let selection = model?.timeline.marks.selection(in: inputs.session) else {
             return
         }
-        let fit = TimelineScale.fit(selection.range, width: Double(contentView.bounds.width), limits: limits(inputs))
+        let fit = TimelineScale.fit(selection.range, width: Double(shown.width), limits: limits(inputs))
         show(fit.scale, origin: fit.origin)
     }
 
     private func limits(_ inputs: LaneInputs) -> ClosedRange<Double> {
         TimelineScale.limits(
-            end: inputs.session.end, rate: inputs.session.sampleRate, width: Double(contentView.bounds.width))
+            end: inputs.session.end, rate: inputs.session.sampleRate, width: Double(shown.width))
     }
 
     /// Sets the scale here and in the window model, then scrolls: the document view has its new
@@ -135,7 +159,7 @@ final class TimelineScrollView: NSScrollView {
     }
 
     private func fitOnce() {
-        guard !fitted, lanes.inputs != nil, contentView.bounds.width > 0 else { return }
+        guard !fitted, lanes.inputs != nil, shown.width > 0 else { return }
         fitted = true
         zoomToSession()
     }
@@ -149,8 +173,11 @@ final class TimelineScrollView: NSScrollView {
         scroll(toFrame: turn)
     }
 
+    /// A horizontal scroll that puts `origin` at the left edge of the lanes in view. The vertical
+    /// origin stays.
     func scroll(toFrame origin: Double) {
-        contentView.scroll(to: NSPoint(x: origin / framesPerPoint, y: 0))
+        contentView.scroll(
+            to: NSPoint(x: origin / framesPerPoint - contentView.contentInsets.left, y: contentView.bounds.minY))
         reflectScrolledClipView(contentView)
     }
 
@@ -169,7 +196,7 @@ final class TimelineScrollView: NSScrollView {
     }
 
     private func pointer(_ event: NSEvent) -> Double {
-        Double(contentView.convert(event.locationInWindow, from: nil).x - contentView.bounds.minX)
+        Double(contentView.convert(event.locationInWindow, from: nil).x - shown.minX)
     }
 
     @objc private func liveScrollStarted() { userScrolled() }
@@ -183,11 +210,13 @@ final class TimelineScrollView: NSScrollView {
     /// The frames and the whole lanes in view, for the record-over warning. It writes only a
     /// change, so a tick that does not scroll updates no SwiftUI view.
     private func publishVisible() {
-        guard let model, let inputs = lanes.inputs, contentView.bounds.width > 0 else { return }
-        let lanesInView = min(
-            inputs.session.tracks.count, Int((Double(contentView.bounds.height) + 0.5) / inputs.laneHeight))
+        guard let model, let inputs = lanes.inputs, shown.width > 0 else { return }
+        // A lane counts when all of it is in view, with half a point of rounding.
+        let (top, bottom) = (Double(shown.minY), Double(shown.maxY))
+        let first = max(0, Int(((top - 0.5) / inputs.laneHeight).rounded(.up)))
+        let end = min(inputs.session.tracks.count, Int((bottom + 0.5) / inputs.laneHeight))
         let visible = TimelineVisible(
-            frames: Frames(Int(origin))..<Frames(Int(origin + visibleFrames)), lanes: 0..<max(0, lanesInView))
+            frames: Frames(Int(origin))..<Frames(Int(origin + visibleFrames)), lanes: first..<max(first, end))
         if model.timeline.visible != visible { model.timeline.visible = visible }
     }
 
@@ -252,5 +281,36 @@ final class TimelineScrollView: NSScrollView {
     @objc func tick(_ link: CADisplayLink) {
         ticks += 1
         view?.displayTick()
+    }
+}
+
+/// The track headers left of the lanes (decision 0017): SwiftUI rows in the vertical ruler of the
+/// scroll view. The top of the clip view places them, so row n stays beside lane n in a vertical
+/// scroll. A wheel over them goes up the responder chain to the scroll view.
+final class TrackHeaderRuler: NSRulerView {
+    static let width: CGFloat = 340
+    let host = NSHostingView(rootView: AnyView(EmptyView()))
+
+    init() {
+        super.init(scrollView: nil, orientation: .verticalRuler)
+        ruleThickness = Self.width
+        reservedThicknessForMarkers = 0
+        reservedThicknessForAccessoryView = 0
+        // macOS 14 does not clip subviews by default: a row above the lanes would cover the ruler.
+        clipsToBounds = true
+        host.sizingOptions = []
+        addSubview(host)
+    }
+
+    required init(coder: NSCoder) { fatalError("no coder") }
+
+    override var isFlipped: Bool { true }
+
+    override func drawHashMarksAndLabels(in rect: NSRect) {}
+
+    /// `top` is the document y at the top of the clip view; `height` is the height of all lanes.
+    func place(top: CGFloat, height: CGFloat) {
+        let frame = NSRect(x: 0, y: -top, width: Self.width, height: height)
+        if host.frame != frame { host.frame = frame }
     }
 }

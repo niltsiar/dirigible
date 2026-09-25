@@ -48,12 +48,13 @@ final class TimelineDocumentView: NSView {
 
     var framesPerPoint: Double { inputs?.scale.framesPerPoint ?? 512 }
 
-    /// As wide as max(end, 10 s) + 2% at the zoom, and at least as wide as the clip view.
+    /// As wide as max(end, 10 s) + 2% at the zoom, and at least as wide as the lanes in view.
     func resize() {
         guard let inputs else { return }
         let session = inputs.session
         let end = Double(max(session.end.count, 10 * session.sampleRate)) * 1.02
-        let width = max(end / inputs.scale.framesPerPoint, Double(superview?.bounds.width ?? 0))
+        let shown = (enclosingScrollView as? TimelineScrollView)?.shown.width ?? 0
+        let width = max(end / inputs.scale.framesPerPoint, Double(shown))
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.bounds = CGRect(x: 0, y: 0, width: 1, height: height)

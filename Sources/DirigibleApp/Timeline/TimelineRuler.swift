@@ -35,7 +35,7 @@ final class TimelineRuler: NSRulerView {
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let inputs, let visible = scrollView?.documentVisibleRect else { return }
+        guard let inputs, let visible = (scrollView as? TimelineScrollView)?.shown else { return }
         let points = inputs.scale.framesPerPoint
         let rate = Double(max(1, inputs.rate))
         let labelFont: [NSAttributedString.Key: Any] = [
@@ -83,7 +83,9 @@ final class TimelineRuler: NSRulerView {
 
     override func mouseDown(with event: NSEvent) {
         guard let document = scrollView?.documentView, let inputs else { return }
-        let x = max(0, Double(document.convert(event.locationInWindow, from: nil).x))
+        // The corner over the track headers is left of the lanes: no seek.
+        let x = Double(document.convert(event.locationInWindow, from: nil).x)
+        guard x >= 0 else { return }
         model?.rulerClick(at: Frames(Int(x * inputs.scale.framesPerPoint)))
     }
 

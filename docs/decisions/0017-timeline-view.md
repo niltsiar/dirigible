@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-25
 - Accepted: 2026-09-25, after plan gates 1 and 2 of the timeline-view run. The gates added the settle order with the `settling` flag, the pass that Studio starts after a pool change, the media open through `openMedia` with its stamp, the redraw only on a change of the drawn inputs, the narrowed record-over warning, and the read-only `dirigible peaks` command.
+- Amended: 2026-09-25, after code gate 1 of the timeline-view run: the lanes scroll vertically, and the track headers scroll with them.
 
 ## Context
 
@@ -16,7 +17,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 
 ## Decision
 
-**Drawing.** The lanes are an `NSScrollView` in the SwiftUI window. Its document view is flipped and layer-backed, as wide as the session at the zoom, and draws only its dirty rect. It writes BGRA pixels into a reused buffer (a background pattern, then column spans for the peak and the RMS), then draws one image. The playhead is a `CALayer` that the `NSView.displayLink` tick moves; the tick reads the playhead outside SwiftUI. The ruler is an `NSRulerView`. The track headers stay SwiftUI and share the lane height. The document view and the ruler each keep an `Equatable` value of their drawn inputs (the session, the peaks, the missing media, the selection, the zoom, the lane height). They redraw only when that value changes or the backing scale changes. The playhead is not a drawn input. `Studio.missingMedia` is a stored property of its own, not a field of the playback state, so the 33 ms playhead poll does not update the view.
+**Drawing.** The lanes are an `NSScrollView` in the SwiftUI window. Its document view is flipped and layer-backed, as wide as the session at the zoom, and draws only its dirty rect. It writes BGRA pixels into a reused buffer (a background pattern, then column spans for the peak and the RMS), then draws one image. The playhead is a `CALayer` that the `NSView.displayLink` tick moves; the tick reads the playhead outside SwiftUI. The ruler is an `NSRulerView`. The track headers are SwiftUI rows in the vertical ruler of the scroll view, and they share the lane height. Lanes that do not fit the window scroll vertically. The top of the clip view places the headers, so each header stays beside its lane, and a wheel over the headers scrolls the lanes. The clip view goes under both rulers, so the lanes in view are the clip bounds minus its content insets. A page turn and a zoom keep the vertical origin. The document view and the ruler each keep an `Equatable` value of their drawn inputs (the session, the peaks, the missing media, the selection, the zoom, the lane height). They redraw only when that value changes or the backing scale changes. The playhead is not a drawn input. `Studio.missingMedia` is a stored property of its own, not a field of the playback state, so the 33 ms playhead poll does not update the view.
 
 **Waveform.** Rectified, -60 dB to 0 dB, light peaks over dark RMS, with clip gain plus track gain. A stereo track draws the maximum of both channels. A missing or short clip draws red. The red comes only from `Studio.missingMedia`.
 
@@ -28,7 +29,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 
 **Selection and view state.** The in point, the out point, and the selected tracks, the zoom, and Automatic Scroll are window state. None is saved. The selection has one read: a range and at least one track that exists now, or nothing.
 
-**Record-over warning.** The transport bar warns only when an armed track has a clip at the playhead that is not in view: its lane is under the visible lanes, or the playhead is outside the visible frames. Before the first layout, nothing counts as in view. A window minimum height for all lanes was rejected, because the brief sets no track limit.
+**Record-over warning.** The transport bar warns only when an armed track has a clip at the playhead that is not in view: its lane is not fully in the visible lanes (above them, under them, or partly under the time ruler), or the playhead is outside the visible frames. Before the first layout, nothing counts as in view. A window minimum height for all lanes was rejected, because the brief sets no track limit.
 
 **Follow.** Automatic Scroll turns pages as in Hindenburg: at 94% of the width the view moves so the playhead is at 11%. A user scroll during play holds the follow until the playhead is in view again, a seek, or a play start.
 

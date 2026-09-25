@@ -47,6 +47,9 @@ enum WindowAlert: Hashable {
     var monitoring = false
     /// The input devices of the menus, from the process device list.
     var devices: [InputDevice] { deviceList.devices }
+    /// The marks, the zoom, Automatic Scroll, and the view of the timeline (decision 0017). Not
+    /// saved.
+    var timeline = TimelineState()
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
 

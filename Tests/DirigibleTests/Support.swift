@@ -1,3 +1,4 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
@@ -80,4 +81,35 @@ final class CountingHAL: Sendable {
         environment.firstRecordLimit = .seconds(60)
         return environment
     }
+}
+
+/// A package with the mono tracks `t1` to `t<tracks>`, each routed to channel 1 of `mic` and
+/// each with a clip of file `f1` from 0 for `seconds`. With `audio`, `f1` is a WAV of silence on
+/// disk; else the file is missing. The writes run off the main actor (the tdd skill).
+func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = false) async throws -> URL {
+    let url = folder.appending(path: "timeline.dirigible")
+    try await Task.detached {
+        try Session.create(at: url, sampleRate: 48_000)
+        var session = Session(sampleRate: 48_000)
+        let frames = 48_000 * seconds
+        if audio {
+            let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)))
+            buffer.frameLength = AVAudioFrameCount(frames)
+            let writer = try ClipWriter(
+                url: url.appending(path: "\(clipsFolderName)/f1.wav"), file: "f1.wav", format: format)
+            try writer.write(buffer)
+            try writer.close()
+        }
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: Frames(frames)))
+        for n in 1...tracks {
+            let track = TrackID("t\(n)")
+            try session.addTrack(track, name: "T\(n)", layout: .mono)
+            try session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: track)
+            try session.place(
+                Clip(id: ClipID("c\(n)"), file: "f1", start: 0, offset: 0, length: Frames(frames)), on: track)
+        }
+        try session.write(to: url)
+    }.value
+    return url
 }

@@ -30,8 +30,8 @@ struct TransportBar: View {
                 let paths = studio.missingMedia.keys.sorted().map { studio.session.files[$0]?.path ?? $0.rawValue }
                 Text(verbatim: L10n.mediaMissing.format(paths.joined(separator: ", "))).foregroundStyle(.red)
             }
-            // Until run 4b draws the clips (plan gate 1 item 1).
-            if model.canRecord, studio.session.hasClip(at: studio.playhead, on: Array(model.armed)) {
+            // Only for a clip that the lanes do not show (decision 0017).
+            if model.showsRecordOver {
                 Text(L10n.transportRecordOver.key).foregroundStyle(.orange)
             }
         }

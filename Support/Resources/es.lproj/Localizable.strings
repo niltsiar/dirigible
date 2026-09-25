@@ -44,6 +44,7 @@
 "error.export.move" = "No se puede mover la exportación a su lugar (error %lld).";
 "error.export.open" = "Hay demasiados archivos abiertos. Cierra otras apps y exporta de nuevo (error %lld).";
 "error.export.package" = "La sesión se movió a otro disco o se eliminó. La exportación se detuvo.";
+"error.export.yielded" = "La exportación se detuvo por una toma en otra ventana. No se creó ningún archivo. Exporte de nuevo después de la toma.";
 
 /* Window, panels, and alerts */
 "panel.new.name" = "Sesión";

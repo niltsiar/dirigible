@@ -23,4 +23,6 @@ public enum StudioError: Error, Hashable, Sendable {
     case diskLow
     /// The export failed or was cancelled (decision 0019).
     case export(ExportError)
+    /// A take in another studio ended the export (decision 0019). No file was made.
+    case exportYielded
 }

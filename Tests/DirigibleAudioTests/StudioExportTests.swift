@@ -245,3 +245,83 @@ struct StudioExportTests {
         #expect(!FileManager.default.fileExists(atPath: second.path))
     }
 }
+
+/// Capture comes first across windows (decision 0019, code gate 1 item 2): a take start in
+/// studio A ends the export of studio B, and a disk-low check of a take in A ends an export of
+/// B to the same volume before it stops the take.
+@MainActor
+struct StudioExportYieldTests {
+    /// Studio B exports its 10 s tone with 1 s chunks, so the export runs until A acts.
+    func exportB() async throws -> (Studio, ExportStudioFixture, Task<[FileID: MediaFault], any Error>) {
+        let fixture = try await ExportStudioFixture.make()
+        let studio = try await fixture.open(seam: ChunkSeam(pause: longChunk))
+        let (source, options, out) = (fixture.source, fixture.options, fixture.out)
+        let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
+        // A full suite can hold utility threads for more than 10 s, as the `Gate` limits.
+        await until(limit: .seconds(30), "B made no temporary file") {
+            (try? fixture.temporaryFiles())?.isEmpty == false
+        }
+        return (studio, fixture, export)
+    }
+
+    @Test(arguments: StudioExportTests.StartPath.allCases)
+    func aTakeStartEndsTheExportOfAnotherStudio(path: StudioExportTests.StartPath) async throws {
+        let a = try await ExportStudioFixture.make()
+        let hal = TestHAL([a.mic])
+        let studioA = try await a.open(hal)
+        let (studioB, b, export) = try await exportB()
+        studioA.otherStudios = { [studioB] }
+
+        let host = try await StudioExportTests().start(path, studioA, a)
+
+        await #expect(throws: StudioError.exportYielded) { try await export.value }
+        #expect(studioB.exportProgress == nil)
+        #expect(!FileManager.default.fileExists(atPath: b.out.path))
+        #expect(try b.temporaryFiles() == [])
+        try await StudioExportTests().recordAndStop(studioA, hal, from: host)
+    }
+
+    /// The free space is low while B has a temporary file next to its target. A take in A starts
+    /// first; then B starts its export. The disk check of A ends the export of B, and the take
+    /// records on. Control: A with no other studios stops with `.diskLow`.
+    @Test(arguments: [true, false])
+    func aLowDiskEndsTheExportOfAnotherStudioFirst(knowsB: Bool) async throws {
+        let a = try await ExportStudioFixture.make()
+        let hal = TestHAL([a.mic])
+        let studioA = try await a.open(hal)
+        let folderB = LockedBox<URL>()
+        studioA.environment.freeBytes = { _ in
+            let temporary = folderB.value.flatMap { try? FileManager.default.contentsOfDirectory(atPath: $0.path) }?
+                .contains { $0.hasSuffix(".tmp") }
+            return temporary == true ? 0 : 100_000_000_000
+        }
+        try await studioA.startRecording(armed: ["t1"])
+        let (studioB, b, export) = try await exportB()
+        if knowsB { studioA.otherStudios = { [studioB] } }
+        folderB.value = b.package.folder.url
+
+        await until(limit: .seconds(30), "neither B nor the take ended") {
+            studioB.exportProgress == nil || studioA.transport != .recording(take: 1)
+        }
+
+        if knowsB {
+            await #expect(throws: StudioError.exportYielded) { try await export.value }
+            try? await Task.sleep(for: .milliseconds(300))
+            #expect(studioA.transport == .recording(take: 1))
+            #expect(try b.temporaryFiles() == [])
+            try await studioA.stopRecording()
+        } else {
+            await until(limit: .seconds(30), "the take did not stop") { studioA.transport == .idle }
+            #expect(studioA.lastTake?.end == .diskLow)
+            studioB.cancelExport()
+            _ = try? await export.value
+        }
+    }
+
+    /// The disk check ends only an export to the volume of the take (decision 0019).
+    @Test func sameVolumeComparesTheDevices() throws {
+        let folder = try TemporaryFolder()
+        #expect(sameVolume(folder.url, FileManager.default.temporaryDirectory))
+        #expect(!sameVolume(folder.url, URL(filePath: "/dev")))
+    }
+}

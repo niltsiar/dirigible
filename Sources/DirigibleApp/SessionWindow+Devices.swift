@@ -21,6 +21,25 @@ extension SessionWindow {
         }
     }
 
+    /// Runs `body`. When it throws an undecided access, it shows the macOS prompt and runs `body`
+    /// once more after a grant (decision 0013). The prompt waits for the user; a close can end
+    /// the window meanwhile, so `body` runs again only in an open window with the same studio.
+    func withMicrophoneAccess(_ studio: Studio, _ body: () async throws(StudioError) -> Void)
+        async throws(StudioError)
+    {
+        do throws(StudioError) {
+            try await body()
+        } catch .microphoneAccess(let access) {
+            switch microphoneStep(access) {
+            case .request:
+                guard await requestMicrophoneAccess() else { throw .microphoneAccess(.denied) }
+                guard case .open(let current) = phase, current === studio else { return }
+                try await body()
+            case .privacyLink: throw .microphoneAccess(access)
+            }
+        }
+    }
+
     /// Calls `updateMonitor()` at each change of the toggle, the armed tracks, or the session
     /// (a route edit, an undo) while the window shows `studio`.
     func followMonitor(_ studio: Studio) {

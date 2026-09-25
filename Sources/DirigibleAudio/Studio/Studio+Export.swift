@@ -6,6 +6,8 @@ import os
 struct ExportJob {
     /// One more for each export, so a late progress hop of an ended export changes nothing.
     let number: Int
+    /// The target: the disk check of a take in another studio ends only an export to its volume.
+    let url: URL
     var progress: Double
     let task: Task<Result<[FileID: MediaFault], ExportError>, Never>
 }
@@ -34,9 +36,10 @@ extension Studio {
         exportNumber += 1
         let number = exportNumber
         let task = exportTask(number, session, source, options, url, replacing)
-        exportJob = ExportJob(number: number, progress: 0, task: task)
+        exportJob = ExportJob(number: number, url: url, progress: 0, task: task)
         let result = await task.value
         if exportJob?.number == number { exportJob = nil }
+        if case .failure(.cancelled) = result, yieldedExport == number { throw .exportYielded }
         do { return try result.get() } catch { throw .export(error) }
     }
 
@@ -47,19 +50,41 @@ extension Studio {
 
     /// Cancels the running export and waits for its end. `settle()` calls it after it sets
     /// `settling`. A take start calls it after its lookup, route, and access checks and before
-    /// its disk check and its save, so a refused take start keeps the export.
-    func endExport() async {
+    /// its disk check and its save, so a refused take start keeps the export. With `yielding`,
+    /// a take of another studio ends it, and `export` throws `.exportYielded`.
+    func endExport(yielding: Bool = false) async {
         guard let job = exportJob else { return }
+        if yielding { yieldedExport = job.number }
         job.task.cancel()
         _ = await job.task.value
         if exportJob?.number == job.number { exportJob = nil }
     }
 
-    /// `endExport` for `prepareTake`, off the main actor. Nil when no export runs: no export
-    /// starts while a take starts, so the start then needs no main-actor turn for it.
+    /// `endExport` of this studio and of each other studio for a take start (`prepareTake`, off
+    /// the main actor): capture comes first across windows (decision 0019). Nil when no export
+    /// runs: then the start needs no main-actor turn for it. An export of another studio that
+    /// starts during the take start runs on; the disk check of the take watches it.
     func exportEnd() -> (@MainActor @Sendable () async -> Void)? {
-        guard exportJob != nil else { return nil }
-        return { [weak self] in await self?.endExport() }
+        let others = otherStudios().filter { $0.exportJob != nil }
+        guard exportJob != nil || !others.isEmpty else { return nil }
+        return { [weak self] in
+            await self?.endExport()
+            for studio in others { await studio.endExport(yielding: true) }
+        }
+    }
+
+    /// Ends the exports of the other studios to the volume of the package, for the disk check
+    /// of a take. True when one ran. The volume reads run off the main actor.
+    func endOtherExports(onVolumeOf lock: PackageLock) async -> Bool {
+        var ended = false
+        for studio in otherStudios() {
+            guard let job = studio.exportJob, await onVolume(job.url.deletingLastPathComponent(), of: lock) else {
+                continue
+            }
+            await studio.endExport(yielding: true)
+            ended = true
+        }
+        return ended
     }
 
     /// The progress hop of export `number`. A hop of another export changes nothing.
@@ -102,4 +127,16 @@ extension Studio {
             }
         }
     }
+}
+
+/// True when `folder` is on the volume of the package that `lock` holds now.
+@concurrent nonisolated func onVolume(_ folder: URL, of lock: PackageLock) async -> Bool {
+    guard let package = try? lock.package() else { return false }
+    return sameVolume(folder, package)
+}
+
+/// True when both items exist and `stat` gives both the same device.
+nonisolated func sameVolume(_ a: URL, _ b: URL) -> Bool {
+    var (first, second) = (stat(), stat())
+    return stat(a.path, &first) == 0 && stat(b.path, &second) == 0 && first.st_dev == second.st_dev
 }

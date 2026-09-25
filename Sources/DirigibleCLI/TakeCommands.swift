@@ -66,6 +66,7 @@ extension StudioError {
         case .diskLow: "the disk of \(package) has less than 1 GB free."
         // No command exports through Studio; `dirigible export` calls `exportMix` (decision 0019).
         case .export(let error): "the export failed (\(error))."
+        case .exportYielded: "a take in another studio stopped the export."
         }
     }
 }

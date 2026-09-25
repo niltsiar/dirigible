@@ -206,6 +206,22 @@ import Testing
         await window.close()
     }
 
+    /// Code gate 1 item 3: the label of a clip draws at the bottom left of its box, in the lane
+    /// of its track, and not in another lane.
+    @Test func aClipLabelDrawsInTheLaneOfItsTrack() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "take1-1-1.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        try session.addTrack("t2", name: "T2", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 48_000, offset: 0, length: 432_000), on: "t2")
+        let view = documentView(session)
+
+        // The box of c1 starts at 93.75 pt; lane 2 is 100 to 200 pt.
+        #expect(try darkPixels(view, in: NSRect(x: 90, y: 184, width: 60, height: 16)) > 20, "the label in lane 2")
+        #expect(try darkPixels(view, in: NSRect(x: 90, y: 84, width: 60, height: 16)) == 0, "no label in lane 1")
+        #expect(try darkPixels(view, in: NSRect(x: 0, y: 184, width: 90, height: 16)) == 0, "no label before c1")
+    }
+
     /// The display link ends with the window: its target goes, and it ticks while it runs.
     @Test func theDisplayLinkEndsWithTheWindow() async throws {
         let (model, studio) = try await timelineModel(

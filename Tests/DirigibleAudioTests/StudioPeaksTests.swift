@@ -340,19 +340,19 @@ struct StudioPeaksTests {
         #expect(peaksOf(studio, "f1") != nil)
     }
 
-    /// Plan gate 1: the main actor never reads a WAV. The hook runs isolated to the actor of
-    /// the compute, so a compute on the main actor calls it on the main thread.
+    /// Plan gate 1: the main actor never reads a WAV. The `peakRead` step runs on the thread of
+    /// each read: the file start (the open and the cache read) and each of the 3 block reads.
     @Test @MainActor func theComputeRunsOffTheMainThread() async throws {
         let fixture = try await PeakPackage.make()
-        let (onMain, blocks) = (StepCounter(), StepCounter())
+        let (onMain, reads) = (StepCounter(), StepCounter())
         let studio = try await fixture.studio()
-        studio.environment.beforePeakBlock = { _ in
-            _ = blocks.next()
+        studio.environment.peakRead = {
+            _ = reads.next()
             if pthread_main_np() != 0 { _ = onMain.next() }
         }
 
         #expect(await waitForPeaks(studio) != nil)
-        #expect(blocks.calls == 3)
+        #expect(reads.calls == 4)
         #expect(onMain.calls == 0)
     }
 

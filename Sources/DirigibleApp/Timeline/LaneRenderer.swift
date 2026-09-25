@@ -74,10 +74,13 @@ final class LaneRenderer {
         for (lane, track) in tracks.enumerated() {
             let top = lane * laneRows
             let bottom = top + laneRows - 1
-            fill(LaneColors.lane, columns: 0..<columns, rows: top...bottom)
+            // Each pixel gets one background: the lane color only in the gaps between the clips.
+            var gap = 0
             for clip in track.clips.clips(overlapping: visible) {
                 let range = clamped(column(clip.start).rounded(.down))..<clamped(column(clip.end).rounded(.up))
                 guard !range.isEmpty else { continue }
+                if gap < range.lowerBound { fill(LaneColors.lane, columns: gap..<range.lowerBound, rows: top...bottom) }
+                gap = max(gap, range.upperBound)
                 fill(LaneColors.clip, columns: range, rows: top...bottom)
                 // The red comes from the media check only, never from the peaks.
                 var red: Int?
@@ -92,6 +95,7 @@ final class LaneRenderer {
                     for row in [top, bottom] { fill(LaneColors.missingOutline, columns: tint, rows: row...row) }
                 }
             }
+            fill(LaneColors.lane, columns: gap..<columns, rows: top...bottom)
         }
         for (lane, track) in tracks.enumerated() {
             let bottom = (lane + 1) * laneRows - 1

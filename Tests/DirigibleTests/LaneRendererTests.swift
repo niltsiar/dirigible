@@ -163,6 +163,33 @@ struct LaneRendererTests {
         #expect(renderer.pixel(0, 50) == LaneColors.clip)
     }
 
+    /// The lane color fills the gaps before, between, and after the clips, also where the last
+    /// draw had a clip.
+    @Test func theGapsBetweenClipsHaveTheLaneColor() throws {
+        func session(_ clips: [(start: Int, length: Int)]) throws -> Session {
+            var session = Session(sampleRate: 48_000)
+            try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 2560))
+            try session.addTrack("t1", name: "T1", layout: .mono)
+            for (n, clip) in clips.enumerated() {
+                try session.place(
+                    Clip(
+                        id: ClipID("c\(n)"), file: "f1", start: Frames(clip.start * 256), offset: 0,
+                        length: Frames(clip.length * 256)), on: "t1")
+            }
+            return session
+        }
+        let renderer = LaneRenderer()
+        _ = renderer.draw(Self.inputs(try session([(0, 10)])), x: 0, width: 10, scale: 1)
+        let buffer = renderer.bufferAddress
+
+        _ = renderer.draw(Self.inputs(try session([(2, 2), (5, 2)])), x: 0, width: 10, scale: 1)
+
+        #expect(renderer.bufferAddress == buffer, "the second draw reuses the pixels of the first")
+        let colors = (0..<10).map { renderer.pixel($0, 50) }
+        let (lane, clip) = (LaneColors.lane, LaneColors.clip)
+        #expect(colors == [lane, lane, clip, clip, lane, clip, clip, lane, lane, lane])
+    }
+
     /// The image that the view draws shows the pixels of the draw, row 0 at the top.
     @Test func theImageHoldsThePixelsOfTheDraw() throws {
         let renderer = LaneRenderer()

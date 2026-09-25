@@ -116,7 +116,7 @@ import os
         #expect(!FileManager.default.fileExists(atPath: out.path))
         #expect(try temporaryFiles() == [])
         await until("the sheet goes") { window.attachedSheet == nil }
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
         #expect(studio.session.track("t1")?.clips.contains { $0.file != "f1" } == true)
@@ -172,7 +172,7 @@ import os
         #expect(studioA.transport == .recording(take: 1))
         #expect(modelB.alert == .error(.exportYielded))
         #expect(!FileManager.default.fileExists(atPath: targetB.url.path))
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         await modelA.stop()
         await until("the take finalizes") { studioA.transport == .idle }
         await modelA.close()
@@ -209,14 +209,14 @@ import os
 
         await model.record()
         #expect(!model.canExport && !model.canExportSelection)
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
         #expect(model.canExport)
 
         let clips = model.url.appending(path: clipsFolderName)
         await model.record()
-        hal.feed(seconds: 0.5)
+        await hal.feed(seconds: 0.5)
         chmod(clips.path, 0o500)
         defer { chmod(clips.path, 0o755) }
         await model.stop()

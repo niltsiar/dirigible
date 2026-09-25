@@ -6,6 +6,11 @@ import Testing
 
 @testable import DirigibleAudio
 
+/// The pause of each chunk of an export that a test cancels: 10 chunks are 10 s. A full suite
+/// holds the main actor for seconds, so a shorter export can end before the poll of the test
+/// sees it start or before the cancel. The cancel ends it at the next chunk.
+let longChunk: TimeInterval = 1
+
 /// The chunk seam of a Studio export (`CaptureEnvironment.exportChunk`): it records the thread
 /// and the QoS of each chunk, runs an action at a chunk, then pauses.
 final class ChunkSeam: @unchecked Sendable {
@@ -126,18 +131,24 @@ struct StudioExportTests {
     func aTakeStartDuringAnExportCancelsItFirst(path: StartPath) async throws {
         let fixture = try await ExportStudioFixture.make()
         let hal = TestHAL([fixture.mic])
-        let studio = try await fixture.open(hal, seam: ChunkSeam(pause: 0.1))
+        let studio = try await fixture.open(hal, seam: ChunkSeam(pause: longChunk))
         let temporaryAtDiskCheck = LockedBox<[String]>()
         let folder = fixture.package.folder.url
+        // Only the first call: the disk check of the start. The disk watcher of the take calls
+        // it again later, after the export ended.
         studio.environment.freeBytes = { _ in
-            temporaryAtDiskCheck.value = try? FileManager.default.contentsOfDirectory(atPath: folder.path).filter {
-                $0.hasSuffix(".tmp")
+            if temporaryAtDiskCheck.value == nil {
+                temporaryAtDiskCheck.value = try? FileManager.default.contentsOfDirectory(atPath: folder.path).filter {
+                    $0.hasSuffix(".tmp")
+                }
             }
             return 100_000_000_000
         }
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
-        await until(limit: .seconds(10), "the export did not start") { studio.exportProgress != nil }
+        // The utility thread makes the temporary file after the job starts. A full suite can
+        // hold utility threads for more than 10 s, so the limit is 30 s, as the `Gate` limits.
+        await until(limit: .seconds(30), "no temporary file") { (try? fixture.temporaryFiles())?.isEmpty == false }
         var progressAtRecording: Double?? = .none
         withObservationTracking {
             _ = studio.transport
@@ -160,7 +171,8 @@ struct StudioExportTests {
     @Test(arguments: StartPath.allCases)
     func aRefusedTakeStartLeavesTheExportRunning(path: StartPath) async throws {
         let fixture = try await ExportStudioFixture.make()
-        let studio = try await fixture.open(seam: ChunkSeam(pause: 0.02))
+        let gate = Gate()
+        let studio = try await fixture.open(seam: ChunkSeam(at: [2: { gate.waitOnce() }]))
         if path == .startRecording {
             studio.environment.microphoneAccess = { .denied }
         } else {
@@ -170,11 +182,12 @@ struct StudioExportTests {
         }
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
-        await until(limit: .seconds(10), "the export did not start") { studio.exportProgress != nil }
+        await gate.entered()
 
         await #expect(throws: StudioError.self) { _ = try await start(path, studio, fixture) }
 
         #expect(studio.exportProgress != nil)
+        gate.open()
         _ = try await export.value
         try await ExportStudioFixture.expectTheExport(at: fixture.out)
     }
@@ -215,15 +228,17 @@ struct StudioExportTests {
 
     @Test func aSecondExportIsBusy() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let studio = try await fixture.open(seam: ChunkSeam(pause: 0.02))
+        let gate = Gate()
+        let studio = try await fixture.open(seam: ChunkSeam(at: [2: { gate.waitOnce() }]))
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let second = fixture.package.folder.url.appending(path: "second.wav")
         let first = Task { try await studio.export(source, options, to: out, replacing: nil) }
-        await until(limit: .seconds(10), "the export did not start") { studio.exportProgress != nil }
+        await gate.entered()
 
         await #expect(throws: StudioError.busy) {
             try await studio.export(fixture.source, fixture.options, to: second, replacing: nil)
         }
+        gate.open()
 
         _ = try await first.value
         try await ExportStudioFixture.expectTheExport(at: fixture.out)

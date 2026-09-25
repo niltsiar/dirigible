@@ -40,7 +40,7 @@ struct StudioExportJobTests {
 
     @Test func settleCancelsTheExport() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let studio = try await fixture.open(seam: ChunkSeam(pause: 0.05))
+        let studio = try await fixture.open(seam: ChunkSeam(pause: longChunk))
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
         await until(limit: .seconds(10), "the export did not start") { studio.exportProgress != nil }
@@ -55,7 +55,7 @@ struct StudioExportJobTests {
 
     /// Starts an export, closes the studio during it, and drops the studio.
     func exportAndClose(_ fixture: ExportStudioFixture) async throws {
-        let studio = try await fixture.open(seam: ChunkSeam(pause: 0.05))
+        let studio = try await fixture.open(seam: ChunkSeam(pause: longChunk))
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
         await until(limit: .seconds(10), "the export did not start") { studio.exportProgress != nil }
@@ -145,14 +145,19 @@ struct StudioExportJobTests {
         #expect(seam.priorities.allSatisfy { $0 == .utility }, "\(seam.priorities)")
     }
 
+    /// The gate holds the export at chunk 3, after the progress calls of chunks 1 and 2, so the
+    /// poll cannot miss the progress between two main-actor turns of a full suite.
     @Test func progressShowsDuringTheExport() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let studio = try await fixture.open(seam: ChunkSeam(pause: 0.05))
+        let gate = Gate()
+        let studio = try await fixture.open(seam: ChunkSeam(at: [3: { gate.waitOnce() }]))
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
+        await gate.entered()
 
         await until(limit: .seconds(10), "no progress showed") { (studio.exportProgress ?? 0) > 0 }
 
+        gate.open()
         _ = try await export.value
     }
 

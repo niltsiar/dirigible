@@ -27,6 +27,8 @@ When the design depends on framework behavior that the documentation does not st
 
 A probe proves only the objects and the conditions it ran with. Probe the object that the design will query, in the production setup (for example a key window and the real responder chain, not a window delegate that production does not have). Mark each conclusion that goes past the printed result as an inference. When the design depends on an inference, the first slice that uses it starts with a test on the real object.
 
+For each invariant over a shared resource (a volume, a device, the process), name its scope and every holder at that scope: other windows, other documents, sweeps, watchers. Not only the object that states the rule. When one operation preempts another for the resource, the preempting operation runs every check that can refuse it before it ends the preempted work. It shows a refusal in the UI that has focus.
+
 Skip Phase A only when the work is genuinely greenfield with no surrounding system to integrate.
 
 ## Phase B: Sketch

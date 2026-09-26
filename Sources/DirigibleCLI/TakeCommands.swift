@@ -82,11 +82,9 @@ extension StudioError {
         case .channelInUse(let first, let second): "tracks \"\(first)\" and \"\(second)\" use the same channel."
         case .session(let error): error.message
         case .file(let error): error.message(package: package)
-        case .finalize(.readFailed(let file, let code)):
+        case .finalize(.readFailed(let file, let code)), .finalize(.segmentUnreadable(_, let file, let code)):
             "cannot read \(package)/\(file): \(String(cString: strerror(code)))."
         case .finalize(.writeFailed(let file, let status)): "cannot write \(package)/\(file) (status \(status))."
-        case .finalize(.segmentUnreadable(_, let file, let code)):
-            "cannot read \(package)/\(file): \(String(cString: strerror(code)))."
         case .segment(let segment, let fault): fault.message(segment: segment)
         case .microphoneAccess:
             "the terminal has no microphone access. Allow it in System Settings > Privacy & Security > Microphone."

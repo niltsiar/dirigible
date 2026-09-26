@@ -140,8 +140,6 @@ struct SegmentFinalize {
             return try readPackageFile(sidecar, in: package).flatMap(Sidecar.decode)
         } catch .readFailed(let file, let code) {
             throw unreadable(file, code)
-        } catch {
-            throw error
         }
     }
 

@@ -259,4 +259,25 @@ struct LaneRendererTests {
         #expect(first != nil && renderer.bufferAddress == first)
         #expect(renderer.columns == 12 && renderer.rows == 400)
     }
+
+    /// Mouse-edits code gate 1 item 2: a draw of lane 2 alone (a drag event on one lane) has the
+    /// rows of lane 2 of a draw of all lanes: the waveform, the band of the selected t2, and the
+    /// in line.
+    @Test func aDrawOfOneLaneHasTheRowsOfThatLane() throws {
+        let bins = [PeakColumn(peak: 65535, rms: 32768), PeakColumn(peak: 32768, rms: 0), Self.zero]
+        let inputs = Self.inputs(
+            try Self.session(), peaks: bins, marks: Marks(inPoint: 256, outPoint: 768, tracks: ["t2"]))
+        let all = LaneRenderer()
+        _ = all.draw(inputs, x: 0, width: 6, scale: 1)
+        let one = LaneRenderer()
+
+        _ = one.draw(inputs, x: 0, width: 6, scale: 1, lanes: 1..<2)
+
+        #expect(one.rows == 100)
+        let same = (0..<6).allSatisfy { column in
+            (0..<100).allSatisfy { one.pixel(column, $0) == all.pixel(column, $0 + 100) }
+        }
+        #expect(same, "the rows of lane 2")
+        #expect(one.pixel(2, 50) == LaneColors.selected(LaneColors.clip), "the band")
+    }
 }

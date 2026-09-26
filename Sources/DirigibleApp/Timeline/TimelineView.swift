@@ -151,6 +151,7 @@ final class TimelineScrollView: NSScrollView {
     private func redraw() {
         guard var drawn = source else { return }
         drawn.session = gesture.drawn(drawn.session)
+        lanes.holdsWidth = gesture.isActive
         lanes.inputs = drawn
         ruler.inputs = drawn.geometry.map {
             RulerInputs(

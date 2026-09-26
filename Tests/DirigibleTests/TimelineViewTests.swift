@@ -255,6 +255,36 @@ import Testing
         #expect(try darkPixels(view, in: NSRect(x: 0, y: 84, width: 260, height: 16)) == box, "no label after it")
     }
 
+    /// Mouse-edits code gate 1 item 2: a draw of some lanes (the dirty rect of a drag event on
+    /// one lane) puts their pixels in their rows. c1 is on lane 2 from x 0 to 93.75 pt; lane 1 is
+    /// empty.
+    @Test func aDrawOfSomeLanesPutsTheirPixelsInTheirRows() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        try session.addTrack("t2", name: "T2", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 48_000), on: "t2")
+        let view = documentView(session)
+
+        #expect(try isClip(view, at: NSPoint(x: 20, y: 150), drawing: NSRect(x: 0, y: 100, width: 50, height: 100)))
+        #expect(try !isClip(view, at: NSPoint(x: 20, y: 50), drawing: NSRect(x: 0, y: 0, width: 50, height: 100)))
+        let both = NSRect(x: 0, y: 50, width: 50, height: 100)
+        #expect(try isClip(view, at: NSPoint(x: 20, y: 140), drawing: both), "lane 2 of a draw of two lanes")
+        #expect(try !isClip(view, at: NSPoint(x: 20, y: 60), drawing: both), "lane 1 of a draw of two lanes")
+    }
+
+    /// True when a draw of `rect` of `view` has the clip color at `point`.
+    func isClip(_ view: NSView, at point: NSPoint, drawing rect: NSRect) throws -> Bool {
+        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: rect))
+        view.cacheDisplay(in: rect, to: bitmap)
+        let scale = Double(bitmap.pixelsWide) / rect.width
+        let color = try #require(
+            bitmap.colorAt(x: Int((point.x - rect.minX) * scale), y: Int((point.y - rect.minY) * scale))?
+                .usingColorSpace(.sRGB))
+        // The clip color is 0xC4DAF5, the lane color 0xE8ECF2.
+        return abs(color.redComponent - 0xC4 / 255) < 0.03
+    }
+
     /// Mouse-edits criterion 1 (plan gate 2 item 4): the renderer draws a clip where the hit test
     /// finds it. At 512 frames per point and scale 2, the box of c2 on lane 2 is x 93.75 to
     /// 281.25 pt, so its edges are half pixels (187.5 and 562.5 px). 1 px inside each edge is the

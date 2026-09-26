@@ -234,9 +234,9 @@ import Testing
     }
 
     /// Decision 0020, the dirty rect: a drag event redraws only the columns of the clips that it
-    /// changes, at full height. c1 is x 200 to 300 pt; a drag of 50 pt makes it 250 to 350, so the
-    /// event redraws x 200 to 350 with 1 pt on each side, not the 1440 pt in view. A change of
-    /// another input (the Marks) draws all.
+    /// changes, at full height (a narrow rect). c1 is x 200 to 300 pt; a drag of 50 pt makes it 250
+    /// to 350, so the event redraws x 200 to 350 with 1 pt on each side, not the 1440 pt in view.
+    /// New Marks draw their columns; new peaks draw all.
     @Test func aDragEventRedrawsOnlyTheClipsItChanges() async throws {
         let (model, studio, window, view) = try await lanes()
         try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
@@ -248,16 +248,16 @@ import Testing
         drawNow(window)
 
         #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 200))
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t2"])))
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t2"])))
         drawNow(window)
-        #expect(view.lanes.drawnRect == NSRect(x: 0, y: 0, width: 102, height: 200), "new Marks: their columns")
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t8"])))
+        #expect(view.lanes.drawnRect == NSRect(x: 0, y: 0, width: 1002, height: 200), "new Marks: all rows")
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t8"])))
         drawNow(window)
         let draws = view.lanes.draws
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t9"])))
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t9"])))
         drawNow(window)
         #expect(view.lanes.draws == draws, "Marks that draw the same pixels draw nothing")
-        var inputs = laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t9"]))
+        var inputs = laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t9"]))
         inputs.peaks = ["f1": .ready(randomPeaks(frames: 960_000))]
         view.update(inputs)
         drawNow(window)
@@ -266,10 +266,30 @@ import Testing
         await model.close()
     }
 
-    /// Code gate 1 item 2: a move of the last clip past the session end makes the lanes wider. The
-    /// event redraws the columns of the clip and the new width, not the lanes in view. c1 is x 1800
-    /// to 1875 pt, the end of the session; the lanes in view end at the end of the lanes (1912.5 pt).
-    @Test func aDragEventThatWidensTheLanesRedrawsOnlyTheChange() async throws {
+    /// Code gate 1 item 2: a drag of a clip wider than the view redraws the rows of its lanes only.
+    /// c1 is x 0 to 1875 pt on lane 1 of 3; a drag to lane 2 redraws the rows of lanes 1 and 2.
+    @Test func aWideClipDragRedrawsOnlyTheRowsOfItsLanes() async throws {
+        let (model, _, window, view) = try await lanes(tracks: 3)
+        try press(view, 100, 10)
+
+        try drag(view, 150, 10)
+        drawNow(window)
+        #expect(view.lanes.drawnRect.minY == 0 && view.lanes.drawnRect.height == 100, "lane 1")
+        try drag(view, 150, 110)
+        drawNow(window)
+        #expect(view.lanes.drawnRect.minY == 0 && view.lanes.drawnRect.height == 200, "lanes 1 and 2")
+
+        try release(view, 100, 10)
+        window.close()
+        await model.close()
+    }
+
+    /// Code gate 1 item 2: during a move of the last clip past the session end, the lanes keep
+    /// their width, so the event redraws only the columns of the clip (AppKit draws the new columns
+    /// of a wider view, and the draw joins them). The part past the lanes is never in view: the lanes
+    /// are at least as wide as the view. The mouse-up gives the new width. c1 is x 1800 to 1875 pt,
+    /// the end of the session; the lanes in view end at the end of the lanes (1912.5 pt).
+    @Test func aDragPastTheEndKeepsTheWidthUntilTheUp() async throws {
         let (model, studio, window, view) = try await lanes()
         try studio.edit { s throws(SessionError) in
             try s.trim("c1", to: 921_600..<960_000)
@@ -284,9 +304,10 @@ import Testing
         try drag(view, 1880, 10)
         drawNow(window)
 
-        #expect(view.lanes.frame.width == width + 50 * 1.02, "the lanes are wider")
-        #expect(view.lanes.drawnRect.minX >= 1799 && view.lanes.drawnRect.width <= 200, "\(view.lanes.drawnRect)")
+        #expect(view.lanes.frame.width == width, "the same width during the drag")
+        #expect(view.lanes.drawnRect == NSRect(x: 1799, y: 0, width: 113.5, height: 200), "not the new columns")
         try release(view, 1880, 10)
+        #expect(view.lanes.frame.width == width + 50 * 1.02, "the new width at the up")
         window.close()
         await model.close()
     }

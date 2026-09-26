@@ -20,7 +20,7 @@ final class TimelineDocumentView: NSView {
     private(set) var drawnRect = NSRect.zero
     /// Every drawn input except the backing scale. A new value draws only when it is not equal, and
     /// only the columns of the changed clips, markers, and Marks when nothing else changed (a drag
-    /// event).
+    /// event): in the rows of the changed lanes, or at full height for a marker or the Marks.
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
@@ -29,8 +29,9 @@ final class TimelineDocumentView: NSView {
         }
     }
 
-    /// The columns of the clips, markers, and Marks that changed from `old`, at full height, with 1 pt
-    /// on each side for the rounding of the renderer. Nil when another input changed.
+    /// The columns of the clips, markers, and Marks that changed from `old`, with 1 pt on each side
+    /// for the rounding of the renderer, in the rows of the changed lanes (all rows for new Marks).
+    /// Nil when another input changed.
     private func changedColumns(from old: LaneInputs?) -> NSRect? {
         guard var old, let inputs, let geometry = inputs.geometry,
             let clips = changedFrames(from: old.session, to: inputs.session)
@@ -38,12 +39,19 @@ final class TimelineDocumentView: NSView {
         let marks = changedFrames(from: old.marks, to: inputs.marks, in: inputs.session)
         (old.session, old.marks) = (inputs.session, inputs.marks)
         guard old == inputs else { return nil }
-        let changed = [clips, marks].filter { !$0.isEmpty }
+        let changed = [clips.frames, marks].filter { !$0.isEmpty }
         guard let low = changed.map(\.lowerBound).min(), let high = changed.map(\.upperBound).max() else {
             return .zero
         }
         let (x0, x1) = (geometry.x(of: low).rounded(.down), geometry.x(of: high).rounded(.up))
-        return NSRect(x: x0 - 1, y: 0, width: x1 - x0 + 2, height: bounds.height)
+        // Only a wide rect takes the rows of its lanes. A narrow rect of part of the height made
+        // the flush wait for the window server (11 ms p95 against 3 ms at full height, the Intel
+        // Mac of the mouse-edits run), and its full height costs under 1 ms.
+        // ponytail: a fixed 360 pt; measure again on Apple Silicon (manual check M8).
+        let wide = x1 - x0 >= 360 && marks.isEmpty
+        let lanes = wide ? clips.lanes : 0..<inputs.session.tracks.count
+        let (y0, y1) = (Double(lanes.lowerBound) * inputs.laneHeight, Double(lanes.upperBound) * inputs.laneHeight)
+        return NSRect(x: x0 - 1, y: y0, width: x1 - x0 + 2, height: y1 - y0)
     }
 
     private let renderer = LaneRenderer()
@@ -51,8 +59,8 @@ final class TimelineDocumentView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        // A new width (a drag past the session end, a wider window) keeps the drawn pixels, and
-        // AppKit draws only the new columns. The default policy redrew the lanes in view.
+        // A new width (a wider window) keeps the drawn pixels, and AppKit draws only the new
+        // columns. The default policy redrew the lanes in view.
         layerContentsRedrawPolicy = .onSetNeedsDisplay
         playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
@@ -71,13 +79,21 @@ final class TimelineDocumentView: NSView {
 
     var framesPerPoint: Double { inputs?.scale.framesPerPoint ?? 512 }
 
+    /// True during a mouse gesture: the lanes keep their width. AppKit draws the new columns of a
+    /// wider view at full height, and the draw joins them to the rows of a drag event, so a move
+    /// past the session end drew all lanes. The lanes are at least as wide as the view, so the part
+    /// past them is not in view; the mouse-up gives the new width.
+    var holdsWidth = false {
+        didSet { if oldValue, !holdsWidth { resize() } }
+    }
+
     /// As wide as max(end, 10 s) + 2% at the zoom, and at least as wide as the lanes in view.
     func resize() {
         guard let inputs else { return }
         let session = inputs.session
         let end = Double(max(session.end.count, 10 * session.sampleRate)) * 1.02
         let shown = (enclosingScrollView as? TimelineScrollView)?.shown.width ?? 0
-        let width = max(end / inputs.scale.framesPerPoint, Double(shown))
+        let width = holdsWidth ? frame.width : max(end / inputs.scale.framesPerPoint, Double(shown))
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.bounds = CGRect(x: 0, y: 0, width: 1, height: height)
@@ -108,20 +124,29 @@ final class TimelineDocumentView: NSView {
         let started = ContinuousClock.now
         draws += 1
         drawnRect = dirtyRect
-        let (x0, x1) = (dirtyRect.minX.rounded(.down), dirtyRect.maxX.rounded(.up))
-        let height = Double(inputs.session.tracks.count) * inputs.laneHeight
+        let columns = draw(inputs, in: dirtyRect, context)
+        let milliseconds = Double((ContinuousClock.now - started) / .microseconds(1)) / 1000
+        drawLog.debug("lanes draw \(milliseconds, format: .fixed(precision: 2)) ms, \(columns) columns")
+    }
+
+    /// Draws the lanes that `rect` crosses, in its columns, and the labels in it. Gives the pixel
+    /// columns.
+    private func draw(_ inputs: LaneInputs, in rect: NSRect, _ context: CGContext) -> Int {
+        let (x0, x1) = (rect.minX.rounded(.down), rect.maxX.rounded(.up))
+        // The lanes that the rect crosses: a drag event on one lane draws only its rows.
+        let lanes =
+            Int((rect.minY / inputs.laneHeight).rounded(.down))..<Int((rect.maxY / inputs.laneHeight).rounded(.up))
+        let (top, height) = (Double(lanes.lowerBound) * inputs.laneHeight, Double(lanes.count) * inputs.laneHeight)
         let scale = window?.backingScaleFactor ?? 2
-        guard let image = renderer.draw(inputs, x: x0, width: x1 - x0, scale: scale) else { return }
-        // The view is flipped: flip the context so row 0 of the image is the top of lane 1.
+        guard let image = renderer.draw(inputs, x: x0, width: x1 - x0, scale: scale, lanes: lanes) else { return 0 }
+        // The view is flipped: flip the context so row 0 of the image is the top of the first lane.
         context.saveGState()
-        context.translateBy(x: x0, y: height)
+        context.translateBy(x: x0, y: top + height)
         context.scaleBy(x: 1, y: -1)
         context.draw(image, in: CGRect(x: 0, y: 0, width: x1 - x0, height: height))
         context.restoreGState()
-        drawLabels(inputs, in: dirtyRect)
-        let milliseconds = Double((ContinuousClock.now - started) / .microseconds(1)) / 1000
-        let columns = Int((x1 - x0) * scale)
-        drawLog.debug("lanes draw \(milliseconds, format: .fixed(precision: 2)) ms, \(columns) columns")
+        drawLabels(inputs, in: rect)
+        return Int((x1 - x0) * scale)
     }
 
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom

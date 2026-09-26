@@ -13,12 +13,14 @@ struct ChangedFramesTests {
         var over = session
         try over.move("A", to: "t1", start: 150_000)
 
-        #expect(changedFrames(from: session, to: moved) == 48_000..<120_000)
-        #expect(changedFrames(from: moved, to: over) == 72_000..<198_000, "B is cut to 144,000 ..< 150,000")
-        #expect(changedFrames(from: session, to: session) == .zero ..< .zero)
+        #expect(changedFrames(from: session, to: moved)?.frames == 48_000..<120_000)
+        #expect(changedFrames(from: session, to: moved)?.lanes == 0..<1, "the rows of t1 only")
+        #expect(changedFrames(from: moved, to: over)?.frames == 72_000..<198_000, "B is cut to 144,000 ..< 150,000")
+        #expect(changedFrames(from: session, to: session)?.frames == .zero ..< .zero)
+        #expect(changedFrames(from: session, to: session)?.lanes.isEmpty == true)
         var later = session
         try later.move("B", to: "t1", start: 200_000)
-        #expect(changedFrames(from: session, to: later) == 144_000..<248_000, "A before B does not change")
+        #expect(changedFrames(from: session, to: later)?.frames == 144_000..<248_000, "A before B does not change")
     }
 
     @Test func aMoveToAnotherLaneChangesBothLanes() throws {
@@ -26,7 +28,8 @@ struct ChangedFramesTests {
         var moved = session
         try moved.move("A", to: "t2", start: 96_000)
 
-        #expect(changedFrames(from: session, to: moved) == 48_000..<144_000)
+        #expect(changedFrames(from: session, to: moved)?.frames == 48_000..<144_000)
+        #expect(changedFrames(from: session, to: moved)?.lanes == 0..<2, "the rows of t1 and t2")
     }
 
     @Test func aChangeOutsideTheClipsRedrawsAll() throws {
@@ -52,10 +55,11 @@ struct ChangedFramesTests {
         var both = moved
         try both.move("A", to: "t1", start: 72_000)
 
-        #expect(changedFrames(from: session, to: moved) == 1000..<50_001)
-        #expect(changedFrames(from: session, to: added) == 300_000..<300_001)
-        #expect(changedFrames(from: added, to: session) == 300_000..<300_001, "a removed marker")
-        #expect(changedFrames(from: session, to: both) == 1000..<120_000)
+        #expect(changedFrames(from: session, to: moved)?.frames == 1000..<50_001)
+        #expect(changedFrames(from: session, to: added)?.frames == 300_000..<300_001)
+        #expect(changedFrames(from: added, to: session)?.frames == 300_000..<300_001, "a removed marker")
+        #expect(changedFrames(from: session, to: both)?.frames == 1000..<120_000)
+        #expect(changedFrames(from: session, to: both)?.lanes == 0..<3, "a marker line crosses every lane")
     }
 
     /// Code gate 1 item 2: a range or a triangle drag redraws the columns where the Marks draw

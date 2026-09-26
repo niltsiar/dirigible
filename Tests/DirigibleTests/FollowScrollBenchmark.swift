@@ -43,9 +43,10 @@ import Testing
 
     /// Runs 130 steps, one per 60 Hz frame, and gives the sorted times of the last 120. `prepare`
     /// runs before the timer (a jump back when the lanes end), and `step` is the timed step. Each
-    /// step must scroll and draw the lanes.
+    /// step must scroll and draw the lanes once, at most `width` points: the new columns, not all
+    /// lanes in view (a mark of the lanes out of view next to the view drew them all on screen).
     static func paced(
-        _ view: TimelineScrollView, _ window: NSWindow, _ name: String, prepare: () -> Void = {},
+        _ view: TimelineScrollView, _ window: NSWindow, _ name: String, width: Double, prepare: () -> Void = {},
         step: () -> Void
     ) async throws -> [Duration] {
         var times: [Duration] = []
@@ -60,7 +61,8 @@ import Testing
             // The first 10 steps are not timed (the draw after the window shows).
             if n > 10 { times.append(ContinuousClock.now - start) }
             try #require(view.origin != origin, "\(name): step \(n) did not scroll")
-            try #require(view.lanes.draws > draws, "\(name): step \(n) drew nothing")
+            try #require(view.lanes.draws == draws + 1, "\(name): step \(n) drew \(view.lanes.draws - draws) times")
+            try #require(view.lanes.drawnRect.width <= width, "\(name): step \(n) drew \(view.lanes.drawnRect)")
         }
         return times.sorted()
     }
@@ -83,7 +85,7 @@ import Testing
             // The first tick only takes the state.
             view.tick(playhead: 0, playback: Self.forward)
             let end = Double(MouseEventBenchmark.frames)
-            let sorted = try await Self.paced(view, window, "forward") {
+            let sorted = try await Self.paced(view, window, "forward", width: 0.9 * view.shown.width) {
                 if view.origin + 2 * view.visibleFrames > end { Self.jump(view, to: 0) }
             } step: {
                 view.tick(playhead: view.origin + 0.95 * view.visibleFrames, playback: Self.forward)
@@ -98,7 +100,7 @@ import Testing
         try await Self.eachZoom { zoom, window, view in
             view.tick(playhead: 0, playback: Self.reverse)
             let last = Double(MouseEventBenchmark.frames) - 1.5 * view.visibleFrames
-            let sorted = try await Self.paced(view, window, "reverse") {
+            let sorted = try await Self.paced(view, window, "reverse", width: 0.9 * view.shown.width) {
                 if view.origin < view.visibleFrames { Self.jump(view, to: last) }
             } step: {
                 view.tick(playhead: view.origin + 0.04 * view.visibleFrames, playback: Self.reverse)
@@ -112,7 +114,8 @@ import Testing
     func aUserScrollStepFitsOneFrameAtTwoHours() async throws {
         try await Self.eachZoom { zoom, window, view in
             let sorted = try await Self.paced(
-                view, window, "scroll", step: { view.scroll(toFrame: view.origin + 20 * view.framesPerPoint) })
+                view, window, "scroll", width: 22,
+                step: { view.scroll(toFrame: view.origin + 20 * view.framesPerPoint) })
             Self.report("scroll", zoom, sorted)
         }
     }

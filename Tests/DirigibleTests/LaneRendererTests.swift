@@ -191,6 +191,63 @@ struct LaneRendererTests {
         #expect(colors == [lane, lane, clip, clip, lane, clip, clip, lane, lane, lane])
     }
 
+    /// Timeline-scroll criterion 1: an image keeps its pixels after the next draws. On screen, a
+    /// display-list context draws the image later, so a draw that wrote its buffer showed the
+    /// pixels of another draw (diagonal stripes after a page turn), and a draw of another size
+    /// freed it.
+    @Test func anImageKeepsItsPixelsAfterTheNextDraw() throws {
+        let renderer = LaneRenderer()
+        let loud = PeakColumn(peak: 65535, rms: 32768)
+        let inputs = Self.inputs(try Self.session(), peaks: [loud, loud, loud, loud])
+        let first = try #require(renderer.draw(inputs, x: 0, width: 4, scale: 1))
+        // Core Graphics can keep the pixels of an image that it drew once, so the test reads the
+        // first image only after the next draws, and compares it with a draw of another renderer.
+        let pixels = Self.drawn(try #require(LaneRenderer().draw(inputs, x: 0, width: 4, scale: 1)))
+        let held = renderer.bufferAddress
+
+        let empty = Self.inputs(try Self.session(length: 256), peaks: [Self.zero])
+        _ = renderer.draw(empty, x: 0, width: 4, scale: 1)
+        #expect(renderer.bufferAddress != held, "a draw while the image lives takes another buffer")
+        _ = renderer.draw(empty, x: 0, width: 3, scale: 1)
+        #expect(Self.drawn(first) == pixels)
+    }
+
+    /// The pixels of `image`, drawn into a new bitmap, as a context draws it.
+    static func drawn(_ image: CGImage) -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        bytes.withUnsafeMutableBytes { buffer in
+            let context = CGContext(
+                data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8,
+                bytesPerRow: image.width * 4, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            context?.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        return bytes
+    }
+
+    /// A new or reused buffer gets no zero fill: each draw writes every pixel of its image. A
+    /// draw of lanes with no clip, in the buffer of a draw with clips, waveforms, the selection
+    /// band, and marker lines, shows only the lane color.
+    @Test func aReusedBufferShowsNoPixelOfTheLastDraw() throws {
+        let renderer = LaneRenderer()
+        let loud = PeakColumn(peak: 65535, rms: 32768)
+        var session = try Self.session()
+        try session.setMarker(Marker(id: "m1", name: "M", position: 512, kind: .marker))
+        let marks = Marks(inPoint: 256, outPoint: 768, tracks: ["t1", "t2"])
+        _ = renderer.draw(
+            Self.inputs(session, peaks: [loud, loud, loud, loud], missing: ["f2": .short(512)], marks: marks), x: 0,
+            width: 4, scale: 1)
+        let buffer = renderer.bufferAddress
+        var bare = Session(sampleRate: 48_000)
+        for n in 1...2 { try bare.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono) }
+
+        _ = renderer.draw(Self.inputs(bare), x: 0, width: 4, scale: 1)
+
+        #expect(renderer.bufferAddress == buffer, "the draw reuses the released buffer")
+        let pixels = (0..<4).flatMap { column in (0..<200).map { renderer.pixel(column, $0) } }
+        #expect(pixels.allSatisfy { $0 == LaneColors.lane }, "\(Set(pixels).map { String($0, radix: 16) })")
+    }
+
     /// Each column draws one waveform: the one of the clip that holds the first frame of the
     /// column. At fit zoom, 2,000 clips per lane drew each column about 1.7 times (mouse-edits
     /// Phase 4). A (silent f1) is 0 ..< 384, B (full-scale f2 from its frame 0) is 384 ..< 900:

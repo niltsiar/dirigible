@@ -59,9 +59,6 @@ final class TimelineDocumentView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        // A new width (a wider window) keeps the drawn pixels, and AppKit draws only the new
-        // columns. The default policy redrew the lanes in view.
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
         playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
         playhead.actions = ["position": NSNull(), "bounds": NSNull()]

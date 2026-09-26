@@ -138,18 +138,55 @@ private struct TakeBanner: View {
         case .finalizing(let take):
             Banner(text: L10n.takeFinishing.format(take))
         case .placing(let segment):
-            Banner(text: L10n.takeFinishing.format(segment.take))
+            Banner(text: L10n.takePlacing.format(segment.stem))
         case .idle:
             if let pending = studio.pendingTake {
                 HStack {
                     Banner(text: pendingText(pending.take), tint: .orange)
+                    if model.canFinishLeavingUnreadable {
+                        Button(L10n.menuRecordLeaveUnreadable.key) { Task { await model.finishLeavingUnreadable() } }
+                    }
                     Button(L10n.menuRecordRetry.key) { Task { await model.retry() } }.padding(.trailing)
                 }
                 .task(id: pending.take) { await model.refreshPendingSpace() }
-            } else if let text = resultText {
-                Banner(text: text)
+            } else {
+                if let text = resultText { Banner(text: text) }
+                if !studio.unplacedSegments.isEmpty { unplacedRows }
             }
         }
+    }
+
+    /// One row for each unplaced segment (decision 0021), at most 4 in view; the list scrolls.
+    private var unplacedRows: some View {
+        let rowHeight = 28.0
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.takeUnplaced.key)
+            if model.placeWaitsForRedo { Text(L10n.takeUnplacedRedo.key).foregroundStyle(.secondary) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(studio.unplacedSegments, id: \.self) { segment in
+                        HStack {
+                            Text(verbatim: segment.stem)
+                            Spacer()
+                            Menu(L10n.menuUnplacedPlace.key) {
+                                Button(L10n.menuUnplacedPlacePlayhead.key) {
+                                    Task { await model.place(segment, atPlayhead: true) }
+                                }
+                                .disabled(!model.canPlaceAtPlayhead)
+                            } primaryAction: {
+                                Task { await model.place(segment, atPlayhead: false) }
+                            }
+                            .fixedSize()
+                            .disabled(!model.canPlace)
+                        }
+                        .frame(height: rowHeight)
+                    }
+                }
+            }
+            .frame(height: rowHeight * Double(min(studio.unplacedSegments.count, 4)))
+        }
+        .padding(8)
+        .background(Color.secondary.opacity(0.15))
     }
 
     private func elapsed(at date: Date) -> String {
@@ -161,6 +198,7 @@ private struct TakeBanner: View {
     private func pendingText(_ take: Int) -> String {
         var lines = [L10n.takePending.format(take)]
         if let error = studio.takeError { lines.append(L10n.message(for: error, session: studio.session)) }
+        if model.canFinishLeavingUnreadable { lines.append(L10n.takePendingLeaveHint.text) }
         if let space = model.pendingSpace {
             let bytes = { (count: Int64) in ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
             lines.append(L10n.takePendingSpace.format(bytes(space.needed), bytes(space.free)))
@@ -168,8 +206,7 @@ private struct TakeBanner: View {
         return lines.joined(separator: "\n")
     }
 
-    /// The last take (gaps, dropped frames, a disk-low stop), a recovered take, and the audio
-    /// that no clip holds.
+    /// The last take (gaps, dropped frames, a disk-low stop) and a recovered take.
     private var resultText: String? {
         let name = { (id: TrackID) in studio.session.track(id)?.name ?? id.rawValue }
         var lines: [String] = []
@@ -185,9 +222,6 @@ private struct TakeBanner: View {
             }
         }
         if let take = studio.recoveredTake { lines.append(L10n.takeRecovered.format(take.take)) }
-        if !studio.unplacedSegments.isEmpty {
-            lines.append(L10n.takeUnplaced.format(studio.unplacedSegments.map(\.stem).joined(separator: ", ")))
-        }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
 }

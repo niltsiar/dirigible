@@ -12,6 +12,9 @@
 "menu.record.start" = "Record";
 "menu.record.stop" = "Stop";
 "menu.record.retry" = "Retry Finalize";
+"menu.record.leave.unreadable" = "Finish Without Unreadable Audio";
+"menu.unplaced.place" = "Place";
+"menu.unplaced.place.playhead" = "Place at Playhead on Selected Track";
 "menu.record.monitor" = "Monitor Inputs";
 
 /* Errors */
@@ -36,7 +39,7 @@
 "error.file.moved" = "The session moved to another disk or was deleted. Nothing was saved.";
 "error.file.exists" = "An item with this name exists. Select a different name.";
 "error.finalize.read" = "The recorded audio in %1$@ cannot be read (error %2$lld).";
-"error.finalize.unreadable" = "The recorded audio in %1$@ cannot be read (error %2$lld). You can finish the take without it.";
+"error.finalize.unreadable" = "The disk cannot read the recorded audio in %1$@ (error %2$lld).";
 "error.finalize.write" = "The clip %1$@ cannot be written (error %2$lld).";
 "error.segment.not.unplaced" = "The audio %@ is on the timeline already, or it is not available.";
 "error.segment.no.sidecar" = "The timing data of the audio %@ is missing or damaged, so it cannot be placed.";
@@ -88,7 +91,9 @@
 "track.dropped" = "Dropped frames: %lld";
 "take.recording" = "Recording take %lld";
 "take.finishing" = "Finishing take %lld…";
+"take.placing" = "Placing %@…";
 "take.pending" = "Take %lld is not finished.";
+"take.pending.leave.hint" = "If the disk cannot read this audio again, finish the take without it. The file stays in the package, and you can place it later.";
 "take.pending.space" = "The finish needs %1$@ free. %2$@ is free now.";
 "take.ended" = "Take %lld is finished.";
 "take.ended.disk.low" = "Take %lld stopped because the disk is almost full.";
@@ -96,7 +101,8 @@
 "take.gap.write.failed" = "Track “%@” has a gap: a write failed.";
 "take.dropped" = "Track “%1$@” lost %2$lld frames.";
 "take.recovered" = "Take %lld was recovered.";
-"take.unplaced" = "Audio that is on no track: %@";
+"take.unplaced" = "Audio that is on no track:";
+"take.unplaced.redo" = "Redo brings this audio back.";
 "banner.save.error" = "The last change is not saved. %@";
 
 /* Transport (decision 0016) */

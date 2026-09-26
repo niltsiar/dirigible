@@ -12,7 +12,7 @@ import Foundation
 // screen. Say so, so that the caller makes those UI checks manual checks.
 let session = CGSessionCopyCurrentDictionary() as? [String: Any] ?? [:]
 if session["CGSSessionScreenIsLocked"] as? Bool == true {
-    FileHandle.standardError.write(Data("The screen is locked: menus and popovers do not show. Make their checks manual checks.\n".utf8))
+    FileHandle.standardError.write(Data("The screen is locked: menus, popovers, HID events, and the AX window tree do not work. Make every interaction check a manual check.\n".utf8))
 }
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
 if let window = windows.first(where: { $0[kCGWindowOwnerName as String] as? String == "Dirigible" }) {

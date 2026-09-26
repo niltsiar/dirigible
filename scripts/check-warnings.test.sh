@@ -8,10 +8,11 @@ failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# Writes a manifest with a library target A and a test target B, with these Swift settings.
+# Writes a manifest with a library target A and a test target B, with these Swift settings, and
+# optional C settings for A.
 manifest() {
-  printf '// swift-tools-version: 6.2\nimport PackageDescription\nlet package = Package(\n    name: "F",\n    targets: [\n        .target(name: "A", swiftSettings: [%s]),\n        .testTarget(name: "B", swiftSettings: [%s]),\n    ])\n' \
-    "$1" "$2" > "$tmp/Package.swift"
+  printf '// swift-tools-version: 6.2\nimport PackageDescription\nlet package = Package(\n    name: "F",\n    targets: [\n        .target(name: "A", cSettings: [%s], swiftSettings: [%s]),\n        .testTarget(name: "B", swiftSettings: [%s]),\n    ])\n' \
+    "${3:-}" "$1" "$2" > "$tmp/Package.swift"
 }
 
 # expect pass <name>, or expect fail <name> <message>. A failure counts only with its rule
@@ -30,6 +31,7 @@ manifest "$strict" "$strict"; expect pass 'each target treats warnings as errors
 missing='B: no treatAllWarnings(as: .error) for every configuration'
 manifest "$strict" ''; expect fail 'a test target without the setting' "$missing"
 manifest '' "$strict"; expect fail 'a library target without the setting' "${missing/B:/A:}"
+manifest '' "$strict" "$strict"; expect fail 'the setting only for C' "${missing/B:/A:}"
 manifest '.treatAllWarnings(as: .error, .when(configuration: .debug))' "$strict"
 expect fail 'the setting only in debug' "${missing/B:/A:}"
 manifest "$strict, .treatWarning(\"DeprecatedDeclaration\", as: .warning)" "$strict"

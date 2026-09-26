@@ -119,7 +119,10 @@ struct RecoveryTests {
         var studio: Studio? = try await Studio.open(package.url)
 
         #expect(studio?.pendingTake?.take == 1)
-        #expect(studio?.takeError == .finalize(.readFailed(file: "Capture/take1-1-1.caf", errno: EACCES)))
+        #expect(
+            studio?.takeError
+                == .finalize(
+                    .segmentUnreadable(SegmentName(stem: "take1-1-1")!, file: "Capture/take1-1-1.caf", errno: EACCES)))
         #expect(studio?.session.track("t2")?.clips.isEmpty == true)
 
         studio = nil

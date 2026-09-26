@@ -87,7 +87,10 @@ struct FinalizeFaultTests {
         chmod(file("take1-1-1.caf").path, 0o000)
         defer { chmod(file("take1-1-1.caf").path, 0o644) }
 
-        #expect(throws: FinalizeError.readFailed(file: "Capture/take1-1-1.caf", errno: EACCES)) {
+        #expect(
+            throws: FinalizeError.segmentUnreadable(
+                SegmentName(stem: "take1-1-1")!, file: "Capture/take1-1-1.caf", errno: EACCES)
+        ) {
             try finalizeTake(of: package.read(), in: package.url)
         }
     }
@@ -123,9 +126,24 @@ struct FinalizeFaultTests {
     @Test func anErrnoInTheMiddleOfACAFReadThrows() throws {
         let fault = ReadFault(stem: "take1-1-1", block: 1) { throw NSError(domain: NSPOSIXErrorDomain, code: Int(EIO)) }
 
-        #expect(throws: FinalizeError.readFailed(file: "Capture/take1-1-1.caf", errno: EIO)) {
+        #expect(
+            throws: FinalizeError.segmentUnreadable(
+                SegmentName(stem: "take1-1-1")!, file: "Capture/take1-1-1.caf", errno: EIO)
+        ) {
             try finalizeTake(of: package.read(), in: package.url, readFault: fault)
         }
+    }
+
+    /// The leave mode of decision 0021: the same fault leaves only that segment unplaced.
+    @Test func theLeaveModePlacesTheOtherSegmentAfterAnErrnoInACAFRead() throws {
+        let fault = ReadFault(stem: "take1-1-1", block: 1) { throw NSError(domain: NSPOSIXErrorDomain, code: Int(EIO)) }
+
+        let session = try finalizeTake(of: package.read(), in: package.url, leavingUnreadable: true, readFault: fault)
+
+        #expect(session.track("t1")?.clips.isEmpty == true)
+        #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
+        #expect(session.recording == nil)
+        #expect(!FileManager.default.fileExists(atPath: package.url.appending(path: "Clips/.take1-1-1.wav.tmp").path))
     }
 
     /// The shape of a real I/O fault (probe 2026-09-24): AVAudioFile -40 with no errno. Here every

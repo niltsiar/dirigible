@@ -4,10 +4,14 @@ import Foundation
 
 /// Only faults that can go away (decision 0012). The take stays pending and a retry can succeed.
 public enum FinalizeError: Error, Hashable, Sendable {
-    /// `Capture/` or a segment file does not open or read, with an errno other than ENOENT (for
-    /// example EACCES, EIO, EMFILE). A CAF or WAV read that fails with an errno (from the error,
-    /// or else from a POSIX read of the file: `ioErrno`) is this case, not an unplaced segment.
+    /// `Capture/`, a listed CAF that is gone (ENOENT), a take anchor, or a WAV read-back does not
+    /// open or read (for example EACCES, EIO, EMFILE). A read that fails with an errno (from the
+    /// error, or else from a POSIX read of the file: `ioErrno`) is this case, not a bad file.
     case readFailed(file: String, errno: Int32)
+    /// The CAF or the sidecar of `segment` does not open or read, with an errno other than ENOENT
+    /// (decision 0021). The take stays pending, unless the user leaves the unreadable segments
+    /// (`leavingUnreadable`); then only this segment stays unplaced.
+    case segmentUnreadable(SegmentName, file: String, errno: Int32)
     /// `Clips/` or a WAV cannot be made, written, flushed, closed, or renamed (for example ENOSPC,
     /// EACCES, EISDIR).
     case writeFailed(file: String, status: Int32)
@@ -45,14 +49,16 @@ struct ReadFault: Sendable {
 /// never writes `session.xml`. A second run overwrites the WAVs of the first.
 ///
 /// A fault of one segment skips that segment: its capture, file, and clip are not added, and it
-/// stays unplaced. Only a fault that can go away throws, and then nothing is placed. Each segment
+/// stays unplaced. Only a fault that can go away throws, and then nothing is placed. With
+/// `leavingUnreadable`, a `.segmentUnreadable` segment is skipped too (decision 0021). Each segment
 /// is read and converted in blocks, so the memory does not grow with the take length. Each WAV and
 /// then `Clips/` are flushed before it returns, so the save never points to a WAV that is not on
 /// the disk; a flush error throws. Last, it writes the take anchor (`TakeAnchor`), the only record
 /// of the track and the start of each segment after the save removes `recording`; a fault of that
 /// write throws too.
 func finalizeTake(
-    of session: Session, in package: URL, readFault: ReadFault? = nil, blockFrames: Int = 65_536
+    of session: Session, in package: URL, leavingUnreadable: Bool = false, readFault: ReadFault? = nil,
+    blockFrames: Int = 65_536
 ) throws(FinalizeError) -> Session {
     guard let recording = session.recording else { return session }
     // `mkdir Capture/` comes before the save of <recording>, so a missing folder is a package
@@ -66,7 +72,11 @@ func finalizeTake(
         let segment = SegmentFinalize(
             name: name, target: .aligned(recording, track: recording.armedTracks[name.arm - 1]), package: package,
             readFault: readFault, blockFrames: blockFrames)
-        if case .success(let placed) = try segment.place(on: result) { result = placed }
+        do {
+            if case .success(let placed) = try segment.place(on: result) { result = placed }
+        } catch .segmentUnreadable where leavingUnreadable {
+            continue  // The user chose to end the take without it; it stays unplaced (decision 0021).
+        }
     }
     let clips = package.appending(path: clipsFolderName)
     if result.files.count > session.files.count, let code = fullFlush(path: clips.path) {

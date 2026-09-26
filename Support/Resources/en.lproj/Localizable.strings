@@ -36,6 +36,7 @@
 "error.file.moved" = "The session moved to another disk or was deleted. Nothing was saved.";
 "error.file.exists" = "An item with this name exists. Select a different name.";
 "error.finalize.read" = "The recorded audio in %1$@ cannot be read (error %2$lld).";
+"error.finalize.unreadable" = "The recorded audio in %1$@ cannot be read (error %2$lld). You can finish the take without it.";
 "error.finalize.write" = "The clip %1$@ cannot be written (error %2$lld).";
 "error.segment.not.unplaced" = "The audio %@ is on the timeline already, or it is not available.";
 "error.segment.no.sidecar" = "The timing data of the audio %@ is missing or damaged, so it cannot be placed.";

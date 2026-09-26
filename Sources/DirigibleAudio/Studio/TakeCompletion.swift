@@ -81,9 +81,10 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
 /// The one step that open, stop, and retry share, in the package that `lock` holds now (decision
 /// 0014): finalize, delete the marker, save, update the list entry, and read the segments with
 /// audio. It resolves the package path once, before the finalize. The entry of `previous`, the
-/// path before a move, goes.
+/// path before a move, goes. Only a retry that the user chose passes `leavingUnreadable`.
 @concurrent nonisolated func completeTake(
-    of session: Session, lock: PackageLock, recordings: ActiveRecordings? = nil, previous: URL? = nil
+    of session: Session, lock: PackageLock, recordings: ActiveRecordings? = nil, previous: URL? = nil,
+    leavingUnreadable: Bool = false
 ) async -> TakeOutcome {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
@@ -101,7 +102,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     }
     let finalized: Session
     do {
-        finalized = try finalizeTake(of: session, in: package)
+        finalized = try finalizeTake(of: session, in: package, leavingUnreadable: leavingUnreadable)
     } catch {
         unlink(marker(in: package).path)
         return outcome(session, .finalize(error))

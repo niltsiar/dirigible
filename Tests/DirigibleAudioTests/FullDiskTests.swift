@@ -92,7 +92,8 @@ struct FullDiskTests {
     }
 
     /// The real shape of an I/O fault (probe 2026-09-24, probe-read-error.swift): the volume goes
-    /// away before block 1, and AVAudioFile throws -40 with no errno. It is take-wide, not a bad file.
+    /// away before block 1, and AVAudioFile throws -40 with no errno. It is an unreadable segment
+    /// (decision 0021), not a bad file, so the take stays pending unless the user leaves it.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aCAFReadErrorWithNoErrnoIsTakeWide() throws {
         let folder = try TemporaryFolder()
@@ -110,7 +111,10 @@ struct FullDiskTests {
         let session = try Session(contentsOf: package)
         let detach = ReadFault(stem: "take1-1-1", block: 1) { try Self.hdiutil("detach", volume.path, "-force") }
 
-        #expect(throws: FinalizeError.readFailed(file: "Capture/take1-1-1.caf", errno: EIO)) {
+        #expect(
+            throws: FinalizeError.segmentUnreadable(
+                SegmentName(stem: "take1-1-1")!, file: "Capture/take1-1-1.caf", errno: EIO)
+        ) {
             try finalizeTake(of: session, in: package, readFault: detach)
         }
     }

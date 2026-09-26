@@ -52,15 +52,18 @@ struct SegmentFinalize {
     /// the segment that keeps it unplaced.
     func place(on session: Session) throws(FinalizeError) -> Result<Session, SegmentFault> {
         // Held open, so a read error with no errno can be checked on the same file.
-        // A listed CAF that is gone is take-wide too: the package moved during the finalize.
+        // A listed CAF that is gone is take-wide: the package moved during the finalize.
         let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_CLOEXEC)
-        guard descriptor >= 0 else { throw .readFailed(file: caf, errno: errno) }
+        guard descriptor >= 0 else {
+            let code = errno
+            throw code == ENOENT ? .readFailed(file: caf, errno: code) : unreadable(caf, code)
+        }
         defer { close(descriptor) }
         let input: AVAudioFile
         do {
             input = try AVAudioFile(forReading: package.appending(path: caf))
         } catch {
-            if let code = ioErrno(of: error, file: descriptor) { throw .readFailed(file: caf, errno: code) }
+            if let code = ioErrno(of: error, file: descriptor) { throw unreadable(caf, code) }
             return .failure(.badAudio)
         }
         guard input.length > 0 else { return .failure(.badAudio) }
@@ -133,7 +136,18 @@ struct SegmentFinalize {
 
     /// Nil when the sidecar is missing or refused.
     func readSidecar() throws(FinalizeError) -> Sidecar? {
-        try readPackageFile(sidecar, in: package).flatMap(Sidecar.decode)
+        do {
+            return try readPackageFile(sidecar, in: package).flatMap(Sidecar.decode)
+        } catch .readFailed(let file, let code) {
+            throw unreadable(file, code)
+        } catch {
+            throw error
+        }
+    }
+
+    /// A read errno of the CAF or the sidecar: the user can leave this segment (decision 0021).
+    func unreadable(_ file: String, _ code: Int32) -> FinalizeError {
+        .segmentUnreadable(name, file: file, errno: code)
     }
 
     /// Reads `input` (open at `descriptor` too) in blocks, converts it from `source` to `rate`
@@ -183,7 +197,7 @@ struct SegmentFinalize {
                 length += Int(written.frameLength)
             }
         }
-        if let failure = reader.failure { throw .readFailed(file: caf, errno: failure) }
+        if let failure = reader.failure { throw unreadable(caf, failure) }
         // A converter that ends in .error or .inputRanDry gives a short clip; a placed clip holds
         // the whole segment.
         guard !reader.unreadable, status == .endOfStream else { return nil }

@@ -16,9 +16,11 @@ struct TakeCommand: AsyncParsableCommand {
                 "Exit 2 when the take stays pending, 3 when captured audio is not on the timeline, 5 when an armed "
                 + "track has no clip of the take.")
         @OptionGroup var package: PackageArgument
+        @Flag(help: "End the take without the audio of a segment that cannot be read. It stays in Capture/.")
+        var leaveUnreadable = false
 
         func run() async throws {
-            try await finalizeTake(url: package.url, path: package.path)
+            try await finalizeTake(url: package.url, path: package.path, leaveUnreadable: leaveUnreadable)
         }
     }
 }
@@ -26,9 +28,10 @@ struct TakeCommand: AsyncParsableCommand {
 /// Opens the package with `Studio.open`, which runs the recovery of decision 0004. A take that
 /// open left pending with no error (an earlier recovery died) gets one retry. Then the report of
 /// `record` (decision 0013). After a crash no gap is known, so only an armed track with no clip
-/// gives exit 5.
+/// gives exit 5. With `leaveUnreadable`, a take that stays pending gets one retry that leaves the
+/// unreadable segments unplaced (decision 0021).
 @MainActor
-private func finalizeTake(url: URL, path: String) async throws(ExitCode) {
+private func finalizeTake(url: URL, path: String, leaveUnreadable: Bool) async throws(ExitCode) {
     let studio: Studio
     do {
         studio = try await Studio.open(url)
@@ -36,11 +39,15 @@ private func finalizeTake(url: URL, path: String) async throws(ExitCode) {
         throw fail(error.message(package: path), code: packageError)
     }
     let take = studio.pendingTake ?? studio.recoveredTake
-    if studio.pendingTake != nil, studio.takeError == nil {
-        try? await studio.retryFinalize()
+    if studio.pendingTake != nil, studio.takeError == nil || leaveUnreadable {
+        try? await studio.retryFinalize(leavingUnreadable: leaveUnreadable)
     }
     if let error = studio.takeError {
-        throw fail("\(error.message(package: path)) The take is still pending.", code: packageError)
+        var message = "\(error.message(package: path)) The take is still pending."
+        if case .finalize(.segmentUnreadable) = error {
+            message += " Run it again with --leave-unreadable to finish without that segment."
+        }
+        throw fail(message, code: packageError)
     }
     let code = reportTake(studio, take: take?.take, armed: take?.armedTracks ?? [], result: nil)
     if code != 0 { throw ExitCode(code) }
@@ -78,6 +85,8 @@ extension StudioError {
         case .finalize(.readFailed(let file, let code)):
             "cannot read \(package)/\(file): \(String(cString: strerror(code)))."
         case .finalize(.writeFailed(let file, let status)): "cannot write \(package)/\(file) (status \(status))."
+        case .finalize(.segmentUnreadable(_, let file, let code)):
+            "cannot read \(package)/\(file): \(String(cString: strerror(code)))."
         case .segment(let segment, let fault): fault.message(segment: segment)
         case .microphoneAccess:
             "the terminal has no microphone access. Allow it in System Settings > Privacy & Security > Microphone."

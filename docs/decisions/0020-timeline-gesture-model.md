@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-26
 - Accepted: 2026-09-26, after plan gates 1 and 2 of the mouse-edits run. The gates added the 12 pt floor of the move zone, the lane change after half a lane, the name commit at the mouse-down, the order apply, source, draw at the mouse-up, the one geometry for the drawing and the hit test, and the Studio read only at the down and after the up.
+- Amended: 2026-09-26, code gate 1 of the mouse-edits run: the drag threshold of the time, `changedFrames` and the dirty rect, and the event paths of the budget.
 
 ## Context
 
@@ -22,7 +23,7 @@ Probes on 2026-09-26 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 
 ## Decision
 
-**Module.** A new library target `DirigibleTimeline` depends on `DirigibleCore` and imports Foundation only. It holds `Marks` and `TimelineScale` (moved from `DirigibleApp`), the lane and ruler geometry, `trimLimits`, the cursor kinds, and `TimelineGesture`. `DirigibleApp` depends on it. The views forward mouse events and map cursor kinds to `NSCursor`. `LaneGeometry` and `RulerGeometry` are the one geometry: the views and `LaneRenderer` draw with them and the hit test reads them, so the drawn box is the hit box. `trimLimits` and the hit types are internal; their tests use `@testable import DirigibleTimeline`. `ClipLane.index(holding:)` becomes public; it is a binary search and changes nothing.
+**Module.** A new library target `DirigibleTimeline` depends on `DirigibleCore` and imports Foundation only. It holds `Marks` and `TimelineScale` (moved from `DirigibleApp`), the lane and ruler geometry, `trimLimits`, the cursor kinds, and `TimelineGesture`. `DirigibleApp` depends on it. The views forward mouse events and map cursor kinds to `NSCursor`. `LaneGeometry` and `RulerGeometry` are the one geometry: the views and `LaneRenderer` draw with them and the hit test reads them, so the drawn box is the hit box. `changedFrames` gives the frames where two sessions, or two Marks, draw differently; the document view redraws only those columns. `trimLimits` and the hit types are internal; their tests use `@testable import DirigibleTimeline`. `ClipLane.index(holding:)` becomes public; it is a binary search and changes nothing.
 
 **One gesture model.** `TimelineGesture` is a value type with one state enum (idle, pressed, moving, trimming, ranging, markerDrag, pointDrag, dropped). `handle(_:_:)` takes a typed event (down, drag, up, escape, sessionChanged) and a context (the session, the Marks, the playhead, the geometry, `canEdit`), and returns typed effects (Marks, seek, current marker, commit). A point has a tagged space (`Place.lanes`, `Place.ruler`); only `LaneGeometry` converts points to frames. No public API returns a lane index.
 
@@ -32,7 +33,7 @@ Probes on 2026-09-26 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 
 **Rules.** The zones of a clip box: 4 pt inside each edge trims, the upper two thirds moves, the lower third and a gap make a range (0017). A box under 12 pt is all range, so a small drag at fit zoom cannot move a clip that the user cannot see. Shift or Command at the mouse-down makes a range press. A drag starts after 3 pt of movement. The time of a move, a trim, a flag, or a triangle changes only after 3 pt of horizontal movement, so the jitter of a click edits nothing. A drag back to its start is a click. A move goes to another lane after half a lane of vertical movement, when the layout of that lane matches, else it stays on its lane; it overwrites the clips under it (0003); its start is 0 or more. A trim stops at a neighbor, at the file, and at a length of 1 pt at the zoom (at least 1 frame). On the ruler, a triangle comes before a flag, and a flag before a seek. A flag takes x from its position - 3 pt to its position + 6 pt (the line and its box). A ruler mouse-down makes the lanes the first responder, so Esc reaches the gesture and not a focused text field. A triangle stops before the other point. The ruler menu adds a marker or a chapter at the clicked frame and deletes the flag under the pointer. Esc during a gesture cancels only the gesture. A clip label draws only in a box of 60 pt or more (L1).
 
-**Budget.** One drag event (the gesture step, the preview edit, and the draw of the lanes in view with labels at 2880 x 1200 px) takes 16 ms p95 or less in an optimized build: `make bench FILTER=MouseEventBenchmark`.
+**Budget.** One drag event (the gesture step, the preview edit, the SwiftUI update of new Marks, and the draw with labels at 2880 x 1200 px) takes 16 ms p95 or less in an optimized build, with one event per 60 Hz frame: `make bench FILTER=MouseEventBenchmark`. The measured paths, each at fit zoom and at the zoom of 60 pt boxes: a move of a clip narrower than the view, an end-edge trim, a flag drag, a range drag, an in-triangle drag, and a move of the last clip that makes the lanes wider. The full draw of the lanes in view is a separate case.
 
 **CLI (0011).** No command. The gesture changes window state and calls `move`, `trim`, `setMarker`, and `removeMarker`, which have `dirigible clip move`, `clip trim`, `marker set`, and `marker remove`.
 
@@ -42,7 +43,9 @@ Probes on 2026-09-26 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 - 0017 gets an amended line: a click on a clip body selects the clip and does not seek; a narrow clip has no label.
 - `MarksTests` moves to `DirigibleTimelineTests`. Test files that use `Marks` import `DirigibleTimeline`.
 - `ImportRuleTests` checks that `DirigibleTimeline` imports only Foundation and DirigibleCore.
-- A drag redraws all lanes in view at each event. A dirty rect of the old and new clip boxes is the upgrade path.
+- A drag event redraws only the columns that changed, at full height: the old and new boxes of the clips that a move or a trim changes (also the clips that a move cuts), the old and new line of a moved marker, and the lines and band part of the changed Marks points. A new width keeps the drawn pixels, and AppKit draws only the new columns. A change of another input (the tracks, their gain or layout, the files, the peaks, the zoom, the lane height) redraws the lanes in view.
+- A move of a clip wider than the view changes every column in view, so it redraws the lanes in view. On the Intel Mac of the run, it took 17.7 ms p95 at the zoom of 60 pt boxes, over the budget. A dirty rect of the changed lanes only is the upgrade path.
+- Invariant: `changedFrames` compares every Session value that the lanes draw. A new drawn value needs a compare there, else a drag event leaves an old drawing on the screen.
 
 ## Alternatives considered
 

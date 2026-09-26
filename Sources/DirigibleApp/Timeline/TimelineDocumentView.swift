@@ -55,7 +55,8 @@ final class TimelineDocumentView: NSView {
     }
 
     private let renderer = LaneRenderer()
-    /// The lane images that Core Animation can still show, with the last one, and their bytes.
+    /// The lane images that Core Animation can still show, with the last one, and their bytes, for
+    /// the image-limit tests (timeline-scroll criteria 3 and 4b).
     var liveImages: Int { renderer.liveBuffers().count }
     var liveImageBytes: Int { renderer.liveBuffers().bytes }
 

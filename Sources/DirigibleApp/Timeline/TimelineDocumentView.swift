@@ -24,9 +24,34 @@ final class TimelineDocumentView: NSView {
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
-            if let rect = changedColumns(from: oldValue) { setNeedsDisplay(rect) } else { needsDisplay = true }
+            if let rect = changedColumns(from: oldValue) { drawPart(rect) } else { drawAll() }
             resize()
         }
+    }
+
+    /// The rect of the partial draws since the last full draw. The layer keeps the image of a draw
+    /// until one later draw covers its whole rect, so each partial draw also covers the one before
+    /// it: a clip drag kept one image per event (code gate 1 item 1).
+    private var partial = NSRect.null
+
+    private func drawAll() {
+        partial = .null
+        needsDisplay = true
+    }
+
+    /// Draws `rect` and the partial draws before it. When that union is more than a quarter of the
+    /// lanes in view larger than `rect` (an edit far away, or wide new Marks), each next event would
+    /// draw it again. Then one full draw frees every image, and the next union starts empty.
+    private func drawPart(_ rect: NSRect) {
+        // Inputs that draw the same pixels give an empty rect: no draw.
+        guard !rect.isEmpty else { return }
+        let union = rect.union(partial)
+        let area = { (r: NSRect) in r.width * r.height }
+        // ponytail: a quarter of the lanes in view is a calibration knob; measure again on Apple Silicon (M8).
+        let shown = (scrollView?.shown ?? visibleRect).intersection(bounds)
+        if area(union) - area(rect) > area(shown) / 4 { return drawAll() }
+        partial = union
+        setNeedsDisplay(union)
     }
 
     /// The columns of the clips, markers, and Marks that changed from `old`, with 1 pt on each side

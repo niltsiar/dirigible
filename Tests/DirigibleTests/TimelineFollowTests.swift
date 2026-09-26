@@ -120,6 +120,32 @@ import os
         await model.close()
     }
 
+    /// Code gate 1 item 1: each event of a clip drag draws the columns of the old and the new box.
+    /// A draw that did not cover the draw before it kept the image of that draw alive, one per
+    /// event (about 300 images in a 5 s drag). c1 is x 0 to 1875 pt, wider than the view, so each
+    /// event draws the rows of lane 1 over the width of the view. After 60 events of 1 pt, 4 live
+    /// images or less.
+    @Test func aClipDragKeepsAFewImagesAlive() async throws {
+        let (model, _, lanesWindow, view) = try await lanes(seconds: 20)
+        let start = NSPoint(x: 100, y: 10)
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, start, in: view))
+        var live: [Int] = []
+
+        for n in 1...60 {
+            let point = NSPoint(x: start.x + Double(3 + n), y: start.y)
+            view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, point, in: view))
+            drawNow(lanesWindow)
+            live.append(view.lanes.liveImages)
+            // Frees the main actor for the other suites.
+            await Task.yield()
+        }
+
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: start.x + 63, y: start.y), in: view))
+        #expect(live.suffix(50).allSatisfy { $0 <= 4 }, "\(live)")
+        lanesWindow.close()
+        await model.close()
+    }
+
     /// Timeline-scroll criterion 4: a user scroll of 20 pt draws only its new columns, also after
     /// page turns.
     @Test func aSmallScrollDrawsOnlyTheNewColumns() async throws {

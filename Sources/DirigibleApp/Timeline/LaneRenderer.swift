@@ -64,11 +64,13 @@ final class LaneRenderer {
     /// 20 log10(v / 65535) for each magnitude v.
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
 
-    /// Draws the document points `x ..< x + width` of every lane at `scale` pixels per point.
-    func draw(_ inputs: LaneInputs, x: Double, width: Double, scale: Double) -> CGImage? {
+    /// Draws the document points `x ..< x + width` of the lanes `lanes` (all by default) at `scale`
+    /// pixels per point. Row 0 of the image is the top of the first of them.
+    func draw(_ inputs: LaneInputs, x: Double, width: Double, scale: Double, lanes: Range<Int>? = nil) -> CGImage? {
         let laneRows = max(1, Int((inputs.laneHeight * scale).rounded()))
         let tracks = inputs.session.tracks
-        prepare(columns: max(1, Int((width * scale).rounded())), rows: max(1, tracks.count * laneRows))
+        let drawn = (lanes ?? tracks.indices).clamped(to: tracks.indices)
+        prepare(columns: max(1, Int((width * scale).rounded())), rows: max(1, drawn.count * laneRows))
         guard let pixels, let geometry = inputs.geometry else { return nil }
         let pointFrames = inputs.scale.framesPerPoint
         let pixelFrames = pointFrames / scale
@@ -80,8 +82,9 @@ final class LaneRenderer {
         let visible = Frames(Int(max(0, first)))..<Frames(Int(first + Double(columns) * pixelFrames) + 1)
 
         // First the boxes of every lane, then the waveforms, so a span that passes its lane shows.
-        for (lane, track) in tracks.enumerated() {
-            let top = lane * laneRows
+        for lane in drawn {
+            let track = tracks[lane]
+            let top = (lane - drawn.lowerBound) * laneRows
             let bottom = top + laneRows - 1
             // Each pixel gets one background: the lane color only in the gaps between the clips.
             var gap = 0
@@ -119,8 +122,9 @@ final class LaneRenderer {
             fillRun()
             fill(LaneColors.lane, columns: gap..<columns, rows: top...bottom)
         }
-        for (lane, track) in tracks.enumerated() {
-            let bottom = (lane + 1) * laneRows - 1
+        for lane in drawn {
+            let track = tracks[lane]
+            let bottom = (lane - drawn.lowerBound + 1) * laneRows - 1
             for clip in track.clips.clips(overlapping: visible) {
                 // The columns whose first frame is in the clip: each column draws one waveform. A
                 // clip under one column can hold none (at fit zoom, 2,000 clips per lane drew each
@@ -164,8 +168,9 @@ final class LaneRenderer {
                 clamped(
                     column(selection.range.lowerBound).rounded(.up))..<clamped(
                     column(selection.range.upperBound).rounded(.up))
-            for (lane, track) in tracks.enumerated() where selection.tracks.contains(track.id) {
-                for row in lane * laneRows..<(lane + 1) * laneRows {
+            for lane in drawn where selection.tracks.contains(tracks[lane].id) {
+                let top = (lane - drawn.lowerBound) * laneRows
+                for row in top..<top + laneRows {
                     for column in band {
                         pixels[row * rowLength + column] = LaneColors.selected(pixels[row * rowLength + column])
                     }

@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import os
 
 /// The time of each lane draw, at the debug level: `log stream --level debug --predicate
@@ -65,19 +66,12 @@ final class TimelineDocumentView: NSView {
         playhead.position = CGPoint(x: frame / framesPerPoint, y: bounds.height / 2)
     }
 
-    /// The box of a clip in the document view.
+    /// The box of a clip in the document view: the box of `LaneGeometry` (decision 0020).
     func clipFrame(_ id: ClipID) -> NSRect? {
-        guard let inputs, let (clip, track) = inputs.session.clip(id),
+        guard let inputs, let geometry = inputs.geometry, let (clip, track) = inputs.session.clip(id),
             let lane = inputs.session.tracks.firstIndex(where: { $0.id == track })
         else { return nil }
-        return Self.box(of: clip, lane: lane, inputs)
-    }
-
-    private static func box(of clip: Clip, lane: Int, _ inputs: LaneInputs) -> NSRect {
-        let points = inputs.scale.framesPerPoint
-        return NSRect(
-            x: Double(clip.start.count) / points, y: Double(lane) * inputs.laneHeight,
-            width: Double(clip.length.count) / points, height: inputs.laneHeight)
+        return NSRect(geometry.box(of: clip, lane: lane))
     }
 
     override func viewDidChangeBackingProperties() {
@@ -111,15 +105,14 @@ final class TimelineDocumentView: NSView {
     /// left of the box. It reads only the clips in the frames of `rect`, lane by lane. A box under
     /// 60 pt gets no label: 12,000 labels at fit zoom took 330 ms per draw (probe L1, decision 0020).
     private func drawLabels(_ inputs: LaneInputs, in rect: NSRect) {
-        guard inputs.laneHeight > 14 else { return }
+        guard inputs.laneHeight > 14, let geometry = inputs.geometry else { return }
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor(white: 0.15, alpha: 1),
         ]
-        let points = inputs.scale.framesPerPoint
-        let frames = Frames(Int(rect.minX * points))..<Frames(Int((rect.maxX * points).rounded(.up)) + 1)
+        let frames = geometry.frame(at: rect.minX)..<geometry.frame(at: rect.maxX) + Frames(2)
         for (lane, track) in inputs.session.tracks.enumerated() {
             for clip in track.clips.clips(overlapping: frames) {
-                let box = Self.box(of: clip, lane: lane, inputs)
+                let box = NSRect(geometry.box(of: clip, lane: lane))
                 guard box.width >= 60, box.intersects(rect) else { continue }
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
                 let name = path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
@@ -130,7 +123,9 @@ final class TimelineDocumentView: NSView {
 
     // MARK: Mouse
 
-    private func frame(at x: Double) -> Frames { Frames(Int(max(0, x) * framesPerPoint)) }
+    private func frame(at x: Double) -> Frames { inputs?.geometry?.frame(at: x) ?? .zero }
+    /// The lane of the click and drag path of run 4b. Slice 3 of run 4d replaces this path with
+    /// the gesture model, which reads `LaneGeometry`.
     private func lane(at y: Double) -> Int { Int(max(0, y) / (inputs?.laneHeight ?? 1)) }
 
     override func mouseDown(with event: NSEvent) {
@@ -162,4 +157,8 @@ final class TimelineDocumentView: NSView {
         }
         self.down = nil
     }
+}
+
+extension NSRect {
+    init(_ rect: Rect) { self.init(x: rect.x, y: rect.y, width: rect.width, height: rect.height) }
 }

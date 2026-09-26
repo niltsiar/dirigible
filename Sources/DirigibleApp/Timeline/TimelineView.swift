@@ -89,8 +89,10 @@ final class TimelineScrollView: NSScrollView {
 
     func update(_ inputs: LaneInputs) {
         lanes.inputs = inputs
-        ruler.inputs = RulerInputs(
-            markers: inputs.session.markers, marks: inputs.marks, scale: inputs.scale, rate: inputs.session.sampleRate)
+        ruler.inputs = inputs.geometry.map {
+            RulerInputs(
+                markers: inputs.session.markers, marks: inputs.marks, geometry: $0, rate: inputs.session.sampleRate)
+        }
         fitOnce()
         viewMoved()
     }

@@ -6,15 +6,16 @@ import DirigibleTimeline
 struct RulerInputs: Equatable {
     var markers: [MarkerID: Marker]
     var marks: Marks
-    var scale: TimelineScale
+    var geometry: LaneGeometry
     var rate: Int
 }
 
 /// The time ruler over the lanes (decision 0017): time labels whose step follows the zoom, marker
 /// flags (orange) and chapter flags (purple) with their names, and the in (green) and out (red)
-/// triangles. Read-only in this run: a click seeks and does not change the Marks.
+/// triangles, drawn with the constants of `RulerGeometry` (decision 0020). A click seeks and does
+/// not change the Marks.
 final class TimelineRuler: NSRulerView {
-    static let thickness: CGFloat = 24
+    static let thickness = CGFloat(RulerGeometry.thickness)
     weak var model: SessionWindow?
     var inputs: RulerInputs? {
         didSet { if inputs != oldValue { needsDisplay = true } }
@@ -37,7 +38,7 @@ final class TimelineRuler: NSRulerView {
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let inputs, let visible = (scrollView as? TimelineScrollView)?.shown else { return }
-        let points = inputs.scale.framesPerPoint
+        let points = inputs.geometry.scale.framesPerPoint
         let rate = Double(max(1, inputs.rate))
         let labelFont: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular),
@@ -57,26 +58,28 @@ final class TimelineRuler: NSRulerView {
         }
         for marker in inputs.markers.values.sorted(by: { $0.position < $1.position }) {
             let color: NSColor = marker.kind == .marker ? .systemOrange : .systemPurple
-            let at = x(of: Double(marker.position.count) / points)
+            let at = x(of: inputs.geometry.x(of: marker.position))
             color.setFill()
             NSRect(x: at, y: 0, width: 1, height: Self.thickness).fill()
-            NSRect(x: at, y: 12, width: 6, height: 6).fill()
+            let box = RulerGeometry.flagReach.upperBound
+            NSRect(x: at, y: 12, width: box, height: box).fill()
             // A marker name is user data: it shows as typed.
             marker.name.draw(
                 at: NSPoint(x: at + 8, y: 10),
                 withAttributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: color])
         }
-        triangle(inputs.marks.inPoint, points, .systemGreen)
-        triangle(inputs.marks.outPoint, points, .systemRed)
+        triangle(inputs.marks.inPoint, inputs.geometry, .systemGreen)
+        triangle(inputs.marks.outPoint, inputs.geometry, .systemRed)
     }
 
-    private func triangle(_ frame: Frames?, _ points: Double, _ color: NSColor) {
+    private func triangle(_ frame: Frames?, _ geometry: LaneGeometry, _ color: NSColor) {
         guard let frame else { return }
-        let at = x(of: Double(frame.count) / points)
+        let at = x(of: geometry.x(of: frame))
+        let (half, band) = (RulerGeometry.triangleHalfWidth, RulerGeometry.triangleBand)
         let path = NSBezierPath()
-        path.move(to: NSPoint(x: at - 5, y: Self.thickness - 8))
-        path.line(to: NSPoint(x: at + 5, y: Self.thickness - 8))
-        path.line(to: NSPoint(x: at, y: Self.thickness))
+        path.move(to: NSPoint(x: at - half, y: band.lowerBound))
+        path.line(to: NSPoint(x: at + half, y: band.lowerBound))
+        path.line(to: NSPoint(x: at, y: band.upperBound))
         path.close()
         color.setFill()
         path.fill()
@@ -87,7 +90,7 @@ final class TimelineRuler: NSRulerView {
         // The corner over the track headers is left of the lanes: no seek.
         let x = Double(document.convert(event.locationInWindow, from: nil).x)
         guard x >= 0 else { return }
-        model?.rulerClick(at: Frames(Int(x * inputs.scale.framesPerPoint)))
+        model?.rulerClick(at: inputs.geometry.frame(at: x))
     }
 
     override func viewDidChangeBackingProperties() {

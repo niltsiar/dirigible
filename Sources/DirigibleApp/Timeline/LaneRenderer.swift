@@ -15,6 +15,9 @@ struct LaneInputs: Equatable {
     var scale: TimelineScale
     /// Points.
     var laneHeight: Double
+
+    /// The one point and frame conversion of the lanes (decision 0020).
+    var geometry: LaneGeometry? { LaneGeometry(scale: scale, laneHeight: laneHeight) }
 }
 
 /// The lane colors as pixels: 0xAARRGGBB in a little-endian word (BGRA in memory).
@@ -64,12 +67,13 @@ final class LaneRenderer {
         let laneRows = max(1, Int((inputs.laneHeight * scale).rounded()))
         let tracks = inputs.session.tracks
         prepare(columns: max(1, Int((width * scale).rounded())), rows: max(1, tracks.count * laneRows))
-        guard let pixels else { return nil }
+        guard let pixels, let geometry = inputs.geometry else { return nil }
         let pointFrames = inputs.scale.framesPerPoint
         let pixelFrames = pointFrames / scale
         let first = x * pointFrames
-        /// The column of a timeline frame, not clamped.
-        func column(_ frame: Frames) -> Double { (Double(frame.count) - first) / pixelFrames }
+        /// The column of a timeline frame, not clamped: the x of `LaneGeometry`, so a clip draws
+        /// where the hit test finds it.
+        func column(_ frame: Frames) -> Double { (geometry.x(of: frame) - x) * scale }
         func clamped(_ value: Double) -> Int { Int(min(max(value, 0), Double(columns))) }
         let visible = Frames(Int(max(0, first)))..<Frames(Int(first + Double(columns) * pixelFrames) + 1)
 

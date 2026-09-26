@@ -1,11 +1,11 @@
 import AppKit
 import DirigibleCore
-import DirigibleTimeline
 import Foundation
 import Testing
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
+@testable import DirigibleTimeline
 
 /// The timeline in a real session window (decision 0017, timeline-view criteria 16 and 19).
 @Suite(.serialized) @MainActor struct TimelineViewTests {
@@ -246,6 +246,43 @@ import Testing
 
         #expect(try darkPixels(view, in: NSRect(x: 0, y: 84, width: 59, height: 16)) == 0, "no label in 59 pt")
         #expect(try darkPixels(view, in: NSRect(x: 100, y: 84, width: 60, height: 16)) > 20, "a label in 60 pt")
+    }
+
+    /// Mouse-edits criterion 1 (plan gate 2 item 4): the renderer draws a clip where the hit test
+    /// finds it. At 512 frames per point and scale 2, the box of c2 on lane 2 is x 93.75 to
+    /// 281.25 pt, so its edges are half pixels (187.5 and 562.5 px). 1 px inside each edge is the
+    /// clip color, 1 px outside is the lane color, and the hit test agrees 0.5 pt from each edge.
+    @Test func aClipBoxDrawsWhereTheHitTestFindsIt() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 480_000))
+        for n in 1...3 { try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono) }
+        let clip = Clip(id: "c2", file: "f1", start: 48_000, offset: 0, length: 96_000)
+        try session.place(clip, on: "t2")
+        let inputs = LaneInputs(
+            session: session, peaks: [:], missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 512),
+            laneHeight: 100)
+        let geometry = try #require(LaneGeometry(scale: inputs.scale, laneHeight: inputs.laneHeight))
+        let box = geometry.box(of: clip, lane: 1)
+        let renderer = LaneRenderer()
+
+        _ = renderer.draw(inputs, x: 0, width: 300, scale: 2)
+
+        let (left, right, top, bottom) = (box.minX * 2, box.maxX * 2, Int(box.minY * 2), Int(box.maxY * 2))
+        #expect((left, right) == (187.5, 562.5))
+        #expect(renderer.pixel(Int(left + 1), 300) == LaneColors.clip, "1 px inside the left edge")
+        #expect(renderer.pixel(Int(left - 1), 300) == LaneColors.lane, "1 px outside the left edge")
+        #expect(renderer.pixel(Int(right - 1), 300) == LaneColors.clip, "1 px inside the right edge")
+        #expect(renderer.pixel(Int(right + 1), 300) == LaneColors.lane, "1 px outside the right edge")
+        #expect(renderer.pixel(300, top + 1) == LaneColors.clip && renderer.pixel(300, top - 1) == LaneColors.lane)
+        #expect(
+            renderer.pixel(300, bottom - 1) == LaneColors.clip && renderer.pixel(300, bottom + 1) == LaneColors.lane)
+        let middle = box.minY + 10
+        #expect(geometry.hit(box.minX + 0.5, middle, in: session) == .trim(clip, .start, lane: 1))
+        #expect(geometry.hit(box.minX - 0.5, middle, in: session) == .range(lane: 1))
+        #expect(geometry.hit(box.maxX - 0.5, middle, in: session) == .trim(clip, .end, lane: 1))
+        #expect(geometry.hit(box.maxX + 0.5, middle, in: session) == .range(lane: 1))
+        #expect(geometry.hit(150, box.minY - 0.5, in: session) == .range(lane: 0))
+        #expect(geometry.hit(150, box.maxY + 0.5, in: session) == .range(lane: 2))
     }
 
     /// The display link ends with the window: its target goes, and it ticks while it runs.

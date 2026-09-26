@@ -5,6 +5,14 @@
 # Usage: scripts/probe.sh <folder> <command> [args...]
 # The folder must be under .scratchpads/ of this repo or under /private/tmp.
 # The command runs with the folder as its working directory.
+#
+# A Swift build in a probe: pass `--disable-sandbox` to swift build, test, or package, because
+# SwiftPM cannot start its own sandbox inside this one. A build with two --arch values goes through
+# the Xcode build system, and its macro plugin server needs `-Xswiftc -disable-sandbox` too
+# ("swift-plugin-server produced malformed response"). For a package copy with a new
+# --scratch-path, copy .build/repositories and .build/checkouts from a build first, so SwiftPM does
+# not fetch from the network. The SwiftPM lines "failed storing manifest in cache" and "not
+# accessible or not writable" come from this sandbox, not from the build.
 set -euo pipefail
 
 [[ $# -ge 2 ]] || { echo "usage: scripts/probe.sh <folder> <command> [args...]" >&2; exit 2; }

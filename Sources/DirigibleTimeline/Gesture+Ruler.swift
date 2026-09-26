@@ -32,7 +32,7 @@ extension TimelineGesture {
             return []
         }
         var moved = original
-        let delta = context.geometry.frame(at: x) - press.frame
+        let delta = press.delta(to: x, context.geometry)
         moved.position = min(max(.zero, original.position + delta), .limit)
         var preview = press.base
         // The clamp keeps the position in range, and the name is the saved one, so no input reaches
@@ -45,7 +45,7 @@ extension TimelineGesture {
     /// A triangle drag event: the point at the down plus the movement. The in point stays before
     /// the out point and the out point after the in point, so the held triangle never changes.
     func pointDrag(_ press: Press, _ point: MarkPoint, _ x: Double, _ context: GestureContext) -> [GestureEffect] {
-        let delta = context.geometry.frame(at: x) - press.frame
+        let delta = press.delta(to: x, context.geometry)
         var marks = press.marks
         switch point {
         case .inPoint:

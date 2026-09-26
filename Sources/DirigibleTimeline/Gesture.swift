@@ -78,6 +78,12 @@ public struct TimelineGesture: Sendable {
         let shift, command: Bool
         let marks: Marks
         let base: Session
+
+        /// The frames from the down to `x`: zero under the threshold of horizontal movement, so the
+        /// jitter of a click or a drag to another lane never changes the time of an edit.
+        func delta(to x: Double, _ geometry: LaneGeometry) -> Frames {
+            abs(x - self.x) < TimelineGesture.threshold ? .zero : geometry.frame(at: x) - frame
+        }
     }
 
     /// A clip move: the target (track and start) and the session with the clip there.
@@ -157,8 +163,8 @@ public struct TimelineGesture: Sendable {
             defer { state = .idle }
             switch state {
             case .pressed(let press): return click(press, context)
-            case .moving(let press, let move): return commit(press, move)
-            case .trimming(let press, let trim): return commit(press, trim)
+            case .moving(let press, let move): return commit(press, move, context)
+            case .trimming(let press, let trim): return commit(press, trim, context)
             case .markerDrag(let press, let original, let preview): return commit(press, original, preview)
             case .ranging, .pointDrag: return effects
             case .idle, .dropped: return []
@@ -251,7 +257,7 @@ public struct TimelineGesture: Sendable {
                 return []
             }
             let base = press.base
-            let delta = geometry.frame(at: x) - press.frame
+            let delta = press.delta(to: x, geometry)
             let start = min(max(.zero, move.clip.start + delta), .limit - move.clip.length)
             // Half a lane of vertical movement changes the lane; a lane of another layout keeps it.
             let lane = min(
@@ -271,7 +277,7 @@ public struct TimelineGesture: Sendable {
                 state = .dropped
                 return []
             }
-            let delta = geometry.frame(at: x) - press.frame
+            let delta = press.delta(to: x, geometry)
             let edge = trim.edge == .start ? trim.clip.start : trim.clip.end
             let frame = min(max(edge + delta, trim.limits.lowerBound), trim.limits.upperBound)
             let range = trim.edge == .start ? frame..<trim.clip.end : trim.clip.start..<frame
@@ -314,15 +320,19 @@ public struct TimelineGesture: Sendable {
     }
 
     /// The mouse-up of a move: one commit when the target changed, with the Marks on the new place.
-    private func commit(_ press: Press, _ move: Move) -> [GestureEffect] {
-        guard (move.track, move.start) != (press.base.tracks[move.lane].id, move.clip.start) else { return [] }
+    /// A move back to the start is a click.
+    private func commit(_ press: Press, _ move: Move, _ context: GestureContext) -> [GestureEffect] {
+        guard (move.track, move.start) != (press.base.tracks[move.lane].id, move.clip.start) else {
+            return click(press, context)
+        }
         let marks = Marks(inPoint: move.start, outPoint: move.start + move.clip.length, tracks: [move.track])
         return [.commit(GestureCommit(base: press.base, result: move.preview, marks: marks, marker: nil))]
     }
 
     /// The mouse-up of a trim: one commit when the range changed, with the Marks on the new range.
-    private func commit(_ press: Press, _ trim: Trim) -> [GestureEffect] {
-        guard trim.range != trim.clip.range else { return [] }
+    /// An edge back at its start is a click.
+    private func commit(_ press: Press, _ trim: Trim, _ context: GestureContext) -> [GestureEffect] {
+        guard trim.range != trim.clip.range else { return click(press, context) }
         let marks = Marks(
             inPoint: trim.range.lowerBound, outPoint: trim.range.upperBound, tracks: [press.base.tracks[trim.lane].id])
         return [.commit(GestureCommit(base: press.base, result: trim.preview, marks: marks, marker: nil))]

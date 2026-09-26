@@ -86,6 +86,22 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 1: a click with 3 pt of jitter (0.5 pt right, 3 pt down) selects c1, and
+    /// the session and the undo stack do not change.
+    @Test func aClickWithJitterMovesNothing() async throws {
+        let (model, studio, window, view) = try await lanes()
+        let before = studio.session
+
+        try press(view, 100, 10)
+        try release(view, 100.5, 13)
+        await settle()
+
+        #expect(studio.session == before && !studio.canUndo)
+        #expect(model.timeline.marks == Marks(inPoint: 0, outPoint: 960_000, tracks: ["t1"]))
+        window.close()
+        await model.close()
+    }
+
     /// Criterion 3: during the drag the lanes draw c1 at 51,200 and the Studio keeps it at 0; the
     /// mouse-up makes one undo entry, the Marks take the new range, and the lanes draw the Studio
     /// session (gate 1 item 4).

@@ -144,7 +144,9 @@ private func recordTake(
 /// else 2.
 private func refusedCode(_ error: StudioError) -> Int32 {
     switch error {
-    case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .session, .segment:
+    case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .placementSpace,
+        .session,
+        .segment:
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded: packageError
     }

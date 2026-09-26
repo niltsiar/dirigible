@@ -148,6 +148,7 @@ enum L10n: String, CaseIterable {
     case errorChannelOutOfRange = "error.studio.channel.range"
     case errorChannelInUse = "error.studio.channel.in.use"
     case errorDiskLow = "error.studio.disk.low"
+    case errorPlacementSpace = "error.placement.space"
     case errorMicrophoneDenied = "error.microphone.denied"
     case errorMicrophoneRestricted = "error.microphone.restricted"
     case errorSessionName = "error.session.name"
@@ -190,6 +191,9 @@ enum L10n: String, CaseIterable {
         String(format: text, locale: .current, arguments: arguments)
     }
 
+    /// A byte count in the units of the Finder.
+    static func bytes(_ count: Int64) -> String { ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
+
     /// The text of a library error. The switches have no `default`, so a new error case does not
     /// compile until it has a key. `session` gives the track names; without it, the text shows
     /// the track ID.
@@ -203,6 +207,8 @@ enum L10n: String, CaseIterable {
         case .channelOutOfRange(let track): return errorChannelOutOfRange.format(name(track))
         case .channelInUse(let first, let second): return errorChannelInUse.format(name(first), name(second))
         case .diskLow: return errorDiskLow.text
+        case .placementSpace(let needed, let free):
+            return errorPlacementSpace.format(bytes(needed), bytes(free))
         case .microphoneAccess(.restricted): return errorMicrophoneRestricted.text
         case .microphoneAccess(.denied), .microphoneAccess(.notDetermined): return errorMicrophoneDenied.text
         case .session(let error): return message(for: error, name: name)

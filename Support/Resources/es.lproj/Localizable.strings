@@ -25,6 +25,7 @@
 "error.studio.channel.range" = "El dispositivo de entrada de la pista «%@» no tiene el canal elegido.";
 "error.studio.channel.in.use" = "Las pistas «%1$@» y «%2$@» usan el mismo canal de entrada.";
 "error.studio.disk.low" = "Queda menos de 1 GB libre en el disco de esta sesión.";
+"error.placement.space" = "Para colocar el audio hacen falta %1$@ libres. Ahora hay %2$@ libres.";
 "error.microphone.denied" = "Dirigible no tiene acceso al micrófono. Permite el acceso en Ajustes del Sistema.";
 "error.microphone.restricted" = "Un perfil de este Mac bloquea el acceso al micrófono.";
 "error.session.name" = "El nombre de una pista no puede tener caracteres de control.";

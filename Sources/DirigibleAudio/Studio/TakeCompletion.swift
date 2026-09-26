@@ -141,9 +141,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
             missingMedia: try? checkMedia(session, package: package))
     }
     // The disk rule of a finalize, for one segment.
-    guard environment.freeBytes(lock) >= wavBytes(of: [name], in: package) + diskMargin else {
-        return outcome(session, .diskLow)
-    }
+    let (needed, free) = (wavBytes(of: [name], in: package) + diskMargin, environment.freeBytes(lock))
+    guard free >= needed else { return outcome(session, .placementSpace(needed: needed, free: free)) }
     let placed: Session
     do throws(FinalizeError) {
         let anchor = try TakeAnchor.read(take: name.take, in: package)

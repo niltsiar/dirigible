@@ -327,7 +327,9 @@ struct PlaceSegmentTests {
         let studio = try await studio(free: free)
         let (session, clipFiles) = (studio.session, try clipBytes())
 
-        await #expect(throws: StudioError.diskLow) { try await studio.place(Self.segment) }
+        await #expect(throws: StudioError.placementSpace(needed: caf * 3 / 4 + diskMargin, free: free.value)) {
+            try await studio.place(Self.segment)
+        }
 
         #expect(studio.session == session)
         #expect(try clipBytes() == clipFiles)

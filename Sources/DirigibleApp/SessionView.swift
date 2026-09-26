@@ -200,8 +200,7 @@ private struct TakeBanner: View {
         if let error = studio.takeError { lines.append(L10n.message(for: error, session: studio.session)) }
         if model.canFinishLeavingUnreadable { lines.append(L10n.takePendingLeaveHint.text) }
         if let space = model.pendingSpace {
-            let bytes = { (count: Int64) in ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
-            lines.append(L10n.takePendingSpace.format(bytes(space.needed), bytes(space.free)))
+            lines.append(L10n.takePendingSpace.format(L10n.bytes(space.needed), L10n.bytes(space.free)))
         }
         return lines.joined(separator: "\n")
     }

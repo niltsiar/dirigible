@@ -137,6 +137,8 @@ private struct TakeBanner: View {
             }
         case .finalizing(let take):
             Banner(text: L10n.takeFinishing.format(take))
+        case .placing(let segment):
+            Banner(text: L10n.takeFinishing.format(segment.take))
         case .idle:
             if let pending = studio.pendingTake {
                 HStack {
@@ -184,7 +186,7 @@ private struct TakeBanner: View {
         }
         if let take = studio.recoveredTake { lines.append(L10n.takeRecovered.format(take.take)) }
         if !studio.unplacedSegments.isEmpty {
-            lines.append(L10n.takeUnplaced.format(studio.unplacedSegments.joined(separator: ", ")))
+            lines.append(L10n.takeUnplaced.format(studio.unplacedSegments.map(\.stem).joined(separator: ", ")))
         }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }

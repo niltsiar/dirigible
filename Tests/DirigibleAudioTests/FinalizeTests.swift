@@ -104,7 +104,7 @@ struct FinalizeTests {
 
         #expect(session.recording == nil)
         #expect(session.files.isEmpty)
-        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take1-1-1"])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session).map(\.stem) == ["take1-1-1"])
         #expect(FileManager.default.fileExists(atPath: package.capture.appending(path: "take1-1-1.caf").path))
     }
 

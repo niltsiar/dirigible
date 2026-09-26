@@ -67,7 +67,7 @@ struct FinalizeFaultTests {
         #expect(session.captures["take1-1-1"] == nil)
         #expect(session.files["take1-1-1"] == nil)
         #expect(session.track("t1")?.clips.isEmpty == true)
-        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take1-1-1"])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session).map(\.stem) == ["take1-1-1"])
         // Also after a conversion (a session refusal, a segment before the timeline): no WAV and
         // no temporary file of the unplaced segment stays in `Clips/`.
         #expect(
@@ -168,7 +168,7 @@ struct FinalizeFaultTests {
         #expect(try Data(contentsOf: package.url.appending(path: "Clips/\(path)")) == userBytes)
         #expect(session.track("t1")?.clips.isEmpty == true)
         #expect(session.files["user"]?.path == path)
-        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take1-1-1"])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session).map(\.stem) == ["take1-1-1"])
     }
 
     /// The WAV goes to `Clips/.<stem>.wav.tmp` and is renamed after its read-back, so a fault
@@ -245,6 +245,6 @@ struct FinalizeFaultTests {
 
         try package.segment(take: 2, samples: [], checkpoints: [])
         try package.segment(take: 3, samples: sine(seconds: 0.1, rate: 48_000))
-        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take3-1-1"])
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session).map(\.stem) == ["take3-1-1"])
     }
 }

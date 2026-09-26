@@ -116,3 +116,50 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     }
     return outcome(finalized, nil)
 }
+
+/// The placement of decision 0021, off the main actor, in the package that `lock` holds now: the
+/// disk check, the anchor read, the target, the per-segment finalize, and the save. A throw or a
+/// refusal gives the input session and the error; then `session.xml` does not change and no WAV
+/// of the segment is new.
+@concurrent nonisolated func completePlacement(
+    _ name: SegmentName, track: TrackID?, start: Frames?, of session: Session, lock: PackageLock,
+    environment: CaptureEnvironment, recordings: ActiveRecordings?, previous: URL
+) async -> TakeOutcome {
+    dispatchPrecondition(condition: .notOnQueue(.main))
+    let package: URL
+    do {
+        package = try lock.package()
+    } catch {
+        return TakeOutcome(session: session, error: .file(error), segmentsWithAudio: [], package: nil)
+    }
+    func outcome(_ session: Session, _ error: StudioError?) -> TakeOutcome {
+        let identity = packageIdentity(package)
+        if identity != previous { recordings?.set(identity, active: session.recording != nil, previous: previous) }
+        return TakeOutcome(
+            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity,
+            missingMedia: try? checkMedia(session, package: package))
+    }
+    // The disk rule of a finalize, for one segment.
+    guard environment.freeBytes(lock) >= wavBytes(of: [name], in: package) + diskMargin else {
+        return outcome(session, .diskLow)
+    }
+    let placed: Session
+    do throws(FinalizeError) {
+        let anchor = try TakeAnchor.read(take: name.take, in: package)
+        guard let target = Target(name, track: track, start: start, anchor: anchor) else {
+            return outcome(session, .segment(name, .noAlignment))
+        }
+        switch try placeSegment(name, to: target, of: session, in: package, readFault: environment.placeRead) {
+        case .success(let session): placed = session
+        case .failure(let fault): return outcome(session, .segment(name, fault))
+        }
+    } catch {
+        return outcome(session, .finalize(error))
+    }
+    do {
+        try placed.write(under: lock)
+    } catch {
+        return outcome(session, .file(error))
+    }
+    return outcome(placed, nil)
+}

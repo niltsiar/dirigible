@@ -72,7 +72,7 @@ struct StopPathTests {
         try studio.undo()
         #expect(studio.session.tracks.map(\.clips.count) == [0, 0])
         #expect(studio.session.recording == nil)
-        #expect(studio.unplacedSegments == ["take1-1-1", "take1-2-1"])
+        #expect(studio.unplacedSegments.map(\.stem) == ["take1-1-1", "take1-2-1"])
         try studio.redo()
         #expect(studio.unplacedSegments == [])
     }
@@ -219,7 +219,7 @@ struct StopPathTests {
         #expect(studio.takeError == nil)
         #expect(studio.session.tracks.map(\.clips.count) == [0, 1])
         #expect(try Session(contentsOf: url).recording == nil)
-        #expect(studio.unplacedSegments == ["take1-1-1"])
+        #expect(studio.unplacedSegments.map(\.stem) == ["take1-1-1"])
     }
 
     @Test func aStopWhoseSaveFailsKeepsTheTakePending() async throws {

@@ -50,6 +50,47 @@ struct FullDiskTests {
         #expect(studio.session.track("t1")?.clips.first?.length == 480_000)
     }
 
+    /// A placement on a volume with 400 KB free (a 1.44 MB WAV) throws the write error, keeps the
+    /// session, and leaves no WAV and no temporary WAV (decision 0021, plan gate 1 item 3). The disk
+    /// check reads 100 GB through the test seam, so the WAV write itself fails.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    @MainActor func aPlacementOnAFullImageLeavesNoPartialWAV() async throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "place.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try await offMainActor {
+            try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigiblePlace", image.path)
+            try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        }
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let package = volume.appending(path: "Show.dirigible")
+        try await offMainActor {
+            // 10 s of mono: a 1.92 MB CAF and a 1.44 MB WAV. The take ends, then its clip, its pool
+            // file, and its WAV go.
+            let source = try TakePackage()
+            try source.segment(samples: sine(seconds: 10, rate: 48_000))
+            var session = try finalizeTake(of: source.read(), in: source.url)
+            try session.clear(.zero..<Frames.limit, on: "t1")
+            try session.removeFile("take1-1-1")
+            try session.write(to: source.url)
+            try FileManager.default.removeItem(at: source.url.appending(path: "Clips/take1-1-1.wav"))
+            try FileManager.default.copyItem(at: source.url, to: package)
+            try Self.fill(volume, leaving: 400_000, with: volume.appending(path: "filler"))
+        }
+        let studio = try await Studio.open(package)
+        studio.environment = .test(TestHAL([]))
+        let session = studio.session
+
+        let error = await #expect(throws: StudioError.self) { try await studio.place(SegmentName(stem: "take1-1-1")!) }
+
+        guard case .finalize(.writeFailed(file: "Clips/take1-1-1.wav", _)) = error else {
+            Issue.record("Expected a WAV write error, got \(String(describing: error))")
+            return
+        }
+        #expect(studio.session == session)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: package.appending(path: "Clips").path) == [])
+    }
+
     /// The real shape of an I/O fault (probe 2026-09-24, probe-read-error.swift): the volume goes
     /// away before block 1, and AVAudioFile throws -40 with no errno. It is take-wide, not a bad file.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

@@ -17,6 +17,8 @@ public enum StudioError: Error, Hashable, Sendable {
     case session(SessionError)
     case file(SessionFileError)
     case finalize(FinalizeError)
+    /// A placement refused the segment (decision 0021). Nothing changed.
+    case segment(SegmentName, SegmentFault)
     /// The front end requests the access and starts again (decision 0013).
     case microphoneAccess(MicrophoneAccess)
     /// Less than 1 GB is free (decision 0004).

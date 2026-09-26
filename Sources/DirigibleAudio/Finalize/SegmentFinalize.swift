@@ -2,11 +2,41 @@ import AVFoundation
 import DirigibleCore
 import Foundation
 
+/// Where one segment goes (decision 0021). A placement resolves it before the CAF opens, so the
+/// finalize has no optional value and no index that can trap.
+enum Target: Hashable, Sendable {
+    /// At the recorded time of `recording` (the playhead, the host times, and the latency), on
+    /// `track`.
+    case aligned(Recording, track: TrackID)
+    /// The whole segment at `start` on `track`.
+    case fixed(track: TrackID, start: Frames)
+
+    /// `track` and `start` when the call gives them; the rest from `anchor`, the track of the arm
+    /// of `name` and the recorded time. Nil when a part is not known: no anchor, or an arm that
+    /// the anchor does not have.
+    init?(_ name: SegmentName, track: TrackID?, start: Frames?, anchor: Recording?) {
+        let armed = anchor.flatMap { name.arm <= $0.armedTracks.count ? $0.armedTracks[name.arm - 1] : nil }
+        guard let track = track ?? armed else { return nil }
+        if let start {
+            self = .fixed(track: track, start: start)
+        } else if let anchor {
+            self = .aligned(anchor, track: track)
+        } else {
+            return nil
+        }
+    }
+
+    var track: TrackID {
+        switch self {
+        case .aligned(_, let track), .fixed(let track, _): track
+        }
+    }
+}
+
 /// The finalize of one segment.
 struct SegmentFinalize {
     let name: SegmentName
-    let track: TrackID
-    let recording: Recording
+    let target: Target
     let package: URL
     let readFault: ReadFault?
     let blockFrames: Int
@@ -54,12 +84,19 @@ struct SegmentFinalize {
             return .failure(.badAudio)
         }
 
-        let latency = (Double(header.latency) * rate / choice.nominal).rounded()
-        let hostOffset =
-            (Double(nanos(from: recording.takeStartHostTimeNanos, to: header.firstHostTimeNanos)) * rate / 1e9)
-            .rounded()
-        guard let anchor = Int(exactly: Double(recording.playheadFrame.count) + hostOffset - latency) else {
-            return .failure(.badAudio)
+        let anchor: Int
+        switch target {
+        case .aligned(let recording, _):
+            let latency = (Double(header.latency) * rate / choice.nominal).rounded()
+            let hostOffset =
+                (Double(nanos(from: recording.takeStartHostTimeNanos, to: header.firstHostTimeNanos)) * rate / 1e9)
+                .rounded()
+            guard let aligned = Int(exactly: Double(recording.playheadFrame.count) + hostOffset - latency) else {
+                return .failure(.badAudio)
+            }
+            anchor = aligned
+        case .fixed(_, let start):
+            anchor = start.count
         }
         // A negative start moves into the file offset.
         let offset = max(0, -anchor)
@@ -83,7 +120,7 @@ struct SegmentFinalize {
                 Clip(
                     id: ClipID(id), file: FileID(id), start: Frames(max(0, anchor)), offset: Frames(offset),
                     length: Frames(length - offset)),
-                on: track)
+                on: target.track)
         } catch {
             return .failure(.session(error))
         }

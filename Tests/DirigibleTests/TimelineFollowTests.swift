@@ -154,6 +154,8 @@ import os
         for _ in 0..<6 {
             view.tick(playhead: view.origin + 0.95 * view.visibleFrames, playback: Self.forward)
             drawNow(lanesWindow)
+            // Frees the main actor for the other suites.
+            await Task.yield()
         }
         let draws = view.lanes.draws
 

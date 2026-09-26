@@ -118,6 +118,9 @@ struct StudioPlaybackTests {
 
     /// Record holds the Player stop in a gate. Space and L in the gap do nothing, and a settle
     /// in the gap waits for the take start (plan gate 1 item 3, gate 2 item 2). Both take paths.
+    /// The test waits until the settle waits for its turn of the package writes. 100 main-actor
+    /// yields each waited for a job of another suite, so under load the gate limit of 30 s passed
+    /// (the timeline-scroll run).
     @Test(arguments: [false, true])
     func noPlayStartsInTheRecordGap(seam: Bool) async throws {
         let gate = AsyncGate()
@@ -140,7 +143,7 @@ struct StudioPlaybackTests {
             await studio.settle()
             settled = true
         }
-        for _ in 0..<100 { await Task.yield() }
+        await until(limit: .seconds(10), "the settle waits for the take start") { studio.writesWaiting == 1 }
         await studio.perform(.playStop)
         await studio.perform(.forward)
         #expect(!settled, "settle returned before the take start")

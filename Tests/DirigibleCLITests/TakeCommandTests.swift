@@ -131,7 +131,38 @@ struct TakeCommandTests {
         #expect(try package.run("take", "finalize", "PKG") == CLIResult(status: 3, stdout: "", stderr: unplaced))
     }
 
+    /// Decision 0021 (criterion 19): an unreadable segment keeps the take pending until the user
+    /// gives --leave-unreadable; then the take ends without that segment.
+    @Test func theLeaveFlagFinishesTheTake() throws {
+        try segment(arm: 1)
+        try segment(arm: 2)
+        let caf = package.url.appending(path: "Capture/take1-1-1.caf")
+        chmod(caf.path, 0o000)
+        defer { chmod(caf.path, 0o644) }
+
+        #expect(
+            try package.run("take", "finalize", "PKG")
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: cannot read \(package.path)/Capture/take1-1-1.caf: Permission denied. "
+                        + "The take is still pending. "
+                        + "Run it again with --leave-unreadable to finish without that segment.\n"))
+        #expect(try info().take == 1)
+
+        #expect(
+            try package.run("take", "finalize", "PKG", "--leave-unreadable")
+                == CLIResult(
+                    status: 3, stdout: "take1-2-1\n",
+                    stderr: "Warning: Capture/take1-1-1.caf is not on the timeline.\n"
+                        + "Warning: track \"t1\" has no clip from take 1.\n"))
+        let after = try info()
+        #expect(after.clips == [[], ["take1-2-1"]])
+        #expect(after.take == nil)
+    }
+
     @Test func takeFinalizeHasHelp() throws {
-        #expect(try dirigible("take", "finalize", "--help").stdout.contains("USAGE: dirigible take finalize <package>"))
+        let help = try dirigible("take", "finalize", "--help").stdout
+        #expect(help.contains("USAGE: dirigible take finalize <package> [--leave-unreadable]"))
+        #expect(help.contains("--leave-unreadable"))
     }
 }

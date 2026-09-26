@@ -156,6 +156,7 @@ enum L10n: String, CaseIterable {
     case errorFileMoved = "error.file.moved"
     case errorFileExists = "error.file.exists"
     case errorFinalizeRead = "error.finalize.read"
+    case errorFinalizeUnreadable = "error.finalize.unreadable"
     case errorFinalizeWrite = "error.finalize.write"
     case errorSegmentNotUnplaced = "error.segment.not.unplaced"
     case errorSegmentNoSidecar = "error.segment.no.sidecar"
@@ -202,6 +203,8 @@ enum L10n: String, CaseIterable {
         case .file(let error): return message(for: error)
         case .finalize(.readFailed(let file, let errno)): return errorFinalizeRead.format(file, Int(errno))
         case .finalize(.writeFailed(let file, let status)): return errorFinalizeWrite.format(file, Int(status))
+        case .finalize(.segmentUnreadable(_, let file, let errno)):
+            return errorFinalizeUnreadable.format(file, Int(errno))
         case .export(let error): return message(for: error)
         case .exportYielded: return errorExportYielded.text
         case .segment(_, .session(let error)): return message(for: error, name: name)

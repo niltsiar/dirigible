@@ -188,12 +188,18 @@ import Observation
 
     /// Runs finalize again for the pending take (decision 0004). With no pending take, it does
     /// nothing. A success records one undo entry. A failure keeps the take pending and throws.
-    public func retryFinalize() async throws(StudioError) {
+    /// With `leavingUnreadable`, a segment that throws `.segmentUnreadable` stays unplaced and
+    /// the take ends without it (decision 0021). Only a choice of the user sets it.
+    public func retryFinalize(leavingUnreadable: Bool = false) async throws(StudioError) {
         try checkIdle()
         guard let take = pendingTake?.take else { return }
         transport = .finalizing(take: take)
         let error = await serialized { () async -> StudioError? in
-            do throws(StudioError) { try await complete(take) } catch { return error }
+            do throws(StudioError) {
+                try await complete(take, leavingUnreadable: leavingUnreadable)
+            } catch {
+                return error
+            }
             return nil
         }
         if let error { throw error }
@@ -325,10 +331,11 @@ import Observation
     }
 
     /// Finalize, the marker, and the save off the main actor, then the outcome here.
-    private func complete(_ take: Int) async throws(StudioError) {
+    private func complete(_ take: Int, leavingUnreadable: Bool = false) async throws(StudioError) {
         transport = .finalizing(take: take)
         await environment.beforeFinalize()
-        let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: url)
+        let outcome = await completeTake(
+            of: session, lock: lock, recordings: recordings, previous: url, leavingUnreadable: leavingUnreadable)
         takeError = outcome.error
         if outcome.error == nil { takeEnded(outcome.session) }
         try apply(outcome)

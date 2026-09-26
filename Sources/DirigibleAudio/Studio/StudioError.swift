@@ -23,6 +23,9 @@ public enum StudioError: Error, Hashable, Sendable {
     case microphoneAccess(MicrophoneAccess)
     /// Less than 1 GB is free (decision 0004).
     case diskLow
+    /// A placement needs `needed` free bytes, the WAV and the 1 GB margin, and the volume has
+    /// `free` (decision 0021). Nothing changed.
+    case placementSpace(needed: Int64, free: Int64)
     /// The export failed or was cancelled (decision 0019).
     case export(ExportError)
     /// A take in another studio ended the export (decision 0019). No file was made.

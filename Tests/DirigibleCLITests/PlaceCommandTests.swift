@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @testable import DirigibleAudio
+@testable import DirigibleCLI
 
 /// `dirigible capture place` (decision 0021, criteria 17, 18, 20, and the CLI part of 29).
 ///
@@ -214,5 +215,15 @@ struct PlaceCommandTests {
         #expect(
             help.stdout.contains("USAGE: dirigible capture place <package> <segment> [--track <track>] [--at <at>]"))
         #expect(help.stdout.contains("take anchor"))
+    }
+
+    /// Code gate 1 item 4: the disk refusal of a placement gives its own rule in bytes, not the
+    /// 1 GB rule of a take start. No seam gives the binary a low disk, so the test reads the
+    /// message of the error.
+    @Test func aDiskRefusalGivesTheNeededAndFreeBytes() {
+        let error = StudioError.placementSpace(needed: 1_073_813_824, free: 500_000)
+        #expect(
+            error.message(package: "Show.dirigible")
+                == "the placement needs 1073813824 bytes free on the disk of Show.dirigible; 500000 bytes are free.")
     }
 }

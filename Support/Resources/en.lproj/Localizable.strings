@@ -25,6 +25,7 @@
 "error.studio.channel.range" = "The input device of track “%@” does not have the selected channel.";
 "error.studio.channel.in.use" = "Tracks “%1$@” and “%2$@” use the same input channel.";
 "error.studio.disk.low" = "Less than 1 GB is free on the disk of this session.";
+"error.placement.space" = "The placement needs %1$@ free. %2$@ is free now.";
 "error.microphone.denied" = "Dirigible has no access to the microphone. Allow the access in System Settings.";
 "error.microphone.restricted" = "A profile on this Mac blocks the access to the microphone.";
 "error.session.name" = "A track name cannot contain control characters.";

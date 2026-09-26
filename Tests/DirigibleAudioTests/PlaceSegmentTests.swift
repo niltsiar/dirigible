@@ -203,6 +203,40 @@ struct PlaceSegmentTests {
         #expect(try clipBytes() == clipFiles)
     }
 
+    enum BadTarget: String, CaseIterable, CustomTestStringConvertible {
+        case missingTrack, layoutMismatch
+        var testDescription: String { rawValue }
+    }
+
+    /// Code gate 1 item 3: the target track is checked after the sidecar read, before the
+    /// conversion, with the error that the session gives. A hook at the first block read shows
+    /// that no conversion runs.
+    @Test(arguments: BadTarget.allCases)
+    @MainActor func aBadTargetIsRefusedBeforeTheConversion(target: BadTarget) async throws {
+        var track: TrackID?
+        let error: SessionError
+        switch target {
+        case .missingTrack:
+            (track, error) = ("t9", .unknownTrack("t9"))
+        case .layoutMismatch:
+            try package.segment(
+                arm: 1, header: TakePackage.header(channels: 2), samples: sine(seconds: 2, rate: 48_000, channels: 2))
+            error = .layoutMismatch("t1", .file("take1-1-1"))
+        }
+        let studio = try await studio()
+        let converted = LockedBox<Bool>()
+        studio.environment.placeRead = ReadFault(stem: "take1-1-1", block: 0) { converted.value = true }
+        let session = studio.session
+
+        await #expect(throws: StudioError.segment(Self.segment, .session(error))) {
+            try await studio.place(Self.segment, on: track)
+        }
+
+        #expect(converted.value == nil, "no block read")
+        #expect(studio.session == session)
+        #expect(try temporaryFiles() == [])
+    }
+
     // MARK: Criteria 10 to 13
 
     /// Control of the entry: undo makes the segment unplaced again, and a redo places it again.

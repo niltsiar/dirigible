@@ -258,12 +258,13 @@ struct PlaceSegmentTests {
         #expect(studio.unplacedSegments == [])
     }
 
-    /// A gate in the block read holds the conversion. Every entry point that changes the session
-    /// or the package is busy; the placement goes on and ends with the clip when the gate opens.
+    /// A gate before the conversion holds the placement. Every entry point that changes the
+    /// session or the package is busy; the placement goes on and ends with the clip when the gate
+    /// opens.
     @Test @MainActor func aPlacementIsBusyUntilItEnds() async throws {
         let studio = try await studio()
-        let gate = Gate()
-        studio.environment.placeRead = ReadFault(stem: "take1-1-1", block: 0) { gate.waitOnce() }
+        let gate = AsyncGate()
+        studio.environment.beforeFinalize = { await gate.wait() }
         let out = package.folder.url.appending(path: "mix.caf")
         let source = try #require(ExportSource(range: 0..<4_800))
 
@@ -369,8 +370,8 @@ struct PlaceSegmentTests {
         let silence = await studio.renderOffline(frames: 4_800)
         #expect(silence.joined().allSatisfy { $0 == 0 }, "control: no clip sounds before the placement")
         #expect(studio.playback != .stopped)
-        let gate = Gate()
-        studio.environment.placeRead = ReadFault(stem: "take1-1-1", block: 0) { gate.waitOnce() }
+        let gate = AsyncGate()
+        studio.environment.beforeFinalize = { await gate.wait() }
 
         let placing = Task { try await studio.place(Self.segment) }
         await gate.entered()

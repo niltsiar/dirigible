@@ -120,12 +120,12 @@ struct StudioPlaybackTests {
     /// in the gap waits for the take start (plan gate 1 item 3, gate 2 item 2). Both take paths.
     @Test(arguments: [false, true])
     func noPlayStartsInTheRecordGap(seam: Bool) async throws {
-        let gate = Gate()
+        let gate = AsyncGate()
         let studio = try await studio()
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         _ = await studio.renderOffline(frames: 4800)
-        studio.environment.beforePlayerStop = { gate.waitOnce() }
+        studio.environment.beforePlayerStop = { await gate.wait() }
 
         let take = Task { @MainActor in
             if seam {

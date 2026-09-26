@@ -63,6 +63,7 @@ extension Studio {
         transport = .placing(segment)
         let error = await serialized { () async -> StudioError? in
             _ = await takePlayhead(stopped, nil)  // The Player stops.
+            await environment.beforeFinalize()
             let outcome = await completePlacement(
                 segment, track: track, start: start, of: session, lock: lock, environment: environment,
                 recordings: recordings, previous: url)

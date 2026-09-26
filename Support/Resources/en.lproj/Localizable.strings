@@ -45,7 +45,7 @@
 "error.segment.no.sidecar" = "The timing data of the audio %@ is missing or damaged, so it cannot be placed.";
 "error.segment.bad.audio" = "The audio %@ is damaged and cannot be converted.";
 "error.segment.before.start" = "The audio %@ ends before the start of the timeline.";
-"error.segment.no.alignment" = "The recorded time of the audio %@ is not known.";
+"error.segment.no.alignment" = "The recorded time of the audio %@ is not known. Select one track, then use Place at Playhead on Selected Track.";
 "error.segment.wav.in.use" = "Another file of the session uses the clip name of the audio %@.";
 "error.export.exists" = "An item with this name exists. The export did not replace it.";
 "error.export.rate" = "AAC cannot be exported at %lld Hz. Select 44.1 kHz or 48 kHz.";

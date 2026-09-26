@@ -7,7 +7,8 @@ import Testing
 /// specifiers (decision 0010). `AppBundleTests` checks the tables in the built bundle.
 struct LocalizationTests {
     @Test func bothTablesMatchTheKeys() throws {
-        let problems = tableProblems(en: try table("en"), es: try table("es"), keys: L10n.allCases.map(\.rawValue))
+        let problems = tableProblems(
+            en: try stringsTable("en"), es: try stringsTable("es"), keys: L10n.allCases.map(\.rawValue))
         #expect(problems == [])
     }
 
@@ -25,13 +26,14 @@ struct LocalizationTests {
     @Test func checkerFindsAnEmptyValue() {
         #expect(tableProblems(en: ["a": "A"], es: ["a": ""], keys: ["a"]) == ["es: no value for a"])
     }
+}
 
-    private func table(_ language: String) throws -> [String: String] {
-        let url = URL(filePath: #filePath).deletingLastPathComponent()
-            .appending(path: "../../Support/Resources/\(language).lproj/Localizable.strings").standardized
-        let data = try Data(contentsOf: url)
-        return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String])
-    }
+/// The `Localizable.strings` table of `language` in `Support/Resources`.
+func stringsTable(_ language: String) throws -> [String: String] {
+    let url = URL(filePath: #filePath).deletingLastPathComponent()
+        .appending(path: "../../Support/Resources/\(language).lproj/Localizable.strings").standardized
+    let data = try Data(contentsOf: url)
+    return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String])
 }
 
 /// The problems of two tables against the keys, in a stable order: per table, the missing or

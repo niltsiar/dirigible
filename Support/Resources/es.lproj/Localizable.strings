@@ -45,7 +45,7 @@
 "error.segment.no.sidecar" = "Faltan los datos de tiempo del audio %@ o están dañados, así que no se puede colocar.";
 "error.segment.bad.audio" = "El audio %@ está dañado y no se puede convertir.";
 "error.segment.before.start" = "El audio %@ termina antes del inicio de la línea de tiempo.";
-"error.segment.no.alignment" = "No se conoce el momento en que se grabó el audio %@.";
+"error.segment.no.alignment" = "No se conoce el momento en que se grabó el audio %@. Selecciona una pista y usa Colocar en el cursor en la pista seleccionada.";
 "error.segment.wav.in.use" = "Otro archivo de la sesión usa el nombre de clip del audio %@.";
 "error.export.exists" = "Ya existe un elemento con este nombre. La exportación no lo reemplazó.";
 "error.export.rate" = "AAC no se puede exportar a %lld Hz. Elige 44,1 kHz o 48 kHz.";

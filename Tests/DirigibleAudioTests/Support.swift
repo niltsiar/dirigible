@@ -231,6 +231,7 @@ final class Gate: @unchecked Sendable {
     private var used = false
     private var inside = false
 
+    @available(*, noasync, message: "It blocks a thread of the concurrency pool. Use AsyncGate in async code.")
     func waitOnce() {
         guard
             lock.withLock({ () -> Bool in

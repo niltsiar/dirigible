@@ -8,8 +8,24 @@ public enum FinalizeError: Error, Hashable, Sendable {
     /// example EACCES, EIO, EMFILE). A CAF or WAV read that fails with an errno (from the error,
     /// or else from a POSIX read of the file: `ioErrno`) is this case, not an unplaced segment.
     case readFailed(file: String, errno: Int32)
-    /// `Clips/` or a WAV cannot be made, written, flushed, or closed (for example ENOSPC, EACCES).
+    /// `Clips/` or a WAV cannot be made, written, flushed, closed, or renamed (for example ENOSPC,
+    /// EACCES, EISDIR).
     case writeFailed(file: String, status: Int32)
+}
+
+/// Why one segment stays unplaced (decision 0021). The take finalize does not throw it: the other
+/// segments are placed and the take ends.
+public enum SegmentFault: Error, Hashable, Sendable {
+    /// The sidecar is missing or refused, so the timing of the segment is not known.
+    case noSidecar
+    /// The CAF has no frames, is not a CAF, does not match its sidecar, or does not convert whole.
+    case badAudio
+    /// The whole segment is before frame 0 of the timeline.
+    case beforeTimeline
+    /// This pool file has the path of the WAV of the segment, so the finalize does not write it.
+    case wavInUse(FileID)
+    /// The session refuses the capture, the file, or the clip.
+    case session(SessionError)
 }
 
 /// A test seam: `before` runs before the read of block `block` (0-based) of one segment, and an
@@ -46,7 +62,7 @@ func finalizeTake(
         let segment = SegmentFinalize(
             name: name, track: recording.armedTracks[name.arm - 1], recording: recording, package: package,
             readFault: readFault, blockFrames: blockFrames)
-        if let placed = try segment.place(on: result) { result = placed }
+        if case .success(let placed) = try segment.place(on: result) { result = placed }
     }
     let clips = package.appending(path: clipsFolderName)
     if result.files.count > session.files.count, let code = fullFlush(path: clips.path) {
@@ -151,11 +167,14 @@ private struct SegmentFinalize {
 
     var caf: String { "\(captureFolderName)/\(name.stem).caf" }
     var sidecar: String { "\(captureFolderName)/\(name.stem).sidecar" }
-    var wav: String { "\(clipsFolderName)/\(name.stem).wav" }
+    /// The WAV path in `Clips/`, and the path of the WAV until its read-back ends.
+    var wavName: String { "\(name.stem).wav" }
+    var temporaryWAVName: String { ".\(name.stem).wav.tmp" }
+    var wav: String { "\(clipsFolderName)/\(wavName)" }
 
-    /// The session with the capture, the file, and the clip of the segment added. Nil when the
-    /// segment has no frames, or has a fault of its own and stays unplaced.
-    func place(on session: Session) throws(FinalizeError) -> Session? {
+    /// The session with the capture, the file, and the clip of the segment added, or the fault of
+    /// the segment that keeps it unplaced.
+    func place(on session: Session) throws(FinalizeError) -> Result<Session, SegmentFault> {
         // Held open, so a read error with no errno can be checked on the same file.
         // A listed CAF that is gone is take-wide too: the package moved during the finalize.
         let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_CLOEXEC)
@@ -166,27 +185,34 @@ private struct SegmentFinalize {
             input = try AVAudioFile(forReading: package.appending(path: caf))
         } catch {
             if let code = ioErrno(of: error, file: descriptor) { throw .readFailed(file: caf, errno: code) }
-            return nil
+            return .failure(.badAudio)
         }
-        guard input.length > 0, let sidecar = try readSidecar(),
-            input.fileFormat.sampleRate == sidecar.header.nominalRate,
+        guard input.length > 0 else { return .failure(.badAudio) }
+        guard let sidecar = try readSidecar() else { return .failure(.noSidecar) }
+        guard input.fileFormat.sampleRate == sidecar.header.nominalRate,
             Int(input.fileFormat.channelCount) == sidecar.header.channelCount
-        else { return nil }
+        else { return .failure(.badAudio) }
+        // A user file with a stem path (`dirigible file add`) is never overwritten.
+        if let user = poolFile(at: wavName, in: session) ?? poolFile(at: temporaryWAVName, in: session) {
+            return .failure(.wavInUse(user))
+        }
         let header = sidecar.header
         let choice = RateChoice(header: header, checkpoints: sidecar.checkpoints, frames: Int(input.length))
         let rate = Double(session.sampleRate)
-        guard let length = try convert(input, file: descriptor, from: choice.source, to: rate) else { return nil }
+        guard let length = try convert(input, file: descriptor, from: choice.source, to: rate) else {
+            return .failure(.badAudio)
+        }
 
         let latency = (Double(header.latency) * rate / choice.nominal).rounded()
         let hostOffset =
             (Double(nanos(from: recording.takeStartHostTimeNanos, to: header.firstHostTimeNanos)) * rate / 1e9)
             .rounded()
         guard let anchor = Int(exactly: Double(recording.playheadFrame.count) + hostOffset - latency) else {
-            return nil
+            return .failure(.badAudio)
         }
         // A negative start moves into the file offset.
         let offset = max(0, -anchor)
-        guard length > offset else { return nil }
+        guard length > offset else { return .failure(.beforeTimeline) }
 
         let id = name.stem
         var copy = session
@@ -208,9 +234,9 @@ private struct SegmentFinalize {
                     length: Frames(length - offset)),
                 on: track)
         } catch {
-            return nil
+            return .failure(.session(error))
         }
-        return copy
+        return .success(copy)
     }
 
     /// Nil when the sidecar is missing or refused.
@@ -219,8 +245,9 @@ private struct SegmentFinalize {
     }
 
     /// Reads `input` (open at `descriptor` too) in blocks, converts it from `source` to `rate`
-    /// through one converter when the rates differ, and writes the WAV. Returns the frame count of
-    /// the WAV, or nil for a bad CAF, a converter that stops before the end of the stream, or a WAV
+    /// through one converter when the rates differ, and writes the WAV to its temporary name. After
+    /// the flush and the read-back, a rename gives it the WAV name. Returns the frame count of the
+    /// WAV, or nil for a bad CAF, a converter that stops before the end of the stream, or a WAV
     /// length that does not read back.
     func convert(
         _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double
@@ -232,7 +259,10 @@ private struct SegmentFinalize {
             let written = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: capacity)
         else { return nil }
         try createClipsFolder(in: package)
-        let url = package.appending(path: wav)
+        let url = package.appending(path: "\(clipsFolderName)/\(temporaryWAVName)")
+        // Each exit but the rename unlinks it, so a fault leaves no partial WAV under either name.
+        var renamed = false
+        defer { if !renamed { unlink(url.path) } }
         let writer = try ClipWriter(url: url, file: wav, format: output)
         let reader = BlockReader(
             input: input, descriptor: descriptor, buffer: read, fault: readFault?.stem == name.stem ? readFault : nil)
@@ -281,9 +311,23 @@ private struct SegmentFinalize {
             if let code = ioErrno(of: error, file: clip) { throw .readFailed(file: wav, errno: code) }
             return nil
         }
+        guard rename(url.path, package.appending(path: wav).path) == 0 else {
+            throw .writeFailed(file: wav, status: errno)
+        }
+        renamed = true
         return length
     }
 
+}
+
+/// The pool file at `path` in `Clips/`. The compare drops "." and empty components and ignores
+/// case, as the default APFS volume does. `ponytail:` a path compare only; add an inode compare if
+/// a user links pool files.
+private func poolFile(at path: String, in session: Session) -> FileID? {
+    func key(_ path: String) -> String {
+        path.split(separator: "/").filter { $0 != "." }.joined(separator: "/").lowercased()
+    }
+    return session.files.values.first { key($0.path) == key(path) }?.id
 }
 
 /// `mkdir` of `Clips/` only: a package path that moved gives ENOENT and no new package folder

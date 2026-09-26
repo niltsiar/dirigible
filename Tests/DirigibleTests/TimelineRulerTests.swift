@@ -86,6 +86,87 @@ import Testing
         await model.close()
     }
 
+    /// The lanes scrolled so that the document x 300 is at the left edge of the lanes in view: m1
+    /// (x 200) and the in point (x 100) are under the track headers.
+    func scrolledLanes() async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView) {
+        let (model, studio, window, view) = try await lanes()
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 51_200)))
+        view.scroll(toFrame: 153_600)
+        drawNow(window)
+        try #require(view.shown.minX == 300, "\(view.shown)")
+        return (model, studio, window, view)
+    }
+
+    /// The pixels of the ruler, left of the x of `shown.minX`: the part over the track headers.
+    func headerPart(of view: TimelineScrollView) throws -> [NSColor?] {
+        let ruler = view.ruler
+        let left = ruler.convert(NSPoint(x: view.shown.minX, y: 0), from: view.lanes).x
+        let bitmap = try #require(ruler.bitmapImageRepForCachingDisplay(in: ruler.bounds))
+        ruler.cacheDisplay(in: ruler.bounds, to: bitmap)
+        let scale = Double(bitmap.pixelsWide) / ruler.bounds.width
+        return (0..<Int(left * scale)).flatMap { x in (0..<bitmap.pixelsHigh).map { bitmap.colorAt(x: x, y: $0) } }
+    }
+
+    /// Timeline-scroll criterion 6: the time ruler is as wide as the window, also over the track
+    /// headers. After a scroll, the ticks, labels, flags, and triangles of the times under the
+    /// headers drew there, so the track seemed to go under the headers. The part over the headers
+    /// keeps the pixels that it has at scroll 0, where no time is left of the lanes.
+    @Test func theRulerDrawsNothingOverTheHeaders() async throws {
+        let (model, studio, window, view) = try await lanes()
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 51_200)))
+        drawNow(window)
+        let empty = try headerPart(of: view)
+        try #require(empty.count > 1000, "the ruler part over the headers")
+
+        view.scroll(toFrame: 153_600)
+        drawNow(window)
+        let part = try headerPart(of: view)
+
+        #expect(view.shown.minX == 300, "m1 and the in point are under the headers: \(view.shown)")
+        #expect(part.count == empty.count)
+        #expect(zip(part, empty).allSatisfy { $0 == $1 }, "a tick, a label, a flag, or a triangle over the headers")
+        window.close()
+        await model.close()
+    }
+
+    /// Timeline-scroll criterion 7: a press on the ruler over the track headers does nothing: no
+    /// seek, no flag drag, no menu. The marks, the markers, and the playhead stay.
+    @Test func aRulerPressOverTheHeadersDoesNothing() async throws {
+        let (model, studio, window, view) = try await scrolledLanes()
+        let (session, marks) = (studio.session, model.timeline.marks)
+
+        try press(view, 250)
+        try release(view, 250)
+        try press(view, 201)
+        try drag(view, 260)
+        try release(view, 260)
+        await Task { @MainActor in }.value
+
+        #expect(studio.playhead == 960_000, "no seek")
+        #expect(studio.session == session && model.timeline.marks == marks)
+        model.undo()
+        #expect(studio.session.markers.isEmpty && !studio.canUndo, "only the undo entry of the fixture marker")
+        #expect(view.ruler.menu(for: try rulerMouse(.rightMouseDown, 250, 10, in: view)) == nil, "no menu")
+        window.close()
+        await model.close()
+    }
+
+    /// Timeline-scroll criterion 7: a flag drag that goes over the track headers goes on, and the
+    /// release there moves the marker to frame 0 (the gesture clamps it).
+    @Test func aFlagDragOverTheHeadersGoesOn() async throws {
+        let (model, studio, window, view) = try await lanes()
+
+        try press(view, 201)
+        try drag(view, 100)
+        try drag(view, -100)
+        try release(view, -100)
+        await Task { @MainActor in }.value
+
+        #expect(studio.session.markers["m1"]?.position == 0)
+        window.close()
+        await model.close()
+    }
+
     /// Criterion 11: a click on a flag makes it the current marker and seeks to it.
     @Test func aFlagClickMakesItTheCurrentMarkerAndSeeks() async throws {
         let (model, studio, window, view) = try await lanes()

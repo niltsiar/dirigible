@@ -39,6 +39,12 @@ final class TimelineRuler: NSRulerView {
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let inputs, let visible = (scrollView as? TimelineScrollView)?.shown else { return }
+        // The ruler is as wide as the window, also over the track headers. It draws only over the
+        // lanes in view, so the times under the headers do not show there (timeline-scroll symptom 2).
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let left = x(of: Double(visible.minX))
+        NSRect(x: left, y: bounds.minY, width: max(0, bounds.maxX - left), height: bounds.height).clip()
         let points = inputs.geometry.scale.framesPerPoint
         let rate = Double(max(1, inputs.rate))
         let labelFont: [NSAttributedString.Key: Any] = [
@@ -97,10 +103,17 @@ final class TimelineRuler: NSRulerView {
         return .ruler(x: x, y: Double(convert(event.locationInWindow, from: nil).y))
     }
 
+    /// True for a place over the lanes in view. The part of the ruler over the track headers shows
+    /// no time, so a press or a menu there does nothing; a drag that started over the lanes goes on.
+    private func overLanes(_ place: Place) -> Bool {
+        guard case .ruler(let x, _) = place, let shown = timeline?.shown else { return false }
+        return x >= Double(shown.minX)
+    }
+
     /// The lanes become the first responder, so Esc reaches the gesture also when a track name
     /// field had the focus (plan gate 2 item 1).
     override func mouseDown(with event: NSEvent) {
-        guard let timeline, let place = place(event) else { return }
+        guard let timeline, let place = place(event), overLanes(place) else { return }
         window?.makeFirstResponder(timeline.lanes)
         let flags = event.modifierFlags
         timeline.mouse(.down(place, shift: flags.contains(.shift), command: flags.contains(.command)))
@@ -127,8 +140,14 @@ final class TimelineRuler: NSRulerView {
                 rect: .zero, options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect], owner: self))
     }
 
-    override func mouseMoved(with event: NSEvent) { showCursor(event) }
-    override func cursorUpdate(with event: NSEvent) { showCursor(event) }
+    override func mouseMoved(with event: NSEvent) { hoverCursor(event) }
+    override func cursorUpdate(with event: NSEvent) { hoverCursor(event) }
+
+    /// The arrow over the track headers, else the cursor of the gesture.
+    private func hoverCursor(_ event: NSEvent) {
+        guard let place = place(event), overLanes(place) else { return NSCursor.arrow.set() }
+        showCursor(event)
+    }
 
     private func showCursor(_ event: NSEvent) {
         guard let place = place(event), let kind = timeline?.cursor(at: place) else { return }
@@ -138,9 +157,11 @@ final class TimelineRuler: NSRulerView {
     // MARK: Menu
 
     /// Add Marker and Add Chapter at the clicked frame, and Delete Marker on a flag (mouse-edits
-    /// criterion 13). No menu during a gesture or left of the lanes.
+    /// criterion 13). No menu during a gesture or over the track headers.
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard case .ruler(let x, _) = place(event), let target = timeline?.menuTarget(at: x) else { return nil }
+        guard let place = place(event), overLanes(place), case .ruler(let x, _) = place,
+            let target = timeline?.menuTarget(at: x)
+        else { return nil }
         let menu = NSMenu()
         menu.autoenablesItems = false
         let items: [(L10n, Selector, Any, Bool)] = [

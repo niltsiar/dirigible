@@ -71,6 +71,13 @@ struct SegmentFinalize {
         guard input.fileFormat.sampleRate == sidecar.header.nominalRate,
             Int(input.fileFormat.channelCount) == sidecar.header.channelCount
         else { return .failure(.badAudio) }
+        // The errors of `Session.place`, before the conversion, so a bad target converts nothing.
+        guard let track = session.track(target.track) else {
+            return .failure(.session(.unknownTrack(target.track)))
+        }
+        guard ChannelLayout(channelCount: sidecar.header.channelCount) == track.layout else {
+            return .failure(.session(.layoutMismatch(track.id, .file(FileID(name.stem)))))
+        }
         // A user file with a stem path (`dirigible file add`) is never overwritten.
         if let user = poolFile(at: wavName, in: session) ?? poolFile(at: temporaryWAVName, in: session) {
             return .failure(.wavInUse(user))

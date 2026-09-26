@@ -25,17 +25,13 @@ extension SessionWindow {
             switch effect {
             case .marks(let marks): timeline.marks = marks
             case .seek(let frame): Task { await studio.perform(.seek(.frame(frame))) }
+            case .currentMarker(let id): timeline.marker = id
             case .commit(let commit):
                 guard edit({ session in commit.apply(to: &session) }) == true else { continue }
                 if let marks = commit.marks { timeline.marks = marks }
+                if let marker = commit.marker { timeline.marker = marker }
             }
         }
-    }
-
-    /// A click on the ruler seeks. The Marks do not change.
-    func rulerClick(at frame: Frames) {
-        guard let studio else { return }
-        Task { await studio.perform(.seek(.frame(frame))) }
     }
 }
 

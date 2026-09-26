@@ -102,7 +102,7 @@ final class TimelineScrollView: NSScrollView {
         viewMoved()
     }
 
-    /// A mouse event of the lanes. At the mouse-down, the typed track names commit, and the
+    /// A mouse event of the lanes or the ruler. At the mouse-down, the typed track names commit, and the
     /// source takes the Studio session. A drag event does not read the Studio: a change reaches the
     /// gesture through `update`. At the mouse-up: the effects, then the Studio session, then the draw,
     /// so the lanes never draw the session of the mouse-down after a commit.
@@ -127,10 +127,17 @@ final class TimelineScrollView: NSScrollView {
         return true
     }
 
-    /// The cursor of the gesture at a lane point.
+    /// The cursor of the gesture at a lane or ruler point.
     func cursor(at place: Place) -> TimelineCursor {
         guard let source, let context = context(source) else { return .arrow }
         return gesture.cursor(at: place, context)
+    }
+
+    /// The frame and the flag of the ruler menu at the document x `x`. Nil during a gesture, so a
+    /// right-click does not open a menu over a drag (mouse-edits Q10).
+    func menuTarget(at x: Double) -> (frame: Frames, marker: MarkerID?)? {
+        guard !gesture.isActive, let source, let context = context(source) else { return nil }
+        return TimelineGesture.menuTarget(at: x, context)
     }
 
     private func context(_ inputs: LaneInputs) -> GestureContext? {

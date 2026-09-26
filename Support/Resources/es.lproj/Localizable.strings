@@ -12,6 +12,9 @@
 "menu.record.start" = "Grabar";
 "menu.record.stop" = "Detener";
 "menu.record.retry" = "Reintentar la finalización";
+"menu.record.leave.unreadable" = "Terminar sin el audio ilegible";
+"menu.unplaced.place" = "Colocar";
+"menu.unplaced.place.playhead" = "Colocar en el cursor en la pista seleccionada";
 "menu.record.monitor" = "Monitorizar entradas";
 
 /* Errores */
@@ -36,7 +39,7 @@
 "error.file.moved" = "La sesión se movió a otro disco o se eliminó. No se guardó nada.";
 "error.file.exists" = "Ya existe un elemento con este nombre. Elige otro nombre.";
 "error.finalize.read" = "No se puede leer el audio grabado en %1$@ (error %2$lld).";
-"error.finalize.unreadable" = "No se puede leer el audio grabado en %1$@ (error %2$lld). Puede terminar la toma sin él.";
+"error.finalize.unreadable" = "El disco no puede leer el audio grabado en %1$@ (error %2$lld).";
 "error.finalize.write" = "No se puede escribir el clip %1$@ (error %2$lld).";
 "error.segment.not.unplaced" = "El audio %@ ya está en la línea de tiempo o no está disponible.";
 "error.segment.no.sidecar" = "Faltan los datos de tiempo del audio %@ o están dañados, así que no se puede colocar.";
@@ -88,7 +91,9 @@
 "track.dropped" = "Tramas perdidas: %lld";
 "take.recording" = "Grabando la toma %lld";
 "take.finishing" = "Terminando la toma %lld…";
+"take.placing" = "Colocando %@…";
 "take.pending" = "La toma %lld no está terminada.";
+"take.pending.leave.hint" = "Si el disco no puede volver a leer este audio, termina la toma sin él. El archivo se queda en el paquete y puedes colocarlo más tarde.";
 "take.pending.space" = "Para terminar hacen falta %1$@ libres. Ahora hay %2$@ libres.";
 "take.ended" = "La toma %lld está terminada.";
 "take.ended.disk.low" = "La toma %lld se detuvo porque el disco está casi lleno.";
@@ -96,7 +101,8 @@
 "take.gap.write.failed" = "La pista «%@» tiene un hueco: falló una escritura.";
 "take.dropped" = "La pista «%1$@» perdió %2$lld tramas.";
 "take.recovered" = "Se recuperó la toma %lld.";
-"take.unplaced" = "Audio que no está en ninguna pista: %@";
+"take.unplaced" = "Audio que no está en ninguna pista:";
+"take.unplaced.redo" = "Rehacer recupera este audio.";
 "banner.save.error" = "El último cambio no está guardado. %@";
 
 /* Transporte (decisión 0016) */

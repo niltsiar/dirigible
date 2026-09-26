@@ -174,6 +174,26 @@ import Testing
         await window.close()
     }
 
+    /// Timeline-scroll criterion 8: the lanes show a horizontal scroller at all times, under the
+    /// lanes. An overlay scroller (the preferred style of a Mac with only a trackpad) shows only
+    /// during a scroll, so the user found no way to scroll. On a Mac whose preferred style is
+    /// legacy, a removed style line cannot fail this test.
+    @Test func theLanesShowAHorizontalScroller() async throws {
+        let (window, _, view) = try await openWindow(tracks: 3)
+        for _ in 0..<4 { window.run(.zoomIn) }
+        view.layoutSubtreeIfNeeded()
+        let scroller = try #require(view.horizontalScroller)
+
+        #expect(view.scrollerStyle == .legacy)
+        #expect(!scroller.isHidden)
+        #expect(scroller.knobProportion < 1, "the zoom makes the lanes wider than the view")
+        let bar = scroller.convert(scroller.bounds, to: nil)
+        let lanes = view.lanes.convert(view.shown, to: nil)
+        let frame = view.convert(view.bounds, to: nil)
+        #expect(bar.minY >= frame.minY && bar.maxY <= lanes.minY + 0.5, "the bar \(bar) is under the lanes \(lanes)")
+        await window.close()
+    }
+
     /// Code gate 1 item 1: a new window with more lanes than fit shows the top of lane 1 and
     /// frame 0 at the top left of the lanes in view, not under the rulers. The clip view gets the
     /// ruler insets after the first fit.

@@ -226,6 +226,10 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
     return (model, studio)
 }
 
+/// The width of a legacy scroller. The lanes show their scrollers at all times, so a fixture
+/// window adds it to keep the size of the lanes in view.
+@MainActor let scrollerWidth = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+
 /// A window with lanes of 1440 x 400 pt (the track headers take their width on the left), with
 /// the lanes of `model` at 512 frames per point and 100 pt lanes, drawn once. It is on screen only with `onScreen` (a display link needs a screen); the other
 /// tests keep the window server load of the suite low.
@@ -233,7 +237,9 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
     -> (NSWindow, TimelineScrollView)
 {
     let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 1440 + TrackHeaderRuler.width, height: 400), styleMask: [.borderless],
+        contentRect: NSRect(
+            x: 0, y: 0, width: 1440 + TrackHeaderRuler.width + scrollerWidth, height: 400 + scrollerWidth),
+        styleMask: [.borderless],
         backing: .buffered,
         defer: false)
     window.isReleasedWhenClosed = false

@@ -65,7 +65,8 @@ import Testing
         studio.environment.saveSession = { _, _ in url }
         try studio.edit { s throws(SessionError) in s = session }
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1440 + TrackHeaderRuler.width, height: 660),
+            contentRect: NSRect(
+                x: 0, y: 0, width: 1440 + TrackHeaderRuler.width + scrollerWidth, height: 660 + scrollerWidth),
             styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         let view = TimelineScrollView(model: model, studio: studio)

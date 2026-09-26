@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import SwiftUI
 
 /// The lanes, the ruler, and the track headers of a session window (decision 0017). SwiftUI gives

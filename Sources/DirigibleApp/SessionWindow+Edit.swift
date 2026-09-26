@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 
 /// The edit commands of the session window (decision 0018). Each command reads the selection once
 /// and calls `edit` at most once, so it is one undo entry. During a take `edit` does nothing.

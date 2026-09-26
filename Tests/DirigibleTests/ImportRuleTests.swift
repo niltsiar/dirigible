@@ -1,20 +1,29 @@
 import Foundation
 import Testing
 
-/// DirigibleCore imports only Foundation (decision 0002). SwiftPM cannot stop a target from
-/// importing a system framework, so this test reads the sources.
+/// DirigibleCore imports only Foundation (decision 0002), and DirigibleTimeline imports only
+/// Foundation and DirigibleCore (decision 0020). SwiftPM cannot stop a target from importing a
+/// system framework, so this test reads the sources.
 struct ImportRuleTests {
     @Test func coreImportsOnlyFoundation() throws {
-        let core = URL(filePath: #filePath).deletingLastPathComponent()
-            .appending(path: "../../Sources/DirigibleCore").standardized
-        let files = try #require(FileManager.default.enumerator(at: core, includingPropertiesForKeys: nil))
+        try checkImports(of: "DirigibleCore", allowed: ["Foundation"])
+    }
+
+    @Test func timelineImportsOnlyFoundationAndCore() throws {
+        try checkImports(of: "DirigibleTimeline", allowed: ["Foundation", "DirigibleCore"])
+    }
+
+    private func checkImports(of target: String, allowed: Set<String>) throws {
+        let folder = URL(filePath: #filePath).deletingLastPathComponent()
+            .appending(path: "../../Sources/\(target)").standardized
+        let files = try #require(FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil))
             .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" }
-        #expect(!files.isEmpty, "No Swift files in \(core.path)")
+        #expect(!files.isEmpty, "No Swift files in \(folder.path)")
 
         for file in files {
             let lines = try String(contentsOf: file, encoding: .utf8).split(separator: "\n")
             for line in lines {
-                if let module = importedModule(String(line)), module != "Foundation" {
+                if let module = importedModule(String(line)), !allowed.contains(module) {
                     Issue.record("\(file.lastPathComponent) imports \(module)")
                 }
             }

@@ -2,6 +2,7 @@ import Accelerate
 import CoreGraphics
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import Foundation
 
 /// Every input that the lane pixels read (decision 0017), except the backing scale. The document

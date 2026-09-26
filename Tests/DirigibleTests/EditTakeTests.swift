@@ -1,4 +1,5 @@
 import DirigibleCore
+import DirigibleTimeline
 import Foundation
 import Testing
 

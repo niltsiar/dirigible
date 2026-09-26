@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import CoreAudio
 import DirigibleCore
+import DirigibleTimeline
 import Foundation
 import Testing
 import os

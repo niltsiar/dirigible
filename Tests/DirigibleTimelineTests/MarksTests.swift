@@ -1,7 +1,7 @@
 import DirigibleCore
 import Testing
 
-@testable import DirigibleApp
+@testable import DirigibleTimeline
 
 /// The Marks rules of decision 0017 (timeline-view criterion 12): one literal case per row of the
 /// Marks table in the run design.

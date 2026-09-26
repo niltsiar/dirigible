@@ -23,6 +23,10 @@ expect() {
 expect '0:killed' 'the test fails on the mutant' 'a = 1' 'a = 2'
 expect '1:survived' 'the test passes on the mutant' 'b = 1' 'b = 2'
 expect '2:BUILD FAILED' 'the mutant does not build' 'a = 1' 'a 1'
+# A build piped into another command: the build fails, the pipe ends with a command that passes.
+build="grep -q 'a =' '$file' | cat"
+expect '2:BUILD FAILED' 'a piped build that fails' 'a = 1' 'a 1'
+build="grep -q 'a =' '$file'"
 expect '2:mutate' 'the old text is not in the file' 'c = 1' 'c = 2'
 expect '2:mutate' 'the old text is in the file twice' ' = 1' ' = 2'
 

@@ -46,9 +46,10 @@ final class TimelineDocumentView: NSView {
         // Inputs that draw the same pixels give an empty rect: no draw.
         guard !rect.isEmpty else { return }
         let union = rect.union(partial)
-        let area = { (r: NSRect) in r.width * r.height }
-        // ponytail: a quarter of the lanes in view is a calibration knob; measure again on Apple Silicon (M8).
+        // The limit counts only the part in view of each rect (code gate 2 item 2).
         let shown = (scrollView?.shown ?? visibleRect).intersection(bounds)
+        let area = { (r: NSRect) in r.intersection(shown).width * r.intersection(shown).height }
+        // ponytail: a quarter of the lanes in view is a calibration knob; measure again on Apple Silicon (M8).
         if area(union) - area(rect) > area(shown) / 4 { return drawAll() }
         partial = union
         setNeedsDisplay(union)

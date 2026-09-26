@@ -300,6 +300,32 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 2 item 2 of the timeline-scroll run: the union limit counts only the lanes in view.
+    /// 8 lanes of 100 pt, 376 pt in view: new Marks of x 400 to 600 draw x 399 to 602 on all
+    /// lanes, and the first event of a drag of c1 (x 200 to 300) draws x 199 to 351. In view the
+    /// union adds 251 x 376 pt, under a quarter of the view (1440 x 94 pt), so the event draws the
+    /// union. With the rows out of view it added 251 x 800 pt, and the event drew all lanes.
+    @Test func theUnionLimitCountsOnlyTheLanesInView() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 8, seconds: 20), app: app)
+        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        let (window, view) = standaloneLanes(model, studio)
+        try #require(view.shown.minY == 0 && view.shown.height == 376, "\(view.shown)")
+        let all = Set((1...8).map { TrackID("t\($0)") })
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 204_800, outPoint: 307_200, tracks: all)))
+        drawNow(window)
+        #expect(view.lanes.drawnRect == NSRect(x: 399, y: 0, width: 203, height: 376), "the Marks")
+        try press(view, 250, 10)
+
+        try drag(view, 300, 10)
+        drawNow(window)
+
+        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 403, height: 376), "the union, not all lanes")
+        try release(view, 300, 10)
+        window.close()
+        await model.close()
+    }
+
     /// Code gate 1 item 2: a drag of a clip wider than the view redraws the rows of its lanes only.
     /// c1 is x 0 to 1875 pt on lane 1 of 3; a drag to lane 2 redraws the rows of lanes 1 and 2.
     @Test func aWideClipDragRedrawsOnlyTheRowsOfItsLanes() async throws {

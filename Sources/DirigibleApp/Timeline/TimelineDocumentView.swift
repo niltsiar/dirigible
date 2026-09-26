@@ -16,14 +16,32 @@ final class TimelineDocumentView: NSView {
     let playhead = CALayer()
     /// The calls of `draw(_:)`, for the redraw tests (criteria 10 and 24).
     private(set) var draws = 0
-    /// Every drawn input except the backing scale. A new value draws only when it is not equal.
+    /// The rect of the last draw, for the dirty-rect test of a drag event.
+    private(set) var drawnRect = NSRect.zero
+    /// Every drawn input except the backing scale. A new value draws only when it is not equal, and
+    /// only the columns of the changed clips when nothing else changed (a drag event).
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
-            needsDisplay = true
+            if let rect = changedColumns(from: oldValue) { setNeedsDisplay(rect) } else { needsDisplay = true }
             resize()
         }
     }
+
+    /// The columns of the clips that changed from `old`, at full height, with 1 pt on each side for
+    /// the rounding of the renderer. Nil when another input changed.
+    private func changedColumns(from old: LaneInputs?) -> NSRect? {
+        guard var old, let inputs, let geometry = inputs.geometry,
+            let frames = changedFrames(from: old.session, to: inputs.session)
+        else { return nil }
+        old.session = inputs.session
+        guard old == inputs else { return nil }
+        let (x0, x1) = (
+            geometry.x(of: frames.lowerBound).rounded(.down), geometry.x(of: frames.upperBound).rounded(.up)
+        )
+        return NSRect(x: x0 - 1, y: 0, width: x1 - x0 + 2, height: bounds.height)
+    }
+
     private let renderer = LaneRenderer()
 
     override init(frame: NSRect) {
@@ -82,6 +100,7 @@ final class TimelineDocumentView: NSView {
         guard !dirtyRect.isEmpty, let inputs, let context = NSGraphicsContext.current?.cgContext else { return }
         let started = ContinuousClock.now
         draws += 1
+        drawnRect = dirtyRect
         let (x0, x1) = (dirtyRect.minX.rounded(.down), dirtyRect.maxX.rounded(.up))
         let height = Double(inputs.session.tracks.count) * inputs.laneHeight
         let scale = window?.backingScaleFactor ?? 2
@@ -99,10 +118,13 @@ final class TimelineDocumentView: NSView {
     }
 
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom
-    /// left of the box. It reads only the clips in the frames of `rect`, lane by lane. A box under
-    /// 60 pt gets no label: 12,000 labels at fit zoom took 330 ms per draw (probe L1, decision 0020).
+    /// left of the box, cut at the box end. It reads only the clips in the frames of `rect`, lane by
+    /// lane. A box under 60 pt gets no label: 12,000 labels at fit zoom took 330 ms per draw (probe
+    /// L1, decision 0020).
     private func drawLabels(_ inputs: LaneInputs, in rect: NSRect) {
-        guard inputs.laneHeight > 14, let geometry = inputs.geometry else { return }
+        guard inputs.laneHeight > 14, let geometry = inputs.geometry,
+            let context = NSGraphicsContext.current?.cgContext
+        else { return }
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor(white: 0.15, alpha: 1),
         ]
@@ -113,7 +135,11 @@ final class TimelineDocumentView: NSView {
                 guard box.width >= 60, box.intersects(rect) else { continue }
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
                 let name = path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
+                // Only in its box: the dirty rect of a drag event holds the boxes it changes.
+                context.saveGState()
+                context.clip(to: box)
                 name.draw(at: NSPoint(x: box.minX + 4, y: box.maxY - 14), withAttributes: attributes)
+                context.restoreGState()
             }
         }
     }

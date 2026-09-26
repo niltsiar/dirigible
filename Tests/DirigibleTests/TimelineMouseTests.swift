@@ -216,4 +216,26 @@ import Testing
         #expect(studio.session == before && !studio.canUndo, "two undo entries")
         await model.close()
     }
+
+    /// Decision 0020, the dirty rect: a drag event redraws only the columns of the clips that it
+    /// changes, at full height. c1 is x 200 to 300 pt; a drag of 50 pt makes it 250 to 350, so the
+    /// event redraws x 200 to 350 with 1 pt on each side, not the 1440 pt in view. A change of
+    /// another input (the Marks) draws all.
+    @Test func aDragEventRedrawsOnlyTheClipsItChanges() async throws {
+        let (model, studio, window, view) = try await lanes()
+        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        view.update(laneInputs(model, studio))
+        drawNow(window)
+        try press(view, 250, 10)
+
+        try drag(view, 300, 10)
+        drawNow(window)
+
+        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 200))
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t2"])))
+        drawNow(window)
+        #expect(view.lanes.drawnRect.width > 1440, "new Marks draw the lanes, not only the changed clips")
+        window.close()
+        await model.close()
+    }
 }

@@ -312,10 +312,12 @@ import Testing
         await model.close()
     }
 
-    /// Code gate 1 item 2: the lanes keep their pixels at a new width, so a wider view draws only
-    /// the new columns. At 2048 frames per point the lanes are as wide as the view (1440 pt); a view
-    /// 160 pt wider makes them 1600 pt wide.
-    @Test func aWiderViewDrawsOnlyTheNewColumns() async throws {
+    /// Phase 7 of the mouse-edits run: a new width redraws the lanes in view. With the redraw
+    /// policy `onSetNeedsDisplay`, AppKit drew only the new columns, and on screen the old columns
+    /// showed the old pixels scaled to the new width (a strip of stripes at the left after a move
+    /// past the session end). At 2048 frames per point the lanes are as wide as the view (1440 pt);
+    /// a view 160 pt wider makes them 1600 pt wide.
+    @Test func aNewWidthRedrawsTheLanesInView() async throws {
         let (model, studio, window, view) = try await lanes()
         var inputs = laneInputs(model, studio)
         inputs.scale = TimelineScale(framesPerPoint: 2048)
@@ -330,7 +332,7 @@ import Testing
 
         #expect(view.lanes.frame.width == 1600)
         #expect(view.lanes.draws == draws + 1, "one draw")
-        #expect(view.lanes.drawnRect == NSRect(x: 1440, y: 0, width: 160, height: 200))
+        #expect(view.lanes.drawnRect.minX == 0 && view.lanes.drawnRect.width >= 1600, "\(view.lanes.drawnRect)")
         window.close()
         await model.close()
     }

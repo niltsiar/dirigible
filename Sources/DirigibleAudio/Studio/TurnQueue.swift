@@ -5,6 +5,9 @@
     private var serving = 0
     private var waiting: [Int: CheckedContinuation<Void, Never>] = [:]
 
+    /// Tests only: the callers that wait for their turn.
+    var waiters: Int { waiting.count }
+
     /// Takes the next ticket now. The caller waits for it later and ends its turn.
     func ticket() -> Int {
         defer { tickets += 1 }

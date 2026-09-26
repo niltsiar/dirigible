@@ -358,6 +358,9 @@ import Observation
     /// task of the caller, so no actor hop comes between its end and the caller.
     func serialized<T>(_ body: () async -> T) async -> T { await writes.run(body) }
 
+    /// Tests only: the calls that wait for their turn of the package writes.
+    var writesWaiting: Int { writes.waiters }
+
     /// Writes the session off the main actor, after the previous package write. It takes its
     /// ticket now, so a later start or finalize writes after it. A save that waits for its turn
     /// writes the session of that turn, so a later call adds no write: a held Nudge key makes at

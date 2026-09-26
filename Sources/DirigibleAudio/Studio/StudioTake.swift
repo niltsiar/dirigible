@@ -46,7 +46,8 @@ extension Studio {
     }
 
     /// Places an unplaced segment (decision 0021): on the track of its arm at its recorded time
-    /// (the take anchor), or on `track` and at `start` when given. A running play stops first, as
+    /// (the take anchor), or on `track` and at `start` when given. A negative `start` throws
+    /// `.segment(segment, .session(.frameOutOfRange))`. A running play stops first, as
     /// at a take start. The conversion and the save run off the main actor; meanwhile every other
     /// entry point throws `.busy`. A success records one undo entry and returns the clip ID. A
     /// throw changes nothing.
@@ -55,6 +56,9 @@ extension Studio {
     {
         try checkIdle()
         guard unplacedSegments.contains(segment) else { throw .segment(segment, .notUnplaced) }
+        // The per-segment finalize moves a negative aligned start into the offset; a given start
+        // is a timeline position, so it cannot be negative.
+        if let start, start < .zero { throw .segment(segment, .session(.frameOutOfRange)) }
         let stopped = endPlayForTake()
         transport = .placing(segment)
         let error = await serialized { () async -> StudioError? in

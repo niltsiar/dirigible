@@ -57,4 +57,22 @@ struct ChangedFramesTests {
         #expect(changedFrames(from: added, to: session) == 300_000..<300_001, "a removed marker")
         #expect(changedFrames(from: session, to: both) == 1000..<120_000)
     }
+
+    /// Code gate 1 item 2: a range or a triangle drag redraws the columns where the Marks draw
+    /// differently, not the lanes in view. With the same tracks, only the lines of the changed points
+    /// and the band between their old and new frames change; with other tracks, both bands change.
+    @Test func newMarksChangeTheFramesOfTheirChangedPointsAndBand() throws {
+        let session = try Fixture.session()
+        let marks = Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"])
+        var moved = marks
+        moved.inPoint = 52_800
+        var other = marks
+        other.tracks = ["t1", "t2"]
+
+        #expect(changedFrames(from: marks, to: moved, in: session) == 48_000..<52_801)
+        #expect(changedFrames(from: moved, to: marks, in: session) == 48_000..<52_801)
+        #expect(changedFrames(from: marks, to: other, in: session) == 48_000..<192_000)
+        #expect(changedFrames(from: Marks(), to: marks, in: session) == 48_000..<192_001)
+        #expect(changedFrames(from: marks, to: marks, in: session) == .zero ..< .zero)
+    }
 }

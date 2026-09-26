@@ -10,9 +10,7 @@ import Foundation
 public func changedFrames(from old: Session, to new: Session) -> Range<Frames>? {
     guard old.tracks.count == new.tracks.count, old.files == new.files else { return nil }
     var changed: Range<Frames>?
-    func add(_ start: Frames, _ end: Frames) {
-        changed = min(changed?.lowerBound ?? start, start)..<max(changed?.upperBound ?? end, end)
-    }
+    func add(_ start: Frames, _ end: Frames) { changed = hull(changed, start, end) }
     if old.markers != new.markers {
         for id in Set(old.markers.keys).union(new.markers.keys) where old.markers[id] != new.markers[id] {
             for position in [old.markers[id]?.position, new.markers[id]?.position].compactMap({ $0 }) {
@@ -39,4 +37,28 @@ public func changedFrames(from old: Session, to new: Session) -> Range<Frames>? 
         add(start, end)
     }
     return changed ?? .zero ..< .zero
+}
+
+/// The frames where the Marks `new` draw differently from `old` on the lanes of `session`: the old
+/// and the new line of each changed point, and the changed part of the selection band. With the
+/// same selected tracks, the band changes only between the old and the new frame of a point, and
+/// the lines of that point hold them; with other tracks, both bands change. So a range drag or a
+/// triangle drag redraws those columns, not the lanes in view. Empty when nothing changed.
+public func changedFrames(from old: Marks, to new: Marks, in session: Session) -> Range<Frames> {
+    var changed: Range<Frames>?
+    for (a, b) in [(old.inPoint, new.inPoint), (old.outPoint, new.outPoint)] where a != b {
+        for point in [a, b].compactMap({ $0 }) { changed = hull(changed, point, point + Frames(1)) }
+    }
+    let (x, y) = (old.selection(in: session), new.selection(in: session))
+    if x?.tracks != y?.tracks {
+        for band in [x?.range, y?.range].compactMap({ $0 }) {
+            changed = hull(changed, band.lowerBound, band.upperBound)
+        }
+    }
+    return changed ?? .zero ..< .zero
+}
+
+/// The smallest range that holds `range` and `start ..< end`.
+private func hull(_ range: Range<Frames>?, _ start: Frames, _ end: Frames) -> Range<Frames> {
+    min(range?.lowerBound ?? start, start)..<max(range?.upperBound ?? end, end)
 }

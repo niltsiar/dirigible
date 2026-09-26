@@ -50,6 +50,15 @@ import Testing
     static func lanesOnScreen(
         _ session: Session, _ peaks: [FileID: PeakState], framesPerPoint: Double, app: AppDelegate, folder: URL
     ) async throws -> (NSWindow, TimelineScrollView, SessionWindow) {
+        let (window, view, model, _) = try await lanesAndInputs(
+            session, peaks, framesPerPoint: framesPerPoint, app: app, folder: folder)
+        return (window, view, model)
+    }
+
+    /// `lanesOnScreen`, and the inputs of its last update.
+    static func lanesAndInputs(
+        _ session: Session, _ peaks: [FileID: PeakState], framesPerPoint: Double, app: AppDelegate, folder: URL
+    ) async throws -> (NSWindow, TimelineScrollView, SessionWindow, LaneInputs) {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder, tracks: 1, seconds: 1), app: app)
         let url = studio.url
@@ -68,9 +77,10 @@ import Testing
         // The first update fits the session; the second sets the zoom of the test.
         view.update(inputs)
         view.update(inputs)
+        model.timeline.scale = inputs.scale
         window.orderFront(nil)
         drawNow(window)
-        return (window, view, model)
+        return (window, view, model, inputs)
     }
 
     /// Sends 130 drag events of `event(n)` to `target` (the lanes by default), one per 60 Hz frame,
@@ -78,23 +88,27 @@ import Testing
     /// must draw the lanes once and change the drawn session. The pointer gives at most about one
     /// coalesced drag event per frame. Back to back, the flush of every second or fourth event
     /// waited for the next display frame (about 17 ms in all, 1.6 ms of gesture and 0.4 ms of draw):
-    /// it measured the frame rate, not the event (the mouse-edits run, slice 3).
+    /// it measured the frame rate, not the event (the mouse-edits run, slice 3). With `swiftUI`, the
+    /// timed part also has the SwiftUI update that a change of the window model causes.
     static func pacedDrags(
         _ view: TimelineScrollView, _ window: NSWindow, _ zoom: String, to target: NSView? = nil,
-        _ event: (Int) throws -> NSEvent
+        swiftUI: (model: SessionWindow, inputs: LaneInputs)? = nil, _ event: (Int) throws -> NSEvent
     ) async throws -> [Duration] {
         var times: [Duration] = []
         for n in 1...130 {
             let drag = try event(n)
-            let (draws, before) = (view.lanes.draws, view.lanes.inputs?.session)
+            let (draws, before) = (view.lanes.draws, view.lanes.inputs)
             try await Task.sleep(for: .microseconds(16_700))
             let start = ContinuousClock.now
             (target ?? view.lanes).mouseDragged(with: drag)
+            if let swiftUI { Self.swiftUIUpdate(view, swiftUI.model, swiftUI.inputs) }
             drawNow(window)
             // The first 10 events are not timed (the draw after the window shows).
             if n > 10 { times.append(ContinuousClock.now - start) }
-            try #require(view.lanes.draws == draws + 1, "one draw per event")
-            try #require(view.lanes.inputs?.session != before, "\(zoom): event \(n) made no new preview")
+            try #require(
+                view.lanes.draws == draws + 1,
+                "\(zoom): event \(n) drew \(view.lanes.draws - draws) times, \(view.lanes.inputs?.marks as Any)")
+            try #require(view.lanes.inputs != before, "\(zoom): event \(n) changed no drawn input")
         }
         return times.sorted()
     }
@@ -231,6 +245,120 @@ import Testing
             }
             view.ruler.mouseUp(with: try rulerMouse(.leftMouseUp, 301, 10, in: view))
             print("MouseEventBenchmark flag, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
+            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            window.close()
+            await model.close()
+        }
+    }
+
+    /// The update of SwiftUI after a change of the Marks: `laneInputs(_:_:laneHeight:)` of the app
+    /// gives the Studio session and the Marks of the window model. The Studio has the peaks of its
+    /// 1 s package, so the call keeps the 2 h peaks of `inputs`.
+    static func swiftUIUpdate(_ view: TimelineScrollView, _ model: SessionWindow, _ inputs: LaneInputs) {
+        guard let studio = model.studio else { return }
+        var new = laneInputs(model, studio, laneHeight: inputs.laneHeight)
+        (new.peaks, new.missingMedia) = (inputs.peaks, inputs.missingMedia)
+        view.update(new)
+    }
+
+    /// One range drag event in the lanes: the gesture step, the Marks in the window model, the
+    /// SwiftUI update with the new Marks, and the draw. It starts in the lower third of lane 1 at
+    /// x 330 pt (at the zoom of 60 pt boxes, 30 pt from each edge: 4 pt at an edge trims); each event
+    /// takes the end 1 pt right and to the other of lanes 1 and 2.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aRangeDragEventFitsOneFrameAtTwoHours() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (session, peaks) = try Self.fixture()
+        for (n, (zoom, framesPerPoint)) in Self.zooms.enumerated() {
+            let package = folder.url.appending(path: "\(n)")
+            try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+            let (window, view, model, inputs) = try await Self.lanesAndInputs(
+                session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
+            try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
+            let down = NSPoint(x: 330, y: 80)
+            view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
+            let sorted = try await Self.pacedDrags(
+                view, window, zoom, swiftUI: (model, inputs)
+            ) { event in
+                try mouse(
+                    .leftMouseDragged, NSPoint(x: down.x + Double(3 + event), y: down.y + (event % 2 == 0 ? 0 : 100)),
+                    in: view)
+            }
+            view.lanes.mouseUp(with: try mouse(.leftMouseUp, down, in: view))
+            print("MouseEventBenchmark range, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
+            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            window.close()
+            await model.close()
+        }
+    }
+
+    /// One in-triangle drag event on the ruler: as the range case, with the Marks of x 300 to 900 pt
+    /// on all tracks. Each event takes the in point 1 pt right.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aTriangleDragEventFitsOneFrameAtTwoHours() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (session, peaks) = try Self.fixture()
+        for (n, (zoom, framesPerPoint)) in Self.zooms.enumerated() {
+            let package = folder.url.appending(path: "\(n)")
+            try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+            let (window, view, model, inputs) = try await Self.lanesAndInputs(
+                session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
+            try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
+            model.timeline.marks = Marks(
+                inPoint: Frames(Int(framesPerPoint * 300)), outPoint: Frames(Int(framesPerPoint * 900)),
+                tracks: Set(session.tracks.map(\.id)))
+            Self.swiftUIUpdate(view, model, inputs)
+            drawNow(window)
+            view.ruler.mouseDown(with: try rulerMouse(.leftMouseDown, 300, 20, in: view))
+            let sorted = try await Self.pacedDrags(
+                view, window, zoom, to: view.ruler, swiftUI: (model, inputs)
+            ) { event in
+                try rulerMouse(.leftMouseDragged, 300 + Double(3 + event), 20, in: view)
+            }
+            view.ruler.mouseUp(with: try rulerMouse(.leftMouseUp, 300, 20, in: view))
+            print("MouseEventBenchmark triangle, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
+            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            window.close()
+            await model.close()
+        }
+    }
+
+    /// One move event of the last clip of the session: each event changes the session end, so the
+    /// lanes get a new width. The clip "end" (20 pt at each zoom) ends t2 at the session end, and
+    /// the lanes in view end at the end of the lanes. Each event takes the clip 3 to 12 pt right of
+    /// the down, a new end at each event. The clip is narrower than the view, so the event measures
+    /// the new width, not the redraw of a clip wider than the view.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func anEndClipMoveEventFitsOneFrameAtTwoHours() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (fixture, peaks) = try Self.fixture()
+        let end = Frames(Self.frames)
+        for (n, (zoom, framesPerPoint)) in Self.zooms.enumerated() {
+            var session = fixture
+            let length = Frames(Int(framesPerPoint * 20))
+            try session.place(
+                Clip(id: "end", file: "f2", start: end - length, offset: end - length, length: length), on: "t2")
+            let package = folder.url.appending(path: "\(n)")
+            try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+            let (window, view, model) = try await Self.lanesOnScreen(
+                session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
+            try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
+            view.scroll(toFrame: Double(Self.frames) - 1400 * framesPerPoint)
+            drawNow(window)
+            let box = try #require(view.lanes.clipFrame("end"))
+            let down = NSPoint(x: box.maxX - 10, y: box.minY + 10)
+            try #require(view.shown.contains(down), "\(zoom): \(down) not in \(view.shown)")
+            let width = view.lanes.frame.width
+            view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
+            let sorted = try await Self.pacedDrags(view, window, zoom) { event in
+                try mouse(.leftMouseDragged, NSPoint(x: down.x + Double(3 + event % 10), y: down.y), in: view)
+            }
+            try #require(view.lanes.frame.width > width, "\(zoom): the lanes got no new width")
+            view.lanes.mouseUp(with: try mouse(.leftMouseUp, down, in: view))
+            print("MouseEventBenchmark end move, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
             #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
             window.close()
             await model.close()

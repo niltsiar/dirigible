@@ -250,7 +250,66 @@ import Testing
         #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 200))
         view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t2"])))
         drawNow(window)
-        #expect(view.lanes.drawnRect.width > 1440, "new Marks draw the lanes, not only the changed clips")
+        #expect(view.lanes.drawnRect == NSRect(x: 0, y: 0, width: 102, height: 200), "new Marks: their columns")
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t8"])))
+        drawNow(window)
+        let draws = view.lanes.draws
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t9"])))
+        drawNow(window)
+        #expect(view.lanes.draws == draws, "Marks that draw the same pixels draw nothing")
+        var inputs = laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 51_200, tracks: ["t9"]))
+        inputs.peaks = ["f1": .ready(randomPeaks(frames: 960_000))]
+        view.update(inputs)
+        drawNow(window)
+        #expect(view.lanes.drawnRect.width > 1440, "new peaks draw the lanes, not only the changed clips")
+        window.close()
+        await model.close()
+    }
+
+    /// Code gate 1 item 2: a move of the last clip past the session end makes the lanes wider. The
+    /// event redraws the columns of the clip and the new width, not the lanes in view. c1 is x 1800
+    /// to 1875 pt, the end of the session; the lanes in view end at the end of the lanes (1912.5 pt).
+    @Test func aDragEventThatWidensTheLanesRedrawsOnlyTheChange() async throws {
+        let (model, studio, window, view) = try await lanes()
+        try studio.edit { s throws(SessionError) in
+            try s.trim("c1", to: 921_600..<960_000)
+            try s.trim("c2", to: 0..<102_400)
+        }
+        view.update(laneInputs(model, studio))
+        view.scroll(toFrame: 472.5 * 512)
+        drawNow(window)
+        let width = view.lanes.frame.width
+        try press(view, 1830, 10)
+
+        try drag(view, 1880, 10)
+        drawNow(window)
+
+        #expect(view.lanes.frame.width == width + 50 * 1.02, "the lanes are wider")
+        #expect(view.lanes.drawnRect.minX >= 1799 && view.lanes.drawnRect.width <= 200, "\(view.lanes.drawnRect)")
+        try release(view, 1880, 10)
+        window.close()
+        await model.close()
+    }
+
+    /// Code gate 1 item 2: the lanes keep their pixels at a new width, so a wider view draws only
+    /// the new columns. At 2048 frames per point the lanes are as wide as the view (1440 pt); a view
+    /// 160 pt wider makes them 1600 pt wide.
+    @Test func aWiderViewDrawsOnlyTheNewColumns() async throws {
+        let (model, studio, window, view) = try await lanes()
+        var inputs = laneInputs(model, studio)
+        inputs.scale = TimelineScale(framesPerPoint: 2048)
+        view.update(inputs)
+        drawNow(window)
+        #expect(view.lanes.frame.width == 1440)
+        let draws = view.lanes.draws
+
+        window.setContentSize(NSSize(width: window.frame.width + 160, height: window.frame.height))
+        view.frame = try #require(window.contentView).bounds
+        drawNow(window)
+
+        #expect(view.lanes.frame.width == 1600)
+        #expect(view.lanes.draws == draws + 1, "one draw")
+        #expect(view.lanes.drawnRect == NSRect(x: 1440, y: 0, width: 160, height: 200))
         window.close()
         await model.close()
     }

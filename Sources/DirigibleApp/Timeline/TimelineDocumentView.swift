@@ -19,7 +19,8 @@ final class TimelineDocumentView: NSView {
     /// The rect of the last draw, for the dirty-rect test of a drag event.
     private(set) var drawnRect = NSRect.zero
     /// Every drawn input except the backing scale. A new value draws only when it is not equal, and
-    /// only the columns of the changed clips and markers when nothing else changed (a drag event).
+    /// only the columns of the changed clips, markers, and Marks when nothing else changed (a drag
+    /// event).
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
@@ -28,17 +29,20 @@ final class TimelineDocumentView: NSView {
         }
     }
 
-    /// The columns of the clips and markers that changed from `old`, at full height, with 1 pt on each side for
-    /// the rounding of the renderer. Nil when another input changed.
+    /// The columns of the clips, markers, and Marks that changed from `old`, at full height, with 1 pt
+    /// on each side for the rounding of the renderer. Nil when another input changed.
     private func changedColumns(from old: LaneInputs?) -> NSRect? {
         guard var old, let inputs, let geometry = inputs.geometry,
-            let frames = changedFrames(from: old.session, to: inputs.session)
+            let clips = changedFrames(from: old.session, to: inputs.session)
         else { return nil }
-        old.session = inputs.session
+        let marks = changedFrames(from: old.marks, to: inputs.marks, in: inputs.session)
+        (old.session, old.marks) = (inputs.session, inputs.marks)
         guard old == inputs else { return nil }
-        let (x0, x1) = (
-            geometry.x(of: frames.lowerBound).rounded(.down), geometry.x(of: frames.upperBound).rounded(.up)
-        )
+        let changed = [clips, marks].filter { !$0.isEmpty }
+        guard let low = changed.map(\.lowerBound).min(), let high = changed.map(\.upperBound).max() else {
+            return .zero
+        }
+        let (x0, x1) = (geometry.x(of: low).rounded(.down), geometry.x(of: high).rounded(.up))
         return NSRect(x: x0 - 1, y: 0, width: x1 - x0 + 2, height: bounds.height)
     }
 
@@ -47,6 +51,9 @@ final class TimelineDocumentView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
+        // A new width (a drag past the session end, a wider window) keeps the drawn pixels, and
+        // AppKit draws only the new columns. The default policy redrew the lanes in view.
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
         playhead.actions = ["position": NSNull(), "bounds": NSNull()]

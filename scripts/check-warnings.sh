@@ -15,6 +15,6 @@ problems="$(jq -r '
     ($settings[] | .kind | keys[0] as $kind
      | select($kind == "treatWarning" or $kind == "unsafeFlags"
          or ($kind == "treatAllWarnings" and .treatAllWarnings._0 != "error"))
-     | "\($target): a \($kind) setting can hide a warning")' <<<"$json")"
+     | "\($target): the \($kind) setting can hide a warning")' <<<"$json")"
 
 [[ -z "$problems" ]] || { sed 's/^/check-warnings: /' <<<"$problems" >&2; exit 1; }

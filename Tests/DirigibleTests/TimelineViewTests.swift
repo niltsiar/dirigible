@@ -232,6 +232,21 @@ import Testing
         #expect(try darkPixels(view, in: NSRect(x: 0, y: 184, width: 90, height: 16)) == 0, "no label before c1")
     }
 
+    /// Mouse-edits criterion 17: a clip label draws only in a box of 60 pt or more (probe L1:
+    /// 12,000 labels at fit zoom take 330 ms per draw). At 512 frames per point, c1 is 59 pt
+    /// wide from x 0, and c2 is 60 pt wide from x 100.
+    @Test func aClipLabelDrawsOnlyInABoxOfSixtyPoints() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "take1-1-1.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 30_208), on: "t1")
+        try session.place(Clip(id: "c2", file: "f1", start: 51_200, offset: 0, length: 30_720), on: "t1")
+        let view = documentView(session)
+
+        #expect(try darkPixels(view, in: NSRect(x: 0, y: 84, width: 59, height: 16)) == 0, "no label in 59 pt")
+        #expect(try darkPixels(view, in: NSRect(x: 100, y: 84, width: 60, height: 16)) > 20, "a label in 60 pt")
+    }
+
     /// The display link ends with the window: its target goes, and it ticks while it runs.
     @Test func theDisplayLinkEndsWithTheWindow() async throws {
         let (model, studio) = try await timelineModel(

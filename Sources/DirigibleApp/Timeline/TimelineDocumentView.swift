@@ -108,7 +108,8 @@ final class TimelineDocumentView: NSView {
     }
 
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom
-    /// left of the box. It reads only the clips in the frames of `rect`, lane by lane.
+    /// left of the box. It reads only the clips in the frames of `rect`, lane by lane. A box under
+    /// 60 pt gets no label: 12,000 labels at fit zoom took 330 ms per draw (probe L1, decision 0020).
     private func drawLabels(_ inputs: LaneInputs, in rect: NSRect) {
         guard inputs.laneHeight > 14 else { return }
         let attributes: [NSAttributedString.Key: Any] = [
@@ -119,7 +120,7 @@ final class TimelineDocumentView: NSView {
         for (lane, track) in inputs.session.tracks.enumerated() {
             for clip in track.clips.clips(overlapping: frames) {
                 let box = Self.box(of: clip, lane: lane, inputs)
-                guard box.intersects(rect) else { continue }
+                guard box.width >= 60, box.intersects(rect) else { continue }
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
                 let name = path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
                 name.draw(at: NSPoint(x: box.minX + 4, y: box.maxY - 14), withAttributes: attributes)

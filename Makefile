@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app test test-slow check-slow-gates bench test-app test-hooks check-docs run lint format check clean
+.PHONY: setup build app test test-slow check-slow-gates check-warnings bench test-app test-hooks check-docs run lint format check clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -51,6 +51,11 @@ check-docs:
 	scripts/check-docs.test.sh
 	scripts/check-docs.sh
 
+# Each target of the package treats warnings as errors, with no exception (Package.swift).
+check-warnings:
+	scripts/check-warnings.test.sh
+	scripts/check-warnings.sh
+
 run: app
 	pkill -x Dirigible || true
 	open build/Dirigible.app
@@ -61,7 +66,7 @@ lint:
 format:
 	swift format format --in-place --recursive $(SWIFT_SOURCES)
 
-check: lint check-docs check-slow-gates test test-hooks test-app
+check: lint check-docs check-slow-gates check-warnings test test-hooks test-app
 
 clean:
 	rm -rf .build build

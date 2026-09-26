@@ -24,7 +24,8 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 | `make format` | Formats all Swift files in place. |
 | `make check-docs` | Checks the docs: every research file has a date and a Sources section, every brief ID has a row in a release table of `releases.md`, every answered question links to an existing, accepted decision, and each `make` target in this table has one row and a `Makefile` target. `scripts/check-docs.test.sh` tests the check. |
 | `swift run dirigible --help` | Builds and runs the command-line tool. It makes, changes, and reads session packages (decision 0011). |
-| `make check` | `lint`, `check-docs`, `check-slow-gates` (each slow-test gate has its `func` on the next line), `test`, `test-hooks`, and `test-app`. Run it before every commit. It must be green. |
+| `make check-warnings` | Checks that each target in `Package.swift` treats warnings as errors, with no exception for one warning and no unsafe flag. `scripts/check-warnings.test.sh` tests the check. |
+| `make check` | `lint`, `check-docs`, `check-slow-gates` (each slow-test gate has its `func` on the next line), `check-warnings`, `test`, `test-hooks`, and `test-app`. Run it before every commit. It must be green. |
 
 The toolchain is Xcode 26 with Swift 6.2. There is no Xcode project. See `docs/decisions/0001-native-swift-stack.md`.
 
@@ -91,6 +92,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - **Apple frameworks first.** Core Audio, AVFoundation, AudioToolbox, Accelerate. A third-party dependency needs a decision record in `docs/decisions/`. These frameworks report an `OSStatus`, not an `errno`. Probe the real status before code branches on it.
 - **Localized UI.** Every user-facing string has an English text and a Spanish translation. No UI text is only in code. Today the only strings are the Info.plist permission texts and the session type name: English in `Support/Info.plist`, Spanish in `Support/Resources/es.lproj/InfoPlist.strings`, checked by `AppBundleTests`. UI strings go in `Support/Resources/<lang>.lproj/Localizable.strings` and views look them up in `Bundle.main`, never `Bundle.module` (decision 0010). Exception: the `dirigible` command-line text is English only, because scripts and agents compare it (decision 0011).
 - **CLI parity.** Each new public library feature that operates on a session package or an audio file (an edit, an import, a render, or an export) gets a `dirigible` command and a `DirigibleCLITests` test in the same run. `ParityTests` checks the public mutating methods of `DirigibleCore`. Another public feature gets one line in its run that says why it has no command. The CLI parses, calls the library, and prints. Logic that it needs goes into a library (decision 0011).
+- **No warnings.** Each target of this package treats compiler warnings as errors (`Package.swift`, SE-0480). Fix a warning at its cause. Never add a flag or an exception that hides it.
 - **File size.** A Swift file over 400 lines needs a reason. Split by responsibility, not by execution order.
 
 ## Testing rules

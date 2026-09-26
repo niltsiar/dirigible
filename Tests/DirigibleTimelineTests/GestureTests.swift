@@ -61,6 +61,21 @@ struct GestureTests {
         #expect(!gesture.isActive && drawn == session)
     }
 
+    /// Code gate 1 item 1: the jitter of a click (0.5 pt right, 3 pt down) moves and trims nothing.
+    /// The time delta applies only from 3 pt of horizontal movement, so a clip keeps its sync.
+    @Test mutating func aClickWithJitterIsAClickWithNoEdit() {
+        let range = [GestureEffect.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))]
+        _ = down(150, 10)
+        #expect(up(150.5, 13) == range, "the move zone")
+        _ = down(101, 10)
+        #expect(up(101.5, 13) == range, "the trim zone")
+        _ = down(150, 10)
+        _ = drag(150.5, 34)
+        #expect(place("A", in: drawn) == Spot("t1", 48_000..<96_000), "a vertical drag keeps the time")
+        _ = drag(153, 34)
+        #expect(place("A", in: drawn) == Spot("t1", 49_440..<97_440), "3 pt of horizontal movement")
+    }
+
     @Test mutating func aClickInTheRangeZoneSeeksAndEmptiesTheMarks() {
         _ = down(150, 50)
         #expect(up(150, 50) == [.marks(Marks()), .seek(72_000)], "the lower third of A")
@@ -249,7 +264,9 @@ struct GestureTests {
         _ = down(101, 10)
         _ = drag(121, 10)
         _ = drag(101, 10)
-        #expect(up(101, 10) == [], "the edge went back: no commit")
+        #expect(
+            up(101, 10) == [.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))],
+            "the edge went back: a click, no commit")
     }
 
     @Test mutating func escapeDropsATrim() {

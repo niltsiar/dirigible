@@ -68,6 +68,15 @@ struct RulerGestureTests {
         #expect(up(201, 10) == [.currentMarker("m1"), .seek(96_000)], "the flag went back")
     }
 
+    /// Code gate 1 item 1: the jitter of a click (0.5 pt right, 3 pt down) on a flag or a triangle
+    /// moves nothing.
+    @Test mutating func aClickWithJitterMovesNoFlagAndNoPoint() {
+        _ = down(201, 10)
+        #expect(up(201.5, 13) == [.currentMarker("m1"), .seek(96_000)])
+        _ = down(100, 20)
+        #expect(up(100.5, 23) == [.marks(marks)])
+    }
+
     @Test mutating func aFlagDragStopsAtZero() {
         _ = down(201, 10)
         _ = drag(-300, 10)

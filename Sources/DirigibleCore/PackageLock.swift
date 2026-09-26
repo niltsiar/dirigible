@@ -65,7 +65,7 @@ public final class PackageLock: Sendable {
         guard fcntl(descriptor, F_GETPATH, &buffer) == 0, fstat(descriptor, &locked) == 0 else {
             throw .packageMoved
         }
-        let path = String(cString: buffer)
+        let path = String(cString: &buffer)
         guard stat(path, &there) == 0, there.st_dev == locked.st_dev, there.st_ino == locked.st_ino else {
             throw .packageMoved
         }

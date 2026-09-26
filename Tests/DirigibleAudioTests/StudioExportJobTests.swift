@@ -15,7 +15,7 @@ struct StudioExportJobTests {
         let path = String(cString: target)
         var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
         return (0..<getdtablesize()).count { descriptor in
-            fcntl(descriptor, F_GETPATH, &buffer) == 0 && String(cString: buffer) == path
+            fcntl(descriptor, F_GETPATH, &buffer) == 0 && String(cString: &buffer) == path
         }
     }
 
@@ -75,6 +75,10 @@ struct StudioExportJobTests {
     @Test func anExportClosesItsFiles() async throws {
         let fixture = try await ExportStudioFixture.make()
         let clip = fixture.package.url.appending(path: "\(clipsFolderName)/f1.wav")
+        // Control: the count sees a descriptor that a handle holds.
+        let handle = try FileHandle(forReadingFrom: clip)
+        #expect(Self.descriptors(to: clip) == 1)
+        try handle.close()
         let studio = try await fixture.open()
         #expect(Self.descriptors(to: clip) == 0)
 

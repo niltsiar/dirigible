@@ -1,5 +1,5 @@
 #!/bin/bash
-# Check that each target of the package treats every compiler warning as an error (SE-0480 in
+# Check that each target of the package treats every Swift warning as an error (SE-0480 in
 # Package.swift) and has no setting that hides a warning: an exception for one warning, a second
 # setting back to warnings, or an unsafe flag. dump-package lists only the targets of this package,
 # so the settings of a dependency stay its own.
@@ -10,7 +10,7 @@ root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 json="$(swift package --package-path "$root" dump-package)"
 problems="$(jq -r '
   .targets[] | .name as $target | (.settings // []) as $settings
-  | (if any($settings[]; .kind.treatAllWarnings._0? == "error" and .condition == null) then empty
+  | (if any($settings[]; .tool == "swift" and .kind.treatAllWarnings._0? == "error" and .condition == null) then empty
      else "\($target): no treatAllWarnings(as: .error) for every configuration" end),
     ($settings[] | .kind | keys[0] as $kind
      | select($kind == "treatWarning" or $kind == "unsafeFlags"

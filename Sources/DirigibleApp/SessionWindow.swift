@@ -285,9 +285,9 @@ enum WindowAlert: Hashable {
         edit { s throws(SessionError) in try s.renameTrack(track, to: name) }
     }
 
-    /// Record, Close, and Quit save each typed name first, also a name with no Return and with
-    /// the focus still in its field.
-    private func commitNames() {
+    /// Record, Close, Quit, and a mouse-down on the lanes save each typed name first, also a name
+    /// with no Return and with the focus still in its field.
+    func commitNames() {
         for track in drafts.keys { commitName(track) }
     }
 

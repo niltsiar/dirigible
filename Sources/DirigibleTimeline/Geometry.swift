@@ -81,6 +81,21 @@ enum LaneHit: Equatable, Sendable {
     case move(Clip, lane: Int)
     case range(lane: Int?)
 
+    var lane: Int? {
+        switch self {
+        case .trim(_, _, let lane), .move(_, let lane): lane
+        case .range(let lane): lane
+        }
+    }
+
+    /// The clip of a trim or move zone.
+    var clip: Clip? {
+        switch self {
+        case .trim(let clip, _, _), .move(let clip, _): clip
+        case .range: nil
+        }
+    }
+
     /// The cursor over the zone, with no gesture.
     var cursor: TimelineCursor {
         switch self {

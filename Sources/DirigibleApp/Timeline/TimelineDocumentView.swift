@@ -13,7 +13,6 @@ private let drawLog = Logger(subsystem: "com.delineas.dirigible", category: "tim
 /// flipped, and drawn only in its dirty rect with own pixels. It redraws only when `inputs` or the
 /// backing scale changes. The playhead is a layer that moves with no redraw.
 final class TimelineDocumentView: NSView {
-    weak var model: SessionWindow?
     let playhead = CALayer()
     /// The calls of `draw(_:)`, for the redraw tests (criteria 10 and 24).
     private(set) var draws = 0
@@ -26,8 +25,6 @@ final class TimelineDocumentView: NSView {
         }
     }
     private let renderer = LaneRenderer()
-    /// The mouse-down point, and true once the pointer moved 3 pt or more (a drag).
-    private var down: (point: NSPoint, dragging: Bool)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -123,39 +120,59 @@ final class TimelineDocumentView: NSView {
 
     // MARK: Mouse
 
-    private func frame(at x: Double) -> Frames { inputs?.geometry?.frame(at: x) ?? .zero }
-    /// The lane of the click and drag path of run 4b. Slice 3 of run 4d replaces this path with
-    /// the gesture model, which reads `LaneGeometry`.
-    private func lane(at y: Double) -> Int { Int(max(0, y) / (inputs?.laneHeight ?? 1)) }
+    /// The events go to the gesture of the scroll view (decision 0020).
+    private var scrollView: TimelineScrollView? { enclosingScrollView as? TimelineScrollView }
+
+    private func place(_ event: NSEvent) -> Place {
+        let point = convert(event.locationInWindow, from: nil)
+        return .lanes(x: Double(point.x), y: Double(point.y))
+    }
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        down = (convert(event.locationInWindow, from: nil), false)
+        let flags = event.modifierFlags
+        scrollView?.mouse(.down(place(event), shift: flags.contains(.shift), command: flags.contains(.command)))
+        showCursor(event)
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard var down else { return }
-        let point = convert(event.locationInWindow, from: nil)
-        if !down.dragging {
-            guard hypot(point.x - down.point.x, point.y - down.point.y) >= 3 else { return }
-            down.dragging = true
-            self.down = down
-        }
-        model?.timelineDrag(
-            from: frame(at: down.point.x), to: frame(at: point.x), lanes: (lane(at: down.point.y), lane(at: point.y)))
+        scrollView?.mouse(.drag(place(event)))
+        showCursor(event)
     }
 
-    /// Under 3 pt of movement: a click.
     override func mouseUp(with event: NSEvent) {
-        guard let down else { return }
-        if down.dragging {
-            mouseDragged(with: event)
-        } else {
-            model?.timelineClick(
-                at: frame(at: down.point.x), lane: lane(at: down.point.y),
-                shift: event.modifierFlags.contains(.shift), command: event.modifierFlags.contains(.command))
+        scrollView?.mouse(.up(place(event)))
+        showCursor(event)
+    }
+
+    // MARK: Cursor
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        guard trackingAreas.isEmpty else { return }
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) { showCursor(event) }
+    override func cursorUpdate(with event: NSEvent) { showCursor(event) }
+
+    private func showCursor(_ event: NSEvent) {
+        guard let kind = scrollView?.cursor(at: place(event)) else { return }
+        NSCursor.timeline(kind).set()
+    }
+}
+
+extension NSCursor {
+    /// The cursor of a timeline cursor kind (probe C1: each exists at the macOS 14 target).
+    static func timeline(_ kind: TimelineCursor) -> NSCursor {
+        switch kind {
+        case .arrow: .arrow
+        case .iBeam: .iBeam
+        case .closedHand: .closedHand
+        case .resizeLeftRight: .resizeLeftRight
         }
-        self.down = nil
     }
 }
 

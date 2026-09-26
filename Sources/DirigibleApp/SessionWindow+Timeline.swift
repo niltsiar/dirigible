@@ -16,27 +16,20 @@ extension SessionWindow {
 }
 
 extension SessionWindow {
-    /// A click in a lane, under 3 pt of movement (decision 0017): Shift selects from the playhead
-    /// to the click and the lane joins; Command toggles the lane; a plain click empties the Marks
-    /// and seeks.
-    func timelineClick(at frame: Frames, lane: Int, shift: Bool, command: Bool) {
-        guard let studio, studio.session.tracks.indices.contains(lane) else { return }
-        let track = studio.session.tracks[lane].id
-        if shift {
-            timeline.marks = timeline.marks.extended(to: frame, lane: track, playhead: studio.playhead)
-        } else if command {
-            timeline.marks = timeline.marks.toggled(track)
-        } else {
-            timeline.marks = Marks()
-            Task { await studio.perform(.seek(.frame(frame))) }
-        }
-    }
-
-    /// A drag in the lanes: the range from the mouse-down frame to the pointer, on the lanes that
-    /// the drag spans.
-    func timelineDrag(from: Frames, to: Frames, lanes: (Int, Int)) {
+    /// The effects of a timeline gesture (decision 0020). A commit makes one undo entry when the
+    /// session is still the session of the mouse-down. Else, or during a take, it changes nothing
+    /// and shows no alert.
+    func apply(_ effects: [GestureEffect]) {
         guard let studio else { return }
-        timeline.marks = Marks.drag(from: from, to: to, lanes: lanes, in: studio.session)
+        for effect in effects {
+            switch effect {
+            case .marks(let marks): timeline.marks = marks
+            case .seek(let frame): Task { await studio.perform(.seek(.frame(frame))) }
+            case .commit(let commit):
+                guard edit({ session in commit.apply(to: &session) }) == true else { continue }
+                if let marks = commit.marks { timeline.marks = marks }
+            }
+        }
     }
 
     /// A click on the ruler seeks. The Marks do not change.

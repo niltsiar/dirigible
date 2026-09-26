@@ -236,18 +236,23 @@ import Testing
     /// Decision 0020, the dirty rect: a drag event redraws only the columns of the clips that it
     /// changes, at full height (a narrow rect). c1 is x 200 to 300 pt; a drag of 50 pt makes it 250
     /// to 350, so the event redraws x 200 to 350 with 1 pt on each side, not the 1440 pt in view.
-    /// New Marks draw their columns; new peaks draw all.
+    /// New Marks draw their columns; new peaks draw all. The trim comes before the lanes draw, so
+    /// no partial draw comes before the event. The next event also covers the draw of the event
+    /// before it (code gate 1 item 1 of the timeline-scroll run): x 199 to 361.
     @Test func aDragEventRedrawsOnlyTheClipsItChanges() async throws {
-        let (model, studio, window, view) = try await lanes()
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
         try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
-        view.update(laneInputs(model, studio))
-        drawNow(window)
+        let (window, view) = standaloneLanes(model, studio)
         try press(view, 250, 10)
 
         try drag(view, 300, 10)
         drawNow(window)
 
         #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 200))
+        try drag(view, 310, 10)
+        drawNow(window)
+        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 162, height: 200), "and the draw before")
         view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t2"])))
         drawNow(window)
         #expect(view.lanes.drawnRect == NSRect(x: 0, y: 0, width: 1002, height: 200), "new Marks: all rows")
@@ -262,6 +267,35 @@ import Testing
         view.update(inputs)
         drawNow(window)
         #expect(view.lanes.drawnRect.width > 1440, "new peaks draw the lanes, not only the changed clips")
+        window.close()
+        await model.close()
+    }
+
+    /// Code gate 1 item 1 of the timeline-scroll run: a partial draw also covers the partial draw
+    /// before it. When that union is more than a quarter of the lanes in view larger than the new
+    /// rect, the event draws all lanes once, and the next event draws only its own columns again.
+    /// c1 is x 200 to 300. New Marks of x 400 to 800 draw x 399 to 802 at full height. The union
+    /// with the first event is x 199 to 802: under half the lanes in view, but a triangle drag with
+    /// such Marks drew them again at each event. The first event draws all lanes, the next only
+    /// x 249 to 361.
+    @Test func aDragAfterAnEditFarAwayDrawsTheLanesOnce() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
+        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        let (window, view) = standaloneLanes(model, studio)
+        view.update(laneInputs(model, studio, marks: Marks(inPoint: 204_800, outPoint: 409_600, tracks: ["t1", "t2"])))
+        drawNow(window)
+        #expect(view.lanes.drawnRect == NSRect(x: 399, y: 0, width: 403, height: 200), "the Marks")
+        try press(view, 250, 10)
+
+        try drag(view, 300, 10)
+        drawNow(window)
+        #expect(view.lanes.drawnRect == view.lanes.bounds, "all lanes")
+        try drag(view, 310, 10)
+        drawNow(window)
+        #expect(view.lanes.drawnRect == NSRect(x: 249, y: 0, width: 112, height: 200), "only the event")
+
+        try release(view, 310, 10)
         window.close()
         await model.close()
     }
@@ -290,12 +324,13 @@ import Testing
     /// are at least as wide as the view. The mouse-up gives the new width. c1 is x 1800 to 1875 pt,
     /// the end of the session; the lanes in view end at the end of the lanes (1912.5 pt).
     @Test func aDragPastTheEndKeepsTheWidthUntilTheUp() async throws {
-        let (model, studio, window, view) = try await lanes()
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
         try studio.edit { s throws(SessionError) in
             try s.trim("c1", to: 921_600..<960_000)
             try s.trim("c2", to: 0..<102_400)
         }
-        view.update(laneInputs(model, studio))
+        let (window, view) = standaloneLanes(model, studio)
         view.scroll(toFrame: 472.5 * 512)
         drawNow(window)
         let width = view.lanes.frame.width

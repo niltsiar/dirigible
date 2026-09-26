@@ -46,6 +46,11 @@ final class TimelineScrollView: NSScrollView {
     private var last: (playhead: Double, playback: Playback)?
     /// Zoom to Session at the first layout with a width.
     private var fitted = false
+    /// The last inputs of SwiftUI, with the Studio session of the last mouse-down or mouse-up. Never
+    /// the preview: the lanes draw the gesture over it (decision 0020).
+    private(set) var source: LaneInputs?
+    /// The one gesture of the lanes.
+    private(set) var gesture = TimelineGesture()
 
     init(model: SessionWindow, studio: Studio) {
         self.model = model
@@ -56,7 +61,6 @@ final class TimelineScrollView: NSScrollView {
         hasVerticalScroller = true
         backgroundColor = .windowBackgroundColor
         documentView = lanes
-        lanes.model = model
         ruler.scrollView = self
         ruler.orientation = .horizontalRuler
         horizontalRulerView = ruler
@@ -87,14 +91,64 @@ final class TimelineScrollView: NSScrollView {
     var origin: Double { Double(shown.minX) * framesPerPoint }
     var visibleFrames: Double { Double(shown.width) * framesPerPoint }
 
+    /// A SwiftUI update. Another session during a gesture (an undo, a take) drops the gesture first.
     func update(_ inputs: LaneInputs) {
-        lanes.inputs = inputs
-        ruler.inputs = inputs.geometry.map {
-            RulerInputs(
-                markers: inputs.session.markers, marks: inputs.marks, geometry: $0, rate: inputs.session.sampleRate)
+        if gesture.isActive, let old = source, old.session != inputs.session, let context = context(inputs) {
+            model?.apply(gesture.handle(.sessionChanged, context))
         }
+        source = inputs
+        redraw()
         fitOnce()
         viewMoved()
+    }
+
+    /// A mouse event of the lanes. At the mouse-down, the typed track names commit, and the
+    /// source takes the Studio session. A drag event does not read the Studio: a change reaches the
+    /// gesture through `update`. At the mouse-up: the effects, then the Studio session, then the draw,
+    /// so the lanes never draw the session of the mouse-down after a commit.
+    func mouse(_ event: GestureEvent) {
+        guard var source, let model, let studio else { return }
+        if case .down = event {
+            model.commitNames()
+            source.session = studio.session
+        }
+        guard let context = context(source) else { return }
+        model.apply(gesture.handle(event, context))
+        if case .up = event { source.session = studio.session }
+        self.source = source
+        redraw()
+    }
+
+    /// Esc: true when a gesture ran and Esc ended it.
+    func cancelGesture() -> Bool {
+        guard gesture.isActive, let source, let context = context(source) else { return false }
+        model?.apply(gesture.handle(.escape, context))
+        redraw()
+        return true
+    }
+
+    /// The cursor of the gesture at a lane point.
+    func cursor(at place: Place) -> TimelineCursor {
+        guard let source, let context = context(source) else { return .arrow }
+        return gesture.cursor(at: place, context)
+    }
+
+    private func context(_ inputs: LaneInputs) -> GestureContext? {
+        guard let model, let studio, let geometry = inputs.geometry else { return nil }
+        return GestureContext(
+            session: inputs.session, marks: model.timeline.marks, playhead: studio.playhead, geometry: geometry,
+            canEdit: model.canEdit)
+    }
+
+    /// Draws the gesture over the source.
+    private func redraw() {
+        guard var drawn = source else { return }
+        (drawn.session, drawn.marks) = gesture.drawn(session: drawn.session, marks: drawn.marks)
+        lanes.inputs = drawn
+        ruler.inputs = drawn.geometry.map {
+            RulerInputs(
+                markers: drawn.session.markers, marks: drawn.marks, geometry: $0, rate: drawn.session.sampleRate)
+        }
     }
 
     override func tile() {
@@ -136,7 +190,7 @@ final class TimelineScrollView: NSScrollView {
     /// The zoom by `factor` at `x` points from the left edge (the pointer), or with no `x` at the
     /// anchor of the keys: the playhead when it is in view, else the view center.
     func zoom(by factor: Double, at x: Double? = nil) {
-        guard let inputs = lanes.inputs, let studio else { return }
+        guard let inputs = source, let studio else { return }
         let width = Double(shown.width)
         let anchor =
             x.map { (frame: Frames(Int(origin + $0 * framesPerPoint)), x: $0) }
@@ -147,14 +201,14 @@ final class TimelineScrollView: NSScrollView {
 
     /// Zoom to Session: 0 to the end + 2%.
     func zoomToSession() {
-        guard let inputs = lanes.inputs else { return }
+        guard let inputs = source else { return }
         let end = inputs.session.end
         show(TimelineScale.fit(end: end, width: Double(shown.width), limits: limits(inputs)), origin: 0)
     }
 
     /// Zoom to Selection: the range with 5% on each side. With no selection, nothing.
     func zoomToSelection() {
-        guard let inputs = lanes.inputs, let selection = model?.timeline.marks.selection(in: inputs.session) else {
+        guard let inputs = source, let selection = model?.timeline.marks.selection(in: inputs.session) else {
             return
         }
         let fit = TimelineScale.fit(selection.range, width: Double(shown.width), limits: limits(inputs))
@@ -169,7 +223,7 @@ final class TimelineScrollView: NSScrollView {
     /// Sets the scale here and in the window model, then scrolls: the document view has its new
     /// width before the scroll, and the SwiftUI update after it gives equal inputs.
     private func show(_ scale: TimelineScale, origin: Double) {
-        guard var inputs = lanes.inputs else { return }
+        guard var inputs = source else { return }
         if model?.timeline.scale != scale { model?.timeline.scale = scale }
         inputs.scale = scale
         update(inputs)
@@ -177,7 +231,7 @@ final class TimelineScrollView: NSScrollView {
     }
 
     private func fitOnce() {
-        guard !fitted, lanes.inputs != nil, shown.width > 0 else { return }
+        guard !fitted, source != nil, shown.width > 0 else { return }
         fitted = true
         zoomToSession()
     }
@@ -228,7 +282,7 @@ final class TimelineScrollView: NSScrollView {
     /// The frames and the whole lanes in view, for the record-over warning. It writes only a
     /// change, so a tick that does not scroll updates no SwiftUI view.
     private func publishVisible() {
-        guard let model, let inputs = lanes.inputs, shown.width > 0 else { return }
+        guard let model, let inputs = source, shown.width > 0 else { return }
         // A lane counts when all of it is in view, with half a point of rounding.
         let (top, bottom) = (Double(shown.minY), Double(shown.maxY))
         let first = max(0, Int(((top - 0.5) / inputs.laneHeight).rounded(.up)))

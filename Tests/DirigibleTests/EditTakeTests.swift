@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleCore
 import DirigibleTimeline
 import Foundation
@@ -123,6 +124,65 @@ import Testing
         let playhead = studio.playhead
         _ = await studio.renderOffline(frames: 9_600)
         await until(limit: .seconds(10), "the playhead moves after the edit") { studio.playhead > playhead }
+        #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .one)))
+        await studio.perform(.playStop)
+        await model.close()
+    }
+
+    /// A mouse event at the document point `point` of the lanes of `view`, 40 pt right of and
+    /// 10 pt under the top left of the box of c1 plus `dx` (the move zone).
+    func onC1(_ type: NSEvent.EventType, dx: Double, in view: TimelineScrollView) throws -> NSEvent {
+        let box = try #require(view.lanes.clipFrame("c1"))
+        return try mouse(type, NSPoint(x: box.minX + 40 + dx, y: box.minY + 10), in: view)
+    }
+
+    /// Mouse-edits criterion 9: a take that starts during a move drag drops the commit, with no
+    /// alert. The take goes on: after the stop, each track has a take clip. The take starts at
+    /// 3,000,000, after c1, so it does not overwrite c1.
+    @Test func aTakeDuringADragDropsTheCommit() async throws {
+        let (model, studio, _, view) = try await openLanes(app, try await package())
+        studio.environment = hal.environment
+        await studio.perform(.seek(.frame(3_000_000)))
+        view.lanes.mouseDown(with: try onC1(.leftMouseDown, dx: 0, in: view))
+        view.lanes.mouseDragged(with: try onC1(.leftMouseDragged, dx: 20, in: view))
+        #expect(view.lanes.inputs?.session.clip("c1")?.clip.start != 0, "the drag shows a preview")
+
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+        await hal.feed(seconds: 0.5)
+        view.lanes.mouseDragged(with: try onC1(.leftMouseDragged, dx: 40, in: view))
+        view.lanes.mouseUp(with: try onC1(.leftMouseUp, dx: 40, in: view))
+
+        #expect(studio.session.clip("c1")?.clip.start == 0 && model.alert == nil)
+        await hal.feed(seconds: 0.5)
+        await model.stop()
+        await until("the take finalizes") { studio.transport == .idle }
+        #expect(studio.session.clip("c1")?.clip.start == 0)
+        for track in studio.session.tracks {
+            #expect(track.clips.contains { $0.file != "f1" && $0.length > .zero }, "\(track.id) has no take clip")
+        }
+        await model.close()
+    }
+
+    /// Mouse-edits criterion 9: a move during play commits, and the play goes on (Q12). Control
+    /// of `anEditDuringPlayKeepsThePlayGoing`: an edit that stops the play leaves the playhead
+    /// still.
+    @Test func aMoveDuringPlayKeepsThePlay() async throws {
+        let (model, studio, _, view) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 10, audio: true))
+        studio.environment.playerOutput = .offline
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+
+        view.lanes.mouseDown(with: try onC1(.leftMouseDown, dx: 0, in: view))
+        view.lanes.mouseDragged(with: try onC1(.leftMouseDragged, dx: 20, in: view))
+        view.lanes.mouseUp(with: try onC1(.leftMouseUp, dx: 20, in: view))
+
+        let moved = try #require(studio.session.clip("c1")?.clip)
+        #expect(moved.start > .zero && moved.length == 480_000, "the move commits")
+        let playhead = studio.playhead
+        _ = await studio.renderOffline(frames: 9_600)
+        await until(limit: .seconds(10), "the playhead moves after the move") { studio.playhead > playhead }
         #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .one)))
         await studio.perform(.playStop)
         await model.close()

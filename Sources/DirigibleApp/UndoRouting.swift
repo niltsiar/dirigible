@@ -46,12 +46,15 @@ final class UndoRoutingWindow: NSWindow {
     @objc func paste(_ sender: Any?) { model?.run(.paste) }
     @objc func delete(_ sender: Any?) { model?.run(.delete) }
 
-    /// Esc (decision 0017): with no text focused, the Marks empty. There is no Esc menu item, so
-    /// alerts and sheets keep the key.
+    /// Esc (decision 0017): with no text focused, the Marks empty. During a timeline gesture, Esc
+    /// ends only the gesture (decision 0020). There is no Esc menu item, so alerts and sheets keep
+    /// the key.
     override func cancelOperation(_ sender: Any?) {
         switch undoTarget(firstResponder: firstResponder) {
         case .text: super.cancelOperation(sender)
-        case .session: model?.run(.deselectAll)
+        case .session:
+            if model?.timelineView?.cancelGesture() == true { return }
+            model?.run(.deselectAll)
         }
     }
 

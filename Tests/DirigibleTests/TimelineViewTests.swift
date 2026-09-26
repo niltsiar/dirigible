@@ -35,29 +35,19 @@ import Testing
         await window.close()
     }
 
-    /// A mouse event at the document point `point` of the lanes.
-    func mouse(
-        _ type: NSEvent.EventType, _ point: NSPoint, in view: TimelineScrollView, flags: NSEvent.ModifierFlags = []
-    )
-        throws -> NSEvent
-    {
-        try #require(
-            NSEvent.mouseEvent(
-                with: type, location: view.lanes.convert(point, to: nil), modifierFlags: flags, timestamp: 0,
-                windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
-    }
-
     /// Criterion 16: a click at x = 200 pt on lane 2 seeks to 102,400 (± one point of frames) and
-    /// empties the Marks; a Command-click selects the lane under the pointer.
+    /// empties the Marks; a Command-click selects the lane under the pointer. The plain click is in
+    /// the lower third of the clip (the range zone): a click on the upper part selects the clip
+    /// (mouse-edits criterion 2).
     @Test func aClickInALaneSeeksThePlayheadAndEmptiesTheMarks() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
         let (lanesWindow, view) = standaloneLanes(model, studio)
         model.timeline.marks = Marks(inPoint: 0, outPoint: 1000, tracks: ["t1"])
 
-        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 200, y: 150), in: view))
-        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 201, y: 151), in: view))
-        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 201, y: 151), in: view))
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 200, y: 180), in: view))
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 201, y: 181), in: view))
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 201, y: 181), in: view))
 
         #expect(model.timeline.marks == Marks())
         await until("the click seeks") { abs(studio.playhead.count - 102_400) <= 512 }
@@ -69,18 +59,18 @@ import Testing
     }
 
     /// Criterion 16: a drag of 10 pt in lane 2 selects its range on lane 2; a drag from lane 1
-    /// to lane 2 selects both.
+    /// to lane 2 selects both. Each drag starts in the lower third of a clip (the range zone).
     @Test func aDragMakesTheMarksOnTheLanesItSpans() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 3, seconds: 20), app: app)
         let (lanesWindow, view) = standaloneLanes(model, studio)
 
-        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 150), in: view))
-        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 105, y: 150), in: view))
-        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 110, y: 150), in: view))
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 180), in: view))
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 105, y: 180), in: view))
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 110, y: 180), in: view))
         #expect(model.timeline.marks == Marks(inPoint: 51_200, outPoint: 56_320, tracks: ["t2"]))
 
-        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 300, y: 50), in: view))
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 300, y: 90), in: view))
         view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 200, y: 150), in: view))
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 200, y: 150), in: view))
         #expect(model.timeline.marks == Marks(inPoint: 102_400, outPoint: 153_600, tracks: ["t1", "t2"]))

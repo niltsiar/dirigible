@@ -248,6 +248,16 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
     return (window, view)
 }
 
+/// A mouse event at the document point `point` of the lanes of `view`.
+@MainActor func mouse(
+    _ type: NSEvent.EventType, _ point: NSPoint, in view: TimelineScrollView, flags: NSEvent.ModifierFlags = []
+) throws -> NSEvent {
+    try #require(
+        NSEvent.mouseEvent(
+            with: type, location: view.lanes.convert(point, to: nil), modifierFlags: flags, timestamp: 0,
+            windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+}
+
 /// Draws what needs a draw now: a layer-backed view draws at the commit of the Core Animation
 /// transaction, not in `displayIfNeeded()`.
 @MainActor func drawNow(_ window: NSWindow) {

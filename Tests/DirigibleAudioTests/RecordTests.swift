@@ -167,7 +167,9 @@ struct RecordTests {
         let studio = try await studio(hal, silenceLimit: .milliseconds(300))
         let input = SyntheticInput(hal, "mic")
         var clock = DeviceClock(hostNanos: Double(takeStart) + 100_000_000)
-        input.play(clock.run(seconds: 10), pace: .realTime, flags: invalid ? [] : validTimes, takeStartIn: url)
+        // Longer than the 40 s limit of `wait`: the detach at the stop ends the sends, so a stop
+        // that a busy suite holds is never a device with no records.
+        input.play(clock.run(seconds: 60), pace: .realTime, flags: invalid ? [] : validTimes, takeStartIn: url)
 
         let result = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(1))
         await input.wait()

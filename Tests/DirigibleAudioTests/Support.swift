@@ -180,6 +180,47 @@ func until(limit: Duration = .seconds(1), _ message: String, _ condition: () -> 
     }
 }
 
+/// Holds the first caller of `wait` until `open`, with a limit of 30 s. It polls, so it blocks
+/// no thread of the concurrency pool. Later callers pass.
+final class AsyncGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var used = false
+    private var inside = false
+    private var opened = false
+
+    func wait() async {
+        guard
+            lock.withLock({ () -> Bool in
+                defer { used = true }
+                inside = !used
+                return !used
+            })
+        else { return }
+        let end = ContinuousClock.now + .seconds(30)
+        while !lock.withLock({ opened }) {
+            guard ContinuousClock.now < end else {
+                Issue.record("The gate was not opened in 30 s")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    func open() { lock.withLock { opened = true } }
+
+    /// Returns when the first caller is inside `wait`. After `limit`, it records a failure.
+    func entered(limit: Duration = .seconds(30)) async {
+        let end = ContinuousClock.now + limit
+        while !lock.withLock({ inside }) {
+            guard ContinuousClock.now < end else {
+                Issue.record("No block entered the gate (limit \(limit))")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+}
+
 /// Holds the first caller of `waitOnce` until `open`, with a limit of 30 s; later callers pass.
 /// A test holds a write with it and waits with `entered` until the write is inside the gate.
 /// The autosave starts on the main actor, and in a full suite the `@MainActor` suites hold it

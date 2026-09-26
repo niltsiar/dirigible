@@ -79,7 +79,9 @@ struct CaptureEnvironment: Sendable {
     /// The autosave write of a session into the package that the lock holds. Returns the package
     /// path that it wrote. Called off the main actor.
     var saveSession: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
-    /// A step before each finalize. Tests hold a finalize with it; `live` does nothing.
+    /// A step before each finalize and each placement (decision 0021). Tests hold a finalize or a
+    /// placement with it and suspend, so no thread of the concurrency pool waits; `live` does
+    /// nothing.
     var beforeFinalize: @Sendable () async -> Void = {}
     /// A step at the block reads of each placement (decision 0021). Tests hold a placement or
     /// check its thread with it; `live` has none.

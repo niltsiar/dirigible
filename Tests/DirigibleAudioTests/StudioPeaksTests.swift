@@ -57,47 +57,6 @@ final class PeakPackage: @unchecked Sendable {
     }
 }
 
-/// Holds the first caller of `wait` until `open`, with a limit of 30 s. It polls, so it blocks
-/// no thread of the concurrency pool. Later callers pass.
-final class AsyncGate: @unchecked Sendable {
-    private let lock = NSLock()
-    private var used = false
-    private var inside = false
-    private var opened = false
-
-    func wait() async {
-        guard
-            lock.withLock({ () -> Bool in
-                defer { used = true }
-                inside = !used
-                return !used
-            })
-        else { return }
-        let end = ContinuousClock.now + .seconds(30)
-        while !lock.withLock({ opened }) {
-            guard ContinuousClock.now < end else {
-                Issue.record("The gate was not opened in 30 s")
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
-
-    func open() { lock.withLock { opened = true } }
-
-    /// Returns when the first caller is inside `wait`. After `limit`, it records a failure.
-    func entered(limit: Duration = .seconds(30)) async {
-        let end = ContinuousClock.now + limit
-        while !lock.withLock({ inside }) {
-            guard ContinuousClock.now < end else {
-                Issue.record("No block entered the gate (limit \(limit))")
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
-}
-
 @MainActor
 func peaksOf(_ studio: Studio, _ id: FileID) -> Peaks? {
     if case .ready(let peaks) = studio.peaks[id] { return peaks }

@@ -151,9 +151,9 @@ extension MonitorTests {
     @Test func aToggleOffDuringAFinalizeReleasesAtOnce() async throws {
         let (folder, url) = try await package()
         let hal = TestHAL([duo])
-        let gate = Gate()
+        let gate = AsyncGate()
         let studio = try await Studio.open(url)
-        studio.environment = .test(hal, beforeFinalize: { gate.waitOnce() })
+        studio.environment = .test(hal, beforeFinalize: { await gate.wait() })
         _ = try await monitorT1(studio, hal)
         try await studio.startRecording(armed: ["t1"], playhead: 0)
 

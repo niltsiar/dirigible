@@ -78,12 +78,22 @@ final class LaneRenderer {
             let bottom = top + laneRows - 1
             // Each pixel gets one background: the lane color only in the gaps between the clips.
             var gap = 0
+            // The columns of adjacent clips that are not filled yet: one fill for a run of clips,
+            // not one per clip (2,000 clips of 1 or 2 columns took 14 ms at fit zoom).
+            var run: Range<Int>?
+            func fillRun() {
+                if let run { fill(LaneColors.clip, columns: run, rows: top...bottom) }
+                run = nil
+            }
             for clip in track.clips.clips(overlapping: visible) {
                 let range = clamped(column(clip.start).rounded(.down))..<clamped(column(clip.end).rounded(.up))
                 guard !range.isEmpty else { continue }
-                if gap < range.lowerBound { fill(LaneColors.lane, columns: gap..<range.lowerBound, rows: top...bottom) }
+                if gap < range.lowerBound {
+                    fillRun()
+                    fill(LaneColors.lane, columns: gap..<range.lowerBound, rows: top...bottom)
+                }
                 gap = max(gap, range.upperBound)
-                fill(LaneColors.clip, columns: range, rows: top...bottom)
+                run = (run?.lowerBound ?? range.lowerBound)..<max(run?.upperBound ?? 0, range.upperBound)
                 // The red comes from the media check only, never from the peaks.
                 var red: Int?
                 switch inputs.missingMedia[clip.file] {
@@ -92,20 +102,30 @@ final class LaneRenderer {
                 case nil: break
                 }
                 if let red, red < range.upperBound {
+                    // The tint goes over the clip color, so the run fills first.
+                    fillRun()
                     let tint = max(red, range.lowerBound)..<range.upperBound
                     fill(LaneColors.missing, columns: tint, rows: top...bottom)
                     for row in [top, bottom] { fill(LaneColors.missingOutline, columns: tint, rows: row...row) }
                 }
             }
+            fillRun()
             fill(LaneColors.lane, columns: gap..<columns, rows: top...bottom)
         }
         for (lane, track) in tracks.enumerated() {
             let bottom = (lane + 1) * laneRows - 1
             for clip in track.clips.clips(overlapping: visible) {
-                let range = clamped(column(clip.start).rounded(.down))..<clamped(column(clip.end).rounded(.up))
+                // The columns whose first frame is in the clip: each column draws one waveform. A
+                // clip under one column can hold none (at fit zoom, 2,000 clips per lane drew each
+                // column about 1.7 times).
+                let range = clamped(column(clip.start).rounded(.up))..<clamped(column(clip.end).rounded(.up))
                 guard !range.isEmpty, case .ready(let peaks) = inputs.peaks[clip.file] else { continue }
-                // `fill` sets every column, so only the count matters.
-                if values.count != range.count { values = Array(repeating: PeakColumn.zero, count: range.count) }
+                // `fill` sets every column, so only the count matters. The array keeps its memory:
+                // at fit zoom the count changes between 1 and 2 at almost every clip.
+                if values.count != range.count {
+                    values.removeAll(keepingCapacity: true)
+                    values.append(contentsOf: repeatElement(PeakColumn.zero, count: range.count))
+                }
                 let from = Double((clip.offset - clip.start).count) + first + Double(range.lowerBound) * pixelFrames
                 peaks.fill(&values, from: from, step: pixelFrames)
                 let gain = clip.gain.dB + track.gain.dB

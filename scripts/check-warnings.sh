@@ -7,7 +7,7 @@
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 
-json="$(swift package --package-path "$root" dump-package 2>/dev/null)"
+json="$(swift package --package-path "$root" dump-package)"
 problems="$(jq -r '
   .targets[] | .name as $target | (.settings // []) as $settings
   | (if any($settings[]; .kind.treatAllWarnings._0? == "error" and .condition == null) then empty

@@ -112,6 +112,7 @@ struct PlaceSegmentTests {
     enum Refusal: String, CaseIterable, CustomTestStringConvertible {
         case placed, pendingTake, noCAF, missingSidecar, badMagicSidecar, noAnchor, noAnchorNoTrack, noAnchorNoStart
         case wavInUse, wavInUseOtherCase, layoutMismatch, beforeTimeline, unreadableAnchor, armOutsideTheAnchor
+        case negativeStart
         var testDescription: String { rawValue }
     }
 
@@ -175,6 +176,9 @@ struct PlaceSegmentTests {
         case .armOutsideTheAnchor:
             try package.segment(arm: 3, samples: sine(seconds: 1, rate: 48_000))
             return refused(.noAlignment, SegmentName(stem: "take1-3-1")!)
+        case .negativeStart:
+            // The library refuses it at its boundary, as the CLI does (exit 64).
+            return refused(.session(.frameOutOfRange), start: -1)
         }
     }
 

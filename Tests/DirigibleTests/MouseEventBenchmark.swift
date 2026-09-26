@@ -73,6 +73,32 @@ import Testing
         return (window, view, model)
     }
 
+    /// Sends 130 drag events of `event(n)` to `target` (the lanes by default), one per 60 Hz frame,
+    /// and gives the sorted times of the last 120: the event and the draw that it causes. Each event
+    /// must draw the lanes once and change the drawn session. The pointer gives at most about one
+    /// coalesced drag event per frame. Back to back, the flush of every second or fourth event
+    /// waited for the next display frame (about 17 ms in all, 1.6 ms of gesture and 0.4 ms of draw):
+    /// it measured the frame rate, not the event (the mouse-edits run, slice 3).
+    static func pacedDrags(
+        _ view: TimelineScrollView, _ window: NSWindow, _ zoom: String, to target: NSView? = nil,
+        _ event: (Int) throws -> NSEvent
+    ) async throws -> [Duration] {
+        var times: [Duration] = []
+        for n in 1...130 {
+            let drag = try event(n)
+            let (draws, before) = (view.lanes.draws, view.lanes.inputs?.session)
+            try await Task.sleep(for: .microseconds(16_700))
+            let start = ContinuousClock.now
+            (target ?? view.lanes).mouseDragged(with: drag)
+            drawNow(window)
+            // The first 10 events are not timed (the draw after the window shows).
+            if n > 10 { times.append(ContinuousClock.now - start) }
+            try #require(view.lanes.draws == draws + 1, "one draw per event")
+            try #require(view.lanes.inputs?.session != before, "\(zoom): event \(n) made no new preview")
+        }
+        return times.sorted()
+    }
+
     /// The draw of the lanes in view with the labels, 120 times at each zoom, on the path that
     /// AppKit uses on screen: the backing store of the layer, drawn at the commit of the Core
     /// Animation transaction. `cacheDisplay` converts the new image of each draw into its bitmap,
@@ -137,27 +163,45 @@ import Testing
             try #require(box.width >= 12 && box.maxX < 1300, "\(zoom): \(box)")
             let down = NSPoint(x: box.midX, y: box.minY + 10)
             view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
-            var times: [Duration] = []
-            for event in 1...130 {
-                let point = NSPoint(x: down.x + Double(event), y: down.y + (event % 2 == 0 ? 0 : 100))
-                let drag = try mouse(.leftMouseDragged, point, in: view)
-                let (draws, before) = (view.lanes.draws, view.lanes.inputs?.session)
-                // One drag event per 60 Hz frame, as the pointer gives them. Back to back, the flush of
-                // every second or fourth event waited for the next display frame (about 17 ms in
-                // all, 1.6 ms of gesture and 0.4 ms of draw): it measured the frame rate, not the
-                // event (the mouse-edits run, slice 3).
-                try await Task.sleep(for: .microseconds(16_700))
-                let start = ContinuousClock.now
-                view.lanes.mouseDragged(with: drag)
-                drawNow(window)
-                // The first 10 events are not timed (the draw after the window shows).
-                if event > 10 { times.append(ContinuousClock.now - start) }
-                try #require(view.lanes.draws == draws + 1, "one draw per event")
-                try #require(view.lanes.inputs?.session != before, "\(zoom): event \(event) made no new preview")
+            let sorted = try await Self.pacedDrags(view, window, zoom) { event in
+                try mouse(
+                    .leftMouseDragged, NSPoint(x: down.x + Double(event), y: down.y + (event % 2 == 0 ? 0 : 100)),
+                    in: view)
             }
             view.lanes.mouseUp(with: try mouse(.leftMouseUp, down, in: view))
-            let sorted = times.sorted()
             print("MouseEventBenchmark move, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
+            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            window.close()
+            await model.close()
+        }
+    }
+
+    /// One end-edge trim event, as the move case: at fit zoom the end of the 20 pt clip, at the zoom
+    /// of 60 pt boxes the end of a fixture clip. The next clip holds the end, so each event takes it
+    /// 3 to 12 pt left (3 pt is the drag threshold), a new place at each event.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aTrimEventFitsOneFrameAtTwoHours() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        var (session, peaks) = try Self.fixture()
+        try session.place(
+            Clip(id: "big", file: "f2", start: 100_000_000, offset: 100_000_000, length: 4_800_000), on: "t2")
+        for (n, (zoom, framesPerPoint)) in Self.zooms.enumerated() {
+            let package = folder.url.appending(path: "\(n)")
+            try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+            let (window, view, model) = try await Self.lanesOnScreen(
+                session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
+            try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
+            let box = try #require(
+                n == 0 ? view.lanes.clipFrame("big") : NSRect(x: 300, y: 100, width: 60, height: 100))
+            try #require(box.width >= 12 && box.maxX < 1300, "\(zoom): \(box)")
+            let down = NSPoint(x: box.maxX - 2, y: box.minY + 10)
+            view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
+            let sorted = try await Self.pacedDrags(view, window, zoom) { event in
+                try mouse(.leftMouseDragged, NSPoint(x: down.x - Double(3 + event % 10), y: down.y), in: view)
+            }
+            view.lanes.mouseUp(with: try mouse(.leftMouseUp, down, in: view))
+            print("MouseEventBenchmark trim, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
             #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
             window.close()
             await model.close()

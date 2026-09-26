@@ -238,4 +238,51 @@ import Testing
         window.close()
         await model.close()
     }
+
+    /// Criterion 6: c1 is x 200 to 300 pt, frames 102,400 to 153,600 of f1 (960,000 frames). One
+    /// drag event takes its end to the end of f1, and one takes its start to the start of f1. Each
+    /// trim is one undo entry, with no alert.
+    @Test func anEdgeDragTrimsWithinItsLimits() async throws {
+        let (model, studio, window, view) = try await lanes()
+        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        view.update(laneInputs(model, studio))
+        let trimmed = studio.session
+
+        try press(view, 298, 10)
+        try drag(view, 2000, 10)
+        #expect(view.lanes.inputs?.session.clip("c1")?.clip.range == 102_400..<960_000, "the preview")
+        #expect(studio.session == trimmed)
+        try release(view, 2000, 10)
+        #expect(studio.session.clip("c1")?.clip.range == 102_400..<960_000 && model.alert == nil)
+        #expect(model.timeline.marks == Marks(inPoint: 102_400, outPoint: 960_000, tracks: ["t1"]))
+
+        try press(view, 202, 10)
+        try drag(view, 0, 10)
+        try release(view, 0, 10)
+        let clip = try #require(studio.session.clip("c1")?.clip)
+        #expect(clip.range == 0..<960_000 && clip.offset == 0 && model.alert == nil)
+        model.undo()
+        #expect(studio.session.clip("c1")?.clip.range == 102_400..<960_000)
+        model.undo()
+        #expect(studio.session == trimmed, "one undo entry for each trim")
+        window.close()
+        await model.close()
+    }
+
+    /// Criterion 10: a Shift-drag from the move zone of c1 extends the Marks and moves nothing.
+    @Test func aShiftDragOnAClipExtendsAndMovesNothing() async throws {
+        let (model, studio, window, view) = try await lanes()
+        let before = studio.session
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 51_200, tracks: ["t2"])
+
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 200, y: 10), in: view, flags: .shift))
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 300, y: 10), in: view, flags: .shift))
+        #expect(view.lanes.inputs?.session == before, "no preview")
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 10), in: view, flags: .shift))
+
+        #expect(model.timeline.marks == Marks(inPoint: 0, outPoint: 153_600, tracks: ["t1", "t2"]))
+        #expect(studio.session == before && !studio.canUndo)
+        window.close()
+        await model.close()
+    }
 }

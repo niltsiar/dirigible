@@ -43,6 +43,20 @@ struct MarksTests {
             Marks().extended(to: 900, lane: "t2", playhead: 500) == Marks(inPoint: 500, outPoint: 900, tracks: ["t2"]))
     }
 
+    /// Mouse-edits criterion 10: a Shift-drag gives the hull of the two ranges and the union of the
+    /// tracks. A point that is not set does not count.
+    @Test func shiftDragExtendsTheRange() {
+        let marks = Marks(inPoint: 1000, outPoint: 2000, tracks: ["t1"])
+        let drag = Marks(inPoint: 5000, outPoint: 6000, tracks: ["t3"])
+
+        #expect(marks.extended(by: drag) == Marks(inPoint: 1000, outPoint: 6000, tracks: ["t1", "t3"]))
+        #expect(drag.extended(by: marks) == Marks(inPoint: 1000, outPoint: 6000, tracks: ["t1", "t3"]))
+        #expect(Marks().extended(by: drag) == drag)
+        #expect(
+            Marks(outPoint: 500, tracks: ["t2"]).extended(by: drag)
+                == Marks(inPoint: 500, outPoint: 6000, tracks: ["t2", "t3"]))
+    }
+
     @Test func aCommandClickTogglesOneLaneAndKeepsTheRange() {
         let marks = Marks(inPoint: 100, outPoint: 200, tracks: ["t1", "t2"])
 

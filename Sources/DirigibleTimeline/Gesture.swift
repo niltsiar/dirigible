@@ -71,12 +71,24 @@ public struct TimelineGesture: Sendable {
         var preview: Session
     }
 
+    /// A trim of one edge: the frames that the edge can reach (`trimLimits` at the drag start) and
+    /// the session with the clip at `range`.
+    struct Trim: Sendable {
+        let clip: Clip
+        let edge: Edge
+        let lane: Int
+        let limits: ClosedRange<Frames>
+        var range: Range<Frames>
+        var preview: Session
+    }
+
     enum State: Sendable {
         case idle
         /// Esc, a session change, or a take ended the gesture: input is ignored until the up.
         case dropped
         case pressed(Press)
         case moving(Press, Move)
+        case trimming(Press, Trim)
         case ranging(Press)
     }
 
@@ -114,6 +126,7 @@ public struct TimelineGesture: Sendable {
             switch state {
             case .pressed(let press): return click(press, context)
             case .moving(let press, let move): return commit(press, move)
+            case .trimming(let press, let trim): return commit(press, trim)
             case .ranging: return effects
             case .idle, .dropped: return []
             }
@@ -123,7 +136,7 @@ public struct TimelineGesture: Sendable {
             case .pressed:
                 state = .idle
                 return []
-            case .moving:
+            case .moving, .trimming:
                 state = .dropped
                 return []
             case .ranging(let press):
@@ -131,7 +144,10 @@ public struct TimelineGesture: Sendable {
                 return [.marks(press.marks)]
             }
         case .sessionChanged:
-            if case .moving = state { state = .dropped }
+            switch state {
+            case .moving, .trimming: state = .dropped
+            default: break
+            }
             if case .pressed(let press) = state, press.hit.clip != nil { state = .idle }
             return []
         }
@@ -139,14 +155,18 @@ public struct TimelineGesture: Sendable {
 
     /// The session and the Marks to draw over the inputs: the preview of a move.
     public func drawn(session: Session, marks: Marks) -> (session: Session, marks: Marks) {
-        if case .moving(_, let move) = state { return (move.preview, marks) }
-        return (session, marks)
+        switch state {
+        case .moving(_, let move): (move.preview, marks)
+        case .trimming(_, let trim): (trim.preview, marks)
+        default: (session, marks)
+        }
     }
 
     /// The cursor at `place`: the kind of the gesture while it runs, else the kind of the zone.
     public func cursor(at place: Place, _ context: GestureContext) -> TimelineCursor {
         switch state {
         case .moving: return .closedHand
+        case .trimming: return .resizeLeftRight
         case .ranging: return .iBeam
         case .idle, .dropped, .pressed: break
         }
@@ -169,9 +189,15 @@ public struct TimelineGesture: Sendable {
                 state = .moving(
                     press, Move(clip: clip, lane: lane, track: track, start: clip.start, preview: press.base))
                 return drag(place, context)
-            case .trim:
-                // Slice 4 of the mouse-edits run: an edge drag trims. Until then the up is a click.
-                return []
+            case .trim(let clip, let edge, let lane):
+                guard context.canEdit, let file = press.base.files[clip.file] else { return [] }
+                let limits = trimLimits(
+                    clip, edge: edge, in: press.base.tracks[lane].clips, fileLength: file.length,
+                    minimum: geometry.trimMinimum)
+                state = .trimming(
+                    press,
+                    Trim(clip: clip, edge: edge, lane: lane, limits: limits, range: clip.range, preview: press.base))
+                return drag(place, context)
             case .range:
                 state = .ranging(press)
                 return drag(place, context)
@@ -197,11 +223,28 @@ public struct TimelineGesture: Sendable {
             (move.track, move.start, move.preview) = (track, start, preview)
             state = .moving(press, move)
             return []
+        case .trimming(let press, var trim):
+            guard context.canEdit else {
+                state = .dropped
+                return []
+            }
+            let delta = geometry.frame(at: x) - press.frame
+            let edge = trim.edge == .start ? trim.clip.start : trim.clip.end
+            let frame = min(max(edge + delta, trim.limits.lowerBound), trim.limits.upperBound)
+            let range = trim.edge == .start ? frame..<trim.clip.end : trim.clip.start..<frame
+            guard range != trim.range else { return [] }
+            var preview = press.base
+            // `trimLimits` keeps every range inside the neighbors and the file, so no input reaches a
+            // throw. A throw keeps the last preview (decision 0020).
+            guard (try? preview.trim(trim.clip.id, to: range)) != nil else { return [] }
+            (trim.range, trim.preview) = (range, preview)
+            state = .trimming(press, trim)
+            return []
         case .ranging(let press):
-            let marks = Marks.drag(
+            let drag = Marks.drag(
                 from: press.frame, to: geometry.frame(at: x), lanes: (geometry.lane(at: press.y), geometry.lane(at: y)),
                 in: context.session)
-            return [.marks(marks)]
+            return [.marks(press.shift ? press.marks.extended(by: drag) : drag)]
         }
     }
 
@@ -227,5 +270,13 @@ public struct TimelineGesture: Sendable {
         guard (move.track, move.start) != (press.base.tracks[move.lane].id, move.clip.start) else { return [] }
         let marks = Marks(inPoint: move.start, outPoint: move.start + move.clip.length, tracks: [move.track])
         return [.commit(GestureCommit(base: press.base, result: move.preview, marks: marks))]
+    }
+
+    /// The mouse-up of a trim: one commit when the range changed, with the Marks on the new range.
+    private func commit(_ press: Press, _ trim: Trim) -> [GestureEffect] {
+        guard trim.range != trim.clip.range else { return [] }
+        let marks = Marks(
+            inPoint: trim.range.lowerBound, outPoint: trim.range.upperBound, tracks: [press.base.tracks[trim.lane].id])
+        return [.commit(GestureCommit(base: press.base, result: trim.preview, marks: marks))]
     }
 }

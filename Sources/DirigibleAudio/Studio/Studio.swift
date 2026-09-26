@@ -10,20 +10,22 @@ import Observation
         case idle
         case recording(take: Int)
         case finalizing(take: Int)
+        /// A placement (decision 0021) converts and saves this segment.
+        case placing(SegmentName)
     }
 
     /// The package path in `packageIdentity` form. A write that finds the package moved on its
     /// volume sets it (decision 0014).
     public private(set) var url: URL
-    public private(set) var transport: Transport = .idle
+    public internal(set) var transport: Transport = .idle
     public var session: Session { history.session }
     /// Derived, not stored: `session.recording` while the transport is idle (decision 0004).
     public var pendingTake: Recording? { transport == .idle ? session.recording : nil }
     /// The last error of a finalize or of the save after it. Nil after a success.
     public private(set) var takeError: StudioError?
-    /// The stems of CAFs with audio that no pool file points to (decision 0012). Derived from
+    /// The segments of CAFs with audio that no pool file points to (decision 0012). Derived from
     /// the session on each read, so an edit, an undo, or a redo changes it.
-    public var unplacedSegments: [String] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
+    public var unplacedSegments: [SegmentName] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
     public var canUndo: Bool { history.canUndo }
     public var canRedo: Bool { history.canRedo }
 
@@ -67,8 +69,8 @@ import Observation
     @ObservationIgnored private(set) var armed: [(id: TrackID, writer: DeviceWriter)] = []
     /// One more for each take that begins. Two takes can have the same number.
     @ObservationIgnored private(set) var generation = 0
-    /// The write chain: each package write (an autosave, a start, or a finalize) runs in its
-    /// turn, so the writes run one at a time in the order of their calls.
+    /// The write chain: each package write (an autosave, a start, a finalize, or a placement) runs
+    /// in its turn, so the writes run one at a time in the order of their calls.
     @ObservationIgnored private let writes = TurnQueue()
     /// True from `scheduleSave` until its write starts.
     @ObservationIgnored private var saveWaits = false
@@ -327,13 +329,19 @@ import Observation
         transport = .finalizing(take: take)
         await environment.beforeFinalize()
         let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: url)
+        takeError = outcome.error
+        if outcome.error == nil { takeEnded(outcome.session) }
+        try apply(outcome)
+    }
+
+    /// The end of a finalize or a placement, on the main actor: the package path, the disk facts,
+    /// and the transport; then the error, or one undo entry for the session that the step saved.
+    func apply(_ outcome: TakeOutcome) throws(StudioError) {
         if let package = outcome.package { url = package }
         transport = .idle
-        takeError = outcome.error
         segmentsWithAudio = outcome.segmentsWithAudio
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let error = outcome.error { throw error }
-        takeEnded(outcome.session)
         let before = session.files
         history.edit { $0 = outcome.session }
         poolChanged(from: before)
@@ -366,7 +374,8 @@ import Observation
         }
     }
 
-    /// Edits, saves, and a new take wait while a take records or finalizes (decision 0004).
+    /// Edits, saves, and a new take wait while a take records or finalizes (decision 0004), or while
+    /// a placement runs (decision 0021).
     func checkIdle() throws(StudioError) {
         guard transport == .idle, !isStarting else { throw .busy }
     }

@@ -81,6 +81,9 @@ struct CaptureEnvironment: Sendable {
     var saveSession: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
     /// A step before each finalize. Tests hold a finalize with it; `live` does nothing.
     var beforeFinalize: @Sendable () async -> Void = {}
+    /// A step at the block reads of each placement (decision 0021). Tests hold a placement or
+    /// check its thread with it; `live` has none.
+    var placeRead: ReadFault?
     /// The output of the Player that the next play makes (decision 0016). Tests render offline.
     var playerOutput: Player.Output = .device
     /// A step before the Player stop of a take start, off the main actor. Tests hold it.
@@ -263,8 +266,14 @@ nonisolated func checkTake(
 @concurrent nonisolated func pendingWAVBytes(take: Int, of lock: PackageLock) async -> Int64 {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return 0 }
+    return wavBytes(of: ((try? captureSegments(in: package)) ?? []).filter { $0.take == take }, in: package)
+}
+
+/// The WAV bytes that the finalize of `segments` needs: 3 for each 4 CAF bytes (decision 0013).
+/// A CAF that does not give its size counts 0.
+func wavBytes(of segments: [SegmentName], in package: URL) -> Int64 {
     let capture = package.appending(path: captureFolderName)
-    let bytes = ((try? captureSegments(in: package)) ?? []).filter { $0.take == take }.reduce(Int64(0)) { sum, name in
+    let bytes = segments.reduce(Int64(0)) { sum, name in
         let size = try? FileManager.default.attributesOfItem(atPath: capture.appending(path: "\(name.stem).caf").path)[
             .size]
         return sum + ((size as? NSNumber)?.int64Value ?? 0)

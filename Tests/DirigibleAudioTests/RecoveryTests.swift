@@ -139,12 +139,12 @@ struct RecoveryTests {
         #expect(studio?.pendingTake == nil)
         #expect(studio?.takeError == nil)
         #expect(studio?.session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
-        #expect(studio?.unplacedSegments == ["take1-1-1"])
+        #expect(studio?.unplacedSegments.map(\.stem) == ["take1-1-1"])
         studio = nil
 
         let saved = try Data(contentsOf: package.url.appending(path: "session.xml"))
         let again = try await Studio.open(package.url)
-        #expect(again.unplacedSegments == ["take1-1-1"])
+        #expect(again.unplacedSegments.map(\.stem) == ["take1-1-1"])
         #expect(again.session.recording == nil)
         #expect(try Data(contentsOf: package.url.appending(path: "session.xml")) == saved)
     }

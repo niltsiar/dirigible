@@ -45,6 +45,30 @@ extension Studio {
         return lastTake
     }
 
+    /// Places an unplaced segment (decision 0021): on the track of its arm at its recorded time
+    /// (the take anchor), or on `track` and at `start` when given. A running play stops first, as
+    /// at a take start. The conversion and the save run off the main actor; meanwhile every other
+    /// entry point throws `.busy`. A success records one undo entry and returns the clip ID. A
+    /// throw changes nothing.
+    public func place(_ segment: SegmentName, on track: TrackID? = nil, at start: Frames? = nil)
+        async throws(StudioError) -> ClipID
+    {
+        try checkIdle()
+        guard unplacedSegments.contains(segment) else { throw .segment(segment, .notUnplaced) }
+        let stopped = endPlayForTake()
+        transport = .placing(segment)
+        let error = await serialized { () async -> StudioError? in
+            _ = await takePlayhead(stopped, nil)  // The Player stops.
+            let outcome = await completePlacement(
+                segment, track: track, start: start, of: session, lock: lock, environment: environment,
+                recordings: recordings, previous: url)
+            do throws(StudioError) { try apply(outcome) } catch { return error }
+            return nil
+        }
+        if let error { throw error }
+        return ClipID(segment.stem)
+    }
+
     /// The device writer of `uid` in the take that records. For tests.
     func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
 

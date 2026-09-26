@@ -157,6 +157,12 @@ enum L10n: String, CaseIterable {
     case errorFileExists = "error.file.exists"
     case errorFinalizeRead = "error.finalize.read"
     case errorFinalizeWrite = "error.finalize.write"
+    case errorSegmentNotUnplaced = "error.segment.not.unplaced"
+    case errorSegmentNoSidecar = "error.segment.no.sidecar"
+    case errorSegmentBadAudio = "error.segment.bad.audio"
+    case errorSegmentBeforeStart = "error.segment.before.start"
+    case errorSegmentNoAlignment = "error.segment.no.alignment"
+    case errorSegmentWAVInUse = "error.segment.wav.in.use"
     case errorExportExists = "error.export.exists"
     case errorExportRate = "error.export.rate"
     case errorExportDiskFull = "error.export.disk.full"
@@ -198,6 +204,21 @@ enum L10n: String, CaseIterable {
         case .finalize(.writeFailed(let file, let status)): return errorFinalizeWrite.format(file, Int(status))
         case .export(let error): return message(for: error)
         case .exportYielded: return errorExportYielded.text
+        case .segment(_, .session(let error)): return message(for: error, name: name)
+        case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
+        }
+    }
+
+    /// The key of a placement refusal (decision 0021). A session refusal has the session text.
+    private static func message(for fault: SegmentFault) -> L10n {
+        switch fault {
+        case .notUnplaced: errorSegmentNotUnplaced
+        case .noSidecar: errorSegmentNoSidecar
+        case .badAudio: errorSegmentBadAudio
+        case .beforeTimeline: errorSegmentBeforeStart
+        case .noAlignment: errorSegmentNoAlignment
+        case .wavInUse: errorSegmentWAVInUse
+        case .session: errorSessionOther
         }
     }
 

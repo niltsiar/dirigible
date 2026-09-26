@@ -46,6 +46,22 @@ private func finalizeTake(url: URL, path: String) async throws(ExitCode) {
     if code != 0 { throw ExitCode(code) }
 }
 
+extension SegmentFault {
+    /// No `default` case: a new fault does not compile until it has a message.
+    func message(segment: SegmentName) -> String {
+        let caf = "\(captureFolderName)/\(segment.stem).caf"
+        return switch self {
+        case .notUnplaced: "\(segment) is not unplaced audio: it is on the timeline, in a pending take, or has no CAF."
+        case .noSidecar: "\(caf) has no readable sidecar, so its timing is not known."
+        case .badAudio: "\(caf) is not audio that Dirigible can convert."
+        case .beforeTimeline: "\(segment) ends before the start of the timeline."
+        case .noAlignment: "no take anchor gives the track and the start of \(segment); give --track and --at."
+        case .wavInUse(let file): "file \"\(file)\" uses Clips/\(segment.stem).wav."
+        case .session(let error): error.message
+        }
+    }
+}
+
 extension StudioError {
     /// No `default` case: a new error case does not compile until it has a message.
     func message(package: String) -> String {
@@ -61,6 +77,7 @@ extension StudioError {
         case .finalize(.readFailed(let file, let code)):
             "cannot read \(package)/\(file): \(String(cString: strerror(code)))."
         case .finalize(.writeFailed(let file, let status)): "cannot write \(package)/\(file) (status \(status))."
+        case .segment(let segment, let fault): fault.message(segment: segment)
         case .microphoneAccess:
             "the terminal has no microphone access. Allow it in System Settings > Privacy & Security > Microphone."
         case .diskLow: "the disk of \(package) has less than 1 GB free."

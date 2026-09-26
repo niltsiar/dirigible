@@ -92,7 +92,7 @@ private func recordTake(
 /// Exit 1 for a start that the take refused before it changed the package; else 2.
 private func startRefused(_ error: StudioError) -> Int32 {
     switch error {
-    case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .session:
+    case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .session, .segment:
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded: packageError
     }
@@ -107,8 +107,8 @@ func reportTake(_ studio: Studio, take: Int?, armed: [TrackID], result: TakeResu
     var codes: [Int32] = []
     let clips = take.map { studio.clipIDs(ofTake: $0) } ?? []
     for id in clips { print(id) }
-    for stem in studio.unplacedSegments {
-        warn("\(captureFolderName)/\(stem).caf is not on the timeline.")
+    for segment in studio.unplacedSegments {
+        warn("\(captureFolderName)/\(segment.stem).caf is not on the timeline.")
         codes.append(unplacedAudio)
     }
     if result?.end == .diskLow {

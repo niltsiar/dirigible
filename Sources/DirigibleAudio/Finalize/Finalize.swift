@@ -14,8 +14,12 @@ public enum FinalizeError: Error, Hashable, Sendable {
 }
 
 /// Why one segment stays unplaced (decision 0021). The take finalize does not throw it: the other
-/// segments are placed and the take ends.
+/// segments are placed and the take ends. A placement (`Studio.place`) throws it.
 public enum SegmentFault: Error, Hashable, Sendable {
+    /// The segment is placed, is in the pending take, or has no CAF with audio.
+    case notUnplaced
+    /// No take anchor gives the track or the start, and the call does not give them.
+    case noAlignment
     /// The sidecar is missing or refused, so the timing of the segment is not known.
     case noSidecar
     /// The CAF has no frames, is not a CAF, does not match its sidecar, or does not convert whole.
@@ -60,7 +64,7 @@ func finalizeTake(
     for name in try captureSegments(in: package)
     where name.take == recording.take && name.arm <= recording.armedTracks.count {
         let segment = SegmentFinalize(
-            name: name, track: recording.armedTracks[name.arm - 1], recording: recording, package: package,
+            name: name, target: .aligned(recording, track: recording.armedTracks[name.arm - 1]), package: package,
             readFault: readFault, blockFrames: blockFrames)
         if case .success(let placed) = try segment.place(on: result) { result = placed }
     }
@@ -74,6 +78,21 @@ func finalizeTake(
     return result
 }
 
+/// The per-segment finalize of one segment to `target`, then the flush of `Clips/` (decision
+/// 0021). Returns the session with the capture, the file, and the clip of the segment added, or
+/// the fault that keeps it unplaced. It never writes `session.xml`.
+func placeSegment(
+    _ name: SegmentName, to target: Target, of session: Session, in package: URL, readFault: ReadFault? = nil
+) throws(FinalizeError) -> Result<Session, SegmentFault> {
+    let result = try SegmentFinalize(
+        name: name, target: target, package: package, readFault: readFault, blockFrames: 65_536
+    ).place(on: session)
+    if case .success = result, let code = fullFlush(path: package.appending(path: clipsFolderName).path) {
+        throw .writeFailed(file: clipsFolderName, status: code)
+    }
+    return result
+}
+
 /// The segments of the CAFs in `Capture/` that have frames or do not open: the disk fact under
 /// the unplaced list (decision 0012). In name order. It reads files, so call it off the main actor.
 func segmentsWithAudio(in package: URL) -> [SegmentName] {
@@ -83,12 +102,11 @@ func segmentsWithAudio(in package: URL) -> [SegmentName] {
     }
 }
 
-/// The stems of `segments` whose take is not the pending take and that no file of the session
-/// refers to. In the order of `segments`. No file I/O, so a caller can derive it on each read.
-func unplacedSegments(_ segments: [SegmentName], session: Session) -> [String] {
+/// The `segments` whose take is not the pending take and that no file of the session refers to.
+/// In the order of `segments`. No file I/O, so a caller can derive it on each read.
+func unplacedSegments(_ segments: [SegmentName], session: Session) -> [SegmentName] {
     let referenced = Set(session.files.values.compactMap(\.capture))
     return segments.filter { $0.take != session.recording?.take && !referenced.contains(CaptureID($0.stem)) }
-        .map(\.stem)
 }
 
 /// The segment names of the CAFs in `Capture/`, in name order. A missing folder has none.

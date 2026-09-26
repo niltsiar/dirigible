@@ -132,6 +132,6 @@ struct PendingTakeTests {
         #expect(studio.takeError == nil)
         #expect(studio.session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
         #expect(try package.read().recording == nil)
-        #expect(studio.unplacedSegments == ["take1-1-1"])
+        #expect(studio.unplacedSegments.map(\.stem) == ["take1-1-1"])
     }
 }

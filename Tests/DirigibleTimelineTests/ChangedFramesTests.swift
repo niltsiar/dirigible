@@ -33,13 +33,28 @@ struct ChangedFramesTests {
         let session = try Fixture.session()
         var gain = session
         try gain.setGain(Gain(dB: -6)!, track: "t2")
-        var marker = session
-        try marker.setMarker(Marker(id: "m1", name: "M", position: 1000, kind: .marker))
         var track = session
         try track.addTrack("t4", name: "T4", layout: .mono)
 
         #expect(changedFrames(from: session, to: gain) == nil)
-        #expect(changedFrames(from: session, to: marker) == nil)
         #expect(changedFrames(from: session, to: track) == nil)
+    }
+
+    /// A marker draws one line on every lane, so a flag drag redraws the columns of its old and new
+    /// position, not the lanes in view (the mouse-edits run, slice 5).
+    @Test func aMarkerChangesTheFramesOfItsOldAndNewPosition() throws {
+        var session = try Fixture.session()
+        try session.setMarker(Marker(id: "m1", name: "M", position: 1000, kind: .marker))
+        var moved = session
+        try moved.setMarker(Marker(id: "m1", name: "M", position: 50_000, kind: .marker))
+        var added = session
+        try added.setMarker(Marker(id: "m2", name: "N", position: 300_000, kind: .chapter))
+        var both = moved
+        try both.move("A", to: "t1", start: 72_000)
+
+        #expect(changedFrames(from: session, to: moved) == 1000..<50_001)
+        #expect(changedFrames(from: session, to: added) == 300_000..<300_001)
+        #expect(changedFrames(from: added, to: session) == 300_000..<300_001, "a removed marker")
+        #expect(changedFrames(from: session, to: both) == 1000..<120_000)
     }
 }

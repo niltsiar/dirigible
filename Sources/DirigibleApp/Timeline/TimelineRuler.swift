@@ -12,8 +12,9 @@ struct RulerInputs: Equatable {
 
 /// The time ruler over the lanes (decision 0017): time labels whose step follows the zoom, marker
 /// flags (orange) and chapter flags (purple) with their names, and the in (green) and out (red)
-/// triangles, drawn with the constants of `RulerGeometry` (decision 0020). A click seeks and does
-/// not change the Marks.
+/// triangles, drawn with the constants of `RulerGeometry` (decision 0020). Its mouse events go to
+/// the gesture of the scroll view: a flag drag moves a marker, a triangle drag moves the in or out
+/// point, and a click in the time area seeks. A right-click gives the ruler menu.
 final class TimelineRuler: NSRulerView {
     static let thickness = CGFloat(RulerGeometry.thickness)
     weak var model: SessionWindow?
@@ -85,12 +86,91 @@ final class TimelineRuler: NSRulerView {
         path.fill()
     }
 
+    // MARK: Mouse
+
+    private var timeline: TimelineScrollView? { scrollView as? TimelineScrollView }
+
+    /// The document x and the ruler y of an event.
+    private func place(_ event: NSEvent) -> Place? {
+        guard let timeline else { return nil }
+        let x = Double(timeline.lanes.convert(event.locationInWindow, from: nil).x)
+        return .ruler(x: x, y: Double(convert(event.locationInWindow, from: nil).y))
+    }
+
+    /// The lanes become the first responder, so Esc reaches the gesture also when a track name
+    /// field had the focus (plan gate 2 item 1).
     override func mouseDown(with event: NSEvent) {
-        guard let document = scrollView?.documentView, let inputs else { return }
-        // The corner over the track headers is left of the lanes: no seek.
-        let x = Double(document.convert(event.locationInWindow, from: nil).x)
-        guard x >= 0 else { return }
-        model?.rulerClick(at: inputs.geometry.frame(at: x))
+        guard let timeline, let place = place(event) else { return }
+        window?.makeFirstResponder(timeline.lanes)
+        let flags = event.modifierFlags
+        timeline.mouse(.down(place, shift: flags.contains(.shift), command: flags.contains(.command)))
+        showCursor(event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let place = place(event) else { return }
+        timeline?.mouse(.drag(place))
+        showCursor(event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let place = place(event) else { return }
+        timeline?.mouse(.up(place))
+        showCursor(event)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        guard trackingAreas.isEmpty else { return }
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) { showCursor(event) }
+    override func cursorUpdate(with event: NSEvent) { showCursor(event) }
+
+    private func showCursor(_ event: NSEvent) {
+        guard let place = place(event), let kind = timeline?.cursor(at: place) else { return }
+        NSCursor.timeline(kind).set()
+    }
+
+    // MARK: Menu
+
+    /// Add Marker and Add Chapter at the clicked frame, and Delete Marker on a flag (mouse-edits
+    /// criterion 13). No menu during a gesture or left of the lanes.
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard case .ruler(let x, _) = place(event), let target = timeline?.menuTarget(at: x) else { return nil }
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let items: [(L10n, Selector, Any, Bool)] = [
+            (.menuMarkersAdd, #selector(addMarkerItem(_:)), target.frame.count, true),
+            (.menuMarkersAddChapter, #selector(addChapterItem(_:)), target.frame.count, true),
+            (.menuMarkersDelete, #selector(deleteMarkerItem(_:)), target.marker?.rawValue ?? "", target.marker != nil),
+        ]
+        for (title, action, object, enabled) in items {
+            let item = NSMenuItem(title: title.text, action: action, keyEquivalent: "")
+            (item.target, item.representedObject, item.isEnabled) = (self, object, enabled)
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func addMarkerItem(_ item: NSMenuItem) {
+        guard let frame = item.representedObject as? Int else { return }
+        model?.addMarker(.marker, at: Frames(frame))
+    }
+
+    @objc private func addChapterItem(_ item: NSMenuItem) {
+        guard let frame = item.representedObject as? Int else { return }
+        model?.addMarker(.chapter, at: Frames(frame))
+    }
+
+    /// Delete Marker makes the flag the current marker, then deletes it as the Markers menu does.
+    @objc private func deleteMarkerItem(_ item: NSMenuItem) {
+        guard let id = item.representedObject as? String, let model else { return }
+        model.timeline.marker = MarkerID(id)
+        model.run(.deleteMarker)
     }
 
     override func viewDidChangeBackingProperties() {

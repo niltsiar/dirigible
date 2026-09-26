@@ -68,11 +68,7 @@ extension SessionWindow {
     func runMarker(_ command: TimelineCommand, _ studio: Studio) {
         let (session, playhead) = (studio.session, studio.playhead)
         switch command {
-        case .addMarker, .addChapter:
-            let kind: Marker.Kind = command == .addChapter ? .chapter : .marker
-            let name = newMarkerName(kind, in: session)
-            let marker = Marker(id: MarkerID(), name: name.key.format(name.number), position: playhead, kind: kind)
-            if edit({ s throws(SessionError) in try s.setMarker(marker) }) != nil { timeline.marker = marker.id }
+        case .addMarker, .addChapter: addMarker(command == .addChapter ? .chapter : .marker, at: playhead)
         case .previousMarker, .nextMarker:
             let found =
                 command == .nextMarker
@@ -97,6 +93,15 @@ extension SessionWindow {
             }
         default: return
         }
+    }
+
+    /// Adds a marker or a chapter at `frame` in one undo entry and makes it the current marker: the
+    /// Markers menu adds at the playhead, the ruler menu at the clicked frame (mouse-edits Q8).
+    func addMarker(_ kind: Marker.Kind, at frame: Frames) {
+        guard let studio else { return }
+        let name = newMarkerName(kind, in: studio.session)
+        let marker = Marker(id: MarkerID(), name: name.key.format(name.number), position: frame, kind: kind)
+        if edit({ s throws(SessionError) in try s.setMarker(marker) }) != nil { timeline.marker = marker.id }
     }
 
     /// OK of the rename alert: saves the name of its marker, when the session still has it. When a

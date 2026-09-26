@@ -207,4 +207,33 @@ import Testing
             await model.close()
         }
     }
+
+    /// One flag drag event on the ruler: the gesture step, `setMarker` on a copy of the 2 h session,
+    /// and the draw of the lanes (the marker line) and the ruler. The marker is at x 300 pt; each
+    /// event takes its flag 1 pt right.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aFlagDragEventFitsOneFrameAtTwoHours() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (fixture, peaks) = try Self.fixture()
+        for (n, (zoom, framesPerPoint)) in Self.zooms.enumerated() {
+            var session = fixture
+            try session.setMarker(
+                Marker(id: "m1", name: "Marker 1", position: Frames(Int(framesPerPoint * 300)), kind: .marker))
+            let package = folder.url.appending(path: "\(n)")
+            try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+            let (window, view, model) = try await Self.lanesOnScreen(
+                session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
+            try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
+            view.ruler.mouseDown(with: try rulerMouse(.leftMouseDown, 301, 10, in: view))
+            let sorted = try await Self.pacedDrags(view, window, zoom, to: view.ruler) { event in
+                try rulerMouse(.leftMouseDragged, 301 + Double(3 + event), 10, in: view)
+            }
+            view.ruler.mouseUp(with: try rulerMouse(.leftMouseUp, 301, 10, in: view))
+            print("MouseEventBenchmark flag, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
+            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            window.close()
+            await model.close()
+        }
+    }
 }

@@ -19,7 +19,7 @@ final class TimelineDocumentView: NSView {
     /// The rect of the last draw, for the dirty-rect test of a drag event.
     private(set) var drawnRect = NSRect.zero
     /// Every drawn input except the backing scale. A new value draws only when it is not equal, and
-    /// only the columns of the changed clips when nothing else changed (a drag event).
+    /// only the columns of the changed clips and markers when nothing else changed (a drag event).
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
@@ -28,7 +28,7 @@ final class TimelineDocumentView: NSView {
         }
     }
 
-    /// The columns of the clips that changed from `old`, at full height, with 1 pt on each side for
+    /// The columns of the clips and markers that changed from `old`, at full height, with 1 pt on each side for
     /// the rounding of the renderer. Nil when another input changed.
     private func changedColumns(from old: LaneInputs?) -> NSRect? {
         guard var old, let inputs, let geometry = inputs.geometry,

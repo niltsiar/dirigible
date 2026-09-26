@@ -151,16 +151,18 @@ actor Player {
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
     /// Before each pull it waits until the handlers have scheduled the frames, as the device
     /// clock gives them time to. In a full suite a refill task can wait seconds for a thread of
-    /// the cooperative pool, so the wait ends on the frames, and one deadline of 30 s for the
-    /// call is only a hang guard. `starve` pulls with no wait and no suspension, so no refill
-    /// runs and the node can run dry, as a late refill on a slow disk does.
+    /// the cooperative pool, so the wait ends on the frames, and one budget of 30 s for the call
+    /// is only a hang guard. The budget counts only the time that the wait is awake: in a full
+    /// suite the wait itself can wait more than 30 s for a pool thread, together with the refill.
+    /// `starve` pulls with no wait and no suspension, so no refill runs and the node can run dry,
+    /// as a late refill on a slow disk does.
     func renderOffline(frames: Int, starve: Bool = false) async -> [[Float]] {
         var out: [[Float]] = [[], []]
         var left = frames
-        let deadline = ContinuousClock.now + .seconds(30)
+        var budget = Duration.seconds(30)
         while left > 0 {
             let count = min(left, chunk)
-            if !starve { await waitForFeed(count, until: deadline) }
+            if !starve { await waitForFeed(count, budget: &budget) }
             let pulled = pull(count)
             for channel in 0..<2 { out[channel] += pulled?[channel] ?? [Float](repeating: 0, count: count) }
             left -= count
@@ -168,11 +170,13 @@ actor Player {
         return out
     }
 
-    private func waitForFeed(_ count: Int, until deadline: ContinuousClock.Instant) async {
-        while let feed, feed.scheduled - nodeFrames() < count, feed.scheduled < length(feed),
-            ContinuousClock.now < deadline
-        {
+    /// Each poll of 1 ms takes its time off `budget`, at most 10 ms. A later wake-up waited for a
+    /// pool thread, not for the refill.
+    private func waitForFeed(_ count: Int, budget: inout Duration) async {
+        while let feed, feed.scheduled - nodeFrames() < count, feed.scheduled < length(feed), budget > .zero {
+            let start = ContinuousClock.now
             try? await Task.sleep(for: .milliseconds(1))
+            budget -= min(ContinuousClock.now - start, .milliseconds(10))
         }
     }
 

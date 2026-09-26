@@ -83,6 +83,13 @@ public struct Marks: Hashable, Sendable {
         Marks(inPoint: min(frame, playhead), outPoint: max(frame, playhead), tracks: tracks.union([lane]))
     }
 
+    /// Shift-drag (mouse-edits criterion 10): the hull of the set points of both Marks, on the union
+    /// of the tracks.
+    public func extended(by other: Marks) -> Marks {
+        let points = [inPoint, outPoint, other.inPoint, other.outPoint].compactMap { $0 }
+        return Marks(inPoint: points.min(), outPoint: points.max(), tracks: tracks.union(other.tracks))
+    }
+
     /// Command-click: the lane goes into or out of the tracks. With no tracks left, no Marks.
     public func toggled(_ track: TrackID) -> Marks {
         var marks = self

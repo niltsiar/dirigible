@@ -157,6 +157,10 @@ struct GestureTests {
 
         #expect(drawn == session)
         #expect(up(250, 10) == [])
+        _ = down(198, 10)
+        _ = drag(150, 10)
+        _ = gesture.handle(.sessionChanged, context(changed))
+        #expect(drawn == session && up(150, 10) == [], "a trim")
     }
 
     @Test mutating func aCommitOnAChangedSessionChangesNothing() throws {
@@ -203,5 +207,95 @@ struct GestureTests {
 
         #expect(drawn == session)
         #expect(up(250, 50) == [.marks(Marks()), .seek(120_000)])
+    }
+
+    /// The session after one drag of `edge` from `from` to `to` pt at y 10, on `session`.
+    func trimmed(_ session: Session, from: Double, to: Double) -> Session? {
+        var gesture = TimelineGesture()
+        let context = context(session)
+        _ = gesture.handle(.down(.lanes(x: from, y: 10), shift: false, command: false), context)
+        _ = gesture.handle(.drag(.lanes(x: to, y: 10)), context)
+        let effects = gesture.handle(.up(.lanes(x: to, y: 10)), context)
+        guard effects.count == 1, case .commit(let commit) = effects[0] else { return nil }
+        var result = session
+        return commit.apply(to: &result) ? result : nil
+    }
+
+    /// Criterion 6: each edge drag goes in one event, so a trim with no limits throws in Core and
+    /// commits nothing.
+    @Test func anEdgeDragStopsAtTheNeighborTheFileAndTheMinimum() throws {
+        #expect(place("A", in: trimmed(session, from: 198, to: 398)) == Spot("t1", 48_000..<144_000), "B")
+        let withoutB = try Fixture.session(withB: false)
+        #expect(place("A", in: trimmed(withoutB, from: 198, to: 498)) == Spot("t1", 48_000..<192_000), "fa")
+        #expect(place("B", in: trimmed(session, from: 302, to: 52)) == Spot("t1", 96_000..<192_000), "A")
+        #expect(trimmed(session, from: 302, to: 52)?.clip("B")?.clip.offset == 0)
+        #expect(place("A", in: trimmed(session, from: 101, to: 401)) == Spot("t1", 95_520..<96_000), "1 pt")
+        #expect(place("A", in: trimmed(session, from: 198, to: -102)) == Spot("t1", 48_000..<48_480), "1 pt")
+    }
+
+    @Test mutating func aLeftEdgeDragMovesTheStartAndTheOffset() {
+        _ = down(101, 10)
+        #expect(drag(121, 10) == [])
+        #expect(place("A", in: drawn) == Spot("t1", 57_600..<96_000), "the preview")
+        #expect(gesture.cursor(at: .lanes(x: 500, y: 150), context()) == .resizeLeftRight)
+
+        let effects = up(121, 10)
+
+        let result = committed(effects)
+        #expect(place("A", in: result) == Spot("t1", 57_600..<96_000) && result?.clip("A")?.clip.offset == 9_600)
+        guard case .commit(let commit) = effects.first else { return }
+        #expect(commit.marks == Marks(inPoint: 57_600, outPoint: 96_000, tracks: ["t1"]))
+        #expect(!gesture.isActive && drawn == session)
+        _ = down(101, 10)
+        _ = drag(121, 10)
+        _ = drag(101, 10)
+        #expect(up(101, 10) == [], "the edge went back: no commit")
+    }
+
+    @Test mutating func escapeDropsATrim() {
+        _ = down(101, 10)
+        _ = drag(121, 10)
+
+        #expect(gesture.handle(.escape, context()) == [])
+
+        #expect(drawn == session && up(121, 10) == [])
+    }
+
+    @Test mutating func aTakeStartMidTrimDropsTheCommit() {
+        _ = down(198, 10)
+        _ = drag(150, 10)
+        #expect(drag(140, 10, canEdit: false) == [] && drawn == session)
+        #expect(up(140, 10) == [])
+        _ = down(198, 10)
+        _ = drag(150, 10, canEdit: false)
+        #expect(drawn == session, "no preview when a take runs at the down")
+        #expect(up(150, 10, canEdit: false) == [.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))])
+    }
+
+    /// Criterion 10: with Shift, a drag from the move zone of A is a range drag. The Marks are the
+    /// hull of the Marks at the down and the drag range, on the union of the tracks.
+    @Test mutating func aShiftDragExtendsTheMarks() {
+        let marks = Marks(inPoint: 0, outPoint: 1000, tracks: ["t2"])
+        _ = gesture.handle(.down(.lanes(x: 150, y: 10), shift: true, command: false), context(marks: marks))
+
+        let effects = gesture.handle(.drag(.lanes(x: 250, y: 10)), context(marks: marks))
+
+        #expect(effects == [.marks(Marks(inPoint: 0, outPoint: 120_000, tracks: ["t1", "t2"]))])
+        #expect(drawn == session && gesture.cursor(at: .lanes(x: 150, y: 10), context()) == .iBeam)
+        #expect(up(250, 10) == [.marks(Marks(inPoint: 0, outPoint: 120_000, tracks: ["t1", "t2"]))])
+    }
+
+    /// Criterion 10: a Shift press on a clip is a range press; its click keeps the Shift-click
+    /// rule (from the playhead, the lane joins).
+    @Test mutating func aShiftPressOnAClipIsARangePress() {
+        let marks = Marks(inPoint: 0, outPoint: 1000, tracks: ["t2"])
+        _ = gesture.handle(.down(.lanes(x: 150, y: 10), shift: true, command: false), context(marks: marks))
+
+        let effects = gesture.handle(.up(.lanes(x: 150, y: 10)), context(marks: marks))
+
+        #expect(effects == [.marks(Marks(inPoint: 1000, outPoint: 72_000, tracks: ["t1", "t2"]))])
+        _ = down(198, 10, shift: true)
+        _ = drag(250, 10)
+        #expect(drawn == session, "no trim")
     }
 }

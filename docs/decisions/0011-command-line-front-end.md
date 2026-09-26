@@ -9,6 +9,7 @@
 - Amended: 2026-09-25. `dirigible peaks` reads the peak cache of each pool file and writes nothing (see 0017).
 - Amended: 2026-09-25. `clip paste`, `clip split-at`, and `clip nudge`, and a repeatable `--track` on `clip clear`. Show Clips in Finder has no command: it writes nothing, and `info` lists the pool paths (see 0018).
 - Amended: 2026-09-25. `dirigible export` writes WAV, AAC, or FLAC. `dirigible render` calls the same writer and keeps its text and exit codes; a full disk gives "the disk is full" (see 0019).
+- Amended: 2026-09-26. `dirigible capture place` puts one unplaced segment on the timeline: exit 1 for a refused placement, 2 for a package fault or a pending take, 64 for a stem that does not parse or a negative `--at`. `take finalize --leave-unreadable` ends a take without its unreadable segments; without the flag, that error names the flag (see 0021).
 
 ## Context
 

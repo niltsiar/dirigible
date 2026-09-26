@@ -31,7 +31,7 @@ struct GestureTests {
         gesture.handle(.up(.lanes(x: x, y: y)), context(canEdit: canEdit))
     }
 
-    var drawn: Session { gesture.drawn(session: session, marks: Marks()).session }
+    var drawn: Session { gesture.drawn(session) }
 
     /// The session after the one commit of `effects`, or nil when there is none.
     func committed(_ effects: [GestureEffect]) -> Session? {

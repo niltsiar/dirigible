@@ -35,7 +35,7 @@ struct RulerGestureTests {
         gesture.handle(.up(.ruler(x: x, y: y)), context())
     }
 
-    var drawn: Session { gesture.drawn(session: session, marks: marks).session }
+    var drawn: Session { gesture.drawn(session) }
 
     /// The position of m1 in the session after the one commit of `effects`, and the commit.
     func committed(_ effects: [GestureEffect]) -> (position: Frames?, commit: GestureCommit)? {

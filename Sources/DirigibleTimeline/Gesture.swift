@@ -192,13 +192,13 @@ public struct TimelineGesture: Sendable {
         }
     }
 
-    /// The session and the Marks to draw over the inputs: the preview of a move.
-    public func drawn(session: Session, marks: Marks) -> (session: Session, marks: Marks) {
+    /// The session to draw over the inputs: the preview of a move, a trim, or a flag drag.
+    public func drawn(_ session: Session) -> Session {
         switch state {
-        case .moving(_, let move): (move.preview, marks)
-        case .trimming(_, let trim): (trim.preview, marks)
-        case .markerDrag(_, _, let preview): (preview, marks)
-        default: (session, marks)
+        case .moving(_, let move): move.preview
+        case .trimming(_, let trim): trim.preview
+        case .markerDrag(_, _, let preview): preview
+        default: session
         }
     }
 

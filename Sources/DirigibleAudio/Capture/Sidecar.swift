@@ -122,7 +122,9 @@ struct Sidecar: Hashable, Sendable {
         return record(checkpointKind, payload.bytes)
     }
 
-    private static func record(_ kind: UInt8, _ payload: [UInt8]) -> Data {
+    /// One record: a UInt32 payload length, the kind, the payload, and the FNV-1a 32 hash of the
+    /// kind and the payload. The take anchor uses the same framing (decision 0021).
+    static func record(_ kind: UInt8, _ payload: [UInt8]) -> Data {
         var record = ByteWriter()
         record.put(UInt32(payload.count))
         let body = [kind] + payload
@@ -182,7 +184,7 @@ func fnv1a(_ bytes: some Sequence<UInt8>) -> UInt32 {
     bytes.reduce(2_166_136_261) { ($0 ^ UInt32($1)) &* 16_777_619 }
 }
 
-private struct ByteWriter {
+struct ByteWriter {
     var bytes: [UInt8] = []
 
     mutating func put(_ value: some FixedWidthInteger) {
@@ -199,7 +201,7 @@ private struct ByteWriter {
     }
 }
 
-private struct ByteReader {
+struct ByteReader {
     let bytes: [UInt8]
     var offset = 0
 

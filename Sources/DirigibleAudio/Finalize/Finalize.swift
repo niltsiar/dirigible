@@ -28,7 +28,9 @@ struct ReadFault: Sendable {
 /// stays unplaced. Only a fault that can go away throws, and then nothing is placed. Each segment
 /// is read and converted in blocks, so the memory does not grow with the take length. Each WAV and
 /// then `Clips/` are flushed before it returns, so the save never points to a WAV that is not on
-/// the disk; a flush error throws.
+/// the disk; a flush error throws. Last, it writes the take anchor (`TakeAnchor`), the only record
+/// of the track and the start of each segment after the save removes `recording`; a fault of that
+/// write throws too.
 func finalizeTake(
     of session: Session, in package: URL, readFault: ReadFault? = nil, blockFrames: Int = 65_536
 ) throws(FinalizeError) -> Session {
@@ -50,6 +52,8 @@ func finalizeTake(
     if result.files.count > session.files.count, let code = fullFlush(path: clips.path) {
         throw .writeFailed(file: clipsFolderName, status: code)
     }
+    // After every throw of the loop, so a take that stays pending has no anchor (decision 0021).
+    try TakeAnchor.write(recording, in: package)
     try? result.setRecording(nil)  // Removing the recording never throws.
     return result
 }
@@ -82,6 +86,21 @@ func captureSegments(in package: URL) throws(FinalizeError) -> [SegmentName] {
         throw .readFailed(file: captureFolderName, errno: EIO)
     }
     return names.filter { $0.hasSuffix(".caf") }.compactMap(SegmentName.init(fileName:)).sorted()
+}
+
+/// The bytes of the package file at `file` (package-relative). Nil when it is missing (ENOENT);
+/// another errno throws `.readFailed`, a fault that can go away.
+func readPackageFile(_ file: String, in package: URL) throws(FinalizeError) -> Data? {
+    let url = package.appending(path: file)
+    if let code = openErrno(url.path) {
+        if code == ENOENT { return nil }
+        throw .readFailed(file: file, errno: code)
+    }
+    do {
+        return try Data(contentsOf: url)
+    } catch {
+        throw .readFailed(file: file, errno: posixCode(of: error) ?? EIO)
+    }
 }
 
 /// The errno of `open(path, O_RDONLY)`, or nil when the file opens.
@@ -196,16 +215,7 @@ private struct SegmentFinalize {
 
     /// Nil when the sidecar is missing or refused.
     func readSidecar() throws(FinalizeError) -> Sidecar? {
-        let url = package.appending(path: sidecar)
-        if let code = openErrno(url.path) {
-            if code == ENOENT { return nil }
-            throw .readFailed(file: sidecar, errno: code)
-        }
-        do {
-            return Sidecar.decode(try Data(contentsOf: url))
-        } catch {
-            throw .readFailed(file: sidecar, errno: posixCode(of: error) ?? EIO)
-        }
+        try readPackageFile(sidecar, in: package).flatMap(Sidecar.decode)
     }
 
     /// Reads `input` (open at `descriptor` too) in blocks, converts it from `source` to `rate`

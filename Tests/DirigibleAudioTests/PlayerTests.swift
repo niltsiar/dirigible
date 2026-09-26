@@ -81,7 +81,19 @@ struct PlayerTests {
         #expect(reading.number == 3 && reading.played == 3 && reading.frame == 67_200)
     }
 
-    @Test func anUpdateKeepsTheFeed() async throws {
+    @Test func anUpdateKeepsTheFeed() async throws { try await updateKeepsTheFeed(holdingThePoolFor: .zero) }
+
+    /// The flake of a full run: synchronous tests of other suites held every thread of the
+    /// cooperative pool past the 30 s guard of `renderOffline`, so the waiter and the refill task
+    /// waited together, and the render then pulled with no feed (`maxError 0.9536207`).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aFullPoolKeepsTheFeed() async throws { try await updateKeepsTheFeed(holdingThePoolFor: .seconds(32)) }
+
+    /// Plays, renders one chunk, updates the session, and renders 8 chunks. With `hold`, one task
+    /// per pool thread blocks its thread for `hold` right before the 8 chunks. The test task needs
+    /// a pool thread too, so it cannot wait until each holder is inside its block: the render
+    /// time shows that the pool was held.
+    private func updateKeepsTheFeed(holdingThePoolFor hold: Duration) async throws {
         let player = player()
         let first = package.session
         var second = first
@@ -90,7 +102,15 @@ struct PlayerTests {
         expectEqual(await player.renderOffline(frames: 4800), try package.mix(0..<4800), "before the update")
         await player.update(second, revision: 2)
         await player.update(first, revision: 1)
+        let microseconds = UInt32(hold / .microseconds(1))
+        for _ in 0..<(hold > .zero ? ProcessInfo.processInfo.activeProcessorCount : 0) {
+            Task.detached(priority: Task.currentPriority) { usleep(microseconds) }
+        }
+        let start = ContinuousClock.now
         let out = await player.renderOffline(frames: 8 * 4800)
+        if hold > .zero {
+            #expect(ContinuousClock.now - start > .seconds(30), "the pool was held past the old deadline")
+        }
         expectEqual(
             slice(out, 4 * 4800..<8 * 4800), try package.mix(24_000..<43_200, session: second),
             "chunks 5 to 8 after the update")

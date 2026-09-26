@@ -190,6 +190,35 @@ struct LaneRendererTests {
         #expect(colors == [lane, lane, clip, clip, lane, clip, clip, lane, lane, lane])
     }
 
+    /// Each column draws one waveform: the one of the clip that holds the first frame of the
+    /// column. At fit zoom, 2,000 clips per lane drew each column about 1.7 times (mouse-edits
+    /// Phase 4). A (silent f1) is 0 ..< 384, B (full-scale f2 from its frame 0) is 384 ..< 900:
+    /// A holds column 1 (frames 256 ..< 512), and B holds columns 2 and 3.
+    @Test func aColumnDrawsTheWaveformOfTheClipThatHoldsItsFirstFrame() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 1024))
+        try session.addFile(AudioFile(id: "f2", path: "f2.wav", layout: .mono, length: 1024))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        try session.place(Clip(id: "a", file: "f1", start: 0, offset: 0, length: 384), on: "t1")
+        try session.place(Clip(id: "b", file: "f2", start: 384, offset: 0, length: 516), on: "t1")
+        let full = PeakColumn(peak: 65535, rms: 0)
+        let inputs = LaneInputs(
+            session: session,
+            peaks: [
+                "f1": .ready(Self.peaks([Self.zero, Self.zero])),
+                "f2": .ready(Self.peaks(Array(repeating: full, count: 4))),
+            ],
+            missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 256), laneHeight: 100)
+        let renderer = LaneRenderer()
+
+        _ = renderer.draw(inputs, x: 0, width: 5, scale: 1)
+
+        #expect(Self.rows(renderer, column: 1, LaneColors.peak) == [], "A holds column 1")
+        #expect(Self.rows(renderer, column: 2, LaneColors.peak) == Array(0..<100), "B holds column 2")
+        #expect(Self.rows(renderer, column: 3, LaneColors.peak) == Array(0..<100), "B holds column 3")
+        #expect(Self.rows(renderer, column: 4, LaneColors.peak) == [], "after B")
+    }
+
     /// The image that the view draws shows the pixels of the draw, row 0 at the top.
     @Test func theImageHoldsThePixelsOfTheDraw() throws {
         let renderer = LaneRenderer()

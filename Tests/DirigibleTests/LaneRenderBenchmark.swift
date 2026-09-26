@@ -23,20 +23,7 @@ struct LaneRenderBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func sixLanesOfTwoHoursDrawInTheBudget() throws {
         let frames = 345_600_000
-        var random = SplitMix(seed: 9)
-        let base = (0..<(frames / 256)).map { _ in
-            let peak = UInt16.random(in: 0...65535, using: &random)
-            return PeakColumn(peak: peak, rms: peak / 2)
-        }
-        func upper(_ factor: Int) -> [PeakColumn] {
-            stride(from: 0, to: base.count, by: factor).map { start in
-                let bins = base[start..<min(start + factor, base.count)]
-                return PeakColumn(peak: bins.map(\.peak).max()!, rms: bins.map(\.rms).max()!)
-            }
-        }
-        let peaks = Peaks(
-            frames: Frames(frames), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,
-            sampleRate: 48_000, levels: [base, upper(16), upper(256)])
+        let peaks = randomPeaks(frames: frames)
         var session = Session(sampleRate: 48_000)
         var states: [FileID: PeakState] = [:]
         for n in 1...6 {

@@ -284,6 +284,25 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
     return count
 }
 
+/// The peaks of a mono file of `frames` frames at 48 kHz: random peaks (the same on each run),
+/// RMS at half the peak, at the levels of 256, 4,096, and 65,536 frames per column.
+func randomPeaks(frames: Int) -> Peaks {
+    var random = SplitMix(seed: 9)
+    let base = (0..<(frames / 256)).map { _ in
+        let peak = UInt16.random(in: 0...65535, using: &random)
+        return PeakColumn(peak: peak, rms: peak / 2)
+    }
+    func upper(_ factor: Int) -> [PeakColumn] {
+        stride(from: 0, to: base.count, by: factor).map { start in
+            let bins = base[start..<min(start + factor, base.count)]
+            return PeakColumn(peak: bins.map(\.peak).max()!, rms: bins.map(\.rms).max()!)
+        }
+    }
+    return Peaks(
+        frames: Frames(frames), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,
+        sampleRate: 48_000, levels: [base, upper(16), upper(256)])
+}
+
 /// Removes folders one at a time on a serial utility queue, so parallel deinits do not add
 /// threads that compete for the disk. The process waits for the removals at exit, so no folder
 /// stays in the temporary directory.

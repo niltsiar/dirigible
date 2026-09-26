@@ -29,6 +29,7 @@ Prefer no new test over a bad test. A bad test mostly tests mocks, encodes imple
 
 - Do not change tests to match a wrong implementation.
 - When a test refuses or blocks a user action, also assert that the input of the user stays: the typed text, the open alert, the selection, the clipboard. "The model did not change" alone also passes when the input is lost. If the plan expects the input to be lost, stop and raise it as a plan finding. Do not write that test.
+- A test that expects a refusal (a nonzero exit, a thrown error, a refused edit) also asserts its reason: the rule message or the error case. A broken fixture, for example a manifest that does not compile, also fails, so a bare failure passes for the wrong reason.
 - Do not weaken existing assertions unless the expected behavior changed, and say why.
 - Audio comparisons use a stated tolerance, never exact float equality on processed samples.
 - For a writer and reader pair, add one seeded random round-trip test beside the literal tests. Build values through the public edits, write, read, and assert `==`. It tests the claim "every value an edit accepts, the reader accepts".

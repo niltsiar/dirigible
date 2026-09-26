@@ -56,6 +56,85 @@ import os
         await model.close()
     }
 
+    /// Timeline-scroll criterion 3: the display-list layer of the lanes keeps the image of each
+    /// region it drew until that region needs display again, so 40 page turns kept 41 images (11.5
+    /// MB each at 2880 x 1200 px). A scroll marks the lanes more than one view away: over 12 page
+    /// turns, the live lane images come back to 4 or less after each turn (3 on the Intel Mac).
+    @Test func pageTurnsKeepAFewImagesAlive() async throws {
+        let (model, _, lanesWindow, view) = try await lanes(seconds: 200)
+        view.tick(playhead: 0, playback: Self.forward)
+
+        for turn in 0..<12 {
+            let origin = view.origin
+            view.tick(playhead: origin + 0.95 * view.visibleFrames, playback: Self.forward)
+            drawNow(lanesWindow)
+            try #require(view.origin > origin, "a page turn")
+            // The marks come in a later pass of the run loop; the wait also frees the main actor.
+            await until(limit: .seconds(10), "turn \(turn): \(view.lanes.liveImages) live images") {
+                drawNow(lanesWindow)
+                return view.lanes.liveImages <= 4
+            }
+        }
+        lanesWindow.close()
+        await model.close()
+    }
+
+    /// Timeline-scroll criterion 4b (plan gate 1 item 1): an edit with no scroll draws in view,
+    /// and the layer keeps its image until a later draw covers it. 12 changes of the out point
+    /// (each draws the columns of most of the lanes in view), and 12 marker adds and 12 undo steps,
+    /// keep the bytes of the live images at 10 times the lanes in view or less.
+    @Test func editsKeepTheImageBytesBounded() async throws {
+        let (model, studio, lanesWindow, view) = try await lanes(seconds: 200)
+        let scale = lanesWindow.backingScaleFactor
+        let shown = view.lanes.visibleRect.intersection(view.lanes.bounds)
+        let inView = Int(shown.width * shown.height * scale * scale * 4)
+        var bytes: [Int] = []
+        func step(_ marks: Marks = Marks()) async {
+            view.update(laneInputs(model, studio, marks: marks))
+            drawNow(lanesWindow)
+            bytes.append(view.lanes.liveImageBytes)
+            // Frees the main actor for the other suites.
+            await Task.yield()
+        }
+
+        for n in 0..<12 {
+            await step(Marks(inPoint: 0, outPoint: n % 2 == 0 ? 10_000 : 700_000, tracks: ["t1", "t2"]))
+        }
+        for n in 0..<12 {
+            model.addMarker(.marker, at: Frames(n * 18_000))
+            await step()
+        }
+        for _ in 0..<12 {
+            model.undo()
+            await step()
+        }
+
+        #expect(studio.session.markers.isEmpty, "each undo takes a marker back")
+        #expect(bytes.allSatisfy { $0 <= 10 * inView }, "\(bytes.map { $0 / inView }) views")
+        lanesWindow.close()
+        await model.close()
+    }
+
+    /// Timeline-scroll criterion 4: a user scroll of 20 pt draws only its new columns, also after
+    /// page turns.
+    @Test func aSmallScrollDrawsOnlyTheNewColumns() async throws {
+        let (model, _, lanesWindow, view) = try await lanes(seconds: 200)
+        view.tick(playhead: 0, playback: Self.forward)
+        for _ in 0..<6 {
+            view.tick(playhead: view.origin + 0.95 * view.visibleFrames, playback: Self.forward)
+            drawNow(lanesWindow)
+        }
+        let draws = view.lanes.draws
+
+        view.scroll(toFrame: view.origin + 20 * view.framesPerPoint)
+        drawNow(lanesWindow)
+
+        #expect(view.lanes.draws == draws + 1)
+        #expect(view.lanes.drawnRect.width <= 22, "\(view.lanes.drawnRect)")
+        lanesWindow.close()
+        await model.close()
+    }
+
     /// Criterion 14: a user scroll during play holds the follow, and the play goes on.
     @Test func aUserScrollDuringPlayHoldsTheFollowAndThePlayGoesOn() async throws {
         let (model, studio, lanesWindow, view) = try await lanes()

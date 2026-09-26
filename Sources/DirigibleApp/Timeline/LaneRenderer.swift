@@ -41,7 +41,8 @@ enum LaneColors {
 /// the clip boxes, the missing-media tint, and the waveform as column spans, rectified on a
 /// -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain. Then the
 /// selection band and the marker, chapter, in, and out lines. One per document view, on the main
-/// thread. It reuses its bitmap while the size stays the same. A drag event redraws only the
+/// thread. Each image has its own buffer: a display-list context draws the image later, so a draw
+/// never writes a buffer that an image holds (timeline-scroll symptom 1). A drag event redraws only the
 /// columns that `changedFrames` gives, so each Session value drawn here needs a compare there
 /// (decision 0020, the invariant).
 final class LaneRenderer {
@@ -49,14 +50,22 @@ final class LaneRenderer {
     private(set) var rows = 0
     /// Pixels per row: `columns` rounded up to an odd count of 64-byte cache lines.
     private var rowLength = 0
-    private var pixels: UnsafeMutablePointer<UInt32>?
+    /// The buffer of the last draw.
+    private var buffer: PixelBuffer?
+    private var pixels: UnsafeMutablePointer<UInt32>? { buffer?.pixels }
+    /// The buffers that an image can hold, the last one, and at most three free buffers to reuse.
+    private var pool: [PixelBuffer] = []
     /// The columns of one clip, reused.
     private var values: [PeakColumn] = []
 
-    deinit { pixels?.deallocate() }
+    /// The bitmap memory, so a test can see which draws reuse it.
+    var bufferAddress: UnsafeMutableRawPointer? { buffer.map { UnsafeMutableRawPointer($0.pixels) } }
 
-    /// The bitmap memory, so a test can see that a draw of the same size reuses it.
-    var bufferAddress: UnsafeMutableRawPointer? { pixels.map { UnsafeMutableRawPointer($0) } }
+    /// The buffers that an image can still hold, with the buffer of the last draw, and their bytes.
+    func liveBuffers() -> (count: Int, bytes: Int) {
+        let live = pool.indices.filter { !isKnownUniquelyReferenced(&pool[$0]) }
+        return (live.count, live.reduce(0) { $0 + pool[$1].capacity * 4 })
+    }
 
     /// The pixel of the last draw at `column` and `row` (row 0 is the top of lane 1).
     func pixel(_ column: Int, _ row: Int) -> UInt32 { pixels?[row * rowLength + column] ?? 0 }
@@ -71,7 +80,8 @@ final class LaneRenderer {
         let tracks = inputs.session.tracks
         let drawn = (lanes ?? tracks.indices).clamped(to: tracks.indices)
         prepare(columns: max(1, Int((width * scale).rounded())), rows: max(1, drawn.count * laneRows))
-        guard let pixels, let geometry = inputs.geometry else { return nil }
+        guard let buffer, let geometry = inputs.geometry else { return nil }
+        let pixels = buffer.pixels
         let pointFrames = inputs.scale.framesPerPoint
         let pixelFrames = pointFrames / scale
         let first = x * pointFrames
@@ -188,14 +198,18 @@ final class LaneRenderer {
         }
         line(inputs.marks.inPoint, LaneColors.inPoint)
         line(inputs.marks.outPoint, LaneColors.outPoint)
-        return image(of: pixels)
+        return image(of: buffer)
     }
 
     /// An image over the buffer itself, with no copy (`makeImage()` copied 13.8 MB, about 4 ms at
-    /// 2880 x 1200 px). The next draw changes its pixels, so draw it before the next draw.
-    private func image(of pixels: UnsafeMutablePointer<UInt32>) -> CGImage? {
+    /// 2880 x 1200 px). The data provider holds the buffer until Core Graphics frees the image.
+    private func image(of buffer: PixelBuffer) -> CGImage? {
         let bytes = rowLength * rows * 4
-        guard let provider = CGDataProvider(dataInfo: nil, data: pixels, size: bytes, releaseData: { _, _, _ in })
+        // ponytail: a refused provider leaks its one reference; it needs a size that no draw gives.
+        guard
+            let provider = CGDataProvider(
+                dataInfo: Unmanaged.passRetained(buffer).toOpaque(), data: buffer.pixels, size: bytes,
+                releaseData: releasePixelBuffer)
         else { return nil }
         return CGImage(
             width: columns, height: rows, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: rowLength * 4,
@@ -207,17 +221,31 @@ final class LaneRenderer {
 
     private static let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
-    /// Makes a new bitmap only when the size changes.
+    /// Takes the buffer of a draw: the smallest free buffer of the pool that is large enough, else
+    /// a new one. A buffer is free when only the pool holds it, so no image shows its pixels. It
+    /// keeps three other free buffers. No zero fill: each draw writes every pixel of its image
+    /// (`aReusedBufferShowsNoPixelOfTheLastDraw`).
     private func prepare(columns: Int, rows: Int) {
-        guard pixels == nil || columns != self.columns || rows != self.rows else { return }
-        pixels?.deallocate()
         // A column span writes one pixel per row. A row of 2880 px is 180 cache lines, so the rows
         // of a lane fell in 16 of the 64 L1 sets and evicted each other. An odd count uses all 64.
         let lines = (columns + 15) / 16
         rowLength = (lines | 1) * 16
-        pixels = .allocate(capacity: rowLength * rows)
-        pixels?.initialize(repeating: 0, count: rowLength * rows)
         (self.columns, self.rows) = (columns, rows)
+        let size = rowLength * rows
+        buffer = nil
+        let free = pool.indices.filter { isKnownUniquelyReferenced(&pool[$0]) }
+        let fit = free.filter { pool[$0].capacity >= size }.min { pool[$0].capacity < pool[$1].capacity }
+        let spare = free.filter { $0 != fit }.sorted { pool[$0].capacity > pool[$1].capacity }
+        if let fit {
+            buffer = pool[fit]
+        } else {
+            // The width of a page turn changes by a few columns, and a full draw is 20% wider, so a
+            // buffer takes 25% more: a new buffer costs about 2 ms of page faults at 2880 x 1200 px.
+            let new = PixelBuffer(capacity: size + size / 4)
+            pool.append(new)
+            buffer = new
+        }
+        for index in spare.dropFirst(3).sorted(by: >) { pool.remove(at: index) }
     }
 
     /// Sets `rows` of `column` to `color`. `vDSP_vfill` moves the 32 bits of the pixel as a float,
@@ -235,4 +263,24 @@ final class LaneRenderer {
         var pattern = color
         for row in lines { memset_pattern4(pixels + row * rowLength + range.lowerBound, &pattern, range.count * 4) }
     }
+}
+
+/// The pixels of one lane image.
+final class PixelBuffer {
+    let pixels: UnsafeMutablePointer<UInt32>
+    let capacity: Int
+
+    init(capacity: Int) {
+        pixels = .allocate(capacity: capacity)
+        self.capacity = capacity
+    }
+
+    deinit { pixels.deallocate() }
+}
+
+/// The release of the data provider of a lane image. Core Graphics calls it on any thread when it
+/// frees the image, so it is a C function outside every actor (AGENTS.md, concurrency).
+private func releasePixelBuffer(_ info: UnsafeMutableRawPointer?, _ data: UnsafeRawPointer, _ size: Int) {
+    guard let info else { return }
+    Unmanaged<PixelBuffer>.fromOpaque(info).release()
 }

@@ -55,6 +55,54 @@ final class TimelineDocumentView: NSView {
     }
 
     private let renderer = LaneRenderer()
+    /// The lane images that Core Animation can still show, with the last one, and their bytes.
+    var liveImages: Int { renderer.liveBuffers().count }
+    var liveImageBytes: Int { renderer.liveBuffers().bytes }
+
+    // The layer keeps the image of each region it drew until a later draw covers that region or the
+    // region needs display again (timeline-scroll criterion 3). A scroll marks the lanes that it
+    // left, so the images of a page turn or a scroll go with no draw. An edit draws in view, and the
+    // next draw of the same columns covers it (40 out point changes kept 3 images).
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
+        guard let superview else { return }
+        superview.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: superview)
+    }
+
+    /// True from a scroll until its marks run.
+    private var marksPending = false
+
+    /// A scroll marks the lanes that it left in a later job of the main queue, after the commit of
+    /// its draw: the release of their images does not cost the frame of a page turn. A run-loop
+    /// timer did not run in a test process, which runs the main actor on the main queue only.
+    @objc private func scrolled() {
+        guard !marksPending else { return }
+        marksPending = true
+        Task { @MainActor [weak self] in
+            self?.marksPending = false
+            self?.markLeftLanes()
+        }
+    }
+
+    /// Marks the lanes more than one view away: no draw, and the layer lets the images there go. A
+    /// mark next to the view made the layer draw all lanes in view on screen, so the marks keep one
+    /// view of distance. Each mark covers all lanes out of that neighborhood: an image whose region
+    /// two smaller marks covered in two parts stayed alive.
+    private func markLeftLanes() {
+        let visible = visibleRect
+        let near = visible.insetBy(dx: -visible.width, dy: -visible.height)
+        // CGRect.width is never negative, so each size is checked before the rect exists.
+        let (left, right) = (near.minX - bounds.minX, bounds.maxX - near.maxX)
+        let (top, bottom) = (near.minY - bounds.minY, bounds.maxY - near.maxY)
+        if left > 0 { setNeedsDisplay(NSRect(x: bounds.minX, y: bounds.minY, width: left, height: bounds.height)) }
+        if right > 0 { setNeedsDisplay(NSRect(x: near.maxX, y: bounds.minY, width: right, height: bounds.height)) }
+        if top > 0 { setNeedsDisplay(NSRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: top)) }
+        if bottom > 0 { setNeedsDisplay(NSRect(x: bounds.minX, y: near.maxY, width: bounds.width, height: bottom)) }
+    }
 
     override init(frame: NSRect) {
         super.init(frame: frame)

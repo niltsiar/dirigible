@@ -123,8 +123,8 @@ import os
     /// Code gate 1 item 1: each event of a clip drag draws the columns of the old and the new box.
     /// A draw that did not cover the draw before it kept the image of that draw alive, one per
     /// event (about 300 images in a 5 s drag). c1 is x 0 to 1875 pt, wider than the view, so each
-    /// event draws the rows of lane 1 over the width of the view. After 60 events of 1 pt, 4 live
-    /// images or less.
+    /// event draws the rows of lane 1 over the width of the view. After each of 60 events of 1 pt, 4
+    /// live images or less.
     @Test func aClipDragKeepsAFewImagesAlive() async throws {
         let (model, _, lanesWindow, view) = try await lanes(seconds: 20)
         let start = NSPoint(x: 100, y: 10)
@@ -141,7 +141,7 @@ import os
         }
 
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: start.x + 63, y: start.y), in: view))
-        #expect(live.suffix(50).allSatisfy { $0 <= 4 }, "\(live)")
+        #expect(live.allSatisfy { $0 <= 4 }, "\(live)")
         lanesWindow.close()
         await model.close()
     }

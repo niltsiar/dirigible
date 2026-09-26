@@ -84,8 +84,10 @@ private func setBitRate(_ bitRate: AACBitRate, of file: ExtAudioFileRef) throws(
     try check(AudioConverterSetProperty(converter, kAudioConverterEncodeBitRate, 4, &bitsPerSecond))
     var configuration: CFPropertyList?
     try check(
-        ExtAudioFileSetProperty(
-            file, kExtAudioFileProperty_ConverterConfig, UInt32(MemoryLayout<CFPropertyList?>.size), &configuration))
+        withUnsafePointer(to: &configuration) {
+            ExtAudioFileSetProperty(
+                file, kExtAudioFileProperty_ConverterConfig, UInt32(MemoryLayout<CFPropertyList?>.size), $0)
+        })
 }
 
 private func check(_ status: OSStatus) throws(ExportError) {

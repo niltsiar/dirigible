@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import SwiftUI
 
 /// The timeline side of the session window (decision 0017).

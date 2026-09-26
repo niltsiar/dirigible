@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleTimeline
 
 enum UndoTarget: Equatable {
     /// The typing in a focused text field. The `UndoManager` of the field editor has it: a

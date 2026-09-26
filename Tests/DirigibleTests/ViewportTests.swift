@@ -1,5 +1,6 @@
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import Testing
 
 @testable import DirigibleApp

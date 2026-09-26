@@ -1,6 +1,7 @@
 import AVFoundation
 import AppKit
 import DirigibleCore
+import DirigibleTimeline
 import Foundation
 import Observation
 import Testing

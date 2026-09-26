@@ -1,5 +1,6 @@
 import AppKit
 import DirigibleCore
+import DirigibleTimeline
 
 /// Every input that the ruler draws. The ruler redraws only when it changes.
 struct RulerInputs: Equatable {

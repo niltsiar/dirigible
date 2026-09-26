@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 
 /// File > Export (the whole mix) and File > Export Selection (the Marks) (decision 0019).
 enum ExportKind {

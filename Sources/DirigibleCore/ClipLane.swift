@@ -76,7 +76,7 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     }
 
     /// The index of the clip with `start <= frame < end`, by binary search.
-    func index(holding frame: Frames) -> Int? {
+    public func index(holding frame: Frames) -> Int? {
         var (low, high) = (0, storage.count)
         while low < high {
             let middle = (low + high) / 2

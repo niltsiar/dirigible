@@ -131,8 +131,8 @@ struct StudioPeaksSettleTests {
     /// A close during a compute: `settle()` ends the pass, so an open at once succeeds.
     @Test @MainActor func reopenAtOnceAfterACloseDuringACompute() async throws {
         let fixture = try await PeakPackage.make()
-        var (studio, blocks, _): (Studio?, StepCounter, StepCounter) = try await settleDuringBlockOne(fixture)
-        studio = nil
+        // The discarded studio is the close: its last reference goes here.
+        let (_, blocks, _) = try await settleDuringBlockOne(fixture)
         let after = blocks.calls
 
         _ = try await Studio.open(fixture.url)

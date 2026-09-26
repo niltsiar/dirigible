@@ -327,7 +327,7 @@ import Testing
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 1, seconds: 20), app: app)
         let (lanesWindow, view) = standaloneLanes(model, studio, onScreen: true)
-        weak var proxy = view.linkProxy
+        weak let proxy = view.linkProxy
         await until("the display link ticks twice") { (proxy?.ticks ?? 0) >= 2 }
 
         view.removeFromSuperview()

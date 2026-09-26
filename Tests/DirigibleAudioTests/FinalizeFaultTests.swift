@@ -130,6 +130,51 @@ struct FinalizeFaultTests {
         #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
     }
 
+    // MARK: The WAV guard (decision 0021)
+
+    /// A pool file whose path is the WAV of a segment, or its temporary name, keeps its bytes:
+    /// that segment stays unplaced, and the other segment is placed. Control (nil): with no such
+    /// pool file, both segments are placed.
+    @Test(arguments: [nil, "take1-1-1.wav", "./TAKE1-1-1.wav", ".take1-1-1.wav.tmp"])
+    func aPoolFileWithAStemPathIsNotOverwritten(path: String?) throws {
+        let userBytes = Data("the audio of the user".utf8)
+        if let path {
+            let clips = package.url.appending(path: "Clips")
+            try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+            try userBytes.write(to: clips.appending(path: path))
+            var session = try package.read()
+            try session.addFile(AudioFile(id: "user", path: path, layout: .mono, length: 1_000))
+            try session.write(to: package.url)
+        }
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
+        guard let path else {
+            #expect(session.track("t1")?.clips.map(\.id) == ["take1-1-1"])
+            return
+        }
+        #expect(try Data(contentsOf: package.url.appending(path: "Clips/\(path)")) == userBytes)
+        #expect(session.track("t1")?.clips.isEmpty == true)
+        #expect(session.files["user"]?.path == path)
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session) == ["take1-1-1"])
+    }
+
+    /// The WAV goes to `Clips/.<stem>.wav.tmp` and is renamed after its read-back, so a fault
+    /// leaves no partial WAV under either name. A folder at the WAV path makes only the rename
+    /// fail: a take-wide fault, so the take stays pending.
+    @Test func aWAVRenameFaultKeepsTheTakePending() async throws {
+        let clips = package.url.appending(path: "Clips")
+        try FileManager.default.createDirectory(
+            at: clips.appending(path: "take1-1-1.wav"), withIntermediateDirectories: true)
+
+        let outcome = await completeTake(of: try package.read(), lock: try PackageLock(package.url))
+
+        #expect(outcome.error == .finalize(.writeFailed(file: "Clips/take1-1-1.wav", status: EISDIR)))
+        #expect(try package.read().recording?.take == 1)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: clips.path) == ["take1-1-1.wav"])
+    }
+
     // MARK: A moved package (decision 0014)
 
     /// The package moves during the read of the first segment. The WAV of that segment is gone

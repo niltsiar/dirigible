@@ -7,10 +7,10 @@ package let captureFolderName = "Capture"
 /// The name of one segment of a take: `take<take>-<arm>-<segment>` (decision 0012). `arm` is the
 /// 1-based index of the track in `Recording.armedTracks`; `segment` counts from 1 for each
 /// device. Each part has 1 to 9 digits and no leading zero, so a name has one spelling.
-struct SegmentName: Hashable, Comparable, Sendable {
-    let take: Int
-    let arm: Int
-    let segment: Int
+public struct SegmentName: Hashable, Comparable, Sendable, CustomStringConvertible {
+    public let take: Int
+    public let arm: Int
+    public let segment: Int
 
     init(take: Int, arm: Int, segment: Int) {
         precondition(
@@ -23,23 +23,25 @@ struct SegmentName: Hashable, Comparable, Sendable {
     /// A file name in `Capture/` or `Clips/`, for example `take3-1-2.caf`.
     init?(fileName: String) {
         guard let match = fileName.wholeMatch(of: /(.+)\.(?:caf|sidecar|wav)/) else { return nil }
-        self.init(stem: match.1)
+        self.init(stem: String(match.1))
     }
 
     /// A capture, file, or clip ID. The part before the first "@" counts, so a split clip
     /// `take3-1-1@48000` has the name of its segment.
     init?(id: String) {
-        self.init(stem: id.prefix { $0 != "@" })
+        self.init(stem: String(id.prefix { $0 != "@" }))
     }
 
-    private init?(stem: Substring) {
+    /// A stem, for example `take3-1-2`: the parse at a boundary (the CLI, the app).
+    public init?(stem: String) {
         guard let match = stem.wholeMatch(of: /take([1-9][0-9]{0,8})-([1-9][0-9]{0,8})-([1-9][0-9]{0,8})/) else {
             return nil
         }
         self.init(take: Int(match.1)!, arm: Int(match.2)!, segment: Int(match.3)!)
     }
 
-    var stem: String { "take\(take)-\(arm)-\(segment)" }
+    public var stem: String { "take\(take)-\(arm)-\(segment)" }
+    public var description: String { stem }
 
     /// 1 plus the highest take number in the file names of `Capture/` and `Clips/`, the capture,
     /// file, and clip IDs of the session, and the pending take. So a take number is never reused,
@@ -57,7 +59,7 @@ struct SegmentName: Hashable, Comparable, Sendable {
         return takes.max()! + 1
     }
 
-    static func < (a: Self, b: Self) -> Bool { (a.take, a.arm, a.segment) < (b.take, b.arm, b.segment) }
+    public static func < (a: Self, b: Self) -> Bool { (a.take, a.arm, a.segment) < (b.take, b.arm, b.segment) }
 }
 
 /// The signed difference `to - from` in nanoseconds. Every host-time difference uses it, so a

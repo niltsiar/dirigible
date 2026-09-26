@@ -41,7 +41,9 @@ enum LaneColors {
 /// the clip boxes, the missing-media tint, and the waveform as column spans, rectified on a
 /// -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain. Then the
 /// selection band and the marker, chapter, in, and out lines. One per document view, on the main
-/// thread. It reuses its bitmap while the size stays the same.
+/// thread. It reuses its bitmap while the size stays the same. A drag event redraws only the
+/// columns that `changedFrames` gives, so each Session value drawn here needs a compare there
+/// (decision 0020, the invariant).
 final class LaneRenderer {
     private(set) var columns = 0
     private(set) var rows = 0

@@ -48,9 +48,9 @@ final class TimelineScrollView: NSScrollView {
     private var fitted = false
     /// The last inputs of SwiftUI, with the Studio session of the last mouse-down or mouse-up. Never
     /// the preview: the lanes draw the gesture over it (decision 0020).
-    private(set) var source: LaneInputs?
+    private var source: LaneInputs?
     /// The one gesture of the lanes.
-    private(set) var gesture = TimelineGesture()
+    private var gesture = TimelineGesture()
 
     init(model: SessionWindow, studio: Studio) {
         self.model = model

@@ -60,8 +60,8 @@ extension Place {
     }
 }
 
-/// The one gesture of the lanes and the ruler (decision 0020, design.md states x events). A value type: the
-/// scroll view owns it, gives it each event with the context, and does the effects.
+/// The one gesture of the lanes and the ruler (decision 0020). A value type: the scroll view
+/// owns it, gives it each event with the context, and does the effects.
 public struct TimelineGesture: Sendable {
     /// What a mouse-down holds: a lane zone, a ruler flag (the marker at the down), or a triangle.
     enum Target: Sendable {
@@ -111,7 +111,7 @@ public struct TimelineGesture: Sendable {
         /// A flag drag: the marker at the down, and the session with the marker moved.
         case markerDrag(Press, Marker, preview: Session)
         /// A drag of the in or the out triangle: it changes the Marks only.
-        case pointDrag(Press)
+        case pointDrag(Press, MarkPoint)
     }
 
     /// Internal: `Gesture+Ruler.swift` sets it too.
@@ -172,7 +172,7 @@ public struct TimelineGesture: Sendable {
             case .moving, .trimming, .markerDrag:
                 state = .dropped
                 return []
-            case .ranging(let press), .pointDrag(let press):
+            case .ranging(let press), .pointDrag(let press, _):
                 state = .dropped
                 return [.marks(press.marks)]
             }
@@ -223,8 +223,8 @@ public struct TimelineGesture: Sendable {
                 guard context.canEdit else { return [] }
                 state = .markerDrag(press, marker, preview: press.base)
                 return drag(place, context)
-            case .point:
-                state = .pointDrag(press)
+            case .point(let point):
+                state = .pointDrag(press, point)
                 return drag(place, context)
             case .lane(.move(let clip, let lane)):
                 guard context.canEdit else { return [] }
@@ -290,8 +290,8 @@ public struct TimelineGesture: Sendable {
             return [.marks(press.shift ? press.marks.extended(by: drag) : drag)]
         case .markerDrag(let press, let original, _):
             return markerDrag(press, original, x, context)
-        case .pointDrag(let press):
-            return pointDrag(press, x, context)
+        case .pointDrag(let press, let point):
+            return pointDrag(press, point, x, context)
         }
     }
 

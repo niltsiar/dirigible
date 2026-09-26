@@ -44,8 +44,7 @@ extension TimelineGesture {
 
     /// A triangle drag event: the point at the down plus the movement. The in point stays before
     /// the out point and the out point after the in point, so the held triangle never changes.
-    func pointDrag(_ press: Press, _ x: Double, _ context: GestureContext) -> [GestureEffect] {
-        guard case .point(let point) = press.target else { return [] }
+    func pointDrag(_ press: Press, _ point: MarkPoint, _ x: Double, _ context: GestureContext) -> [GestureEffect] {
         let delta = context.geometry.frame(at: x) - press.frame
         var marks = press.marks
         switch point {

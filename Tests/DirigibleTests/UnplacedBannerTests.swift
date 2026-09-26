@@ -79,6 +79,26 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 1: a take from a build before decision 0021 has no anchor file, so the
+    /// default Place fails. The alert names the way out in both languages.
+    @Test func aPlaceWithNoAnchorNamesPlaceAtPlayhead() async throws {
+        let (model, studio) = try await open()
+        _ = try await unplacedTake(model, studio)
+        try FileManager.default.removeItem(at: model.url.appending(path: "\(captureFolderName)/take1.anchor"))
+
+        await model.place(Self.first, atPlayhead: false)
+
+        #expect(model.alert == .error(.segment(Self.first, .noAlignment)))
+        #expect(studio.unplacedSegments == [Self.first, Self.second])
+        for language in ["en", "es"] {
+            let table = try stringsTable(language)
+            let placeAtPlayhead = try #require(table[L10n.menuUnplacedPlacePlayhead.rawValue])
+            let text = try #require(table[L10n.errorSegmentNoAlignment.rawValue])
+            #expect(text.contains(placeAtPlayhead), "\(language): \(text)")
+        }
+        await model.close()
+    }
+
     @Test func placeAtPlayheadNeedsOneSelectedTrack() async throws {
         let (model, studio) = try await open()
         await take(model, studio)

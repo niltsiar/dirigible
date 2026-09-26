@@ -42,10 +42,15 @@ struct SegmentFinalize {
         if let user = poolFile(at: wavName, in: session) ?? poolFile(at: temporaryWAVName, in: session) {
             return .failure(.wavInUse(user))
         }
+        let temporary = package.appending(path: "\(clipsFolderName)/\(temporaryWAVName)")
+        // Each exit but the rename unlinks it, so a fault or a refusal (also a refusal of the
+        // session after the conversion) leaves no WAV under either name.
+        var renamed = false
+        defer { if !renamed { unlink(temporary.path) } }
         let header = sidecar.header
         let choice = RateChoice(header: header, checkpoints: sidecar.checkpoints, frames: Int(input.length))
         let rate = Double(session.sampleRate)
-        guard let length = try convert(input, file: descriptor, from: choice.source, to: rate) else {
+        guard let length = try convert(input, file: descriptor, from: choice.source, to: rate, into: temporary) else {
             return .failure(.badAudio)
         }
 
@@ -82,6 +87,10 @@ struct SegmentFinalize {
         } catch {
             return .failure(.session(error))
         }
+        guard rename(temporary.path, package.appending(path: wav).path) == 0 else {
+            throw .writeFailed(file: wav, status: errno)
+        }
+        renamed = true
         return .success(copy)
     }
 
@@ -91,12 +100,11 @@ struct SegmentFinalize {
     }
 
     /// Reads `input` (open at `descriptor` too) in blocks, converts it from `source` to `rate`
-    /// through one converter when the rates differ, and writes the WAV to its temporary name. After
-    /// the flush and the read-back, a rename gives it the WAV name. Returns the frame count of the
-    /// WAV, or nil for a bad CAF, a converter that stops before the end of the stream, or a WAV
-    /// length that does not read back.
+    /// through one converter when the rates differ, and writes, flushes, and reads back the WAV at
+    /// `url`, the temporary name. Returns the frame count of the WAV, or nil for a bad CAF, a
+    /// converter that stops before the end of the stream, or a WAV length that does not read back.
     func convert(
-        _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double
+        _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double, into url: URL
     ) throws(FinalizeError) -> Int? {
         let channels = input.processingFormat.channelCount
         let capacity = AVAudioFrameCount(blockFrames)
@@ -105,10 +113,6 @@ struct SegmentFinalize {
             let written = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: capacity)
         else { return nil }
         try createClipsFolder(in: package)
-        let url = package.appending(path: "\(clipsFolderName)/\(temporaryWAVName)")
-        // Each exit but the rename unlinks it, so a fault leaves no partial WAV under either name.
-        var renamed = false
-        defer { if !renamed { unlink(url.path) } }
         let writer = try ClipWriter(url: url, file: wav, format: output)
         let reader = BlockReader(
             input: input, descriptor: descriptor, buffer: read, fault: readFault?.stem == name.stem ? readFault : nil)
@@ -157,13 +161,8 @@ struct SegmentFinalize {
             if let code = ioErrno(of: error, file: clip) { throw .readFailed(file: wav, errno: code) }
             return nil
         }
-        guard rename(url.path, package.appending(path: wav).path) == 0 else {
-            throw .writeFailed(file: wav, status: errno)
-        }
-        renamed = true
         return length
     }
-
 }
 
 /// The pool file at `path` in `Clips/`. The compare drops "." and empty components and ignores

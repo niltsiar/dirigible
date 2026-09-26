@@ -107,7 +107,7 @@ struct MixTests {
         let prefix = String(cString: real) + "/"
         var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
         return (0..<getdtablesize()).filter {
-            fcntl($0, F_GETPATH, &buffer) == 0 && String(cString: buffer).hasPrefix(prefix)
+            fcntl($0, F_GETPATH, &buffer) == 0 && String(cString: &buffer).hasPrefix(prefix)
         }
         .count
     }
@@ -125,6 +125,10 @@ struct MixTests {
         }
         let expected = (0..<40).flatMap { ramp(frames: 100, channel: $0) }
         let reader = package.reader()
+        // Control: the count sees a descriptor that a handle holds.
+        let handle = try FileHandle(forReadingFrom: package.url.appending(path: "\(clipsFolderName)/f0.wav"))
+        #expect(try openDescriptors(in: package.url) == 1)
+        try handle.close()
 
         let first = try package.render(reader, 0..<4000)
         #expect(try openDescriptors(in: package.url) <= 32)

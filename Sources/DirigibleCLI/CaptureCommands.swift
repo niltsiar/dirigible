@@ -54,21 +54,72 @@ struct Record: AsyncParsableCommand {
     }
 }
 
-/// Refuses a pending take before `Studio.open`, whose recovery would finalize it. Requests the
-/// microphone access once when the status is not determined, and starts again (decision 0013).
+extension CaptureCommand {
+    struct Place: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Place one segment that is not on the timeline, and write its clip ID.",
+            discussion: """
+                The default is the track of its arm at its recorded time, from the take anchor that the end of the \
+                take wrote (decision 0021). Exit 1 when the segment is refused, 2 when the package cannot be read \
+                or written, is locked, or has a take that is not finalized.
+                """)
+        @OptionGroup var package: PackageArgument
+        @Argument(help: "The segment, for example take3-1-2.", transform: parseSegment) var segment: SegmentName
+        @Option(help: "The track. The default is the track of the arm in the take anchor.") var track: String?
+        @Option(
+            parsing: .unconditional, help: "The timeline frame of the clip start. The default is the recorded time.")
+        var at: Int?
+
+        func validate() throws {
+            if let at, at < 0 { throw ValidationError("The start must be 0 or more.") }
+        }
+
+        func run() async throws {
+            try await placeSegment(package, segment, track: track.map { TrackID($0) }, start: at.map { Frames($0) })
+        }
+    }
+}
+
+func parseSegment(_ text: String) throws -> SegmentName {
+    guard let segment = SegmentName(stem: text) else {
+        throw ValidationError("A segment is take<n>-<arm>-<segment>, for example take3-1-2.")
+    }
+    return segment
+}
+
+/// Refuses a pending take before `Studio.open`, whose recovery would finalize it, then opens the
+/// package.
+@MainActor
+private func openStudio(_ package: PackageArgument) async throws(ExitCode) -> Studio {
+    guard try readPackage(package).recording == nil else {
+        throw fail("\(package.path) has a take that is not finalized; open it in Dirigible first.", code: packageError)
+    }
+    do {
+        return try await Studio.open(package.url)
+    } catch {
+        throw fail(error.message(package: package.path), code: packageError)
+    }
+}
+
+@MainActor
+private func placeSegment(
+    _ package: PackageArgument, _ segment: SegmentName, track: TrackID?, start: Frames?
+) async throws(ExitCode) {
+    let studio = try await openStudio(package)
+    do {
+        print(try await studio.place(segment, on: track, at: start))
+    } catch {
+        throw fail(error.message(package: package.path), code: refusedCode(error))
+    }
+}
+
+/// Requests the microphone access once when the status is not determined, and starts again
+/// (decision 0013).
 @MainActor
 private func recordTake(
     _ package: PackageArgument, armed: [TrackID], playhead: Frames, duration: Duration
 ) async throws(ExitCode) {
-    guard try readPackage(package).recording == nil else {
-        throw fail("\(package.path) has a take that is not finalized; open it in Dirigible first.", code: packageError)
-    }
-    let studio: Studio
-    do {
-        studio = try await Studio.open(package.url)
-    } catch {
-        throw fail(error.message(package: package.path), code: packageError)
-    }
+    let studio = try await openStudio(package)
     let result: TakeResult
     do throws(StudioError) {
         do throws(StudioError) {
@@ -80,7 +131,7 @@ private func recordTake(
         }
     } catch {
         guard let take = studio.lastTake else {
-            throw fail(error.message(package: package.path), code: startRefused(error))
+            throw fail(error.message(package: package.path), code: refusedCode(error))
         }
         writeGaps(take.gaps, armed: armed)
         throw fail("\(error.message(package: package.path)) The take is still pending.", code: packageError)
@@ -89,8 +140,9 @@ private func recordTake(
     if code != 0 { throw ExitCode(code) }
 }
 
-/// Exit 1 for a start that the take refused before it changed the package; else 2.
-private func startRefused(_ error: StudioError) -> Int32 {
+/// Exit 1 for a take start or a placement that the studio refused before it changed the package;
+/// else 2.
+private func refusedCode(_ error: StudioError) -> Int32 {
     switch error {
     case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .session, .segment:
         editRefused

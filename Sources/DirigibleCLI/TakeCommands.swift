@@ -49,14 +49,15 @@ private func finalizeTake(url: URL, path: String) async throws(ExitCode) {
 extension SegmentFault {
     /// No `default` case: a new fault does not compile until it has a message.
     func message(segment: SegmentName) -> String {
-        let caf = "\(captureFolderName)/\(segment.stem).caf"
+        let capture = "\(captureFolderName)/\(segment.stem)"
         return switch self {
-        case .notUnplaced: "\(segment) is not unplaced audio: it is on the timeline, in a pending take, or has no CAF."
-        case .noSidecar: "\(caf) has no readable sidecar, so its timing is not known."
-        case .badAudio: "\(caf) is not audio that Dirigible can convert."
+        case .notUnplaced:
+            "\(segment) is on the timeline, is in a pending take, or has no audio in \(captureFolderName)/."
+        case .noSidecar: "\(capture).sidecar is missing or damaged, so the timing of \(segment) is not known."
+        case .badAudio: "\(capture).caf is not audio that Dirigible can convert."
         case .beforeTimeline: "\(segment) ends before the start of the timeline."
-        case .noAlignment: "no take anchor gives the track and the start of \(segment); give --track and --at."
-        case .wavInUse(let file): "file \"\(file)\" uses Clips/\(segment.stem).wav."
+        case .noAlignment: "no take anchor gives the track and the start of \(segment). Give --track and --at."
+        case .wavInUse(let file): "file \"\(file)\" has the path of Clips/\(segment.stem).wav."
         case .session(let error): error.message
         }
     }

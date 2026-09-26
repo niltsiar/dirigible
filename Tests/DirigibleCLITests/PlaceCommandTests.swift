@@ -1,0 +1,218 @@
+import DirigibleCore
+import Foundation
+import Testing
+
+@testable import DirigibleAudio
+
+/// `dirigible capture place` (decision 0021, criteria 17, 18, 20, and the CLI part of 29).
+///
+/// Fixture: tracks `t1` and `t2`, take 1 at playhead 96,000 with a 2.0 s segment on each arm (the
+/// first frame 10 ms after the take start, latency 0), made with the real writer. `take finalize`
+/// ends the take and writes its anchor; then `clip clear` and `file remove` take the clip and
+/// the pool file of `take1-1-1` away. Its recorded start is 96,000 + 480 = 96,480.
+struct PlaceCommandTests {
+    static let takeStart: UInt64 = 1_000_000_000_000
+    let package: TemporaryPackage
+    var capture: URL { package.url.appending(path: "Capture") }
+    var clips: URL { package.url.appending(path: "Clips") }
+
+    init() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.addTrack("t2", name: "Guest", layout: .mono)
+        try session.setRecording(
+            Recording(
+                take: 1, playheadFrame: 96_000, takeStartHostTimeNanos: Self.takeStart, armedTracks: ["t1", "t2"]))
+        package = try TemporaryPackage(session)
+        try segment(arm: 1)
+        try segment(arm: 2)
+        try #require(try package.run("take", "finalize", "PKG").status == 0)
+        try #require(
+            try package.run("clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000").status == 0)
+        try #require(try package.run("file", "remove", "PKG", "take1-1-1").status == 0)
+    }
+
+    /// Writes a closed 2.0 s segment of take `take` for arm `arm` with the real writer.
+    func segment(take: Int = 1, arm: Int, channels: Int = 1, firstHost: UInt64 = takeStart + 10_000_000) throws {
+        try FileManager.default.createDirectory(at: capture, withIntermediateDirectories: true)
+        let header = CaptureHeader(
+            deviceUID: "usb-1", deviceName: "USB Mic", nominalRate: 48_000, availableRates: [48_000...48_000],
+            channelCount: channels, latency: 0, firstSampleTime: 0, firstHostTimeNanos: firstHost)
+        let writer = try SegmentWriter(
+            folder: capture, name: SegmentName(take: take, arm: arm, segment: 1), header: header)
+        try writer.checkpoint(Checkpoint(fileFrame: 0, sampleTime: 0, hostTimeNanos: firstHost))
+        let samples = [Float](repeating: 0.25, count: 96_000 * channels)
+        try samples.withUnsafeBufferPointer { try writer.write($0, frames: 96_000) }
+        try writer.close()
+    }
+
+    /// The start of each clip of `track`, by clip ID, as `info --json` shows them.
+    func starts(_ track: String) throws -> [String: Int] {
+        struct View: Decodable {
+            struct Track: Decodable {
+                struct Clip: Decodable {
+                    let id: String
+                    let start: Int
+                }
+                let id: String
+                let clips: [Clip]
+            }
+            let tracks: [Track]
+        }
+        let result = try package.run("info", "PKG", "--json")
+        try #require(result.status == 0)
+        let view = try JSONDecoder().decode(View.self, from: Data(result.stdout.utf8))
+        let clips = view.tracks.first { $0.id == track }?.clips ?? []
+        return Dictionary(uniqueKeysWithValues: clips.map { ($0.id, $0.start) })
+    }
+
+    // MARK: Criterion 17
+
+    @Test func aPlacementAtTheRecordedTimeWritesTheClipID() throws {
+        #expect(
+            try package.run("capture", "place", "PKG", "take1-1-1")
+                == CLIResult(status: 0, stdout: "take1-1-1\n", stderr: ""))
+
+        #expect(try starts("t1") == ["take1-1-1": 96_480])
+    }
+
+    /// Frame 0 is the lowest start (the control of the `--at` check).
+    @Test(arguments: [0, 1_000])
+    func anExplicitTrackAndStartReplaceTheAnchor(at: Int) throws {
+        #expect(
+            try package.run("capture", "place", "PKG", "take1-1-1", "--track", "t2", "--at", "\(at)")
+                == CLIResult(status: 0, stdout: "take1-1-1\n", stderr: ""))
+
+        // The placed clip goes on top, so it can trim take1-2-1 (decision 0021 Q5).
+        #expect(try starts("t2")["take1-1-1"] == at)
+        #expect(try starts("t1") == [:])
+    }
+
+    // MARK: Criterion 18
+
+    enum Refusal: String, CaseIterable, CustomTestStringConvertible {
+        case placed, noCAF, missingSidecar, emptyCAF, noAnchor, noAnchorWithTrack, wavInUse, beforeTimeline
+        case layoutMismatch
+        var testDescription: String { rawValue }
+    }
+
+    /// Changes the package for `refusal` and returns the arguments after the package and the
+    /// error line.
+    func prepare(_ refusal: Refusal) throws -> (arguments: [String], stderr: String) {
+        let anchor = capture.appending(path: "take1.anchor")
+        let notUnplaced = { (stem: String) in
+            "Error: \(stem) is on the timeline, is in a pending take, or has no audio in Capture/.\n"
+        }
+        let noAlignment = "Error: no take anchor gives the track and the start of take1-1-1. Give --track and --at.\n"
+        switch refusal {
+        case .placed:
+            return (["take1-2-1"], notUnplaced("take1-2-1"))
+        case .noCAF:
+            return (["take1-1-9"], notUnplaced("take1-1-9"))
+        case .missingSidecar:
+            try FileManager.default.removeItem(at: capture.appending(path: "take1-1-1.sidecar"))
+            return (
+                ["take1-1-1"],
+                "Error: Capture/take1-1-1.sidecar is missing or damaged, so the timing of take1-1-1 is not known.\n"
+            )
+        case .emptyCAF:
+            try Data().write(to: capture.appending(path: "take1-1-1.caf"))
+            return (["take1-1-1"], "Error: Capture/take1-1-1.caf is not audio that Dirigible can convert.\n")
+        case .noAnchor:
+            try FileManager.default.removeItem(at: anchor)
+            return (["take1-1-1"], noAlignment)
+        case .noAnchorWithTrack:
+            try FileManager.default.removeItem(at: anchor)
+            return (["take1-1-1", "--track", "t1"], noAlignment)
+        case .wavInUse:
+            try package.edit { try $0.addFile(AudioFile(id: "user", path: "take1-1-1.wav", layout: .mono, length: 1)) }
+            return (["take1-1-1"], "Error: file \"user\" has the path of Clips/take1-1-1.wav.\n")
+        case .beforeTimeline:
+            try segment(arm: 1, firstHost: Self.takeStart - 5_000_000_000)
+            return (["take1-1-1"], "Error: take1-1-1 ends before the start of the timeline.\n")
+        case .layoutMismatch:
+            try segment(arm: 1, channels: 2)
+            return (["take1-1-1"], "Error: file \"take1-1-1\" does not have the layout of track \"t1\".\n")
+        }
+    }
+
+    @Test(arguments: Refusal.allCases)
+    func aRefusedPlacementExitsOneAndChangesNothing(refusal: Refusal) throws {
+        let (arguments, stderr) = try prepare(refusal)
+        let before = try package.xml()
+
+        #expect(
+            try package.run(["capture", "place", "PKG"] + arguments) == CLIResult(status: 1, stdout: "", stderr: stderr)
+        )
+
+        #expect(try package.xml() == before)
+    }
+
+    /// No recovery runs as a side effect (decision 0021 Q6): no marker, and no WAV of take 2.
+    @Test func aPendingTakeExitsTwo() throws {
+        try segment(take: 2, arm: 1)
+        try package.edit {
+            try $0.setRecording(
+                Recording(take: 2, playheadFrame: 0, takeStartHostTimeNanos: Self.takeStart, armedTracks: ["t1"]))
+        }
+        let (before, files) = (try package.xml(), try FileManager.default.contentsOfDirectory(atPath: clips.path))
+
+        #expect(
+            try package.run("capture", "place", "PKG", "take1-1-1")
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: \(package.path) has a take that is not finalized; open it in Dirigible first.\n"))
+
+        #expect(try package.xml() == before)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: clips.path) == files)
+        #expect(!FileManager.default.fileExists(atPath: package.url.appending(path: "recovery-attempt").path))
+    }
+
+    @Test func aLockedPackageExitsTwo() throws {
+        let before = try package.xml()
+
+        let asError: (SessionFileError) -> any Error = { $0 }
+        let locked = try PackageLock.withLock(package.url, locked: asError) { _ in
+            try package.run("capture", "place", "PKG", "take1-1-1")
+        }
+
+        #expect(locked == CLIResult(status: 2, stdout: "", stderr: "Error: \(package.path) is open in Dirigible.\n"))
+        #expect(try package.xml() == before)
+    }
+
+    /// Criterion 29: an I/O error on the anchor is a fault that can go away, not "no anchor".
+    @Test func anUnreadableAnchorExitsTwo() throws {
+        let anchor = capture.appending(path: "take1.anchor")
+        chmod(anchor.path, 0o000)
+        defer { chmod(anchor.path, 0o644) }
+        let before = try package.xml()
+
+        #expect(
+            try package.run("capture", "place", "PKG", "take1-1-1")
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: cannot read \(package.path)/Capture/take1.anchor: Permission denied.\n"))
+
+        #expect(try package.xml() == before)
+    }
+
+    @Test(arguments: [["take1-1"], ["take0-1-1"], ["take1-1-1", "--at", "-1"]])
+    func aBadSegmentNameOrStartExits64(arguments: [String]) throws {
+        let before = try package.xml()
+
+        #expect(try package.run(["capture", "place", "PKG"] + arguments).status == 64)
+
+        #expect(try package.xml() == before)
+    }
+
+    // MARK: Criterion 20
+
+    @Test func placeHasHelp() throws {
+        let help = try dirigible("capture", "place", "--help")
+
+        #expect(help.status == 0)
+        #expect(
+            help.stdout.contains("USAGE: dirigible capture place <package> <segment> [--track <track>] [--at <at>]"))
+        #expect(help.stdout.contains("take anchor"))
+    }
+}

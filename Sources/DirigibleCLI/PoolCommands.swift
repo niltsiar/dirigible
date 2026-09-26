@@ -1,10 +1,11 @@
 import ArgumentParser
 import DirigibleCore
 
-struct CaptureCommand: ParsableCommand {
+struct CaptureCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "capture", abstract: "Add and remove capture timing data (decision 0004).",
-        subcommands: [Add.self, Remove.self])
+        commandName: "capture",
+        abstract: "Add and remove capture timing data (decision 0004), and place captured audio (decision 0021).",
+        subcommands: [Add.self, Remove.self, Place.self])
 
     struct Add: ParsableCommand {
         static let configuration = CommandConfiguration(abstract: "Add a capture and write its ID.")

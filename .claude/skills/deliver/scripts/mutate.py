@@ -4,8 +4,9 @@
 Usage: mutate.py <file> <old text> <new text> <log> <build command> <test command>
 
 The script records the SHA-256 of <file>, replaces the one exact copy of <old text> with
-<new text>, runs <build command>, then <test command> (each with bash -c), writes the raw output
-to <log>, restores the file, and checks the hash. It prints one result:
+<new text>, runs <build command>, then <test command> (each with bash -o pipefail -c), writes the raw output
+to <log>, restores the file, and checks the hash. Each command runs with pipefail, so a failed
+build piped into `tail` is a failed build, not a stale binary under test. It prints one result:
   killed        the build passed and the test failed (exit 0)
   survived      the build and the test passed (exit 1)
   BUILD FAILED  the mutant did not build, so it proves nothing (exit 2)
@@ -30,8 +31,8 @@ try:
     with open(log, 'w') as out:
         out.write(f'# mutation of {path}\n# - {old!r}\n# + {new!r}\n# build: {build}\n# test: {test}\n')
         out.flush()
-        built = subprocess.call(['bash', '-c', build], stdout=out, stderr=subprocess.STDOUT) == 0
-        tested = built and subprocess.call(['bash', '-c', test], stdout=out, stderr=subprocess.STDOUT) == 0
+        built = subprocess.call(['bash', '-o', 'pipefail', '-c', build], stdout=out, stderr=subprocess.STDOUT) == 0
+        tested = built and subprocess.call(['bash', '-o', 'pipefail', '-c', test], stdout=out, stderr=subprocess.STDOUT) == 0
 finally:
     shutil.copyfile(backup, path)
 if hashlib.sha256(open(path, 'rb').read()).hexdigest() != digest:

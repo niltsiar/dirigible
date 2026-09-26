@@ -238,6 +238,23 @@ import Testing
         #expect(try darkPixels(view, in: NSRect(x: 100, y: 84, width: 60, height: 16)) > 20, "a label in 60 pt")
     }
 
+    /// A label draws only inside its box, so the dirty rect of a drag event (the columns of the
+    /// changed clips) holds every label that the event changes. c1 is 60 pt wide from x 0 with a
+    /// name of about 200 pt: a draw of the box and the gap after it has no more label pixels than
+    /// a draw of the box. (A draw of the gap alone does not draw c1.)
+    @Test func aClipLabelStaysInItsBox() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(
+            AudioFile(id: "f1", path: "a-long-take-name-for-the-guest-interview.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 30_720), on: "t1")
+        let view = documentView(session)
+
+        let box = try darkPixels(view, in: NSRect(x: 0, y: 84, width: 60, height: 16))
+        #expect(box > 20, "a label in the box")
+        #expect(try darkPixels(view, in: NSRect(x: 0, y: 84, width: 260, height: 16)) == box, "no label after it")
+    }
+
     /// Mouse-edits criterion 1 (plan gate 2 item 4): the renderer draws a clip where the hit test
     /// finds it. At 512 frames per point and scale 2, the box of c2 on lane 2 is x 93.75 to
     /// 281.25 pt, so its edges are half pixels (187.5 and 562.5 px). 1 px inside each edge is the

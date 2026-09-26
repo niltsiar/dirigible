@@ -115,7 +115,7 @@ import Testing
     }
 
     /// One move drag event: the gesture step, the move on a copy of the 2 h session, the compare of
-    /// the drawn inputs, and the draw of the lanes in view, 120 times at each zoom. Each event moves
+    /// the drawn inputs, and the draw of the columns of the changed clips, 120 times at each zoom. Each event moves
     /// the clip 1 pt right and to the other of lanes 2 and 3, so each event makes a new preview. At
     /// fit zoom a fixture clip is 0.72 pt wide, all range zone, so a clip of 20 pt (4,800,000
     /// frames) replaces the clips under it on t2. At the zoom of 60 pt boxes, a fixture clip moves.

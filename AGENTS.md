@@ -77,7 +77,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Use Conventional Commits: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`. Add a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why. For a long message, write it to `.scratchpads/commit-msg.txt` and run `git commit -F .scratchpads/commit-msg.txt`.
 - The pre-commit hook refuses a commit that fails `make lint` or does not build (tests included). It checks the working tree, so stage whole changes.
-- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks: force push, push to `main`, hard reset, clean, forced branch delete, stash drop, skipped hooks. It matches the whole command, so a commit message that quotes one of these flags is blocked too. Reword the message. `make test-hooks` checks the hook and `scripts/probe.sh`.
+- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks: force push, push to `main`, hard reset, clean, forced branch delete, stash drop, skipped hooks. It matches the whole command, so a commit message that quotes one of these flags is blocked too. Reword the message. `make test-hooks` checks the hook, `scripts/probe.sh`, and the mutation runner of the deliver skill.
 - `.claude/settings.json` allows the build, test, git, and `gh pr` commands of the deliver flow without a prompt. Long runs also need a permission mode that allows file edits, for example auto mode.
 
 ## Architecture rules

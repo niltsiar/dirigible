@@ -112,6 +112,12 @@ struct BannerValueTests {
         studio.environment.freeBytes = { _ in free.withLock { $0 } }
         let chrome = try #require(model.chrome)
         await until("the toolbar has its items") { chrome.time != nil }
+        // The read at open can use the real disk, where 20 tracks can have less than 60 min. Read
+        // again with the free bytes of the test, and wait for the end of the newest read.
+        chrome.refreshRecordTime()
+        await until(limit: .seconds(10), "the read with the test disk ends") {
+            chrome.recordTimeReads == chrome.recordTimeReadsStarted && !lowTime(model)
+        }
         return (model, studio, try #require(model.window), chrome)
     }
 
@@ -150,9 +156,10 @@ struct BannerValueTests {
 
     // MARK: A13
 
-    /// Plan gate 2 items 4 and 5: the first read waits at an async gate; a second read gives
-    /// 5 min; then the first read returns 90 min. The stored value stays 5 min.
-    @Test func anOldRecordTimeReadNeverWinsOverANewOne() async throws {
+    /// Code gate 1 item 2, plan gate 2 items 4 and 5: a read that hangs holds one pool thread at
+    /// most. The first read waits at an async gate; ten triggers during it start no read. After it
+    /// ends, one more read runs, and its 5 min stays over the 90 min of the old read.
+    @Test func oneRecordTimeReadRunsAtATime() async throws {
         let (model, _, _, chrome) = try await open()
         await until("the read at open ends") { model.idleRecordTimeLeft != nil }
         let gate = AsyncGate()
@@ -165,15 +172,22 @@ struct BannerValueTests {
             }
             return .seconds(300)
         }
-        let reads = chrome.recordTimeReads
+        let (started, reads) = (chrome.recordTimeReadsStarted, chrome.recordTimeReads)
 
         chrome.refreshRecordTime()
         await gate.entered()
-        chrome.refreshRecordTime()
-        await until(limit: .seconds(10), "the new read writes 5 min") { model.idleRecordTimeLeft == .seconds(300) }
-        gate.open()
-        await until(limit: .seconds(10), "the old read ends") { chrome.recordTimeReads == reads + 2 }
+        for _ in 0..<10 { chrome.refreshRecordTime() }
 
+        #expect(chrome.recordTimeReadsStarted == started + 1, "a trigger started a second read")
+        gate.open()
+        var startedAtEnd = 0
+        // Under the 10 s of the idle timer, so its read cannot stand in for the one more read.
+        await until(limit: .seconds(5), "the read after the held read ends") {
+            startedAtEnd = chrome.recordTimeReadsStarted
+            return chrome.recordTimeReads == reads + 2
+        }
+        #expect(startedAtEnd == started + 2, "the triggers during the held read gave one more read")
+        #expect(calls == 2)
         #expect(model.idleRecordTimeLeft == .seconds(300), "the old read wrote over the new one")
         await until(limit: .seconds(5), "the banner follows the new read") { lowTime(model) }
         #expect(model.shown.banners == [.lowRecordTime(minutes: 5)])
@@ -261,7 +275,6 @@ struct BannerValueTests {
         chrome.announce = { text, priority in heard.append("\(priority.rawValue) \(text)") }
         let high = NSAccessibilityPriorityLevel.high.rawValue
         chrome.readRecordTime = { _ in .seconds(300) }
-
         chrome.refreshRecordTime()
         await until(limit: .seconds(5), "the low time is announced") { heard.count == 1 }
         chrome.readRecordTime = { _ in .seconds(240) }

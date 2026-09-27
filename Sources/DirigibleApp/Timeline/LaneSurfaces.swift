@@ -133,10 +133,8 @@ struct LaneWindow: Equatable {
     init() {
         layer.actions = [
             "contents": NSNull(), "contentsRect": NSNull(), "contentsScale": NSNull(), "position": NSNull(),
-            "bounds": NSNull(), "hidden": NSNull(),
+            "bounds": NSNull(),
         ]
-        layer.anchorPoint = .zero
-        layer.zPosition = 0
     }
 
     /// The surfaces held, and their bytes.
@@ -163,8 +161,9 @@ struct LaneWindow: Equatable {
         // A refused allocation shows the old pixels; the next change tries again.
         guard let surface = slots[pick].surface else { return nil }
         // The front has pixels to copy only at the same capacity: the same scale and lane rows.
-        let source = old?.capacity == window.capacity ? front.flatMap { slots[$0].surface } : nil
-        let overlap = source == nil ? .empty : old!.pixels.intersection(window.pixels)
+        let from = old?.capacity == window.capacity ? old : nil
+        let source = from == nil ? nil : front.flatMap { slots[$0].surface }
+        let overlap = from?.pixels.intersection(window.pixels) ?? .empty
         let drawn = changed.union(Self.outside(overlap, of: window.pixels))
         // Buffer age: a slot that shows the same pixels as the new window lacks only the pixels
         // that the later commits drew, so it copies only those rects (in the overlap) from the
@@ -177,9 +176,9 @@ struct LaneWindow: Equatable {
         if surface.isInUse { writesInUse += 1 }
         if pick == front { writesOfFront += 1 }
         lastCopied = copies
-        if let source, let old {
+        if let source, let from {
             source.lock(options: .readOnly, seed: nil)
-            for rect in copies { Self.copy(rect, except: drawn, from: source, old, to: surface, window) }
+            for rect in copies { Self.copy(rect, except: drawn, from: source, from, to: surface, window) }
             source.unlock(options: .readOnly, seed: nil)
         }
         draw(PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: drawn))

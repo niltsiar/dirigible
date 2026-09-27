@@ -43,9 +43,14 @@ private struct TrackRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
-                arm
+                if secondLine { arm } else { arm.labelsHidden() }
                 nameField
-                if showsLayout {
+                if !secondLine {
+                    // One line (code gate 1 item 4): a lost device must show during a take at
+                    // every lane height, so the route and the state stay, in compact form.
+                    compactRoute
+                    if let live = studio.liveTracks[track.id] { CompactLiveState(live: live) }
+                } else if showsLayout {
                     // One line: a squeezed text wraps into the row below. The same for the arm label.
                     Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
                         .foregroundStyle(.secondary)
@@ -89,18 +94,37 @@ private struct TrackRow: View {
             set: { if $0 { model.armed.insert(track.id) } else { model.armed.remove(track.id) } })
     }
 
+    /// The route as a symbol menu, with the route text for VoiceOver and as its tooltip.
+    private var compactRoute: some View {
+        Menu {
+            routeItems
+        } label: {
+            Image(systemName: "mic")
+        }
+        .menuStyle(.button)
+        .buttonStyle(.borderless)
+        .fixedSize()
+        .disabled(!model.canEdit)
+        .accessibilityLabel(Text(verbatim: routeText))
+        .help(Text(verbatim: routeText))
+    }
+
     private var routeMenu: some View {
         Menu {
-            Button(L10n.trackRouteNone.key) { model.setRoute(nil, device: nil, track: track.id) }
-            ForEach(model.devices, id: \.uid) { device in
-                Section(device.name) {
-                    ForEach(routeOptions(channelCount: device.channelCount), id: \.self) { channels in
-                        Button(channelsText(channels)) { model.setRoute(channels, device: device, track: track.id) }
-                    }
-                }
-            }
+            routeItems
         } label: {
             Text(verbatim: routeText).lineLimit(1).truncationMode(.tail)
+        }
+    }
+
+    @ViewBuilder private var routeItems: some View {
+        Button(L10n.trackRouteNone.key) { model.setRoute(nil, device: nil, track: track.id) }
+        ForEach(model.devices, id: \.uid) { device in
+            Section(device.name) {
+                ForEach(routeOptions(channelCount: device.channelCount), id: \.self) { channels in
+                    Button(channelsText(channels)) { model.setRoute(channels, device: device, track: track.id) }
+                }
+            }
         }
     }
 
@@ -123,14 +147,44 @@ private func channelsText(_ channels: Route.Channels) -> String {
     }
 }
 
+/// The level of a live track on the meter scale: -60 dBFS to 0 dBFS as 0 to 1.
+private func meterLevel(_ live: LiveTrack) -> Double {
+    live.peak > 0 ? max(0, min(1, (20 * log10(Double(live.peak)) + 60) / 60)) : 0
+}
+
+/// The meter and the state of a one-line row: a meter of 16 pt, and a symbol for a fault (red) or
+/// dropped frames (orange), with the state text for VoiceOver and as its tooltip.
+private struct CompactLiveState: View {
+    let live: LiveTrack
+
+    var body: some View {
+        ProgressView(value: meterLevel(live)).frame(width: 16)
+        if let fault {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                .accessibilityLabel(Text(fault)).help(Text(fault))
+        } else if live.droppedFrames > 0 {
+            let text = L10n.trackDropped.format(live.droppedFrames)
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                .accessibilityLabel(Text(verbatim: text)).help(Text(verbatim: text))
+        }
+    }
+
+    private var fault: LocalizedStringKey? {
+        switch live.state {
+        case .recording, .monitoring: nil
+        case .deviceLost: L10n.trackStateDeviceLost.key
+        case .writeFailed: L10n.trackStateWriteFailed.key
+        case .retryStopped: L10n.trackStateRetryStopped.key
+        }
+    }
+}
+
 /// The meter and the state of an armed track during a take or a monitor.
 private struct LiveState: View {
     let live: LiveTrack
 
     var body: some View {
-        // -60 dBFS to 0 dBFS.
-        let level = live.peak > 0 ? max(0, min(1, (20 * log10(Double(live.peak)) + 60) / 60)) : 0
-        ProgressView(value: level).frame(width: 60)
+        ProgressView(value: meterLevel(live)).frame(width: 60)
         switch live.state {
         case .recording, .monitoring: EmptyView()
         case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)

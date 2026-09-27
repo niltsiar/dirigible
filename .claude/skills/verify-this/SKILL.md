@@ -50,6 +50,8 @@ When safe to write artifacts:
 └── verdict.md
 ```
 
+Each probe run writes to a new folder, named by the commit and a run number. A later run never overwrites the output of an earlier one: a verdict cites only a log that is still on disk.
+
 `.scratchpads/` is gitignored. Recordings of real voices are personal data: keep them there, never commit them.
 
 ## Verdict Rules

@@ -13,7 +13,7 @@ This repo prefers integration tests over unit tests. An integration test calls a
 
 1. **Understand the behavior.** Identify the intended behavior, the current behavior, the affected path, and the smallest observable result.
 2. **Choose the check.** Prefer the integration test target of the module that owns the behavior. Generate audio fixtures in the test (a sine tone, silence, white noise at a known level) instead of committing large binary files.
-3. **Write the failing test first.** The test encodes intended behavior, not the current implementation. Assert a literal expected value or an observable effect: a file on disk, a sample count, a level in dBFS within a stated tolerance, a parsed XML element.
+3. **Write the failing test first.** The test encodes intended behavior, not the current implementation. Assert a literal expected value or an observable effect: a file on disk, a sample count, a level in dBFS within a stated tolerance, a parsed XML element. When the value is part of a sentence that the user reads ("less than N min"), derive the expected values from that sentence, not from the fix that a review proposed, and test the exact boundary (a whole minute).
 4. **Run the new test before the fix.** Confirm that it fails for the intended reason. If it passes, or fails for an unrelated reason, correct the test first.
 5. **Make the change.** Write the smallest production change that satisfies the test.
 6. **Rerun the test and the full suite.** Run `make test`. Confirm the new test passes and nothing else broke.

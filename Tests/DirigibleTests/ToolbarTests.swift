@@ -125,6 +125,17 @@ struct ToolbarValueTests {
         await model.close()
     }
 
+    /// Icon only by default: 1180 pt fits the default set (ux-decisions 8); the user can pick Icon
+    /// and Text in the display-mode menu, and AppKit saves it. The test first removes the saved
+    /// configuration of the test process (its own defaults domain, not the app domain): an
+    /// earlier run saved Icon and Text there.
+    @Test func theDefaultDisplayModeIsIconOnly() async throws {
+        UserDefaults.standard.removeObject(forKey: "NSToolbar Configuration \(ToolbarItemID.toolbar)")
+        let (model, _, chrome) = try await open()
+        #expect(chrome.toolbar.displayMode == .iconOnly)
+        await model.close()
+    }
+
     /// A4: the Record symbol is a red color image, not a template, in the toolbar and in the
     /// customization palette. The palette copy draws red in light and dark, and dimmer when
     /// disabled. The toolbar of a window in an inactive app draws every image gray, also a bitmap

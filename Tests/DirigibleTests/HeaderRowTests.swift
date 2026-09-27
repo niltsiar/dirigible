@@ -148,13 +148,12 @@ import Testing
         let field = try #require(editor.delegate as? NSTextField)
         editor.setSelectedRange(NSRange(location: 2, length: 0))
         let draft = String(repeating: "Long name ", count: 4)
-        for character in draft {
-            editor.insertText(String(character), replacementRange: editor.selectedRange())
-            window.contentView?.layoutSubtreeIfNeeded()
-            drawNow(window)
-        }
-        await until(limit: .seconds(10), "the typed name is a draft") { model.drafts["t1"] == "T1" + draft }
-        try await Task.sleep(for: .milliseconds(100))
+        // One insert and one layout pass: a longer test gave the key status of the test process
+        // to the window of another suite, and a field with no focus commits its name.
+        editor.insertText(draft, replacementRange: editor.selectedRange())
+        window.contentView?.layoutSubtreeIfNeeded()
+        drawNow(window)
+        try #require(model.drafts["t1"] == "T1" + draft, "the typed name is a draft")
         #expect(field.window === window && window.firstResponder === editor, "the same field keeps the focus")
         #expect(editor.delegate === field, "the same field keeps the focus: the editor")
         #expect(

@@ -48,16 +48,18 @@ import Testing
     /// Studio gets the 2 h session, because a mouse-down reads it, and a save that does not write:
     /// a package write of 12,000 clips must not run during the timed events.
     static func lanesOnScreen(
-        _ session: Session, _ peaks: [FileID: PeakState], framesPerPoint: Double, app: AppDelegate, folder: URL
+        _ session: Session, _ peaks: [FileID: PeakState], framesPerPoint: Double, app: AppDelegate, folder: URL,
+        laneHeight: Double = 100
     ) async throws -> (NSWindow, TimelineScrollView, SessionWindow) {
         let (window, view, model, _) = try await lanesAndInputs(
-            session, peaks, framesPerPoint: framesPerPoint, app: app, folder: folder)
+            session, peaks, framesPerPoint: framesPerPoint, app: app, folder: folder, laneHeight: laneHeight)
         return (window, view, model)
     }
 
     /// `lanesOnScreen`, and the inputs of its last update.
     static func lanesAndInputs(
-        _ session: Session, _ peaks: [FileID: PeakState], framesPerPoint: Double, app: AppDelegate, folder: URL
+        _ session: Session, _ peaks: [FileID: PeakState], framesPerPoint: Double, app: AppDelegate, folder: URL,
+        laneHeight: Double = 100
     ) async throws -> (NSWindow, TimelineScrollView, SessionWindow, LaneInputs) {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder, tracks: 1, seconds: 1), app: app)
@@ -75,7 +77,7 @@ import Testing
         window.contentView?.addSubview(view)
         let inputs = LaneInputs(
             session: session, peaks: peaks, missingMedia: [:], marks: Marks(),
-            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: laneHeight)
         // The first update fits the session; the second sets the zoom of the test.
         view.update(inputs)
         view.update(inputs)

@@ -38,12 +38,12 @@ struct PlaceSegmentTests {
         return studio
     }
 
-    /// The names and sizes of the files in `folder`.
-    func listing(_ folder: URL) throws -> [String: Int] {
-        var result: [String: Int] = [:]
-        for name in try FileManager.default.contentsOfDirectory(atPath: folder.path) {
-            let attributes = try FileManager.default.attributesOfItem(atPath: folder.appending(path: name).path)
-            result[name] = (attributes[.size] as? NSNumber)?.intValue ?? -1
+    /// The bytes of each file in `Capture/`; nil for a file that does not open (an anchor at mode
+    /// 000).
+    func captureBytes() throws -> [String: Data?] {
+        var result: [String: Data?] = [:]
+        for name in try FileManager.default.contentsOfDirectory(atPath: package.capture.path) {
+            result[name] = try? Data(contentsOf: package.capture.appending(path: name))
         }
         return result
     }
@@ -68,7 +68,7 @@ struct PlaceSegmentTests {
     @Test @MainActor func aPlacementWithTheAnchorRestoresTheRecordedClip() async throws {
         let studio = try await studio()
         #expect(studio.unplacedSegments == [Self.segment])
-        let capture = try listing(package.capture)
+        let capture = try captureBytes()
 
         let id = try await studio.place(Self.segment)
 
@@ -78,7 +78,7 @@ struct PlaceSegmentTests {
         #expect(studio.transport == .idle)
         #expect(studio.takeError == nil)
         #expect(try package.read() == studio.session, "the placement is saved")
-        #expect(try listing(package.capture) == capture, "Capture/ does not change (criterion 24)")
+        #expect(try captureBytes() == capture, "Capture/ does not change (criterion 24)")
     }
 
     enum Explicit: String, CaseIterable, CustomTestStringConvertible {
@@ -200,7 +200,7 @@ struct PlaceSegmentTests {
         defer { chmod(anchor.path, 0o644) }
         let studio = try await studio()
         let (session, xml) = (studio.session, try Data(contentsOf: package.url.appending(path: "session.xml")))
-        let (capture, clipFiles, canUndo) = (try listing(package.capture), try clipBytes(), studio.canUndo)
+        let (capture, clipFiles, canUndo) = (try captureBytes(), try clipBytes(), studio.canUndo)
 
         await #expect(throws: call.error) { try await studio.place(call.segment, on: call.track, at: call.start) }
 
@@ -209,7 +209,7 @@ struct PlaceSegmentTests {
         #expect(studio.canUndo == canUndo)
         #expect(studio.transport == .idle)
         #expect(studio.takeError == nil)
-        #expect(try listing(package.capture) == capture)
+        #expect(try captureBytes() == capture)
         #expect(try clipBytes() == clipFiles)
     }
 

@@ -235,7 +235,8 @@ import Testing
         try session.addTrack("t1", name: "T1", layout: .mono)
         try session.addTrack("t2", name: "T2", layout: .mono)
         try session.place(Clip(id: "c1", file: "f1", start: 48_000, offset: 0, length: 432_000), on: "t2")
-        let view = documentView(session)
+        let (window, view) = documentView(session)
+        defer { window.close() }
 
         // The box of c1 starts at 93.75 pt; lane 2 is 100 to 200 pt.
         #expect(try darkPixels(view, in: NSRect(x: 90, y: 184, width: 60, height: 16)) > 20, "the label in lane 2")
@@ -252,7 +253,8 @@ import Testing
         try session.addTrack("t1", name: "T1", layout: .mono)
         try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 30_208), on: "t1")
         try session.place(Clip(id: "c2", file: "f1", start: 51_200, offset: 0, length: 30_720), on: "t1")
-        let view = documentView(session)
+        let (window, view) = documentView(session)
+        defer { window.close() }
 
         #expect(try darkPixels(view, in: NSRect(x: 0, y: 84, width: 59, height: 16)) == 0, "no label in 59 pt")
         #expect(try darkPixels(view, in: NSRect(x: 100, y: 84, width: 60, height: 16)) > 20, "a label in 60 pt")
@@ -268,7 +270,8 @@ import Testing
             AudioFile(id: "f1", path: "a-long-take-name-for-the-guest-interview.wav", layout: .mono, length: 480_000))
         try session.addTrack("t1", name: "T1", layout: .mono)
         try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 30_720), on: "t1")
-        let view = documentView(session)
+        let (window, view) = documentView(session)
+        defer { window.close() }
 
         let box = try darkPixels(view, in: NSRect(x: 0, y: 84, width: 60, height: 16))
         #expect(box > 20, "a label in the box")
@@ -277,14 +280,15 @@ import Testing
 
     /// Mouse-edits code gate 1 item 2: a draw of some lanes (the dirty rect of a drag event on
     /// one lane) puts their pixels in their rows. c1 is on lane 2 from x 0 to 93.75 pt; lane 1 is
-    /// empty.
+    /// empty. In a window, so row 0 of the surface shows at the top of the flipped lanes.
     @Test func aDrawOfSomeLanesPutsTheirPixelsInTheirRows() throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 480_000))
         try session.addTrack("t1", name: "T1", layout: .mono)
         try session.addTrack("t2", name: "T2", layout: .mono)
         try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 48_000), on: "t2")
-        let view = documentView(session)
+        let (window, view) = documentView(session)
+        defer { window.close() }
 
         #expect(try isClip(view, at: NSPoint(x: 20, y: 150), drawing: NSRect(x: 0, y: 100, width: 50, height: 100)))
         #expect(try !isClip(view, at: NSPoint(x: 20, y: 50), drawing: NSRect(x: 0, y: 0, width: 50, height: 100)))
@@ -293,7 +297,9 @@ import Testing
         #expect(try !isClip(view, at: NSPoint(x: 20, y: 60), drawing: both), "lane 1 of a draw of two lanes")
     }
 
-    /// True when a draw of `rect` of `view` has the clip color at `point`.
+    /// True when a draw of `rect` of `view` has the clip color at `point`, not the lane color. The
+    /// snapshot converts the colors of a layer (an sRGB image or surface showed the clip red as 209,
+    /// not 196), so the test takes the midpoint of the clip and lane reds.
     func isClip(_ view: NSView, at point: NSPoint, drawing rect: NSRect) throws -> Bool {
         let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: rect))
         view.cacheDisplay(in: rect, to: bitmap)
@@ -302,7 +308,7 @@ import Testing
             bitmap.colorAt(x: Int((point.x - rect.minX) * scale), y: Int((point.y - rect.minY) * scale))?
                 .usingColorSpace(.sRGB))
         // The clip color is 0xC4DAF5, the lane color 0xE8ECF2.
-        return abs(color.redComponent - 0xC4 / 255) < 0.03
+        return color.redComponent < (0xC4 + 0xE8) / 2 / 255
     }
 
     /// Mouse-edits criterion 1 (plan gate 2 item 4): the renderer draws a clip where the hit test
@@ -320,19 +326,18 @@ import Testing
             laneHeight: 100)
         let geometry = try #require(LaneGeometry(scale: inputs.scale, laneHeight: inputs.laneHeight))
         let box = geometry.box(of: clip, lane: 1)
-        let renderer = LaneRenderer()
+        let pixels = OwnedPixels(try #require(laneWindow(inputs, width: 300, scale: 2)))
 
-        _ = renderer.draw(inputs, x: 0, width: 300, scale: 2)
+        pixels.draw { LaneRenderer().draw(inputs, into: $0) }
 
         let (left, right, top, bottom) = (box.minX * 2, box.maxX * 2, Int(box.minY * 2), Int(box.maxY * 2))
         #expect((left, right) == (187.5, 562.5))
-        #expect(renderer.pixel(Int(left + 1), 300) == LaneColors.clip, "1 px inside the left edge")
-        #expect(renderer.pixel(Int(left - 1), 300) == LaneColors.lane, "1 px outside the left edge")
-        #expect(renderer.pixel(Int(right - 1), 300) == LaneColors.clip, "1 px inside the right edge")
-        #expect(renderer.pixel(Int(right + 1), 300) == LaneColors.lane, "1 px outside the right edge")
-        #expect(renderer.pixel(300, top + 1) == LaneColors.clip && renderer.pixel(300, top - 1) == LaneColors.lane)
-        #expect(
-            renderer.pixel(300, bottom - 1) == LaneColors.clip && renderer.pixel(300, bottom + 1) == LaneColors.lane)
+        #expect(pixels.pixel(Int(left + 1), 300) == LaneColors.clip, "1 px inside the left edge")
+        #expect(pixels.pixel(Int(left - 1), 300) == LaneColors.lane, "1 px outside the left edge")
+        #expect(pixels.pixel(Int(right - 1), 300) == LaneColors.clip, "1 px inside the right edge")
+        #expect(pixels.pixel(Int(right + 1), 300) == LaneColors.lane, "1 px outside the right edge")
+        #expect(pixels.pixel(300, top + 1) == LaneColors.clip && pixels.pixel(300, top - 1) == LaneColors.lane)
+        #expect(pixels.pixel(300, bottom - 1) == LaneColors.clip && pixels.pixel(300, bottom + 1) == LaneColors.lane)
         let middle = box.minY + 10
         #expect(geometry.hit(box.minX + 0.5, middle, in: session) == .trim(clip, .start, lane: 1))
         #expect(geometry.hit(box.minX - 0.5, middle, in: session) == .range(lane: 1))

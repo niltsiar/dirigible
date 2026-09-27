@@ -290,13 +290,73 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
         scale: TimelineScale(framesPerPoint: 512), laneHeight: 100)
 }
 
-/// The document view of `session` alone (no window), at 512 frames per point and 100 pt lanes.
-@MainActor func documentView(_ session: Session) -> TimelineDocumentView {
+/// The document view of `session` alone in a borderless window of its size, at 512 frames per
+/// point and 100 pt lanes, drawn once. The lanes draw in `updateLayer()`, so a snapshot of a view
+/// with no window has no lanes.
+@MainActor func documentView(_ session: Session) -> (NSWindow, TimelineDocumentView) {
     let view = TimelineDocumentView()
     view.inputs = LaneInputs(
         session: session, peaks: [:], missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 512),
         laneHeight: 100)
-    return view
+    let window = NSWindow(
+        contentRect: NSRect(origin: .zero, size: view.frame.size), styleMask: [.borderless], backing: .buffered,
+        defer: false)
+    window.isReleasedWhenClosed = false
+    window.contentView = view
+    drawNow(window)
+    return (window, view)
+}
+
+/// Pixels that a test owns: the lanes of `window`, drawn through a `PixelRegion` as the view draws
+/// them into a surface. Each pixel starts as `fill`.
+final class OwnedPixels {
+    let window: LaneWindow
+    private let bytesPerRow: Int
+    private let memory: UnsafeMutableRawPointer
+
+    init(_ window: LaneWindow, fill: UInt32 = 0) {
+        self.window = window
+        // An odd count of 64-byte lines per row, as a surface has.
+        bytesPerRow = ((window.pixels.columns.count + 15) / 16 | 1) * 64
+        let count = bytesPerRow * window.pixels.rows.count
+        memory = .allocate(byteCount: count, alignment: 64)
+        var pattern = fill
+        memset_pattern4(memory, &pattern, count)
+    }
+
+    deinit { memory.deallocate() }
+
+    /// Lends a region of `rect` (all of the window by default).
+    func draw(_ rect: PixelRect? = nil, _ body: (borrowing PixelRegion) -> Void) {
+        body(PixelRegion(base: memory, bytesPerRow: bytesPerRow, window: window, rect: rect ?? window.pixels))
+    }
+
+    /// The pixel at a document column and row.
+    func pixel(_ column: Int, _ row: Int) -> UInt32 { self.row(row)[column - window.pixels.columns.lowerBound] }
+
+    /// The pixels of a document row, one per column of the window.
+    func row(_ row: Int) -> [UInt32] {
+        let start = (memory + (row - window.pixels.rows.lowerBound) * bytesPerRow).assumingMemoryBound(to: UInt32.self)
+        return Array(UnsafeBufferPointer(start: start, count: window.pixels.columns.count))
+    }
+
+    /// The pixels of the lanes of `inputs` in `window`, rendered as the view renders them: a new
+    /// renderer, then the labels.
+    @MainActor static func render(_ inputs: LaneInputs, _ window: LaneWindow) -> OwnedPixels {
+        let pixels = OwnedPixels(window)
+        pixels.draw { region in
+            LaneRenderer().draw(inputs, into: region)
+            TimelineDocumentView.drawLabels(inputs, into: region)
+        }
+        return pixels
+    }
+}
+
+/// The window of document points `x ..< x + width` of all lanes of `inputs` at `scale`.
+func laneWindow(_ inputs: LaneInputs, x: Double = 0, width: Double, scale: Double = 1) -> LaneWindow? {
+    let rect = CGRect(x: x, y: 0, width: width, height: Double(inputs.session.tracks.count) * inputs.laneHeight)
+    return LaneWindow(
+        view: rect, bounds: rect, laneHeight: inputs.laneHeight, lanes: inputs.session.tracks.count, scale: scale)
 }
 
 /// The pixels darker than 40% gray (the clip label color) of a draw of `rect` of `view`. The lane

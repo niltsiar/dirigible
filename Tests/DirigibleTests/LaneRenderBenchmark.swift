@@ -42,14 +42,16 @@ struct LaneRenderBenchmark {
             let inputs = LaneInputs(
                 session: session, peaks: states, missingMedia: [:], marks: Marks(),
                 scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+            let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
+            let pixels = windows.map { OwnedPixels($0) }
             var times: [Duration] = []
             for draw in 0..<120 {
                 let start = ContinuousClock.now
-                _ = renderer.draw(inputs, x: Double(draw % 7), width: 1440, scale: 2)
+                pixels[draw % 7].draw { renderer.draw(inputs, into: $0) }
                 times.append(ContinuousClock.now - start)
             }
             let p95 = times.sorted()[113]
-            #expect(renderer.columns == 2880 && renderer.rows == 1200)
+            #expect(windows[0].pixels.columns.count == 2880 && windows[0].pixels.rows.count == 1200)
             #expect(p95 <= Self.budget, "\(zoom): p95 \(p95)")
         }
     }
@@ -57,7 +59,8 @@ struct LaneRenderBenchmark {
 
 /// Code gate 1 item 3: a draw of 10 pt of 6 lanes of 1000 clips each labels only the clips in the
 /// dirty rect. Unoptimized, on the MacBook Pro 2018 of the probes: a median of 10.5 s when the
-/// labels looked up every clip of the session by its ID, 8.5 ms after the fix.
+/// labels looked up every clip of the session by its ID, 8.5 ms after the fix. The labels draw
+/// into the region of the draw (decision 0022).
 @MainActor struct ClipLabelBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aNarrowDrawOfManyClipsReadsOnlyItsClips() throws {
@@ -71,14 +74,15 @@ struct LaneRenderBenchmark {
                     on: TrackID("t\(track)"))
             }
         }
-        let view = documentView(session)
-        let rect = NSRect(x: 4000, y: 0, width: 10, height: 600)
-        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: rect))
+        let inputs = LaneInputs(
+            session: session, peaks: [:], missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 512),
+            laneHeight: 100)
+        let pixels = OwnedPixels(try #require(laneWindow(inputs, x: 4000, width: 10, scale: 2)))
 
         var times: [Duration] = []
         for _ in 0..<20 {
             let start = ContinuousClock.now
-            view.cacheDisplay(in: rect, to: bitmap)
+            pixels.draw { TimelineDocumentView.drawLabels(inputs, into: $0) }
             times.append(ContinuousClock.now - start)
         }
         let median = times.sorted()[10]

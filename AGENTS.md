@@ -69,6 +69,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - `decisions.tsv` is append-only. Add rows with `.claude/skills/deliver/scripts/log-decision.sh`, which writes the time from the clock. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`. The folder is a new folder under `.scratchpads/` or the session scratchpad. The script runs the command in that folder and a sandbox refuses a write outside it. A probe once deleted files in `~`. For a Swift build in a probe, read the header of `scripts/probe.sh` first: it needs flags.
+- The Bash tool shell is zsh. zsh ties `path` to `PATH` (also `status` and `argv`), so a variable with one of these names breaks every later command with "command not found". Use another name, or run the loop under `bash -c '...'`.
 
 ## Git
 

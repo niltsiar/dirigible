@@ -47,7 +47,7 @@ struct LaneRendererTests {
     /// The pixels of a draw of the document points 0 ..< `width` of all lanes at `scale`.
     static func render(_ inputs: LaneInputs, width: Double, scale: Double = 1) throws -> OwnedPixels {
         let pixels = OwnedPixels(try #require(laneWindow(inputs, width: width, scale: scale)))
-        pixels.draw { LaneRenderer().draw(inputs, into: $0) }
+        pixels.draw { LaneRenderer().draw(inputs, .light, into: $0) }
         return pixels
     }
 
@@ -61,13 +61,13 @@ struct LaneRendererTests {
 
         let pixels = try Self.render(Self.inputs(try Self.session(), peaks: bins), width: 4)
 
-        #expect(Self.rows(pixels, column: 0, LaneColors.peak) == Array(0..<100))
+        #expect(Self.rows(pixels, column: 0, LanePalette.light.peak) == Array(0..<100))
         // -6.02 dB on the -60 dB to 0 dB scale: 90% of the lane.
-        let half = Self.rows(pixels, column: 1, LaneColors.peak)
+        let half = Self.rows(pixels, column: 1, LanePalette.light.peak)
         #expect(half.last == 99 && abs((half.first ?? 0) - 10) <= 1, "\(half)")
         // -79 dB is under the floor.
-        #expect(Self.rows(pixels, column: 2, LaneColors.peak) == [])
-        #expect(pixels.pixel(2, 99) == LaneColors.clip)
+        #expect(Self.rows(pixels, column: 2, LanePalette.light.peak) == [])
+        #expect(pixels.pixel(2, 99) == LanePalette.light.clip)
     }
 
     /// Only lane 1 has peaks, so a span that passes the bottom of lane 1 shows in lane 2. Column 1
@@ -79,11 +79,11 @@ struct LaneRendererTests {
 
         let pixels = try Self.render(inputs, width: 4)
 
-        #expect(Self.rows(pixels, column: 0, LaneColors.peak) == Array(0..<10))
-        #expect(Self.rows(pixels, column: 0, LaneColors.rms) == Array(10..<100))
-        #expect(Self.rows(pixels, column: 1, LaneColors.peak) == [])
-        #expect(Self.rows(pixels, column: 1, LaneColors.rms) == Array(10..<100))
-        #expect((0..<2).allSatisfy { pixels.pixel($0, 100) == LaneColors.clip }, "lane 2 starts clean")
+        #expect(Self.rows(pixels, column: 0, LanePalette.light.peak) == Array(0..<10))
+        #expect(Self.rows(pixels, column: 0, LanePalette.light.rms) == Array(10..<100))
+        #expect(Self.rows(pixels, column: 1, LanePalette.light.peak) == [])
+        #expect(Self.rows(pixels, column: 1, LanePalette.light.rms) == Array(10..<100))
+        #expect((0..<2).allSatisfy { pixels.pixel($0, 100) == LanePalette.light.clip }, "lane 2 starts clean")
     }
 
     /// Clip gain plus track gain: -3 dB and -3.0206 dB move a full-scale column to -6.02 dB.
@@ -92,33 +92,33 @@ struct LaneRendererTests {
 
         let pixels = try Self.render(Self.inputs(session, peaks: [PeakColumn(peak: 65535, rms: 0)]), width: 4)
 
-        let rows = Self.rows(pixels, column: 0, LaneColors.peak)
+        let rows = Self.rows(pixels, column: 0, LanePalette.light.peak)
         #expect(rows.last == 99 && abs((rows.first ?? 0) - 10) <= 1, "\(rows)")
     }
 
     @Test func aMissingClipIsRed() throws {
         let pixels = try Self.render(Self.inputs(try Self.session(), missing: ["f1": .missing]), width: 6)
 
-        #expect((0..<4).allSatisfy { pixels.pixel($0, 50) == LaneColors.missing })
-        #expect((0..<4).allSatisfy { pixels.pixel($0, 0) == LaneColors.missingOutline })
-        #expect((0..<4).allSatisfy { pixels.pixel($0, 99) == LaneColors.missingOutline })
-        #expect(pixels.pixel(4, 50) == LaneColors.lane, "after the clip")
-        #expect(pixels.pixel(0, 150) == LaneColors.clip, "lane 2 is whole")
+        #expect((0..<4).allSatisfy { pixels.pixel($0, 50) == LanePalette.light.missing })
+        #expect((0..<4).allSatisfy { pixels.pixel($0, 0) == LanePalette.light.missingOutline })
+        #expect((0..<4).allSatisfy { pixels.pixel($0, 99) == LanePalette.light.missingOutline })
+        #expect(pixels.pixel(4, 50) == LanePalette.light.lane, "after the clip")
+        #expect(pixels.pixel(0, 150) == LanePalette.light.clip, "lane 2 is whole")
     }
 
     /// The WAV has 256 of the 1024 frames of the clip (`.short` in `missingMedia`).
     @Test func aShortClipIsRedAfterItsRealFrames() throws {
         let pixels = try Self.render(Self.inputs(try Self.session(), missing: ["f1": .short(256)]), width: 6)
 
-        #expect(pixels.pixel(0, 50) == LaneColors.clip)
-        #expect((1..<4).allSatisfy { pixels.pixel($0, 50) == LaneColors.missing })
+        #expect(pixels.pixel(0, 50) == LanePalette.light.clip)
+        #expect((1..<4).allSatisfy { pixels.pixel($0, 50) == LanePalette.light.missing })
     }
 
     /// Peaks of 256 frames for a pool length of 1024 frames, with no fault: no red.
     @Test func theRedTintComesFromMissingMediaOnly() throws {
         let pixels = try Self.render(Self.inputs(try Self.session(), peaks: [Self.zero]), width: 6)
 
-        let red: Set<UInt32> = [LaneColors.missing, LaneColors.missingOutline]
+        let red: Set<UInt32> = [LanePalette.light.missing, LanePalette.light.missingOutline]
         #expect(
             pixels.window.pixels.rows.allSatisfy { row in pixels.row(row).allSatisfy { !red.contains($0) } })
     }
@@ -132,12 +132,13 @@ struct LaneRendererTests {
         let selected = try Self.render(Self.inputs(session, marks: marks), width: 6)
 
         for column in [2, 3] {
-            #expect(selected.pixel(column, 150) == LaneColors.selected(plain.pixel(column, 150)), "column \(column)")
+            #expect(
+                selected.pixel(column, 150) == LanePalette.light.selected(plain.pixel(column, 150)), "column \(column)")
             #expect(selected.pixel(column, 150) != plain.pixel(column, 150))
             #expect(selected.pixel(column, 50) == plain.pixel(column, 50), "lane 1 is not selected")
         }
         #expect(selected.pixel(0, 150) == plain.pixel(0, 150), "before the in point")
-        #expect(selected.pixel(4, 150) == LaneColors.outPoint, "at the out point")
+        #expect(selected.pixel(4, 150) == LanePalette.light.outPoint, "at the out point")
         #expect(selected.pixel(5, 150) == plain.pixel(5, 150), "after the out point")
     }
 
@@ -150,11 +151,12 @@ struct LaneRendererTests {
         let pixels = try Self.render(Self.inputs(session, marks: Marks(inPoint: 256, outPoint: 1280)), width: 6)
 
         for (column, color) in [
-            (2, LaneColors.marker), (3, LaneColors.chapter), (1, LaneColors.inPoint), (5, LaneColors.outPoint),
+            (2, LanePalette.light.marker), (3, LanePalette.light.chapter), (1, LanePalette.light.inPoint),
+            (5, LanePalette.light.outPoint),
         ] {
             #expect((0..<200).allSatisfy { pixels.pixel(column, $0) == color }, "column \(column)")
         }
-        #expect(pixels.pixel(0, 50) == LaneColors.clip)
+        #expect(pixels.pixel(0, 50) == LanePalette.light.clip)
     }
 
     /// The lane color fills the gaps before, between, and after the clips, also where the last
@@ -175,10 +177,10 @@ struct LaneRendererTests {
         let pixels = try Self.render(Self.inputs(try session([(0, 10)])), width: 10)
         let next = Self.inputs(try session([(2, 2), (5, 2)]))
 
-        pixels.draw { LaneRenderer().draw(next, into: $0) }
+        pixels.draw { LaneRenderer().draw(next, .light, into: $0) }
 
         let colors = (0..<10).map { pixels.pixel($0, 50) }
-        let (lane, clip) = (LaneColors.lane, LaneColors.clip)
+        let (lane, clip) = (LanePalette.light.lane, LanePalette.light.clip)
         #expect(colors == [lane, lane, clip, clip, lane, clip, clip, lane, lane, lane])
     }
 
@@ -204,10 +206,10 @@ struct LaneRendererTests {
 
         let pixels = try Self.render(inputs, width: 5)
 
-        #expect(Self.rows(pixels, column: 1, LaneColors.peak) == [], "A holds column 1")
-        #expect(Self.rows(pixels, column: 2, LaneColors.peak) == Array(0..<100), "B holds column 2")
-        #expect(Self.rows(pixels, column: 3, LaneColors.peak) == Array(0..<100), "B holds column 3")
-        #expect(Self.rows(pixels, column: 4, LaneColors.peak) == [], "after B")
+        #expect(Self.rows(pixels, column: 1, LanePalette.light.peak) == [], "A holds column 1")
+        #expect(Self.rows(pixels, column: 2, LanePalette.light.peak) == Array(0..<100), "B holds column 2")
+        #expect(Self.rows(pixels, column: 3, LanePalette.light.peak) == Array(0..<100), "B holds column 3")
+        #expect(Self.rows(pixels, column: 4, LanePalette.light.peak) == [], "after B")
     }
 
     /// Mouse-edits code gate 1 item 2: a draw of lane 2 alone (a drag event on one lane) has the
@@ -220,10 +222,10 @@ struct LaneRendererTests {
         let all = try Self.render(inputs, width: 6)
         let one = OwnedPixels(all.window)
 
-        one.draw(PixelRect(columns: 0..<6, rows: 100..<200)) { LaneRenderer().draw(inputs, into: $0) }
+        one.draw(PixelRect(columns: 0..<6, rows: 100..<200)) { LaneRenderer().draw(inputs, .light, into: $0) }
 
         #expect((100..<200).allSatisfy { one.row($0) == all.row($0) }, "the rows of lane 2")
-        #expect(one.pixel(2, 150) == LaneColors.selected(LaneColors.clip), "the band")
+        #expect(one.pixel(2, 150) == LanePalette.light.selected(LanePalette.light.clip), "the band")
     }
 
     /// Plan gate 1 item 1: a draw writes every pixel of its rect and no pixel outside it. The rect
@@ -243,7 +245,7 @@ struct LaneRendererTests {
         let pixels = OwnedPixels(try #require(laneWindow(inputs, width: 12)), fill: sentinel)
         let rect = PixelRect(columns: 3..<9, rows: 100..<200)
 
-        pixels.draw(rect) { LaneRenderer().draw(inputs, into: $0) }
+        pixels.draw(rect) { LaneRenderer().draw(inputs, .light, into: $0) }
 
         let outside = pixels.window.pixels.rows.flatMap { row in
             pixels.window.pixels.columns.filter { !(rect.rows.contains(row) && rect.columns.contains($0)) }
@@ -252,9 +254,9 @@ struct LaneRendererTests {
         #expect(outside.allSatisfy { $0 == sentinel }, "\(Set(outside).map { String($0, radix: 16) })")
         let inside = rect.rows.flatMap { row in rect.columns.map { pixels.pixel($0, row) } }
         #expect(!inside.contains(sentinel), "every pixel of the rect")
-        #expect(pixels.pixel(5, 150) == LaneColors.marker, "the marker line")
-        #expect(pixels.pixel(6, 105) == LaneColors.selected(LaneColors.peak), "the band")
-        pixels.draw(rect) { LaneRenderer().draw(inputs, into: $0) }
+        #expect(pixels.pixel(5, 150) == LanePalette.light.marker, "the marker line")
+        #expect(pixels.pixel(6, 105) == LanePalette.light.selected(LanePalette.light.peak), "the band")
+        pixels.draw(rect) { LaneRenderer().draw(inputs, .light, into: $0) }
         #expect(rect.rows.flatMap { row in rect.columns.map { pixels.pixel($0, row) } } == inside)
     }
 
@@ -284,12 +286,12 @@ struct LaneRendererTests {
         let window = try #require(laneWindow(inputs, x: 1333, width: 100, scale: 2))
         #expect(window.pixels.columns == 2666..<2866)
         let one = OwnedPixels(window, fill: 0xFFAB_CDEF)
-        one.draw { LaneRenderer().draw(inputs, into: $0) }
+        one.draw { LaneRenderer().draw(inputs, .light, into: $0) }
         let (k, rows) = (2666 + 77, window.pixels.rows)
 
         let two = OwnedPixels(window, fill: 0xFFAB_CDEF)
-        two.draw(PixelRect(columns: 2666..<k, rows: rows)) { LaneRenderer().draw(inputs, into: $0) }
-        two.draw(PixelRect(columns: k..<2866, rows: rows)) { LaneRenderer().draw(inputs, into: $0) }
+        two.draw(PixelRect(columns: 2666..<k, rows: rows)) { LaneRenderer().draw(inputs, .light, into: $0) }
+        two.draw(PixelRect(columns: k..<2866, rows: rows)) { LaneRenderer().draw(inputs, .light, into: $0) }
 
         let wrong = rows.flatMap { row in window.pixels.columns.filter { one.pixel($0, row) != two.pixel($0, row) } }
         #expect(wrong.isEmpty, "\(wrong.count) pixels differ, the first at column \(wrong.first ?? 0)")

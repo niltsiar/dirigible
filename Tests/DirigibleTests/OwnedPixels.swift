@@ -37,11 +37,13 @@ final class OwnedPixels {
 
     /// The pixels of the lanes of `inputs` in `window`, rendered as the view renders them: a new
     /// renderer, then the labels.
-    @MainActor static func render(_ inputs: LaneInputs, _ window: LaneWindow) -> OwnedPixels {
+    @MainActor static func render(_ inputs: LaneInputs, _ window: LaneWindow, _ palette: LanePalette = .light)
+        -> OwnedPixels
+    {
         let pixels = OwnedPixels(window)
         pixels.draw { region in
-            LaneRenderer().draw(inputs, into: region)
-            TimelineDocumentView.drawLabels(inputs, into: region)
+            LaneRenderer().draw(inputs, palette, into: region)
+            TimelineDocumentView.drawLabels(inputs, palette, into: region)
         }
         return pixels
     }

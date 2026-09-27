@@ -19,7 +19,7 @@ import Testing
     /// `draw(_:)`.
     final class DrawPathView: NSView {
         override func draw(_ dirtyRect: NSRect) {
-            var pixel = LaneColors.clip
+            var pixel = LanePalette.light.clip
             guard let provider = CGDataProvider(data: Data(bytes: &pixel, count: 4) as CFData),
                 let image = CGImage(
                     width: 1, height: 1, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 4,

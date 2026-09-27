@@ -88,6 +88,11 @@ final class TimelineDocumentView: NSView {
 
     private let renderer = LaneRenderer()
 
+    /// The lane colors: a drawn input, so a change renders the lanes in view in full.
+    var palette = LanePalette.light {
+        didSet { needsDisplay = true }
+    }
+
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
@@ -165,8 +170,8 @@ final class TimelineDocumentView: NSView {
         switch surfaces.show(
             lanes, changed: lanes.pixels(of: dirty),
             draw: { region in
-                renderer.draw(inputs, into: region)
-                Self.drawLabels(inputs, into: region)
+                renderer.draw(inputs, palette, into: region)
+                Self.drawLabels(inputs, palette, into: region)
             })
         {
         case .drawn(let rect): drawn = rect
@@ -191,7 +196,7 @@ final class TimelineDocumentView: NSView {
     /// left of the box, cut at the box end. It reads only the clips in the frames of the rect of
     /// `region`, lane by lane, and draws only in that rect. A box under 60 pt gets no label: 12,000
     /// labels at fit zoom took 330 ms per draw (probe L1, decision 0020).
-    static func drawLabels(_ inputs: LaneInputs, into region: borrowing PixelRegion) {
+    static func drawLabels(_ inputs: LaneInputs, _ palette: LanePalette, into region: borrowing PixelRegion) {
         guard inputs.laneHeight > 14, let geometry = inputs.geometry, !region.rect.isEmpty else { return }
         let rect = region.window.points(of: region.rect)
         let frames = geometry.frame(at: rect.minX)..<geometry.frame(at: rect.maxX) + Frames(2)
@@ -206,7 +211,7 @@ final class TimelineDocumentView: NSView {
         }
         guard !labels.isEmpty else { return }
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor(white: 0.15, alpha: 1),
+            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: palette.labelColor,
         ]
         region.withContext { context in
             let previous = NSGraphicsContext.current

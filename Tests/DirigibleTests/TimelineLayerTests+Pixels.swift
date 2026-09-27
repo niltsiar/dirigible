@@ -15,7 +15,7 @@ extension TimelineLayerTests {
     static func wrongPixels(_ view: TimelineScrollView) throws -> (count: Int, first: (column: Int, row: Int)?) {
         let lanes = view.lanes
         let window = try #require(lanes.surfaces.shown, "the layer shows no window")
-        let reference = OwnedPixels.render(try #require(lanes.inputs), window)
+        let reference = OwnedPixels.render(try #require(lanes.inputs), window, lanes.palette)
         var count = 0
         var first: (Int, Int)?
         for row in window.pixels.rows {

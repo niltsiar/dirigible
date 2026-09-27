@@ -45,7 +45,9 @@ public struct SegmentName: Hashable, Comparable, Sendable, CustomStringConvertib
 
     /// 1 plus the highest take number in the file names of `Capture/` and `Clips/`, the capture,
     /// file, and clip IDs of the session, and the pending take. So a take number is never reused,
-    /// also after a user empties a folder (decision 0012).
+    /// also after a user empties a folder (decision 0012). Every file name that starts with
+    /// `take<n>` and then a byte that is not a digit counts: an anchor, and a file of a newer
+    /// build (decision 0024 P10).
     static func nextTake(in package: URL, session: Session) -> Int {
         let files = [captureFolderName, clipsFolderName].flatMap {
             (try? FileManager.default.contentsOfDirectory(atPath: package.appending(path: $0).path)) ?? []
@@ -54,7 +56,8 @@ public struct SegmentName: Hashable, Comparable, Sendable, CustomStringConvertib
             session.captures.keys.map(\.rawValue) + session.files.keys.map(\.rawValue)
             + session.tracks.flatMap { $0.clips.map(\.id.rawValue) }
         let takes =
-            files.compactMap { SegmentName(fileName: $0)?.take } + ids.compactMap { SegmentName(id: $0)?.take }
+            files.compactMap { $0.prefixMatch(of: /take([1-9][0-9]{0,8})(?![0-9])/).map { Int($0.1)! } }
+            + ids.compactMap { SegmentName(id: $0)?.take }
             + [session.recording?.take ?? 0]
         return takes.max()! + 1
     }

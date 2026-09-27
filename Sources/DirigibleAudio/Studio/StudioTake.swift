@@ -23,8 +23,8 @@ extension Studio {
         // pending take. The length saturates, so a very long duration cannot trap.
         let nanos = max(0, duration / .nanoseconds(1))
         let length = nanos < 0x1p64 ? UInt64(nanos) : .max
-        // A take with no segment gives its number to the next take, so the number alone cannot
-        // tell this take from a new one that another caller starts.
+        // The generation, not the take number, tells this take from a new one that another
+        // caller starts.
         // The take ends at its start host time + duration, also when the stop comes late.
         let (take, mine) = try await beginRecording(armed: armed, playhead: playhead, length: length)
         let deadline = ContinuousClock.now + duration

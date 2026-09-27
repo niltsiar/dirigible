@@ -57,8 +57,8 @@ struct StartRecordingTests {
             try await studio.startRecording(armed: ["t1"], playhead: 0)
             #expect(studio.lastTake == nil)
             try await studio.stopRecording()
-            // Take 1 has no segment, so the second take is number 1 too.
-            #expect(studio.lastTake == first)
+            // Take 1 left its anchor, so the second take is number 2 (decision 0024 P10).
+            #expect(studio.lastTake == TakeResult(take: 2, end: first.end, gaps: first.gaps))
         }
     }
 

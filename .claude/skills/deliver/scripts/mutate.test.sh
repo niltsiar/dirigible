@@ -2,7 +2,7 @@
 # Check that mutate.py tells a killed, a surviving, and an unbuilt mutant apart, counts a kill
 # with --expect only when the test output has the text, applies extra
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
-# restores the file, and counts a test past --timeout as a kill. Run by `make test-hooks`.
+# restores the file, counts a test past --timeout as a kill, and replays a control from its log. Run by `make test-hooks`.
 set -uo pipefail
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
@@ -71,6 +71,17 @@ check '0:killed (hang)' 'a hang in another process group' --timeout 1 "$file" 'a
 sleep 0.5
 ! kill -0 "$(cat "$tmp/pid")" 2>/dev/null || { echo "FAIL: the process in another group still runs"; kill "$(cat "$tmp/pid")"; failures=$((failures + 1)); }
 check '1:survived' 'a test under the limit' --timeout 10 "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" "grep -q 'a = 1' '$file'"
+
+# --replay: the control of a log runs again from its header, with its --expect.
+test="grep -q 'a = 1' '$file' || { echo 'expected a = 1'; exit 1; }"
+"$mutate" --expect 'expected a = 1' "$file" 'b = 1' 'b = 2' "$tmp/first" "$build" "$test" 'a = 1' 'a = 2' > /dev/null
+check '0:killed' 'a replay of a two-pair control' --replay "$tmp/first" "$tmp/again"
+grep -q "^# expect: 'expected a = 1'" "$tmp/again" || { echo "FAIL: the replay lost --expect"; failures=$((failures + 1)); }
+check '4:WRONG FAILURE' 'a replay with another --expect' --expect 'index out of range' --replay "$tmp/first" "$tmp/again"
+# A later change of the old text: the replay refuses, and the file stays.
+printf 'a = 1\nb = 3\n' > "$file"
+before="$(shasum -a 256 "$file")"
+check '2:mutate' 'a replay after the old text changed' --replay "$tmp/first" "$tmp/again"
 
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

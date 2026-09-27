@@ -98,6 +98,30 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 1: the row layout comes from the header width and the lane height, not from
+    /// the text. A long typed name keeps the same field and its focus, and commits nothing.
+    @Test func aLongTypedNameKeepsTheFieldAndTheFocus() async throws {
+        let (model, studio, window, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
+        let editor = try await focusName(in: window)
+        let field = try #require(editor.delegate as? NSTextField)
+        editor.setSelectedRange(NSRange(location: 2, length: 0))
+        let draft = String(repeating: "Long name ", count: 4)
+        for character in draft {
+            editor.insertText(String(character), replacementRange: editor.selectedRange())
+            window.contentView?.layoutSubtreeIfNeeded()
+            drawNow(window)
+        }
+        await until(limit: .seconds(10), "the typed name is a draft") { model.drafts["t1"] == "T1" + draft }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(field.window === window && window.firstResponder === editor, "the same field keeps the focus")
+        #expect(editor.delegate === field, "the same field keeps the focus: the editor")
+        #expect(
+            studio.session.track("t1")?.name == "T1",
+            "no rename before Return: \(studio.session.track("t1")?.name ?? "")")
+        await model.close()
+    }
+
     /// A 1 pt separator at the bottom of each row: at x 4 pt in the header column, the pixel row
     /// at the bottom point of a row is darker than the pixel 4 pt above it.
     @Test func eachRowHasASeparatorAtTheLaneEdge() async throws {

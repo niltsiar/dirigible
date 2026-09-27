@@ -129,6 +129,18 @@ struct LaneWindow: Equatable {
     private(set) var made = 0
     /// Test support: the rects that the last update copied from the front.
     private(set) var lastCopied: [PixelRect] = []
+    /// Test support: refuse each new surface, as a failed allocation does.
+    var refusesNewSurfaces = false
+
+    /// The result of `show`.
+    enum Result: Equatable {
+        /// `draw` got this rect, and the layer shows the new window.
+        case drawn(PixelRect)
+        /// Nothing changed: no commit.
+        case unchanged
+        /// No surface: the allocation of a new surface failed. The layer shows the old pixels.
+        case refused
+    }
 
     init() {
         layer.actions = [
@@ -144,22 +156,20 @@ struct LaneWindow: Equatable {
     var shown: LaneWindow? { front.flatMap { slots[$0].window } }
 
     /// Shows `window`, with new pixels in `changed` (a rect in the window, from `pixels(of:)`) and in
-    /// the part of the window that the window of the front does not hold. Gives the rect that `draw`
-    /// got, or nil when nothing changed (no commit). `draw` writes every pixel of the rect of its
-    /// region.
-    func show(_ window: LaneWindow, changed: PixelRect, draw: (borrowing PixelRegion) -> Void) -> PixelRect? {
+    /// the part of the window that the window of the front does not hold. `draw` writes every pixel
+    /// of the rect of its region.
+    func show(_ window: LaneWindow, changed: PixelRect, draw: (borrowing PixelRegion) -> Void) -> Result {
         let old = shown
-        if changed.isEmpty, old == window { return nil }
+        if changed.isEmpty, old == window { return .unchanged }
         let pick = slots.indices.filter { $0 != front }.min { slots[$0].commit < slots[$1].commit }!
         if let surface = slots[pick].surface, surface.isInUse || slots[pick].window?.capacity != window.capacity {
             slots[pick] = Slot()
         }
-        if slots[pick].surface == nil, let new = Self.surface(window.capacity) {
+        if slots[pick].surface == nil, !refusesNewSurfaces, let new = Self.surface(window.capacity) {
             slots[pick].surface = new
             made += 1
         }
-        // A refused allocation shows the old pixels; the next change tries again.
-        guard let surface = slots[pick].surface else { return nil }
+        guard let surface = slots[pick].surface else { return .refused }
         // The front has pixels to copy only at the same capacity: the same scale and lane rows.
         let from = old?.capacity == window.capacity ? old : nil
         let source = from == nil ? nil : front.flatMap { slots[$0].surface }
@@ -198,7 +208,7 @@ struct LaneWindow: Equatable {
             x: 0, y: 0, width: Double(used.columns.count) / Double(window.capacity.columns),
             height: Double(used.rows.count) / Double(window.capacity.rows))
         layer.contents = surface
-        return drawn
+        return .drawn(drawn)
     }
 
     /// Test support: the pixel of the layer contents at a document column and row.

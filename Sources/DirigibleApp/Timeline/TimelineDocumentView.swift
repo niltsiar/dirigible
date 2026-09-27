@@ -156,16 +156,28 @@ final class TimelineDocumentView: NSView {
                 lanes: inputs.session.tracks.count, scale: Double(window?.backingScaleFactor ?? 2))
         else { return }
         let started = ContinuousClock.now
-        let changed = lanes.pixels(of: pending)
+        let dirty = pending
         pending = .null
-        guard
-            let drawn = surfaces.show(
-                lanes, changed: changed,
-                draw: { region in
-                    renderer.draw(inputs, into: region)
-                    Self.drawLabels(inputs, into: region)
-                })
-        else { return }
+        let drawn: PixelRect
+        switch surfaces.show(
+            lanes, changed: lanes.pixels(of: dirty),
+            draw: { region in
+                renderer.draw(inputs, into: region)
+                Self.drawLabels(inputs, into: region)
+            })
+        {
+        case .drawn(let rect): drawn = rect
+        case .unchanged: return
+        case .refused:
+            // The layer shows the old pixels. Keep the change and try again one frame later: a
+            // display request in `updateLayer()` displays again in the same commit, with no end.
+            drawLog.error("lanes draw refused: no surface for \(lanes.capacity.columns) x \(lanes.capacity.rows) px")
+            pending = pending.union(dirty)
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(16)) { [weak self] in
+                self?.layer?.setNeedsDisplay()
+            }
+            return
+        }
         draws += 1
         drawnRect = lanes.points(of: drawn)
         let milliseconds = Double((ContinuousClock.now - started) / .microseconds(1)) / 1000

@@ -122,13 +122,12 @@
 "transport.record" = "Record";
 "transport.stop" = "Stop";
 "transport.play" = "Play";
-"transport.remaining" = "Record time left: %@";
-"transport.record.over" = "The playhead is on a clip of an armed track. Record replaces that audio.";
-"transport.stop.output.changed" = "Playback stopped: the output device changed.";
+"transport.record.over" = "The playhead is on a clip of an armed track. Record replaces that audio. Move the playhead or turn off Arm to keep it.";
+"transport.stop.output.changed" = "Playback stopped: the output device changed. Press Space to play on the new device.";
 "transport.stop.output.unavailable" = "Playback cannot start: the output device is not available (error %lld).";
 "transport.stop.package.unavailable" = "Playback stopped: the session package is not available. Check that its disk is connected.";
 "transport.stop.no.descriptor" = "Playback stopped: the app cannot open more files (error %lld). Quit other apps, then press Space again.";
-"media.missing" = "Some audio files are missing or damaged. Their clips play as silence: %@";
+"media.missing" = "Some audio files are missing or damaged. Their clips play as silence: %@. Connect the disk that has them. The app checks again when you come back to this window.";
 
 /* Timeline (decision 0017) */
 "timeline.accessibility" = "Timeline";
@@ -192,3 +191,11 @@
 "toolbar.export" = "Export";
 "toolbar.tooltip" = "%1$@ (%2$@)";
 "key.space" = "Space";
+
+/* Subtitle and banners (decision 0023) */
+"subtitle.tracks" = "Tracks:";
+"subtitle.record.time" = "Record time:";
+"banner.low.record.time" = "Less than %lld min of record time left on this disk. Free up disk space before you record.";
+"banner.kind.warning" = "Warning";
+"banner.kind.error" = "Error";
+"banner.kind.info" = "Information";

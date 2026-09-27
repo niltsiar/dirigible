@@ -18,6 +18,11 @@ extension SessionWindow {
         return studio.session.tracks.contains { armed.contains($0.id) }
     }
 
+    /// The armed tracks with a route, in session order: the tracks that a take records.
+    var armedWithRoute: [TrackID] {
+        studio?.session.tracks.filter { armed.contains($0.id) && $0.route != nil }.map(\.id) ?? []
+    }
+
     var canStop: Bool {
         guard case .open(let studio) = phase, case .recording = studio.transport else { return false }
         return true

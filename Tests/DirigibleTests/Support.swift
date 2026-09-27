@@ -359,3 +359,62 @@ enum FolderRemovals {
         queue.async(group: group) { try? FileManager.default.removeItem(at: url) }
     }
 }
+
+/// Holds the first caller of `wait` until `open`, with a limit of 30 s. It polls, so it blocks
+/// no thread of the concurrency pool. Later callers pass. A copy of the gate of
+/// `DirigibleAudioTests`: the test targets share no code.
+final class AsyncGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var used = false
+    private var inside = false
+    private var opened = false
+
+    func wait() async {
+        guard
+            lock.withLock({ () -> Bool in
+                defer { used = true }
+                inside = !used
+                return !used
+            })
+        else { return }
+        let end = ContinuousClock.now + .seconds(30)
+        while !lock.withLock({ opened }) {
+            guard ContinuousClock.now < end else {
+                Issue.record("The gate was not opened in 30 s")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    func open() { lock.withLock { opened = true } }
+
+    /// Returns when the first caller is inside `wait`. After `limit`, it records a failure.
+    func entered(limit: Duration = .seconds(30)) async {
+        let end = ContinuousClock.now + limit
+        while !lock.withLock({ inside }) {
+            guard ContinuousClock.now < end else {
+                Issue.record("No block entered the gate (limit \(limit))")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+}
+
+/// The accessibility elements under `root`, depth first: the label, the role, and the frame on
+/// the screen. The tree of a hosting view is in the process (probe P2).
+@MainActor func accessibilityElements(under root: Any) -> [(label: String, role: String, frame: NSRect)] {
+    guard let element = root as? NSAccessibilityProtocol else { return [] }
+    var found: [(label: String, role: String, frame: NSRect)] = []
+    let label = element.accessibilityLabel() ?? ""
+    found.append((label, element.accessibilityRole()?.rawValue ?? "", element.accessibilityFrame()))
+    for child in element.accessibilityChildren() ?? [] { found += accessibilityElements(under: child) }
+    return found
+}
+
+/// True when the screen is locked: the accessibility tree of a window is then empty, so a test
+/// checks the model and leaves the accessibility part to a manual check (screenshot.sh rule).
+func screenIsLocked() -> Bool {
+    (CGSessionCopyCurrentDictionary() as? [String: Any])?["CGSSessionScreenIsLocked"] as? Bool == true
+}

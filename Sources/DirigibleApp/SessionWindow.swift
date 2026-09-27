@@ -73,6 +73,9 @@ enum WindowAlert: Hashable {
     var shown = ShownChrome()
     /// The SwiftUI body runs of the window content, for the tests.
     @ObservationIgnored var bodyRuns = 0
+    /// The record time left of the armed tracks before a take; only
+    /// `SessionChrome.refreshRecordTime()` writes it (decision 0023).
+    var idleRecordTimeLeft: Duration?
     /// The commands that reach a leaf of the window, for the tests. Nil: no record.
     @ObservationIgnored var leafCalls: [String]?
     /// The lanes of the window, for the zoom commands.
@@ -273,6 +276,7 @@ enum WindowAlert: Hashable {
     /// peaks again, because a WAV can change outside the app (decision 0017).
     func windowDidBecomeKey(_ notification: Notification) {
         app?.key = self
+        chrome?.refreshRecordTime()
         deviceList.changed()
         if case .open(let studio) = phase { studio.loadPeaks() }
         Task { await idleStudio?.checkMedia() }

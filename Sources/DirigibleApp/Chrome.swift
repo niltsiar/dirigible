@@ -187,7 +187,8 @@ func keyText(_ shortcut: KeyboardShortcut) -> String {
 struct ShownChrome: Equatable {
     /// The record-over warning (decisions 0016, 0017). `ChromeState` is its only owner.
     var recordOver = false
-    var playbackStop: PlaybackStop?
+    /// The banner rows under the take banner, in order.
+    var banners: [WindowBanner] = []
     /// A take or a play runs: the Stop item and the Stop menu item are on. When nothing runs,
     /// Command-period reaches a sheet (decision 0023).
     var isRunning = false
@@ -201,6 +202,7 @@ struct ChromeState: Equatable {
     var on: Set<ToolbarItemID> = []
     var playing = false
     var time = timeDisplayText(0, rate: 48_000, playing: false)
+    var subtitle = ""
     var shown = ShownChrome()
 
     @MainActor init(model: SessionWindow) {
@@ -220,8 +222,22 @@ struct ChromeState: Equatable {
         if recording { on.insert(.record) }
         if playing { on.insert(.play) }
         if model.monitoring { on.insert(.monitor) }
-        shown = ShownChrome(
-            recordOver: model.showsRecordOver, playbackStop: studio.playbackStop, isRunning: recording || playing)
+        // During a take the disk watch gives the time left; before it, the idle read of the
+        // armed tracks with a route.
+        let left = recording ? studio.recordTimeLeft : model.armedWithRoute.isEmpty ? nil : model.idleRecordTimeLeft
+        subtitle = subtitleText(
+            rate: studio.session.sampleRate, tracks: studio.session.tracks.count, recordTimeLeft: left)
+        var banners: [WindowBanner] = []
+        if let stop = studio.playbackStop { banners.append(.playbackStopped(stop)) }
+        if !studio.missingMedia.isEmpty {
+            banners.append(
+                .missingMedia(studio.missingMedia.keys.sorted().map { studio.session.files[$0]?.path ?? $0.rawValue }))
+        }
+        let shownBefore = model.shown.banners.contains { $0.key == "lowRecordTime" }
+        if let left, showsLowRecordTime(left: left, recording: recording, shownBefore: shownBefore) {
+            banners.append(.lowRecordTime(minutes: Int(left / .seconds(60))))
+        }
+        shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
     }
 }
 
@@ -234,4 +250,88 @@ func timeDisplayText(_ frames: Frames, rate: Int, playing: Bool) -> String {
     return playing
         ? String(format: "%d:%02d:%02d.%d", hours, minutes, seconds, rest / 100)
         : String(format: "%d:%02d:%02d.%03d", hours, minutes, seconds, rest)
+}
+
+/// A banner row of the window (decision 0023): a fact, then what to do.
+enum WindowBanner: Equatable {
+    case playbackStopped(PlaybackStop)
+    case missingMedia([String])
+    /// Whole minutes, so the row changes at most once a minute.
+    case lowRecordTime(minutes: Int)
+
+    enum Kind: CaseIterable {
+        case warning, error, info, recording
+
+        var symbol: String {
+            switch self {
+            case .warning: "exclamationmark.triangle.fill"
+            case .error: "xmark.octagon.fill"
+            case .info: "info.circle"
+            case .recording: "record.circle"
+            }
+        }
+
+        /// The first word of the accessibility label of the row.
+        var word: L10n {
+            switch self {
+            case .warning: .bannerKindWarning
+            case .error: .bannerKindError
+            case .info, .recording: .bannerKindInfo
+            }
+        }
+    }
+
+    /// The case with no value: a new banner of a kind that shows already is not new.
+    var key: String {
+        switch self {
+        case .playbackStopped: "playbackStopped"
+        case .missingMedia: "missingMedia"
+        case .lowRecordTime: "lowRecordTime"
+        }
+    }
+
+    var kind: Kind {
+        switch self {
+        case .playbackStopped, .lowRecordTime: .warning
+        case .missingMedia: .error
+        }
+    }
+
+    var text: String {
+        switch self {
+        case .playbackStopped(let stop): L10n.message(for: stop)
+        case .missingMedia(let paths): L10n.mediaMissing.format(paths.joined(separator: ", "))
+        case .lowRecordTime(let minutes): L10n.bannerLowRecordTime.format(minutes)
+        }
+    }
+
+    /// VoiceOver reads a new banner at this priority. Nil: no announcement.
+    var announcement: NSAccessibilityPriorityLevel? {
+        switch self {
+        case .playbackStopped, .lowRecordTime: .high
+        case .missingMedia: .medium
+        }
+    }
+}
+
+/// Low record time (decision 0023): before a take under 60 min, during a take under 10 min. A
+/// banner that shows hides only 60 s over the limit, so it does not blink at the limit.
+func showsLowRecordTime(left: Duration, recording: Bool, shownBefore: Bool) -> Bool {
+    let limit: Duration = recording ? .seconds(600) : .seconds(3600)
+    return left < (shownBefore ? limit + .seconds(60) : limit)
+}
+
+/// The window subtitle: "48 kHz · Tracks: 3 · Record time: 2 hr, 10 min". No plural form
+/// (0010); Foundation gives the units of the time. `text` gives the value of a key.
+func subtitleText(
+    rate: Int, tracks: Int, recordTimeLeft: Duration?, locale: Locale = .current,
+    text: (L10n) -> String = { $0.text }
+) -> String {
+    let kHz = (Double(rate) / 1000).formatted(.number.locale(locale))
+    var parts = ["\(kHz) kHz", "\(text(.subtitleTracks)) \(tracks)"]
+    if let recordTimeLeft {
+        let style = Duration.UnitsFormatStyle(allowedUnits: [.hours, .minutes], width: .abbreviated).locale(locale)
+        parts.append("\(text(.subtitleRecordTime)) \(recordTimeLeft.formatted(style))")
+    }
+    return parts.joined(separator: " · ")
 }

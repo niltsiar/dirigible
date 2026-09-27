@@ -53,10 +53,6 @@ struct SessionView: View {
             }
     }
 
-    private var monitoring: Binding<Bool> {
-        Binding(get: { model.monitoring }, set: { model.monitoring = $0 })
-    }
-
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .opening:
@@ -69,17 +65,20 @@ struct SessionView: View {
         case .open(let studio), .closing(let studio?):
             VStack(alignment: .leading, spacing: 0) {
                 if let error = studio.saveError {
-                    Banner(text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
+                    BannerRow(
+                        kind: .error,
+                        text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
                 }
                 TakeBanner(model: model, studio: studio)
-                TransportBar(model: model, studio: studio)
-                Toggle(L10n.menuRecordMonitor.key, isOn: monitoring).toggleStyle(.checkbox).disabled(!model.canMonitor)
-                    .padding(8)
+                WindowBanners(model: model)
                 if studio.session.tracks.isEmpty {
                     Text(L10n.trackNone.key).foregroundStyle(.secondary).frame(
                         maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    TimelinePane(model: model, studio: studio)
+                    // An overlay, not a row: the lanes do not move when it shows or goes.
+                    TimelinePane(model: model, studio: studio).overlay(alignment: .top) {
+                        RecordOverOverlay(model: model)
+                    }
                 }
             }
             // An AppKit sheet: the close button is off while it shows (probe S1).
@@ -124,107 +123,6 @@ private struct TimelinePane: View {
     LaneInputs(
         session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, marks: model.timeline.marks,
         scale: model.timeline.scale, laneHeight: laneHeight)
-}
-
-/// The take state: recording, finishing, pending, or the result of the last take.
-private struct TakeBanner: View {
-    let model: SessionWindow
-    let studio: Studio
-
-    var body: some View {
-        switch studio.transport {
-        case .recording(let take):
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Banner(text: L10n.takeRecording.format(take) + "  " + elapsed(at: context.date), tint: .red)
-            }
-        case .finalizing(let take):
-            Banner(text: L10n.takeFinishing.format(take))
-        case .placing(let segment):
-            Banner(text: L10n.takePlacing.format(segment.stem))
-        case .idle:
-            if let pending = studio.pendingTake {
-                HStack {
-                    Banner(text: pendingText(pending.take), tint: .orange)
-                    if model.canFinishLeavingUnreadable {
-                        Button(L10n.menuRecordLeaveUnreadable.key) { Task { await model.finishLeavingUnreadable() } }
-                    }
-                    Button(L10n.menuRecordRetry.key) { Task { await model.retry() } }.padding(.trailing)
-                }
-                .task(id: pending.take) { await model.refreshPendingSpace() }
-            } else {
-                if let text = resultText { Banner(text: text) }
-                if !studio.unplacedSegments.isEmpty { unplacedRows }
-            }
-        }
-    }
-
-    /// One row for each unplaced segment (decision 0021), at most 4 in view; the list scrolls.
-    private var unplacedRows: some View {
-        let rowHeight = 28.0
-        return VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.takeUnplaced.key)
-            if model.placeWaitsForRedo { Text(L10n.takeUnplacedRedo.key).foregroundStyle(.secondary) }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(studio.unplacedSegments, id: \.self) { segment in
-                        HStack {
-                            Text(verbatim: segment.stem)
-                            Spacer()
-                            Menu(L10n.menuUnplacedPlace.key) {
-                                Button(L10n.menuUnplacedPlacePlayhead.key) {
-                                    Task { await model.place(segment, atPlayhead: true) }
-                                }
-                                .disabled(!model.canPlaceAtPlayhead)
-                            } primaryAction: {
-                                Task { await model.place(segment, atPlayhead: false) }
-                            }
-                            .fixedSize()
-                            .disabled(!model.canPlace)
-                        }
-                        .frame(height: rowHeight)
-                    }
-                }
-            }
-            .frame(height: rowHeight * Double(min(studio.unplacedSegments.count, 4)))
-        }
-        .padding(8)
-        .background(Color.secondary.opacity(0.15))
-    }
-
-    private func elapsed(at date: Date) -> String {
-        guard let since = studio.recordingSince else { return "" }
-        let seconds = Int((ContinuousClock.now - since) / .seconds(1))
-        return Duration.seconds(seconds).formatted(.time(pattern: .hourMinuteSecond))
-    }
-
-    private func pendingText(_ take: Int) -> String {
-        var lines = [L10n.takePending.format(take)]
-        if let error = studio.takeError { lines.append(L10n.message(for: error, session: studio.session)) }
-        if model.canFinishLeavingUnreadable { lines.append(L10n.takePendingLeaveHint.text) }
-        if let space = model.pendingSpace {
-            lines.append(L10n.takePendingSpace.format(L10n.bytes(space.needed), L10n.bytes(space.free)))
-        }
-        return lines.joined(separator: "\n")
-    }
-
-    /// The last take (gaps, dropped frames, a disk-low stop) and a recovered take.
-    private var resultText: String? {
-        let name = { (id: TrackID) in studio.session.track(id)?.name ?? id.rawValue }
-        var lines: [String] = []
-        if let take = studio.lastTake {
-            lines.append(
-                take.end == .diskLow ? L10n.takeEndedDiskLow.format(take.take) : L10n.takeEnded.format(take.take))
-            for (track, gap) in take.gaps.sorted(by: { $0.key < $1.key }) {
-                lines.append(
-                    (gap == .deviceLost ? L10n.takeGapDeviceLost : L10n.takeGapWriteFailed).format(name(track)))
-            }
-            for (track, frames) in take.droppedFrames.sorted(by: { $0.key < $1.key }) {
-                lines.append(L10n.takeDropped.format(name(track), frames))
-            }
-        }
-        if let take = studio.recoveredTake { lines.append(L10n.takeRecovered.format(take.take)) }
-        return lines.isEmpty ? nil : lines.joined(separator: "\n")
-    }
 }
 
 /// The header of one lane: arm, name, and layout on the first line; route, and during a take or
@@ -343,18 +241,6 @@ private struct ExportSheet: View {
             }
         }
         .padding(20)
-    }
-}
-
-private struct Banner: View {
-    let text: String
-    var tint: Color = .secondary
-
-    var body: some View {
-        Text(verbatim: text)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(tint.opacity(0.15))
     }
 }
 

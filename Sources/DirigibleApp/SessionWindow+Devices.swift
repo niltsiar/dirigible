@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleAudio
 import DirigibleCore
 import Observation
@@ -19,6 +20,12 @@ extension SessionWindow {
         } catch {
             alert = .error(error)
         }
+    }
+
+    func openPrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+        else { return }
+        NSWorkspace.shared.open(url)
     }
 
     /// Runs `body`. When it throws an undecided access, it shows the macOS prompt and runs `body`

@@ -8,6 +8,7 @@ struct SessionView: View {
     let model: SessionWindow
 
     var body: some View {
+        let _ = model.countBody()
         content
             // Only the buttons end the rename: OK during a take keeps the typed name (code gate 1).
             .alert(
@@ -367,4 +368,9 @@ extension WindowAlert {
         case .exported(let paths): L10n.alertExported.format(paths.joined(separator: "\n"))
         }
     }
+}
+
+extension SessionWindow {
+    /// Counts a run of a SwiftUI body of the window content, for the tests (ui-shell A21).
+    func countBody() { bodyRuns += 1 }
 }

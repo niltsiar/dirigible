@@ -67,6 +67,12 @@ struct PeakFileTests {
         #expect(Self.decode(data) == nil, "\(field)")
     }
 
+    /// Decision 0024 P1 and P9: the header starts with the magic "DIRPEAKS" and the UInt32
+    /// version 1, little-endian.
+    @Test func theWriterStampsVersion1() async throws {
+        #expect(PeakFile.encode(try await Self.peaks()).prefix(12) == Data("DIRPEAKS".utf8) + Data([1, 0, 0, 0]))
+    }
+
     @Test func anotherChannelCountIsRefused() async throws {
         let data = PeakFile.encode(try await Self.peaks())
         #expect(Self.decode(data, channels: 1) != nil)

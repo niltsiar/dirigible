@@ -13,6 +13,13 @@
 # --scratch-path, copy .build/repositories and .build/checkouts from a build first, so SwiftPM does
 # not fetch from the network. The SwiftPM lines "failed storing manifest in cache" and "not
 # accessible or not writable" come from this sandbox, not from the build.
+#
+# Only the command runs in the sandbox. A pipe or a redirect in the calling shell (`| tee x.log`)
+# runs outside it, in the folder of the caller: put it inside the probe with `bash -c '...'`.
+# A package copy with an APFS clone of .build fails with "PCH was compiled with module cache
+# path": delete *.pch and .build/*/debug/ModuleCache in the copy before you build. In a
+# command-line Swift probe, a top-level `Task {}` inherits the main actor: when the main thread
+# then blocks (a semaphore), use `Task.detached`, or the probe hangs.
 set -euo pipefail
 
 [[ $# -ge 2 ]] || { echo "usage: scripts/probe.sh <folder> <command> [args...]" >&2; exit 2; }

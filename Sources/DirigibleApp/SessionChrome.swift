@@ -28,9 +28,12 @@ import Observation
     /// The record time left of the armed tracks before a take. It only returns a value;
     /// `refreshRecordTime()` writes it. Tests give their own.
     var readRecordTime: @MainActor ([TrackID]) async -> Duration?
-    /// The one read that runs: each new read cancels it.
+    /// The one read that runs. A blocked `fstatfs` on a hung volume keeps its pool thread, so a
+    /// trigger during a read starts no second read: it asks for one more read after it.
     private var reading: Task<Void, Never>?
-    /// The reads that ended, written or dropped, for the tests.
+    private var readAgain = false
+    /// The reads that started and that ended, written or dropped, for the tests.
+    private(set) var recordTimeReadsStarted = 0
     private(set) var recordTimeReads = 0
     /// The armed set and the idle state of the last read: a change reads again.
     private var readFor: (armed: [TrackID], idle: Bool)?
@@ -69,19 +72,30 @@ import Observation
         reading?.cancel()
     }
 
-    /// Reads the record time left of the armed tracks with a route, and writes it only when no
-    /// newer read started and the armed set is the same (plan gate 1 item 4). The window calls it
-    /// at focus; the loop calls it at open, at an arm change, and after a take.
+    /// Reads the record time left of the armed tracks with a route, and writes it only when the
+    /// armed set is the same (plan gate 1 item 4). One read runs at a time; the triggers during
+    /// it give one more read after it (code gate 1 item 2). The window calls it at focus; the
+    /// loop calls it at open, at an arm change, and after a take.
     func refreshRecordTime() {
         guard let model, !closed else { return }
-        reading?.cancel()
+        guard reading == nil else {
+            readAgain = true
+            return
+        }
         let armed = model.armedWithRoute
+        recordTimeReadsStarted += 1
         reading = Task { [weak self] in
             let left = armed.isEmpty ? nil : await self?.readRecordTime(armed)
             guard let self else { return }
             self.recordTimeReads += 1
-            guard !Task.isCancelled, let model = self.model, model.armedWithRoute == armed else { return }
-            if model.idleRecordTimeLeft != left { model.idleRecordTimeLeft = left }
+            self.reading = nil
+            if !self.closed, let model = self.model, model.armedWithRoute == armed, model.idleRecordTimeLeft != left {
+                model.idleRecordTimeLeft = left
+            }
+            if self.readAgain {
+                self.readAgain = false
+                self.refreshRecordTime()
+            }
         }
     }
 

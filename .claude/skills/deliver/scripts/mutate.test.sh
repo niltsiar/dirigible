@@ -2,7 +2,7 @@
 # Check that mutate.py tells a killed, a surviving, and an unbuilt mutant apart, counts a kill
 # with --expect only when the test output has the text, applies extra
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
-# restores the file. Run by `make test-hooks`.
+# restores the file, and counts a test past --timeout as a kill. Run by `make test-hooks`.
 set -uo pipefail
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
@@ -51,6 +51,21 @@ expect_text '4:WRONG FAILURE' 'the test fails with another message' 'index out o
 # The expected text in the header of the log (the build command) does not count.
 build="grep -q 'a =' '$file' # index out of range"
 expect_text '4:WRONG FAILURE' 'the expected text is only in the log header' 'index out of range'
+
+# --timeout: a test that runs past the limit is killed with its process group and counts as a kill.
+check() {
+  local want="$1" name="$2" got
+  shift 2
+  got="$("$mutate" "$@" 2>&1)"
+  got="$?:${got%%:*}"
+  [[ "$got" == "$want" ]] || { echo "FAIL: expected $want, got $got: $name"; failures=$((failures + 1)); }
+  [[ "$(shasum -a 256 "$file")" == "$before" ]] || { echo "FAIL: file changed after: $name"; failures=$((failures + 1)); }
+}
+build="grep -q 'a =' '$file'"
+started=$SECONDS
+check '0:killed (hang)' 'a test that hangs' --timeout 1 "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" 'sleep 30 | cat'
+(( SECONDS - started < 10 )) || { echo "FAIL: the hung test ran $((SECONDS - started)) s"; failures=$((failures + 1)); }
+check '1:survived' 'a test under the limit' --timeout 10 "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" "grep -q 'a = 1' '$file'"
 
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

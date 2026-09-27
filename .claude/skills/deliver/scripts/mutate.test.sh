@@ -65,6 +65,11 @@ build="grep -q 'a =' '$file'"
 started=$SECONDS
 check '0:killed (hang)' 'a test that hangs' --timeout 1 "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" 'sleep 30 | cat'
 (( SECONDS - started < 10 )) || { echo "FAIL: the hung test ran $((SECONDS - started)) s"; failures=$((failures + 1)); }
+# A test runner in its own process group (swiftpm-testing-helper makes one) must stop too.
+check '0:killed (hang)' 'a hang in another process group' --timeout 1 "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" \
+  "bash -c 'set -m; sleep 31 & echo \$! > $tmp/pid; wait'"
+sleep 0.5
+! kill -0 "$(cat "$tmp/pid")" 2>/dev/null || { echo "FAIL: the process in another group still runs"; kill "$(cat "$tmp/pid")"; failures=$((failures + 1)); }
 check '1:survived' 'a test under the limit' --timeout 10 "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" "grep -q 'a = 1' '$file'"
 
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"

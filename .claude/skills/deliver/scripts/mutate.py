@@ -15,7 +15,7 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4)
 With --expect, a kill counts only when the output of the test has <text>, for example the
 message of the assertion that the control must break. A crash or a trap also fails the test.
-With --timeout, a test that runs longer than <seconds> is killed with its process group, and the
+With --timeout, a test that runs longer than <seconds> is killed with all its processes, and the
 result is a kill: use it for a mutant that makes the code hang (a display loop), which no wait
 limit inside the test can stop.
 A missing or repeated <old text>, or an extra old text with no new text, exits 2 before any
@@ -53,6 +53,20 @@ for old, new in pairs:
     mutant_text = mutant_text.replace(old, new)
 
 
+def descendants(pid):
+    """The processes under `pid`, also the ones in another process group (a test runner makes one)."""
+    table = subprocess.run(['ps', '-A', '-o', 'pid=,ppid='], capture_output=True, text=True).stdout.split()
+    children = {}
+    for child, parent in zip(table[::2], table[1::2]):
+        children.setdefault(int(parent), []).append(int(child))
+    found, todo = [], [pid]
+    while todo:
+        for child in children.get(todo.pop(), []):
+            found.append(child)
+            todo.append(child)
+    return found
+
+
 def run(command, out, limit=None):
     """The exit status of `command`, or None when it ran past `limit` seconds."""
     process = subprocess.Popen(
@@ -60,7 +74,13 @@ def run(command, out, limit=None):
     try:
         return process.wait(timeout=limit)
     except subprocess.TimeoutExpired:
+        tree = descendants(process.pid)
         os.killpg(process.pid, signal.SIGKILL)
+        for pid in tree:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         process.wait()
         return None
 

@@ -4,7 +4,7 @@ import Observation
 /// The chrome of one session window (decision 0023): the toolbar and its delegate, and the item
 /// states and the time from one observation loop. It belongs to the window, not to the content
 /// controller, so a later split view changes no toolbar code.
-@MainActor final class SessionChrome: NSObject, NSToolbarDelegate {
+@MainActor final class SessionChrome: NSObject, NSToolbarDelegate, NSMenuItemValidation {
     let toolbar = NSToolbar(identifier: ToolbarItemID.toolbar)
     private weak var model: SessionWindow?
     private(set) weak var window: NSWindow?
@@ -25,6 +25,9 @@ import Observation
         super.init()
         toolbar.delegate = self
         toolbar.allowsUserCustomization = true
+        // Icon only: 1180 pt fits the default set (ux-decisions 8). Set before the autosave, so a
+        // saved user choice wins.
+        toolbar.displayMode = .iconOnly
         toolbar.autosavesConfiguration = true
         window.toolbarStyle = .unified
         // A visible title keeps the display-mode menu (Icon and Text).
@@ -79,6 +82,7 @@ import Observation
         if button.isEnabled != enabled { button.isEnabled = enabled }
         let value: NSControl.StateValue = state.on.contains(id) ? .on : .off
         if button.state != value { button.state = value }
+        if let menuItem = item.menuFormRepresentation, menuItem.state != value { menuItem.state = value }
     }
 
     // MARK: NSToolbarDelegate
@@ -118,6 +122,11 @@ import Observation
             button.bezelStyle = .toolbar
             button.identifier = NSUserInterfaceItemIdentifier(id.rawValue)
             item.view = button
+            // AppKit gives the overflow menu item of a view item no state (probe P4).
+            let menuItem = NSMenuItem(title: id.label.text, action: #selector(runItem(_:)), keyEquivalent: "")
+            menuItem.target = self
+            menuItem.identifier = button.identifier
+            item.menuFormRepresentation = menuItem
         } else {
             item.image = image
             item.isBordered = true
@@ -132,6 +141,14 @@ import Observation
         let image = image ?? NSImage()
         guard id == .record else { return image }
         return image.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed])) ?? image
+    }
+
+    /// The overflow menu item of a push-on item is on when its toolbar item is.
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard let model, let raw = menuItem.identifier?.rawValue, let id = ToolbarItemID(rawValue: raw) else {
+            return true
+        }
+        return ChromeState(model: model).enabled.contains(id)
     }
 
     /// The action of each item: a toolbar item, its view, or its overflow menu item.

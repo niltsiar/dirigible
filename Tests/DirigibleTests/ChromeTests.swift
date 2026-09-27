@@ -137,6 +137,30 @@ struct TimeTextTests {
         await model.close()
     }
 
+    /// The overflow menu shows the on state of a push-on item: AppKit gives its default menu item
+    /// no state (probe P4), so each push-on item has its own menu item that the loop sets.
+    @Test func theOverflowMenuItemsShowTheOnState() async throws {
+        let (model, _, chrome) = try await open()
+        let monitor = try #require(try item(.monitor, chrome).menuFormRepresentation)
+        let record = try #require(try item(.record, chrome).menuFormRepresentation)
+        await until("Monitor Inputs is off in the menu") { monitor.state == .off }
+
+        model.monitoring = true
+
+        await until(limit: .seconds(5), "Monitor Inputs is on in the menu") { monitor.state == .on }
+        #expect(monitor.state == .on, "the overflow item of Monitor Inputs has no on state")
+        #expect(record.state == .off)
+        #expect(chrome.validateMenuItem(record), "Record is off in the menu")
+        model.monitoring = false
+        await until(limit: .seconds(5), "Monitor Inputs is off in the menu again") { monitor.state == .off }
+        #expect(monitor.state == .off)
+        let recordButton = try button(.record, chrome)
+        model.armed = []
+        await until(limit: .seconds(5), "Record goes off with no armed track") { !recordButton.isEnabled }
+        #expect(!chrome.validateMenuItem(record), "Record is on in the menu with no armed track")
+        await model.close()
+    }
+
     /// Plan gate 2 item 1: an enabled Record whose start the access refuses. The click flips the
     /// button before its action; the action runs and Record stays off, with no loop turn.
     @Test func aRefusedRecordClickLeavesRecordOff() async throws {

@@ -73,6 +73,8 @@ enum WindowAlert: Hashable {
     var shown = ShownChrome()
     /// The SwiftUI body runs of the window content, for the tests.
     @ObservationIgnored var bodyRuns = 0
+    /// The body runs of the record-over overlay that show the warning, for the tests.
+    @ObservationIgnored var overlayShows = 0
     /// The record time left of the armed tracks before a take; only
     /// `SessionChrome.refreshRecordTime()` writes it (decision 0023).
     var idleRecordTimeLeft: Duration?

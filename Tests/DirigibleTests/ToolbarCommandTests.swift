@@ -81,10 +81,13 @@ struct ToolbarMenuTests {
             chrome.toolbar(chrome.toolbar, itemForItemIdentifier: id.identifier, willBeInsertedIntoToolbar: false))
     }
 
-    /// A click on the item: the button of a push-on item, else the item action.
-    func click(_ id: ToolbarItemID, _ chrome: SessionChrome) throws {
+    /// A click on the item: the button of a push-on item, else the item action. A disabled button
+    /// takes no click, and the loop turn that enables it can come late in a full run: wait for it.
+    func click(_ id: ToolbarItemID, _ chrome: SessionChrome) async throws {
         let item = try item(id, chrome)
-        if let button = item.view as? NSButton { button.performClick(nil) } else { chrome.runItem(item) }
+        guard let button = item.view as? NSButton else { return chrome.runItem(item) }
+        await until(limit: .seconds(10), "\(id) is enabled") { button.isEnabled }
+        button.performClick(nil)
     }
 
     /// A5: for each item but the time display and the pasteboard items, a toolbar click and its
@@ -96,7 +99,7 @@ struct ToolbarMenuTests {
         for id in ToolbarItemID.allCases where !pasteboard.contains(id) {
             let command = try #require(id.command)
             model.leafCalls = []
-            try click(id, chrome)
+            try await click(id, chrome)
             let toolbar = model.leafCalls ?? []
             model.leafCalls = []
             switch command {
@@ -118,27 +121,27 @@ struct ToolbarMenuTests {
     /// focused name field (the responder chain, 0018 E3).
     @Test func aToolbarClickRunsItsMenuCommand() async throws {
         let (model, studio, window, chrome) = try await open()
-        try click(.addTrack, chrome)
+        try await click(.addTrack, chrome)
         #expect(studio.session.tracks.count == 3)
 
         let view = try #require(model.timelineView)
         let zoom = view.framesPerPoint
-        try click(.zoomIn, chrome)
+        try await click(.zoomIn, chrome)
         #expect(abs(view.framesPerPoint - zoom / 2) < 0.001, "\(view.framesPerPoint) after \(zoom)")
 
-        try click(.monitor, chrome)
+        try await click(.monitor, chrome)
         #expect(model.monitoring)
-        try click(.monitor, chrome)
+        try await click(.monitor, chrome)
         #expect(!model.monitoring)
 
         model.timeline.marks = Marks(inPoint: 0, outPoint: 24_000, tracks: ["t1"])
-        try click(.cut, chrome)
+        try await click(.cut, chrome)
         #expect(studio.session.track("t1")?.clips.first?.start == 24_000, "Cut removed no range")
 
         let editor = try await focusName(in: window)
         editor.selectAll(nil)
         let session = studio.session
-        try click(.cut, chrome)
+        try await click(.cut, chrome)
         #expect(editor.string == "", "Cut left the text \(editor.string)")
         #expect(studio.session == session, "Cut changed the session with a focused field")
         await model.close()

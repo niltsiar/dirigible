@@ -145,7 +145,15 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     guard free >= needed else { return outcome(session, .placementSpace(needed: needed, free: free)) }
     let placed: Session
     do throws(FinalizeError) {
-        let anchor = try TakeAnchor.read(take: name.take, in: package)
+        // Only a placement that needs the anchor reads it (decision 0024).
+        var anchor: Recording?
+        if track == nil || start == nil {
+            switch try TakeAnchor.read(take: name.take, in: package) {
+            case .failure(let newer)?: return outcome(session, .segment(name, .newerAnchor(version: newer.version)))
+            case .success(let recording)?: anchor = recording
+            case nil: break
+            }
+        }
         guard let target = Target(name, track: track, start: start, anchor: anchor) else {
             return outcome(session, .segment(name, .noAlignment))
         }

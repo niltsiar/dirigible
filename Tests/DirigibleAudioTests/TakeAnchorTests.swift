@@ -28,11 +28,11 @@ struct TakeAnchorTests {
     // MARK: The bytes
 
     @Test(arguments: [0, 96_000])
-    func anAnchorRoundTrips(playhead: Int) {
+    func anAnchorRoundTrips(playhead: Int) throws {
         let recording = Recording(
             take: 3, playheadFrame: Frames(playhead), takeStartHostTimeNanos: takeStart, armedTracks: ["t1", "t2"])
 
-        #expect(TakeAnchor.decode(TakeAnchor.encode(recording), take: 3) == recording)
+        #expect(try TakeAnchor.decode(TakeAnchor.encode(recording), take: 3) == recording)
     }
 
     /// Every recording that `Session.setRecording` accepts, the reader accepts.
@@ -57,7 +57,7 @@ struct TakeAnchorTests {
                     takeStartHostTimeNanos: UInt64.random(in: 0...UInt64.max, using: &random), armedTracks: tracks))
             let recording = try #require(session.recording)
 
-            #expect(TakeAnchor.decode(TakeAnchor.encode(recording), take: recording.take) == recording)
+            #expect(try TakeAnchor.decode(TakeAnchor.encode(recording), take: recording.take) == recording)
         }
     }
 
@@ -93,10 +93,64 @@ struct TakeAnchorTests {
     }
 
     @Test(arguments: Damage.allCases)
-    func theReaderRefusesADamagedAnchor(damage: Damage) {
+    func theReaderRefusesADamagedAnchor(damage: Damage) throws {
         let (bytes, take) = damaged(damage)
 
-        #expect(TakeAnchor.decode(bytes, take: take) == nil)
+        #expect(try TakeAnchor.decode(bytes, take: take) == nil)
+    }
+
+    /// Decision 0024 P9: the magic of version 1 is "DRGANCH1".
+    @Test func theWriterStampsVersion1() {
+        #expect(TakeAnchor.encode(recording).prefix(8) == Data("DRGANCH1".utf8))
+    }
+
+    /// Decision 0024 P3 and P9: digit 2 is a newer anchor; digit 0 and a byte that is not a
+    /// digit are damaged.
+    @Test func aNewerAnchorIsNewer() throws {
+        let package = try twoTrackPackage()
+        for (digit, expected) in [("2", .failure(NewerFormat(version: 2))), ("0", nil), ("X", nil)]
+            as [(String, Result<Recording, NewerFormat>?)]
+        {
+            try TakeAnchor.encode(recording).write(to: anchor(package))
+            try setMagicDigit(anchor(package), digit)
+
+            #expect(try TakeAnchor.read(take: 1, in: package.url) == expected, "digit \(digit)")
+        }
+    }
+
+    /// Decision 0024 P4: the finalize of a take whose anchor a newer build wrote places the
+    /// segments from `<recording>`, ends the take, and keeps the anchor bytes.
+    @Test func aFinalizeKeepsANewerAnchor() async throws {
+        let package = try twoTrackPackage()
+        try TakeAnchor.encode(recording).write(to: anchor(package))
+        try setMagicDigit(anchor(package), "2")
+        let bytes = try Data(contentsOf: anchor(package))
+
+        let outcome = await completeTake(of: try package.read(), lock: try PackageLock(package.url))
+
+        #expect(outcome.error == nil)
+        #expect(try package.read().recording == nil)
+        #expect(try package.read().tracks.map { $0.clips.map(\.id.rawValue) } == [["take1-1-1"], ["take1-2-1"]])
+        #expect(try Data(contentsOf: anchor(package)) == bytes)
+        #expect(try temporaryFiles(package) == [])
+    }
+
+    /// Decision 0024 P4: an anchor that does not read is not written over. The take stays
+    /// pending, and no WAV is written before the fault.
+    @Test func aFinalizeWithAnUnreadableAnchorStaysPending() async throws {
+        let package = try twoTrackPackage()
+        try TakeAnchor.encode(recording).write(to: anchor(package))
+        try setMagicDigit(anchor(package), "2")
+        let bytes = try Data(contentsOf: anchor(package))
+        chmod(anchor(package).path, 0o000)
+
+        let outcome = await completeTake(of: try package.read(), lock: try PackageLock(package.url))
+
+        chmod(anchor(package).path, 0o644)
+        #expect(outcome.error == .finalize(.readFailed(file: "Capture/take1.anchor", errno: EACCES)))
+        #expect(try package.read().recording == recording)
+        #expect(try Data(contentsOf: anchor(package)) == bytes)
+        #expect(!FileManager.default.fileExists(atPath: package.url.appending(path: "Clips/take1-1-1.wav").path))
     }
 
     // MARK: The file
@@ -133,7 +187,7 @@ struct TakeAnchorTests {
         try await studio.stopRecording()
 
         #expect(studio.pendingTake == nil)
-        #expect(try TakeAnchor.read(take: 1, in: url) == recording)
+        #expect(try TakeAnchor.read(take: 1, in: url) == .success(recording))
     }
 
     /// Criterion 1, the open path: the recovery at `Studio.open` ends the take.
@@ -143,7 +197,7 @@ struct TakeAnchorTests {
         let studio = try await Studio.open(package.url)
 
         #expect(await studio.pendingTake == nil)
-        #expect(try TakeAnchor.read(take: 1, in: package.url) == recording)
+        #expect(try TakeAnchor.read(take: 1, in: package.url) == .success(recording))
     }
 
     @Test func aFinalizeThatThrowsLeavesNoAnchor() async throws {
@@ -164,24 +218,26 @@ struct TakeAnchorTests {
     }
 
     /// Criterion 2: the anchor is the only record of the arm-to-track map after the save, so a
-    /// fault of its write keeps the take pending, as a `Clips/` fault does.
+    /// fault of its write keeps the take pending, as a `Clips/` fault does. A read-only `Capture/`
+    /// refuses the temporary anchor file; the read before it finds no anchor (ENOENT).
     @Test func anAnchorWriteFaultKeepsTheTakePending() async throws {
         let package = try twoTrackPackage()
-        try FileManager.default.createDirectory(at: anchor(package), withIntermediateDirectories: false)
+        chmod(package.capture.path, 0o555)
+        defer { chmod(package.capture.path, 0o755) }
 
         let studio = try await Studio.open(package.url)
 
-        #expect(await studio.takeError == .finalize(.writeFailed(file: "Capture/take1.anchor", status: EISDIR)))
+        #expect(await studio.takeError == .finalize(.writeFailed(file: "Capture/take1.anchor", status: EACCES)))
         #expect(await studio.pendingTake?.take == 1)
         #expect(try package.read().recording == recording)
         #expect(try temporaryFiles(package) == [])
 
-        try FileManager.default.removeItem(at: anchor(package))
+        chmod(package.capture.path, 0o755)
         try await studio.retryFinalize()
 
         #expect(await studio.pendingTake == nil)
         #expect(await studio.session.tracks.map(\.clips.count) == [1, 1])
-        #expect(try TakeAnchor.read(take: 1, in: package.url) == recording)
+        #expect(try TakeAnchor.read(take: 1, in: package.url) == .success(recording))
     }
 
     /// Criterion 4: a crash after the anchor rename and before the save. The recovery writes the
@@ -210,7 +266,7 @@ struct TakeAnchorTests {
 
         #expect(outcome.error == nil)
         #expect(try package.read().recording == nil)
-        #expect(try TakeAnchor.read(take: 1, in: package.url) == recording)
+        #expect(try TakeAnchor.read(take: 1, in: package.url) == .success(recording))
         #expect(try temporaryFiles(package) == [])
     }
 

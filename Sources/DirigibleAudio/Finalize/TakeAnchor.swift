@@ -30,11 +30,11 @@ enum TakeAnchor {
     }
 
     /// Nil for a bad magic, a short record, a bad hash, trailing bytes, or a value that
-    /// `Session.setRecording` refuses. `take` is the number in the file name, and the record must
-    /// hold the same number.
-    static func decode(_ data: Data, take: Int) -> Recording? {
+    /// `Session.setRecording` refuses; throws for an anchor of a newer version (decision 0024).
+    /// `take` is the number in the file name, and the record must hold the same number.
+    static func decode(_ data: Data, take: Int) throws(NewerFormat) -> Recording? {
         var reader = ByteReader(Array(data))
-        guard reader.take(magic.count).map(Array.init) == magic, let record = reader.record(), record.kind == kind,
+        guard try reader.magic(magic), let record = reader.record(), record.kind == kind,
             reader.isAtEnd
         else { return nil }
         var fields = ByteReader(Array(record.payload))
@@ -83,9 +83,15 @@ enum TakeAnchor {
         }
     }
 
-    /// The anchor of `take`. Nil when the file is missing (ENOENT) or refused; another errno
-    /// throws, so an I/O fault never reads as "no anchor".
-    static func read(take: Int, in package: URL) throws(FinalizeError) -> Recording? {
-        try readPackageFile(file(take: take), in: package).flatMap { decode($0, take: take) }
+    /// The anchor of `take`, or `.failure` for an anchor of a newer version (decision 0024). Nil
+    /// when the file is missing (ENOENT) or refused; another errno throws, so an I/O fault never
+    /// reads as "no anchor".
+    static func read(take: Int, in package: URL) throws(FinalizeError) -> Result<Recording, NewerFormat>? {
+        guard let data = try readPackageFile(file(take: take), in: package) else { return nil }
+        do throws(NewerFormat) {
+            return try decode(data, take: take).map { .success($0) }
+        } catch {
+            return .failure(error)
+        }
     }
 }

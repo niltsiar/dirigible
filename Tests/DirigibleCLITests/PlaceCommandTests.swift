@@ -101,7 +101,7 @@ struct PlaceCommandTests {
 
     enum Refusal: String, CaseIterable, CustomTestStringConvertible {
         case placed, noCAF, missingSidecar, emptyCAF, noAnchor, noAnchorWithTrack, wavInUse, beforeTimeline
-        case layoutMismatch, newerSidecar
+        case layoutMismatch, newerSidecar, newerAnchor
         var testDescription: String { rawValue }
     }
 
@@ -149,6 +149,13 @@ struct PlaceCommandTests {
                 "Error: Capture/take1-1-1.sidecar was made by a newer version of Dirigible (version 2), so this build "
                     + "cannot place take1-1-1.\n"
             )
+        case .newerAnchor:
+            try setMagicDigit(anchor, "2")
+            return (
+                ["take1-1-1"],
+                "Error: Capture/take1.anchor was made by a newer version of Dirigible (version 2). Give --track and "
+                    + "--at to place take1-1-1.\n"
+            )
         }
     }
 
@@ -163,6 +170,20 @@ struct PlaceCommandTests {
 
         #expect(try package.xml() == before)
         #expect(try clipBytes() == files)
+    }
+
+    /// Decision 0024: with --track and --at, a newer anchor is not read and keeps its bytes.
+    @Test func aNewerAnchorDoesNotRefuseAnExplicitPlacement() throws {
+        let anchor = capture.appending(path: "take1.anchor")
+        try setMagicDigit(anchor, "2")
+        let bytes = try Data(contentsOf: anchor)
+
+        #expect(
+            try package.run("capture", "place", "PKG", "take1-1-1", "--track", "t1", "--at", "0")
+                == CLIResult(status: 0, stdout: "take1-1-1\n", stderr: ""))
+
+        #expect(try starts("t1") == ["take1-1-1": 0])
+        #expect(try Data(contentsOf: anchor) == bytes)
     }
 
     /// No recovery runs as a side effect (decision 0021 Q6): no marker, and no WAV of take 2.

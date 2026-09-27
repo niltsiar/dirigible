@@ -44,6 +44,7 @@
 "error.segment.not.unplaced" = "El audio %@ ya está en la línea de tiempo o no está disponible.";
 "error.segment.no.sidecar" = "Faltan los datos de tiempo del audio %@ o están dañados, así que no se puede colocar.";
 "error.segment.newer" = "El audio %@ se creó con una versión más nueva de Dirigible. Actualiza Dirigible para colocarlo.";
+"error.segment.newer.anchor" = "El archivo de tiempo del audio %@ se creó con una versión más nueva de Dirigible. Selecciona una pista y usa Colocar en el cursor en la pista seleccionada.";
 "error.segment.bad.audio" = "El audio %@ está dañado y no se puede convertir.";
 "error.segment.before.start" = "El audio %@ termina antes del inicio de la línea de tiempo.";
 "error.segment.no.alignment" = "No se conoce el momento en que se grabó el audio %@. Selecciona una pista y usa Colocar en el cursor en la pista seleccionada.";

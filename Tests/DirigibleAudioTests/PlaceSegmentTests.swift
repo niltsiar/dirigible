@@ -112,7 +112,7 @@ struct PlaceSegmentTests {
     enum Refusal: String, CaseIterable, CustomTestStringConvertible {
         case placed, pendingTake, noCAF, missingSidecar, badMagicSidecar, noAnchor, noAnchorNoTrack, noAnchorNoStart
         case wavInUse, wavInUseOtherCase, layoutMismatch, beforeTimeline, unreadableAnchor, armOutsideTheAnchor
-        case negativeStart, newerSidecar
+        case negativeStart, newerSidecar, newerAnchor, newerAnchorTrackOnly, newerAnchorStartOnly
         var testDescription: String { rawValue }
     }
 
@@ -183,6 +183,12 @@ struct PlaceSegmentTests {
             // Decision 0024: the version 1 anchor gives the target; the sidecar refuses it.
             try setMagicDigit(package.capture.appending(path: "take1-1-1.sidecar"), "2")
             return refused(.newerSidecar(version: 2))
+        case .newerAnchor, .newerAnchorTrackOnly, .newerAnchorStartOnly:
+            // Decision 0024: a placement that needs the anchor names its newer version.
+            try setMagicDigit(anchor, "2")
+            return refused(
+                .newerAnchor(version: 2), track: refusal == .newerAnchorTrackOnly ? "t1" : nil,
+                start: refusal == .newerAnchorStartOnly ? 1_000 : nil)
         }
     }
 
@@ -205,6 +211,19 @@ struct PlaceSegmentTests {
         #expect(studio.takeError == nil)
         #expect(try listing(package.capture) == capture)
         #expect(try clipBytes() == clipFiles)
+    }
+
+    /// Decision 0024: a placement with a track and a start does not read the anchor, so a newer
+    /// anchor does not refuse it and keeps its bytes.
+    @Test @MainActor func aPlacementWithTrackAndStartSkipsTheAnchor() async throws {
+        try setMagicDigit(anchor, "2")
+        let bytes = try Data(contentsOf: anchor)
+        let studio = try await studio()
+
+        _ = try await studio.place(Self.segment, on: "t1", at: 0)
+
+        #expect(studio.session.track("t1")?.clips.map(\.start) == [0])
+        #expect(try Data(contentsOf: anchor) == bytes)
     }
 
     enum BadTarget: String, CaseIterable, CustomTestStringConvertible {

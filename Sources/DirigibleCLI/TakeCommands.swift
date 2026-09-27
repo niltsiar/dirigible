@@ -67,6 +67,9 @@ extension SegmentFault {
         case .badAudio: "\(capture).caf is not audio that Dirigible can convert."
         case .beforeTimeline: "\(segment) ends before the start of the timeline."
         case .noAlignment: "no take anchor gives the track and the start of \(segment). Give --track and --at."
+        case .newerAnchor(let version):
+            "\(captureFolderName)/take\(segment.take).anchor was made by a newer version of Dirigible (version "
+                + "\(version)). Give --track and --at to place \(segment)."
         case .wavInUse(let file): "file \"\(file)\" has the path of Clips/\(segment.stem).wav."
         case .session(let error): error.message
         }

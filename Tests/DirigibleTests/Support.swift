@@ -186,10 +186,12 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
     return view.subviews.lazy.compactMap(firstEditableField).first
 }
 
-/// A package with the mono tracks `t1` to `t<tracks>`, each routed to channel 1 of `mic` and
+/// A package with the mono tracks `t1` to `t<tracks>`, each routed to channel 1 of `device` and
 /// each with a clip of file `f1` from 0 for `seconds`. With `audio`, `f1` is a WAV of silence on
 /// disk; else the file is missing. The writes run off the main actor (the tdd skill).
-func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = false) async throws -> URL {
+func timelinePackage(
+    in folder: URL, tracks: Int, seconds: Int, audio: Bool = false, device: String = "mic"
+) async throws -> URL {
     let url = folder.appending(path: "timeline.dirigible")
     try await Task.detached {
         try Session.create(at: url, sampleRate: 48_000)
@@ -208,7 +210,7 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
         for n in 1...tracks {
             let track = TrackID("t\(n)")
             try session.addTrack(track, name: "T\(n)", layout: .mono)
-            try session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: track)
+            try session.setRoute(Route(deviceUID: device, channels: .mono(1)), track: track)
             try session.place(
                 Clip(id: ClipID("c\(n)"), file: "f1", start: 0, offset: 0, length: Frames(frames)), on: track)
         }

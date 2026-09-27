@@ -69,6 +69,10 @@ enum WindowAlert: Hashable {
     @ObservationIgnored private(set) var window: NSWindow?
     /// The toolbar of the window (decision 0023).
     @ObservationIgnored private(set) var chrome: SessionChrome?
+    /// Written by the chrome loop on a change; SwiftUI reads it in place of `Studio.play`.
+    var shown = ShownChrome()
+    /// The SwiftUI body runs of the window content, for the tests.
+    @ObservationIgnored var bodyRuns = 0
     /// The lanes of the window, for the zoom commands.
     @ObservationIgnored weak var timelineView: TimelineScrollView?
     @ObservationIgnored private var opening: Task<Void, Never>?
@@ -317,12 +321,6 @@ enum WindowAlert: Hashable {
         pendingSpace = await idleStudio?.pendingSpace()
     }
 
-    func openPrivacySettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
-        else { return }
-        NSWorkspace.shared.open(url)
-    }
-
     /// Runs the edit on an idle studio. Nil when the studio is not idle (no alert), or after a
     /// throw (with its alert).
     @discardableResult func edit<Result>(_ body: (inout Session) throws(SessionError) -> Result) -> Result? {
@@ -348,6 +346,7 @@ enum WindowAlert: Hashable {
         autoreleasepool {
             let window = window
             self.window = nil
+            chrome?.close()
             chrome = nil
             window?.close()
             window?.contentViewController = nil

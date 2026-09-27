@@ -1,5 +1,6 @@
 import AppKit
 import DirigibleAudio
+import DirigibleCore
 
 /// An item of the session toolbar (decision 0023). AppKit saves the customization under the raw
 /// values, so a rename loses the user layout: never rename or reuse one.
@@ -154,4 +155,54 @@ extension TimelineCommand {
     static let titles = Dictionary(
         (viewItems + pasteboardItems + editItems + markerItems + trackItems + fileItems).map { ($0.command, $0.title) },
         uniquingKeysWith: { first, _ in first })
+}
+
+/// The values that the chrome loop writes only on a change and SwiftUI reads, so no SwiftUI body
+/// reads `Studio.play` (decision 0023).
+struct ShownChrome: Equatable {
+    /// The record-over warning (decisions 0016, 0017). `ChromeState` is its only owner.
+    var recordOver = false
+    var playbackStop: PlaybackStop?
+}
+
+/// Everything that the AppKit chrome of a window shows, derived from the window state in one
+/// observation loop (decision 0023).
+struct ChromeState: Equatable {
+    var enabled: Set<ToolbarItemID> = []
+    /// The push-on items that are on: Record during a take, Play during a play, Monitor Inputs.
+    var on: Set<ToolbarItemID> = []
+    var playing = false
+    var time = timeDisplayText(0, rate: 48_000, playing: false)
+    var shown = ShownChrome()
+
+    @MainActor init(model: SessionWindow) {
+        guard let studio = model.studio else { return }
+        let recording = model.canStop
+        playing = studio.playback != .stopped
+        time = timeDisplayText(studio.playhead, rate: studio.session.sampleRate, playing: playing)
+        // Record stays on during a take: a click then does nothing (ux-decisions 4).
+        if recording || model.canRecord { enabled.insert(.record) }
+        if recording || playing { enabled.insert(.stop) }
+        if model.canMonitor { enabled.insert(.monitor) }
+        if model.canEdit {
+            enabled.formUnion([.addTrack, .play, .start, .end, .split, .cut, .copy, .paste, .delete])
+            enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession])
+            if model.isOn(.export) { enabled.insert(.export) }
+        }
+        if recording { on.insert(.record) }
+        if playing { on.insert(.play) }
+        if model.monitoring { on.insert(.monitor) }
+        shown = ShownChrome(recordOver: model.showsRecordOver, playbackStop: studio.playbackStop)
+    }
+}
+
+/// The playhead of the toolbar: h:mm:ss.t during play, h:mm:ss.mmm when stopped. The digits are
+/// cut, not rounded.
+func timeDisplayText(_ frames: Frames, rate: Int, playing: Bool) -> String {
+    let milliseconds = frames.count * 1000 / max(1, rate)
+    let (hours, minutes) = (milliseconds / 3_600_000, milliseconds / 60_000 % 60)
+    let (seconds, rest) = (milliseconds / 1000 % 60, milliseconds % 1000)
+    return playing
+        ? String(format: "%d:%02d:%02d.%d", hours, minutes, seconds, rest / 100)
+        : String(format: "%d:%02d:%02d.%03d", hours, minutes, seconds, rest)
 }

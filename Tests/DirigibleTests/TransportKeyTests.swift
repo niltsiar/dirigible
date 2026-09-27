@@ -130,15 +130,8 @@ import Testing
     }
 }
 
-/// The text of the transport bar (criterion 20).
+/// The record time left (criterion 20). The time text is in `ChromeTests`.
 struct TransportTextTests {
-    @Test func timeTextShowsHoursMinutesSecondsAndMilliseconds() {
-        #expect(timeText(96_000, rate: 48_000) == "0:00:02.000")
-        #expect(timeText(Frames(48_000 * 3600 + 24), rate: 48_000) == "1:00:00.000")
-        #expect(timeText(Frames(48_000 * 61 + 12_345), rate: 48_000) == "0:01:01.257")
-        #expect(timeText(0, rate: 48_000) == "0:00:00.000")
-    }
-
     /// 7 bytes for each sample and channel after 1 GB and the WAV bytes of the take. Control:
     /// free space below the margin gives 0.
     @Test func remainingRecordTimeLeavesTheMargin() {

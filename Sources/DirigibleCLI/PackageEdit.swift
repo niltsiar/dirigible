@@ -27,9 +27,9 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
 /// Takes the package lock (decision 0012), reads the package, removes the leftover temporary
 /// files of a crashed save (after the read, so a newer package does not change: decision 0024
 /// P4), refuses one whose `session.xml` holds `<recording>` (decision 0004), applies `body`, and
-/// saves. The lock is held until the save ends. The package does not change
-/// when the lock, the read, the refusal, the edit, or the save fails. Writes one error line to
-/// stderr and throws the exit code.
+/// saves. The lock is held until the save ends. The package does not change when the lock, the
+/// read, the refusal, the edit, or the save fails. Writes one error line to stderr and throws the
+/// exit code.
 func editPackage<Result>(
     _ package: PackageArgument, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {

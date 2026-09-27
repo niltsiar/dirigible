@@ -33,8 +33,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
 
 /// Opens a package off the main actor: the lock, the read, `Session.removeTemporaryFiles`, the
 /// marker rules of decision 0004, `completeTake`, and the segments with audio. The sweep comes
-/// after the read, so a package of a newer version does not change (decision 0024 P4). `@concurrent` keeps
-/// it off the caller's actor also with `NonisolatedNonsendingByDefault`.
+/// after the read, so a package of a newer version does not change (decision 0024 P4).
+/// `@concurrent` keeps it off the caller's actor also with `NonisolatedNonsendingByDefault`.
 @concurrent nonisolated func openPackage(_ package: URL, recordings: ActiveRecordings?) async throws(StudioError)
     -> OpenedPackage
 {

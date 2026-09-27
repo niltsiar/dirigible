@@ -94,8 +94,8 @@ final class TrackHeaderRuler: NSRulerView {
         if step.save { save?(width) }
     }
 
-    /// Commits the typed track names and ends the text focus: a new row width can rebuild the
-    /// name fields of the rows.
+    /// Commits the typed track names and ends the text focus, as a lane mouse-down does: a focused
+    /// field takes Esc, and an AX step gives the rows a new width at once.
     private func endTextEdit() {
         guard let timeline = scrollView as? TimelineScrollView else { return }
         timeline.model?.commitNames()

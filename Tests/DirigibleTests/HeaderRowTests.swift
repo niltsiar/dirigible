@@ -21,13 +21,13 @@ import Testing
     }
 
     /// The model of a 2-track package.
-    func model() async throws -> (SessionWindow, Studio) {
-        try await timelineModel(try await timelinePackage(in: folder.url, tracks: 2, seconds: 1), app: app)
+    func model(tracks: Int = 2) async throws -> (SessionWindow, Studio) {
+        try await timelineModel(try await timelinePackage(in: folder.url, tracks: tracks, seconds: 1), app: app)
     }
 
     /// The rows in a hosting view of the header `width`, as the header ruler hosts them.
     func rows(_ model: SessionWindow, _ studio: Studio, laneHeight: Double, width: Double) -> (NSWindow, NSView) {
-        let size = NSSize(width: width, height: laneHeight * 2)
+        let size = NSSize(width: width, height: laneHeight * Double(studio.session.tracks.count))
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -75,32 +75,55 @@ import Testing
     /// Code gate 1 item 4: a lane under 56 pt still shows a route control and the live state of a
     /// take on its one line: a red state symbol for a lost device (a capture of the rows: the
     /// symbol is SwiftUI drawing), and no red in a row with no state.
+    /// Code gate 1 item 4 and code gate 2 items 3 to 5: a lane under 56 pt still shows a route
+    /// control and the live state of a take on its one line: a red symbol for a lost device, an
+    /// orange one for dropped frames, none with no state, and nothing in the handle strip. The layout
+    /// text shows from 240 pt. The symbols are SwiftUI drawing, so the test reads a window capture.
     @Test func aOneLineRowShowsTheRouteAndTheState() async throws {
-        let (model, studio) = try await model()
+        let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
+        studio.liveTracks["t2"] = LiveTrack(state: .recording, droppedFrames: 3, peak: 0.1)
         for width in [180.0, 340] {
             let (window, host) = rows(model, studio, laneHeight: 50, width: width)
             let found = controls(host, in: host)
-            #expect(found.filter { $0.kind == "route" }.count == 2, "a route control in each row at \(width)")
+            #expect(found.filter { $0.kind == "route" }.count == 3, "a route control in each row at \(width)")
             for control in found {
                 #expect(
                     control.frame.minX >= 8 && control.frame.maxX <= width - 8,
                     "inside the one-line row at \(width): \(control.kind) \(control.frame)")
             }
-            // A capture of the window: a snapshot does not draw the SwiftUI symbol.
+            // The layout text is between the name field and the route symbol, from 240 pt.
+            let name = try #require(found.first { $0.kind == "name" }?.frame)
+            let route = try #require(found.first { $0.kind == "route" }?.frame)
+            if width >= 240 {
+                #expect(route.minX - name.maxX > 20, "the layout text shows on one line at \(width)")
+            } else {
+                #expect(route.minX - name.maxX < 20, "no layout text on one line at \(width)")
+            }
             window.orderFront(nil)
             drawNow(window)
             try await Task.sleep(for: .milliseconds(200))
             let capture = try TimelineColorTests.capture(window)
-            func red(_ lane: Int) throws -> Int {
-                let rect = host.convert(NSRect(x: 0, y: Double(lane) * 50, width: width, height: 50), to: nil)
+            func count(_ lane: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32, UInt32, UInt32) -> Bool) throws
+                -> Int
+            {
+                let columns = x ?? 0...width
+                let rect = host.convert(
+                    NSRect(
+                        x: columns.lowerBound, y: Double(lane) * 50, width: columns.upperBound - columns.lowerBound,
+                        height: 50),
+                    to: nil)
                 return try TimelineRulerTests.pixels(of: rect, capture, window).filter { pixel in
-                    let (r, g, b) = (pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)
-                    return r > 180 && g < 90 && b < 90
+                    color(pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)
                 }.count
             }
-            #expect(try red(0) > 10, "the state symbol shows in the row of the lost device at \(width)")
-            #expect(try red(1) == 0, "no state symbol in a row with no state at \(width)")
+            let red = { (r: UInt32, g: UInt32, b: UInt32) in r > 180 && g < 90 && b < 90 }
+            let orange = { (r: UInt32, g: UInt32, b: UInt32) in r > 200 && g > 90 && g < 190 && b < 80 }
+            #expect(try count(0, red) > 10, "the state symbol shows in the row of the lost device at \(width)")
+            #expect(try count(0, x: (width - 6)...width, red) == 0, "no state symbol in the handle strip at \(width)")
+            #expect(try count(1, orange) > 10, "the dropped-frames symbol shows at \(width)")
+            #expect(try count(1, red) == 0, "no fault symbol for dropped frames at \(width)")
+            #expect(try count(2, red) + count(2, orange) == 0, "no state symbol in a row with no state at \(width)")
             window.close()
         }
         await model.close()

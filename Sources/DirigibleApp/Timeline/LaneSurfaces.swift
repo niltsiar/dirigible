@@ -97,9 +97,9 @@ struct LaneWindow: Equatable {
 }
 
 /// The lanes as one layer of IOSurfaces written in place (decision 0022). Four slots of one
-/// capacity. `show` is the only code that locks a surface: it writes only a slot that is not the
-/// layer contents and that the window server does not use (`isInUse`) at the pick, and it lends its
-/// pixels only as a `PixelRegion` in a closure. So no write reaches the pixels on screen, and the
+/// capacity. `show` is the only code that writes a surface (the test accessor `frontRow` only reads
+/// the front): it writes only a slot that is not the layer contents and that the window server does
+/// not use (`isInUse`) at the pick, and it lends its pixels only as a `PixelRegion` in a closure. So no write reaches the pixels on screen, and the
 /// main actor never waits for the compositor (probe P1). A busy slot drops its surface and makes a
 /// new one: the window server keeps its own reference until the window shows again (probe P3).
 @MainActor final class LaneSurfaces {

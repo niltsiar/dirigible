@@ -117,9 +117,10 @@ enum WindowAlert: Hashable {
         let host = NSHostingController(rootView: SessionView(model: self))
         // The content sets only the minimum size, so the window keeps its first size.
         host.sizingOptions = .minSize
-        let window = UndoRoutingWindow(contentViewController: host)
-        // After the window takes the host (probe P1a): SwiftUI must not replace the toolbar.
+        // SwiftUI must not replace the toolbar. Set before the window takes the host: after it,
+        // the title bar has already lost its subtitle field (probe P5).
         host.sceneBridgingOptions = []
+        let window = UndoRoutingWindow(contentViewController: host)
         window.model = self
         window.isReleasedWhenClosed = false
         window.delegate = self

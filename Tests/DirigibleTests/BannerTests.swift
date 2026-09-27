@@ -2,6 +2,7 @@ import AppKit
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
@@ -75,7 +76,7 @@ struct BannerValueTests {
     let app = AppDelegate(recordings: nil)
     let hal = CountingHAL()
     /// The free bytes that the tests give the disk checks.
-    let free = LockedBox(Int64.max)
+    let free = OSAllocatedUnfairLock(initialState: Int64.max)
 
     init() throws {
         folder = try TemporaryFolder()
@@ -100,14 +101,14 @@ struct BannerValueTests {
         studio.environment.playerOutput = .offline
         studio.environment.diskCheckInterval = .milliseconds(50)
         let free = free
-        studio.environment.freeBytes = { _ in free.value }
+        studio.environment.freeBytes = { _ in free.withLock { $0 } }
         let chrome = try #require(model.chrome)
         await until("the toolbar has its items") { chrome.time != nil }
         return (model, studio, try #require(model.window), chrome)
     }
 
     /// The free bytes that give `seconds` of record time to one mono track at 48 kHz.
-    func setFree(seconds: Int) { free.value = diskMargin + Int64(seconds) * 7 * 48_000 }
+    func setFree(seconds: Int) { free.withLock { $0 = diskMargin + Int64(seconds) * 7 * 48_000 } }
 
     func lowTime(_ model: SessionWindow) -> Bool { model.shown.banners.contains { $0.key == "lowRecordTime" } }
 
@@ -147,10 +148,10 @@ struct BannerValueTests {
         let (model, _, _, chrome) = try await open()
         await until("the read at open ends") { model.idleRecordTimeLeft != nil }
         let gate = AsyncGate()
-        let calls = LockedBox(0)
+        var calls = 0
         chrome.readRecordTime = { _ in
-            calls.value += 1
-            if calls.value == 1 {
+            calls += 1
+            if calls == 1 {
                 await gate.wait()
                 return .seconds(5_400)
             }
@@ -248,22 +249,22 @@ struct BannerValueTests {
     /// A new banner is announced once, at its priority; record-over and the time display are not.
     @Test func newBannersAreAnnounced() async throws {
         let (model, studio, _, chrome) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
-        let heard = LockedBox([String]())
-        chrome.announce = { text, priority in heard.value.append("\(priority.rawValue) \(text)") }
+        var heard: [String] = []
+        chrome.announce = { text, priority in heard.append("\(priority.rawValue) \(text)") }
         let high = NSAccessibilityPriorityLevel.high.rawValue
         chrome.readRecordTime = { _ in .seconds(300) }
 
         chrome.refreshRecordTime()
-        await until(limit: .seconds(5), "the low time is announced") { heard.value.count == 1 }
+        await until(limit: .seconds(5), "the low time is announced") { heard.count == 1 }
         chrome.readRecordTime = { _ in .seconds(240) }
         chrome.refreshRecordTime()
         await until(limit: .seconds(5), "the banner has 4 min") {
             model.shown.banners.contains(.lowRecordTime(minutes: 4))
         }
         studio.play.playbackStop = .outputChanged
-        await until(limit: .seconds(5), "the playback stop is announced") { heard.value.count == 2 }
+        await until(limit: .seconds(5), "the playback stop is announced") { heard.count == 2 }
         studio.missingMedia = ["f1": .missing]
-        await until(limit: .seconds(5), "the missing media is announced") { heard.value.count == 3 }
+        await until(limit: .seconds(5), "the missing media is announced") { heard.count == 3 }
         await until("the window shows the lanes") { model.timelineView?.window != nil }
         model.timelineView?.viewWillMove(toWindow: nil)
         model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
@@ -271,7 +272,7 @@ struct BannerValueTests {
         await until(limit: .seconds(5), "the record-over warning shows") { model.shown.recordOver }
 
         #expect(
-            heard.value == [
+            heard == [
                 "\(high) \(L10n.bannerLowRecordTime.text)", "\(high) \(L10n.transportStopOutputChanged.text)",
                 "\(NSAccessibilityPriorityLevel.medium.rawValue) \(L10n.mediaMissing.text)",
             ])
@@ -339,16 +340,5 @@ struct BannerValueTests {
         #expect(media?.label.hasPrefix(L10n.bannerKindError.text) == true, "\(media?.label ?? "none")")
         #expect(!elements.contains { $0.label.contains(L10n.menuRecordMonitor.text) }, "a Monitor Inputs check box")
         await model.close()
-    }
-}
-
-/// A value that tests and closures on other threads share.
-final class LockedBox<Value: Sendable>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored: Value
-    init(_ value: Value) { stored = value }
-    var value: Value {
-        get { lock.withLock { stored } }
-        set { lock.withLock { stored = newValue } }
     }
 }

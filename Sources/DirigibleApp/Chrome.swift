@@ -235,7 +235,7 @@ struct ChromeState: Equatable {
         }
         let shownBefore = model.shown.banners.contains { $0.key == "lowRecordTime" }
         if let left, showsLowRecordTime(left: left, recording: recording, shownBefore: shownBefore) {
-            banners.append(.lowRecordTime(minutes: Int(left / .seconds(60))))
+            banners.append(.lowRecordTime(minutes: lowRecordTimeMinutes(left)))
         }
         shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
     }
@@ -320,6 +320,10 @@ func showsLowRecordTime(left: Duration, recording: Bool, shownBefore: Bool) -> B
     let limit: Duration = recording ? .seconds(600) : .seconds(3600)
     return left < (shownBefore ? limit + .seconds(60) : limit)
 }
+
+/// The whole minutes of the low-record-time banner, rounded up: the last minute says 1 min, not
+/// "less than 0 min".
+func lowRecordTimeMinutes(_ left: Duration) -> Int { max(1, Int((left / .seconds(60)).rounded(.up))) }
 
 /// The window subtitle: "48 kHz · Tracks: 3 · Record time: 2 hr, 10 min". No plural form
 /// (0010); Foundation gives the units of the time. `text` gives the value of a key.

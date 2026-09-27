@@ -46,6 +46,8 @@ public struct HeaderDrag: Sendable {
     public init() {}
 
     public var isActive: Bool { press != nil }
+    /// The width at the mouse-down of the drag; nil when idle.
+    public var start: HeaderWidth? { press?.start }
     var grab: Double? { press?.grab }
 
     /// The new width, or nil when the event is not taken (an Esc, a drag, or an up while idle).

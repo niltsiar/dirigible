@@ -11,8 +11,10 @@ struct TrackHeaders: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(studio.session.tracks) { track in
-                TrackRow(model: model, studio: studio, track: track)
+                TrackRow(model: model, studio: studio, track: track, secondLine: laneHeight >= 56)
                     .frame(height: laneHeight, alignment: .leading).clipped()
+                    // At the lane edge, as the lanes have no line: the rows read as rows (D8).
+                    .overlay(alignment: .bottom) { Color(nsColor: .separatorColor).frame(height: 1) }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -25,29 +27,51 @@ private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
     let track: Track
+    /// The route and the live state. Off in a lane under 56 pt: one line fits (H7).
+    let secondLine: Bool
     @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
-                Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit)
-                TextField(L10n.trackName.key, text: name)
-                    .focused($focused)
-                    .onSubmit { model.commitName(track.id) }
-                    .onChange(of: focused) { if !focused { model.commitName(track.id) } }
-                    .disabled(!model.canEdit)
-                    .frame(width: 150)
-                Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
-                    .foregroundStyle(.secondary)
+            // With no room for the layout text (180 pt in Spanish: "Armar", a name of 60 pt, and
+            // "Estéreo"), the line drops it, so no control goes under the handle.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    arm
+                    nameField
+                    Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 8) {
+                    arm
+                    nameField
+                }
             }
-            HStack(spacing: 8) {
-                routeMenu.frame(width: 180).disabled(!model.canEdit)
-                if let live = studio.liveTracks[track.id] { LiveState(live: live) }
+            if secondLine {
+                HStack(spacing: 8) {
+                    routeMenu.frame(minWidth: 0, maxWidth: 240, alignment: .leading).disabled(!model.canEdit)
+                    if let live = studio.liveTracks[track.id] { LiveState(live: live) }
+                }
             }
         }
         .controlSize(.small)
         .padding(.horizontal, 8)
         .contextMenu { Button(L10n.menuTrackRemove.key) { model.removeTracks([track.id]) } }
+    }
+
+    private var arm: some View {
+        Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit)
+    }
+
+    /// The name is the main text of the row: 13 pt, and it takes the free width.
+    private var nameField: some View {
+        TextField(L10n.trackName.key, text: name)
+            .focused($focused)
+            .onSubmit { model.commitName(track.id) }
+            .onChange(of: focused) { if !focused { model.commitName(track.id) } }
+            .disabled(!model.canEdit)
+            .controlSize(.regular)
+            .frame(minWidth: 60, maxWidth: .infinity)
     }
 
     private var name: Binding<String> {
@@ -71,7 +95,7 @@ private struct TrackRow: View {
                 }
             }
         } label: {
-            Text(verbatim: routeText)
+            Text(verbatim: routeText).lineLimit(1).truncationMode(.tail)
         }
     }
 

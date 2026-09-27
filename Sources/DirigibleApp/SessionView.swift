@@ -21,7 +21,8 @@ struct SessionView: View {
                 Button(L10n.alertOK.key) { model.commitRename() }
                 Button(L10n.alertCancel.key, role: .cancel) { model.timeline.renaming = nil }
             }
-            .frame(minWidth: 640, minHeight: 360)
+            // 720 pt keeps the transport and the time display in the toolbar (probe P1c).
+            .frame(minWidth: 720, minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),
                 isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),

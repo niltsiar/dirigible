@@ -67,6 +67,8 @@ enum WindowAlert: Hashable {
     /// The registry: a move changes the key, and a close removes the entry.
     @ObservationIgnored private(set) weak var app: AppDelegate?
     @ObservationIgnored private(set) var window: NSWindow?
+    /// The toolbar of the window (decision 0023).
+    @ObservationIgnored private(set) var chrome: SessionChrome?
     /// The lanes of the window, for the zoom commands.
     @ObservationIgnored weak var timelineView: TimelineScrollView?
     @ObservationIgnored private var opening: Task<Void, Never>?
@@ -100,12 +102,20 @@ enum WindowAlert: Hashable {
     }
 
     func show() {
-        let window = UndoRoutingWindow(contentViewController: NSHostingController(rootView: SessionView(model: self)))
+        let previous = app?.windows.values.compactMap(\.window).max { $0.windowNumber < $1.windowNumber }
+        let host = NSHostingController(rootView: SessionView(model: self))
+        // The content sets only the minimum size, so the window keeps its first size.
+        host.sizingOptions = .minSize
+        let window = UndoRoutingWindow(contentViewController: host)
+        // After the window takes the host (probe P1a): SwiftUI must not replace the toolbar.
+        host.sceneBridgingOptions = []
         window.model = self
         window.isReleasedWhenClosed = false
         window.delegate = self
         self.window = window
+        chrome = SessionChrome(model: self, window: window)
         showTitle()
+        window.placeAsSessionWindow(after: previous)
         window.makeKeyAndOrderFront(nil)
     }
 
@@ -338,6 +348,7 @@ enum WindowAlert: Hashable {
         autoreleasepool {
             let window = window
             self.window = nil
+            chrome = nil
             window?.close()
             window?.contentViewController = nil
         }

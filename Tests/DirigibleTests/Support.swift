@@ -242,7 +242,7 @@ func timelinePackage(
 {
     let window = NSWindow(
         contentRect: NSRect(
-            x: 0, y: 0, width: 1440 + TrackHeaderRuler.width + scrollerWidth, height: 400 + scrollerWidth),
+            x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth, height: 400 + scrollerWidth),
         styleMask: [.borderless],
         backing: .buffered,
         defer: false)

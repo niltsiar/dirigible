@@ -138,7 +138,7 @@ import Testing
     @Test func aWindowlessSurfacesNeverWriteTheirFront() throws {
         let surfaces = LaneSurfaces()
         let rect = CGRect(x: 0, y: 0, width: 100, height: 200)
-        let window = try #require(LaneWindow(view: rect, bounds: rect, laneHeight: 100, lanes: 2, scale: 2))
+        let window = try #require(LaneWindow(view: rect, bounds: rect, laneHeight: 100, lanes: 2, scale: 2, room: 100))
 
         for n in 0..<6 {
             let drawn = surfaces.show(window, changed: window.pixels) { region in
@@ -370,10 +370,26 @@ import Testing
             let window = try #require(
                 LaneWindow(
                     view: CGRect(x: x, y: y, width: 1440, height: 376), bounds: bounds, laneHeight: 100, lanes: 8,
-                    scale: 2))
+                    scale: 2, room: 1440))
             #expect(window.pixels.columns.count <= window.capacity.columns, "columns at \(x)")
             #expect(window.pixels.rows.count <= window.capacity.rows, "rows at \(y)")
         }
+    }
+
+    /// Run 1b fallback 1 (decision 0023, "Surface capacity"): the columns of the capacity come from
+    /// the clip view width (`room`) when it is wider than the view, so a header drag keeps it.
+    @Test func theCapacityKeysOnTheClipViewWidth() throws {
+        let bounds = CGRect(x: 0, y: 0, width: 20_000, height: 800)
+        func capacity(view width: Double, room: Double) throws -> SurfaceCapacity {
+            try #require(
+                LaneWindow(
+                    view: CGRect(x: 0, y: 0, width: width, height: 376), bounds: bounds, laneHeight: 100, lanes: 8,
+                    scale: 2, room: room)
+            ).capacity
+        }
+        #expect(try capacity(view: 1300, room: 1780).columns == 3561, "capacity from the room")
+        #expect(try capacity(view: 1600, room: 1780).columns == 3561, "capacity from the room")
+        #expect(try capacity(view: 1440, room: 1000).columns == 2881, "capacity from the view")
     }
 
     /// The layer shows the used part of the contents with no scale: its frame is whole pixels and

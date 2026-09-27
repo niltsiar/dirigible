@@ -51,5 +51,6 @@ final class OwnedPixels {
 func laneWindow(_ inputs: LaneInputs, x: Double = 0, width: Double, scale: Double = 1) -> LaneWindow? {
     let rect = CGRect(x: x, y: 0, width: width, height: Double(inputs.session.tracks.count) * inputs.laneHeight)
     return LaneWindow(
-        view: rect, bounds: rect, laneHeight: inputs.laneHeight, lanes: inputs.session.tracks.count, scale: scale)
+        view: rect, bounds: rect, laneHeight: inputs.laneHeight, lanes: inputs.session.tracks.count, scale: scale,
+        room: width)
 }

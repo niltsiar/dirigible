@@ -53,6 +53,7 @@ final class UndoRoutingWindow: NSWindow {
         switch undoTarget(firstResponder: firstResponder) {
         case .text: super.cancelOperation(sender)
         case .session:
+            if model?.timelineView?.headers.cancelDrag() == true { return }
             if model?.timelineView?.cancelGesture() == true { return }
             model?.run(.deselectAll)
         }

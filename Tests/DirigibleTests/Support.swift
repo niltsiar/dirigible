@@ -226,9 +226,11 @@ func timelinePackage(in folder: URL, tracks: Int, seconds: Int, audio: Bool = fa
     return (model, studio)
 }
 
-/// The width of a legacy scroller. The lanes show their scrollers at all times, so a fixture
-/// window adds it to keep the size of the lanes in view.
-@MainActor let scrollerWidth = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+/// The width that a scroller takes from the lanes in the preferred style: a legacy scroller takes
+/// its width, and an overlay scroller takes none. A fixture window adds it, so the lanes in view
+/// keep their size in both styles.
+@MainActor let scrollerWidth =
+    NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
 
 /// A window with lanes of 1440 x 400 pt (the track headers take their width on the left), with
 /// the lanes of `model` at 512 frames per point and 100 pt lanes, drawn once. It is on screen only with `onScreen` (a display link needs a screen); the other

@@ -16,6 +16,8 @@ import Observation
     private var closed = false
     /// The last time write during a play: at most 10 changes a second, also at 2x.
     private var timeWritten = ContinuousClock.now - .seconds(1)
+    /// The clock of the time limit. Tests give their own.
+    var now: () -> ContinuousClock.Instant = { .now }
 
     init(model: SessionWindow, window: NSWindow) {
         self.model = model
@@ -60,7 +62,7 @@ import Observation
         turns += 1
         for item in toolbar.items { apply(state, to: item) }
         if let time, time.text != state.time {
-            let now = ContinuousClock.now
+            let now = now()
             if !state.playing || now - timeWritten >= .milliseconds(100) {
                 time.text = state.time
                 timeWritten = now

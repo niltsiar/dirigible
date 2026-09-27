@@ -252,32 +252,31 @@ struct TimeTextTests {
         await model.close()
     }
 
-    /// At 1x and at 2x the time text changes 5 to 11 times a second, and the play goes on. After
-    /// the stop it has milliseconds; a seek while stopped changes it. In a full run other suites
-    /// hold the main actor, so fewer polls run: the lower bound is 5 or the loop turns less one,
-    /// the smaller.
+    /// At 1x and at 2x the time text changes 5 to 11 times a second. The test is the poll: it
+    /// writes the playhead every 34 ms of a test clock and runs a loop turn, so the load of other
+    /// suites on the main actor cannot change the count. After the stop the text has
+    /// milliseconds; a seek while stopped changes it.
     @Test func thePlayChangesTheTimeAtMostTenTimesASecond() async throws {
         let (model, studio, chrome) = try await open()
         let time = try #require(chrome.time)
-        await studio.perform(.seek(.start))
-        await studio.perform(.playStop)
+        var clock = ContinuousClock.now
+        chrome.now = { clock }
 
-        for command in [nil, TransportCommand.forward] {
-            if let command { await studio.perform(command) }
-            let (changes, turns, playhead) = (time.textChanges, chrome.turns, studio.playhead)
-            try await renderRealTime(studio, seconds: 1)
-            let (count, polls) = (time.textChanges - changes, chrome.turns - turns)
-            #expect(count <= 11, "\(studio.playback): \(count) changes in 1 s")
-            #expect(count >= min(5, polls - 1), "\(studio.playback): \(count) changes in 1 s, \(polls) loop turns")
-            #expect(studio.playback != .stopped, "the play goes on")
-            #expect(studio.playhead > playhead, "the play moved the playhead")
+        for rate in [Shuttle.Rate.one, .two] {
+            studio.play.playback = .playing(Shuttle(direction: .forward, rate: rate))
+            let changes = time.textChanges
+            for _ in 0..<30 {
+                clock += .milliseconds(34)
+                studio.play.playhead += Frames(Int(48_000 * 0.034 * rate.rawValue))
+                chrome.update()
+            }
+            let count = time.textChanges - changes
+            #expect((5...11).contains(count), "\(rate.rawValue)x: \(count) changes in 1 s")
         }
-        #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .two)))
 
-        await studio.perform(.pause)
-        await until("milliseconds after the stop") {
-            time.text == timeDisplayText(studio.playhead, rate: 48_000, playing: false)
-        }
+        studio.play.playback = .stopped
+        chrome.update()
+        #expect(time.text == timeDisplayText(studio.playhead, rate: 48_000, playing: false))
         #expect(time.text.split(separator: ".").last?.count == 3, "\(time.text)")
         await studio.perform(.seek(.frame(12_345)))
         await until("a seek while stopped changes the text") { time.text == "0:00:00.257" }

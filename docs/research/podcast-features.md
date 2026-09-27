@@ -38,7 +38,7 @@ Value: 5 = a podcaster needs it for each episode, 1 = rarely used. Effort: S = d
 | F26 | Silence removal | edit | Manual insert and delete of silence; automatic removal not documented (unconfirmed) | No (unconfirmed) | Remove Silence cuts passages below a threshold | 3 | M | R10 | [HM] [LS] |
 | F27 | Transcript and text-based editing | edit | Local transcription, 99 languages; delete a word to cut the audio; SRT, VTT, TXT export | No | No | 4 | L | R7 | [HX] [HF] |
 | F28 | Time stretch | edit | Time-stretch to fit a duration | No (unconfirmed) | Flex Time (unconfirmed) | 2 | L | R7 | [HF] |
-| F30 | Auto level per clip on record and import | process | On import: narration -21 LUFS, music -23 LUFS (EU profile); Cmd-L re-analyzes | Auto Normalize at export only, peak based (unconfirmed) | Normalize regions to peak | 5 | M | R9 | [HM] [HT] |
+| F30 | Auto level per clip on record and import | process | On import: narration -21 LUFS, music -23 LUFS (EU profile); Cmd-L re-analyzes | Auto Normalize at export only, peak based (unconfirmed) | Normalize Region Gain to peak or loudness (LUFS): each region, equally per track, or all equally (update 2026-09-27, [LG](logic-garageband-update.md)) | 5 | M | R9 | [HM] [HT] |
 | F31 | Clip gain | process | No rubber bands; select a range and drag the top gain line | Track volume automation | Region gain and Gain tool | 5 | S | R7 | [HM] [LG] |
 | F32 | Fade in and fade out | process | Drag clip corners, or Cmd-F on a selection or across many regions | Mix > Fade Out on the master track | Fades on regions | 5 | S | R7 | [HM] [GT] [LF] |
 | F33 | Crossfades | process | Cmd-F at an edit; drag to change the point and length | Not documented (unconfirmed) | Crossfades on regions | 4 | M | R7 | [HM] [LF] |
@@ -69,6 +69,38 @@ Value: 5 = a podcaster needs it for each episode, 1 = rarely used. Effort: S = d
 | F65 | UI text in English and Spanish, follows macOS | project | English UI (unconfirmed) | Localized | Localized | 4 | S | R13 | - |
 | F66 | Language preference in the app | project | No (unconfirmed) | No (unconfirmed) | No (unconfirmed) | 3 | S | R13 | - |
 | F67 | Session interchange (AES31, AAF, FCPXML, Pro Tools) | project | Opens PTX, SESX, FCPXML; exports AAF and AES31 | No | AAF, FCPXML (unconfirmed) | 2 | L | R5 | [HF] |
+
+## Features added 2026-09-27
+
+The Release 2 planning run added these features from Final Cut Pro, Logic Pro, and GarageBand. The behavior, the Dirigible mapping, and the sources are in the linked research files. The value, the effort, and the release are our estimates. The release is the one of `docs/requirements/releases.md`. F79 is not used.
+
+| ID | Feature | Area | From | Value | Effort | Req | Release | Source |
+|---|---|---|---|---|---|---|---|---|
+| F68 | Ripple trim: an edge drag with a modifier ripples the tracks | edit | FCP | 4 | S | R7 | 2 | [FCP](final-cut-pro.md) |
+| F69 | Roll and slip trims | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
+| F70 | Follow track: in a ripple, its clips move whole and never split | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
+| F71 | Connected clips: a clip anchored to a clip on another track | edit | FCP | 3 | L | R7 | Later | [FCP](final-cut-pro.md) |
+| F72 | Track role (dialogue, music, effects) with a color | project | FCP | 3 | S | R10 | 3 | [FCP](final-cut-pro.md) |
+| F73 | Stem export: one file per track or per role, all from the same start | export | FCP | 3 | S | R11 | 3 | [FCP](final-cut-pro.md) |
+| F74 | Sync a clip to another track by its audio waveform | edit | FCP | 4 | M | R7 | 3 | [FCP](final-cut-pro.md) |
+| F75 | Gain envelope per clip; a range gain makes ramps | process | FCP | 4 | M | R7 | 3 | [FCP](final-cut-pro.md) |
+| F76 | Session index: a list of clips, markers, and chapters with search | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
+| F77 | Hum removal at 50 or 60 Hz | process | FCP | 3 | S | R8 | 3 | [FCP](final-cut-pro.md) |
+| F78 | Waveform vertical zoom | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
+| F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | edit | Logic | 4 | M | R7 | 3 | [LG](logic-garageband-update.md) |
+| F81 | Close gaps between the selected clips | edit | Logic | 3 | S | R7 | 3 | [LG](logic-garageband-update.md) |
+| F82 | Snap to clip edges with an alignment guide | edit | GarageBand, Logic | 4 | S | R7 | 3 | [LG](logic-garageband-update.md) |
+| F83 | Zoom toggle and zoom history | edit | Logic | 3 | S | R7 | 2 | [LG](logic-garageband-update.md) |
+| F84 | Clip inspector with numeric gain and fades | process | Logic | 3 | M | R7 | 2 | [LG](logic-garageband-update.md) |
+| F85 | Width of the track headers; height of one track | edit | Logic | 2 | S | R1 | 2 (header width), Later (height of one track) | [LG](logic-garageband-update.md) |
+| F86 | Help tags that show the key equivalent | project | Logic | 2 | S | R1 | Later | [LG](logic-garageband-update.md) |
+| F87 | Remove unused clip files | project | GarageBand, Logic | 3 | S | R5 | 3 | [LG](logic-garageband-update.md) |
+| F88 | Session alternatives | project | Logic | 2 | M | R5 | Later | [LG](logic-garageband-update.md) |
+| F89 | Render a range through an effect | process | Logic | 3 | M | R8, R10 | 3 | [LG](logic-garageband-update.md) |
+| F90 | Lock a track | edit | GarageBand | 2 | S | R7 | Later | [LG](logic-garageband-update.md) |
+| F91 | Take folders and comps for punch-in | record | Logic | 2 | L | R7 | Later | [LG](logic-garageband-update.md) |
+| F92 | Time display format and a large time window | edit | Logic | 2 | S | R7 | Later | [LG](logic-garageband-update.md) |
+| F93 | Customizable toolbar | project | Logic | 2 | S | R1 | 2 | [LG](logic-garageband-update.md) |
 
 ## Hindenburg default shortcuts
 
@@ -150,6 +182,7 @@ Goal: record a remote guest, level the clips, and publish at the podcast loudnes
 - R9 comes here: one BS.1770 loudness engine serves F30, F40, and F54.
 - MP3 needs an encoder decision record (brief open question), so it is not in Release 1.
 - Loudness targets: -16 LUFS for stereo and -1 dBTP ([AP]). The -19 LUFS mono target is common practice (unconfirmed). Hindenburg recommends mono MP3 at -16 LUFS ([HL]).
+- Update 2026-09-27: the Release 2 run order adds F68, F83, F84, F85 (header width), F93, and the `chapters.json` export (F56 part). See `docs/requirements/releases.md`.
 - Update 2026-09-24: decision 0008 sets -19 LUFS for a mono export, from the BS.1770 channel rule. A Buzzsprout review says that Hindenburg PRO changes the loudness for mono at export, which contradicts the [HL] reading above.
 
 ### Release 3: Hindenburg-style production

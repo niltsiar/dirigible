@@ -43,6 +43,14 @@ struct BannerValueTests {
         #expect(!showsLowRecordTime(left: .seconds(660), recording: true, shownBefore: true))
     }
 
+    /// Code gate 1 item 3: the banner rounds the time left up, so the last minute says 1 min.
+    @Test func theLowRecordTimeBannerRoundsUp() {
+        #expect(lowRecordTimeMinutes(.seconds(30)) == 1)
+        #expect(lowRecordTimeMinutes(.seconds(0)) == 1)
+        #expect(lowRecordTimeMinutes(.seconds(300)) == 5)
+        #expect(lowRecordTimeMinutes(.milliseconds(3_594_000)) == 60)
+    }
+
     /// A15, A16: the symbol of each kind, the kind of each banner, its text key, and its
     /// announcement.
     @Test func eachBannerKindHasItsSymbolAndAction() {

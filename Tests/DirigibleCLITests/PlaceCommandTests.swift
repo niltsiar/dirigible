@@ -47,6 +47,14 @@ struct PlaceCommandTests {
         try writer.close()
     }
 
+    /// The bytes of each file in `Clips/`.
+    func clipBytes() throws -> [String: Data] {
+        try Dictionary(
+            uniqueKeysWithValues: FileManager.default.contentsOfDirectory(atPath: clips.path).map {
+                ($0, try Data(contentsOf: clips.appending(path: $0)))
+            })
+    }
+
     /// The start of each clip of `track`, by clip ID, as `info --json` shows them.
     func starts(_ track: String) throws -> [String: Int] {
         struct View: Decodable {
@@ -93,7 +101,7 @@ struct PlaceCommandTests {
 
     enum Refusal: String, CaseIterable, CustomTestStringConvertible {
         case placed, noCAF, missingSidecar, emptyCAF, noAnchor, noAnchorWithTrack, wavInUse, beforeTimeline
-        case layoutMismatch
+        case layoutMismatch, newerSidecar
         var testDescription: String { rawValue }
     }
 
@@ -134,19 +142,27 @@ struct PlaceCommandTests {
         case .layoutMismatch:
             try segment(arm: 1, channels: 2)
             return (["take1-1-1"], "Error: file \"take1-1-1\" does not have the layout of track \"t1\".\n")
+        case .newerSidecar:
+            try setMagicDigit(capture.appending(path: "take1-1-1.sidecar"), "2")
+            return (
+                ["take1-1-1", "--track", "t1", "--at", "0"],
+                "Error: Capture/take1-1-1.sidecar was made by a newer version of Dirigible (version 2), so this build "
+                    + "cannot place take1-1-1.\n"
+            )
         }
     }
 
     @Test(arguments: Refusal.allCases)
     func aRefusedPlacementExitsOneAndChangesNothing(refusal: Refusal) throws {
         let (arguments, stderr) = try prepare(refusal)
-        let before = try package.xml()
+        let (before, files) = (try package.xml(), try clipBytes())
 
         #expect(
             try package.run(["capture", "place", "PKG"] + arguments) == CLIResult(status: 1, stdout: "", stderr: stderr)
         )
 
         #expect(try package.xml() == before)
+        #expect(try clipBytes() == files)
     }
 
     /// No recovery runs as a side effect (decision 0021 Q6): no marker, and no WAV of take 2.

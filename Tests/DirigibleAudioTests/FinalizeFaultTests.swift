@@ -75,6 +75,31 @@ struct FinalizeFaultTests {
                 == ["take1-2-1.wav"])
     }
 
+    /// Decision 0024: a sidecar of a newer version is a fault of its segment. The take ends, the
+    /// other segment is placed, and the sidecar and the CAF keep their bytes. "Leave unreadable"
+    /// does not change it, and without it the take does not stay pending.
+    @Test(arguments: [false, true])
+    func aNewerSidecarEndsTheTakeAndStaysUnplaced(leavingUnreadable: Bool) throws {
+        try setMagicDigit(file("take1-1-1.sidecar"), "2")
+        let (sidecar, caf) = (
+            try Data(contentsOf: file("take1-1-1.sidecar")), try Data(contentsOf: file("take1-1-1.caf"))
+        )
+
+        let session = try finalizeTake(of: package.read(), in: package.url, leavingUnreadable: leavingUnreadable)
+
+        #expect(session.recording == nil)
+        #expect(session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
+        #expect(session.captures["take1-1-1"] == nil)
+        #expect(session.track("t1")?.clips.isEmpty == true)
+        #expect(FileManager.default.fileExists(atPath: file("take1.anchor").path))
+        #expect(!FileManager.default.fileExists(atPath: package.url.appending(path: "Clips/take1-1-1.wav").path))
+        #expect(try Data(contentsOf: file("take1-1-1.sidecar")) == sidecar)
+        #expect(try Data(contentsOf: file("take1-1-1.caf")) == caf)
+        #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session).map(\.stem) == ["take1-1-1"])
+        #expect(newerSidecarVersion(of: SegmentName(stem: "take1-1-1")!, in: package.url) == 2)
+        #expect(newerSidecarVersion(of: SegmentName(stem: "take1-2-1")!, in: package.url) == nil)
+    }
+
     @Test func withNoFaultBothSegmentsArePlaced() throws {
         let session = try finalizeTake(of: package.read(), in: package.url)
 

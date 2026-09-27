@@ -61,6 +61,9 @@ extension SegmentFault {
         case .notUnplaced:
             "\(segment) is on the timeline, is in a pending take, or has no audio in \(captureFolderName)/."
         case .noSidecar: "\(capture).sidecar is missing or damaged, so the timing of \(segment) is not known."
+        case .newerSidecar(let version):
+            "\(capture).sidecar was made by a newer version of Dirigible (version \(version)), so this build cannot "
+                + "place \(segment)."
         case .badAudio: "\(capture).caf is not audio that Dirigible can convert."
         case .beforeTimeline: "\(segment) ends before the start of the timeline."
         case .noAlignment: "no take anchor gives the track and the start of \(segment). Give --track and --at."

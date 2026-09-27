@@ -112,7 +112,7 @@ struct PlaceSegmentTests {
     enum Refusal: String, CaseIterable, CustomTestStringConvertible {
         case placed, pendingTake, noCAF, missingSidecar, badMagicSidecar, noAnchor, noAnchorNoTrack, noAnchorNoStart
         case wavInUse, wavInUseOtherCase, layoutMismatch, beforeTimeline, unreadableAnchor, armOutsideTheAnchor
-        case negativeStart
+        case negativeStart, newerSidecar
         var testDescription: String { rawValue }
     }
 
@@ -179,6 +179,10 @@ struct PlaceSegmentTests {
         case .negativeStart:
             // The library refuses it at its boundary, as the CLI does (exit 64).
             return refused(.session(.frameOutOfRange), start: -1)
+        case .newerSidecar:
+            // Decision 0024: the version 1 anchor gives the target; the sidecar refuses it.
+            try setMagicDigit(package.capture.appending(path: "take1-1-1.sidecar"), "2")
+            return refused(.newerSidecar(version: 2))
         }
     }
 

@@ -46,7 +46,8 @@ struct SegmentWriterTests {
         #expect(open.rate == 48_000)
         #expect(open.samples.count == 96_000)
         #expect(open.samples == samples)
-        let sidecar = try #require(Sidecar.decode(Data(contentsOf: folder.url.appending(path: "take1-1-1.sidecar"))))
+        let sidecar = try #require(
+            try Sidecar.decode(Data(contentsOf: folder.url.appending(path: "take1-1-1.sidecar"))))
         #expect(sidecar.header == header(channels: 1))
         #expect(sidecar.checkpoints.map(\.fileFrame) == [0, 48_128])
 

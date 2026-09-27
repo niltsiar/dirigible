@@ -54,6 +54,15 @@ private func run(_ executable: URL, _ arguments: [String]) throws -> CLIResult {
         stderr: String(decoding: try Data(contentsOf: errors), as: UTF8.self))
 }
 
+/// Writes `digit` over byte 7 of the file at `url`: the version digit of a sidecar or anchor
+/// magic (decision 0024 P9).
+func setMagicDigit(_ url: URL, _ digit: String) throws {
+    let handle = try FileHandle(forWritingTo: url)
+    try handle.seek(toOffset: 7)
+    try handle.write(contentsOf: Data(digit.utf8))
+    try handle.close()
+}
+
 /// A package path `Show.dirigible` in a unique temporary folder, removed at deinit. With a
 /// session, the package exists on disk; without one, only the folder exists.
 final class TemporaryPackage {

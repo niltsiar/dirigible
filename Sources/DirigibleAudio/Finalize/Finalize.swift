@@ -26,6 +26,9 @@ public enum SegmentFault: Error, Hashable, Sendable {
     case noAlignment
     /// The sidecar is missing or refused, so the timing of the segment is not known.
     case noSidecar
+    /// A newer build of Dirigible wrote the sidecar with format `version` (decision 0024). The
+    /// sidecar and the CAF do not change, so that build can place the segment.
+    case newerSidecar(version: Int)
     /// The CAF has no frames, is not a CAF, does not match its sidecar, or does not convert whole.
     case badAudio
     /// The whole segment is before frame 0 of the timeline.
@@ -101,6 +104,20 @@ func placeSegment(
         throw .writeFailed(file: clipsFolderName, status: code)
     }
     return result
+}
+
+/// The format version of the sidecar of `segment` when a newer build of Dirigible wrote it
+/// (decision 0024), else nil. The `take finalize` warning gives it.
+public func newerSidecarVersion(of segment: SegmentName, in package: URL) -> Int? {
+    guard let data = try? readPackageFile("\(captureFolderName)/\(segment.stem).sidecar", in: package) else {
+        return nil
+    }
+    do {
+        _ = try Sidecar.decode(data)
+        return nil
+    } catch {
+        return error.version
+    }
 }
 
 /// The segments of the CAFs in `Capture/` that have frames or do not open: the disk fact under

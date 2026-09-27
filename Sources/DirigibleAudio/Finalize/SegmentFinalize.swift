@@ -67,7 +67,11 @@ struct SegmentFinalize {
             return .failure(.badAudio)
         }
         guard input.length > 0 else { return .failure(.badAudio) }
-        guard let sidecar = try readSidecar() else { return .failure(.noSidecar) }
+        let sidecar: Sidecar
+        switch try readSidecar() {
+        case .success(let read): sidecar = read
+        case .failure(let fault): return .failure(fault)
+        }
         guard input.fileFormat.sampleRate == sidecar.header.nominalRate,
             Int(input.fileFormat.channelCount) == sidecar.header.channelCount
         else { return .failure(.badAudio) }
@@ -141,12 +145,19 @@ struct SegmentFinalize {
         return .success(copy)
     }
 
-    /// Nil when the sidecar is missing or refused.
-    func readSidecar() throws(FinalizeError) -> Sidecar? {
+    /// The sidecar, or `.noSidecar` when it is missing or refused, or `.newerSidecar` when a newer
+    /// build wrote it (decision 0024).
+    func readSidecar() throws(FinalizeError) -> Result<Sidecar, SegmentFault> {
+        let data: Data?
         do {
-            return try readPackageFile(sidecar, in: package).flatMap(Sidecar.decode)
+            data = try readPackageFile(sidecar, in: package)
         } catch .readFailed(let file, let code) {
             throw unreadable(file, code)
+        }
+        do throws(NewerFormat) {
+            return try data.flatMap(Sidecar.decode).map { .success($0) } ?? .failure(.noSidecar)
+        } catch {
+            return .failure(.newerSidecar(version: error.version))
         }
     }
 

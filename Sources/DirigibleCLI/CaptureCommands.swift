@@ -162,7 +162,10 @@ func reportTake(_ studio: Studio, take: Int?, armed: [TrackID], result: TakeResu
     let clips = take.map { studio.clipIDs(ofTake: $0) } ?? []
     for id in clips { print(id) }
     for segment in studio.unplacedSegments {
-        warn("\(captureFolderName)/\(segment.stem).caf is not on the timeline.")
+        let newer = newerSidecarVersion(of: segment, in: studio.url).map {
+            ": its sidecar was made by a newer version of Dirigible (version \($0))"
+        }
+        warn("\(captureFolderName)/\(segment.stem).caf is not on the timeline\(newer ?? "").")
         codes.append(unplacedAudio)
     }
     if result?.end == .diskLow {

@@ -24,42 +24,55 @@ struct SidecarTests {
     }
 
     @Test func aHeaderAndFiveCheckpointsReadBackEqual() throws {
-        let sidecar = try #require(Sidecar.decode(Self.bytes()))
+        let sidecar = try #require(try Sidecar.decode(Self.bytes()))
         #expect(sidecar == Sidecar(header: Self.header, checkpoints: Self.checkpoints))
-        #expect(Sidecar.decode(Sidecar.encode(Self.header)) == Sidecar(header: Self.header, checkpoints: []))
+        #expect(try Sidecar.decode(Sidecar.encode(Self.header)) == Sidecar(header: Self.header, checkpoints: []))
     }
 
     @Test func aCutInsideTheLastRecordDropsOnlyThatRecord() throws {
         let full = Self.bytes()
         for length in (full.count - Self.checkpointRecord)..<full.count {
-            let sidecar = try #require(Sidecar.decode(full.prefix(length)), "cut at \(length)")
+            let sidecar = try #require(try Sidecar.decode(full.prefix(length)), "cut at \(length)")
             #expect(sidecar.checkpoints == Array(Self.checkpoints.prefix(4)), "cut at \(length)")
         }
     }
 
     @Test func aTailOfZerosInPlaceOfTheLastRecordIsDropped() throws {
         let data = Self.bytes().dropLast(Self.checkpointRecord) + Data(count: 64)
-        #expect(try #require(Sidecar.decode(data)).checkpoints == Array(Self.checkpoints.prefix(4)))
+        #expect(try #require(try Sidecar.decode(data)).checkpoints == Array(Self.checkpoints.prefix(4)))
     }
 
-    @Test(arguments: ["XXXXXXXX", "DRGSIDE2"])
-    func aBadMagicIsRefused(magic: String) {
+    /// Decision 0024 P9: the magic of version 1 is "DRGSIDE1".
+    @Test func theWriterStampsVersion1() {
+        #expect(Sidecar.encode(Self.header).prefix(8) == Data("DRGSIDE1".utf8))
+    }
+
+    /// Decision 0024 P3: a higher digit is a newer file, not a damaged file.
+    @Test func aNewerMagicIsNewer() {
+        var data = Self.bytes()
+        data[7] = UInt8(ascii: "2")
+        #expect(throws: NewerFormat(version: 2)) { try Sidecar.decode(data) }
+    }
+
+    /// Decision 0024 P9: another prefix, a digit 0, or a byte that is not a digit is damaged.
+    @Test(arguments: ["XXXXXXXX", "DRGSIDE0", "DRGSIDEX", "DRGSIDF1"])
+    func aBadMagicIsRefused(magic: String) throws {
         var data = Self.bytes()
         data.replaceSubrange(0..<8, with: Data(magic.utf8))
-        #expect(Sidecar.decode(data) == nil)
+        #expect(try Sidecar.decode(data) == nil)
     }
 
-    @Test func aShortHeaderIsRefused() {
+    @Test func aShortHeaderIsRefused() throws {
         let header = Sidecar.encode(Self.header)
         for length in 0..<header.count {
-            #expect(Sidecar.decode(header.prefix(length)) == nil, "cut at \(length)")
+            #expect(try Sidecar.decode(header.prefix(length)) == nil, "cut at \(length)")
         }
     }
 
-    @Test func aHeaderWithABadHashIsRefused() {
+    @Test func aHeaderWithABadHashIsRefused() throws {
         var data = Self.bytes()
         data[8 + 5] ^= 0x01  // the first payload byte of the header record
-        #expect(Sidecar.decode(data) == nil)
+        #expect(try Sidecar.decode(data) == nil)
     }
 
     static let badHeaders: [CaptureHeader] = {
@@ -88,8 +101,8 @@ struct SidecarTests {
     }()
 
     @Test(arguments: badHeaders)
-    func aHeaderWithABadValueIsRefused(header: CaptureHeader) {
-        #expect(Sidecar.decode(Self.bytes(header)) == nil)
+    func aHeaderWithABadValueIsRefused(header: CaptureHeader) throws {
+        #expect(try Sidecar.decode(Self.bytes(header)) == nil)
     }
 
     /// A range with min > max cannot be built as a `ClosedRange`, so the test writes its bytes.
@@ -103,15 +116,15 @@ struct SidecarTests {
         let payload = data[(8 + 4)..<(data.count - 4)]
         data.replaceSubrange(
             (data.count - 4)..<data.count, with: withUnsafeBytes(of: fnv1a(payload).littleEndian) { Data($0) })
-        #expect(Sidecar.decode(data) == nil)
-        #expect(Sidecar.decode(Sidecar.encode(Self.header)) != nil)
+        #expect(try Sidecar.decode(data) == nil)
+        #expect(try Sidecar.decode(Sidecar.encode(Self.header)) != nil)
     }
 
     @Test func aCheckpointThatIsNotFiniteDropsItAndTheRest() throws {
         var checkpoints = Self.checkpoints
         checkpoints[2].sampleTime = .nan
         #expect(
-            try #require(Sidecar.decode(Self.bytes(Self.header, checkpoints))).checkpoints
+            try #require(try Sidecar.decode(Self.bytes(Self.header, checkpoints))).checkpoints
                 == Array(checkpoints.prefix(2)))
     }
 
@@ -119,19 +132,21 @@ struct SidecarTests {
         var lowerFrame = Self.checkpoints
         lowerFrame[3].fileFrame = lowerFrame[2].fileFrame - 1
         #expect(
-            try #require(Sidecar.decode(Self.bytes(Self.header, lowerFrame))).checkpoints == Array(lowerFrame.prefix(3))
+            try #require(try Sidecar.decode(Self.bytes(Self.header, lowerFrame))).checkpoints
+                == Array(lowerFrame.prefix(3))
         )
         var lowerHost = Self.checkpoints
         lowerHost[3].hostTimeNanos = lowerHost[2].hostTimeNanos - 1
         #expect(
-            try #require(Sidecar.decode(Self.bytes(Self.header, lowerHost))).checkpoints == Array(lowerHost.prefix(3)))
+            try #require(try Sidecar.decode(Self.bytes(Self.header, lowerHost))).checkpoints
+                == Array(lowerHost.prefix(3)))
     }
 
     @Test func aCheckpointWithABadHashDropsItAndTheRest() throws {
         var data = Self.bytes()
         let third = Sidecar.encode(Self.header).count + 2 * Self.checkpointRecord
         data[third + 5] ^= 0x01
-        #expect(try #require(Sidecar.decode(data)).checkpoints == Array(Self.checkpoints.prefix(2)))
+        #expect(try #require(try Sidecar.decode(data)).checkpoints == Array(Self.checkpoints.prefix(2)))
     }
 
     @Test func randomSidecarsReadBackEqual() throws {
@@ -162,7 +177,8 @@ struct SidecarTests {
                     fileFrame: frame, sampleTime: Double.random(in: -1e12...1e12, using: &random), hostTimeNanos: host)
             }
             #expect(
-                Sidecar.decode(Self.bytes(header, checkpoints)) == Sidecar(header: header, checkpoints: checkpoints))
+                try Sidecar.decode(Self.bytes(header, checkpoints)) == Sidecar(header: header, checkpoints: checkpoints)
+            )
         }
     }
 }

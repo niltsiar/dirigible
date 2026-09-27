@@ -102,7 +102,7 @@ struct DeviceEventTests {
         #expect(try stems() == (event ? ["take1-1-1", "take1-1-2"] : ["take1-1-1"]))
         if event {
             let sidecar = try #require(
-                Sidecar.decode(Data(contentsOf: folder.url.appending(path: "take1-1-2.sidecar"))))
+                try Sidecar.decode(Data(contentsOf: folder.url.appending(path: "take1-1-2.sidecar"))))
             #expect(sidecar.header.nominalRate == 44_100)
         }
     }

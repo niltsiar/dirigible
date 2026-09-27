@@ -41,7 +41,8 @@ struct CaptureRingTests {
         await writer.finish()
 
         #expect(try readAudio(caf).samples == samples)
-        let sidecar = try #require(Sidecar.decode(Data(contentsOf: folder.url.appending(path: "take1-1-1.sidecar"))))
+        let sidecar = try #require(
+            try Sidecar.decode(Data(contentsOf: folder.url.appending(path: "take1-1-1.sidecar"))))
         #expect(sidecar.checkpoints.map(\.fileFrame) == [0, 47_520])
         #expect(writer.droppedFrames == 0)
     }

@@ -170,6 +170,7 @@ enum L10n: String, CaseIterable {
     case errorSessionTrackCount = "error.session.track.count"
     case errorSessionOther = "error.session.other"
     case errorFileUnreadable = "error.file.unreadable"
+    case errorFileNewer = "error.file.newer"
     case errorFileRead = "error.file.read"
     case errorFileWrite = "error.file.write"
     case errorFileInternal = "error.file.internal"
@@ -295,8 +296,8 @@ enum L10n: String, CaseIterable {
 
     private static func message(for error: SessionFileError) -> String {
         switch error {
-        case .malformedXML, .unsupportedVersion, .invalidChannelCount, .missingAttribute, .invalidValue,
-            .invalidSession:
+        case .unsupportedVersion: return errorFileNewer.text
+        case .malformedXML, .invalidChannelCount, .missingAttribute, .invalidValue, .invalidSession:
             return errorFileUnreadable.text
         case .readFailed(let errno): return errorFileRead.format(Int(errno))
         case .writeFailed(_, let errno): return errorFileWrite.format(Int(errno))

@@ -102,6 +102,7 @@ import Testing
     /// the lanes 4 pt at each event (the bench of slice 1).
     @Test func aHandleDragSetsTheWidthLive() async throws {
         let (window, view, model) = try await standalone(width: .standard)
+        let autohides = view.autohidesScrollers
         // At 0 pt the clip bounds are at the leading inset, where AppKit clamps them.
         for left in [700.0, 0] {
             view.scroll(toFrame: left * view.framesPerPoint)
@@ -121,7 +122,50 @@ import Testing
             }
             try handle(.leftMouseUp, 337, view)
         }
+        // H13: the lanes follow the system setting "Show scroll bars" after a header drag.
+        #expect(view.scrollerStyle == NSScroller.preferredScrollerStyle, "scroller style")
+        #expect(view.autohidesScrollers == autohides, "scroller style: autohides")
         window.close()
+        await model.close()
+    }
+
+    /// Criterion H3: the hit area of the handle is the 6 pt inside the trailing edge of the
+    /// headers, above the rows, over the full height below the time ruler.
+    @Test func theHandleHitAreaIsSixPointsInsideTheHeaders() async throws {
+        let (window, view, model) = try await standalone(width: .standard)
+        for width in [340.0, 180, 480] {
+            view.headers.width = HeaderWidth(width)
+            drawNow(window)
+            func hit(_ x: Double, _ y: Double) -> NSView? {
+                window.contentView?.superview?.hitTest(view.headers.convert(NSPoint(x: x, y: y), to: nil))
+            }
+            // The middle of lane 1, and the bottom of the headers (below the lanes).
+            let lane = view.headers.convert(NSPoint(x: 0, y: 50), from: view.lanes).y
+            for y in [lane, view.headers.bounds.maxY - 2] {
+                #expect(hit(width - 0.5, y) === view.headers.handle, "handle at \(width) - 0.5, y \(y)")
+                #expect(hit(width - 6, y) === view.headers.handle, "handle at \(width) - 6, y \(y)")
+                #expect(hit(width - 7, y) !== view.headers.handle, "not the handle at \(width) - 7, y \(y)")
+            }
+            #expect(hit(width + 1, lane) === view.lanes, "lanes at \(width) + 1")
+        }
+        window.close()
+        await model.close()
+    }
+
+    /// Criterion H3: a SwiftUI update during a header drag (Add Track) keeps the drag and the width.
+    @Test func anUpdateDuringAHeaderDragKeepsTheDrag() async throws {
+        let (model, studio, _, view) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
+        try handle(.leftMouseDown, 337, view)
+        try handle(.leftMouseDragged, 397, view)
+        let updates = view.updates
+        model.run(.addTrack)
+        await until("the lanes get the new track") { studio.session.tracks.count == 3 && view.updates > updates }
+        #expect(view.headers.width == HeaderWidth(400), "the update keeps the width")
+        try handle(.leftMouseDragged, 417, view)
+        #expect(view.headers.width == HeaderWidth(420), "the drag goes on after the update")
+        try #require(view.window).sendEvent(try cgKey(53))
+        #expect(view.headers.width == .standard, "the drag goes on: Esc gives the start width")
         await model.close()
     }
 
@@ -183,7 +227,10 @@ import Testing
         #expect(handle.accessibilityLabel() == L10n.headerHandle.text, "label")
         #expect(handle.accessibilityValue() as? Double == 340, "splitter value")
 
+        var saved: [Double] = []
+        view.headers.save = { saved.append($0.points) }
         #expect(handle.accessibilityPerformIncrement(), "increment")
+        #expect(saved == [360], "increment saves")
         #expect(view.headers.ruleThickness == 360, "increment")
         #expect(handle.accessibilityValue() as? Double == 360, "increment")
         #expect(handle.accessibilityPerformDecrement(), "decrement")

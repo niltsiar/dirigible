@@ -16,12 +16,15 @@ import Testing
 @Suite(.serialized) @MainActor struct HeaderPixelTests {
     let folder: TemporaryFolder
     let app: AppDelegate
+    /// The mouse-up and the AX step save the width: a domain of the test, removed at the end.
+    let domain = "dirigible.tests.\(UUID().uuidString)"
 
     init() throws {
         NSWindow.allowsAutomaticWindowTabbing = false
         folder = try TemporaryFolder()
         // A peak cache, so the lanes draw the waveform.
-        app = AppDelegate(recordings: nil, peakCache: folder.url.appending(path: "Peaks"))
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        app = AppDelegate(recordings: nil, peakCache: folder.url.appending(path: "Peaks"), defaults: defaults)
     }
 
     /// Every lane color is a distinct magenta: G 16 or less, R and B 160 or more. A capture is in
@@ -283,5 +286,6 @@ import Testing
         print("HeaderPixelTests: all \(ContinuousClock.now - started)")
         window.close()
         await model.close()
+        UserDefaults().removePersistentDomain(forName: domain)
     }
 }

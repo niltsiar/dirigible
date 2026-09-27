@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run one source-mutation control and never leave the mutant in the tree.
 
-Usage: mutate.py <file> <old text> <new text> <log> <build command> <test command>
-                 [<old text 2> <new text 2> ...]
+Usage: mutate.py [--expect <text>] <file> <old text> <new text> <log> <build command>
+                 <test command> [<old text 2> <new text 2> ...]
 
 The script records the SHA-256 of <file>, replaces the one exact copy of <old text> with
 <new text> (and of each extra pair, in order: one mutant with several edits), runs <build command>, then <test command> (each with bash -o pipefail -c), writes the raw output
@@ -11,6 +11,9 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   killed        the build passed and the test failed (exit 0)
   survived      the build and the test passed (exit 1)
   BUILD FAILED  the mutant did not build, so it proves nothing (exit 2)
+  WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4)
+With --expect, a kill counts only when the output of the test has <text>, for example the
+message of the assertion that the control must break. A crash or a trap also fails the test.
 A missing or repeated <old text>, or an extra old text with no new text, exits 2 before any
 change. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
 that trips it) is one call with two pairs. Do not nest mutate.py in the test command: the outer
@@ -18,13 +21,19 @@ result line then gives the verdict of the inner script, not of the mutant.
 """
 import hashlib, shutil, subprocess, sys
 
-if len(sys.argv) < 7:
+args = sys.argv[1:]
+expected = None
+if args[:1] == ['--expect']:
+    if len(args) < 2:
+        sys.exit(__doc__)
+    expected, args = args[1], args[2:]
+if len(args) < 6:
     sys.exit(__doc__)
-if len(sys.argv) % 2 == 0:
+if len(args) % 2 == 1:
     print('mutate: an extra old text has no new text', file=sys.stderr)
     sys.exit(2)
-path, old, new, log, build, test = sys.argv[1:7]
-pairs = [(old, new)] + list(zip(sys.argv[7::2], sys.argv[8::2]))
+path, old, new, log, build, test = args[:6]
+pairs = [(old, new)] + list(zip(args[6::2], args[7::2]))
 original = open(path, 'rb').read()
 digest = hashlib.sha256(original).hexdigest()
 text = original.decode()
@@ -44,8 +53,12 @@ try:
         for old, new in pairs:
             out.write(f'# - {old!r}\n# + {new!r}\n')
         out.write(f'# build: {build}\n# test: {test}\n')
+        if expected is not None:
+            out.write(f'# expect: {expected!r}\n')
         out.flush()
         built = subprocess.call(['bash', '-o', 'pipefail', '-c', build], stdout=out, stderr=subprocess.STDOUT) == 0
+        out.flush()
+        test_start = out.tell()
         tested = built and subprocess.call(['bash', '-o', 'pipefail', '-c', test], stdout=out, stderr=subprocess.STDOUT) == 0
 finally:
     shutil.copyfile(backup, path)
@@ -53,6 +66,11 @@ if hashlib.sha256(open(path, 'rb').read()).hexdigest() != digest:
     print(f'mutate: the restore of {path} failed; the copy is {backup}', file=sys.stderr)
     sys.exit(3)
 result, code = ('BUILD FAILED', 2) if not built else (('survived', 1) if tested else ('killed', 0))
+if code == 0 and expected is not None:
+    with open(log, errors='replace') as done:
+        done.seek(test_start)
+        if expected not in done.read():
+            result, code = 'WRONG FAILURE', 4
 with open(log, 'a') as out:
     out.write(f'# result: {result}\n')
 print(f'{result}: {log}')

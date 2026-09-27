@@ -136,7 +136,7 @@ import Testing
     }
 
     /// Criterion 7 and the slot count: after warm-up, 10 pairs of updates 1 ms apart every 20 ms
-    /// make no new surface, and the lanes hold 3: the third covers the frame that the window server
+    /// make no new surface, and the lanes hold 4: the others cover the frames that the window server
     /// still shows.
     @Test func twoUpdatesPerFrameReuseTheirSurfaces() async throws {
         let (model, studio, window, view) = try await lanes(onScreen: true)
@@ -160,7 +160,7 @@ import Testing
         }
 
         #expect(view.lanes.surfaces.made - made == 0, "new surfaces: \(view.lanes.surfaces.made - made)")
-        #expect(view.lanes.surfaces.count == 3)
+        #expect(view.lanes.surfaces.count == 4)
         window.close()
         await model.close()
     }
@@ -181,21 +181,21 @@ import Testing
 
         #expect(surfaces.writesOfFront == 0, "writesOfFront \(surfaces.writesOfFront)")
         #expect(surfaces.pixel(column: 0, row: 0) == 5)
-        #expect(surfaces.count == 3)
+        #expect(surfaces.count == 4)
     }
 
     /// Criterion 5: each surface is tagged sRGB (probe P2: an untagged surface showed R 196 against
     /// 200 for the clip color).
     @Test func eachSurfaceIsTaggedSRGB() async throws {
         let (model, _, window, view) = try await lanes()
-        for _ in 0..<3 {
+        for _ in 0..<4 {
             view.scroll(toFrame: view.origin + 20 * view.framesPerPoint)
             drawNow(window)
         }
         let srgb = try #require(CGColorSpace(name: CGColorSpace.sRGB)?.copyPropertyList())
 
         let surfaces = view.lanes.surfaces.surfaces
-        #expect(surfaces.count == 3)
+        #expect(surfaces.count == 4)
         for surface in surfaces {
             let tag = IOSurfaceCopyValue(unsafeBitCast(surface, to: IOSurfaceRef.self), kIOSurfaceColorSpace)
             #expect(tag.map { CFEqual($0, srgb) } == true, "\(String(describing: tag))")
@@ -204,7 +204,7 @@ import Testing
         await model.close()
     }
 
-    /// Criterion 7: the lanes hold 3 surfaces or fewer, each of the capacity of the current view,
+    /// Criterion 7: the lanes hold 4 surfaces or fewer, each of the capacity of the current view,
     /// after each of 8 page turns, 60 drag events, 40 marker adds, 40 undo steps, 5 window resizes,
     /// and updates while the window server uses the other surfaces.
     @Test func theSurfacesStayBounded() async throws {
@@ -215,8 +215,8 @@ import Testing
             guard let capacity = surfaces.shown?.capacity else { return failures.append("\(step): no window") }
             let sizes = surfaces.surfaces.map { "\($0.width)x\($0.height)" }
             let bytes = surfaces.surfaces.first { $0.width == capacity.columns }?.allocationSize ?? 0
-            if surfaces.count > 3 || sizes.contains(where: { $0 != "\(capacity.columns)x\(capacity.rows)" })
-                || surfaces.bytes > 3 * bytes
+            if surfaces.count > 4 || sizes.contains(where: { $0 != "\(capacity.columns)x\(capacity.rows)" })
+                || surfaces.bytes > 4 * bytes
             {
                 failures.append("\(step): \(sizes), capacity \(capacity.columns)x\(capacity.rows)")
             }
@@ -265,7 +265,14 @@ import Testing
             check("resize \(n)")
             await Task.yield()
         }
+        // Four scrolls fill the slots, then the window server uses every surface but the contents.
+        for n in 0..<4 {
+            view.scroll(toFrame: view.origin + 20 * view.framesPerPoint)
+            drawNow(window)
+            check("fill \(n)")
+        }
         let held = try await Self.holdOnScreen(view, window)
+        #expect(held.count == 3, "the held surfaces")
         for n in 0..<3 {
             view.scroll(toFrame: view.origin + 20 * view.framesPerPoint)
             drawNow(window)

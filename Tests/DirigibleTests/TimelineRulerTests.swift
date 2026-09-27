@@ -129,6 +129,51 @@ import Testing
         await model.close()
     }
 
+    /// The user report of timeline-scroll Q5: on screen, a horizontal scroll shows nothing of the
+    /// time ruler over the track headers. AppKit scrolls the ruler by a copy of its pixels, so the
+    /// ticks and labels over the lanes moved over the headers. `cacheDisplay` draws the ruler anew,
+    /// so the test above cannot see it: this test reads captures of the window.
+    @Test func aScrollOnScreenShowsNoTimeOverTheHeaders() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 600), app: app)
+        let (window, view) = standaloneLanes(model, studio, onScreen: true)
+        let ruler = view.ruler
+        let left = ruler.convert(NSPoint(x: view.shown.minX, y: 0), from: view.lanes).x
+        let corner = ruler.convert(NSRect(x: 0, y: 0, width: left, height: ruler.bounds.height), to: nil)
+        // The window server shows a flushed frame some milliseconds later; no signal tells when.
+        try await Task.sleep(for: .milliseconds(200))
+        let before = try Self.pixels(of: corner, TimelineColorTests.capture(window), window)
+
+        var changed: [String] = []
+        for x in [720, 1333.37, 2100.5] {
+            view.scroll(toFrame: x * 512)
+            drawNow(window)
+            try await Task.sleep(for: .milliseconds(200))
+            let after = try Self.pixels(of: corner, TimelineColorTests.capture(window), window)
+            let count = zip(before, after).filter { $0 != $1 }.count
+            if count > 0 { changed.append("\(count) at \(x) pt") }
+        }
+
+        #expect(view.shown.minX == 2100.5, "the times of 0 to 2100.5 pt are under the headers: \(view.shown)")
+        try #require(before.count > 1000, "the ruler part over the headers")
+        #expect(changed.isEmpty, "pixels of the ruler over the headers changed after a scroll: \(changed)")
+        window.close()
+        await model.close()
+    }
+
+    /// The BGRA pixels of a capture of `window` in `rect` (window points).
+    static func pixels(of rect: NSRect, _ image: CGImage, _ window: NSWindow) throws -> [UInt32] {
+        let data = try #require(image.dataProvider?.data)
+        let bytes = try #require(CFDataGetBytePtr(data))
+        let scale = Double(image.width) / window.frame.width
+        // The capture has row 0 at the top of the window; the window has y 0 at the bottom.
+        let rows = Int((window.frame.height - rect.maxY) * scale)..<Int((window.frame.height - rect.minY) * scale)
+        let columns = Int(rect.minX * scale)..<Int(rect.maxX * scale)
+        return rows.flatMap { y in
+            columns.map { x in UnsafeRawPointer(bytes + y * image.bytesPerRow + x * 4).loadUnaligned(as: UInt32.self) }
+        }
+    }
+
     /// Timeline-scroll criterion 7: a press on the ruler over the track headers does nothing: no
     /// seek, no flag drag, no menu. The marks, the markers, and the playhead stay.
     @Test func aRulerPressOverTheHeadersDoesNothing() async throws {

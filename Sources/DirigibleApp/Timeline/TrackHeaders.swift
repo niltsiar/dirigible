@@ -9,15 +9,21 @@ struct TrackHeaders: View {
     let laneHeight: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(studio.session.tracks) { track in
-                TrackRow(model: model, studio: studio, track: track, secondLine: laneHeight >= 56)
+        // The layout of a row comes from the header width and the lane height only, never from
+        // the text: a typed name that picks another layout rebuilds its field (code gate 1).
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(studio.session.tracks) { track in
+                    TrackRow(
+                        model: model, studio: studio, track: track, secondLine: laneHeight >= 56,
+                        showsLayout: geometry.size.width >= 220
+                    )
                     .frame(height: laneHeight, alignment: .leading).clipped()
                     // At the lane edge, as the lanes have no line: the rows read as rows (D8).
                     .overlay(alignment: .bottom) { Color(nsColor: .separatorColor).frame(height: 1) }
+                }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -29,22 +35,21 @@ private struct TrackRow: View {
     let track: Track
     /// The route and the live state. Off in a lane under 56 pt: one line fits (H7).
     let secondLine: Bool
+    /// The layout text. Off under 220 pt: "Armar", a name of 60 pt, and "Estéreo" are wider than
+    /// a row of 180 pt, and no control goes under the handle.
+    let showsLayout: Bool
     @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            // With no room for the layout text (180 pt in Spanish: "Armar", a name of 60 pt, and
-            // "Estéreo"), the line drops it, so no control goes under the handle.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) {
-                    arm
-                    nameField
+            HStack(spacing: 8) {
+                arm
+                nameField
+                if showsLayout {
+                    // One line: a squeezed text wraps into the row below. The same for the arm label.
                     Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
                         .foregroundStyle(.secondary)
-                }
-                HStack(spacing: 8) {
-                    arm
-                    nameField
+                        .fixedSize()
                 }
             }
             if secondLine {
@@ -60,7 +65,7 @@ private struct TrackRow: View {
     }
 
     private var arm: some View {
-        Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit)
+        Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit).fixedSize()
     }
 
     /// The name is the main text of the row: 13 pt, and it takes the free width.

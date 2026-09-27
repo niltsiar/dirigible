@@ -80,7 +80,7 @@ struct LeaveUnreadableTests {
         #expect(studio.session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
         #expect(studio.unplacedSegments == [Self.segment])
         #expect(try package.read() == studio.session, "the end of the take is saved")
-        #expect(try TakeAnchor.read(take: 1, in: package.url)?.armedTracks == ["t1", "t2"])
+        #expect(try TakeAnchor.read(take: 1, in: package.url)?.get().armedTracks == ["t1", "t2"])
         #expect(try captureListing() == capture, "no file in Capture/ is deleted or changed (criterion 24)")
     }
 

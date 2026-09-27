@@ -181,6 +181,7 @@ enum L10n: String, CaseIterable {
     case errorSegmentNotUnplaced = "error.segment.not.unplaced"
     case errorSegmentNoSidecar = "error.segment.no.sidecar"
     case errorSegmentNewer = "error.segment.newer"
+    case errorSegmentNewerAnchor = "error.segment.newer.anchor"
     case errorSegmentBadAudio = "error.segment.bad.audio"
     case errorSegmentBeforeStart = "error.segment.before.start"
     case errorSegmentNoAlignment = "error.segment.no.alignment"
@@ -247,6 +248,7 @@ enum L10n: String, CaseIterable {
         case .badAudio: errorSegmentBadAudio
         case .beforeTimeline: errorSegmentBeforeStart
         case .noAlignment: errorSegmentNoAlignment
+        case .newerAnchor: errorSegmentNewerAnchor
         case .wavInUse: errorSegmentWAVInUse
         case .session: errorSessionOther
         }

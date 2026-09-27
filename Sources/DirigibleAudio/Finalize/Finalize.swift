@@ -24,6 +24,9 @@ public enum SegmentFault: Error, Hashable, Sendable {
     case notUnplaced
     /// No take anchor gives the track or the start, and the call does not give them.
     case noAlignment
+    /// A newer build of Dirigible wrote the take anchor with format `version` (decision 0024),
+    /// and the call does not give the track and the start.
+    case newerAnchor(version: Int)
     /// The sidecar is missing or refused, so the timing of the segment is not known.
     case noSidecar
     /// A newer build of Dirigible wrote the sidecar with format `version` (decision 0024). The
@@ -58,7 +61,7 @@ struct ReadFault: Sendable {
 /// then `Clips/` are flushed before it returns, so the save never points to a WAV that is not on
 /// the disk; a flush error throws. Last, it writes the take anchor (`TakeAnchor`), the only record
 /// of the track and the start of each segment after the save removes `recording`; a fault of that
-/// write throws too.
+/// write throws too. An anchor of a newer version keeps its bytes (decision 0024 P4).
 func finalizeTake(
     of session: Session, in package: URL, leavingUnreadable: Bool = false, readFault: ReadFault? = nil,
     blockFrames: Int = 65_536
@@ -69,6 +72,8 @@ func finalizeTake(
     if openErrno(package.appending(path: captureFolderName).path) == ENOENT {
         throw .readFailed(file: captureFolderName, errno: ENOENT)
     }
+    // Before the segment loop, so an anchor that does not read stops the take before any WAV.
+    let anchor = try TakeAnchor.read(take: recording.take, in: package)
     var result = session
     for name in try captureSegments(in: package)
     where name.take == recording.take && name.arm <= recording.armedTracks.count {
@@ -86,7 +91,10 @@ func finalizeTake(
         throw .writeFailed(file: clipsFolderName, status: code)
     }
     // After every throw of the loop, so a take that stays pending has no anchor (decision 0021).
-    try TakeAnchor.write(recording, in: package)
+    switch anchor {
+    case .failure?: break  // A newer build wrote it (decision 0024 P4).
+    case .success?, nil: try TakeAnchor.write(recording, in: package)
+    }
     try? result.setRecording(nil)  // Removing the recording never throws.
     return result
 }

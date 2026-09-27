@@ -149,6 +149,29 @@ final class TimelineDocumentView: NSView {
         return NSRect(geometry.box(of: clip, lane: lane))
     }
 
+    /// The one pick of the palette: the appearance and the accent resolve together, in the
+    /// effective appearance of the view. A change only sets a new palette.
+    func pickPalette() {
+        var picked = LanePalette.light
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            guard effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
+                let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB)
+            else { return }
+            func channel(_ value: CGFloat) -> UInt32 { UInt32((value * 255).rounded()) }
+            picked = .dark(
+                accent: 0xFF00_0000 | channel(accent.redComponent) << 16 | channel(accent.greenComponent) << 8
+                    | channel(accent.blueComponent))
+        }
+        if picked != palette { palette = picked }
+    }
+
+    /// AppKit calls it also when the view first takes an appearance: the app in Dark Mode drew dark
+    /// lanes at open with no other pick (run 1b, s2-first-pick).
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        pickPalette()
+    }
+
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
         needsDisplay = true

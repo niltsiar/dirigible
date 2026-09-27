@@ -247,6 +247,8 @@ func timelinePackage(
         backing: .buffered,
         defer: false)
     window.isReleasedWhenClosed = false
+    // The pixel tests read the light palette on a Mac in Dark Mode too (probe Q3).
+    window.appearance = NSAppearance(named: .aqua)
     let view = TimelineScrollView(model: model, studio: studio)
     view.frame = window.contentView!.bounds
     window.contentView!.addSubview(view)
@@ -306,6 +308,7 @@ func timelinePackage(
         contentRect: NSRect(origin: .zero, size: view.frame.size), styleMask: [.borderless], backing: .buffered,
         defer: false)
     window.isReleasedWhenClosed = false
+    window.appearance = NSAppearance(named: .aqua)
     window.contentView = view
     drawNow(window)
     return (window, view)

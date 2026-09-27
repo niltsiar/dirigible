@@ -1,0 +1,81 @@
+import AppKit
+import DirigibleCore
+import Foundation
+import Testing
+
+@testable import DirigibleApp
+@testable import DirigibleAudio
+
+/// Run 1b criterion H10: the lanes take the dark palette in a dark window, at the first draw and
+/// at an appearance change, with one full render per change. The tests set the appearance of their
+/// own window, never `NSApp.appearance` (a shared resource of parallel suites).
+@Suite(.serialized) @MainActor struct LaneAppearanceTests {
+    let folder: TemporaryFolder
+    let app = AppDelegate(recordings: nil)
+
+    init() throws { folder = try TemporaryFolder() }
+
+    /// A window of `appearance` with the lanes of a 2-track package of 1 s at 512 frames per point:
+    /// the clips end at 93.75 pt, so the lanes show the lane color past them.
+    func lanes(in appearance: NSAppearance.Name) async throws -> (NSWindow, TimelineScrollView, SessionWindow) {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 1), app: app)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1780, height: 400), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        // The appearance comes before the view enters the window (plan gate 2 item 1).
+        window.appearance = NSAppearance(named: appearance)
+        let view = TimelineScrollView(model: model, studio: studio)
+        view.frame = try #require(window.contentView).bounds
+        window.contentView?.addSubview(view)
+        view.update(laneInputs(model, studio))
+        view.update(laneInputs(model, studio))
+        drawNow(window)
+        return (window, view, model)
+    }
+
+    /// The pixel of the front surface in lane 1, at x 500 pt (past the clips).
+    func lanePixel(_ view: TimelineScrollView) throws -> UInt32? {
+        let scale = try #require(view.lanes.surfaces.shown?.scale)
+        return view.lanes.surfaces.pixel(column: Int(500 * scale), row: Int(50 * scale))
+    }
+
+    @Test func aNewLanesViewInADarkWindowDrawsDarkAtItsFirstDraw() async throws {
+        let (window, view, model) = try await lanes(in: .darkAqua)
+        #expect(view.lanes.draws >= 1)
+        #expect(try lanePixel(view) == 0xFF1E_1F22, "dark at the first draw")
+        window.close()
+        await model.close()
+    }
+
+    @Test func anAppearanceChangeRendersOnceInFull() async throws {
+        let (window, view, model) = try await lanes(in: .aqua)
+        #expect(try lanePixel(view) == 0xFFE8_ECF2, "light lane pixel")
+        let draws = view.lanes.draws
+
+        window.appearance = NSAppearance(named: .darkAqua)
+        drawNow(window)
+        #expect(view.lanes.draws == draws + 1, "one full render")
+        #expect(view.lanes.drawnRect == view.shown.intersection(view.lanes.bounds), "one full render: the rect")
+        #expect(try lanePixel(view) == 0xFF1E_1F22, "dark lane pixel")
+
+        // AppKit also calls it for a change that keeps the palette, so the view compares.
+        window.appearance = NSAppearance(named: .darkAqua)
+        view.lanes.viewDidChangeEffectiveAppearance()
+        drawNow(window)
+        #expect(view.lanes.draws == draws + 1, "no render for the same appearance")
+
+        window.appearance = NSAppearance(named: .aqua)
+        drawNow(window)
+        #expect(view.lanes.draws == draws + 2, "one full render")
+        #expect(try lanePixel(view) == 0xFFE8_ECF2, "light lane pixel")
+
+        // AppKit displays the view at an appearance change; a palette change alone renders too.
+        view.lanes.palette = .dark(accent: 0xFFFF_0000)
+        drawNow(window)
+        #expect(view.lanes.draws == draws + 3, "one full render at a palette change")
+        window.close()
+        await model.close()
+    }
+}

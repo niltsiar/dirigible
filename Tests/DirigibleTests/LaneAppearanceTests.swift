@@ -49,6 +49,33 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 3: the no-change case that the app relies on. The view is dark before it
+    /// enters the window (a dark superview, as a view of an app in Dark Mode is dark from its
+    /// start), so the move into the dark window changes no appearance.
+    @Test func aLanesViewThatIsDarkBeforeTheWindowDrawsDarkAtItsFirstDraw() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 1), app: app)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 1780, height: 400))
+        container.appearance = NSAppearance(named: .darkAqua)
+        let view = TimelineScrollView(model: model, studio: studio)
+        view.frame = container.bounds
+        container.addSubview(view)
+        try #require(view.lanes.window == nil)
+        try #require(view.lanes.effectiveAppearance.name == .darkAqua, "dark before the window")
+        let window = NSWindow(
+            contentRect: container.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = container
+        view.update(laneInputs(model, studio))
+        view.update(laneInputs(model, studio))
+        drawNow(window)
+        #expect(view.lanes.draws >= 1)
+        #expect(try lanePixel(view) == 0xFF1E_1F22, "dark at the first draw with no change at the move")
+        window.close()
+        await model.close()
+    }
+
     @Test func anAppearanceChangeRendersOnceInFull() async throws {
         let (window, view, model) = try await lanes(in: .aqua)
         #expect(try lanePixel(view) == 0xFFE8_ECF2, "light lane pixel")

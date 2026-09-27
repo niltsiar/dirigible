@@ -140,16 +140,25 @@ import Testing
         let ruler = view.ruler
         let left = ruler.convert(NSPoint(x: view.shown.minX, y: 0), from: view.lanes).x
         let corner = ruler.convert(NSRect(x: 0, y: 0, width: left, height: ruler.bounds.height), to: nil)
-        // The window server shows a flushed frame some milliseconds later; no signal tells when.
+        let times = ruler.convert(
+            NSRect(x: left, y: 0, width: ruler.bounds.width - left, height: ruler.bounds.height), to: nil)
+        // The window server shows a flushed frame some milliseconds later; no signal tells when. So
+        // each capture must also show new times over the lanes: a capture of the old frame fails.
         try await Task.sleep(for: .milliseconds(200))
-        let before = try Self.pixels(of: corner, TimelineColorTests.capture(window), window)
+        var image = try TimelineColorTests.capture(window)
+        let before = try Self.pixels(of: corner, image, window)
+        var shownTimes = try Self.pixels(of: times, image, window)
 
         var changed: [String] = []
         for x in [720, 1333.37, 2100.5] {
             view.scroll(toFrame: x * 512)
             drawNow(window)
             try await Task.sleep(for: .milliseconds(200))
-            let after = try Self.pixels(of: corner, TimelineColorTests.capture(window), window)
+            image = try TimelineColorTests.capture(window)
+            let newTimes = try Self.pixels(of: times, image, window)
+            #expect(newTimes != shownTimes, "the capture after the scroll to \(x) pt shows new times")
+            shownTimes = newTimes
+            let after = try Self.pixels(of: corner, image, window)
             let count = zip(before, after).filter { $0 != $1 }.count
             if count > 0 { changed.append("\(count) at \(x) pt") }
         }

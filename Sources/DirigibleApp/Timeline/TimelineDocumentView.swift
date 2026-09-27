@@ -165,10 +165,16 @@ final class TimelineDocumentView: NSView {
         if picked != palette { palette = picked }
     }
 
-    /// AppKit calls it also when the view first takes an appearance: the app in Dark Mode drew dark
-    /// lanes at open with no other pick (run 1b, s2-first-pick).
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
+        pickPalette()
+    }
+
+    /// A view of an app in Dark Mode is dark before it enters its window, so the move gives no
+    /// appearance change (probe Q6). AppKit gave one more call at open in the app, but no
+    /// documentation says so (code gate 2 item 1).
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
         pickPalette()
     }
 

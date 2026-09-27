@@ -328,16 +328,20 @@ import Testing
         let box = geometry.box(of: clip, lane: 1)
         let pixels = OwnedPixels(try #require(laneWindow(inputs, width: 300, scale: 2)))
 
-        pixels.draw { LaneRenderer().draw(inputs, into: $0) }
+        pixels.draw { LaneRenderer().draw(inputs, .light, into: $0) }
 
         let (left, right, top, bottom) = (box.minX * 2, box.maxX * 2, Int(box.minY * 2), Int(box.maxY * 2))
         #expect((left, right) == (187.5, 562.5))
-        #expect(pixels.pixel(Int(left + 1), 300) == LaneColors.clip, "1 px inside the left edge")
-        #expect(pixels.pixel(Int(left - 1), 300) == LaneColors.lane, "1 px outside the left edge")
-        #expect(pixels.pixel(Int(right - 1), 300) == LaneColors.clip, "1 px inside the right edge")
-        #expect(pixels.pixel(Int(right + 1), 300) == LaneColors.lane, "1 px outside the right edge")
-        #expect(pixels.pixel(300, top + 1) == LaneColors.clip && pixels.pixel(300, top - 1) == LaneColors.lane)
-        #expect(pixels.pixel(300, bottom - 1) == LaneColors.clip && pixels.pixel(300, bottom + 1) == LaneColors.lane)
+        #expect(pixels.pixel(Int(left + 1), 300) == LanePalette.light.clip, "1 px inside the left edge")
+        #expect(pixels.pixel(Int(left - 1), 300) == LanePalette.light.lane, "1 px outside the left edge")
+        #expect(pixels.pixel(Int(right - 1), 300) == LanePalette.light.clip, "1 px inside the right edge")
+        #expect(pixels.pixel(Int(right + 1), 300) == LanePalette.light.lane, "1 px outside the right edge")
+        #expect(
+            pixels.pixel(300, top + 1) == LanePalette.light.clip && pixels.pixel(300, top - 1) == LanePalette.light.lane
+        )
+        #expect(
+            pixels.pixel(300, bottom - 1) == LanePalette.light.clip
+                && pixels.pixel(300, bottom + 1) == LanePalette.light.lane)
         let middle = box.minY + 10
         #expect(geometry.hit(box.minX + 0.5, middle, in: session) == .trim(clip, .start, lane: 1))
         #expect(geometry.hit(box.minX - 0.5, middle, in: session) == .range(lane: 1))

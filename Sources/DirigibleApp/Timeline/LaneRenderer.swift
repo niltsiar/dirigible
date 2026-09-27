@@ -1,4 +1,5 @@
 import Accelerate
+import AppKit
 import CoreGraphics
 import DirigibleAudio
 import DirigibleCore
@@ -21,20 +22,22 @@ struct LaneInputs: Equatable {
 }
 
 /// The lane colors as pixels: 0xAARRGGBB in a little-endian word (BGRA in memory).
-enum LaneColors {
-    static let lane: UInt32 = 0xFFE8_ECF2
-    static let clip: UInt32 = 0xFFC4_DAF5
-    static let peak: UInt32 = 0xFF7A_A7E0
-    static let rms: UInt32 = 0xFF1F_4F9E
-    static let missing: UInt32 = 0xFFF4_C4C4
-    static let missingOutline: UInt32 = 0xFFC8_2020
-    static let marker: UInt32 = 0xFFF2_8C1A
-    static let chapter: UInt32 = 0xFF8E_44AD
-    static let inPoint: UInt32 = 0xFF2E_A043
-    static let outPoint: UInt32 = 0xFFE0_3A3A
+struct LanePalette: Equatable {
+    var lane, clip, peak, rms, missing, missingOutline, label, marker, chapter, inPoint, outPoint: UInt32
+
+    static let light = LanePalette(
+        lane: 0xFFE8_ECF2, clip: 0xFFC4_DAF5, peak: 0xFF7A_A7E0, rms: 0xFF1F_4F9E, missing: 0xFFF4_C4C4,
+        missingOutline: 0xFFC8_2020, label: 0xFF26_2626, marker: 0xFFF2_8C1A, chapter: 0xFF8E_44AD,
+        inPoint: 0xFF2E_A043, outPoint: 0xFFE0_3A3A)
 
     /// A pixel under the selection band: half as bright.
-    static func selected(_ pixel: UInt32) -> UInt32 { 0xFF00_0000 | ((pixel >> 1) & 0x007F_7F7F) }
+    func selected(_ pixel: UInt32) -> UInt32 { 0xFF00_0000 | ((pixel >> 1) & 0x007F_7F7F) }
+
+    /// The label color for AppKit text.
+    var labelColor: NSColor {
+        func channel(_ shift: UInt32) -> Double { Double((label >> shift) & 0xFF) / 255 }
+        return NSColor(srgbRed: channel(16), green: channel(8), blue: channel(0), alpha: 1)
+    }
 }
 
 /// Draws the lanes into a caller's pixels (decisions 0017 and 0022, probe D2): a background pattern
@@ -54,7 +57,7 @@ final class LaneRenderer {
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
 
     /// Draws the rect of `region`: the lanes that its rows cross, in its columns.
-    func draw(_ inputs: LaneInputs, into region: borrowing PixelRegion) {
+    func draw(_ inputs: LaneInputs, _ palette: LanePalette, into region: borrowing PixelRegion) {
         let (window, rect) = (region.window, region.rect)
         guard !rect.isEmpty, let geometry = inputs.geometry else { return }
         let (scale, laneRows) = (window.scale, window.laneRows)
@@ -78,7 +81,7 @@ final class LaneRenderer {
             // not one per clip (2,000 clips of 1 or 2 columns took 14 ms at fit zoom).
             var run: Range<Int>?
             func fillRun() {
-                if let run { region.fill(LaneColors.clip, columns: run, rows: rows) }
+                if let run { region.fill(palette.clip, columns: run, rows: rows) }
                 run = nil
             }
             for clip in track.clips.clips(overlapping: visible) {
@@ -86,7 +89,7 @@ final class LaneRenderer {
                 guard !range.isEmpty else { continue }
                 if gap < range.lowerBound {
                     fillRun()
-                    region.fill(LaneColors.lane, columns: gap..<range.lowerBound, rows: rows)
+                    region.fill(palette.lane, columns: gap..<range.lowerBound, rows: rows)
                 }
                 gap = max(gap, range.upperBound)
                 run = (run?.lowerBound ?? range.lowerBound)..<max(run?.upperBound ?? 0, range.upperBound)
@@ -101,14 +104,14 @@ final class LaneRenderer {
                     // The tint goes over the clip color, so the run fills first.
                     fillRun()
                     let tint = max(red, range.lowerBound)..<range.upperBound
-                    region.fill(LaneColors.missing, columns: tint, rows: rows)
+                    region.fill(palette.missing, columns: tint, rows: rows)
                     for row in [rows.lowerBound, rows.upperBound - 1] {
-                        region.fill(LaneColors.missingOutline, columns: tint, rows: row..<row + 1)
+                        region.fill(palette.missingOutline, columns: tint, rows: row..<row + 1)
                     }
                 }
             }
             fillRun()
-            region.fill(LaneColors.lane, columns: gap..<end, rows: rows)
+            region.fill(palette.lane, columns: gap..<end, rows: rows)
         }
         for lane in drawn {
             let track = tracks[lane]
@@ -142,8 +145,8 @@ final class LaneRenderer {
                             // A cache file can hold an RMS over its peak; the span never inverts.
                             let rms = min(height(values[index].rms), peak)
                             // A column span is a strided fill: one call, not one Swift step per pixel.
-                            region.span(LaneColors.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
-                            region.span(LaneColors.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
+                            region.span(palette.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
+                            region.span(palette.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
                             index += 1
                         }
                     }
@@ -157,7 +160,7 @@ final class LaneRenderer {
                     column(selection.range.lowerBound).rounded(.up))..<Int(
                     column(selection.range.upperBound).rounded(.up))
             for lane in drawn where selection.tracks.contains(tracks[lane].id) {
-                region.halve(columns: band, rows: window.rows(of: lane..<lane + 1))
+                region.select(palette, columns: band, rows: window.rows(of: lane..<lane + 1))
             }
         }
         // A line crosses every lane; the region keeps it to the rect.
@@ -166,10 +169,10 @@ final class LaneRenderer {
             region.span(color, column: Int(column(frame).rounded(.down)), rows: window.pixels.rows)
         }
         for marker in inputs.session.markers.values {
-            line(marker.position, marker.kind == .marker ? LaneColors.marker : LaneColors.chapter)
+            line(marker.position, marker.kind == .marker ? palette.marker : palette.chapter)
         }
-        line(inputs.marks.inPoint, LaneColors.inPoint)
-        line(inputs.marks.outPoint, LaneColors.outPoint)
+        line(inputs.marks.inPoint, palette.inPoint)
+        line(inputs.marks.outPoint, palette.outPoint)
     }
 }
 
@@ -214,13 +217,13 @@ struct PixelRegion: ~Copyable {
         for row in rows { memset_pattern4(address(columns.lowerBound, row), &pattern, columns.count * 4) }
     }
 
-    /// The selection band: each pixel half as bright.
-    func halve(columns: Range<Int>, rows: Range<Int>) {
+    /// The selection band: each pixel through `palette.selected`.
+    func select(_ palette: LanePalette, columns: Range<Int>, rows: Range<Int>) {
         let (columns, rows) = (columns.clamped(to: rect.columns), rows.clamped(to: rect.rows))
         guard !columns.isEmpty else { return }
         for row in rows {
             let pixels = address(columns.lowerBound, row)
-            for index in 0..<columns.count { pixels[index] = LaneColors.selected(pixels[index]) }
+            for index in 0..<columns.count { pixels[index] = palette.selected(pixels[index]) }
         }
     }
 

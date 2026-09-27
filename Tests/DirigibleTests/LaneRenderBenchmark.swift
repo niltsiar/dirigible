@@ -47,7 +47,7 @@ struct LaneRenderBenchmark {
             var times: [Duration] = []
             for draw in 0..<120 {
                 let start = ContinuousClock.now
-                pixels[draw % 7].draw { renderer.draw(inputs, into: $0) }
+                pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
                 times.append(ContinuousClock.now - start)
             }
             let p95 = times.sorted()[113]
@@ -82,7 +82,7 @@ struct LaneRenderBenchmark {
         var times: [Duration] = []
         for _ in 0..<20 {
             let start = ContinuousClock.now
-            pixels.draw { TimelineDocumentView.drawLabels(inputs, into: $0) }
+            pixels.draw { TimelineDocumentView.drawLabels(inputs, .light, into: $0) }
             times.append(ContinuousClock.now - start)
         }
         let median = times.sorted()[10]

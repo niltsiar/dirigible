@@ -7,6 +7,7 @@
 - Amended: 2026-09-25. Esc and Deselect All also clear the current marker. The app replaces the system Edit group with its own Cut, Copy, Paste, Delete, and Select All (see 0018).
 - Amended: 2026-09-26. A click on the upper two thirds of a clip or at its edge selects the clip and does not seek. A clip label draws only in a box of 60 pt or more (see 0020).
 - Amended: 2026-09-26, timeline-scroll run: each lane image owns its buffer, and a scroll marks the lanes out of view, so the layer lets their images go. A partial draw also covers the partial draws before it (code gate 1).
+- Amended: 2026-09-27, timeline-layer run: the lanes are one layer of IOSurfaces that the app writes in place, with no `draw(_:)` (see 0022). The owned images, the buffer pool, the scroll marks, and the union of partial draws are gone. The Drawing paragraph below describes the path before this change.
 
 ## Context
 

@@ -97,6 +97,32 @@ import os
         await model.close()
     }
 
+    /// Ui-shell criterion A7: with nothing running, the Stop menu item (Command-period) is off, so
+    /// Command-period reaches the progress sheet and cancels the export.
+    @Test func commandPeriodCancelsTheExportSheet() async throws {
+        let (model, studio, window) = try await window()
+        hold(studio)
+        let (source, target) = (try #require(model.source(of: .session, in: studio)), target)
+        let export = Task { await model.run(source, target, studio) }
+        await until("the progress sheet shows") { window.attachedSheet != nil }
+        let sheet = try #require(window.attachedSheet)
+        #expect(!model.shown.isRunning, "the Stop menu item is on and takes Command-period")
+        let event = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+                windowNumber: sheet.windowNumber, context: nil, characters: ".", charactersIgnoringModifiers: ".",
+                isARepeat: false, keyCode: 47))
+
+        if !sheet.performKeyEquivalent(with: event) { sheet.sendEvent(event) }
+        release.signal()
+        await export.value
+
+        #expect(studio.exportProgress == nil)
+        #expect(!FileManager.default.fileExists(atPath: out.path), "Command-period did not cancel the export")
+        await until("the sheet goes") { window.attachedSheet == nil }
+        await model.close()
+    }
+
     /// Criterion 28: the Record button of the sheet starts a take; the export stops with no file
     /// and no alert, and the sheet goes. The take goes on and gets its clip.
     @Test func recordInTheProgressSheetStartsATake() async throws {

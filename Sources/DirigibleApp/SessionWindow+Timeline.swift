@@ -137,12 +137,23 @@ extension SessionWindow {
     func run(_ command: WindowCommand) {
         switch command {
         case .timeline(let command): run(command)
-        case .transport(let command): Task { await studio?.perform(command) }
-        case .addTrack: addTrack()
-        case .record: Task { await record() }
-        case .stop: Task { await stopOrPause() }
-        case .toggleMonitor: monitoring.toggle()
+        case .transport(let command): transport(command)
+        case .addTrack, .record, .stop, .toggleMonitor:
+            // The menu items of the window actions call this function too.
+            leafCalls?.append("\(command)")
+            switch command {
+            case .addTrack: addTrack()
+            case .record: Task { await record() }
+            case .stop: Task { await stopOrPause() }
+            default: monitoring.toggle()
+            }
         }
+    }
+
+    /// A transport command: the Transport menu and the toolbar come here (decision 0016).
+    func transport(_ command: TransportCommand) {
+        leafCalls?.append("\(command)")
+        Task { await studio?.perform(command) }
     }
 
     /// Stop and Command-period: a take stops and finalizes, else the play stops and keeps the
@@ -153,6 +164,7 @@ extension SessionWindow {
 
     /// Runs a timeline command on this window.
     func run(_ command: TimelineCommand) {
+        leafCalls?.append("\(command)")
         guard let studio else { return }
         switch command {
         case .zoomIn: timelineView?.zoom(by: 0.5)

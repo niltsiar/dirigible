@@ -110,7 +110,7 @@ import UniformTypeIdentifiers
 
     func transport(_ command: TransportCommand, event: NSEvent?, in keyWindow: NSWindow?) {
         if let event, forwardTypingKey(event, in: keyWindow) { return }
-        Task { await key?.studio?.perform(command) }
+        key?.transport(command)
     }
 
     /// The action of each timeline menu item. A key that a text field uses (H, I, O, Backspace,

@@ -10,7 +10,6 @@
 "menu.track.remove" = "Remove Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
-"menu.record.stop" = "Stop";
 "menu.record.retry" = "Retry Finalize";
 "menu.record.leave.unreadable" = "Finish Without Unreadable Audio";
 "menu.unplaced.place" = "Place";
@@ -108,6 +107,7 @@
 
 /* Transport (decision 0016) */
 "menu.transport" = "Transport";
+"menu.transport.stop" = "Stop";
 "menu.transport.play" = "Play or Stop";
 "menu.transport.return" = "Stop and Return";
 "menu.transport.reverse" = "Play Backward";
@@ -190,3 +190,5 @@
 "toolbar.time" = "Playhead";
 "toolbar.zoom.fit" = "Fit";
 "toolbar.export" = "Export";
+"toolbar.tooltip" = "%1$@ (%2$@)";
+"key.space" = "Space";

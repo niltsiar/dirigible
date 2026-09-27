@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import SwiftUI
 
 /// An item of the session toolbar (decision 0023). AppKit saves the customization under the raw
 /// values, so a rename loses the user layout: never rename or reuse one.
@@ -128,18 +129,21 @@ enum WindowCommand: Hashable {
     case transport(TransportCommand)
     case addTrack, record, stop, toggleMonitor
 
-    /// The menu text: the palette label of the toolbar item.
-    var title: L10n {
+    /// The title and the key of the menu item of the command: a lookup in the menu tables, the
+    /// one source of the menus and of the palette label, the tooltip, and the key of the item.
+    var menuItem: (title: L10n, key: KeyboardShortcut) {
         switch self {
-        // Each timeline command of the toolbar is in a menu table (F16).
-        case .timeline(let command): TimelineCommand.titles[command]!
-        case .transport(.seek(.start)): .menuTransportStart
-        case .transport(.seek(.end)): .menuTransportEnd
-        case .transport: .menuTransportPlay
-        case .addTrack: .menuTrackAdd
-        case .record: .menuRecordStart
-        case .stop: .menuRecordStop
-        case .toggleMonitor: .menuRecordMonitor
+        case .timeline(let command):
+            // Each timeline command of the toolbar is in a menu table (F16).
+            let item = TimelineCommand.menuItems[command]!
+            return (item.title, KeyboardShortcut(item.key, modifiers: item.modifiers))
+        case .transport(let command):
+            let item = TransportMenu.groups.joined().first { $0.command == command }!
+            return (item.title, item.key)
+        case .addTrack: return (.menuTrackAdd, MenuKeys.addTrack)
+        case .record: return (.menuRecordStart, MenuKeys.record)
+        case .stop: return (.menuTransportStop, MenuKeys.stop)
+        case .toggleMonitor: return (.menuRecordMonitor, MenuKeys.monitor)
         }
     }
 
@@ -151,10 +155,31 @@ enum WindowCommand: Hashable {
 }
 
 extension TimelineCommand {
-    /// The menu text of each timeline command, from the menu tables.
-    static let titles = Dictionary(
-        (viewItems + pasteboardItems + editItems + markerItems + trackItems + fileItems).map { ($0.command, $0.title) },
+    /// The menu item of each timeline command, from the menu tables.
+    static let menuItems = Dictionary(
+        (viewItems + pasteboardItems + editItems + markerItems + trackItems + fileItems).map { ($0.command, $0) },
         uniquingKeysWith: { first, _ in first })
+}
+
+/// The tooltip of a toolbar item: the menu text and the key, "Record (⌘R)". `format` is the
+/// value of `toolbar.tooltip` in the app language.
+func toolbarTooltip(_ command: WindowCommand, format: String = L10n.toolbarTooltip.text) -> String {
+    String(format: format, locale: .current, command.menuItem.title.text, keyText(command.menuItem.key))
+}
+
+/// A key as a menu shows it: the modifier glyphs, then the key ("⌥⌘N", "⌘.", "⌫").
+func keyText(_ shortcut: KeyboardShortcut) -> String {
+    let glyphs: [(EventModifiers, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
+    let modifiers = glyphs.filter { shortcut.modifiers.contains($0.0) }.map(\.1).joined()
+    let key: String =
+        switch shortcut.key {
+        case .space: L10n.keySpace.text
+        case .delete: "⌫"
+        case .home: "↖"
+        case .end: "↘"
+        default: String(shortcut.key.character).uppercased()
+        }
+    return modifiers + key
 }
 
 /// The values that the chrome loop writes only on a change and SwiftUI reads, so no SwiftUI body
@@ -163,6 +188,9 @@ struct ShownChrome: Equatable {
     /// The record-over warning (decisions 0016, 0017). `ChromeState` is its only owner.
     var recordOver = false
     var playbackStop: PlaybackStop?
+    /// A take or a play runs: the Stop item and the Stop menu item are on. When nothing runs,
+    /// Command-period reaches a sheet (decision 0023).
+    var isRunning = false
 }
 
 /// Everything that the AppKit chrome of a window shows, derived from the window state in one
@@ -192,7 +220,8 @@ struct ChromeState: Equatable {
         if recording { on.insert(.record) }
         if playing { on.insert(.play) }
         if model.monitoring { on.insert(.monitor) }
-        shown = ShownChrome(recordOver: model.showsRecordOver, playbackStop: studio.playbackStop)
+        shown = ShownChrome(
+            recordOver: model.showsRecordOver, playbackStop: studio.playbackStop, isRunning: recording || playing)
     }
 }
 

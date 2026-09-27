@@ -11,6 +11,8 @@ struct DirigibleApp: App {
         Settings { EmptyView() }
             .commands {
                 CommandGroup(replacing: .appSettings) {}
+                // View > Show/Hide Toolbar (Option-Command-T) and Customize Toolbar… (decision 0023).
+                ToolbarCommands()
                 CommandGroup(replacing: .newItem) {
                     Button(L10n.menuFileNew.key) { app.newSession() }.keyboardShortcut(MenuKeys.newSession)
                     Button(L10n.menuFileOpen.key) { app.showOpenPanel() }.keyboardShortcut(MenuKeys.open)
@@ -53,46 +55,41 @@ struct DirigibleApp: App {
                 // No CommandGroup for Undo and Redo: the default items send undo: and redo: along
                 // the responder chain, so a focused text field keeps its typing undo (P12).
                 CommandMenu(L10n.menuTrack.key) {
-                    Button(L10n.menuTrackAdd.key) { app.key?.addTrack() }
-                        .keyboardShortcut(MenuKeys.addTrack)
-                        .disabled(app.key?.canEdit != true)
+                    windowButton(.addTrack).disabled(app.key?.canEdit != true)
                     // Its key is one that a text field uses: never disabled (probe K1).
                     ForEach(TimelineCommand.trackItems, id: \.command) { item in menuButton(item) }
                 }
                 CommandMenu(L10n.menuRecord.key) {
-                    Button(L10n.menuRecordStart.key) { Task { await app.key?.record() } }
-                        .keyboardShortcut(MenuKeys.record).disabled(app.key?.canRecord != true)
-                    Button(L10n.menuRecordStop.key) { Task { await app.key?.stop() } }
-                        .keyboardShortcut(MenuKeys.stop).disabled(app.key?.canStop != true)
+                    windowButton(.record).disabled(app.key?.canRecord != true)
                     Button(L10n.menuRecordRetry.key) { Task { await app.key?.retry() } }
                         .keyboardShortcut(MenuKeys.retry).disabled(app.key?.canRetry != true)
+                    let monitor = WindowCommand.toggleMonitor.menuItem
                     Toggle(
-                        L10n.menuRecordMonitor.key,
-                        isOn: Binding(get: { app.key?.monitoring == true }, set: { app.key?.monitoring = $0 })
-                    ).disabled(app.key?.canMonitor != true)
+                        monitor.title.key,
+                        isOn: Binding(
+                            get: { app.key?.monitoring == true },
+                            set: { if $0 != (app.key?.monitoring == true) { app.key?.run(.toggleMonitor) } })
+                    ).keyboardShortcut(monitor.key).disabled(app.key?.canMonitor != true)
                 }
                 // Plain keys: never disabled, because a disabled item still takes its key (probe
                 // K1). Each action gives a typing key to text or to a panel first.
                 CommandMenu(L10n.menuTransport.key) {
-                    transportButton(.menuTransportPlay, .playStop, MenuKeys.play)
-                    transportButton(.menuTransportReturn, .stopAndReturn, MenuKeys.stopAndReturn)
-                    Divider()
-                    transportButton(.menuTransportReverse, .reverse, MenuKeys.reverse)
-                    transportButton(.menuTransportPause, .pause, MenuKeys.pause)
-                    transportButton(.menuTransportForward, .forward, MenuKeys.forward)
-                    transportButton(.menuTransportSlowReverse, .slowReverse, MenuKeys.slowReverse)
-                    transportButton(.menuTransportSlowForward, .slowForward, MenuKeys.slowForward)
-                    Divider()
-                    transportButton(.menuTransportStart, .seek(.start), MenuKeys.start)
-                    transportButton(.menuTransportEnd, .seek(.end), MenuKeys.end)
-                    transportButton(.menuTransportPrevious, .seek(.previousClip), MenuKeys.previousClip)
-                    transportButton(.menuTransportNext, .seek(.nextClip), MenuKeys.nextClip)
+                    ForEach(TransportMenu.groups.indices, id: \.self) { group in
+                        if group > 0 { Divider() }
+                        ForEach(TransportMenu.groups[group], id: \.command) { item in
+                            Button(item.title.key) { app.transport(item.command) }.keyboardShortcut(item.key)
+                        }
+                        // Stop has Command, so it can be off: then Command-period reaches a sheet.
+                        if group == 0 { windowButton(.stop).disabled(app.key?.shown.isRunning != true) }
+                    }
                 }
             }
     }
 
-    private func transportButton(_ title: L10n, _ command: TransportCommand, _ key: KeyboardShortcut) -> some View {
-        Button(title.key) { app.transport(command) }.keyboardShortcut(key)
+    /// A window action: the toolbar item of the command calls the same `run(_:)` (decision 0023).
+    private func windowButton(_ command: WindowCommand) -> some View {
+        let item = command.menuItem
+        return Button(item.title.key) { app.key?.run(command) }.keyboardShortcut(item.key)
     }
 
     private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {

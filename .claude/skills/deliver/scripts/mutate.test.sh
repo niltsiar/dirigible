@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check that mutate.py tells a killed, a surviving, and an unbuilt mutant apart, counts a kill
-# with --expect only when the test output has the text, applies extra
+# with --expect only when the test output has the text outside a progress line, applies extra
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
 # restores the file, counts a test past --timeout as a kill, and replays a control from its log. Run by `make test-hooks`.
 set -uo pipefail
@@ -51,6 +51,13 @@ expect_text '4:WRONG FAILURE' 'the test fails with another message' 'index out o
 # The expected text in the header of the log (the build command) does not count.
 build="grep -q 'a =' '$file' # index out of range"
 expect_text '4:WRONG FAILURE' 'the expected text is only in the log header' 'index out of range'
+build="grep -q 'a =' '$file'"
+# A test name is in the progress lines of every run (Swift Testing and XCTest), so it is not a reason.
+test="echo '◇ Test foo(bar:) started.'; echo \"Test Case '-[T foo]' started.\"; echo '✔ Test foo(bar:) passed after 0.1 seconds.'; grep -q 'a = 1' '$file' || { echo 'expected a = 1'; exit 1; }"
+expect_text '4:WRONG FAILURE' 'the expected text is only in a progress line' 'foo('
+expect_text '4:WRONG FAILURE' 'the expected text is only in an XCTest progress line' '[T foo]'
+expect_text '0:killed' 'the failure line after the progress lines has the text' 'expected a = 1'
+test="grep -q 'a = 1' '$file' || { echo 'expected a = 1'; exit 1; }"
 
 # --timeout: a test that runs past the limit is killed with its process group and counts as a kill.
 check() {

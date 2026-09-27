@@ -15,7 +15,8 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   BUILD FAILED  the mutant did not build, so it proves nothing (exit 2)
   WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4)
 With --expect, a kill counts only when the output of the test has <text>, for example the
-message of the assertion that the control must break. A crash or a trap also fails the test.
+message of the assertion that the control must break. A progress line (a test started or passed)
+does not count: it names every test of the filter, also on a run where another test fails. A crash or a trap also fails the test.
 With --timeout, a test that runs longer than <seconds> is killed with all its processes, and the
 result is a kill: use it for a mutant that makes the code hang (a display loop), which no wait
 limit inside the test can stop. --replay runs the control of <old log> again from its header
@@ -27,7 +28,7 @@ change. A failed restore exits 3. A control that needs two edits (a guard mutant
 that trips it) is one call with two pairs. Do not nest mutate.py in the test command: the outer
 result line then gives the verdict of the inner script, not of the mutant.
 """
-import ast, hashlib, os, shutil, signal, subprocess, sys
+import ast, hashlib, os, re, shutil, signal, subprocess, sys
 
 args = sys.argv[1:]
 expected = timeout = replay = None
@@ -148,7 +149,12 @@ else:
 if code == 0 and not hung and expected is not None:
     with open(log, errors='replace') as done:
         done.seek(test_start)
-        if expected not in done.read():
+        # A progress line of each run (a test started or passed) names every test in the filter,
+        # so a test name found only there is not a reason for the kill.
+        reasons = [line for line in done.read().splitlines()
+                   if not line.lstrip().startswith(('◇', '✔'))
+                   and not re.match(r"\s*Test (Case|Suite) '.*' (started|passed)", line)]
+        if not any(expected in line for line in reasons):
             result, code = 'WRONG FAILURE', 4
 with open(log, 'a') as out:
     out.write(f'# result: {result}\n')

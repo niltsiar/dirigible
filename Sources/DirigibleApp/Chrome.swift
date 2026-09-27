@@ -321,9 +321,9 @@ func showsLowRecordTime(left: Duration, recording: Bool, shownBefore: Bool) -> B
     return left < (shownBefore ? limit + .seconds(60) : limit)
 }
 
-/// The whole minutes of the low-record-time banner, rounded up: the last minute says 1 min, not
-/// "less than 0 min".
-func lowRecordTimeMinutes(_ left: Duration) -> Int { max(1, Int((left / .seconds(60)).rounded(.up))) }
+/// The N of the banner "Less than N min": the whole minutes left plus one, so the text is true
+/// also at a whole minute and in the last minute (1 min, not 0 min).
+func lowRecordTimeMinutes(_ left: Duration) -> Int { Int(left / .seconds(60)) + 1 }
 
 /// The window subtitle: "48 kHz · Tracks: 3 · Record time: 2 hr, 10 min". No plural form
 /// (0010); Foundation gives the units of the time. `text` gives the value of a key.

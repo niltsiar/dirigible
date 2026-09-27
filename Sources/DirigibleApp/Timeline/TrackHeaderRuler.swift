@@ -76,21 +76,30 @@ final class TrackHeaderRuler: NSRulerView {
         placeRows()
     }
 
+    /// During a drag the rows keep the start width and the ruler clips them: a layout of the rows at
+    /// each event missed the 16 ms budget (0023 fallback 2, run 1b slice 5). They take the width at
+    /// the mouse-up, Esc, a double-click, and an AX step.
     private func placeRows() {
-        let frame = NSRect(x: 0, y: -rows.top, width: width.points, height: rows.height)
+        let frame = NSRect(x: 0, y: -rows.top, width: (drag.start ?? width).points, height: rows.height)
         if host.frame != frame { host.frame = frame }
     }
 
     /// A handle event. A mouse-down first commits the typed track names and ends the text focus,
     /// as a lane mouse-down does, so Esc reaches the window.
     func dragged(_ event: HeaderDragEvent) {
-        if case .down = event, let timeline = scrollView as? TimelineScrollView {
-            timeline.model?.commitNames()
-            window?.makeFirstResponder(timeline.lanes)
-        }
+        if case .down = event { endTextEdit() }
         guard let step = drag.handle(event, width: width) else { return }
         width = step.width
+        placeRows()
         if step.save { save?(width) }
+    }
+
+    /// Commits the typed track names and ends the text focus: a new row width can rebuild the
+    /// name fields of the rows.
+    private func endTextEdit() {
+        guard let timeline = scrollView as? TimelineScrollView else { return }
+        timeline.model?.commitNames()
+        window?.makeFirstResponder(timeline.lanes)
     }
 
     /// Esc: true when a header drag ran and Esc ended it with the start width.
@@ -102,6 +111,7 @@ final class TrackHeaderRuler: NSRulerView {
 
     /// An AX increment or decrement: 20 pt, clamped, saved.
     func step(by points: Double) {
+        endTextEdit()
         width = HeaderWidth(width.points + points)
         save?(width)
     }

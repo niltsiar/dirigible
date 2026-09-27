@@ -10,8 +10,9 @@ import Testing
 
 /// Run 1b criterion H11: one header handle event on the 2 h fixture fits one 60 Hz frame, p95 16 ms
 /// or less with -O (`make bench FILTER=HeaderDragBenchmark`); the debug proxy budget is 100 ms, as
-/// `MouseEventBenchmark`. An event is the drag state, `ruleThickness`, `tile()`, the layout of the
-/// header rows, and the lanes render, timed to the end of `drawNow`. The window has 1440 pt of lanes
+/// `MouseEventBenchmark`. An event is the drag state, `ruleThickness`, `tile()`, the header layout,
+/// and the lanes render, timed to the end of `drawNow`. The rows keep their width during a drag and
+/// lay out at the mouse-up (fallback 2 of 0023), so the mouse-up has the row layout. The window has 1440 pt of lanes
 /// at the 340 pt default, 600 pt high, at scale 2. The case with no rows gives the lanes part.
 @MainActor struct HeaderDragBenchmark {
     /// Widen 340 to 480, narrow 480 to 180, widen 180 to 340, 4 pt a frame: 150 events.
@@ -55,7 +56,8 @@ import Testing
                 let time = try await bench.timed(.leftMouseDragged, width - 3)
                 if event >= 10 { times.append(time) }
                 try #require(Double(view.headers.ruleThickness) == width, "\(bench.zoom): live width \(width)")
-                try #require(Double(view.headers.host.frame.width) == width, "\(bench.zoom): host width \(width)")
+                // Fallback 2 of 0023: the rows keep the start width until the mouse-up.
+                try #require(view.headers.host.frame.width == 340, "\(bench.zoom): the rows keep the start width")
                 if n == 0 {
                     try #require(
                         view.lanes.frame.width >= view.shown.maxX, "\(bench.zoom): the lanes cover the view at \(width)"
@@ -72,6 +74,7 @@ import Testing
             _ = try await bench.timed(.leftMouseDragged, 397)
             // The up only saves (nil in the harness): no render.
             times.append(try await bench.timed(.leftMouseUp, 397, renders: false))
+            try #require(view.headers.host.frame.width == 400, "\(bench.zoom): the rows take the width at the up")
             times.append(try await bench.timed(.leftMouseDown, 397, clicks: 2))
             try #require(view.headers.width == .standard, "\(bench.zoom): double-click")
             times.append(try await bench.timed { _ = view.headers.handle.accessibilityPerformIncrement() })

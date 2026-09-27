@@ -152,6 +152,38 @@ import Testing
         await model.close()
     }
 
+    /// Decision 0023, fallback 2 (run 1b slice 5): the rows keep their width during a drag, the
+    /// ruler clips them, and they take the new width at the mouse-up; Esc gives them the start width.
+    /// The handle follows the ruler width during the drag.
+    @Test func theRowsTakeTheWidthAtTheMouseUp() async throws {
+        let (window, view, model) = try await standalone(width: .standard)
+        try handle(.leftMouseDown, 337, view)
+        try handle(.leftMouseDragged, 417, view)
+        drawNow(window)
+        #expect(Double(view.headers.ruleThickness) == 420, "live width")
+        #expect(view.headers.host.frame.width == 340, "the rows keep the start width during the drag")
+        try handle(.leftMouseDragged, 397, view)
+        drawNow(window)
+        let hit = window.contentView?.superview?.hitTest(
+            view.headers.convert(NSPoint(x: 399.5, y: view.headers.bounds.midY), to: nil))
+        #expect(hit === view.headers.handle, "handle at 399.5 during the drag")
+        try handle(.leftMouseUp, 397, view)
+        drawNow(window)
+        #expect(view.headers.host.frame.width == 400, "the rows take the width at the up")
+        try handle(.leftMouseDown, 397, view)
+        try handle(.leftMouseDragged, 297, view)
+        drawNow(window)
+        // A standalone window has no Esc route (UndoRoutingWindow): the call of its Esc.
+        #expect(view.headers.cancelDrag())
+        drawNow(window)
+        #expect(view.headers.host.frame.width == 400, "the rows take the width at Esc")
+        _ = view.headers.handle.accessibilityPerformIncrement()
+        drawNow(window)
+        #expect(view.headers.host.frame.width == 420, "the rows take the width at an AX step")
+        window.close()
+        await model.close()
+    }
+
     /// Criterion H3: a SwiftUI update during a header drag (Add Track) keeps the drag and the width.
     @Test func anUpdateDuringAHeaderDragKeepsTheDrag() async throws {
         let (model, studio, _, view) = try await openLanes(
@@ -197,6 +229,23 @@ import Testing
         #expect(model.timeline.marks == marks, "the selection stays")
         try handle(.leftMouseUp, 417, view)
         #expect(view.headers.width == .standard, "Esc restores: the up after Esc changes nothing")
+        await model.close()
+    }
+
+    /// An AX step can change the row width, which can rebuild the name fields, so it commits the
+    /// typed names and ends the text focus first, as the handle mouse-down does.
+    @Test func anAXStepCommitsTheTypedNames() async throws {
+        let (model, studio, window, view) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
+        let editor = try await focusName(in: window)
+        editor.selectAll(nil)
+        editor.insertText("Guest", replacementRange: editor.selectedRange())
+        await until("the typed name is a draft") { model.drafts["t1"] == "Guest" }
+
+        _ = view.headers.handle.accessibilityPerformIncrement()
+
+        #expect(studio.session.track("t1")?.name == "Guest", "an AX step commits the names")
+        #expect(window.firstResponder !== editor, "an AX step commits the names: the focus ends")
         await model.close()
     }
 

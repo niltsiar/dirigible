@@ -259,4 +259,6 @@ extension WindowAlert {
 extension SessionWindow {
     /// Counts a run of a SwiftUI body of the window content, for the tests (ui-shell A21).
     func countBody() { bodyRuns += 1 }
+    /// Counts a body run of the record-over overlay that shows the warning, for the tests.
+    func countOverlay() { overlayShows += 1 }
 }

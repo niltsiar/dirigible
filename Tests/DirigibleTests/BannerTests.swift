@@ -280,8 +280,8 @@ struct BannerValueTests {
 
     // MARK: A17, A18
 
-    /// The overlay body runs with the warning in the same wait as the frame check, so the check
-    /// sees the lanes after the overlay shows.
+    /// The frame check comes after a body run of the overlay that shows the warning, so it sees
+    /// the lanes with the overlay. The count is read before the arm, so no run is missed.
     @Test func theRecordOverBannerDoesNotMoveTheLanes() async throws {
         let (model, studio, window, _) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
         await until("the window shows the lanes") { model.timelineView?.window != nil }
@@ -296,13 +296,12 @@ struct BannerValueTests {
             return model.shown.banners.isEmpty && view.frame.height == window.contentLayoutRect.height
         }
         let before = view.convert(view.bounds, to: nil)
+        let shows = model.overlayShows
 
         model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
-        await until(limit: .seconds(5), "the warning shows") { model.shown.recordOver }
-        let bodies = model.bodyRuns
-        await until(limit: .seconds(10), "the overlay body runs") {
+        await until(limit: .seconds(10), "the overlay body shows the warning") {
             window.contentView?.layoutSubtreeIfNeeded()
-            return model.bodyRuns > bodies
+            return model.overlayShows > shows
         }
 
         #expect(model.shown.recordOver)

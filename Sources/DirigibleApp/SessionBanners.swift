@@ -52,7 +52,10 @@ struct RecordOverOverlay: View {
 
     var body: some View {
         let _ = model.countBody()
-        if model.shown.recordOver { BannerRow(kind: .warning, text: L10n.transportRecordOver.text) }
+        if model.shown.recordOver {
+            let _ = model.countOverlay()
+            BannerRow(kind: .warning, text: L10n.transportRecordOver.text)
+        }
     }
 }
 

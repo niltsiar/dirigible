@@ -202,7 +202,7 @@ import Testing
         let surfaces = view.lanes.surfaces.surfaces
         #expect(surfaces.count == 4)
         for surface in surfaces {
-            let tag = IOSurfaceCopyValue(unsafeBitCast(surface, to: IOSurfaceRef.self), kIOSurfaceColorSpace)
+            let tag = IOSurfaceCopyValue(surface, kIOSurfaceColorSpace)
             #expect(tag.map { CFEqual($0, srgb) } == true, "\(String(describing: tag))")
         }
         window.close()

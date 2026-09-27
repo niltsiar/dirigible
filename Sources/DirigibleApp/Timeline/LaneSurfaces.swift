@@ -277,7 +277,7 @@ struct LaneWindow: Equatable {
                 .pixelFormat: kCVPixelFormatType_32BGRA,
             ])
         else { return nil }
-        IOSurfaceSetValue(unsafeBitCast(surface, to: IOSurfaceRef.self), kIOSurfaceColorSpace, srgb)
+        IOSurfaceSetValue(surface, kIOSurfaceColorSpace, srgb)
         return surface
     }
 

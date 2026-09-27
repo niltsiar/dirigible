@@ -202,7 +202,7 @@ import Observation
         return image.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed])) ?? image
     }
 
-    /// The overflow menu item of a push-on item is on when its toolbar item is.
+    /// The overflow menu item of a push-on item is enabled when its toolbar item is.
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let model, let raw = menuItem.identifier?.rawValue, let id = ToolbarItemID(rawValue: raw) else {
             return true

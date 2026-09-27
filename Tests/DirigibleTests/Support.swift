@@ -401,20 +401,3 @@ final class AsyncGate: @unchecked Sendable {
         }
     }
 }
-
-/// The accessibility elements under `root`, depth first: the label, the role, and the frame on
-/// the screen. The tree of a hosting view is in the process (probe P2).
-@MainActor func accessibilityElements(under root: Any) -> [(label: String, role: String, frame: NSRect)] {
-    guard let element = root as? NSAccessibilityProtocol else { return [] }
-    var found: [(label: String, role: String, frame: NSRect)] = []
-    let label = element.accessibilityLabel() ?? ""
-    found.append((label, element.accessibilityRole()?.rawValue ?? "", element.accessibilityFrame()))
-    for child in element.accessibilityChildren() ?? [] { found += accessibilityElements(under: child) }
-    return found
-}
-
-/// True when the screen is locked: the accessibility tree of a window is then empty, so a test
-/// checks the model and leaves the accessibility part to a manual check (screenshot.sh rule).
-func screenIsLocked() -> Bool {
-    (CGSessionCopyCurrentDictionary() as? [String: Any])?["CGSSessionScreenIsLocked"] as? Bool == true
-}

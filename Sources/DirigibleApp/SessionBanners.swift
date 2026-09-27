@@ -21,7 +21,7 @@ struct BannerRow: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay(alignment: .bottom) { Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1) }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: "\(kind.word.text): \(text)"))
+        .accessibilityLabel(Text(verbatim: kind.label(text)))
     }
 }
 

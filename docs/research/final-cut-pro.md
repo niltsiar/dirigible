@@ -181,7 +181,7 @@ Recommendation: Release 2 does (a) with the rules above. Rule 5 then decides whe
 | Follow track (F70), track role (F72), hum removal (F77) | Yes | New track attributes or a stored effect |
 | Connected clips (F71) | Yes | An anchor on a clip, plus new edit rules |
 
-0003 raises the version for each new element or attribute with user data. Release 2 already needs one version change for fades and crossfades. Put all Release 2 schema changes into that one version.
+0003 raises the version for each new element or attribute with user data. The Release 2 rules in `docs/requirements/releases.md` set the version rule: each run that adds user data raises the version, and the writer writes the lowest version that holds the data of the session.
 
 ## 11. Proposed new feature IDs
 

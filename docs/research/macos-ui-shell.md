@@ -174,7 +174,7 @@ Folder: `.scratchpads/runs/2026-09-27-release-2-plan/probe-ui/` (`probe.swift`, 
 - **Three groups** (HIG maximum): transport, edit, view.
 - **Record look.** macOS 14 and 15: the `record.circle` symbol in `systemRed` with a palette or a tint configuration; `record.circle.fill` during a take. macOS 26: `style = .prominent` with `backgroundTintColor = .systemRed`, behind `if #available(macOS 26, *)`. No continuous symbol animation during a take (section 8, rule P5).
 - **Customization.** `allowsUserCustomization = true`, `autosavesConfiguration = true`, a fixed toolbar identifier, and fixed item identifiers (for example `transport.record`). Each item has a `paletteLabel`.
-- **Menu parity.** Each toolbar item is also a menu item with its key. All exist today except Split, Export, and Monitor, which are in the menus already (0018, 0019, 0015).
+- **Menu parity.** Each toolbar item is also a menu item with its key. The menu items exist today (0015, 0018, 0019). Monitor Inputs has no key yet, so the UI shell run adds one.
 
 SF Symbols for the items (year from `name_availability.plist`; all are macOS 14 or older):
 

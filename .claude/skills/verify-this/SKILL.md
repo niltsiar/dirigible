@@ -58,7 +58,7 @@ Each probe run writes to a new folder, named by the commit and a run number. A l
 
 - `VERIFIED`: baseline and treatment differ in the predicted direction, by the claimed threshold, with no obvious confound.
 - `NOT VERIFIED`: the behavior is unchanged, moves the wrong way, or misses the threshold.
-- `INCONCLUSIVE`: no valid baseline, noisy signal, failed measurement, or an environment difference invalidates the comparison. This includes a control that cannot fail on this machine, and a code review with no control.
+- `INCONCLUSIVE`: no valid baseline, noisy signal, failed measurement, or an environment difference invalidates the comparison. This includes a control that cannot fail on this machine, and a code review with no control. A grep or a read of source text is a code review. Prove a file-format claim with the bytes that the old and the new code write for the same input.
 - A claim that depends on an open manual check gets no `VERIFIED (M-n)`. Restate the automated part as a narrower claim and give it its own verdict. The manual part is `INCONCLUSIVE` and names the check. The run summary counts these parts.
 
 ## Output

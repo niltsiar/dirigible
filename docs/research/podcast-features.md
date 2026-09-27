@@ -90,7 +90,7 @@ The Release 2 planning run added these features from Final Cut Pro, Logic Pro, a
 | F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | edit | Logic | 4 | M | R7 | 3 | [LG](logic-garageband-update.md) |
 | F81 | Close gaps between the selected clips | edit | Logic | 3 | S | R7 | 3 | [LG](logic-garageband-update.md) |
 | F82 | Snap to clip edges with an alignment guide | edit | GarageBand, Logic | 4 | S | R7 | 3 | [LG](logic-garageband-update.md) |
-| F83 | Zoom toggle and zoom history | edit | Logic | 3 | S | R7 | 2 | [LG](logic-garageband-update.md) |
+| F83 | Zoom toggle and zoom history | edit | Logic | 3 | S | R1 | 2 | [LG](logic-garageband-update.md) |
 | F84 | Clip inspector with numeric gain and fades | process | Logic | 3 | M | R7 | 2 | [LG](logic-garageband-update.md) |
 | F85 | Width of the track headers; height of one track | edit | Logic | 2 | S | R1 | 2 (header width), Later (height of one track) | [LG](logic-garageband-update.md) |
 | F86 | Help tags that show the key equivalent | project | Logic | 2 | S | R1 | Later | [LG](logic-garageband-update.md) |

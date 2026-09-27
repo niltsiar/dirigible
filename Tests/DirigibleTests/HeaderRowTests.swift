@@ -47,7 +47,8 @@ import Testing
         var found: [(String, NSRect, NSView)] = []
         if name.hasPrefix("PlatformViewHost") {
             let kind =
-                name.contains("Checkbox") ? "arm" : name.contains("TextField") ? "name" : "route"
+                name.contains("Checkbox")
+                ? "arm" : name.contains("TextField") ? "name" : name.contains("Progress") ? "meter" : "route"
             found.append((kind, view.convert(view.bounds, to: root), view))
         }
         return found + view.subviews.flatMap { controls($0, in: root) }
@@ -55,13 +56,53 @@ import Testing
 
     @Test func aRowUnder56PointsShowsOneLine() async throws {
         let (model, studio) = try await model()
+        // The route control is on the line of the name at 55 pt and under it at 56 pt.
+        func routeUnderName(_ host: NSView) -> [Bool] {
+            let found = controls(host, in: host)
+            let names = found.filter { $0.kind == "name" }.map(\.frame)
+            let routes = found.filter { $0.kind == "route" }.map(\.frame)
+            return zip(names, routes).map { $1.midY > $0.maxY }
+        }
         let (short, low) = rows(model, studio, laneHeight: 55, width: 340)
-        #expect(controls(low, in: low).filter { $0.kind == "route" }.count == 0, "one line at 55")
-        #expect(controls(low, in: low).filter { $0.kind == "name" }.count == 2, "one line at 55: the names show")
+        #expect(routeUnderName(low) == [false, false], "one line at 55")
         let (tall, high) = rows(model, studio, laneHeight: 56, width: 340)
-        #expect(controls(high, in: high).filter { $0.kind == "route" }.count == 2, "two lines at 56")
+        #expect(routeUnderName(high) == [true, true], "two lines at 56")
         short.close()
         tall.close()
+        await model.close()
+    }
+
+    /// Code gate 1 item 4: a lane under 56 pt still shows a route control and the live state of a
+    /// take on its one line: a red state symbol for a lost device (a capture of the rows: the
+    /// symbol is SwiftUI drawing), and no red in a row with no state.
+    @Test func aOneLineRowShowsTheRouteAndTheState() async throws {
+        let (model, studio) = try await model()
+        studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
+        for width in [180.0, 340] {
+            let (window, host) = rows(model, studio, laneHeight: 50, width: width)
+            let found = controls(host, in: host)
+            #expect(found.filter { $0.kind == "route" }.count == 2, "a route control in each row at \(width)")
+            for control in found {
+                #expect(
+                    control.frame.minX >= 8 && control.frame.maxX <= width - 8,
+                    "inside the one-line row at \(width): \(control.kind) \(control.frame)")
+            }
+            // A capture of the window: a snapshot does not draw the SwiftUI symbol.
+            window.orderFront(nil)
+            drawNow(window)
+            try await Task.sleep(for: .milliseconds(200))
+            let capture = try TimelineColorTests.capture(window)
+            func red(_ lane: Int) throws -> Int {
+                let rect = host.convert(NSRect(x: 0, y: Double(lane) * 50, width: width, height: 50), to: nil)
+                return try TimelineRulerTests.pixels(of: rect, capture, window).filter { pixel in
+                    let (r, g, b) = (pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)
+                    return r > 180 && g < 90 && b < 90
+                }.count
+            }
+            #expect(try red(0) > 10, "the state symbol shows in the row of the lost device at \(width)")
+            #expect(try red(1) == 0, "no state symbol in a row with no state at \(width)")
+            window.close()
+        }
         await model.close()
     }
 

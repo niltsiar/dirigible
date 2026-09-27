@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-27
 - Accepted: 2026-09-27, after plan gate 1 of the timeline-layer run. The gate added the rule that the renderer writes only inside its rect (also the selection band), a fixed capacity per slot shown through `contentsRect`, the label context clipped to the drawn rect, the process footprint in probe P3, the pointer private to `PixelRegion`, two counters in place of a write log, and one point-to-pixel mapping in `LaneWindow`.
+- Changed: 2026-09-27, by run 1b slice 1 (decision 0023, "Surface capacity"): the capacity columns are ceil(max(clip view width, view width) x scale) + 1. The clip view width has the part under the track headers, so a header drag keeps the 4 slots and renders only the new columns. The memory bound is 4 x the capacity bytes at the clip view width: about 81 MB at 1780 x 600 pt (1440 pt of lanes, a 340 pt header), 100 pt lanes, scale 2, about 24 % more.
 - Amends: 0017 (the Drawing paragraph), 0020 (the Budget paragraph and the dirty-rect consequence).
 
 ## Context

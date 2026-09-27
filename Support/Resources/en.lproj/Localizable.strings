@@ -136,6 +136,7 @@
 
 /* Timeline (decision 0017) */
 "timeline.accessibility" = "Timeline";
+"timeline.header.handle" = "Track header width";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Zoom In";

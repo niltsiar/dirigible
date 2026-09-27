@@ -30,8 +30,9 @@ struct PixelRect: Equatable {
 }
 
 /// The size of each surface for one view size, backing scale, and lane height (plan gate 1 item 2):
-/// ceil(view width x scale) + 1 columns, and (the lanes that fit in the view height + 1) x the lane
-/// rows. A scroll by a fraction of a point or across a lane edge keeps it, so it makes no surface.
+/// ceil(max(clip view width, view width) x scale) + 1 columns, and (the lanes that fit in the view
+/// height + 1) x the lane rows. A header drag changes the view width and keeps the clip view width,
+/// so it keeps the capacity (decision 0023, "Surface capacity"). A scroll by a fraction of a point or across a lane edge keeps it, so it makes no surface.
 struct SurfaceCapacity: Equatable {
     let columns: Int
     let rows: Int
@@ -50,8 +51,9 @@ struct LaneWindow: Equatable {
     let capacity: SurfaceCapacity
 
     /// Nil when nothing is in view. `view` is the part of the lanes in view, in document points;
-    /// `bounds` is the document. `lanes` is the track count.
-    init?(view: CGRect, bounds: CGRect, laneHeight: Double, lanes: Int, scale: Double) {
+    /// `bounds` is the document. `lanes` is the track count. `room` is the width of the clip view,
+    /// with the part under the track headers.
+    init?(view: CGRect, bounds: CGRect, laneHeight: Double, lanes: Int, scale: Double, room: Double) {
         let shown = view.intersection(bounds)
         guard scale > 0, laneHeight > 0, lanes > 0, !shown.isNull, shown.width > 0, shown.height > 0 else { return nil }
         self.scale = scale
@@ -64,7 +66,7 @@ struct LaneWindow: Equatable {
         guard !inView.isEmpty else { return nil }
         pixels = PixelRect(columns: columns, rows: inView.lowerBound * laneRows..<inView.upperBound * laneRows)
         capacity = SurfaceCapacity(
-            columns: Int((view.width * scale).rounded(.up)) + 1,
+            columns: Int((max(room, view.width) * scale).rounded(.up)) + 1,
             rows: (Int((view.height / laneHeight).rounded(.up)) + 1) * laneRows, scale: scale, laneRows: laneRows)
     }
 

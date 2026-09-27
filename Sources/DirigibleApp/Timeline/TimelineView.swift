@@ -52,11 +52,13 @@ final class TimelineScrollView: NSScrollView {
     /// The one gesture of the lanes.
     private var gesture = TimelineGesture()
 
-    init(model: SessionWindow, studio: Studio) {
+    /// `headerWidth` is the width of the track headers at open.
+    init(model: SessionWindow, studio: Studio, headerWidth: HeaderWidth = .standard) {
         self.model = model
         self.studio = studio
         ruler = TimelineRuler(model: model)
         super.init(frame: .zero)
+        headers.width = headerWidth
         hasHorizontalScroller = true
         hasVerticalScroller = true
         backgroundColor = .windowBackgroundColor
@@ -160,8 +162,10 @@ final class TimelineScrollView: NSScrollView {
     }
 
     override func tile() {
+        // The document point at the top left of the lanes in view, before AppKit moves the bounds.
+        let kept = shown.origin
         super.tile()
-        keepShownOrigin()
+        keepShownOrigin(kept)
         lanes.resize()
         fitOnce()
         viewMoved()
@@ -178,13 +182,12 @@ final class TimelineScrollView: NSScrollView {
     private var shownLeft: CGFloat?
 
     /// The clip view gets the ruler insets at a tile, after the first fit can scroll. A change of
-    /// the insets moves the bounds by the same amount, so the lanes in view start where they did.
-    private func keepShownOrigin() {
+    /// the insets puts `kept` back at the top left of the lanes in view. A smaller inset makes
+    /// AppKit clamp the bounds at the leading edge first, so a shift by the change moved the lanes.
+    private func keepShownOrigin(_ kept: NSPoint) {
         let new = contentView.contentInsets
         guard new.left != insets.left || new.top != insets.top else { return }
-        let bounds = contentView.bounds
-        contentView.scroll(
-            to: NSPoint(x: bounds.minX - (new.left - insets.left), y: bounds.minY - (new.top - insets.top)))
+        contentView.scroll(to: NSPoint(x: kept.x - new.left, y: kept.y - new.top))
         insets = new
     }
 

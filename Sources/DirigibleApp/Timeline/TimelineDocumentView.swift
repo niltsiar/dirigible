@@ -117,13 +117,15 @@ final class TimelineDocumentView: NSView {
         didSet { if oldValue, !holdsWidth { resize() } }
     }
 
-    /// As wide as max(end, 10 s) + 2% at the zoom, and at least as wide as the lanes in view.
+    /// As wide as max(end, 10 s) + 2% at the zoom, rounded to whole points (the 2% holds the half
+    /// point, and a fit stays one view wide), and at least as wide as the lanes in view. A part of a point let AppKit move the clip bounds by 1 pt when a wider header
+    /// shrank the lanes (run 1b slice 1): the lanes in view moved and did not reach the right edge.
     func resize() {
         guard let inputs else { return }
         let session = inputs.session
         let end = Double(max(session.end.count, 10 * session.sampleRate)) * 1.02
         let shown = (enclosingScrollView as? TimelineScrollView)?.shown.width ?? 0
-        let width = holdsWidth ? frame.width : max(end / inputs.scale.framesPerPoint, Double(shown))
+        let width = holdsWidth ? frame.width : max((end / inputs.scale.framesPerPoint).rounded(), Double(shown))
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.bounds = CGRect(x: 0, y: 0, width: 1, height: height)
@@ -153,7 +155,8 @@ final class TimelineDocumentView: NSView {
         guard let inputs,
             let lanes = LaneWindow(
                 view: scrollView?.shown ?? visibleRect, bounds: bounds, laneHeight: inputs.laneHeight,
-                lanes: inputs.session.tracks.count, scale: Double(window?.backingScaleFactor ?? 2))
+                lanes: inputs.session.tracks.count, scale: Double(window?.backingScaleFactor ?? 2),
+                room: Double(scrollView?.contentView.bounds.width ?? 0))
         else { return }
         let started = ContinuousClock.now
         let dirty = pending

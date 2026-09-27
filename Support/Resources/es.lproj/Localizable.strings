@@ -136,6 +136,7 @@
 
 /* Línea de tiempo (decisión 0017) */
 "timeline.accessibility" = "Línea de tiempo";
+"timeline.header.handle" = "Ancho de las cabeceras";
 
 /* Elementos de Visualización y Edición de la línea de tiempo (decisión 0017) */
 "menu.view.zoom.in" = "Acercar";

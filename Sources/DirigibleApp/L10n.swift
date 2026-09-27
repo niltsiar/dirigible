@@ -104,6 +104,7 @@ enum L10n: String, CaseIterable {
     case chapterDefaultName = "chapter.default.name"
     case trackName = "track.name"
     case trackArm = "track.arm"
+    case headerHandle = "timeline.header.handle"
     case trackLayoutMono = "track.layout.mono"
     case trackLayoutStereo = "track.layout.stereo"
     case trackRoute = "track.route"

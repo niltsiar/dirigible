@@ -59,9 +59,6 @@ final class TimelineScrollView: NSScrollView {
         super.init(frame: .zero)
         hasHorizontalScroller = true
         hasVerticalScroller = true
-        // An overlay scroller shows only during a scroll, so the user found no way to scroll the
-        // lanes (timeline-scroll symptom 3). The legacy style shows it at all times.
-        scrollerStyle = .legacy
         backgroundColor = .windowBackgroundColor
         documentView = lanes
         ruler.scrollView = self

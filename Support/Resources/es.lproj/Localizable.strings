@@ -74,7 +74,8 @@
 
 /* Tracks and takes */
 "alert.microphone.settings" = "Abrir los ajustes de privacidad";
-"track.none" = "No hay pistas. Usa Pista > Añadir pista.";
+"empty.title" = "No hay pistas";
+"empty.steps" = "Añade una pista para cada voz, elige su entrada y pulsa Grabar.";
 "track.default.name" = "Pista %lld";
 "track.name" = "Nombre";
 "track.arm" = "Armar";
@@ -82,6 +83,7 @@
 "track.layout.stereo" = "Estéreo";
 "track.route" = "%1$@, %2$@";
 "track.route.none" = "Sin entrada";
+"track.route.choose" = "Elegir entrada…";
 "track.route.channel" = "Canal %lld";
 "track.route.channels" = "Canales %1$lld y %2$lld";
 "track.route.missing" = "Dispositivo no conectado";

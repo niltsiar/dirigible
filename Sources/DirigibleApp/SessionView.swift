@@ -72,8 +72,14 @@ struct SessionView: View {
                 TakeBanner(model: model, studio: studio)
                 WindowBanners(model: model)
                 if studio.session.tracks.isEmpty {
-                    Text(L10n.trackNone.key).foregroundStyle(.secondary).frame(
-                        maxWidth: .infinity, maxHeight: .infinity)
+                    // The first action has its button (ux-decisions 14).
+                    ContentUnavailableView {
+                        Label(L10n.emptyTitle.key, systemImage: "waveform")
+                    } description: {
+                        Text(L10n.emptySteps.key)
+                    } actions: {
+                        Button(L10n.menuTrackAdd.key) { model.run(.addTrack) }.disabled(!model.canEdit)
+                    }
                 } else {
                     // An overlay, not a row: the lanes do not move when it shows or goes.
                     TimelinePane(model: model, studio: studio).overlay(alignment: .top) {
@@ -182,7 +188,8 @@ private struct TrackRow: View {
     }
 
     private var routeText: String {
-        guard let route = track.route else { return L10n.trackRouteNone.text }
+        // "No Input" reads as a state; the label asks for the action. The item stays "No Input".
+        guard let route = track.route else { return L10n.trackRouteChoose.text }
         return L10n.trackRoute.format(routeLabel(route: route, devices: model.devices), channelsText(route.channels))
     }
 }

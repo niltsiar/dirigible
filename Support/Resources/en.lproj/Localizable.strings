@@ -74,7 +74,8 @@
 
 /* Tracks and takes */
 "alert.microphone.settings" = "Open Privacy Settings";
-"track.none" = "No tracks. Use Track > Add Track.";
+"empty.title" = "No Tracks";
+"empty.steps" = "Add a track for each voice, choose its input, then press Record.";
 "track.default.name" = "Track %lld";
 "track.name" = "Name";
 "track.arm" = "Arm";
@@ -82,6 +83,7 @@
 "track.layout.stereo" = "Stereo";
 "track.route" = "%1$@, %2$@";
 "track.route.none" = "No Input";
+"track.route.choose" = "Choose Input…";
 "track.route.channel" = "Channel %lld";
 "track.route.channels" = "Channels %1$lld and %2$lld";
 "track.route.missing" = "Device not connected";

@@ -279,6 +279,9 @@ enum WindowBanner: Equatable {
             case .info, .recording: .bannerKindInfo
             }
         }
+
+        /// The accessibility label of a row: the kind word first, then the text.
+        func label(_ text: String) -> String { "\(word.text): \(text)" }
     }
 
     /// The case with no value: a new banner of a kind that shows already is not new.

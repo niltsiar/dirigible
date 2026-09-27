@@ -39,7 +39,7 @@
 "error.file.internal" = "An internal error stopped the save. The last saved file stays.";
 "error.file.moved" = "The session moved to another disk or was deleted. Nothing was saved.";
 "error.file.exists" = "An item with this name exists. Select a different name.";
-"error.finalize.read" = "The recorded audio in %1$@ cannot be read (error %2$lld).";
+"error.finalize.read" = "The file %1$@ of the take cannot be read (error %2$lld). The recorded audio stays in Capture/.";
 "error.finalize.unreadable" = "The disk cannot read the recorded audio in %1$@ (error %2$lld).";
 "error.finalize.write" = "The clip %1$@ cannot be written (error %2$lld).";
 "error.segment.not.unplaced" = "The audio %@ is on the timeline already, or it is not available.";

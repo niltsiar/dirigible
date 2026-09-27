@@ -24,9 +24,10 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
     }
 }
 
-/// Takes the package lock (decision 0012), removes the leftover temporary files of a crashed
-/// save, reads the package, refuses one whose `session.xml` holds `<recording>` (decision 0004),
-/// applies `body`, and saves. The lock is held until the save ends. The package does not change
+/// Takes the package lock (decision 0012), reads the package, removes the leftover temporary
+/// files of a crashed save (after the read, so a newer package does not change: decision 0024
+/// P4), refuses one whose `session.xml` holds `<recording>` (decision 0004), applies `body`, and
+/// saves. The lock is held until the save ends. The package does not change
 /// when the lock, the read, the refusal, the edit, or the save fails. Writes one error line to
 /// stderr and throws the exit code.
 func editPackage<Result>(
@@ -34,8 +35,7 @@ func editPackage<Result>(
 ) throws(ExitCode) -> Result {
     let locked = { (error: SessionFileError) in fail(error.message(package: package.path), code: packageError) }
     return try PackageLock.withLock(package.url, locked: locked) { lock throws(ExitCode) -> Result in
-        Session.removeTemporaryFiles(in: package.url)
-        return try editLocked(package, lock, body)
+        try editLocked(package, lock, body)
     }
 }
 
@@ -43,6 +43,7 @@ private func editLocked<Result>(
     _ package: PackageArgument, _ lock: PackageLock, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
     var session = try readPackage(package)
+    Session.removeTemporaryFiles(in: package.url)
     guard session.recording == nil else {
         throw fail(
             "\(package.path) has a take that is not finalized; open it in Dirigible first.", code: packageError)
@@ -125,7 +126,9 @@ extension SessionFileError {
         let file = "\(package)/session.xml"
         return switch self {
         case .malformedXML: "\(file) is not a Dirigible session file."
-        case .unsupportedVersion(let version): "\(file) has version \(version). This build reads version 1 or lower."
+        case .unsupportedVersion(let version):
+            "\(file) was made by a newer version of Dirigible (session version \(version)). This build reads version 1 "
+                + "or lower."
         case .invalidChannelCount(let count): "\(file) has a file with \(count) channels."
         case .missingAttribute(let element, let attribute):
             "\(file) has a \(element) element with no \(attribute) attribute."

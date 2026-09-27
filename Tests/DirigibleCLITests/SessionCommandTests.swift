@@ -54,7 +54,8 @@ struct SessionCommandTests {
             try dirigible("info", package.path)
                 == CLIResult(
                     status: 2, stdout: "",
-                    stderr: "Error: \(package.path)/session.xml has version 2. This build reads version 1 or lower.\n"))
+                    stderr: "Error: \(package.path)/session.xml was made by a newer version of Dirigible (session "
+                        + "version 2). This build reads version 1 or lower.\n"))
     }
 
     @Test func unknownSubcommandIsAUsageError() throws {

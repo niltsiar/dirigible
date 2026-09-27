@@ -6,6 +6,7 @@
 - Amended: 2026-09-24. The media check runs at open, after each finalize, at each play start, and at window focus. A pool file is `.missing`, `.short(frames)`, or `.unreadable`. The package does not save the playhead (see 0016).
 - Amended: 2026-09-25. A pasted clip gets the first free ID of `<source id>@<start>`. A nudged clip keeps its ID (see 0018).
 - Amended: 2026-09-25. Before an export, the question lists only the files that the range reads on the chosen tracks. After it, the report names each file that rendered as silence (see 0019).
+- Amended: 2026-09-27. The version policy of every file format is in 0024. A package whose `session.xml` has a newer version does not change: the sweep of leftover temporary files runs after the version check (see 0024).
 
 ## Context
 
@@ -42,7 +43,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 - IDs, names, paths, and device fields hold no control characters and no U+FFFE or U+FFFF. XML 1.0 cannot hold most of them, and it reads tab, LF, and CR in an attribute back as spaces. The edits refuse such text.
 - The reader refuses a root element outside the session namespace, and two markers with one ID. It matches elements by local name and namespace, so a prefixed file reads too.
 - Undo and redo keep the current `<recording>`. It records a take on the disk, not an edit. An edit that changes only `<recording>` makes no undo entry, and an undo that would remove an armed track throws.
-- The reader refuses a version higher than it knows, with a clear error. Each new element or attribute that carries user data raises the version. An old app that skips an unknown element and saves would delete that data.
+- The reader refuses a version higher than it knows, with a clear error. Each new element or attribute that carries user data raises the version. An old app that skips an unknown element and saves would delete that data. The version policy of every file format is 0024.
 - The XML code is in `DirigibleCore` (0002), with `XMLDocument` for writing and reading.
 
 **Interchange.** The first export for other editors is the AES31-3 ADL: sample-accurate, audio-first, and a small plain-text writer. FCPXML and OTIO can follow. A best-effort `.nhsx` import comes later.

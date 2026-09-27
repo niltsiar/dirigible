@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-09-26. The finalize that ends a take writes the take anchor file `Capture/take<n>.anchor`. The per-segment finalize writes each WAV through a temporary name and never overwrites a pool file with a stem path (the WAV guard). A read errno on the CAF or the sidecar of one segment is `FinalizeError.segmentUnreadable`: it keeps the take pending, as before, unless the user chooses to finish without unreadable audio. A command places one unplaced segment through the per-segment finalize (see 0021).
+- Amended: 2026-09-27. The sidecar magic is a 7-byte prefix and a version digit. A newer sidecar is not a bad sidecar: its segment stays unplaced with a newer-version fault, and the take ends. The next take number counts every file name that starts with `take<n>` (see 0024).
 
 ## Context
 
@@ -29,7 +30,7 @@ Local probes on 2026-09-24 (`.scratchpads/runs/2026-09-24-capture-finalize/probe
 - The stem is `take<take>-<arm>-<segment>`. `<arm>` is the 1-based index of the track in `<recording>` (the order of the `<arm>` elements). `<segment>` counts from 1 for each device. Each part is a decimal integer.
 - The capture ID, the file ID, and the clip ID of a segment are its stem.
 - Each part of a stem has 1 to 9 digits and no leading zero, so a name has one spelling and no part overflows. File names match `^take([1-9][0-9]{0,8})-([1-9][0-9]{0,8})-([1-9][0-9]{0,8})\.(caf|sidecar|wav)$`.
-- The next take number is 1 plus the highest take number in: the matching names in `Capture/` and `Clips/`, the capture, file, and clip IDs of `session.xml` whose part before the first `@` is a stem, and the take of `<recording>`. Other names and IDs do not count. So a take number is never reused, also after a user empties a folder. `Session.setRecording` refuses a take number outside 1 to 999,999,999 (`SessionError.takeOutOfRange`), so the reader refuses it too. When the highest take number in the package is 999,999,999, the start of a take throws and changes nothing.
+- The next take number is 1 plus the highest take number in: the names in `Capture/` and `Clips/` that start with `take<n>` and then a byte that is not a digit (0024 P10), the capture, file, and clip IDs of `session.xml` whose part before the first `@` is a stem, and the take of `<recording>`. Other names and IDs do not count. So a take number is never reused, also after a user empties a folder. `Session.setRecording` refuses a take number outside 1 to 999,999,999 (`SessionError.takeOutOfRange`), so the reader refuses it too. When the highest take number in the package is 999,999,999, the start of a take throws and changes nothing.
 - A clip file over 4 GiB is RF64 (EBU Tech 3306). The writer is `ExtAudioFile` and sets the RF64 file type on every clip; under 4 GiB the file is a plain RIFF WAV. A write or dispose status other than noErr is a WAV that cannot be written or closed. The name stays `<stem>.wav`.
 - `recovery-attempt` is the marker of 0004, in the package root. It is not flushed: it guards against a crash loop of the process, and a process crash keeps the page cache.
 
@@ -38,7 +39,7 @@ Local probes on 2026-09-24 (`.scratchpads/runs/2026-09-24-capture-finalize/probe
 - Kind 1, the header, is the first record only: first sample time (Float64), first host time in nanoseconds (UInt64), nominal rate (Float64), latency in device frames (Int32), channel count (UInt8), device UID and device name (each a UInt16 length and UTF-8), and the available nominal rates (a UInt16 count and a min and max Float64 for each).
 - Kind 2, a checkpoint, is 24 bytes: file frame (Int64), sample time (Float64), host time in nanoseconds (UInt64).
 - The writer writes and flushes the magic and the header before the first CAF frame.
-- The reader refuses the sidecar when the magic, the version, or the header is bad. It keeps the checkpoints up to the first record that is short, has a bad hash, has a value that is not finite, or goes back in file frame or host time. It drops that record and every record after it.
+- The reader refuses the sidecar when the magic, the version, or the header is bad. A newer version is not bad: the segment stays unplaced with a newer-version fault, and the take ends (0024). It keeps the checkpoints up to the first record that is short, has a bad hash, has a value that is not finite, or goes back in file frame or host time. It drops that record and every record after it.
 - A segment whose CAF has frames but whose sidecar is missing or refused is not placed. Its files stay.
 
 **Finalize faults.** Finalize places each segment on its own: it adds the capture, the file, and the clip of a segment only when all three succeed.

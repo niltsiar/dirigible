@@ -132,6 +132,25 @@ enum TimelineCommand: Hashable {
 }
 
 extension SessionWindow {
+    /// The toolbar entry (decision 0023): each command goes to the place that its menu item
+    /// reaches.
+    func run(_ command: WindowCommand) {
+        switch command {
+        case .timeline(let command): run(command)
+        case .transport(let command): Task { await studio?.perform(command) }
+        case .addTrack: addTrack()
+        case .record: Task { await record() }
+        case .stop: Task { await stopOrPause() }
+        case .toggleMonitor: monitoring.toggle()
+        }
+    }
+
+    /// Stop and Command-period: a take stops and finalizes, else the play stops and keeps the
+    /// playhead (decision 0023).
+    func stopOrPause() async {
+        if canStop { await stop() } else { await studio?.perform(.pause) }
+    }
+
     /// Runs a timeline command on this window.
     func run(_ command: TimelineCommand) {
         guard let studio else { return }

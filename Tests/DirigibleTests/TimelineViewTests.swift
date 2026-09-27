@@ -143,16 +143,19 @@ import Testing
         return view.subviews.lazy.compactMap { self.nameField(name, in: $0) }.first
     }
 
-    /// Code gate 1 item 1: 7 tracks do not fit the default window. After a vertical scroll to
+    /// More tracks than fit the default window of 720 pt: 20 lanes of at least 40 pt.
+    static let tracksThatDoNotFit = 20
+
+    /// Code gate 1 item 1: the tracks do not fit the default window. After a vertical scroll to
     /// each lane, the header of its track (the name field, on the line of the arm toggle) is
     /// beside the lane and in view. A wheel over a header scrolls the lanes and the headers.
     @Test func eachTrackHeaderScrollsWithItsLane() async throws {
-        let (window, _, view) = try await openWindow(tracks: 7)
+        let (window, _, view) = try await openWindow(tracks: Self.tracksThatDoNotFit)
         let content = try #require(window.window?.contentView)
         let height = try #require(view.lanes.inputs).laneHeight
-        #expect(view.lanes.frame.height > view.shown.height, "7 lanes fit the default window")
+        #expect(view.lanes.frame.height > view.shown.height, "the lanes fit the default window")
 
-        for lane in 0..<7 {
+        for lane in 0..<Self.tracksThatDoNotFit {
             view.lanes.scrollToVisible(
                 NSRect(x: view.shown.minX, y: Double(lane) * height, width: 1, height: height))
             content.layoutSubtreeIfNeeded()
@@ -168,7 +171,7 @@ import Testing
         let wheel = try #require(
             CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: 5, wheel2: 0, wheel3: 0)
                 .flatMap { NSEvent(cgEvent: $0) })
-        try #require(nameField("T7", in: content)).scrollWheel(with: wheel)
+        try #require(nameField("T\(Self.tracksThatDoNotFit)", in: content)).scrollWheel(with: wheel)
         // The scroll view animates a wheel scroll.
         await until("a wheel over the headers scrolls up") { view.contentView.bounds.minY < bottom }
         await window.close()
@@ -192,7 +195,7 @@ import Testing
     /// frame 0 at the top left of the lanes in view, not under the rulers. The clip view gets the
     /// ruler insets after the first fit.
     @Test func aNewWindowShowsTheStartOfLaneOne() async throws {
-        let (window, _, view) = try await openWindow(tracks: 7)
+        let (window, _, view) = try await openWindow(tracks: Self.tracksThatDoNotFit)
 
         #expect(view.shown.minY == 0 && view.shown.minX == 0, "\(view.shown)")
         await window.close()
@@ -201,7 +204,7 @@ import Testing
     /// Code gate 1 item 1: the record-over warning reads the lanes in view after a vertical
     /// scroll, and a zoom (a page turn) keeps the vertical origin.
     @Test func theWarningSeesAnArmedLaneScrolledAboveTheView() async throws {
-        let (window, studio, view) = try await openWindow(tracks: 7)
+        let (window, studio, view) = try await openWindow(tracks: Self.tracksThatDoNotFit)
         await studio.perform(.seek(.frame(100_000)))
         window.armed = ["t1"]
         let insets = view.contentView.contentInsets
@@ -214,8 +217,8 @@ import Testing
         let top = view.contentView.bounds.minY
         #expect(view.shown.minY > 10, "the lanes scroll down")
         #expect(window.showsRecordOver, "lane 1 is above the view")
-        window.armed = ["t7"]
-        #expect(!window.showsRecordOver, "lane 7 is in view")
+        window.armed = [TrackID("t\(Self.tracksThatDoNotFit)")]
+        #expect(!window.showsRecordOver, "the last lane is in view")
         window.run(.zoomIn)
         #expect(view.contentView.bounds.minY == top, "a zoom keeps the vertical origin")
         await window.close()

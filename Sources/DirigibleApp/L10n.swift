@@ -140,6 +140,10 @@ enum L10n: String, CaseIterable {
     case transportStopNoDescriptor = "transport.stop.no.descriptor"
     case mediaMissing = "media.missing"
     case timelineAccessibility = "timeline.accessibility"
+    case toolbarMonitor = "toolbar.monitor"
+    case toolbarTime = "toolbar.time"
+    case toolbarZoomFit = "toolbar.zoom.fit"
+    case toolbarExport = "toolbar.export"
 
     case errorBusy = "error.studio.busy"
     case errorLocked = "error.studio.locked"

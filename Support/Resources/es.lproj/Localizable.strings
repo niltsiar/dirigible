@@ -184,3 +184,9 @@
 "alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "La exportación terminó. Estos archivos faltaban o no se podían leer, y se exportaron como silencio:\n%@";
+
+/* Toolbar (decision 0023): the short labels that differ from the menu text */
+"toolbar.monitor" = "Monitorizar";
+"toolbar.time" = "Cursor";
+"toolbar.zoom.fit" = "Ajustar";
+"toolbar.export" = "Exportar";

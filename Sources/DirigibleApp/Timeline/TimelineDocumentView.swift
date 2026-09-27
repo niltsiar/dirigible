@@ -9,14 +9,17 @@ import os
 /// build). The system drops debug messages when nothing streams them.
 private let drawLog = Logger(subsystem: "com.delineas.dirigible", category: "timeline")
 
-/// The lanes of the timeline (decision 0017, probe D6): as wide as the session at the zoom,
-/// flipped, and drawn only in its dirty rect with own pixels. It redraws only when `inputs` or the
-/// backing scale changes. The playhead is a layer that moves with no redraw.
+/// The lanes of the timeline (decisions 0017 and 0022, probe D6): as wide as the session at the
+/// zoom, flipped, with one layer of the lanes in view that `updateLayer()` writes in place. It
+/// renders only its dirty rect and the columns that a scroll shows. It redraws only when `inputs`
+/// or the backing scale changes. The playhead is a layer that moves with no redraw.
 final class TimelineDocumentView: NSView {
     let playhead = CALayer()
-    /// The calls of `draw(_:)`, for the redraw tests (criteria 10 and 24).
+    /// The pixels of the lanes in view.
+    let surfaces = LaneSurfaces()
+    /// The renders, for the redraw tests (criteria 10 and 24).
     private(set) var draws = 0
-    /// The rect of the last draw, for the dirty-rect test of a drag event.
+    /// The rect of the last render, for the dirty-rect test of a drag event.
     private(set) var drawnRect = NSRect.zero
     /// Every drawn input except the backing scale. A new value draws only when it is not equal, and
     /// only the columns of the changed clips, markers, and Marks when nothing else changed (a drag
@@ -24,36 +27,39 @@ final class TimelineDocumentView: NSView {
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
-            if let rect = changedColumns(from: oldValue) { drawPart(rect) } else { drawAll() }
+            if let rect = changedColumns(from: oldValue) {
+                // Inputs that draw the same pixels give an empty rect: no draw.
+                if !rect.isEmpty { setNeedsDisplay(rect) }
+            } else {
+                needsDisplay = true
+            }
             resize()
         }
     }
 
-    /// The rect of the partial draws since the last full draw. The layer keeps the image of a draw
-    /// until one later draw covers its whole rect, so each partial draw also covers the one before
-    /// it: a clip drag kept one image per event (code gate 1 item 1).
-    private var partial = NSRect.null
+    /// The document rect to render at the next `updateLayer()`.
+    private var pending = NSRect.null
 
-    private func drawAll() {
-        partial = .null
-        needsDisplay = true
+    override func setNeedsDisplay(_ rect: NSRect) {
+        pending = pending.union(rect)
+        super.setNeedsDisplay(rect)
     }
 
-    /// Draws `rect` and the partial draws before it. When that union is more than a quarter of the
-    /// lanes in view larger than `rect` (an edit far away, or wide new Marks), each next event would
-    /// draw it again. Then one full draw frees every image, and the next union starts empty.
-    private func drawPart(_ rect: NSRect) {
-        // Inputs that draw the same pixels give an empty rect: no draw.
-        guard !rect.isEmpty else { return }
-        let union = rect.union(partial)
-        // The limit counts only the part in view of each rect (code gate 2 item 2).
-        let shown = (scrollView?.shown ?? visibleRect).intersection(bounds)
-        let area = { (r: NSRect) in r.intersection(shown).width * r.intersection(shown).height }
-        // ponytail: a quarter of the lanes in view is a calibration knob; measure again on Apple Silicon (M8).
-        if area(union) - area(rect) > area(shown) / 4 { return drawAll() }
-        partial = union
-        setNeedsDisplay(union)
+    override var needsDisplay: Bool {
+        get { super.needsDisplay }
+        set {
+            if newValue { pending = bounds }
+            super.needsDisplay = newValue
+        }
     }
+
+    override var wantsUpdateLayer: Bool { true }
+    /// The lanes render only the lanes in view, so AppKit asks for no rect outside them.
+    override class var isCompatibleWithResponsiveScrolling: Bool { false }
+
+    /// The lanes in view moved (a scroll or a new size): `updateLayer()` shows the new window with
+    /// no dirty rect, so it renders only the pixels that the last window did not hold.
+    func shownMoved() { layer?.setNeedsDisplay() }
 
     /// The columns of the clips, markers, and Marks that changed from `old`, with 1 pt on each side
     /// for the rounding of the renderer, in the rows of the changed lanes (all rows for new Marks).
@@ -81,59 +87,11 @@ final class TimelineDocumentView: NSView {
     }
 
     private let renderer = LaneRenderer()
-    /// The lane images that Core Animation can still show, with the last one, and their bytes, for
-    /// the image-limit tests (timeline-scroll criteria 3 and 4b).
-    var liveImages: Int { renderer.liveBuffers().count }
-    var liveImageBytes: Int { renderer.liveBuffers().bytes }
-
-    // The layer keeps the image of each region it drew until a later draw covers that region or the
-    // region needs display again (timeline-scroll criterion 3). A scroll marks the lanes that it
-    // left, so the images of a page turn or a scroll go with no draw. An edit draws in view, and the
-    // next draw of the same columns covers it (40 out point changes kept 3 images).
-
-    override func viewDidMoveToSuperview() {
-        super.viewDidMoveToSuperview()
-        NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
-        guard let superview else { return }
-        superview.postsBoundsChangedNotifications = true
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: superview)
-    }
-
-    /// True from a scroll until its marks run.
-    private var marksPending = false
-
-    /// A scroll marks the lanes that it left in a later job of the main queue, after the commit of
-    /// its draw: the release of their images does not cost the frame of a page turn. A run-loop
-    /// timer did not run in a test process, which runs the main actor on the main queue only.
-    @objc private func scrolled() {
-        guard !marksPending else { return }
-        marksPending = true
-        Task { @MainActor [weak self] in
-            self?.marksPending = false
-            self?.markLeftLanes()
-        }
-    }
-
-    /// Marks the lanes more than one view away: no draw, and the layer lets the images there go. A
-    /// mark next to the view made the layer draw all lanes in view on screen, so the marks keep one
-    /// view of distance. Each mark covers all lanes out of that neighborhood: an image whose region
-    /// two smaller marks covered in two parts stayed alive.
-    private func markLeftLanes() {
-        let visible = visibleRect
-        let near = visible.insetBy(dx: -visible.width, dy: -visible.height)
-        // CGRect.width is never negative, so each size is checked before the rect exists.
-        let (left, right) = (near.minX - bounds.minX, bounds.maxX - near.maxX)
-        let (top, bottom) = (near.minY - bounds.minY, bounds.maxY - near.maxY)
-        if left > 0 { setNeedsDisplay(NSRect(x: bounds.minX, y: bounds.minY, width: left, height: bounds.height)) }
-        if right > 0 { setNeedsDisplay(NSRect(x: near.maxX, y: bounds.minY, width: right, height: bounds.height)) }
-        if top > 0 { setNeedsDisplay(NSRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: top)) }
-        if bottom > 0 { setNeedsDisplay(NSRect(x: bounds.minX, y: near.maxY, width: bounds.width, height: bottom)) }
-    }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
+        layer?.addSublayer(surfaces.layer)
         playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
         playhead.actions = ["position": NSNull(), "bounds": NSNull()]
@@ -189,56 +147,57 @@ final class TimelineDocumentView: NSView {
         needsDisplay = true
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        // A snapshot of a layer-backed view (`cacheDisplay`) gives an infinite rect.
-        let dirtyRect = dirtyRect.intersection(bounds)
-        guard !dirtyRect.isEmpty, let inputs, let context = NSGraphicsContext.current?.cgContext else { return }
+    /// The display pass, before the commit: shows the lanes in view with the dirty rect rendered,
+    /// so a scroll, the frame of the layer, and its contents commit in one transaction.
+    override func updateLayer() {
+        guard let inputs,
+            let lanes = LaneWindow(
+                view: scrollView?.shown ?? visibleRect, bounds: bounds, laneHeight: inputs.laneHeight,
+                lanes: inputs.session.tracks.count, scale: Double(window?.backingScaleFactor ?? 2))
+        else { return }
         let started = ContinuousClock.now
+        let changed = lanes.pixels(of: pending)
+        pending = .null
+        guard
+            let drawn = surfaces.show(
+                lanes, changed: changed,
+                draw: { region in
+                    renderer.draw(inputs, into: region)
+                    Self.drawLabels(inputs, into: region)
+                })
+        else { return }
         draws += 1
-        drawnRect = dirtyRect
-        let columns = draw(inputs, in: dirtyRect, context)
+        drawnRect = lanes.points(of: drawn)
         let milliseconds = Double((ContinuousClock.now - started) / .microseconds(1)) / 1000
-        drawLog.debug("lanes draw \(milliseconds, format: .fixed(precision: 2)) ms, \(columns) columns")
-    }
-
-    /// Draws the lanes that `rect` crosses, in its columns, and the labels in it. Gives the pixel
-    /// columns.
-    private func draw(_ inputs: LaneInputs, in rect: NSRect, _ context: CGContext) -> Int {
-        let (x0, x1) = (rect.minX.rounded(.down), rect.maxX.rounded(.up))
-        // The lanes that the rect crosses: a drag event on one lane draws only its rows.
-        let lanes =
-            Int((rect.minY / inputs.laneHeight).rounded(.down))..<Int((rect.maxY / inputs.laneHeight).rounded(.up))
-        let (top, height) = (Double(lanes.lowerBound) * inputs.laneHeight, Double(lanes.count) * inputs.laneHeight)
-        let scale = window?.backingScaleFactor ?? 2
-        guard let image = renderer.draw(inputs, x: x0, width: x1 - x0, scale: scale, lanes: lanes) else { return 0 }
-        // The view is flipped: flip the context so row 0 of the image is the top of the first lane.
-        context.saveGState()
-        context.translateBy(x: x0, y: top + height)
-        context.scaleBy(x: 1, y: -1)
-        context.draw(image, in: CGRect(x: 0, y: 0, width: x1 - x0, height: height))
-        context.restoreGState()
-        drawLabels(inputs, in: rect)
-        return Int((x1 - x0) * scale)
+        drawLog.debug("lanes draw \(milliseconds, format: .fixed(precision: 2)) ms, \(drawn.columns.count) columns")
     }
 
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom
-    /// left of the box, cut at the box end. It reads only the clips in the frames of `rect`, lane by
-    /// lane. A box under 60 pt gets no label: 12,000 labels at fit zoom took 330 ms per draw (probe
-    /// L1, decision 0020).
-    private func drawLabels(_ inputs: LaneInputs, in rect: NSRect) {
-        guard inputs.laneHeight > 14, let geometry = inputs.geometry,
-            let context = NSGraphicsContext.current?.cgContext
-        else { return }
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor(white: 0.15, alpha: 1),
-        ]
+    /// left of the box, cut at the box end. It reads only the clips in the frames of the rect of
+    /// `region`, lane by lane, and draws only in that rect. A box under 60 pt gets no label: 12,000
+    /// labels at fit zoom took 330 ms per draw (probe L1, decision 0020).
+    static func drawLabels(_ inputs: LaneInputs, into region: borrowing PixelRegion) {
+        guard inputs.laneHeight > 14, let geometry = inputs.geometry, !region.rect.isEmpty else { return }
+        let rect = region.window.points(of: region.rect)
         let frames = geometry.frame(at: rect.minX)..<geometry.frame(at: rect.maxX) + Frames(2)
+        var labels: [(box: NSRect, name: String)] = []
         for (lane, track) in inputs.session.tracks.enumerated() {
             for clip in track.clips.clips(overlapping: frames) {
                 let box = NSRect(geometry.box(of: clip, lane: lane))
                 guard box.width >= 60, box.intersects(rect) else { continue }
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
-                let name = path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
+                labels.append((box, path.hasSuffix(".wav") ? String(path.dropLast(4)) : path))
+            }
+        }
+        guard !labels.isEmpty else { return }
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor(white: 0.15, alpha: 1),
+        ]
+        region.withContext { context in
+            let previous = NSGraphicsContext.current
+            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
+            defer { NSGraphicsContext.current = previous }
+            for (box, name) in labels {
                 // Only in its box: the dirty rect of a drag event holds the boxes it changes.
                 context.saveGState()
                 context.clip(to: box)

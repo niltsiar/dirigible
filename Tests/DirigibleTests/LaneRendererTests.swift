@@ -44,97 +44,92 @@ struct LaneRendererTests {
             missingMedia: missing, marks: marks, scale: TimelineScale(framesPerPoint: 256), laneHeight: 100)
     }
 
+    /// The pixels of a draw of the document points 0 ..< `width` of all lanes at `scale`.
+    static func render(_ inputs: LaneInputs, width: Double, scale: Double = 1) throws -> OwnedPixels {
+        let pixels = OwnedPixels(try #require(laneWindow(inputs, width: width, scale: scale)))
+        pixels.draw { LaneRenderer().draw(inputs, into: $0) }
+        return pixels
+    }
+
     /// The rows of `column` in lane 0 that have `color`.
-    static func rows(_ renderer: LaneRenderer, column: Int, lane: Int = 0, _ color: UInt32) -> [Int] {
-        (lane * 100..<(lane + 1) * 100).filter { renderer.pixel(column, $0) == color }
+    static func rows(_ pixels: OwnedPixels, column: Int, lane: Int = 0, _ color: UInt32) -> [Int] {
+        (lane * 100..<(lane + 1) * 100).filter { pixels.pixel(column, $0) == color }
     }
 
     @Test func aFullScaleColumnFillsTheLaneAndAHalfScaleColumnFillsItsDbHeight() throws {
-        let renderer = LaneRenderer()
         let bins = [PeakColumn(peak: 65535, rms: 0), PeakColumn(peak: 32768, rms: 0), PeakColumn(peak: 7, rms: 0)]
 
-        _ = renderer.draw(Self.inputs(try Self.session(), peaks: bins), x: 0, width: 4, scale: 1)
+        let pixels = try Self.render(Self.inputs(try Self.session(), peaks: bins), width: 4)
 
-        #expect(Self.rows(renderer, column: 0, LaneColors.peak) == Array(0..<100))
+        #expect(Self.rows(pixels, column: 0, LaneColors.peak) == Array(0..<100))
         // -6.02 dB on the -60 dB to 0 dB scale: 90% of the lane.
-        let half = Self.rows(renderer, column: 1, LaneColors.peak)
+        let half = Self.rows(pixels, column: 1, LaneColors.peak)
         #expect(half.last == 99 && abs((half.first ?? 0) - 10) <= 1, "\(half)")
         // -79 dB is under the floor.
-        #expect(Self.rows(renderer, column: 2, LaneColors.peak) == [])
-        #expect(renderer.pixel(2, 99) == LaneColors.clip)
+        #expect(Self.rows(pixels, column: 2, LaneColors.peak) == [])
+        #expect(pixels.pixel(2, 99) == LaneColors.clip)
     }
 
     /// Only lane 1 has peaks, so a span that passes the bottom of lane 1 shows in lane 2. Column 1
     /// holds an RMS over its peak, as a damaged cache file can: the span stays whole.
     @Test func theRmsSpanIsDarkAndUnderThePeak() throws {
-        let renderer = LaneRenderer()
         var inputs = Self.inputs(
             try Self.session(), peaks: [PeakColumn(peak: 65535, rms: 32768), PeakColumn(peak: 32768, rms: 65535)])
         inputs.peaks["f2"] = .computing
 
-        _ = renderer.draw(inputs, x: 0, width: 4, scale: 1)
+        let pixels = try Self.render(inputs, width: 4)
 
-        #expect(Self.rows(renderer, column: 0, LaneColors.peak) == Array(0..<10))
-        #expect(Self.rows(renderer, column: 0, LaneColors.rms) == Array(10..<100))
-        #expect(Self.rows(renderer, column: 1, LaneColors.peak) == [])
-        #expect(Self.rows(renderer, column: 1, LaneColors.rms) == Array(10..<100))
-        #expect((0..<2).allSatisfy { renderer.pixel($0, 100) == LaneColors.clip }, "lane 2 starts clean")
+        #expect(Self.rows(pixels, column: 0, LaneColors.peak) == Array(0..<10))
+        #expect(Self.rows(pixels, column: 0, LaneColors.rms) == Array(10..<100))
+        #expect(Self.rows(pixels, column: 1, LaneColors.peak) == [])
+        #expect(Self.rows(pixels, column: 1, LaneColors.rms) == Array(10..<100))
+        #expect((0..<2).allSatisfy { pixels.pixel($0, 100) == LaneColors.clip }, "lane 2 starts clean")
     }
 
     /// Clip gain plus track gain: -3 dB and -3.0206 dB move a full-scale column to -6.02 dB.
     @Test func aClipGainOfMinus6MovesTheColumnDown() throws {
-        let renderer = LaneRenderer()
         let session = try Self.session(clipGain: -3, trackGain: -3.0206)
 
-        _ = renderer.draw(Self.inputs(session, peaks: [PeakColumn(peak: 65535, rms: 0)]), x: 0, width: 4, scale: 1)
+        let pixels = try Self.render(Self.inputs(session, peaks: [PeakColumn(peak: 65535, rms: 0)]), width: 4)
 
-        let rows = Self.rows(renderer, column: 0, LaneColors.peak)
+        let rows = Self.rows(pixels, column: 0, LaneColors.peak)
         #expect(rows.last == 99 && abs((rows.first ?? 0) - 10) <= 1, "\(rows)")
     }
 
     @Test func aMissingClipIsRed() throws {
-        let renderer = LaneRenderer()
+        let pixels = try Self.render(Self.inputs(try Self.session(), missing: ["f1": .missing]), width: 6)
 
-        _ = renderer.draw(Self.inputs(try Self.session(), missing: ["f1": .missing]), x: 0, width: 6, scale: 1)
-
-        #expect((0..<4).allSatisfy { renderer.pixel($0, 50) == LaneColors.missing })
-        #expect((0..<4).allSatisfy { renderer.pixel($0, 0) == LaneColors.missingOutline })
-        #expect(renderer.pixel(4, 50) == LaneColors.lane, "after the clip")
-        #expect(renderer.pixel(0, 150) == LaneColors.clip, "lane 2 is whole")
+        #expect((0..<4).allSatisfy { pixels.pixel($0, 50) == LaneColors.missing })
+        #expect((0..<4).allSatisfy { pixels.pixel($0, 0) == LaneColors.missingOutline })
+        #expect((0..<4).allSatisfy { pixels.pixel($0, 99) == LaneColors.missingOutline })
+        #expect(pixels.pixel(4, 50) == LaneColors.lane, "after the clip")
+        #expect(pixels.pixel(0, 150) == LaneColors.clip, "lane 2 is whole")
     }
 
     /// The WAV has 256 of the 1024 frames of the clip (`.short` in `missingMedia`).
     @Test func aShortClipIsRedAfterItsRealFrames() throws {
-        let renderer = LaneRenderer()
+        let pixels = try Self.render(Self.inputs(try Self.session(), missing: ["f1": .short(256)]), width: 6)
 
-        _ = renderer.draw(Self.inputs(try Self.session(), missing: ["f1": .short(256)]), x: 0, width: 6, scale: 1)
-
-        #expect(renderer.pixel(0, 50) == LaneColors.clip)
-        #expect((1..<4).allSatisfy { renderer.pixel($0, 50) == LaneColors.missing })
+        #expect(pixels.pixel(0, 50) == LaneColors.clip)
+        #expect((1..<4).allSatisfy { pixels.pixel($0, 50) == LaneColors.missing })
     }
 
     /// Peaks of 256 frames for a pool length of 1024 frames, with no fault: no red.
     @Test func theRedTintComesFromMissingMediaOnly() throws {
-        let renderer = LaneRenderer()
-
-        _ = renderer.draw(Self.inputs(try Self.session(), peaks: [Self.zero]), x: 0, width: 6, scale: 1)
+        let pixels = try Self.render(Self.inputs(try Self.session(), peaks: [Self.zero]), width: 6)
 
         let red: Set<UInt32> = [LaneColors.missing, LaneColors.missingOutline]
         #expect(
-            (0..<renderer.columns).allSatisfy { c in
-                (0..<renderer.rows).allSatisfy { !red.contains(renderer.pixel(c, $0)) }
-            })
+            pixels.window.pixels.rows.allSatisfy { row in pixels.row(row).allSatisfy { !red.contains($0) } })
     }
 
     @Test func theSelectionBandCoversOnlyTheSelectedLanes() throws {
-        let plain = LaneRenderer()
-        let selected = LaneRenderer()
         let session = try Self.session()
-        _ = plain.draw(Self.inputs(session), x: 0, width: 6, scale: 1)
+        let plain = try Self.render(Self.inputs(session), width: 6)
 
         // The band covers columns 1 to 3; the in line is on column 1 and the out line on column 4.
         let marks = Marks(inPoint: 256, outPoint: 1024, tracks: ["t2"])
-        _ = selected.draw(Self.inputs(session, marks: marks), x: 0, width: 6, scale: 1)
+        let selected = try Self.render(Self.inputs(session, marks: marks), width: 6)
 
         for column in [2, 3] {
             #expect(selected.pixel(column, 150) == LaneColors.selected(plain.pixel(column, 150)), "column \(column)")
@@ -148,24 +143,22 @@ struct LaneRendererTests {
 
     /// Markers, chapters, and the in and out points draw a line across every lane.
     @Test func markerAndChapterLinesCrossAllLanes() throws {
-        let renderer = LaneRenderer()
         var session = try Self.session()
         try session.setMarker(Marker(id: "m1", name: "Intro", position: 512, kind: .marker))
         try session.setMarker(Marker(id: "m2", name: "Part 2", position: 768, kind: .chapter))
 
-        _ = renderer.draw(
-            Self.inputs(session, marks: Marks(inPoint: 256, outPoint: 1280)), x: 0, width: 6, scale: 1)
+        let pixels = try Self.render(Self.inputs(session, marks: Marks(inPoint: 256, outPoint: 1280)), width: 6)
 
         for (column, color) in [
             (2, LaneColors.marker), (3, LaneColors.chapter), (1, LaneColors.inPoint), (5, LaneColors.outPoint),
         ] {
-            #expect((0..<200).allSatisfy { renderer.pixel(column, $0) == color }, "column \(column)")
+            #expect((0..<200).allSatisfy { pixels.pixel(column, $0) == color }, "column \(column)")
         }
-        #expect(renderer.pixel(0, 50) == LaneColors.clip)
+        #expect(pixels.pixel(0, 50) == LaneColors.clip)
     }
 
     /// The lane color fills the gaps before, between, and after the clips, also where the last
-    /// draw had a clip.
+    /// draw into the same pixels had a clip.
     @Test func theGapsBetweenClipsHaveTheLaneColor() throws {
         func session(_ clips: [(start: Int, length: Int)]) throws -> Session {
             var session = Session(sampleRate: 48_000)
@@ -179,73 +172,14 @@ struct LaneRendererTests {
             }
             return session
         }
-        let renderer = LaneRenderer()
-        _ = renderer.draw(Self.inputs(try session([(0, 10)])), x: 0, width: 10, scale: 1)
-        let buffer = renderer.bufferAddress
+        let pixels = try Self.render(Self.inputs(try session([(0, 10)])), width: 10)
+        let next = Self.inputs(try session([(2, 2), (5, 2)]))
 
-        _ = renderer.draw(Self.inputs(try session([(2, 2), (5, 2)])), x: 0, width: 10, scale: 1)
+        pixels.draw { LaneRenderer().draw(next, into: $0) }
 
-        #expect(renderer.bufferAddress == buffer, "the second draw reuses the pixels of the first")
-        let colors = (0..<10).map { renderer.pixel($0, 50) }
+        let colors = (0..<10).map { pixels.pixel($0, 50) }
         let (lane, clip) = (LaneColors.lane, LaneColors.clip)
         #expect(colors == [lane, lane, clip, clip, lane, clip, clip, lane, lane, lane])
-    }
-
-    /// Timeline-scroll criterion 1: an image keeps its pixels after the next draws. On screen, a
-    /// display-list context draws the image later, so a draw that wrote its buffer showed the
-    /// pixels of another draw (diagonal stripes after a page turn), and a draw of another size
-    /// freed it.
-    @Test func anImageKeepsItsPixelsAfterTheNextDraw() throws {
-        let renderer = LaneRenderer()
-        let loud = PeakColumn(peak: 65535, rms: 32768)
-        let inputs = Self.inputs(try Self.session(), peaks: [loud, loud, loud, loud])
-        let first = try #require(renderer.draw(inputs, x: 0, width: 4, scale: 1))
-        // Core Graphics can keep the pixels of an image that it drew once, so the test reads the
-        // first image only after the next draws, and compares it with a draw of another renderer.
-        let pixels = Self.drawn(try #require(LaneRenderer().draw(inputs, x: 0, width: 4, scale: 1)))
-        let held = renderer.bufferAddress
-
-        let empty = Self.inputs(try Self.session(length: 256), peaks: [Self.zero])
-        _ = renderer.draw(empty, x: 0, width: 4, scale: 1)
-        #expect(renderer.bufferAddress != held, "a draw while the image lives takes another buffer")
-        _ = renderer.draw(empty, x: 0, width: 3, scale: 1)
-        #expect(Self.drawn(first) == pixels)
-    }
-
-    /// The pixels of `image`, drawn into a new bitmap, as a context draws it.
-    static func drawn(_ image: CGImage) -> [UInt8] {
-        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
-        let space = CGColorSpace(name: CGColorSpace.sRGB)!
-        bytes.withUnsafeMutableBytes { buffer in
-            let context = CGContext(
-                data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8,
-                bytesPerRow: image.width * 4, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-            context?.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        }
-        return bytes
-    }
-
-    /// A new or reused buffer gets no zero fill: each draw writes every pixel of its image. A
-    /// draw of lanes with no clip, in the buffer of a draw with clips, waveforms, the selection
-    /// band, and marker lines, shows only the lane color.
-    @Test func aReusedBufferShowsNoPixelOfTheLastDraw() throws {
-        let renderer = LaneRenderer()
-        let loud = PeakColumn(peak: 65535, rms: 32768)
-        var session = try Self.session()
-        try session.setMarker(Marker(id: "m1", name: "M", position: 512, kind: .marker))
-        let marks = Marks(inPoint: 256, outPoint: 768, tracks: ["t1", "t2"])
-        _ = renderer.draw(
-            Self.inputs(session, peaks: [loud, loud, loud, loud], missing: ["f2": .short(512)], marks: marks), x: 0,
-            width: 4, scale: 1)
-        let buffer = renderer.bufferAddress
-        var bare = Session(sampleRate: 48_000)
-        for n in 1...2 { try bare.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono) }
-
-        _ = renderer.draw(Self.inputs(bare), x: 0, width: 4, scale: 1)
-
-        #expect(renderer.bufferAddress == buffer, "the draw reuses the released buffer")
-        let pixels = (0..<4).flatMap { column in (0..<200).map { renderer.pixel(column, $0) } }
-        #expect(pixels.allSatisfy { $0 == LaneColors.lane }, "\(Set(pixels).map { String($0, radix: 16) })")
     }
 
     /// Each column draws one waveform: the one of the clip that holds the first frame of the
@@ -267,54 +201,13 @@ struct LaneRendererTests {
                 "f2": .ready(Self.peaks(Array(repeating: full, count: 4))),
             ],
             missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 256), laneHeight: 100)
-        let renderer = LaneRenderer()
 
-        _ = renderer.draw(inputs, x: 0, width: 5, scale: 1)
+        let pixels = try Self.render(inputs, width: 5)
 
-        #expect(Self.rows(renderer, column: 1, LaneColors.peak) == [], "A holds column 1")
-        #expect(Self.rows(renderer, column: 2, LaneColors.peak) == Array(0..<100), "B holds column 2")
-        #expect(Self.rows(renderer, column: 3, LaneColors.peak) == Array(0..<100), "B holds column 3")
-        #expect(Self.rows(renderer, column: 4, LaneColors.peak) == [], "after B")
-    }
-
-    /// The image that the view draws shows the pixels of the draw, row 0 at the top.
-    @Test func theImageHoldsThePixelsOfTheDraw() throws {
-        let renderer = LaneRenderer()
-        let bins = [PeakColumn(peak: 65535, rms: 20000), PeakColumn(peak: 32768, rms: 0)]
-        var session = try Self.session(length: 20 * 256)
-        try session.setMarker(Marker(id: "m1", name: "Intro", position: Frames(256 * 7), kind: .marker))
-
-        let image = try #require(
-            renderer.draw(
-                Self.inputs(session, peaks: bins, missing: ["f2": .short(Frames(256 * 12))]), x: 0, width: 20, scale: 1)
-        )
-
-        let (width, height) = (renderer.columns, renderer.rows)
-        #expect(image.width == width && image.height == height)
-        let context = try #require(
-            CGContext(
-                data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
-                space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue))
-        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-        let drawn = try #require(context.data).bindMemory(to: UInt32.self, capacity: width * height)
-        let wrong = (0..<height).flatMap { row in
-            (0..<width).filter { drawn[row * width + $0] != renderer.pixel($0, row) }.map { ($0, row) }
-        }
-        #expect(wrong.count == 0, "the first pixel that differs: \(String(describing: wrong.first))")
-        #expect(renderer.pixel(7, 0) == LaneColors.marker && renderer.pixel(15, 150) == LaneColors.missing)
-    }
-
-    @Test func theBufferIsReusedAcrossDraws() throws {
-        let renderer = LaneRenderer()
-        let inputs = Self.inputs(try Self.session())
-
-        _ = renderer.draw(inputs, x: 0, width: 6, scale: 2)
-        let first = renderer.bufferAddress
-        _ = renderer.draw(inputs, x: 3, width: 6, scale: 2)
-
-        #expect(first != nil && renderer.bufferAddress == first)
-        #expect(renderer.columns == 12 && renderer.rows == 400)
+        #expect(Self.rows(pixels, column: 1, LaneColors.peak) == [], "A holds column 1")
+        #expect(Self.rows(pixels, column: 2, LaneColors.peak) == Array(0..<100), "B holds column 2")
+        #expect(Self.rows(pixels, column: 3, LaneColors.peak) == Array(0..<100), "B holds column 3")
+        #expect(Self.rows(pixels, column: 4, LaneColors.peak) == [], "after B")
     }
 
     /// Mouse-edits code gate 1 item 2: a draw of lane 2 alone (a drag event on one lane) has the
@@ -324,17 +217,82 @@ struct LaneRendererTests {
         let bins = [PeakColumn(peak: 65535, rms: 32768), PeakColumn(peak: 32768, rms: 0), Self.zero]
         let inputs = Self.inputs(
             try Self.session(), peaks: bins, marks: Marks(inPoint: 256, outPoint: 768, tracks: ["t2"]))
-        let all = LaneRenderer()
-        _ = all.draw(inputs, x: 0, width: 6, scale: 1)
-        let one = LaneRenderer()
+        let all = try Self.render(inputs, width: 6)
+        let one = OwnedPixels(all.window)
 
-        _ = one.draw(inputs, x: 0, width: 6, scale: 1, lanes: 1..<2)
+        one.draw(PixelRect(columns: 0..<6, rows: 100..<200)) { LaneRenderer().draw(inputs, into: $0) }
 
-        #expect(one.rows == 100)
-        let same = (0..<6).allSatisfy { column in
-            (0..<100).allSatisfy { one.pixel(column, $0) == all.pixel(column, $0 + 100) }
+        #expect((100..<200).allSatisfy { one.row($0) == all.row($0) }, "the rows of lane 2")
+        #expect(one.pixel(2, 150) == LaneColors.selected(LaneColors.clip), "the band")
+    }
+
+    /// Plan gate 1 item 1: a draw writes every pixel of its rect and no pixel outside it. The rect
+    /// is columns 3 ..< 9 of lane 2, in pixels that start as a sentinel. Clip c2 covers it, the
+    /// band of the selected t1 and t2 passes it on both sides (columns 2 ..< 11), and the lines of
+    /// a marker (column 5) and of the in and out points (columns 2 and 11) cross every lane. A
+    /// second draw of the same rect over the first gives the same pixels: the band halves each
+    /// pixel once.
+    @Test func aDrawWritesOnlyInsideItsRect() throws {
+        var session = try Self.session(length: 4096)
+        try session.setMarker(Marker(id: "m1", name: "M", position: Frames(256 * 5), kind: .marker))
+        let loud = PeakColumn(peak: 65535, rms: 32768)
+        let inputs = Self.inputs(
+            session, peaks: Array(repeating: loud, count: 16),
+            marks: Marks(inPoint: Frames(256 * 2), outPoint: Frames(256 * 11), tracks: ["t1", "t2"]))
+        let sentinel: UInt32 = 0xFF12_3456
+        let pixels = OwnedPixels(try #require(laneWindow(inputs, width: 12)), fill: sentinel)
+        let rect = PixelRect(columns: 3..<9, rows: 100..<200)
+
+        pixels.draw(rect) { LaneRenderer().draw(inputs, into: $0) }
+
+        let outside = pixels.window.pixels.rows.flatMap { row in
+            pixels.window.pixels.columns.filter { !(rect.rows.contains(row) && rect.columns.contains($0)) }
+                .map { pixels.pixel($0, row) }
         }
-        #expect(same, "the rows of lane 2")
-        #expect(one.pixel(2, 50) == LaneColors.selected(LaneColors.clip), "the band")
+        #expect(outside.allSatisfy { $0 == sentinel }, "\(Set(outside).map { String($0, radix: 16) })")
+        let inside = rect.rows.flatMap { row in rect.columns.map { pixels.pixel($0, row) } }
+        #expect(!inside.contains(sentinel), "every pixel of the rect")
+        #expect(pixels.pixel(5, 150) == LaneColors.marker, "the marker line")
+        #expect(pixels.pixel(6, 105) == LaneColors.selected(LaneColors.peak), "the band")
+        pixels.draw(rect) { LaneRenderer().draw(inputs, into: $0) }
+        #expect(rect.rows.flatMap { row in rect.columns.map { pixels.pixel($0, row) } } == inside)
+    }
+
+    /// Plan gate 1 item 1 and the fractional-origin seam of the timeline-scroll run: at scale 2 and
+    /// an origin of 2666 px (1333 pt), a draw of columns 0 ..< k and one of k ..< n (k odd: the
+    /// second draw starts at a half point) give the pixels of one draw of 0 ..< n. The pixels start
+    /// as a garbage color, and none of it shows. The zoom is not a power of two, so the clip edges,
+    /// the band, and the lines fall at fractions of a pixel.
+    @Test func twoPartialDrawsEqualOneFullDraw() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 2_000_000))
+        for n in 1...3 { try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono) }
+        var random = SplitMix(seed: 5)
+        for n in 0..<120 {
+            let start = 1_700_000 + Int(random.next() % 400_000)
+            try session.place(
+                Clip(
+                    id: ClipID("c\(n)"), file: "f1", start: Frames(start), offset: Frames(Int(random.next() % 1000)),
+                    length: Frames(300 + Int(random.next() % 20_000))), on: TrackID("t\(n % 3 + 1)"))
+        }
+        try session.setMarker(Marker(id: "m1", name: "M", position: 1_781_234, kind: .marker))
+        let inputs = LaneInputs(
+            session: session, peaks: ["f1": .ready(randomPeaks(frames: 2_000_000))],
+            missingMedia: ["f1": .short(12_345)],
+            marks: Marks(inPoint: 1_780_001, outPoint: 1_830_777, tracks: ["t2"]),
+            scale: TimelineScale(framesPerPoint: 1333.37), laneHeight: 100)
+        let window = try #require(laneWindow(inputs, x: 1333, width: 100, scale: 2))
+        #expect(window.pixels.columns == 2666..<2866)
+        let one = OwnedPixels(window, fill: 0xFFAB_CDEF)
+        one.draw { LaneRenderer().draw(inputs, into: $0) }
+        let (k, rows) = (2666 + 77, window.pixels.rows)
+
+        let two = OwnedPixels(window, fill: 0xFFAB_CDEF)
+        two.draw(PixelRect(columns: 2666..<k, rows: rows)) { LaneRenderer().draw(inputs, into: $0) }
+        two.draw(PixelRect(columns: k..<2866, rows: rows)) { LaneRenderer().draw(inputs, into: $0) }
+
+        let wrong = rows.flatMap { row in window.pixels.columns.filter { one.pixel($0, row) != two.pixel($0, row) } }
+        #expect(wrong.isEmpty, "\(wrong.count) pixels differ, the first at column \(wrong.first ?? 0)")
+        #expect(!rows.contains { one.row($0).contains(0xFFAB_CDEF) }, "the garbage color shows")
     }
 }

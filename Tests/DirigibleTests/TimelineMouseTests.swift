@@ -236,9 +236,9 @@ import Testing
     /// Decision 0020, the dirty rect: a drag event redraws only the columns of the clips that it
     /// changes, at full height (a narrow rect). c1 is x 200 to 300 pt; a drag of 50 pt makes it 250
     /// to 350, so the event redraws x 200 to 350 with 1 pt on each side, not the 1440 pt in view.
-    /// New Marks draw their columns; new peaks draw all. The trim comes before the lanes draw, so
-    /// no partial draw comes before the event. The next event also covers the draw of the event
-    /// before it (code gate 1 item 1 of the timeline-scroll run): x 199 to 361.
+    /// New Marks draw their columns; new peaks draw all lanes in view. The next event draws only its own columns,
+    /// x 249 to 361: the lanes are one layer of surfaces, so no image of the event before it stays
+    /// (decision 0022).
     @Test func aDragEventRedrawsOnlyTheClipsItChanges() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
@@ -252,7 +252,7 @@ import Testing
         #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 200))
         try drag(view, 310, 10)
         drawNow(window)
-        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 162, height: 200), "and the draw before")
+        #expect(view.lanes.drawnRect == NSRect(x: 249, y: 0, width: 112, height: 200), "only the event")
         view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t2"])))
         drawNow(window)
         #expect(view.lanes.drawnRect == NSRect(x: 0, y: 0, width: 1002, height: 200), "new Marks: all rows")
@@ -266,19 +266,15 @@ import Testing
         inputs.peaks = ["f1": .ready(randomPeaks(frames: 960_000))]
         view.update(inputs)
         drawNow(window)
-        #expect(view.lanes.drawnRect.width > 1440, "new peaks draw the lanes, not only the changed clips")
+        #expect(view.lanes.drawnRect.width == 1440, "new peaks draw the lanes in view, not only the changed clips")
         window.close()
         await model.close()
     }
 
-    /// Code gate 1 item 1 of the timeline-scroll run: a partial draw also covers the partial draw
-    /// before it. When that union is more than a quarter of the lanes in view larger than the new
-    /// rect, the event draws all lanes once, and the next event draws only its own columns again.
-    /// c1 is x 200 to 300. New Marks of x 400 to 800 draw x 399 to 802 at full height. The union
-    /// with the first event is x 199 to 802: under half the lanes in view, but a triangle drag with
-    /// such Marks drew them again at each event. The first event draws all lanes, the next only
-    /// x 249 to 361.
-    @Test func aDragAfterAnEditFarAwayDrawsTheLanesOnce() async throws {
+    /// Decision 0022: an edit far away (new Marks of x 400 to 800, drawn at x 399 to 802) adds
+    /// nothing to the draws of a drag after it. c1 is x 200 to 300: the first event draws x 199 to
+    /// 351, the next x 249 to 361. The timeline-scroll run drew the union of both, then all lanes.
+    @Test func aDragAfterAnEditFarAwayDrawsOnlyTheEvents() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
         try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
@@ -290,7 +286,7 @@ import Testing
 
         try drag(view, 300, 10)
         drawNow(window)
-        #expect(view.lanes.drawnRect == view.lanes.bounds, "all lanes")
+        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 200), "the first event")
         try drag(view, 310, 10)
         drawNow(window)
         #expect(view.lanes.drawnRect == NSRect(x: 249, y: 0, width: 112, height: 200), "only the event")
@@ -300,12 +296,10 @@ import Testing
         await model.close()
     }
 
-    /// Code gate 2 item 2 of the timeline-scroll run: the union limit counts only the lanes in view.
-    /// 8 lanes of 100 pt, 376 pt in view: new Marks of x 400 to 600 draw x 399 to 602 on all
-    /// lanes, and the first event of a drag of c1 (x 200 to 300) draws x 199 to 351. In view the
-    /// union adds 251 x 376 pt, under a quarter of the view (1440 x 94 pt), so the event draws the
-    /// union. With the rows out of view it added 251 x 800 pt, and the event drew all lanes.
-    @Test func theUnionLimitCountsOnlyTheLanesInView() async throws {
+    /// Decision 0022: a draw covers only the whole lanes in view. 8 lanes of 100 pt, 376 pt in
+    /// view (lanes 1 to 4): new Marks of x 400 to 600 draw x 399 to 602 on the lanes in view, and
+    /// the first event of a drag of c1 (x 200 to 300) draws x 199 to 351 on them, not on all 8.
+    @Test func aDrawCoversOnlyTheLanesInView() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 8, seconds: 20), app: app)
         try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
@@ -314,13 +308,13 @@ import Testing
         let all = Set((1...8).map { TrackID("t\($0)") })
         view.update(laneInputs(model, studio, marks: Marks(inPoint: 204_800, outPoint: 307_200, tracks: all)))
         drawNow(window)
-        #expect(view.lanes.drawnRect == NSRect(x: 399, y: 0, width: 203, height: 376), "the Marks")
+        #expect(view.lanes.drawnRect == NSRect(x: 399, y: 0, width: 203, height: 400), "the Marks")
         try press(view, 250, 10)
 
         try drag(view, 300, 10)
         drawNow(window)
 
-        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 403, height: 376), "the union, not all lanes")
+        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 400), "the event")
         try release(view, 300, 10)
         window.close()
         await model.close()

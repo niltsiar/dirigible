@@ -193,6 +193,7 @@ final class TimelineScrollView: NSScrollView {
     /// and gives the lanes in view. The header ruler and the clip view have the same top.
     private func viewMoved() {
         headers.place(top: contentView.bounds.minY, height: lanes.frame.height)
+        lanes.shownMoved()
         publishVisible()
     }
 

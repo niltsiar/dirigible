@@ -38,6 +38,26 @@ struct NewerVersionMessageTests {
             es: "El archivo de la sesión está dañado.")
     }
 
+    /// Code gate 1 item 3: a read fault of a take file (the anchor, a WAV read-back, `Capture/`)
+    /// names the file and says that the recorded audio stays in `Capture/`.
+    @Test func aReadFaultOfATakeFileSaysTheAudioIsSafe() throws {
+        let error = StudioError.finalize(.readFailed(file: "Capture/take1.anchor", errno: EACCES))
+        #expect(L10n.message(for: error) == L10n.errorFinalizeRead.rawValue)
+        for (language, text) in [
+            (
+                "en",
+                "The file Capture/take1.anchor of the take cannot be read (error 13). The recorded audio stays in Capture/."
+            ),
+            (
+                "es",
+                "No se puede leer el archivo Capture/take1.anchor de la toma (error 13). El audio grabado se conserva en Capture/."
+            ),
+        ] {
+            let format = try #require(try stringsTable(language)[L10n.errorFinalizeRead.rawValue])
+            #expect(String(format: format, "Capture/take1.anchor", 13) == text, "\(language)")
+        }
+    }
+
     @Test func aNewerAnchorNamesTheNewerVersionAndTheWayOut() throws {
         try check(
             .segment(Self.segment, .newerAnchor(version: 2)), .errorSegmentNewerAnchor,

@@ -16,7 +16,7 @@ struct TrackHeaders: View {
                 ForEach(studio.session.tracks) { track in
                     TrackRow(
                         model: model, studio: studio, track: track, secondLine: laneHeight >= 56,
-                        showsLayout: geometry.size.width >= 220
+                        headerWidth: geometry.size.width
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
                     // At the lane edge, as the lanes have no line: the rows read as rows (D8).
@@ -27,17 +27,23 @@ struct TrackHeaders: View {
     }
 }
 
-/// The header of one lane: arm, name, and layout on the first line; route, and during a take or
-/// a monitor the meter and the state, on the second.
+/// The header of one lane. In a lane of 56 pt or more: arm, name, and layout on the first line;
+/// the route menu, and during a take or a monitor the meter and the state, on the second. In a
+/// lower lane, one line: the arm check box, the name, the layout, a route symbol menu, and the
+/// compact meter and state (code gate 1 item 4).
 private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
     let track: Track
-    /// The route and the live state. Off in a lane under 56 pt: one line fits (H7).
+    /// True in a lane of 56 pt or more: the row has two lines (H7).
     let secondLine: Bool
-    /// The layout text. Off under 220 pt: "Armar", a name of 60 pt, and "Estéreo" are wider than
-    /// a row of 180 pt, and no control goes under the handle.
-    let showsLayout: Bool
+    /// The width of the header column. It alone picks the layout text, never the typed name.
+    let headerWidth: Double
+
+    /// The layout text, when the row has room for it: from 220 pt on two lines, from 240 pt on one
+    /// line. "Armar", a name of 60 pt, and "Estéreo" are wider than a row of 180 pt, and no
+    /// control goes under the handle.
+    private var showsLayout: Bool { headerWidth >= (secondLine ? 220 : 240) }
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -45,16 +51,17 @@ private struct TrackRow: View {
             HStack(spacing: 8) {
                 if secondLine { arm } else { arm.labelsHidden() }
                 nameField
-                if !secondLine {
-                    // One line (code gate 1 item 4): a lost device must show during a take at
-                    // every lane height, so the route and the state stay, in compact form.
-                    compactRoute
-                    if let live = studio.liveTracks[track.id] { CompactLiveState(live: live) }
-                } else if showsLayout {
-                    // One line: a squeezed text wraps into the row below. The same for the arm label.
+                if showsLayout {
+                    // A fixed size: a squeezed text wraps into the lane below. The same for the arm label.
                     Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
                         .foregroundStyle(.secondary)
                         .fixedSize()
+                }
+                if !secondLine {
+                    // A lost device must show during a take at every lane height, so the route and
+                    // the state stay on one line, in compact form.
+                    compactRoute
+                    if let live = studio.liveTracks[track.id] { CompactLiveState(live: live) }
                 }
             }
             if secondLine {

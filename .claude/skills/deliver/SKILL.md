@@ -72,6 +72,7 @@ Run the **interrogate** skill with target `diff`. It runs the `review-panel` wor
 
 - Fix every "Act on" item with its own commit. A bug fix gets a regression test first.
 - Put "Consider" items you do not do now in `.scratchpads/backlog.md` with the reason.
+- When a user decision reverts an earlier fix, the symptom that the fix addressed can come back. Write that symptom in the manual checks of `run.md` and in the review section of `pr.md`.
 - If the verdict had a critical item, run the gate again after the fixes. At most three rounds. Round 2 follows up on round 1. Round 3 is the convergence round: it checks only the earlier fixes. After its fixes and one fix check (see the **interrogate** skill), the gate is closed. Its out-of-scope findings go to the backlog.
 
 ## Phase 7: Verify

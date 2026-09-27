@@ -1,5 +1,6 @@
 #!/bin/bash
-# Check that mutate.py tells a killed, a surviving, and an unbuilt mutant apart, applies extra
+# Check that mutate.py tells a killed, a surviving, and an unbuilt mutant apart, counts a kill
+# with --expect only when the test output has the text, applies extra
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
 # restores the file. Run by `make test-hooks`.
 set -uo pipefail
@@ -35,6 +36,21 @@ expect '2:mutate' 'the old text is in the file twice' ' = 1' ' = 2'
 expect '0:killed' 'a second pair is in the same mutant' 'b = 1' 'b = 2' 'a = 1' 'a = 2'
 expect '2:mutate' 'a second pair with no new text' 'b = 1' 'b = 2' 'a = 1'
 expect '2:mutate' 'a second old text that is not in the file' 'b = 1' 'b = 2' 'c = 1' 'c = 2'
+
+# --expect: the test prints its own failure message.
+test="grep -q 'a = 1' '$file' || { echo 'expected a = 1'; exit 1; }"
+expect_text() {
+  local want="$1" name="$2" text="$3" got
+  got="$("$mutate" --expect "$text" "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" "$test" 2>&1)"
+  got="$?:${got%%:*}"
+  [[ "$got" == "$want" ]] || { echo "FAIL: expected $want, got $got: $name"; failures=$((failures + 1)); }
+  [[ "$(shasum -a 256 "$file")" == "$before" ]] || { echo "FAIL: file changed after: $name"; failures=$((failures + 1)); }
+}
+expect_text '0:killed' 'the test output has the expected text' 'expected a = 1'
+expect_text '4:WRONG FAILURE' 'the test fails with another message' 'index out of range'
+# The expected text in the header of the log (the build command) does not count.
+build="grep -q 'a =' '$file' # index out of range"
+expect_text '4:WRONG FAILURE' 'the expected text is only in the log header' 'index out of range'
 
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

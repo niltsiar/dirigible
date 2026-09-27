@@ -144,12 +144,45 @@ import Testing
             let drawn = surfaces.show(window, changed: window.pixels) { region in
                 region.fill(UInt32(n), columns: region.rect.columns, rows: region.rect.rows)
             }
-            #expect(drawn == window.pixels)
+            #expect(drawn == .drawn(window.pixels))
         }
 
         #expect(surfaces.writesOfFront == 0, "writesOfFront \(surfaces.writesOfFront)")
         #expect(surfaces.pixel(column: 0, row: 0) == 5)
         #expect(surfaces.count == 4)
+    }
+
+    /// Code gate 1 item 1: a refused surface keeps the change. The window server uses every surface
+    /// but the layer contents, so the next update needs a new surface, and the allocation fails.
+    /// The update draws nothing, and the next display after the allocation works shows the change.
+    @Test func aRefusedSurfaceKeepsTheChangeForTheNextDisplay() async throws {
+        let (model, studio, window, view) = try await lanes(onScreen: true)
+        for n in 1...4 {
+            model.timeline.marks = Marks(inPoint: Frames(n * 5_120), outPoint: Frames(n * 5_120 + 51_200))
+            view.update(inputs(model, studio))
+            drawNow(window)
+        }
+        let held = try await Self.holdOnScreen(view, window)
+        let surfaces = view.lanes.surfaces
+        let draws = view.lanes.draws
+
+        surfaces.refusesNewSurfaces = true
+        model.timeline.marks = Marks(inPoint: 204_800, outPoint: 256_000, tracks: ["t2"])
+        view.update(inputs(model, studio))
+        drawNow(window)
+        #expect(view.lanes.draws == draws, "the refused update draws nothing")
+        surfaces.refusesNewSurfaces = false
+        for layer in held { layer.removeFromSuperlayer() }
+        await until(limit: .seconds(5), "the next display draws the change") {
+            drawNow(window)
+            return view.lanes.draws > draws
+        }
+
+        let wrong = try Self.wrongPixels(view)
+        let first = String(describing: wrong.first)
+        #expect(wrong.count == 0, "the change shows: \(wrong.count) pixels differ, the first \(first)")
+        window.close()
+        await model.close()
     }
 
     /// Criterion 5: each surface is tagged sRGB (probe P2: an untagged surface showed R 196 against

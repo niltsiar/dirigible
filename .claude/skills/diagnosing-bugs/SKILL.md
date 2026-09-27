@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
+description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow. Also use for a defect or a flake that you find yourself in a deliver phase (a built app that differs from what the tests assert, a test that fails in some suite runs), and before you add or remove debug prints.
 ---
 
 # Diagnosing Bugs

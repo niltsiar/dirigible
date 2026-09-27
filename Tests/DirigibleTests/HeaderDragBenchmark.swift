@@ -30,19 +30,33 @@ import Testing
         try await measure(rows: false)
     }
 
-    func measure(rows: Bool) async throws {
+    /// Code gate 2 item 2: one-line rows (50 pt lanes) with a take on each track, a lost device on
+    /// t1: the route symbol menu, the meter, and the state symbol.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aHeaderDragEventWithOneLineRowsFitsOneFrameAtTwoHours() async throws {
+        try await measure(rows: true, laneHeight: 50, live: true)
+    }
+
+    func measure(rows: Bool, laneHeight: Double = 100, live: Bool = false) async throws {
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)
         let (session, peaks) = try MouseEventBenchmark.fixture()
-        let name = rows ? "rows" : "no rows"
+        let name = !rows ? "no rows" : laneHeight < 56 ? "one-line rows" : "rows"
         for (n, (zoom, framesPerPoint)) in MouseEventBenchmark.zooms.enumerated() {
             let package = folder.url.appending(path: "\(n)")
             try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
             let (window, view, model) = try await MouseEventBenchmark.lanesOnScreen(
-                session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
+                session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package, laneHeight: laneHeight)
             let studio = try #require(model.studio)
+            if live {
+                for track in session.tracks {
+                    studio.liveTracks[track.id] = LiveTrack(
+                        state: track.id == "t1" ? .deviceLost : .recording, droppedFrames: 0, peak: 0.3)
+                }
+            }
             if rows {
-                view.headers.host.rootView = AnyView(TrackHeaders(model: model, studio: studio, laneHeight: 100))
+                view.headers.host.rootView = AnyView(
+                    TrackHeaders(model: model, studio: studio, laneHeight: laneHeight))
             }
             drawNow(window)
             try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
@@ -97,8 +111,11 @@ import Testing
             print(
                 "HeaderDragBenchmark \(bench.zoom): one-off events "
                     + oneOff.map { "\($0.0) \($0.1)" }.joined(separator: ", ")
-                    + "; max \(oneOff.map(\.1).max()!)")
+                    + "; max \(oneOff.map(\.1).max() ?? .zero)")
             #expect(p95 <= MouseEventBenchmark.budget, "header drag p95 \(bench.zoom): \(p95)")
+            // A one-off event may take two frames: once per drag, not at each frame.
+            let oneOffMax = oneOff.map(\.1).max() ?? .zero
+            #expect(oneOffMax <= MouseEventBenchmark.budget * 2, "header one-off max \(bench.zoom): \(oneOffMax)")
             window.close()
             await model.close()
         }

@@ -16,7 +16,7 @@ struct TrackHeaders: View {
                 ForEach(studio.session.tracks) { track in
                     TrackRow(
                         model: model, studio: studio, track: track, secondLine: laneHeight >= 56,
-                        headerWidth: geometry.size.width
+                        showsLayout: geometry.size.width >= (laneHeight >= 56 ? 220 : 240)
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
                     // At the lane edge, as the lanes have no line: the rows read as rows (D8).
@@ -37,13 +37,12 @@ private struct TrackRow: View {
     let track: Track
     /// True in a lane of 56 pt or more: the row has two lines (H7).
     let secondLine: Bool
-    /// The width of the header column. It alone picks the layout text, never the typed name.
-    let headerWidth: Double
-
-    /// The layout text, when the row has room for it: from 220 pt on two lines, from 240 pt on one
-    /// line. "Armar", a name of 60 pt, and "Estéreo" are wider than a row of 180 pt, and no
-    /// control goes under the handle.
-    private var showsLayout: Bool { headerWidth >= (secondLine ? 220 : 240) }
+    /// The layout text, when the header width has room for it: from 220 pt on two lines, from 240 pt
+    /// on one line. "Armar", a name of 60 pt, and "Estéreo" are wider than a row of 180 pt, and no
+    /// control goes under the handle. The width alone picks it, never the typed name. A Bool, not
+    /// the width: a row whose inputs do not change is not drawn again (a width input made the
+    /// one-off header events 2 to 3 times slower).
+    let showsLayout: Bool
     @FocusState private var focused: Bool
 
     var body: some View {

@@ -15,6 +15,9 @@ import UniformTypeIdentifiers
     @ObservationIgnored let recordings: ActiveRecordings?
     /// The peak cache folder of every studio (decision 0017). Nil: no peaks (tests).
     @ObservationIgnored let peakCache: URL?
+    /// The app preferences that a session window reads at open and writes (the header width).
+    /// Nil: the defaults of each value and no writes (tests, learning 4475c89).
+    @ObservationIgnored let defaults: UserDefaults?
     /// The packages of the list at launch that exist, read once off the main actor (decision
     /// 0004).
     @ObservationIgnored let listedAtLaunch: Task<Set<URL>, Never>
@@ -40,12 +43,13 @@ import UniformTypeIdentifiers
         self.init(
             recordings: ActiveRecordings(
                 file: support.appending(path: "com.delineas.dirigible/active-recordings.plist")),
-            peakCache: PeakFile.folder)
+            peakCache: PeakFile.folder, defaults: .standard)
     }
 
-    init(recordings: ActiveRecordings?, peakCache: URL? = nil) {
+    init(recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil) {
         self.recordings = recordings
         self.peakCache = peakCache
+        self.defaults = defaults
         if let peakCache {
             // A cache file that no pass used for 90 days goes (decision 0017).
             Task.detached(priority: .background) {

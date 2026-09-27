@@ -67,43 +67,6 @@ import Testing
         return inputs
     }
 
-    /// The pixels of the layer contents that differ from a render of the drawn inputs of the lanes
-    /// in the same window, by a new renderer and the same label function: the count and the first.
-    static func wrongPixels(_ view: TimelineScrollView) throws -> (count: Int, first: (column: Int, row: Int)?) {
-        let lanes = view.lanes
-        let window = try #require(lanes.surfaces.shown, "the layer shows no window")
-        let reference = OwnedPixels.render(try #require(lanes.inputs), window)
-        var count = 0
-        var first: (Int, Int)?
-        for row in window.pixels.rows {
-            let shown = try #require(lanes.surfaces.frontRow(row))
-            let expected = reference.row(row)
-            guard shown != expected else { continue }
-            for index in shown.indices where shown[index] != expected[index] {
-                count += 1
-                if first == nil { first = (window.pixels.columns.lowerBound + index, row) }
-            }
-        }
-        return (count, first)
-    }
-
-    /// Holds the surfaces of the lanes that are not the layer contents in layers of `window`, so the
-    /// window server uses them (`isInUse`), as it uses a surface that it still shows.
-    static func holdOnScreen(_ view: TimelineScrollView, _ window: NSWindow) async throws -> [CALayer] {
-        let surfaces = view.lanes.surfaces
-        let held = surfaces.surfaces.filter { $0 !== (surfaces.layer.contents as AnyObject?) }
-        let layers = held.map { surface in
-            let layer = CALayer()
-            layer.frame = CGRect(x: 0, y: 0, width: 50, height: 50)
-            layer.contents = surface
-            window.contentView?.layer?.addSublayer(layer)
-            return layer
-        }
-        drawNow(window)
-        await until(limit: .seconds(10), "the window server uses the held surfaces") { held.allSatisfy(\.isInUse) }
-        return layers
-    }
-
     /// Criterion 4: no update writes a surface that the window server uses. 4 updates back to back,
     /// then 10 pairs of updates 1 ms apart every 20 ms, in a window on screen. Then the surfaces that
     /// are not the layer contents are held on screen, and 3 more updates come. No write reaches a

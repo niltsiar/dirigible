@@ -76,6 +76,33 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 2 item 1: the no-change path of an app in Dark Mode. The lanes view is dark before
+    /// it enters the dark window (its own appearance), and its palette is still light, as before
+    /// any pick. So the move gives no appearance change, and only a pick at the move draws dark.
+    /// The test does not set `NSApp.appearance`: parallel suites share it, and a change of it
+    /// replaced the sentinel palette of the L5 test.
+    @Test func aLanesViewThatIsDarkAtTheMoveDrawsDarkAtItsFirstDraw() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 1), app: app)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1780, height: 400), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .darkAqua)
+        let view = TimelineScrollView(model: model, studio: studio)
+        view.lanes.appearance = NSAppearance(named: .darkAqua)
+        view.lanes.palette = .light
+        try #require(view.lanes.effectiveAppearance.name == .darkAqua, "dark before the window")
+        view.frame = try #require(window.contentView).bounds
+        window.contentView?.addSubview(view)
+        view.update(laneInputs(model, studio))
+        view.update(laneInputs(model, studio))
+        drawNow(window)
+        #expect(try lanePixel(view) == 0xFF1E_1F22, "dark at the first draw of a dark app")
+        window.close()
+        await model.close()
+    }
+
     @Test func anAppearanceChangeRendersOnceInFull() async throws {
         let (window, view, model) = try await lanes(in: .aqua)
         #expect(try lanePixel(view) == 0xFFE8_ECF2, "light lane pixel")

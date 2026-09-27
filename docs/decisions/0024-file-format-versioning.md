@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-27
 - Accepted: 2026-09-27, after plan gates 1 and 2 of the format-versioning run. The gates made a newer anchor a per-segment fault, made a finalize keep a newer anchor and end the take, made an anchor read fault keep the take pending before any WAV, and made the next take number count every take file.
+- Changed: 2026-09-27, by code gate 1 of the format-versioning run: P1 freezes the root element, the namespace, and the version attribute of `session.xml`; P8 asks for the lock before a write, not before a read.
 - Amends: 0003 (the sweep after the version check), 0012 (a newer sidecar), 0013 (the take number of a take with no segment), 0017 (a newer cache file), 0021 (a newer anchor and the anchor name in the take number).
 
 ## Context
@@ -32,14 +33,14 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 
 | Rule | Text |
 |---|---|
-| P1. One version per file | Each file format that Dirigible owns has one integer version. The version is in the file: an XML attribute, or the last byte of the magic. The peak cache keeps its 8-byte magic `DIRPEAKS` and a UInt32 version field. |
+| P1. One version per file | Each file format that Dirigible owns has one integer version. The version is in the file: an XML attribute, or the last byte of the magic. The peak cache keeps its 8-byte magic `DIRPEAKS` and a UInt32 version field. The root element `session` of `session.xml`, its namespace `https://github.com/niltsiar/dirigible/session`, and its `version` attribute never change: the reader checks them before the version, so a change makes a newer file read as damaged. |
 | P2. Read older | A reader accepts each version from 1 to its current version. It upgrades an older version in memory. |
 | P3. Refuse newer | A reader refuses a version higher than its current version with a named error "made by a newer version of Dirigible (version N)". This error is not the error of a damaged file. The CLI and the app (English and Spanish) say that a newer version of Dirigible made the file. |
 | P4. Never change a newer file | An older build never writes, moves, deletes, or repairs a file that it refuses as newer. It also makes no change to a package whose `session.xml` is newer, other than the `.lock` file (P8). A sweep of leftover files runs only after the version check. |
 | P5. Caches are the exception | A cache file of a newer version is a miss. An older build can write over it or remove it. A cache format bump also changes the file name, so two builds do not overwrite each other. |
 | P6. Write the lowest version | A writer writes the lowest version that holds the data. A file with no new data keeps the old version, so an older build can open it. |
 | P7. Bump for each change an older reader would lose | Each new element, attribute, record kind, or field that an older reader would skip, drop, or misread raises the version. |
-| P8. Frozen cross-version files | `.lock` (its name, its `flock` protocol, and its empty content) and `recovery-attempt` (its name and its presence) never change. Every version takes the lock before it reads the package. |
+| P8. Frozen cross-version files | `.lock` (its name, its `flock` protocol, and its empty content) and `recovery-attempt` (its name and its presence) never change. Every version takes the lock before it writes the package, and keeps it until the write ends. A command that only reads can read without the lock, because each save is one atomic rename. |
 | P9. Magic parse | A binary magic is a 7-byte prefix and one ASCII digit `1` to `9`, the version. A reader parses the prefix and the digit. Another prefix, a digit `0`, a byte that is not a digit, or a file shorter than 8 bytes is a damaged file, not a newer file. Version 10 needs a new prefix. The peak cache keeps its 8-byte magic `DIRPEAKS` and a UInt32 version field. |
 | P10. Unknown package files | An older build ignores a package file that it does not know. It never deletes it. A file name pattern (for example `take<n>-<arm>-<seg>.caf`) never changes its meaning. The next take number counts every `Capture/` and `Clips/` name that matches `take([1-9][0-9]{0,8})` followed by a non-digit or the end, so a newer file keeps its take number. |
 | P11. Files with no marker | A UserDefaults key never changes its meaning or its value type. A new meaning gets a new key. `active-recordings.plist` keeps its shape (a plist array of path strings). A newer build that needs more data uses a new file name. |

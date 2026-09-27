@@ -32,8 +32,6 @@ public enum HeaderDragEvent: Equatable, Sendable {
 public struct HeaderDragStep: Equatable, Sendable {
     public let width: HeaderWidth
     public let save: Bool
-
-    public init(width: HeaderWidth, save: Bool) { (self.width, self.save) = (width, save) }
 }
 
 /// The drag of the header handle (the ui-shell design, "Header drag: states x events"). A drag is

@@ -37,6 +37,7 @@ import Testing
                     x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth, height: 660 + scrollerWidth),
                 styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
+            window.appearance = NSAppearance(named: .aqua)
             let view = TimelineScrollView(model: model, studio: studio)
             view.frame = try #require(window.contentView).bounds
             window.contentView?.addSubview(view)

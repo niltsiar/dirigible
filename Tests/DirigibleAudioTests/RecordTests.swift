@@ -111,10 +111,10 @@ struct RecordTests {
     }
 
     /// Another caller stops the take, then starts and stops a new one, before the call wakes.
-    /// Neither take has a segment, so both are take 1. The call throws `.busy`; before the fix,
-    /// it returned the result of the other take. A stop sets `.finalizing` before it suspends,
-    /// so the call never sees the new take record.
-    @Test func aNewTakeWithTheSameNumberMakesTheCallBusy() async throws {
+    /// The call throws `.busy`; before the fix, it returned the result of the other take. A stop
+    /// sets `.finalizing` before it suspends, so the call never sees the new take record. Take 1
+    /// leaves its anchor, so the new take is take 2 (decision 0024 P10).
+    @Test func aNewTakeOfAnotherCallerMakesTheCallBusy() async throws {
         let hal = TestHAL([mic])
         let studio = try await studio(hal)
         let other = Task { @MainActor in
@@ -129,7 +129,7 @@ struct RecordTests {
         }
         try await other.value
 
-        #expect(studio.lastTake?.take == 1)
+        #expect(studio.lastTake?.take == 2)
         #expect(studio.transport == .idle)
     }
 

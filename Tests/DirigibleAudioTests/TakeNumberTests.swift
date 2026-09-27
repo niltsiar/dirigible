@@ -52,6 +52,22 @@ struct TakeNumberTests {
         #expect(SegmentName.nextTake(in: package, session: session) == 13)
     }
 
+    /// Decision 0024 P10: a take with no audio leaves only its anchor.
+    @Test func anAnchorAloneKeepsItsTakeNumber() {
+        touch("Capture/take3.anchor")
+        #expect(SegmentName.nextTake(in: package, session: Session(sampleRate: 48_000)) == 4)
+    }
+
+    /// Decision 0024 P10: a file of a newer build keeps its take number. A name counts when
+    /// `take`, 1 to 9 digits with no leading zero, and then a byte that is not a digit start it.
+    @Test(arguments: [
+        ("Capture/take7-1-1.future", 8), ("Clips/take12x", 13), ("Capture/takes3", 1), ("Capture/take05.anchor", 1),
+    ])
+    func anUnknownTakeFileKeepsItsNumber(name: String, next: Int) {
+        touch(name)
+        #expect(SegmentName.nextTake(in: package, session: Session(sampleRate: 48_000)) == next)
+    }
+
     @Test func otherNamesAndIDsDoNotCount() throws {
         for name in ["take-1-1.caf", "take01-1-1.caf", "take1234567890-1-1.caf", "notes.txt"] {
             touch("Capture/\(name)")

@@ -97,7 +97,8 @@ enum L10n: String, CaseIterable {
     case alertExportConfirm = "alert.export.confirm"
     case alertExported = "alert.exported"
 
-    case trackNone = "track.none"
+    case emptyTitle = "empty.title"
+    case emptySteps = "empty.steps"
     case trackDefaultName = "track.default.name"
     case markerDefaultName = "marker.default.name"
     case chapterDefaultName = "chapter.default.name"
@@ -107,6 +108,7 @@ enum L10n: String, CaseIterable {
     case trackLayoutStereo = "track.layout.stereo"
     case trackRoute = "track.route"
     case trackRouteNone = "track.route.none"
+    case trackRouteChoose = "track.route.choose"
     case trackRouteChannel = "track.route.channel"
     case trackRouteChannels = "track.route.channels"
     case trackRouteMissing = "track.route.missing"

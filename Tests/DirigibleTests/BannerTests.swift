@@ -43,11 +43,13 @@ struct BannerValueTests {
         #expect(!showsLowRecordTime(left: .seconds(660), recording: true, shownBefore: true))
     }
 
-    /// Code gate 1 item 3: the banner rounds the time left up, so the last minute says 1 min.
-    @Test func theLowRecordTimeBannerRoundsUp() {
-        #expect(lowRecordTimeMinutes(.seconds(30)) == 1)
+    /// Code gate 1 item 3: the banner says "Less than N min", so N is over the time left, also at
+    /// a whole minute: 30 s gives 1, exactly 5 min gives 6, 59.9 min gives 60.
+    @Test func theLowRecordTimeBannerSaysMoreThanTheTimeLeft() {
         #expect(lowRecordTimeMinutes(.seconds(0)) == 1)
-        #expect(lowRecordTimeMinutes(.seconds(300)) == 5)
+        #expect(lowRecordTimeMinutes(.seconds(30)) == 1)
+        #expect(lowRecordTimeMinutes(.seconds(299)) == 5)
+        #expect(lowRecordTimeMinutes(.seconds(300)) == 6, "exactly 5 min left is not less than 5 min")
         #expect(lowRecordTimeMinutes(.milliseconds(3_594_000)) == 60)
     }
 
@@ -208,7 +210,7 @@ struct BannerValueTests {
         #expect(calls == 2)
         #expect(model.idleRecordTimeLeft == .seconds(300), "the old read wrote over the new one")
         await until(limit: .seconds(5), "the banner follows the new read") { lowTime(model) }
-        #expect(model.shown.banners == [.lowRecordTime(minutes: 5)])
+        #expect(model.shown.banners == [.lowRecordTime(minutes: 6)])
         await model.close()
     }
 
@@ -295,7 +297,7 @@ struct BannerValueTests {
         chrome.readRecordTime = { _ in .seconds(300) }
         chrome.refreshRecordTime()
         await until(limit: .seconds(5), "the low time is announced") { heard.count == 1 }
-        chrome.readRecordTime = { _ in .seconds(240) }
+        chrome.readRecordTime = { _ in .seconds(180) }
         chrome.refreshRecordTime()
         await until(limit: .seconds(5), "the banner has 4 min") {
             model.shown.banners.contains(.lowRecordTime(minutes: 4))

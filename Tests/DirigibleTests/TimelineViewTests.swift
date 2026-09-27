@@ -109,18 +109,21 @@ import Testing
         await model.close()
     }
 
-    /// Criterion 19 in a real window: 8 tracks and a height for fewer lanes. An armed lane 7
-    /// with a clip under the playhead warns; an armed lane 2 does not.
+    /// Criterion 19 in a real window: 12 tracks and a height for fewer lanes (the minimum, 360 pt,
+    /// gives 8 lanes of 40 pt). An armed lane 12 with a clip under the playhead warns; an armed
+    /// lane 2 does not.
     @Test func aClippedArmedLaneShowsTheWarning() async throws {
-        let window = await app.open(try await timelinePackage(in: folder.url, tracks: 8, seconds: 20))
+        let window = await app.open(try await timelinePackage(in: folder.url, tracks: 12, seconds: 20))
         let studio = try #require(await window.opened() ? window.studio : nil)
         window.window?.setContentSize(NSSize(width: 1000, height: 360))
-        await until("the lanes publish what is in view") { window.timeline.visible != nil }
+        await until("the lanes publish the smaller height") {
+            window.timeline.visible.map { !$0.lanes.contains(11) } == true
+        }
         await studio.perform(.seek(.frame(100_000)))
         let visible = try #require(window.timeline.visible)
-        #expect(!visible.lanes.contains(6) && visible.frames.contains(100_000), "\(visible)")
+        #expect(!visible.lanes.contains(11) && visible.frames.contains(100_000), "\(visible)")
 
-        window.armed = ["t7"]
+        window.armed = ["t12"]
         #expect(window.showsRecordOver)
         window.armed = ["t2"]
         #expect(!window.showsRecordOver)

@@ -122,13 +122,12 @@
 "transport.record" = "Grabar";
 "transport.stop" = "Detener";
 "transport.play" = "Reproducir";
-"transport.remaining" = "Tiempo de grabación restante: %@";
-"transport.record.over" = "El cursor está sobre un clip de una pista armada. Grabar sustituye ese audio.";
-"transport.stop.output.changed" = "La reproducción se detuvo: cambió el dispositivo de salida.";
+"transport.record.over" = "El cursor está sobre un clip de una pista armada. Grabar sustituye ese audio. Mueve el cursor o desactiva Armar para conservarlo.";
+"transport.stop.output.changed" = "La reproducción se detuvo: cambió el dispositivo de salida. Pulsa Espacio para reproducir en el nuevo dispositivo.";
 "transport.stop.output.unavailable" = "No se puede reproducir: el dispositivo de salida no está disponible (error %lld).";
 "transport.stop.package.unavailable" = "La reproducción se detuvo: el paquete de la sesión no está disponible. Comprueba que su disco está conectado.";
 "transport.stop.no.descriptor" = "La reproducción se detuvo: la app no puede abrir más archivos (error %lld). Cierra otras apps y pulsa Espacio otra vez.";
-"media.missing" = "Faltan archivos de audio o están dañados. Sus clips suenan como silencio: %@";
+"media.missing" = "Faltan archivos de audio o están dañados. Sus clips suenan como silencio: %@. Conecta el disco que los tiene. La app vuelve a comprobarlo al volver a esta ventana.";
 
 /* Línea de tiempo (decisión 0017) */
 "timeline.accessibility" = "Línea de tiempo";
@@ -192,3 +191,11 @@
 "toolbar.export" = "Exportar";
 "toolbar.tooltip" = "%1$@ (%2$@)";
 "key.space" = "Espacio";
+
+/* Subtitle and banners (decision 0023) */
+"subtitle.tracks" = "Pistas:";
+"subtitle.record.time" = "Grabación:";
+"banner.low.record.time" = "Quedan menos de %lld min de grabación en este disco. Libera espacio antes de grabar.";
+"banner.kind.warning" = "Aviso";
+"banner.kind.error" = "Error";
+"banner.kind.info" = "Información";

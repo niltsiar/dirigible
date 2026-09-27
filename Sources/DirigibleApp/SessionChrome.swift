@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleCore
 import Observation
 
 /// The chrome of one session window (decision 0023): the toolbar and its delegate, and the item
@@ -18,10 +19,28 @@ import Observation
     private var timeWritten = ContinuousClock.now - .seconds(1)
     /// The clock of the time limit. Tests give their own.
     var now: () -> ContinuousClock.Instant = { .now }
+    /// Posts a VoiceOver announcement. Tests give their own.
+    var announce: (String, NSAccessibilityPriorityLevel) -> Void = { text, priority in
+        NSAccessibility.post(
+            element: NSApp as Any, notification: .announcementRequested,
+            userInfo: [.announcement: text, .priority: priority.rawValue])
+    }
+    /// The record time left of the armed tracks before a take. It only returns a value;
+    /// `refreshRecordTime()` writes it. Tests give their own.
+    var readRecordTime: @MainActor ([TrackID]) async -> Duration?
+    /// The one read that runs: each new read cancels it.
+    private var reading: Task<Void, Never>?
+    /// The reads that ended, written or dropped, for the tests.
+    private(set) var recordTimeReads = 0
+    /// The armed set and the idle state of the last read: a change reads again.
+    private var readFor: (armed: [TrackID], idle: Bool)?
+    /// Reads the record time again every 10 s while idle.
+    private var ticker: Task<Void, Never>?
 
     init(model: SessionWindow, window: NSWindow) {
         self.model = model
         self.window = window
+        readRecordTime = { [weak model] armed in await model?.idleStudio?.remainingRecordTime(armed: armed) }
         super.init()
         toolbar.delegate = self
         toolbar.allowsUserCustomization = true
@@ -34,10 +53,37 @@ import Observation
         window.titleVisibility = .visible
         window.toolbar = toolbar
         update()
+        ticker = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                guard let self else { return }
+                if self.model?.idleStudio != nil { self.refreshRecordTime() }
+            }
+        }
     }
 
-    /// Ends the loop. The window calls it at its close.
-    func close() { closed = true }
+    /// Ends the loop, the record-time read, and its timer. The window calls it at its close.
+    func close() {
+        closed = true
+        ticker?.cancel()
+        reading?.cancel()
+    }
+
+    /// Reads the record time left of the armed tracks with a route, and writes it only when no
+    /// newer read started and the armed set is the same (plan gate 1 item 4). The window calls it
+    /// at focus; the loop calls it at open, at an arm change, and after a take.
+    func refreshRecordTime() {
+        guard let model, !closed else { return }
+        reading?.cancel()
+        let armed = model.armedWithRoute
+        reading = Task { [weak self] in
+            let left = armed.isEmpty ? nil : await self?.readRecordTime(armed)
+            guard let self else { return }
+            self.recordTimeReads += 1
+            guard !Task.isCancelled, let model = self.model, model.armedWithRoute == armed else { return }
+            if model.idleRecordTimeLeft != left { model.idleRecordTimeLeft = left }
+        }
+    }
 
     /// One loop turn: derives the state, applies it, and arms the observation once.
     func update() {
@@ -57,6 +103,11 @@ import Observation
             }
         }
         apply(state)
+        let key = (armed: model.armedWithRoute, idle: model.idleStudio != nil)
+        if readFor.map({ $0.armed != key.armed || $0.idle != key.idle }) ?? true {
+            readFor = key
+            if key.idle { refreshRecordTime() }
+        }
     }
 
     /// Writes only what differs from the controls. Each push-on button is compared with its
@@ -71,7 +122,13 @@ import Observation
                 timeWritten = now
             }
         }
-        if let model, model.shown != state.shown { model.shown = state.shown }
+        if let window, window.subtitle != state.subtitle { window.subtitle = state.subtitle }
+        guard let model, model.shown != state.shown else { return }
+        // A banner of a kind that did not show is announced once.
+        for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {
+            if let priority = banner.announcement { announce(banner.text, priority) }
+        }
+        model.shown = state.shown
     }
 
     private func apply(_ state: ChromeState, to item: NSToolbarItem) {

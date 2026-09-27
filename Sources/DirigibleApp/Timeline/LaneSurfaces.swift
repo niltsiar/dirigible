@@ -96,7 +96,7 @@ struct LaneWindow: Equatable {
     }
 }
 
-/// The lanes as one layer of IOSurfaces written in place (decision 0022). Three slots of one
+/// The lanes as one layer of IOSurfaces written in place (decision 0022). Four slots of one
 /// capacity. `show` is the only code that locks a surface: it writes only a slot that is not the
 /// layer contents and that the window server does not use (`isInUse`) at the pick, and it lends its
 /// pixels only as a `PixelRegion` in a closure. So no write reaches the pixels on screen, and the
@@ -111,8 +111,10 @@ struct LaneWindow: Equatable {
         var commit = 0
     }
 
-    /// Two slots take turns, and the third covers the frame that the compositor still shows (P1).
-    private var slots = [Slot](repeating: Slot(), count: 3)
+    /// Two slots take turns, and the others cover the frames that the compositor still shows (P1).
+    /// With 3, a full draw of the lanes back to back found the picked slot in use at 42 of 120
+    /// draws, and each made a new surface (p95 16.1 ms); with 4, at none (p95 11.3 ms).
+    private var slots = [Slot](repeating: Slot(), count: 4)
     private var front: Int?
     private var commits = 0
 

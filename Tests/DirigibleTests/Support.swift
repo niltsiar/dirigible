@@ -188,19 +188,29 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
 
 /// A package with the mono tracks `t1` to `t<tracks>`, each routed to channel 1 of `device` and
 /// each with a clip of file `f1` from 0 for `seconds`. With `audio`, `f1` is a WAV of silence on
-/// disk; else the file is missing. The writes run off the main actor (the tdd skill).
+/// disk; with `noise`, a WAV of noise whose level changes every 0.5 s (a waveform to draw); else
+/// the file is missing. The writes run off the main actor (the tdd skill).
 func timelinePackage(
-    in folder: URL, tracks: Int, seconds: Int, audio: Bool = false, device: String = "mic"
+    in folder: URL, tracks: Int, seconds: Int, audio: Bool = false, noise: Bool = false, device: String = "mic"
 ) async throws -> URL {
     let url = folder.appending(path: "timeline.dirigible")
     try await Task.detached {
         try Session.create(at: url, sampleRate: 48_000)
         var session = Session(sampleRate: 48_000)
         let frames = 48_000 * seconds
-        if audio {
+        if audio || noise {
             let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
             let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)))
             buffer.frameLength = AVAudioFrameCount(frames)
+            if noise, let samples = buffer.floatChannelData?[0] {
+                // The same noise on each run: a linear congruential generator.
+                var state: UInt64 = 1
+                for n in 0..<frames {
+                    state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+                    let level = [0.1, 0.5, 0.9, 0.3][(n / 24_000) % 4]
+                    samples[n] = Float(level * (Double(state >> 11) / Double(1 << 53) * 2 - 1))
+                }
+            }
             let writer = try ClipWriter(
                 url: url.appending(path: "\(clipsFolderName)/f1.wav"), file: "f1.wav", format: format)
             try writer.write(buffer)

@@ -5,7 +5,8 @@ import SwiftUI
 /// The track headers left of the lanes (decision 0017): SwiftUI rows in the vertical ruler of the
 /// scroll view. The top of the clip view places them, so row n stays beside lane n in a vertical
 /// scroll. A wheel over them goes up the responder chain to the scroll view. A handle at the
-/// trailing edge sets the width (decision 0023).
+/// trailing edge sets the width (decision 0023). The ruler is opaque: the lanes under it never show
+/// (the user report L5), and a 1 pt separator line marks its trailing edge.
 final class TrackHeaderRuler: NSRulerView {
     let host = NSHostingView(rootView: AnyView(EmptyView()))
     let handle = HeaderHandle()
@@ -16,6 +17,7 @@ final class TrackHeaderRuler: NSRulerView {
     private var drag = HeaderDrag()
     /// The document y at the top of the clip view, and the height of all lanes.
     private var rows: (top: CGFloat, height: CGFloat) = (0, 0)
+    private let edge = CALayer()
 
     /// The width applies at once: the scroll view tiles, and the lanes take the new width.
     var width = HeaderWidth.standard {
@@ -34,6 +36,10 @@ final class TrackHeaderRuler: NSRulerView {
         reservedThicknessForAccessoryView = 0
         // macOS 14 does not clip subviews by default: a row above the lanes would cover the ruler.
         clipsToBounds = true
+        wantsLayer = true
+        edge.actions = ["position": NSNull(), "bounds": NSNull(), "backgroundColor": NSNull()]
+        edge.zPosition = 1
+        layer?.addSublayer(edge)
         host.sizingOptions = []
         addSubview(host)
         addSubview(handle)
@@ -43,6 +49,16 @@ final class TrackHeaderRuler: NSRulerView {
     required init(coder: NSCoder) { fatalError("no coder") }
 
     override var isFlipped: Bool { true }
+    override var isOpaque: Bool { true }
+    override var wantsUpdateLayer: Bool { true }
+
+    /// The fill and the edge line in the colors of the effective appearance.
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+            edge.backgroundColor = NSColor.separatorColor.cgColor
+        }
+    }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {}
 
@@ -51,6 +67,7 @@ final class TrackHeaderRuler: NSRulerView {
         super.layout()
         placeRows()
         handle.frame = NSRect(x: width.points - 6, y: 0, width: 6, height: bounds.height)
+        edge.frame = CGRect(x: width.points - 1, y: 0, width: 1, height: bounds.height)
     }
 
     /// `top` is the document y at the top of the clip view; `height` is the height of all lanes.

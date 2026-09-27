@@ -3,6 +3,7 @@
 
 Usage: mutate.py [--expect <text>] [--timeout <seconds>] <file> <old text> <new text> <log>
                  <build command> <test command> [<old text 2> <new text 2> ...]
+       mutate.py [--expect <text>] [--timeout <seconds>] --replay <old log> <new log>
 
 The script records the SHA-256 of <file>, replaces the one exact copy of <old text> with
 <new text> (and of each extra pair, in order: one mutant with several edits), runs <build command>, then <test command> (each with bash -o pipefail -c), writes the raw output
@@ -17,23 +18,51 @@ With --expect, a kill counts only when the output of the test has <text>, for ex
 message of the assertion that the control must break. A crash or a trap also fails the test.
 With --timeout, a test that runs longer than <seconds> is killed with all its processes, and the
 result is a kill: use it for a mutant that makes the code hang (a display loop), which no wait
-limit inside the test can stop.
+limit inside the test can stop. --replay runs the control of <old log> again from its header
+(file, pairs, commands, expect, timeout) and writes <new log>; an option on the command line
+wins over the header. When a later commit changed an old text, the replay exits 2, so you write
+that mutant again on purpose.
 A missing or repeated <old text>, or an extra old text with no new text, exits 2 before any
 change. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
 that trips it) is one call with two pairs. Do not nest mutate.py in the test command: the outer
 result line then gives the verdict of the inner script, not of the mutant.
 """
-import hashlib, os, shutil, signal, subprocess, sys
+import ast, hashlib, os, shutil, signal, subprocess, sys
 
 args = sys.argv[1:]
-expected = timeout = None
-while args[:1] in (['--expect'], ['--timeout']):
-    if len(args) < 2:
+expected = timeout = replay = None
+while args[:1] in (['--expect'], ['--timeout'], ['--replay']):
+    if args[0] == '--replay':
+        if len(args) < 3:
+            sys.exit(__doc__)
+        replay, args = (args[1], args[2]), args[3:]
+    elif len(args) < 2:
         sys.exit(__doc__)
     elif args[0] == '--expect':
         expected, args = args[1], args[2:]
     else:
         timeout, args = float(args[1]), args[2:]
+
+if replay:
+    if args:
+        sys.exit(__doc__)
+    header = {'pairs': []}
+    for line in open(replay[0], errors='replace').read().splitlines():
+        if not line.startswith('# '):
+            break
+        key, _, value = line[2:].partition(' ')
+        if key == 'mutation':
+            header['file'] = value.removeprefix('of ')
+        elif key in ('-', '+'):
+            header['pairs'].append(ast.literal_eval(value))
+        elif key in ('build:', 'test:'):
+            header[key[:-1]] = value
+        elif key in ('expect:', 'timeout:'):
+            header[key[:-1]] = ast.literal_eval(value)
+    pairs = header['pairs']
+    args = [header['file'], pairs[0], pairs[1], replay[1], header['build'], header['test']] + pairs[2:]
+    expected = expected if expected is not None else header.get('expect')
+    timeout = timeout if timeout is not None else header.get('timeout')
 
 if len(args) < 6:
     sys.exit(__doc__)

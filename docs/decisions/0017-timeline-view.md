@@ -9,6 +9,7 @@
 - Amended: 2026-09-26, timeline-scroll run: each lane image owns its buffer, and a scroll marks the lanes out of view, so the layer lets their images go. A partial draw also covers the partial draws before it (code gate 1).
 - Amended: 2026-09-27, timeline-layer run: the lanes are one layer of IOSurfaces that the app writes in place, with no `draw(_:)` (see 0022). The owned images, the buffer pool, the scroll marks, and the union of partial draws are gone. The Drawing paragraph below describes the path before this change.
 - Amended: 2026-09-27, timeline-layer run: the lanes follow the system setting "Show scroll bars" (the preferred scroller style). The user asked for no scroll bar at all times, so the forced legacy style of the timeline-scroll run is gone.
+- Amended: 2026-09-27, ui-shell run 1a: no SwiftUI body reads `Studio.play`, and the record-over warning is an overlay over the lanes. Run 1b adds a header width of 180 to 480 pt with a drag handle, an opaque header ruler, and a dark lane palette (see 0023).
 
 ## Context
 

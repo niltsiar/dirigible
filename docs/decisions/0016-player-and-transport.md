@@ -4,6 +4,7 @@
 - Date: 2026-09-24
 - Accepted: 2026-09-24, after plan gates 1 and 2 of the timeline-playback run. The gates added the playhead at open, the feed numbers and the session revision, the take guard, the key forward to the key window, the chunked render with an exclusive move, the J and L hold, and the media check at play start.
 - Amended: 2026-09-25. The record-over warning of the transport bar shows only for a clip on an armed track at the playhead that is not in view, because the lanes draw the clips (see 0017).
+- Amended: 2026-09-27. The transport bar goes. Its controls are toolbar items, its time is a toolbar time display, and its warnings are banners; the record-over warning is an overlay over the lanes (see 0023).
 
 ## Context
 

@@ -1,0 +1,67 @@
+# 0023. UI shell: an AppKit toolbar beside the window, frozen identifiers, a resizable header ruler
+
+- Status: accepted
+- Date: 2026-09-27
+- Accepted: 2026-09-27, after plan gates 1 and 2 of the ui-shell run. The gates added the push-on state at the click, one owner of the record-over state, one command per toolbar item with the menu dispatch rule, and one writer of the idle record time.
+- Amends: 0014 (the window shell and the keys), 0015 (the Monitor Inputs toggle), 0016 (the transport bar), 0017 (the track headers), 0022 (the surface capacity, if the header drag needs it).
+
+## Context
+
+Release 2 run 1 (`docs/requirements/releases.md`) adds a customizable toolbar (F93), a window subtitle, banners in place of the transport bar, and a resizable track header panel (F85 part). The user asked for toolbar icons, controls in the title bar, a good look, and no drop in performance, and gave the UI choices to an expert panel (HIG, pro audio, first use and accessibility, visual performance). The run splits in two: run 1a builds the window chrome, and run 1b builds the header panel and the dark lane palette. Research: `docs/research/macos-ui-shell.md`. Run design: `.scratchpads/runs/2026-09-27-ui-shell/design.md` and `ux-decisions.md`.
+
+Probes (MacBook Pro 2018, Intel, macOS 15.7.9, Swift 6.2.4, target macOS 14):
+
+- U3, U4 (research). An `NSHostingController` that is the content controller of a window has `sceneBridgingOptions` `.toolbars` and `.title`. A SwiftUI `.toolbar` then fills the window toolbar with UUID identifiers, and the documentation says that it overwrites an AppKit toolbar.
+- U5 (research). A change of the vertical ruler thickness with `tile()` takes 0.058 ms, and the clip view inset follows.
+- P1a (`.scratchpads/runs/2026-09-27-ui-shell/probe/output.txt`). The option is 0 before the window takes the controller. With the option `[]`, an AppKit toolbar stays.
+- P1b. `NSToolbar.visibleItems` leaves out the items in the overflow menu.
+- P1c. With 14 items, 640 pt shows Record, Play, and Stop only; 660 pt also shows the time display. The title length does not change it.
+- P2. The in-process accessibility tree of the hosting view has a SwiftUI banner text with its frame.
+
+## Decision
+
+**Toolbar.** Each session window has an AppKit `NSToolbar`, style `.unified` with a visible title, so the items are in the title bar row and the display-mode menu stays. The window sets `sceneBridgingOptions = []` on its hosting controller after the window takes it, so SwiftUI never replaces the toolbar or the title. No SwiftUI `.toolbar` is used. `allowsUserCustomization` and `autosavesConfiguration` are true, and `ToolbarCommands()` adds View > Show/Hide Toolbar (Option-Command-T) and Customize Toolbar…. The default set, leading to trailing: Add Track, space, Monitor Inputs, Stop, Play, Record, the time display, space, Split, Delete, flexible space, Zoom Out, Zoom In, Zoom to Session, Export. The spaces make the groups (the macOS 26 glass groups). Cut, Copy, Paste, Go to Start, and Go to End are in the customization palette only. Priorities: Stop, Play, Record, and the time display high; Monitor Inputs and Export over standard; Add Track standard; Split, Delete, and zoom low. Each item has a unique SF Symbol of macOS 14 or older; Record is `circle.fill` with a red symbol tint, and there is no `.prominent` style. Record, Monitor Inputs, and Play are push-on-push-off buttons, so their on state is a shape, not only a color. Such a button changes its own state at the click, before its action. So the click handler first sets the button state from the window state, and each state update compares the button with its control state: a refused Record, a Record click during a take, and a Play click at the session end show the true state. Each item has a short localized label, the menu text as its palette label, and a tooltip with its key (0010).
+
+**Frozen identifiers.** The toolbar identifier is `dirigible.session`. The item identifiers are `track.add`, `record.monitor`, `transport.stop`, `transport.play`, `transport.record`, `transport.time`, `transport.start`, `transport.end`, `edit.split`, `edit.cut`, `edit.copy`, `edit.paste`, `edit.delete`, `view.zoom.out`, `view.zoom.in`, `view.zoom.session`, and `file.export`. AppKit writes them to user defaults with the customization, so a rename loses the user layout. Never rename or reuse one; a new item gets a new identifier. A test holds the literal list.
+
+**Chrome beside the window.** One object per window owns the toolbar delegate, the subtitle, the time display, the banner list, and the idle record-time read. It belongs to the window, not to the content controller. It derives one `Equatable` value from the window model in one observation loop and writes only the fields that change. Toolbar validation does not set the item states (`autovalidates` is false), because validation runs only after events. `SessionWindow` stays the model. Each toolbar item maps to one command (a timeline command, a transport command, or a window action: Add Track, Record, Stop, Monitor Inputs). Its palette label, its key, and its action come from that command. The toolbar calls one `SessionWindow` function, which forwards each command to the same place that its menu item reaches: the timeline command handler, `Studio.perform` for a transport command, or the window action, whose menu item also goes through that function. Cut, Copy, Paste, and Delete send the menu selectors to the first responder, so a focused text field takes them first (0018 E3). The one derived value also owns the record-over state; the display tick does not write it.
+
+**No SwiftUI body reads `Studio.play`.** The time display is an AppKit view with a fixed size. It shows `h:mm:ss.t` during play (at most 10 text changes a second) and `h:mm:ss.mmm` when stopped. The banners and the Stop menu item that need the playback state read stored values (the banner list, the record-over flag, `isRunning`) that the chrome loop writes only on a change.
+
+**Window size.** A new window opens at min(1180 pt, the visible screen width) x 720 pt and cascades; the minimum content width is 720 pt, so the transport and the time display never go to the overflow menu (P1c). An empty session shows an Add Track button and one line of steps.
+
+**Subtitle and banners.** The subtitle shows the rate, "Tracks: N" (no plural form, 0010), and the record time left from a Foundation units formatter when it is known. The transport bar row goes. Its playback stop and missing media become banner rows; the record-over warning becomes an overlay over the top of the lanes, so the lanes do not move. A low-record-time banner shows before a take under 60 min and during a take under 10 min, and hides 60 s over the limit (the window reads `Studio.remainingRecordTime(armed:)` at open, at an arm change, at focus, after a take, and every 10 s while idle, in one task that each new read cancels; the read only returns a value, and one function writes it only when its task was not cancelled and the armed set did not change; during a take it reads `Studio.recordTimeLeft`). The subtitle can be cut off in a narrow window; the banner is not. Each banner has a symbol by kind, a text that says what to do, an opaque 12 % tint, a 1 pt separator, and no shadow, material, or animation. A new banner is announced to VoiceOver (high for a playback stop and the low record time).
+
+**Keys.** Each toolbar item is a menu item with a key (F16). Monitor Inputs gets Shift-Command-M. Stop moves to the Transport menu. Stop (Command-period) stops a take; with no take, it stops the play and keeps the playhead, as the Stop item does. Stop never discards a take: the take finalizes and stays in the session. The Stop item and menu item are on only when a take or a play runs, so Command-period still cancels a sheet when nothing runs.
+
+**Track header panel (run 1b).** The headers stay in the vertical ruler of the lanes scroll view (0017), not in a split pane. A handle at the trailing edge of the ruler (a 6 pt hit area inside the header padding) sets the width: 180 to 480 pt, default 340 pt, an app preference in user defaults that each new window reads. A double-click sets the default. Esc during a drag restores the start width. The width type clamps, so an out-of-range width cannot exist. The width and the drag state machine are pure values in `DirigibleTimeline`. The ruler draws an opaque background, so no lane content shows through the headers. The lanes get a dark palette in Dark Mode, so an opaque dark header never sits next to light lanes. A drag applies the width at each event; if that misses the budget, the header host keeps a fixed width during the drag and the width applies at the mouse-up, and only then a guide line.
+
+**Surface capacity (0022).** If a header drag event misses the 0020 budget with the 0022 capacity (from the shown width), the capacity of a lane surface keys on the clip view width, so a drag keeps the 4 slots and renders only the new columns. The run records which one holds, with the bench numbers.
+
+**Content controller.** The content stays one `NSHostingController` of `SessionView` (0014). The first side pane (the inspector) makes the content an `NSSplitViewController` with the host as its main item. The chrome does not move, because it belongs to the window. `fullSizeContentView` stays off, so no lane pixel is under the toolbar material.
+
+**Budgets.** A play tick (run 1a) and a header drag event (run 1b) each take 16 ms p95 or less at 2880 x 1200 px, optimized, one event per 60 Hz frame (`make bench FILTER=HeaderDragBenchmark`, `FILTER=PlayTickBenchmark`). No earlier bench case gets worse than main by more than 10 % or 1 ms (0022).
+
+**CLI (0011).** No command. The toolbar, the subtitle, the banners, and the header width are app chrome. The record time left uses the existing `Studio.remainingRecordTime(armed:)`.
+
+## Consequences
+
+- 0014 gets an amended line: the AppKit toolbar, `ToolbarCommands`, the subtitle, `sceneBridgingOptions = []`, the chrome object beside the window, the window size (1180 x 720 pt, minimum width 720 pt), the empty state, and Command-period for a take or a play in the Transport menu.
+- 0015 gets an amended line: Monitor Inputs is a toolbar toggle and a menu item with Shift-Command-M; the window check box goes.
+- 0016 gets an amended line: the transport bar goes; its controls are toolbar items and its warnings are banners.
+- 0017 gets an amended line: no SwiftUI body reads `Studio.play`, and record-over is an overlay (run 1a); the header width is 180 to 480 pt with a drag handle, the header ruler is opaque, and the lanes have a dark palette (run 1b).
+- 0022 gets an amended line only if the capacity rule lands.
+- The chrome loop runs at each playhead poll during play. It builds and compares one small value; the play tick bench case measures it.
+- The customization layout lives in user defaults under the toolbar identifier, for all windows.
+- The header width of one window does not change the other open windows until their next open.
+
+## Alternatives considered
+
+- **A SwiftUI `.toolbar(id:)` through the scene bridge.** Rejected: UUID identifiers (U3), no visibility priority, possible labels, or centered items, and the time display would be a SwiftUI view that updates at the poll rate.
+- **`SessionWindow` as the toolbar delegate.** Rejected: about 250 lines of item code in the window model, which is at 389 of 400 lines.
+- **An `NSSplitViewController` now.** Rejected: a split view for one item. It comes with the first side pane.
+- **A split pane for the track headers.** Rejected: two scroll views need a vertical scroll sync, which 0017 avoids.
+- **The time display set by the display link of the lanes.** Rejected: a session with no tracks has no lanes view, and it would be a second writer of the chrome.
+- **A guide line during the header drag, applied at the mouse-up.** Kept as the second fallback only: it gives no live feedback.
+- **The `.prominent` Record style of macOS 26.** Rejected: HIG gives it to one primary action on the trailing side; the red symbol tint gives the same signal on every system.
+- **A Stop menu item that is always on.** Rejected: it takes Command-period from the export sheet when nothing runs.

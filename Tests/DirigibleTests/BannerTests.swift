@@ -154,6 +154,24 @@ struct BannerValueTests {
         await model.close()
     }
 
+    /// Phase 7 finding (probe P5): the title bar draws the subtitle. A SwiftUI host that bridges
+    /// the scene removes the subtitle field from the title bar, and `window.subtitle` keeps its value.
+    @Test func theTitleBarShowsTheSubtitle() async throws {
+        let (model, _, window, _) = try await open()
+        await until(limit: .seconds(5), "the subtitle has the track count") {
+            window.subtitle.contains("\(L10n.subtitleTracks.text) 1")
+        }
+        let frame = try #require(window.contentView?.superview)
+        #expect(
+            textFields(under: frame).contains { $0.stringValue == window.subtitle && !$0.isHiddenOrHasHiddenAncestor },
+            "the title bar has no field with \(window.subtitle)")
+        await model.close()
+    }
+
+    func textFields(under view: NSView) -> [NSTextField] {
+        ((view as? NSTextField).map { [$0] } ?? []) + view.subviews.flatMap { textFields(under: $0) }
+    }
+
     // MARK: A13
 
     /// Code gate 1 item 2, plan gate 2 items 4 and 5: a read that hangs holds one pool thread at

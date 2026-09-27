@@ -122,9 +122,9 @@ final class TimelineDocumentView: NSView {
         didSet { if oldValue, !holdsWidth { resize() } }
     }
 
-    /// As wide as max(end, 10 s) + 2% at the zoom, rounded to whole points (the 2% holds the half
-    /// point, and a fit stays one view wide), and at least as wide as the lanes in view. A part of a point let AppKit move the clip bounds by 1 pt when a wider header
-    /// shrank the lanes (run 1b slice 1): the lanes in view moved and did not reach the right edge.
+    /// As wide as max(end, 10 s) + 2% at the zoom, and at least as wide as the lanes in view. The
+    /// width is whole points: with a part of a point, AppKit moved the clip bounds by 1 pt when a
+    /// wider header made the lanes narrower (run 1b slice 1). The 2% holds the half point.
     func resize() {
         guard let inputs else { return }
         let session = inputs.session

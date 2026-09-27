@@ -89,10 +89,11 @@ struct PlayerTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aFullPoolKeepsTheFeed() async throws { try await updateKeepsTheFeed(holdingThePoolFor: .seconds(32)) }
 
-    /// Plays, renders one chunk, updates the session, and renders 8 chunks. With `hold`, one task
-    /// per pool thread blocks its thread for `hold` right before the 8 chunks. The test task needs
-    /// a pool thread too, so it cannot wait until each holder is inside its block: the render
-    /// time shows that the pool was held.
+    /// Plays, renders one chunk, updates the session, and renders 8 chunks. With `hold`, one child
+    /// task per pool thread blocks its thread for `hold` right before the 8 chunks. The test task
+    /// needs a pool thread too, so it cannot wait until each holder is inside its block: the
+    /// render time shows that the pool was held. The group waits for the holders also after a
+    /// failure, so no holder blocks the pool for the next test.
     private func updateKeepsTheFeed(holdingThePoolFor hold: Duration) async throws {
         let player = player()
         let first = package.session
@@ -103,13 +104,16 @@ struct PlayerTests {
         await player.update(second, revision: 2)
         await player.update(first, revision: 1)
         let microseconds = UInt32(hold / .microseconds(1))
-        for _ in 0..<(hold > .zero ? ProcessInfo.processInfo.activeProcessorCount : 0) {
-            Task.detached(priority: Task.currentPriority) { usleep(microseconds) }
-        }
-        let start = ContinuousClock.now
-        let out = await player.renderOffline(frames: 8 * 4800)
-        if hold > .zero {
-            #expect(ContinuousClock.now - start > .seconds(30), "the pool was held past the old deadline")
+        let out = await withTaskGroup(of: Void.self) { holders in
+            for _ in 0..<(hold > .zero ? ProcessInfo.processInfo.activeProcessorCount : 0) {
+                holders.addTask { usleep(microseconds) }
+            }
+            let start = ContinuousClock.now
+            let out = await player.renderOffline(frames: 8 * 4800)
+            if hold > .zero {
+                #expect(ContinuousClock.now - start > .seconds(30), "the pool was held past the old deadline")
+            }
+            return out
         }
         expectEqual(
             slice(out, 4 * 4800..<8 * 4800), try package.mix(24_000..<43_200, session: second),

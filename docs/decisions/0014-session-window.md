@@ -4,6 +4,7 @@
 - Date: 2026-09-24
 - Amended: 2026-09-24. The meter before a take and the device-list listener are in 0015. The 2 s poll of the device list goes.
 - Amended: 2026-09-24. A Transport menu holds the plain-key commands (Space, Shift-Space, J, K, L, Home, End, Shift-Left, Shift-Right). A take starts at the Studio playhead, not after the last clip (see 0016).
+- Amended: 2026-09-27. Each window has an AppKit toolbar and a subtitle; its hosting controller has `sceneBridgingOptions = []`; a chrome object beside the window owns them. `ToolbarCommands` adds Show/Hide Toolbar and Customize Toolbar…. A new window opens at 1180 x 720 pt and cascades; the minimum width is 720 pt. An empty session shows an Add Track button. Stop (Command-period) is in the Transport menu: it stops a take, else a play (see 0023).
 
 ## Context
 

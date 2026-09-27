@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-09-27. Monitor Inputs is a toolbar toggle and a Record menu item with Shift-Command-M. The check box in the window goes (see 0023).
 
 ## Context
 

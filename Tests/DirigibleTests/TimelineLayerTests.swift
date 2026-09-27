@@ -20,7 +20,9 @@ import Testing
     static let frames = 9_600_000
     static let peaks: [FileID: PeakState] = ["f1": .ready(randomPeaks(frames: frames))]
 
-    /// The session of the fixture: `tracks` tracks, each with clips of 61,440 frames (120 pt).
+    /// The session of the fixture: `tracks` tracks, each with clips of 61,440 frames (120 pt). Track
+    /// n splits 15 pt later than track n - 1, so no two lanes show the same pixels: a surface read
+    /// at the rows of another lane shows other pixels.
     static func session(tracks: Int) throws -> Session {
         var session = Session(sampleRate: 48_000)
         try session.addFile(
@@ -32,7 +34,10 @@ import Testing
             try session.place(
                 Clip(id: ClipID("c\(n + 1)"), file: "f1", start: 0, offset: 0, length: Frames(frames)), on: track)
         }
-        _ = try session.splitClips(at: stride(from: 61_440, to: frames, by: 61_440).map { Frames($0) }, on: ids)
+        for (n, track) in ids.enumerated() {
+            _ = try session.splitClips(
+                at: stride(from: 61_440 + n * 7_680, to: frames, by: 61_440).map { Frames($0) }, on: [track])
+        }
         return session
     }
 
@@ -282,6 +287,43 @@ import Testing
         #expect(failures.isEmpty, "\(failures.prefix(5))")
         #expect(studio.session.markers.isEmpty, "each undo takes a marker back")
         for layer in held { layer.removeFromSuperlayer() }
+        window.close()
+        await model.close()
+    }
+
+    /// Slice 2 of the timeline-layer run (buffer age): after warm-up, each of 20 drag events copies
+    /// from the front only the rects that the 3 commits after its surface drew (the 3 events before
+    /// it), never the lanes in view. With 4 slots the pick is 4 commits old.
+    @Test func aDragEventCopiesOnlyTheRectsOfTheLaterCommits() async throws {
+        let (model, studio, window, view) = try await lanes()
+        model.timeline.scale = TimelineScale(framesPerPoint: 512)
+        view.update(inputs(model, studio))
+        drawNow(window)
+        // A clip of 120 pt at x 120 to 240 on lane 1; the upper part moves it.
+        let down = NSPoint(x: 150, y: 10)
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
+        var drawn: [PixelRect] = []
+        var failures: [String] = []
+
+        for n in 1...24 {
+            let draws = view.lanes.draws
+            view.lanes.mouseDragged(
+                with: try mouse(.leftMouseDragged, NSPoint(x: down.x + Double(3 + n), y: down.y), in: view))
+            drawNow(window)
+            try #require(view.lanes.draws == draws + 1, "event \(n) draws once")
+            let surfaces = view.lanes.surfaces
+            let shown = try #require(surfaces.shown)
+            let rect = shown.pixels(of: view.lanes.drawnRect)
+            try #require(rect.columns.count < shown.pixels.columns.count / 2, "event \(n) draws its columns: \(rect)")
+            if n > 4, surfaces.lastCopied != Array(drawn.suffix(3)) {
+                failures.append("event \(n): copied \(surfaces.lastCopied), drew before \(drawn.suffix(3))")
+            }
+            drawn.append(rect)
+            await Task.yield()
+        }
+
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: down.x + 27, y: down.y), in: view))
+        #expect(failures.isEmpty, "\(failures.count) events: \(failures.prefix(3))")
         window.close()
         await model.close()
     }

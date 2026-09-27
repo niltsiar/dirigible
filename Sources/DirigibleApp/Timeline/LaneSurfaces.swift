@@ -117,6 +117,9 @@ struct LaneWindow: Equatable {
     private var slots = [Slot](repeating: Slot(), count: 4)
     private var front: Int?
     private var commits = 0
+    /// The rect that each of the last commits drew, one fewer than the slots. The pick takes the
+    /// oldest slot, so the commits after the commit of any picked slot are all here.
+    private var history: [(commit: Int, drawn: PixelRect)] = []
 
     /// Test support: writes of a surface in use at its lock, and writes of the layer contents.
     /// Both stay 0 by construction.
@@ -124,6 +127,8 @@ struct LaneWindow: Equatable {
     private(set) var writesOfFront = 0
     /// Test support: the surfaces made.
     private(set) var made = 0
+    /// Test support: the rects that the last update copied from the front.
+    private(set) var lastCopied: [PixelRect] = []
 
     init() {
         layer.actions = [
@@ -161,19 +166,27 @@ struct LaneWindow: Equatable {
         let source = old?.capacity == window.capacity ? front.flatMap { slots[$0].surface } : nil
         let overlap = source == nil ? .empty : old!.pixels.intersection(window.pixels)
         let drawn = changed.union(Self.outside(overlap, of: window.pixels))
+        // Buffer age: a slot that shows the same pixels as the new window lacks only the pixels
+        // that the later commits drew, so it copies only those rects (in the overlap) from the
+        // front. Else it copies the overlap, shifted.
+        let aged = slots[pick].window == window
+        let copies = (aged ? history.filter { $0.commit > slots[pick].commit }.map(\.drawn) : [overlap])
+            .map { $0.intersection(overlap) }.filter { !$0.isEmpty }
 
         surface.lock(options: [], seed: nil)
         if surface.isInUse { writesInUse += 1 }
         if pick == front { writesOfFront += 1 }
+        lastCopied = copies
         if let source, let old {
             source.lock(options: .readOnly, seed: nil)
-            Self.copy(overlap, except: drawn, from: source, old, to: surface, window)
+            for rect in copies { Self.copy(rect, except: drawn, from: source, old, to: surface, window) }
             source.unlock(options: .readOnly, seed: nil)
         }
         draw(PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: drawn))
         surface.unlock(options: [], seed: nil)
 
         commits += 1
+        history = (history + [(commits, drawn)]).suffix(slots.count - 1)
         slots[pick] = Slot(surface: surface, window: window, commit: commits)
         front = pick
         // A new capacity drops the surfaces of the old one, so each held surface has the capacity of

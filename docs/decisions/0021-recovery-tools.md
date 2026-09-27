@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-26
+- Amended: 2026-09-27. The anchor magic is a 7-byte prefix and a version digit. A newer anchor is a per-segment fault at a placement that needs it. A finalize keeps a newer anchor and ends the take; an anchor that does not read keeps the take pending before any WAV. The anchor name counts for the next take number (see 0024).
 
 ## Context
 
@@ -20,10 +21,10 @@ The run design is in `.scratchpads/runs/2026-09-26-recovery-tools/design.md`. It
 **The take anchor file.** Each finalize that ends a take (stop, recovery at open, retry, `dirigible take finalize`) writes `Capture/take<n>.anchor` after the WAVs and `Clips/` are flushed and before the save that removes `<recording>`. The file holds the `Recording` of the take: the take number, the playhead frame, the take start host time, and the armed track IDs in arm order.
 
 - Bytes: the record framing of the sidecar (0012). An 8-byte magic `DRGANCH1`, then one record: a UInt32 payload length, the kind 1, the payload, and the FNV-1a 32-bit hash. The payload is the take (UInt32), the playhead frame (Int64), the take start host time in nanoseconds (UInt64), a UInt32 track count, and each track ID (a UInt32 byte count and UTF-8). Little-endian. The counts are UInt32 because `Session` does not limit the length of a track ID.
-- The reader refuses a bad magic, a short record, a bad hash, bytes after the record, a take outside `Recording.takes`, a negative playhead, a track ID that `Session` does not store, and a take number that is not the number in the file name. A refused file is the same as no file. ENOENT is no file. Another errno on the open or the read throws `FinalizeError.readFailed(file: "Capture/take<n>.anchor", errno:)`, as the sidecar read does, so a fault that can go away is not taken for a missing anchor.
+- The reader refuses a bad magic, a short record, a bad hash, bytes after the record, a take outside `Recording.takes`, a negative playhead, a track ID that `Session` does not store, and a take number that is not the number in the file name. A refused file is the same as no file. A newer anchor is a per-segment fault at placement; a finalize keeps it and ends the take (0024). ENOENT is no file. Another errno on the open or the read throws `FinalizeError.readFailed(file: "Capture/take<n>.anchor", errno:)`, as the sidecar read does, so a fault that can go away is not taken for a missing anchor.
 - The write runs under the package lock. It unlinks a leftover `Capture/.take<n>.anchor.tmp` of a crashed write, opens that name with `O_CREAT | O_TRUNC` (never `O_EXCL`, so a leftover cannot keep a take pending), writes, flushes, renames it to `take<n>.anchor`, and then flushes `Capture/`. A write, flush, or rename fault is `FinalizeError.writeFailed(file: "Capture/take<n>.anchor", status:)`: the take stays pending, and a retry can succeed (the class of a `Clips/` fault in 0012).
 - A crash after the rename and before the save leaves `<recording>`. The recovery writes the same bytes again.
-- No tool deletes an anchor file. The name does not match the stem pattern of 0012, so it does not count for the next take number. A take with no segment gives its number to the next take; the finalize of that next take replaces the file.
+- No tool deletes an anchor file. The name counts for the next take number, so a take with no segment does not give its number to the next take (0024 P10).
 
 **Placement of one segment.** `Studio.place(_ segment: SegmentName, on track: TrackID? = nil, at start: Frames? = nil) async throws(StudioError) -> ClipID`.
 

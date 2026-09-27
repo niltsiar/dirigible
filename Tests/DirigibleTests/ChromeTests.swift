@@ -86,10 +86,13 @@ struct TimeTextTests {
 
     /// Renders the offline Player at 48 kHz in real time for `seconds`, so the poll moves the
     /// playhead as a real play does.
-    func renderRealTime(_ studio: Studio, seconds: Double) async throws {
+    /// With `until`, it goes on past `seconds` until the condition holds, at most 20 s: in a
+    /// full run other suites can hold the main actor, and fewer polls run.
+    func renderRealTime(_ studio: Studio, seconds: Double, until done: () -> Bool = { true }) async throws {
         let start = ContinuousClock.now
         var rendered = 0
-        while ContinuousClock.now - start < .seconds(seconds) {
+        while ContinuousClock.now - start < .seconds(seconds) || (!done() && ContinuousClock.now - start < .seconds(20))
+        {
             try await Task.sleep(for: .milliseconds(10))
             let due = Int((ContinuousClock.now - start) / .seconds(1) * 48_000)
             if due > rendered {
@@ -310,8 +313,9 @@ struct TimeTextTests {
 
     // MARK: A21
 
-    /// During 1 s of play, with an armed track, a clip at the playhead, and Record possible, no
-    /// SwiftUI body of the window content runs, and the lanes get no `updateNSView`.
+    /// During 1 s of play (and at least 3 changes of the time display), with an armed track, a clip
+    /// at the playhead, and Record possible, no SwiftUI body of the window content runs, and the
+    /// lanes get no `updateNSView`.
     @Test func aPlayRunsNoSwiftUIBody() async throws {
         let (model, studio, chrome) = try await open(tracks: 2, seconds: 3)
         await until("the window shows the lanes") { (model.timelineView?.updates ?? 0) > 0 }
@@ -323,9 +327,9 @@ struct TimeTextTests {
         await studio.perform(.playStop)
         let (bodies, updates, changes) = (model.bodyRuns, view.updates, time.textChanges)
 
-        try await renderRealTime(studio, seconds: 1)
+        try await renderRealTime(studio, seconds: 1) { time.textChanges >= changes + 3 }
 
-        #expect(time.textChanges > changes, "the play reached the chrome")
+        #expect(time.textChanges >= changes + 3, "the play reached the chrome")
         #expect(model.bodyRuns == bodies, "a play ran \(model.bodyRuns - bodies) SwiftUI bodies")
         #expect(view.updates == updates)
         #expect(studio.playback == Self.forward, "the play goes on")

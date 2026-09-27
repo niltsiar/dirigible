@@ -324,6 +324,36 @@ struct BannerValueTests {
         await model.close()
     }
 
+    /// Code gate 1 item 1: the overlay covers the ruler, where the user acts on the warning. A
+    /// mouse-down there goes through the window to the ruler and moves the playhead.
+    @Test func aRulerClickUnderTheRecordOverOverlaySeeks() async throws {
+        let (model, studio, window, _) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
+        await until("the window shows the lanes") { model.timelineView?.window != nil }
+        let view = try #require(model.timelineView)
+        view.viewWillMove(toWindow: nil)
+        model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
+        await studio.perform(.seek(.frame(100_000)))
+        await until(limit: .seconds(10), "the overlay body shows the warning") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return model.shown.recordOver && model.overlayShows > 0
+        }
+        let geometry = try #require(view.ruler.inputs?.geometry)
+        let x = Double(view.shown.minX) + 100
+        let target = geometry.frame(at: x)
+        try #require(target != studio.playhead)
+
+        // As `NSWindow.sendEvent` does in a key window: the hit view of the frame view gets the
+        // events. The test process has no key window, so the window would take the first click.
+        let down = try rulerMouse(.leftMouseDown, x, 10, in: view)
+        let hit = try #require(window.contentView?.superview?.hitTest(down.locationInWindow))
+        hit.mouseDown(with: down)
+        hit.mouseUp(with: try rulerMouse(.leftMouseUp, x, 10, in: view))
+
+        await until(limit: .seconds(5), "the ruler click seeks") { studio.playhead == target }
+        #expect(studio.playhead == target, "the overlay took the ruler click")
+        await model.close()
+    }
+
     @Test func theTransportWarningsAreBanners() async throws {
         let (model, studio, window, _) = try await open()
         studio.play.playbackStop = .outputChanged

@@ -160,6 +160,30 @@ struct TakeCommandTests {
         #expect(after.take == nil)
     }
 
+    /// Decision 0024: a sidecar of a newer version leaves its segment unplaced, and the take ends
+    /// with or without --leave-unreadable. The warning names the newer version, also in a later
+    /// run with no pending take.
+    @Test(arguments: [[], ["--leave-unreadable"]])
+    func aNewerSidecarEndsTheTakeWithAWarning(flags: [String]) throws {
+        try segment(arm: 1)
+        try segment(arm: 2)
+        try setMagicDigit(package.url.appending(path: "Capture/take1-1-1.sidecar"), "2")
+        let unplaced =
+            "Warning: Capture/take1-1-1.caf is not on the timeline: its sidecar was made by a newer version of "
+            + "Dirigible (version 2).\n"
+
+        #expect(
+            try package.run(["take", "finalize", "PKG"] + flags)
+                == CLIResult(
+                    status: 3, stdout: "take1-2-1\n",
+                    stderr: unplaced + "Warning: track \"t1\" has no clip from take 1.\n"))
+
+        let after = try info()
+        #expect(after.clips == [[], ["take1-2-1"]])
+        #expect(after.take == nil)
+        #expect(try package.run("take", "finalize", "PKG") == CLIResult(status: 3, stdout: "", stderr: unplaced))
+    }
+
     @Test func takeFinalizeHasHelp() throws {
         let help = try dirigible("take", "finalize", "--help").stdout
         #expect(help.contains("USAGE: dirigible take finalize <package> [--leave-unreadable]"))

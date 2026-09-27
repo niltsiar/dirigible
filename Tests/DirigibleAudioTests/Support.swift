@@ -74,6 +74,15 @@ func readAudio(_ url: URL) throws -> (rate: Double, bits: Int?, samples: [Float]
     return (file.fileFormat.sampleRate, file.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int, samples)
 }
 
+/// Writes `digit` over byte 7 of the file at `url`: the version digit of a sidecar or anchor
+/// magic (decision 0024 P9).
+func setMagicDigit(_ url: URL, _ digit: String) throws {
+    let handle = try FileHandle(forWritingTo: url)
+    try handle.seek(toOffset: 7)
+    try handle.write(contentsOf: Data(digit.utf8))
+    try handle.close()
+}
+
 /// The host time of the take start in the take packages: 1000 s after boot.
 let takeStart: UInt64 = 1_000_000_000_000
 

@@ -63,7 +63,8 @@ struct StopPathTests {
         #expect(abs(boxLength - 144_000) <= 1)
         #expect(studio.session.captures["take1-2-1"]?.resampledFromRate == 44_100)
         #expect(try Session(contentsOf: url) == studio.session)
-        let sidecar = try #require(Sidecar.decode(Data(contentsOf: url.appending(path: "Capture/take1-1-1.sidecar"))))
+        let sidecar = try #require(
+            try Sidecar.decode(Data(contentsOf: url.appending(path: "Capture/take1-1-1.sidecar"))))
         #expect(sidecar.checkpoints.map(\.fileFrame) == [0, 48_128, 96_256, 143_872])
 
         #expect(studio.unplacedSegments == [])

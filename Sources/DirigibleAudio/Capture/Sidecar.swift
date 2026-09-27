@@ -135,12 +135,12 @@ struct Sidecar: Hashable, Sendable {
         return Data(record.bytes)
     }
 
-    /// Nil when the magic or the header is bad. The checkpoints end before the first record that
-    /// is short, has a bad hash, has a bad value, or goes back: a torn last record or a tail of
-    /// zeros after a power loss.
-    static func decode(_ data: Data) -> Sidecar? {
+    /// Nil when the magic or the header is bad; throws for a sidecar of a newer version (decision
+    /// 0024). The checkpoints end before the first record that is short, has a bad hash, has a bad
+    /// value, or goes back: a torn last record or a tail of zeros after a power loss.
+    static func decode(_ data: Data) throws(NewerFormat) -> Sidecar? {
         var reader = ByteReader(Array(data))
-        guard reader.take(magic.count).map(Array.init) == magic, let first = reader.record(),
+        guard try reader.magic(magic), let first = reader.record(),
             first.kind == headerKind, let header = decodeHeader(first.payload)
         else { return nil }
         var checkpoints: [Checkpoint] = []
@@ -179,6 +179,11 @@ struct Sidecar: Hashable, Sendable {
             deviceUID: uid, deviceName: name, nominalRate: rate, availableRates: ranges, channelCount: Int(channels),
             latency: latencyFrames, firstSampleTime: sampleTime, firstHostTimeNanos: hostTime)
     }
+}
+
+/// A file of a format version higher than this build reads (decision 0024 P3).
+struct NewerFormat: Error, Hashable, Sendable {
+    let version: Int
 }
 
 /// FNV-1a, 32 bits.
@@ -226,6 +231,17 @@ struct ByteReader {
     mutating func text() -> String? {
         guard let count: UInt16 = integer(), let utf8 = take(Int(count)) else { return nil }
         return String(bytes: utf8, encoding: .utf8)
+    }
+
+    /// Reads the 8-byte magic of decision 0024 P9: the 7-byte prefix of `current`, then one ASCII
+    /// digit 1 to 9, the version. False for another prefix, another byte, or a short file. Throws
+    /// for a digit above the digit of `current`.
+    mutating func magic(_ current: [UInt8]) throws(NewerFormat) -> Bool {
+        guard let bytes = take(current.count), bytes.dropLast().elementsEqual(current.dropLast()),
+            let digit = bytes.last, (UInt8(ascii: "1")...UInt8(ascii: "9")).contains(digit)
+        else { return false }
+        if digit > current.last! { throw NewerFormat(version: Int(digit - UInt8(ascii: "0"))) }
+        return true
     }
 
     /// The kind and the payload of the next record, or nil when it is short or its hash is bad.

@@ -43,6 +43,7 @@
 "error.finalize.write" = "The clip %1$@ cannot be written (error %2$lld).";
 "error.segment.not.unplaced" = "The audio %@ is on the timeline already, or it is not available.";
 "error.segment.no.sidecar" = "The timing data of the audio %@ is missing or damaged, so it cannot be placed.";
+"error.segment.newer" = "The audio %@ was made by a newer version of Dirigible. Update Dirigible to place it.";
 "error.segment.bad.audio" = "The audio %@ is damaged and cannot be converted.";
 "error.segment.before.start" = "The audio %@ ends before the start of the timeline.";
 "error.segment.no.alignment" = "The recorded time of the audio %@ is not known. Select one track, then use Place at Playhead on Selected Track.";

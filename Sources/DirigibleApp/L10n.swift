@@ -180,6 +180,7 @@ enum L10n: String, CaseIterable {
     case errorFinalizeWrite = "error.finalize.write"
     case errorSegmentNotUnplaced = "error.segment.not.unplaced"
     case errorSegmentNoSidecar = "error.segment.no.sidecar"
+    case errorSegmentNewer = "error.segment.newer"
     case errorSegmentBadAudio = "error.segment.bad.audio"
     case errorSegmentBeforeStart = "error.segment.before.start"
     case errorSegmentNoAlignment = "error.segment.no.alignment"
@@ -242,6 +243,7 @@ enum L10n: String, CaseIterable {
         switch fault {
         case .notUnplaced: errorSegmentNotUnplaced
         case .noSidecar: errorSegmentNoSidecar
+        case .newerSidecar: errorSegmentNewer
         case .badAudio: errorSegmentBadAudio
         case .beforeTimeline: errorSegmentBeforeStart
         case .noAlignment: errorSegmentNoAlignment

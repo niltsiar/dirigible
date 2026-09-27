@@ -10,7 +10,6 @@
 "menu.track.remove" = "Eliminar pista";
 "menu.record" = "Grabación";
 "menu.record.start" = "Grabar";
-"menu.record.stop" = "Detener";
 "menu.record.retry" = "Reintentar la finalización";
 "menu.record.leave.unreadable" = "Terminar sin el audio ilegible";
 "menu.unplaced.place" = "Colocar";
@@ -108,6 +107,7 @@
 
 /* Transporte (decisión 0016) */
 "menu.transport" = "Transporte";
+"menu.transport.stop" = "Detener";
 "menu.transport.play" = "Reproducir o detener";
 "menu.transport.return" = "Detener y volver";
 "menu.transport.reverse" = "Reproducir hacia atrás";
@@ -190,3 +190,5 @@
 "toolbar.time" = "Cursor";
 "toolbar.zoom.fit" = "Ajustar";
 "toolbar.export" = "Exportar";
+"toolbar.tooltip" = "%1$@ (%2$@)";
+"key.space" = "Espacio";

@@ -100,7 +100,9 @@ import Observation
         guard let id = ToolbarItemID(rawValue: itemIdentifier.rawValue) else { return nil }
         let item = NSToolbarItem(itemIdentifier: itemIdentifier)
         item.label = id.label.text
-        item.paletteLabel = id.command?.title.text ?? id.label.text
+        item.possibleLabels = [id.label.text]
+        item.paletteLabel = id.command?.menuItem.title.text ?? id.label.text
+        if let command = id.command { item.toolTip = toolbarTooltip(command) }
         item.visibilityPriority = id.priority
         // The chrome sets the states from the window state; validation runs only after events.
         item.autovalidates = false

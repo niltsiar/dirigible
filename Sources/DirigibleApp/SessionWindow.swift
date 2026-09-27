@@ -73,6 +73,8 @@ enum WindowAlert: Hashable {
     var shown = ShownChrome()
     /// The SwiftUI body runs of the window content, for the tests.
     @ObservationIgnored var bodyRuns = 0
+    /// The commands that reach a leaf of the window, for the tests. Nil: no record.
+    @ObservationIgnored var leafCalls: [String]?
     /// The lanes of the window, for the zoom commands.
     @ObservationIgnored weak var timelineView: TimelineScrollView?
     @ObservationIgnored private var opening: Task<Void, Never>?

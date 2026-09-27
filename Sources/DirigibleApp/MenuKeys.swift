@@ -1,3 +1,4 @@
+import DirigibleAudio
 import SwiftUI
 
 /// The key of each menu item outside the timeline tables (F16). The menus use these values, and
@@ -8,6 +9,7 @@ enum MenuKeys {
     static let addTrack = KeyboardShortcut("n", modifiers: [.command, .option])
     static let record = KeyboardShortcut("r")
     static let stop = KeyboardShortcut(".")
+    static let monitor = KeyboardShortcut("m", modifiers: [.command, .shift])
     static let retry = KeyboardShortcut("r", modifiers: [.command, .option])
     static let play = KeyboardShortcut(.space, modifiers: [])
     static let stopAndReturn = KeyboardShortcut(.space, modifiers: .shift)
@@ -22,16 +24,47 @@ enum MenuKeys {
     static let nextClip = KeyboardShortcut(.rightArrow, modifiers: .shift)
 
     /// The keys of the items that macOS and SwiftUI add: Undo, Redo, Close, Quit, Hide, Hide
-    /// Others, Minimize, and Enter Full Screen.
+    /// Others, Minimize, Enter Full Screen, and Show/Hide Toolbar (`ToolbarCommands`).
     static let system = [
         KeyboardShortcut("z"), KeyboardShortcut("z", modifiers: [.command, .shift]), KeyboardShortcut("w"),
         KeyboardShortcut("q"), KeyboardShortcut("h"), KeyboardShortcut("h", modifiers: [.command, .option]),
         KeyboardShortcut("m"), KeyboardShortcut("f", modifiers: [.command, .control]),
+        KeyboardShortcut("t", modifiers: [.command, .option]),
     ]
 
     static let all =
         [
-            newSession, open, addTrack, record, stop, retry, play, stopAndReturn, reverse, pause, forward,
+            newSession, open, addTrack, record, stop, monitor, retry, play, stopAndReturn, reverse, pause, forward,
             slowReverse, slowForward, start, end, previousClip, nextClip,
         ] + system
+}
+
+/// The plain-key items of the Transport menu (decision 0016), in groups. The menu is built from
+/// this table, and a toolbar item of a transport command takes its title and key from it.
+enum TransportMenu {
+    struct Item {
+        let title: L10n
+        let command: TransportCommand
+        let key: KeyboardShortcut
+    }
+
+    static let groups: [[Item]] = [
+        [
+            Item(title: .menuTransportPlay, command: .playStop, key: MenuKeys.play),
+            Item(title: .menuTransportReturn, command: .stopAndReturn, key: MenuKeys.stopAndReturn),
+        ],
+        [
+            Item(title: .menuTransportReverse, command: .reverse, key: MenuKeys.reverse),
+            Item(title: .menuTransportPause, command: .pause, key: MenuKeys.pause),
+            Item(title: .menuTransportForward, command: .forward, key: MenuKeys.forward),
+            Item(title: .menuTransportSlowReverse, command: .slowReverse, key: MenuKeys.slowReverse),
+            Item(title: .menuTransportSlowForward, command: .slowForward, key: MenuKeys.slowForward),
+        ],
+        [
+            Item(title: .menuTransportStart, command: .seek(.start), key: MenuKeys.start),
+            Item(title: .menuTransportEnd, command: .seek(.end), key: MenuKeys.end),
+            Item(title: .menuTransportPrevious, command: .seek(.previousClip), key: MenuKeys.previousClip),
+            Item(title: .menuTransportNext, command: .seek(.nextClip), key: MenuKeys.nextClip),
+        ],
+    ]
 }

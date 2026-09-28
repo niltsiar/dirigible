@@ -40,4 +40,13 @@ up 55 flags 0"
 [[ "$events" == "$want" ]] || fail "the modifier keys around a key: $events"
 [[ "$(swift "$hid" key 53 --dry-run 2>&1)" == $'down 53 flags 0\nup 53 flags 0' ]] || fail "a key with no modifier"
 
+# A Shift wheel event (timeline-navigation N20): the Shift key down, the wheel event with the
+# Shift flag (131072), and the Shift key up, so no modifier stays held.
+events="$(swift "$hid" scroll 100 200 0 -30 --shift --dry-run 2>&1)"
+want="down 56 flags 131072
+wheel 0 -30 flags 131072
+up 56 flags 0"
+[[ "$events" == "$want" ]] || fail "the Shift key goes up around a wheel event: $events"
+[[ "$(swift "$hid" scroll 100 200 0 -30 --dry-run 2>&1)" == "wheel 0 -30 flags 0" ]] || fail "a wheel event with no modifier"
+
 [[ $failures -eq 0 ]] && echo "hid tests: all passed" || { echo "hid tests: $failures failed"; exit 1; }

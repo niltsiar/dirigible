@@ -49,6 +49,7 @@ test-hooks:
 	scripts/hid.test.sh
 	scripts/ax.test.sh
 	.claude/skills/deliver/scripts/mutate.test.sh
+	scripts/bench-pairs.test.sh
 
 check-docs:
 	scripts/check-docs.test.sh

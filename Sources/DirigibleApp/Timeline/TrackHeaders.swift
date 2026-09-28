@@ -60,10 +60,11 @@ private struct TrackRow: View {
                 if secondLine { arm } else { arm.labelsHidden() }
                 nameField
                 if showsLayout {
-                    // A fixed size: a squeezed text wraps into the lane below. The same for the arm label.
+                    // One line: a squeezed text wraps into the lane below. It is cut only after the
+                    // name is at its minimum, so the route and the state always show.
                     Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
                         .foregroundStyle(.secondary)
-                        .fixedSize()
+                        .lineLimit(1)
                 }
                 if !secondLine {
                     // A lost device must show during a take at every lane height, so the route and

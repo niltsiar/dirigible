@@ -2,7 +2,7 @@
 """Run one source-mutation control and never leave the mutant in the tree.
 
 Usage: mutate.py [--expect <text>] [--timeout <seconds>] <file> <old text> <new text> <log>
-                 <build command> <test command> [<old text 2> <new text 2> ...]
+                 <build command> <test command> [<old text 2> <new text 2> ...] [--in=<file 2> <old> <new> ...]
        mutate.py [--expect <text>] [--timeout <seconds>] --replay <old log> <new log>
 
 The script records the SHA-256 of <file>, replaces the one exact copy of <old text> with
@@ -14,6 +14,7 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   survived      the build and the test passed (exit 1)
   BUILD FAILED  the mutant did not build, so it proves nothing (exit 2)
   WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4)
+  NO TESTS      the test passed, but it ran no test: the filter matched nothing (exit 5)
 With --expect, a kill counts only when the output of the test has <text>, for example the
 message of the assertion that the control must break. A progress line (a test started or passed)
 does not count: it names every test of the filter, also on a run where another test fails. A crash or a trap also fails the test.
@@ -25,7 +26,8 @@ wins over the header. When a later commit changed an old text, the replay exits 
 that mutant again on purpose.
 A missing or repeated <old text>, or an extra old text with no new text, exits 2 before any
 change. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
-that trips it) is one call with two pairs. Do not nest mutate.py in the test command: the outer
+that trips it) is one call with two pairs. An extra argument --in=<file> puts the pairs after it
+in <file>: one mutant in two files, with each file hashed and restored. Do not nest mutate.py in the test command: the outer
 result line then gives the verdict of the inner script, not of the mutant.
 """
 import ast, hashlib, os, re, shutil, signal, subprocess, sys
@@ -48,12 +50,15 @@ if replay:
     if args:
         sys.exit(__doc__)
     header = {'pairs': []}
+    current = None
     for line in open(replay[0], errors='replace').read().splitlines():
         if not line.startswith('# '):
             break
         key, _, value = line[2:].partition(' ')
         if key == 'mutation':
             header['file'] = value.removeprefix('of ')
+        elif key == 'in':
+            header['pairs'].append('--in=' + value)
         elif key in ('-', '+'):
             header['pairs'].append(ast.literal_eval(value))
         elif key in ('build:', 'test:'):
@@ -67,20 +72,32 @@ if replay:
 
 if len(args) < 6:
     sys.exit(__doc__)
-if len(args) % 2 == 1:
-    print('mutate: an extra old text has no new text', file=sys.stderr)
-    sys.exit(2)
 path, old, new, log, build, test = args[:6]
-pairs = [(old, new)] + list(zip(args[6::2], args[7::2]))
-original = open(path, 'rb').read()
-digest = hashlib.sha256(original).hexdigest()
-text = original.decode()
-mutant_text = text
-for old, new in pairs:
-    if mutant_text.count(old) != 1:
-        print(f'mutate: the old text is in {path} {mutant_text.count(old)} times, not once: {old!r}', file=sys.stderr)
+# The pairs of each file, in order. --in=<file> starts the pairs of another file.
+edits = {path: [(old, new)]}
+current, rest = path, args[6:]
+while rest:
+    if rest[0].startswith('--in='):
+        current, rest = rest[0][len('--in='):], rest[1:]
+        edits.setdefault(current, [])
+    elif len(rest) < 2 or rest[1].startswith('--in='):
+        print('mutate: an extra old text has no new text', file=sys.stderr)
         sys.exit(2)
-    mutant_text = mutant_text.replace(old, new)
+    else:
+        edits[current].append((rest[0], rest[1]))
+        rest = rest[2:]
+digests, mutants = {}, {}
+for name, pairs in edits.items():
+    original = open(name, 'rb').read()
+    digests[name] = hashlib.sha256(original).hexdigest()
+    mutant_text = original.decode()
+    for old, new in pairs:
+        if mutant_text.count(old) != 1:
+            print(f'mutate: the old text is in {name} {mutant_text.count(old)} times, not once: {old!r}',
+                  file=sys.stderr)
+            sys.exit(2)
+        mutant_text = mutant_text.replace(old, new)
+    mutants[name] = mutant_text
 
 
 def descendants(pid):
@@ -115,16 +132,21 @@ def run(command, out, limit=None):
         return None
 
 
-backup = log + '.orig'
-shutil.copyfile(path, backup)
+backups = {name: log + '.orig' + (str(n) if n else '') for n, name in enumerate(edits)}
+for name, backup in backups.items():
+    shutil.copyfile(name, backup)
 hung = False
 try:
-    with open(path, 'w') as mutant:
-        mutant.write(mutant_text)
+    for name, mutant_text in mutants.items():
+        with open(name, 'w') as mutant:
+            mutant.write(mutant_text)
     with open(log, 'w') as out:
         out.write(f'# mutation of {path}\n')
-        for old, new in pairs:
-            out.write(f'# - {old!r}\n# + {new!r}\n')
+        for name, pairs in edits.items():
+            if name != path:
+                out.write(f'# in {name}\n')
+            for old, new in pairs:
+                out.write(f'# - {old!r}\n# + {new!r}\n')
         out.write(f'# build: {build}\n# test: {test}\n')
         if expected is not None:
             out.write(f'# expect: {expected!r}\n')
@@ -138,14 +160,23 @@ try:
         hung = status is None
         tested = status == 0
 finally:
-    shutil.copyfile(backup, path)
-if hashlib.sha256(open(path, 'rb').read()).hexdigest() != digest:
-    print(f'mutate: the restore of {path} failed; the copy is {backup}', file=sys.stderr)
-    sys.exit(3)
+    for name, backup in backups.items():
+        shutil.copyfile(backup, name)
+for name, backup in backups.items():
+    if hashlib.sha256(open(name, 'rb').read()).hexdigest() != digests[name]:
+        print(f'mutate: the restore of {name} failed; the copy is {backup}', file=sys.stderr)
+        sys.exit(3)
 if hung:
     result, code = 'killed (hang)', 0
 else:
     result, code = ('BUILD FAILED', 2) if not built else (('survived', 1) if tested else ('killed', 0))
+if code == 1:
+    # A filter that matches no test passes: that run proves nothing (SwiftPM and Swift Testing lines).
+    with open(log, errors='replace') as done:
+        done.seek(test_start)
+        output = done.read()
+    if 'No matching test cases were run' in output or re.search(r'Test run with 0 tests', output):
+        result, code = 'NO TESTS', 5
 if code == 0 and not hung and expected is not None:
     with open(log, errors='replace') as done:
         done.seek(test_start)

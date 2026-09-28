@@ -57,7 +57,7 @@ public struct Viewport: Equatable, Sendable {
     public static func extent(end: Frames, rate: Int) -> Double { Double(max(end.count, 10 * rate)) * 1.02 }
 
     /// The scale in the zoom limits, and the origin from 0 to the last page at that scale.
-    func clamped(_ zoom: Zoom) -> Zoom {
+    public func clamped(_ zoom: Zoom) -> Zoom {
         let points = min(max(zoom.scale.framesPerPoint, limits.lowerBound), limits.upperBound)
         let scale = TimelineScale(framesPerPoint: points)
         let last = (Self.documentWidth(end: end, rate: rate, scale: scale, shown: width) - width) * points

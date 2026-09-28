@@ -238,7 +238,11 @@ final class TimelineScrollView: NSScrollView {
             ruler.needsDisplay = true
         }
         lanes.shownMoved()
-        if let viewport { overview?.show(viewport) }
+        if let viewport {
+            overview?.show(viewport)
+            // A session with no tracks shows no pane: its clamp of the origin is not a view to keep.
+            if fitted, source?.session.tracks.isEmpty == false { model?.shownZoom = viewport.zoom }
+        }
         publishVisible()
     }
 

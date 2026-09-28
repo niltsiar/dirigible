@@ -102,7 +102,8 @@ import Testing
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
         studio.liveTracks["t2"] = LiveTrack(state: .recording, droppedFrames: 3, peak: 0.1)
-        for width in [180.0, 340] {
+        // 240 pt is the tightest one-line row: the layout text and a full live state.
+        for width in [180.0, 239, 240, 340] {
             let (window, host) = rows(model, studio, laneHeight: 50, width: width)
             let found = controls(host, in: host)
             #expect(found.filter { $0.kind == "route" }.count == 3, "a route control in each row at \(width)")
@@ -141,6 +142,9 @@ import Testing
             #expect(try count(0, red) > 10, "the state symbol shows in the row of the lost device at \(width)")
             #expect(try count(0, x: (width - 6)...width, red) == 0, "no state symbol in the handle strip at \(width)")
             #expect(try count(1, orange) > 10, "the dropped-frames symbol shows at \(width)")
+            #expect(
+                try count(1, x: (width - 6)...width, orange) == 0,
+                "no dropped-frames symbol in the handle strip at \(width)")
             #expect(try count(1, red) == 0, "no fault symbol for dropped frames at \(width)")
             #expect(try count(2, red) + count(2, orange) == 0, "no state symbol in a row with no state at \(width)")
             window.close()

@@ -167,10 +167,11 @@ extension SessionWindow {
         leafCalls?.append("\(command)")
         guard let studio else { return }
         switch command {
-        case .zoomIn: timelineView?.zoom(by: 0.5)
-        case .zoomOut: timelineView?.zoom(by: 2)
-        case .zoomToSession: timelineView?.zoomToSession()
-        case .zoomToSelection: timelineView?.zoomToSelection()
+        case .zoomIn: timelineView?.navigate(.zoom(by: 0.5))
+        case .zoomOut: timelineView?.navigate(.zoom(by: 2))
+        case .zoomToSession: timelineView?.navigate(.fitSession)
+        case .zoomToSelection:
+            timelineView?.navigate(.toggleSelection(timeline.marks.selection(in: studio.session)?.range))
         case .toggleFollow:
             timeline.follows.toggle()
             timeline.followHeld = false

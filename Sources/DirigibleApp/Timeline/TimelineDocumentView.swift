@@ -122,15 +122,16 @@ final class TimelineDocumentView: NSView {
         didSet { if oldValue, !holdsWidth { resize() } }
     }
 
-    /// As wide as max(end, 10 s) + 2% at the zoom, and at least as wide as the lanes in view. The
-    /// width is whole points: with a part of a point, AppKit moved the clip bounds by 1 pt when a
-    /// wider header made the lanes narrower (run 1b slice 1). The 2% holds the half point.
+    /// The width of `Viewport.documentWidth`, or the width of the mouse-down during a gesture.
     func resize() {
         guard let inputs else { return }
         let session = inputs.session
-        let end = Double(max(session.end.count, 10 * session.sampleRate)) * 1.02
         let shown = (enclosingScrollView as? TimelineScrollView)?.shown.width ?? 0
-        let width = holdsWidth ? frame.width : max((end / inputs.scale.framesPerPoint).rounded(), Double(shown))
+        let width =
+            holdsWidth
+            ? frame.width
+            : Viewport.documentWidth(
+                end: session.end, rate: session.sampleRate, scale: inputs.scale, shown: Double(shown))
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.bounds = CGRect(x: 0, y: 0, width: 1, height: height)

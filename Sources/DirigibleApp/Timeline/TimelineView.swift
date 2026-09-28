@@ -56,7 +56,9 @@ final class TimelineScrollView: NSScrollView {
     /// the preview: the lanes draw the gesture over it (decision 0020).
     private(set) var source: LaneInputs?
     /// The one gesture of the lanes.
-    private var gesture = TimelineGesture()
+    private(set) var gesture = TimelineGesture()
+    /// The zoom history and the toggles of this window (decision 0025).
+    var navigation = Navigation()
 
     /// `headerWidth` is the width of the track headers at open.
     init(model: SessionWindow, studio: Studio, headerWidth: HeaderWidth = .standard) {

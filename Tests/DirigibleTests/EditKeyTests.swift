@@ -62,6 +62,8 @@ import Testing
         #expect(
             KeyRule.problems([KeyboardShortcut("=", modifiers: [.command, .option])] + MenuKeys.all)
                 == ["repeat: = ⌥⌘"], "Option-Command-= is a system key")
+        // Code gate 1 item 9: the window takes Command-= (U1), so no menu item can have it.
+        #expect(KeyRule.problems([KeyboardShortcut("=")] + MenuKeys.all) == ["repeat: = ⌘"], "Command-= is a key")
         #expect(
             KeyRule.problems([KeyboardShortcut(.space, modifiers: [.command, .control])] + MenuKeys.all)
                 == ["repeat: \u{20} ⌃⌘"], "Control-Command-Space is a system key")

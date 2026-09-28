@@ -154,8 +154,17 @@ import Testing
 
         #expect(window.performKeyEquivalent(with: equals([.command, .shift], code: 29)) == false)
         #expect(view.framesPerPoint == points, "Shift with = does not zoom")
+        for flags in [[.command, .option], [.command, .control]] as [NSEvent.ModifierFlags] {
+            _ = window.performKeyEquivalent(with: equals(flags, code: 24))
+        }
+        #expect(view.framesPerPoint == points, "Option or Control with = does not zoom")
         #expect(window.performKeyEquivalent(with: equals(.command, code: 24)))
         #expect(view.framesPerPoint == points / 2, "Command-= zooms in")
+        // Code gate 1 item 7: Caps Lock and the keypad = do not change the key.
+        #expect(window.performKeyEquivalent(with: equals([.command, .capsLock], code: 24)))
+        #expect(view.framesPerPoint == points / 4, "Command-= with Caps Lock zooms in")
+        #expect(window.performKeyEquivalent(with: equals([.command, .numericPad], code: 81)))
+        #expect(view.framesPerPoint == points / 8, "Command-= of the keypad zooms in")
         await model.close()
     }
 

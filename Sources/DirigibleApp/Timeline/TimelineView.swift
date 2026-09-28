@@ -60,8 +60,6 @@ final class TimelineScrollView: NSScrollView {
     private(set) var source: LaneInputs?
     /// The one gesture of the lanes.
     private(set) var gesture = TimelineGesture()
-    /// The zoom history and the toggles of this window (decision 0025).
-    var navigation = Navigation()
     /// The mouse gesture of the overview strip.
     var overviewGesture = OverviewGesture()
     /// The window point of the last lane or ruler drag event, for autoscroll (0025).

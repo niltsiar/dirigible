@@ -16,12 +16,11 @@ extension TimelineScrollView {
     /// The one entry of every zoom and scroll input (decision 0025). A scroll holds the follow
     /// during play (0017); during a lane gesture no input changes the scale.
     func navigate(_ input: NavigationInput) {
-        guard let viewport, let studio else { return }
+        guard let viewport, let studio, let model else { return }
         let context = NavigationContext(viewport: viewport, playhead: studio.playhead, holdsScale: gesture.isActive)
-        let target = navigation.handle(input, context)
-        if let model,
-            model.timeline.canGoBack != navigation.canGoBack || model.timeline.canGoForward != navigation.canGoForward
-        {
+        let target = model.navigation.handle(input, context)
+        let navigation = model.navigation
+        if model.timeline.canGoBack != navigation.canGoBack || model.timeline.canGoForward != navigation.canGoForward {
             (model.timeline.canGoBack, model.timeline.canGoForward) = (navigation.canGoBack, navigation.canGoForward)
         }
         guard let target else { return }

@@ -30,7 +30,7 @@ Probes on 2026-09-28 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 
 **Track height.** `LaneHeight` is window state: automatic (the fit of today, 40 to 120 pt), or a fixed height from the steps 40, 50, 60, 80, 100, 120, 160, and 200 pt. It is whole points, so the 0022 surfaces never get a fractional capacity. At a change, the lane at the top of the view stays at the top. During a lane gesture the height keys do nothing, so the preview keeps its lane rows (code gate 1).
 
-**Autoscroll.** During a lane or ruler drag, the display link tick scrolls the lanes when the pointer is outside the lanes, or in a 16 pt inner zone of an edge that touches the screen edge, and it sends the drag again at the same window point, so a still pointer also scrolls. The speed is 20 pt/s per point outside times a ramp min(4, 1 + the seconds in the zone), at most 3000 pt/s. Horizontal only. It stops at the held lane width of 0020.
+**Autoscroll.** During a lane or ruler drag, the display link tick scrolls the lanes when the pointer is outside the lanes, or in a 16 pt inner zone of an edge that touches the screen edge, and it sends the drag again at the same window point, so a still pointer also scrolls. A tick after a real drag event only scrolls, so a frame has one preview step (code gate 1). The speed is 20 pt/s per point outside times a ramp min(4, 1 + the seconds in the zone), at most 3000 pt/s. Horizontal only. It stops at the held lane width of 0020.
 
 **No motion.** No layer of the strip has actions (`contents` included), and no zoom, page, or scroll jump animates. A later animation checks `accessibilityDisplayShouldReduceMotion`.
 

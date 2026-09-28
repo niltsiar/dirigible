@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app test test-slow check-slow-gates check-warnings bench test-app test-hooks check-docs run lint format check clean
+.PHONY: setup build app icon-preview test test-slow check-slow-gates check-warnings bench test-app test-hooks check-docs run lint format check clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -10,6 +10,10 @@ build:
 
 app:
 	scripts/bundle.sh
+
+# The icon only, with no Swift build: the flat renditions and the macOS 26 looks (decision 0026).
+icon-preview:
+	scripts/icon.sh --preview
 
 # The CLI tests run in their own process. They wait synchronously for a child process, so
 # they block the threads of the concurrency pool, and the async tests of the other targets

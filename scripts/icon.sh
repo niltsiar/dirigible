@@ -1,7 +1,10 @@
 #!/bin/bash
 # Compile Support/AppIcon.icon into build/icon/Assets.car and build/icon/AppIcon.icns
-# (decision 0026). scripts/bundle.sh runs it. Usage: scripts/icon.sh
+# (decision 0026). scripts/bundle.sh runs it. Usage: scripts/icon.sh [--preview]
+# --preview also writes build/icon-preview/: the flat renditions of macOS 14 and 15
+# (flat.iconset) and the macOS 26 looks at 1024 px. `make icon-preview` runs it.
 set -euo pipefail
+preview="${1:-}"
 root="$(cd "$(dirname "$0")/.." && pwd -P)"
 out="$root/build/icon"
 
@@ -29,3 +32,18 @@ if [[ $status -ne 0 ]] || grep -qE 'error:|warning:' <<<"$log" \
 fi
 mkdir -p "$root/build"
 mv "$tmp" "$out"
+[[ "$preview" == --preview ]] || exit 0
+
+# ictool is a tool inside Icon Composer, which comes with Xcode 26. Only the preview needs it.
+ictool="$(xcode-select -p)/../Applications/Icon Composer.app/Contents/Executables/ictool"
+[[ -x "$ictool" ]] || { echo "icon.sh: no ictool at $ictool; install Xcode 26" >&2; exit 1; }
+view="$root/build/icon-preview"
+rm -rf "$view"
+mkdir -p "$view"
+iconutil -c iconset "$out/Assets.car" AppIcon -o "$view/flat.iconset"
+for look in Light Dark TintedLight TintedDark ClearLight ClearDark; do
+    err="$("$ictool" "$root/Support/AppIcon.icon" --export-preview macOS "$look" 1024 1024 1 "$view/$look.png" 2>&1)" \
+        || { echo "icon.sh: ictool failed for $look: $(grep -v '^dyld\[' <<<"$err")" >&2; exit 1; }
+    [[ -f "$view/$look.png" ]] || { echo "icon.sh: ictool wrote no $look.png" >&2; exit 1; }
+done
+echo "$view"

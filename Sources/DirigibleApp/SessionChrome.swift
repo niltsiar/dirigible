@@ -37,7 +37,7 @@ import Observation
     private(set) var recordTimeReads = 0
     /// The armed set and the idle state of the last read: a change reads again.
     private var readFor: (armed: [TrackID], idle: Bool)?
-    /// Reads the record time again every 10 s while idle.
+    /// Reads the record time again at an interval while idle.
     private var ticker: Task<Void, Never>?
 
     init(model: SessionWindow, window: NSWindow) {
@@ -56,9 +56,17 @@ import Observation
         window.titleVisibility = .visible
         window.toolbar = toolbar
         update()
+        startTicker()
+    }
+
+    /// Reads the record time again every `interval` while idle, from now. The window starts it at
+    /// open; a test that counts reads starts it again with a long interval, so no tick reads
+    /// during the test.
+    func startTicker(every interval: Duration = .seconds(10)) {
+        ticker?.cancel()
         ticker = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(10))
+            // A cancel ends the sleep early: it reads nothing then.
+            while (try? await Task.sleep(for: interval)) != nil {
                 guard let self else { return }
                 if self.model?.idleStudio != nil { self.refreshRecordTime() }
             }

@@ -290,6 +290,22 @@ struct ZoomHistoryTests {
         #expect(view == Self.at(256, 1_000_000), "Esc keeps Zoom Forward")
     }
 
+    /// Code gate 3 item 4: a began with no change opens no stroke, so the changed after it keeps
+    /// the history for Esc.
+    @Test mutating func aCancelAfterABeganWithNoChangeKeepsTheHistory() {
+        send(.zoom(by: 0.5, at: 0))
+        send(.back)
+        let before = view
+        send(.zoomTo(before, stroke: .began))
+        send(.zoomTo(Self.at(200, 1_000_000), stroke: .changed))
+        #expect(view == Self.at(200, 1_000_000), "the changed zooms")
+        send(.zoomTo(before, stroke: .cancelled))
+        #expect(view == before)
+        #expect(!navigation.canGoBack, "Esc after a began with no change leaves no Back step")
+        send(.forward)
+        #expect(view == Self.at(256, 1_000_000), "Esc after a began with no change keeps Zoom Forward")
+    }
+
     /// A wheel burst: under 0.5 s between events is one entry (a calibration value).
     @Test mutating func aWheelGapSplitsTheEntries() {
         send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10), wheel: 10))

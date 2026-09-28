@@ -200,12 +200,15 @@ extension SessionWindow {
         case .zoomForward: timelineView?.navigate(.forward)
         case .pagePrevious: timelineView?.navigate(.page(.backward))
         case .pageNext: timelineView?.navigate(.page(.forward))
-        case .tallerTracks, .shorterTracks:
+        case .tallerTracks, .shorterTracks, .fitTracks:
+            // A lane gesture keeps the lane rows of its preview until the mouse-up (0025).
+            guard timelineView?.gesture.isActive != true else { return }
             let shown = timelineView?.lanes.inputs?.laneHeight ?? 100
-            timeline.laneHeight =
-                command == .tallerTracks
-                ? timeline.laneHeight.taller(than: shown) : timeline.laneHeight.shorter(than: shown)
-        case .fitTracks: timeline.laneHeight = .automatic
+            switch command {
+            case .tallerTracks: timeline.laneHeight = timeline.laneHeight.taller(than: shown)
+            case .shorterTracks: timeline.laneHeight = timeline.laneHeight.shorter(than: shown)
+            default: timeline.laneHeight = .automatic
+            }
         case .toggleFollow:
             timeline.follows.toggle()
             timeline.followHeld = false

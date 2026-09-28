@@ -84,11 +84,14 @@ import Testing
 
     /// Code gate 1 item 6: the window keeps one history. When SwiftUI makes a new pane (the tracks
     /// go and an undo brings them back), Zoom Back still walks the views before the new pane.
+    /// Code gate 2 item 4: the new pane shows the last view of the window, not a new fit, which
+    /// would be a zoom with no entry.
     @Test func aNewPaneKeepsTheHistory() async throws {
         let (model, studio, window, old) = try await open()
         model.run(.zoomIn)
         let zoomed = zoom(old)
         model.run(.zoomIn)
+        let last = zoom(old)
         try studio.edit { s throws(SessionError) in
             try s.removeTrack("t1")
             try s.removeTrack("t2")
@@ -104,9 +107,40 @@ import Testing
         }
         let view = try #require(model.timelineView)
         view.viewWillMove(toWindow: nil)
+        #expect(
+            view.framesPerPoint == last.scale.framesPerPoint && abs(view.origin - last.origin) <= view.framesPerPoint,
+            "the new pane shows the last view of the window")
         #expect(model.isOn(.zoomBack), "Zoom Back is on")
         model.run(.zoomBack)
         #expect(zoom(view) == zoomed, "Zoom Back in the new pane gives the view before")
+        await model.close()
+    }
+
+    /// Code gate 2 item 4: a new pane clamps the last view of the window to its session. The
+    /// view is on the last page of 60 s; the new session has one empty track (10 s + 2%), so the
+    /// farthest zoom is its fit at 0.
+    @Test func aNewPaneClampsTheLastViewToItsSession() async throws {
+        let (model, studio, window, old) = try await open()
+        model.run(.zoomIn)
+        old.scroll(toFrame: 2_800_000)
+        #expect(old.origin > 2_000_000)
+        try studio.edit { s throws(SessionError) in
+            try s.removeTrack("t1")
+            try s.removeTrack("t2")
+        }
+        await until(limit: .seconds(10), "the empty session shows no lanes") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return old.window == nil
+        }
+        try studio.edit { s throws(SessionError) in try s.addTrack("t3", name: "T3", layout: .mono) }
+        await until(limit: .seconds(10), "a new pane shows the lanes") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return model.timelineView.map { $0 !== old && $0.window != nil } ?? false
+        }
+        let view = try #require(model.timelineView)
+        view.viewWillMove(toWindow: nil)
+        #expect(view.origin == 0, "the new pane clamps the last view to its session")
+        #expect(abs(view.visibleFrames - 489_600) <= view.framesPerPoint, "the fit of 10 s + 2%")
         await model.close()
     }
 

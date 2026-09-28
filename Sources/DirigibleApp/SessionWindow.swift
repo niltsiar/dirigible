@@ -86,6 +86,8 @@ enum WindowAlert: Hashable {
     /// The zoom history and the toggles of the window (decision 0025). The window owns it, so a
     /// new pane from SwiftUI keeps it, and `timeline.canGoBack` never describes an old pane.
     @ObservationIgnored var navigation = Navigation()
+    /// The last view of the lanes. A new pane shows it, so the pane makes no zoom with no entry.
+    @ObservationIgnored var shownZoom: Zoom?
     @ObservationIgnored private var opening: Task<Void, Never>?
     /// Tests give their own list.
     @ObservationIgnored var deviceList = DeviceList.shared

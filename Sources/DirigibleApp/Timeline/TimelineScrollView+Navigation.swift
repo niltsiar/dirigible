@@ -76,11 +76,13 @@ extension TimelineScrollView {
         scroll(toFrame: origin)
     }
 
-    /// The fit at open goes past the navigation, so it makes no history entry.
+    /// The first view of the pane: the last view of the window, else the fit at open. It goes past
+    /// the navigation, so it makes no history entry (code gate 2 item 4).
     func fitOnce() {
-        guard !fitted, let fit = viewport?.fit else { return }
+        guard !fitted, let viewport else { return }
         fitted = true
-        show(fit.scale, origin: fit.origin)
+        let first = model?.shownZoom.map(viewport.clamped) ?? viewport.fit
+        show(first.scale, origin: first.origin)
     }
 
     /// Automatic Scroll turned on: the page of the playhead, with the playhead at 11%.

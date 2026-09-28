@@ -49,6 +49,26 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 3: a real drag event already moved the preview in this frame, so the next
+    /// tick scrolls and sends no drag of its own: one preview step per frame. A tick with no real
+    /// drag event before it moves the clip.
+    @Test func aTickAfterARealDragEventOnlyScrolls() async throws {
+        let (model, _, window, view) = try await lanes()
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 10), in: view))
+        let edge = Double(view.shown.maxX)
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: edge + 40, y: 10), in: view))
+        let start = try #require(view.lanes.inputs?.session.clip("c1")?.clip.start)
+        view.autoscrollTick(at: 100)
+        #expect(view.origin > 0, "the tick scrolls")
+        #expect(view.lanes.inputs?.session.clip("c1")?.clip.start == start, "the tick sent a second drag")
+        view.autoscrollTick(at: 100 + 1.0 / 60)
+        let moved = try #require(view.lanes.inputs?.session.clip("c1")?.clip.start)
+        #expect(moved > start, "a tick with no real drag event moves the clip")
+        _ = view.cancelGesture()
+        window.close()
+        await model.close()
+    }
+
     @Test func insideTheLanesNothingScrolls() async throws {
         let (model, _, window, view) = try await lanes()
         view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 10), in: view))

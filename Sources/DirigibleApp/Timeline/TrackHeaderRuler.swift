@@ -62,6 +62,10 @@ final class TrackHeaderRuler: NSRulerView {
 
     override func drawHashMarksAndLabels(in rect: NSRect) {}
 
+    /// A ruler gives the accessibility tree only its markers, so VoiceOver did not reach the rows and
+    /// the handle, which are subviews (Phase 7, the tree of the app).
+    override func accessibilityChildren() -> [Any]? { (super.accessibilityChildren() ?? []) + [host, handle] }
+
     override func layout() {
         layouts += 1
         super.layout()

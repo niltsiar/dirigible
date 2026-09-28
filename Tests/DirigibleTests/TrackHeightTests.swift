@@ -65,6 +65,28 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 8: during a clip drag the track height keys do nothing, so the preview keeps
+    /// its lane rows and the drag goes on. After the mouse-up the same key changes the height.
+    @Test func theHeightKeysWaitForTheEndOfALaneGesture() async throws {
+        let (model, _, window, view) = try await open()
+        model.timeline.laneHeight = .fixed(60)
+        _ = await height(view, window, is: 60)
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 150), in: view))
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 200, y: 150), in: view))
+        for command in [TimelineCommand.tallerTracks, .shorterTracks, .fitTracks] {
+            model.run(command)
+            #expect(model.timeline.laneHeight == .fixed(60), "\(command) during a drag changed the height")
+        }
+        window.contentView?.layoutSubtreeIfNeeded()
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 210, y: 150), in: view))
+        #expect(view.lanes.inputs?.laneHeight == 60)
+        #expect(view.gesture.isActive, "the drag goes on")
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 210, y: 150), in: view))
+        model.run(.tallerTracks)
+        #expect(model.timeline.laneHeight == .fixed(80), "after the mouse-up the key changes the height")
+        await model.close()
+    }
+
     /// With a focused name field, Command-Down and Command-Up go to the field first (0018 E4).
     @Test func commandDownGoesToAFocusedField() async throws {
         let (model, _, window, view) = try await open()

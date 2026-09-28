@@ -72,24 +72,26 @@ import Testing
         await model.close()
     }
 
-    /// Code gate 3 item 1: the rows take the layout as a Bool, not the width, so a header width
-    /// change that keeps the layout runs no row body. A time gate did not see a width input.
-    @Test func aWidthChangeThatKeepsTheLayoutRunsNoRowBody() async throws {
-        let (model, studio) = try await model()
-        let (window, host) = rows(model, studio, laneHeight: 100, width: 340)
-        TrackHeaders.rowBodies = 0
-        host.frame.size.width = 360
-        host.layoutSubtreeIfNeeded()
-        drawNow(window)
-        #expect(TrackHeaders.rowBodies == 0, "no row body at a width change: \(TrackHeaders.rowBodies)")
-        // 200 pt is under the 220 pt of the layout text, so the rows change.
-        host.frame.size.width = 200
-        host.layoutSubtreeIfNeeded()
-        drawNow(window)
-        #expect(TrackHeaders.rowBodies > 0, "a row body at a layout change")
-        window.close()
-        await model.close()
-    }
+    #if DEBUG
+        /// Code gate 3 item 1: the rows take the layout as a Bool, not the width, so a header width
+        /// change that keeps the layout runs no row body. A time gate did not see a width input.
+        @Test func aWidthChangeThatKeepsTheLayoutRunsNoRowBody() async throws {
+            let (model, studio) = try await model()
+            let (window, host) = rows(model, studio, laneHeight: 100, width: 340)
+            TrackHeaders.rowBodies = 0
+            host.frame.size.width = 360
+            host.layoutSubtreeIfNeeded()
+            drawNow(window)
+            #expect(TrackHeaders.rowBodies == 0, "no row body at a width change: \(TrackHeaders.rowBodies)")
+            // 200 pt is under the 220 pt of the layout text, so the rows change.
+            host.frame.size.width = 200
+            host.layoutSubtreeIfNeeded()
+            drawNow(window)
+            #expect(TrackHeaders.rowBodies > 0, "a row body at a layout change")
+            window.close()
+            await model.close()
+        }
+    #endif
 
     /// Code gate 1 item 4 and code gate 2 items 3 to 5: a lane under 56 pt still shows a route
     /// control and the live state of a take on its one line: a red symbol for a lost device, an

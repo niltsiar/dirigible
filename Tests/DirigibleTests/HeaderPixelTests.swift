@@ -52,8 +52,8 @@ import Testing
         /// The bytes of the image, read once: each read of the data provider copies the image.
         let data: CFData
 
-        init(_ window: NSWindow) throws {
-            image = try TimelineColorTests.capture(window)
+        init(_ window: NSWindow) async throws {
+            image = try await TimelineColorTests.capture(window)
             self.window = window
             data = try #require(image.dataProvider?.data)
         }
@@ -160,7 +160,7 @@ import Testing
     func check(_ step: String, _ scene: Scene, _ proof: Proof, after old: Capture?) async throws -> Capture {
         drawNow(scene.window)
         try await Task.sleep(for: .milliseconds(200))
-        let capture = try Capture(scene.window)
+        let capture = try await Capture(scene.window)
         let skip = scene.scrollers + [scene.playhead].compactMap { $0 }
         let under = try capture.classes(scene.headers, skip: skip)
         #expect(under.count > 500, "\(step): the header column is in the capture")

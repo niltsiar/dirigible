@@ -5,6 +5,11 @@ import Testing
 
 @testable import DirigibleApp
 
+/// The window server did not show the window at its frame within the limit of the capture.
+struct WindowCaptureError: Error, CustomStringConvertible {
+    let description: String
+}
+
 /// Timeline-layer criterion 5: the lanes show the colors of the `draw(_:)` path of main on screen.
 /// A snapshot (`cacheDisplay`) is not the screen: it draws a `draw(_:)` view with color matching
 /// (clip red 196), but it copies the contents of a layer with no matching (clip red 209, the
@@ -33,16 +38,61 @@ import Testing
         }
     }
 
-    /// A capture of `window` on screen, in the color space of the display. The capture API is
-    /// deprecated in macOS 14 and has no replacement without a permission prompt, so the test calls
-    /// it through its symbol, with no deprecation warning.
-    static func capture(_ window: NSWindow) throws -> CGImage {
+    /// A capture of `window` on screen, in the color space of the display, when the window server
+    /// shows the window at its frame. `shot` gives an image and the window server bounds of the
+    /// window. The capture API is deprecated in macOS 14 and has no replacement without a
+    /// permission prompt, so the test calls it through its symbol, with no deprecation warning.
+    static func capture(
+        _ window: NSWindow, limit: Duration = .seconds(30),
+        shot: @MainActor (NSWindow) throws -> (CGImage?, CGRect?) = shot
+    ) async throws -> CGImage {
+        let end = ContinuousClock.now + limit
+        let frame = screenBounds(of: window)
+        let size = (
+            Int((frame.width * window.backingScaleFactor).rounded()),
+            Int((frame.height * window.backingScaleFactor).rounded())
+        )
+        while true {
+            let (image, bounds) = try shot(window)
+            if let image, bounds == frame, (image.width, image.height) == size { return image }
+            guard ContinuousClock.now < end else {
+                let pixels = image.map { "\($0.width) x \($0.height) px" } ?? "no image"
+                throw WindowCaptureError(
+                    description: "the window server did not show the window at \(frame) (\(size.0) x \(size.1) px) "
+                        + "within \(limit): last \(pixels) at \(String(describing: bounds))")
+            }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+    }
+
+    /// An image of the window and its window server bounds, read before and after the image: nil
+    /// when they differ.
+    static func shot(_ window: NSWindow) throws -> (CGImage?, CGRect?) {
         typealias Capture = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
         let symbol = try #require(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"))
+        let before = serverBounds(of: window)
         // Options: the one window (8); image: the bounds with no frame (1) at the best resolution (8).
-        return try #require(
-            unsafeBitCast(symbol, to: Capture.self)(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue(),
-            "no capture of the window")
+        let image = unsafeBitCast(symbol, to: Capture.self)(.null, 8, UInt32(window.windowNumber), 1 | 8)?
+            .takeRetainedValue()
+        let after = serverBounds(of: window)
+        return (image, before == after ? after : nil)
+    }
+
+    /// The bounds of the window in the window list of the window server (top-left origin).
+    static func serverBounds(of window: NSWindow) -> CGRect? {
+        let list = CGWindowListCopyWindowInfo([.optionIncludingWindow], CGWindowID(window.windowNumber))
+        guard let info = (list as? [[String: Any]])?.first,
+            let bounds = info[kCGWindowBounds as String] as? NSDictionary
+        else { return nil }
+        return CGRect(dictionaryRepresentation: bounds)
+    }
+
+    /// The frame of the window in the coordinates of the window server: the origin at the top left
+    /// of the main display.
+    static func screenBounds(of window: NSWindow) -> CGRect {
+        let top = NSScreen.screens.first?.frame.maxY ?? 0
+        let frame = window.frame
+        return CGRect(x: frame.minX, y: top - frame.maxY, width: frame.width, height: frame.height)
     }
 
     /// A clip pixel of the lanes on screen has the value of the same sRGB color drawn in a
@@ -58,7 +108,7 @@ import Testing
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))
 
-        let image = try Self.capture(window)
+        let image = try await Self.capture(window)
         let data = try #require(image.dataProvider?.data)
         let bytes = try #require(CFDataGetBytePtr(data))
         try #require(
@@ -79,5 +129,41 @@ import Testing
         #expect(drawn != [0, 0, 0], "the capture shows the window")
         window.close()
         await model.close()
+    }
+    /// Code gate 1 item 2: in Mission Control the window server shows the window smaller and at
+    /// another place, and a capture then gives that image (probe 2026-09-28: 1936 x 436 px for a
+    /// window of 1780 x 400 pt). The pixel tests then read the wrong pixels. So a capture waits
+    /// until the window server shows the window at its frame, at the backing scale.
+    @Test func aCaptureWaitsUntilTheWindowServerShowsTheWindowAtItsFrame() async throws {
+        let window = NSWindow(
+            contentRect: NSRect(x: 40, y: 60, width: 100, height: 50), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        let scale = window.backingScaleFactor
+        let frame = Self.screenBounds(of: window)
+        func image(_ width: Int, _ height: Int) throws -> CGImage {
+            let context = try #require(
+                CGContext(
+                    data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                    space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue))
+            return try #require(context.makeImage())
+        }
+        let full = try image(Int(100 * scale), Int(50 * scale))
+        // A thumbnail, the last frame of the zoom back (full size, not yet at its place), an image of
+        // another size at the frame, then the window at its frame.
+        let shots: [(CGImage?, CGRect?)] = [
+            (try image(97, 24), frame.insetBy(dx: 26, dy: 13)), (full, frame.offsetBy(dx: 56, dy: 0)),
+            (try image(full.width - 2, full.height - 1), frame), (full, frame),
+        ]
+        var calls = 0
+        let shown = try await Self.capture(window) { _ in
+            calls += 1
+            return shots[min(calls, shots.count) - 1]
+        }
+        #expect(shown === full && calls == 4, "calls \(calls)")
+
+        await #expect(throws: WindowCaptureError.self) {
+            _ = try await Self.capture(window, limit: .milliseconds(200)) { _ in shots[0] }
+        }
     }
 }

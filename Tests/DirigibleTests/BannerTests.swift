@@ -404,7 +404,7 @@ struct BannerValueTests {
             drawNow(window)
             try await Task.sleep(for: .milliseconds(200))
             let rect = area.convert(area.bounds, to: nil)
-            return try TimelineRulerTests.pixels(of: rect, TimelineColorTests.capture(window), window)
+            return try await TimelineRulerTests.pixels(of: rect, TimelineColorTests.capture(window), window)
         }
         let (stripBefore, rulerBefore) = (try await pixels(strip), try await pixels(view.ruler))
 

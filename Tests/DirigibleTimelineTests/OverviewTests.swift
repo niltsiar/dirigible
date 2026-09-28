@@ -216,7 +216,7 @@ struct OverviewGestureTests {
         #expect(send(.down(x: 100, clicks: 1)) == nil)
         let expected = Zoom(scale: TimelineScale(framesPerPoint: 8500), origin: 22_032_000)
         #expect(send(.drag(x: 90)) == .zoomTo(expected, stroke: .began))
-        #expect(send(.escape) == .zoomTo(Self.view.zoom, stroke: .changed), "Esc gives the view of the mouse-down")
+        #expect(send(.escape) == .zoomTo(Self.view.zoom, stroke: .cancelled), "Esc gives the view of the mouse-down")
         #expect(!gesture.isActive)
     }
 

@@ -221,6 +221,21 @@ struct ZoomHistoryTests {
         #expect(view == first, "a lost began after an ended stroke makes an entry")
     }
 
+    /// Code gate 1 item 4: Esc of an overview edge drag puts back Back and Forward as they were
+    /// before its began.
+    @Test mutating func aCancelledStrokeKeepsTheHistory() {
+        send(.zoom(by: 0.5, at: 0))
+        send(.back)
+        let before = view
+        send(.zoomTo(Self.at(300, 1_000_000), stroke: .began))
+        send(.zoomTo(Self.at(200, 1_000_000), stroke: .changed))
+        send(.zoomTo(before, stroke: .cancelled))
+        #expect(view == before)
+        #expect(!navigation.canGoBack, "Esc leaves no Back step")
+        send(.forward)
+        #expect(view == Self.at(256, 1_000_000), "Esc keeps Zoom Forward")
+    }
+
     /// A wheel burst: under 0.5 s between events is one entry (a calibration value).
     @Test mutating func aWheelGapSplitsTheEntries() {
         send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10), wheel: 10))

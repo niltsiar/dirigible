@@ -70,6 +70,8 @@ public enum Stroke: Equatable, Sendable {
     case began, changed, ended
     /// A momentum event after the end of a stroke; `ended` at the end of the momentum.
     case momentum(ended: Bool)
+    /// Esc of an overview edge drag: the history goes back to its state before the began.
+    case cancelled
     /// A mouse wheel event with no phase, at `time` seconds.
     case wheel(time: Double)
 }
@@ -164,6 +166,8 @@ public struct Navigation: Sendable {
     /// momentum still to come. Any input that does not continue it closes it (code gate 1 item 5).
     private enum StrokeState { case closed, open, ended }
     private var strokeState = StrokeState.closed
+    /// The history before the open stroke, for Esc (code gate 1 item 4).
+    private var beforeStroke: (back: [Zoom], forward: [Zoom])?
     private var lastWheel: Double?
 
     public init() {}
@@ -245,28 +249,35 @@ public struct Navigation: Sendable {
 
     /// True when the stroke makes an entry: a began, a changed or ended with no open stroke (a
     /// lost began), momentum with no stroke, or a wheel event after a gap. Only momentum continues
-    /// an ended stroke or a wheel burst.
+    /// an ended stroke or a wheel burst. A cancelled stroke puts back the history before it.
     private mutating func strokePushes(_ stroke: Stroke?) -> Bool {
         let state = strokeState
         switch stroke {
         case nil: return true
         case .began, .changed, .ended:
             let pushes = stroke == .began || state != .open
+            if pushes { beforeStroke = (back, forward) }
             strokeState = stroke == .ended ? .ended : .open
             lastWheel = nil
             return pushes
         case .momentum:
             if state == .closed { strokeState = .ended }
             return state == .closed
+        case .cancelled:
+            if let beforeStroke { (back, forward) = beforeStroke }
+            closeStroke()
+            return false
         case .wheel(let time):
             strokeState = .ended
+            beforeStroke = nil
             return lastWheel.map { time - $0 > Self.wheelGap } ?? true
         }
     }
 
-    /// A discrete input: the next stroke or wheel event makes its own entry.
+    /// A discrete input or a cancel: the next stroke or wheel event makes its own entry.
     private mutating func closeStroke() {
         strokeState = .closed
+        beforeStroke = nil
         lastWheel = nil
     }
 

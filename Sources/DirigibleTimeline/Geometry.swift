@@ -162,7 +162,7 @@ public enum RulerGeometry {
 
 /// The cursor kinds of the timeline (probe C1: all exist at the macOS 14 target). The views map
 /// them to `NSCursor`.
-public enum TimelineCursor: Equatable, Sendable { case arrow, iBeam, closedHand, resizeLeftRight }
+public enum TimelineCursor: Equatable, Sendable { case arrow, iBeam, openHand, closedHand, resizeLeftRight }
 
 /// The frames that an edge of `clip` can reach in a trim (mouse-edits criterion 6): the neighbor
 /// in `lane`, the start or the end of its file (`fileLength` frames), frame 0, `Frames.limit`, and

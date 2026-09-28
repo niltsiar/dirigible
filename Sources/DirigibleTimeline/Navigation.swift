@@ -38,9 +38,11 @@ public struct Viewport: Equatable, Sendable {
     /// `shown`. With a part of a point, AppKit moved the clip bounds by 1 pt when a wider header made
     /// the lanes narrower (run 1b slice 1). The 2% holds the half point.
     public static func documentWidth(end: Frames, rate: Int, scale: TimelineScale, shown: Double) -> Double {
-        let extent = Double(max(end.count, 10 * rate)) * 1.02
-        return max((extent / scale.framesPerPoint).rounded(), shown)
+        max((extent(end: end, rate: rate) / scale.framesPerPoint).rounded(), shown)
     }
+
+    /// The frames of the whole timeline: max(end, 10 s) + 2%, as Zoom to Session.
+    public static func extent(end: Frames, rate: Int) -> Double { Double(max(end.count, 10 * rate)) * 1.02 }
 
     /// The scale in the zoom limits, and the origin from 0 to the last page at that scale.
     func clamped(_ zoom: Zoom) -> Zoom {
@@ -74,12 +76,15 @@ public enum NavigationInput: Equatable, Sendable {
     /// The frame at the left edge.
     case scroll(to: Double)
     case zoomTo(Zoom, stroke: Stroke)
+    /// A double-click on the overview: the fit of the session, and the view `before` the first
+    /// click of the double-click again (U10).
+    case toggleFit(before: Zoom)
 
     /// True for an input that moves the view and keeps the scale: it holds the follow (0017).
     public var scrolls: Bool {
         switch self {
         case .page, .center, .scroll: true
-        case .zoom, .fitSession, .toggleSelection, .zoomTo: false
+        case .zoom, .fitSession, .toggleSelection, .zoomTo, .toggleFit: false
         }
     }
 }
@@ -121,6 +126,7 @@ public struct Navigation: Sendable {
         case .center(let frame): target = Zoom(scale: view.scale, origin: Double(frame.count) - view.frames / 2)
         case .scroll(let origin): target = Zoom(scale: view.scale, origin: origin)
         case .zoomTo(let zoom, _): target = zoom
+        case .toggleFit: return nil
         }
         if context.holdsScale, !input.scrolls { return nil }
         return view.clamped(target)

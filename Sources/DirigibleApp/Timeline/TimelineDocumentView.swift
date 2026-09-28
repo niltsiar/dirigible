@@ -309,6 +309,7 @@ extension NSCursor {
         switch kind {
         case .arrow: .arrow
         case .iBeam: .iBeam
+        case .openHand: .openHand
         case .closedHand: .closedHand
         case .resizeLeftRight: .resizeLeftRight
         }

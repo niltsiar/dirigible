@@ -46,8 +46,31 @@ import Testing
             + TimelineCommand.fileItems
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
-        let repeated = Dictionary(grouping: keys) { $0 }.filter { $0.value.count > 1 }.keys
-        #expect(repeated.isEmpty, "keys on two items: \(repeated.map { "\($0.key.character) \($0.modifiers)" })")
+        #expect(KeyRule.problems(keys) == [])
+    }
+
+    /// Timeline-navigation N17 (U6, probe K1, plan gate item 2): a symbol or digit key with Shift
+    /// and without Shift is one key at run time, a shifted character is no key, and the reserved
+    /// system keys count. Space, Return, Delete, and the arrows keep Shift.
+    @Test func theKeyRuleFindsTheRunTimeRepeats() {
+        let command = KeyboardShortcut("+")
+        #expect(
+            KeyRule.problems([command, KeyboardShortcut("+", modifiers: [.command, .shift])]) == ["repeat: + ⇧⌘"],
+            "Shift-Command-plus repeats Command-plus")
+        #expect(KeyRule.problems([KeyboardShortcut("_")]) == ["shifted character: _"])
+        #expect(KeyRule.problems([KeyboardShortcut("*", modifiers: [.command, .shift])]) == ["shifted character: *"])
+        #expect(
+            KeyRule.problems([KeyboardShortcut("=", modifiers: [.command, .option])] + MenuKeys.all)
+                == ["repeat: = ⌥⌘"], "Option-Command-= is a system key")
+        #expect(
+            KeyRule.problems([KeyboardShortcut(.space, modifiers: [.command, .control])] + MenuKeys.all)
+                == ["repeat: \u{20} ⌃⌘"], "Control-Command-Space is a system key")
+        #expect(
+            KeyRule.problems([
+                KeyboardShortcut(.space, modifiers: []), KeyboardShortcut(.space, modifiers: .shift),
+                KeyboardShortcut(.return), KeyboardShortcut(.return, modifiers: [.command, .shift]),
+                KeyboardShortcut(.leftArrow), KeyboardShortcut(.leftArrow, modifiers: [.command, .shift]),
+            ]) == [], "Shift-Space and Space are two keys")
     }
 
     /// Criterion 14: Backspace deletes one character of a focused field, and the session and the
@@ -162,5 +185,35 @@ import Testing
         try await Task.sleep(for: .milliseconds(300))
         #expect(revealed == 0)
         await model.close()
+    }
+}
+
+/// The key check of the menus (timeline-navigation N17). A key equivalent matches the characters
+/// of the event (probe K1): the US Shift-Command-= gives "+" and reaches Command-"+". So Shift does
+/// not count for a printable symbol or digit key, and a character that needs Shift or Option on
+/// both the US and the Spanish layout is no key at all. Letters, Space, Return, Delete, the arrows,
+/// and the function keys keep Shift.
+enum KeyRule {
+    static let shifted = Set("!\"#$%&()*:>?@^_{|}~")
+
+    static func problems(_ keys: [KeyboardShortcut]) -> [String] {
+        func name(_ key: KeyboardShortcut) -> String {
+            var flags = ""
+            if key.modifiers.contains(.control) { flags += "⌃" }
+            if key.modifiers.contains(.option) { flags += "⌥" }
+            if key.modifiers.contains(.shift) { flags += "⇧" }
+            if key.modifiers.contains(.command) { flags += "⌘" }
+            return "\(key.key.character) \(flags)"
+        }
+        func normal(_ key: KeyboardShortcut) -> KeyboardShortcut {
+            let character = key.key.character
+            let symbol = character.isASCII && (character.isPunctuation || character.isSymbol || character.isNumber)
+            return symbol ? KeyboardShortcut(key.key, modifiers: key.modifiers.subtracting(.shift)) : key
+        }
+        let refused = keys.filter { shifted.contains($0.key.character) }.map {
+            "shifted character: \($0.key.character)"
+        }
+        let groups = Dictionary(grouping: keys, by: normal).filter { $0.value.count > 1 }
+        return refused + groups.values.map { "repeat: \(name($0[1]))" }.sorted()
     }
 }

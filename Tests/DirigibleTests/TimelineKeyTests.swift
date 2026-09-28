@@ -141,6 +141,33 @@ import Testing
         await model.close()
     }
 
+    /// U1 (N11b): Command-= zooms in as Command-plus does; the Spanish Shift-Command-0 gives "="
+    /// with Shift and does not zoom. The key events go to the window.
+    @Test func commandEqualsZoomsIn() async throws {
+        let (model, _, window, view) = try await open()
+        let points = view.framesPerPoint
+        func equals(_ flags: NSEvent.ModifierFlags, code: UInt16) -> NSEvent {
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
+                context: nil, characters: "=", charactersIgnoringModifiers: "=", isARepeat: false, keyCode: code)!
+        }
+
+        #expect(window.performKeyEquivalent(with: equals([.command, .shift], code: 29)) == false)
+        #expect(view.framesPerPoint == points, "Shift with = does not zoom")
+        #expect(window.performKeyEquivalent(with: equals(.command, code: 24)))
+        #expect(view.framesPerPoint == points / 2, "Command-= zooms in")
+        await model.close()
+    }
+
+    /// U6: the View menu has a separator between its groups: the menu is built from these groups.
+    @Test func theViewMenuHasItsGroups() {
+        #expect(
+            TimelineCommand.viewGroups.map { $0.map(\.command) } == [
+                [.zoomIn, .zoomOut, .zoomToSession, .zoomToSelection], [.toggleFollow],
+            ])
+        #expect(TimelineCommand.viewItems.map(\.command) == TimelineCommand.viewGroups.flatMap { $0 }.map(\.command))
+    }
+
     /// F16: each new command has a menu item with its key. The menus are built from this table.
     /// The items of decision 0018 after them are in `EditKeyTests`.
     @Test func everyNewMenuItemHasItsKey() {

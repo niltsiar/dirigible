@@ -24,13 +24,26 @@ enum MenuKeys {
     static let nextClip = KeyboardShortcut(.rightArrow, modifiers: .shift)
 
     /// The keys of the items that macOS and SwiftUI add: Undo, Redo, Close, Quit, Hide, Hide
-    /// Others, Minimize, Enter Full Screen, and Show/Hide Toolbar (`ToolbarCommands`).
-    static let system = [
-        KeyboardShortcut("z"), KeyboardShortcut("z", modifiers: [.command, .shift]), KeyboardShortcut("w"),
-        KeyboardShortcut("q"), KeyboardShortcut("h"), KeyboardShortcut("h", modifiers: [.command, .option]),
-        KeyboardShortcut("m"), KeyboardShortcut("f", modifiers: [.command, .control]),
-        KeyboardShortcut("t", modifiers: [.command, .option]),
-    ]
+    /// Others, Minimize, Enter Full Screen, and Show/Hide Toolbar (`ToolbarCommands`). Then the
+    /// keys that macOS takes before the app (U6): Accessibility Zoom (Option-Command-=, -minus,
+    /// -8), the emoji viewer, Lock Screen, Look Up, the Control-Command copy and paste of the
+    /// screenshot tools, and Mission Control and the Spaces (Control with the arrows).
+    static let system =
+        [
+            KeyboardShortcut("z"), KeyboardShortcut("z", modifiers: [.command, .shift]), KeyboardShortcut("w"),
+            KeyboardShortcut("q"), KeyboardShortcut("h"), KeyboardShortcut("h", modifiers: [.command, .option]),
+            KeyboardShortcut("m"), KeyboardShortcut("f", modifiers: [.command, .control]),
+            KeyboardShortcut("t", modifiers: [.command, .option]),
+            KeyboardShortcut("=", modifiers: [.command, .option]),
+            KeyboardShortcut("-", modifiers: [.command, .option]),
+            KeyboardShortcut("8", modifiers: [.command, .option]),
+            KeyboardShortcut(.space, modifiers: [.command, .control]),
+            KeyboardShortcut("q", modifiers: [.command, .control]),
+            KeyboardShortcut("d", modifiers: [.command, .control]),
+            KeyboardShortcut("c", modifiers: [.command, .control]),
+            KeyboardShortcut("v", modifiers: [.command, .control]),
+        ]
+        + [KeyEquivalent.leftArrow, .rightArrow, .upArrow, .downArrow].map { KeyboardShortcut($0, modifiers: .control) }
 
     static let all =
         [

@@ -10,10 +10,12 @@
 //                                                     a key down and up (53 = Esc, 6 = Z), with the
 //                                                     modifier keys down before it and up after it
 //        hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
-//                                                     one wheel event at the point; with
-//                                                     --phases a trackpad gesture of 10 events
-//                                                     with scroll phases and 10 momentum events;
-//                                                     with --shift the Shift key is down around it
+//                                                     one mouse wheel event in lines at the point;
+//                                                     with --phases a trackpad gesture of 10 events
+//                                                     in pixels with scroll phases and 10 momentum
+//                                                     events; with --shift the Shift key is down
+//                                                     around it (macOS makes Shift with the wheel a
+//                                                     horizontal scroll only for lines)
 // A key event with a modifier flag and no modifier key left the system modifier held: every later
 // CGEvent of any process took it (run 1b Phase 7: the wheel of two tests became a Command-wheel).
 // --dry-run prints the key and wheel events and posts nothing.
@@ -75,9 +77,11 @@ if command == "key" {
         exit(0)
     }
 }
+/// A mouse wheel gives lines; a trackpad gesture gives pixels.
+let units: CGScrollEventUnit = flags.contains("--phases") ? .pixel : .line
 if command == "scroll", flags.contains("--dry-run") {
     printKeys(modifierKeys(down: true))
-    print("wheel \(Int(values[2])) \(Int(values[3])) flags \(heldMask.rawValue)")
+    print("wheel \(Int(values[2])) \(Int(values[3])) \(units == .line ? "lines" : "pixels") flags \(heldMask.rawValue)")
     printKeys(modifierKeys(down: false))
     exit(0)
 }
@@ -145,7 +149,7 @@ default:  // scroll, with the modifier keys down around the wheel events
     defer { post(modifierKeys(down: false)) }
     func wheel(_ dx: Double, _ dy: Double, phase: Int64, momentum: Int64) {
         let event = CGEvent(
-            scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: Int32(dy), wheel2: Int32(dx),
+            scrollWheelEvent2Source: nil, units: units, wheelCount: 2, wheel1: Int32(dy), wheel2: Int32(dx),
             wheel3: 0)
         event?.flags = heldMask
         event?.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)

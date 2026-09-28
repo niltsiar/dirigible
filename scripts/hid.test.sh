@@ -44,9 +44,14 @@ up 55 flags 0"
 # Shift flag (131072), and the Shift key up, so no modifier stays held.
 events="$(swift "$hid" scroll 100 200 0 -30 --shift --dry-run 2>&1)"
 want="down 56 flags 131072
-wheel 0 -30 flags 131072
+wheel 0 -30 lines flags 131072
 up 56 flags 0"
 [[ "$events" == "$want" ]] || fail "the Shift key goes up around a wheel event: $events"
-[[ "$(swift "$hid" scroll 100 200 0 -30 --dry-run 2>&1)" == "wheel 0 -30 flags 0" ]] || fail "a wheel event with no modifier"
+[[ "$(swift "$hid" scroll 100 200 0 -30 --dry-run 2>&1)" == "wheel 0 -30 lines flags 0" ]] || fail "a wheel event with no modifier"
+# A mouse wheel event is in lines: macOS turns Shift with the wheel into a horizontal scroll only
+# for lines (timeline-navigation Phase 7: a Shift wheel event in pixels did not scroll the lanes).
+# A trackpad gesture (--phases) is in pixels.
+[[ "$(swift "$hid" scroll 100 200 0 -30 --phases --dry-run 2>&1)" == "wheel 0 -30 pixels flags 0" ]] \
+    || fail "a trackpad gesture is in pixels"
 
 [[ $failures -eq 0 ]] && echo "hid tests: all passed" || { echo "hid tests: $failures failed"; exit 1; }

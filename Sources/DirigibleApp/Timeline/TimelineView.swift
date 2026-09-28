@@ -184,8 +184,8 @@ final class TimelineScrollView: NSScrollView {
 
     /// The content insets of the clip view at the last tile.
     private var insets = NSEdgeInsetsZero
-    /// The left edge of the lanes in view at the last move.
-    private var shownLeft: CGFloat?
+    /// The left edge of the lanes in view and of the clip view at the last move, in document points.
+    private var rulerLeft: (lanes: CGFloat, clip: CGFloat) = (.nan, .nan)
 
     /// The clip view gets the ruler insets at a tile, after the first fit can scroll. A change of
     /// the insets puts `kept` back at the top left of the lanes in view. A smaller inset makes
@@ -202,9 +202,12 @@ final class TimelineScrollView: NSScrollView {
     private func viewMoved() {
         headers.place(top: contentView.bounds.minY, height: lanes.frame.height)
         // AppKit scrolls the time ruler by a copy of its pixels and draws only the new part, so the
-        // times over the lanes moved over the headers. A full draw clips them at the lanes.
-        if shownLeft != shown.minX {
-            shownLeft = shown.minX
+        // times over the lanes moved over the headers. A full draw clips them at the lanes. A header
+        // width change at fit zoom keeps the lanes edge and moves the clip edge: the ruler kept 0:00
+        // at the old width.
+        let left = (lanes: shown.minX, clip: contentView.bounds.minX)
+        if left != rulerLeft {
+            rulerLeft = left
             ruler.needsDisplay = true
         }
         lanes.shownMoved()

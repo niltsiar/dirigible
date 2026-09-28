@@ -62,8 +62,9 @@ import Testing
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))
 
+        // Every row and column comes from the backing scale and the plan, so the test holds on a
+        // display of scale 1 and of scale 2.
         let scale = window.backingScaleFactor
-        try #require(scale == 2, "the rows are for a 56 px strip; this display has scale \(scale)")
         let frame = strip.viewFrame.frame
         #expect(
             (frame.minX * scale).rounded() == frame.minX * scale
@@ -71,30 +72,41 @@ import Testing
             "the frame border is on whole pixels: \(frame)")
         #expect(strip.viewFrame.borderWidth == 1)
 
-        let columns = Int(strip.bounds.width * scale)
+        let (columns, height) = (Int(strip.bounds.width * scale), Int(strip.bounds.height * scale))
+        let plan = OverviewPlan(try #require(strip.inputs), columns: columns, height: height)
+        try #require(plan.rows.count == 3 && plan.rows[0].upperBound < plan.rows[1].lowerBound, "\(plan.rows)")
+        // The top border of the view frame covers the first rows: 1 pt.
+        let border = Int(scale)
+        let middle = { (row: Range<Int>) in (row.lowerBound + row.upperBound) / 2 }
+        let (clipRow, gapRow) = (middle(plan.rows[0]), plan.rows[0].upperBound)
         let extent = Viewport.extent(end: studio.session.end, rate: 48_000)
         func x(_ frame: Int) -> Double { Double(frame) / extent * strip.bounds.width }
         var shot = try Shot(window, strip)
         let palette = LanePalette.light
-        shot.expect(x(48_000), row: 5, palette.rms, "the clip rows use the waveform color")
-        shot.expect(x(48_000), row: 18, palette.lane, "a 1 px gap between the rows")
-        shot.expect(x(312_000), row: 28, palette.selected(palette.lane), "the gap of a selected lane is tinted")
-        shot.expect(x(168_000), row: 45, palette.selected(palette.rms), "the band")
-        shot.expect(x(504_000), row: 5, palette.rms, "the clip before the edit")
-        let marker = Int(240_000 / extent * Double(columns))
-        let chapter = Int(384_000 / extent * Double(columns))
-        shot.expect(column: marker, row: 2, palette.marker, "a marker tick")
-        #expect(!shot.near(column: marker, row: 20, palette.marker), "a marker tick is short")
-        shot.expect(column: chapter, row: 20, palette.chapter, "a chapter tick")
-        let markerPixels = (0..<56).filter { shot.near(column: marker, row: $0, palette.marker) }.count
-        let chapterPixels = (0..<56).flatMap { row in [chapter, chapter + 1].map { (row, $0) } }
+        shot.expect(x(48_000), row: clipRow, palette.rms, "the clip rows use the waveform color")
+        shot.expect(x(48_000), row: gapRow, palette.lane, "a 1 px gap between the rows")
+        shot.expect(
+            x(312_000), row: middle(plan.rows[1]), palette.selected(palette.lane),
+            "the gap of a selected lane is tinted")
+        shot.expect(x(168_000), row: middle(plan.rows[2]), palette.selected(palette.rms), "the band")
+        shot.expect(x(504_000), row: clipRow, palette.rms, "the clip before the edit")
+        let markerTick = try #require(plan.ticks.first { $0.kind == .marker })
+        let chapterTick = try #require(plan.ticks.first { $0.kind == .chapter })
+        let (marker, chapter) = (markerTick.column, chapterTick.column)
+        shot.expect(column: marker, row: border, palette.marker, "a marker tick")
+        #expect(
+            !shot.near(column: marker, row: chapterTick.rows.upperBound - 1, palette.marker), "a marker tick is short")
+        shot.expect(column: chapter, row: chapterTick.rows.upperBound - 1, palette.chapter, "a chapter tick")
+        let markerPixels = (0..<height).filter { shot.near(column: marker, row: $0, palette.marker) }.count
+        let chapterPixels = (0..<height).flatMap { row in [chapter, chapter + 1].map { (row, $0) } }
             .filter { shot.near(column: $0.1, row: $0.0, palette.chapter) }.count
         #expect(
-            chapterPixels > 2 * markerPixels, "a chapter tick is stronger: \(chapterPixels) against \(markerPixels)")
-        #expect(!shot.near(column: chapter, row: 50, palette.chapter), "the playhead is the only full-height line")
+            chapterPixels > 3 * markerPixels, "a chapter tick is stronger: \(chapterPixels) against \(markerPixels)")
+        #expect(
+            !shot.near(column: chapter, row: height - 2, palette.chapter), "the playhead is the only full-height line")
         let playhead = Int(strip.playhead.frame.minX * scale)
-        #expect((0..<56).allSatisfy { shot.red(column: playhead, row: $0) }, "the playhead is a full-height line")
-        let dimmed = shot.pixel(column: Int(x(720_000) * scale), row: 18)
+        #expect((0..<height).allSatisfy { shot.red(column: playhead, row: $0) }, "the playhead is a full-height line")
+        let dimmed = shot.pixel(column: Int(x(720_000) * scale), row: gapRow)
         #expect(dimmed.allSatisfy { $0 < 0xE8 - 20 }, "the part outside the frame is dimmed: \(dimmed)")
 
         try studio.edit { s throws(SessionError) in try s.clear(480_000..<528_000, on: "t1") }
@@ -102,13 +114,13 @@ import Testing
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))
         shot = try Shot(window, strip)
-        shot.expect(x(504_000), row: 5, palette.lane, "after Split and Delete the gap shows")
+        shot.expect(x(504_000), row: clipRow, palette.lane, "after Split and Delete the gap shows")
 
         window.appearance = NSAppearance(named: .darkAqua)
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))
         shot = try Shot(window, strip)
-        shot.expect(x(48_000), row: 5, strip.palette.lanes.peak, "the clip rows use the waveform color")
+        shot.expect(x(48_000), row: clipRow, strip.palette.lanes.peak, "the clip rows use the waveform color")
         #expect(strip.palette.lanes.accent != nil, "the dark palette")
         window.close()
         await model.close()

@@ -119,6 +119,19 @@ struct OverviewPlanTests {
         #expect(sixty.clips.count == 28, "60 tracks give 28 rows")
     }
 
+    /// A strip at scale 1 is 28 px: 3 tracks give 3 rows of 8 px with 1 px gaps, 60 tracks 14 rows
+    /// of 2 px with no gap, and the ticks keep a quarter and a half of the height.
+    @Test func aScaleOneStripKeepsTheRules() throws {
+        var session = try Self.session(tracks: 3)
+        try session.setMarker(Marker(id: "m", name: "M", position: 10_000, kind: .marker))
+        try session.setMarker(Marker(id: "c", name: "C", position: 20_000, kind: .chapter))
+        let three = Self.plan(session, height: 28)
+        #expect(three.rows == [0..<8, 9..<17, 18..<26], "a 1 px gap between rows")
+        #expect(three.ticks.map(\.rows) == [0..<7, 0..<14], "a chapter tick is longer than a marker tick")
+        let sixty = Self.plan(try Self.session(tracks: 60), height: 28).rows
+        #expect(sixty.count == 14 && sixty[1] == 2..<4, "no gap when a row keeps under 2 px")
+    }
+
     @Test func sixtyTracksMergeInOrder() throws {
         var session = try Self.session(tracks: 60)
         try session.place(Self.clip("x", 1000..<2000), on: "t59")

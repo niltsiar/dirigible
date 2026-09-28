@@ -2,7 +2,8 @@
 # Check that mutate.py tells a killed, a surviving, and an unbuilt mutant apart, counts a kill
 # with --expect only when the test output has the text outside a progress line, applies extra
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
-# restores the file, counts a test past --timeout as a kill, and replays a control from its log. Run by `make test-hooks`.
+# restores the file, counts a test past --timeout as a kill, replays a control from its log, reports
+# a run of no test as NO TESTS, and applies --in=<file> pairs to a second file. Run by `make test-hooks`.
 set -uo pipefail
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
@@ -89,6 +90,31 @@ check '4:WRONG FAILURE' 'a replay with another --expect' --expect 'index out of 
 printf 'a = 1\nb = 3\n' > "$file"
 before="$(shasum -a 256 "$file")"
 check '2:mutate' 'a replay after the old text changed' --replay "$tmp/first" "$tmp/again"
+
+# A test run that runs no test (a filter that matches nothing) proves nothing: NO TESTS, not survived.
+printf 'a = 1\nb = 1\n' > "$file"
+before="$(shasum -a 256 "$file")"
+check '5:NO TESTS' 'a SwiftPM run with no matching test' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'warning: No matching test cases were run'"
+check '5:NO TESTS' 'a Swift Testing run of 0 tests' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo '✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.'"
+check '1:survived' 'a run of 1 test that passes' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo '✔ Test run with 1 test in 1 suite passed after 0.001 seconds.'"
+
+# --in=<file>: one mutant in two files. The first edit alone survives; the edit in the second file
+# kills it. Both files are restored, and a replay reads both files from the log header.
+file2="$tmp/y.txt"
+printf 'c = 1\n' > "$file2"
+before2="$(shasum -a 256 "$file2")"
+test="grep -q 'a = 1' '$file' && grep -q 'c = 1' '$file2' || { echo 'expected c = 1'; exit 1; }"
+check '0:killed' 'a pair in a second file' --expect 'expected c = 1' "$file" 'b = 1' 'b = 2' "$tmp/two" "$build" "$test" \
+  "--in=$file2" 'c = 1' 'c = 2'
+[[ "$(shasum -a 256 "$file2")" == "$before2" ]] || { echo "FAIL: the second file changed"; failures=$((failures + 1)); }
+check '0:killed' 'a replay of a two-file control' --replay "$tmp/two" "$tmp/two-again"
+[[ "$(shasum -a 256 "$file2")" == "$before2" ]] || { echo "FAIL: the second file changed after the replay"; failures=$((failures + 1)); }
+check '2:mutate' 'a second-file pair with no new text' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" "$test" "--in=$file2" 'c = 1'
+check '2:mutate' 'a second-file old text that is not there' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" "$test" \
+  "--in=$file2" 'd = 1' 'd = 2'
 
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

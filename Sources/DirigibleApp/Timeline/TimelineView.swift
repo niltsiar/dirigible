@@ -64,6 +64,10 @@ final class TimelineScrollView: NSScrollView {
     var navigation = Navigation()
     /// The mouse gesture of the overview strip.
     var overviewGesture = OverviewGesture()
+    /// The window point of the last lane or ruler drag event, for autoscroll (0025).
+    var dragPointer: (window: NSPoint, ruler: Bool)?
+    /// The time of the last autoscroll tick, and the time when the pointer entered the zone.
+    private var autoscrollTimes: (last: Double, zone: Double?)?
 
     /// `headerWidth` is the width of the track headers at open.
     init(model: SessionWindow, studio: Studio, headerWidth: HeaderWidth = .standard) {
@@ -131,6 +135,7 @@ final class TimelineScrollView: NSScrollView {
     /// gesture through `update`. At the mouse-up: the effects, then the Studio session, then the draw,
     /// so the lanes never draw the session of the mouse-down after a commit.
     func mouse(_ event: GestureEvent) {
+        if case .drag = event {} else { dragPointer = nil }
         guard var source, let model, let studio else { return }
         if case .down = event {
             model.commitNames()
@@ -288,6 +293,39 @@ final class TimelineScrollView: NSScrollView {
             polled: studio.playhead, at: studio.playheadTime, now: .now, playback: playback,
             rate: studio.session.sampleRate)
         tick(playhead: frame, playback: playback)
+        autoscrollTick(at: CACurrentMediaTime())
+    }
+
+    /// Autoscroll (0025, U16): during a drag with the pointer past the lanes edge, the lanes scroll
+    /// and the drag goes again at the same window point, so a still pointer also moves the clip.
+    /// The lanes keep their width during the gesture (0020), so the scroll stops at the held width.
+    func autoscrollTick(at now: Double) {
+        guard gesture.autoscrolls, let pointer = dragPointer, shown.width > 0 else {
+            autoscrollTimes = nil
+            return
+        }
+        let x = Double(lanes.convert(pointer.window, from: nil).x - shown.minX)
+        // A lanes edge on the screen edge: the pointer cannot go past it (a maximized window).
+        let edges = window?.convertToScreen(lanes.convert(shown, to: nil)) ?? .zero
+        let screen = window?.screen?.frame
+        let atScreen = (
+            screen.map { edges.minX <= $0.minX + 1 } ?? false, screen.map { edges.maxX >= $0.maxX - 1 } ?? false
+        )
+        let times = autoscrollTimes ?? (last: now - 1.0 / 60, zone: nil)
+        let zone = times.zone ?? now
+        let step = autoscrollStep(
+            x: x, width: Double(shown.width), edgesAtScreen: atScreen, secondsInZone: now - zone,
+            tick: min(now - times.last, 0.1))
+        autoscrollTimes = (now, step == 0 ? nil : zone)
+        // The clip view does not clamp a scroll: stop at 0 and at the held width of the lanes.
+        let last = Double(lanes.frame.width - shown.width) * framesPerPoint
+        let target = min(max(origin + step * framesPerPoint, 0), max(0, last))
+        guard target != origin else { return }
+        userScrolled()
+        scroll(toFrame: target)
+        let point = lanes.convert(pointer.window, from: nil)
+        let y = pointer.ruler ? Double(ruler.convert(pointer.window, from: nil).y) : Double(point.y)
+        mouse(.drag(pointer.ruler ? .ruler(x: Double(point.x), y: y) : .lanes(x: Double(point.x), y: y)))
     }
 
     /// Moves the playhead line. During play, the follow can turn the page. A play start, a

@@ -134,6 +134,15 @@ public struct TimelineGesture: Sendable {
         return true
     }
 
+    /// True in a drag that follows the pointer: a move, a trim, a range, a flag, or a triangle.
+    /// Autoscroll runs only then (decision 0025).
+    public var autoscrolls: Bool {
+        switch state {
+        case .moving, .trimming, .ranging, .markerDrag, .pointDrag: true
+        case .idle, .dropped, .pressed: false
+        }
+    }
+
     public mutating func handle(_ event: GestureEvent, _ context: GestureContext) -> [GestureEffect] {
         switch event {
         case .down(let place, let shift, let command):

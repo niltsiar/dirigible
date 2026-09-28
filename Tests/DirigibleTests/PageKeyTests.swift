@@ -111,6 +111,24 @@ import Testing
         await model.close()
     }
 
+    /// An autoscroll tick scrolls and moves the preview: the new columns and the moved clip.
+    @Test func anAutoscrollStepRedrawsTheLanes() async throws {
+        let (model, _, window, pane) = try await stripPane(folder, app, onScreen: true)
+        let view = pane.scroll
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 10), in: view))
+        view.lanes.mouseDragged(
+            with: try mouse(.leftMouseDragged, NSPoint(x: Double(view.shown.maxX) + 40, y: 10), in: view))
+        drawNow(window)
+        for tick in 0..<5 {
+            view.autoscrollTick(at: 100 + Double(tick) / 60)
+            try expectFullRender(view, window, "an autoscroll step redraws the lanes, tick \(tick)")
+        }
+        #expect(view.origin > 0, "the ticks scrolled")
+        _ = view.cancelGesture()
+        window.close()
+        await model.close()
+    }
+
     /// A height step makes new surface slots (0022) and renders in full.
     @Test func aHeightStepRedrawsTheLanes() async throws {
         let (model, studio, window, pane) = try await stripPane(folder, app, onScreen: true)

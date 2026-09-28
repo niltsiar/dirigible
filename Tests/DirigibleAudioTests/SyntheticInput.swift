@@ -59,7 +59,7 @@ final class TestHAL: @unchecked Sendable {
     private var detachResult = true
     private var failure: @Sendable (_ uid: String, _ try: Int) -> HALError? = { _, _ in nil }
     private var live: Set<String> = []
-    private var gate: DispatchSemaphore?
+    private var holding = false
     private var held = 0
     private var attachGate: DispatchSemaphore?
     private var detachGate: Gate?
@@ -92,17 +92,30 @@ final class TestHAL: @unchecked Sendable {
             watchDevices: { _ in { true } })
     }
 
-    /// A held lookup waits until `releaseLookUps`, with a limit of 10 s; after the limit it
-    /// finds nothing. The limit is long, because a full suite can hold the main actor of the
-    /// test for seconds.
     private func lookUp(_ uid: String) -> (id: AudioObjectID, device: InputDevice)? {
-        if let gate = lock.withLock({ () -> DispatchSemaphore? in
-            held += gate == nil ? 0 : 1
-            return gate
-        }) {
-            guard gate.wait(timeout: .now() + 10) == .success else { return nil }
+        lock.withLock { present[uid] }
+    }
+
+    /// The step before the lookup of a take start (`CaptureEnvironment.beforeLookUp`): a held
+    /// start suspends here until `releaseLookUps`. It polls, so it blocks no thread of the pool.
+    /// The old hold was a 10 s semaphore wait that then found no device, and a full suite can
+    /// hold the main actor of the test past 10 s (deviceMissing in make check). The limit is
+    /// under the time of one full suite, and it records a failure, never a missing device.
+    func beforeLookUp() async {
+        guard
+            lock.withLock({ () -> Bool in
+                held += holding ? 1 : 0
+                return holding
+            })
+        else { return }
+        let end = ContinuousClock.now + .seconds(60)
+        while lock.withLock({ holding }) {
+            guard ContinuousClock.now < end else {
+                Issue.record("A held lookup was not released in 60 s")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(5))
         }
-        return lock.withLock { present[uid] }
     }
 
     private func attach(_ input: DeviceInput) throws(HALError) -> Detach {
@@ -146,17 +159,11 @@ final class TestHAL: @unchecked Sendable {
         }
     }
 
-    /// The next lookups wait until `releaseLookUps`.
-    func holdLookUps() { lock.withLock { gate = DispatchSemaphore(value: 0) } }
+    /// The next take starts wait before their lookup until `releaseLookUps`.
+    func holdLookUps() { lock.withLock { holding = true } }
 
-    /// Lets the held lookups go on, and stops holding new ones.
-    func releaseLookUps() {
-        let (gate, count) = lock.withLock {
-            defer { self.gate = nil }
-            return (self.gate, held)
-        }
-        for _ in 0..<count { gate?.signal() }
-    }
+    /// Lets the held starts go on, and stops holding new ones.
+    func releaseLookUps() { lock.withLock { holding = false } }
 
     /// The next attaches wait until `releaseAttaches`, with a limit of 30 s.
     func holdAttaches() { lock.withLock { attachGate = DispatchSemaphore(value: 0) } }
@@ -177,7 +184,7 @@ final class TestHAL: @unchecked Sendable {
     /// Each successful attach and each clean detach of `uid`, in order.
     func events(_ uid: String) -> [Event] { lock.withLock { log[uid] ?? [] } }
 
-    /// The lookups that waited at the gate.
+    /// The take starts that waited before their lookup.
     var heldLookUps: Int { lock.withLock { held } }
 
     /// The detach result of the attaches after this call.
@@ -239,7 +246,7 @@ extension CaptureEnvironment {
         CaptureEnvironment(
             hal: hal.hal, silenceLimit: silenceLimit, firstRecordLimit: silenceLimit, microphoneAccess: { access },
             freeBytes: { _ in free.value }, diskCheckInterval: .milliseconds(50), saveSession: saveSession,
-            beforeFinalize: beforeFinalize, playerOutput: .offline)
+            beforeFinalize: beforeFinalize, playerOutput: .offline, beforeLookUp: { await hal.beforeLookUp() })
     }
 }
 

@@ -90,6 +90,9 @@ struct CaptureEnvironment: Sendable {
     var playerOutput: Player.Output = .device
     /// A step before the Player stop of a take start, off the main actor. Tests hold it.
     var beforePlayerStop: @Sendable () async -> Void = {}
+    /// A step of a take start before the device lookup, off the main actor. Tests hold the start
+    /// with it and suspend, so no thread of the concurrency pool waits; `live` does nothing.
+    var beforeLookUp: @Sendable () async -> Void = {}
     /// A step at the start of each media check of `Studio.checkMedia`, off the main actor.
     var beforeMediaCheck: @Sendable () -> Void = {}
     /// Starts the engine of the Player. Tests give one that throws.
@@ -247,6 +250,7 @@ nonisolated func checkTake(
     recordings: ActiveRecordings?, endExport: (@MainActor @Sendable () async -> Void)?
 ) async throws(StudioError) -> StartedTake {
     dispatchPrecondition(condition: .notOnQueue(.main))
+    await environment.beforeLookUp()
     let routes = try checkTake(of: session, armed: armed, environment: environment)
     if let endExport { await endExport() }
     guard environment.freeBytes(lock) >= diskMargin else { throw .diskLow }

@@ -166,14 +166,14 @@ extension StudioPlaybackTests {
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         _ = await studio.renderOffline(frames: 4800)
-        await until(limit: .seconds(10), "the poll did not read the position") { studio.playhead == 4800 }
+        await until(limit: .seconds(60), "the poll did not read the position") { studio.playhead == 4800 }
 
         NotificationCenter.default.post(name: .AVAudioEngineConfigurationChange, object: AVAudioEngine())
         try await Task.sleep(for: .milliseconds(200))
         #expect(studio.playback != .stopped && studio.playbackStop == nil)
 
         await studio.play.player?.postConfigurationChange()
-        await until(limit: .seconds(10), "the output change did not stop the play") { studio.playback == .stopped }
+        await until(limit: .seconds(60), "the output change did not stop the play") { studio.playback == .stopped }
         #expect(studio.playbackStop == .outputChanged && studio.playhead == 4800)
     }
 
@@ -199,7 +199,7 @@ extension StudioPlaybackTests {
         default: _ = await studio.renderOffline(frames: 9600)
         }
 
-        await until(limit: .seconds(10), "the play did not stop") { studio.playback == .stopped }
+        await until(limit: .seconds(60), "the play did not stop") { studio.playback == .stopped }
         #expect(studio.playbackStop == .packageUnavailable)
         #expect(studio.missingMedia == ["f1": .missing], "the last media state")
     }
@@ -240,7 +240,7 @@ extension StudioPlaybackTests {
         try FileManager.default.removeItem(at: package.url.appending(path: "Clips/f2.wav"))
         _ = await studio.renderOffline(frames: 24_000)
 
-        await until(limit: .seconds(10), "the poll shows the fault") { studio.missingMedia == ["f2": .missing] }
+        await until(limit: .seconds(60), "the poll shows the fault") { studio.missingMedia == ["f2": .missing] }
         #expect(studio.playback != .stopped, "the play goes on")
         await studio.perform(.playStop)
     }
@@ -268,7 +268,10 @@ extension StudioPlaybackTests {
         await studio.perform(.playStop)
 
         if fails {
-            await until(limit: .seconds(10), "the failure did not stop the play") { studio.playback == .stopped }
+            // The poll of the play shows the stop after a hop to the Player, which waits for a thread
+            // of the pool. In a full suite, test gates that block pool threads held it past 10 s
+            // (code gate 2 item 1). The limit is a hang guard under one suite run, not a speed.
+            await until(limit: .seconds(60), "the failure did not stop the play") { studio.playback == .stopped }
             #expect(studio.playbackStop == .outputUnavailable(-10_851) && studio.playhead == 0)
         } else {
             try await Task.sleep(for: .milliseconds(200))

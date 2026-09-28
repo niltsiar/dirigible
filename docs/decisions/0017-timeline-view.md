@@ -11,6 +11,7 @@
 - Amended: 2026-09-27, timeline-layer run: the lanes follow the system setting "Show scroll bars" (the preferred scroller style). The user asked for no scroll bar at all times, so the forced legacy style of the timeline-scroll run is gone.
 - Amended: 2026-09-27, ui-shell run 1a: no SwiftUI body reads `Studio.play`, and the record-over warning is an overlay over the lanes. Run 1b adds a header width of 180 to 480 pt with a drag handle, an opaque header ruler, and a dark lane palette (see 0023).
 - Amended: 2026-09-27. A cache file of a newer version is a miss (see 0024 P5).
+- Amended: 2026-09-28, timeline-navigation run (see 0025): H is "Zoom to Selection or Session": with no selection it zooms to the session, and a second H with the view unchanged goes back. The zoom history and the lane height are window state and are not saved. Command-= also zooms in. New View keys: Zoom Back and Zoom Forward (Option-Command-Left and -Right), Previous Page and Next Page (Option-Page Up and Option-Page Down), Taller Tracks and Shorter Tracks (Command-Down and Command-Up Arrow), and Fit Tracks to Window (no key).
 
 ## Context
 

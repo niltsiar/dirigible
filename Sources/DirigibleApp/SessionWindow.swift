@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import Observation
 import SwiftUI
 
@@ -82,6 +83,9 @@ enum WindowAlert: Hashable {
     @ObservationIgnored var leafCalls: [String]?
     /// The lanes of the window, for the zoom commands.
     @ObservationIgnored weak var timelineView: TimelineScrollView?
+    /// The zoom history and the toggles of the window (decision 0025). The window owns it, so a
+    /// new pane from SwiftUI keeps it, and `timeline.canGoBack` never describes an old pane.
+    @ObservationIgnored var navigation = Navigation()
     @ObservationIgnored private var opening: Task<Void, Never>?
     /// Tests give their own list.
     @ObservationIgnored var deviceList = DeviceList.shared

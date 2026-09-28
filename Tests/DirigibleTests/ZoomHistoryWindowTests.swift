@@ -82,6 +82,34 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 6: the window keeps one history. When SwiftUI makes a new pane (the tracks
+    /// go and an undo brings them back), Zoom Back still walks the views before the new pane.
+    @Test func aNewPaneKeepsTheHistory() async throws {
+        let (model, studio, window, old) = try await open()
+        model.run(.zoomIn)
+        let zoomed = zoom(old)
+        model.run(.zoomIn)
+        try studio.edit { s throws(SessionError) in
+            try s.removeTrack("t1")
+            try s.removeTrack("t2")
+        }
+        await until(limit: .seconds(10), "the empty session shows no lanes") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return old.window == nil
+        }
+        model.undo()
+        await until(limit: .seconds(10), "a new pane shows the lanes") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return model.timelineView.map { $0 !== old && $0.window != nil } ?? false
+        }
+        let view = try #require(model.timelineView)
+        view.viewWillMove(toWindow: nil)
+        #expect(model.isOn(.zoomBack), "Zoom Back is on")
+        model.run(.zoomBack)
+        #expect(zoom(view) == zoomed, "Zoom Back in the new pane gives the view before")
+        await model.close()
+    }
+
     /// U11 (N11): at the fit, smart zoom shows the clip under the pointer; again, it fits.
     @Test func smartZoomShowsTheClipUnderThePointer() async throws {
         let (model, studio, _, view) = try await open()

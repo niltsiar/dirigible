@@ -96,6 +96,37 @@ import Testing
         await model.close()
     }
 
+    /// Phase 7 (the built app at fit zoom): a narrowing drag keeps the document x at the left of the
+    /// lanes, so the lanes move in the window with no scroll, and the time ruler kept its old
+    /// drawing: 0:00 at 340 pt over lanes that start at 180 pt. The ruler after the drag must match
+    /// a full draw of the ruler. The test reads a window capture: a stale drawing is window pixels.
+    @Test func theTimeRulerFollowsTheHeaderWidth() async throws {
+        let (window, view, model) = try await standalone(width: .standard)
+        window.appearance = NSAppearance(named: .aqua)
+        view.zoomToSession()
+        window.orderFront(nil)
+        drawNow(window)
+        try #require(view.shown.minX == 0, "fit zoom: \(view.shown)")
+        func rulerPixels() async throws -> [UInt32] {
+            drawNow(window)
+            try await Task.sleep(for: .milliseconds(200))
+            let rect = view.ruler.convert(view.ruler.bounds, to: nil)
+            return try TimelineRulerTests.pixels(of: rect, TimelineColorTests.capture(window), window)
+        }
+        let before = try await rulerPixels()
+        try handle(.leftMouseDown, 337, view)
+        try handle(.leftMouseDragged, 177, view)
+        try handle(.leftMouseUp, 177, view)
+        let after = try await rulerPixels()
+        #expect(Double(view.headers.ruleThickness) == 180 && after != before, "the capture shows the drag")
+        view.ruler.needsDisplay = true
+        let full = try await rulerPixels()
+        let stale = zip(after, full).filter { $0 != $1 }.count
+        #expect(stale == 0, "the time ruler follows the header width: \(stale) pixels differ from a full draw")
+        window.close()
+        await model.close()
+    }
+
     /// Criterion H3 (the scroller part comes in slice 4): the width changes at each event, and the
     /// lanes in view start at the same document x during the drag. A narrowing drag makes AppKit
     /// clamp the clip bounds to the new inset first, so a second shift by the inset change moved

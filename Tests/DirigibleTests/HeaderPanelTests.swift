@@ -306,6 +306,10 @@ import Testing
         #expect(handle.accessibilityRole() == .splitter, "splitter")
         #expect(handle.accessibilityLabel() == L10n.headerHandle.text, "label")
         #expect(handle.accessibilityValue() as? Double == 340, "splitter value")
+        // Phase 7: the AX tree of the app had the header ruler as a leaf, with no handle and no row.
+        let children = (view.headers.accessibilityChildren() ?? []).map { $0 as AnyObject }
+        #expect(children.contains { $0 === handle }, "the handle is in the AX tree: \(children)")
+        #expect(children.contains { $0 === view.headers.host }, "the rows are in the AX tree: \(children)")
 
         var saved: [Double] = []
         view.headers.save = { saved.append($0.points) }

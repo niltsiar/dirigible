@@ -150,19 +150,9 @@ final class TimelineDocumentView: NSView {
         return NSRect(geometry.box(of: clip, lane: lane))
     }
 
-    /// The one pick of the palette: the appearance and the accent resolve together, in the
-    /// effective appearance of the view. A change only sets a new palette.
+    /// The one pick of the palette. A change only sets a new palette.
     func pickPalette() {
-        var picked = LanePalette.light
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            guard effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
-                let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB)
-            else { return }
-            func channel(_ value: CGFloat) -> UInt32 { UInt32((value * 255).rounded()) }
-            picked = .dark(
-                accent: 0xFF00_0000 | channel(accent.redComponent) << 16 | channel(accent.greenComponent) << 8
-                    | channel(accent.blueComponent))
-        }
+        let picked = LanePalette.pick(for: effectiveAppearance)
         if picked != palette { palette = picked }
     }
 
@@ -300,6 +290,23 @@ final class TimelineDocumentView: NSView {
     private func showCursor(_ event: NSEvent) {
         guard let kind = scrollView?.cursor(at: place(event)) else { return }
         NSCursor.timeline(kind).set()
+    }
+}
+
+extension LanePalette {
+    /// The palette of `appearance`: the appearance and the accent resolve together.
+    static func pick(for appearance: NSAppearance) -> LanePalette {
+        var picked = LanePalette.light
+        appearance.performAsCurrentDrawingAppearance {
+            guard appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
+                let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB)
+            else { return }
+            func channel(_ value: CGFloat) -> UInt32 { UInt32((value * 255).rounded()) }
+            picked = .dark(
+                accent: 0xFF00_0000 | channel(accent.redComponent) << 16 | channel(accent.greenComponent) << 8
+                    | channel(accent.blueComponent))
+        }
+        return picked
     }
 }
 

@@ -15,7 +15,7 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
     let headers: Headers
 
     /// The header width of the app preferences at open; the handle saves there (decision 0023).
-    func makeNSView(context: Context) -> TimelineScrollView {
+    func makeNSView(context: Context) -> TimelinePaneView {
         let defaults = model.app?.defaults
         let width = HeaderWidth(stored: defaults?.object(forKey: HeaderWidth.defaultsKey))
         let view = TimelineScrollView(model: model, studio: studio, headerWidth: width)
@@ -23,10 +23,11 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
             view.headers.save = { defaults.set($0.points, forKey: HeaderWidth.defaultsKey) }
         }
         model.timelineView = view
-        return view
+        return TimelinePaneView(scroll: view)
     }
 
-    func updateNSView(_ view: TimelineScrollView, context: Context) {
+    func updateNSView(_ pane: TimelinePaneView, context: Context) {
+        let view = pane.scroll
         view.updates += 1
         view.headers.host.rootView = AnyView(headers)
         view.update(inputs)
@@ -43,6 +44,8 @@ final class TimelineScrollView: NSScrollView {
     let lanes = TimelineDocumentView()
     let ruler: TimelineRuler
     let headers = TrackHeaderRuler()
+    /// The overview strip of the pane, if any: tests build the scroll view alone.
+    weak var overview: OverviewStrip?
     /// The calls of `updateNSView`, for criterion 24.
     var updates = 0
     /// The target of the display link; the link retains it, and it holds this view weakly.
@@ -163,6 +166,14 @@ final class TimelineScrollView: NSScrollView {
         drawn.session = gesture.drawn(drawn.session)
         lanes.holdsWidth = gesture.isActive
         lanes.inputs = drawn
+        // The strip shows the committed session, never a preview: it renders at the mouse-up.
+        if !gesture.isActive, let source {
+            let session = source.session
+            overview?.inputs = OverviewInputs(
+                session: session, selection: source.marks.selection(in: session)?.range,
+                selectedLanes: session.tracks.indices.filter { source.marks.tracks.contains(session.tracks[$0].id) },
+                extent: Viewport.extent(end: session.end, rate: session.sampleRate))
+        }
         ruler.inputs = drawn.geometry.map {
             RulerInputs(
                 markers: drawn.session.markers, marks: drawn.marks, geometry: $0, rate: drawn.session.sampleRate)
@@ -213,6 +224,7 @@ final class TimelineScrollView: NSScrollView {
             ruler.needsDisplay = true
         }
         lanes.shownMoved()
+        if let viewport { overview?.show(viewport) }
         publishVisible()
     }
 
@@ -272,6 +284,7 @@ final class TimelineScrollView: NSScrollView {
     /// the playhead when it is off the page. The first tick only takes the state.
     func tick(playhead: Double, playback: Playback) {
         lanes.movePlayhead(to: playhead)
+        overview?.movePlayhead(to: playhead)
         defer { last = (playhead, playback) }
         guard let model, let last else { return }
         let started = playback != .stopped && playback != last.playback

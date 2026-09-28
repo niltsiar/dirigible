@@ -383,6 +383,54 @@ struct BannerValueTests {
         await model.close()
     }
 
+    /// Code gate 1 item 1 (round 2 of the timeline-navigation gate): the warning covers the ruler,
+    /// not the overview strip above it. The strip pixels stay when the warning shows, and the
+    /// ruler pixels change in the same captures. A click on the strip still moves the view.
+    @Test func theRecordOverOverlayLeavesTheOverviewFree() async throws {
+        let (model, studio, window, _) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
+        await until("the window shows the lanes") { model.timelineView?.window != nil }
+        let view = try #require(model.timelineView)
+        let strip = try #require(view.overview)
+        view.viewWillMove(toWindow: nil)
+        model.armed = []
+        await studio.perform(.seek(.frame(100_000)))
+        model.run(.zoomIn)
+        func pixels(_ area: NSView) async throws -> [UInt32] {
+            window.contentView?.layoutSubtreeIfNeeded()
+            drawNow(window)
+            try await Task.sleep(for: .milliseconds(200))
+            let rect = area.convert(area.bounds, to: nil)
+            return try TimelineRulerTests.pixels(of: rect, TimelineColorTests.capture(window), window)
+        }
+        let (stripBefore, rulerBefore) = (try await pixels(strip), try await pixels(view.ruler))
+
+        model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
+        await until(limit: .seconds(10), "the overlay body shows the warning") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return model.shown.recordOver && model.overlayShows > 0
+        }
+        let (stripAfter, rulerAfter) = (try await pixels(strip), try await pixels(view.ruler))
+        #expect(rulerAfter != rulerBefore, "the warning shows over the ruler")
+        let covered = zip(stripBefore, stripAfter).filter { $0 != $1 }.count
+        #expect(covered == 0, "the warning covers \(covered) pixels of the overview strip")
+
+        let origin = view.origin
+        let point = strip.convert(NSPoint(x: strip.bounds.midX + 300, y: strip.bounds.midY), to: nil)
+        func click(_ type: NSEvent.EventType) throws -> NSEvent {
+            try #require(
+                NSEvent.mouseEvent(
+                    with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                    context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        // As `NSWindow.sendEvent` does in a key window: the hit view of the frame view gets the events.
+        let hit = try #require(window.contentView?.superview?.hitTest(point))
+        #expect(hit === strip, "the strip gets the click")
+        hit.mouseDown(with: try click(.leftMouseDown))
+        hit.mouseUp(with: try click(.leftMouseUp))
+        #expect(view.origin != origin, "a click on the strip moves the view")
+        await model.close()
+    }
+
     /// The labels are the ones that `BannerRow` gives SwiftUI. The accessibility tree of the
     /// SwiftUI host is empty in some host states of a test process, so the rows in that tree are
     /// manual check M10. The check boxes are AppKit buttons in every state.

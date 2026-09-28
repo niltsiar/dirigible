@@ -28,6 +28,7 @@ Prefer no new test over a bad test. A bad test mostly tests mocks, encodes imple
 ## Guardrails
 
 - Do not change tests to match a wrong implementation.
+- Do not compare two large values (a session of thousands of clips) inside `#expect` or `#require`. On a failure the test prints both values, and that can hang the run with no output. Compare into a `Bool` first and give a short message.
 - When a test refuses or blocks a user action, also assert that the input of the user stays: the typed text, the open alert, the selection, the clipboard. "The model did not change" alone also passes when the input is lost. If the plan expects the input to be lost, stop and raise it as a plan finding. Do not write that test.
 - A test that expects a refusal (a nonzero exit, a thrown error, a refused edit) also asserts its reason: the rule message or the error case. A broken fixture, for example a manifest that does not compile, also fails, so a bare failure passes for the wrong reason.
 - A test that asserts "nothing changed after X" first proves that X reached the output, in the same observation: for example a changed control region of the same capture. A wait or a sleep with no such proof makes the test pass when X never happened, so it passes under load instead of failing.

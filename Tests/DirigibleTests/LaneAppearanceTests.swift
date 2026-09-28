@@ -49,9 +49,10 @@ import Testing
         await model.close()
     }
 
-    /// Code gate 1 item 3: the no-change case that the app relies on. The view is dark before it
-    /// enters the window (a dark superview, as a view of an app in Dark Mode is dark from its
-    /// start), so the move into the dark window changes no appearance.
+    /// Code gate 1 item 3: a view in a dark superview enters a dark window and draws dark at its
+    /// first draw. The move still gives an appearance change (code gate 2), so the pick at a real
+    /// change and the pick at the move each draw dark here. The no-change path, where only the
+    /// pick at the move draws dark, is `aLanesViewThatIsDarkAtTheMoveDrawsDarkAtItsFirstDraw`.
     @Test func aLanesViewThatIsDarkBeforeTheWindowDrawsDarkAtItsFirstDraw() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 1), app: app)
@@ -71,7 +72,7 @@ import Testing
         view.update(laneInputs(model, studio))
         drawNow(window)
         #expect(view.lanes.draws >= 1)
-        #expect(try lanePixel(view) == 0xFF1E_1F22, "dark at the first draw with no change at the move")
+        #expect(try lanePixel(view) == 0xFF1E_1F22, "dark at the first draw from a dark superview")
         window.close()
         await model.close()
     }

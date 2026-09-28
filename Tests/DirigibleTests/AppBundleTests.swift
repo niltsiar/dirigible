@@ -91,6 +91,39 @@ struct AppBundleTests {
         _ = try run("/usr/bin/codesign", "--verify", "--strict", app.path)
     }
 
+    /// The app icon (decision 0026): macOS 14 and 15 read the flat renditions of the asset that
+    /// the Info.plist names, and macOS 26 reads its dark and tinted looks.
+    @Test func appIconIsInTheBundleForSonomaAndLiquidGlass() throws {
+        let plist = try propertyList(at: "Contents/Info.plist")
+        let name = try #require(plist["CFBundleIconName"] as? String, "Info.plist names the AppIcon asset")
+        #expect(name == "AppIcon", "Info.plist names the AppIcon asset")
+        #expect(plist["CFBundleIconFile"] as? String == "AppIcon", "Info.plist names the AppIcon icns")
+
+        let resources = app.appending(path: "Contents/Resources")
+        let car = resources.appending(path: "Assets.car").path
+        #expect(FileManager.default.fileExists(atPath: car), "the bundle has Assets.car")
+        #expect(
+            FileManager.default.fileExists(atPath: resources.appending(path: "AppIcon.icns").path),
+            "the bundle has AppIcon.icns")
+
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let iconset = folder.appending(path: "x.iconset")
+        _ = try run("/usr/bin/iconutil", "-c", "iconset", car, name, "-o", iconset.path)
+        let largest = iconset.appending(path: "icon_512x512@2x.png").path
+        let width = try run("/usr/bin/sips", "-g", "pixelWidth", largest)
+            .split(separator: "\n").last?.split(separator: " ").last
+        #expect(width == "1024", "Assets.car has the AppIcon asset at 1024 px")
+
+        let info = try run("/usr/bin/assetutil", "--info", car)
+        #expect(
+            info.contains("NSAppearanceNameAqua") && info.contains("NSAppearanceNameDarkAqua")
+                && info.contains("ISAppearanceTintable"),
+            "Assets.car has the light, dark, and tinted icons")
+        #expect(info.contains("\"PlatformVersion\" : \"14.0\""), "Assets.car targets macOS 14.0")
+    }
+
     private func propertyList(at path: String) throws -> [String: Any] {
         let data = try Data(contentsOf: app.appending(path: path))
         return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])

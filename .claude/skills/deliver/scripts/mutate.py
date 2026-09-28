@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Run one source-mutation control and never leave the mutant in the tree.
 
-Usage: mutate.py [--expect <text>] [--timeout <seconds>] <file> <old text> <new text> <log>
+Usage: mutate.py [--expect <text>] [--timeout <seconds>] [--side-effects] <file> <old text> <new text> <log>
                  <build command> <test command> [<old text 2> <new text 2> ...] [--in=<file 2> <old> <new> ...]
-       mutate.py [--expect <text>] [--timeout <seconds>] --replay <old log> <new log>
+       mutate.py [--expect <text>] [--timeout <seconds>] [--allow-side-effects] --replay <old log> <new log>
 
 The script records the SHA-256 of <file>, replaces the one exact copy of <old text> with
 <new text> (and of each extra pair, in order: one mutant with several edits), runs <build command>, then <test command> (each with bash -o pipefail -c), writes the raw output
@@ -31,13 +31,21 @@ change. A failed restore exits 3. A control that needs two edits (a guard mutant
 that trips it) is one call with two pairs. An extra argument --in=<file> puts the pairs after it
 in <file>: one mutant in two files, with each file hashed and restored. Do not nest mutate.py in the test command: the outer
 result line then gives the verdict of the inner script, not of the mutant.
+--side-effects marks a control whose test command acts on shared state (it opens Mission Control,
+posts HID events, or starts a probe). The log header says so, and --replay of that log exits 2
+unless --allow-side-effects is given: a batch replay must not run it by accident.
 """
 import ast, hashlib, os, re, shutil, signal, subprocess, sys
 
 args = sys.argv[1:]
 expected = timeout = replay = None
-while args[:1] in (['--expect'], ['--timeout'], ['--replay']):
-    if args[0] == '--replay':
+side_effects = allow_side_effects = False
+while args[:1] in (['--expect'], ['--timeout'], ['--replay'], ['--side-effects'], ['--allow-side-effects']):
+    if args[0] == '--side-effects':
+        side_effects, args = True, args[1:]
+    elif args[0] == '--allow-side-effects':
+        allow_side_effects, args = True, args[1:]
+    elif args[0] == '--replay':
         if len(args) < 3:
             sys.exit(__doc__)
         replay, args = (args[1], args[2]), args[3:]
@@ -67,6 +75,11 @@ if replay:
             header[key[:-1]] = value
         elif key in ('expect:', 'timeout:'):
             header[key[:-1]] = ast.literal_eval(value)
+        elif key == 'side-effects:':
+            side_effects = True
+    if side_effects and not allow_side_effects:
+        print(f'mutate: the test command of {replay[0]} has side effects; pass --allow-side-effects', file=sys.stderr)
+        sys.exit(2)
     pairs = header['pairs']
     args = [header['file'], pairs[0], pairs[1], replay[1], header['build'], header['test']] + pairs[2:]
     expected = expected if expected is not None else header.get('expect')
@@ -154,6 +167,8 @@ try:
             out.write(f'# expect: {expected!r}\n')
         if timeout is not None:
             out.write(f'# timeout: {timeout!r}\n')
+        if side_effects:
+            out.write('# side-effects: yes\n')
         out.flush()
         built = run(build, out) == 0
         out.flush()

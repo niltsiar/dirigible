@@ -91,9 +91,6 @@ import Testing
         await model.close()
     }
 
-    /// Code gate 1 item 4: a lane under 56 pt still shows a route control and the live state of a
-    /// take on its one line: a red state symbol for a lost device (a capture of the rows: the
-    /// symbol is SwiftUI drawing), and no red in a row with no state.
     /// Code gate 1 item 4 and code gate 2 items 3 to 5: a lane under 56 pt still shows a route
     /// control and the live state of a take on its one line: a red symbol for a lost device, an
     /// orange one for dropped frames, none with no state, and nothing in the handle strip. The layout

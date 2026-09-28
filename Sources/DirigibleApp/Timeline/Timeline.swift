@@ -3,14 +3,6 @@ import DirigibleCore
 import DirigibleTimeline
 import Foundation
 
-/// The anchor of the zoom keys: the playhead when it is in the view, else the view center.
-/// `origin` is the frame at the left edge; `width` is in points.
-func zoomAnchor(playhead: Frames, origin: Double, width: Double, scale: TimelineScale) -> (frame: Frames, x: Double) {
-    let x = (Double(playhead.count) - origin) / scale.framesPerPoint
-    if x >= 0, x < width { return (playhead, x) }
-    return (Frames(Int(origin + width / 2 * scale.framesPerPoint)), width / 2)
-}
-
 /// The page turn of Automatic Scroll: the new origin, or nil for no turn. Forward play turns when
 /// the playhead is past 94% of the `frames` in view, or before the view, and shows it at 11%.
 /// Reverse play mirrors it: under 6% or after the view, to 89%. The origin is never before 0.

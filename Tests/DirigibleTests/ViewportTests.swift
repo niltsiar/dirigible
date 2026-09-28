@@ -1,9 +1,9 @@
 import DirigibleAudio
 import DirigibleCore
-import DirigibleTimeline
 import Testing
 
 @testable import DirigibleApp
+@testable import DirigibleTimeline
 
 /// The zoom, follow, and playhead rules of decision 0017 (timeline-view criteria 13 to 15): the
 /// zoom and follow tables in the run design, with literal frames. The view is 1440 pt wide at

@@ -69,7 +69,7 @@ import Testing
         // frames per point is 1468.8 pt, not whole points.
         for zoom in ["fit", "2000"] {
             if zoom == "fit" {
-                view.zoomToSession()
+                view.navigate(.fitSession)
             } else {
                 var inputs = laneInputs(model, studio)
                 inputs.scale = TimelineScale(framesPerPoint: 2000)
@@ -103,7 +103,7 @@ import Testing
     @Test func theTimeRulerFollowsTheHeaderWidth() async throws {
         let (window, view, model) = try await standalone(width: .standard)
         window.appearance = NSAppearance(named: .aqua)
-        view.zoomToSession()
+        view.navigate(.fitSession)
         window.orderFront(nil)
         drawNow(window)
         try #require(view.shown.minX == 0, "fit zoom: \(view.shown)")

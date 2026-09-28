@@ -275,7 +275,7 @@ import Testing
             view.tick(playhead: view.origin + 0.95 * view.visibleFrames, playback: forward)
             capture = try await check("\(width): a page turn", scene, .page, after: capture)
             let zoom = view.framesPerPoint == 256 ? 0.5 : 2
-            view.zoom(by: zoom, at: 300)
+            view.navigate(.zoom(by: zoom, at: 300))
             try #require(view.framesPerPoint == 256 * zoom || view.framesPerPoint == 128 * zoom, "\(width): the zoom")
             capture = try await check("\(width): a zoom by \(zoom) at the pointer", scene, .scroll, after: capture)
         }

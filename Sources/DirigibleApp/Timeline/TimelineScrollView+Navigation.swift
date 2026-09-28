@@ -5,37 +5,22 @@ import DirigibleTimeline
 /// The zoom and the scroll of the lanes: the menu keys, Command-wheel and pinch zoom at the
 /// pointer, and the first fit.
 extension TimelineScrollView {
-    /// The zoom by `factor` at `x` points from the left edge (the pointer), or with no `x` at the
-    /// anchor of the keys: the playhead when it is in view, else the view center.
-    func zoom(by factor: Double, at x: Double? = nil) {
-        guard let inputs = source, let studio else { return }
-        let width = Double(shown.width)
-        let anchor =
-            x.map { (frame: Frames(Int(origin + $0 * framesPerPoint)), x: $0) }
-            ?? zoomAnchor(playhead: studio.playhead, origin: origin, width: width, scale: inputs.scale)
-        let zoomed = inputs.scale.zoomed(by: factor, anchor: anchor.frame, at: anchor.x, limits: limits(inputs))
-        show(zoomed.scale, origin: zoomed.origin)
+    /// The part in view, or nil before the first update with a width.
+    var viewport: Viewport? {
+        guard let source, shown.width > 0 else { return nil }
+        return Viewport(
+            scale: source.scale, origin: Double(shown.minX) * source.scale.framesPerPoint, width: Double(shown.width),
+            end: source.session.end, rate: source.session.sampleRate)
     }
 
-    /// Zoom to Session: 0 to the end + 2%.
-    func zoomToSession() {
-        guard let inputs = source else { return }
-        let end = inputs.session.end
-        show(TimelineScale.fit(end: end, width: Double(shown.width), limits: limits(inputs)), origin: 0)
-    }
-
-    /// Zoom to Selection: the range with 5% on each side. With no selection, nothing.
-    func zoomToSelection() {
-        guard let inputs = source, let selection = model?.timeline.marks.selection(in: inputs.session) else {
-            return
-        }
-        let fit = TimelineScale.fit(selection.range, width: Double(shown.width), limits: limits(inputs))
-        show(fit.scale, origin: fit.origin)
-    }
-
-    func limits(_ inputs: LaneInputs) -> ClosedRange<Double> {
-        TimelineScale.limits(
-            end: inputs.session.end, rate: inputs.session.sampleRate, width: Double(shown.width))
+    /// The one entry of every zoom and scroll input (decision 0025). A scroll holds the follow
+    /// during play (0017); during a lane gesture no input changes the scale.
+    func navigate(_ input: NavigationInput) {
+        guard let viewport, let studio else { return }
+        let context = NavigationContext(viewport: viewport, playhead: studio.playhead, holdsScale: gesture.isActive)
+        guard let target = navigation.handle(input, context) else { return }
+        if input.scrolls { userScrolled() }
+        show(target.scale, origin: target.origin)
     }
 
     /// Sets the scale here and in the window model, then scrolls: the document view has its new
@@ -48,10 +33,11 @@ extension TimelineScrollView {
         scroll(toFrame: origin)
     }
 
+    /// The fit at open goes past the navigation, so it makes no history entry.
     func fitOnce() {
-        guard !fitted, source != nil, shown.width > 0 else { return }
+        guard !fitted, let fit = viewport?.fit else { return }
         fitted = true
-        zoomToSession()
+        show(fit.scale, origin: fit.origin)
     }
 
     /// Automatic Scroll turned on: the page of the playhead, with the playhead at 11%.
@@ -78,11 +64,11 @@ extension TimelineScrollView {
             return
         }
         let dy = Double(event.scrollingDeltaY)
-        zoom(by: pow(2, event.hasPreciseScrollingDeltas ? -dy / 40 : -dy), at: pointer(event))
+        navigate(.zoom(by: pow(2, event.hasPreciseScrollingDeltas ? -dy / 40 : -dy), at: pointer(event)))
     }
 
     override func magnify(with event: NSEvent) {
-        zoom(by: 1 - Double(event.magnification), at: pointer(event))
+        navigate(.zoom(by: 1 - Double(event.magnification), at: pointer(event)))
     }
 
     func pointer(_ event: NSEvent) -> Double {

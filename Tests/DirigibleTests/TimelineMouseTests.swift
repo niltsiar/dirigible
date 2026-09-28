@@ -145,20 +145,21 @@ import Testing
         await model.close()
     }
 
-    /// Criterion 7, the `show` trap: a zoom during a drag reads the source, not the drawn preview,
-    /// so the gesture goes on. After the zoom to 256 frames per point, x 400 is frame 102,400.
+    /// Criterion 7, the `show` trap: a zoom during a drag must not commit the drawn preview, and the
+    /// gesture goes on. Decision 0025: a lane gesture holds the scale, so the zoom does nothing, and
+    /// the release at x 300 moves the clip 200 pt at 512 frames per point.
     @Test func aZoomDuringADragKeepsTheSource() async throws {
         let (model, studio, window, view) = try await lanes()
         let before = studio.session
         try press(view, 100, 10)
         try drag(view, 200, 10)
 
-        view.zoom(by: 0.5, at: 0)
+        view.navigate(.zoom(by: 0.5, at: 0))
 
-        #expect(view.framesPerPoint == 256)
+        #expect(view.framesPerPoint == 512, "a lane gesture holds the scale")
         #expect(view.lanes.inputs?.session.clip("c1")?.clip.start == 51_200 && studio.session == before)
-        try release(view, 400, 10)
-        #expect(studio.session.clip("c1")?.clip.start == 51_200)
+        try release(view, 300, 10)
+        #expect(studio.session.clip("c1")?.clip.start == 102_400)
         model.undo()
         #expect(studio.session == before && !studio.canUndo, "one undo entry")
         window.close()

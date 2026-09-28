@@ -145,6 +145,9 @@ import Testing
     /// with Shift and does not zoom. The key events go to the window.
     @Test func commandEqualsZoomsIn() async throws {
         let (model, _, window, view) = try await open()
+        // No tick of the display link reads the playhead here: stop it, as the other new window
+        // tests do, so the suite has less main-actor load (code gate 1 item 2).
+        view.viewWillMove(toWindow: nil)
         let points = view.framesPerPoint
         func equals(_ flags: NSEvent.ModifierFlags, code: UInt16) -> NSEvent {
             NSEvent.keyEvent(

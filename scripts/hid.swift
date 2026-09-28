@@ -9,12 +9,14 @@
 //        hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
 //                                                     a key down and up (53 = Esc, 6 = Z), with the
 //                                                     modifier keys down before it and up after it
-//        hid.swift scroll <x> <y> <dx> <dy> [--phases] one wheel event at the point; with
+//        hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
+//                                                     one wheel event at the point; with
 //                                                     --phases a trackpad gesture of 10 events
-//                                                     with scroll phases and 10 momentum events
+//                                                     with scroll phases and 10 momentum events;
+//                                                     with --shift the Shift key is down around it
 // A key event with a modifier flag and no modifier key left the system modifier held: every later
 // CGEvent of any process took it (run 1b Phase 7: the wheel of two tests became a Command-wheel).
-// --dry-run prints the key events and posts nothing.
+// --dry-run prints the key and wheel events and posts nothing.
 // Exit: 0 posted, 1 no Dirigible window, 2 usage, 3 no Accessibility trust.
 import ApplicationServices
 import CoreGraphics
@@ -25,7 +27,7 @@ let usage = """
            hid.swift up <x> <y>
            hid.swift click <x> <y> [--right] [--double]
            hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
-           hid.swift scroll <x> <y> <dx> <dy> [--phases]
+           hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
 
     """
 
@@ -51,22 +53,33 @@ let modifiers: [(flag: String, code: CGKeyCode, mask: CGEventFlags)] = [
     ("--command", 55, .maskCommand), ("--shift", 56, .maskShift), ("--option", 58, .maskAlternate),
 ]
 var keyEvents: [(code: CGKeyCode, down: Bool, mask: CGEventFlags)] = []
+let held = modifiers.filter { flags.contains($0.flag) }
+/// The flags of the key or the wheel events: every held modifier.
+let heldMask = held.reduce(into: CGEventFlags()) { $0.insert($1.mask) }
+func modifierKeys(down: Bool) -> [(code: CGKeyCode, down: Bool, mask: CGEventFlags)] {
+    var mask: CGEventFlags = down ? [] : heldMask
+    return (down ? held : held.reversed()).map { modifier in
+        if down { mask.insert(modifier.mask) } else { mask.remove(modifier.mask) }
+        return (modifier.code, down, mask)
+    }
+}
+func printKeys(_ events: [(code: CGKeyCode, down: Bool, mask: CGEventFlags)]) {
+    for event in events { print("\(event.down ? "down" : "up") \(event.code) flags \(event.mask.rawValue)") }
+}
 if command == "key" {
-    let held = modifiers.filter { flags.contains($0.flag) }
-    var mask: CGEventFlags = []
-    for modifier in held {
-        mask.insert(modifier.mask)
-        keyEvents.append((modifier.code, true, mask))
-    }
-    keyEvents += [(CGKeyCode(values[0]), true, mask), (CGKeyCode(values[0]), false, mask)]
-    for modifier in held.reversed() {
-        mask.remove(modifier.mask)
-        keyEvents.append((modifier.code, false, mask))
-    }
+    keyEvents =
+        modifierKeys(down: true) + [(CGKeyCode(values[0]), true, heldMask), (CGKeyCode(values[0]), false, heldMask)]
+        + modifierKeys(down: false)
     if flags.contains("--dry-run") {
-        for event in keyEvents { print("\(event.down ? "down" : "up") \(event.code) flags \(event.mask.rawValue)") }
+        printKeys(keyEvents)
         exit(0)
     }
+}
+if command == "scroll", flags.contains("--dry-run") {
+    printKeys(modifierKeys(down: true))
+    print("wheel \(Int(values[2])) \(Int(values[3])) flags \(heldMask.rawValue)")
+    printKeys(modifierKeys(down: false))
+    exit(0)
 }
 
 guard AXIsProcessTrusted() else {
@@ -75,13 +88,17 @@ guard AXIsProcessTrusted() else {
 
 func wait20ms() { usleep(20_000) }
 
-if command == "key" {
-    for key in keyEvents {
+func post(_ keys: [(code: CGKeyCode, down: Bool, mask: CGEventFlags)]) {
+    for key in keys {
         let event = CGEvent(keyboardEventSource: nil, virtualKey: key.code, keyDown: key.down)
         event?.flags = key.mask
         event?.post(tap: .cghidEventTap)
         wait20ms()
     }
+}
+
+if command == "key" {
+    post(keyEvents)
     exit(0)
 }
 
@@ -122,12 +139,15 @@ case "click":
             wait20ms()
         }
     }
-default:  // scroll
+default:  // scroll, with the modifier keys down around the wheel events
     mouse(.mouseMoved, origin)
+    post(modifierKeys(down: true))
+    defer { post(modifierKeys(down: false)) }
     func wheel(_ dx: Double, _ dy: Double, phase: Int64, momentum: Int64) {
         let event = CGEvent(
             scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: Int32(dy), wheel2: Int32(dx),
             wheel3: 0)
+        event?.flags = heldMask
         event?.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
         event?.setIntegerValueField(.scrollWheelEventMomentumPhase, value: momentum)
         event?.post(tap: .cghidEventTap)

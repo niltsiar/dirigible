@@ -68,7 +68,26 @@ public struct Viewport: Equatable, Sendable {
 /// The phase of one continuous zoom input: a pinch, a wheel burst, or an overview edge drag.
 public enum Stroke: Equatable, Sendable {
     case began, changed, ended
+    /// A mouse wheel event with no phase, at `time` seconds.
     case wheel(time: Double)
+}
+
+/// The phase or the momentum phase of a wheel or pinch event; the app parses `NSEvent` into it.
+public enum WheelPhase: Sendable { case none, began, changed, ended, cancelled }
+
+extension Stroke {
+    /// Plan gate item 6: a momentum event continues the stroke, and the end of the momentum ends
+    /// it; an event with no phase and no momentum is a mouse wheel event.
+    public init(phase: WheelPhase, momentum: WheelPhase, time: Double) {
+        switch (phase, momentum) {
+        case (.began, _): self = .began
+        case (.changed, _): self = .changed
+        case (.ended, _), (.cancelled, _): self = .ended
+        case (.none, .none): self = .wheel(time: time)
+        case (.none, .ended), (.none, .cancelled): self = .ended
+        case (.none, .began), (.none, .changed): self = .changed
+        }
+    }
 }
 
 /// One input that changes the part of the timeline in view (decision 0025).
@@ -76,11 +95,16 @@ public enum NavigationInput: Equatable, Sendable {
     public enum Direction: Equatable, Sendable { case backward, forward }
 
     /// The scale times `by` at `at` points from the left edge (the pointer), or with no `at` at the
-    /// anchor of the keys (0017).
-    case zoom(by: Double, at: Double? = nil, stroke: Stroke? = nil)
+    /// anchor of the keys (0017). `wheel`: the time of a wheel event, momentum included.
+    case zoom(by: Double, at: Double? = nil, stroke: Stroke? = nil, wheel: Double? = nil)
     case fitSession
-    /// Zoom to Selection: the fit of the range; nothing with no range.
+    /// H: the fit of the range, or of the session with no range; again with the view unchanged,
+    /// the view before (U3).
     case toggleSelection(Range<Frames>?)
+    /// Smart zoom at `at` points from the left edge, with the range of the clip under the pointer
+    /// (U11).
+    case smartZoom(at: Double, clip: Range<Frames>?)
+    case back, forward
     /// One view left or right with a 10% overlap.
     case page(Direction)
     /// The frame in the middle of the view.
@@ -96,7 +120,16 @@ public enum NavigationInput: Equatable, Sendable {
     public var scrolls: Bool {
         switch self {
         case .page, .center, .scroll: true
-        case .zoom, .fitSession, .toggleSelection, .zoomTo, .toggleFit: false
+        case .zoom, .fitSession, .toggleSelection, .smartZoom, .back, .forward, .zoomTo, .toggleFit: false
+        }
+    }
+
+    /// The stroke of a continuous input; nil for a discrete input.
+    public var stroke: Stroke? {
+        switch self {
+        case .zoom(_, _, let stroke, _): stroke
+        case .zoomTo(_, let stroke): stroke
+        default: nil
         }
     }
 }
@@ -112,49 +145,122 @@ public struct NavigationContext: Sendable {
     }
 }
 
-/// The navigation of one window: an input and the view in, the view to show out.
+/// The navigation of one window: an input and the view in, the view to show out. It keeps the
+/// zoom history (F83) and the toggle memory; the clip view keeps the current view.
 public struct Navigation: Sendable {
-    /// The view before a toggle and the view that the toggle showed (U10).
+    /// ponytail: 50 entries, not saved (Q5).
+    static let depth = 50
+    /// A wheel burst ends after this gap in seconds (a calibration value).
+    public static let wheelGap = 0.5
+
+    private var back: [Zoom] = []
+    private var forward: [Zoom] = []
+    /// The view before a toggle and the view that the toggle showed (U3, U10).
     private var toggle: (from: Zoom, to: Zoom)?
+    /// A stroke pushed its entry; a discrete input or a new began closes it.
+    private var strokeOpen = false
+    private var lastWheel: Double?
 
     public init() {}
 
-    /// The view to show, clamped, or nil for no change.
+    /// The Zoom Back and Zoom Forward items are dimmed with no step (U5).
+    public var canGoBack: Bool { !back.isEmpty }
+    public var canGoForward: Bool { !forward.isEmpty }
+
+    /// The view to show, clamped, or nil for no change. Only this function changes the history
+    /// and the toggle memory.
     public mutating func handle(_ input: NavigationInput, _ context: NavigationContext) -> Zoom? {
         if context.holdsScale, !input.scrolls { return nil }
         let view = context.viewport
+        let current = view.zoom
+        let fit = view.clamped(view.fit)
+        var entry: Zoom? = current
         let target: Zoom
         switch input {
-        case .zoom(let factor, let x, _):
+        case .zoom(let factor, let x, let stroke, let wheel):
             let anchor =
                 x.map { (frame: Frames(Int(view.origin + $0 * view.scale.framesPerPoint)), x: $0) }
                 ?? zoomAnchor(playhead: context.playhead, origin: view.origin, width: view.width, scale: view.scale)
             let zoomed = view.scale.zoomed(by: factor, anchor: anchor.frame, at: anchor.x, limits: view.limits)
             target = Zoom(scale: zoomed.scale, origin: zoomed.origin)
-        case .fitSession: target = view.fit
+            if !strokePushes(stroke) { entry = nil }
+            if let wheel { lastWheel = wheel }
+        case .fitSession: target = fit
         case .toggleSelection(let range):
-            guard let range else { return nil }
-            let fit = TimelineScale.fit(range, width: view.width, limits: view.limits)
-            target = Zoom(scale: fit.scale, origin: fit.origin)
+            let selection = range.map { TimelineScale.fit($0, width: view.width, limits: view.limits) }
+            target = toggled(
+                to: selection.map { view.clamped(Zoom(scale: $0.scale, origin: $0.origin)) } ?? fit, current)
+        case .smartZoom(let x, let clip):
+            if !current.matches(fit) {
+                target = fit
+            } else if let clip {
+                let zoom = TimelineScale.fit(clip, width: view.width, limits: view.limits)
+                target = Zoom(scale: zoom.scale, origin: zoom.origin)
+            } else {
+                let frame = Frames(Int(view.origin + x * view.scale.framesPerPoint))
+                let zoomed = view.scale.zoomed(by: 1.0 / 8, anchor: frame, at: x, limits: view.limits)
+                target = Zoom(scale: zoomed.scale, origin: zoomed.origin)
+            }
+        case .back, .forward:
+            guard let step = input == .back ? Self.pop(&back, current) : Self.pop(&forward, current) else { return nil }
+            if input == .back { forward.append(current) } else { back.append(current) }
+            strokeOpen = false
+            return view.clamped(step)
         case .page(let direction):
             let step = 0.9 * view.frames
             target = Zoom(scale: view.scale, origin: view.origin + (direction == .forward ? step : -step))
         case .center(let frame): target = Zoom(scale: view.scale, origin: Double(frame.count) - view.frames / 2)
         case .scroll(let origin): target = Zoom(scale: view.scale, origin: origin)
-        case .zoomTo(let zoom, _): target = zoom
+        case .zoomTo(let zoom, let stroke):
+            target = zoom
+            if !strokePushes(stroke) { entry = nil }
         case .toggleFit(let before):
-            let fit = view.clamped(view.fit)
-            if let toggle, view.zoom.matches(fit), toggle.to.matches(fit) {
-                self.toggle = nil
-                target = toggle.from
-            } else if before.matches(fit) {
-                return nil
-            } else {
-                toggle = (before, fit)
-                target = fit
-            }
+            target = toggled(to: fit, before)
+            entry = target.matches(fit) ? before : current
         }
-        return view.clamped(target)
+        let shown = view.clamped(target)
+        if input.scrolls { return shown }
+        if shown.matches(current) { return nil }
+        if input.stroke == nil { strokeOpen = false }
+        if let entry { push(entry) }
+        return shown
+    }
+
+    /// The target of a toggle: `target`, or the view before the last toggle when `before` is still
+    /// the view that the toggle showed. `before` is the current view, or for a double-click the
+    /// view at its first click.
+    private mutating func toggled(to target: Zoom, _ before: Zoom) -> Zoom {
+        if let toggle, before.matches(target), toggle.to.matches(target) {
+            self.toggle = nil
+            return toggle.from
+        }
+        toggle = (before, target)
+        return target
+    }
+
+    /// True when the stroke makes an entry: a began, a changed or ended with no open stroke (a
+    /// lost began), or a wheel event after a gap. Momentum after the end keeps the stroke open.
+    private mutating func strokePushes(_ stroke: Stroke?) -> Bool {
+        defer { if stroke != nil { strokeOpen = true } }
+        switch stroke {
+        case nil, .began: return true
+        case .changed, .ended: return !strokeOpen
+        case .wheel(let time): return lastWheel.map { time - $0 > Self.wheelGap } ?? true
+        }
+    }
+
+    private mutating func push(_ zoom: Zoom) {
+        back.append(zoom)
+        if back.count > Self.depth { back.removeFirst() }
+        forward = []
+    }
+
+    /// The last entry that is not the current view; the entries that match it go.
+    private static func pop(_ stack: inout [Zoom], _ current: Zoom) -> Zoom? {
+        while let last = stack.popLast() {
+            if !last.matches(current) { return last }
+        }
+        return nil
     }
 }
 

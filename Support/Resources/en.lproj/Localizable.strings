@@ -148,7 +148,9 @@
 "menu.view.zoom.in" = "Zoom In";
 "menu.view.zoom.out" = "Zoom Out";
 "menu.view.zoom.fit" = "Zoom to Session";
-"menu.view.zoom.selection" = "Zoom to Selection";
+"menu.view.zoom.selection" = "Zoom to Selection or Session";
+"menu.view.zoom.back" = "Zoom Back";
+"menu.view.zoom.forward" = "Zoom Forward";
 "menu.view.follow" = "Automatic Scroll";
 "menu.edit.in" = "Set In Point";
 "menu.edit.out" = "Set Out Point";

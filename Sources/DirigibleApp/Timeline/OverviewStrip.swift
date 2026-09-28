@@ -54,6 +54,7 @@ final class OverviewStrip: NSView {
     private(set) var renders = 0
     /// The value changes that the strip posted, for the accessibility test (criterion N8).
     private(set) var valueChanges = 0
+    private var pendingValue: DispatchWorkItem?
     /// The scroll view of the pane: it owns the gesture and the navigation.
     weak var scrollView: TimelineScrollView?
 
@@ -207,8 +208,18 @@ final class OverviewStrip: NSView {
 
     /// A discrete input moved the view: a key, a click, or the end of a drag.
     func valueChanged() {
+        pendingValue?.cancel()
+        pendingValue = nil
         valueChanges += 1
         NSAccessibility.post(element: self, notification: .valueChanged)
+    }
+
+    /// A mouse wheel event has no end: the value change comes after the gap that ends a burst.
+    func valueChangedLater() {
+        pendingValue?.cancel()
+        let post = DispatchWorkItem { [weak self] in self?.valueChanged() }
+        pendingValue = post
+        DispatchQueue.main.asyncAfter(deadline: .now() + Navigation.wheelGap, execute: post)
     }
 
     override func isAccessibilityElement() -> Bool { true }

@@ -18,11 +18,32 @@ extension TimelineScrollView {
     func navigate(_ input: NavigationInput) {
         guard let viewport, let studio else { return }
         let context = NavigationContext(viewport: viewport, playhead: studio.playhead, holdsScale: gesture.isActive)
-        guard let target = navigation.handle(input, context) else { return }
+        let target = navigation.handle(input, context)
+        if let model,
+            model.timeline.canGoBack != navigation.canGoBack || model.timeline.canGoForward != navigation.canGoForward
+        {
+            (model.timeline.canGoBack, model.timeline.canGoForward) = (navigation.canGoBack, navigation.canGoForward)
+        }
+        guard let target else { return }
         if input.scrolls { userScrolled() }
         show(target.scale, origin: target.origin)
-        // VoiceOver hears a discrete input, not each event of a drag (U15).
-        if !overviewGesture.isActive, !gesture.isActive { overview?.valueChanged() }
+        // VoiceOver hears a discrete input or the end of a stroke, not each event of a drag (U15).
+        guard !overviewGesture.isActive, !gesture.isActive else { return }
+        switch input.stroke {
+        case nil, .ended: overview?.valueChanged()
+        case .wheel: overview?.valueChangedLater()
+        case .began, .changed: break
+        }
+    }
+
+    /// Smart zoom at the lane point `point` (U11): the clip under it, or 8x, or the fit.
+    func smartZoom(at point: NSPoint) {
+        guard let source, source.laneHeight > 0 else { return }
+        let lane = Int(max(0, point.y) / source.laneHeight)
+        let frame = Frames(Int(max(0, point.x) * source.scale.framesPerPoint))
+        let clips = lane < source.session.tracks.count ? source.session.tracks[lane].clips : nil
+        let clip = clips.flatMap { clips in clips.index(holding: frame).map { clips[$0].range } }
+        navigate(.smartZoom(at: Double(point.x - shown.minX), clip: clip))
     }
 
     /// A mouse event of the overview strip: the gesture gives the input of the navigation.
@@ -87,14 +108,43 @@ extension TimelineScrollView {
             return
         }
         let dy = Double(event.scrollingDeltaY)
-        navigate(.zoom(by: pow(2, event.hasPreciseScrollingDeltas ? -dy / 40 : -dy), at: pointer(event)))
+        let stroke = Stroke(
+            phase: WheelPhase(event.phase), momentum: WheelPhase(event.momentumPhase), time: event.timestamp)
+        navigate(
+            .zoom(
+                by: pow(2, event.hasPreciseScrollingDeltas ? -dy / 40 : -dy), at: pointer(event), stroke: stroke,
+                wheel: event.timestamp))
     }
 
     override func magnify(with event: NSEvent) {
-        navigate(.zoom(by: 1 - Double(event.magnification), at: pointer(event)))
+        let stroke = Stroke(phase: WheelPhase(event.phase), momentum: .none, time: event.timestamp)
+        navigate(.zoom(by: 1 - Double(event.magnification), at: pointer(event), stroke: stroke))
+    }
+
+    /// A two-finger double tap (U11).
+    override func smartMagnify(with event: NSEvent) {
+        smartZoom(at: lanes.convert(event.locationInWindow, from: nil))
     }
 
     func pointer(_ event: NSEvent) -> Double {
         Double(contentView.convert(event.locationInWindow, from: nil).x - shown.minX)
+    }
+}
+
+extension WheelPhase {
+    /// The phase of an event: a pinch or a wheel event of a trackpad. May-begin and stationary
+    /// count as changed.
+    init(_ phase: NSEvent.Phase) {
+        if phase.isEmpty {
+            self = .none
+        } else if phase.contains(.began) {
+            self = .began
+        } else if phase.contains(.ended) {
+            self = .ended
+        } else if phase.contains(.cancelled) {
+            self = .cancelled
+        } else {
+            self = .changed
+        }
     }
 }

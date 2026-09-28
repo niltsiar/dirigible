@@ -38,7 +38,7 @@ extension SessionWindow {
 /// A timeline command of the View and Edit menus (decisions 0017, 0018). Esc is
 /// `cancelOperation(_:)` and reaches `UndoRoutingWindow`.
 enum TimelineCommand: Hashable {
-    case zoomIn, zoomOut, zoomToSession, zoomToSelection, toggleFollow
+    case zoomIn, zoomOut, zoomToSession, zoomToSelection, zoomBack, zoomForward, toggleFollow
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
     case split, nudgeLeft, nudgeRight
@@ -66,7 +66,8 @@ enum TimelineCommand: Hashable {
         case .zoomToSelection, .setIn, .setOut, .delete, .split, .nudgeLeft, .nudgeRight: true
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         case .removeTrack, .showInFinder: true
-        case .zoomIn, .zoomOut, .zoomToSession, .toggleFollow, .deselectAll, .selectAll, .cut, .copy, .paste: false
+        case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .toggleFollow: false
+        case .deselectAll, .selectAll, .cut, .copy, .paste: false
         case .export, .exportSelection: false
         }
     }
@@ -86,6 +87,11 @@ enum TimelineCommand: Hashable {
             MenuItem(command: .zoomOut, title: .menuViewZoomOut, key: "-", modifiers: .command),
             MenuItem(command: .zoomToSession, title: .menuViewZoomFit, key: "0", modifiers: .command),
             MenuItem(command: .zoomToSelection, title: .menuViewZoomSelection, key: "h", modifiers: []),
+        ],
+        [
+            MenuItem(command: .zoomBack, title: .menuViewZoomBack, key: .leftArrow, modifiers: [.command, .option]),
+            MenuItem(
+                command: .zoomForward, title: .menuViewZoomForward, key: .rightArrow, modifiers: [.command, .option]),
         ],
         [MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option])],
     ]
@@ -176,6 +182,8 @@ extension SessionWindow {
         case .zoomToSession: timelineView?.navigate(.fitSession)
         case .zoomToSelection:
             timelineView?.navigate(.toggleSelection(timeline.marks.selection(in: studio.session)?.range))
+        case .zoomBack: timelineView?.navigate(.back)
+        case .zoomForward: timelineView?.navigate(.forward)
         case .toggleFollow:
             timeline.follows.toggle()
             timeline.followHeld = false

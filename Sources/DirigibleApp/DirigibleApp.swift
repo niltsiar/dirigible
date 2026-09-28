@@ -40,7 +40,8 @@ struct DirigibleApp: App {
                                         set: { _ in app.timeline(.toggleFollow) })
                                 ).keyboardShortcut(item.key, modifiers: item.modifiers)
                             } else {
-                                menuButton(item)
+                                // Only the history items can be off; they have Command (probe K1).
+                                menuButton(item).disabled(app.key?.isOn(item.command) == false)
                             }
                         }
                     }

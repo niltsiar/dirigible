@@ -1,5 +1,6 @@
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import SwiftUI
 
 /// The content of a session window. It reads `SessionWindow` and `Studio` and sends the actions
@@ -107,8 +108,8 @@ private struct TimelinePane: View {
     var body: some View {
         GeometryReader { geometry in
             let tracks = studio.session.tracks
-            // The ruler above, and a scroller below that can take its own height.
-            let free = geometry.size.height - TimelineRuler.thickness - 16
+            // The overview strip and the ruler above, and a scroller below that can take its own height.
+            let free = geometry.size.height - OverviewGeometry.height - TimelineRuler.thickness - 16
             let height = min(120, max(40, (free / Double(max(1, tracks.count))).rounded(.down)))
             TimelineLanes(
                 model: model, studio: studio, inputs: laneInputs(model, studio, laneHeight: height),

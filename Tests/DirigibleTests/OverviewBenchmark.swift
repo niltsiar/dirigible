@@ -10,13 +10,14 @@ import Testing
 
 /// Timeline-navigation criterion N22: one overview drag event on the 2 h fixture fits one 60 Hz
 /// frame, p95 16 ms or less with -O (`make bench FILTER=OverviewBenchmark`); the debug proxy
-/// budget is 100 ms, as `MouseEventBenchmark`. An event is `navigate`, the SwiftUI update of the
+/// budget is 150 ms: an edge drag from the fit measured 84 to 93 ms p95 in debug (a full lane
+/// render at fit and the SwiftUI update). An event is `navigate`, the SwiftUI update of the
 /// pane (the header rows and the lane inputs, as `updateNSView` does), and the lane render, timed
-/// to the end of `drawNow`. Each timed event must change the view and render the lanes once.
-/// 1440 x 600 pt of lanes at scale 2.
+/// to the end of `drawNow`. Each timed event must change the view and render the lanes once, and
+/// the strip above the lanes renders no image. 1440 x 608 pt of lanes at scale 2.
 @MainActor struct OverviewBenchmark {
     #if DEBUG
-        static let budget = 100
+        static let budget = 150
     #else
         static let budget = 16
     #endif
@@ -50,6 +51,48 @@ import Testing
         }
     }
 
+    /// N21: one strip render after an edit, 2880 x 56 px, 4 ms p95 or less with -O (250 ms in debug,
+    /// a proxy: the debug pixel loops measured 93 to 97 ms p95). The worst case: 12,000 clips at fit, a change at the session end (the last clip of
+    /// t6 one frame shorter, then back), and 6 selected lanes with the tint. The time is the render
+    /// and the commit of the new image; each event must render once.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func anOverviewRenderAfterAnEditFitsFourMilliseconds() async throws {
+        #if DEBUG
+            let budget = 250
+        #else
+            let budget = 4
+        #endif
+        var (session, _) = try MouseEventBenchmark.fixture()
+        let last = try #require(session.tracks[5].clips.last)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1440, height: OverviewGeometry.height), styleMask: [.borderless],
+            backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .aqua)
+        let strip = OverviewStrip(frame: try #require(window.contentView).bounds)
+        window.contentView?.addSubview(strip)
+        window.orderFront(nil)
+        try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
+        let extent = Viewport.extent(end: session.end, rate: 48_000)
+        var times: [Duration] = []
+        for event in 1...130 {
+            try session.trim(last.id, to: last.start..<last.end - Frames(event % 2))
+            let inputs = OverviewInputs(session: session, selection: nil, selectedLanes: Array(0..<6), extent: extent)
+            let renders = strip.renders
+            try await Task.sleep(for: .microseconds(16_700))
+            let start = ContinuousClock.now
+            strip.inputs = inputs
+            drawNow(window)
+            if event > 10 { times.append(ContinuousClock.now - start) }
+            try #require(strip.renders == renders + 1, "each edit renders the strip once")
+        }
+        let sorted = times.sorted()
+        let p95 = sorted[Int(Double(sorted.count) * 0.95)]
+        print("OverviewBenchmark render: p50 \(sorted[sorted.count / 2]), p95 \(p95), max \(sorted.last!)")
+        #expect(p95 <= .milliseconds(budget), "p95 over \(budget) ms: render \(p95)")
+        window.close()
+    }
+
     /// 70 events per zoom, one per 60 Hz frame; the last 60 are timed.
     static func eachZoom(
         _ zooms: [(String, Double)], _ input: @MainActor (String, TimelineScrollView) -> NavigationInput
@@ -63,6 +106,12 @@ import Testing
             let (window, view, model, inputs) = try await MouseEventBenchmark.lanesAndInputs(
                 session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
             view.viewWillMove(toWindow: nil)
+            // The pane of the app: the strip above the lanes. Its layers move at each event.
+            let pane = TimelinePaneView(scroll: view)
+            pane.frame = try #require(window.contentView).bounds
+            window.contentView?.addSubview(pane)
+            view.update(inputs)
+            drawNow(window)
             if zoom != "fit" {
                 // The middle of the session, so a zoom out has room on both sides.
                 view.scroll(toFrame: 100_000_000)
@@ -72,6 +121,7 @@ import Testing
             try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
             try #require(view.shown.width == 1440 && view.shown.height >= 600, "\(view.shown)")
             var times: [Duration] = []
+            let renders = pane.overview.renders
             for event in 1...70 {
                 let (origin, scale, draws) = (view.origin, view.framesPerPoint, view.lanes.draws)
                 try await Task.sleep(for: .microseconds(16_700))
@@ -88,6 +138,7 @@ import Testing
                 try #require(
                     view.origin != origin || view.framesPerPoint != scale, "\(zoom): event \(event) moved nothing")
             }
+            try #require(pane.overview.renders == renders, "\(zoom): a drag renders no overview")
             let sorted = times.sorted()
             let p95 = sorted[Int(Double(sorted.count) * 0.95)]
             print("OverviewBenchmark \(zoom): p50 \(sorted[sorted.count / 2]), p95 \(p95), max \(sorted.last!)")

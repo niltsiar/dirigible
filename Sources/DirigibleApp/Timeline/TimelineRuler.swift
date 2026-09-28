@@ -123,6 +123,7 @@ final class TimelineRuler: NSRulerView {
     override func mouseDragged(with event: NSEvent) {
         guard let place = place(event) else { return }
         timeline?.mouse(.drag(place))
+        timeline?.dragPointer = (event.locationInWindow, ruler: true)
         showCursor(event)
     }
 

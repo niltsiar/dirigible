@@ -266,6 +266,7 @@ final class TimelineDocumentView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         scrollView?.mouse(.drag(place(event)))
+        scrollView?.dragPointer = (event.locationInWindow, ruler: false)
         showCursor(event)
     }
 

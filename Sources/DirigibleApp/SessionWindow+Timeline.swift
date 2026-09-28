@@ -38,7 +38,7 @@ extension SessionWindow {
 /// A timeline command of the View and Edit menus (decisions 0017, 0018). Esc is
 /// `cancelOperation(_:)` and reaches `UndoRoutingWindow`.
 enum TimelineCommand: Hashable {
-    case zoomIn, zoomOut, zoomToSession, zoomToSelection, zoomBack, zoomForward, toggleFollow
+    case zoomIn, zoomOut, zoomToSession, zoomToSelection, zoomBack, zoomForward, pagePrevious, pageNext, toggleFollow
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
     case split, nudgeLeft, nudgeRight
@@ -66,7 +66,7 @@ enum TimelineCommand: Hashable {
         case .zoomToSelection, .setIn, .setOut, .delete, .split, .nudgeLeft, .nudgeRight: true
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         case .removeTrack, .showInFinder: true
-        case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .toggleFollow: false
+        case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         case .export, .exportSelection: false
         }
@@ -92,6 +92,10 @@ enum TimelineCommand: Hashable {
             MenuItem(command: .zoomBack, title: .menuViewZoomBack, key: .leftArrow, modifiers: [.command, .option]),
             MenuItem(
                 command: .zoomForward, title: .menuViewZoomForward, key: .rightArrow, modifiers: [.command, .option]),
+        ],
+        [
+            MenuItem(command: .pagePrevious, title: .menuViewPagePrevious, key: .pageUp, modifiers: .option),
+            MenuItem(command: .pageNext, title: .menuViewPageNext, key: .pageDown, modifiers: .option),
         ],
         [MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option])],
     ]
@@ -184,6 +188,8 @@ extension SessionWindow {
             timelineView?.navigate(.toggleSelection(timeline.marks.selection(in: studio.session)?.range))
         case .zoomBack: timelineView?.navigate(.back)
         case .zoomForward: timelineView?.navigate(.forward)
+        case .pagePrevious: timelineView?.navigate(.page(.backward))
+        case .pageNext: timelineView?.navigate(.page(.forward))
         case .toggleFollow:
             timeline.follows.toggle()
             timeline.followHeld = false

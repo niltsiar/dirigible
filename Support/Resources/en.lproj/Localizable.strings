@@ -151,6 +151,8 @@
 "menu.view.zoom.selection" = "Zoom to Selection or Session";
 "menu.view.zoom.back" = "Zoom Back";
 "menu.view.zoom.forward" = "Zoom Forward";
+"menu.view.page.previous" = "Previous Page";
+"menu.view.page.next" = "Next Page";
 "menu.view.follow" = "Automatic Scroll";
 "menu.edit.in" = "Set In Point";
 "menu.edit.out" = "Set Out Point";

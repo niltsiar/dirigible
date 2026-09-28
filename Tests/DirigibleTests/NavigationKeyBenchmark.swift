@@ -38,14 +38,28 @@ import Testing
         }
     }
 
+    /// A page with Option-Page Down, then back with Option-Page Up: both timed. At the fit a page
+    /// moves nothing, so the zooms are 60 pt boxes and 10 pages.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aPageKeyFitsTwoFrames() async throws {
+        try await Self.measure("page", zooms: [MouseEventBenchmark.zooms[1], FollowScrollBenchmark.zooms[1]]) {
+            model, n in
+            if n == 0 { model.timelineView?.scroll(toFrame: 100_000_000) }
+            return { model.run(n % 2 == 0 ? .pageNext : .pagePrevious) }
+        }
+    }
+
     /// Runs `prepare` (not timed), then times the event that it returns, 25 times per zoom.
-    static func measure(_ name: String, _ prepare: @MainActor (SessionWindow, Int) -> @MainActor () -> Void)
+    static func measure(
+        _ name: String, zooms: [(String, Double)] = MouseEventBenchmark.zooms,
+        _ prepare: @MainActor (SessionWindow, Int) -> @MainActor () -> Void
+    )
         async throws
     {
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)
         let (session, peaks) = try MouseEventBenchmark.fixture()
-        for (n, (zoom, framesPerPoint)) in MouseEventBenchmark.zooms.enumerated() {
+        for (n, (zoom, framesPerPoint)) in zooms.enumerated() {
             let package = folder.url.appending(path: "\(n)")
             try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
             let (window, view, model, inputs) = try await MouseEventBenchmark.lanesAndInputs(

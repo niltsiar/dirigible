@@ -82,9 +82,10 @@ struct SessionView: View {
                         Button(L10n.menuTrackAdd.key) { model.run(.addTrack) }.disabled(!model.canEdit)
                     }
                 } else {
-                    // An overlay, not a row: the lanes do not move when it shows or goes.
+                    // An overlay, not a row: the lanes do not move when it shows or goes. It shows
+                    // over the ruler, below the overview strip, where the user acts on it (0025).
                     TimelinePane(model: model, studio: studio).overlay(alignment: .top) {
-                        RecordOverOverlay(model: model)
+                        RecordOverOverlay(model: model).padding(.top, OverviewGeometry.height)
                     }
                 }
             }

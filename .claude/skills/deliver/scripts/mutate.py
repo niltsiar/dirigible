@@ -20,7 +20,9 @@ message of the assertion that the control must break. A progress line (a test st
 does not count: it names every test of the filter, also on a run where another test fails. A crash or a trap also fails the test.
 With --timeout, a test that runs longer than <seconds> is killed with all its processes, and the
 result is a kill: use it for a mutant that makes the code hang (a display loop), which no wait
-limit inside the test can stop. --replay runs the control of <old log> again from its header
+limit inside the test can stop. With --expect too, a hang is a kill only when <text> came before
+the kill: a failure report that hangs (a large value in an assert message) prints no text and
+gives WRONG FAILURE. --replay runs the control of <old log> again from its header
 (file, pairs, commands, expect, timeout) and writes <new log>; an option on the command line
 wins over the header. When a later commit changed an old text, the replay exits 2, so you write
 that mutant again on purpose.
@@ -177,7 +179,7 @@ if code == 1:
         output = done.read()
     if 'No matching test cases were run' in output or re.search(r'Test run with 0 tests', output):
         result, code = 'NO TESTS', 5
-if code == 0 and not hung and expected is not None:
+if code == 0 and expected is not None:
     with open(log, errors='replace') as done:
         done.seek(test_start)
         # A progress line of each run (a test started or passed) names every test in the filter,

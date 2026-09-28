@@ -116,5 +116,13 @@ check '2:mutate' 'a second-file pair with no new text' "$file" 'b = 1' 'b = 2' "
 check '2:mutate' 'a second-file old text that is not there' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" "$test" \
   "--in=$file2" 'd = 1' 'd = 2'
 
+# --expect with --timeout: a hang is a kill only when the expect text came before the kill. A test
+# whose failure report hangs (a large value in the assert message) prints no text, so it is not a
+# kill of the control (timeline-navigation Phase 7: three such logs said killed (hang)).
+check '4:WRONG FAILURE' 'a hang with no expect text' --expect 'expected a = 1' --timeout 1 "$file" 'a = 1' 'a = 2' \
+  "$tmp/log" "$build" 'sleep 30 | cat'
+check '0:killed (hang)' 'a hang after the expect text' --expect 'expected a = 1' --timeout 1 "$file" 'a = 1' 'a = 2' \
+  "$tmp/log" "$build" "echo 'expected a = 1'; sleep 30 | cat"
+
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

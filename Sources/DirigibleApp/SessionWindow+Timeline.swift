@@ -107,10 +107,9 @@ enum TimelineCommand: Hashable {
         ],
         [MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option])],
     ]
+    /// Fit Tracks to Window has no key (U2), so it is not in these keyed tables: the View menu adds
+    /// it after the track group.
     static let viewItems = viewGroups.flatMap { $0 }
-    /// Fit Tracks to Window has no key (U2), so it is not in the keyed table: the View menu adds it
-    /// after the track group.
-    static let fitTracksTitle = L10n.menuViewTracksFit
 
     /// The items that replace the system pasteboard group (probe E6). Delete has Backspace (F16).
     static let pasteboardItems = [

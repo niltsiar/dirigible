@@ -68,7 +68,8 @@ final class OverviewStrip: NSView {
     /// The key of the image on screen.
     private var rendered: (inputs: OverviewInputs, palette: OverviewPalette, columns: Int, rows: Int)?
     private var resizing = false
-    /// The view of the last move and the column of the playhead line.
+    /// The view of the last move, and the pixel column of the playhead line (the view does not
+    /// move it: the strip shows the whole session).
     private var viewport: Viewport?
     private var playheadColumn: Int?
 
@@ -166,7 +167,6 @@ final class OverviewStrip: NSView {
         viewFrame.frame = frame
         dimLeading.frame = NSRect(x: 0, y: 0, width: max(0, frame.minX), height: bounds.height)
         dimTrailing.frame = NSRect(x: frame.maxX, y: 0, width: max(0, bounds.width - frame.maxX), height: bounds.height)
-        playheadColumn = nil
     }
 
     // MARK: Mouse and cursor

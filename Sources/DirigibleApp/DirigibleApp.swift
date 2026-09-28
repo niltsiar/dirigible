@@ -45,7 +45,7 @@ struct DirigibleApp: App {
                             }
                         }
                         if TimelineCommand.viewGroups[group].contains(where: { $0.command == .tallerTracks }) {
-                            Button(TimelineCommand.fitTracksTitle.key) { app.timeline(.fitTracks) }
+                            Button(L10n.menuViewTracksFit.key) { app.timeline(.fitTracks) }
                         }
                     }
                 }

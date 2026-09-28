@@ -221,6 +221,60 @@ struct ZoomHistoryTests {
         #expect(view == first, "a lost began after an ended stroke makes an entry")
     }
 
+    /// Code gate 2 item 3: a stroke whose first event does not change the view is still one entry:
+    /// the event that changes the view makes it.
+    @Test mutating func aStrokeThatStartsWithNoChangeMakesAnEntry() {
+        let before = view
+        send(.zoom(by: 1.0, at: 100, stroke: .began))
+        send(.zoom(by: 0.9, at: 100, stroke: .changed))
+        #expect(view != before)
+        send(.back)
+        #expect(view == before, "a began with no change opens no stroke")
+    }
+
+    /// Code gate 2 item 3: 128 frames per point is the closest zoom, so a began that zooms in
+    /// changes nothing; the zoom out after it makes the entry.
+    @Test mutating func aBeganClampedAtTheClosestZoomMakesAnEntry() {
+        view = Self.at(128, 1_000_000)
+        send(.zoom(by: 0.5, at: 0, stroke: .began))
+        #expect(view == Self.at(128, 1_000_000), "the closest zoom is 128")
+        send(.zoom(by: 2, at: 0, stroke: .changed))
+        #expect(view == Self.at(256, 1_000_000))
+        send(.back)
+        #expect(view == Self.at(128, 1_000_000), "a clamped began opens no stroke")
+    }
+
+    /// A began with no change ends the stroke before it, also when that stroke lost its end.
+    @Test mutating func aBeganWithNoChangeEndsTheOpenStroke() {
+        send(.zoom(by: 2, at: 0, stroke: .began))
+        let first = view
+        send(.zoom(by: 1.0, at: 0, stroke: .began))
+        send(.zoom(by: 2, at: 0, stroke: .changed))
+        send(.back)
+        #expect(view == first, "a began with no change ends the open stroke")
+    }
+
+    /// A changed with no change continues the stroke: the pinch is still one entry.
+    @Test mutating func aChangedWithNoChangeContinuesTheStroke() {
+        let before = view
+        send(.zoom(by: 0.9, at: 100, stroke: .began))
+        send(.zoom(by: 1.0, at: 100, stroke: .changed))
+        send(.zoom(by: 0.9, at: 100, stroke: .changed))
+        send(.back)
+        #expect(view == before, "a changed with no change continues the stroke")
+    }
+
+    /// A pinch ends with a magnification of 0: an end with no change still ends the stroke, so a
+    /// lost began after it makes its own entry.
+    @Test mutating func anEndWithNoChangeEndsTheStroke() {
+        send(.zoom(by: 2, at: 0, stroke: .began))
+        send(.zoom(by: 1.0, at: 0, stroke: .ended))
+        let first = view
+        send(.zoom(by: 2, at: 0, stroke: .changed))
+        send(.back)
+        #expect(view == first, "an end with no change ends the stroke")
+    }
+
     /// Code gate 1 item 4: Esc of an overview edge drag puts back Back and Forward as they were
     /// before its began.
     @Test mutating func aCancelledStrokeKeepsTheHistory() {

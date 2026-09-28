@@ -229,7 +229,13 @@ public struct Navigation: Sendable {
         }
         let shown = view.clamped(target)
         if input.scrolls { return shown }
-        if shown.matches(current) { return nil }
+        if shown.matches(current) {
+            // An input that would make an entry and changes nothing ends the stroke before it and
+            // opens no stroke: the next stroke event that changes the view makes the entry (code
+            // gate 2 item 3). An event that continues a stroke keeps it.
+            if entry != nil { closeStroke() }
+            return nil
+        }
         if input.stroke == nil { closeStroke() }
         if let entry { push(entry) }
         return shown

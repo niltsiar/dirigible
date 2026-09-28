@@ -9,8 +9,9 @@ import Testing
 
 /// Timeline-navigation criterion N23, a new path of the 0020 list: one autoscroll tick during a
 /// clip move with a still pointer 40 pt past the right edge fits one 60 Hz frame, 16 ms p95 with
-/// -O (`make bench FILTER=MouseEventBenchmark`; 100 ms in debug). A tick is the scroll, the drag
-/// event again at the same point (the gesture step and the preview), and the render. At the fit
+/// -O (`make bench FILTER=MouseEventBenchmark`; 100 ms in debug). A frame is a real drag event at
+/// the same point, then the tick: the scroll, the drag again (the gesture step and the preview),
+/// and the render. The pair is the worst frame of a drag (code gate 2 item 2). At the fit
 /// the lanes are the view and cannot scroll, so the cases are a fixture clip and a clip wider than
 /// the view, both at 60 pt boxes. Each tick must scroll and render the lanes once.
 extension MouseEventBenchmark {
@@ -34,8 +35,8 @@ extension MouseEventBenchmark {
             drawNow(window)
             let down = NSPoint(x: clipStart + 30, y: n == 0 ? 10 : 110)
             view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
-            view.lanes.mouseDragged(
-                with: try mouse(.leftMouseDragged, NSPoint(x: Double(view.shown.maxX) + 40, y: down.y), in: view))
+            let drag = try mouse(.leftMouseDragged, NSPoint(x: Double(view.shown.maxX) + 40, y: down.y), in: view)
+            view.lanes.mouseDragged(with: drag)
             drawNow(window)
             var times: [Duration] = []
             let start = CACurrentMediaTime()
@@ -43,6 +44,7 @@ extension MouseEventBenchmark {
                 let (origin, draws) = (view.origin, view.lanes.draws)
                 try await Task.sleep(for: .microseconds(16_700))
                 let begin = ContinuousClock.now
+                view.lanes.mouseDragged(with: drag)
                 view.autoscrollTick(at: start + Double(tick) / 60)
                 drawNow(window)
                 if tick > 10 { times.append(ContinuousClock.now - begin) }

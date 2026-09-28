@@ -62,10 +62,8 @@ final class TimelineScrollView: NSScrollView {
     private(set) var gesture = TimelineGesture()
     /// The mouse gesture of the overview strip.
     var overviewGesture = OverviewGesture()
-    /// The window point of the last lane or ruler drag event, for autoscroll (0025). Only a real
-    /// drag event sets a value, so a set is a real drag event since the last tick.
-    var dragPointer: (window: NSPoint, ruler: Bool)? { didSet { dragged = dragPointer != nil } }
-    private var dragged = false
+    /// The window point of the last lane or ruler drag event, for autoscroll (0025).
+    var dragPointer: (window: NSPoint, ruler: Bool)?
     /// The time of the last autoscroll tick, and the time when the pointer entered the zone.
     private var autoscrollTimes: (last: Double, zone: Double?)?
 
@@ -300,8 +298,6 @@ final class TimelineScrollView: NSScrollView {
     /// and the drag goes again at the same window point, so a still pointer also moves the clip.
     /// The lanes keep their width during the gesture (0020), so the scroll stops at the held width.
     func autoscrollTick(at now: Double) {
-        let dragged = dragged
-        self.dragged = false
         guard gesture.autoscrolls, let pointer = dragPointer, shown.width > 0 else {
             autoscrollTimes = nil
             return
@@ -325,9 +321,8 @@ final class TimelineScrollView: NSScrollView {
         guard target != origin else { return }
         userScrolled()
         scroll(toFrame: target)
-        // A real drag event since the last tick already moved the preview in this frame: one
-        // preview step per frame (code gate 1 item 3).
-        guard !dragged else { return }
+        // Also after a real drag event: the preview of the frame is at the pointer after the
+        // scroll, so the mouse-up drops the clip where the frame showed it (code gate 2 item 2).
         let point = lanes.convert(pointer.window, from: nil)
         let y = pointer.ruler ? Double(ruler.convert(pointer.window, from: nil).y) : Double(point.y)
         mouse(.drag(pointer.ruler ? .ruler(x: Double(point.x), y: y) : .lanes(x: Double(point.x), y: y)))

@@ -30,7 +30,7 @@ extension TimelineScrollView {
         // VoiceOver hears a discrete input or the end of a stroke, not each event of a drag (U15).
         guard !overviewGesture.isActive, !gesture.isActive else { return }
         switch input.stroke {
-        case nil, .ended, .momentum(ended: true): overview?.valueChanged()
+        case nil, .ended, .cancelled, .momentum(ended: true): overview?.valueChanged()
         case .wheel: overview?.valueChangedLater()
         case .began, .changed, .momentum(ended: false): break
         }

@@ -202,7 +202,7 @@ public struct OverviewGesture: Sendable {
             return resize(to: x, stroke: .ended, strip, view)
         case (.resizing(let press, _), .escape):
             state = .idle
-            return .zoomTo(press.zoom, stroke: .changed)
+            return .zoomTo(press.zoom, stroke: .cancelled)
         case (.pressed, .escape):
             state = .idle
             return nil

@@ -43,7 +43,7 @@ import Testing
         return (session, states)
     }
 
-    /// The lanes of a session window on screen, 1440 x 600 pt in view, with the inputs of the 2 h
+    /// The lanes of a session window on screen under the overview strip, 1440 x 608 pt in view, with the inputs of the 2 h
     /// fixture at `framesPerPoint`. The window of a 1 s package gives the model and the studio. The
     /// Studio gets the 2 h session, because a mouse-down reads it, and a save that does not write:
     /// a package write of 12,000 clips must not run during the timed events.
@@ -72,9 +72,11 @@ import Testing
             styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .aqua)
+        // The pane of the app: the overview strip above the lanes (decision 0025).
         let view = TimelineScrollView(model: model, studio: studio)
-        view.frame = try #require(window.contentView).bounds
-        window.contentView?.addSubview(view)
+        let pane = TimelinePaneView(scroll: view)
+        pane.frame = try #require(window.contentView).bounds
+        window.contentView?.addSubview(pane)
         let inputs = LaneInputs(
             session: session, peaks: peaks, missingMedia: [:], marks: Marks(),
             scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: laneHeight)

@@ -39,8 +39,9 @@ import Testing
             window.isReleasedWhenClosed = false
             window.appearance = NSAppearance(named: .aqua)
             let view = TimelineScrollView(model: model, studio: studio)
-            view.frame = try #require(window.contentView).bounds
-            window.contentView?.addSubview(view)
+            let pane = TimelinePaneView(scroll: view)
+            pane.frame = try #require(window.contentView).bounds
+            window.contentView?.addSubview(pane)
             let inputs = LaneInputs(
                 session: session, peaks: peaks, missingMedia: [:], marks: Marks(),
                 scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)

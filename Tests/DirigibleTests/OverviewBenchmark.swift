@@ -106,12 +106,8 @@ import Testing
             let (window, view, model, inputs) = try await MouseEventBenchmark.lanesAndInputs(
                 session, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
             view.viewWillMove(toWindow: nil)
-            // The pane of the app: the strip above the lanes. Its layers move at each event.
-            let pane = TimelinePaneView(scroll: view)
-            pane.frame = try #require(window.contentView).bounds
-            window.contentView?.addSubview(pane)
-            view.update(inputs)
-            drawNow(window)
+            // The pane of `lanesAndInputs` has the strip above the lanes; its layers move at each event.
+            let strip = try #require(view.overview)
             if zoom != "fit" {
                 // The middle of the session, so a zoom out has room on both sides.
                 view.scroll(toFrame: 100_000_000)
@@ -121,7 +117,7 @@ import Testing
             try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
             try #require(view.shown.width == 1440 && view.shown.height >= 600, "\(view.shown)")
             var times: [Duration] = []
-            let renders = pane.overview.renders
+            let renders = strip.renders
             for event in 1...70 {
                 let (origin, scale, draws) = (view.origin, view.framesPerPoint, view.lanes.draws)
                 try await Task.sleep(for: .microseconds(16_700))
@@ -138,7 +134,7 @@ import Testing
                 try #require(
                     view.origin != origin || view.framesPerPoint != scale, "\(zoom): event \(event) moved nothing")
             }
-            try #require(pane.overview.renders == renders, "\(zoom): a drag renders no overview")
+            try #require(strip.renders == renders, "\(zoom): a drag renders no overview")
             let sorted = times.sorted()
             let p95 = sorted[Int(Double(sorted.count) * 0.95)]
             print("OverviewBenchmark \(zoom): p50 \(sorted[sorted.count / 2]), p95 \(p95), max \(sorted.last!)")

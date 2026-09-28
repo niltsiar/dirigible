@@ -248,7 +248,7 @@ Keep the scroll bars on the system setting (U1, U2, 0017 amended). With "Always"
 | Overview strip: drag in the view frame | Scroll | New (Pro Tools, Ableton, Audition) |
 | Overview strip: drag a frame edge | Zoom (Audition [AU]) | New |
 | Overview strip: double-click | Zoom to Session (Ableton [AB]) | New |
-| Page Up, Page Down | Scroll one view width left or right, with a 10% overlap (HIG page scroll [H-scroll]) | New. Shift-Left and Shift-Right are taken (0016) |
+| Page Up, Page Down | Scroll one view width left or right, with a 10% overlap (HIG page scroll [H-scroll]) | New. Shift-Left and Shift-Right are taken (0016). Note 2026-09-28: 0018 gives Page Up and Page Down to Previous and Next Marker; 0025 puts the page scroll on Option-Page Up and Option-Page Down |
 | Command-0, H, Command-plus, Command-minus | Zoom to Session, Zoom to Selection, Zoom In, Zoom Out | Done (0017); also in the toolbar |
 | Home, End, a seek | The follow shows the playhead | Done (0017) |
 

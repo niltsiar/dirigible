@@ -5,6 +5,7 @@
 - Accepted: 2026-09-26, after plan gates 1 and 2 of the mouse-edits run. The gates added the 12 pt floor of the move zone, the lane change after half a lane, the name commit at the mouse-down, the order apply, source, draw at the mouse-up, the one geometry for the drawing and the hit test, and the Studio read only at the down and after the up.
 - Amended: 2026-09-26, code gate 1 of the mouse-edits run: the drag threshold of the time, `changedFrames` and the dirty rect with the rows of a wide change, the width during a gesture, and the event paths of the budget.
 - Amended: 2026-09-27, timeline-layer run (see 0022): a drag event renders only its changed rect, with no union of the draws before it. The acceptance of 0022 compares every case of `MouseEventBenchmark`, `FollowScrollBenchmark`, and `LaneRenderBenchmark` with main. The budget is unchanged.
+- Amended: 2026-09-28, timeline-navigation run (see 0025): during a lane or ruler drag, the display tick scrolls the lanes when the pointer is past the lanes edge, and it sends the drag again at the same point. The scroll stops at the held width of the lanes.
 
 ## Context
 

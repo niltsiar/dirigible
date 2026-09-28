@@ -1,0 +1,61 @@
+# 0025. Timeline navigation: an overview strip in its own view, one pure navigation value, the clip view owns the origin
+
+- Status: accepted
+- Date: 2026-09-28
+- Accepted: 2026-09-28, after plan gate 1 of the timeline-navigation run. The gate added the view of the first click for the strip double-click, the Shift rule of the key test only for printable symbol and digit keys, the accessibility value 0 at the fit and clamped to 0...1, the frame-drag budget at the closest zoom with one lane draw per event, a publish of `visible` at `record()` with the drag hold, the map from a momentum event to a stroke, and the row rule of the strip for many tracks.
+- Amends: 0017 (the keys, H with no selection, the view state, the lane height), 0020 (autoscroll during a gesture).
+
+## Context
+
+Release 2 run 2 (`docs/requirements/releases.md`) adds an overview strip above the time ruler (click to center, drag the view frame, drag an edge to zoom, double-click to fit), smart zoom, page keys, the zoom toggle and zoom history (F83, "H and back"), track height keys, and autoscroll during a drag. The user refused scroll bars that show at all times and asks for a UI that is easy but powerful. Research: `docs/research/macos-ui-shell.md` sections 7 and 8, `docs/research/timeline-view.md`, `docs/research/logic-garageband-update.md`. Run design: `.scratchpads/runs/2026-09-28-timeline-navigation/design.md`. A UI expert panel (macOS HIG, pro audio, first use and accessibility with visual cost) reviewed the plan; the user delegated the UI choices (`ux-decisions.md` of the run).
+
+Today three owners hold the part of the timeline in view: the scale (window state, read by SwiftUI into the lane inputs), the origin (the clip view bounds, which AppKit also writes at a trackpad scroll, momentum, a scroller drag, and a tile), and the lane height (computed by the SwiftUI pane).
+
+Probes on 2026-09-28 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/runs/2026-09-28-timeline-navigation/probe/output.txt`):
+
+- K1. With in-process `NSMenu.performKeyEquivalent`: Shift-Cmd-"+" never fires. The US chord Shift-Cmd-= gives "+" and goes to Cmd-"+" (Zoom In). The Spanish Shift-Cmd-+ gives "*", and Shift-Cmd-minus gives "_" on both layouts; they match no item. The US Cmd-= matches no item.
+- K2. Cmd-"]" fires on US; on Spanish, "]" needs Option, and that chord matches no item. Option-Page Up fires its item.
+- W1. A line-unit wheel event with Shift gives a horizontal `scrollingDeltaX` in `NSEvent`.
+- A1. `NSRulerView.accessoryView` needs a client view first (else an exception). A 28 pt accessory sits at the top of the ruler, spans the full width, stays in place at a scroll, and the clip view inset follows; the rule area moves down 28 pt.
+
+## Decision
+
+**The origin.** The clip view owns the origin. A `Viewport` value (scale, origin, width, end, rate) is derived at each read and never stored. Each writer of the clip view bounds reaches `viewMoved()`, and the overview view frame moves only there.
+
+**One navigation value.** `Navigation` in `DirigibleTimeline` takes a `NavigationInput` (a zoom by a factor, smart zoom, Zoom to Session, H, Back, Forward, a page, a center, a scroll, a zoom to a view) and a context (the viewport, the playhead, a lane gesture that holds the scale), and returns the view to show, or nil. Only it changes the zoom history and the toggle memory. The scroll view owns it and has one entry, `navigate(_:)`.
+
+**Zoom history (F83).** Before each zoom, the history keeps the view before it (scale and origin); a scroll keeps nothing. Back and Forward walk it; a new zoom clears Forward; at most 50 entries; window state, not saved. One continuous input is one entry: a pinch from its began phase, a wheel burst with less than 0.5 s between events (momentum events continue the burst), an overview edge drag. A pure function maps the phase, the momentum phase, and the time of an event to its stroke. H ("Zoom to Selection or Session") shows the fit of the selection, or of the session with no selection; a second H with the view unchanged shows the view before the first H. A double-click on the strip toggles the fit of the session and the view before it; the view before is the view at the first click of the sequence, because the first click already centers the view. Smart zoom follows the system rule: at the fit it zooms in at the pointer (the clip under it, else 8x); elsewhere it fits the session. Zoom Back and Zoom Forward are dimmed when the history has no step.
+
+**Overview strip.** Its own opaque, layer-backed AppKit view, 28 pt high, in a container above the scroll view, across the full timeline pane. One row per track with the clip boxes (merged per pixel column; at most one row per 2 px of strip height, with more tracks merged into the rows in order; a 1 px gap between rows only when each row keeps 2 px; in the waveform RMS color in light mode and the peak color in dark mode), marker ticks, stronger chapter ticks, the in/out band, and a tint on the selected lanes render into a new `CGImage` of own pixels, only when these inputs or the palette change. During a live window resize the old image stretches, and the strip renders once at the end. The playhead (the only full-height line), the view frame (a whole-point border aligned to backing pixels; 2 pt in the label color with Increase Contrast), and two layers that dim the strip outside the frame move at a scroll, a zoom, a play tick, and a header drag, and render no pixel. The edges of a frame of 16 pt or more zoom (3 pt out, 3 pt in); a narrower frame is all body. The strip is one accessibility element with the role scroll bar, a value from 0 to 1 (0 at the fit, clamped at the last page), a value description "<start> to <end> of <length>", Next and Previous Page as increment and decrement, and a "Show Whole Session" action. The strip renders from the committed session, never from a drag preview, so it renders once at the mouse-up of a gesture. The mapping, the hit zones, the pixel plan, and the gesture (a states x events table in the run design) are pure values in `DirigibleTimeline`.
+
+**Track height.** `LaneHeight` is window state: automatic (the fit of today, 40 to 120 pt), or a fixed height from the steps 40, 50, 60, 80, 100, 120, 160, and 200 pt. It is whole points, so the 0022 surfaces never get a fractional capacity. At a change, the lane at the top of the view stays at the top.
+
+**Autoscroll.** During a lane or ruler drag, the display link tick scrolls the lanes when the pointer is outside the lanes, or in a 16 pt inner zone of an edge that touches the screen edge, and it sends the drag again at the same window point, so a still pointer also scrolls. The speed is 20 pt/s per point outside times a ramp min(4, 1 + the seconds in the zone), at most 3000 pt/s. Horizontal only. It stops at the held lane width of 0020.
+
+**No motion.** No layer of the strip has actions (`contents` included), and no zoom, page, or scroll jump animates. A later animation checks `accessibilityDisplayShouldReduceMotion`.
+
+**Keys.** Page Up and Page Down stay Previous and Next Marker (0018). New View items: Zoom Back (Option-Command-Left), Zoom Forward (Option-Command-Right), Previous Page (Option-Page Up), Next Page (Option-Page Down), Taller Tracks (Command-Down Arrow), Shorter Tracks (Command-Up Arrow), and Fit Tracks to Window (no key). Taller and Shorter go to a focused text field first, as Nudge does. Hindenburg uses Shift-Command-plus and minus for the track height; K1 shows that these cannot be key equivalents, so the tracks use the Logic pair. Deviation from the HIG: Zoom Back and Forward add Option to the Command-arrow keys of Nudge, because brackets need Option on the Spanish layout (K2). Command-= also zooms in: the window runs Zoom In for the characters "=" with Shift off (K1: the US Command-= matched no item; the Spanish Shift-0 gives "=" and must not zoom). The View menu has separators between its groups. `MenuKeys.system` holds the reserved system keys (Option-Command-=, -minus, -8; Control-Command-Space, -Q, -D, -C, -V; Control with the arrows), so the key test fails on a collision. The app never binds Control with the scroll wheel. The key test counts two keys that differ only by Shift as one key when the key is a printable symbol or digit whose character Shift changes on the US or the Spanish layout; Space, Return, Delete, the arrows, and the function keys keep Shift.
+
+**Budget.** Optimized, 2880 x 1200 px, the 2 h fixture, one event per 60 Hz frame: one overview render 4 ms p95 or less; an overview frame drag event (at the closest zoom and at 60 pt boxes, not at the fit, where it moves nothing) and an edge drag event 16 ms p95 or less, and each measured event draws the lanes once; an autoscroll tick 16 ms p95 or less; a one-off key event (a page, a height step, Back, H) 32 ms or less. No case of the earlier benches gets worse than main by more than 10 % or 1 ms (0022).
+
+**CLI (0011).** No command: every change is window view state and operates on no package or audio file.
+
+## Consequences
+
+- 0017 gets an amended line: H ("Zoom to Selection or Session") with no selection zooms to the session, and a second H goes back; the lane height is window state with keys; the zoom history is window state; Command-= zooms in; the new View keys.
+- The backlog idea "Cmd-Up and Cmd-Down to move a clip to another track" loses these keys.
+- 0020 gets an amended line: autoscroll resends drag events at the display rate during a gesture and stops at the held width.
+- `TimelineDocumentView.resize()` and the strip use one document-width formula (`Viewport.documentWidth`).
+- A tall lane height makes the 0022 surfaces taller: about 93 MB at 200 pt lanes against 81 MB at 100 pt (1780 x 600 pt, scale 2).
+- The strip time 0 is at the pane edge, not under 0:00 of the lanes.
+- Invariant: the overview render key holds every value that the strip draws. A new drawn value needs a place there, else an edit leaves an old strip on the screen.
+
+## Alternatives considered
+
+- **The strip as the accessory view of the time ruler (A1).** No container, and the inset follows. Rejected: every ruler draw y, hit y, and ruler test moves by 28 pt, and the ruler needs a client view.
+- **SwiftUI `Canvas`.** Rejected: 30 fps for a full redraw (0017 D3), and a SwiftUI update per play tick.
+- **Core Graphics rect fills or one layer per clip.** Rejected: up to about 14,000 spans; 160 to 1221 ms for column rects (0017 D1).
+- **`LaneRenderer` and `LaneSurfaces` at a small scale.** Rejected: waveform work that a clip-box strip does not need, and no scrolled window to age.
+- **A stored origin.** Rejected: AppKit writes the bounds from four paths, so the origin would have two owners.
+- **The history in observable window state.** Rejected: each write runs the pane body again, and the history is not drawn.
+- **Page Up and Page Down for the page scroll.** Rejected: they are Previous and Next Marker (0018), as in Hindenburg. The UI panel kept them (the run `ux-decisions.md` U4), and the page scroll takes Option.

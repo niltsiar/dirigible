@@ -181,7 +181,12 @@ struct BannerValueTests {
     /// ends, one more read runs, and its 5 min stays over the 90 min of the old read.
     @Test func oneRecordTimeReadRunsAtATime() async throws {
         let (model, _, _, chrome) = try await open()
-        await until("the read at open ends") { model.idleRecordTimeLeft != nil }
+        // No idle tick reads during the test: in a full suite a tick came during the read after
+        // the held read and gave one read more (startedAtEnd 5 against 4).
+        chrome.startTicker(every: .seconds(3_600))
+        await until(limit: .seconds(10), "the reads before the test end") {
+            model.idleRecordTimeLeft != nil && chrome.recordTimeReads == chrome.recordTimeReadsStarted
+        }
         let gate = AsyncGate()
         var calls = 0
         chrome.readRecordTime = { _ in
@@ -201,7 +206,6 @@ struct BannerValueTests {
         #expect(chrome.recordTimeReadsStarted == started + 1, "a trigger started a second read")
         gate.open()
         var startedAtEnd = 0
-        // Under the 10 s of the idle timer, so its read cannot stand in for the one more read.
         await until(limit: .seconds(5), "the read after the held read ends") {
             startedAtEnd = chrome.recordTimeReadsStarted
             return chrome.recordTimeReads == reads + 2

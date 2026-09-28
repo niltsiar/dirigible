@@ -151,6 +151,8 @@
 "menu.view.zoom.selection" = "Ajustar a la selección o a la sesión";
 "menu.view.zoom.back" = "Vista anterior";
 "menu.view.zoom.forward" = "Vista siguiente";
+"menu.view.page.previous" = "Página anterior";
+"menu.view.page.next" = "Página siguiente";
 "menu.view.follow" = "Desplazamiento automático";
 "menu.edit.in" = "Marcar entrada";
 "menu.edit.out" = "Marcar salida";

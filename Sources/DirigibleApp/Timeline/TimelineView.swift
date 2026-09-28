@@ -111,10 +111,19 @@ final class TimelineScrollView: NSScrollView {
         if gesture.isActive, let old = source, old.session != inputs.session, let context = context(inputs) {
             model?.apply(gesture.handle(.sessionChanged, context))
         }
+        let old = source?.laneHeight
         source = inputs
         redraw()
+        if let old, old != inputs.laneHeight { keepTopLane(old: old, new: inputs.laneHeight) }
         fitOnce()
         viewMoved()
+    }
+
+    /// A new lane height keeps the lane at the top of the view at the top (0025).
+    private func keepTopLane(old: Double, new: Double) {
+        let top = Double(shown.minY) * new / old
+        contentView.scroll(to: NSPoint(x: contentView.bounds.minX, y: top - contentView.contentInsets.top))
+        reflectScrolledClipView(contentView)
     }
 
     /// A mouse event of the lanes or the ruler. At the mouse-down, the typed track names commit, and the

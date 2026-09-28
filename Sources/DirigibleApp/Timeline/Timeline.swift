@@ -57,6 +57,8 @@ struct TimelineState {
     var followHeld = false
     /// Nil before the first layout.
     var visible: TimelineVisible?
+    /// Taller Tracks and Shorter Tracks: automatic at open (0025).
+    var laneHeight = LaneHeight.automatic
     /// The zoom history has a step back or forward: Zoom Back and Zoom Forward are on (U5).
     var canGoBack = false
     var canGoForward = false

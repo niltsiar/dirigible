@@ -110,4 +110,26 @@ import Testing
         window.close()
         await model.close()
     }
+
+    /// A height step makes new surface slots (0022) and renders in full.
+    @Test func aHeightStepRedrawsTheLanes() async throws {
+        let (model, studio, window, pane) = try await stripPane(folder, app, onScreen: true)
+        let view = pane.scroll
+        for zoomed in [false, true] {
+            view.navigate(.fitSession)
+            if zoomed {
+                view.navigate(
+                    .zoomTo(Zoom(scale: TimelineScale(framesPerPoint: 200), origin: 30_000), stroke: .changed))
+            }
+            drawNow(window)
+            for height in [120.0, 100] {
+                var inputs = laneInputs(model, studio)
+                (inputs.scale, inputs.laneHeight) = (TimelineScale(framesPerPoint: view.framesPerPoint), height)
+                view.update(inputs)
+                try expectFullRender(view, window, "a height step redraws the lanes at \(height), zoomed \(zoomed)")
+            }
+        }
+        window.close()
+        await model.close()
+    }
 }

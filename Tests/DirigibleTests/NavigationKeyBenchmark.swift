@@ -49,6 +49,15 @@ import Testing
         }
     }
 
+    /// Taller Tracks from 100 to 120 pt, then Shorter Tracks: both timed. Each step makes new
+    /// surface slots (0022), a full render, and the header rows at the new height.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aHeightStepFitsTwoFrames() async throws {
+        try await Self.measure("height") { model, n in
+            { model.run(n % 2 == 0 ? .tallerTracks : .shorterTracks) }
+        }
+    }
+
     /// Runs `prepare` (not timed), then times the event that it returns, 25 times per zoom.
     static func measure(
         _ name: String, zooms: [(String, Double)] = MouseEventBenchmark.zooms,
@@ -71,15 +80,22 @@ import Testing
             try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
             var times: [Duration] = []
             for event in 0..<25 {
+                // The SwiftUI update of the pane: the lane height of the window model over 600 pt.
+                func update() {
+                    var current = inputs
+                    current.laneHeight = model.timeline.laneHeight.points(free: 600, tracks: 6)
+                    view.headers.host.rootView = AnyView(
+                        TrackHeaders(model: model, studio: studio, laneHeight: current.laneHeight))
+                    MouseEventBenchmark.swiftUIUpdate(view, model, current)
+                }
                 let action = prepare(model, event)
-                MouseEventBenchmark.swiftUIUpdate(view, model, inputs)
+                update()
                 drawNow(window)
                 let draws = view.lanes.draws
                 try await Task.sleep(for: .microseconds(16_700))
                 let start = ContinuousClock.now
                 action()
-                view.headers.host.rootView = AnyView(TrackHeaders(model: model, studio: studio, laneHeight: 100))
-                MouseEventBenchmark.swiftUIUpdate(view, model, inputs)
+                update()
                 drawNow(window)
                 // The first events after the window shows are not timed (the backing store and the
                 // window server set up: 96 to 225 ms, then 8 to 19 ms).

@@ -44,6 +44,9 @@ struct DirigibleApp: App {
                                 menuButton(item).disabled(app.key?.isOn(item.command) == false)
                             }
                         }
+                        if TimelineCommand.viewGroups[group].contains(where: { $0.command == .tallerTracks }) {
+                            Button(TimelineCommand.fitTracksTitle.key) { app.timeline(.fitTracks) }
+                        }
                     }
                 }
                 // The Edit group replaces the system items, so Delete has Backspace (probe E6).

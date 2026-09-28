@@ -153,6 +153,9 @@
 "menu.view.zoom.forward" = "Zoom Forward";
 "menu.view.page.previous" = "Previous Page";
 "menu.view.page.next" = "Next Page";
+"menu.view.tracks.taller" = "Taller Tracks";
+"menu.view.tracks.shorter" = "Shorter Tracks";
+"menu.view.tracks.fit" = "Fit Tracks to Window";
 "menu.view.follow" = "Automatic Scroll";
 "menu.edit.in" = "Set In Point";
 "menu.edit.out" = "Set Out Point";

@@ -39,6 +39,7 @@ extension SessionWindow {
 /// `cancelOperation(_:)` and reaches `UndoRoutingWindow`.
 enum TimelineCommand: Hashable {
     case zoomIn, zoomOut, zoomToSession, zoomToSelection, zoomBack, zoomForward, pagePrevious, pageNext, toggleFollow
+    case tallerTracks, shorterTracks, fitTracks
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
     case split, nudgeLeft, nudgeRight
@@ -64,6 +65,9 @@ enum TimelineCommand: Hashable {
     var forwardsKey: Bool {
         switch self {
         case .zoomToSelection, .setIn, .setOut, .delete, .split, .nudgeLeft, .nudgeRight: true
+        // A text field moves the caret to its start or end with Command-Up and Command-Down.
+        case .tallerTracks, .shorterTracks: true
+        case .fitTracks: false
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         case .removeTrack, .showInFinder: true
         case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
@@ -97,9 +101,16 @@ enum TimelineCommand: Hashable {
             MenuItem(command: .pagePrevious, title: .menuViewPagePrevious, key: .pageUp, modifiers: .option),
             MenuItem(command: .pageNext, title: .menuViewPageNext, key: .pageDown, modifiers: .option),
         ],
+        [
+            MenuItem(command: .tallerTracks, title: .menuViewTracksTaller, key: .downArrow, modifiers: .command),
+            MenuItem(command: .shorterTracks, title: .menuViewTracksShorter, key: .upArrow, modifiers: .command),
+        ],
         [MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option])],
     ]
     static let viewItems = viewGroups.flatMap { $0 }
+    /// Fit Tracks to Window has no key (U2), so it is not in the keyed table: the View menu adds it
+    /// after the track group.
+    static let fitTracksTitle = L10n.menuViewTracksFit
 
     /// The items that replace the system pasteboard group (probe E6). Delete has Backspace (F16).
     static let pasteboardItems = [
@@ -190,6 +201,12 @@ extension SessionWindow {
         case .zoomForward: timelineView?.navigate(.forward)
         case .pagePrevious: timelineView?.navigate(.page(.backward))
         case .pageNext: timelineView?.navigate(.page(.forward))
+        case .tallerTracks, .shorterTracks:
+            let shown = timelineView?.lanes.inputs?.laneHeight ?? 100
+            timeline.laneHeight =
+                command == .tallerTracks
+                ? timeline.laneHeight.taller(than: shown) : timeline.laneHeight.shorter(than: shown)
+        case .fitTracks: timeline.laneHeight = .automatic
         case .toggleFollow:
             timeline.follows.toggle()
             timeline.followHeld = false

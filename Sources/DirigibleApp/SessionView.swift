@@ -99,8 +99,9 @@ struct SessionView: View {
 }
 
 /// The track headers on the left and the lanes on the right (decision 0017). The lanes share
-/// the height, 40 to 120 pt each; the headers take the same height. Lanes that do not fit
-/// scroll vertically, and the headers scroll with them.
+/// the height, 40 to 120 pt each, or take the fixed height of Taller and Shorter Tracks, 40 to
+/// 200 pt (0025); the headers take the same height. Lanes that do not fit scroll vertically, and
+/// the headers scroll with them.
 private struct TimelinePane: View {
     let model: SessionWindow
     let studio: Studio
@@ -110,7 +111,7 @@ private struct TimelinePane: View {
             let tracks = studio.session.tracks
             // The overview strip and the ruler above, and a scroller below that can take its own height.
             let free = geometry.size.height - OverviewGeometry.height - TimelineRuler.thickness - 16
-            let height = min(120, max(40, (free / Double(max(1, tracks.count))).rounded(.down)))
+            let height = model.timeline.laneHeight.points(free: free, tracks: tracks.count)
             TimelineLanes(
                 model: model, studio: studio, inputs: laneInputs(model, studio, laneHeight: height),
                 headers: TrackHeaders(model: model, studio: studio, laneHeight: height))

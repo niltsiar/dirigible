@@ -153,6 +153,9 @@
 "menu.view.zoom.forward" = "Vista siguiente";
 "menu.view.page.previous" = "Página anterior";
 "menu.view.page.next" = "Página siguiente";
+"menu.view.tracks.taller" = "Pistas más altas";
+"menu.view.tracks.shorter" = "Pistas más bajas";
+"menu.view.tracks.fit" = "Ajustar pistas a la ventana";
 "menu.view.follow" = "Desplazamiento automático";
 "menu.edit.in" = "Marcar entrada";
 "menu.edit.out" = "Marcar salida";

@@ -14,6 +14,7 @@ final class TimelinePaneView: NSView {
         addSubview(overview)
         addSubview(scroll)
         scroll.overview = overview
+        overview.scrollView = scroll
     }
 
     required init?(coder: NSCoder) { nil }
@@ -51,6 +52,10 @@ final class OverviewStrip: NSView {
     let playhead = CALayer()
     /// The image renders, for the count guard (criterion N6).
     private(set) var renders = 0
+    /// The value changes that the strip posted, for the accessibility test (criterion N8).
+    private(set) var valueChanges = 0
+    /// The scroll view of the pane: it owns the gesture and the navigation.
+    weak var scrollView: TimelineScrollView?
 
     /// The render key; nil draws no image.
     var inputs: OverviewInputs? {
@@ -81,6 +86,7 @@ final class OverviewStrip: NSView {
         image.contentsGravity = .resize
         image.magnificationFilter = .nearest
         playhead.backgroundColor = NSColor.systemRed.cgColor
+        toolTip = L10n.timelineOverviewHelp.text
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(displayOptionsChanged),
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
@@ -160,6 +166,82 @@ final class OverviewStrip: NSView {
         dimLeading.frame = NSRect(x: 0, y: 0, width: max(0, frame.minX), height: bounds.height)
         dimTrailing.frame = NSRect(x: frame.maxX, y: 0, width: max(0, bounds.width - frame.maxX), height: bounds.height)
         playheadColumn = nil
+    }
+
+    // MARK: Mouse and cursor
+
+    private func x(_ event: NSEvent) -> Double { Double(convert(event.locationInWindow, from: nil).x) }
+
+    override func mouseDown(with event: NSEvent) {
+        scrollView?.overviewEvent(.down(x: x(event), clicks: event.clickCount))
+        showCursor(event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        scrollView?.overviewEvent(.drag(x: x(event)))
+        showCursor(event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        scrollView?.overviewEvent(.up(x: x(event)))
+        showCursor(event)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        guard trackingAreas.isEmpty else { return }
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) { showCursor(event) }
+    override func cursorUpdate(with event: NSEvent) { showCursor(event) }
+
+    private func showCursor(_ event: NSEvent) {
+        guard let kind = scrollView?.overviewCursor(at: x(event)) else { return }
+        NSCursor.timeline(kind).set()
+    }
+
+    // MARK: Accessibility (U15)
+
+    /// A discrete input moved the view: a key, a click, or the end of a drag.
+    func valueChanged() {
+        valueChanges += 1
+        NSAccessibility.post(element: self, notification: .valueChanged)
+    }
+
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .scrollBar }
+    override func accessibilityLabel() -> String? { L10n.timelineOverview.text }
+    override func accessibilityValue() -> Any? { viewport?.position ?? 0 }
+
+    /// "<start> to <end> of <length>" in the time format of the ruler.
+    override func accessibilityValueDescription() -> String? {
+        guard let viewport else { return nil }
+        let rate = Double(viewport.rate)
+        func time(_ frames: Double) -> String { rulerLabel(frames / rate, tenths: false) }
+        return L10n.timelineOverviewValue.format(
+            time(viewport.origin), time(viewport.origin + viewport.frames), time(Double(viewport.end.count)))
+    }
+
+    override func accessibilityPerformIncrement() -> Bool {
+        scrollView?.navigate(.page(.forward))
+        return true
+    }
+
+    override func accessibilityPerformDecrement() -> Bool {
+        scrollView?.navigate(.page(.backward))
+        return true
+    }
+
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        [
+            NSAccessibilityCustomAction(name: L10n.timelineOverviewFit.text) { [weak self] in
+                self?.scrollView?.navigate(.fitSession)
+                return true
+            }
+        ]
     }
 
     // MARK: Render

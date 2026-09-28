@@ -21,6 +21,29 @@ extension TimelineScrollView {
         guard let target = navigation.handle(input, context) else { return }
         if input.scrolls { userScrolled() }
         show(target.scale, origin: target.origin)
+        // VoiceOver hears a discrete input, not each event of a drag (U15).
+        if !overviewGesture.isActive, !gesture.isActive { overview?.valueChanged() }
+    }
+
+    /// A mouse event of the overview strip: the gesture gives the input of the navigation.
+    func overviewEvent(_ event: OverviewEvent) {
+        guard let viewport, let strip = overview else { return }
+        let geometry = OverviewGeometry(width: Double(strip.bounds.width), end: viewport.end, rate: viewport.rate)
+        if let input = overviewGesture.handle(event, geometry, viewport) { navigate(input) }
+    }
+
+    /// Esc: true when an overview drag ran and Esc ended it.
+    func cancelOverview() -> Bool {
+        guard overviewGesture.isActive else { return false }
+        overviewEvent(.escape)
+        return true
+    }
+
+    /// The cursor of the overview gesture at the strip x `x`.
+    func overviewCursor(at x: Double) -> TimelineCursor {
+        guard let viewport, let strip = overview else { return .arrow }
+        let geometry = OverviewGeometry(width: Double(strip.bounds.width), end: viewport.end, rate: viewport.rate)
+        return overviewGesture.cursor(at: x, geometry, viewport)
     }
 
     /// Sets the scale here and in the window model, then scrolls: the document view has its new

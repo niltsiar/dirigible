@@ -10,6 +10,11 @@ public struct Zoom: Equatable, Sendable {
     public init(scale: TimelineScale, origin: Double) {
         (self.scale, self.origin) = (scale, origin)
     }
+
+    /// The same frames per point, and origins within 1 pt at this scale.
+    func matches(_ other: Zoom) -> Bool {
+        scale == other.scale && abs(origin - other.origin) <= scale.framesPerPoint
+    }
 }
 
 /// The part of the timeline in view (decision 0025). The clip view owns the origin, so this value
@@ -33,6 +38,13 @@ public struct Viewport: Equatable, Sendable {
     /// Zoom to Session: 0 to the end + 2%.
     public var fit: Zoom { Zoom(scale: TimelineScale.fit(end: end, width: width, limits: limits), origin: 0) }
     var limits: ClosedRange<Double> { TimelineScale.limits(end: end, rate: rate, width: width) }
+    /// The place of the view from 0 (the start) to 1 (the last page): origin / (extent - frames in
+    /// view), 0 when that is 0 or less (the fit), clamped to 0...1 (U15).
+    public var position: Double {
+        let range = Self.extent(end: end, rate: rate) - frames
+        guard range > 0 else { return 0 }
+        return min(max(origin / range, 0), 1)
+    }
 
     /// The one width of the lanes: max(end, 10 s) + 2% at the zoom, in whole points, and at least
     /// `shown`. With a part of a point, AppKit moved the clip bounds by 1 pt when a wider header made
@@ -102,10 +114,14 @@ public struct NavigationContext: Sendable {
 
 /// The navigation of one window: an input and the view in, the view to show out.
 public struct Navigation: Sendable {
+    /// The view before a toggle and the view that the toggle showed (U10).
+    private var toggle: (from: Zoom, to: Zoom)?
+
     public init() {}
 
     /// The view to show, clamped, or nil for no change.
     public mutating func handle(_ input: NavigationInput, _ context: NavigationContext) -> Zoom? {
+        if context.holdsScale, !input.scrolls { return nil }
         let view = context.viewport
         let target: Zoom
         switch input {
@@ -126,9 +142,18 @@ public struct Navigation: Sendable {
         case .center(let frame): target = Zoom(scale: view.scale, origin: Double(frame.count) - view.frames / 2)
         case .scroll(let origin): target = Zoom(scale: view.scale, origin: origin)
         case .zoomTo(let zoom, _): target = zoom
-        case .toggleFit: return nil
+        case .toggleFit(let before):
+            let fit = view.clamped(view.fit)
+            if let toggle, view.zoom.matches(fit), toggle.to.matches(fit) {
+                self.toggle = nil
+                target = toggle.from
+            } else if before.matches(fit) {
+                return nil
+            } else {
+                toggle = (before, fit)
+                target = fit
+            }
         }
-        if context.holdsScale, !input.scrolls { return nil }
         return view.clamped(target)
     }
 }

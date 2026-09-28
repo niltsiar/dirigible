@@ -138,6 +138,12 @@
 "timeline.accessibility" = "Línea de tiempo";
 "timeline.header.handle" = "Ancho de las cabeceras";
 
+/* La vista general de la sesión (decisión 0025) */
+"timeline.overview" = "Vista general de la sesión";
+"timeline.overview.value" = "De %1$@ a %2$@ de %3$@";
+"timeline.overview.fit" = "Mostrar toda la sesión";
+"timeline.overview.help" = "Haz clic para ir. Arrastra el marco para moverte, los bordes para el zoom.";
+
 /* Elementos de Visualización y Edición de la línea de tiempo (decisión 0017) */
 "menu.view.zoom.in" = "Acercar";
 "menu.view.zoom.out" = "Alejar";

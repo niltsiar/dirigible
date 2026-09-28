@@ -47,6 +47,7 @@ test-hooks:
 	.claude/hooks/git-guardrails.test.sh
 	scripts/probe.test.sh
 	scripts/hid.test.sh
+	scripts/ax.test.sh
 	.claude/skills/deliver/scripts/mutate.test.sh
 
 check-docs:

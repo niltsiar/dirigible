@@ -194,8 +194,8 @@ struct ZoomHistoryTests {
         send(.zoom(by: 0.9, at: 100, stroke: .began))
         for _ in 0..<10 { send(.zoom(by: 0.9, at: 100, stroke: .changed)) }
         send(.zoom(by: 0.9, at: 100, stroke: .ended))
-        send(.zoom(by: 0.9, at: 100, stroke: .changed))
-        send(.zoom(by: 0.9, at: 100, stroke: .changed))
+        send(.zoom(by: 0.9, at: 100, stroke: .momentum(ended: false)))
+        send(.zoom(by: 0.9, at: 100, stroke: .momentum(ended: true)))
         send(.back)
         #expect(view == Self.at(512, 1_000_000), "a pinch makes one entry")
         #expect(!navigation.canGoBack, "momentum after the end makes no entry")
@@ -207,6 +207,18 @@ struct ZoomHistoryTests {
         send(.back)
         send(.back)
         #expect(view == Self.at(512, 1_000_000))
+    }
+
+    /// Code gate 1 item 5: a pinch with a lost began after an ended pinch is not its momentum,
+    /// so it makes its own entry.
+    @Test mutating func aLostBeganAfterAnEndedStrokeMakesAnEntry() {
+        send(.zoom(by: 2, at: 0, stroke: .began))
+        send(.zoom(by: 2, at: 0, stroke: .ended))
+        let first = view
+        send(.zoom(by: 2, at: 0, stroke: .changed))
+        #expect(view == Self.at(4096, 1_000_000))
+        send(.back)
+        #expect(view == first, "a lost began after an ended stroke makes an entry")
     }
 
     /// A wheel burst: under 0.5 s between events is one entry (a calibration value).
@@ -231,7 +243,7 @@ struct ZoomHistoryTests {
     /// Plan gate item 6: momentum events carry the wheel time, so a burst goes on through them.
     @Test mutating func momentumKeepsTheWheelBurstOpen() {
         send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10), wheel: 10))
-        send(.zoom(by: 0.9, at: 100, stroke: .changed, wheel: 10.4))
+        send(.zoom(by: 0.9, at: 100, stroke: .momentum(ended: false), wheel: 10.4))
         send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10.8), wheel: 10.8))
         send(.back)
         #expect(!navigation.canGoBack, "momentum keeps the wheel burst open")
@@ -299,9 +311,11 @@ struct StrokeTests {
         #expect(Stroke(phase: .changed, momentum: .none, time: 3) == .changed)
         #expect(Stroke(phase: .ended, momentum: .none, time: 3) == .ended)
         #expect(Stroke(phase: .cancelled, momentum: .none, time: 3) == .ended)
-        #expect(Stroke(phase: .none, momentum: .changed, time: 3) == .changed, "a momentum event is a changed stroke")
-        #expect(Stroke(phase: .none, momentum: .began, time: 3) == .changed, "a momentum event is a changed stroke")
-        #expect(Stroke(phase: .none, momentum: .ended, time: 3) == .ended)
+        // Code gate 1 item 5: momentum is its own case, so a lost began is not momentum.
+        #expect(Stroke(phase: .none, momentum: .changed, time: 3) == .momentum(ended: false))
+        #expect(Stroke(phase: .none, momentum: .began, time: 3) == .momentum(ended: false))
+        #expect(Stroke(phase: .none, momentum: .ended, time: 3) == .momentum(ended: true))
+        #expect(Stroke(phase: .none, momentum: .cancelled, time: 3) == .momentum(ended: true))
         #expect(Stroke(phase: .none, momentum: .none, time: 3) == .wheel(time: 3))
     }
 }

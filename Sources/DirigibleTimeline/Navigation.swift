@@ -68,6 +68,8 @@ public struct Viewport: Equatable, Sendable {
 /// The phase of one continuous zoom input: a pinch, a wheel burst, or an overview edge drag.
 public enum Stroke: Equatable, Sendable {
     case began, changed, ended
+    /// A momentum event after the end of a stroke; `ended` at the end of the momentum.
+    case momentum(ended: Bool)
     /// A mouse wheel event with no phase, at `time` seconds.
     case wheel(time: Double)
 }
@@ -77,15 +79,16 @@ public enum WheelPhase: Sendable { case none, began, changed, ended, cancelled }
 
 extension Stroke {
     /// Plan gate item 6: a momentum event continues the stroke, and the end of the momentum ends
-    /// it; an event with no phase and no momentum is a mouse wheel event.
+    /// it; an event with no phase and no momentum is a mouse wheel event. A system cancel of a
+    /// pinch keeps the zoom, so it is an end.
     public init(phase: WheelPhase, momentum: WheelPhase, time: Double) {
         switch (phase, momentum) {
         case (.began, _): self = .began
         case (.changed, _): self = .changed
         case (.ended, _), (.cancelled, _): self = .ended
         case (.none, .none): self = .wheel(time: time)
-        case (.none, .ended), (.none, .cancelled): self = .ended
-        case (.none, .began), (.none, .changed): self = .changed
+        case (.none, .ended), (.none, .cancelled): self = .momentum(ended: true)
+        case (.none, .began), (.none, .changed): self = .momentum(ended: false)
         }
     }
 }
@@ -157,8 +160,10 @@ public struct Navigation: Sendable {
     private var forward: [Zoom] = []
     /// The view before a toggle and the view that the toggle showed (U3, U10).
     private var toggle: (from: Zoom, to: Zoom)?
-    /// A stroke pushed its entry; a discrete input or a new began closes it.
-    private var strokeOpen = false
+    /// The stroke of the last entry: closed, open from its began to its end, or ended with its
+    /// momentum still to come. Any input that does not continue it closes it (code gate 1 item 5).
+    private enum StrokeState { case closed, open, ended }
+    private var strokeState = StrokeState.closed
     private var lastWheel: Double?
 
     public init() {}
@@ -204,7 +209,7 @@ public struct Navigation: Sendable {
         case .back, .forward:
             guard let step = input == .back ? Self.pop(&back, current) : Self.pop(&forward, current) else { return nil }
             if input == .back { forward.append(current) } else { back.append(current) }
-            strokeOpen = false
+            closeStroke()
             return view.clamped(step)
         case .page(let direction):
             let step = 0.9 * view.frames
@@ -221,7 +226,7 @@ public struct Navigation: Sendable {
         let shown = view.clamped(target)
         if input.scrolls { return shown }
         if shown.matches(current) { return nil }
-        if input.stroke == nil { strokeOpen = false }
+        if input.stroke == nil { closeStroke() }
         if let entry { push(entry) }
         return shown
     }
@@ -239,14 +244,30 @@ public struct Navigation: Sendable {
     }
 
     /// True when the stroke makes an entry: a began, a changed or ended with no open stroke (a
-    /// lost began), or a wheel event after a gap. Momentum after the end keeps the stroke open.
+    /// lost began), momentum with no stroke, or a wheel event after a gap. Only momentum continues
+    /// an ended stroke or a wheel burst.
     private mutating func strokePushes(_ stroke: Stroke?) -> Bool {
-        defer { if stroke != nil { strokeOpen = true } }
+        let state = strokeState
         switch stroke {
-        case nil, .began: return true
-        case .changed, .ended: return !strokeOpen
-        case .wheel(let time): return lastWheel.map { time - $0 > Self.wheelGap } ?? true
+        case nil: return true
+        case .began, .changed, .ended:
+            let pushes = stroke == .began || state != .open
+            strokeState = stroke == .ended ? .ended : .open
+            lastWheel = nil
+            return pushes
+        case .momentum:
+            if state == .closed { strokeState = .ended }
+            return state == .closed
+        case .wheel(let time):
+            strokeState = .ended
+            return lastWheel.map { time - $0 > Self.wheelGap } ?? true
         }
+    }
+
+    /// A discrete input: the next stroke or wheel event makes its own entry.
+    private mutating func closeStroke() {
+        strokeState = .closed
+        lastWheel = nil
     }
 
     private mutating func push(_ zoom: Zoom) {

@@ -14,28 +14,8 @@ import Testing
 
     init() throws { folder = try TemporaryFolder() }
 
-    /// A pane with 1440 pt of lanes and the 340 pt headers under a 28 pt strip, at 512 frames per
-    /// point and 100 pt lanes: 3 tracks of a 20 s clip each.
     func pane(onScreen: Bool = false) async throws -> (SessionWindow, Studio, NSWindow, TimelinePaneView) {
-        let (model, studio) = try await timelineModel(
-            try await timelinePackage(in: folder.url, tracks: 3, seconds: 20), app: app)
-        let window = NSWindow(
-            contentRect: NSRect(
-                x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth,
-                height: OverviewGeometry.height + 400 + scrollerWidth),
-            styleMask: [.borderless], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.appearance = NSAppearance(named: .aqua)
-        let pane = TimelinePaneView(scroll: TimelineScrollView(model: model, studio: studio))
-        pane.frame = try #require(window.contentView).bounds
-        window.contentView?.addSubview(pane)
-        pane.scroll.update(laneInputs(model, studio))
-        pane.scroll.update(laneInputs(model, studio))
-        // The ticks of the test, not of the display link: a link tick seeks to the Studio playhead.
-        pane.scroll.viewWillMove(toWindow: nil)
-        if onScreen { window.orderFront(nil) }
-        drawNow(window)
-        return (model, studio, window, pane)
+        try await stripPane(folder, app, onScreen: onScreen)
     }
 
     /// The SwiftUI update after a change of the Studio session or the Marks.
@@ -253,6 +233,32 @@ import Testing
         window.close()
         await model.close()
     }
+}
+
+/// A pane with 1440 pt of lanes and the 340 pt headers under a 28 pt strip, at 512 frames per
+/// point and 100 pt lanes: 3 tracks of a 20 s clip each.
+@MainActor func stripPane(_ folder: TemporaryFolder, _ app: AppDelegate, onScreen: Bool = false) async throws
+    -> (SessionWindow, Studio, NSWindow, TimelinePaneView)
+{
+    let (model, studio) = try await timelineModel(
+        try await timelinePackage(in: folder.url, tracks: 3, seconds: 20), app: app)
+    let window = NSWindow(
+        contentRect: NSRect(
+            x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth,
+            height: OverviewGeometry.height + 400 + scrollerWidth),
+        styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    window.appearance = NSAppearance(named: .aqua)
+    let pane = TimelinePaneView(scroll: TimelineScrollView(model: model, studio: studio))
+    pane.frame = try #require(window.contentView).bounds
+    window.contentView?.addSubview(pane)
+    pane.scroll.update(laneInputs(model, studio))
+    pane.scroll.update(laneInputs(model, studio))
+    // The ticks of the test, not of the display link: a link tick seeks to the Studio playhead.
+    pane.scroll.viewWillMove(toWindow: nil)
+    if onScreen { window.orderFront(nil) }
+    drawNow(window)
+    return (model, studio, window, pane)
 }
 
 /// A capture of a window, read at the pixels of the strip.

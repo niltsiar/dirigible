@@ -83,3 +83,56 @@ struct NavigationTests {
         #expect(zoomed == Zoom(scale: TimelineScale(framesPerPoint: 256), origin: 1_102_400), "the pointer stays")
     }
 }
+
+/// Criterion N3 and N8 (the pure part): the double-click toggle of the strip, and the position of
+/// the view for the accessibility value.
+struct NavigationToggleTests {
+    static let zoomed = Zoom(scale: TimelineScale(framesPerPoint: 512), origin: 900_000)
+    static let fit = Zoom(scale: TimelineScale(framesPerPoint: 244_800), origin: 0)
+
+    static func context(_ zoom: Zoom) -> NavigationContext {
+        NavigationContext(
+            viewport: NavigationTests.viewport(origin: zoom.origin, scale: zoom.scale), playhead: 0, holdsScale: false)
+    }
+
+    /// U10, plan gate item 1: the first click centered the view at 1,000,000 before the second click.
+    @Test func aDoubleClickTogglesTheFit() {
+        var navigation = Navigation()
+        let centered = Zoom(scale: Self.zoomed.scale, origin: 1_000_000)
+        #expect(navigation.handle(.toggleFit(before: Self.zoomed), Self.context(centered)) == Self.fit)
+        #expect(
+            navigation.handle(.toggleFit(before: Self.fit), Self.context(Self.fit)) == Self.zoomed,
+            "a second double-click goes back")
+        #expect(
+            navigation.handle(.toggleFit(before: Self.zoomed), Self.context(Self.zoomed)) == Self.fit,
+            "a third double-click fits again")
+    }
+
+    @Test func aDoubleClickAtTheFitWithNoMemoryDoesNothing() {
+        var navigation = Navigation()
+        #expect(navigation.handle(.toggleFit(before: Self.fit), Self.context(Self.fit)) == nil)
+    }
+
+    /// After a zoom away from the fit, the memory does not apply: the double-click fits.
+    @Test func aDoubleClickAfterAnotherZoomFits() {
+        var navigation = Navigation()
+        _ = navigation.handle(.toggleFit(before: Self.zoomed), Self.context(Self.zoomed))
+        let other = Zoom(scale: TimelineScale(framesPerPoint: 1024), origin: 0)
+        #expect(navigation.handle(.toggleFit(before: other), Self.context(other)) == Self.fit)
+    }
+
+    /// U15, plan gate item 3: origin / (extent - frames in view), 0 when that is 0 or less, and
+    /// clamped to 0...1. At 700 frames per point the last page is 300 frames past extent - frames.
+    @Test func thePositionIsFromZeroToOne() {
+        #expect(NavigationTests.viewport(origin: 175_887_360).position == 0.5, "the value is 0.5 at the middle")
+        #expect(
+            NavigationTests.viewport(origin: 0, scale: Self.fit.scale).position == 0, "the value is 0 at the fit")
+        var navigation = Navigation()
+        let wide = NavigationTests.viewport(origin: 0, scale: TimelineScale(framesPerPoint: 700))
+        let last = navigation.handle(
+            .scroll(to: 400_000_000), NavigationContext(viewport: wide, playhead: 0, holdsScale: false))
+        #expect(last?.origin == 351_504_300)
+        let shown = NavigationTests.viewport(origin: last?.origin ?? 0, scale: TimelineScale(framesPerPoint: 700))
+        #expect(shown.position == 1, "the value is 1 at the last page")
+    }
+}

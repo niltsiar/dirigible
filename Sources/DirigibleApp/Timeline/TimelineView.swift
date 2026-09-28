@@ -62,6 +62,8 @@ final class TimelineScrollView: NSScrollView {
     private(set) var gesture = TimelineGesture()
     /// The zoom history and the toggles of this window (decision 0025).
     var navigation = Navigation()
+    /// The mouse gesture of the overview strip.
+    var overviewGesture = OverviewGesture()
 
     /// `headerWidth` is the width of the track headers at open.
     init(model: SessionWindow, studio: Studio, headerWidth: HeaderWidth = .standard) {

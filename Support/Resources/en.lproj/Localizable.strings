@@ -138,6 +138,12 @@
 "timeline.accessibility" = "Timeline";
 "timeline.header.handle" = "Track header width";
 
+/* The overview strip (decision 0025) */
+"timeline.overview" = "Session overview";
+"timeline.overview.value" = "%1$@ to %2$@ of %3$@";
+"timeline.overview.fit" = "Show Whole Session";
+"timeline.overview.help" = "Click to go there. Drag the frame to scroll, its edges to zoom.";
+
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Zoom In";
 "menu.view.zoom.out" = "Zoom Out";

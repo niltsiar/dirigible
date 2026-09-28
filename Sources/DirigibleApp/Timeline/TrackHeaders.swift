@@ -7,6 +7,12 @@ struct TrackHeaders: View {
     let model: SessionWindow
     let studio: Studio
     let laneHeight: Double
+    #if DEBUG
+        /// The runs of the body of a row, for a test: a header width change that keeps the layout
+        /// runs no row body (code gate 3).
+        static var rowBodies = 0
+        static func countRowBody() { rowBodies += 1 }
+    #endif
 
     var body: some View {
         // The layout of a row comes from the header width and the lane height only, never from
@@ -46,6 +52,9 @@ private struct TrackRow: View {
     @FocusState private var focused: Bool
 
     var body: some View {
+        #if DEBUG
+            let _ = TrackHeaders.countRowBody()
+        #endif
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 if secondLine { arm } else { arm.labelsHidden() }

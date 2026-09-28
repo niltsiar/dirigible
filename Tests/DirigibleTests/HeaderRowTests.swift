@@ -122,7 +122,7 @@ import Testing
             window.orderFront(nil)
             drawNow(window)
             try await Task.sleep(for: .milliseconds(200))
-            let capture = try TimelineColorTests.capture(window)
+            let capture = try await TimelineColorTests.capture(window)
             func count(_ lane: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32, UInt32, UInt32) -> Bool) throws
                 -> Int
             {
@@ -215,7 +215,7 @@ import Testing
         window.appearance = NSAppearance(named: .aqua)
         drawNow(window)
         try await Task.sleep(for: .milliseconds(200))
-        let capture = try TimelineColorTests.capture(window)
+        let capture = try await TimelineColorTests.capture(window)
         let laneHeight = try #require(view.lanes.inputs?.laneHeight)
         let x = view.headers.convert(NSPoint(x: 4, y: 0), to: nil).x
         for lane in 1...2 {

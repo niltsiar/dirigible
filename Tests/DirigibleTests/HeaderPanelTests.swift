@@ -111,7 +111,7 @@ import Testing
             drawNow(window)
             try await Task.sleep(for: .milliseconds(200))
             let rect = view.ruler.convert(view.ruler.bounds, to: nil)
-            return try TimelineRulerTests.pixels(of: rect, TimelineColorTests.capture(window), window)
+            return try await TimelineRulerTests.pixels(of: rect, TimelineColorTests.capture(window), window)
         }
         let before = try await rulerPixels()
         try handle(.leftMouseDown, 337, view)

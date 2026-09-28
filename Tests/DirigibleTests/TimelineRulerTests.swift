@@ -145,7 +145,7 @@ import Testing
         // The window server shows a flushed frame some milliseconds later; no signal tells when. So
         // each capture must also show new times over the lanes: a capture of the old frame fails.
         try await Task.sleep(for: .milliseconds(200))
-        var image = try TimelineColorTests.capture(window)
+        var image = try await TimelineColorTests.capture(window)
         let before = try Self.pixels(of: corner, image, window)
         var shownTimes = try Self.pixels(of: times, image, window)
 
@@ -154,7 +154,7 @@ import Testing
             view.scroll(toFrame: x * 512)
             drawNow(window)
             try await Task.sleep(for: .milliseconds(200))
-            image = try TimelineColorTests.capture(window)
+            image = try await TimelineColorTests.capture(window)
             let newTimes = try Self.pixels(of: times, image, window)
             #expect(newTimes != shownTimes, "the capture after the scroll to \(x) pt shows new times")
             shownTimes = newTimes

@@ -81,7 +81,7 @@ import Testing
         let (clipRow, gapRow) = (middle(plan.rows[0]), plan.rows[0].upperBound)
         let extent = Viewport.extent(end: studio.session.end, rate: 48_000)
         func x(_ frame: Int) -> Double { Double(frame) / extent * strip.bounds.width }
-        var shot = try Shot(window, strip)
+        var shot = try await Shot(window, strip)
         let palette = LanePalette.light
         shot.expect(x(48_000), row: clipRow, palette.rms, "the clip rows use the waveform color")
         shot.expect(x(48_000), row: gapRow, palette.lane, "a 1 px gap between the rows")
@@ -113,13 +113,13 @@ import Testing
         swiftUIUpdate(pane, model, studio)
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))
-        shot = try Shot(window, strip)
+        shot = try await Shot(window, strip)
         shot.expect(x(504_000), row: clipRow, palette.lane, "after Split and Delete the gap shows")
 
         window.appearance = NSAppearance(named: .darkAqua)
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))
-        shot = try Shot(window, strip)
+        shot = try await Shot(window, strip)
         shot.expect(x(48_000), row: clipRow, strip.palette.lanes.peak, "the clip rows use the waveform color")
         #expect(strip.palette.lanes.accent != nil, "the dark palette")
         window.close()
@@ -282,8 +282,8 @@ import Testing
     let origin: (x: Int, y: Int)
     let scale: Double
 
-    init(_ window: NSWindow, _ strip: NSView) throws {
-        image = try TimelineColorTests.capture(window)
+    init(_ window: NSWindow, _ strip: NSView) async throws {
+        image = try await TimelineColorTests.capture(window)
         data = try #require(image.dataProvider?.data)
         bytes = try #require(CFDataGetBytePtr(data))
         try #require(image.bitsPerPixel == 32 && image.bitmapInfo.contains(.byteOrder32Little))

@@ -53,7 +53,7 @@ final class TimelineScrollView: NSScrollView {
     private var link: CADisplayLink?
     /// The playhead and the playback of the last tick.
     private var last: (playhead: Double, playback: Playback)?
-    /// Zoom to Session at the first layout with a width.
+    /// The first view is shown: the last view of the window, else the fit at open.
     var fitted = false
     /// The last inputs of SwiftUI, with the Studio session of the last mouse-down or mouse-up. Never
     /// the preview: the lanes draw the gesture over it (decision 0020).

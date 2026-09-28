@@ -78,14 +78,18 @@ enum TimelineCommand: Hashable {
         let modifiers: EventModifiers
     }
 
-    /// The View items. The menus are built from these tables, and each item has a key (F16).
-    static let viewItems = [
-        MenuItem(command: .zoomIn, title: .menuViewZoomIn, key: "+", modifiers: .command),
-        MenuItem(command: .zoomOut, title: .menuViewZoomOut, key: "-", modifiers: .command),
-        MenuItem(command: .zoomToSession, title: .menuViewZoomFit, key: "0", modifiers: .command),
-        MenuItem(command: .zoomToSelection, title: .menuViewZoomSelection, key: "h", modifiers: []),
-        MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option]),
+    /// The View items in groups; the menu has a separator between two groups (U6). The menus are
+    /// built from these tables, and each item has a key (F16).
+    static let viewGroups = [
+        [
+            MenuItem(command: .zoomIn, title: .menuViewZoomIn, key: "+", modifiers: .command),
+            MenuItem(command: .zoomOut, title: .menuViewZoomOut, key: "-", modifiers: .command),
+            MenuItem(command: .zoomToSession, title: .menuViewZoomFit, key: "0", modifiers: .command),
+            MenuItem(command: .zoomToSelection, title: .menuViewZoomSelection, key: "h", modifiers: []),
+        ],
+        [MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option])],
     ]
+    static let viewItems = viewGroups.flatMap { $0 }
 
     /// The items that replace the system pasteboard group (probe E6). Delete has Backspace (F16).
     static let pasteboardItems = [

@@ -29,16 +29,19 @@ struct DirigibleApp: App {
                 }
                 // The timeline items (decision 0017). A plain key is never disabled (probe K1).
                 CommandGroup(after: .toolbar) {
-                    ForEach(TimelineCommand.viewItems, id: \.command) { item in
-                        if item.command == .toggleFollow {
-                            Toggle(
-                                item.title.key,
-                                isOn: Binding(
-                                    get: { app.key?.timeline.follows == true },
-                                    set: { _ in app.timeline(.toggleFollow) })
-                            ).keyboardShortcut(item.key, modifiers: item.modifiers)
-                        } else {
-                            menuButton(item)
+                    ForEach(TimelineCommand.viewGroups.indices, id: \.self) { group in
+                        Divider()
+                        ForEach(TimelineCommand.viewGroups[group], id: \.command) { item in
+                            if item.command == .toggleFollow {
+                                Toggle(
+                                    item.title.key,
+                                    isOn: Binding(
+                                        get: { app.key?.timeline.follows == true },
+                                        set: { _ in app.timeline(.toggleFollow) })
+                                ).keyboardShortcut(item.key, modifiers: item.modifiers)
+                            } else {
+                                menuButton(item)
+                            }
                         }
                     }
                 }

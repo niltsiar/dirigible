@@ -61,6 +61,18 @@ final class UndoRoutingWindow: NSWindow {
         }
     }
 
+    /// Command-= zooms in as Command-plus does (U1): on a US keyboard the item of Command-"+"
+    /// needs Shift (probe K1). The Spanish Shift-0 gives "=" too, so an "=" with Shift does not zoom.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.type == .keyDown, event.charactersIgnoringModifiers == "=",
+            event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command, let model
+        {
+            model.run(TimelineCommand.zoomIn)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let text = undoTarget(firstResponder: firstResponder) == .text
         switch menuItem.action {

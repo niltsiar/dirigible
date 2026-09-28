@@ -124,5 +124,15 @@ check '4:WRONG FAILURE' 'a hang with no expect text' --expect 'expected a = 1' -
 check '0:killed (hang)' 'a hang after the expect text' --expect 'expected a = 1' --timeout 1 "$file" 'a = 1' 'a = 2' \
   "$tmp/log" "$build" "echo 'expected a = 1'; sleep 30 | cat"
 
+# --side-effects: the test command acts on shared state (it opens Mission Control, posts HID events,
+# or starts a probe). A replay of its log refuses unless --allow-side-effects is given
+# (timeline-navigation Phase 7: a batch replay opened Mission Control during a test run).
+"$mutate" --side-effects "$file" 'b = 1' 'b = 2' "$tmp/fx" "$build" "$test" > /dev/null
+grep -q '^# side-effects: yes' "$tmp/fx" || { echo "FAIL: the log does not mark the side effects"; failures=$((failures + 1)); }
+check '2:mutate' 'a replay of a control with side effects' --replay "$tmp/fx" "$tmp/fx-again"
+[[ ! -e "$tmp/fx-again" ]] || { echo "FAIL: the refused replay ran"; failures=$((failures + 1)); }
+check '1:survived' 'an allowed replay of a control with side effects' --allow-side-effects --replay "$tmp/fx" "$tmp/fx-again"
+grep -q '^# side-effects: yes' "$tmp/fx-again" || { echo "FAIL: the replay lost the mark"; failures=$((failures + 1)); }
+
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

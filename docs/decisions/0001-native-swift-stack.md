@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-23
 - Amended: 2026-09-24. Capture uses one IOProc per device, not AUHAL (see 0004). The module names are in 0002.
+- Amended: 2026-09-29, app-icon run (see 0026): `scripts/bundle.sh` also compiles `Support/AppIcon.icon` with `xcrun actool` (through `scripts/icon.sh`) and copies `Assets.car` and `AppIcon.icns` into the bundle.
 
 ## Context
 

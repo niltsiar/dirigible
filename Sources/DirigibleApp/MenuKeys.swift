@@ -22,6 +22,8 @@ enum MenuKeys {
     static let end = KeyboardShortcut(.end, modifiers: [])
     static let previousClip = KeyboardShortcut(.leftArrow, modifiers: .shift)
     static let nextClip = KeyboardShortcut(.rightArrow, modifiers: .shift)
+    /// Command-= runs Zoom In (U1). The window takes it, not a menu item (`UndoRoutingWindow`).
+    static let zoomInEquals = KeyboardShortcut("=")
 
     /// The keys of the items that macOS and SwiftUI add: Undo, Redo, Close, Quit, Hide, Hide
     /// Others, Minimize, Enter Full Screen, and Show/Hide Toolbar (`ToolbarCommands`). Then the
@@ -48,7 +50,7 @@ enum MenuKeys {
     static let all =
         [
             newSession, open, addTrack, record, stop, monitor, retry, play, stopAndReturn, reverse, pause, forward,
-            slowReverse, slowForward, start, end, previousClip, nextClip,
+            slowReverse, slowForward, start, end, previousClip, nextClip, zoomInEquals,
         ] + system
 }
 

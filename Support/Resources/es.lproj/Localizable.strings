@@ -148,7 +148,9 @@
 "menu.view.zoom.in" = "Acercar";
 "menu.view.zoom.out" = "Alejar";
 "menu.view.zoom.fit" = "Ajustar a la sesión";
-"menu.view.zoom.selection" = "Ajustar a la selección";
+"menu.view.zoom.selection" = "Ajustar a la selección o a la sesión";
+"menu.view.zoom.back" = "Vista anterior";
+"menu.view.zoom.forward" = "Vista siguiente";
 "menu.view.follow" = "Desplazamiento automático";
 "menu.edit.in" = "Marcar entrada";
 "menu.edit.out" = "Marcar salida";

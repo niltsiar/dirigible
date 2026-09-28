@@ -40,6 +40,8 @@ enum L10n: String, CaseIterable {
     case menuViewZoomOut = "menu.view.zoom.out"
     case menuViewZoomFit = "menu.view.zoom.fit"
     case menuViewZoomSelection = "menu.view.zoom.selection"
+    case menuViewZoomBack = "menu.view.zoom.back"
+    case menuViewZoomForward = "menu.view.zoom.forward"
     case menuViewFollow = "menu.view.follow"
     case menuEditIn = "menu.edit.in"
     case menuEditOut = "menu.edit.out"

@@ -57,6 +57,9 @@ struct TimelineState {
     var followHeld = false
     /// Nil before the first layout.
     var visible: TimelineVisible?
+    /// The zoom history has a step back or forward: Zoom Back and Zoom Forward are on (U5).
+    var canGoBack = false
+    var canGoForward = false
     /// The current marker (decision 0018): Rename, Move, and Delete act on it. An undo can remove
     /// it from the session; then they do nothing.
     var marker: MarkerID?

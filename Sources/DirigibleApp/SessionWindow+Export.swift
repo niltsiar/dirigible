@@ -35,6 +35,8 @@ extension SessionWindow {
         switch command {
         case .export: canExport
         case .exportSelection: canExportSelection
+        case .zoomBack: timeline.canGoBack
+        case .zoomForward: timeline.canGoForward
         default: true
         }
     }

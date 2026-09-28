@@ -136,3 +136,172 @@ struct NavigationToggleTests {
         #expect(shown.position == 1, "the value is 1 at the last page")
     }
 }
+
+/// Criterion N9 and N10 (the pure part): the zoom history, the strokes, H and back, and smart
+/// zoom. A view is 1440 pt of a 2 h session at 48 kHz; the fit is 244,800 frames per point.
+struct ZoomHistoryTests {
+    static let fit = NavigationToggleTests.fit
+    static func at(_ framesPerPoint: Double, _ origin: Double = 0) -> Zoom {
+        Zoom(scale: TimelineScale(framesPerPoint: framesPerPoint), origin: origin)
+    }
+
+    var navigation = Navigation()
+    var view = at(512, 1_000_000)
+
+    /// Sends `input` from the current view and shows the result.
+    mutating func send(_ input: NavigationInput) {
+        if let zoom = navigation.handle(input, NavigationToggleTests.context(view)) { view = zoom }
+    }
+
+    @Test mutating func backAndForwardWalkTheZooms() {
+        send(.zoom(by: 0.5, at: 0))
+        #expect(view == Self.at(256, 1_000_000))
+        send(.fitSession)
+        #expect(navigation.canGoBack && !navigation.canGoForward)
+        send(.back)
+        #expect(view == Self.at(256, 1_000_000))
+        send(.back)
+        #expect(view == Self.at(512, 1_000_000))
+        #expect(!navigation.canGoBack && navigation.canGoForward)
+        send(.forward)
+        send(.forward)
+        #expect(view == Self.fit)
+        send(.back)
+        send(.zoom(by: 0.5, at: 0))
+        #expect(!navigation.canGoForward, "a new zoom clears Forward")
+    }
+
+    @Test mutating func aScrollMakesNoEntry() {
+        send(.scroll(to: 2_000_000))
+        send(.page(.forward))
+        send(.center(5_000_000))
+        #expect(!navigation.canGoBack, "a scroll makes no entry")
+    }
+
+    @Test mutating func theHistoryKeepsFiftyEntries() {
+        for n in 0..<60 { send(.zoomTo(Self.at(1000 + Double(n)), stroke: .began)) }
+        // A limit: a Back that never ends must fail the test, not hang it.
+        var steps = 0
+        while navigation.canGoBack, steps < 100 {
+            send(.back)
+            steps += 1
+        }
+        #expect(steps == 50, "the history keeps 50 entries")
+        #expect(view == Self.at(1009), "the oldest entries go first")
+    }
+
+    @Test mutating func aPinchIsOneEntry() {
+        send(.zoom(by: 0.9, at: 100, stroke: .began))
+        for _ in 0..<10 { send(.zoom(by: 0.9, at: 100, stroke: .changed)) }
+        send(.zoom(by: 0.9, at: 100, stroke: .ended))
+        send(.zoom(by: 0.9, at: 100, stroke: .changed))
+        send(.zoom(by: 0.9, at: 100, stroke: .changed))
+        send(.back)
+        #expect(view == Self.at(512, 1_000_000), "a pinch makes one entry")
+        #expect(!navigation.canGoBack, "momentum after the end makes no entry")
+    }
+
+    @Test mutating func aLostBeganStillMakesAnEntry() {
+        send(.zoom(by: 0.5, at: 0))
+        send(.zoom(by: 0.9, at: 100, stroke: .changed))
+        send(.back)
+        send(.back)
+        #expect(view == Self.at(512, 1_000_000))
+    }
+
+    /// A wheel burst: under 0.5 s between events is one entry (a calibration value).
+    @Test mutating func aWheelGapSplitsTheEntries() {
+        send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10), wheel: 10))
+        send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10.4), wheel: 10.4))
+        send(.back)
+        #expect(view == Self.at(512, 1_000_000) && !navigation.canGoBack, "a 0.4 s gap is one entry")
+        var other = Navigation()
+        var zoom = Self.at(512, 1_000_000)
+        for time in [20.0, 20.6] {
+            zoom =
+                other.handle(
+                    .zoom(by: 0.9, at: 100, stroke: .wheel(time: time), wheel: time),
+                    NavigationToggleTests.context(zoom))
+                ?? zoom
+        }
+        _ = other.handle(.back, NavigationToggleTests.context(zoom))
+        #expect(other.canGoBack, "a 0.6 s gap is two entries")
+    }
+
+    /// Plan gate item 6: momentum events carry the wheel time, so a burst goes on through them.
+    @Test mutating func momentumKeepsTheWheelBurstOpen() {
+        send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10), wheel: 10))
+        send(.zoom(by: 0.9, at: 100, stroke: .changed, wheel: 10.4))
+        send(.zoom(by: 0.9, at: 100, stroke: .wheel(time: 10.8), wheel: 10.8))
+        send(.back)
+        #expect(!navigation.canGoBack, "momentum keeps the wheel burst open")
+    }
+
+    /// Q4 (U3): H with no selection fits the session; a second H with the view unchanged goes
+    /// back; after a scroll H zooms to the selection again.
+    @Test mutating func hTogglesAndGoesBack() {
+        send(.toggleSelection(480_000..<960_000))
+        #expect(abs(view.scale.framesPerPoint - 366.667) < 0.001 && view.origin == 456_000)
+        send(.toggleSelection(480_000..<960_000))
+        #expect(view == Self.at(512, 1_000_000), "an unchanged view goes back")
+        // The clip view puts the origin on a pixel: half a point off is still the same view.
+        send(.toggleSelection(480_000..<960_000))
+        view.origin += view.scale.framesPerPoint / 2
+        send(.toggleSelection(480_000..<960_000))
+        #expect(view == Self.at(512, 1_000_000), "an unchanged view goes back")
+        send(.toggleSelection(480_000..<960_000))
+        send(.scroll(to: 470_000))
+        send(.toggleSelection(480_000..<960_000))
+        #expect(view.origin == 456_000, "a scrolled view zooms to the selection again")
+        send(.toggleSelection(nil))
+        #expect(view == Self.fit, "H with no selection fits the session")
+        send(.toggleSelection(nil))
+        #expect(view.origin == 456_000, "H with no selection goes back")
+    }
+
+    /// The last page of a selection at the session end is clamped; the second H still goes back.
+    @Test mutating func hTwiceNearTheSessionEndGoesBack() {
+        send(.toggleSelection(346_000_000..<352_400_000))
+        #expect(view != Self.at(512, 1_000_000))
+        send(.toggleSelection(346_000_000..<352_400_000))
+        #expect(view == Self.at(512, 1_000_000), "an unchanged view goes back")
+    }
+
+    /// Plan gate item 1: the double-click pushes the view before its first click.
+    @Test mutating func aDoubleClickPushesTheViewOfTheFirstClick() {
+        let before = view
+        view = Self.at(512, 1_200_000)
+        send(.toggleFit(before: before))
+        send(.back)
+        #expect(view == before, "the double-click goes back to the view before the first click")
+    }
+
+    /// U11: at the fit, smart zoom shows the clip under the pointer, or 8x at the pointer with no
+    /// clip; elsewhere it fits the session.
+    @Test mutating func smartZoomFollowsTheSystemRule() {
+        view = Self.fit
+        send(.smartZoom(at: 720, clip: 48_000_000..<96_000_000))
+        #expect(view.origin == 45_600_000, "smart zoom shows the clip under the pointer")
+        send(.smartZoom(at: 720, clip: nil))
+        #expect(view == Self.fit, "smart zoom away from the fit fits the session")
+        send(.smartZoom(at: 720, clip: nil))
+        #expect(view.scale.framesPerPoint == 30_600, "smart zoom at the fit zooms in")
+        #expect(view.origin == 176_256_000 - 720 * 30_600, "the pointer frame stays")
+        send(.back)
+        #expect(view == Self.fit)
+    }
+}
+
+/// Plan gate item 6: the stroke of a wheel or pinch event from its phase and momentum phase.
+struct StrokeTests {
+    @Test func theMapFromAnEvent() {
+        #expect(Stroke(phase: .began, momentum: .none, time: 3) == .began)
+        #expect(Stroke(phase: .changed, momentum: .none, time: 3) == .changed)
+        #expect(Stroke(phase: .ended, momentum: .none, time: 3) == .ended)
+        #expect(Stroke(phase: .cancelled, momentum: .none, time: 3) == .ended)
+        #expect(Stroke(phase: .none, momentum: .changed, time: 3) == .changed, "a momentum event is a changed stroke")
+        #expect(Stroke(phase: .none, momentum: .began, time: 3) == .changed, "a momentum event is a changed stroke")
+        #expect(Stroke(phase: .none, momentum: .ended, time: 3) == .ended)
+        #expect(Stroke(phase: .none, momentum: .none, time: 3) == .wheel(time: 3))
+    }
+}

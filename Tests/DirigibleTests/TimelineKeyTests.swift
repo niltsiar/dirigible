@@ -163,7 +163,7 @@ import Testing
     @Test func theViewMenuHasItsGroups() {
         #expect(
             TimelineCommand.viewGroups.map { $0.map(\.command) } == [
-                [.zoomIn, .zoomOut, .zoomToSession, .zoomToSelection], [.toggleFollow],
+                [.zoomIn, .zoomOut, .zoomToSession, .zoomToSelection], [.zoomBack, .zoomForward], [.toggleFollow],
             ])
         #expect(TimelineCommand.viewItems.map(\.command) == TimelineCommand.viewGroups.flatMap { $0 }.map(\.command))
     }
@@ -178,6 +178,8 @@ import Testing
             keys == [
                 "zoomIn + \(EventModifiers.command.rawValue)", "zoomOut - \(EventModifiers.command.rawValue)",
                 "zoomToSession 0 \(EventModifiers.command.rawValue)", "zoomToSelection h 0",
+                "zoomBack \u{F702} \(EventModifiers([.command, .option]).rawValue)",
+                "zoomForward \u{F703} \(EventModifiers([.command, .option]).rawValue)",
                 "toggleFollow f \(EventModifiers([.command, .option]).rawValue)", "setIn i 0", "setOut o 0",
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)",
             ])

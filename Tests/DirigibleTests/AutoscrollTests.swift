@@ -49,22 +49,23 @@ import Testing
         await model.close()
     }
 
-    /// Code gate 1 item 3: a real drag event already moved the preview in this frame, so the next
-    /// tick scrolls and sends no drag of its own: one preview step per frame. A tick with no real
-    /// drag event before it moves the clip.
-    @Test func aTickAfterARealDragEventOnlyScrolls() async throws {
-        let (model, _, window, view) = try await lanes()
+    /// Code gate 2 item 2: a frame with a real drag event and a tick shows the preview at the
+    /// pointer after the scroll, so the mouse-up at the same window point drops the clip where the
+    /// last frame showed it.
+    @Test func theDropAtTheMouseUpIsThePreviewOfTheLastFrame() async throws {
+        let (model, studio, window, view) = try await lanes()
         view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 10), in: view))
-        let edge = Double(view.shown.maxX)
-        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: edge + 40, y: 10), in: view))
-        let start = try #require(view.lanes.inputs?.session.clip("c1")?.clip.start)
+        let drag = try mouse(.leftMouseDragged, NSPoint(x: Double(view.shown.maxX) + 40, y: 10), in: view)
+        view.lanes.mouseDragged(with: drag)
         view.autoscrollTick(at: 100)
-        #expect(view.origin > 0, "the tick scrolls")
-        #expect(view.lanes.inputs?.session.clip("c1")?.clip.start == start, "the tick sent a second drag")
+        view.lanes.mouseDragged(with: drag)
         view.autoscrollTick(at: 100 + 1.0 / 60)
-        let moved = try #require(view.lanes.inputs?.session.clip("c1")?.clip.start)
-        #expect(moved > start, "a tick with no real drag event moves the clip")
-        _ = view.cancelGesture()
+        #expect(view.origin > 0, "the ticks scroll")
+        let preview = try #require(view.lanes.inputs?.session.clip("c1")?.clip.start)
+        let up = view.lanes.convert(drag.locationInWindow, from: nil)
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, up, in: view))
+        let dropped = try #require(studio.session.clip("c1")?.clip.start)
+        #expect(dropped == preview, "the drop at the mouse-up is the preview of the last frame")
         window.close()
         await model.close()
     }

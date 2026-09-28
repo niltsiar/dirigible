@@ -8,10 +8,11 @@ import Testing
 @testable import DirigibleAudio
 
 /// Timeline-navigation criterion N23, a new path of the 0020 list: one autoscroll tick during a
-/// clip move with a still pointer 40 pt past the right edge fits one 60 Hz frame, 16 ms p95 with
-/// -O (`make bench FILTER=MouseEventBenchmark`; 100 ms in debug). A frame is a real drag event at
-/// the same point, then the tick: the scroll, the drag again (the gesture step and the preview),
-/// and the render. The pair is the worst frame of a drag (code gate 2 item 2). At the fit
+/// clip move with the pointer 40 or 41 pt past the right edge fits one 60 Hz frame, 16 ms p95 with
+/// -O (`make bench FILTER=MouseEventBenchmark`; 100 ms in debug). A frame is a real drag event 1 pt
+/// from the point of the last frame, then the tick: the scroll, the drag again (the gesture step
+/// and the preview), and the render. The pair is the worst frame of a drag (code gate 2 item 2),
+/// and each of its events changes the preview (code gate 3 item 2). At the fit
 /// the lanes are the view and cannot scroll, so the cases are a fixture clip and a clip wider than
 /// the view, both at 60 pt boxes. Each tick must scroll and render the lanes once.
 extension MouseEventBenchmark {
@@ -35,19 +36,25 @@ extension MouseEventBenchmark {
             drawNow(window)
             let down = NSPoint(x: clipStart + 30, y: n == 0 ? 10 : 110)
             view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
-            let drag = try mouse(.leftMouseDragged, NSPoint(x: Double(view.shown.maxX) + 40, y: down.y), in: view)
-            view.lanes.mouseDragged(with: drag)
+            let drags = try [40.0, 41].map {
+                try mouse(.leftMouseDragged, NSPoint(x: Double(view.shown.maxX) + $0, y: down.y), in: view)
+            }
+            view.lanes.mouseDragged(with: drags[0])
             drawNow(window)
             var times: [Duration] = []
             let start = CACurrentMediaTime()
             for tick in 1...130 {
                 let (origin, draws) = (view.origin, view.lanes.draws)
                 try await Task.sleep(for: .microseconds(16_700))
+                let before = view.lanes.inputs
                 let begin = ContinuousClock.now
-                view.lanes.mouseDragged(with: drag)
+                view.lanes.mouseDragged(with: drags[tick % 2])
+                // A Bool, so a failure does not print two sessions of 12,000 clips.
+                let moved = view.lanes.inputs != before
                 view.autoscrollTick(at: start + Double(tick) / 60)
                 drawNow(window)
                 if tick > 10 { times.append(ContinuousClock.now - begin) }
+                try #require(moved, "\(name): the drag event of tick \(tick) moved no preview")
                 try #require(view.origin > origin, "\(name): tick \(tick) did not scroll")
                 try #require(
                     view.lanes.draws == draws + 1, "\(name): tick \(tick) drew \(view.lanes.draws - draws) times")

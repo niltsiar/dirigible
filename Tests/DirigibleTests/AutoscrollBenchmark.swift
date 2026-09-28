@@ -49,11 +49,12 @@ extension MouseEventBenchmark {
                 let before = view.lanes.inputs
                 let begin = ContinuousClock.now
                 view.lanes.mouseDragged(with: drags[tick % 2])
-                // A Bool, so a failure does not print two sessions of 12,000 clips.
-                let moved = view.lanes.inputs != before
+                let dragged = view.lanes.inputs
                 view.autoscrollTick(at: start + Double(tick) / 60)
                 drawNow(window)
                 if tick > 10 { times.append(ContinuousClock.now - begin) }
+                // After the clock, and a Bool, so a failure does not print two sessions of 12,000 clips.
+                let moved = dragged != before
                 try #require(moved, "\(name): the drag event of tick \(tick) moved no preview")
                 try #require(view.origin > origin, "\(name): tick \(tick) did not scroll")
                 try #require(

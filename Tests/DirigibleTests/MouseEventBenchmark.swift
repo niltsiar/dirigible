@@ -85,6 +85,10 @@ import Testing
         view.update(inputs)
         model.timeline.scale = inputs.scale
         window.orderFront(nil)
+        // No display link: its autoscroll tick scrolls a drag past the lanes edge (0025), so an end
+        // clip move drew twice in one event. The benches time the events, and the autoscroll tick
+        // has its own case (`anAutoscrollTickFitsOneFrame`).
+        view.viewWillMove(toWindow: nil)
         drawNow(window)
         return (window, view, model, inputs)
     }

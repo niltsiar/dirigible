@@ -154,19 +154,25 @@ Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the
 
 ### Remove a mistake and close the gap
 
-To remove a part and move the audio after it to the left, cut the audio after the mistake. Then paste it at the start of the mistake.
+To remove a part and move the audio after it to the left, delete the mistake first. Then cut the audio after the mistake, and paste it at the start of the mistake. Because of the delete, no part of the mistake stays, also when the mistake is longer than the audio after it.
 
 Paste right after the cut. The cut audio and the undo history stay only while the session window is open. When you close the window, you cannot paste the cut audio or undo the cut.
 
 Markers and chapters do not move with the audio. Remove the mistakes before you add markers. If markers are after the mistake, move each one after the paste. Move it to the left by the length of the mistake. Drag its flag, or click the flag, move the playhead to the new position, and choose **Markers > Move Marker to Playhead**.
 
 1. Choose **Edit > Deselect All**.
-2. Click the time ruler at the end of the mistake. Then choose **Edit > Set In Point**.
-3. Choose **Transport > Go to End**, then choose **Edit > Set Out Point**. The selection goes from the end of the mistake to the end of the session.
-4. Choose **Edit > Cut**.
-5. Choose **View > Zoom to Session**. Then click the time ruler at the start of the mistake.
-6. Choose **Edit > Paste** right after the cut. The audio after the mistake now starts at the playhead, and the mistake is gone.
-7. Play the result before you close the session. If the result is wrong, choose **Edit > Undo** two times to undo the paste and the cut.
+2. Move the playhead to the start of the mistake. Then choose **Edit > Set In Point**.
+3. Move the playhead to the end of the mistake. Then choose **Edit > Set Out Point**. The selection is on all tracks.
+4. Choose **Edit > Delete**. The mistake becomes silence on all tracks. If the mistake goes to the end of the session, stop here.
+5. Choose **View > Zoom to Selection or Session**. Click the time ruler in the silence. Then choose **Transport > Next Clip Edge**. The playhead goes to the end of the silence.
+6. Choose **Edit > Set In Point**.
+7. Choose **Transport > Go to End**, then choose **Edit > Set Out Point**. The selection goes from the end of the silence to the end of the session.
+8. Choose **Edit > Cut**. The session now ends at the start of the silence.
+9. Choose **Transport > Go to End**. The playhead goes to the start of the silence.
+10. Choose **Edit > Paste** right after the cut. The audio after the mistake now starts at the playhead, and the gap is closed.
+11. Play the result before you close the session. If the result is wrong, choose **Edit > Undo** three times to undo the paste, the cut, and the delete.
+
+If no track has audio just before the mistake, step 9 moves the playhead to the end of the audio before the mistake. The paste then also removes the silence before the mistake.
 
 ## Add markers and chapters
 

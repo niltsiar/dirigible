@@ -91,8 +91,10 @@ struct AppBundleTests {
         _ = try run("/usr/bin/codesign", "--verify", "--strict", app.path)
     }
 
-    /// The app icon (decision 0026): macOS 14 and 15 read the flat renditions of the asset that
-    /// the Info.plist names, and macOS 26 reads its dark and tinted looks.
+    /// The app icon (decision 0026): the bundle has the asset that the Info.plist names, at
+    /// 1024 px, with the light, dark, and tinted appearance slots of macOS 26. actool writes
+    /// these slots for any .icon, so this test does not prove the art of each look; the files of
+    /// `make icon-preview` show it.
     @Test func appIconIsInTheBundleForSonomaAndLiquidGlass() throws {
         let plist = try propertyList(at: "Contents/Info.plist")
         let name = try #require(plist["CFBundleIconName"] as? String, "Info.plist names the AppIcon asset")
@@ -120,7 +122,7 @@ struct AppBundleTests {
         #expect(
             info.contains("NSAppearanceNameAqua") && info.contains("NSAppearanceNameDarkAqua")
                 && info.contains("ISAppearanceTintable"),
-            "Assets.car has the light, dark, and tinted icons")
+            "Assets.car has the light, dark, and tinted appearance slots")
         #expect(info.contains("\"PlatformVersion\" : \"14.0\""), "Assets.car targets macOS 14.0")
     }
 

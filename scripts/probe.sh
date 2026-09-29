@@ -49,6 +49,8 @@ case "$folder/" in
     *) echo "probe.sh: the folder must be under $repo/.scratchpads/, $main/.scratchpads/, or /private/tmp: $folder" >&2; exit 2 ;;
 esac
 mkdir -p "$folder"
+# The missing part can have a "." segment. The sandbox matches only the canonical path.
+folder="$(cd "$folder" && pwd -P)"
 
 # In a sandbox profile, the last rule that matches wins.
 profile="(version 1)

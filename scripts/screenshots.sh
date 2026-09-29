@@ -68,7 +68,12 @@ trap '[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
 open -a "$app" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(en)" \
     -ApplePersistenceIgnoreState YES
 # No copy ran before the launch, so the one Dirigible process is the launched one.
-pid="$(pgrep -x Dirigible)"
+# open can return before the process shows, so wait up to 10 s for it.
+for _ in $(seq 1 20); do
+    pid="$(pgrep -x Dirigible || true)"
+    [[ -z "$pid" ]] || break
+    sleep 0.5
+done
 [[ "$pid" =~ ^[0-9]+$ ]] || { echo "screenshots.sh: not one Dirigible process: '$pid'." >&2; exit 1; }
 
 # The size of a new session window: a content size of 1180 x 720 pt (placeAsSessionWindow) and

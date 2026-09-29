@@ -66,6 +66,8 @@ A take is one recording, from Record to Stop. After Stop, Dirigible finalizes th
 > Record replaces the audio of the armed tracks from the playhead on. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
 >
 > If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z). The old audio comes back. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
+>
+> Undo works only while the session window is open. When you close the window, you cannot undo.
 
 ### Remove a mistake
 
@@ -154,12 +156,15 @@ Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the
 
 To remove a part and move the audio after it to the left, cut the audio after the mistake. Then paste it at the start of the mistake.
 
+Paste right after the cut. The cut audio and the undo history stay only while the session window is open. When you close the window, you cannot paste the cut audio or undo the cut.
+
 1. Choose **Edit > Deselect All**.
 2. Click the time ruler at the end of the mistake. Then choose **Edit > Set In Point**.
 3. Choose **Transport > Go to End**, then choose **Edit > Set Out Point**. The selection goes from the end of the mistake to the end of the session.
 4. Choose **Edit > Cut**.
 5. Choose **View > Zoom to Session**. Then click the time ruler at the start of the mistake.
-6. Choose **Edit > Paste**. The audio after the mistake now starts at the playhead, and the mistake is gone.
+6. Choose **Edit > Paste** right after the cut. The audio after the mistake now starts at the playhead, and the mistake is gone.
+7. Play the result before you close the session. If the result is wrong, choose **Edit > Undo** two times to undo the paste and the cut.
 
 ## Add markers and chapters
 

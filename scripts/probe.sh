@@ -21,6 +21,8 @@
 # path": delete *.pch and .build/*/debug/ModuleCache in the copy before you build. In a
 # command-line Swift probe, a top-level `Task {}` inherits the main actor: when the main thread
 # then blocks (a semaphore), use `Task.detached`, or the probe hangs.
+# The sandbox refuses writes under /Volumes, so `hdiutil create -srcfolder` fails with "Operation
+# not permitted". Create a blank image and attach it with `-mountpoint` in the probe folder.
 set -euo pipefail
 
 [[ $# -ge 2 ]] || { echo "usage: scripts/probe.sh <folder> <command> [args...]" >&2; exit 2; }

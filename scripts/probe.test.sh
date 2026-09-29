@@ -28,4 +28,19 @@ echo keep > "$root/outside/c.txt"
 "$probe" "$root/.." /usr/bin/true 2>/dev/null
 [[ $? -eq 2 ]] || fail ".scratchpads/ itself was accepted as a probe folder"
 
+# In a git worktree, a folder in .scratchpads/ of the main checkout is accepted; a folder outside
+# both is still refused.
+repo="$(cd "$(mktemp -d)" && pwd -P)"
+trap 'rm -rf "$root" "$repo"' EXIT
+mkdir -p "$repo/main/scripts"
+cp "$probe" "$repo/main/scripts/"
+git -C "$repo/main" init -q
+git -C "$repo/main" add scripts
+git -C "$repo/main" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m t
+git -C "$repo/main" worktree add -q --detach "$repo/wt" 2>/dev/null
+"$repo/wt/scripts/probe.sh" "$repo/main/.scratchpads/run/p" /usr/bin/true \
+    || fail "a worktree refused a folder in .scratchpads/ of the main checkout"
+"$repo/wt/scripts/probe.sh" "$repo/main/build/p" /usr/bin/true 2>/dev/null
+[[ $? -eq 2 ]] || fail "a worktree accepted a folder of the main checkout outside .scratchpads/"
+
 [[ $failures -eq 0 ]] && echo "probe: all cases pass" || exit 1

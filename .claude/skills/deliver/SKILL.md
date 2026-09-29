@@ -79,7 +79,7 @@ Run the **interrogate** skill with target `diff`. It runs the `review-panel` wor
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each acceptance criterion from Phase 1 against the real artifact: the built app, the real files, measured levels. Record each verdict (`VERIFIED`, `NOT VERIFIED`, `INCONCLUSIVE`) in `run.md`. A `NOT VERIFIED` criterion sends you back to Phase 4.
+Run the **verify-this** skill for each acceptance criterion from Phase 1 against the real artifact: the built app, the real files, measured levels. Record each verdict (`VERIFIED`, `NOT VERIFIED`, `INCONCLUSIVE`) in `run.md`. A `NOT VERIFIED` criterion sends you back to Phase 4. If the run changes what a user sees or does, update `docs/guide.md`. If the window looks different, make the screenshots again (`docs/guide.md`, For contributors).
 
 ## Phase 8: Reflect
 

@@ -6,16 +6,27 @@ failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# A minimal good tree: one research file, a brief with R1 and R10, releases for both, one accepted record.
+# A minimal good tree: one research file, a brief with R1 and R10, releases for both, one accepted record,
+# three menu names in English and Spanish, a guide with each name in bold, and a README with an image.
 good() {
-  rm -rf "$tmp/docs"
-  mkdir -p "$tmp/docs/research" "$tmp/docs/requirements" "$tmp/docs/decisions"
+  rm -rf "$tmp/docs" "$tmp/Support" "$tmp/README.md"
+  mkdir -p "$tmp/docs/research" "$tmp/docs/requirements" "$tmp/docs/decisions" "$tmp/docs/images" \
+    "$tmp/Support/Resources/en.lproj" "$tmp/Support/Resources/es.lproj"
   printf '# Topic\n\nDate: 2026-09-24\n\n## Sources\n\n- x\n' > "$tmp/docs/research/topic.md"
   printf '| ID | Requirement |\n|---|---|\n| R1 | One. |\n| R10 | Ten. |\n\n## Answered questions\n\n- Q? See [0002](../decisions/0002-x.md).\n' > "$tmp/docs/requirements/brief.md"
   printf '| Requirement | What |\n|---|---|\n| R1 | a |\n| R10 | b |\n' > "$tmp/docs/requirements/releases.md"
   printf '# 0002. X\n\n- Status: accepted\n' > "$tmp/docs/decisions/0002-x.md"
   printf '| Command | What |\n|---|---|\n| `make test` | a |\n| `make bench FILTER=<test>` | b |\n' > "$tmp/AGENTS.md"
   printf 'test:\n\tswift test\n\nbench:\n\tscripts/bench.sh\n' > "$tmp/Makefile"
+  printf '"menu.file.export" = "Export…";\n"menu.edit.cut" = "Cut";\n"menu.markers" = "Markers";\n"other" = "Other";\n' \
+    > "$tmp/Support/Resources/en.lproj/Localizable.strings"
+  printf '"menu.file.export" = "Exportar…";\n"menu.edit.cut" = "Cortar";\n"menu.markers" = "Marcadores";\n' \
+    > "$tmp/Support/Resources/es.lproj/Localizable.strings"
+  printf '# Guide\n\n### What Dirigible does not do yet\n\n**Export** **Exportar** **Cut** **Cortar** **Markers** **Marcadores**\n\nSee [the README](../README.md), [the top](#guide), and [Apple](https://www.apple.com).\n' \
+    > "$tmp/docs/guide.md"
+  : > "$tmp/docs/images/x.png"
+  printf '<picture><source srcset="docs/images/x.png"><img src="docs/images/x.png" alt="x"></picture>\n\nSee [the guide](docs/guide.md) and [what it does not do](docs/guide.md#what-dirigible-does-not-do-yet).\n' \
+    > "$tmp/README.md"
 }
 
 # expect pass <name>, or expect fail <name> <message>. A failure counts only with its rule
@@ -46,6 +57,17 @@ good; printf '# 0002. X\n\n- Status: proposed\n' > "$tmp/docs/decisions/0002-x.m
 good; printf '# 0002. X\n\n- Status: superseded\n\nOld text:\n- Status: accepted\n' > "$tmp/docs/decisions/0002-x.md"; expect fail 'second status line says accepted' 'brief.md: ../decisions/0002-x.md is not accepted'
 good; printf '| `make test` | again |\n' >> "$tmp/AGENTS.md"; expect fail 'two AGENTS.md rows for one make target' 'AGENTS.md: more than one row for make test'
 good; printf '| `make lint` | c |\n' >> "$tmp/AGENTS.md"; expect fail 'AGENTS.md row with no Makefile target' 'AGENTS.md: row for make lint, but the Makefile has no lint target'
+good; sed -i '' 's/\*\*Cut\*\* //' "$tmp/docs/guide.md"; expect fail 'English menu name missing' 'docs/guide.md: no **Cut** (en menu name)'
+good; sed -i '' 's/\*\*Cortar\*\* //' "$tmp/docs/guide.md"; expect fail 'Spanish menu name missing' 'docs/guide.md: no **Cortar** (es menu name)'
+good; printf '"menu.view.zoom.selection" = "Zoom to Selection or Session";\n' >> "$tmp/Support/Resources/en.lproj/Localizable.strings"
+printf '**Zoom to Selection**\n' >> "$tmp/docs/guide.md"; expect fail 'renamed menu name' 'docs/guide.md: no **Zoom to Selection or Session** (en menu name)'
+good; rm "$tmp/docs/guide.md"; expect fail 'no guide' 'docs/guide.md is missing'
+good; sed -i '' 's/src="docs\/images\/x.png"/src="docs\/images\/light.png"/' "$tmp/README.md"; expect fail 'missing src file' 'README.md: link to a missing file: docs/images/light.png'
+good; sed -i '' 's/srcset="docs\/images\/x.png"/srcset="docs\/images\/dark.png"/' "$tmp/README.md"; expect fail 'missing srcset file' 'README.md: link to a missing file: docs/images/dark.png'
+good; printf '[x](missing.md)\n' >> "$tmp/docs/guide.md"; expect fail 'missing link target in the guide' 'docs/guide.md: link to a missing file: missing.md'
+good; printf '![x](docs/images/X.png)\n' >> "$tmp/README.md"; expect fail 'link with the wrong case' 'README.md: link to a missing file: docs/images/X.png'
+good; printf '[x](docs/guide.md#no-such-heading)\n' >> "$tmp/README.md"; expect fail 'README link to a missing heading' 'README.md: no heading for #no-such-heading in docs/guide.md'
+good; printf '[x](#no-such-heading)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a missing heading' 'docs/guide.md: no heading for #no-such-heading in docs/guide.md'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

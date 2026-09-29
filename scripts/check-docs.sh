@@ -52,4 +52,39 @@ if [[ -f "$root/AGENTS.md" ]]; then
     done
 fi
 
+# Every menu name of the app, in English and Spanish, is in bold in the user guide.
+guide="$root/docs/guide.md"
+if [[ -f "$root/Support/Resources/en.lproj/Localizable.strings" ]]; then
+    if [[ ! -f "$guide" ]]; then
+        err "docs/guide.md is missing"
+    else
+        for lang in en es; do
+            while IFS= read -r name; do
+                grep -qF "**$name**" "$guide" || err "docs/guide.md: no **$name** ($lang menu name)"
+            done < <(sed -nE 's/^"menu\.[^"]*" = "(.*)";$/\1/p' "$root/Support/Resources/$lang.lproj/Localizable.strings" | sed 's/…$//' | sort -u)
+        done
+    fi
+fi
+
+# Each relative link and image of the README and the guide names a file, with the case of its
+# name: the macOS disk ignores case, GitHub does not. A link to a heading of the guide names a
+# heading slug of GitHub: lower case, punctuation other than - and _ removed, spaces to -.
+for doc in README.md docs/guide.md; do
+    [[ -f "$root/$doc" ]] || continue
+    dir="$(dirname "$root/$doc")"
+    links="$(grep -oE '\]\([^)[:space:]]+\)|(src|srcset)="[^"[:space:]]+' "$root/$doc" | sed -E 's/^\]\(//; s/\)$//; s/^[a-z]+="//' || true)"
+    for link in $links; do
+        [[ "$link" =~ ^[a-z]+: ]] && continue
+        path="${link%%#*}"
+        target="$dir/${path:-$(basename "$doc")}"
+        target="${target%/}"
+        if ! ls -1A "$(dirname "$target")" 2>/dev/null | grep -xF "$(basename "$target")" >/dev/null; then
+            err "$doc: link to a missing file: $path"
+        elif [[ "$link" == *#* && "$target" == "$guide" ]]; then
+            sed -nE 's/^#+ +//p' "$guide" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9 _-]//g; s/ /-/g' \
+                | grep -xF "${link#*#}" >/dev/null || err "$doc: no heading for #${link#*#} in docs/guide.md"
+        fi
+    done
+done
+
 exit "$fail"

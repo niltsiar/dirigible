@@ -26,8 +26,15 @@
 set -euo pipefail
 
 [[ $# -ge 2 ]] || { echo "usage: scripts/probe.sh <folder> <command> [args...]" >&2; exit 2; }
-mkdir -p "$1"
-folder="$(cd "$1" && pwd -P)"
+# Resolve the folder before it exists: the real path of its nearest existing parent, plus the
+# missing part. Refuse ".." in the missing part, because it can leave the allowed roots.
+parent="$1" missing=""
+while [[ ! -d "$parent" ]]; do
+    missing="$(basename "$parent")${missing:+/$missing}"
+    parent="$(dirname "$parent")"
+done
+case "/$missing/" in */../*) echo "probe.sh: the missing part of the folder has '..': $1" >&2; exit 2 ;; esac
+folder="$(cd "$parent" && pwd -P)${missing:+/$missing}"
 shift
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 # In a git worktree, the run folders are in .scratchpads/ of the main checkout, the folder of the
@@ -41,6 +48,7 @@ case "$folder/" in
     "$repo/.scratchpads/"?*/ | "$main/.scratchpads/"?*/ | /private/tmp/?*/) ;;
     *) echo "probe.sh: the folder must be under $repo/.scratchpads/, $main/.scratchpads/, or /private/tmp: $folder" >&2; exit 2 ;;
 esac
+mkdir -p "$folder"
 
 # In a sandbox profile, the last rule that matches wins.
 profile="(version 1)

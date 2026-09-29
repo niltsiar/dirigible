@@ -10,14 +10,6 @@ extension Session {
     /// The last clip start or clip end on any track before `frame`. Nil when there is none.
     public func edge(before frame: Frames) -> Frames? { edges.filter { $0 < frame }.max() }
 
-    /// True when a clip on one of `tracks` holds `frame` (start <= frame < end). The transport
-    /// bar warns before a take records over it (decision 0016).
-    public func hasClip(at frame: Frames, on tracks: [TrackID]) -> Bool {
-        self.tracks.contains { track in
-            tracks.contains(track.id) && track.clips.contains { $0.start <= frame && frame < $0.end }
-        }
-    }
-
     /// The nearest marker or chapter position strictly after `frame`. Nil when there is none.
     public func markerPosition(after frame: Frames) -> Frames? {
         markers.values.map(\.position).filter { $0 > frame }.min()

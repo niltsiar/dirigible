@@ -40,25 +40,6 @@ struct TimelineEdgeTests {
         #expect(session.end == 40_000)
     }
 
-    /// Controls: a clip end is not in the clip, and a clip on a track that is not armed does not
-    /// count.
-    @Test(
-        arguments: [
-            (Frames(0), ["t1"] as [TrackID], true),
-            (9_999, ["t1"], true),
-            (10_000, ["t1"], false),
-            (15_000, ["t1"], false),
-            (15_000, ["t2"], true),
-            (15_000, ["t1", "t2"], true),
-            (20_000, ["t2"], false),
-            (39_999, ["t2"], false),
-            (39_999, ["t1"], true),
-            (0, [], false),
-        ] as [(Frames, [TrackID], Bool)])
-    func hasClipAtTheFrameOnArmedTracks(frame: Frames, armed: [TrackID], expected: Bool) {
-        #expect(session.hasClip(at: frame, on: armed) == expected)
-    }
-
     /// Edit-commands criterion 7. A marker and a chapter at 10 000, a marker at 30 000.
     /// Controls: "after" that includes the frame gives 10 000 at 10 000; "after" that returns the
     /// farthest gives 30 000 at 0.

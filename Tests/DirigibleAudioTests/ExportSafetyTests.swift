@@ -212,9 +212,10 @@ struct ExportSafetyTests {
 
     /// Export A to `url` holds at its first progress call. Export B to the same target runs, and
     /// its sweep keeps the temporary file of A. B lands; then A finds B at the target. Code gate
-    /// 1, item 4.
-    @Test func theSweepKeepsTheFileOfALiveExport() throws {
-        let (held, release) = (DispatchSemaphore(value: 0), DispatchSemaphore(value: 0))
+    /// 1, item 4. The export runs on its own thread; the test waits for it with a poll, so it
+    /// blocks no thread of the concurrency pool.
+    @Test func theSweepKeepsTheFileOfALiveExport() async throws {
+        let (held, release) = (StepCounter(), DispatchSemaphore(value: 0))
         let result = LockedBox<Result<[FileID: MediaFault], ExportError>>()
         let (session, packageURL, url, source, options) = (package.session, package.url, url, source, options)
         let first = Thread {
@@ -225,14 +226,15 @@ struct ExportSafetyTests {
                     progress: { _ in
                         guard !waited else { return }
                         waited = true
-                        held.signal()
+                        _ = held.next()
                         _ = release.wait(timeout: .now() + 30)
                     })
             }
-            held.signal()
+            _ = held.next()
         }
         first.start()
-        try #require(held.wait(timeout: .now() + 30) == .success, "export A did not start in 30 s")
+        await until(limit: .seconds(30), "export A did not start in 30 s") { held.calls >= 1 }
+        try #require(held.calls >= 1)
         let live = try temporaryFiles()
         try #require(live.count == 1)
 
@@ -241,7 +243,8 @@ struct ExportSafetyTests {
         #expect(try temporaryFiles() == live)
         try expectTheExport()
         release.signal()
-        try #require(held.wait(timeout: .now() + 30) == .success, "export A did not end in 30 s")
+        await until(limit: .seconds(30), "export A did not end in 30 s") { held.calls >= 2 }
+        try #require(held.calls >= 2)
         #expect(throws: ExportError.exists) { try result.value?.get() }
         #expect(try temporaryFiles() == [])
     }

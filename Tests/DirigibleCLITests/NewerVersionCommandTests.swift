@@ -37,8 +37,8 @@ struct NewerVersionCommandTests {
         try Data("audio".utf8).write(to: package.url.appending(path: "Clips/take0.wav"))
     }
 
-    func run(_ command: [String]) throws -> CLIResult {
-        try package.run(command.map { $0 == "CACHE" ? cache : $0 })
+    func run(_ command: [String]) async throws -> CLIResult {
+        try await package.run(command.map { $0 == "CACHE" ? cache : $0 })
     }
 
     var newer: String {
@@ -47,23 +47,23 @@ struct NewerVersionCommandTests {
     }
 
     @Test(arguments: commands)
-    func aCommandLeavesANewerPackageUnchanged(command: [String]) throws {
+    func aCommandLeavesANewerPackageUnchanged(command: [String]) async throws {
         FileManager.default.createFile(atPath: package.url.appending(path: ".lock").path, contents: nil)
         let before = try packageFiles(package.url)
         try #require(before.keys.contains(".session.xml.11111111-2222-3333-4444-555555555555.tmp"))
 
-        #expect(try run(command) == CLIResult(status: 2, stdout: "", stderr: newer))
+        #expect(try await run(command) == CLIResult(status: 2, stdout: "", stderr: newer))
 
         #expect(try packageFiles(package.url) == before)
     }
 
     /// With no `.lock`, a command that takes the lock leaves an empty one, and nothing else.
     @Test(arguments: commands)
-    func aCommandAddsAtMostAnEmptyLock(command: [String]) throws {
+    func aCommandAddsAtMostAnEmptyLock(command: [String]) async throws {
         let before = try packageFiles(package.url)
         try #require(before[".lock"] == nil)
 
-        #expect(try run(command) == CLIResult(status: 2, stdout: "", stderr: newer))
+        #expect(try await run(command) == CLIResult(status: 2, stdout: "", stderr: newer))
 
         var after = try packageFiles(package.url)
         #expect(after.removeValue(forKey: ".lock") ?? Data() == Data())
@@ -71,7 +71,7 @@ struct NewerVersionCommandTests {
     }
 
     /// Criterion 5: a version 1 package keeps the files that it does not know after an edit.
-    @Test func anEditKeepsUnknownFiles() throws {
+    @Test func anEditKeepsUnknownFiles() async throws {
         let xml = String(decoding: try package.xml(), as: UTF8.self)
         try Data(xml.replacingOccurrences(of: "version=\"2\"", with: "version=\"1\"").utf8).write(
             to: package.sessionXML)
@@ -82,7 +82,8 @@ struct NewerVersionCommandTests {
         }
         let before = try packageFiles(package.url)
 
-        #expect(try package.run("track", "add", "PKG", "--id", "t2", "--name", "B", "--layout", "mono").status == 0)
+        #expect(
+            try await package.run("track", "add", "PKG", "--id", "t2", "--name", "B", "--layout", "mono").status == 0)
 
         let after = try packageFiles(package.url)
         for name in unknown { #expect(after[name] == before[name], "\(name)") }

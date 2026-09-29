@@ -19,14 +19,14 @@ struct ClipCommandTests {
 
     private func clips(_ track: TrackID) throws -> [Clip] { Array(try #require(try package.read().track(track)).clips) }
 
-    @Test func eachVerbAppliesItsEdit() throws {
+    @Test func eachVerbAppliesItsEdit() async throws {
         #expect(
-            try package.run(
+            try await package.run(
                 "clip", "place", "PKG", "--id", "c1", "--track", "host", "--file", "f1", "--start", "0", "--length",
                 "480000") == CLIResult(status: 0, stdout: "c1\n", stderr: ""))
         #expect(try clips("host") == [Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 480_000)])
 
-        let placed = try package.run(
+        let placed = try await package.run(
             "clip", "place", "PKG", "--track", "st", "--file", "f2", "--start", "100", "--length", "500", "--offset",
             "10",
             "--db", "-1.5")
@@ -36,10 +36,10 @@ struct ClipCommandTests {
             try clips("st") == [Clip(id: id, file: "f2", start: 100, offset: 10, length: 500, gain: Gain(dB: -1.5)!)])
 
         #expect(
-            try package.run("clip", "split", "PKG", "c1", "--at", "96000")
+            try await package.run("clip", "split", "PKG", "c1", "--at", "96000")
                 == CLIResult(status: 0, stdout: "c1@96000\n", stderr: ""))
         #expect(
-            try package.run("clip", "split", "PKG", "c1@96000", "--at", "200000", "--right-id", "r")
+            try await package.run("clip", "split", "PKG", "c1@96000", "--at", "200000", "--right-id", "r")
                 == CLIResult(status: 0, stdout: "r\n", stderr: ""))
         #expect(
             try clips("host") == [
@@ -48,13 +48,14 @@ struct ClipCommandTests {
                 Clip(id: "r", file: "f1", start: 200_000, offset: 200_000, length: 280_000),
             ])
 
-        #expect(try package.run("clip", "move", "PKG", "r", "--track", "guest", "--start", "0") == silent)
+        #expect(try await package.run("clip", "move", "PKG", "r", "--track", "guest", "--start", "0") == silent)
         #expect(try clips("guest") == [Clip(id: "r", file: "f1", start: 0, offset: 200_000, length: 280_000)])
         #expect(try clips("host").map(\.id) == ["c1", "c1@96000"])
 
-        #expect(try package.run("clip", "trim", "PKG", "c1", "--from", "0", "--to", "50000") == silent)
-        #expect(try package.run("clip", "clear", "PKG", "--track", "host", "--from", "10", "--to", "20") == silent)
-        #expect(try package.run("clip", "gain", "PKG", "c1", "--db", "-6") == silent)
+        #expect(try await package.run("clip", "trim", "PKG", "c1", "--from", "0", "--to", "50000") == silent)
+        #expect(
+            try await package.run("clip", "clear", "PKG", "--track", "host", "--from", "10", "--to", "20") == silent)
+        #expect(try await package.run("clip", "gain", "PKG", "c1", "--db", "-6") == silent)
         #expect(
             try clips("host") == [
                 Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 10, gain: Gain(dB: -6)!),
@@ -63,7 +64,7 @@ struct ClipCommandTests {
             ])
     }
 
-    @Test func refusedEditsExitOne() throws {
+    @Test func refusedEditsExitOne() async throws {
         try package.edit {
             try $0.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 1000), on: "host")
             try $0.place(Clip(id: "c2", file: "f1", start: 2000, offset: 2000, length: 1000), on: "host")
@@ -81,7 +82,7 @@ struct ClipCommandTests {
             ),
         ]
         for (arguments, message) in cases {
-            #expect(try package.run(arguments) == CLIResult(status: 1, stdout: "", stderr: "Error: \(message)\n"))
+            #expect(try await package.run(arguments) == CLIResult(status: 1, stdout: "", stderr: "Error: \(message)\n"))
         }
         #expect(try package.xml() == before)
     }
@@ -91,9 +92,9 @@ struct ClipCommandTests {
         ["clip", "clear", "PKG", "--track", "host", "--from", "200", "--to", "100"],
         ["clip", "trim", "PKG", "c1", "--from", "200", "--to", "100"],
     ])
-    func reversedRangeIsAUsageError(arguments: [String]) throws {
+    func reversedRangeIsAUsageError(arguments: [String]) async throws {
         let before = try package.xml()
-        #expect(try package.run(arguments).status == 64)
+        #expect(try await package.run(arguments).status == 64)
         #expect(try package.xml() == before)
     }
 }

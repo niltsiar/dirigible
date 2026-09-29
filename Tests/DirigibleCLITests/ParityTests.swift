@@ -44,9 +44,9 @@ struct ParityTests {
         #expect(stale.isEmpty, "ParityTests lists methods that do not exist: \(stale.sorted())")
     }
 
-    @Test func everyListedCommandExists() throws {
+    @Test func everyListedCommandExists() async throws {
         for command in Self.commands.values.joined().sorted() {
-            let result = try dirigible(command.split(separator: " ").map(String.init) + ["--help"])
+            let result = try await dirigible(command.split(separator: " ").map(String.init) + ["--help"])
             // --help exits 0 for any words, so the usage line proves that the command exists.
             #expect(
                 result.stdout.contains("USAGE: dirigible \(command) <package>"), "dirigible \(command) does not exist")

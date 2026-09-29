@@ -18,66 +18,69 @@ struct RecordCommandTests {
     }
 
     /// Runs `arguments`, and checks that `session.xml` and `Capture/` did not change.
-    func refused(_ arguments: String...) throws -> CLIResult {
+    func refused(_ arguments: String...) async throws -> CLIResult {
         let before = try package.xml()
-        let result = try package.run(arguments)
+        let result = try await package.run(arguments)
         #expect(try package.xml() == before)
         #expect(!FileManager.default.fileExists(atPath: capture.path))
         return result
     }
 
-    @Test func usageErrorsExitSixtyFour() throws {
-        #expect(try refused("record", "PKG", "--seconds", "0", "--arm", "t1").status == 64)
-        #expect(try refused("record", "PKG", "--seconds", "86400.001", "--arm", "t1").status == 64)
-        #expect(try refused("record", "PKG", "--seconds", "1e12", "--arm", "t1").status == 64)
-        #expect(try refused("record", "PKG", "--seconds", "1").status == 64)
-        #expect(try refused("record", "PKG", "--seconds", "1", "--arm", "t1", "--playhead", "-1").status == 64)
+    @Test func usageErrorsExitSixtyFour() async throws {
+        #expect(try await refused("record", "PKG", "--seconds", "0", "--arm", "t1").status == 64)
+        #expect(try await refused("record", "PKG", "--seconds", "86400.001", "--arm", "t1").status == 64)
+        #expect(try await refused("record", "PKG", "--seconds", "1e12", "--arm", "t1").status == 64)
+        #expect(try await refused("record", "PKG", "--seconds", "1").status == 64)
+        #expect(try await refused("record", "PKG", "--seconds", "1", "--arm", "t1", "--playhead", "-1").status == 64)
     }
 
-    @Test func anUnknownTrackExitsOne() throws {
+    @Test func anUnknownTrackExitsOne() async throws {
         #expect(
-            try refused("record", "PKG", "--seconds", "1", "--arm", "x")
+            try await refused("record", "PKG", "--seconds", "1", "--arm", "x")
                 == CLIResult(status: 1, stdout: "", stderr: "Error: no track \"x\".\n"))
     }
 
-    @Test func aMissingDeviceExitsOne() throws {
+    @Test func aMissingDeviceExitsOne() async throws {
         #expect(
-            try refused("record", "PKG", "--seconds", "1", "--arm", "t1")
+            try await refused("record", "PKG", "--seconds", "1", "--arm", "t1")
                 == CLIResult(status: 1, stdout: "", stderr: "Error: the device of track \"t1\" is missing.\n"))
     }
 
-    @Test func aLockedPackageExitsTwo() throws {
-        let asError: (SessionFileError) -> any Error = { $0 }
-        let result = try PackageLock.withLock(package.url, locked: asError) { _ in
-            try refused("record", "PKG", "--seconds", "1", "--arm", "t1")
+    @Test func aLockedPackageExitsTwo() async throws {
+        let result: CLIResult
+        do {
+            let lock = try PackageLock(package.url)
+            defer { withExtendedLifetime(lock) {} }
+            result = try await refused("record", "PKG", "--seconds", "1", "--arm", "t1")
         }
 
         #expect(result == CLIResult(status: 2, stdout: "", stderr: "Error: \(package.path) is open in Dirigible.\n"))
     }
 
-    @Test func aPendingTakeExitsTwo() throws {
+    @Test func aPendingTakeExitsTwo() async throws {
         try package.edit { session in
             try session.setRecording(
                 Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1_000, armedTracks: ["t1"]))
         }
 
         #expect(
-            try refused("record", "PKG", "--seconds", "1", "--arm", "t1")
+            try await refused("record", "PKG", "--seconds", "1", "--arm", "t1")
                 == CLIResult(
                     status: 2, stdout: "",
                     stderr: "Error: \(package.path) has a take that is not finalized; open it in Dirigible first.\n"))
     }
 
     /// Control: the byte comparison of `refused` can fail.
-    @Test func aRouteEditChangesTheBytes() throws {
+    @Test func aRouteEditChangesTheBytes() async throws {
         let before = try package.xml()
 
-        #expect(try package.run("track", "route", "PKG", "t1", "--device", "other", "--channels", "1").status == 0)
+        #expect(
+            try await package.run("track", "route", "PKG", "t1", "--device", "other", "--channels", "1").status == 0)
 
         #expect(try package.xml() != before)
     }
 
-    @Test func recordHasHelp() throws {
-        #expect(try dirigible("record", "--help").stdout.contains("USAGE: dirigible record <package>"))
+    @Test func recordHasHelp() async throws {
+        #expect(try await dirigible("record", "--help").stdout.contains("USAGE: dirigible record <package>"))
     }
 }

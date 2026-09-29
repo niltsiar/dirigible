@@ -59,19 +59,19 @@ struct PeaksCommandTests {
 
     @Test func hitMissAndMissing() async throws {
         #expect(
-            try package.run("peaks", "PKG", "--cache", cache)
+            try await package.run("peaks", "PKG", "--cache", cache)
                 == CLIResult(
                     status: 0, stdout: "f1.wav\tmiss\ngone.wav\tmissing\n", stderr: ""), "an empty cache folder")
 
         _ = try await Self.pass(package.url, cache: cache)
         #expect(
-            try package.run("peaks", "PKG", "--cache", cache)
+            try await package.run("peaks", "PKG", "--cache", cache)
                 == CLIResult(
                     status: 0, stdout: "f1.wav\thit 1875\ngone.wav\tmissing\n", stderr: ""))
 
         try Self.writeWAV(package.url.appending(path: "Clips/f1.wav"), level: 0.5)
         #expect(
-            try package.run("peaks", "PKG", "--cache", cache)
+            try await package.run("peaks", "PKG", "--cache", cache)
                 == CLIResult(
                     status: 0, stdout: "f1.wav\tmiss\ngone.wav\tmissing\n", stderr: ""), "a rewrite")
     }
@@ -81,8 +81,8 @@ struct PeaksCommandTests {
         let other = try Self.package()
         _ = try await Self.pass(package.url, cache: cache)
 
-        #expect(try other.run("peaks", "PKG", "--cache", cache).stdout == "f1.wav\tmiss\n")
-        #expect(try package.run("peaks", "PKG", "--cache", cache).stdout.hasPrefix("f1.wav\thit 1875\n"))
+        #expect(try await other.run("peaks", "PKG", "--cache", cache).stdout == "f1.wav\tmiss\n")
+        #expect(try await package.run("peaks", "PKG", "--cache", cache).stdout.hasPrefix("f1.wav\thit 1875\n"))
     }
 
     @Test func itWritesNothing() async throws {
@@ -102,7 +102,7 @@ struct PeaksCommandTests {
         }
         let before = try snapshot()
 
-        #expect(try package.run("peaks", "PKG", "--cache", cache).status == 0)
+        #expect(try await package.run("peaks", "PKG", "--cache", cache).status == 0)
 
         #expect(try snapshot() == before)
     }
@@ -110,7 +110,8 @@ struct PeaksCommandTests {
     @Test func itRunsWhileAStudioHoldsTheLock() async throws {
         let studio = try await Self.pass(package.url, cache: cache, keep: true)
 
-        #expect(try package.run("peaks", "PKG", "--cache", cache).stdout == "f1.wav\thit 1875\ngone.wav\tmissing\n")
+        #expect(
+            try await package.run("peaks", "PKG", "--cache", cache).stdout == "f1.wav\thit 1875\ngone.wav\tmissing\n")
         _ = studio
     }
 }

@@ -31,7 +31,7 @@ struct InfoCommandTests {
         package = try TemporaryPackage(session)
     }
 
-    @Test func infoPrintsTheText() throws {
+    @Test func infoPrintsTheText() async throws {
         let expected = """
             Show.dirigible: 48000 Hz
             track host "Host" mono -3.5 dB route "BuiltIn" 1
@@ -48,10 +48,10 @@ struct InfoCommandTests {
             recording take 2 at 0 host time 987654321 armed host
 
             """
-        #expect(try dirigible("info", package.path) == CLIResult(status: 0, stdout: expected, stderr: ""))
+        #expect(try await dirigible("info", package.path) == CLIResult(status: 0, stdout: expected, stderr: ""))
     }
 
-    @Test func infoPrintsTheJSON() throws {
+    @Test func infoPrintsTheJSON() async throws {
         let expected = """
             {
               "captures" : [
@@ -159,6 +159,7 @@ struct InfoCommandTests {
             }
 
             """
-        #expect(try dirigible("info", package.path, "--json") == CLIResult(status: 0, stdout: expected, stderr: ""))
+        #expect(
+            try await dirigible("info", package.path, "--json") == CLIResult(status: 0, stdout: expected, stderr: ""))
     }
 }

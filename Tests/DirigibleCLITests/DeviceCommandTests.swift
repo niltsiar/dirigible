@@ -3,8 +3,8 @@ import Testing
 /// `dirigible devices` (criterion 5). It reads the real device list of this Mac, read only, so
 /// it checks invariants only.
 struct DeviceCommandTests {
-    @Test func eachLineHasFourFieldsAndAUniqueUID() throws {
-        let result = try dirigible("devices")
+    @Test func eachLineHasFourFieldsAndAUniqueUID() async throws {
+        let result = try await dirigible("devices")
 
         #expect(result.status == 0)
         #expect(result.stderr == "")

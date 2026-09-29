@@ -11,7 +11,7 @@ struct FinalizeBenchmark {
     static let realRate = 48_000.96
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func twoHoursFinalizeInUnderOneMinuteWithBoundedMemory() throws {
+    func twoHoursFinalizeInUnderOneMinuteWithBoundedMemory() async throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.setRecording(
@@ -19,9 +19,9 @@ struct FinalizeBenchmark {
         let package = try TemporaryPackage(session)
         let frames = try writeSegment(seconds: 7200, in: package.url)
 
-        let finalize = try measure(dirigibleURL.path, ["take", "finalize", package.path])
-        let idle = try measure(dirigibleURL.path, ["take", "finalize", package.path])
-        let control = try measure("/bin/dd", ["if=/dev/zero", "of=/dev/null", "bs=256m", "count=1"])
+        let finalize = try await measure(dirigibleURL.path, ["take", "finalize", package.path])
+        let idle = try await measure(dirigibleURL.path, ["take", "finalize", package.path])
+        let control = try await measure("/bin/dd", ["if=/dev/zero", "of=/dev/null", "bs=256m", "count=1"])
 
         #expect(finalize.status == 0)
         #expect(finalize.seconds < 60)
@@ -71,13 +71,13 @@ struct FinalizeBenchmark {
 
     /// The child of `measure` gets no descriptor but standard input, output, and error. Found
     /// by a flaky full-disk test: the finalize child kept its filler file open.
-    @Test func aMeasuredChildGetsOnlyTheStandardDescriptors() throws {
+    @Test func aMeasuredChildGetsOnlyTheStandardDescriptors() async throws {
         let descriptor = open("/dev/null", O_RDONLY)
         try #require(descriptor > STDERR_FILENO)
         defer { close(descriptor) }
 
-        let inherited = try measure("/bin/sh", ["-c", "test -e /dev/fd/\(descriptor)"])
-        let standard = try measure("/bin/sh", ["-c", "test -e /dev/fd/2"])
+        let inherited = try await measure("/bin/sh", ["-c", "test -e /dev/fd/\(descriptor)"])
+        let standard = try await measure("/bin/sh", ["-c", "test -e /dev/fd/2"])
 
         #expect(inherited.status == 1)
         #expect(standard.status == 0)
@@ -88,7 +88,8 @@ struct FinalizeBenchmark {
     /// killed, so a hang cannot stop the suite. The child gets only standard input, output, and
     /// error. A copy of another descriptor keeps a file of a parallel test open: a deleted filler
     /// file keeps its space, and a volume does not detach.
-    func measure(_ path: String, _ arguments: [String]) throws -> (status: Int32, peakBytes: Int, seconds: Double) {
+    func measure(_ path: String, _ arguments: [String]) async throws -> (status: Int32, peakBytes: Int, seconds: Double)
+    {
         let argv = ([path] + arguments).map { strdup($0) } + [nil]
         defer { for pointer in argv { free(pointer) } }
         var attributes: posix_spawnattr_t?
@@ -113,7 +114,7 @@ struct FinalizeBenchmark {
                 Issue.record("\(path) ran for more than 300 s")
                 break
             }
-            usleep(10_000)
+            try await Task.sleep(for: .milliseconds(10))
         }
         let elapsed = ContinuousClock.now - start
         let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18

@@ -202,9 +202,12 @@ func until(limit: Duration = .seconds(1), _ message: String, _ condition: () -> 
     }
 }
 
-/// Holds the first caller of `wait` until `open`, with a limit of 30 s. It polls, so it blocks
-/// no thread of the concurrency pool. Later callers pass.
+/// Holds the first caller of `wait` until `open`, with a limit. It polls, so it blocks no thread
+/// of the concurrency pool. Later callers pass.
 final class AsyncGate: @unchecked Sendable {
+    /// The limit of `wait`. Each limit is 3 times the worst wait: `wait` 28.7 s, `entered` 17.8 s
+    /// (run test-pool-health, loops/s3loadb-5.log). The two copies print the same wait text.
+    static let openLimit = Duration.seconds(87)
     private let lock = NSLock()
     private var used = false
     private var inside = false
@@ -220,10 +223,10 @@ final class AsyncGate: @unchecked Sendable {
         else { return }
         let start = ContinuousClock.now
         defer { reportWait("AsyncGate.wait", since: start, "AsyncGate") }
-        let end = start + .seconds(30)
+        let end = start + Self.openLimit
         while !lock.withLock({ opened }) {
             guard ContinuousClock.now < end else {
-                Issue.record("The gate was not opened in 30 s")
+                Issue.record("The gate was not opened in \(Self.openLimit)")
                 return
             }
             try? await Task.sleep(for: .milliseconds(5))
@@ -233,7 +236,7 @@ final class AsyncGate: @unchecked Sendable {
     func open() { lock.withLock { opened = true } }
 
     /// Returns when the first caller is inside `wait`. After `limit`, it records a failure.
-    func entered(limit: Duration = .seconds(30)) async {
+    func entered(limit: Duration = .seconds(54)) async {
         let start = ContinuousClock.now
         defer { reportWait("AsyncGate.entered", since: start, "AsyncGate") }
         let end = start + limit
@@ -247,11 +250,15 @@ final class AsyncGate: @unchecked Sendable {
     }
 }
 
-/// Holds the first caller of `waitOnce` until `open`, with a limit of 30 s; later callers pass.
+/// Holds the first caller of `waitOnce` until `open`, with a limit; later callers pass.
 /// A test holds a write with it and waits with `entered` until the write is inside the gate.
 /// The autosave starts on the main actor, and in a full suite the `@MainActor` suites hold it
-/// for more than 5 s (their inits write packages with `F_FULLFSYNC`), so both limits are 30 s.
+/// for many seconds (their inits write packages with `F_FULLFSYNC`). Each limit is 3 times the
+/// worst wait: `waitOnce` 21.8 s (run test-pool-health, loops/base-1.log), `entered` 23.8 s
+/// (loops/s3loadb-5.log).
 final class Gate: @unchecked Sendable {
+    /// The limit of `waitOnce`.
+    static let openLimit = Duration.seconds(66)
     private let lock = NSLock()
     private let semaphore = DispatchSemaphore(value: 0)
     private var used = false
@@ -275,13 +282,15 @@ final class Gate: @unchecked Sendable {
         }
         let start = ContinuousClock.now
         defer { reportWait("Gate.waitOnce", since: start, "Gate") }
-        if semaphore.wait(timeout: .now() + 30) == .timedOut { Issue.record("The gate was not opened in 30 s") }
+        if semaphore.wait(timeout: .now() + Self.openLimit / .seconds(1)) == .timedOut {
+            Issue.record("The gate was not opened in \(Self.openLimit)")
+        }
     }
 
     func open() { semaphore.signal() }
 
     /// Returns when the first caller is inside `waitOnce`. After `limit`, it records a failure.
-    func entered(limit: Duration = .seconds(30)) async {
+    func entered(limit: Duration = .seconds(72)) async {
         let start = ContinuousClock.now
         defer { reportWait("Gate.entered", since: start, "Gate") }
         let end = start + limit

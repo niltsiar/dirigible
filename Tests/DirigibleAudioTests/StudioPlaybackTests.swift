@@ -70,7 +70,8 @@ struct StudioPlaybackTests {
         await studio.perform(.seek(.frame(43_200)))
         await studio.perform(.playStop)
         _ = await studio.renderOffline(frames: 9_600)
-        await until(limit: .seconds(60), "the playhead is 0.1 s past 48 000") { studio.playhead == 52_800 }
+        // A hang guard: 3 times the worst wait, 12.0 s (run test-pool-health, loops/s3-8.log).
+        await until(limit: .seconds(36), "the playhead is 0.1 s past 48 000") { studio.playhead == 52_800 }
 
         await studio.perform(.seek(.previousClip))
 
@@ -260,7 +261,8 @@ struct StudioPlaybackTests {
 
         _ = await studio.renderOffline(frames: 1000)
 
-        await until(limit: .seconds(60), "the play did not end") { studio.playback == .stopped }
+        // A hang guard: 3 times the worst wait, 6.3 s (run test-pool-health, loops/s3-8.log).
+        await until(limit: .seconds(19), "the play did not end") { studio.playback == .stopped }
         #expect(studio.playhead == end)
         #expect(try await !reading(studio).running)
     }

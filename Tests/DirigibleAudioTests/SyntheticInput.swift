@@ -100,7 +100,9 @@ final class TestHAL: @unchecked Sendable {
     /// start suspends here until `releaseLookUps`. It polls, so it blocks no thread of the pool.
     /// The old hold was a 10 s semaphore wait that then found no device, and a full suite can
     /// hold the main actor of the test past 10 s (deviceMissing in make check). The limit is
-    /// under the time of one full suite, and it records a failure, never a missing device.
+    /// under the time of one full suite, and it records a failure, never a missing device. It
+    /// stays 60 s: the hold prints no `WAIT` line, so the loops of run test-pool-health have no
+    /// wait for it.
     func beforeLookUp() async {
         guard
             lock.withLock({ () -> Bool in
@@ -108,10 +110,11 @@ final class TestHAL: @unchecked Sendable {
                 return holding
             })
         else { return }
-        let end = ContinuousClock.now + .seconds(60)
+        let limit = Duration.seconds(60)
+        let end = ContinuousClock.now + limit
         while lock.withLock({ holding }) {
             guard ContinuousClock.now < end else {
-                Issue.record("A held lookup was not released in 60 s")
+                Issue.record("A held lookup was not released in \(limit)")
                 return
             }
             try? await Task.sleep(for: .milliseconds(5))
@@ -296,8 +299,9 @@ final class SyntheticInput: @unchecked Sendable {
 
     /// Waits until the records of each `play` are sent, with a limit. It polls, so it does not
     /// hold the main actor. The limit is longer than the attach wait of `takeStartIn`, so a
-    /// miss shows as that issue.
-    func wait(limit: Duration = .seconds(40)) async {
+    /// miss shows as that issue. It is 3 times the worst wait, 24.8 s (run test-pool-health,
+    /// loops/s3q-12.log).
+    func wait(limit: Duration = .seconds(75)) async {
         let start = ContinuousClock.now
         defer { reportWait("SyntheticInput.wait", since: start, "SyntheticInput \(uid)") }
         let end = start + limit

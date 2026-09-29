@@ -11,10 +11,11 @@ import os
 @testable import DirigibleAudio
 
 /// Polls `condition` every 10 ms. At the limit, it records `message` as an issue and returns.
-/// The default limit is 60 s, longer than the whole suite: in a full run, the DirigibleAudio
-/// tests hold the main actor (`PendingTakeTests.init` and `Studio.startTake` write with
-/// `F_FULLFSYNC`) and the cooperative threads (blocking file writes) for most of the run, and a
-/// window open needs both.
+/// It checks the condition before the clock, so a main-actor stall that ends with the condition
+/// true records no issue. The default limit stays 60 s. The worst wait of this copy was 70.4 s at
+/// the suite start ("the launch prunes the peak cache", run test-pool-health, loops/s3q-20.log;
+/// 58.5 s in two processes under load, loops/s3loadb-1.log). The hang guards are 3 times the
+/// worst wait, but 3 times 70.4 s is longer than one suite run (about 200 s).
 @MainActor func until(limit: Duration = .seconds(60), _ message: String, _ condition: () -> Bool) async {
     let start = ContinuousClock.now
     defer { reportWait("until", since: start, message) }
@@ -386,10 +387,13 @@ enum FolderRemovals {
     }
 }
 
-/// Holds the first caller of `wait` until `open`, with a limit of 30 s. It polls, so it blocks
-/// no thread of the concurrency pool. Later callers pass. A copy of the gate of
-/// `DirigibleAudioTests`: the test targets share no code.
+/// Holds the first caller of `wait` until `open`, with a limit. It polls, so it blocks no thread
+/// of the concurrency pool. Later callers pass. A copy of the gate of `DirigibleAudioTests`: the
+/// test targets share no code.
 final class AsyncGate: @unchecked Sendable {
+    /// The limit of `wait`. Each limit is 3 times the worst wait: `wait` 28.7 s, `entered` 17.8 s
+    /// (run test-pool-health, loops/s3loadb-5.log). The two copies print the same wait text.
+    static let openLimit = Duration.seconds(87)
     private let lock = NSLock()
     private var used = false
     private var inside = false
@@ -405,10 +409,10 @@ final class AsyncGate: @unchecked Sendable {
         else { return }
         let start = ContinuousClock.now
         defer { reportWait("AsyncGate.wait", since: start, "AsyncGate") }
-        let end = start + .seconds(30)
+        let end = start + Self.openLimit
         while !lock.withLock({ opened }) {
             guard ContinuousClock.now < end else {
-                Issue.record("The gate was not opened in 30 s")
+                Issue.record("The gate was not opened in \(Self.openLimit)")
                 return
             }
             try? await Task.sleep(for: .milliseconds(5))
@@ -418,7 +422,7 @@ final class AsyncGate: @unchecked Sendable {
     func open() { lock.withLock { opened = true } }
 
     /// Returns when the first caller is inside `wait`. After `limit`, it records a failure.
-    func entered(limit: Duration = .seconds(30)) async {
+    func entered(limit: Duration = .seconds(54)) async {
         let start = ContinuousClock.now
         defer { reportWait("AsyncGate.entered", since: start, "AsyncGate") }
         let end = start + limit

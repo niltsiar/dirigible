@@ -98,17 +98,32 @@ want="1180 x 772"
 [[ "$size" == "$want" ]] || { echo "screenshots.sh: the window is '$size' pt, not $want pt." >&2; exit 1; }
 sleep 1
 
+# Capture into the folder, and refuse a display scale other than 2x (Retina): it gives images of
+# another size. Only a good capture replaces the image in docs/images.
+width="${size%% *}"
+shot() {
+    "$repo/scripts/screenshot.sh" --window "$id" "$folder/$1" >/dev/null
+    local px
+    px="$(sips -g pixelWidth "$folder/$1" | awk '/pixelWidth/ {print $2}')"
+    if [[ "$px" -ne $((2 * width)) ]]; then
+        echo "screenshots.sh: $1 is $px px wide for a window of $width pt: the display scale is" \
+            "$(awk "BEGIN {print $px / $width}")x, not 2x. Use a Retina display." >&2
+        exit 1
+    fi
+    mv "$folder/$1" "$images/$1"
+}
+
 key() { swift "$repo/scripts/hid.swift" key "$@"; }
 # Home, then Taller Tracks two times: the two tracks fill more of the window.
 key 115
 key 125 --command
 key 125 --command
 sleep 1
-"$repo/scripts/screenshot.sh" --window "$id" "$images/screenshot-edit.png" >/dev/null
+shot screenshot-edit.png
 # Page Down, I, Page Down, O: select from the marker Intro to the chapter Interview. H: zoom to it.
 for code in 121 34 121 31 4; do key "$code"; done
 sleep 1
-"$repo/scripts/screenshot.sh" --window "$id" "$images/screenshot-zoom.png" >/dev/null
+shot screenshot-zoom.png
 
 for png in "$images/screenshot-edit.png" "$images/screenshot-zoom.png"; do
     [[ "$(stat -f %z "$png")" -le 1000000 ]] || sips --resampleWidth 1600 "$png" >/dev/null

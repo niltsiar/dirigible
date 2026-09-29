@@ -45,6 +45,13 @@ if grep -qE 'core\.hooksPath' <<< "$COMMAND" \
   block "changes core.hooksPath"
 fi
 
+# A commit in the same command as a make check must run only when the check passed, so only
+# && may join them. After `;`, `||`, a pipe, or a new line, a red check still commits.
+joined="${COMMAND//\\$'\n'/ }"
+if [[ "$joined" =~ make\ check(.*)git\ commit ]] && [[ "${BASH_REMATCH[1]}" =~ [\;\|]|$'\n' ]]; then
+  block "runs git commit after make check without && (a red check still commits)"
+fi
+
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if grep -qE -- "$pattern" <<< "$NORMALIZED"; then
     block "matches '$pattern'"

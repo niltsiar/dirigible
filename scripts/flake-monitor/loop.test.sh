@@ -15,6 +15,8 @@ CLI-CHILDREN peak 16
 ✔ Test theWindowSubtitleFollowsTheTracks() passed after 74.400 seconds.
 ✘ Test settleEndsATakeWhileAPassWaits() recorded an issue at StudioPeaksSettleTests.swift:68:9: Issue recorded
 ✘ Test settleEndsATakeWhileAPassWaits() failed after 16.679 seconds with 1 issue.
+✘ Test aGateOnAPoolThreadIsAnIssue() recorded a known issue at Support.swift:273:25: Issue recorded
+✘ Test aGateOnAPoolThreadIsAnIssue() passed after 0.226 seconds with 1 known issue.
 FLAKE-MONITOR worst pool 1.20 s, worst main 3.40 s, samples 1, start 1000012
 LOG
 want="t 3 exit=1 wall=150s load=2.50 monitor-start=+12s banner=74.400s settle=16.679s waits=[until=12.5 AsyncGate.wait=2.1] children=16 monitor=[worst pool 1.20 s, worst main 3.40 s, samples 1] failed=[settleEndsATakeWhileAPassWaits]"

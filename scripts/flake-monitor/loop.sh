@@ -18,7 +18,8 @@ summary() {
     children=$(grep -oE '^CLI-CHILDREN peak [0-9]+' "$log" | awk '{print $3}' | sort -n | tail -1)
     monitor=$(grep -oE 'FLAKE-MONITOR .*' "$log" | head -1)
     start=$(grep -oE 'start [0-9]+' <<< "$monitor" | awk -v begin="$6" '{print $2 - begin}')
-    failed=$(grep -oE '✘ Test [A-Za-z0-9_]+\(' "$log" | sed -E 's/.*Test ([A-Za-z0-9_]+).*/\1/' | sort -u | paste -sd' ' -)
+    # A test that records a known issue prints ✘ too, but it passes.
+    failed=$(grep '✘ Test' "$log" | grep -v 'known issue' | grep -oE '✘ Test [A-Za-z0-9_]+\(' | sed -E 's/.*Test ([A-Za-z0-9_]+).*/\1/' | sort -u | paste -sd' ' -)
     echo "$1 $2 exit=$3 wall=${4}s load=$5 monitor-start=+${start}s" \
         "banner=$(duration theWindowSubtitleFollowsTheTracks)s settle=$(duration settleEndsATakeWhileAPassWaits)s" \
         "waits=[$waits] children=$children monitor=[$(sed -E 's/^FLAKE-MONITOR //; s/, start [0-9]+//' <<< "$monitor")] failed=[$failed]"

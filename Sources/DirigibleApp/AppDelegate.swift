@@ -29,8 +29,6 @@ import UniformTypeIdentifiers
     @ObservationIgnored private var keyMonitor: Any?
     /// Shows files in Finder. Tests give their own.
     @ObservationIgnored var reveal: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
-    /// Opens a web page in the browser. Tests give their own.
-    @ObservationIgnored var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// The save panel of Export as a sheet of a window: the name, the session rate, and the
     /// answer. Tests give their own.
     @ObservationIgnored var chooseExport:
@@ -199,14 +197,6 @@ import UniformTypeIdentifiers
         alert.messageText = L10n.message(for: error)
         alert.runModal()
     }
-
-    // MARK: Help
-
-    /// The user guide on GitHub. A fork keeps this URL.
-    static let guideURL = URL(string: "https://github.com/niltsiar/dirigible/blob/main/docs/guide.md")!
-
-    /// Help > Dirigible Guide.
-    func openGuide() { openURL(Self.guideURL) }
 
     // MARK: NSApplicationDelegate
 

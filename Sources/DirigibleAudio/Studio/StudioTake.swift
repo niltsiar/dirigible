@@ -189,12 +189,12 @@ public func remainingRecordTime(free: Int64, wav: Int64, channels: Int, rate: In
 /// A write into a package that moved from `previous` moves its list entry.
 @concurrent nonisolated func writeSession(
     _ session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
-    _ save: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
+    _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL
 ) async -> Result<URL, StudioError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
     do throws(SessionFileError) {
-        package = packageIdentity(try save(session, lock))
+        package = packageIdentity(try await save(session, lock))
     } catch {
         return .failure(.file(error))
     }

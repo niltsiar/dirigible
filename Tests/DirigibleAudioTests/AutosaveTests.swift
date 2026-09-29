@@ -28,7 +28,7 @@ struct AutosaveTests {
 
     func studio(
         _ hal: TestHAL = TestHAL([]),
-        save: @escaping @Sendable (Session, PackageLock) throws(SessionFileError) -> URL = CaptureEnvironment.live
+        save: @escaping @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL = CaptureEnvironment.live
             .saveSession
     ) async throws -> Studio {
         let studio = try await Studio.open(url)
@@ -43,9 +43,9 @@ struct AutosaveTests {
     // MARK: Criterion 2
 
     @Test func anOldAutosaveNeverLandsAfterTheRecordingSave() async throws {
-        let gate = Gate()
+        let gate = AsyncGate()
         let studio = try await studio(TestHAL([mic])) { session, lock throws(SessionFileError) in
-            gate.waitOnce()
+            await gate.wait()
             return try session.write(under: lock)
         }
         try rename(studio, to: "Guest")
@@ -111,11 +111,11 @@ struct AutosaveTests {
     /// last session reaches the disk. Controls: a write for each edit makes 50; a skip of the edits
     /// that come during a write in progress leaves "Name 1" on disk.
     @Test func fiftyEditsGiveAtMostTwoWrites() async throws {
-        let gate = Gate()
+        let gate = AsyncGate()
         let calls = StepCounter()
         let studio = try await studio { session, lock throws(SessionFileError) in
             _ = calls.next()
-            gate.waitOnce()
+            await gate.wait()
             return try session.write(under: lock)
         }
 
@@ -134,7 +134,7 @@ struct AutosaveTests {
 
     @Test func anEditReturnsBeforeItsWrite() async throws {
         let studio = try await studio { session, lock throws(SessionFileError) in
-            usleep(300_000)
+            try? await Task.sleep(for: .milliseconds(300))
             return try session.write(under: lock)
         }
 

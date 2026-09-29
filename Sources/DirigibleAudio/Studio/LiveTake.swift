@@ -77,8 +77,9 @@ struct CaptureEnvironment: Sendable {
     /// The ring length of each device appearance.
     var ringSeconds: Double = 10
     /// The autosave write of a session into the package that the lock holds. Returns the package
-    /// path that it wrote. Called off the main actor.
-    var saveSession: @Sendable (Session, PackageLock) throws(SessionFileError) -> URL
+    /// path that it wrote. Called off the main actor. It is async, so a test holds a write with an
+    /// async wait and blocks no thread of the concurrency pool.
+    var saveSession: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL
     /// A step before each finalize and each placement (decision 0021). Tests hold a finalize or a
     /// placement with it and suspend, so no thread of the concurrency pool waits; `live` does
     /// nothing.
@@ -93,8 +94,9 @@ struct CaptureEnvironment: Sendable {
     /// A step of a take start before the device lookup, off the main actor. Tests hold the start
     /// with it and suspend, so no thread of the concurrency pool waits; `live` does nothing.
     var beforeLookUp: @Sendable () async -> Void = {}
-    /// A step at the start of each media check of `Studio.checkMedia`, off the main actor.
-    var beforeMediaCheck: @Sendable () -> Void = {}
+    /// A step at the start of each media check of `Studio.checkMedia`, off the main actor. Tests
+    /// hold the check with it and suspend, so no thread of the concurrency pool waits.
+    var beforeMediaCheck: @Sendable () async -> Void = {}
     /// Starts the engine of the Player. Tests give one that throws.
     var startEngine: @Sendable (AVAudioEngine) throws -> Void = { try $0.start() }
     /// A step before each block of a peak compute (decision 0017), isolated to the actor of the

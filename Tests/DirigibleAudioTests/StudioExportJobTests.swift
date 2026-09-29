@@ -195,10 +195,10 @@ struct StudioExportJobTests {
     /// settle still runs. After settle, no file of A or B exists.
     @Test func anExportDuringSettleIsBusy() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let (chunk, save) = (Gate(), Gate())
+        let (chunk, save) = (Gate(), AsyncGate())
         let studio = try await fixture.open(seam: ChunkSeam(at: [2: { chunk.waitOnce() }]))
         studio.environment.saveSession = { session, lock throws(SessionFileError) in
-            save.waitOnce()
+            await save.wait()
             return try session.write(under: lock)
         }
         try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: -6)!, track: "t1") }

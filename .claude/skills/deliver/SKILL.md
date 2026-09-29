@@ -54,7 +54,7 @@ Run the **interrogate** skill with target `plan`. It runs the `review-panel` wor
 
 Keep `Sources/` and `Tests/` unchanged until the gate closes. While the panel runs, prototype in the run folder only.
 
-- Change the plan for every "Act on" item. Record each change in `decisions.tsv`. When a fix changes a fact (a scope rule, a release, a reason), grep its ID or term across `docs/` and the run files, and fix each copy in the same change.
+- Change the plan for every "Act on" item. Record each change in `decisions.tsv`. When an item says how to detect a failure of an external tool (an error line, an exit status), probe each failure mode first: the exit status, the product files, and the message text in each output format. Guard on the exit status and the product files, not on message text: `actool` exits 0 with no files and only a warning for a broken `.icon`. When a fix changes a fact (a scope rule, a release, a reason), grep its ID or term across `docs/` and the run files, and fix each copy in the same change.
 - If the verdict had a critical item, run the gate again. At most two rounds. Round 2 is the convergence round: it checks only the round-1 fixes (see the **interrogate** skill). After its fixes and one fix check, record any open risk in `run.md` and continue.
 
 ## Phase 4: Implement

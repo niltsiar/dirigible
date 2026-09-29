@@ -158,6 +158,8 @@ To remove a part and move the audio after it to the left, cut the audio after th
 
 Paste right after the cut. The cut audio and the undo history stay only while the session window is open. When you close the window, you cannot paste the cut audio or undo the cut.
 
+Markers and chapters do not move with the audio. Remove the mistakes before you add markers. If markers are after the mistake, move each one after the paste. Move it to the left by the length of the mistake. Drag its flag, or click the flag, move the playhead to the new position, and choose **Markers > Move Marker to Playhead**.
+
 1. Choose **Edit > Deselect All**.
 2. Click the time ruler at the end of the mistake. Then choose **Edit > Set In Point**.
 3. Choose **Transport > Go to End**, then choose **Edit > Set Out Point**. The selection goes from the end of the mistake to the end of the session.
@@ -175,6 +177,7 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 - Control-click a flag and choose **Delete Marker** to delete it.
 - Click a flag to move the playhead to it. The flag becomes the current marker.
 - Drag a flag to move it.
+- **Edit > Cut**, **Edit > Paste**, and **Edit > Delete** do not move the flags. See [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 - **Rename Marker**, **Move Marker to Playhead**, and **Delete Marker** change the current marker.
 - **Previous Marker** and **Next Marker** move the playhead to a flag and make it the current marker.
 

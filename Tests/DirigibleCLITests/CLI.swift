@@ -22,14 +22,14 @@ func dirigible(_ arguments: [String]) async throws -> CLIResult {
 }
 
 /// Runs `/bin/sh -c script` with `arguments` as `$0`, `$1`, and so on, for example to set a
-/// resource limit before an `exec` of the binary.
-func dirigible(shell script: String, _ arguments: String...) async throws -> CLIResult {
-    try await run(URL(filePath: "/bin/sh"), ["-c", script] + arguments)
+/// resource limit before an `exec` of the binary. The child takes a slot of `slots`.
+func dirigible(shell script: String, _ arguments: String..., slots: Slots = .shared) async throws -> CLIResult {
+    try await run(URL(filePath: "/bin/sh"), ["-c", script] + arguments, slots: slots)
 }
 
 /// Runs `executable` and waits for its exit without a thread: the termination handler resumes the
 /// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite.
-private func run(_ executable: URL, _ arguments: [String]) async throws -> CLIResult {
+private func run(_ executable: URL, _ arguments: [String], slots: Slots = .shared) async throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -44,6 +44,8 @@ private func run(_ executable: URL, _ arguments: [String]) async throws -> CLIRe
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
     let limit = Duration.seconds(30)
+    // Take the slot before the limit task: the limit must not stop a child that has not started.
+    await slots.started()
     let child = Child(process)
     let watch = Task {
         try await Task.sleep(for: limit)
@@ -56,14 +58,13 @@ private func run(_ executable: URL, _ arguments: [String]) async throws -> CLIRe
     // still resumes it. Only the handler resumes it, or the error of `run()`.
     let status: Int32 = try await withCheckedThrowingContinuation { continuation in
         process.terminationHandler = { process in
-            Children.ended()
+            slots.ended()
             continuation.resume(returning: process.terminationStatus)
         }
-        Children.started()
         do {
             try process.run()
         } catch {
-            Children.ended()
+            slots.ended()
             continuation.resume(throwing: error)
         }
     }
@@ -80,23 +81,59 @@ private final class Child: @unchecked Sendable {
     func terminate() { process.terminate() }
 }
 
-/// The count of running children. With `DIRIGIBLE_FLAKE_MONITOR` set, each new peak prints
-/// `CLI-CHILDREN peak <n>` for `scripts/flake-monitor/loop.sh`.
-private enum Children {
-    private static let count = OSAllocatedUnfairLock(initialState: (running: 0, peak: 0))
+/// At most `bound` running children. `shared` has the width of the concurrency pool, so the CLI
+/// children and their test fixtures cannot load the machine past it. A child waits for a free
+/// slot with no thread: `ended()` gives its slot to the first waiter. With `DIRIGIBLE_FLAKE_MONITOR`
+/// set, each new peak prints `CLI-CHILDREN peak <n>` for `scripts/flake-monitor/loop.sh`.
+final class Slots: Sendable {
+    private struct State {
+        var running = 0
+        var peak = 0
+        var waiting: [CheckedContinuation<Int?, Never>] = []
+    }
+    static let shared = Slots(bound: ProcessInfo.processInfo.activeProcessorCount)
     private static let printsPeaks = ProcessInfo.processInfo.environment["DIRIGIBLE_FLAKE_MONITOR"] != nil
 
-    static func started() {
-        let newPeak = count.withLock { state -> Int? in
-            state.running += 1
-            guard state.running > state.peak else { return nil }
-            state.peak = state.running
-            return state.peak
+    let bound: Int
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    init(bound: Int) { self.bound = bound }
+
+    /// The highest count of running children.
+    var peak: Int { state.withLock { $0.peak } }
+    /// The count of children that wait for a free slot.
+    var waiting: Int { state.withLock { $0.waiting.count } }
+
+    /// Waits for a free slot and takes it.
+    func started() async {
+        let newPeak: Int? = await withCheckedContinuation { continuation in
+            let slot = state.withLock { [bound] state -> (free: Bool, newPeak: Int?) in
+                guard state.running < bound else {
+                    state.waiting.append(continuation)
+                    return (false, nil)
+                }
+                state.running += 1
+                guard state.running > state.peak else { return (true, nil) }
+                state.peak = state.running
+                return (true, state.peak)
+            }
+            if slot.free { continuation.resume(returning: slot.newPeak) }
         }
-        if printsPeaks, let newPeak { print("CLI-CHILDREN peak \(newPeak)") }
+        if Self.printsPeaks, let newPeak { print("CLI-CHILDREN peak \(newPeak)") }
     }
 
-    static func ended() { count.withLock { $0.running -= 1 } }
+    /// Frees the slot of a child that ended or did not start. The first waiter gets the slot, so
+    /// the count of running children stays the same.
+    func ended() {
+        let next = state.withLock { state -> CheckedContinuation<Int?, Never>? in
+            guard !state.waiting.isEmpty else {
+                state.running -= 1
+                return nil
+            }
+            return state.waiting.removeFirst()
+        }
+        next?.resume(returning: nil)
+    }
 }
 
 /// Writes `digit` over byte 7 of the file at `url`: the version digit of a sidecar or anchor

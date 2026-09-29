@@ -91,7 +91,7 @@ xattr -dr com.apple.quarantine /Applications/Dirigible.app
 
 ## User guide
 
-The [user guide](docs/guide.md) shows how to record, edit, and export an episode. It also lists each menu command with its key. In the app, choose **Help > Dirigible Guide**.
+The [user guide](docs/guide.md) shows how to record, edit, and export an episode. It also lists each menu command with its key.
 
 ## The dirigible tool
 

@@ -344,14 +344,6 @@ The **Transport** menu (**Transporte**).
 | **Previous Clip Edge** | **Borde de clip anterior** | Shift-Left Arrow |
 | **Next Clip Edge** | **Borde de clip siguiente** | Shift-Right Arrow |
 
-### Help
-
-| Command | Spanish name | Key |
-|---|---|---|
-| **Dirigible Guide** | **Guía de Dirigible** | None |
-
-**Dirigible Guide** opens this guide on GitHub.
-
 ### Commands in the banners
 
 These commands are buttons in the banners of the window, not items of the menu bar. **Retry Finalize** and **Finish Without Unreadable Audio** show in the banner of a take that is not finished. **Place** shows in each row of unplaced audio, and **Place at Playhead on Selected Track** is in its menu.

@@ -7,8 +7,17 @@
 # docs/images/screenshot-edit.png and docs/images/screenshot-zoom.png.
 # The terminal app needs the Screen Recording and Accessibility permissions, and the screen must be
 # unlocked. Keep the pointer and other windows off the Dirigible window while the script runs.
+# A running copy of the app ignores the launch arguments, and it can hold a real session. The
+# script does not stop it: it refuses to start.
 set -euo pipefail
 folder="${1:?usage: screenshots.sh <folder>}"
+refuse_running() {
+    if pgrep -x Dirigible >/dev/null; then
+        echo "screenshots.sh: Dirigible runs. Quit it, then run this script again." >&2
+        exit 1
+    fi
+}
+refuse_running
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 app="$repo/build/Dirigible.app"
 images="$repo/docs/images"
@@ -53,31 +62,38 @@ done
 ' screenshots "$cli"
 session="$(cd "$folder" && pwd -P)/Demo Episode.dirigible"
 
-# A running copy of the app ignores the launch arguments, so quit it first.
-quit() { pkill -f "$app/Contents/MacOS/Dirigible" || true; }
-quit
-while pgrep -f "$app/Contents/MacOS/Dirigible" >/dev/null; do sleep 0.2; done
-trap quit EXIT
+refuse_running
+pid=""
+trap '[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
 open -a "$app" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(en)" \
     -ApplePersistenceIgnoreState YES
+# No copy ran before the launch, so the one Dirigible process is the launched one.
+pid="$(pgrep -x Dirigible)"
+[[ "$pid" =~ ^[0-9]+$ ]] || { echo "screenshots.sh: not one Dirigible process: '$pid'." >&2; exit 1; }
 
 # The size of a new session window: a content size of 1180 x 720 pt (placeAsSessionWindow) and
 # the toolbar. Another size (a narrow screen, a saved window) gives other images.
-size=""
+# The window is the "Demo Episode" window of the launched process, not a window of another copy.
+found=""
 for _ in $(seq 60); do
-    size="$(swift - <<'SWIFT'
+    found="$(PID="$pid" swift - <<'SWIFT'
 import CoreGraphics
+import Foundation
+let pid = Int(ProcessInfo.processInfo.environment["PID"] ?? "")
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
 if let window = windows.first(where: {
-    $0[kCGWindowOwnerName as String] as? String == "Dirigible" && $0[kCGWindowLayer as String] as? Int == 0
+    $0[kCGWindowOwnerPID as String] as? Int == pid && $0[kCGWindowName as String] as? String == "Demo Episode"
+        && $0[kCGWindowLayer as String] as? Int == 0
 }), let bounds = window[kCGWindowBounds as String] as? [String: Any] {
-    print("\(bounds["Width"]!) x \(bounds["Height"]!)")
+    print("\(window[kCGWindowNumber as String]!) \(bounds["Width"]!) x \(bounds["Height"]!)")
 }
 SWIFT
 )"
-    [[ -z "$size" ]] || break
+    [[ -z "$found" ]] || break
     sleep 0.5
 done
+id="${found%% *}"
+size="${found#* }"
 want="1180 x 772"
 [[ "$size" == "$want" ]] || { echo "screenshots.sh: the window is '$size' pt, not $want pt." >&2; exit 1; }
 sleep 1
@@ -88,11 +104,11 @@ key 115
 key 125 --command
 key 125 --command
 sleep 1
-"$repo/scripts/screenshot.sh" "$images/screenshot-edit.png" >/dev/null
+"$repo/scripts/screenshot.sh" --window "$id" "$images/screenshot-edit.png" >/dev/null
 # Page Down, I, Page Down, O: select from the marker Intro to the chapter Interview. H: zoom to it.
 for code in 121 34 121 31 4; do key "$code"; done
 sleep 1
-"$repo/scripts/screenshot.sh" "$images/screenshot-zoom.png" >/dev/null
+"$repo/scripts/screenshot.sh" --window "$id" "$images/screenshot-zoom.png" >/dev/null
 
 for png in "$images/screenshot-edit.png" "$images/screenshot-zoom.png"; do
     [[ "$(stat -f %z "$png")" -le 1000000 ]] || sips --resampleWidth 1600 "$png" >/dev/null

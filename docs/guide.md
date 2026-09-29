@@ -94,6 +94,8 @@ The in point is the start of the selection, and the out point is the end. With n
 
 ## Find your way in a long session
 
+<img src="images/screenshot-zoom.png" width="800" alt="The Dirigible window zoomed to a selection from the marker Intro to the chapter Interview.">
+
 ### Play and move the playhead
 
 - To move the playhead, click the time ruler. A click in an empty part of a track also moves the playhead.
@@ -392,6 +394,17 @@ swift run dirigible info Demo.dirigible
 ```
 
 The text of the tool is English only.
+
+### Make the screenshots again
+
+The screenshots of the README and of this guide come from a script. The script makes the session "Demo Episode" with `say` voices, so the images show no personal data.
+
+1. Give the terminal app the Screen Recording and Accessibility permissions.
+2. Run `make app`.
+3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`.
+4. Do not move the pointer or other windows over the Dirigible window until the script stops.
+
+The script writes `docs/images/screenshot-edit.png` and `docs/images/screenshot-zoom.png`. It stops with an error when the window is not 1180 x 772 points, for example on a small screen. A Retina display gives images of 2360 x 1544 pixels.
 
 ### Keep this guide true
 

@@ -323,7 +323,7 @@ struct TimeTextTests {
         let time = try #require(chrome.time)
         await studio.perform(.seek(.start))
         try #require(model.canRecord && !model.armed.isEmpty)
-        try #require(studio.session.hasClip(at: 0, on: ["t1"]))
+        try #require(studio.session.tracks.first { $0.id == "t1" }?.clips.first?.start == 0)
         await studio.perform(.playStop)
         let (bodies, updates, changes) = (model.bodyRuns, view.updates, time.textChanges)
 

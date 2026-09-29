@@ -117,7 +117,8 @@ struct BannerValueTests {
         // The read at open can use the real disk, where 20 tracks can have less than 60 min. Read
         // again with the free bytes of the test, and wait for the end of the newest read.
         chrome.refreshRecordTime()
-        await until(limit: .seconds(10), "the read with the test disk ends") {
+        // A hang guard: 3 times the worst wait, 13.8 s (run test-pool-health, loops/s3loadb-3.log).
+        await until(limit: .seconds(42), "the read with the test disk ends") {
             chrome.recordTimeReads == chrome.recordTimeReadsStarted && !lowTime(model)
         }
         return (model, studio, try #require(model.window), chrome)

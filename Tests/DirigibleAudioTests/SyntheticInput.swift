@@ -240,7 +240,8 @@ extension CaptureEnvironment {
     static func test(
         _ hal: TestHAL, silenceLimit: Duration = .seconds(60), access: MicrophoneAccess? = nil,
         free: FreeBytes = FreeBytes(),
-        saveSession: @escaping @Sendable (Session, PackageLock) throws(SessionFileError) -> URL = live.saveSession,
+        saveSession: @escaping @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL = live
+            .saveSession,
         beforeFinalize: @escaping @Sendable () async -> Void = {}
     ) -> CaptureEnvironment {
         CaptureEnvironment(

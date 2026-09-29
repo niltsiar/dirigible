@@ -266,9 +266,9 @@ extension Studio {
 /// package that the lock holds now. Nil when the package left its volume or the process has no
 /// free descriptor.
 @concurrent nonisolated func mediaFaults(
-    _ session: Session, lock: PackageLock, source: ExportSource? = nil, before: @Sendable () -> Void = {}
+    _ session: Session, lock: PackageLock, source: ExportSource? = nil, before: @Sendable () async -> Void = {}
 ) async -> [FileID: MediaFault]? {
-    before()
+    await before()
     guard let package = try? lock.package() else { return nil }
     return try? checkMedia(session, package: package, source: source)
 }

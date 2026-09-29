@@ -145,7 +145,7 @@ final class SaveCounter: Sendable {
         let save = studio.environment.saveSession
         studio.environment.saveSession = { [count] session, lock throws(SessionFileError) in
             count.withLock { $0 += 1 }
-            return try save(session, lock)
+            return try await save(session, lock)
         }
     }
 }

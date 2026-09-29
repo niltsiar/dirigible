@@ -70,12 +70,12 @@ extension StudioPlaybackTests {
 
     /// Space and K first, so the edit finds a Player (plan gate 1 item 2).
     @Test func anEditWhileAPlayWaitsForItsMediaCheckDoesNotDropThePlay() async throws {
-        let gate = Gate()
+        let gate = AsyncGate()
         let studio = try await studio()
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         await studio.perform(.pause)
-        studio.environment.beforeMediaCheck = { gate.waitOnce() }
+        studio.environment.beforeMediaCheck = { await gate.wait() }
 
         let play = Task { @MainActor in await studio.perform(.playStop) }
         await gate.entered()
@@ -94,7 +94,7 @@ extension StudioPlaybackTests {
     /// item 1). With no earlier play, no Player exists when the take starts.
     @Test(arguments: [true, false])
     func aPlayWaitingForItsMediaCheckDoesNotPlayIntoATake(earlierPlay: Bool) async throws {
-        let gate = Gate()
+        let gate = AsyncGate()
         let studio = try await studio()
         if earlierPlay {
             await studio.perform(.seek(.start))
@@ -104,7 +104,7 @@ extension StudioPlaybackTests {
             #expect(studio.playhead == 24_000)
         }
         await studio.perform(.seek(.frame(12_000)))
-        studio.environment.beforeMediaCheck = { gate.waitOnce() }
+        studio.environment.beforeMediaCheck = { await gate.wait() }
 
         let play = Task { @MainActor in await studio.perform(.playStop) }
         await gate.entered()

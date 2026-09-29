@@ -77,14 +77,16 @@ struct StudioPeaksSettleTests {
     /// for its save retry; then the pass reaches its next pause while settle runs.
     @Test @MainActor func noBlockStartsAfterSettleBegins() async throws {
         let fixture = try await PeakPackage.make()
-        let (blockGate, saveGate, blocks, saves) = (AsyncGate(), Gate(), StepCounter(), StepCounter(fails: { $0 == 1 }))
+        let (blockGate, saveGate, blocks, saves) = (
+            AsyncGate(), AsyncGate(), StepCounter(), StepCounter(fails: { $0 == 1 })
+        )
         let studio = try await fixture.studio {
             _ = blocks.next()
             await blockGate.wait()
         }
         studio.environment.saveSession = { session, lock throws(SessionFileError) in
             if saves.next() { throw .packageMoved }
-            saveGate.waitOnce()
+            await saveGate.wait()
             return try session.write(under: lock)
         }
         await blockGate.entered()

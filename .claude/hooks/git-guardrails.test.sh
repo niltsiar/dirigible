@@ -70,6 +70,15 @@ expect allow 'git commit -F msg.txt; sed -n 1p file'
 expect allow 'git commit -F msg.txt && sed -n 1p file'
 expect allow 'git push -u origin feat/x || gh pr view --json baseRefName | grep main'
 
+# A commit in one command with make check runs only after a green check: only && joins them.
+expect block 'make check > log 2>&1; echo "exit $?"; git commit -m "x"'
+expect block 'make check || true && git commit -m "x"'
+expect block 'make check | tail -3 && git commit -m "x"'
+expect block $'make check\ngit commit -m "x"'
+expect allow 'make check && git commit -m "x"'
+expect allow 'git add a && make check > log 2>&1 && grep -c ok log && git commit -F msg.txt'
+expect allow $'make check > log 2>&1 \\\n  && git commit -m "x"'
+
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }

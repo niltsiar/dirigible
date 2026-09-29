@@ -16,7 +16,9 @@ import os
 /// `F_FULLFSYNC`) and the cooperative threads (blocking file writes) for most of the run, and a
 /// window open needs both.
 @MainActor func until(limit: Duration = .seconds(60), _ message: String, _ condition: () -> Bool) async {
-    let end = ContinuousClock.now + limit
+    let start = ContinuousClock.now
+    defer { reportWait("until", since: start, message) }
+    let end = start + limit
     while !condition() {
         guard ContinuousClock.now < end else {
             Issue.record("\(message) (limit \(limit))")
@@ -25,6 +27,17 @@ import os
         try? await Task.sleep(for: .milliseconds(10))
     }
 }
+
+/// With `DIRIGIBLE_FLAKE_MONITOR` set, prints `WAIT <helper> <seconds> s <text>` for a wait over
+/// 2 s. `scripts/flake-monitor/loop.sh` takes the worst wait of each helper, and the hang guards
+/// take their limits from it. A copy of the function of `DirigibleAudioTests`.
+func reportWait(_ helper: String, since start: ContinuousClock.Instant, _ text: String) {
+    guard flakeMonitorIsOn else { return }
+    let seconds = (ContinuousClock.now - start) / .seconds(1)
+    if seconds > 2 { print(String(format: "WAIT %@ %.1f s %@", helper, seconds, text)) }
+}
+
+private let flakeMonitorIsOn = ProcessInfo.processInfo.environment["DIRIGIBLE_FLAKE_MONITOR"] != nil
 
 /// A unique temporary folder under `parent`, removed at deinit off the calling thread.
 /// The deinit of a folder in a `@MainActor` suite runs on the main thread. A synchronous
@@ -390,7 +403,9 @@ final class AsyncGate: @unchecked Sendable {
                 return !used
             })
         else { return }
-        let end = ContinuousClock.now + .seconds(30)
+        let start = ContinuousClock.now
+        defer { reportWait("AsyncGate.wait", since: start, "AsyncGate") }
+        let end = start + .seconds(30)
         while !lock.withLock({ opened }) {
             guard ContinuousClock.now < end else {
                 Issue.record("The gate was not opened in 30 s")
@@ -404,7 +419,9 @@ final class AsyncGate: @unchecked Sendable {
 
     /// Returns when the first caller is inside `wait`. After `limit`, it records a failure.
     func entered(limit: Duration = .seconds(30)) async {
-        let end = ContinuousClock.now + limit
+        let start = ContinuousClock.now
+        defer { reportWait("AsyncGate.entered", since: start, "AsyncGate") }
+        let end = start + limit
         while !lock.withLock({ inside }) {
             guard ContinuousClock.now < end else {
                 Issue.record("No block entered the gate (limit \(limit))")

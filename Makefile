@@ -67,6 +67,8 @@ test-hooks:
 	scripts/bench-pairs.test.sh
 	scripts/icon.test.sh
 	scripts/bundle.test.sh
+	scripts/flake-monitor/sample-threads.test.sh
+	scripts/flake-monitor/loop.test.sh
 
 check-docs:
 	scripts/check-docs.test.sh

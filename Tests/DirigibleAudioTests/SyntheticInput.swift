@@ -297,7 +297,9 @@ final class SyntheticInput: @unchecked Sendable {
     /// hold the main actor. The limit is longer than the attach wait of `takeStartIn`, so a
     /// miss shows as that issue.
     func wait(limit: Duration = .seconds(40)) async {
-        let end = ContinuousClock.now + limit
+        let start = ContinuousClock.now
+        defer { reportWait("SyntheticInput.wait", since: start, "SyntheticInput \(uid)") }
+        let end = start + limit
         while isSending {
             guard ContinuousClock.now < end else {
                 Issue.record("SyntheticInput \(uid) did not end in \(limit)")

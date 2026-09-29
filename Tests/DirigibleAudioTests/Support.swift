@@ -172,12 +172,25 @@ func records(
 /// main-actor tests that measure time.
 @concurrent nonisolated func offMainActor(_ body: @Sendable () throws -> Void) async throws { try body() }
 
+/// With `DIRIGIBLE_FLAKE_MONITOR` set, prints `WAIT <helper> <seconds> s <text>` for a wait over
+/// 2 s. `scripts/flake-monitor/loop.sh` takes the worst wait of each helper, and the hang guards
+/// take their limits from it.
+func reportWait(_ helper: String, since start: ContinuousClock.Instant, _ text: String) {
+    guard flakeMonitorIsOn else { return }
+    let seconds = (ContinuousClock.now - start) / .seconds(1)
+    if seconds > 2 { print(String(format: "WAIT %@ %.1f s %@", helper, seconds, text)) }
+}
+
+private let flakeMonitorIsOn = ProcessInfo.processInfo.environment["DIRIGIBLE_FLAKE_MONITOR"] != nil
+
 /// Polls `condition` every 10 ms. After `limit`, it records `message` as a test failure. It
 /// checks once more after a sleep past the limit, so a main-actor job that another test held
 /// back (a report hop) runs before the last check.
 @MainActor
 func until(limit: Duration = .seconds(1), _ message: String, _ condition: () -> Bool) async {
-    let end = ContinuousClock.now + limit
+    let start = ContinuousClock.now
+    defer { reportWait("until", since: start, message) }
+    let end = start + limit
     var expired = false
     while !condition() {
         guard !expired else {
@@ -205,7 +218,9 @@ final class AsyncGate: @unchecked Sendable {
                 return !used
             })
         else { return }
-        let end = ContinuousClock.now + .seconds(30)
+        let start = ContinuousClock.now
+        defer { reportWait("AsyncGate.wait", since: start, "AsyncGate") }
+        let end = start + .seconds(30)
         while !lock.withLock({ opened }) {
             guard ContinuousClock.now < end else {
                 Issue.record("The gate was not opened in 30 s")
@@ -219,7 +234,9 @@ final class AsyncGate: @unchecked Sendable {
 
     /// Returns when the first caller is inside `wait`. After `limit`, it records a failure.
     func entered(limit: Duration = .seconds(30)) async {
-        let end = ContinuousClock.now + limit
+        let start = ContinuousClock.now
+        defer { reportWait("AsyncGate.entered", since: start, "AsyncGate") }
+        let end = start + limit
         while !lock.withLock({ inside }) {
             guard ContinuousClock.now < end else {
                 Issue.record("No block entered the gate (limit \(limit))")
@@ -249,6 +266,8 @@ final class Gate: @unchecked Sendable {
             })
         else { return }
         lock.withLock { inside = true }
+        let start = ContinuousClock.now
+        defer { reportWait("Gate.waitOnce", since: start, "Gate") }
         if semaphore.wait(timeout: .now() + 30) == .timedOut { Issue.record("The gate was not opened in 30 s") }
     }
 
@@ -256,7 +275,9 @@ final class Gate: @unchecked Sendable {
 
     /// Returns when the first caller is inside `waitOnce`. After `limit`, it records a failure.
     func entered(limit: Duration = .seconds(30)) async {
-        let end = ContinuousClock.now + limit
+        let start = ContinuousClock.now
+        defer { reportWait("Gate.entered", since: start, "Gate") }
+        let end = start + limit
         while !lock.withLock({ inside }) {
             guard ContinuousClock.now < end else {
                 Issue.record("No write entered the gate (limit \(limit))")

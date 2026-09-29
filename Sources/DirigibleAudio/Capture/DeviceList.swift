@@ -13,15 +13,16 @@ import Observation
     public private(set) var devices: [InputDevice] = []
     /// The reads that ended. For tests.
     @ObservationIgnored private(set) var reads = 0
-    @ObservationIgnored private let read: @Sendable () -> [InputDevice]
+    @ObservationIgnored private let read: @Sendable () async -> [InputDevice]
     @ObservationIgnored private let listens: Bool
     @ObservationIgnored private var reading = false
     @ObservationIgnored private var again = false
 
-    /// Tests give the read; the instance installs no listener. It reads once at once.
-    convenience init(read: @escaping @Sendable () -> [InputDevice]) { self.init(read: read, listens: false) }
+    /// Tests give the read; the instance installs no listener. It reads once at once. The read is
+    /// async, so a test holds it with an async wait and blocks no thread of the concurrency pool.
+    convenience init(read: @escaping @Sendable () async -> [InputDevice]) { self.init(read: read, listens: false) }
 
-    private init(read: @escaping @Sendable () -> [InputDevice], listens: Bool) {
+    private init(read: @escaping @Sendable () async -> [InputDevice], listens: Bool) {
         self.read = read
         self.listens = listens
         changed()
@@ -47,11 +48,11 @@ import Observation
         }
     }
 
-    @concurrent private nonisolated static func load(_ read: @Sendable () -> [InputDevice], listens: Bool) async
+    @concurrent private nonisolated static func load(_ read: @Sendable () async -> [InputDevice], listens: Bool) async
         -> [InputDevice]
     {
         if listens { _ = DeviceListListener.installed }
-        return read()
+        return await read()
     }
 }
 

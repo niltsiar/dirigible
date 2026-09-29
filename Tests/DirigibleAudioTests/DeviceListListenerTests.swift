@@ -1,6 +1,7 @@
 import CoreAudio
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -52,7 +53,7 @@ struct DeviceListListenerTests {
     /// The first read waits on a gate while 5 more calls come: one more read runs after it, and
     /// its list wins.
     @Test func aBurstGivesAtMostTwoReads() async throws {
-        let gate = Gate()
+        let gate = AsyncGate()
         let count = StepCounter()
         let lists: [[InputDevice]] = [
             [],
@@ -64,7 +65,7 @@ struct DeviceListListenerTests {
         ]
         let list = DeviceList {
             _ = count.next()
-            gate.waitOnce()
+            await gate.wait()
             return lists[min(count.calls, 2) - 1]
         }
         await gate.entered()
@@ -75,5 +76,36 @@ struct DeviceListListenerTests {
         try await Task.sleep(for: .milliseconds(200))
         #expect(count.calls == 2)
         #expect(list.devices.map(\.uid) == ["mic"])
+    }
+
+    // MARK: Pool health
+
+    /// As many reads as the concurrency pool is wide wait at the async read seam, and a pool hop
+    /// still ends at once: an async wait holds no pool thread. The test proves the hold after it:
+    /// every holder entered before the hop, and no holder ended before the hop.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func anAsyncSeamHoldsNoPoolThread() async {
+        let count = ProcessInfo.processInfo.activeProcessorCount
+        let entered = StepCounter()
+        let ended = StepCounter()
+        let release = OSAllocatedUnfairLock(initialState: false)
+        let start = ContinuousClock.now
+        for _ in 0..<count {
+            _ = DeviceList {
+                _ = entered.next()
+                while !release.withLock({ $0 }), ContinuousClock.now < start + .seconds(30) {
+                    try? await Task.sleep(for: .milliseconds(5))
+                }
+                _ = ended.next()
+                return []
+            }
+        }
+        await until(limit: .seconds(5), "a holder did not enter") { entered.calls == count }
+        await Task.detached {}.value
+        let (elapsed, endedAtHop) = (ContinuousClock.now - start, ended.calls)
+        release.withLock { $0 = true }
+        await until(limit: .seconds(20), "a hold did not end") { ended.calls == count }
+        #expect(elapsed < .seconds(5), "the pool hop waited \(elapsed)")
+        #expect(endedAtHop == 0, "a hold ended before the hop")
     }
 }

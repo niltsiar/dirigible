@@ -266,6 +266,13 @@ final class Gate: @unchecked Sendable {
             })
         else { return }
         lock.withLock { inside = true }
+        // `noasync` refuses this call in async code, but not in a synchronous hook that a
+        // `@concurrent` function calls. The label of the current queue names the pool (probe P1 of
+        // run test-pool-health), so such a call is an issue, and it returns at once.
+        guard !String(cString: __dispatch_queue_get_label(nil)).hasSuffix(".cooperative") else {
+            Issue.record("Gate.waitOnce blocks a thread of the concurrency pool")
+            return
+        }
         let start = ContinuousClock.now
         defer { reportWait("Gate.waitOnce", since: start, "Gate") }
         if semaphore.wait(timeout: .now() + 30) == .timedOut { Issue.record("The gate was not opened in 30 s") }

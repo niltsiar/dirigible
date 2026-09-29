@@ -10,6 +10,10 @@
 //        ax.swift step <role> <increment|decrement>
 //                                             the action on each element with the role, for
 //                                             example AXSplitter, with its line before and after
+// A menu item line also shows its key: MenuItemCmdChar, MenuItemCmdModifiers (0 Command, 1 Shift,
+// 2 Option, 4 Control, 8 no Command; add the values), and MenuItemCmdVirtualKey (for a key with no
+// character, for example 36 Return or 123 Left Arrow). A menu title can end in the "…" character:
+// copy the title from the dump for press.
 // Exit: 0 done, 1 no Dirigible app or no element, 2 usage, 3 no Accessibility trust.
 import AppKit
 import ApplicationServices
@@ -56,8 +60,15 @@ func walk(_ element: AXUIElement, _ level: Int, _ visit: (AXUIElement, Int) -> V
 }
 
 func line(_ element: AXUIElement) -> String {
-    ["AXRole", "AXRoleDescription", "AXTitle", "AXDescription", "AXValue", "AXHelp"].compactMap { name in
-        attribute(element, name).map { "\(name.dropFirst(2))=\($0)" }
+    [
+        "AXRole", "AXRoleDescription", "AXTitle", "AXDescription", "AXValue", "AXHelp",
+        "AXMenuItemCmdChar", "AXMenuItemCmdModifiers", "AXMenuItemCmdVirtualKey",
+    ].compactMap { name in
+        attribute(element, name).map { value in
+            // The key of Return is "\r", so the key prints in quotes and does not split the line.
+            let text = name == "AXMenuItemCmdChar" ? String(describing: value).debugDescription : "\(value)"
+            return "\(name.dropFirst(2))=\(text)"
+        }
     }.joined(separator: " ")
 }
 

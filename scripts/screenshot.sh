@@ -1,11 +1,20 @@
 #!/bin/bash
-# Save a PNG of the Dirigible window only (not the whole screen), for UI evidence.
-# Usage: scripts/screenshot.sh <out.png>. Start the app first with `make run`.
+# Save a PNG of one window only (not the whole screen), for UI evidence.
+# Usage: scripts/screenshot.sh [--owner <name>] <out.png>. Start the app first with `make run`.
+# The default owner is Dirigible. For a window of another process, for example the Gatekeeper
+# dialog, give its process name: --owner CoreServicesUIAgent. A full-screen capture records
+# private content, so this script never makes one.
 # The terminal app needs the Screen Recording permission.
 set -euo pipefail
-out="${1:?usage: screenshot.sh <out.png>}"
+usage="usage: screenshot.sh [--owner <name>] <out.png>"
+owner=Dirigible
+if [[ "${1:-}" == --owner ]]; then
+    owner="${2:?$usage}"
+    shift 2
+fi
+out="${1:?$usage}"
 
-id="$(swift - <<'SWIFT'
+id="$(OWNER="$owner" swift - <<'SWIFT'
 import CoreGraphics
 import Foundation
 // On a locked screen a window capture still works, but a menu or a popover does not come on
@@ -15,11 +24,11 @@ if session["CGSSessionScreenIsLocked"] as? Bool == true {
     FileHandle.standardError.write(Data("The screen is locked: menus, popovers, HID events, and the AX window tree do not work. Make every interaction check a manual check.\n".utf8))
 }
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-if let window = windows.first(where: { $0[kCGWindowOwnerName as String] as? String == "Dirigible" }) {
+if let window = windows.first(where: { $0[kCGWindowOwnerName as String] as? String == ProcessInfo.processInfo.environment["OWNER"] }) {
     print(window[kCGWindowNumber as String] ?? "")
 }
 SWIFT
 )"
-[[ -n "$id" ]] || { echo "No Dirigible window on screen. Run make run first." >&2; exit 1; }
+[[ -n "$id" ]] || { echo "No $owner window on screen. Start it first." >&2; exit 1; }
 screencapture -x -o -l "$id" "$out"
 echo "$out"

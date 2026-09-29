@@ -67,8 +67,8 @@ if [[ -f "$root/Support/Resources/en.lproj/Localizable.strings" ]]; then
 fi
 
 # Each relative link and image of the README and the guide names a file, with the case of its
-# name: the macOS disk ignores case, GitHub does not. A link to a heading of the guide names a
-# heading slug of GitHub: lower case, punctuation other than - and _ removed, spaces to -.
+# name: the macOS disk ignores case, GitHub does not. A link to a heading of a .md file names a
+# heading slug of GitHub in that file: lower case, punctuation other than - and _ removed, spaces to -.
 for doc in README.md docs/guide.md; do
     [[ -f "$root/$doc" ]] || continue
     dir="$(dirname "$root/$doc")"
@@ -80,9 +80,11 @@ for doc in README.md docs/guide.md; do
         target="${target%/}"
         if ! ls -1A "$(dirname "$target")" 2>/dev/null | grep -xF "$(basename "$target")" >/dev/null; then
             err "$doc: link to a missing file: $path"
-        elif [[ "$link" == *#* && "$target" == "$guide" ]]; then
-            sed -nE 's/^#+ +//p' "$guide" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9 _-]//g; s/ /-/g' \
-                | grep -xF "${link#*#}" >/dev/null || err "$doc: no heading for #${link#*#} in docs/guide.md"
+        elif [[ "$link" == *#* && "$target" == *.md ]]; then
+            name="$(cd "$(dirname "$target")" && pwd -L)/$(basename "$target")"
+            name="${name#"$(cd "$root" && pwd -L)"/}"
+            sed -nE 's/^#+ +//p' "$target" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9 _-]//g; s/ /-/g' \
+                | grep -xF "${link#*#}" >/dev/null || err "$doc: no heading for #${link#*#} in $name"
         fi
     done
 done

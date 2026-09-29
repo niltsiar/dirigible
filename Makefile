@@ -15,8 +15,12 @@ app:
 icon-preview:
 	scripts/icon.sh --preview
 
+# The CLI tests run in their own process. The CLI helper is async and holds no pool thread.
+# But the CLI fixture I/O at the suite start adds to the main-actor stall of the other tests.
+# In one process, the stall tripped the 60 s DeviceEventTests watchdog in 3 of 40 runs.
 test:
-	swift test --skip AppBundleTests --skip DiskImageTests
+	swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests
+	swift test --filter DirigibleCLITests
 
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
 # variable does not change the count.

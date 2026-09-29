@@ -227,12 +227,15 @@ struct ExportSafetyTests {
                         guard !waited else { return }
                         waited = true
                         _ = held.next()
-                        _ = release.wait(timeout: .now() + 30)
+                        // No timeout: A must stay live until the test releases it. A timeout
+                        // let A land while the test waited for its hops under load.
+                        release.wait()
                     })
             }
             _ = held.next()
         }
         first.start()
+        defer { release.signal() }
         await until(limit: .seconds(30), "export A did not start in 30 s") { held.calls >= 1 }
         try #require(held.calls >= 1)
         let live = try temporaryFiles()

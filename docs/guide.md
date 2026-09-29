@@ -155,8 +155,8 @@ Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the
 To remove a part and move the audio after it to the left, cut the audio after the mistake. Then paste it at the start of the mistake.
 
 1. Choose **Edit > Deselect All**.
-2. Click the time ruler at the end of the mistake, then press I.
-3. Choose **Transport > Go to End**, then press O. The selection goes from the end of the mistake to the end of the session.
+2. Click the time ruler at the end of the mistake. Then choose **Edit > Set In Point**.
+3. Choose **Transport > Go to End**, then choose **Edit > Set Out Point**. The selection goes from the end of the mistake to the end of the session.
 4. Choose **Edit > Cut**.
 5. Choose **View > Zoom to Session**. Then click the time ruler at the start of the mistake.
 6. Choose **Edit > Paste**. The audio after the mistake now starts at the playhead, and the mistake is gone.

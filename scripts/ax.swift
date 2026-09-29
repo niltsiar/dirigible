@@ -13,7 +13,7 @@
 // A menu item line also shows its key: MenuItemCmdChar, MenuItemCmdModifiers (0 Command, 1 Shift,
 // 2 Option, 4 Control, 8 no Command; add the values), and MenuItemCmdVirtualKey (for a key with no
 // character, for example 36 Return or 123 Left Arrow). A menu title can end in the "…" character:
-// copy the title from the dump for press.
+// copy the title from the dump for press. A menu item with a check mark shows MenuItemMarkChar=✓.
 // Exit: 0 done, 1 no Dirigible app or no element, 2 usage, 3 no Accessibility trust.
 import AppKit
 import ApplicationServices
@@ -62,7 +62,7 @@ func walk(_ element: AXUIElement, _ level: Int, _ visit: (AXUIElement, Int) -> V
 func line(_ element: AXUIElement) -> String {
     [
         "AXRole", "AXRoleDescription", "AXTitle", "AXDescription", "AXValue", "AXHelp",
-        "AXMenuItemCmdChar", "AXMenuItemCmdModifiers", "AXMenuItemCmdVirtualKey",
+        "AXMenuItemCmdChar", "AXMenuItemCmdModifiers", "AXMenuItemCmdVirtualKey", "AXMenuItemMarkChar",
     ].compactMap { name in
         attribute(element, name).map { value in
             // The key of Return is "\r", so the key prints in quotes and does not split the line.

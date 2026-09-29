@@ -12,6 +12,7 @@
 - Amended: 2026-09-27, ui-shell run 1a: no SwiftUI body reads `Studio.play`, and the record-over warning is an overlay over the lanes. Run 1b adds a header width of 180 to 480 pt with a drag handle, an opaque header ruler, and a dark lane palette (see 0023).
 - Amended: 2026-09-27. A cache file of a newer version is a miss (see 0024 P5).
 - Amended: 2026-09-28, timeline-navigation run (see 0025): H is "Zoom to Selection or Session": with no selection it zooms to the session, and a second H with the view unchanged goes back. The zoom history and the lane height are window state and are not saved. Command-= also zooms in. New View keys: Zoom Back and Zoom Forward (Option-Command-Left and -Right), Previous Page and Next Page (Option-Page Up and Option-Page Down), Taller Tracks and Shorter Tracks (Command-Down and Command-Up Arrow), and Fit Tracks to Window (no key).
+- Amended: 2026-09-29, record-over-gap run: the record-over overlay reads only the first clip of each armed track that ends after the playhead, not only a clip under the playhead. With the playhead in a gap, a take replaced a clip out of view with no warning.
 
 ## Context
 
@@ -37,7 +38,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 
 **Selection and view state.** The in point, the out point, and the selected tracks, the zoom, and Automatic Scroll are window state. None is saved. The selection has one read: a range and at least one track that exists now, or nothing.
 
-**Record-over warning.** The transport bar warns only when an armed track has a clip at the playhead that is not in view: its lane is not fully in the visible lanes (above them, under them, or partly under the time ruler), or the playhead is outside the visible frames. Before the first layout, nothing counts as in view. A window minimum height for all lanes was rejected, because the brief sets no track limit.
+**Record-over warning.** The record-over overlay over the lanes shows only when Record can reach a clip on an armed track that is not in view. Record replaces from the playhead on, and the take length is not known at the start. Thus the rule reads only the first clip of each armed track that ends after the playhead. When that clip is in view, a later clip of the track that is not in view gets no warning. The first clip is not in view when its lane is not fully in the visible lanes (above them, under them, or partly under the time ruler), or when the first frame of the clip that Record reaches (the playhead or the clip start, the later one) is outside the visible frames. Before the first layout, nothing counts as in view. A window minimum height for all lanes was rejected, because the brief sets no track limit.
 
 **Follow.** Automatic Scroll turns pages as in Hindenburg: at 94% of the width the view moves so the playhead is at 11%. A user scroll during play holds the follow until the playhead is in view again, a seek, or a play start.
 
@@ -48,7 +49,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 ## Consequences
 
 - 0002 gets an amended line: `DirigibleApp/Timeline/` holds the timeline view, and `Studio+Peaks.swift` loads the peaks.
-- 0016 gets an amended line: the record-over warning of the transport bar shows only for a clip that is not in view, because the lanes draw the clips.
+- 0016 gets an amended line: the record-over warning of the transport bar shows only for a clip that is not in view, because the lanes draw the clips. History: 0023 replaced the transport bar with the overlay, and the rule changed on 2026-09-29 (see the header).
 - 0011 gets an amended line: `dirigible peaks` reads the peak cache.
 - A package on another Mac, or after a cache purge, computes its peaks again: under 1 s per 2 h track on an SSD, about 10 s on a USB hard disk (inference).
 - Closer than 256 frames per pixel, the waveform is blocky. The zoom stops at 128 frames per point.
@@ -60,6 +61,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 
 - **`Peaks/` in the package.** The peaks move to another Mac with the package. Rejected: a lock-holder write path, a read-only-package case, and a 0003 change, for data that computes in under 1 s per 2 h track.
 - **Remove the record-over warning.** Rejected: a lane under the visible lanes, or a playhead off screen, hides a clip on an armed track.
+- **Warn also for a clip in view.** Rejected on 2026-09-29: the lanes draw the clip. With this rule, the warning shows in almost every edited session until the playhead is at the end.
 - **Peaks in memory only.** Rejected: a reopen of a 6-track 2 h session on a slow disk computes for about 60 s each time.
 - **SwiftUI `Canvas`, or a full redraw at each frame.** Rejected: 30 fps and 20 fps (D3, D4).
 - **Core Graphics path or rect fills.** Rejected: 160 to 1221 ms per full draw (D1).

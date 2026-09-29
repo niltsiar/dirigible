@@ -5,7 +5,8 @@ import Testing
 /// actor (tdd skill, the monitor rule). It runs only when `DIRIGIBLE_FLAKE_MONITOR` names a
 /// folder. Every 100 ms, it times a pool hop and a main-actor hop. A watchdog thread outside
 /// the pool runs `/usr/bin/sample` when a hop waits longer than the threshold, so the sample
-/// shows the code that holds the pool or the main actor.
+/// shows the code that holds the pool or the main actor. `pool-threads.txt` lists the IDs of the
+/// pool threads that ran a hop, for `scripts/flake-monitor/sample-threads.py`.
 ///
 /// - `DIRIGIBLE_FLAKE_MONITOR_SECONDS`: the duration, default 170 s (more than one fast suite).
 /// - `DIRIGIBLE_FLAKE_MONITOR_SAMPLE`: the sample threshold in seconds, default 2. When it is
@@ -29,11 +30,19 @@ struct FlakeMonitor {
         var hold = forced.map { $0 + 1 }
         var log = ""
         var worst = (pool: 0.0, main: 0.0)
+        // `sample` names a busy pool thread with no queue label, so the parser needs their IDs.
+        var poolThreads = Set<UInt64>()
         while ProcessInfo.processInfo.systemUptime - start < duration {
             let holdNow = hold
             hold = nil
             let pool = await hops.time("pool") {
-                await Task.detached { if let holdNow { usleep(UInt32(holdNow * 1_000_000)) } }.value
+                poolThreads.insert(
+                    await Task.detached {
+                        if let holdNow { usleep(UInt32(holdNow * 1_000_000)) }
+                        var id: UInt64 = 0
+                        pthread_threadid_np(nil, &id)
+                        return id
+                    }.value)
             }
             let main = await hops.time("main") { await MainActor.run {} }
             for (kind, wait) in [("pool", pool), ("main", main)] where wait.seconds > 0.3 {
@@ -44,6 +53,7 @@ struct FlakeMonitor {
         }
         let samples = await watchdog.stop()
         try Data(log.utf8).write(to: folder.appending(path: "hops.txt"))
+        try Data(poolThreads.map { "\($0)\n" }.joined().utf8).write(to: folder.appending(path: "pool-threads.txt"))
         // The start (seconds since 1970) shows how late the monitor started in the suite.
         print(
             String(

@@ -23,7 +23,6 @@ cli="$(swift build --package-path "$repo" --show-bin-path)/dirigible"
 set -euo pipefail
 cli="$1"
 pkg="Demo Episode.dirigible"
-[[ ! -e "$pkg" ]] || { echo "screenshots.sh: $pkg exists. Give a new folder." >&2; exit 1; }
 "$cli" create "$pkg" --sample-rate 48000 >/dev/null
 host="$("$cli" track add "$pkg" --name Host --layout mono)"
 guest="$("$cli" track add "$pkg" --name Guest --layout mono)"
@@ -84,7 +83,6 @@ want="1180 x 772"
 sleep 1
 
 key() { swift "$repo/scripts/hid.swift" key "$@"; }
-mkdir -p "$images"
 # Home, then Taller Tracks two times: the two tracks fill more of the window.
 key 115
 key 125 --command

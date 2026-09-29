@@ -9,6 +9,7 @@ app=build/dmg-app/Dirigible.app
 version="$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")"
 name="Dirigible-$version.dmg"
 dmg="build/$name"
+# Delete the old DMGs first: hdiutil convert crashes (segmentation fault) on an existing output file.
 rm -f build/Dirigible-*.dmg build/Dirigible-*.dmg.sha256
 
 # A detach can fail while the system still reads the new volume, so it tries once more.

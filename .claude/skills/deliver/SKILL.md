@@ -63,6 +63,7 @@ Keep `Sources/` and `Tests/` unchanged until the gate closes. While the panel ru
 2. One commit is one logical change. Use Conventional Commits (see `AGENTS.md`). Never commit a red `make check`.
 3. After each slice, add a row to `decisions.tsv` and tick the slice in `run.md`. The row gives the `make test` time on `main` and on the branch. When the branch time is two times the `main` time or more, stop and treat the cost as a plan change (step 4). Many small "kept" steps must not add up to a slow suite that nobody decided on.
 4. If the plan proves wrong, stop, update `plan.md`, and record why. Do not bolt workarounds onto a wrong plan. A plan change that makes a criterion weaker (a looser budget, a smaller size, a check moved to a later phase) because a tool "cannot" do something needs a probe first. Try to meet the original conditions, and log the probe in `decisions.tsv`. An untried tool limit is a guess, as in Phase 1.
+5. If a slice changes what a user sees or does, update `docs/guide.md` in the same slice. The code gate then reviews the guide text with the code.
 
 ## Phase 5: Clean up
 
@@ -79,7 +80,7 @@ Run the **interrogate** skill with target `diff`. It runs the `review-panel` wor
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each acceptance criterion from Phase 1 against the real artifact: the built app, the real files, measured levels. Record each verdict (`VERIFIED`, `NOT VERIFIED`, `INCONCLUSIVE`) in `run.md`. A `NOT VERIFIED` criterion sends you back to Phase 4. If the run changes what a user sees or does, update `docs/guide.md`. If the window looks different, make the screenshots again (`docs/guide.md`, For contributors).
+Run the **verify-this** skill for each acceptance criterion from Phase 1 against the real artifact: the built app, the real files, measured levels. Record each verdict (`VERIFIED`, `NOT VERIFIED`, `INCONCLUSIVE`) in `run.md`. A `NOT VERIFIED` criterion sends you back to Phase 4. If the window looks different, make the screenshots again (`docs/guide.md`, For contributors).
 
 ## Phase 8: Reflect
 

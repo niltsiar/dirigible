@@ -216,7 +216,7 @@ Open the session again. The window shows **Recovering the last take**, then **Ta
 
 ### After an unplug
 
-If a device goes away during a take, its tracks show **Device lost**. The other tracks continue to record. When you connect the device again, its tracks record again. After Stop, the window names each track that has a gap. **Write error** on a track means that Dirigible could not write its audio to the disk.
+If a device goes away during a take, its tracks show **Device lost**. The other tracks continue to record. Connect the device again to the same port. Its tracks then record again. After Stop, the window names each track that has a gap. If a track still shows **Device lost**, choose **Transport > Stop**, then choose **Record > Record**. After Stop, the playhead is at the end of the take, and the new take starts there. If Record shows that the input device of the track is not connected, choose the device again in the input menu of the track. **Write error** on a track means that Dirigible could not write its audio to the disk.
 
 ### When the disk is almost full
 

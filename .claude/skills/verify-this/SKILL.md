@@ -59,7 +59,7 @@ Each probe run writes to a new folder, named by the commit and a run number. A l
 
 - `VERIFIED`: baseline and treatment differ in the predicted direction, by the claimed threshold, with no obvious confound.
 - `NOT VERIFIED`: the behavior is unchanged, moves the wrong way, or misses the threshold.
-- `INCONCLUSIVE`: no valid baseline, noisy signal, failed measurement, or an environment difference invalidates the comparison. This includes a control that cannot fail on this machine, and a code review with no control. A grep or a read of source text is a code review. Prove a file-format claim with the bytes that the old and the new code write for the same input.
+- `INCONCLUSIVE`: no valid baseline, noisy signal, failed measurement, or an environment difference invalidates the comparison. This includes a control that cannot fail on this machine, and a code review with no control. A grep or a read of source text is a code review. Exception: when the claim is about the text of a doc, that text is the artifact. Grep it on main and on the branch, and count the required new sentence and each old phrase. Prove a file-format claim with the bytes that the old and the new code write for the same input.
 - A verdict on UI that macOS draws names the sampled macOS version, architecture, locale, and setup path (for example, a quarantine value written by hand, not a download). A doc decision for an axis that the run did not sample needs an OS source (a `.loctable` or a man page) or a manual check.
 - A claim that depends on an open manual check gets no `VERIFIED (M-n)`. Restate the automated part as a narrower claim and give it its own verdict. The manual part is `INCONCLUSIVE` and names the check. The run summary counts these parts.
 

@@ -15,7 +15,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 - The export does not write the chapters into the file. The chapters stay in the session.
 - No recording of calls or other apps, for example Zoom or Teams. Dirigible records only input devices, such as microphones and audio interfaces.
 - No loudness setting. The export does not change the level of the audio.
-- Delete leaves silence. The clips after the deleted part do not move to close the gap.
+- Delete leaves silence. The clips after the deleted part do not move to close the gap. To close the gap, see [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 
 ## Record your first episode
 
@@ -149,6 +149,17 @@ A selection has an in point, an out point, and one or more tracks. Two triangles
 - Press Esc during a drag to cancel it.
 
 Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the last edit.
+
+### Remove a mistake and close the gap
+
+To remove a part and move the audio after it to the left, cut the audio after the mistake. Then paste it at the start of the mistake.
+
+1. Choose **Edit > Deselect All**.
+2. Click the time ruler at the end of the mistake, then press I.
+3. Choose **Transport > Go to End**, then press O. The selection goes from the end of the mistake to the end of the session.
+4. Choose **Edit > Cut**.
+5. Choose **View > Zoom to Session**. Then click the time ruler at the start of the mistake.
+6. Choose **Edit > Paste**. The audio after the mistake now starts at the playhead, and the mistake is gone.
 
 ## Add markers and chapters
 

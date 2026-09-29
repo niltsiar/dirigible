@@ -13,6 +13,10 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 "$probe" "$root/p" /bin/sh -c 'echo x > a.txt' || fail "a write in the folder was refused"
 [[ -f "$root/p/a.txt" ]] || fail "a relative write did not land in the folder"
 
+# A "." segment in the missing part of the folder does not block a write in the folder.
+"$probe" "$root/dot/./p" /bin/sh -c 'echo x > a.txt' 2>/dev/null || fail "a write in a folder with a . segment was refused"
+[[ -f "$root/dot/p/a.txt" ]] || fail "a write in a folder with a . segment did not land in the folder"
+
 # A write, a delete, and a rename outside the folder are refused.
 "$probe" "$root/p" /bin/sh -c "echo x > '$root/outside/b.txt'" 2>/dev/null
 [[ -e "$root/outside/b.txt" ]] && fail "a write outside the folder was allowed"

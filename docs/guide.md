@@ -405,7 +405,7 @@ The screenshots of the README and of this guide come from a script. The script m
 4. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`.
 5. Do not move the pointer or other windows over the Dirigible window until the script stops.
 
-The script writes `docs/images/screenshot-edit.png` and `docs/images/screenshot-zoom.png`. It stops with an error when the window is not 1180 x 772 points, for example on a small screen. A Retina display gives images of 2360 x 1544 pixels.
+The script writes `docs/images/screenshot-edit.png` and `docs/images/screenshot-zoom.png`. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, and when the display scale is not 2x (Retina). The images are 2360 x 1544 pixels.
 
 ### Make the banner again
 

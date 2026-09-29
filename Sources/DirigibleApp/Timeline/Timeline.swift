@@ -29,14 +29,16 @@ struct TimelineVisible: Hashable {
     var lanes: Range<Int>
 }
 
-/// The narrowed record-over warning (decisions 0016, 0017): true when an armed track has a clip
-/// at the playhead and its lane is not fully in view or the playhead is outside the visible
-/// frames. Before the first layout (`visible` nil) nothing is in view.
+/// The record-over overlay (decisions 0016, 0017). A take replaces the armed tracks from the
+/// playhead on, and its length is not known at the start. Thus the overlay reads only the first
+/// clip of each armed track that ends after the playhead: the clip that Record reaches first. True
+/// when that clip is not in view: its lane is not fully in view, or its first frame that Record
+/// reaches is outside the visible frames. Before the first layout (`visible` nil) nothing is in view.
 func recordOverHidden(session: Session, armed: Set<TrackID>, playhead: Frames, visible: TimelineVisible?) -> Bool {
     session.tracks.enumerated().contains { lane, track in
-        guard armed.contains(track.id), session.hasClip(at: playhead, on: [track.id]) else { return false }
+        guard armed.contains(track.id), let clip = track.clips.first(where: { $0.end > playhead }) else { return false }
         guard let visible else { return true }
-        return !visible.lanes.contains(lane) || !visible.frames.contains(playhead)
+        return !visible.lanes.contains(lane) || !visible.frames.contains(max(playhead, clip.start))
     }
 }
 

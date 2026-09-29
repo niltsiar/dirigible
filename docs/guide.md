@@ -63,7 +63,7 @@ A take is one recording, from Record to Stop. After Stop, Dirigible finalizes th
 3. Press Space again to stop. The playhead stays where it stopped.
 
 > [!WARNING]
-> Record replaces the audio of the armed tracks from the playhead on. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
+> Record replaces the audio of the armed tracks from the playhead on. When an armed track has audio out of view that Record can replace, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
 >
 > If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z). The old audio comes back. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 >

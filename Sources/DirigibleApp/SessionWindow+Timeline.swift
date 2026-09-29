@@ -6,8 +6,8 @@ import SwiftUI
 
 /// The timeline side of the session window (decision 0017).
 extension SessionWindow {
-    /// The narrowed record-over warning of the transport bar (decisions 0016, 0017): Record can
-    /// start, and an armed track has a clip at the playhead that is not in view.
+    /// The record-over overlay (decisions 0016, 0017): Record can start, and it can reach a clip on
+    /// an armed track that is not in view.
     var showsRecordOver: Bool {
         guard canRecord, let studio else { return false }
         return recordOverHidden(

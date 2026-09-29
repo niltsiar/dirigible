@@ -22,6 +22,11 @@ cleanup() {
         hdiutil detach -quiet "$mnt" || { sleep 1; hdiutil detach -quiet "$mnt"; } \
             || hdiutil detach -quiet -force "$mnt" || true
     fi
+    # The check matches the folder name, which is the same in the /var and the /private/var form.
+    if mount | grep -qF "/$(basename "$mnt") ("; then
+        echo "test-dmg.sh: $mnt is still attached" >&2
+        exit 1
+    fi
     rmdir "$mnt" || true
 }
 trap cleanup EXIT

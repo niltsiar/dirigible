@@ -24,8 +24,13 @@ cleanup() {
     if mount | grep -qF " on $mnt "; then
         detach "$mnt" || hdiutil detach -quiet -force "$mnt" || true
     fi
+    # The check matches the folder name, which is the same in the /var and the /private/var form.
     # Never delete through a mount point that is still attached.
-    mount | grep -qF " on $mnt " || rm -rf "$work"
+    if mount | grep -qF "/$(basename "$work")/mnt ("; then
+        echo "dmg.sh: $mnt is still attached" >&2
+        exit 1
+    fi
+    rm -rf "$work"
 }
 trap cleanup EXIT
 mkdir "$mnt"

@@ -65,7 +65,9 @@ struct StudioPeaksSettleTests {
             await studio?.settle()
             _ = done.next()
         }
-        await until(limit: .seconds(5), "settle() did not return") { done.calls > 0 }
+        // A hang guard: 3 times the worst wait of a run that passed, 10.6 s (run test-pool-health,
+        // loops/s3loadb-2.log). The runs that failed stopped at the old 5 s limit: their waits are not full.
+        await until(limit: .seconds(32), "settle() did not return") { done.calls > 0 }
 
         #expect(studio?.transport == .idle)
         #expect(!takeFiles(studio!).isEmpty, "the take finalized")

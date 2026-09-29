@@ -61,6 +61,7 @@ test-hooks:
 	scripts/probe.test.sh
 	scripts/hid.test.sh
 	scripts/ax.test.sh
+	scripts/screenshot.test.sh
 	.claude/skills/deliver/scripts/mutate.test.sh
 	scripts/bench-pairs.test.sh
 	scripts/icon.test.sh

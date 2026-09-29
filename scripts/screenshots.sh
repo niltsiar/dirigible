@@ -1,6 +1,6 @@
 #!/bin/bash
 # Make the screenshots of the README and the guide from the scripted "Demo Episode" session.
-# Usage: scripts/screenshots.sh <folder>. Run `make app` first.
+# Usage: scripts/screenshots.sh <folder>. The script builds the app and the CLI of this tree first.
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in English and light mode, and writes
@@ -21,8 +21,8 @@ refuse_running
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 app="$repo/build/Dirigible.app"
 images="$repo/docs/images"
-[[ -d "$app" ]] || { echo "screenshots.sh: no $app. Run make app first." >&2; exit 1; }
 
+"$repo/scripts/bundle.sh" >/dev/null
 swift build --package-path "$repo" --product dirigible >/dev/null
 cli="$(swift build --package-path "$repo" --show-bin-path)/dirigible"
 

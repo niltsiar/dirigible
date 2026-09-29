@@ -14,13 +14,15 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 |---|---|
 | `make setup` | Enables the pre-commit hook in `.githooks/` (format check and debug build). Run it once per clone. |
 | `make build` | Debug build with `swift build`. |
-| `make test` | Runs all tests except `AppBundleTests`. Fast. Use it in the red-green loop. `DirigibleCLITests` runs in a second process, because its synchronous waits block the concurrency pool. A bare `swift test` fails `AppBundleTests` on purpose. |
+| `make test` | Runs all tests except `AppBundleTests` and `DiskImageTests`. Fast. Use it in the red-green loop. `DirigibleCLITests` runs in a second process, because its synchronous waits block the concurrency pool. A bare `swift test` fails `AppBundleTests` and `DiskImageTests` on purpose. |
 | `make test-slow` | Runs `check-slow-gates` and `make test` (two processes), then the slow tests (disk images, the finalize benchmark) with `DIRIGIBLE_SLOW_TESTS=1` in a third process, one at a time. Put the `func` of a slow test on the line after its gate. `make check` does not run the slow tests. Run it before the push of a branch that changes `Sources/`. |
 | `make app` | Release build of `build/Dirigible.app` (universal, ad-hoc signed). |
 | `make icon-preview` | Compiles `Support/AppIcon.icon` only (no Swift build) and writes `build/icon-preview/`: the flat renditions of macOS 14 and 15 (`flat.iconset`) and the macOS 26 looks (Light, Dark, TintedLight, TintedDark, ClearLight, ClearDark) at 1024 px. Use it to review a change of the icon (decision 0026). |
 | `make bench FILTER=<test>` | Runs the slow tests that match `FILTER` in an optimized build (no `DEBUG`), in a copy of the package in `.build/bench`. `swift test -c release` runs the `@main` of the app, not the tests. |
 | `scripts/bench-pairs.sh <main worktree> <filter> <pairs> <out>` | Runs `make bench` for `<filter>` in main and in this tree in alternate pairs, after an A/A pair of main, and gives each case VERIFIED, NOT VERIFIED, or INCONCLUSIVE against the 0022 rule. Make the main worktree with `git worktree add --detach <path> main`. |
 | `make test-app` | Builds the app, then runs `AppBundleTests` on that bundle. |
+| `make dmg` | Builds the app with the ad-hoc signature in `build/dmg-app/`, then `build/Dirigible-<version>.dmg` (UDZO, the app, an Applications link, and the volume icon) and its `.sha256` file. `build/Dirigible.app` keeps its signature. The DMG is not notarized (C1). |
+| `make test-dmg` | Builds the DMG, mounts it read-only with no Finder window, runs `AppBundleTests` and `DiskImageTests` on the app in it, and detaches. |
 | `make run` | Builds the app, quits a running copy, and opens the new one. |
 | `make lint` | `swift format lint --strict` on all Swift files. |
 | `make format` | Formats all Swift files in place. |
@@ -80,7 +82,7 @@ Reviewer agents in `.claude/agents/`: `premortem`, `devils-advocate`, `architect
 - Use Conventional Commits: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`. Add a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change that builds and passes `make check`. The subject is imperative and under 72 characters. The body says why. For a long message, write it to `.scratchpads/commit-msg.txt` and run `git commit -F .scratchpads/commit-msg.txt`.
 - The pre-commit hook refuses a commit that fails `make lint` or does not build (tests included). It checks the working tree, so stage whole changes.
-- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks: force push, push to `main`, hard reset, clean, forced branch delete, stash drop, skipped hooks, and a `git commit` joined to `make check` by anything but `&&`. It matches the whole command, so a commit message that quotes one of these flags is blocked too. Reword the message. `make test-hooks` checks the hook, `scripts/probe.sh`, `scripts/hid.swift`, `scripts/bench-pairs.sh`, `scripts/icon.sh`, and the mutation runner of the deliver skill.
+- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks: force push, push to `main`, hard reset, clean, forced branch delete, stash drop, skipped hooks, and a `git commit` joined to `make check` by anything but `&&`. It matches the whole command, so a commit message that quotes one of these flags is blocked too. Reword the message. `make test-hooks` checks the hook, `scripts/probe.sh`, `scripts/hid.swift`, `scripts/bench-pairs.sh`, `scripts/icon.sh`, the path guard of `scripts/bundle.sh`, and the mutation runner of the deliver skill.
 - The hook allows `git checkout <path>` and `git restore <path>`, because they are useful. These hard rules apply to them and to any command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
   - If the path has changes that you did not make, or that no commit or copy holds, commit them or copy them first.

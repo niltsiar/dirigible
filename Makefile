@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app icon-preview test test-slow check-slow-gates check-warnings bench test-app test-hooks check-docs run lint format check clean
+.PHONY: setup build app icon-preview test test-slow check-slow-gates check-warnings bench test-app dmg test-dmg test-hooks check-docs run lint format check clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -19,7 +19,7 @@ icon-preview:
 # they block the threads of the concurrency pool, and the async tests of the other targets
 # starve.
 test:
-	swift test --skip AppBundleTests --skip DirigibleCLITests
+	swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests
 	swift test --filter DirigibleCLITests
 
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
@@ -47,6 +47,15 @@ check-slow-gates:
 test-app: app
 	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" swift test --filter AppBundleTests
 
+# The DMG app is a second bundle with the ad-hoc signature, so build/Dirigible.app keeps
+# the signature of SIGN_IDENTITY.
+dmg:
+	SIGN_IDENTITY=- scripts/bundle.sh build/dmg-app/Dirigible.app
+	scripts/dmg.sh
+
+test-dmg: dmg
+	scripts/test-dmg.sh
+
 test-hooks:
 	.claude/hooks/git-guardrails.test.sh
 	scripts/probe.test.sh
@@ -55,6 +64,7 @@ test-hooks:
 	.claude/skills/deliver/scripts/mutate.test.sh
 	scripts/bench-pairs.test.sh
 	scripts/icon.test.sh
+	scripts/bundle.test.sh
 
 check-docs:
 	scripts/check-docs.test.sh

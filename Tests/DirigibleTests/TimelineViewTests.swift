@@ -14,8 +14,9 @@ import Testing
 
     init() throws { folder = try TemporaryFolder() }
 
-    /// Criterion 19: the transport bar warns only for an armed clip at the playhead that is not in
-    /// view. Controls: an armed lane in view does not warn; nothing is in view before a layout.
+    /// Criterion 19: the record-over overlay shows only when Record can reach a clip on an armed
+    /// track that is not in view. Controls: an armed lane in view does not warn; nothing is in view
+    /// before a layout.
     @Test func theRecordOverWarningNeedsAnArmedClipOutOfView() async throws {
         let (window, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 8, seconds: 20), app: app)

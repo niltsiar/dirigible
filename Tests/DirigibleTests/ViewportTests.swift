@@ -146,42 +146,115 @@ struct ViewportTests {
     }
 }
 
-/// The narrowed record-over warning (criterion 19): 8 tracks, each with a clip at 0 ..< 1,000,000,
-/// 5 lanes in view, and the frames 0 ..< 737,280 in view.
+/// The record-over overlay (criterion 19): 8 tracks, each with the clips of `clips` (by default one
+/// clip at 0 ..< 1,000,000), 5 lanes in view, and the frames 0 ..< 737,280 in view.
 struct RecordOverTests {
-    static func session() throws -> Session {
+    static func session(clips: [Range<Frames>] = [0..<1_000_000]) throws -> Session {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 1_000_000))
         for n in 1...8 {
             try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
-            try session.place(
-                Clip(id: ClipID("c\(n)"), file: "f", start: 0, offset: 0, length: 1_000_000), on: TrackID("t\(n)"))
+            for (i, range) in clips.enumerated() {
+                let clip = Clip(
+                    id: ClipID("c\(n)-\(i)"), file: "f", start: range.lowerBound, offset: 0,
+                    length: range.upperBound - range.lowerBound)
+                try session.place(clip, on: TrackID("t\(n)"))
+            }
         }
         return session
     }
 
     static let visible = TimelineVisible(frames: 0..<737_280, lanes: 0..<5)
 
+    static func warns(_ armed: Set<TrackID>, _ playhead: Frames, clips: [Range<Frames>] = [0..<1_000_000]) throws
+        -> Bool
+    {
+        recordOverHidden(session: try session(clips: clips), armed: armed, playhead: playhead, visible: visible)
+    }
+
     @Test func anArmedClipInAClippedLaneWarns() throws {
-        #expect(recordOverHidden(session: try Self.session(), armed: ["t7"], playhead: 100_000, visible: Self.visible))
+        #expect(try Self.warns(["t7"], 100_000), "an armed clip in a clipped lane warns")
     }
 
     @Test func anArmedClipInViewDoesNotWarn() throws {
-        #expect(!recordOverHidden(session: try Self.session(), armed: ["t2"], playhead: 100_000, visible: Self.visible))
+        #expect(try !Self.warns(["t2"], 100_000), "an armed clip in view does not warn")
     }
 
     @Test func aPlayheadOutOfViewWarns() throws {
-        #expect(recordOverHidden(session: try Self.session(), armed: ["t2"], playhead: 800_000, visible: Self.visible))
+        #expect(try Self.warns(["t2"], 800_000), "a playhead out of view warns")
     }
 
-    @Test func noClipAtThePlayheadDoesNotWarn() throws {
-        #expect(
-            !recordOverHidden(session: try Self.session(), armed: ["t7"], playhead: 1_500_000, visible: Self.visible))
+    @Test func noClipAtOrAfterThePlayheadDoesNotWarn() throws {
+        #expect(try !Self.warns(["t7"], 1_500_000), "no clip at or after the playhead does not warn")
     }
 
     /// Before the first layout nothing is in view.
     @Test func noLayoutYetWarnsForAClip() throws {
-        #expect(recordOverHidden(session: try Self.session(), armed: ["t2"], playhead: 100_000, visible: nil))
-        #expect(!recordOverHidden(session: try Self.session(), armed: ["t2"], playhead: 1_500_000, visible: nil))
+        let session = try Self.session()
+        #expect(
+            recordOverHidden(session: session, armed: ["t2"], playhead: 100_000, visible: nil),
+            "before a layout a clip at the playhead warns")
+        #expect(
+            !recordOverHidden(session: session, armed: ["t2"], playhead: 1_500_000, visible: nil),
+            "before a layout no clip does not warn")
+    }
+
+    /// A take replaces from the playhead on, so a clip after a gap counts.
+    @Test func aClipAfterThePlayheadInAClippedLaneWarns() throws {
+        #expect(
+            try Self.warns(["t7"], 100_000, clips: [200_000..<1_000_000]),
+            "a clip after the playhead in a clipped lane warns")
+    }
+
+    @Test func aClipAfterThePlayheadOutOfViewWarns() throws {
+        #expect(
+            try Self.warns(["t2"], 100_000, clips: [800_000..<1_000_000]),
+            "a clip that starts after the visible frames warns")
+    }
+
+    /// Decision 0017: the lanes draw a clip in view.
+    @Test func aClipAfterThePlayheadInViewDoesNotWarn() throws {
+        #expect(
+            try !Self.warns(["t2"], 100_000, clips: [200_000..<1_000_000]),
+            "a clip after the playhead in view does not warn")
+    }
+
+    @Test func noLayoutYetWarnsForAClipAfterThePlayhead() throws {
+        let session = try Self.session(clips: [200_000..<1_000_000])
+        #expect(
+            recordOverHidden(session: session, armed: ["t2"], playhead: 100_000, visible: nil),
+            "before a layout a clip after the playhead warns")
+    }
+
+    @Test func aClipThatEndsAtThePlayheadDoesNotWarn() throws {
+        #expect(try !Self.warns(["t7"], 1_000_000), "a clip that ends at the playhead does not warn")
+        #expect(try Self.warns(["t7"], 999_999), "the last frame of a clip warns")
+    }
+
+    @Test func theFirstClipThatRecordReachesCounts() throws {
+        #expect(
+            try Self.warns(["t2"], 100_000, clips: [0..<50_000, 800_000..<1_000_000]),
+            "a clip that ends before the playhead does not count")
+    }
+
+    /// The accepted case A1 of the plan gate: only the first clip that Record reaches counts. When it
+    /// is in view, the user sees that Record reaches audio on that track.
+    @Test func aLaterClipOutOfViewBehindAClipInViewDoesNotWarn() throws {
+        #expect(
+            try !Self.warns(["t2"], 100_000, clips: [200_000..<300_000, 800_000..<1_000_000]),
+            "a later clip out of view behind a clip in view does not warn")
+    }
+
+    @Test func theWarningNamesTheRangeThatRecordReplaces() {
+        let texts = [
+            "en": "Record replaces audio out of view on an armed track, from the playhead on. "
+                + "Choose Go to End or turn off Arm to keep it.",
+            "es": "Grabar sustituye audio fuera de la vista en una pista armada, desde el cursor. "
+                + "Elige Ir al final o desactiva Armar para conservarlo.",
+        ]
+        for (language, text) in texts {
+            let table = (try? stringsTable(language)) ?? [:]
+            #expect(table["transport.record.over"] == text, "\(language) record-over text")
+        }
     }
 }

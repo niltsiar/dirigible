@@ -127,7 +127,7 @@
 "transport.record" = "Grabar";
 "transport.stop" = "Detener";
 "transport.play" = "Reproducir";
-"transport.record.over" = "El cursor está sobre un clip de una pista armada. Grabar sustituye ese audio. Mueve el cursor o desactiva Armar para conservarlo.";
+"transport.record.over" = "Grabar sustituye audio fuera de la vista en una pista armada, desde el cursor. Elige Ir al final o desactiva Armar para conservarlo.";
 "transport.stop.output.changed" = "La reproducción se detuvo: cambió el dispositivo de salida. Pulsa Espacio para reproducir en el nuevo dispositivo.";
 "transport.stop.output.unavailable" = "No se puede reproducir: el dispositivo de salida no está disponible (error %lld).";
 "transport.stop.package.unavailable" = "La reproducción se detuvo: el paquete de la sesión no está disponible. Comprueba que su disco está conectado.";

@@ -406,6 +406,15 @@ The screenshots of the README and of this guide come from a script. The script m
 
 The script writes `docs/images/screenshot-edit.png` and `docs/images/screenshot-zoom.png`. It stops with an error when the window is not 1180 x 772 points, for example on a small screen. A Retina display gives images of 2360 x 1544 pixels.
 
+### Make the banner again
+
+The README banner has a light and a dark version. Make them again after a change of the app icon.
+
+1. Run `make icon-preview`.
+2. Run `swift scripts/banner.swift build/icon-preview docs/images`.
+
+The script writes `docs/images/banner-light.png` and `docs/images/banner-dark.png` at 1600 x 400 pixels.
+
 ### Keep this guide true
 
 Each run that changes what a user sees or does updates this guide. `make check-docs` fails when a `menu.*` name of `Support/Resources/en.lproj/Localizable.strings` or `es.lproj/Localizable.strings` is not in bold in this guide. It also fails when a relative link of this guide or of `README.md` names no file, or no heading of the .md file that it names.

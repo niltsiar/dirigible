@@ -1,4 +1,7 @@
-# Dirigible
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.png">
+  <img src="docs/images/banner-light.png" width="800" alt="Dirigible: podcast recorder and editor for macOS">
+</picture>
 
 Dirigible is a podcast recorder and editor for macOS. It records several microphones and audio interfaces at the same time, each to its own track. You do not make an aggregate device in Audio MIDI Setup. Then you edit the tracks, add chapters, and export one file for your podcast host. Dirigible is modeled on Hindenburg PRO.
 

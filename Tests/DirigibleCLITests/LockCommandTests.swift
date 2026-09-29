@@ -10,26 +10,29 @@ struct LockCommandTests {
         package = try TemporaryPackage(Session(sampleRate: 48_000))
     }
 
-    @Test func anEditOfALockedPackageExitsTwoAndChangesNothing() throws {
+    @Test func anEditOfALockedPackageExitsTwoAndChangesNothing() async throws {
         let before = try package.xml()
 
-        let asError: (SessionFileError) -> any Error = { $0 }
-        let locked = try PackageLock.withLock(package.url, locked: asError) { _ in
-            try package.run("track", "add", "PKG", "--id", "t1", "--name", "A", "--layout", "mono")
+        // The lock ends with this scope, so the run after it sees no lock.
+        let locked: CLIResult
+        do {
+            let lock = try PackageLock(package.url)
+            defer { withExtendedLifetime(lock) {} }
+            locked = try await package.run("track", "add", "PKG", "--id", "t1", "--name", "A", "--layout", "mono")
         }
 
         #expect(locked == CLIResult(status: 2, stdout: "", stderr: "Error: \(package.path) is open in Dirigible.\n"))
         #expect(try package.xml() == before)
         #expect(
-            try package.run("track", "add", "PKG", "--id", "t1", "--name", "A", "--layout", "mono")
+            try await package.run("track", "add", "PKG", "--id", "t1", "--name", "A", "--layout", "mono")
                 == CLIResult(status: 0, stdout: "t1\n", stderr: ""))
     }
 
-    @Test func anEditRemovesALeftoverTemporaryFile() throws {
+    @Test func anEditRemovesALeftoverTemporaryFile() async throws {
         let leftover = package.url.appending(path: ".session.xml.\(UUID().uuidString).tmp")
         FileManager.default.createFile(atPath: leftover.path, contents: Data("x".utf8))
 
-        #expect(try package.run("track", "add", "PKG", "--name", "A", "--layout", "mono").status == 0)
+        #expect(try await package.run("track", "add", "PKG", "--name", "A", "--layout", "mono").status == 0)
 
         #expect(!FileManager.default.fileExists(atPath: leftover.path))
     }

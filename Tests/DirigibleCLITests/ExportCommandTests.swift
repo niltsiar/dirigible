@@ -46,12 +46,12 @@ struct ExportCommandTests {
     }
 
     /// Criterion 31: the extension gives the format, and the options apply.
-    @Test func exportWritesEachFormat() throws {
+    @Test func exportWritesEachFormat() async throws {
         let clean = CLIResult(status: 0, stdout: "", stderr: "")
-        #expect(try package.run("export", "PKG", "--out", out("a.wav").path, "--bits", "16") == clean)
-        #expect(try package.run("export", "PKG", "--out", out("b.flac").path) == clean)
+        #expect(try await package.run("export", "PKG", "--out", out("a.wav").path, "--bits", "16") == clean)
+        #expect(try await package.run("export", "PKG", "--out", out("b.flac").path) == clean)
         #expect(
-            try package.run(
+            try await package.run(
                 "export", "PKG", "--out", out("c.m4a").path, "--bitrate", "96", "--mono", "--rate", "44100") == clean)
 
         let wav = try facts(out("a.wav"))
@@ -67,14 +67,16 @@ struct ExportCommandTests {
 
     /// Criterion 31: `--from`, `--to`, and `--track` give the source. Control: t2 has no clip, so
     /// an export of t2 alone is silence.
-    @Test func exportOfASelection() throws {
+    @Test func exportOfASelection() async throws {
         let clean = CLIResult(status: 0, stdout: "", stderr: "")
         let range = ["--from", "1000", "--to", "5000"]
 
         #expect(
-            try package.run(["export", "PKG", "--out", out("both.wav").path, "--track", "t1", "--track", "t2"] + range)
+            try await package.run(
+                ["export", "PKG", "--out", out("both.wav").path, "--track", "t1", "--track", "t2"] + range)
                 == clean)
-        #expect(try package.run(["export", "PKG", "--out", out("t2.wav").path, "--track", "t2"] + range) == clean)
+        #expect(
+            try await package.run(["export", "PKG", "--out", out("t2.wav").path, "--track", "t2"] + range) == clean)
 
         #expect(try facts(out("both.wav")).frames == 4000)
         #expect(try peak(out("both.wav")) > 0.4)
@@ -87,41 +89,41 @@ struct ExportCommandTests {
         ["--out", "x.m4a", "--bitrate", "320"], ["--out", "x.wav", "--rate", "32000"],
         ["--out", "x.wav", "--track", "t9"], ["--out", "x.wav", "--from", "5000", "--to", "5000"],
     ])
-    func exportRefusals(arguments: [String]) throws {
+    func exportRefusals(arguments: [String]) async throws {
         let name = try #require(arguments.firstIndex(of: "--out")).advanced(by: 1)
         var arguments = arguments
         arguments[name] = out(arguments[name]).path
 
-        let result = try package.run(["export", "PKG"] + arguments)
+        let result = try await package.run(["export", "PKG"] + arguments)
 
         #expect(result.status == 64, "\(result)")
         #expect(try FileManager.default.contentsOfDirectory(atPath: package.folder.path) == ["Show.dirigible"])
     }
 
     /// Criterion 31: an existing output stays, unless `--replace`.
-    @Test func exportReplace() throws {
+    @Test func exportReplace() async throws {
         let target = out("mix.wav")
         let bytes = Data("keep".utf8)
         try bytes.write(to: target)
 
-        let refused = try package.run("export", "PKG", "--out", target.path)
+        let refused = try await package.run("export", "PKG", "--out", target.path)
 
         #expect(refused == CLIResult(status: 2, stdout: "", stderr: "Error: \(target.path) exists.\n"))
         #expect(try Data(contentsOf: target) == bytes)
-        #expect(try package.run("export", "PKG", "--out", target.path, "--replace").status == 0)
+        #expect(try await package.run("export", "PKG", "--out", target.path, "--replace").status == 0)
         #expect(try facts(target).frames == 21_000)
         #expect(try temporaryFiles() == [])
     }
 
     /// Criterion 32: a file with a fault in the range gives exit 2 with its path and no file. A
     /// missing file outside the range does not count. `--allow-missing` exports and warns.
-    @Test func exportMissingMedia() throws {
+    @Test func exportMissingMedia() async throws {
         try package.edit { session in
             try session.place(Clip(id: "c2", file: "gone", start: 0, offset: 0, length: 20_000), on: "t2")
         }
         let target = out("mix.wav")
 
-        let refused = try package.run("export", "PKG", "--out", target.path)
+        let refused = try await package.run("export", "PKG", "--out", target.path)
 
         #expect(refused.status == 2 && refused.stdout == "")
         #expect(
@@ -129,10 +131,10 @@ struct ExportCommandTests {
                 == "Error: file gone \"gone.wav\" is missing. Use --allow-missing to export its clips as silence.\n")
         #expect(!FileManager.default.fileExists(atPath: target.path))
         #expect(
-            try package.run("export", "PKG", "--out", target.path, "--from", "20000")
+            try await package.run("export", "PKG", "--out", target.path, "--from", "20000")
                 == CLIResult(status: 0, stdout: "", stderr: ""))
         try FileManager.default.removeItem(at: target)
-        let allowed = try package.run("export", "PKG", "--out", target.path, "--allow-missing")
+        let allowed = try await package.run("export", "PKG", "--out", target.path, "--allow-missing")
         #expect(
             allowed
                 == CLIResult(
@@ -144,7 +146,7 @@ struct ExportCommandTests {
     /// Code gate 1, item 5: a FLAC CAF with bad packets opens, so the media check finds it whole,
     /// but its read fails during the export (probe g1-corrupt). Exit 2 with its path; the output
     /// has its clips as silence. With `--allow-missing`: exit 0 and one warning line.
-    @Test func aFaultThatOnlyTheExportFindsFailsIt() throws {
+    @Test func aFaultThatOnlyTheExportFindsFailsIt() async throws {
         let bad = package.url.appending(path: "Clips/bad.caf")
         do {
             let settings: [String: Any] = [
@@ -165,7 +167,7 @@ struct ExportCommandTests {
         }
         let target = out("mix.wav")
 
-        let failed = try package.run("export", "PKG", "--out", target.path)
+        let failed = try await package.run("export", "PKG", "--out", target.path)
 
         #expect(
             failed
@@ -175,7 +177,7 @@ struct ExportCommandTests {
                         + "Use --allow-missing to accept it.\n"))
         #expect(try facts(target).frames == 21_000)
         #expect(
-            try package.run("export", "PKG", "--out", out("allowed.wav").path, "--allow-missing")
+            try await package.run("export", "PKG", "--out", out("allowed.wav").path, "--allow-missing")
                 == CLIResult(
                     status: 0, stdout: "",
                     stderr: "Warning: file bad \"bad.caf\" cannot be read; its clips render as silence.\n"))
@@ -183,7 +185,7 @@ struct ExportCommandTests {
 
     /// Criterion 31: AAC takes 48 kHz at most (probe P5). A 96 kHz session exports AAC with
     /// `--rate 48000`.
-    @Test func exportAACInA96kHzSession() throws {
+    @Test func exportAACInA96kHzSession() async throws {
         var session = Session(sampleRate: 96_000)
         try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 9600))
         try session.addTrack("t1", name: "Host", layout: .mono)
@@ -200,7 +202,7 @@ struct ExportCommandTests {
         }
         let target = package.folder.appending(path: "mix.m4a")
 
-        let refused = try package.run("export", "PKG", "--out", target.path)
+        let refused = try await package.run("export", "PKG", "--out", target.path)
 
         #expect(
             refused
@@ -208,7 +210,7 @@ struct ExportCommandTests {
                     status: 2, stdout: "",
                     stderr: "Error: cannot write \(target.path) at 96000 Hz. Use --rate 44100 or --rate 48000.\n"))
         #expect(!FileManager.default.fileExists(atPath: target.path))
-        #expect(try package.run("export", "PKG", "--out", target.path, "--rate", "48000").status == 0)
+        #expect(try await package.run("export", "PKG", "--out", target.path, "--rate", "48000").status == 0)
         #expect(try facts(target).rate == 48_000)
     }
 }

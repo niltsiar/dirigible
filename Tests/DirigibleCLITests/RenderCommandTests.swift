@@ -44,8 +44,8 @@ struct RenderCommandTests {
         try FileManager.default.contentsOfDirectory(atPath: package.folder.path).filter { $0.hasSuffix(".tmp") }
     }
 
-    @Test func renderWritesTheMix() throws {
-        let result = try package.run("render", "PKG", "--out", out.path, "--from", "0", "--to", "9600")
+    @Test func renderWritesTheMix() async throws {
+        let result = try await package.run("render", "PKG", "--out", out.path, "--from", "0", "--to", "9600")
 
         #expect(result == CLIResult(status: 0, stdout: "", stderr: ""))
         let file = try AVAudioFile(forReading: out)
@@ -62,21 +62,21 @@ struct RenderCommandTests {
     }
 
     /// Control: `renderWritesTheMix` has an empty stderr.
-    @Test func renderWarnsForMissingMedia() throws {
+    @Test func renderWarnsForMissingMedia() async throws {
         try addMissingTrack()
 
-        let result = try package.run("render", "PKG", "--out", out.path)
+        let result = try await package.run("render", "PKG", "--out", out.path)
 
         #expect(result.status == 0 && result.stdout == "")
         #expect(result.stderr == "Warning: file gone \"gone.wav\" is missing; its clips render as silence.\n")
         #expect(try AVAudioFile(forReading: out).length == 21_000)
     }
 
-    @Test func renderRefusesAnOutputThatExists() throws {
+    @Test func renderRefusesAnOutputThatExists() async throws {
         let bytes = Data("keep".utf8)
         try bytes.write(to: out)
 
-        let result = try package.run("render", "PKG", "--out", out.path)
+        let result = try await package.run("render", "PKG", "--out", out.path)
 
         #expect(result == CLIResult(status: 2, stdout: "", stderr: "Error: \(out.path) exists.\n"))
         #expect(try Data(contentsOf: out) == bytes)
@@ -108,14 +108,14 @@ struct RenderCommandTests {
 
     /// A render that died leaves `.<name>.<UUID>.tmp`. The next render to the same output removes
     /// it. Control: a file of another output and a name with no UUID stay. Found by the code gate.
-    @Test func renderRemovesTheLeftoversOfItsOutput() throws {
+    @Test func renderRemovesTheLeftoversOfItsOutput() async throws {
         let leftover = ".mix.caf.\(UUID().uuidString).tmp"
         let kept = [".mix.caf.notes.tmp", ".other.caf.\(UUID().uuidString).tmp"]
         for name in [leftover] + kept {
             try Data("old".utf8).write(to: package.folder.appending(path: name))
         }
 
-        let result = try package.run("render", "PKG", "--out", out.path, "--to", "9600")
+        let result = try await package.run("render", "PKG", "--out", out.path, "--to", "9600")
 
         #expect(result.status == 0)
         #expect(try temporaryFiles().sorted() == kept.sorted())
@@ -123,7 +123,7 @@ struct RenderCommandTests {
 
     /// Control-C during a render removes its temporary file and leaves no output. Found by the
     /// code gate.
-    @Test func anInterruptedRenderLeavesNoTemporaryFile() throws {
+    @Test func anInterruptedRenderLeavesNoTemporaryFile() async throws {
         let pid = try spawn("render", package.path, "--out", out.path, "--to", "\(48_000 * 3600)")
         var status: Int32 = 0
         defer {
@@ -133,12 +133,14 @@ struct RenderCommandTests {
             }
         }
         let end = ContinuousClock.now + .seconds(20)
-        while try temporaryFiles().isEmpty, ContinuousClock.now < end { usleep(1000) }
+        while try temporaryFiles().isEmpty, ContinuousClock.now < end { try await Task.sleep(for: .milliseconds(1)) }
         try #require(try !temporaryFiles().isEmpty, "the render wrote no temporary file in 20 s")
 
         kill(pid, SIGINT)
         let stop = ContinuousClock.now + .seconds(20)
-        while waitpid(pid, &status, WNOHANG) == 0, ContinuousClock.now < stop { usleep(1000) }
+        while waitpid(pid, &status, WNOHANG) == 0, ContinuousClock.now < stop {
+            try await Task.sleep(for: .milliseconds(1))
+        }
 
         #expect(try temporaryFiles() == [])
         #expect(!FileManager.default.fileExists(atPath: out.path))
@@ -149,7 +151,7 @@ struct RenderCommandTests {
     /// where the audio is. Control: the same render with the default limit works. Found by the
     /// code gate.
     @Test(arguments: [20, 256])
-    func aRenderWithNoFreeDescriptorFails(limit: Int) throws {
+    func aRenderWithNoFreeDescriptorFails(limit: Int) async throws {
         try package.edit { session in
             for k in 0..<40 {
                 try session.addFile(AudioFile(id: FileID("m\(k)"), path: "m\(k).wav", layout: .mono, length: 100))
@@ -163,7 +165,7 @@ struct RenderCommandTests {
         let binary = Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(
             path: "dirigible")
 
-        let result = try dirigible(
+        let result = try await dirigible(
             shell: "ulimit -n \(limit) && exec \"$0\" \"$@\"", binary.path, "render", package.path, "--out", out.path)
 
         if limit == 20 {
@@ -180,7 +182,7 @@ struct RenderCommandTests {
     /// maximum resident size of the child alone, so the parallel tests do not count. The child
     /// inherits no descriptor of the test process.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func aLongRenderKeepsMemoryBounded() throws {
+    func aLongRenderKeepsMemoryBounded() async throws {
         let pid = try spawn("render", package.path, "--out", out.path, "--to", "\(48_000 * 600)")
 
         var status: Int32 = 0
@@ -193,7 +195,7 @@ struct RenderCommandTests {
                 Issue.record("The render ran for more than 120 s")
                 return
             }
-            usleep(10_000)
+            try await Task.sleep(for: .milliseconds(10))
         }
 
         #expect(status == 0)
@@ -202,15 +204,15 @@ struct RenderCommandTests {
     }
 
     /// Text and JSON. A whole file shows no media state in the text.
-    @Test func infoMarksMissingMedia() throws {
+    @Test func infoMarksMissingMedia() async throws {
         try addMissingTrack()
         try package.edit { session in
             try session.addFile(AudioFile(id: "short", path: "short.wav", layout: .mono, length: 20_000))
         }
         try Self.writeWAV(package.url.appending(path: "Clips/short.wav"), frames: 5000)
 
-        let text = try package.run("info", "PKG").stdout
-        let json = try package.run("info", "PKG", "--json").stdout
+        let text = try await package.run("info", "PKG").stdout
+        let json = try await package.run("info", "PKG", "--json").stdout
 
         #expect(text.contains("file f1 \"f1.wav\" mono length 20000\n"))
         #expect(text.contains("file gone \"gone.wav\" mono length 20000 media missing\n"))

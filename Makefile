@@ -15,12 +15,8 @@ app:
 icon-preview:
 	scripts/icon.sh --preview
 
-# The CLI tests run in their own process. They wait synchronously for a child process, so
-# they block the threads of the concurrency pool, and the async tests of the other targets
-# starve.
 test:
-	swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests
-	swift test --filter DirigibleCLITests
+	swift test --skip AppBundleTests --skip DiskImageTests
 
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
 # variable does not change the count.

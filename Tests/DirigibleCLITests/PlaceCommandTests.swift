@@ -17,7 +17,7 @@ struct PlaceCommandTests {
     var capture: URL { package.url.appending(path: "Capture") }
     var clips: URL { package.url.appending(path: "Clips") }
 
-    init() throws {
+    init() async throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.addTrack("t2", name: "Guest", layout: .mono)
@@ -27,10 +27,11 @@ struct PlaceCommandTests {
         package = try TemporaryPackage(session)
         try segment(arm: 1)
         try segment(arm: 2)
-        try #require(try package.run("take", "finalize", "PKG").status == 0)
+        try #require(try await package.run("take", "finalize", "PKG").status == 0)
         try #require(
-            try package.run("clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000").status == 0)
-        try #require(try package.run("file", "remove", "PKG", "take1-1-1").status == 0)
+            try await package.run("clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000").status == 0
+        )
+        try #require(try await package.run("file", "remove", "PKG", "take1-1-1").status == 0)
     }
 
     /// Writes a closed 2.0 s segment of take `take` for arm `arm` with the real writer.
@@ -56,7 +57,7 @@ struct PlaceCommandTests {
     }
 
     /// The start of each clip of `track`, by clip ID, as `info --json` shows them.
-    func starts(_ track: String) throws -> [String: Int] {
+    func starts(_ track: String) async throws -> [String: Int] {
         struct View: Decodable {
             struct Track: Decodable {
                 struct Clip: Decodable {
@@ -68,7 +69,7 @@ struct PlaceCommandTests {
             }
             let tracks: [Track]
         }
-        let result = try package.run("info", "PKG", "--json")
+        let result = try await package.run("info", "PKG", "--json")
         try #require(result.status == 0)
         let view = try JSONDecoder().decode(View.self, from: Data(result.stdout.utf8))
         let clips = view.tracks.first { $0.id == track }?.clips ?? []
@@ -77,24 +78,24 @@ struct PlaceCommandTests {
 
     // MARK: Criterion 17
 
-    @Test func aPlacementAtTheRecordedTimeWritesTheClipID() throws {
+    @Test func aPlacementAtTheRecordedTimeWritesTheClipID() async throws {
         #expect(
-            try package.run("capture", "place", "PKG", "take1-1-1")
+            try await package.run("capture", "place", "PKG", "take1-1-1")
                 == CLIResult(status: 0, stdout: "take1-1-1\n", stderr: ""))
 
-        #expect(try starts("t1") == ["take1-1-1": 96_480])
+        #expect(try await starts("t1") == ["take1-1-1": 96_480])
     }
 
     /// Frame 0 is the lowest start (the control of the `--at` check).
     @Test(arguments: [0, 1_000])
-    func anExplicitTrackAndStartReplaceTheAnchor(at: Int) throws {
+    func anExplicitTrackAndStartReplaceTheAnchor(at: Int) async throws {
         #expect(
-            try package.run("capture", "place", "PKG", "take1-1-1", "--track", "t2", "--at", "\(at)")
+            try await package.run("capture", "place", "PKG", "take1-1-1", "--track", "t2", "--at", "\(at)")
                 == CLIResult(status: 0, stdout: "take1-1-1\n", stderr: ""))
 
         // The placed clip goes on top, so it can trim take1-2-1 (decision 0021 Q5).
-        #expect(try starts("t2")["take1-1-1"] == at)
-        #expect(try starts("t1") == [:])
+        #expect(try await starts("t2")["take1-1-1"] == at)
+        #expect(try await starts("t1") == [:])
     }
 
     // MARK: Criterion 18
@@ -160,12 +161,13 @@ struct PlaceCommandTests {
     }
 
     @Test(arguments: Refusal.allCases)
-    func aRefusedPlacementExitsOneAndChangesNothing(refusal: Refusal) throws {
+    func aRefusedPlacementExitsOneAndChangesNothing(refusal: Refusal) async throws {
         let (arguments, stderr) = try prepare(refusal)
         let (before, files) = (try package.xml(), try clipBytes())
 
         #expect(
-            try package.run(["capture", "place", "PKG"] + arguments) == CLIResult(status: 1, stdout: "", stderr: stderr)
+            try await package.run(["capture", "place", "PKG"] + arguments)
+                == CLIResult(status: 1, stdout: "", stderr: stderr)
         )
 
         #expect(try package.xml() == before)
@@ -173,21 +175,21 @@ struct PlaceCommandTests {
     }
 
     /// Decision 0024: with --track and --at, a newer anchor is not read and keeps its bytes.
-    @Test func aNewerAnchorDoesNotRefuseAnExplicitPlacement() throws {
+    @Test func aNewerAnchorDoesNotRefuseAnExplicitPlacement() async throws {
         let anchor = capture.appending(path: "take1.anchor")
         try setMagicDigit(anchor, "2")
         let bytes = try Data(contentsOf: anchor)
 
         #expect(
-            try package.run("capture", "place", "PKG", "take1-1-1", "--track", "t1", "--at", "0")
+            try await package.run("capture", "place", "PKG", "take1-1-1", "--track", "t1", "--at", "0")
                 == CLIResult(status: 0, stdout: "take1-1-1\n", stderr: ""))
 
-        #expect(try starts("t1") == ["take1-1-1": 0])
+        #expect(try await starts("t1") == ["take1-1-1": 0])
         #expect(try Data(contentsOf: anchor) == bytes)
     }
 
     /// No recovery runs as a side effect (decision 0021 Q6): no marker, and no WAV of take 2.
-    @Test func aPendingTakeExitsTwo() throws {
+    @Test func aPendingTakeExitsTwo() async throws {
         try segment(take: 2, arm: 1)
         try package.edit {
             try $0.setRecording(
@@ -196,7 +198,7 @@ struct PlaceCommandTests {
         let (before, files) = (try package.xml(), try FileManager.default.contentsOfDirectory(atPath: clips.path))
 
         #expect(
-            try package.run("capture", "place", "PKG", "take1-1-1")
+            try await package.run("capture", "place", "PKG", "take1-1-1")
                 == CLIResult(
                     status: 2, stdout: "",
                     stderr: "Error: \(package.path) has a take that is not finalized; open it in Dirigible first.\n"))
@@ -206,12 +208,14 @@ struct PlaceCommandTests {
         #expect(!FileManager.default.fileExists(atPath: package.url.appending(path: "recovery-attempt").path))
     }
 
-    @Test func aLockedPackageExitsTwo() throws {
+    @Test func aLockedPackageExitsTwo() async throws {
         let before = try package.xml()
 
-        let asError: (SessionFileError) -> any Error = { $0 }
-        let locked = try PackageLock.withLock(package.url, locked: asError) { _ in
-            try package.run("capture", "place", "PKG", "take1-1-1")
+        let locked: CLIResult
+        do {
+            let lock = try PackageLock(package.url)
+            defer { withExtendedLifetime(lock) {} }
+            locked = try await package.run("capture", "place", "PKG", "take1-1-1")
         }
 
         #expect(locked == CLIResult(status: 2, stdout: "", stderr: "Error: \(package.path) is open in Dirigible.\n"))
@@ -219,14 +223,14 @@ struct PlaceCommandTests {
     }
 
     /// Criterion 29: an I/O error on the anchor is a fault that can go away, not "no anchor".
-    @Test func anUnreadableAnchorExitsTwo() throws {
+    @Test func anUnreadableAnchorExitsTwo() async throws {
         let anchor = capture.appending(path: "take1.anchor")
         chmod(anchor.path, 0o000)
         defer { chmod(anchor.path, 0o644) }
         let before = try package.xml()
 
         #expect(
-            try package.run("capture", "place", "PKG", "take1-1-1")
+            try await package.run("capture", "place", "PKG", "take1-1-1")
                 == CLIResult(
                     status: 2, stdout: "",
                     stderr: "Error: cannot read \(package.path)/Capture/take1.anchor: Permission denied.\n"))
@@ -235,18 +239,18 @@ struct PlaceCommandTests {
     }
 
     @Test(arguments: [["take1-1"], ["take0-1-1"], ["take1-1-1", "--at", "-1"]])
-    func aBadSegmentNameOrStartExits64(arguments: [String]) throws {
+    func aBadSegmentNameOrStartExits64(arguments: [String]) async throws {
         let before = try package.xml()
 
-        #expect(try package.run(["capture", "place", "PKG"] + arguments).status == 64)
+        #expect(try await package.run(["capture", "place", "PKG"] + arguments).status == 64)
 
         #expect(try package.xml() == before)
     }
 
     // MARK: Criterion 20
 
-    @Test func placeHasHelp() throws {
-        let help = try dirigible("capture", "place", "--help")
+    @Test func placeHasHelp() async throws {
+        let help = try await dirigible("capture", "place", "--help")
 
         #expect(help.status == 0)
         #expect(

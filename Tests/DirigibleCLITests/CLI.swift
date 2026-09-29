@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 /// The exit code, stdout, and stderr of one run of the `dirigible` binary.
 struct CLIResult: Equatable {
@@ -12,21 +13,23 @@ struct CLIResult: Equatable {
 /// Runs the `dirigible` binary that `swift test` builds next to the test bundle. stdout and
 /// stderr go to files, not pipes, so a large output cannot block the child process. A run over
 /// 30 s is stopped and fails the test, so a hang cannot stop the suite.
-func dirigible(_ arguments: String...) throws -> CLIResult { try dirigible(arguments) }
+func dirigible(_ arguments: String...) async throws -> CLIResult { try await dirigible(arguments) }
 
-func dirigible(_ arguments: [String]) throws -> CLIResult {
-    try run(
+func dirigible(_ arguments: [String]) async throws -> CLIResult {
+    try await run(
         Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(path: "dirigible"),
         arguments)
 }
 
 /// Runs `/bin/sh -c script` with `arguments` as `$0`, `$1`, and so on, for example to set a
 /// resource limit before an `exec` of the binary.
-func dirigible(shell script: String, _ arguments: String...) throws -> CLIResult {
-    try run(URL(filePath: "/bin/sh"), ["-c", script] + arguments)
+func dirigible(shell script: String, _ arguments: String...) async throws -> CLIResult {
+    try await run(URL(filePath: "/bin/sh"), ["-c", script] + arguments)
 }
 
-private func run(_ executable: URL, _ arguments: [String]) throws -> CLIResult {
+/// Runs `executable` and waits for its exit without a thread: the termination handler resumes the
+/// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite.
+private func run(_ executable: URL, _ arguments: [String]) async throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -40,18 +43,60 @@ private func run(_ executable: URL, _ arguments: [String]) throws -> CLIResult {
     process.arguments = arguments
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
-    let exited = DispatchSemaphore(value: 0)
-    process.terminationHandler = { _ in exited.signal() }
-    try process.run()
-    if exited.wait(timeout: .now() + 30) == .timedOut {
-        process.terminate()
-        process.waitUntilExit()
-        Issue.record("\(process.executableURL!.path) \(arguments.joined(separator: " ")) ran for more than 30 s")
+    let limit = Duration.seconds(30)
+    let child = Child(process)
+    let watch = Task {
+        try await Task.sleep(for: limit)
+        child.terminate()
+        Issue.record(
+            "\(executable.path) \(arguments.joined(separator: " ")) ran for more than \(limit.components.seconds) s")
+    }
+    defer { watch.cancel() }
+    // The handler is set before `run()`, inside the continuation, so a child that exits at once
+    // still resumes it. Only the handler resumes it, or the error of `run()`.
+    let status: Int32 = try await withCheckedThrowingContinuation { continuation in
+        process.terminationHandler = { process in
+            Children.ended()
+            continuation.resume(returning: process.terminationStatus)
+        }
+        Children.started()
+        do {
+            try process.run()
+        } catch {
+            Children.ended()
+            continuation.resume(throwing: error)
+        }
     }
     return CLIResult(
-        status: process.terminationStatus,
+        status: status,
         stdout: String(decoding: try Data(contentsOf: output), as: UTF8.self),
         stderr: String(decoding: try Data(contentsOf: errors), as: UTF8.self))
+}
+
+/// A child process for the limit task. `Process` is not `Sendable`; the task only stops it.
+private final class Child: @unchecked Sendable {
+    private let process: Process
+    init(_ process: Process) { self.process = process }
+    func terminate() { process.terminate() }
+}
+
+/// The count of running children. With `DIRIGIBLE_FLAKE_MONITOR` set, each new peak prints
+/// `CLI-CHILDREN peak <n>` for `scripts/flake-monitor/loop.sh`.
+private enum Children {
+    private static let count = OSAllocatedUnfairLock(initialState: (running: 0, peak: 0))
+    private static let printsPeaks = ProcessInfo.processInfo.environment["DIRIGIBLE_FLAKE_MONITOR"] != nil
+
+    static func started() {
+        let newPeak = count.withLock { state -> Int? in
+            state.running += 1
+            guard state.running > state.peak else { return nil }
+            state.peak = state.running
+            return state.peak
+        }
+        if printsPeaks, let newPeak { print("CLI-CHILDREN peak \(newPeak)") }
+    }
+
+    static func ended() { count.withLock { $0.running -= 1 } }
 }
 
 /// Writes `digit` over byte 7 of the file at `url`: the version digit of a sidecar or anchor
@@ -84,8 +129,10 @@ final class TemporaryPackage {
     func xml() throws -> Data { try Data(contentsOf: sessionXML) }
 
     /// Runs `dirigible` with each "PKG" argument replaced by the package path.
-    func run(_ arguments: String...) throws -> CLIResult { try run(arguments) }
-    func run(_ arguments: [String]) throws -> CLIResult { try dirigible(arguments.map { $0 == "PKG" ? path : $0 }) }
+    func run(_ arguments: String...) async throws -> CLIResult { try await run(arguments) }
+    func run(_ arguments: [String]) async throws -> CLIResult {
+        try await dirigible(arguments.map { $0 == "PKG" ? path : $0 })
+    }
 
     /// Changes the package through the library, not the CLI.
     func edit(_ body: (inout Session) throws -> Void) throws {

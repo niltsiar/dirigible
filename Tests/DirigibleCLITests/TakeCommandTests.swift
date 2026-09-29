@@ -36,7 +36,7 @@ struct TakeCommandTests {
     }
 
     /// The clip IDs of each track and the recording take, as `info --json` shows them.
-    func info() throws -> (clips: [[String]], take: Int?) {
+    func info() async throws -> (clips: [[String]], take: Int?) {
         struct View: Decodable {
             struct Track: Decodable {
                 struct Clip: Decodable { let id: String }
@@ -46,7 +46,7 @@ struct TakeCommandTests {
             let tracks: [Track]
             let recording: Recording?
         }
-        let result = try package.run("info", "PKG", "--json")
+        let result = try await package.run("info", "PKG", "--json")
         try #require(result.status == 0)
         let view = try JSONDecoder().decode(View.self, from: Data(result.stdout.utf8))
         return (view.tracks.map { $0.clips.map(\.id) }, view.recording?.take)
@@ -55,61 +55,61 @@ struct TakeCommandTests {
     static let noClip = "Warning: track \"t2\" has no clip from take 1.\n"
 
     /// Control of the exit 5 rule: segments for both armed tracks.
-    @Test func aRecoverablePackageIsFinalized() throws {
+    @Test func aRecoverablePackageIsFinalized() async throws {
         try segment(arm: 1)
         try segment(arm: 2)
-        #expect(try info().take == 1)
+        #expect(try await info().take == 1)
 
         #expect(
-            try package.run("take", "finalize", "PKG")
+            try await package.run("take", "finalize", "PKG")
                 == CLIResult(status: 0, stdout: "take1-1-1\ntake1-2-1\n", stderr: ""))
 
-        let after = try info()
+        let after = try await info()
         #expect(after.clips == [["take1-1-1"], ["take1-2-1"]])
         #expect(after.take == nil)
     }
 
     /// The recovery of the open finalizes the take; the armed tracks come from `recoveredTake`.
-    @Test func anArmedTrackWithNoClipExitsFive() throws {
+    @Test func anArmedTrackWithNoClipExitsFive() async throws {
         try segment(arm: 1)
 
         #expect(
-            try package.run("take", "finalize", "PKG")
+            try await package.run("take", "finalize", "PKG")
                 == CLIResult(status: 5, stdout: "take1-1-1\n", stderr: Self.noClip))
 
-        #expect(try info().clips == [["take1-1-1"], []])
+        #expect(try await info().clips == [["take1-1-1"], []])
     }
 
     /// The open skips the finalize; the armed tracks come from the pending take before the retry.
-    @Test func aPackageWithAMarkerIsRetried() throws {
+    @Test func aPackageWithAMarkerIsRetried() async throws {
         try segment(arm: 1)
         let marker = package.url.appending(path: "recovery-attempt")
         FileManager.default.createFile(atPath: marker.path, contents: nil)
 
         #expect(
-            try package.run("take", "finalize", "PKG")
+            try await package.run("take", "finalize", "PKG")
                 == CLIResult(status: 5, stdout: "take1-1-1\n", stderr: Self.noClip))
 
-        #expect(try info().clips == [["take1-1-1"], []])
+        #expect(try await info().clips == [["take1-1-1"], []])
         #expect(!FileManager.default.fileExists(atPath: marker.path))
     }
 
-    @Test func aFinalizeThatFailsExitsTwoAndKeepsTheTake() throws {
+    @Test func aFinalizeThatFailsExitsTwoAndKeepsTheTake() async throws {
         try segment(arm: 1)
         try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
         chmod(clips.path, 0o500)
         defer { chmod(clips.path, 0o755) }
 
         #expect(
-            try package.run("take", "finalize", "PKG")
+            try await package.run("take", "finalize", "PKG")
                 == CLIResult(
                     status: 2, stdout: "",
                     stderr: "Error: cannot write \(package.path)/Clips/take1-1-1.wav (status -54). "
                         + "The take is still pending.\n"))
-        #expect(try info().take == 1)
+        #expect(try await info().take == 1)
     }
 
-    @Test func anUnplacedSegmentExitsThreeWithAWarning() throws {
+    @Test func anUnplacedSegmentExitsThreeWithAWarning() async throws {
         try segment(arm: 1)
         try segment(arm: 2)
         let handle = try FileHandle(forWritingTo: package.url.appending(path: "Capture/take1-1-1.sidecar"))
@@ -119,21 +119,21 @@ struct TakeCommandTests {
 
         // Exit 3 wins over exit 5, and both lines are written.
         #expect(
-            try package.run("take", "finalize", "PKG")
+            try await package.run("take", "finalize", "PKG")
                 == CLIResult(
                     status: 3, stdout: "take1-2-1\n",
                     stderr: unplaced + "Warning: track \"t1\" has no clip from take 1.\n"))
 
-        let after = try info()
+        let after = try await info()
         #expect(after.clips == [[], ["take1-2-1"]])
         #expect(after.take == nil)
         // No take is pending now, so only the unplaced line stays.
-        #expect(try package.run("take", "finalize", "PKG") == CLIResult(status: 3, stdout: "", stderr: unplaced))
+        #expect(try await package.run("take", "finalize", "PKG") == CLIResult(status: 3, stdout: "", stderr: unplaced))
     }
 
     /// Decision 0021 (criterion 19): an unreadable segment keeps the take pending until the user
     /// gives --leave-unreadable; then the take ends without that segment.
-    @Test func theLeaveFlagFinishesTheTake() throws {
+    @Test func theLeaveFlagFinishesTheTake() async throws {
         try segment(arm: 1)
         try segment(arm: 2)
         let caf = package.url.appending(path: "Capture/take1-1-1.caf")
@@ -141,21 +141,21 @@ struct TakeCommandTests {
         defer { chmod(caf.path, 0o644) }
 
         #expect(
-            try package.run("take", "finalize", "PKG")
+            try await package.run("take", "finalize", "PKG")
                 == CLIResult(
                     status: 2, stdout: "",
                     stderr: "Error: cannot read \(package.path)/Capture/take1-1-1.caf: Permission denied. "
                         + "The take is still pending. "
                         + "Run it again with --leave-unreadable to finish without that segment.\n"))
-        #expect(try info().take == 1)
+        #expect(try await info().take == 1)
 
         #expect(
-            try package.run("take", "finalize", "PKG", "--leave-unreadable")
+            try await package.run("take", "finalize", "PKG", "--leave-unreadable")
                 == CLIResult(
                     status: 3, stdout: "take1-2-1\n",
                     stderr: "Warning: Capture/take1-1-1.caf is not on the timeline.\n"
                         + "Warning: track \"t1\" has no clip from take 1.\n"))
-        let after = try info()
+        let after = try await info()
         #expect(after.clips == [[], ["take1-2-1"]])
         #expect(after.take == nil)
     }
@@ -164,7 +164,7 @@ struct TakeCommandTests {
     /// with or without --leave-unreadable. The warning names the newer version, also in a later
     /// run with no pending take.
     @Test(arguments: [[], ["--leave-unreadable"]])
-    func aNewerSidecarEndsTheTakeWithAWarning(flags: [String]) throws {
+    func aNewerSidecarEndsTheTakeWithAWarning(flags: [String]) async throws {
         try segment(arm: 1)
         try segment(arm: 2)
         try setMagicDigit(package.url.appending(path: "Capture/take1-1-1.sidecar"), "2")
@@ -173,19 +173,19 @@ struct TakeCommandTests {
             + "Dirigible (version 2).\n"
 
         #expect(
-            try package.run(["take", "finalize", "PKG"] + flags)
+            try await package.run(["take", "finalize", "PKG"] + flags)
                 == CLIResult(
                     status: 3, stdout: "take1-2-1\n",
                     stderr: unplaced + "Warning: track \"t1\" has no clip from take 1.\n"))
 
-        let after = try info()
+        let after = try await info()
         #expect(after.clips == [[], ["take1-2-1"]])
         #expect(after.take == nil)
-        #expect(try package.run("take", "finalize", "PKG") == CLIResult(status: 3, stdout: "", stderr: unplaced))
+        #expect(try await package.run("take", "finalize", "PKG") == CLIResult(status: 3, stdout: "", stderr: unplaced))
     }
 
-    @Test func takeFinalizeHasHelp() throws {
-        let help = try dirigible("take", "finalize", "--help").stdout
+    @Test func takeFinalizeHasHelp() async throws {
+        let help = try await dirigible("take", "finalize", "--help").stdout
         #expect(help.contains("USAGE: dirigible take finalize <package> [--leave-unreadable]"))
         #expect(help.contains("--leave-unreadable"))
     }

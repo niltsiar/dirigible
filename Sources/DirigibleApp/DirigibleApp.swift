@@ -90,6 +90,10 @@ struct DirigibleApp: App {
                         if group == 0 { windowButton(.stop).disabled(app.key?.shown.isRunning != true) }
                     }
                 }
+                // No key: Command-? stays with the Help search field of macOS.
+                CommandGroup(replacing: .help) {
+                    Button(L10n.menuHelpGuide.key) { app.openGuide() }
+                }
             }
     }
 

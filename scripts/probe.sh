@@ -3,7 +3,8 @@
 # temporary folders, and /dev. A probe once deleted files in the home folder, so the
 # sandbox refuses a write anywhere else, also a relative path and an unlink() in C.
 # Usage: scripts/probe.sh <folder> <command> [args...]
-# The folder must be under .scratchpads/ of this repo or under /private/tmp.
+# The folder must be under .scratchpads/ of this repo (in a worktree, also of the main checkout)
+# or under /private/tmp.
 # The command runs with the folder as its working directory.
 #
 # A Swift build in a probe: pass `--disable-sandbox` to swift build, test, or package, because
@@ -27,10 +28,16 @@ mkdir -p "$1"
 folder="$(cd "$1" && pwd -P)"
 shift
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
+# In a git worktree, the run folders are in .scratchpads/ of the main checkout, the folder of the
+# common git dir. Accept both.
+common="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+main="$(cd "$(dirname "${common:-$repo/.git}")" && pwd -P)"
 
+# A worktree can be inside .scratchpads/ of the main checkout, so refuse its own .scratchpads/ first.
+[[ "$folder" != "$repo/.scratchpads" ]] || { echo "probe.sh: the folder must be a subfolder of $folder" >&2; exit 2; }
 case "$folder/" in
-    "$repo/.scratchpads/"?*/ | /private/tmp/?*/) ;;
-    *) echo "probe.sh: the folder must be under $repo/.scratchpads/ or /private/tmp: $folder" >&2; exit 2 ;;
+    "$repo/.scratchpads/"?*/ | "$main/.scratchpads/"?*/ | /private/tmp/?*/) ;;
+    *) echo "probe.sh: the folder must be under $repo/.scratchpads/, $main/.scratchpads/, or /private/tmp: $folder" >&2; exit 2 ;;
 esac
 
 # In a sandbox profile, the last rule that matches wins.

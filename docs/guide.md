@@ -158,7 +158,7 @@ To remove a part and move the audio after it to the left, delete the mistake fir
 
 Paste right after the cut. The cut audio and the undo history stay only while the session window is open. When you close the window, you cannot paste the cut audio or undo the cut.
 
-Markers and chapters do not move with the audio. Remove the mistakes before you add markers. If markers are after the mistake, move each one after the paste. Move it to the left by the length of the mistake. Drag its flag, or click the flag, move the playhead to the new position, and choose **Markers > Move Marker to Playhead**.
+Markers and chapters do not move with the audio. Remove the mistakes before you add markers. If markers are after the mistake, move each one after the paste. Move it to the left by the distance that the audio moved. This is the length of the mistake, or more when the paste also removes silence before the mistake (see the note after step 11). Drag its flag, or click the flag, move the playhead to the new position, and choose **Markers > Move Marker to Playhead**.
 
 1. Choose **Edit > Deselect All**.
 2. Move the playhead to the start of the mistake. Then choose **Edit > Set In Point**.
@@ -222,7 +222,7 @@ Open the session again. The window shows **Recovering the last take**, then **Ta
 
 ### After an unplug
 
-If a device goes away during a take, its tracks show **Device lost**. The other tracks continue to record. Connect the device again to the same port. Its tracks then record again. After Stop, the window names each track that has a gap. If a track still shows **Device lost**, choose **Transport > Stop**, then choose **Record > Record**. After Stop, the playhead is at the end of the take, and the new take starts there. If Record shows that the input device of the track is not connected, choose the device again in the input menu of the track. **Write error** on a track means that Dirigible could not write its audio to the disk.
+If a device goes away during a take, its tracks show **Device lost**. The other tracks continue to record. Connect the device again to the same port. A few seconds later, its tracks record again. If a track still shows **Device lost**, do not stop the take: **Transport > Stop** ends the take on every track. After Stop, the window names each track that has a gap. Before the next take, choose the device again in the input menu of the track. If the device does not come back, turn off **Arm** on its track, then choose **Record > Record**. The other tracks then record. **Write error** on a track means that Dirigible could not write its audio to the disk.
 
 ### When the disk is almost full
 

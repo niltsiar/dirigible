@@ -28,10 +28,21 @@ echo keep > "$root/outside/c.txt"
 "$probe" "$root/.." /usr/bin/true 2>/dev/null
 [[ $? -eq 2 ]] || fail ".scratchpads/ itself was accepted as a probe folder"
 
+# A refused folder that does not exist is not made. A ".." in the missing part cannot leave the
+# allowed roots. The mktemp folder is in /private/var/folders, outside the allowed roots.
+tmp="$(cd "$(mktemp -d)" && pwd -P)"
+trap 'rm -rf "$root" "$tmp" "/private/tmp/probe-test-missing.$$"' EXIT
+"$probe" "$tmp/refused/sub" /usr/bin/true 2>/dev/null
+[[ $? -eq 2 ]] || fail "a missing folder outside the allowed roots was accepted"
+[[ -e "$tmp/refused" ]] && fail "a refused folder was made"
+"$probe" "/private/tmp/probe-test-missing.$$/../..${tmp#/private}/escape" /usr/bin/true 2>/dev/null
+[[ $? -eq 2 ]] || fail "a .. in a missing folder was accepted"
+[[ -e "$tmp/escape" ]] && fail "a .. in a missing folder made a folder outside the allowed roots"
+
 # In a git worktree, a folder in .scratchpads/ of the main checkout is accepted; a folder outside
 # both is still refused.
 repo="$(cd "$(mktemp -d)" && pwd -P)"
-trap 'rm -rf "$root" "$repo"' EXIT
+trap 'rm -rf "$root" "$tmp" "/private/tmp/probe-test-missing.$$" "$repo"' EXIT
 mkdir -p "$repo/main/scripts"
 cp "$probe" "$repo/main/scripts/"
 git -C "$repo/main" init -q

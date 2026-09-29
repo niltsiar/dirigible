@@ -2,7 +2,8 @@
 # Save a PNG of one window only (not the whole screen), for UI evidence.
 # Usage: scripts/screenshot.sh [--owner <name> | --window <id>] <out.png>. Start the app first
 # with `make run`.
-# The default owner is Dirigible. For a window of another process, for example the Gatekeeper
+# The default owner is Dirigible. The owner mode takes a normal window (layer 0) before a tooltip
+# of the owner, and never a desktop window (below layer 0). For a window of another process, for example the Gatekeeper
 # dialog, give its process name: --owner CoreServicesUIAgent. For one window of several, give its
 # kCGWindowNumber: --window <id>. A full-screen capture records private content, so this script
 # never makes one.
@@ -29,9 +30,15 @@ if session["CGSSessionScreenIsLocked"] as? Bool == true {
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
 let env = ProcessInfo.processInfo.environment
 let number = Int(env["WINDOW"] ?? "")
-if let window = windows.first(where: {
-    number == nil ? $0[kCGWindowOwnerName as String] as? String == env["OWNER"] : $0[kCGWindowNumber as String] as? Int == number
-}) {
+// The owner mode prefers a layer-0 window (a normal window) over a tooltip of the owner, which is at
+// a higher layer. A dialog of a system process can be at a higher layer only. A window below layer 0
+// is the desktop, never an app window.
+let owned = windows.filter { $0[kCGWindowOwnerName as String] as? String == env["OWNER"] }
+let layer = { (window: [String: Any]) in window[kCGWindowLayer as String] as? Int ?? -1 }
+if let window = number == nil
+    ? owned.first(where: { layer($0) == 0 }) ?? owned.first(where: { layer($0) > 0 })
+    : windows.first(where: { $0[kCGWindowNumber as String] as? Int == number })
+{
     print(window[kCGWindowNumber as String] ?? "")
 }
 SWIFT

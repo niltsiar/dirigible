@@ -21,6 +21,14 @@ code=$?
 [[ "$err" == *"No NoSuchApp window on screen"* ]] || fail "unknown owner: wrong message: $err"
 [[ ! -e "$tmp/x.png" ]] || fail "unknown owner: a file was written"
 
+# The Dock has an on-screen window, but only below layer 0 (the desktop). The owner mode once
+# took the first window of the owner, a tooltip in place of the session window (run record-over-gap).
+err="$("$shot" --owner Dock "$tmp/dock.png" 2>&1 >/dev/null)"
+code=$?
+[[ $code -eq 1 ]] || fail "owner with only a desktop window: exit $code, not 1"
+[[ "$err" == *"No Dock window on screen"* ]] || fail "owner with only a desktop window: wrong message: $err"
+[[ ! -e "$tmp/dock.png" ]] || fail "owner with only a desktop window: a file was written"
+
 err="$("$shot" --window 2>&1 >/dev/null)" && fail "--window with no ID: exit 0"
 [[ "$err" == *"usage: screenshot.sh"* ]] || fail "--window with no ID: no usage text: $err"
 

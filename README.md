@@ -72,7 +72,7 @@ A DMG that you build on your Mac opens with no warning. A DMG that you get from 
 
 On macOS 15 and later:
 
-1. In the warning, click **Done**. Do not click **Move to Trash**.
+1. In the warning, click **Done**. Do not click **Move to Trash** (**Move to Bin** in British and Australian English).
 2. Open **System Settings > Privacy & Security**.
 3. Scroll down to **Security** and click **Open Anyway**.
 4. Enter your password when macOS asks for it.

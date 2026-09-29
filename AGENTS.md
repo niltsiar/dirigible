@@ -22,7 +22,7 @@ Dirigible is a native macOS podcast recorder and editor, modeled on Hindenburg P
 | `scripts/bench-pairs.sh <main worktree> <filter> <pairs> <out>` | Runs `make bench` for `<filter>` in main and in this tree in alternate pairs, after an A/A pair of main, and gives each case VERIFIED, NOT VERIFIED, or INCONCLUSIVE against the 0022 rule. Make the main worktree with `git worktree add --detach <path> main`. |
 | `make test-app` | Builds the app, then runs `AppBundleTests` on that bundle. |
 | `make dmg` | Builds the app with the ad-hoc signature in `build/dmg-app/`, then `build/Dirigible-<version>.dmg` (UDZO, the app, an Applications link, and the volume icon) and its `.sha256` file. `build/Dirigible.app` keeps its signature. The DMG is not notarized (C1). |
-| `make test-dmg` | Builds the DMG, mounts it read-only with no Finder window, runs `AppBundleTests` and `DiskImageTests` on the app in it, and detaches. |
+| `make test-dmg` | Builds the DMG, mounts it read-only with no Finder window, runs `AppBundleTests` and `DiskImageTests` on the app in it, and detaches. `make check` does not run it; deliver Phase 9 runs it for a branch that changes the app bundle or the DMG. |
 | `make run` | Builds the app, quits a running copy, and opens the new one. |
 | `make lint` | `swift format lint --strict` on all Swift files. |
 | `make format` | Formats all Swift files in place. |

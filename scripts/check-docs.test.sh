@@ -68,6 +68,9 @@ good; printf '[x](missing.md)\n' >> "$tmp/docs/guide.md"; expect fail 'missing l
 good; printf '![x](docs/images/X.png)\n' >> "$tmp/README.md"; expect fail 'link with the wrong case' 'README.md: link to a missing file: docs/images/X.png'
 good; printf '[x](docs/guide.md#no-such-heading)\n' >> "$tmp/README.md"; expect fail 'README link to a missing heading' 'README.md: no heading for #no-such-heading in docs/guide.md'
 good; printf '[x](#no-such-heading)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a missing heading' 'docs/guide.md: no heading for #no-such-heading in docs/guide.md'
+good; printf '[x](../README.md#no-such-heading)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a missing README heading' 'docs/guide.md: no heading for #no-such-heading in README.md'
+good; printf '[x](../README.md#what-dirigible-does-not-do-yet)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a heading of the guide, not of the README' 'docs/guide.md: no heading for #what-dirigible-does-not-do-yet in README.md'
+good; printf '# Readme\n\n## Install\n' >> "$tmp/README.md"; printf '[x](../README.md#install)\n' >> "$tmp/docs/guide.md"; expect pass 'guide link to a README heading'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

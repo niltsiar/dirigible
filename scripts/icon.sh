@@ -16,7 +16,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 # actool needs the absolute path of the .icon. When it cannot read the .icon or a layer, it
-# writes no file, prints a warning, and exits 0. So check its output and its files too.
+# writes no file, prints a warning, and exits 0. So check its files too, not only its exit.
 status=0
 log="$(xcrun actool "$root/Support/AppIcon.icon" --compile "$tmp" --app-icon AppIcon --platform macosx \
     --target-device mac --minimum-deployment-target 14.0 --include-all-app-icons \
@@ -24,8 +24,7 @@ log="$(xcrun actool "$root/Support/AppIcon.icon" --compile "$tmp" --app-icon App
     --errors --warnings 2>&1)" || status=$?
 # The dyld lines are noise of the Xcode tools on this macOS, not of the compile.
 log="$(grep -v '^dyld\[' <<<"$log" || true)"
-if [[ $status -ne 0 ]] || grep -qE 'error:|warning:' <<<"$log" \
-    || [[ ! -f "$tmp/Assets.car" || ! -f "$tmp/AppIcon.icns" ]]; then
+if [[ $status -ne 0 || ! -f "$tmp/Assets.car" || ! -f "$tmp/AppIcon.icns" ]]; then
     echo "icon.sh: actool did not compile $root/Support/AppIcon.icon" >&2
     echo "$log" >&2
     exit 1

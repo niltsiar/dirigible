@@ -17,6 +17,19 @@ grep -qF "icon.sh: actool did not compile $tmp/bad/Support/AppIcon.icon" <<<"$ou
     || fail "no .icon: no guard message in: $output"
 [[ -e "$tmp/bad/build/icon/Assets.car" ]] && fail "no .icon: the stale Assets.car stays"
 
+# Five groups: actool writes both files, prints an error, and exits 1 (probe-warn of the
+# app-icon run). Only the exit check can refuse this input.
+mkdir -p "$tmp/five/scripts" "$tmp/five/Support"
+cp "$here/icon.sh" "$tmp/five/scripts/"
+cp -R "$here/../Support/AppIcon.icon" "$tmp/five/Support/"
+json="$tmp/five/Support/AppIcon.icon/icon.json"
+group="$(plutil -extract groups.0 json -o - "$json")"
+plutil -insert groups -json "$group" -append "$json"
+plutil -insert groups -json "$group" -append "$json"
+output="$("$tmp/five/scripts/icon.sh" 2>&1)" && fail "five groups: exit 0"
+grep -qF "Too many visible groups" <<<"$output" || fail "five groups: no actool error in: $output"
+[[ -e "$tmp/five/build/icon" ]] && fail "five groups: build/icon exists"
+
 # The real .icon gives both files.
 mkdir -p "$tmp/good/scripts" "$tmp/good/Support"
 cp "$here/icon.sh" "$tmp/good/scripts/"

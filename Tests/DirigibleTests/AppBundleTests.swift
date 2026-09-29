@@ -19,6 +19,9 @@ struct AppBundleTests {
 
         #expect(plist["LSMinimumSystemVersion"] as? String == "14.0")
         #expect(plist["CFBundleExecutable"] as? String == "Dirigible")
+        #expect(
+            plist["CFBundleIdentifier"] as? String == "com.delineas.dirigible",
+            "the bundle ID is com.delineas.dirigible")
         let micReason = try #require(plist["NSMicrophoneUsageDescription"] as? String)
         #expect(!micReason.isEmpty)
     }
@@ -130,23 +133,24 @@ struct AppBundleTests {
         let data = try Data(contentsOf: app.appending(path: path))
         return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
     }
+}
 
-    private func run(_ tool: String, _ arguments: String...) throws -> String {
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(filePath: tool)
-        process.arguments = arguments
-        process.standardOutput = output
-        process.standardError = output
-        try process.run()
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard process.terminationStatus == 0 else {
-            throw ToolFailure(command: ([tool] + arguments).joined(separator: " "), output: text)
-        }
-        return text
+/// Runs a tool and returns its trimmed output. A nonzero exit throws `ToolFailure`.
+func run(_ tool: String, _ arguments: String...) throws -> String {
+    let process = Process()
+    let output = Pipe()
+    process.executableURL = URL(filePath: tool)
+    process.arguments = arguments
+    process.standardOutput = output
+    process.standardError = output
+    try process.run()
+    let data = output.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    guard process.terminationStatus == 0 else {
+        throw ToolFailure(command: ([tool] + arguments).joined(separator: " "), output: text)
     }
+    return text
 }
 
 struct ToolFailure: Error, CustomStringConvertible {

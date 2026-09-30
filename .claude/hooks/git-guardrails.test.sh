@@ -78,6 +78,21 @@ expect block $'make check\ngit commit -m "x"'
 expect allow 'make check && git commit -m "x"'
 expect allow 'git add a && make check > log 2>&1 && grep -c ok log && git commit -F msg.txt'
 expect allow $'make check > log 2>&1 \\\n  && git commit -m "x"'
+# The regex matches make check as a prefix, so make check-changed gets the same rule.
+expect block 'make check-changed; git commit -m "x"'
+expect allow 'make check-changed > log 2>&1 && git commit -m "x"'
+
+# The project settings parse, and register this hook as a PreToolUse hook for Bash.
+settings="$(dirname "$0")/../settings.json"
+python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }
+python3 -c '
+import json, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get("PreToolUse", [])
+ok = any(e.get("matcher") == "Bash"
+         and any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/git-guardrails.sh") for h in e.get("hooks", []))
+         for e in entries)
+sys.exit(0 if ok else 1)
+' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register git-guardrails.sh for Bash"; failures=$((failures + 1)); }
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

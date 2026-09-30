@@ -1,8 +1,13 @@
 path	words	decision
 .claude/agents/architecture-reviewer.md	278	baseline
 .claude/agents/code-quality-reviewer.md	226	baseline
+.claude/agents/compound-engineering-reviewer.md	350	0028
+.claude/agents/context-engineering-reviewer.md	350	0028
 .claude/agents/devils-advocate.md	328	baseline
+.claude/agents/eval-engineering-reviewer.md	350	0028
+.claude/agents/harness-engineering-reviewer.md	350	0028
 .claude/agents/premortem.md	310	baseline
+.claude/agents/prompt-engineering-reviewer.md	350	0028
 .claude/skills/architect/	2811	baseline
 .claude/skills/architect/SKILL.md	1067	baseline
 .claude/skills/architect/references/design-red-flags.md	292	baseline
@@ -51,4 +56,4 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	2502	baseline
-TOTAL	31864	baseline
+TOTAL	33614	0028

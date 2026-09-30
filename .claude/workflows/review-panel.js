@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
-  description: 'Lens review panel (premortem, devils advocate, architecture, code quality) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
+  description: 'Lens review panel (premortem, devils advocate, architecture, code quality, or a chosen lens list) on a plan or diff, with a skeptic check per lens',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its findings' },
@@ -21,12 +21,28 @@ const ledger = (args && args.ledger) || ''
 const mode = round === 1 && !prior.length ? 'open' : round >= maxRounds ? 'converge' : 'followup'
 if (mode !== 'open' && !prior.length) log(`Round ${round} has no prior verdicts. Reviewers cannot see what earlier rounds fixed.`)
 
-const LENSES = [
+const lenses = args && args.lenses !== undefined ? args.lenses : null
+const paths = args && args.paths !== undefined ? args.paths : null
+if (lenses && !Array.isArray(lenses)) throw new Error('args.lenses must be a list of lens keys')
+if (paths && (!Array.isArray(paths) || !paths.length || target !== 'diff')) throw new Error('args.paths must be a non-empty list of paths, with target "diff"')
+
+// A lens with no gate runs only when args.lenses names it.
+const ALL_LENSES = [
   { key: 'premortem', agentType: 'premortem', model: 'opus', gates: ['plan', 'diff'] },
   { key: 'devils-advocate', agentType: 'devils-advocate', model: 'sonnet', gates: ['plan', 'diff'] },
   { key: 'architecture', agentType: 'architecture-reviewer', model: 'opus', gates: ['plan', 'diff'] },
   { key: 'code-quality', agentType: 'code-quality-reviewer', model: 'sonnet', gates: ['diff'] },
-].filter(l => l.gates.includes(target))
+  { key: 'context-engineering', agentType: 'context-engineering-reviewer', model: 'opus', gates: [] },
+  { key: 'prompt-engineering', agentType: 'prompt-engineering-reviewer', model: 'sonnet', gates: [] },
+  { key: 'harness-engineering', agentType: 'harness-engineering-reviewer', model: 'opus', gates: [] },
+  { key: 'eval-engineering', agentType: 'eval-engineering-reviewer', model: 'opus', gates: [] },
+  { key: 'compound-engineering', agentType: 'compound-engineering-reviewer', model: 'sonnet', gates: [] },
+]
+const LENSES = ALL_LENSES.filter(l => lenses ? lenses.includes(l.key) : l.gates.includes(target))
+const unknown = lenses ? lenses.filter(k => !ALL_LENSES.some(l => l.key === k)) : []
+if (unknown.length) log(`Unknown lens keys: ${unknown.join(', ')}.`)
+// An empty panel returns no findings, and that looks the same as a clean review.
+if (!LENSES.length) throw new Error(`The selection has no lens (lenses: ${JSON.stringify(lenses)}). The panel did not run.`)
 
 const FINDINGS = {
   type: 'object',
@@ -75,9 +91,23 @@ const VERDICTS = {
   required: ['verdicts'],
 }
 
+const pathArgs = paths ? ` -- ${paths.join(' ')}` : ''
 const targetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read it and every file it references.`
-  : `The target is the diff of the current branch against ${scope}: run \`git diff ${scope}...HEAD\` and \`git diff\` for uncommitted work. Read the surrounding code, not only the hunks.`
+  : `The target is the diff of the current branch against ${scope}: run \`git diff ${scope}...HEAD${pathArgs}\` and \`git diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.`
+
+// The script has no shell, so one agent lists the changed files of the paths scope. A scope with
+// no changed file gives reviewers nothing to read, and their empty result looks like a clean review.
+// review-panel.test.sh stubs this step by its label.
+if (paths) {
+  const scoped = await agent(
+    `Run \`git diff --name-only ${scope}...HEAD${pathArgs}\` and \`git diff --name-only HEAD${pathArgs}\`. Return each file that either command prints, once. Do not modify files.`,
+    { label: 'scope', phase: 'Review', effort: 'low', schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } } }, required: ['files'] } },
+  )
+  const files = (scoped && Array.isArray(scoped.files)) ? scoped.files : []
+  if (!files.length) throw new Error(`The paths scope (${paths.join(' ')}) has no changed file against ${scope}. The panel did not run.`)
+  log(`Paths scope: ${files.length} changed files.`)
+}
 
 // Without this list, the devil's advocate attacked user requests and accepted tradeoffs,
 // and the skeptics refuted every such finding. That gave no signal.
@@ -138,7 +168,7 @@ const results = await pipeline(
 )
 
 const panel = results.filter(Boolean)
-const missing = LENSES.filter(l => !panel.some(p => p.lens === l.key)).map(l => l.key)
+const missing = [...unknown, ...LENSES.filter(l => !panel.some(p => p.lens === l.key)).map(l => l.key)]
 if (missing.length) log(`NO RESULT from lenses: ${missing.join(', ')}. The panel is incomplete.`)
 log(panel.map(p => `${p.lens}: ${p.survived.length}/${p.raised} survived, ${(p.outOfScope || []).length} out of scope`).join(', '))
 const outOfScope = panel.flatMap(p => (p.outOfScope || []).map(f => ({ lens: p.lens, ...f })))

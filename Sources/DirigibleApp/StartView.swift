@@ -45,6 +45,9 @@ struct StartView: View {
                     .labelsHidden().textFieldStyle(.roundedBorder)
                     .focused($focus, equals: .name).onSubmit { model.create() }
             }
+            if let message = model.refusal?.message {
+                Text(message.key).font(.callout).foregroundStyle(.red)
+            }
             Label(L10n.startFolder.format(model.folderText), systemImage: "folder")
                 .font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             HStack(alignment: .top, spacing: 16) {
@@ -56,7 +59,7 @@ struct StartView: View {
                 } label: {
                     Text(L10n.startCreate.key).frame(minWidth: 64)
                 }
-                .buttonStyle(.borderedProminent).controlSize(.large).disabled(model.creating)
+                .buttonStyle(.borderedProminent).controlSize(.large).disabled(model.creating || model.refusal != nil)
             }
         }
         .padding(16)

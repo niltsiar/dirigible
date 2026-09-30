@@ -24,7 +24,7 @@ In this tutorial, you record an interview with two microphones, remove a mistake
 ### Make the session
 
 1. Connect the USB microphone, then open Dirigible. The start window shows.
-2. Under **New Session**, type a name for the episode in **Name**, or keep the name that Dirigible gives, for example **Episode 1**.
+2. Under **New Session**, type a name for the episode in **Name**, or keep the name that Dirigible gives, for example **Episode 1**. A name cannot start with a period or contain “/” or “:”.
 3. Click **Create**, or press Return. A window opens. It shows **No Tracks** and an **Add Track** button.
 
 Dirigible saves the session in the Music folder, in the Dirigible folder. To show the start window again, choose **File > New Session** (Command-N) or **Window > Start Window** (Shift-Command-1).

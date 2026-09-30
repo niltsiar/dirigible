@@ -23,6 +23,41 @@ struct FolderScan: Sendable {
     let text: String
 }
 
+/// The name of a new session: the file name of its package with no ".dirigible" (decision 0027).
+struct SessionName {
+    /// Why a name cannot be a session.
+    enum Refusal: Error, Equatable {
+        case empty, character, dot, long
+    }
+
+    /// 255 bytes of a file name less the 10 bytes of ".dirigible".
+    static let byteLimit = 245
+    let text: String
+
+    init(_ text: String) throws(Refusal) {
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw .empty }
+        // Finder shows ":" as "/", and "/" separates the path.
+        if text.contains("/") { throw .character }
+        if text.contains(":") { throw .character }
+        // Finder hides a name that starts with a period.
+        if text.hasPrefix(".") { throw .dot }
+        if text.utf8.count > Self.byteLimit { throw .long }
+        self.text = text
+    }
+}
+
+extension SessionName.Refusal {
+    /// The line under the name field. An empty name needs no reason.
+    var message: L10n? {
+        switch self {
+        case .empty: nil
+        case .character: .startNameErrorCharacter
+        case .dot: .startNameErrorDot
+        case .long: .startNameErrorLong
+        }
+    }
+}
+
 /// The state of the start window (decision 0027). `StartView` reads it and calls it.
 @Observable @MainActor final class StartModel {
     /// The name of the new session.
@@ -33,6 +68,15 @@ struct FolderScan: Sendable {
     /// True from a Create until its error: a second Create does nothing (plan gate, item 3).
     private(set) var creating = false
     let folder: URL
+    /// Why the name cannot be a session, or nil. Create is off while it is set.
+    var refusal: SessionName.Refusal? {
+        do throws(SessionName.Refusal) {
+            _ = try SessionName(name)
+            return nil
+        } catch {
+            return error
+        }
+    }
     /// The recent sessions, from `AppDelegate.recent`, in their order.
     private(set) var rows: [RecentRow] = []
     /// True when the rows came: the view says "No recent sessions." only then.
@@ -72,13 +116,14 @@ struct FolderScan: Sendable {
     }
 
     /// Makes the package and opens it. The open closes the start window. An error shows its
-    /// alert and keeps the window and the name. The app makes only its default folder.
+    /// alert and keeps the window and the name. A refused name does nothing. The app makes only
+    /// its default folder.
     func create() {
-        guard !creating, let app else { return }
+        guard !creating, let app, let session = try? SessionName(name) else { return }
         creating = true
         let (folder, exists) = (folder, app.exists)
         let makesFolder = folder.path == app.defaultFolder?.path
-        let url = folder.appending(path: "\(name).dirigible")
+        let url = folder.appending(path: "\(session.text).dirigible")
         createTask = Task {
             if makesFolder { await makeFolder(folder, exists: exists) }
             guard let error = await app.createSession(at: url) else { return }

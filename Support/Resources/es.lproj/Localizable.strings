@@ -230,6 +230,8 @@
 "start.name.error.dot" = "Un nombre no puede empezar por un punto.";
 "start.name.error.long" = "El nombre es demasiado largo.";
 "start.folder" = "Se guarda en: %@";
+"start.change" = "Cambiar…";
+"start.folder.choose" = "Elegir";
 "start.create" = "Crear";
 "start.hint" = "Una sesión guarda las pistas, las grabaciones y las ediciones de un episodio.";
 "start.recent" = "Sesiones recientes";

@@ -230,6 +230,8 @@
 "start.name.error.dot" = "A name cannot start with a period.";
 "start.name.error.long" = "The name is too long.";
 "start.folder" = "Saved in: %@";
+"start.change" = "Change…";
+"start.folder.choose" = "Choose";
 "start.create" = "Create";
 "start.hint" = "A session holds the tracks, recordings, and edits of one episode.";
 "start.recent" = "Recent Sessions";

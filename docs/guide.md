@@ -27,7 +27,7 @@ In this tutorial, you record an interview with two microphones, remove a mistake
 2. Under **New Session**, type a name for the episode in **Name**, or keep the name that Dirigible gives, for example **Episode 1**. A name cannot start with a period or contain “/” or “:”.
 3. Click **Create**, or press Return. A window opens. It shows **No Tracks** and an **Add Track** button.
 
-Dirigible saves the session in the Music folder, in the Dirigible folder. To show the start window again, choose **File > New Session** (Command-N) or **Window > Start Window** (Shift-Command-1).
+Dirigible saves the session in the Music folder, in the Dirigible folder. To use another folder, click **Change…** and choose the folder. Dirigible uses that folder for the next sessions too. To show the start window again, choose **File > New Session** (Command-N) or **Window > Start Window** (Shift-Command-1).
 
 There is no Save command. Dirigible saves each change to the session.
 

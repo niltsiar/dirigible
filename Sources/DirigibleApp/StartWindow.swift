@@ -67,7 +67,8 @@ extension SessionName.Refusal {
     var focus: StartField? = .name
     /// True from a Create until its error: a second Create does nothing (plan gate, item 3).
     private(set) var creating = false
-    let folder: URL
+    /// The folder of new sessions. Change… sets it.
+    private(set) var folder: URL
     /// Why the name cannot be a session, or nil. Create is off while it is set.
     var refusal: SessionName.Refusal? {
         do throws(SessionName.Refusal) {
@@ -97,7 +98,13 @@ extension SessionName.Refusal {
     init(app: AppDelegate, folder: URL) {
         self.app = app
         self.folder = folder
-        let (format, exists) = (app.nameFormat, app.exists)
+        scan()
+    }
+
+    /// Starts the scan of the folder: the first free name and the folder text.
+    private func scan() {
+        guard let app else { return }
+        let (folder, format, exists) = (folder, app.nameFormat, app.exists)
         scanTask = Task { apply(scan: await scanFolder(folder, format: format, exists: exists)) }
     }
 
@@ -110,7 +117,10 @@ extension SessionName.Refusal {
         pin(.name)
     }
 
+    /// A scan of a folder that is not the folder of the form any more changes nothing (plan gate,
+    /// item 1).
     func apply(scan: FolderScan) {
+        guard scan.folder == folder else { return }
         folderText = scan.text
         if !edited { name = scan.name }
     }
@@ -183,6 +193,18 @@ extension SessionName.Refusal {
     func openSelection() {
         guard let selection else { return }
         Task { await open(selection) }
+    }
+
+    /// Change…: the chosen folder is the folder of new sessions from now on. A cancel changes
+    /// nothing.
+    func changeFolder() {
+        guard !creating, let app, let window = app.start?.window else { return }
+        app.chooseFolder(window) { [weak self] url in
+            guard let self, let url else { return }
+            app.defaults?.set(url.path, forKey: AppDelegate.folderKey)
+            folder = url
+            scan()
+        }
     }
 
     func openOther() {

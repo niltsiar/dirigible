@@ -235,27 +235,27 @@ DLV-125	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	kee
 DLV-126	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 8 step	565d66a		Phase 8: reflect skill turns learnings into commits
 DLV-127	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed	565d66a		make check after reflect commits
 DLV-128	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 9 changes the reflect rules	565d66a		no friction: log no learnings, no commit
-DLV-129	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed BASE=origin/main	ad21140		Phase 9: rebase on origin/main, then make check
-DLV-130	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; no force push needed	ad21140		rebase before first push
+DLV-129	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	ad21140		Phase 9: rebase on origin/main, then make check
+DLV-130	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	ad21140		rebase before first push
 DLV-131	.claude/skills/deliver/SKILL.md	enforced	scripts/check-changed.sh	future: slice 1 (class sources picks test-slow)	L61	scope	Sources change runs make test-slow before push
 DLV-132	.claude/skills/deliver/SKILL.md	enforced	scripts/check-changed.sh	future: slice 1 (class bundle picks test-dmg; the hard-coded list goes)	437d12c		bundle or DMG change runs make test-dmg; path list hard-coded
 DLV-133	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; check-changed does not pick make bench	L61	scope	run make bench for each optimized budget of a criterion
-DLV-134	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	ad21140		push the run branch with upstream
-DLV-135	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	ad21140		PR body via pr skill in pr.md, then gh pr create
-DLV-136	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	44c48d3		before merge check main did not move with merge-base
-DLV-137	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	44c48d3		gh pr merge --rebase --delete-branch keeps history linear
-DLV-138	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	L16	scope	after merge: switch main, pull ff-only, prune
+DLV-134	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	ad21140		push the run branch with upstream
+DLV-135	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep the pr.md step; scripts/land.sh runs gh pr create (slice 4b)	ad21140		PR body via pr skill in pr.md, then gh pr create
+DLV-136	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	44c48d3		before merge check main did not move with merge-base
+DLV-137	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	44c48d3		gh pr merge --rebase --delete-branch keeps history linear
+DLV-138	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	L16	scope	after merge: switch main, pull ff-only, prune
 DLV-139	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; leftover branch	ad21140		leftover local branch after rebase merge stays; log it
 DLV-140	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; merge conflict path	ad21140		merge fails after main moved: stop, log, resolve on fresh branch
 DLV-141	.claude/skills/deliver/SKILL.md	enforced	.claude/hooks/git-guardrails.sh	git-guardrails.sh:8 prints "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1." with $1 = matches 'git push( .*)? (--force|-[a-zA-Z]*f|\+)' (L28), exit 2	c5746cd		no force push
 DLV-142	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; run summary	ad21140		run.md done status and summary; list defaults open for the user
 DLV-143	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; PR URL record	ad21140		PR URL goes in run.md and ledger.md
-DLV-144	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; loop of runs	cdf55a5		several goals: repeat phases from backlog; close each run first
-DLV-145	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; AGENTS.md on disk	L118	doc	read AGENTS.md from disk at each run start; context copy is stale
-DLV-146	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; subagent prompt rule	L118	doc	subagent prompts say the AGENTS.md on disk wins
-DLV-147	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; unattended loop preflight	L23	hook	unattended loop: check git ls-remote and gh auth; else stack branches
-DLV-148	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; credential safety	L23	hook	no credential store access beyond existing access
-DLV-149	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land through a pull request	ad21140		each run lands green on main through its own PR
+DLV-144	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/long-runs.md	slice 4b: only a session with several goals or a loop needs it	cdf55a5		several goals: repeat phases from backlog; close each run first
+DLV-145	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/long-runs.md	slice 4b: only a session with several goals or a loop needs it	L118	doc	read AGENTS.md from disk at each run start; context copy is stale
+DLV-146	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/long-runs.md	slice 4b: only a session with several goals or a loop needs it	L118	doc	subagent prompts say the AGENTS.md on disk wins
+DLV-147	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/long-runs.md	slice 4b: only a session with several goals or a loop needs it	L23	hook	unattended loop: check git ls-remote and gh auth; else stack branches
+DLV-148	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/long-runs.md	slice 4b: only a session with several goals or a loop needs it	L23	hook	no credential store access beyond existing access
+DLV-149	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/long-runs.md	slice 4b: only a session with several goals or a loop needs it	ad21140		each run lands green on main through its own PR
 DLV-150	.claude/skills/deliver/SKILL.md	merge	AGT-003	STE rule; home AGENTS.md:7-8 (audit 2)	cdf55a5		plans, ledger rows, verdicts, commits follow STE skills
 TDD-001	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; core test-first contract	1e069af		fails before the change, passes after; test precedes production code
 TDD-002	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; home of integration-first (AGENTS.md:111 and code-quality-reviewer:13 merge here)	1e069af		integration test via public API with real WAV/FLAC, AVAudioPCMBuffer, session XML

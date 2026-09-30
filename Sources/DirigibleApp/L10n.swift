@@ -10,6 +10,7 @@ enum L10n: String, CaseIterable {
     case menuFileNew = "menu.file.new"
     case menuFileOpen = "menu.file.open"
     case menuFileOpenRecent = "menu.file.open.recent"
+    case menuFileClearRecent = "menu.file.clear.recent"
     case menuFileShowClips = "menu.file.show.clips"
     case menuFileExport = "menu.file.export"
     case menuFileExportSelection = "menu.file.export.selection"

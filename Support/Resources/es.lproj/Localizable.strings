@@ -4,6 +4,7 @@
 "menu.file.new" = "Nueva sesión…";
 "menu.file.open" = "Abrir…";
 "menu.file.open.recent" = "Abrir recientes";
+"menu.file.clear.recent" = "Vaciar menú";
 "menu.file.show.clips" = "Mostrar clips en el Finder";
 "menu.track" = "Pista";
 "menu.track.add" = "Añadir pista";

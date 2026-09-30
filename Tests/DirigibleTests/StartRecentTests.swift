@@ -79,6 +79,28 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Code gate 1, item 3: File > Open Recent > Clear Menu empties the recent list, the
+    /// preference, and the rows of a start window that shows.
+    @Test func clearMenuEmptiesTheRecentList() async throws {
+        let domain = "dirigible.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let app = AppDelegate(recordings: nil, defaults: defaults, defaultFolder: sessions)
+        await app.open(try folder.package("a"))
+        app.showStart()
+        let model = try #require(app.start?.model)
+        await model.rowsTask?.value
+        #expect(model.rows.count == 1)
+
+        app.clearRecent()
+        await model.rowsTask?.value
+
+        #expect(app.recent.isEmpty, "Clear Menu empties the recent list")
+        #expect(defaults.stringArray(forKey: "recent.sessions") == [], "Clear Menu empties the preference")
+        #expect(model.rows.isEmpty, "Clear Menu empties the rows of the start window")
+        await closeAll(app)
+    }
+
     /// Criterion C12: each recent URL gives a row in its order, a missing package shows as missing,
     /// and the first row that exists is selected.
     @Test func theRecentListMarksMissingPackagesAndSelectsTheFirstThatExists() async throws {

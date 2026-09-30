@@ -20,6 +20,8 @@ struct DirigibleApp: App {
                         ForEach(app.recent, id: \.self) { url in
                             Button(url.deletingPathExtension().lastPathComponent) { Task { await app.open(url) } }
                         }
+                        Divider()
+                        Button(L10n.menuFileClearRecent.key) { app.clearRecent() }
                     }
                     Divider()
                     // Export has Command in its keys, so it can be off (probe K1 is about plain keys).

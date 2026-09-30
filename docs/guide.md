@@ -33,7 +33,7 @@ There is no Save command. Dirigible saves each change to the session.
 
 ### Open a session
 
-The start window and **File > Open Recent** list the 10 sessions that you opened last. The list stays after an update of Dirigible. When you move an open session in Finder, the list shows the new place after the next change to the session. Double-click a session, or select it and press Return. A session that Dirigible cannot find shows **Not found**. You can still open it: if the open fails, the session window shows the reason. To open another session, click **Open Other…** or choose **File > Open**. The start window shows again when you close the last session window.
+The start window and **File > Open Recent** list the 10 sessions that you opened last. The list stays after an update of Dirigible. When you move an open session in Finder, the list shows the new place after the next change to the session. Double-click a session, or select it and press Return. A session that Dirigible cannot find shows **Not found**. You can still open it: if the open fails, the session window shows the reason. To empty the list, choose **File > Open Recent > Clear Menu**. To open another session, click **Open Other…** or choose **File > Open**. The start window shows again when you close the last session window.
 
 ### Set up the tracks
 
@@ -275,6 +275,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **New Session** | **Nueva sesión** | Command-N |
 | **Open** | **Abrir** | Command-O |
 | **Open Recent** | **Abrir recientes** | None |
+| **Clear Menu** (at the end of **Open Recent**) | **Vaciar menú** | None |
 | **Show Clips in Finder** | **Mostrar clips en el Finder** | Shift-Command-R |
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |

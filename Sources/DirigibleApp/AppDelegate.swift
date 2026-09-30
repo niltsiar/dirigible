@@ -152,6 +152,16 @@ import UniformTypeIdentifiers
         defaults?.set(recent.map(\.path), forKey: Self.recentKey)
     }
 
+    /// File > Open Recent > Clear Menu: empties the app list, its preference, the rows of the
+    /// start window, and the system list of the Dock menu (code gate 1, item 3). The app never
+    /// drops a path by itself: a denied path is not a missing path.
+    func clearRecent() {
+        recent = []
+        defaults?.set(recent.map(\.path), forKey: Self.recentKey)
+        NSDocumentController.shared.clearRecentDocuments(nil)
+        start?.model.loadRows()
+    }
+
     /// By identity: a move can change the key.
     func forget(_ closed: SessionWindow) {
         windows = windows.filter { $0.value !== closed }

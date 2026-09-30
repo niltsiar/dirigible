@@ -101,8 +101,9 @@ struct DeviceListListenerTests {
             }
         }
         await until(limit: .seconds(5), "a holder did not enter") { entered.calls == count }
+        let hop = ContinuousClock.now
         await Task.detached {}.value
-        let (elapsed, endedAtHop) = (ContinuousClock.now - start, ended.calls)
+        let (elapsed, endedAtHop) = (ContinuousClock.now - hop, ended.calls)
         release.withLock { $0 = true }
         await until(limit: .seconds(20), "a hold did not end") { ended.calls == count }
         #expect(elapsed < .seconds(5), "the pool hop waited \(elapsed)")

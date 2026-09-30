@@ -5,16 +5,16 @@ description: "Deliver one goal end to end: analyze, plan, gate, implement test-f
 
 # Deliver
 
-One run takes one goal (a requirement, a slice of one, or a bug) to a merged pull request on `main`. Every step writes to the run ledger, so the next agent sees what happened and why. Open a todo list with the phases. Do not skip a phase; a short phase still leaves its artifact.
+One run takes one goal (a requirement, a slice of one, or a bug) to a merged pull request on `main`. Every step writes to the run ledger for the next agent. Open a todo list with the phases. Do not skip a phase; a short phase still leaves its artifact.
 
 ## Autonomy rules
 
 - For reversible work, choose a default, log it in `decisions.tsv`, and continue. The human corrects it later.
-- Ask only before irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. The push, the pull request, and its merge need no question.
+- Ask only before irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. `scripts/land.sh` (the push and the merge) needs no question.
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
 - Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool; if it refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.
-- Send every research request through the **research** skill; its output goes to `docs/research/`, where `make check-docs` checks it. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone did not stop a research subagent.
+- Send every research request through the **research** skill; its output goes to `docs/research/`. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
 
 ## Phase 0: Open the run
@@ -67,14 +67,14 @@ Run the **interrogate** skill with target `plan` (premortem, devil's advocate, a
 
 - Change the plan for each "Act on" item and log it. Grep each fact that a fix changes, as in Phase 2.
 - Before you detect a failure of an external tool, probe its exit status, product files, and messages. Guard on the exit status and the product files, not on message text.
-- A critical item gets another round, up to the class table. The last round checks only the earlier fixes (**interrogate**). After them and one fix check, record open risks in `run.md`.
+- A critical item gets another round, up to the class table. Round 2 follows up on round 1. The last round checks only the earlier fixes. After them and one fix check, the gate is closed: record open risks in `run.md`.
 
 ## Phase 4: Implement
 
 1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <log> 2>&1 && git commit ...`. A failing test and its fix go in one commit, with the red run logged. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
 2. Use Conventional Commits (see `AGENTS.md`).
-3. After each slice, log a row and tick `run.md`. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change, so that small steps do not add up to a slow suite.
-4. If the plan proves wrong, stop, update `plan.md`, and log why. No workarounds on a wrong plan. A changed criterion gets its new text in `analysis.md` in the same step, citing the row, so Phase 7 verifies that text.
+3. After each slice, log a row and tick `run.md`. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
+4. If the plan proves wrong, stop, update `plan.md`, and log why. A changed criterion gets its new text in `analysis.md` in the same step, citing the row, so Phase 7 verifies that text.
 5. A slice that changes what a user sees or does updates `docs/guide.md`.
 
 ## Phase 5: Clean up
@@ -88,7 +88,7 @@ Run the **interrogate** skill with target `diff` and the lenses of the class tab
 - Fix each "Act on" item in its own commit, a bug fix with its regression test.
 - Put each "Consider" item that you skip in `## Later`, with the reason.
 - When a user decision reverts a fix, write its symptom in the manual checks and in `pr.md`.
-- A critical item gets another round, up to the class table. Round 2 follows up on round 1. The last round checks only the earlier fixes; after them and one fix check, the gate is closed. Out-of-scope findings go to `## Later`.
+- Run the rounds as in Phase 3. Out-of-scope findings go to `## Later`.
 
 ## Phase 7: Verify
 
@@ -100,13 +100,11 @@ Run the **reflect** skill on the branch: a first occurrence becomes a `seen-once
 
 ## Phase 9: Land through a pull request
 
-1. `git fetch origin && git rebase origin/main`, then `make check-changed BASE=origin/main`. Rebase before the first push, so no force push is needed. Run `make bench FILTER=<test>` for each optimized budget of a criterion.
-2. `git push -u origin <branch>`. Write `<run>/pr.md` with the **pr** skill, then `gh pr create --base main --head <branch> --title "<plain title>" --body-file <run>/pr.md`.
-3. `git fetch origin && git merge-base --is-ancestor origin/main HEAD`. If `main` moved, the checks did not test the merge: go back to step 1 on a fresh branch. Then `gh pr merge <branch> --rebase --delete-branch`, which keeps each commit and a linear history.
-4. `git switch main && git pull --ff-only origin main && git fetch --prune origin`. `git branch -d` refuses a leftover branch after a rebase merge: leave it and record it in `run.md`.
-5. If the merge fails, record the conflict in `run.md` and use the **resolving-merge-conflicts** skill on a fresh branch.
-6. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
+1. Run `make bench FILTER=<test>` for each optimized budget of a criterion.
+2. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. It stops at the first failure, and prints the PR URL and the commit range.
+3. If the merge fails, record the conflict in `run.md` and use the **resolving-merge-conflicts** skill on a fresh branch. Leave a leftover local branch after the merge, and record it in `run.md`.
+4. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 
 ## Long autonomous runs
 
-Take the next goal from `## Next` or the order agreed in the first planning run, and close each run before the next. Read `AGENTS.md` from disk at each run start, because reflect commits change it; tell each subagent that the file on disk wins. Before an unattended loop, check `git ls-remote origin` and `gh auth status`. If one fails, stack each run branch on the previous one, record it in `run.md`, and land them when the human is back. Use only that access; leave credential stores closed. Each run lands green through its own pull request, so the human can stop the loop at any time.
+When one session runs several goals or an unattended loop, read `references/long-runs.md` before the first run.

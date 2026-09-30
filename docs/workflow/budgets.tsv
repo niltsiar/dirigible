@@ -15,8 +15,9 @@ path	words	decision
 .claude/skills/architect/references/runner-prompt.md	982	baseline
 .claude/skills/bro/	40	baseline
 .claude/skills/bro/SKILL.md	40	baseline
-.claude/skills/deliver/	3457	2026-09-30-workflow-consolidation slice 4 (decisions.tsv: deliver budget over 0028)
-.claude/skills/deliver/SKILL.md	2084	2026-09-30-workflow-consolidation slice 4 (decisions.tsv: deliver budget over 0028)
+.claude/skills/deliver/	3379	2026-09-30-workflow-consolidation slice 4b (decisions.tsv 2026-10-01T01:38: deliver SKILL.md budget row 1649)
+.claude/skills/deliver/SKILL.md	1649	2026-09-30-workflow-consolidation slice 4b (decisions.tsv 2026-10-01T01:38: deliver SKILL.md budget row 1649)
+.claude/skills/deliver/references/long-runs.md	198	2026-09-30-workflow-consolidation slice 4b (decisions.tsv 2026-10-01T01:38: deliver SKILL.md budget row 1649)
 .claude/skills/deliver/references/mutation-controls.md	1054	2026-09-30-workflow-consolidation slice 4 (decisions.tsv: deliver budget over 0028)
 .claude/skills/deliver/references/performance-criteria.md	478	2026-09-30-workflow-consolidation slice 4 (decisions.tsv: deliver budget over 0028)
 .claude/skills/deslop/	272	baseline

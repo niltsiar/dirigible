@@ -124,6 +124,31 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Code gate 1, item 5: a second show and New Session keep a selection that is still in the
+    /// rows. A selection that left the recent list goes to the first row that the check found.
+    @Test func aShowKeepsASelectionThatIsStillInTheRows() async throws {
+        let (a, b) = (try folder.package("a"), try folder.package("b"))
+        app.recent = [a, b]
+        app.showStart()
+        let model = try #require(app.start?.model)
+        await model.rowsTask?.value
+        model.select(b)
+
+        app.showStart()
+        await model.rowsTask?.value
+        #expect(model.selection == b, "a second show keeps the selection")
+        app.newSession()
+        await model.rowsTask?.value
+        #expect(model.selection == b, "New Session keeps the selection")
+
+        app.recent = [a]
+        app.showStart()
+        await model.rowsTask?.value
+        #expect(model.rows.map(\.url) == [a])
+        #expect(model.selection == a, "a selection that left the list goes to the first row found")
+        await closeAll(app)
+    }
+
     /// Criterion C13: the focus before the rows follows the raw URL list; after the rows, it is in
     /// the list only when a row exists. New Session puts it in the name field.
     @Test(arguments: ["a", "missing", "none"])

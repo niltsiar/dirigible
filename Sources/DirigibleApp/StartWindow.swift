@@ -155,7 +155,8 @@ extension SessionName.Refusal {
             guard !Task.isCancelled else { return }
             self.rows = rows
             rowsLoaded = true
-            selection = rows.first(where: \.exists)?.url
+            // A show keeps a selection that is still in the rows (code gate 1, item 5).
+            if !rows.contains(where: { $0.url == selection }) { selection = rows.first(where: \.exists)?.url }
             if !focusPinned { focus = selection == nil ? .name : .list }
         }
     }

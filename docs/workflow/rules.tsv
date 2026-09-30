@@ -1,0 +1,897 @@
+id	file	verdict	target	reason	source	key	summary
+AGT-001	AGENTS.md	keep	AGENTS.md	product scope; no duplicate	10edc92		Dirigible: macOS 14+ podcast recorder, multi-device and app capture, no aggregate device
+AGT-002	AGENTS.md	keep	AGENTS.md	pointer to the brief and the release order	10edc92		requirement IDs in brief.md, release order in releases.md
+AGT-003	AGENTS.md	keep	AGENTS.md	STE home (spec item 12); C18	10edc92		STE100 for all docs, plans, ledger, findings, comments, commits; technical-writing and unslop skills
+AGT-004	AGENTS.md	keep	AGENTS.md	STE home (spec item 12); C18	10edc92		STE core rules: one idea, 20-word instructions, active voice, articles kept
+AGT-005	AGENTS.md	keep	AGENTS.md	language of code and UI; C18	10edc92		code, docs, commits in English; UI in English and Spanish (R13)
+AGT-006	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	aef4b7c		make setup enables the .githooks pre-commit hook once per clone
+AGT-007	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	10edc92		make build is a debug swift build
+AGT-008	AGENTS.md	keep	AGENTS.md	command row; tdd:19 names make test as the inner loop	02229d6		make test skips AppBundleTests and DiskImageTests; the red-green loop command
+AGT-009	AGENTS.md	keep	AGENTS.md	fact behind the Makefile split; slice 8 may shorten it	51776f1		DirigibleCLITests runs in its own process; fixture I/O stalls the main actor
+AGT-010	AGENTS.md	keep	AGENTS.md	fact; slice 8 may shorten it	02229d6		plain swift test fails the bundle and disk image suites by design
+AGT-011	AGENTS.md	keep	AGENTS.md	keep; slice 1 changes make test-slow to the slow tests only	3f7294e		make test-slow runs gate check, make test, then DIRIGIBLE_SLOW_TESTS suite serially
+AGT-012	AGENTS.md	enforced	Makefile	check-slow-gates in make check prints "check-slow-gates: put the func of each slow test on the line after its gate" and exits 1	150a77e		slow-test func goes on the line after its DIRIGIBLE_SLOW_TESTS gate
+AGT-013	AGENTS.md	keep	AGENTS.md	keep; 0028 (slice 1) and slice 8 change the push gate; duplicate of deliver:92 (audit s2), not a spec home	3f7294e		make check skips slow tests; run make test-slow before pushing Sources/ changes
+AGT-014	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	10edc92		make app builds a universal ad-hoc signed release bundle
+AGT-015	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	2882f7a		make icon-preview renders AppIcon.icon looks for icon review (decision 0026)
+AGT-016	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	L57	tool	make bench FILTER runs matching slow tests optimized in .build/bench
+AGT-017	AGENTS.md	keep	AGENTS.md	fact that make bench depends on	L57	tool	swift test -c release runs the app main, not tests; use make bench
+AGT-018	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	L141	flake	bench-pairs.sh alternates main and branch bench pairs with an A/A pair, 0022 verdict
+AGT-019	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	aef4b7c		make test-app builds the app and runs AppBundleTests on it
+AGT-020	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	02229d6		make dmg builds an ad-hoc signed UDZO image with sha256, not notarized
+AGT-021	AGENTS.md	keep	AGENTS.md	keep; slice 8 says make check-changed BASE=origin/main picks make test-dmg	02229d6		make test-dmg mounts the DMG and runs bundle tests; deliver Phase 9 runs it
+AGT-022	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	c62ae01		make run rebuilds, quits the old copy, opens the new app
+AGT-023	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	10edc92		make lint runs strict swift format lint
+AGT-024	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	10edc92		make format rewrites Swift sources in place
+AGT-025	AGENTS.md	keep	AGENTS.md	describes what scripts/check-docs.sh checks; slice 8 shortens it	c3a9c60		make check-docs: research dates, brief IDs, decisions, Commands table rows, guide menus, links
+AGT-026	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	53268ff		check-docs.test.sh covers the docs check
+AGT-027	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	40124f0		dirigible CLI edits and reads session packages (decision 0011)
+AGT-028	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	7723b34		make check-warnings verifies warnings-as-errors per Package.swift target
+AGT-029	AGENTS.md	keep	AGENTS.md	keep; slice 8 adds rows for make test-hooks and make check-slow-gates	L58	hook	make check bundles lint, docs, slow gates, warnings, tests, hooks, app tests
+AGT-030	AGENTS.md	merge	AGT-056	duplicate of the per-commit check rule (audit s2, spec item 1); 0028 changes it in slice 8	10edc92		full make check green before each commit
+AGT-031	AGENTS.md	keep	AGENTS.md	toolchain fact	10edc92		Xcode 26 and Swift 6.2, SwiftPM only, decision 0001
+AGT-032	AGENTS.md	keep	AGENTS.md	entry point to the deliver flow	10edc92		deliver skill drives every feature, requirement, or bug through its phases
+AGT-033	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		deliver is the full flow and the entry point
+AGT-034	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		architect designs types and modules for one-way decisions
+AGT-035	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		interrogate runs the review-panel workflow on a plan or diff
+AGT-036	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		tdd writes the red test before the code
+AGT-037	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		deslop cleans AI slop off the branch
+AGT-038	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		verify-this proves a claim with artifacts
+AGT-039	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		reflect commits session learnings to skills and AGENTS.md
+AGT-040	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		technical-writing and unslop hold the writing rules
+AGT-041	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		bro restates the last message plainly on request
+AGT-042	AGENTS.md	keep	AGENTS.md	pointer to the reviewer agents and principles.md	10edc92		four reviewer agents in .claude/agents; principles in docs/principles.md
+AGT-043	AGENTS.md	keep	AGENTS.md	ledger purpose; C18	10edc92		.scratchpads is gitignored agent memory across sessions
+AGT-044	AGENTS.md	keep	AGENTS.md	home of new-run.sh (spec item 2); C18	10edc92		open each run with new-run.sh <slug>
+AGT-045	AGENTS.md	keep	AGENTS.md	conflict with deliver:24 (ledger.md vs last run.md); slices 4 and 8 align them to the ## Next section of backlog.md	10edc92		session start reads: learnings, backlog, last run.md
+AGT-046	AGENTS.md	keep	AGENTS.md	home of log-decision.sh and append-only (spec item 2); C18	L66	doc	decisions.tsv append-only; log-decision.sh stamps the clock time
+AGT-047	AGENTS.md	keep	AGENTS.md	correction rule of the log; C18	10edc92		fix a wrong decisions.tsv row with a new correcting row
+AGT-048	AGENTS.md	keep	AGENTS.md	home of real voices out of git (spec item 13); C18	10edc92		real voice recordings stay in .scratchpads, never git
+AGT-049	AGENTS.md	keep	AGENTS.md	home of scripts/probe.sh (spec item 4); C18	L70	probe	probe.sh sandboxes each probe to a new .scratchpads or scratchpad folder
+AGT-050	AGENTS.md	keep	AGENTS.md	pointer to the probe.sh header; C18	L92	hook	Swift builds in a probe need the flags from the probe.sh header
+AGT-051	AGENTS.md	keep	AGENTS.md	fixed verdict: keep (spec); one-off L117 (audit s4)	L117	tool	zsh path/status/argv variables clobber PATH; rename or use bash -c
+AGT-052	AGENTS.md	keep	AGENTS.md	remote and PR tool; C18	ad21140		origin is niltsiar/dirigible on GitHub; gh CLI for PRs
+AGT-053	AGENTS.md	keep	AGENTS.md	branch rule; C18	10edc92		no direct main commits; branch named <type>/<slug>
+AGT-054	AGENTS.md	keep	AGENTS.md	land through a pull request; C18	ad21140		deliver Phase 9 lands each run via gh pr merge --rebase
+AGT-055	AGENTS.md	keep	AGENTS.md	commit type rule; C18	10edc92		Conventional Commits types with optional scope
+AGT-056	AGENTS.md	keep	AGENTS.md	home of the per-commit check (spec item 1); C18; slice 8 changes it to the checks that make check-changed picks	10edc92		each commit is one logical change that builds and passes make check
+AGT-057	AGENTS.md	keep	AGENTS.md	commit message rule; C18	10edc92		commit subject imperative under 72 chars; body gives the why
+AGT-058	AGENTS.md	keep	AGENTS.md	commit message file; C18	ad21140		long commit message goes through .scratchpads/commit-msg.txt and git commit -F
+AGT-059	AGENTS.md	keep	AGENTS.md	plan: keep; C18	c62ae01		pre-commit hook blocks lint or build failures on the working tree; stage whole changes
+AGT-060	AGENTS.md	keep	AGENTS.md	describes .claude/hooks/git-guardrails.sh; plan: keep the rule; C18	ad21140		git-guardrails.sh blocks force push, main push, hard reset, clean, hook skips, bad joins
+AGT-061	AGENTS.md	keep	AGENTS.md	workaround for a hook block; C18	ad21140		guardrail matches the whole command; reword a commit message that quotes a flag
+AGT-062	AGENTS.md	enforced	Makefile	the test-hooks recipe lists each test script (for example scripts/ax.test.sh, which this list omits); slice 8 points to it; a7401bc added "and the decision log script" to this list	L156	probe	make test-hooks covers the guardrail, probe, hid, screenshot, bench, icon, bundle, flake, mutate tests
+AGT-063	AGENTS.md	keep	AGENTS.md	audit s6: the checkout rules stay; C18	cc9cac1		git checkout/restore <path> allowed under the hard rules below
+AGT-064	AGENTS.md	keep	AGENTS.md	audit s6: the checkout rules stay; C18	cc9cac1		inspect git status --porcelain and git diff of a path before overwriting
+AGT-065	AGENTS.md	keep	AGENTS.md	audit s6: the checkout rules stay; C18	cc9cac1		commit or copy foreign or unsaved changes before overwriting a path
+AGT-066	AGENTS.md	keep	AGENTS.md	audit s6: the checkout rules stay; C18	cc9cac1		never discard uncommitted work of the user or another agent
+AGT-067	AGENTS.md	keep	AGENTS.md	audit s6: the checkout rules stay; C18	cc9cac1		mutation controls restore from mutate.py hash-checked copies, not git
+AGT-068	AGENTS.md	keep	AGENTS.md	permission setup; C18	ad21140		settings.json allows deliver build/test/git/gh pr commands; long runs need edit permission mode
+AGT-069	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		simplest design; no single-conformer protocol, single-product factory, or constant config
+AGT-070	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		modules are SwiftPM targets so the compiler checks dependency direction
+AGT-071	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		domain module imports only Foundation, no AppKit, SwiftUI, AVFoundation
+AGT-072	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		UI depends on domain, not the other way
+AGT-073	AGENTS.md	keep	AGENTS.md	architecture rule; C18	a3c1403		DirigibleApp target holds only shell and wiring; logic in testable libraries
+AGT-074	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		parse files, devices, and user input into domain types at the boundary
+AGT-075	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		UI state on MainActor; file I/O and DSP off the main actor
+AGT-076	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		one writer per capture device
+AGT-077	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		real-time audio thread: no allocation, locks, logging, file I/O, or await
+AGT-078	AGENTS.md	keep	AGENTS.md	architecture rule with its reason; C18	6cb75eb		audio callbacks nonisolated and @Sendable; inherited MainActor isolation crashes or races
+AGT-079	AGENTS.md	keep	AGENTS.md	architecture rule; C18	L42	doc	Core Audio via C APIs and a static nonisolated callback (decision 0013)
+AGT-080	AGENTS.md	keep	AGENTS.md	architecture rule; C18	L49	scope	actor reentrancy: finish state change before await or recheck guards after
+AGT-081	AGENTS.md	keep	AGENTS.md	no data loss; C18	10edc92		captured audio survives crash, unplug, full disk
+AGT-082	AGENTS.md	keep	AGENTS.md	no data loss; C18	10edc92		atomic session saves
+AGT-083	AGENTS.md	keep	AGENTS.md	no data loss; C18	6cb75eb		capture to a crash-safe format like CAF or repair WAV headers at launch
+AGT-084	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		store host time and sample time per device to align tracks
+AGT-085	AGENTS.md	keep	AGENTS.md	architecture rule; C18	L78	tool	rebase UInt64 host time with wrapping operators to avoid traps
+AGT-086	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		Apple audio frameworks first; third-party dependency needs a decision record
+AGT-087	AGENTS.md	keep	AGENTS.md	architecture rule; C18	L30	tool	branch on the probed OSStatus value, not errno
+AGT-088	AGENTS.md	keep	AGENTS.md	architecture rule; C18	8a1de76		each UI string has English and Spanish text outside code
+AGT-089	AGENTS.md	keep	AGENTS.md	stale; slice 8 rewrites it	0ee528e		InfoPlist strings checked by AppBundleTests; claims no other UI strings exist
+AGT-090	AGENTS.md	keep	AGENTS.md	architecture rule; C18	1f04c6d		Localizable.strings per language, looked up via Bundle.main (decision 0010)
+AGT-091	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		CLI output stays English-only for script comparison (decision 0011)
+AGT-092	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		each session or audio file feature gets a dirigible command and DirigibleCLITests test
+AGT-093	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		ParityTests covers public mutating DirigibleCore methods
+AGT-094	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		other public features log why they lack a CLI command
+AGT-095	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		CLI only parses, calls, prints; its logic lives in a library
+AGT-096	AGENTS.md	keep	AGENTS.md	zero warnings; C18	7723b34		warnings are errors per target (SE-0480); fix the cause, no suppression
+AGT-097	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		Swift file over 400 lines needs a reason; split by responsibility
+AGT-098	AGENTS.md	keep	AGENTS.md	test-first stays (C18)	10edc92		red test first via tdd for each behavior change
+AGT-099	AGENTS.md	merge	TDD-002	duplicate of tdd:10 (audit s2, spec item 7)	10edc92		integration tests with real files and buffers; unit tests for pure functions
+AGT-100	AGENTS.md	keep	AGENTS.md	duplicate of tdd:15 (step 2), not a spec home; slice 8 may point it to tdd	10edc92		generated audio fixtures in tests, no big binary fixtures
+AGT-101	AGENTS.md	merge	TDD-027	duplicate of tdd:37 (audit s2, spec item 7)	10edc92		literal expected values; processed audio within a stated tolerance
+AGT-102	AGENTS.md	merge	TDD-017	duplicate of tdd:26 (audit s2, spec item 7)	10edc92		a test that passes on empty returns is no test
+AGT-103	AGENTS.md	keep	AGENTS.md	no tdd row states the network ban; tdd:24 covers only the hardware part	10edc92		tests avoid network, real microphone, permission prompts
+AGT-104	AGENTS.md	merge	DLV-007	duplicate of deliver:16 (audit s2, spec item 5)	10edc92		hardware checks become manual checks in the run ledger
+AGT-105	AGENTS.md	keep	AGENTS.md	plan: keep, still true	10edc92		slow tests behind DIRIGIBLE_SLOW_TESTS; make test-slow runs them
+AGT-106	AGENTS.md	keep	AGENTS.md	conflict with reflect:12 and practice (audit s3); slice 8 sharpens it to the reflect rules	10edc92		reflect edits docs or adds a check when a learning repeats; checks over prose
+AGT-107	AGENTS.md	keep	AGENTS.md	docs truth rule	10edc92		AGENTS.md commands and paths work at every commit
+AGT-108	AGENTS.md	new	AGENTS.md	new in slice 0 of this run	a7401bc		log-decision.sh --from <file> when the hook blocks a field
+DLV-001	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; scope of one run	ad21140		one run: one goal to a merged PR; each step writes the ledger
+DLV-002	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; phase checklist	cdf55a5		open a todo list of the phases at run start
+DLV-003	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; no phase skipped	cdf55a5		no phase skipped; a short phase still leaves its artifact
+DLV-004	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; autonomy default	cdf55a5		reversible work: pick a default, log it in decisions.tsv, go on
+DLV-005	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; stop list	cdf55a5		ask the human only for irreversible or outward actions
+DLV-006	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; the land needs no question	ad21140		push, PR create, and merge of a run branch need no question
+DLV-007	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; home of hardware to manual check (audit 2)	cdf55a5		hardware you cannot drive becomes a manual check in run.md
+DLV-008	.claude/skills/deliver/SKILL.md	merge	DLV-035	untried limit stated three times; home deliver:37 (audit 2)	L83	probe	probe the limit before a manual check weakens a criterion
+DLV-009	.claude/skills/deliver/SKILL.md	merge	VER-050	hid.swift driving has its home in verify-this:34 (audit 2)	39f0f83		hid.swift CGEvents drive drags and keys on the built app
+DLV-010	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; context rule	cdf55a5		send bulk reading to subagents; keep only conclusions
+DLV-011	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; run files of a subagent	L35	hook	subagent prompt names each run file as a required ledger file
+DLV-012	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; conflicts with the plan run-files rule (Write tool or an empty file, no heredoc); slice 4 aligns	L91	hook	Write tool refuses a run file: subagent uses a Bash heredoc, no retry
+DLV-013	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; loop rule for subagents	L51	wait	subagent repeat loop runs in foreground, Bash timeout 10 min or less
+DLV-014	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; home of research routing (audit 2)	L26	doc	every research request goes through the research skill to docs/research
+DLV-015	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; home of the loop ban (audit 2)	L173	probe	subagent prompts state a running loop or bench; swift ban alone fails
+DLV-016	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; conflicts with AGENTS.md:72 (session start reads); slices 4 and 8 align them	565d66a		Phase 0 reads learnings.md, backlog.md, and ledger.md
+DLV-017	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; resume an open run	565d66a		Phase 0: find unfinished work and resume an open run on its branch
+DLV-018	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; protects uncommitted work	565d66a		no switch to main with uncommitted changes
+DLV-019	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; the Phase 0 step (audit 2)	565d66a		Phase 0: new-run.sh <slug> opens a new run
+DLV-020	.claude/skills/deliver/SKILL.md	merge	AGT-044	restates what new-run.sh does; home AGENTS.md:71 (audit 2)	cdf55a5		new-run.sh creates the run folder and ledger line; no reopen of a done run
+DLV-021	.claude/skills/deliver/SKILL.md	merge	AGT-046	restates log-decision.sh; home AGENTS.md:73 (audit 2)	L66	doc	log-decision.sh adds each decisions.tsv row with a clock ts
+DLV-022	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; the subagent part is not in AGENTS.md:73	L66	doc	no hand-typed decision row; subagents use log-decision.sh too
+DLV-023	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 runs the main check only when main has commits that no run landed	565d66a		Phase 0: make check on main; a red main is the run goal
+DLV-024	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; branch before any file change	565d66a		create the <type>/<slug> branch first; every run commit goes on it
+DLV-025	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 1 artifact	cdf55a5		Phase 1 writes analysis.md in the run folder
+DLV-026	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; analysis content	cdf55a5		analysis lists the brief requirement IDs of the run
+DLV-027	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; analysis content	cdf55a5		analysis states the Hindenburg PRO reference behavior
+DLV-028	.claude/skills/deliver/SKILL.md	merge	DLV-014	second research routing; home deliver:20 (audit 2)	L26	doc	research Hindenburg behavior with the research skill
+DLV-029	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; analysis content	cdf55a5		analysis cites its sources
+DLV-030	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; criterion form	cdf55a5		acceptance criteria are falsifiable, each with its proving test or command
+DLV-031	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; clause coverage	L179	claim	each clause of a criterion gets an assert or a named manual check
+DLV-032	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; start states of a trigger	L179	claim	trigger criterion: one case per start state (window, focus)
+DLV-033	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; example of a criterion	cdf55a5		example criterion: two WAV files of 10 s within 20 ms
+DLV-034	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; defaults for open questions	cdf55a5		answer each open question with a logged default
+DLV-035	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; home of untried limit is a guess (audit 2)	L56	claim	probe an assumed platform limit before a default departs from reference
+DLV-036	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 names the backlog section (## Next or ## Later)	cdf55a5		out-of-scope items go to backlog.md
+DLV-037	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 2 artifact	cdf55a5		Phase 2 writes plan.md
+DLV-038	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; vertical slices	cdf55a5		vertical slices, each ending in a passing test and a commit
+DLV-039	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice order	cdf55a5		riskiest unknown first in the slice order
+DLV-040	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice cut	L21	scope	mutually referencing types share one slice
+DLV-041	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; plan content per slice	cdf55a5		plan per slice: first test, touched modules, expected commit message
+DLV-042	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 adds the risk: filter (risk: no uses the red-before test)	L34	control	plan names the negative-control test of each criterion
+DLV-043	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L150	claim	no-control-possible claim needs a logged probe; find an input only the guard refuses
+DLV-044	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L34	control	commit the control test; prose-only control first runs in Phase 7
+DLV-045	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L39	control	run a source-mutation control with mutate.py before the slice commit
+DLV-046	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L94	control	mutate.py logs output, restores the file, checks its hash
+DLV-047	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L101	control	two-edit control is one mutate.py call with two pairs
+DLV-048	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	--in= is in the docstring; the ban on a script edit in build or test command stays	L131	control	--in=<file> for a second file; no script edit a replay cannot see
+DLV-049	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L131	control	NO TESTS means the test filter matched nothing
+DLV-050	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L101	control	no nested mutate.py in its test command
+DLV-051	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L94	control	BUILD FAILED proves nothing; fix the mutant
+DLV-052	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	one-off L149, L155 (audit 4)	L149	control	mutant build outputs stay; control build cleans shared outputs (hdiutil crash)
+DLV-053	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	one-off L155 (audit 4)	L149	control	BUILD FAILED or crash after a control can come from its stale outputs
+DLV-054	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	one-off L130 (audit 4)	L130	control	warnings as errors: mutate the source of a value, not its use
+DLV-055	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L126	control	--expect takes the assertion message, not a test name
+DLV-056	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L161	control	guard and refusal message read one limit variable
+DLV-057	.claude/skills/deliver/SKILL.md	enforced	.claude/skills/deliver/scripts/mutate.py	mutate.py:91-92 prints "mutate: {replay[0]} has no time limit; pass --timeout <seconds>" and exits 2 (L176)	L176	wait	each control gets --timeout; a replay with no limit exits 2
+DLV-058	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L105	control	a hang mutant is killed at --timeout as killed (hang)
+DLV-059	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	docstring of mutate.py states it; one pointer	L136	control	with --expect a hang counts only if the text came first
+DLV-060	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	WRONG FAILURE is in the docstring; the keep-the-shape rule stays	L102	control	crash or thrown error gives WRONG FAILURE; mutant keeps data shape
+DLV-061	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	one-off L148 (audit 4)	L148	control	control-broken test reads input with try? so the assert message comes
+DLV-062	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 replay once, only with risk: yes	L94	control	cite the control log in decisions.tsv; Phase 7 replays it
+DLV-063	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L52	control	two mutations per guard condition: accepts too much, refuses too much
+DLV-064	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L99	control	measured-quantity guard: one mutation per operand; fixture regions differ
+DLV-065	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L52	control	each criterion test fails under at least one mutation
+DLV-066	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L52	control	compound guard: a test setting the other condition cannot reach it
+DLV-067	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L52	control	X-during-Y test also asserts that Y goes on
+DLV-068	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L39	control	hidden mutation: no failing test blocks the code gate
+DLV-069	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L50	control	reach the guard past the other mechanism or remove the guard
+DLV-070	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 apply the risk: yes filter	L178	control	test-process-only mechanism: retire the control, prove on the built app
+DLV-071	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	one-off L178 (audit 4); the rule stays	L178	control	no product change only to let a control kill it
+DLV-072	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L59	claim	perf criterion names build configuration and size; test asserts real budget
+DLV-073	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L59	claim	name the make target of a perf test, e.g. make bench FILTER
+DLV-074	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L59	claim	timing at other conditions is a proxy, not a close
+DLV-075	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L59	claim	perf criterion with no committed command is a manual check
+DLV-076	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L81	claim	perf criterion names input paths, worst-case fixtures, real input rate
+DLV-077	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L81	claim	benchmark sends one pointer event per display frame
+DLV-078	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L81	claim	an unnamed input path is outside the budget
+DLV-079	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L134	claim	known slow cause: assert a time-free DEBUG count with a control
+DLV-080	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	plan: deliver:46-48 go to performance-criteria.md	L134	claim	DEBUG-counter test sits in #if DEBUG; make bench has no DEBUG
+DLV-081	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	one-off L139 (audit 4)	L139	claim	two events per frame bench: Bool per event, same-input control
+DLV-082	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	one-off L171 (audit 4)	L171	claim	loop classifier rule is a run-folder script, tested on green runs first
+DLV-083	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	one-off L171 (audit 4)	L171	claim	classifier changed after the data is a criterion change
+DLV-084	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	one-off L134 (audit 4)	L134	claim	new move or resize input: test each redraw or cache guard key
+DLV-085	.claude/skills/deliver/SKILL.md	move	.claude/skills/deliver/references/performance-criteria.md	one-off L134 (audit 4)	L134	claim	redraw fixtures include fit zoom, origin 0, short document
+DLV-086	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; one-way decisions	cdf55a5		one-way decision: architect skill plus a docs/decisions record
+DLV-087	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; decision grep	L115	doc	grep docs/decisions and AGENTS.md for each plan item
+DLV-088	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; home of grep every copy of a changed rule (audit 2)	L127	scope	changed rule: grep its phrase in docs, Sources, and Tests
+DLV-089	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; tests are copies of a rule	L127	scope	a test asserting the old rule is a planned expected-value change
+DLV-090	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; quote found rules	L115	doc	quote each found rule and state keep or change
+DLV-091	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; rule change amends the record	L115	doc	changing a recorded rule is a one-way decision
+DLV-092	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; probes refute options	L115	doc	check fix options against the probes of the decision record
+DLV-093	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 3 and 7 change the panel per class	cdf55a5		Phase 3: interrogate skill with target plan
+DLV-094	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; freeze during the plan gate	L21	scope	no Sources or Tests edit until the plan gate closes
+DLV-095	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; act on items	cdf55a5		plan gate: change the plan for each Act on item, logged
+DLV-096	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; probe tool failure modes	L144	tool	probe each failure mode of an external tool before a detector
+DLV-097	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep the rule; the actool example is a one-off (L144, audit 4)	L144	tool	detect tool failure by exit status and product files, not text
+DLV-098	.claude/skills/deliver/SKILL.md	merge	DLV-088	grep every copy stated twice; home deliver:50 (audit 2)	L116	doc	changed fact: grep its ID across docs and run files
+DLV-099	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 7 sets rounds per class	cdf55a5		plan gate reruns on a critical item, two rounds at most
+DLV-100	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; detail goes to lead-judgment.md in slice 7	4d1c9f6		round 2 is convergence; then log open risks in run.md
+DLV-101	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed	cdf55a5		Phase 4 per slice: tdd loop, make check, commit
+DLV-102	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; the guardrail hook refuses a join other than &&; slice 4 changes it to make check-changed	L142	hook	check and commit joined by && in one command
+DLV-103	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice order	L21	scope	commit a slice before a file of the next slice
+DLV-104	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; audit 2 names tdd:46 as home, but at 3bc03e0 tdd:46 records the load at a flake failure, not a wait before a check	L153	flake	after heavy work wait for normal uptime load before make check
+DLV-105	.claude/skills/deliver/SKILL.md	merge	AGT-056	commit rule; home AGENTS.md:83 (audit 2)	cdf55a5		one logical change per commit
+DLV-106	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; pointer to AGENTS.md:82 (not a home of the list)	cdf55a5		commit subjects use the feat/fix type prefixes
+DLV-107	.claude/skills/deliver/SKILL.md	merge	AGT-056	commit rule; home AGENTS.md:83 (audit 2)	cdf55a5		no commit on a red check
+DLV-108	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice record	cdf55a5		after each slice: decisions.tsv row and a tick in run.md
+DLV-109	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 takes the main make test time once per run	L33	wait	row gives make test time on main and branch; 2x stops as plan change
+DLV-110	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; wrong plan	cdf55a5		wrong plan: stop, update plan.md, log why, no workarounds
+DLV-111	.claude/skills/deliver/SKILL.md	merge	DLV-035	untried limit stated three times; home deliver:37 (audit 2)	L60	claim	weaker criterion from a tool limit needs a logged probe
+DLV-112	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; criterion text follows the change	L162	doc	criterion change edits analysis.md and cites its decision row
+DLV-113	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; guide in the same slice	04ca314		user-visible change updates docs/guide.md in the same slice
+DLV-114	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed	cdf55a5		Phase 5: deslop, make check, cleanup commit on its own
+DLV-115	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slices 3 and 7 change the panel per class	cdf55a5		Phase 6: interrogate skill with target diff
+DLV-116	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes the check to make check-changed	cdf55a5		code gate: one commit per Act on item; bug fix gets regression test
+DLV-117	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 sends a Consider item to ## Later	cdf55a5		Consider items not done go to backlog.md with reason
+DLV-118	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; one-off L112 (audit 4), no references file fits	L112	scope	reverted fix: symptom goes to manual checks and pr.md
+DLV-119	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 7 sets rounds per class	cdf55a5		code gate reruns on a critical item, three rounds at most
+DLV-120	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; detail goes to lead-judgment.md in slice 7	4d1c9f6		round 3 is convergence; one fix check closes the gate
+DLV-121	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 sends it to ## Later	4d1c9f6		code gate outOfScope items land in backlog.md
+DLV-122	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 7 step	cdf55a5		Phase 7: verify-this per criterion on real artifacts; NOT VERIFIED goes back
+DLV-123	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 7 step	L177	control	stop running replays with pkill -INT before a fix
+DLV-124	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 replays once, only with risk: yes	L177	control	replay all controls once on the landing tree
+DLV-125	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; trap: screenshots.sh writes the real preferences (audit 3)	fc89f68		window change: make the guide screenshots again
+DLV-126	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 8 step	565d66a		Phase 8: reflect skill turns learnings into commits
+DLV-127	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed	565d66a		make check after reflect commits
+DLV-128	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 9 changes the reflect rules	565d66a		no friction: log no learnings, no commit
+DLV-129	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed BASE=origin/main	ad21140		Phase 9: rebase on origin/main, then make check
+DLV-130	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; no force push needed	ad21140		rebase before first push
+DLV-131	.claude/skills/deliver/SKILL.md	enforced	scripts/check-changed.sh	future: slice 1 (class sources picks test-slow)	L61	scope	Sources change runs make test-slow before push
+DLV-132	.claude/skills/deliver/SKILL.md	enforced	scripts/check-changed.sh	future: slice 1 (class bundle picks test-dmg; the hard-coded list goes)	437d12c		bundle or DMG change runs make test-dmg; path list hard-coded
+DLV-133	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; check-changed does not pick make bench	L61	scope	run make bench for each optimized budget of a criterion
+DLV-134	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	ad21140		push the run branch with upstream
+DLV-135	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	ad21140		PR body via pr skill in pr.md, then gh pr create
+DLV-136	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	44c48d3		before merge check main did not move with merge-base
+DLV-137	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	44c48d3		gh pr merge --rebase --delete-branch keeps history linear
+DLV-138	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land step	L16	scope	after merge: switch main, pull ff-only, prune
+DLV-139	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; leftover branch	ad21140		leftover local branch after rebase merge stays; log it
+DLV-140	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; merge conflict path	ad21140		merge fails after main moved: stop, log, resolve on fresh branch
+DLV-141	.claude/skills/deliver/SKILL.md	enforced	.claude/hooks/git-guardrails.sh	git-guardrails.sh:8 prints "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1." with $1 = matches 'git push( .*)? (--force|-[a-zA-Z]*f|\+)' (L28), exit 2	c5746cd		no force push
+DLV-142	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; run summary	ad21140		run.md done status and summary; list defaults open for the user
+DLV-143	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; PR URL record	ad21140		PR URL goes in run.md and ledger.md
+DLV-144	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; loop of runs	cdf55a5		several goals: repeat phases from backlog; close each run first
+DLV-145	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; AGENTS.md on disk	L118	doc	read AGENTS.md from disk at each run start; context copy is stale
+DLV-146	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; subagent prompt rule	L118	doc	subagent prompts say the AGENTS.md on disk wins
+DLV-147	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; unattended loop preflight	L23	hook	unattended loop: check git ls-remote and gh auth; else stack branches
+DLV-148	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; credential safety	L23	hook	no credential store access beyond existing access
+DLV-149	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; land through a pull request	ad21140		each run lands green on main through its own PR
+DLV-150	.claude/skills/deliver/SKILL.md	merge	AGT-003	STE rule; home AGENTS.md:7-8 (audit 2)	cdf55a5		plans, ledger rows, verdicts, commits follow STE skills
+TDD-001	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; core test-first contract	1e069af		fails before the change, passes after; test precedes production code
+TDD-002	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; home of integration-first (AGENTS.md:111 and code-quality-reviewer:13 merge here)	1e069af		integration test via public API with real WAV/FLAC, AVAudioPCMBuffer, session XML
+TDD-003	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; AGENTS.md:111 unit-test sentence merges here	1e069af		unit tests reserved for pure functions with many edge cases
+TDD-004	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workflow step 1	1e069af		step 1: pin intended and current behavior, smallest observable result
+TDD-005	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workflow step 2	1e069af		step 2: pick integration test target of the owning module
+TDD-006	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; AGENTS.md:112 duplicates it (not in audit)	1e069af		sine, silence, noise fixtures made in the test; no big binary files
+TDD-007	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workflow step 3; AGENTS.md:113 first sentence duplicates the literal-value part	e8ee556		step 3: red test asserts literal value or observable effect, dBFS tolerance
+TDD-008	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 drops the L124 example, keeps the rule	L124	claim	user-facing text fixes expected values; test the exact boundary
+TDD-009	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workflow step 4	1e069af		step 4: new test must fail for the intended reason before the fix
+TDD-010	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workflow step 5	1e069af		step 5: minimal production change that turns the test green
+TDD-011	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 keeps make test as the inner loop	1e069af		step 6: rerun with make test; the whole suite stays green
+TDD-012	.claude/skills/tdd/SKILL.md	delete		replaced: 0028 (one commit; the red log goes in decisions.tsv)	1e069af		bug fix may commit red test: first and fix: on top
+TDD-013	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 makes one test-plus-code commit the rule for every change (0028)	1e069af		feature lands test and code in one feat: commit
+TDD-014	.claude/skills/tdd/SKILL.md	merge	DLV-007	merge; home of hardware manual check is deliver:16	1e069af		mic, two interfaces, or permission prompt means hardware
+TDD-015	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; tdd-specific: explain the gap before the change; tdd:58 restates it	e8ee556		no silent skip; say why no test, use closest check (afinfo, ffprobe)
+TDD-016	.claude/skills/tdd/SKILL.md	merge	DLV-007	merge; deliver:16 writes the manual check in run.md	1e069af		manual check logged in run ledger for a human to repeat
+TDD-017	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; home of the returns-nothing rule (AGENTS.md:114 merges here; principles.md:34 stays)	e8ee556		no test beats a bad test: mocks, impl details, timing, empty returns
+TDD-018	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		never edit tests to fit a wrong implementation
+TDD-019	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	L140	tool	huge values in #expect can hang on failure; compare to Bool first
+TDD-020	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; home of the lost-input rule (interrogate:19 merges here)	L68	data	blocked user action test asserts typed text, alert, selection, clipboard survive
+TDD-021	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	L68	data	plan that loses input: raise a plan finding, write no such test
+TDD-022	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	L90	probe	refusal test asserts rule message or error case, not a bare failure
+TDD-023	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; overlaps tdd:43 (pwd -P); slice 6 merges the text	L163	hook	refused path absent afterwards; check before mkdir -p, resolve with pwd -P
+TDD-024	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	L110	probe	nothing-changed test first proves X reached output in the same capture
+TDD-025	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 drops the L128 story, keeps the rule	L128	probe	unchanged-files test compares bytes or hash; control flips one byte
+TDD-026	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		no weaker assertions unless behavior changed, with reason
+TDD-027	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; home of audio tolerance (AGENTS.md:113 and code-quality-reviewer:13 merge here)	1e069af		processed audio compared within stated tolerance, no exact float match
+TDD-028	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; test-harness gets tdd:38	L109	probe	incremental-update test reads on-screen capture (TimelineColorTests.capture)
+TDD-029	.claude/skills/tdd/SKILL.md	merge	VER-048	merge; offscreen-render home is verify-this:34	L109	probe	cacheDisplay and render(in:) redraw, so they miss copied pixels
+TDD-030	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move	L109	probe	make the pixel test red with the input where the probe saw the fault
+TDD-031	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; slice 6 drops the L121 subtitle detail, keeps the rule	L121	probe	window chrome test reads drawn frame view, not the NSWindow property
+TDD-032	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; test-harness gets tdd:39	L133	tool	test process differs from the app; such results prove only the harness
+TDD-033	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move	L133	tool	L10n yields keys in tests (Bundle.main is runner); layouts hold any width
+TDD-034	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move	L133	tool	synthetic NSEvent to scrollWheel(with:) is not an HID scroll
+TDD-035	.claude/skills/tdd/SKILL.md	merge	VER-052	merge; AX-walk home is verify-this:34	L133	tool	direct accessibility call proves no VoiceOver reach; walk accessibilityChildren()
+TDD-036	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; slice 6 keeps the L133 rule in one line	L133	tool	#expect of CGFloat against Double fails; convert both to Double
+TDD-037	.claude/skills/tdd/SKILL.md	merge	VER-050	merge; drive-the-app home is verify-this:34	L133	tool	try hid.swift or an AX walk on the built app before going manual
+TDD-038	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	L20	scope	writer/reader pair gets a seeded random round-trip test
+TDD-039	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L64	probe	isolation hook is synchronous and sits at the operation itself
+TDD-040	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move; slice 6 keeps the L73 rule, drops the story	L73	tool	priority hook reads Task.currentPriority; qos_class_self misses escalation
+TDD-041	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L71	scope	cancel or stop test asserts no later work, not only the end state
+TDD-042	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move; slice 6 drops the L151 mktemp example; overlaps tdd:33 (pwd -P)	L151	tool	OS-resource test asserts mount, child, temp dir gone; no tolerant cleanup
+TDD-043	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move; overlaps tdd:51-52 (audit 2); slice 6 merges the text	L31	wait	every test wait gets a limit and failure message; fail, never hang
+TDD-044	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move; slice 6 drops the L172 export story, keeps the rule	L172	wait	limit on the test wait; product-work gate has none, defer releases it
+TDD-045	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L76	wait	one deadline per public call passed down; expired limit never succeeds
+TDD-046	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L76	wait	prove the limit message with a forcing mutation; outer limit masks inner
+TDD-047	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L108	wait	updateLayer/draw/layout change can loop on main; first run in background
+TDD-048	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move; keep the pointer to mutate.py --timeout	L108	wait	hang: pgrep swiftpm-testing-helper, sample pid, control via mutate.py --timeout
+TDD-049	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; plan names waits-and-limits for tdd:45, but the triage list stays in one file (audit 6)	L147	flake	flaky test: run the ordered triage before anything else
+TDD-050	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; home of load average before a check (deliver:63 merges here); plan names waits-and-limits for tdd:46; slice 6 drops the L170 symlink story	L153	flake	triage 1: log load and heavy commands; loop.sh --min-load under that load
+TDD-051	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move	L147	flake	triage 2: full suite and lone test, 15 runs each
+TDD-052	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; slice 6 drops the L100 9-of-10 example	L147	flake	triage 3: timeout flake compares duration to limit on branch and main
+TDD-053	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; plan names waits-and-limits for tdd:49, but the triage list stays in one file (audit 6)	L147	flake	triage 4: same loops on main before calling a flake outside the run
+TDD-054	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; triage part of tdd:50	L147	flake	fix the flake deterministically or delete it; no retry-until-green
+TDD-055	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; triage part of tdd:50	L87	flake	full-suite-only flake: read diff of the slice that introduced it
+TDD-056	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; triage part of tdd:50	L87	flake	hunt process-wide resources that parallel tests share
+TDD-057	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; key window	L84	flake	tests lack key window; route key events via NSWindow.sendEvent
+TDD-058	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; first click; slice 6 keeps the L122 rule	L122	tool	test mouse-down is a first click; hit-test frame view; stays manual
+TDD-059	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; pool gates	L85	flake	semaphore on pool thread starves the pool; use AsyncGate; Gate.waitOnce noasync
+TDD-060	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/test-harness.md	move; seams	L63	flake	pin preferences and seams before open; restart work after a late seam
+TDD-061	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; triage part of tdd:50	L32	flake	delete a flaky test only when the test itself is the cause
+TDD-062	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; related to the reflect:55 ban on a weaker test gate	L97	flake	slow gate, longer limit, smaller fixture are workarounds; log open, undo
+TDD-063	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move	L77	flake	flake-fix proof: mutation reproduces exact failure value, red old, green new
+TDD-064	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move	L103	flake	show threshold by filling the resource; prove hold by later measurement
+TDD-065	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; slice 6 drops the L77 1-in-21 math	L77	flake	commit flake fix after as many green runs as exposed it
+TDD-066	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move	L72	wait	shared helper or suite speed change: search all suites for exposed shape
+TDD-067	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move; overlaps tdd:44 (audit 2)	L72	wait	async milestone test waits on a code signal or gate, not slow work
+TDD-068	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L98	wait	yield counts and sleeps act as clocks; expose state, wait with a limit
+TDD-069	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L36	wait	busy actor or queue: name the holder before changing any limit
+TDD-070	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; triage part of tdd:52	L86	flake	wait-failure cluster: monitor test times hops, runs /usr/bin/sample over 2 s
+TDD-071	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/flake-triage.md	move; triage part of tdd:52	L36	wait	product holder is plan finding; test holder leaves actor; load splits process
+TDD-072	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L46	wait	each limit under one full suite run so hangs surface
+TDD-073	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L88	wait	producers and watchdogs outlive the wait limit; test owns the clock
+TDD-074	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L36	wait	fix every test sharing the same duration in one commit
+TDD-075	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		report the failing-before test and its failure
+TDD-076	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		report the passing-after make test run and result
+TDD-077	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; restates tdd:24 explain-why	1e069af		no red evidence possible: say why, name closest check
+VER-001	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	core purpose of the skill	e8ee556		verify-this proves or disproves one claim with repeatable evidence
+VER-002	.claude/skills/verify-this/SKILL.md	delete		no-op: the frontmatter description names the same triggers and loads the skill	e8ee556		trigger phrases for verify-this requests
+VER-003	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	trigger case	e8ee556		bug fix needs a before and after repro
+VER-004	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	trigger case	e8ee556		UI, CLI, API, performance, memory claims get a measurement
+VER-005	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	trigger case	e8ee556		green test still needs user-visible confirmation
+VER-006	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	scope limit of the skill	e8ee556		refuse vague claims; ask for a measurable one
+VER-007	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	step 1 of the workflow	e8ee556		step 1: falsifiable claim with condition, metric, threshold
+VER-008	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	general claim rule	L145	claim	word criterion like opaque gets a number before the first measurement
+VER-009	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	general claim rule	L145	claim	number set after a failed measurement is a criterion change; log it, add control
+VER-010	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	pixel claims only; one-off L145	L145	claim	pixel criterion states an alpha threshold for shadow and antialiasing
+VER-011	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	step 2 of the workflow	e8ee556		step 2: smallest local surface that can disprove the claim
+VER-012	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	step 3 of the workflow	e8ee556		step 3: baseline from the old state such as merge base or parent
+VER-013	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	keep; slice 5 adds: with risk: no, the failing-before test log is the baseline	L25	claim	new code baseline is a negative control that makes the check fail
+VER-014	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule of step 3	L25	claim	green check with no baseline gives INCONCLUSIVE
+VER-015	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail; slice 5 step 3 points to mutation-controls.md	L34	control	run the control under the claim conditions, for example a compiler feature on
+VER-016	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail; slice 5 step 3 points to mutation-controls.md	L38	control	control breaks the claimed mechanism, for example memory order or a guard
+VER-017	.claude/skills/verify-this/SKILL.md	merge	DLV-045	same meaning: a source mutation runs through mutate.py, which restores the file	L94	control	source mutation goes through mutate.py, which restores the file
+VER-018	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail	L38	control	control that corrupts only checker input proves only the checker
+VER-019	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	keep; overlaps the VER row of line 62 (a control that cannot fail); slice 5 keeps one copy	L38	control	claim this Mac cannot fail is INCONCLUSIVE and names a manual check
+VER-020	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail	L38	control	mutation that does not reproduce the failure is a finding to record
+VER-021	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail	L65	control	unreachable mutant is equivalent; log the caller reason in decisions.tsv
+VER-022	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail; one-off L120	L120	control	surviving framework-setup mutant stays on the replay list; check it first
+VER-023	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 replay once, only with risk: yes	L138	control	mutate.py --replay each killed control in the verify phase
+VER-024	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	slices 4-5 replay once, only with risk: yes	L138	control	do not choose replays by changed files; most controls go stale
+VER-025	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	replay detail; slices 4-5 replay once, only with risk: yes	L149	control	replay repeats side effects and mutant builds; rebuild from the clean tree
+VER-026	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	when to mark a control; the flag meaning points to the mutate.py docstring	L137	control	mark a shared-state test command with --side-effects
+VER-027	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	judge under the mutant; --allow-side-effects meaning is in the mutate.py docstring	L160	control	decide --side-effects from mutant behavior; replay then needs --allow-side-effects
+VER-028	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail; one-off L159	L159	control	writing test command gets a new output folder per run, date +%s
+VER-029	.claude/skills/verify-this/SKILL.md	enforced	.claude/skills/deliver/scripts/mutate.py	L137; --replay of a side-effects log exits 2: "mutate: the test command of {replay[0]} has side effects; pass --allow-side-effects"; the pointer part has no enforcer	L137	control	no Mission Control or pointer over a test window during tests
+VER-030	.claude/skills/verify-this/SKILL.md	enforced	.claude/skills/deliver/scripts/mutate.py	a changed old text exits 2: "mutate: the old text is in {name} {mutant_text.count(old)} times, not once: {old!r}"; the docstring says to write it again	L107	control	replay of a changed old text exits 2; rewrite the mutant
+VER-031	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail	L146	control	retire a control only with a decisions.tsv row naming its successor
+VER-032	.claude/skills/verify-this/SKILL.md	move	.claude/skills/deliver/references/mutation-controls.md	control detail	L96	control	surviving control reruns with DIRIGIBLE_SLOW_TESTS=1; log a slow-only guard
+VER-033	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	step 4 of the workflow	e8ee556		step 4: treatment with the same command, data, warmup, environment
+VER-034	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	step 5 of the workflow	e8ee556		step 5: compare raw artifacts such as numbers and screenshots
+VER-035	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	step 6 of the workflow	e8ee556		step 6: one verdict of VERIFIED, NOT VERIFIED, INCONCLUSIVE
+VER-036	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	local surface	e8ee556		code behavior surface: focused tests or a minimal repro
+VER-037	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	local surface	1e069af		afinfo and ffprobe give audio format and container facts
+VER-038	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	local surface	1e069af		ffmpeg ebur128 and astats give LUFS, true peak, RMS, noise floor
+VER-039	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	local surface	1e069af		xmllint --noout checks session XML, then read the elements
+VER-040	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving; slice 5 moves verify-this:34-36	c7876a8		make run, then scripts/screenshot.sh, for app behavior
+VER-041	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving; one-off L180; keep the open -a absolute path (L166)	L180	probe	preference-writing check runs a re-signed copy with its own CFBundleIdentifier
+VER-042	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L180	probe	screenshots.sh writes docs/images and real preferences; not a check
+VER-043	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving; the antecedent of It is unclear after screenshots.sh	c7876a8		screenshot capture takes one window, not the whole screen
+VER-044	.claude/skills/verify-this/SKILL.md	enforced	scripts/screenshot.sh	L156; the script takes only a window: "usage: screenshot.sh [--owner <name> | --window <id>] <out.png>"	L156	probe	screenshot.sh --owner captures a window of another process
+VER-045	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L156	probe	osascript System Events reads dialog text; close by the no-op button
+VER-046	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L156	probe	no full-screen capture, because it records private content
+VER-047	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	c7876a8		pkill the built app after the check
+VER-048	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	cross-file home (item 6): an offscreen render cannot prove pixels	L82	probe	layer.render or cacheDisplay cannot prove pixels; screenshot the built app
+VER-049	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L82	probe	kept-pixel change also compares with a forced full redraw
+VER-050	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	cross-file home (item 6): drive the app with hid.swift	39f0f83		scripts/hid.swift drives drag, click, keys, and scroll --phases
+VER-051	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L132	probe	post keys only through hid.swift; a lone modifier flag stays held
+VER-052	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	cross-file home (item 6): a direct AX call does not prove VoiceOver	L135	probe	ax.swift walk to each new control; an AX method call is not VoiceOver proof
+VER-053	.claude/skills/verify-this/SKILL.md	enforced	scripts/ax.swift	L174; press exits 4: "\(all.count) elements match \"\(arguments[1])\". Give a longer path:"; the Apple menu is out unless the path starts with Apple	L174	probe	ax.swift press takes a menu path; an ambiguous path exits 4
+VER-054	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L168	probe	compile ax.swift once with swiftc -O for a poll
+VER-055	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L168	probe	poll-based negative claim states the largest sample gap
+VER-056	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L157	probe	menu key equivalents: ax.swift dump once per UI language
+VER-057	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving; keep the open -a absolute path as one sentence (L166)	L135	probe	launch arguments for a light or Spanish capture; open -a absolute path
+VER-058	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L135	probe	set a low dirigible track gain before generated audio plays
+VER-059	.claude/skills/verify-this/SKILL.md	enforced	scripts/ax.swift	exit 3: "No Accessibility trust. Add the terminal app in System Settings > Privacy & Security > Accessibility." (ax.swift and hid.swift); It reads as dirigible track gain	39f0f83		AXIsProcessTrusted check exits 3 with no trust
+VER-060	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	app driving	L89	probe	locked screen blocks HID and AX; screenshot.sh warns; checks go manual
+VER-061	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	slice 5 moves verify-this:35	L111	claim	visual report: locate it by a capture diff against a full redraw; probe main
+VER-062	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	slice 5 moves verify-this:35	L111	claim	does-not-reproduce needs the user event path and content, else INCONCLUSIVE
+VER-063	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	slice 5 moves verify-this:35	L111	claim	a second defect from the probe is a separate claim; the report stays open
+VER-064	.claude/skills/verify-this/SKILL.md	move	.claude/skills/verify-this/references/driving-the-app.md	slice 5 moves verify-this:36; one-off L158; overlaps the VER row of line 63	L158	doc	read the .loctable per locale before a doc quotes system text
+VER-065	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	local surface	1e069af		performance surface: same-machine timings or xctrace
+VER-066	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	keep; overlaps the bench-pairs.sh row of AGENTS.md:22	L141	flake	compare benches with main through scripts/bench-pairs.sh
+VER-067	.claude/skills/verify-this/SKILL.md	enforced	scripts/bench-pairs.sh	prints "INCONCLUSIVE {case} (A/A spread {spread:.2f} ms over the rule {limit:.2f} ms)"	L141	flake	A/A spread over the rule makes the bench verdict INCONCLUSIVE
+VER-068	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	bench rule	L141	flake	no choice of clean bench pairs after the results
+VER-069	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	local surface	1e069af		memory surface: leaks or footprint before and after
+VER-070	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	intro of the artifact layout	e8ee556		artifact tree applies when a write is safe
+VER-071	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	evidence rule	L113	probe	each probe run gets a new folder by commit and run number
+VER-072	.claude/skills/verify-this/SKILL.md	merge	AGT-048	same meaning: real voices stay out of git	1e069af		real voice recordings stay in the gitignored scratchpad
+VER-073	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule	e8ee556		VERIFIED definition: predicted direction, threshold, no confound
+VER-074	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule	e8ee556		NOT VERIFIED definition: unchanged, wrong way, or under threshold
+VER-075	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	keep; overlaps the VER row of line 23 (this machine cannot fail)	e8ee556		INCONCLUSIVE cases include a code review or grep with no control
+VER-076	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule	L167	claim	doc text claim: grep main and branch, count sentences and phrases
+VER-077	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule	L129	claim	file-format claim needs the bytes of old and new code
+VER-078	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule	L158	doc	macOS-drawn UI verdict names OS version, arch, locale, setup
+VER-079	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	keep; overlaps the VER row of line 36 (loctable)	L158	doc	unsampled axis of a doc decision needs an OS source or a manual check
+VER-080	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule	L75	claim	claim with an open manual check splits into automated and INCONCLUSIVE parts
+VER-081	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	intro of the output shape	e8ee556		output block shape intro
+VER-082	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	verdict rule	e8ee556		report NOT VERIFIED plainly
+INT-001	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; skill purpose	1e069af		panel of reviewer subagents with distinct lenses reviews a plan or diff
+INT-002	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; skill purpose	1e069af		output is a judged verdict; the caller, not interrogate, applies fixes
+INT-003	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; gate target	1e069af		plan gate reviews the run plan.md plus any design sketch
+INT-004	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; gate target	1e069af		code gate reviews git diff main...HEAD and the working tree, or a given range
+INT-005	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; intent step	1e069af		lead writes one intent paragraph from plan, commit messages, ledger task
+INT-006	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; intent step	1e069af		unclear intent: stop and settle it before the panel runs
+INT-007	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; intent step	1e069af		reviewers measure the execution against the intent paragraph
+INT-008	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; lead part of the settled list (spec item 10)	L28	claim	lead lists settled choices one per line: scope, run order, user asks, accepted tradeoffs
+INT-009	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; lead part of the settled list (spec item 10)	L62	claim	settled behavior or scope line needs a holder (test, file:line), else pass as claim
+INT-010	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; lead part of the settled list (spec item 10)	L69	claim	tradeoff counts as settled only when phrased as accept X for Y
+INT-011	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; holds the reference-product clause that tdd:32 lacks, so a merge into tdd:32 loses it	L69	claim	tradeoff losing user input or departing from Hindenburg needs user approval
+INT-012	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; lead part of the settled list (spec item 10)	L69	claim	refuted finding against unapproved tradeoff goes to backlog as user decision, not Dismissed
+INT-013	.claude/skills/interrogate/SKILL.md	merge	INR-051	rationale of the settled list; home reviewer-prompt.md:17-23 (spec item 10)	L28	claim	without a settled list the devil's advocate lens attacks user requests
+INT-014	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; panel step	1e069af		start the saved review-panel workflow with the Workflow tool
+INT-015	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; panel step	4d1c9f6		pass round number and earlier verdict files as prior; workflow chooses mode
+INT-016	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 sets rounds per class	4d1c9f6		round 1 runs open mode over the whole target
+INT-017	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 sets rounds per class	4d1c9f6		middle rounds follow up on prior and skip fixed items
+INT-018	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 sets rounds per class	4d1c9f6		last round is convergence: check earlier Act on fixes plus critical defects only
+INT-019	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 sets rounds per class	4d1c9f6		an open final round widens scope; only convergence closes the gate
+INT-020	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; panel step	1e069af		workflow runs .claude/agents reviewers in parallel, then skeptics refute findings
+INT-021	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 adds the five-lens gate row	1e069af		premortem lens runs at plan gate and code gate
+INT-022	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 adds the five-lens gate row	1e069af		devils-advocate lens runs at plan gate and code gate
+INT-023	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 adds the five-lens gate row	1e069af		architecture-reviewer lens runs at plan gate and code gate
+INT-024	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; slice 7 adds the five-lens gate row	1e069af		code-quality-reviewer lens runs at the code gate only
+INT-025	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; audit s6 proposes delete (L9 one-off), but no stale or no-op evidence	1d641fe		review-panel.js edited this session: run it by scriptPath, the cached name is old
+INT-026	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; completeness of the gate	L8	tool	workflow missing list names lenses with no result or no checked list
+INT-027	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; completeness of the gate	L8	tool	gate with a missing lens is incomplete; rerun that lens via Agent tool
+INT-028	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; fallback without the Workflow tool	1e069af		no Workflow tool: one Agent call per lens, all in one message
+INT-029	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; fallback without the Workflow tool	L28	claim	fallback prompt: reviewer-prompt.md with intent, settled, target, rubric, code-quality-review
+INT-030	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; synthesis step	1e069af		survived and refuted findings sit under result.panel in the workflow JSON
+INT-031	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; synthesis step	L16	scope	parse output with python3 raw_decode; print severity, title, suggestion only
+INT-032	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; synthesis step	1e069af		a finding raised by two or more lenses carries most weight
+INT-033	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; synthesis step	1e069af		combine duplicate findings and record each raising lens
+INT-034	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; synthesis step	1e069af		record lens contradictions as context
+INT-035	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; lead judgment step	e8ee556		lead acts as pragmatic senior engineer and reads lead-judgment.md
+INT-036	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; bucket rule	1e069af		each finding goes into exactly one bucket
+INT-037	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; bucket rule	1e069af		Act on bucket: real correctness, data, maintainability issues; blocks the gate
+INT-038	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; bucket rule	1e069af		Consider bucket: valid points too costly to act on now
+INT-039	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; bucket rule	1e069af		Noted bucket: valid but not actionable yet
+INT-040	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; bucket rule	e8ee556		Dismissed bucket: wrong, nitpick, or no context, with a reason
+INT-041	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; bucket rule	1e069af		per finding: raising lens, bucket, one-line rationale
+INT-042	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; home of Invariant and Siblings (line 94 merges here, audit s2)	L19	scope	Act on item names its broken invariant by state, not by operation
+INT-043	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; Invariant and Siblings detail	L43	scope	Siblings: search every read, write, stored copy of that state
+INT-044	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; Invariant and Siblings detail	L71	scope	Siblings lists existing guards; fixer reruns their controls before the fix commit
+INT-045	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; Invariant and Siblings detail	L19	scope	one commit fixes the finding and all sibling paths
+INT-046	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; Invariant and Siblings detail	L53	scope	fixer gets both Invariant and Siblings fields, not just the fix
+INT-047	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; Invariant and Siblings detail	L53	scope	accept a fix only if every consumer in the symptom is covered
+INT-048	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; convergence detail goes to lead-judgment.md (slice 7)	4d1c9f6		intro of convergence-round rules
+INT-049	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; convergence detail goes to lead-judgment.md (slice 7)	4d1c9f6		convergence Act on only for earlier items or fixes, except critical findings
+INT-050	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; convergence detail goes to lead-judgment.md (slice 7)	8d17442		workflow sends non-critical findings with no priorItem to outOfScope, no skeptic
+INT-051	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; slice 7 sends an outOfScope Consider item to ## Later of the backlog	8d17442		outOfScope findings become backlog Consider items and do not block
+INT-052	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; convergence detail goes to lead-judgment.md (slice 7)	4d1c9f6		after convergence fixes the gate closes; no extra round
+INT-053	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; convergence detail goes to lead-judgment.md (slice 7)	4d1c9f6		convergence fixes stay within the lines each finding names
+INT-054	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; fix-check detail goes to lead-judgment.md (slice 7)	42cff60		one general-purpose fix-check agent gets convergence findings and the fix diff
+INT-055	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; fix-check detail goes to lead-judgment.md (slice 7)	L169	scope	fix check asks four questions: answers finding, unasked rule, new failure, contradiction
+INT-056	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; fix-check detail goes to lead-judgment.md (slice 7)	42cff60		fix wrong fixes; unasked added rules go to backlog
+INT-057	.claude/skills/interrogate/SKILL.md	move	.claude/skills/interrogate/references/lead-judgment.md	move; fix-check detail goes to lead-judgment.md (slice 7)	42cff60		fix check is no review round and opens no new areas
+INT-058	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output file	1e069af		write verdict to review-<gate>-<n>.md in the run folder and return it
+INT-059	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	1e069af		Intent section quotes the step 2 paragraph
+INT-060	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	1e069af		Panel section: per lens, raised and surviving counts
+INT-061	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	1e069af		Act on section: description, lenses, why it matters
+INT-062	.claude/skills/interrogate/SKILL.md	merge	INT-042	duplicate of Invariant and Siblings at SKILL.md:74 (audit s2); slice 7 keeps the field format once	L53	scope	Act on items need Invariant and Siblings fields or are incomplete
+INT-063	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	1e069af		Consider section: description, lenses, tradeoff
+INT-064	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	1e069af		Noted section: short list
+INT-065	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	L24	claim	Dismissed section lists each refuted finding with its skeptic reason
+INT-066	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	L24	claim	lead overrules a skeptic whose refutation denied a real premise
+INT-067	.claude/skills/interrogate/SKILL.md	keep	.claude/skills/interrogate/SKILL.md	keep; output format	1e069af		Agreement map: where lenses agree or diverge and what it means
+INR-001	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		reviewers add a strict code-quality lens on top of the rubric
+INR-002	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		hunt behavior-preserving code judo restructurings, not local cleanup
+INR-003	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		use the quoted baseline prompt as the start
+INR-004	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		baseline: deep quality audit of the branch changes
+INR-005	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		baseline: restructure for quality with no behavior change
+INR-006	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		baseline: better abstractions, modularity, less spaghetti, more legibility
+INR-007	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		baseline: take a clear restructuring path when it exists
+INR-008	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		baseline: thorough and rigorous review
+INR-009	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimensions appear once; apply only the relevant ones
+INR-010	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimension 0: seek reframings that delete branches, helpers, layers
+INR-011	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; restates the AGENTS.md File size rule for reviewers	ccbd1e8		dimension 1: Swift file past 400 lines is a strong smell; decompose first
+INR-012	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimension 2: no ad-hoc conditionals tangling existing flows
+INR-013	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimension 3: push for cleaner structure when behavior holds
+INR-014	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimension 4: boring direct code; flag magic and pass-through wrappers
+INR-015	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimension 5: question optionals, Any, force casts, @unchecked Sendable
+INR-016	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimension 6: logic in the canonical layer; reuse existing helpers
+INR-017	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		dimension 7: flag needless serial orchestration and non-atomic updates
+INR-018	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		order findings structure first; few high-conviction comments over nits
+INR-019	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		presumptive blockers: incidental complexity, 400-line file, tangled branches, wrong layer
+INR-020	.claude/skills/interrogate/references/code-quality-review.md	keep	.claude/skills/interrogate/references/code-quality-review.md	keep; code-gate reviewer input	e8ee556		tone: direct and demanding; name structural problems as structural
+INR-021	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		lead filters, adds context, and decides; no plain aggregation
+INR-022	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		reviewers see a slice and one intent paragraph, so they add noise
+INR-023	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		reviewers miss earlier rejected attempts
+INR-024	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		reviewers miss constraints outside the code
+INR-025	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		reviewers miss which code is scaffolding and which is permanent
+INR-026	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		reviewers miss what a later PR will handle
+INR-027	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		lead applies its full conversation context
+INR-028	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		an all-nit review means the code is fine; state it
+INR-029	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		trace the call site before accepting a hypothetical finding
+INR-030	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; the CLI-run example (L29, audit s4) can shrink in slice 7	L29	claim	check decisions.tsv before dismissing as hypothetical; a logged failure is actual
+INR-031	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		reject abstraction advice unless the code must vary a second way
+INR-032	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		dismiss preference-only findings and give the reason
+INR-033	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		look for findings that show the reviewer lacked context
+INR-034	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		missing-context sign: change asked in untouched code
+INR-035	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		missing-context sign: flagged pattern matches the codebase
+INR-036	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		missing-context sign: advice conflicts with known constraints
+INR-037	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		dismiss missing-context findings politely
+INR-038	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		do not dismiss a finding only because it is uncomfortable
+INR-039	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		signal: several models agree independently
+INR-040	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		signal: finding shows a concrete execution path
+INR-041	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		signal: finding exposes a gap in the lead model of the code
+INR-042	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		signal: the lead reacts with reluctant agreement
+INR-043	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		scrutinize security and correctness findings even from one model
+INR-044	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		verdict must be usable; over 5 Act on items means weak filtering
+INR-045	.claude/skills/interrogate/references/lead-judgment.md	keep	.claude/skills/interrogate/references/lead-judgment.md	keep; lead-judgment reference	e8ee556		Dismissed section lets the user override the lead
+INR-046	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		fill the template placeholders for each reviewer prompt
+INR-047	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	1e069af		reviewer role: adversarial stress test under its lens, no encouragement
+INR-048	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		intro line for the intent quote
+INR-049	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		INTENT placeholder in a blockquote
+INR-050	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		judge the execution; never challenge the intent
+INR-051	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; home of the settled list (spec item 10)	L28	claim	reviewers leave settled choices alone without new evidence of a broken requirement
+INR-052	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; home of the settled list (spec item 10)	L28	claim	SETTLED placeholder
+INR-053	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; home of the settled list (spec item 10)	L62	claim	code gate: each settled line is a code claim; a contradiction is a finding
+INR-054	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	1e069af		PLAN_OR_DIFF placeholder for the target
+INR-055	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		RUBRIC_CONTENTS placeholder
+INR-056	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		CODE_QUALITY_CONTENTS placeholder, code gate only
+INR-057	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		apply only relevant rubric and code-quality lenses; no forced lenses
+INR-058	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		each finding carries the fields listed next
+INR-059	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		severity field: critical, warning, or nit
+INR-060	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		critical: bugs, data loss, security, broken behavior
+INR-061	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		warning: design or maintainability risk that will hurt later
+INR-062	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		nit: style or naming, only when truly useful
+INR-063	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		finding field: concrete problem with lines or functions
+INR-064	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		evidence field: show the reasoning
+INR-065	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		optional suggestion field only with a concrete alternative
+INR-066	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		good finding cites specific code
+INR-067	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		good finding explains the cause of the problem
+INR-068	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		good finding separates broken from preference
+INR-069	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		good finding respects the stated intent
+INR-070	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		avoid restating code without a problem
+INR-071	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		avoid style-driven rewrites of working code
+INR-072	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		avoid hypotheticals without a reachable code path
+INR-073	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		no praise; with nothing wrong say no findings
+INR-074	.claude/skills/interrogate/references/reviewer-prompt.md	keep	.claude/skills/interrogate/references/reviewer-prompt.md	keep; reviewer prompt template	e8ee556		list files read and commands run; empty review ok, unchecked review not
+INR-075	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		use only the relevant rubric lenses
+INR-076	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		correctness: does code meet the intent
+INR-077	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		correctness: empty, nil, boundary, concurrent inputs
+INR-078	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		correctness: errors caught, propagated, or swallowed
+INR-079	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		correctness: off-by-one, coercion, overflow, encoding
+INR-080	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		correctness: races, stale closures, dangling references
+INR-081	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		correctness: both happy and sad paths
+INR-082	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		idempotency: rerun or crashed earlier run needs reconciliation
+INR-083	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		concurrency: shared mutable state serialized by structure, not convention
+INR-084	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		trace the execution path that produces a suspected bug
+INR-085	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		root cause lens: fix the problem, not a symptom
+INR-086	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		read callers, callees, types beyond the diff before judging
+INR-087	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		symptom sign: guard masking a deeper invariant break
+INR-088	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		symptom sign: retry hiding a broken contract
+INR-089	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		symptom sign: cast silencing a modeling error
+INR-090	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		ask why a workaround exists and what the proper fix is
+INR-091	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		symptom sign: fix in the wrong module contract
+INR-092	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		prefer type, lint, or runtime check over a remember-this comment
+INR-093	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		structural lens: fit within the system
+INR-094	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates the AGENTS.md boundary rule for reviewers	e8ee556		boundary discipline: validate once at entry, trust inside
+INR-095	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		abstraction level: no mixed orchestration and low-level detail
+INR-096	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		coupling: new dependencies that block later change
+INR-097	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		data model must match access patterns
+INR-098	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		change should read as designed-in, not bolted on
+INR-099	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		no legacy dual paths; migrate callers and delete old API
+INR-100	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; home of premature abstraction in the rubric (rubric:68 merges)	e8ee556		favor duplication over premature abstraction in simple code
+INR-101	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		verification lens: can the reader tell it works
+INR-102	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		tests exist and test behavior, not implementation
+INR-103	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		assertions or invariants catch regressions
+INR-104	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		bug fix comes with a test for the bug
+INR-105	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		integration boundary gets a full-path test
+INR-106	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		check the real value, not mtime or cached proxies
+INR-107	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		delegated or async work: verify artifacts, not self-reports
+INR-108	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		complexity lens: is complexity earned
+INR-109	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		complexity: code that could be simpler
+INR-110	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		complexity: single-call-site abstractions
+INR-111	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		complexity: config for cases that do not exist
+INR-112	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		complexity: dead code, unused imports, vestigial params
+INR-113	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		complexity: just-in-case paths without callers
+INR-114	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		complexity: delete finished-migration scaffolding
+INR-115	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		each feature and option must earn its place; no half features
+INR-116	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		simplicity wins unless it breaks correctness
+INR-117	.claude/skills/interrogate/references/rubric.md	merge	INR-100	duplicate of rubric.md:43 in the same file	e8ee556		short duplication preferred to early abstraction
+INR-118	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	1e069af		audio lens only for audio I/O or DSP code
+INR-119	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates an AGENTS.md Architecture rule for reviewers, no listed home	1e069af		no alloc, lock, I/O, log, async on the real-time thread; ring buffer
+INR-120	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates an AGENTS.md Architecture rule for reviewers, no listed home	1e069af		devices have separate clocks; store host and sample time
+INR-121	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates an AGENTS.md Architecture rule for reviewers, no listed home	1e069af		captured audio survives crash or unplug
+INR-122	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	1e069af		explicit sample-rate and channel conversion; no silent resample
+INR-123	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates tdd:37 audio tolerance for reviewers, not in the spec list	1e069af		compare DSP output within a tolerance
+INR-124	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		flag only security issues with a traced input path
+INR-125	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		security: unsanitized input to SQL, shell, eval, innerHTML
+INR-126	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		security: auth gaps in new endpoints
+INR-127	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		security: secrets in code, logs, errors
+INR-128	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		security: TOCTOU in critical paths
+RFL-001	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		reflect turns session lessons into repo workflow edits
+RFL-002	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; slice 9 adds the seen-once rule for a first occurrence	1e069af		trigger on user request and after each deliver run; skip frictionless sessions
+RFL-003	.claude/skills/reflect/SKILL.md	delete		replaced: 0028 (slice 9 reflect rules)	e8ee556		old ban on single-incident learnings; slice 9 logs them seen-once
+RFL-004	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		transcript jsonl lives under ~/.claude/projects/<slug>; slug from repo path
+RFL-005	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; privacy guard	1e069af		read this project's transcripts only; no glob over other project folders
+RFL-006	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		pick newest matching jsonl; else pass a session digest
+RFL-007	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		give miners the run folder with decisions and review verdicts
+RFL-008	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		spawn three general-purpose miners in one message, mixed models
+RFL-009	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	before-2026-09-23		judgment miner: opus model, judgment-reviewer.md template
+RFL-010	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	before-2026-09-23		tooling miner: sonnet model, tooling-reviewer.md template
+RFL-011	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	before-2026-09-23		divergent miner: opus model, divergent-reviewer.md template
+RFL-012	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; slice 9 makes each miner also return a cause key	1e069af		templates go unchanged with transcript path or digest filled in
+RFL-013	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; slice 9 adds the match step and the seen-once, replace, merge, enforce, backlog routes	1e069af		one opus synthesizer call yields Accepted, Rejected, Backlog lists
+RFL-014	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; conflicts with synthesizer.md:20 (Backlog route); copies AGENTS.md:120 and principles.md, not listed homes	1e069af		swap an accepted prose edit for a lint, script, test, or Makefile target
+RFL-015	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; slice 9 rule 5 adds a panel review of the reflect diff before the merge	1e069af		no human approval needed because each change is a revertible commit
+RFL-016	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; audit: no step applies its pruning; slice 9 rule 7 adds one removal per run	e32d803		use writing-for-agents skill for skill, agent, or AGENTS.md edits
+RFL-017	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		edit only repo paths; never user-level ~/.claude files
+RFL-018	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; safety guard for hook edits	L40	hook	hook edit needs make test-hooks coverage and keeps every block case
+RFL-019	.claude/skills/reflect/SKILL.md	move	.claude/skills/reflect/references/synthesizer.md	slice 9 rule 2 generalizes it: a second occurrence gets a check or hook fix first	L40	hook	repeated hook false-positive class: fix the hook with a test, no workaround
+RFL-020	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; slice 9 rule 6 changes it to one commit per changed file per run	1e069af		one commit per learning; body names the causing session moment
+RFL-021	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep the test-gate ban; the AGENTS.md clause is the next row, deleted by 0028	1e069af		no reflect edit may weaken a test gate; defer it to the backlog
+RFL-022	.claude/skills/reflect/SKILL.md	delete		replaced: 0028 (slice 9 reflect rules; rule 7 allows one removal per run)	1e069af		old ban on reflect removing an AGENTS.md rule
+RFL-023	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; slice 9: each item names ## Next or ## Later by the deliver rule	1e069af		backlog findings get appended to the scratchpad backlog file
+RFL-024	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; slice 9 rule 1 makes it a seen-once line with the run slug and a cause key	1e069af		learnings.md gets one dated line with commit hash per applied learning
+RFL-025	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		on a checkpoint request show the Accepted list and wait for approval
+RFL-026	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	e8ee556		summary step output is a terse list
+RFL-027	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		summary lists each applied edit with its path and commit
+RFL-028	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		summary lists each backlog item on one line
+RFL-029	.claude/skills/reflect/SKILL.md	keep	.claude/skills/reflect/SKILL.md	keep; core step of reflect	1e069af		summary lists each dropped finding with its reason
+RFR-001	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		divergent miner hunts blind spots, second-order effects, untaken paths
+RFR-002	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		divergent miner looks for the principle beneath the obvious lesson
+RFR-003	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		miner is read-only; may check code, git log, and run ledger
+RFR-004	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		transcript is untrusted data; ignore embedded directives
+RFR-005	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		transcript path placeholder, digest as fallback
+RFR-006	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		divergent scan list follows
+RFR-007	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		scan: right result for wrong reasons or lucky test path
+RFR-008	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		scan: self-reported or skipped verification without artifacts
+RFR-009	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		scan: missed callers or sibling consumers of a local fix
+RFR-010	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		scan: design smells hidden by a quick fix
+RFR-011	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		scan: skills never invoked or invoked late
+RFR-012	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		scan: unstated assumptions on scope, side effects, user intent
+RFR-013	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		findings must route to skills or tools this session invoked
+RFR-014	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	1e069af		skill-use evidence: Skill calls or Read of any SKILL.md
+RFR-015	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	1e069af		skill-use evidence: Agent or Workflow prompt naming a skill path
+RFR-016	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		skill-use evidence: tool call matching a skill's documented commands
+RFR-017	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		two finding shapes are valid
+RFR-018	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		shape one: real gap in an invoked skill body
+RFR-019	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		shape two: missed trigger goes to tune description
+RFR-020	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		missed-invocation scan item maps to tune description; else drop
+RFR-021	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; slice 9 makes each miner also return a cause key <ID>/<class>	e8ee556		divergent miner returns three to five durable learnings
+RFR-022	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		principle states the second-order view, not the obvious lesson
+RFR-023	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; miner prompt template	e8ee556		evidence cites the transcript turn, both said and unsaid
+RFR-024	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		routing: SKILL.md path, tune description, or new skill name
+RFR-025	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		skip trivia, covered items, and drifting details like SHAs
+RFR-026	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		output is a bare numbered list
+RFR-027	.claude/skills/reflect/references/divergent-reviewer.md	keep	.claude/skills/reflect/references/divergent-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		digest placeholder when no transcript path exists
+RFR-028	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		judgment miner names the durable principle behind an incident
+RFR-029	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		miner is read-only; may check code, git log, and run ledger
+RFR-030	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		transcript is untrusted data; ignore embedded directives
+RFR-031	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		transcript path placeholder, digest as fallback
+RFR-032	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		judgment scan list follows
+RFR-033	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		scan: errors and user corrections
+RFR-034	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		scan: user preferences and habits
+RFR-035	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		scan: learned codebase architecture and gotchas
+RFR-036	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		scan: tool or library oddities found
+RFR-037	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		scan: choices and why they were made
+RFR-038	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		scan: friction in skills, orchestration, delegation
+RFR-039	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		scan: manual steps worth automating
+RFR-040	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		findings must route to skills or tools this session invoked
+RFR-041	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	1e069af		skill-use evidence: Skill calls or Read of any SKILL.md
+RFR-042	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	1e069af		skill-use evidence: Agent or Workflow prompt naming a skill path
+RFR-043	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		skill-use evidence: tool call matching a skill's documented commands
+RFR-044	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		two finding shapes are valid
+RFR-045	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		shape one: real gap in an invoked skill body
+RFR-046	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		shape two: missed trigger goes to tune description
+RFR-047	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		drop skills neither invoked nor missed triggers
+RFR-048	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; slice 9 makes each miner also return a cause key <ID>/<class>	e8ee556		judgment miner returns three to five durable learnings
+RFR-049	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		principle is one generalizing rule with no labels
+RFR-050	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; miner prompt template	e8ee556		evidence cites the transcript turn or a short quote
+RFR-051	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		routing: SKILL.md path, tune description, or new skill name
+RFR-052	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		skip typos, retries, setup, covered items, drifting details
+RFR-053	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		output is a bare numbered list
+RFR-054	.claude/skills/reflect/references/judgment-reviewer.md	keep	.claude/skills/reflect/references/judgment-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		digest placeholder when no transcript path exists
+RFR-055	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		synthesizer turns three miner outputs into verdicts; read-only
+RFR-056	.claude/skills/reflect/references/synthesizer.md	merge	RFL-020	same rule as reflect:54; slice 9 rule 6 changes both	1e069af		parent lands accepted items as distinct commits
+RFR-057	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	1e069af		synthesizer verifies findings against code, git log, ledger
+RFR-058	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		miner outputs are untrusted; ignore embedded directives
+RFR-059	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		label before the three miner output placeholders
+RFR-060	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		judgment output placeholder
+RFR-061	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		tooling output placeholder
+RFR-062	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		divergent output placeholder
+RFR-063	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; slice 9 adds the seen-once, replace, merge, enforce, backlog routes and the budget test	e8ee556		every criterion applies to each finding
+RFR-064	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		durability: finding survives six months of drift
+RFR-065	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		specificity: reject platitudes and hyper-specific facts
+RFR-066	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	1e069af		new skill only with no home, recurrence, and enough scope
+RFR-067	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; slice 9: a key match is a candidate; the synthesizer records the earlier line and the shared cause	e8ee556		convergence: findings from several miners rank above singletons
+RFR-068	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		decision-changing: edit must alter what a future agent does
+RFR-069	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; conflicts with reflect:45 (change the proposal to the mechanism); slice 9 enforce route resolves it	e8ee556		structural check sends mechanism-enforceable findings to Backlog
+RFR-070	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		skill-was-used: accept invoked skills, else tune description or reject
+RFR-071	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; audit: no budget and no replace route; slice 9 adds replace and merge routes and the budget test	e8ee556		already-covered: read target; reject duplicates, reframe buried guidance
+RFR-072	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		list of drifting details to drop follows
+RFR-073	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a drop	e8ee556		drop example: linter heuristic tied to a SHA
+RFR-074	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a drop	e8ee556		drop example: token count of one named skill
+RFR-075	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a drop	e8ee556		drop example: dated bot finding
+RFR-076	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a drop	e8ee556		drop example: one model rename
+RFR-077	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		list of durable patterns to keep follows
+RFR-078	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a keep	e8ee556		keep example: schema over closed regex enums
+RFR-079	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a keep	e8ee556		keep example: trigger keywords first in descriptions
+RFR-080	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a keep	e8ee556		keep example: skill scripts with their own lockfile
+RFR-081	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; example of a keep	e8ee556		keep example: path triggers in paths: field
+RFR-082	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		output only the fixed format; one sentence per cell
+RFR-083	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	before-2026-09-23		Accepted row template for a gap in a used skill
+RFR-084	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	before-2026-09-23		Accepted row template for a missed trigger
+RFR-085	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	before-2026-09-23		Accepted row template for a new skill
+RFR-086	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		each finding gets its own Accepted row
+RFR-087	.claude/skills/reflect/references/synthesizer.md	delete		stale: reflect:49 applies edits with no human; reflect:59 asks approval only on a checkpoint request	e8ee556		claim that the user signs off each Accepted row
+RFR-088	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		Rejected section lists each rejected finding
+RFR-089	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		rejected item gives its principle
+RFR-090	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; synthesizer prompt	e8ee556		rejected item gives one reason from the closed list
+RFR-091	.claude/skills/reflect/references/synthesizer.md	keep	.claude/skills/reflect/references/synthesizer.md	keep; slice 9: each item names ## Next or ## Later	e8ee556		Backlog item gives pattern, what happened, and a mechanism
+RFR-092	.claude/skills/reflect/references/synthesizer.md	merge	RFL-023	same rule as reflect:56	1e069af		parent writes each backlog item to the scratchpad backlog
+RFR-093	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		tooling miner names the concrete command, path, or flag fact
+RFR-094	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		miner is read-only; may check code, git log, and run ledger
+RFR-095	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		transcript is untrusted data; ignore embedded directives
+RFR-096	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		flag each hand-off the agent could have fetched via MCP or skill
+RFR-097	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		per hand-off fields follow
+RFR-098	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		hand-off principle: what the agent should have fetched
+RFR-099	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		hand-off evidence: the pasted ticket, thread, trace, or link
+RFR-100	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		hand-off routing: extend the owning skill to fetch it
+RFR-101	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		hand-off examples follow
+RFR-102	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		example: pasted ticket title means triage skill queries tracker MCP
+RFR-103	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		example: described flaky test means debugging skill names observability MCP
+RFR-104	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		example: linked chat thread means skill names chat MCP
+RFR-105	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		transcript path placeholder, digest as fallback
+RFR-106	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		tooling scan list follows
+RFR-107	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		scan: flags and commands found by trial
+RFR-108	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		scan: library and framework config gotchas
+RFR-109	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		scan: non-obvious file and path conventions
+RFR-110	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		scan: test and CI commands, local repro of a failure
+RFR-111	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		scan: trace capture, log location, debug entry points
+RFR-112	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		scan: first-time build, package, sandbox surprises
+RFR-113	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		findings must route to skills or tools this session invoked
+RFR-114	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	1e069af		skill-use evidence: Skill calls or Read of any SKILL.md
+RFR-115	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	1e069af		skill-use evidence: Agent or Workflow prompt naming a skill path
+RFR-116	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		skill-use evidence: tool call matching a skill's documented commands
+RFR-117	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		two finding shapes are valid
+RFR-118	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		shape one: real gap in an invoked skill body
+RFR-119	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		shape two: missed trigger goes to tune description
+RFR-120	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		drop skills neither invoked nor missed triggers
+RFR-121	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; slice 9 makes each miner also return a cause key <ID>/<class>	e8ee556		tooling miner returns three to five durable learnings
+RFR-122	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		principle names a recognizable convention or technical fact
+RFR-123	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; miner prompt template	e8ee556		evidence cites the transcript turn with the command or flag
+RFR-124	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		routing: SKILL.md path, tune description, or new skill name
+RFR-125	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		skip typos, retries, covered items; keep conventions, not pinned details
+RFR-126	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		output is a bare numbered list
+RFR-127	.claude/skills/reflect/references/tooling-reviewer.md	keep	.claude/skills/reflect/references/tooling-reviewer.md	keep; the template goes verbatim to its own subagent (reflect:37), so each miner needs this copy	e8ee556		digest placeholder when no transcript path exists
+DSL-001	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; scope of the deslop pass	1e069af		deslop reads git diff main...HEAD and working tree, removes branch slop
+DSL-002	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area	1e069af		remove redundant comments; comments say why
+DSL-003	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area (restates AGENTS.md:98 as a checklist item)	1e069af		remove defensive guard/catch on trusted paths; validate only at boundaries
+DSL-004	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area	1e069af		remove force unwraps, try!, @unchecked Sendable that silence the compiler
+DSL-005	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area	1e069af		flatten nesting with early return
+DSL-006	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area (restates AGENTS.md simple first as a checklist item)	1e069af		remove single-conformer protocols, forwarding wrappers, fixed config
+DSL-007	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area	1e069af		remove dead code, unused params, TODO without ledger entry
+DSL-008	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area	L47	scope	each new public func needs a non-test caller
+DSL-009	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area	L47	scope	find duplicated logic of a new function in the app target
+DSL-010	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop focus area	1e069af		remove patterns foreign to the local code style
+DSL-011	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop guardrail	e8ee556		deslop does not change behavior except a clear bug
+DSL-012	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop guardrail	e8ee556		small edits, no broad rewrite in deslop
+DSL-013	.claude/skills/deslop/SKILL.md	merge	AGT-056	duplicate of the commit check rule (home 1); slice 10 points deslop to make check-changed	1e069af		deslop result must pass make check
+DSL-014	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop commit type	1e069af		deslop lands as a separate refactor: or style: commit
+DSL-015	.claude/skills/deslop/SKILL.md	keep	.claude/skills/deslop/SKILL.md	keep; deslop output size	e8ee556		deslop report is one to three sentences
+RSH-001	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; how the research skill runs	e32d803		research runs in a background Agent with run_in_background
+RSH-002	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; intro of the agent steps	9bb6139		intro to the research agent steps
+RSH-003	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; research source rule	9bb6139		cite primary sources; trace each claim to its owner
+RSH-004	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; research inference rule	L114	claim	analogy from another repo decision is Inference:, an open plan question
+RSH-005	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; research scope limit	L114	claim	releases and scope rules are plan decisions, not research
+RSH-006	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; research output	9bb6139		one Markdown findings file with a source per claim
+RSH-007	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; the one pointer to scripts/probe.sh (slice 10; AGENTS.md:75 says <command>)	L70	probe	research probes run through scripts/probe.sh
+RSH-008	.claude/skills/research/SKILL.md	merge	AGT-049	restates the probe.sh folder and sandbox rule (home 4)	L70	probe	probe folder is new under .scratchpads; sandbox refuses outside writes
+RSH-009	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; the research agent reads only this skill, deliver:20 is the caller half and says a prompt ban alone failed (audit 2 lists it as a duplicate)	L173	probe	during a monitored loop or bench: no probe, swift, or make; defer probe
+RSH-010	.claude/skills/research/SKILL.md	keep	.claude/skills/research/SKILL.md	keep; research file path and format that check-docs reads	L26	doc	save docs/research/<topic>.md with Date line and Sources; check-docs
+DOM-001	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		skill is for changing the domain model and glossary, not reading it
+DOM-002	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		single-context layout intro
+DOM-003	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		CONTEXT-MAP.md marks a multi-context repo
+DOM-004	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		create glossary and decisions folder only on first need
+DOM-005	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		flag a term that conflicts with the glossary at once
+DOM-006	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; domain-modeling practice	9bb6139		propose one canonical term for a vague word
+DOM-007	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; domain-modeling practice	9bb6139		stress-test domain relations with edge-case scenarios
+DOM-008	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; domain-modeling practice	9bb6139		compare user statements with the code; report a contradiction
+DOM-009	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		write each resolved term to the glossary at once
+DOM-010	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		glossary holds no implementation detail
+DOM-011	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; ties the glossary to the STE one-word rule	e32d803		glossary is the STE term list for code, docs, UI, commits
+DOM-012	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		decision record only when three tests hold
+DOM-013	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; decision record test	9bb6139		test one: costly to reverse
+DOM-014	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; decision record test	9bb6139		test two: a future reader needs the why
+DOM-015	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; decision record test	9bb6139		test three: real alternatives were weighed
+DOM-016	.claude/skills/domain-modeling/SKILL.md	keep	.claude/skills/domain-modeling/SKILL.md	keep; slice 10 names docs/decisions/ in place of CONTEXT.md or ADR (audit drift)	9bb6139		skip the record if a test fails; copy docs/decisions/0001 format
+UNS-001	.claude/skills/unslop/SKILL.md	keep	.claude/skills/unslop/SKILL.md	keep; skill trigger description	e8ee556		unslop removes AI tells from text
+UNS-002	.claude/skills/unslop/SKILL.md	merge	AGT-003	duplicate of the STE and unslop rule of AGENTS.md:7 (home 12); slice 10 removes it	1e069af		unslop claimed always-on for all repo writing
+AGN-001	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer role and reading list	747dff6		architecture reviewer reads AGENTS.md, decisions, principles, red flags
+AGN-002	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist	747dff6		intro to the architecture checks
+AGN-003	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist (restates the AGENTS.md module rule)	747dff6		check import lines and Package.swift for dependency direction
+AGN-004	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist	747dff6		flag shallow modules, pass-through methods, leaks
+AGN-005	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist	747dff6		types fit access patterns; no representable illegal state
+AGN-006	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist (restates AGENTS.md:99)	747dff6		owner of mutable state; real-time thread and main actor limits
+AGN-007	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist	747dff6		session format versioned, validated on load, atomic save
+AGN-008	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist	747dff6		module testable through public API with real files
+AGN-009	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer lens checklist	747dff6		intro to reviewer rules
+AGN-010	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer tool limit	747dff6		reviewer is read-only
+AGN-011	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; finding format	747dff6		finding gives location, broken rule, consequence
+AGN-012	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; reviewer rule (restates AGENTS.md simple first)	747dff6		no abstraction without a second use now
+AGN-013	.claude/agents/architecture-reviewer.md	keep	.claude/agents/architecture-reviewer.md	keep; finding cap	747dff6		cap of six findings; zero allowed
+AGN-014	.claude/agents/architecture-reviewer.md	merge	AGT-003	duplicate of the AGENTS.md STE rule (audit 2)	747dff6		reviewer writes findings in STE100 style
+AGN-015	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer role and reading list	747dff6		code-quality reviewer reads rubric.md and code-quality-review.md
+AGN-016	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer lens checklist	747dff6		intro to the code-quality checks
+AGN-017	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer lens checklist	747dff6		trace changed paths; audio edge cases like 0 dBFS, sample rates
+AGN-018	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer check of the test-first rule (AGENTS.md:110 stays)	747dff6		each behavior change has a red-without test; principle check
+AGN-019	.claude/agents/code-quality-reviewer.md	merge	TDD-002	duplicate of the integration-test rule (home 7); slice 10 points to it	747dff6		reviewer favors integration tests
+AGN-020	.claude/agents/code-quality-reviewer.md	merge	TDD-027	duplicate of the audio tolerance rule (home 7); slice 10 points to it	747dff6		reviewer checks tolerance on audio asserts
+AGN-021	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer lens checklist (overlaps deslop:12-17)	747dff6		flag slop: force unwraps, try!, dead code, forwarding wrappers
+AGN-022	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer lens checklist	747dff6		look for a change that removes a branch, type, or layer
+AGN-023	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer lens checklist (restates AGENTS.md:106)	747dff6		flag files over 400 lines without a reason
+AGN-024	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer lens checklist	747dff6		intro to reviewer rules
+AGN-025	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; reviewer tool limit	747dff6		read-only reviewer; may run make test for a suspect bug
+AGN-026	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; finding format	747dff6		finding gives severity critical/warning/nit, location, evidence
+AGN-027	.claude/agents/code-quality-reviewer.md	keep	.claude/agents/code-quality-reviewer.md	keep; finding cap	747dff6		nits only when useful; zero allowed
+AGN-028	.claude/agents/code-quality-reviewer.md	merge	AGT-003	duplicate of the AGENTS.md STE rule (audit 2)	747dff6		reviewer writes findings in STE100 style
+AGN-029	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer role	747dff6		argue against the plan or diff with evidence
+AGN-030	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer reading list	747dff6		reads rubric.md, principles.md, and brief.md
+AGN-031	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer lens checklist	747dff6		intro to the attack points
+AGN-032	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer lens checklist	747dff6		check the premise against the brief with a quote
+AGN-033	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer lens checklist	747dff6		find YAGNI parts and dropped requirements
+AGN-034	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer lens checklist	747dff6		propose a simpler design or platform API with its cost
+AGN-035	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer lens checklist	747dff6		name uncounted maintenance or test cost
+AGN-036	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer lens checklist	747dff6		flag unexplained differences from Hindenburg
+AGN-037	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer lens checklist	747dff6		intro to reviewer rules
+AGN-038	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer tool limit	747dff6		reviewer is read-only
+AGN-039	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; finding format	747dff6		finding gives claim, evidence, alternative
+AGN-040	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; reviewer rule	747dff6		no style or naming arguments
+AGN-041	.claude/agents/devils-advocate.md	merge	INR-051	duplicate of the settled list rule (home 10); slice 10 points to the task list	L28	claim	settled choices are off limits without new evidence
+AGN-042	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; the lens part that reviewer-prompt.md does not state	L28	claim	aim at choices not yet settled
+AGN-043	.claude/agents/devils-advocate.md	keep	.claude/agents/devils-advocate.md	keep; finding cap	747dff6		cap of six; one line if approach is right
+AGN-044	.claude/agents/devils-advocate.md	merge	AGT-003	duplicate of the AGENTS.md STE rule (audit 2)	747dff6		reviewer writes findings in STE100 style
+AGN-045	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer role	747dff6		assume a failure in six months and work back
+AGN-046	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer reading list	747dff6		reads rubric.md; code-quality-review.md at code gate
+AGN-047	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		intro to the failure areas
+AGN-048	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist (restates AGENTS.md:100)	747dff6		captured audio survives crash, full disk, unplug, sleep
+AGN-049	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		clock drift, start offsets, sample-rate change
+AGN-050	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		audio thread allocation, locks, I/O; dropouts
+AGN-051	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		session file version compatibility; interrupted save XML
+AGN-052	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		mic permission reset, macOS 14 APIs, Intel vs Apple silicon
+AGN-053	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		two-hour six-track memory and disk load
+AGN-054	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		find the unchecked plan assumption
+AGN-055	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer lens checklist	747dff6		intro to reviewer rules
+AGN-056	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; reviewer tool limit	747dff6		read-only reviewer; git diff, afinfo, ffprobe allowed
+AGN-057	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; finding format	747dff6		finding is a trigger-path-consequence story
+AGN-058	.claude/agents/premortem.md	keep	.claude/agents/premortem.md	keep; finding cap and order	747dff6		rank by likelihood x cost; cap of eight
+AGN-059	.claude/agents/premortem.md	merge	AGT-003	duplicate of the AGENTS.md STE rule (audit 2)	747dff6		reviewer writes findings in STE100 style
+PRN-001	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		principles are cited by name, one line each
+PRN-002	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		tie-break: simpler wins unless data loss or red test
+PRN-003	docs/principles.md	keep	docs/principles.md	keep; license attribution	1712f5e		pstack MIT attribution
+PRN-004	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		delete first; smallest fix
+PRN-005	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		pick types and data structures before logic
+PRN-006	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		redesign for a changed requirement, no bolt-on
+PRN-007	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		after two failed fixes of one premise, question it
+PRN-008	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		remove dead code and stubs before building
+PRN-009	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		fewer layers, no one-caller wrappers, narrow state
+PRN-010	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		migrate to target design; drop compatibility code
+PRN-011	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		producer experience over ease; fewer, better features
+PRN-012	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		compare two or three designs for one-way decisions
+PRN-013	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		script repeated work so a reviewer can rerun it
+PRN-014	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		domain rules live in types, not scattered ifs
+PRN-015	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		validate at file/device/input boundaries; pure logic inside
+PRN-016	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		no illegal states, no force casts, exhaustive enums
+PRN-017	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		rerun or crash-rerun reaches the same state
+PRN-018	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		move all callers and remove old API in one change
+PRN-019	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		remove sharing before locking; one writer per device
+PRN-020	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		check the real artifact; compiling proves nothing
+PRN-021	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		reproduce, find cause, fix there; no hiding guards
+PRN-022	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		small checkable units; green before the next
+PRN-023	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name (audit 2 lists tdd:26 as the same rule)	1712f5e		test via user API with literal results; empty-return test is void
+PRN-024	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		bulk reads go to subagents; keep summaries
+PRN-025	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		go ahead on reversible work; ask for irreversible
+PRN-026	docs/principles.md	keep	docs/principles.md	keep; reviewers cite each principle by name	1712f5e		a repeated instruction becomes a lint, test, or script

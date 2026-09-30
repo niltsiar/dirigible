@@ -215,6 +215,36 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Code gate 1, item 4: while a Create runs, a row open (a double-click or Return in the list)
+    /// and a close of the start window do nothing. The typed name stays, and the Create goes on.
+    @Test func aCreateRefusesARowOpenAndAClose() async throws {
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let a = try folder.package("a")
+        app.recent = [a]
+        app.showStart()
+        let model = try #require(app.start?.model)
+        let window = try #require(app.start?.window)
+        await model.rowsTask?.value
+        await model.scanTask?.value
+        model.edit("typed")
+
+        model.create()
+        let creating = model.creating
+        await model.open(a)
+        window.performClose(nil)
+        let shows = app.start != nil && window.isVisible
+        let name = model.name
+        await model.createTask?.value
+
+        #expect(creating, "a Create sets the creating flag at once")
+        #expect(app.windows[packageIdentity(a)] == nil, "a row open during a Create opens nothing")
+        #expect(shows, "a close during a Create is refused")
+        #expect(name == "typed", "a refused act keeps the typed name")
+        let made = sessions.appending(path: "typed.dirigible")
+        #expect(app.windows[packageIdentity(made)] != nil, "the Create goes on and opens its session")
+        await closeAll(app)
+    }
+
     /// Criterion C21 (plan gate, item 5): the folder preference counts only as an absolute path.
     @Test(arguments: [("", false), ("relative", false), ("<temp>/Podcasts", true)])
     func aBadFolderPreferenceGivesTheDefaultFolder(value: String, absolute: Bool) async throws {

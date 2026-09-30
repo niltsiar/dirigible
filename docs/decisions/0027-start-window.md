@@ -35,7 +35,7 @@ Inference from the SDK: on macOS 14, a SwiftUI `Window` scene presents at every 
 
 `showStart` does nothing while the app terminates. `applicationShouldTerminate` sets a `terminating` flag as its first step, and its two cancel paths clear it. Every Quit (Command-Q, Stop and Quit, a log-out) comes through `applicationShouldTerminate`. `showStart` also does nothing when the app delegate has no default folder: the test init has none, so the tests that close their last window see no start window.
 
-**When it closes.** Each open of a session window closes it: an open from the start window, File > Open, Open Recent, a Finder open, and an open of a package that is already open. `open(_:created:)` closes it after it resolves the key and before it returns an existing window. The close is `NSWindow.close()`, so the window delegate clears `start`.
+**When it closes.** Each open of a session window closes it: an open from the start window, File > Open, Open Recent, a Finder open, and an open of a package that is already open. `open(_:created:)` closes it after it resolves the key and before it returns an existing window. The close is `NSWindow.close()`, so the window delegate clears `start`. While a Create runs, a row open does nothing, and `windowShouldClose` refuses the close button and Command-W (code gate 1, item 4). `close()` does not ask `windowShouldClose`, so the open of the new session still closes the window.
 
 **New Session.** The start window has the New Session form: a name, the folder, and Create. The save panel of New Session goes. Create calls `createSession(at:)`, which calls `Studio.create` (0014, "New session"). So the package is on disk before its window opens.
 

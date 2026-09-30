@@ -189,7 +189,7 @@ extension StartWindowTests {
         app.start?.window?.performClose(nil)
         await task?.value
 
-        #expect(app.start == nil)
+        #expect(app.start == nil, "a close with no Create drops the start window")
         #expect(model.rows.isEmpty, "a closed start window takes no rows result")
     }
 

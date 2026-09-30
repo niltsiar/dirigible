@@ -185,8 +185,10 @@ extension SessionName.Refusal {
 
     /// Opens a recent session, also a row that shows "Not found": the check cannot tell a denied
     /// path from a missing one, so the session window shows the error of the open (code gate 1,
-    /// item 1). The open closes the start window.
+    /// item 1). The open closes the start window. While a Create runs, it does nothing: the
+    /// double-click and Return in the list come here (code gate 1, item 4).
     func open(_ url: URL) async {
+        guard !creating else { return }
         await app?.open(url)
     }
 
@@ -268,6 +270,10 @@ extension SessionName.Refusal {
 
     /// Through `NSWindow.close()`, so `windowWillClose(_:)` runs.
     func close() { window?.close() }
+
+    /// The close button and Command-W do nothing while a Create runs (code gate 1, item 4). The
+    /// open of the new session closes the window with `close()`, which does not ask.
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.creating }
 
     func windowWillClose(_ notification: Notification) {
         model.close()

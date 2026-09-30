@@ -125,6 +125,12 @@ extension SessionName.Refusal {
         if !edited { name = scan.name }
     }
 
+    /// The view calls it after a name change is in the field. A scan name is selected, so a typed
+    /// key replaces it (C8). A user edit is not selected.
+    func nameShown() {
+        if !edited { app?.start?.selectName() }
+    }
+
     /// Makes the package and opens it. The open closes the start window. An error shows its
     /// alert and keeps the window and the name. A refused name does nothing. The app makes only
     /// its default folder.
@@ -278,7 +284,19 @@ extension SessionName.Refusal {
         self.window = window
     }
 
-    func show() { window?.makeKeyAndOrderFront(nil) }
+    func show() {
+        window?.makeKeyAndOrderFront(nil)
+        selectName()
+    }
+
+    /// When the name field has the focus, selects all of its text, so a typed key replaces it
+    /// (C8). A field that shows again keeps its caret, and a scan name comes with the caret at the
+    /// end.
+    func selectName() {
+        // The name field is the only text field of the start window.
+        guard let editor = window?.firstResponder as? NSTextView else { return }
+        editor.selectAll(nil)
+    }
 
     /// Through `NSWindow.close()`, so `windowWillClose(_:)` runs.
     func close() { window?.close() }

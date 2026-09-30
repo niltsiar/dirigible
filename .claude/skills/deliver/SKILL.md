@@ -81,7 +81,7 @@ Run the **interrogate** skill with target `diff`. It runs the `review-panel` wor
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each acceptance criterion from Phase 1 against the real artifact: the built app, the real files, measured levels. Record each verdict (`VERIFIED`, `NOT VERIFIED`, `INCONCLUSIVE`) in `run.md`. A `NOT VERIFIED` criterion sends you back to Phase 4. If the window looks different, make the screenshots again (`docs/guide.md`, For contributors).
+Run the **verify-this** skill for each acceptance criterion from Phase 1 against the real artifact: the built app, the real files, measured levels. Record each verdict (`VERIFIED`, `NOT VERIFIED`, `INCONCLUSIVE`) in `run.md`. A `NOT VERIFIED` criterion sends you back to Phase 4. First stop the running control replays (`pkill -INT -f mutate.py` restores the file): the fix changes the code that they test. Replay all controls once, on the tree that lands. If the window looks different, make the screenshots again (`docs/guide.md`, For contributors).
 
 ## Phase 8: Reflect
 

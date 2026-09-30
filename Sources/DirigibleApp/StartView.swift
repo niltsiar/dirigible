@@ -72,9 +72,9 @@ struct StartView: View {
     }
 
     /// Return in the list opens the selection through `onKeyPress` (macOS 14). A double-click
-    /// opens a row through a tap gesture, not the primary action of a context menu: that action
-    /// also runs on Return, so one Return would open the session two times (control k30). The
-    /// gesture is simultaneous, so a single click selects the row at once.
+    /// opens a row through the primary action of the list, and a single click selects the row. A
+    /// gesture on the row blocked that selection (M4). The list also runs the primary action on
+    /// Return when no view takes the key, so `openRow(_:by:)` opens only for a double-click.
     private var recent: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(L10n.startRecent.key).font(.headline).padding(.horizontal, 16).padding(.top, 16)
@@ -82,9 +82,13 @@ struct StartView: View {
             // The list shows also with no rows, so the focus can go to it before the rows come.
             List(model.rows, selection: Binding(get: { model.selection }, set: { model.select($0) })) { row in
                 RecentRowView(row: row)
-                    .simultaneousGesture(TapGesture(count: 2).onEnded { Task { await model.open(row.url) } })
             }
             .listStyle(.sidebar).scrollContentBackground(.hidden)
+            .contextMenu(forSelectionType: URL.self) { _ in
+            } primaryAction: { urls in
+                let event = NSApp.currentEvent
+                Task { await model.openRow(urls, by: event) }
+            }
             .focused($focus, equals: .list)
             .onKeyPress(.return) {
                 model.openSelection()
@@ -126,8 +130,6 @@ private struct RecentRowView: View {
         }
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The whole row takes the double-click, not only its text.
-        .contentShape(Rectangle())
         .opacity(row.exists ? 1 : 0.5)
     }
 }

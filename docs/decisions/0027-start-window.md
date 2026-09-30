@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-09-30
 - Accepted: 2026-09-30, after plan gate 1 of run `2026-09-30-start-window` and the architect synthesis of that run.
-- Amends: 0014 (the launch shows the start window, not the Open panel; New Session shows the start window, not a save panel).
+- Amends: 0014 (the launch shows the start window, not the Open panel; New Session shows the start window, not a save panel; the app keeps its own list of recent sessions).
 
 ## Context
 
@@ -43,6 +43,8 @@ Inference from the SDK: on macOS 14, a SwiftUI `Window` scene presents at every 
 
 **Preference key.** `session.folder` holds the folder of new sessions as a `String`, an absolute path. Change… writes it with the path of the chosen folder. The app reads it at one place: a value that starts with "/" is the folder; any other value, or no value, gives the default folder. The key never changes its meaning or its type (0024 P11). The app is not sandboxed, so a path is enough; no bookmark.
 
+**Recent sessions.** The key `recent.sessions` holds the recent sessions as an array of `String`, each an absolute path, the newest first, 10 at most, with no path two times. Each open of a session window puts its path first. The app reads the key once, at launch: it keeps each value that starts with "/" and drops any other value. The key never changes its meaning or its type. `AppDelegate.recent` is the one source of the start window list and of File > Open Recent. The app still calls `NSDocumentController.noteNewRecentDocumentURL` for the Dock menu and Apple menu > Recent Items, but it does not read `recentDocumentURLs`. Reason (run triage, macOS 15.7.9): the recent list of `NSDocumentController` belongs to the designated requirement of the app. For an ad-hoc signature that is the CDHash, so each new build (and each update from the ad-hoc DMG) starts with an empty list and replaces the stored list. The app preferences belong to the bundle ID and stay.
+
 **Name.** A name is not empty, has no "/" or ":", does not start with ".", and is 245 UTF-8 bytes or less (255 bytes of a file name less the 10 bytes of ".dirigible"). Create is off for a refused name.
 
 **Return.** Return acts on the control that has focus. In the name field, `onSubmit` runs Create. In the recent list, `onKeyPress(.return)` opens the selected session. Create is not a default button (S6). Apple documents both for macOS 14.0 and later. The `primaryAction` of `contextMenu(forSelectionType:menu:primaryAction:)` is for double-click only. Return in the list and the initial focus are not checked on macOS 14 hardware (no macOS 14 Mac). A later run with one checks them.
@@ -52,6 +54,7 @@ Inference from the SDK: on macOS 14, a SwiftUI `Window` scene presents at every 
 ## Consequences
 
 - 0014 gets an amended line: the launch and a Dock click with no session window show the start window, not the Open panel; New Session shows the start window, not a save panel.
+- 0014 gets a second amended line: Open Recent reads the list of the app preferences (`recent.sessions`), not `recentDocumentURLs`.
 - The strings use the area `start`, and the menu item uses `menu.window.start`. The area list of 0010 is examples, so 0010 needs no amended line.
 - `AppDelegate(recordings:peakCache:defaults:defaultFolder:)` takes the default folder. Nil gives no start window. The app passes `~/Music/Dirigible`.
 - A new user sees the start window at the first launch. A returning user presses Return to open the first recent session.

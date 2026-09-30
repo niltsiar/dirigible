@@ -33,7 +33,7 @@ struct FolderScan: Sendable {
     /// True from a Create until its error: a second Create does nothing (plan gate, item 3).
     private(set) var creating = false
     let folder: URL
-    /// The recent sessions, from `recentSessions`, in their order.
+    /// The recent sessions, from `AppDelegate.recent`, in their order.
     private(set) var rows: [RecentRow] = []
     /// True when the rows came: the view says "No recent sessions." only then.
     private(set) var rowsLoaded = false
@@ -91,7 +91,7 @@ struct FolderScan: Sendable {
     /// the list when the recent list has a URL.
     func loadRows() {
         guard rowsTask == nil, let app else { return }
-        let (urls, exists) = (app.recentSessions(), app.exists)
+        let (urls, exists) = (app.recent, app.exists)
         if !focusPinned { focus = urls.isEmpty ? .name : .list }
         rowsTask = Task {
             let rows = await scanRecent(urls, exists: exists)

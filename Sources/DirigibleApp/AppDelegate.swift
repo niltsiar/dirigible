@@ -10,7 +10,12 @@ import UniformTypeIdentifiers
     private(set) var windows: [URL: SessionWindow] = [:]
     /// The window whose `NSWindow` is key. The commands act on it.
     var key: SessionWindow?
-    private(set) var recent: [URL] = NSDocumentController.shared.recentDocumentURLs
+    /// The recent sessions, the newest first: the start window and File > Open Recent read it. The
+    /// app preferences keep it as absolute paths (decision 0027). The list of
+    /// `NSDocumentController` belongs to one code signature, and each ad-hoc build has a new one.
+    var recent: [URL]
+    static let recentKey = "recent.sessions"
+    static let recentLimit = 10
 
     @ObservationIgnored let recordings: ActiveRecordings?
     /// The peak cache folder of every studio (decision 0017). Nil: no peaks (tests).
@@ -41,9 +46,6 @@ import UniformTypeIdentifiers
     @ObservationIgnored var nameFormat: @Sendable (Int) -> String = { L10n.startNameDefault.format($0) }
     /// The file checks of the start window, off the main actor. Tests give their own.
     @ObservationIgnored var exists: @Sendable (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
-    /// The recent sessions of the start window. Tests give their own: the test runner has its
-    /// own recent list.
-    @ObservationIgnored var recentSessions: () -> [URL] = { NSDocumentController.shared.recentDocumentURLs }
     /// The alert of a failed Create. Tests give their own: `runModal()` blocks.
     @ObservationIgnored var showError: @MainActor (StudioError) -> Void = { error in
         let alert = NSAlert()
@@ -76,6 +78,10 @@ import UniformTypeIdentifiers
         self.defaultFolder = defaultFolder
         self.peakCache = peakCache
         self.defaults = defaults
+        // Only absolute paths, as for the folder preference. The hint reads no file.
+        recent = (defaults?.stringArray(forKey: Self.recentKey) ?? []).filter { $0.hasPrefix("/") }.map {
+            URL(fileURLWithPath: $0, isDirectory: true)
+        }
         if let peakCache {
             // A cache file that no pass used for 90 days goes (decision 0017).
             Task.detached(priority: .background) {
@@ -112,8 +118,11 @@ import UniformTypeIdentifiers
             let listed = listedAtLaunch
             Task { window.open(recovering: await listed.value.contains(key)) }
         }
+        // The Dock menu and Apple menu > Recent Items read the system list.
         NSDocumentController.shared.noteNewRecentDocumentURL(key)
-        recent = NSDocumentController.shared.recentDocumentURLs
+        // By path: two URLs of one package can differ in the trailing slash.
+        recent = Array(([key] + recent.filter { $0.path != key.path }).prefix(Self.recentLimit))
+        defaults?.set(recent.map(\.path), forKey: Self.recentKey)
         return window
     }
 

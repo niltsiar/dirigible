@@ -12,6 +12,46 @@ import os
 extension StartWindowTests {
     var missing: URL { folder.url.appending(path: "missing.dirigible") }
 
+    /// Criterion C23: the recent list is in the app preferences, so a new build keeps it. The list
+    /// of `NSDocumentController` belongs to one code signature, and each ad-hoc build has a new one.
+    @Test func theRecentListComesFromThePreferences() async throws {
+        let domain = "dirigible.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let a = try folder.package("a")
+        let first = AppDelegate(recordings: nil, defaults: defaults)
+        await first.open(a)
+        await closeAll(first)
+
+        let next = AppDelegate(recordings: nil, defaults: defaults)
+        #expect(next.recent.map(\.path) == [packageIdentity(a).path], "the next launch lists it")
+        #expect(AppDelegate(recordings: nil).recent.isEmpty, "the list is not the list of NSDocumentController")
+        await next.open(a)
+        #expect(next.recent.map(\.path) == [packageIdentity(a).path], "an open of a listed session adds no row")
+        await closeAll(next)
+    }
+
+    /// Criterion C23: the load keeps only absolute paths; an open moves its session to the top with
+    /// no second row, and the list keeps the 10 newest.
+    @Test func theRecentListKeepsTenAbsolutePathsNewestFirst() async throws {
+        let domain = "dirigible.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let (a, b) = (packageIdentity(try folder.package("a")).path, packageIdentity(try folder.package("b")).path)
+        let gone = (0..<9).map { "/gone/\($0).dirigible" }
+        defaults.set(["", "relative.dirigible", gone[0], a] + gone[1...], forKey: "recent.sessions")
+        let app = AppDelegate(recordings: nil, defaults: defaults)
+        #expect(app.recent.map(\.path) == [gone[0], a] + gone[1...], "the load keeps only absolute paths")
+
+        await app.open(URL(fileURLWithPath: a))
+        #expect(app.recent.map(\.path) == [a] + gone, "an open moves its session to the top with no second row")
+        await app.open(URL(fileURLWithPath: b))
+        let expected = [b, a] + gone[..<8]
+        #expect(app.recent.map(\.path) == expected, "the list keeps the 10 newest")
+        #expect(defaults.stringArray(forKey: "recent.sessions") == expected, "the preference holds the list")
+        await closeAll(app)
+    }
+
     /// Criterion C12: each recent URL gives a row in its order, a missing package shows as missing,
     /// and the first row that exists is selected.
     @Test func theRecentListMarksMissingPackagesAndSelectsTheFirstThatExists() async throws {
@@ -21,7 +61,7 @@ extension StartWindowTests {
             onMain.withLock { $0.append(Thread.isMainThread) }
             return FileManager.default.fileExists(atPath: url.path)
         }
-        app.recentSessions = { [self] in [missing, a, b] }
+        app.recent = [missing, a, b]
         app.showStartWindow()
         let model = try #require(app.start?.model)
         await model.rowsTask?.value
@@ -40,7 +80,7 @@ extension StartWindowTests {
     @Test(arguments: ["a", "missing", "none"])
     func theFocusStartsInTheListOnlyWhenARowExists(recent: String) async throws {
         let urls = ["a": [try folder.package("a")], "missing": [missing], "none": []][recent] ?? []
-        app.recentSessions = { urls }
+        app.recent = urls
         app.showStartWindow()
         let model = try #require(app.start?.model)
 
@@ -58,7 +98,7 @@ extension StartWindowTests {
     /// text.
     @Test func aUserActKeepsTheFocus() async throws {
         let a = try folder.package("a")
-        app.recentSessions = { [a] }
+        app.recent = [a]
         app.showStartWindow()
         let model = try #require(app.start?.model)
 
@@ -79,7 +119,7 @@ extension StartWindowTests {
             if url == a { checks.withLock { $0 += 1 } }
             return FileManager.default.fileExists(atPath: url.path)
         }
-        app.recentSessions = { [a] }
+        app.recent = [a]
 
         app.showStartWindow()
         app.showStartWindow()
@@ -92,7 +132,7 @@ extension StartWindowTests {
     /// Criterion C22: a rows result after the close of the start window changes nothing.
     @Test func aClosedStartWindowDropsTheRowsResult() async throws {
         let a = try folder.package("a")
-        app.recentSessions = { [a] }
+        app.recent = [a]
         app.showStartWindow()
         let model = try #require(app.start?.model)
         let task = model.rowsTask
@@ -110,7 +150,7 @@ extension StartWindowTests {
     func returnOpensTheSelectionOrCreates(focus: StartField) async throws {
         let a = try folder.package("a")
         try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
-        app.recentSessions = { [a] }
+        app.recent = [a]
         app.showStartWindow()
         let model = try #require(app.start?.model)
         let window = try #require(app.start?.window)
@@ -147,7 +187,7 @@ extension StartWindowTests {
     /// opens nothing.
     @Test func openingARowOpensItsSessionAndClosesTheStartWindow() async throws {
         let a = try folder.package("a")
-        app.recentSessions = { [self] in [missing, a] }
+        app.recent = [missing, a]
         app.showStartWindow()
         let model = try #require(app.start?.model)
         await model.rowsTask?.value

@@ -36,6 +36,7 @@ enum L10n: String, CaseIterable {
     case menuTransportEnd = "menu.transport.end"
     case menuTransportPrevious = "menu.transport.previous"
     case menuTransportNext = "menu.transport.next"
+    case menuWindowStart = "menu.window.start"
     case menuViewZoomIn = "menu.view.zoom.in"
     case menuViewZoomOut = "menu.view.zoom.out"
     case menuViewZoomFit = "menu.view.zoom.fit"
@@ -165,6 +166,9 @@ enum L10n: String, CaseIterable {
     case bannerKindWarning = "banner.kind.warning"
     case bannerKindError = "banner.kind.error"
     case bannerKindInfo = "banner.kind.info"
+    case startTitle = "start.title"
+    case startVersion = "start.version"
+    case startOpenOther = "start.open.other"
 
     case errorBusy = "error.studio.busy"
     case errorLocked = "error.studio.locked"

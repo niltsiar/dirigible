@@ -21,8 +21,15 @@ import UniformTypeIdentifiers
     /// The packages of the list at launch that exist, read once off the main actor (decision
     /// 0004).
     @ObservationIgnored let listedAtLaunch: Task<Set<URL>, Never>
-    /// The open events whose windows are not in the registry yet. The launch shows the Open
-    /// panel only when none waits.
+    /// The folder of new sessions when the user chose none (decision 0027). Nil: no start
+    /// window (tests).
+    @ObservationIgnored let defaultFolder: URL?
+    /// The start window while it shows (decision 0027). A close sets it to nil.
+    @ObservationIgnored private(set) var start: StartWindow?
+    /// True from the Quit decision until a cancel: no start window shows (decision 0027).
+    @ObservationIgnored private(set) var terminating = false
+    /// The open events whose windows are not in the registry yet. The launch shows the start
+    /// window only when none waits.
     @ObservationIgnored private var openEvents = 0
     /// The J and L hold of the key monitor (decision 0016).
     @ObservationIgnored private var hold = ShuttleHold<Studio>()
@@ -43,11 +50,16 @@ import UniformTypeIdentifiers
         self.init(
             recordings: ActiveRecordings(
                 file: support.appending(path: "com.delineas.dirigible/active-recordings.plist")),
-            peakCache: PeakFile.folder, defaults: .standard)
+            peakCache: PeakFile.folder, defaults: .standard,
+            defaultFolder: FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0]
+                .appending(path: "Dirigible", directoryHint: .isDirectory))
     }
 
-    init(recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil) {
+    init(
+        recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil, defaultFolder: URL? = nil
+    ) {
         self.recordings = recordings
+        self.defaultFolder = defaultFolder
         self.peakCache = peakCache
         self.defaults = defaults
         if let peakCache {
@@ -70,6 +82,8 @@ import UniformTypeIdentifiers
     @discardableResult func open(_ url: URL, created: Studio? = nil) async -> SessionWindow {
         let key: URL
         if let created { key = created.url } else { key = await identity(of: url) }
+        // Before the early return: an open of an open session closes it too (plan gate, item 6).
+        start?.close()
         if let existing = windows[key] {
             existing.bringToFront()
             return existing
@@ -102,6 +116,7 @@ import UniformTypeIdentifiers
     func forget(_ closed: SessionWindow) {
         windows = windows.filter { $0.value !== closed }
         if key === closed { key = nil }
+        if windows.isEmpty { showStart() }
     }
 
     // MARK: Transport
@@ -149,6 +164,22 @@ import UniformTypeIdentifiers
             return event
         }
     }
+
+    // MARK: Start window
+
+    /// Window > Start Window: also with a session window open (decision 0027).
+    func showStartWindow() { showStart() }
+
+    /// The one path of every trigger (decision 0027): a new window when none shows, else the open
+    /// one to the front.
+    private func showStart() {
+        guard defaultFolder != nil, !terminating else { return }
+        if start == nil { start = StartWindow(app: self) }
+        start?.show()
+    }
+
+    /// The `windowWillClose(_:)` of the start window.
+    func startDidClose() { start = nil }
 
     // MARK: Panels
 
@@ -208,19 +239,22 @@ import UniformTypeIdentifiers
         }
     }
 
-    /// Open events come before this call (probe P7). The packages of the list open next; with no
-    /// window, the Open panel shows.
+    /// Open events come before this call (probe P7).
     func applicationDidFinishLaunching(_ notification: Notification) {
         watchKeys()
-        let listed = listedAtLaunch
-        Task {
-            for url in await listed.value.sorted(by: { $0.path < $1.path }) { await open(url) }
-            if windows.isEmpty && openEvents == 0 { showOpenPanel() }
-        }
+        Task { await openAtLaunch() }
     }
 
+    /// The packages of the list open; with no window and no open event that waits, the start
+    /// window shows.
+    func openAtLaunch() async {
+        for url in await listedAtLaunch.value.sorted(by: { $0.path < $1.path }) { await open(url) }
+        if windows.isEmpty && openEvents == 0 { showStart() }
+    }
+
+    /// A Dock click.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        if windows.isEmpty { showOpenPanel() }
+        if windows.isEmpty { showStart() }
         return true
     }
 
@@ -229,10 +263,12 @@ import UniformTypeIdentifiers
     /// During a take, one question. Then every window settles; a window whose last save still
     /// failed gives one more question.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        terminating = true
         guard !windows.isEmpty else { return .terminateNow }
         if windows.values.contains(where: \.isTakeRunning),
             !confirm(L10n.alertQuitRecording.text, button: L10n.alertQuitRecordingConfirm.text)
         {
+            terminating = false
             return .terminateCancel
         }
         let open = Array(windows.values)
@@ -247,7 +283,10 @@ import UniformTypeIdentifiers
                     L10n.alertQuitUnsaved.format(failed.joined(separator: ", ")),
                     button: L10n.alertQuitUnsavedConfirm.text)
             // A cancelled Quit: the settle started no peak pass (decision 0017).
-            if !quit { for window in open { window.studio?.loadPeaks() } }
+            if !quit {
+                terminating = false
+                for window in open { window.studio?.loadPeaks() }
+            }
             sender.reply(toApplicationShouldTerminate: quit)
         }
         return .terminateLater

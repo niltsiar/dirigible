@@ -124,6 +124,7 @@
 "menu.transport.end" = "Go to End";
 "menu.transport.previous" = "Previous Clip Edge";
 "menu.transport.next" = "Next Clip Edge";
+"menu.window.start" = "Start Window";
 "transport.record" = "Record";
 "transport.stop" = "Stop";
 "transport.play" = "Play";
@@ -218,3 +219,8 @@
 "banner.kind.warning" = "Warning";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Information";
+
+/* Start window */
+"start.title" = "Welcome to Dirigible";
+"start.version" = "Version %@";
+"start.open.other" = "Open Other…";

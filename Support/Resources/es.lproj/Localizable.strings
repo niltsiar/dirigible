@@ -124,6 +124,7 @@
 "menu.transport.end" = "Ir al final";
 "menu.transport.previous" = "Borde de clip anterior";
 "menu.transport.next" = "Borde de clip siguiente";
+"menu.window.start" = "Ventana de inicio";
 "transport.record" = "Grabar";
 "transport.stop" = "Detener";
 "transport.play" = "Reproducir";
@@ -218,3 +219,8 @@
 "banner.kind.warning" = "Aviso";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Información";
+
+/* Start window */
+"start.title" = "Te damos la bienvenida a Dirigible";
+"start.version" = "Versión %@";
+"start.open.other" = "Abrir otra…";

@@ -6,6 +6,8 @@ import SwiftUI
 enum MenuKeys {
     static let newSession = KeyboardShortcut("n")
     static let open = KeyboardShortcut("o")
+    /// Window > Start Window, as Xcode has Window > Welcome to Xcode (decision 0027).
+    static let startWindow = KeyboardShortcut("1", modifiers: [.command, .shift])
     static let addTrack = KeyboardShortcut("n", modifiers: [.command, .option])
     static let record = KeyboardShortcut("r")
     static let stop = KeyboardShortcut(".")
@@ -49,8 +51,8 @@ enum MenuKeys {
 
     static let all =
         [
-            newSession, open, addTrack, record, stop, monitor, retry, play, stopAndReturn, reverse, pause, forward,
-            slowReverse, slowForward, start, end, previousClip, nextClip, zoomInEquals,
+            newSession, open, startWindow, addTrack, record, stop, monitor, retry, play, stopAndReturn, reverse, pause,
+            forward, slowReverse, slowForward, start, end, previousClip, nextClip, zoomInEquals,
         ] + system
 }
 

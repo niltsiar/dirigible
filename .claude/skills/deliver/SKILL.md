@@ -17,7 +17,7 @@ Open a todo list with the phases below before you start. Do not skip a phase. A 
 - Keep the main context small. Send bulk reading to subagents. Keep their conclusions, not their raw output.
 - When a subagent does a phase, its prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file of this flow. The Write tool can still refuse a report-like file in a subagent. Then the subagent writes the run file at once with a Bash heredoc. It does not retry the Write tool, and it does not return the file only as text.
 - A subagent runs a repeat loop (a flake check, a set of mutations) in the foreground, with a Bash timeout of 10 min or less per call. Split a longer loop into more calls. A background loop makes the subagent wait, and the caller gets many interim notifications.
-- Send every research request, from a phase or from the user in the middle of a run, through the **research** skill. Its output goes to `docs/research/`, where `make check-docs` checks it.
+- Send every research request, from a phase or from the user in the middle of a run, through the **research** skill. Its output goes to `docs/research/`, where `make check-docs` checks it. While a monitored loop or a bench runs, the prompt of each subagent says so. A ban on `swift` in the prompt alone did not stop a research subagent, because the research skill told it to probe.
 
 ## Phase 0: Open the run
 

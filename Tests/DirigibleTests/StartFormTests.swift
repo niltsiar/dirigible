@@ -45,6 +45,43 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Criterion C8: when the name field takes the focus from a show, its text is selected, so a
+    /// typed key replaces it, as in a save panel. A new window gets the name from the folder scan
+    /// after the field has the focus. A window that shows again keeps the caret of its field.
+    @Test(arguments: [false, true])
+    func aShowSelectsTheName(again: Bool) async throws {
+        // The name of the product: the folder has no package, so the scan gives number 1.
+        let name = app.nameFormat(1)
+        let whole = NSRange(location: 0, length: (name as NSString).length)
+        if again {
+            app.showStart(focus: .name)
+            let window = try #require(app.start?.window)
+            await until(limit: .seconds(10), "the first show gives the name") {
+                focusedNameEditor(in: window)?.string == name
+            }
+            nameEditor(in: window)?.setSelectedRange(NSRange(location: whole.length, length: 0))
+        }
+
+        app.newSession()
+
+        let window = try #require(app.start?.window)
+        await until(limit: .seconds(10), "the name field has the focus and the name") {
+            focusedNameEditor(in: window)?.string == name
+        }
+        await until(limit: .seconds(10), "a show selects the whole name") {
+            focusedNameEditor(in: window)?.selectedRange() == whole
+        }
+        let editor = try #require(nameEditor(in: window))
+        editor.insertText("x", replacementRange: editor.selectedRange())
+        #expect(app.start?.model.name == "x", "a typed key replaces the selected name")
+        // The view calls nameShown() after the edit. An edit is not selected, so the next key adds
+        // to it. The direct call has no await, so no other window can take the field editor.
+        app.start?.model.nameShown()
+        editor.insertText("y", replacementRange: editor.selectedRange())
+        #expect(app.start?.model.name == "xy", "a typed key after an edit adds to the name")
+        await closeAll(app)
+    }
+
     /// Criterion C9: the first free name, then Create makes the package, opens its window, and
     /// closes the start window.
     @Test func createUsesTheFirstFreeNameAndOpensTheWindow() async throws {
@@ -263,6 +300,17 @@ extension StartWindowTests {
         await app.start?.model.scanTask?.value
         await closeAll(app)
     }
+}
+
+/// The field editor of the name field. The SwiftUI field editor is one object for all windows of
+/// the test process, and a text field in another window can take it (decisions.tsv
+/// 2026-09-30T08:25). The start window is then its own first responder, and this function gives
+/// the focus back to the name field. A fault in the product does not make that state.
+@MainActor func focusedNameEditor(in window: NSWindow) -> NSTextView? {
+    if window.firstResponder === window, let field = window.contentView.flatMap(firstEditableField) {
+        window.makeFirstResponder(field)
+    }
+    return nameEditor(in: window)
 }
 
 /// The field editor of the name field when it has the focus.

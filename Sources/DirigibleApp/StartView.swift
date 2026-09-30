@@ -17,6 +17,7 @@ struct StartView: View {
         .frame(width: 700, height: 420)
         .onAppear { focus = model.focus }
         .onChange(of: model.focus) { focus = model.focus }
+        .onChange(of: model.name) { model.nameShown() }
         .onChange(of: focus) { if let focus { model.focusChanged(to: focus, by: NSApp.currentEvent) } }
     }
 

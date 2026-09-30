@@ -195,7 +195,7 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
     return try #require(window.fieldEditor(false, for: field) as? NSTextView)
 }
 
-@MainActor private func firstEditableField(in view: NSView) -> NSTextField? {
+@MainActor func firstEditableField(in view: NSView) -> NSTextField? {
     if let field = view as? NSTextField, field.isEditable { return field }
     return view.subviews.lazy.compactMap(firstEditableField).first
 }

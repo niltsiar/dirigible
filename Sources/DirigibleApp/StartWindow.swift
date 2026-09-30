@@ -37,8 +37,7 @@ struct SessionName {
     init(_ text: String) throws(Refusal) {
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw .empty }
         // Finder shows ":" as "/", and "/" separates the path.
-        if text.contains("/") { throw .character }
-        if text.contains(":") { throw .character }
+        if text.contains("/") || text.contains(":") { throw .character }
         // Finder hides a name that starts with a period.
         if text.hasPrefix(".") { throw .dot }
         if text.utf8.count > Self.byteLimit { throw .long }

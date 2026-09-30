@@ -21,7 +21,7 @@ extension StartWindowTests {
         let app = AppDelegate(recordings: nil, defaults: defaults, defaultFolder: sessions)
         app.nameFormat = { "Episode \($0)" }
         app.chooseFolder = { _, done in done(chosen) }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
 
@@ -42,7 +42,7 @@ extension StartWindowTests {
         defer { defaults.removePersistentDomain(forName: domain) }
         let app = AppDelegate(recordings: nil, defaults: defaults, defaultFolder: sessions)
         app.chooseFolder = { _, done in done(nil) }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
 
@@ -67,7 +67,7 @@ extension StartWindowTests {
         let format: @Sendable (Int) -> String = { "Episode \($0)" }
         app.nameFormat = format
         app.chooseFolder = { _, done in done(new) }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
         #expect(model.name == "Episode 2")

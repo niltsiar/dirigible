@@ -104,7 +104,7 @@ import Testing
     func anOpenClosesTheStartWindow(existing: Bool) async throws {
         let package = try folder.package("a")
         if existing { await app.open(package) }
-        app.showStartWindow()
+        app.showStart()
         #expect(app.start?.window?.isVisible == true)
 
         await app.open(package)
@@ -117,7 +117,7 @@ import Testing
     /// Criterion C15: the start window is not a session window, so a plain key goes to its name
     /// field and not to the transport.
     @Test func thePlainKeysGoToTheStartWindow() async throws {
-        app.showStartWindow()
+        app.showStart()
         let window = try #require(app.start?.window)
         await until("the name field has the focus") { nameEditor(in: window) != nil }
 
@@ -132,7 +132,7 @@ import Testing
     @Test func theWindowMenuShowsTheStartWindowWithASession() async throws {
         await app.open(try folder.package("a"))
 
-        app.showStartWindow()
+        app.showStart()
 
         #expect(
             app.start?.window?.isVisible == true, "Start Window shows the start window with a session open")
@@ -142,7 +142,7 @@ import Testing
 
     /// A close by the user drops the start window, and the next show makes a new one.
     @Test func aClosedStartWindowShowsAgain() async throws {
-        app.showStartWindow()
+        app.showStart()
         let first = try #require(app.start?.window)
 
         first.performClose(nil)

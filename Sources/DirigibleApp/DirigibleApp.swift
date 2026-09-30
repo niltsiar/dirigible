@@ -79,7 +79,7 @@ struct DirigibleApp: App {
                     ).keyboardShortcut(monitor.key).disabled(app.key?.canMonitor != true)
                 }
                 CommandGroup(before: .windowList) {
-                    Button(L10n.menuWindowStart.key) { app.showStartWindow() }.keyboardShortcut(MenuKeys.startWindow)
+                    Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)
                 }
                 // Plain keys: never disabled, because a disabled item still takes its key (probe
                 // K1). Each action gives a typing key to text or to a panel first.

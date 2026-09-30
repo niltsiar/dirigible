@@ -62,7 +62,7 @@ extension StartWindowTests {
             return FileManager.default.fileExists(atPath: url.path)
         }
         app.recent = [missing, a, b]
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.rowsTask?.value
 
@@ -81,7 +81,7 @@ extension StartWindowTests {
     func theFocusStartsInTheListOnlyWhenARowExists(recent: String) async throws {
         let urls = ["a": [try folder.package("a")], "missing": [missing], "none": []][recent] ?? []
         app.recent = urls
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
 
         #expect(model.focus == (urls.isEmpty ? .name : .list), "the focus before the rows follows the recent URLs")
@@ -99,7 +99,7 @@ extension StartWindowTests {
     @Test func aUserActKeepsTheFocus() async throws {
         let a = try folder.package("a")
         app.recent = [a]
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
 
         model.edit("typed")
@@ -121,8 +121,8 @@ extension StartWindowTests {
         }
         app.recent = [a]
 
-        app.showStartWindow()
-        app.showStartWindow()
+        app.showStart()
+        app.showStart()
         await app.start?.model.rowsTask?.value
 
         #expect(checks.withLock { $0 } == 1, "a second show reuses the running rows scan")
@@ -133,7 +133,7 @@ extension StartWindowTests {
     @Test func aClosedStartWindowDropsTheRowsResult() async throws {
         let a = try folder.package("a")
         app.recent = [a]
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         let task = model.rowsTask
 
@@ -151,7 +151,7 @@ extension StartWindowTests {
         let a = try folder.package("a")
         try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
         app.recent = [a]
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         let window = try #require(app.start?.window)
         await model.rowsTask?.value
@@ -188,7 +188,7 @@ extension StartWindowTests {
     @Test func openingARowOpensItsSessionAndClosesTheStartWindow() async throws {
         let a = try folder.package("a")
         app.recent = [missing, a]
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.rowsTask?.value
 

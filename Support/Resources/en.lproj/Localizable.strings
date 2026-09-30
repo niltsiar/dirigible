@@ -226,6 +226,9 @@
 "start.new" = "New Session";
 "start.name" = "Name:";
 "start.name.default" = "Episode %lld";
+"start.name.error.character" = "A name cannot contain “/” or “:”.";
+"start.name.error.dot" = "A name cannot start with a period.";
+"start.name.error.long" = "The name is too long.";
 "start.folder" = "Saved in: %@";
 "start.create" = "Create";
 "start.hint" = "A session holds the tracks, recordings, and edits of one episode.";

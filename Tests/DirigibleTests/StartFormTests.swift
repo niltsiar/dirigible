@@ -126,6 +126,30 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Criterion C11: a refused name makes no package and no folder, shows its reason, and keeps
+    /// the typed text.
+    @Test func aRefusedNameCreatesNothingAndKeepsTheText() async throws {
+        // The parent of the default folder, so a Create could make the default folder.
+        try FileManager.default.createDirectory(
+            at: sessions.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let errors = OSAllocatedUnfairLock(initialState: [StudioError]())
+        app.showError = { error in errors.withLock { $0.append(error) } }
+        app.showStartWindow()
+        let model = try #require(app.start?.model)
+        await model.scanTask?.value
+
+        model.edit("a/b")
+        model.create()
+        await model.createTask?.value
+
+        #expect(model.refusal == .character, "the form shows the reason")
+        #expect(!model.creating)
+        #expect(!FileManager.default.fileExists(atPath: sessions.path), "a refused name makes no package")
+        #expect(errors.withLock { $0 }.isEmpty)
+        #expect(model.name == "a/b", "a refused name keeps the typed text")
+        await closeAll(app)
+    }
+
     /// Criterion C20 (plan gate, item 3): a second Create while one runs does nothing.
     @Test func twoCreatesMakeOnePackage() async throws {
         try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)

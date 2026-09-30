@@ -257,6 +257,33 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Criterion C13: the primary action of the list opens a row only for a double-click. The list
+    /// also runs that action on Return when no other view takes the key, and Return opens through
+    /// `onKeyPress`, so a key event, a single click, or no event opens nothing there (control k30).
+    @Test func onlyADoubleClickOpensARowThroughThePrimaryAction() async throws {
+        let a = try folder.package("a")
+        app.recent = [a]
+        app.showStart()
+        let model = try #require(app.start?.model)
+        let window = try #require(app.start?.window)
+        await model.rowsTask?.value
+        let click = { (clicks: Int) in
+            NSEvent.mouseEvent(
+                with: .leftMouseUp, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)
+        }
+
+        for event in [key(.keyDown, "\r", code: 36, in: window), nil, click(1)] {
+            await model.openRow([a], by: event)
+        }
+        #expect(app.windows.isEmpty, "a Return, no event, or a single click opens nothing through the primary action")
+        #expect(app.start != nil, "the start window stays")
+
+        await model.openRow([a], by: click(2))
+        #expect(app.windows[packageIdentity(a)] != nil, "a double-click opens the row")
+        await closeAll(app)
+    }
+
     /// Code gate 1, item 1: "Not found" is a hint only. The open of a missing package gives its
     /// own error in the session window, and the start window closes.
     @Test func aNotFoundRowOpensAndItsWindowShowsTheOpenError() async throws {

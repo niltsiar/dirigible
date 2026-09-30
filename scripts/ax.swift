@@ -6,7 +6,9 @@
 //
 // usage: ax.swift dump [<depth>]              one line per element: role, title, label, value, help
 //        ax.swift find <text>                 the elements whose line has <text>
-//        ax.swift press <title>               the press action of the first element with <title>
+//        ax.swift press <path> [--tree <file>] the press action of the one element that <path>
+//                                             selects; with --tree, the match in a dump file,
+//                                             and no press
 //        ax.swift step <role> <increment|decrement>
 //                                             the action on each element with the role, for
 //                                             example AXSplitter, with its line before and after
@@ -14,14 +16,21 @@
 // 2 Option, 4 Control, 8 no Command; add the values), and MenuItemCmdVirtualKey (for a key with no
 // character, for example 36 Return or 123 Left Arrow). A menu title can end in the "…" character:
 // copy the title from the dump for press. A menu item with a check mark shows MenuItemMarkChar=✓.
-// Exit: 0 done, 1 no Dirigible app or no element, 2 usage, 3 no Accessibility trust.
+// A press path is titles with " > " between them, for example "File > Open Recent > Clear Menu".
+// The last title is the title of the element. The other titles come in this order among the
+// titles above it. When two elements match, press refuses and lists their paths: give a longer
+// path. The Apple menu is out of the search unless the path starts with "Apple". A press of the
+// first "Clear Menu" pressed Apple > Recent Items > Clear Menu and cleared the Recent Items list of
+// the Mac (run 2026-09-30-start-window).
+// Exit: 0 done, 1 no Dirigible app or no element, 2 usage, 3 no Accessibility trust, 4 more than
+// one element matches the press path.
 import AppKit
 import ApplicationServices
 
 let usage = """
     usage: ax.swift dump [<depth>]
            ax.swift find <text>
-           ax.swift press <title>
+           ax.swift press <path> [--tree <file>]
            ax.swift step <role> <increment|decrement>
 
     """
@@ -31,7 +40,13 @@ func fail(_ message: String, _ code: Int32) -> Never {
     exit(code)
 }
 
-let arguments = Array(CommandLine.arguments.dropFirst())
+var arguments = Array(CommandLine.arguments.dropFirst())
+var treeFile: String?
+if arguments.first == "press", let at = arguments.firstIndex(of: "--tree") {
+    guard at + 1 < arguments.count else { fail(usage, 2) }
+    treeFile = arguments[at + 1]
+    arguments.removeSubrange(at...at + 1)
+}
 let counts = ["dump": 0...1, "find": 1...1, "press": 1...1, "step": 2...2]
 guard let command = arguments.first, let count = counts[command], count.contains(arguments.count - 1) else {
     fail(usage, 2)
@@ -40,12 +55,14 @@ let depth = command == "dump" && arguments.count == 2 ? Int(arguments[1]) : 99
 guard let depth else { fail(usage, 2) }
 if command == "step", !["increment", "decrement"].contains(arguments[2]) { fail(usage, 2) }
 
-guard AXIsProcessTrusted() else {
-    fail("No Accessibility trust. Add the terminal app in System Settings > Privacy & Security > Accessibility.", 3)
+func appRoot() -> AXUIElement {
+    guard AXIsProcessTrusted() else {
+        fail("No Accessibility trust. Add the terminal app in System Settings > Privacy & Security > Accessibility.", 3)
+    }
+    guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.delineas.dirigible").first
+    else { fail("No Dirigible app runs. Run make run first.", 1) }
+    return AXUIElementCreateApplication(app.processIdentifier)
 }
-guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.delineas.dirigible").first
-else { fail("No Dirigible app runs. Run make run first.", 1) }
-let root = AXUIElementCreateApplication(app.processIdentifier)
 
 func attribute(_ element: AXUIElement, _ name: String) -> AnyObject? {
     var value: AnyObject?
@@ -72,13 +89,66 @@ func line(_ element: AXUIElement) -> String {
     }.joined(separator: " ")
 }
 
+/// One element for press: its dump line, role, title, and children. A tree from a dump file has
+/// no element to press.
+struct Node {
+    let line: String
+    let role: String?
+    let title: String?
+    let element: AXUIElement?
+    let children: [Node]
+}
+
+func node(_ element: AXUIElement, _ level: Int) -> Node {
+    let children = level < depth ? (attribute(element, kAXChildrenAttribute) as? [AXUIElement]) ?? [] : []
+    return Node(
+        line: line(element), role: attribute(element, "AXRole") as? String,
+        title: attribute(element, "AXTitle") as? String, element: element,
+        children: children.map { node($0, level + 1) })
+}
+
+/// The tree of a `dump` output: one space of indent for each level.
+func tree(fromDump text: String) -> Node? {
+    let entries = text.split(separator: "\n").map { ($0.prefix { $0 == " " }.count, String($0.drop { $0 == " " })) }
+    // A value runs to the next " <Key>=" or to the end of the line.
+    func field(_ key: String, _ text: String) -> String? {
+        guard let match = text.firstMatch(of: try! Regex("(?:^| )\(key)=(.*?)(?= [A-Za-z]+=|$)")) else { return nil }
+        return match.output[1].substring.map(String.init)
+    }
+    var index = 0
+    func parse(_ level: Int) -> [Node] {
+        var nodes: [Node] = []
+        while index < entries.count, entries[index].0 == level {
+            let text = entries[index].1
+            index += 1
+            nodes.append(
+                Node(
+                    line: text, role: field("Role", text), title: field("Title", text), element: nil,
+                    children: parse(level + 1)))
+        }
+        return nodes
+    }
+    return parse(0).first
+}
+
+/// Each element with the last title of the path whose other titles come in order among the titles
+/// above it, with its own path of titles.
+func matches(_ path: [String], _ node: Node, _ above: [String]) -> [(node: Node, titles: [String])] {
+    if node.role == "AXMenuBarItem", node.title == "Apple", path.first != "Apple" { return [] }
+    var rest = path.dropLast()[...]
+    for title in above where title == rest.first { rest.removeFirst() }
+    let titles = above + [node.title].compactMap { $0 }.filter { !$0.isEmpty }
+    let own = node.title == path.last && rest.isEmpty ? [(node: node, titles: titles)] : []
+    return own + node.children.flatMap { matches(path, $0, titles) }
+}
+
 var found = false
 switch command {
 case "dump":
-    walk(root, 0) { element, level in print(String(repeating: " ", count: level) + line(element)) }
+    walk(appRoot(), 0) { element, level in print(String(repeating: " ", count: level) + line(element)) }
     found = true
 case "find":
-    walk(root, 0) { element, _ in
+    walk(appRoot(), 0) { element, _ in
         let text = line(element)
         if text.contains(arguments[1]) {
             print(text)
@@ -86,15 +156,32 @@ case "find":
         }
     }
 case "press":
-    walk(root, 0) { element, _ in
-        guard !found, attribute(element, "AXTitle") as? String == arguments[1] else { return }
-        AXUIElementPerformAction(element, kAXPressAction as CFString)
-        print("pressed: \(line(element))")
-        found = true
+    let path = arguments[1].components(separatedBy: " > ")
+    let top: Node
+    if let treeFile {
+        guard let text = try? String(contentsOfFile: treeFile, encoding: .utf8), let parsed = tree(fromDump: text)
+        else { fail("No tree in \(treeFile).", 1) }
+        top = parsed
+    } else {
+        top = node(appRoot(), 0)
     }
+    let all = matches(path, top, [])
+    if all.count > 1 {
+        let list = all.map { "  " + $0.titles.joined(separator: " > ") }.joined(separator: "\n")
+        fail("\(all.count) elements match \"\(arguments[1])\". Give a longer path:\n\(list)", 4)
+    }
+    guard let match = all.first else { fail("No element matches \"\(arguments[1])\".", 1) }
+    let title = match.titles.joined(separator: " > ")
+    if let element = match.node.element {
+        AXUIElementPerformAction(element, kAXPressAction as CFString)
+        print("pressed: \(title): \(match.node.line)")
+    } else {
+        print("match: \(title)")
+    }
+    found = true
 default:  // step
     let action = arguments[2] == "increment" ? kAXIncrementAction : kAXDecrementAction
-    walk(root, 0) { element, _ in
+    walk(appRoot(), 0) { element, _ in
         guard attribute(element, "AXRole") as? String == arguments[1] else { return }
         print("before: \(line(element))")
         AXUIElementPerformAction(element, action as CFString)

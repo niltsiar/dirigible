@@ -38,7 +38,13 @@ good() {
   printf '%s\t1000\tbaseline\n' AGENTS.md .claude/agents/x-reviewer.md \
     .claude/skills/s/SKILL.md .claude/skills/s/references/r.md >> "$tmp/docs/workflow/budgets.tsv"
   printf '.claude/skills/s/\t5000\tbaseline\nTOTAL\t10000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"
+  printf 'id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary\n%s\n%s\n' \
+    'AGT-001	AGENTS.md	keep	AGENTS.md	scope	10edc92		product scope' \
+    'AGT-002	AGENTS.md	merge	AGT-001	duplicate	L12	AGT-001/doc	scope again' > "$tmp/docs/workflow/rules.tsv"
 }
+
+# Append one row to the rule register.
+rule() { printf '%s\n' "$1" >> "$tmp/docs/workflow/rules.tsv"; }
 
 # Set the words cell of the budget row of <path> to <n>.
 budget() { sed -i '' "s|^$1	[0-9]*	|$1	$2	|" "$tmp/docs/workflow/budgets.tsv"; }
@@ -105,6 +111,13 @@ good; sed -i '' 's|references/r.md|the reference|' "$tmp/.claude/skills/s/SKILL.
 good; long_ref 101; expect fail 'long references file with no contents list' '.claude/skills/s/references/r.md: over 100 lines with no contents list in its first 10 lines'
 good; long_ref 101 '## Contents'; expect pass 'long references file with a contents list'
 good; long_ref 100; expect pass 'references file of 100 lines with no contents list'
+good; rule 'AGT-001	AGENTS.md	keep	AGENTS.md	scope	10edc92		scope twice'; expect fail 'register with a duplicate ID' 'rules.tsv: duplicate id AGT-001'
+good; rule 'AGT-003	AGENTS.md	branch	AGENTS.md	scope	10edc92		scope'; expect fail 'register with a bad verdict' 'rules.tsv: AGT-003 has verdict branch'
+good; rule 'AGT-003	AGENTS.md	merge	AGT-999	duplicate	10edc92		scope'; expect fail 'register merge to an unknown ID' 'rules.tsv: AGT-003 merges into an unknown id AGT-999'
+good; rule 'AGT-003	AGENTS.md	delete			10edc92		scope'; expect fail 'register delete with no reason' 'rules.tsv: AGT-003 is delete with no reason'
+good; rule 'AGT-003	AGENTS.md	keep	AGENTS.md	scope			scope'; expect fail 'register row with no source' 'rules.tsv: AGT-003 has no source'
+good; rm "$tmp/docs/workflow/rules.tsv"; expect fail 'no register' 'docs/workflow/rules.tsv is missing'
+good; sed -i '' '1s/$/	text/' "$tmp/docs/workflow/rules.tsv"; expect fail 'register with a text column' 'rules.tsv: the header is not'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

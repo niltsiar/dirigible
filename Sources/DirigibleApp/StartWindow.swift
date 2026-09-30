@@ -199,17 +199,6 @@ extension SessionName.Refusal {
         await app?.open(url)
     }
 
-    /// The primary action of the recent list: a double-click on a row. The list also runs this
-    /// action on Return when no other view takes the key. Return opens through `openSelection()`,
-    /// so only a left mouse event with two clicks or more opens here: one path for each input
-    /// (control k30). Check the type first: `clickCount` of a key event raises.
-    func openRow(_ urls: Set<URL>, by event: NSEvent?) async {
-        guard let event, [.leftMouseDown, .leftMouseUp].contains(event.type), event.clickCount >= 2,
-            let url = urls.first
-        else { return }
-        await open(url)
-    }
-
     /// Return in the list.
     func openSelection() {
         guard let selection else { return }

@@ -72,10 +72,10 @@ struct StartView: View {
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
     }
 
-    /// Return in the list opens the selection through `onKeyPress` (macOS 14). A double-click
-    /// opens a row through the primary action of the list, and a single click selects the row. A
-    /// gesture on the row blocked that selection (M4). The list also runs the primary action on
-    /// Return when no view takes the key, so `openRow(_:by:)` opens only for a double-click.
+    /// Return in the list opens the selection through `onKeyPress` (macOS 14). It returns
+    /// `.handled`, so the list does not also run the primary action for Return (M4 probe). The
+    /// primary action opens a row at a double-click, and for each other input that runs it, with no
+    /// event filter. A single click selects the row. A gesture on the row blocked that selection (M4).
     private var recent: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(L10n.startRecent.key).font(.headline).padding(.horizontal, 16).padding(.top, 16)
@@ -87,8 +87,8 @@ struct StartView: View {
             .listStyle(.sidebar).scrollContentBackground(.hidden)
             .contextMenu(forSelectionType: URL.self) { _ in
             } primaryAction: { urls in
-                let event = NSApp.currentEvent
-                Task { await model.openRow(urls, by: event) }
+                guard let url = urls.first else { return }
+                Task { await model.open(url) }
             }
             .focused($focus, equals: .list)
             .onKeyPress(.return) {

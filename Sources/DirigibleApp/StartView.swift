@@ -81,7 +81,7 @@ struct StartView: View {
                 .padding(.bottom, 6)
             // The list shows also with no rows, so the focus can go to it before the rows come.
             List(model.rows, selection: Binding(get: { model.selection }, set: { model.select($0) })) { row in
-                RecentRowView(row: row).selectionDisabled(!row.exists)
+                RecentRowView(row: row)
                     .simultaneousGesture(TapGesture(count: 2).onEnded { Task { await model.open(row.url) } })
             }
             .listStyle(.sidebar).scrollContentBackground(.hidden)
@@ -108,7 +108,8 @@ struct StartView: View {
     }
 }
 
-/// One recent session: the name and its folder, or "Not found", dimmed, for a missing package.
+/// One recent session: the name and its folder, or "Not found", dimmed, for a package that the
+/// check did not find. The row still opens.
 private struct RecentRowView: View {
     let row: RecentRow
 

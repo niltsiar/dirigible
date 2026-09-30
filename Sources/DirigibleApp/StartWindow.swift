@@ -7,7 +7,8 @@ enum StartField: Hashable {
     case name, list
 }
 
-/// One recent session: the package name, the name of its folder, and whether it exists.
+/// One recent session: the package name, the name of its folder, and whether the check found it.
+/// `exists` is a hint only: a denied path also gives false.
 struct RecentRow: Identifiable, Sendable {
     let url: URL
     let exists: Bool
@@ -182,9 +183,10 @@ extension SessionName.Refusal {
         focusPinned = true
     }
 
-    /// Opens a recent session that exists. The open closes the start window.
+    /// Opens a recent session, also a row that shows "Not found": the check cannot tell a denied
+    /// path from a missing one, so the session window shows the error of the open (code gate 1,
+    /// item 1). The open closes the start window.
     func open(_ url: URL) async {
-        guard rows.contains(where: { $0.url == url && $0.exists }) else { return }
         await app?.open(url)
     }
 

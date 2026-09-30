@@ -25,7 +25,8 @@ limit inside the test can stop. With --expect too, a hang is a kill only when <t
 the kill: a failure report that hangs (a large value in an assert message) prints no text and
 gives WRONG FAILURE. --replay runs the control of <old log> again from its header
 (file, pairs, commands, expect, timeout) and writes <new log>; an option on the command line
-wins over the header. When a later commit changed an old text, the replay exits 2, so you write
+wins over the header. A replay needs a time limit, from the header or --timeout: with none, it
+exits 2. When a later commit changed an old text, the replay exits 2, so you write
 that mutant again on purpose.
 A missing or repeated <old text>, or an extra old text with no new text, exits 2 before any
 change. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
@@ -85,6 +86,10 @@ if replay:
     args = [header['file'], pairs[0], pairs[1], replay[1], header['build'], header['test']] + pairs[2:]
     expected = expected if expected is not None else header.get('expect')
     timeout = timeout if timeout is not None else header.get('timeout')
+    if timeout is None:
+        # A replay with no limit hung for hours in a batch (start-window Phase 7).
+        print(f'mutate: {replay[0]} has no time limit; pass --timeout <seconds>', file=sys.stderr)
+        sys.exit(2)
 
 if len(args) < 6:
     sys.exit(__doc__)

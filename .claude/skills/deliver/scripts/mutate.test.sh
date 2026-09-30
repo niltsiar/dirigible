@@ -2,9 +2,9 @@
 # Check that mutate.py tells a killed, a surviving, and an unbuilt mutant apart, counts a kill
 # with --expect only when the test output has the text outside a progress line, applies extra
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
-# restores the file, counts a test past --timeout as a kill, replays a control from its log, reports
-# a run of no test as NO TESTS, applies --in=<file> pairs to a second file, and restores the file
-# on SIGINT, SIGTERM, and SIGHUP. Run by `make test-hooks`.
+# restores the file, counts a test past --timeout as a kill, replays a control from its log only
+# with a time limit, reports a run of no test as NO TESTS, applies --in=<file> pairs to a second
+# file, and restores the file on SIGINT, SIGTERM, and SIGHUP. Run by `make test-hooks`.
 set -uo pipefail
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
@@ -83,10 +83,16 @@ check '1:survived' 'a test under the limit' --timeout 10 "$file" 'b = 1' 'b = 2'
 
 # --replay: the control of a log runs again from its header, with its --expect.
 test="grep -q 'a = 1' '$file' || { echo 'expected a = 1'; exit 1; }"
-"$mutate" --expect 'expected a = 1' "$file" 'b = 1' 'b = 2' "$tmp/first" "$build" "$test" 'a = 1' 'a = 2' > /dev/null
+"$mutate" --expect 'expected a = 1' --timeout 10 "$file" 'b = 1' 'b = 2' "$tmp/first" "$build" "$test" 'a = 1' 'a = 2' > /dev/null
 check '0:killed' 'a replay of a two-pair control' --replay "$tmp/first" "$tmp/again"
 grep -q "^# expect: 'expected a = 1'" "$tmp/again" || { echo "FAIL: the replay lost --expect"; failures=$((failures + 1)); }
 check '4:WRONG FAILURE' 'a replay with another --expect' --expect 'index out of range' --replay "$tmp/first" "$tmp/again"
+# A replay needs a time limit, from the log header or the command line (start-window Phase 7: a
+# replay with no limit hung for hours in a batch).
+"$mutate" "$file" 'b = 1' 'b = 2' "$tmp/nolimit" "$build" "$test" > /dev/null
+check '2:mutate' 'a replay with no time limit' --replay "$tmp/nolimit" "$tmp/nolimit-again"
+[[ ! -e "$tmp/nolimit-again" ]] || { echo "FAIL: the replay with no limit ran"; failures=$((failures + 1)); }
+check '1:survived' 'a replay with --timeout on the command line' --timeout 10 --replay "$tmp/nolimit" "$tmp/nolimit-again"
 # A later change of the old text: the replay refuses, and the file stays.
 printf 'a = 1\nb = 3\n' > "$file"
 before="$(shasum -a 256 "$file")"
@@ -108,7 +114,7 @@ file2="$tmp/y.txt"
 printf 'c = 1\n' > "$file2"
 before2="$(shasum -a 256 "$file2")"
 test="grep -q 'a = 1' '$file' && grep -q 'c = 1' '$file2' || { echo 'expected c = 1'; exit 1; }"
-check '0:killed' 'a pair in a second file' --expect 'expected c = 1' "$file" 'b = 1' 'b = 2' "$tmp/two" "$build" "$test" \
+check '0:killed' 'a pair in a second file' --expect 'expected c = 1' --timeout 10 "$file" 'b = 1' 'b = 2' "$tmp/two" "$build" "$test" \
   "--in=$file2" 'c = 1' 'c = 2'
 [[ "$(shasum -a 256 "$file2")" == "$before2" ]] || { echo "FAIL: the second file changed"; failures=$((failures + 1)); }
 check '0:killed' 'a replay of a two-file control' --replay "$tmp/two" "$tmp/two-again"
@@ -128,7 +134,7 @@ check '0:killed (hang)' 'a hang after the expect text' --expect 'expected a = 1'
 # --side-effects: the test command acts on shared state (it opens Mission Control, posts HID events,
 # or starts a probe). A replay of its log refuses unless --allow-side-effects is given
 # (timeline-navigation Phase 7: a batch replay opened Mission Control during a test run).
-"$mutate" --side-effects "$file" 'b = 1' 'b = 2' "$tmp/fx" "$build" "$test" > /dev/null
+"$mutate" --side-effects --timeout 10 "$file" 'b = 1' 'b = 2' "$tmp/fx" "$build" "$test" > /dev/null
 grep -q '^# side-effects: yes' "$tmp/fx" || { echo "FAIL: the log does not mark the side effects"; failures=$((failures + 1)); }
 check '2:mutate' 'a replay of a control with side effects' --replay "$tmp/fx" "$tmp/fx-again"
 [[ ! -e "$tmp/fx-again" ]] || { echo "FAIL: the refused replay ran"; failures=$((failures + 1)); }

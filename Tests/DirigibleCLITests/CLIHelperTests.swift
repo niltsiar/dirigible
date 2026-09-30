@@ -24,12 +24,11 @@ struct CLIHelperTests {
         let bound = ProcessInfo.processInfo.activeProcessorCount
         let slots = Slots(bound: bound)
         let statuses = try await holdChildren(bound + 2, slots) { started in
-            let end = ContinuousClock.now + .seconds(20)
-            guard try await poll(until: end, { started() >= bound }) else {
+            guard try await poll(until: .now + .seconds(20), { started() >= bound }) else {
                 Issue.record("not every slot was taken: \(started()) of \(bound)")
                 return
             }
-            guard try await poll(until: end, { slots.waiting == 2 }) else {
+            guard try await poll(until: .now + .seconds(20), { slots.waiting == 2 }) else {
                 Issue.record("no child waited for a slot: \(slots.waiting) of 2")
                 return
             }

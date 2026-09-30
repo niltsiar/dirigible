@@ -148,4 +148,24 @@ for f in "$root"/.claude/skills/*/references/*.md; do
     fi
 done
 
+# The rule register has a stable, unique ID for each rule and a well-formed verdict. It holds no
+# rule text (decision 0028). The check is structural: it does not look for the rule in its target.
+register="$root/docs/workflow/rules.tsv"
+if [[ ! -f "$register" ]]; then
+    err "docs/workflow/rules.tsv is missing"
+else
+    while IFS= read -r msg; do err "rules.tsv: $msg"; done < <(awk -F'\t' '
+        NR == 1 { if ($0 != "id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary") print "the header is not id file verdict target reason source key summary"; next }
+        { n++; id[n] = $1; verdict[n] = $3; target[n] = $4; reason[n] = $5; source[n] = $6; if (seen[$1]++) print "duplicate id " $1 }
+        END {
+            for (i = 1; i <= n; i++) {
+                v = verdict[i]
+                if (v !~ /^(keep|merge|move|enforced|delete|new)$/) print id[i] " has verdict " v "; the verdicts are keep, merge, move, enforced, delete, new"
+                if (v == "merge" && !(target[i] in seen)) print id[i] " merges into an unknown id " target[i]
+                if (v == "delete" && reason[i] == "") print id[i] " is delete with no reason"
+                if (source[i] == "") print id[i] " has no source"
+            }
+        }' "$register")
+fi
+
 exit "$fail"

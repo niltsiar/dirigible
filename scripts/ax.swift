@@ -22,8 +22,9 @@
 // path. The Apple menu is out of the search unless the path starts with "Apple". A press of the
 // first "Clear Menu" pressed Apple > Recent Items > Clear Menu and cleared the Recent Items list of
 // the Mac (run 2026-09-30-start-window).
-// Exit: 0 done, 1 no Dirigible app or no element, 2 usage, 3 no Accessibility trust, 4 more than
-// one element matches the press path.
+// A press path with an empty title is refused: a menu separator has an empty title.
+// Exit: 0 done, 1 no Dirigible app or no element, 2 usage or an empty title in the press path, 3 no
+// Accessibility trust, 4 more than one element matches the press path.
 import AppKit
 import ApplicationServices
 
@@ -54,6 +55,10 @@ guard let command = arguments.first, let count = counts[command], count.contains
 let depth = command == "dump" && arguments.count == 2 ? Int(arguments[1]) : 99
 guard let depth else { fail(usage, 2) }
 if command == "step", !["increment", "decrement"].contains(arguments[2]) { fail(usage, 2) }
+let path = command == "press" ? arguments[1].components(separatedBy: " > ") : []
+if path.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+    fail("The press path \"\(arguments[1])\" has an empty title. Give one title between each \" > \".", 2)
+}
 
 func appRoot() -> AXUIElement {
     guard AXIsProcessTrusted() else {
@@ -111,8 +116,10 @@ func node(_ element: AXUIElement, _ level: Int) -> Node {
 func tree(fromDump text: String) -> Node? {
     let entries = text.split(separator: "\n").map { ($0.prefix { $0 == " " }.count, String($0.drop { $0 == " " })) }
     // A value runs to the next " <Key>=" or to the end of the line.
-    func field(_ key: String, _ text: String) -> String? {
-        guard let match = text.firstMatch(of: try! Regex("(?:^| )\(key)=(.*?)(?= [A-Za-z]+=|$)")) else { return nil }
+    let role = try! Regex("(?:^| )Role=(.*?)(?= [A-Za-z]+=|$)")
+    let title = try! Regex("(?:^| )Title=(.*?)(?= [A-Za-z]+=|$)")
+    func field(_ regex: Regex<AnyRegexOutput>, _ text: String) -> String? {
+        guard let match = text.firstMatch(of: regex) else { return nil }
         return match.output[1].substring.map(String.init)
     }
     var index = 0
@@ -123,7 +130,7 @@ func tree(fromDump text: String) -> Node? {
             index += 1
             nodes.append(
                 Node(
-                    line: text, role: field("Role", text), title: field("Title", text), element: nil,
+                    line: text, role: field(role, text), title: field(title, text), element: nil,
                     children: parse(level + 1)))
         }
         return nodes
@@ -156,7 +163,6 @@ case "find":
         }
     }
 case "press":
-    let path = arguments[1].components(separatedBy: " > ")
     let top: Node
     if let treeFile {
         guard let text = try? String(contentsOfFile: treeFile, encoding: .utf8), let parsed = tree(fromDump: text)

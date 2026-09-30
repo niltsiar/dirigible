@@ -6,6 +6,7 @@
 - Amended: 2026-09-24. A Transport menu holds the plain-key commands (Space, Shift-Space, J, K, L, Home, End, Shift-Left, Shift-Right). A take starts at the Studio playhead, not after the last clip (see 0016).
 - Amended: 2026-09-27. Each window has an AppKit toolbar and a subtitle; its hosting controller has `sceneBridgingOptions = []`; a chrome object beside the window owns them. `ToolbarCommands` adds Show/Hide Toolbar and Customize Toolbar…. A new window opens at 1180 x 720 pt and cascades; the minimum width is 720 pt. An empty session shows an Add Track button. Stop (Command-period) is in the Transport menu: it stops a take, else a play (see 0023).
 - Amended: 2026-09-30. The launch and a Dock click with no session window show the start window, not the Open panel. The close of the last session window shows it too. New Session (Command-N) shows the start window, not a save panel; its Create still calls `Studio.create` (see 0027).
+- Amended: 2026-09-30. Open Recent and the start window read the recent sessions from the app preferences (key `recent.sessions`, absolute paths, 10 at most), not from `recentDocumentURLs`. The list of `NSDocumentController` belongs to the code signature, and each ad-hoc build has a new one. The app still calls `noteNewRecentDocumentURL` for the Dock menu (see 0027).
 
 ## Context
 

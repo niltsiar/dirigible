@@ -2,12 +2,25 @@ import AppKit
 import SwiftUI
 
 /// The content of the start window (decision 0027), in the Xcode layout: the app and the New
-/// Session form. It reads `StartModel` and calls it, with no logic of its own.
+/// Session form on the left, the recent sessions on the right. It reads `StartModel` and calls
+/// it, with no logic of its own.
 struct StartView: View {
     let model: StartModel
     @FocusState private var focus: StartField?
 
     var body: some View {
+        HStack(spacing: 0) {
+            welcome
+            Divider()
+            recent
+        }
+        .frame(width: 700, height: 420)
+        .onAppear { focus = model.focus }
+        .onChange(of: model.focus) { focus = model.focus }
+        .onChange(of: focus) { if let focus { model.focusChanged(to: focus, by: NSApp.currentEvent) } }
+    }
+
+    private var welcome: some View {
         VStack(spacing: 0) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 88, height: 88)
             Text(L10n.startTitle.key)
@@ -16,13 +29,9 @@ struct StartView: View {
             Text(L10n.startVersion.format(Self.version)).foregroundStyle(.secondary).padding(.top, 2)
             Spacer(minLength: 16)
             newSession
-            Spacer(minLength: 16)
-            Button(L10n.startOpenOther.key) { model.openOther() }.buttonStyle(.link).disabled(model.creating)
         }
-        .padding(.horizontal, 40).padding(.top, 36).padding(.bottom, 20)
-        .frame(width: 640, height: 420)
-        .onAppear { focus = model.focus }
-        .onChange(of: model.focus) { focus = model.focus }
+        .padding(.horizontal, 28).padding(.top, 36).padding(.bottom, 28)
+        .frame(width: 420)
     }
 
     /// Create is not a default button: a default button takes Return before the recent list
@@ -51,12 +60,65 @@ struct StartView: View {
             }
         }
         .padding(16)
-        .frame(width: 400)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// Return in the list opens the selection through `onKeyPress` (macOS 14). A double-click
+    /// opens a row through a tap gesture, not the primary action of a context menu: that action
+    /// also runs on Return, so one Return would open the session two times (control k30). The
+    /// gesture is simultaneous, so a single click selects the row at once.
+    private var recent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(L10n.startRecent.key).font(.headline).padding(.horizontal, 16).padding(.top, 16)
+                .padding(.bottom, 6)
+            // The list shows also with no rows, so the focus can go to it before the rows come.
+            List(model.rows, selection: Binding(get: { model.selection }, set: { model.select($0) })) { row in
+                RecentRowView(row: row).selectionDisabled(!row.exists)
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { Task { await model.open(row.url) } })
+            }
+            .listStyle(.sidebar).scrollContentBackground(.hidden)
+            .focused($focus, equals: .list)
+            .onKeyPress(.return) {
+                model.openSelection()
+                return .handled
+            }
+            .overlay {
+                if model.rowsLoaded && model.rows.isEmpty {
+                    Text(L10n.startRecentNone.key).foregroundStyle(.secondary)
+                }
+            }
+            Divider()
+            Button(L10n.startOpenOther.key) { model.openOther() }.disabled(model.creating).padding(12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.background.secondary)
     }
 
     /// The test runner has no app version.
     private static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+    }
+}
+
+/// One recent session: the name and its folder, or "Not found", dimmed, for a missing package.
+private struct RecentRowView: View {
+    let row: RecentRow
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "waveform.circle.fill").font(.title2).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(row.name).fontWeight(.medium).lineLimit(1).truncationMode(.middle)
+                Group {
+                    if row.exists { Text(row.folder) } else { Text(L10n.startRecentMissing.key) }
+                }
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // The whole row takes the double-click, not only its text.
+        .contentShape(Rectangle())
+        .opacity(row.exists ? 1 : 0.5)
     }
 }

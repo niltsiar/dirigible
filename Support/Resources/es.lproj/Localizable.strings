@@ -229,3 +229,6 @@
 "start.folder" = "Se guarda en: %@";
 "start.create" = "Crear";
 "start.hint" = "Una sesión guarda las pistas, las grabaciones y las ediciones de un episodio.";
+"start.recent" = "Sesiones recientes";
+"start.recent.none" = "No hay sesiones recientes.";
+"start.recent.missing" = "No se encuentra";

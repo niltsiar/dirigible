@@ -31,6 +31,10 @@ Dirigible saves the session in the Music folder, in the Dirigible folder. To sho
 
 There is no Save command. Dirigible saves each change to the session.
 
+### Open a session
+
+The start window lists the sessions that you opened last. Double-click a session, or select it and press Return. A session that Dirigible cannot find shows **Not found**. To open another session, click **Open Other…** or choose **File > Open**. The start window shows again when you close the last session window.
+
 ### Set up the tracks
 
 1. Choose **Track > Add Track** (Option-Command-N) two times. The window shows **Track 1** and **Track 2**.

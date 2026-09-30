@@ -229,3 +229,6 @@
 "start.folder" = "Saved in: %@";
 "start.create" = "Create";
 "start.hint" = "A session holds the tracks, recordings, and edits of one episode.";
+"start.recent" = "Recent Sessions";
+"start.recent.none" = "No recent sessions.";
+"start.recent.missing" = "Not found";

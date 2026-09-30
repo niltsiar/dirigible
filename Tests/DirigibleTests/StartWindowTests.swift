@@ -17,6 +17,8 @@ import Testing
         NSWindow.allowsAutomaticWindowTabbing = false
         folder = try TemporaryFolder()
         app = AppDelegate(recordings: nil, defaultFolder: folder.url.appending(path: "Music/Dirigible"))
+        // The test runner has its own recent list, and other suites add to it.
+        app.recentSessions = { [] }
     }
 
     /// Criterion C1.

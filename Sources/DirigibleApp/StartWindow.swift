@@ -4,7 +4,16 @@ import SwiftUI
 
 /// The control of the start window that has the keyboard focus.
 enum StartField: Hashable {
-    case name
+    case name, list
+}
+
+/// One recent session: the package name, the name of its folder, and whether it exists.
+struct RecentRow: Identifiable, Sendable {
+    let url: URL
+    let exists: Bool
+    var id: URL { url }
+    var name: String { url.deletingPathExtension().lastPathComponent }
+    var folder: String { url.deletingLastPathComponent().lastPathComponent }
 }
 
 /// One scan of the folder of new sessions: the first free name and the text of the folder.
@@ -24,11 +33,21 @@ struct FolderScan: Sendable {
     /// True from a Create until its error: a second Create does nothing (plan gate, item 3).
     private(set) var creating = false
     let folder: URL
+    /// The recent sessions, from `recentSessions`, in their order.
+    private(set) var rows: [RecentRow] = []
+    /// True when the rows came: the view says "No recent sessions." only then.
+    private(set) var rowsLoaded = false
+    private(set) var selection: URL?
+    /// The one scan of the recent list (plan gate, item 1).
+    @ObservationIgnored private(set) var rowsTask: Task<Void, Never>?
     /// The task of the folder scan and of the last Create, for the tests.
     @ObservationIgnored private(set) var scanTask: Task<Void, Never>?
     @ObservationIgnored private(set) var createTask: Task<Void, Never>?
     /// True after a user edit of the name: a scan result keeps the typed name.
     @ObservationIgnored private var edited = false
+    /// True after a user act (an edit, a selection, a focus change, New Session): a rows result
+    /// keeps the focus (plan gate, item 1).
+    @ObservationIgnored private var focusPinned = false
     @ObservationIgnored private weak var app: AppDelegate?
 
     init(app: AppDelegate, folder: URL) {
@@ -44,6 +63,7 @@ struct FolderScan: Sendable {
         guard text != name else { return }
         name = text
         edited = true
+        pin(.name)
     }
 
     func apply(scan: FolderScan) {
@@ -67,6 +87,59 @@ struct FolderScan: Sendable {
         }
     }
 
+    /// Starts the scan of the recent list, unless one runs. Until the rows come, the focus is in
+    /// the list when the recent list has a URL.
+    func loadRows() {
+        guard rowsTask == nil, let app else { return }
+        let (urls, exists) = (app.recentSessions(), app.exists)
+        if !focusPinned { focus = urls.isEmpty ? .name : .list }
+        rowsTask = Task {
+            let rows = await scanRecent(urls, exists: exists)
+            rowsTask = nil
+            // A close cancels the task. The scan has no cancellation point, so the check is here.
+            guard !Task.isCancelled else { return }
+            self.rows = rows
+            rowsLoaded = true
+            selection = rows.first(where: \.exists)?.url
+            if !focusPinned { focus = selection == nil ? .name : .list }
+        }
+    }
+
+    /// The `windowWillClose(_:)` of the start window.
+    func close() { rowsTask?.cancel() }
+
+    /// A user change of the selection in the list.
+    func select(_ url: URL?) {
+        guard url != selection else { return }
+        selection = url
+        pin(.list)
+    }
+
+    /// A focus change in the view. Only a click or a key of the user pins it: the echo of a
+    /// focus that the model set, and the first focus that AppKit gives a window, do not.
+    func focusChanged(to field: StartField, by event: NSEvent?) {
+        guard field != focus, let event, [.leftMouseDown, .keyDown].contains(event.type) else { return }
+        pin(field)
+    }
+
+    /// Moves the focus, and no later result moves it.
+    func pin(_ field: StartField) {
+        focus = field
+        focusPinned = true
+    }
+
+    /// Opens a recent session that exists. The open closes the start window.
+    func open(_ url: URL) async {
+        guard rows.contains(where: { $0.url == url && $0.exists }) else { return }
+        await app?.open(url)
+    }
+
+    /// Return in the list.
+    func openSelection() {
+        guard let selection else { return }
+        Task { await open(selection) }
+    }
+
     func openOther() {
         guard !creating else { return }
         app?.showOpenPanel()
@@ -82,6 +155,12 @@ struct FolderScan: Sendable {
     while exists(folder.appending(path: "\(format(number)).dirigible")) { number += 1 }
     let names = [folder.deletingLastPathComponent(), folder].map { FileManager.default.displayName(atPath: $0.path) }
     return FolderScan(folder: folder, name: format(number), text: names.joined(separator: " › "))
+}
+
+/// Checks that each recent package exists. It reads the file system, so it runs off the main
+/// actor.
+@concurrent nonisolated func scanRecent(_ urls: [URL], exists: @Sendable (URL) -> Bool) async -> [RecentRow] {
+    urls.map { RecentRow(url: $0, exists: exists($0)) }
 }
 
 /// Makes the folder, one level only, when it is missing. A failure shows later as the error of
@@ -123,6 +202,7 @@ struct FolderScan: Sendable {
     func close() { window?.close() }
 
     func windowWillClose(_ notification: Notification) {
+        model.close()
         app?.startDidClose()
     }
 }

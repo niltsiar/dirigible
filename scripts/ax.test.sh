@@ -31,7 +31,9 @@ expect_usage "step with an unknown action" step AXSplitter wiggle
 # press: a title that matches two elements is refused, and a path selects one element. The Apple
 # menu is out of the search unless the path starts with it. A press of the first match pressed
 # Apple > Recent Items > Clear Menu and cleared the Recent Items list of the Mac (run
-# 2026-09-30-start-window, Phase 7).
+# 2026-09-30-start-window, Phase 7). A path with an empty title is refused, because a separator has
+# an empty title. The fixture has the lines of a real dump: an AXMenu has no title, and a separator
+# is an AXMenuItem with "Title=". The item File > File has the title of its menu.
 tree="$(mktemp -d)"
 trap 'rm -rf "$tree"' EXIT
 cat >"$tree/dump.txt" <<'DUMP'
@@ -41,14 +43,24 @@ Role=AXApplication RoleDescription=application Title=Dirigible
  Role=AXMenuBar RoleDescription=menu bar
   Role=AXMenuBarItem RoleDescription=menu bar item Title=Apple MenuItemCmdModifiers=0
    Role=AXMenu RoleDescription=menu
+    Role=AXMenuItem RoleDescription=menu item Title=About This Mac MenuItemCmdModifiers=0
+    Role=AXMenuItem RoleDescription=menu item Title= MenuItemCmdModifiers=0
     Role=AXMenuItem RoleDescription=menu item Title=Recent Items MenuItemCmdModifiers=0
      Role=AXMenu RoleDescription=menu
+      Role=AXMenuItem RoleDescription=menu item Title=Applications MenuItemCmdModifiers=0
+      Role=AXMenuItem RoleDescription=menu item Title= MenuItemCmdModifiers=0
       Role=AXMenuItem RoleDescription=menu item Title=Clear Menu MenuItemCmdModifiers=0
   Role=AXMenuBarItem RoleDescription=menu bar item Title=File MenuItemCmdModifiers=0
    Role=AXMenu RoleDescription=menu
+    Role=AXMenuItem RoleDescription=menu item Title=New Session… MenuItemCmdChar="N" MenuItemCmdModifiers=0
     Role=AXMenuItem RoleDescription=menu item Title=Open Recent MenuItemCmdModifiers=8
      Role=AXMenu RoleDescription=menu
+      Role=AXMenuItem RoleDescription=menu item Title=Pilot Episode MenuItemCmdModifiers=8
+      Role=AXMenuItem RoleDescription=menu item Title= MenuItemCmdModifiers=0
       Role=AXMenuItem RoleDescription=menu item Title=Clear Menu MenuItemCmdModifiers=8
+    Role=AXMenuItem RoleDescription=menu item Title=File MenuItemCmdModifiers=0
+    Role=AXMenuItem RoleDescription=menu item Title= MenuItemCmdModifiers=0
+    Role=AXMenuItem RoleDescription=menu item Title=Close MenuItemCmdChar="W" MenuItemCmdModifiers=0
 DUMP
 
 # expect_press <case> <path> <exit> <stdout> [<text that stderr must have>...]
@@ -72,7 +84,8 @@ expect_press "a menu path" "File > Open Recent > Clear Menu" 0 "match: Dirigible
 expect_press "a path in the Apple menu with no Apple" "Recent Items > Clear Menu" 1 "" "No element matches"
 expect_press "a path from the Apple menu" "Apple > Recent Items > Clear Menu" 0 \
     "match: Dirigible > Apple > Recent Items > Clear Menu"
-[[ -d "$tree" ]] && rm -rf "$tree"
-[[ ! -e "$tree" ]] || fail "the temporary tree folder stays: $tree"
+expect_press "an item with the title of its menu" "File > File" 0 "match: Dirigible > File > File"
+expect_press "an empty title at the end" "File > " 2 "" "has an empty title"
+expect_press "an empty title in the middle" "File >  > Close" 2 "" "has an empty title"
 
 [[ $failures -eq 0 ]] && echo "ax tests: all passed" || { echo "ax tests: $failures failed"; exit 1; }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Check the summary line that loop.sh writes for one run. Run by `make test-hooks`.
+# Check the summary line that loop.sh writes for one run, and the --min-load stop. Run by `make test-hooks`.
 set -uo pipefail
 loop="$(cd "$(dirname "$0")" && pwd)/loop.sh"
 failures=0
@@ -22,6 +22,12 @@ LOG
 want="t 3 exit=1 wall=150s load=2.50 monitor-start=+12s banner=74.400s settle=16.679s waits=[until=12.5 AsyncGate.wait=2.1] children=16 monitor=[worst pool 1.20 s, worst main 3.40 s, samples 1] failed=[settleEndsATakeWhileAPassWaits]"
 out="$("$loop" --summary t 3 1 150 2.50 1000000 "$tmp/run.log" 2>&1)"
 [[ "$out" == "$want" ]] || { echo "FAIL: the summary line of one run: $out"; failures=$((failures + 1)); }
+
+# A loop under a load source stops before make test when the load is below the minimum.
+msg="$("$loop" --min-load 1000 t 1 1 "$tmp/out" "$tmp" 2>&1 >/dev/null)"
+code=$?
+[[ $code -eq 3 && "$msg" == *"below the minimum 1000 before run 1"* && ! -e "$tmp/out/t-1.log" ]] \
+    || { echo "FAIL: --min-load 1000 did not stop the loop before run 1 (exit $code): $msg"; failures=$((failures + 1)); }
 
 [[ $failures -eq 0 ]] && echo "loop tests: all passed"
 exit $((failures > 0))

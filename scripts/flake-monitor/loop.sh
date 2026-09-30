@@ -2,9 +2,11 @@
 # Runs `make test` with the flake monitor (Tests/DirigibleAudioTests/FlakeMonitor.swift) for the
 # runs <first> to <last>, and appends one line for each run to <out folder>/summary.txt. The log
 # of run i is <out folder>/<tag>-<i>.log, and its monitor folder is <out folder>/<tag>-<i>/.
-# Usage: scripts/flake-monitor/loop.sh <tag> <first> <last> <out folder> [repo]
+# Usage: scripts/flake-monitor/loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]
 #        scripts/flake-monitor/loop.sh --summary <tag> <run> <exit> <wall> <load> <begin> <log>
 # The second form prints the summary line of one log. loop.test.sh calls it.
+# With --min-load, the loop stops before a run whose 1-minute load average is below <n>. A loop
+# under a load source uses it: a load source that makes no load gives the numbers of a quiet loop.
 set -uo pipefail
 
 # The summary line: tag, run, exit code, wall seconds, the load average at the start, the start
@@ -32,7 +34,12 @@ if [[ "${1:-}" == --summary ]]; then
     exit 0
 fi
 
-[[ $# -ge 4 ]] || { echo "usage: loop.sh <tag> <first> <last> <out folder> [repo]" >&2; exit 2; }
+min_load=0
+if [[ "${1:-}" == --min-load ]]; then
+    min_load="${2:-}"
+    shift 2 || true
+fi
+[[ $# -ge 4 ]] || { echo "usage: loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]" >&2; exit 2; }
 tag="$1" first="$2" last="$3"
 mkdir -p "$4"
 out="$(cd "$4" && pwd -P)"
@@ -41,6 +48,10 @@ for i in $(seq "$first" "$last"); do
     log="$out/$tag-$i.log"
     load=$(sysctl -n vm.loadavg | awk '{print $2}')
     uptime
+    if awk -v l="$load" -v m="$min_load" 'BEGIN { exit !(l < m) }'; then
+        echo "loop.sh: the load $load is below the minimum $min_load before run $i; the loop stops" >&2
+        exit 3
+    fi
     begin=$(date +%s)
     DIRIGIBLE_FLAKE_MONITOR="$out/$tag-$i" make test > "$log" 2>&1
     code=$?

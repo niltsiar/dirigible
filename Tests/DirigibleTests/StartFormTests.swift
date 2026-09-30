@@ -15,6 +15,11 @@ extension StartWindowTests {
 
     /// Criterion C8: Command-N shows the start window with the focus in the name field, also over
     /// a session window. No save panel shows.
+    ///
+    /// The test records the first responders of the window and ignores the window itself. The
+    /// SwiftUI field editor is one object for all windows of the process. The marker rename alert
+    /// of a parallel suite can take it after the focus came, and the window itself is then the
+    /// first responder of the start window.
     @Test func newSessionShowsTheStartWindowAndNoSavePanel() async throws {
         await app.open(try folder.package("a"))
 
@@ -22,8 +27,21 @@ extension StartWindowTests {
 
         #expect(!NSApp.windows.contains { $0 is NSSavePanel }, "New Session shows no save panel")
         let window = try #require(app.start?.window, "New Session shows the start window")
+        let model = try #require(app.start?.model)
         #expect(window.isVisible)
-        await until("New Session puts the focus in the name field") { nameEditor(in: window) != nil }
+        var last: NSResponder?
+        let observation = window.observe(\.firstResponder, options: [.initial, .new]) { window, _ in
+            MainActor.assumeIsolated { if window.firstResponder !== window { last = window.firstResponder } }
+        }
+        await model.rowsTask?.value
+        #expect(model.focus == .name, "the recent rows keep the focus of New Session")
+        // The field editor has no delegate yet when AppKit makes it the first responder. The start
+        // window has one text field, the name field. The limit is 3 times the worst time to the
+        // focus in the loaded full-suite runs (1.2 s), and at least 10 s.
+        await until(limit: .seconds(10), "New Session puts the focus in the name field") {
+            (last as? NSTextView)?.isFieldEditor == true
+        }
+        observation.invalidate()
         await closeAll(app)
     }
 

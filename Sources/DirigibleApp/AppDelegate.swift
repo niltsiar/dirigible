@@ -140,11 +140,16 @@ import UniformTypeIdentifiers
 
     /// A write found the package of `window` moved on its volume. The entry of another window
     /// stays: its key can be stale until its next write (decision 0014). Then `window` keeps
-    /// its old key, and both windows stay in the registry.
+    /// its old key, and both windows stay in the registry. The recent list gets the new path in
+    /// place of the old path (code gate 1, item 2).
     func rekey(_ window: SessionWindow, to new: URL) {
         guard windows[new] == nil, let old = windows.first(where: { $0.value === window })?.key else { return }
         windows[old] = nil
         windows[new] = window
+        NSDocumentController.shared.noteNewRecentDocumentURL(new)
+        // By path, as in `open`. A stale row at the new path goes, so no path shows two times.
+        recent = recent.filter { $0.path != new.path }.map { $0.path == old.path ? new : $0 }
+        defaults?.set(recent.map(\.path), forKey: Self.recentKey)
     }
 
     /// By identity: a move can change the key.

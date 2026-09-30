@@ -52,6 +52,33 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Code gate 1, item 2: a move that the registry follows puts the new path in place of the
+    /// old path in the recent list and the preference, in the same order and with no second row.
+    @Test func aMoveReplacesThePathInTheRecentList() async throws {
+        let domain = "dirigible.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let app = AppDelegate(recordings: nil, defaults: defaults)
+        let (old, other) = (try folder.package("old"), try folder.package("other"))
+        await app.open(other)
+        let window = await app.open(old)
+        let studio = try #require(await window.opened() ? window.studio : nil)
+        let new = folder.url.appending(path: "new.dirigible")
+        try FileManager.default.moveItem(at: old, to: new)
+        let moved = packageIdentity(new)
+        // A stale row of another session at the new path.
+        app.recent.append(moved)
+
+        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        await studio.settle()
+        await until("the registry follows the move") { app.windows[moved] === window }
+
+        let expected = [moved.path, packageIdentity(other).path]
+        #expect(app.recent.map(\.path) == expected, "the recent list has the new path in place of the old path")
+        #expect(defaults.stringArray(forKey: "recent.sessions") == expected, "the preference has the new path")
+        await closeAll(app)
+    }
+
     /// Criterion C12: each recent URL gives a row in its order, a missing package shows as missing,
     /// and the first row that exists is selected.
     @Test func theRecentListMarksMissingPackagesAndSelectsTheFirstThatExists() async throws {

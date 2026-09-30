@@ -183,22 +183,55 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
-    /// The action of a double-click: the session opens and the start window closes. A missing row
-    /// opens nothing.
-    @Test func openingARowOpensItsSessionAndClosesTheStartWindow() async throws {
-        let a = try folder.package("a")
-        app.recent = [missing, a]
+    /// Code gate 1, item 1: "Not found" is a hint only. The open of a missing package gives its
+    /// own error in the session window, and the start window closes.
+    @Test func aNotFoundRowOpensAndItsWindowShowsTheOpenError() async throws {
+        app.recent = [missing]
         app.showStart()
         let model = try #require(app.start?.model)
         await model.rowsTask?.value
+        #expect(model.rows.map(\.exists) == [false])
 
         await model.open(missing)
-        #expect(app.windows.isEmpty, "a missing row opens nothing")
-        #expect(app.start != nil)
-        await model.open(a)
 
-        #expect(app.windows[packageIdentity(a)] != nil, "a row opens its session")
+        let window = try #require(app.windows.values.first, "a Not found row opens its session window")
+        await until("the open of the missing package fails") {
+            if case .failed = window.phase { true } else { false }
+        }
+        if case .failed(let error) = window.phase {
+            #expect("\(error)".contains("\(ENOENT)"), "the window shows the error of the open: \(error)")
+        }
         #expect(app.start == nil, "a row open closes the start window")
+        await closeAll(app)
+    }
+
+    /// Code gate 1, item 1: a package that the existence check cannot see (a denied path) is a
+    /// row that the user can select with the keys and open with Return.
+    @Test func aDeniedRowCanBeSelectedAndOpened() async throws {
+        let (a, denied) = (try folder.package("a"), try folder.package("denied"))
+        app.exists = { $0 != denied }
+        app.recent = [a, denied]
+        app.showStart()
+        let model = try #require(app.start?.model)
+        let window = try #require(app.start?.window)
+        await model.rowsTask?.value
+        #expect(model.rows.map(\.exists) == [true, false])
+        #expect(model.selection == a, "the first row that exists is selected")
+        await until("the list has the focus") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return window.firstResponder is NSTableView
+        }
+
+        window.sendEvent(key(.keyDown, "\u{F701}", code: 125, in: window))
+        window.sendEvent(key(.keyUp, "\u{F701}", code: 125, in: window))
+        await until(limit: .seconds(10), "the Down Arrow selects the Not found row") { model.selection == denied }
+        let down = key(.keyDown, "\r", code: 36, in: window)
+        if !window.performKeyEquivalent(with: down) { window.sendEvent(down) }
+        window.sendEvent(key(.keyUp, "\r", code: 36, in: window))
+
+        await until(limit: .seconds(10), "Return opens the Not found row") {
+            app.windows[packageIdentity(denied)] != nil
+        }
         await closeAll(app)
     }
 }

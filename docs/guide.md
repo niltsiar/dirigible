@@ -23,7 +23,7 @@ In this tutorial, you record an interview with two microphones, remove a mistake
 
 ### Make the session
 
-1. Connect the USB microphone, then open Dirigible.
+1. Connect the USB microphone, then open Dirigible. The start window shows.
 2. Choose **File > New Session** (Command-N).
 3. Type a name for the episode, select a folder, and click **Save**. A window opens. It shows **No Tracks** and an **Add Track** button.
 
@@ -359,6 +359,12 @@ The **Transport** menu (**Transporte**).
 | **Go to End** | **Ir al final** | End |
 | **Previous Clip Edge** | **Borde de clip anterior** | Shift-Left Arrow |
 | **Next Clip Edge** | **Borde de clip siguiente** | Shift-Right Arrow |
+
+### Window
+
+| Command | Spanish name | Key |
+|---|---|---|
+| **Start Window** | **Ventana de inicio** | Shift-Command-1 |
 
 ### Commands in the banners
 

@@ -60,7 +60,6 @@
 "error.export.yielded" = "La exportación se detuvo por una toma en otra ventana. No se creó ningún archivo. Exporte de nuevo después de la toma.";
 
 /* Window, panels, and alerts */
-"panel.new.name" = "Sesión";
 "window.opening" = "Abriendo la sesión…";
 "window.recovering" = "Recuperando la última toma…";
 "window.try.again" = "Reintentar";
@@ -224,3 +223,9 @@
 "start.title" = "Te damos la bienvenida a Dirigible";
 "start.version" = "Versión %@";
 "start.open.other" = "Abrir otra…";
+"start.new" = "Nueva sesión";
+"start.name" = "Nombre:";
+"start.name.default" = "Episodio %lld";
+"start.folder" = "Se guarda en: %@";
+"start.create" = "Crear";
+"start.hint" = "Una sesión guarda las pistas, las grabaciones y las ediciones de un episodio.";

@@ -60,7 +60,6 @@
 "error.export.yielded" = "The export stopped for a take in another window. No file was made. Export again after the take.";
 
 /* Window, panels, and alerts */
-"panel.new.name" = "Session";
 "window.opening" = "Opening the session…";
 "window.recovering" = "Recovering the last take…";
 "window.try.again" = "Try Again";
@@ -224,3 +223,9 @@
 "start.title" = "Welcome to Dirigible";
 "start.version" = "Version %@";
 "start.open.other" = "Open Other…";
+"start.new" = "New Session";
+"start.name" = "Name:";
+"start.name.default" = "Episode %lld";
+"start.folder" = "Saved in: %@";
+"start.create" = "Create";
+"start.hint" = "A session holds the tracks, recordings, and edits of one episode.";

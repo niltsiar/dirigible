@@ -46,7 +46,7 @@ import Testing
         #expect(takesTransportKeys(window) == !focus)
     }
 
-    /// A panel is not a session window: it gets the key (the New Session and Open panels), also
+    /// A panel is not a session window: it gets the key (the Open panel), also
     /// with no text focus. With no focus, only the window check keeps the key from the transport.
     @Test(arguments: [true, false])
     func aPlainKeyGoesToAPanel(focus: Bool) throws {

@@ -114,16 +114,40 @@ import Testing
         await closeAll(app)
     }
 
-    /// Criterion C15: the start window is not a session window, so a plain key goes to its name
-    /// field and not to the transport.
-    @Test func thePlainKeysGoToTheStartWindow() async throws {
+    /// Criterion C15: the start window is not a session window, so a plain key goes to the control
+    /// with the focus and not to the transport. With no row, the focus is in the name field. With a
+    /// recent row, the focus is in the list (C13), and the window class alone keeps the keys there.
+    @Test(arguments: [StartField.name, .list])
+    func thePlainKeysGoToTheStartWindow(focus: StartField) async throws {
+        if focus == .list { app.recent = [try folder.package("a")] }
         app.showStart()
+        let model = try #require(app.start?.model)
         let window = try #require(app.start?.window)
-        await until("the name field has the focus") { nameEditor(in: window) != nil }
+        if focus == .name {
+            await until("the name field has the focus") { nameEditor(in: window) != nil }
+        } else {
+            await model.rowsTask?.value
+            await model.scanTask?.value
+            await until("the list has the focus") {
+                window.contentView?.layoutSubtreeIfNeeded()
+                return window.firstResponder is NSTableView
+            }
+        }
 
         #expect(!takesTransportKeys(window), "the start window takes no transport keys")
-        #expect(forwardTypingKey(key(.keyDown, "j", code: 38, in: window), in: window))
-        await until("a plain key types into the name field") { app.start?.model.name.contains("j") == true }
+        if focus == .name {
+            #expect(forwardTypingKey(key(.keyDown, "j", code: 38, in: window), in: window))
+            await until("a plain key types into the name field") { model.name.contains("j") }
+        } else {
+            let keys: [(String, UInt16)] = [(" ", 49), ("j", 38), ("k", 40), ("l", 37)]
+            for (text, code) in keys {
+                #expect(
+                    forwardTypingKey(key(.keyDown, text, code: code, in: window), in: window), "the list gets '\(text)'"
+                )
+            }
+            #expect(window.firstResponder is NSTableView, "the list keeps the focus after the plain keys")
+            #expect(app.start != nil, "the plain keys open no row")
+        }
         await closeAll(app)
     }
 

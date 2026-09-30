@@ -31,7 +31,19 @@ good() {
   printf "const LENSES = [\n  { key: 'x', agentType: 'x-reviewer', gates: ['diff'] },\n]\nagent(task, { agentType: lens.agentType })\n" \
     > "$tmp/.claude/workflows/review-panel.js"
   printf -- '---\nname: x-reviewer\ndescription: X.\n---\n\nBody.\n' > "$tmp/.claude/agents/x-reviewer.md"
+  mkdir -p "$tmp/.claude/skills/s/references" "$tmp/docs/workflow"
+  printf -- '---\nname: s\n---\n\nRead `references/r.md` when you need the detail.\n' > "$tmp/.claude/skills/s/SKILL.md"
+  printf '# R\n\nDetail.\n' > "$tmp/.claude/skills/s/references/r.md"
+  printf 'path\twords\tdecision\n' > "$tmp/docs/workflow/budgets.tsv"
+  printf '%s\t1000\tbaseline\n' AGENTS.md .claude/agents/x-reviewer.md \
+    .claude/skills/s/SKILL.md .claude/skills/s/references/r.md >> "$tmp/docs/workflow/budgets.tsv"
+  printf '.claude/skills/s/\t5000\tbaseline\nTOTAL\t10000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"
 }
+
+# Set the words cell of the budget row of <path> to <n>.
+budget() { sed -i '' "s|^$1	[0-9]*	|$1	$2	|" "$tmp/docs/workflow/budgets.tsv"; }
+# Write a references file of <n> lines, with an optional first line.
+long_ref() { { [[ -n "${2:-}" ]] && echo "$2"; for _ in $(seq "$1"); do echo x; done; } > "$tmp/.claude/skills/s/references/r.md"; }
 
 # expect pass <name>, or expect fail <name> <message>. A failure counts only with its rule
 # message, so a fixture that breaks another rule cannot pass as the refused case.
@@ -80,6 +92,19 @@ good; sed -i '' 's/^name: x-reviewer$/name: y-reviewer/' "$tmp/.claude/agents/x-
 good; printf -- '---\ndescription: X.\n---\n\nname: x-reviewer\n' > "$tmp/.claude/agents/x-reviewer.md"; expect fail 'name only in the body' "review-panel.js: .claude/agents/x-reviewer.md has no 'name: x-reviewer' in its frontmatter"
 good; sed -i '' "s/agentType: 'x-reviewer'/agentType: \"x-reviewer\"/" "$tmp/.claude/workflows/review-panel.js"; expect pass 'agentType in double quotes'
 good; sed -i '' "s/agentType: 'x-reviewer'/agentType: name/" "$tmp/.claude/workflows/review-panel.js"; expect fail 'panel with no literal agentType' 'review-panel.js: no literal agentType'
+good; budget AGENTS.md 1; expect fail 'file over its budget row' 'budgets.tsv: AGENTS.md is over its row'
+good; sed -i '' '/^\.claude\/skills\/s\/SKILL\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'SKILL.md with no budget row' 'budgets.tsv: no row for .claude/skills/s/SKILL.md'
+good; sed -i '' '/^\.claude\/skills\/s\/references\/r\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'references file with no budget row' 'budgets.tsv: no row for .claude/skills/s/references/r.md'
+good; sed -i '' '/^\.claude\/agents\/x-reviewer\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'agent file with no budget row' 'budgets.tsv: no row for .claude/agents/x-reviewer.md'
+good; printf '.claude/skills/gone/SKILL.md\t100\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"; expect fail 'budget row for a missing file' 'budgets.tsv: row for a missing file: .claude/skills/gone/SKILL.md'
+good; budget .claude/skills/s/ 5; expect fail 'skill folder over its total row' 'budgets.tsv: .claude/skills/s/ is over its total row'
+good; budget TOTAL 5; expect fail 'all budgeted files over the TOTAL row' 'budgets.tsv: the budgeted files are over the TOTAL row'
+good; sed -i '' '/^TOTAL	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'no TOTAL row' 'budgets.tsv: no TOTAL row'
+good; sed -i '' 's|^AGENTS.md	1000	baseline$|AGENTS.md	1000	|' "$tmp/docs/workflow/budgets.tsv"; expect fail 'budget row with an empty decision' 'budgets.tsv: the row for AGENTS.md has no decision'
+good; sed -i '' 's|references/r.md|the reference|' "$tmp/.claude/skills/s/SKILL.md"; expect fail 'references file not named by its SKILL.md' '.claude/skills/s/references/r.md: .claude/skills/s/SKILL.md does not name it by path'
+good; long_ref 101; expect fail 'long references file with no contents list' '.claude/skills/s/references/r.md: over 100 lines with no contents list in its first 10 lines'
+good; long_ref 101 '## Contents'; expect pass 'long references file with a contents list'
+good; long_ref 100; expect pass 'references file of 100 lines with no contents list'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

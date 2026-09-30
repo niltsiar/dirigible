@@ -105,4 +105,47 @@ if [[ -f "$panel" ]]; then
     done
 fi
 
+# Each workflow doc stays within its row of docs/workflow/budgets.tsv (path, words, decision), in
+# words of `wc -w`. A row that ends in / limits the sum of the budgeted files of that folder, and
+# the TOTAL row limits the sum of all of them. Each row names the reason of its value (decision 0028).
+budgets="$root/docs/workflow/budgets.tsv"
+[[ -f "$budgets" ]] || { err "docs/workflow/budgets.tsv is missing"; budgets=/dev/null; }
+counts=""
+for f in "$root"/AGENTS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
+    [[ -f "$f" ]] || continue
+    counts+="${f#"$root"/}	$(wc -w <"$f" | tr -d ' ')"$'\n'
+done
+while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$counts" | awk -F'\t' '
+    FILENAME == "-" { words[$1] = $2; sum += $2; next }
+    FNR == 1 { next }
+    { row[$1] = $2; if ($3 == "") print "the row for " $1 " has no decision" }
+    END {
+        for (f in words) {
+            if (!(f in row)) print "no row for " f
+            else if (words[f] > row[f] + 0) print f " is over its row: " words[f] " > " row[f]
+        }
+        for (p in row) {
+            if (p == "TOTAL") continue
+            if (p !~ /\/$/) { if (!(p in words)) print "row for a missing file: " p; continue }
+            total = 0; seen = 0
+            for (f in words) if (index(f, p) == 1) { total += words[f]; seen = 1 }
+            if (!seen) print "row for a missing file: " p
+            else if (total > row[p] + 0) print p " is over its total row: " total " > " row[p]
+        }
+        if (!("TOTAL" in row)) print "no TOTAL row"
+        else if (sum > row["TOTAL"] + 0) print "the budgeted files are over the TOTAL row: " sum " > " row["TOTAL"]
+    }' - "$budgets")
+
+# A SKILL.md names each of its references files by path, so an agent can find it. A references
+# file over 100 lines starts with a contents list.
+for f in "$root"/.claude/skills/*/references/*.md; do
+    [[ -f "$f" ]] || continue
+    rel="${f#"$root"/}"
+    skill="${rel%%/references/*}/SKILL.md"
+    grep -qF "references/$(basename "$f")" "$root/$skill" 2>/dev/null || err "$rel: $skill does not name it by path"
+    if [[ "$(wc -l <"$f")" -gt 100 ]] && ! grep -qiE '^(#+ +)?contents' <(head -n 10 "$f"); then
+        err "$rel: over 100 lines with no contents list in its first 10 lines"
+    fi
+done
+
 exit "$fail"

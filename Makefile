@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app icon-preview test test-slow check-slow-gates check-warnings bench test-app dmg test-dmg test-hooks check-docs run lint format check clean
+.PHONY: setup build app icon-preview test test-slow check-slow-gates check-warnings bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -68,6 +68,7 @@ test-hooks:
 	scripts/bench-pairs.test.sh
 	scripts/icon.test.sh
 	scripts/bundle.test.sh
+	scripts/check-changed.test.sh
 	scripts/flake-monitor/sample-threads.test.sh
 	scripts/flake-monitor/loop.test.sh
 
@@ -91,6 +92,22 @@ format:
 	swift format format --in-place --recursive $(SWIFT_SOURCES)
 
 check: lint check-docs check-slow-gates check-warnings test test-hooks test-app
+
+# The checks with no Swift test: for a change to scripts, hooks, or workflows.
+check-fast: lint check-docs check-slow-gates check-warnings test-hooks
+
+# Runs the targets that scripts/check-changed.sh picks for the changed paths (decision 0028).
+# With BASE, the targets before the push. It fails closed: a script error or a missing targets
+# line exits nonzero. An empty make goal would run the default goal setup, so the recipe
+# never calls $(MAKE) with no target.
+BASE ?=
+check-changed:
+	@out="$$(scripts/check-changed.sh $(BASE))" || exit 1; \
+	printf '%s\n' "$$out"; \
+	targets="$$(printf '%s\n' "$$out" | sed -n 's/^targets: //p')"; \
+	if [ -z "$$targets" ]; then echo "check-changed: no targets line" >&2; exit 1; fi; \
+	if [ "$$targets" = none ]; then exit 0; fi; \
+	$(MAKE) $$targets
 
 clean:
 	rm -rf .build build

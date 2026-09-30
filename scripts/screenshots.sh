@@ -4,7 +4,8 @@
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in English and light mode, and writes
-# docs/images/screenshot-edit.png and docs/images/screenshot-zoom.png.
+# docs/images/screenshot-edit.png and docs/images/screenshot-zoom.png. The app also writes its
+# preferences (the recent list) for the real bundle ID, so do not run this script as a check.
 # The terminal app needs the Screen Recording and Accessibility permissions, and the screen must be
 # unlocked. Keep the pointer and other windows off the Dirigible window while the script runs.
 # A running copy of the app ignores the launch arguments, and it can hold a real session. The

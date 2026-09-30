@@ -89,4 +89,20 @@ for doc in README.md docs/guide.md; do
     done
 done
 
+# Each agentType of the review panel has its agent file, and that file names the agent in its
+# frontmatter. The panel calls a lens by this name, so a rename on one side breaks the lens.
+panel="$root/.claude/workflows/review-panel.js"
+if [[ -f "$panel" ]]; then
+    types="$(grep -oE "agentType: ['\"][^'\"]+['\"]" "$panel" | sed -E "s/agentType: ['\"]//; s/['\"]$//" | sort -u || true)"
+    [[ -n "$types" ]] || err "review-panel.js: no literal agentType"
+    for a in $types; do
+        f="$root/.claude/agents/$a.md"
+        if [[ ! -f "$f" ]]; then
+            err "review-panel.js: agentType $a has no .claude/agents/$a.md"
+        elif ! awk 'NR == 1 && /^---$/ { f = 1; next } f && /^---$/ { exit } f' "$f" | grep -qxF "name: $a"; then
+            err "review-panel.js: .claude/agents/$a.md has no 'name: $a' in its frontmatter"
+        fi
+    done
+fi
+
 exit "$fail"

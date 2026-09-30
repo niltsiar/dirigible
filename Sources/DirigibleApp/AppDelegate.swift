@@ -41,6 +41,9 @@ import UniformTypeIdentifiers
     @ObservationIgnored var nameFormat: @Sendable (Int) -> String = { L10n.startNameDefault.format($0) }
     /// The file checks of the start window, off the main actor. Tests give their own.
     @ObservationIgnored var exists: @Sendable (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
+    /// The recent sessions of the start window. Tests give their own: the test runner has its
+    /// own recent list.
+    @ObservationIgnored var recentSessions: () -> [URL] = { NSDocumentController.shared.recentDocumentURLs }
     /// The alert of a failed Create. Tests give their own: `runModal()` blocks.
     @ObservationIgnored var showError: @MainActor (StudioError) -> Void = { error in
         let alert = NSAlert()
@@ -182,11 +185,12 @@ import UniformTypeIdentifiers
     func showStartWindow() { showStart() }
 
     /// The one path of every trigger (decision 0027): a new window when none shows, else the open
-    /// one to the front. A `focus` moves the focus there.
+    /// one to the front. A `focus` moves the focus there, and a later result keeps it.
     private func showStart(focus: StartField? = nil) {
         guard let defaultFolder, !terminating else { return }
         if start == nil { start = StartWindow(app: self, folder: sessionFolder ?? defaultFolder) }
-        if let focus { start?.model.focus = focus }
+        if let focus { start?.model.pin(focus) }
+        start?.model.loadRows()
         start?.show()
     }
 

@@ -174,6 +174,9 @@ enum L10n: String, CaseIterable {
     case startFolder = "start.folder"
     case startCreate = "start.create"
     case startHint = "start.hint"
+    case startRecent = "start.recent"
+    case startRecentNone = "start.recent.none"
+    case startRecentMissing = "start.recent.missing"
 
     case errorBusy = "error.studio.busy"
     case errorLocked = "error.studio.locked"

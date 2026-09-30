@@ -28,10 +28,11 @@ SLOW_GATE = environment["DIRIGIBLE_SLOW_TESTS"]
 # The name of each slow test: the function after its gate.
 SLOW_TESTS = $(shell grep -rhF -A1 '$(SLOW_GATE)' Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)
 
-# The slow tests run in their own process after the other tests. Their disk and CPU load
-# makes the timed tests fail when both run in one process. They run one at a time, so the
+# The slow tests only. They run in their own process: their disk and CPU load makes the timed
+# tests fail when both run in one process. Before the push, `make check-changed BASE=<ref>`
+# runs `check` first, so the other tests do not run twice. They run one at a time, so the
 # benchmarks do not measure the load of the other slow tests.
-test-slow: check-slow-gates test
+test-slow: check-slow-gates
 	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
 
 # The slow tests that match FILTER in an optimized build, for a budget that holds only with -O.

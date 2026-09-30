@@ -36,6 +36,17 @@ import UniformTypeIdentifiers
     @ObservationIgnored private var keyMonitor: Any?
     /// Shows files in Finder. Tests give their own.
     @ObservationIgnored var reveal: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
+    /// The first free name of a new session, "Episode 2" for 2. Tests give their own: in the test
+    /// process, `L10n` gives the key.
+    @ObservationIgnored var nameFormat: @Sendable (Int) -> String = { L10n.startNameDefault.format($0) }
+    /// The file checks of the start window, off the main actor. Tests give their own.
+    @ObservationIgnored var exists: @Sendable (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
+    /// The alert of a failed Create. Tests give their own: `runModal()` blocks.
+    @ObservationIgnored var showError: @MainActor (StudioError) -> Void = { error in
+        let alert = NSAlert()
+        alert.messageText = L10n.message(for: error)
+        alert.runModal()
+    }
     /// The save panel of Export as a sheet of a window: the name, the session rate, and the
     /// answer. Tests give their own.
     @ObservationIgnored var chooseExport:
@@ -171,11 +182,19 @@ import UniformTypeIdentifiers
     func showStartWindow() { showStart() }
 
     /// The one path of every trigger (decision 0027): a new window when none shows, else the open
-    /// one to the front.
-    private func showStart() {
-        guard defaultFolder != nil, !terminating else { return }
-        if start == nil { start = StartWindow(app: self) }
+    /// one to the front. A `focus` moves the focus there.
+    private func showStart(focus: StartField? = nil) {
+        guard let defaultFolder, !terminating else { return }
+        if start == nil { start = StartWindow(app: self, folder: sessionFolder ?? defaultFolder) }
+        if let focus { start?.model.focus = focus }
         start?.show()
+    }
+
+    /// The folder of new sessions that the user chose (Change…), only as an absolute path
+    /// (plan gate, item 5). The key never changes its meaning or its type (decision 0027).
+    private var sessionFolder: URL? {
+        guard let path = defaults?.string(forKey: "session.folder"), path.hasPrefix("/") else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true)
     }
 
     /// The `windowWillClose(_:)` of the start window.
@@ -196,19 +215,8 @@ import UniformTypeIdentifiers
         }
     }
 
-    /// A new package at 48 kHz. `Studio.create` refuses a path that exists, so the "Replace"
-    /// answer of the panel gives the `.exists` alert, and the item on disk does not change.
-    func newSession() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [Self.sessionType]
-        panel.nameFieldStringValue = L10n.panelNewName.text
-        panel.begin { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-            Task { @MainActor in
-                if let error = await self?.createSession(at: url) { self?.showError(error) }
-            }
-        }
-    }
+    /// File > New Session: the start window with the focus in the name field (decision 0027).
+    func newSession() { showStart(focus: .name) }
 
     /// Makes the package with `Studio.create` and shows it in a window. Returns the error.
     func createSession(at url: URL) async -> StudioError? {
@@ -221,12 +229,6 @@ import UniformTypeIdentifiers
             return error
         }
         return nil
-    }
-
-    private func showError(_ error: StudioError) {
-        let alert = NSAlert()
-        alert.messageText = L10n.message(for: error)
-        alert.runModal()
     }
 
     // MARK: NSApplicationDelegate

@@ -69,7 +69,6 @@ enum L10n: String, CaseIterable {
     case menuMarkersPrevious = "menu.markers.previous"
     case menuMarkersNext = "menu.markers.next"
 
-    case panelNewName = "panel.new.name"
     case panelExportFormat = "panel.export.format"
     case panelExportFormatWAV = "panel.export.format.wav"
     case panelExportFormatAAC = "panel.export.format.aac"
@@ -169,6 +168,12 @@ enum L10n: String, CaseIterable {
     case startTitle = "start.title"
     case startVersion = "start.version"
     case startOpenOther = "start.open.other"
+    case startNew = "start.new"
+    case startName = "start.name"
+    case startNameDefault = "start.name.default"
+    case startFolder = "start.folder"
+    case startCreate = "start.create"
+    case startHint = "start.hint"
 
     case errorBusy = "error.studio.busy"
     case errorLocked = "error.studio.locked"

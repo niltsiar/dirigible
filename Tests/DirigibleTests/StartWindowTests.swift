@@ -114,13 +114,16 @@ import Testing
         await closeAll(app)
     }
 
-    /// Criterion C15: the start window is not a session window, so a plain key goes to it and
-    /// not to the transport.
+    /// Criterion C15: the start window is not a session window, so a plain key goes to its name
+    /// field and not to the transport.
     @Test func thePlainKeysGoToTheStartWindow() async throws {
         app.showStartWindow()
         let window = try #require(app.start?.window)
+        await until("the name field has the focus") { nameEditor(in: window) != nil }
 
         #expect(!takesTransportKeys(window), "the start window takes no transport keys")
+        #expect(forwardTypingKey(key(.keyDown, "j", code: 38, in: window), in: window))
+        await until("a plain key types into the name field") { app.start?.model.name.contains("j") == true }
         await closeAll(app)
     }
 
@@ -145,7 +148,7 @@ import Testing
         first.performClose(nil)
 
         #expect(app.start == nil, "a closed start window is gone")
-        app.showStartWindow()
+        app.newSession()
         #expect(app.start?.window?.isVisible == true)
         #expect(app.start?.window !== first)
         await closeAll(app)
@@ -163,7 +166,7 @@ import Testing
     }
 
     /// Closes the session windows, then the start window that the last close shows.
-    private func closeAll(_ app: AppDelegate) async {
+    func closeAll(_ app: AppDelegate) async {
         for window in app.windows.values { await window.close() }
         app.start?.window?.close()
     }

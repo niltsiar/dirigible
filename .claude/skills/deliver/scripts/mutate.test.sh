@@ -3,7 +3,8 @@
 # with --expect only when the test output has the text outside a progress line, applies extra
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
 # restores the file, counts a test past --timeout as a kill, replays a control from its log, reports
-# a run of no test as NO TESTS, and applies --in=<file> pairs to a second file. Run by `make test-hooks`.
+# a run of no test as NO TESTS, applies --in=<file> pairs to a second file, and restores the file
+# on SIGINT, SIGTERM, and SIGHUP. Run by `make test-hooks`.
 set -uo pipefail
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
@@ -133,6 +134,23 @@ check '2:mutate' 'a replay of a control with side effects' --replay "$tmp/fx" "$
 [[ ! -e "$tmp/fx-again" ]] || { echo "FAIL: the refused replay ran"; failures=$((failures + 1)); }
 check '1:survived' 'an allowed replay of a control with side effects' --allow-side-effects --replay "$tmp/fx" "$tmp/fx-again"
 grep -q '^# side-effects: yes' "$tmp/fx-again" || { echo "FAIL: the replay lost the mark"; failures=$((failures + 1)); }
+
+# A stop by SIGTERM (not only SIGINT) restores the file and ends the test (start-window Phase 7: a
+# replay ran for hours, and SIGTERM skipped the restore).
+printf 'a = 1\nb = 1\n' > "$file"
+before="$(shasum -a 256 "$file")"
+for sig in TERM HUP INT; do
+  "$mutate" "$file" 'b = 1' 'b = 2' "$tmp/stop" "$build" "sleep 32 & echo \$! > $tmp/pid; wait" > "$tmp/stop.out" 2>&1 &
+  runner=$!
+  for _ in $(seq 50); do grep -q 'b = 2' "$file" && [[ -s "$tmp/pid" ]] && break; sleep 0.1; done
+  kill -"$sig" "$runner"
+  wait "$runner"
+  code=$?
+  [[ "$code:$(cut -d: -f1 "$tmp/stop.out")" == "130:stopped" ]] || { echo "FAIL: SIG$sig gave $code: $(cat "$tmp/stop.out")"; failures=$((failures + 1)); }
+  [[ "$(shasum -a 256 "$file")" == "$before" ]] || { echo "FAIL: file changed after SIG$sig"; failures=$((failures + 1)); }
+  ! kill -0 "$(cat "$tmp/pid")" 2>/dev/null || { echo "FAIL: the test still runs after SIG$sig"; kill "$(cat "$tmp/pid")"; failures=$((failures + 1)); }
+  rm -f "$tmp/pid"
+done
 
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

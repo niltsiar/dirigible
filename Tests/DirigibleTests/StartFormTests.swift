@@ -93,25 +93,49 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
-    /// Criterion C10, the default case: the first Create makes the default folder. Each file
-    /// check runs off the main actor (plan gate, item 4).
-    @Test func createMakesTheDefaultFolder() async throws {
+    /// Criterion C10: the first Create in the default folder makes that folder, and a Create in a
+    /// missing chosen folder makes nothing. Each file check runs off the main actor (plan gate,
+    /// item 4).
+    @Test(arguments: [false, true])
+    func createMakesOnlyTheDefaultFolder(chosen: Bool) async throws {
         try FileManager.default.createDirectory(
             at: sessions.deletingLastPathComponent(), withIntermediateDirectories: true)
+        // Its parent exists, so a one-level make of the chosen folder would work.
+        let gone = folder.url.appending(path: "gone", directoryHint: .isDirectory)
         let onMain = OSAllocatedUnfairLock(initialState: [Bool]())
         app.exists = { url in
             onMain.withLock { $0.append(Thread.isMainThread) }
             return FileManager.default.fileExists(atPath: url.path)
         }
+        let errors = OSAllocatedUnfairLock(initialState: [StudioError]())
+        app.showError = { error in errors.withLock { $0.append(error) } }
+        app.chooseFolder = { _, done in done(gone) }
         app.nameFormat = { "Episode \($0)" }
         app.showStartWindow()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
+        if chosen {
+            model.changeFolder()
+            await model.scanTask?.value
+            model.edit("typed")
+        }
 
         model.create()
         await model.createTask?.value
 
-        #expect(FileManager.default.fileExists(atPath: sessions.appending(path: "Episode 1.dirigible").path))
+        if chosen {
+            let missing = errors.withLock { $0 }.contains {
+                if case .file(.writeFailed(_, let code)) = $0 { code == ENOENT } else { false }
+            }
+            #expect(missing, "a Create in a missing chosen folder fails with ENOENT")
+            #expect(
+                !FileManager.default.fileExists(atPath: folder.url.appending(path: "gone").path),
+                "the app makes no chosen folder")
+            #expect(app.start?.window?.isVisible == true)
+            #expect(model.name == "typed", "a failed Create keeps the typed name")
+        } else {
+            #expect(FileManager.default.fileExists(atPath: sessions.appending(path: "Episode 1.dirigible").path))
+        }
         let calls = onMain.withLock { $0 }
         #expect(!calls.isEmpty && !calls.contains(true), "a file check runs off the main actor")
         await closeAll(app)

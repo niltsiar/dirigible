@@ -16,6 +16,8 @@ import UniformTypeIdentifiers
     var recent: [URL]
     static let recentKey = "recent.sessions"
     static let recentLimit = 10
+    /// The folder of new sessions that the user chose with Change…, a `String` absolute path.
+    static let folderKey = "session.folder"
 
     @ObservationIgnored let recordings: ActiveRecordings?
     /// The peak cache folder of every studio (decision 0017). Nil: no peaks (tests).
@@ -46,6 +48,16 @@ import UniformTypeIdentifiers
     @ObservationIgnored var nameFormat: @Sendable (Int) -> String = { L10n.startNameDefault.format($0) }
     /// The file checks of the start window, off the main actor. Tests give their own.
     @ObservationIgnored var exists: @Sendable (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
+    /// The folder panel of Change…, as a sheet of the start window, and the answer. Tests give
+    /// their own.
+    @ObservationIgnored var chooseFolder: (NSWindow, @escaping @MainActor (URL?) -> Void) -> Void = { window, done in
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = L10n.startFolderChoose.text
+        panel.beginSheetModal(for: window) { done($0 == .OK ? panel.url : nil) }
+    }
     /// The alert of a failed Create. Tests give their own: `runModal()` blocks.
     @ObservationIgnored var showError: @MainActor (StudioError) -> Void = { error in
         let alert = NSAlert()
@@ -206,7 +218,7 @@ import UniformTypeIdentifiers
     /// The folder of new sessions that the user chose (Change…), only as an absolute path
     /// (plan gate, item 5). The key never changes its meaning or its type (decision 0027).
     private var sessionFolder: URL? {
-        guard let path = defaults?.string(forKey: "session.folder"), path.hasPrefix("/") else { return nil }
+        guard let path = defaults?.string(forKey: Self.folderKey), path.hasPrefix("/") else { return nil }
         return URL(fileURLWithPath: path, isDirectory: true)
     }
 

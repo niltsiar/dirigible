@@ -48,8 +48,13 @@ struct StartView: View {
             if let message = model.refusal?.message {
                 Text(message.key).font(.callout).foregroundStyle(.red)
             }
-            Label(L10n.startFolder.format(model.folderText), systemImage: "folder")
-                .font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+            HStack {
+                Label(L10n.startFolder.format(model.folderText), systemImage: "folder")
+                    .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 8)
+                Button(L10n.startChange.key) { model.changeFolder() }.controlSize(.small).disabled(model.creating)
+            }
+            .font(.callout)
             HStack(alignment: .top, spacing: 16) {
                 Text(L10n.startHint.key).font(.footnote).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

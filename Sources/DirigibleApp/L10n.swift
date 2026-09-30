@@ -175,6 +175,8 @@ enum L10n: String, CaseIterable {
     case startNameErrorDot = "start.name.error.dot"
     case startNameErrorLong = "start.name.error.long"
     case startFolder = "start.folder"
+    case startChange = "start.change"
+    case startFolderChoose = "start.folder.choose"
     case startCreate = "start.create"
     case startHint = "start.hint"
     case startRecent = "start.recent"

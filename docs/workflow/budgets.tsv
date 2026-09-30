@@ -53,8 +53,9 @@ path	words	decision
 .claude/skills/technical-writing/SKILL.md	1746	baseline
 .claude/skills/unslop/	918	baseline
 .claude/skills/unslop/SKILL.md	918	baseline
-.claude/skills/verify-this/	2188	baseline
-.claude/skills/verify-this/SKILL.md	2188	baseline
+.claude/skills/verify-this/	1639	2026-09-30-workflow-consolidation slice 5 (decisions.tsv 2026-10-01T01:47: verify-this SKILL.md budget row 840)
+.claude/skills/verify-this/SKILL.md	840	2026-09-30-workflow-consolidation slice 5 (decisions.tsv 2026-10-01T01:47: verify-this SKILL.md budget row 840)
+.claude/skills/verify-this/references/driving-the-app.md	799	2026-09-30-workflow-consolidation slice 5 (decisions.tsv 2026-10-01T01:47: verify-this SKILL.md budget row 840)
 .claude/skills/writing-for-agents/	2191	baseline
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline

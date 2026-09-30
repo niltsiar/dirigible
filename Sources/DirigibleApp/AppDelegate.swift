@@ -202,12 +202,10 @@ import UniformTypeIdentifiers
 
     // MARK: Start window
 
-    /// Window > Start Window: also with a session window open (decision 0027).
-    func showStartWindow() { showStart() }
-
-    /// The one path of every trigger (decision 0027): a new window when none shows, else the open
-    /// one to the front. A `focus` moves the focus there, and a later result keeps it.
-    private func showStart(focus: StartField? = nil) {
+    /// The one path of every trigger (decision 0027), also Window > Start Window with a session
+    /// window open: a new window when none shows, else the open one to the front. A `focus` moves
+    /// the focus there, and a later result keeps it.
+    func showStart(focus: StartField? = nil) {
         guard let defaultFolder, !terminating else { return }
         if start == nil { start = StartWindow(app: self, folder: sessionFolder ?? defaultFolder) }
         if let focus { start?.model.pin(focus) }

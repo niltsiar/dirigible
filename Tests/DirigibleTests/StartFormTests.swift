@@ -52,7 +52,7 @@ extension StartWindowTests {
         try Session.create(at: sessions.appending(path: "Episode 1.dirigible"), sampleRate: 48_000)
         try Session.create(at: sessions.appending(path: "Episode 3.dirigible"), sampleRate: 48_000)
         app.nameFormat = { "Episode \($0)" }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
 
@@ -70,7 +70,7 @@ extension StartWindowTests {
     /// Criterion C9, the control: an empty folder gives the first number.
     @Test func anEmptyFolderGivesEpisode1() async throws {
         app.nameFormat = { "Episode \($0)" }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
 
@@ -82,7 +82,7 @@ extension StartWindowTests {
     /// result came.
     @Test func aTypedNameIsNotReplacedByTheFreeName() async throws {
         app.nameFormat = { "Episode \($0)" }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
 
         model.edit("My show")
@@ -111,7 +111,7 @@ extension StartWindowTests {
         app.showError = { error in errors.withLock { $0.append(error) } }
         app.chooseFolder = { _, done in done(gone) }
         app.nameFormat = { "Episode \($0)" }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
         if chosen {
@@ -148,7 +148,7 @@ extension StartWindowTests {
         try Session.create(at: sessions.appending(path: "a.dirigible"), sampleRate: 48_000)
         let errors = OSAllocatedUnfairLock(initialState: [StudioError]())
         app.showError = { error in errors.withLock { $0.append(error) } }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
 
@@ -176,7 +176,7 @@ extension StartWindowTests {
             at: sessions.deletingLastPathComponent(), withIntermediateDirectories: true)
         let errors = OSAllocatedUnfairLock(initialState: [StudioError]())
         app.showError = { error in errors.withLock { $0.append(error) } }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
 
@@ -198,7 +198,7 @@ extension StartWindowTests {
         let errors = OSAllocatedUnfairLock(initialState: [StudioError]())
         app.showError = { error in errors.withLock { $0.append(error) } }
         app.nameFormat = { "Episode \($0)" }
-        app.showStartWindow()
+        app.showStart()
         let model = try #require(app.start?.model)
         await model.scanTask?.value
 
@@ -225,7 +225,7 @@ extension StartWindowTests {
         defaults.set(stored, forKey: "session.folder")
         let app = AppDelegate(recordings: nil, defaults: defaults, defaultFolder: sessions)
 
-        app.showStartWindow()
+        app.showStart()
 
         #expect(
             app.start?.model.folder.path == (absolute ? stored : sessions.path),

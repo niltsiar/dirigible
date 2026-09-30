@@ -15,6 +15,7 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   BUILD FAILED  the mutant did not build, so it proves nothing (exit 2)
   WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4)
   NO TESTS      the test passed, but it ran no test: the filter matched nothing (exit 5)
+  stopped       SIGINT, SIGTERM, or SIGHUP stopped the run; the files are restored (exit 130)
 With --expect, a kill counts only when the output of the test has <text>, for example the
 message of the assertion that the control must break. A progress line (a test started or passed)
 does not count: it names every test of the filter, also on a run where another test fails. A crash or a trap also fails the test.
@@ -136,21 +137,39 @@ def run(command, out, limit=None):
     try:
         return process.wait(timeout=limit)
     except subprocess.TimeoutExpired:
-        tree = descendants(process.pid)
-        os.killpg(process.pid, signal.SIGKILL)
-        for pid in tree:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-        process.wait()
+        kill_tree(process)
         return None
+    except KeyboardInterrupt:
+        kill_tree(process)
+        raise
+
+
+def kill_tree(process):
+    tree = descendants(process.pid)
+    os.killpg(process.pid, signal.SIGKILL)
+    for pid in tree:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    process.wait()
+
+
+def stop(signum, frame):
+    raise KeyboardInterrupt
+
+
+# A stop by SIGINT, SIGTERM, or SIGHUP (a closed terminal) restores the files. A background job
+# of a shell starts with SIGINT ignored, so SIGINT gets the handler too.
+for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+    signal.signal(sig, stop)
 
 
 backups = {name: log + '.orig' + (str(n) if n else '') for n, name in enumerate(edits)}
 for name, backup in backups.items():
     shutil.copyfile(name, backup)
-hung = False
+hung = stopped = built = tested = False
+test_start = 0
 try:
     for name, mutant_text in mutants.items():
         with open(name, 'w') as mutant:
@@ -176,13 +195,22 @@ try:
         status = run(test, out, timeout) if built else 1
         hung = status is None
         tested = status == 0
+except KeyboardInterrupt:
+    stopped = True
 finally:
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, signal.SIG_IGN)
     for name, backup in backups.items():
         shutil.copyfile(backup, name)
 for name, backup in backups.items():
     if hashlib.sha256(open(name, 'rb').read()).hexdigest() != digests[name]:
         print(f'mutate: the restore of {name} failed; the copy is {backup}', file=sys.stderr)
         sys.exit(3)
+if stopped:
+    with open(log, 'a') as out:
+        out.write('# result: stopped\n')
+    print(f'stopped: {log}')
+    sys.exit(130)
 if hung:
     result, code = 'killed (hang)', 0
 else:

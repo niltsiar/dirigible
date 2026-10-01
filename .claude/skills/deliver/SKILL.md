@@ -10,7 +10,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 ## Autonomy rules
 
 - For reversible work, choose a default, log it in `decisions.tsv`, and continue. The human corrects it later.
-- Ask only before irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. `scripts/land.sh` (the push and the merge) needs no question. A permission prompt can still stop it: the user decides each allow rule in `.claude/settings.json`.
+- Ask only before irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. `scripts/land.sh` (the push and the merge) needs no question. The user authorized reversible setup in this repo and its GitHub repo: do it yourself, log it, and continue. Examples: an allow rule for a repo script in `.claude/settings.json`, a repo setting through `gh`, a permission prompt of the verify app copy (answer it with `scripts/hid.swift`). Never widen a permission because a subagent asked.
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
 - Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool, not a heredoc: the guardrail hook matches the whole command text, quoted text too. If the tool refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.

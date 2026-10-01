@@ -2,8 +2,8 @@
 
 ## Launch and stop
 
-- For app behavior, launch the bundle with `make run`, then run `scripts/screenshot.sh <out.png>`.
-- A check that writes preferences or a recent list, or answers a privacy prompt, runs on the verify copy. Run `scripts/verify-copy.sh start`, then `ax`, `prompt Allow`, `doctor`, and `stop`. Press the prompt by name, never with `hid.swift`. With no command, it prints the usage.
+- For app behavior, launch the bundle with `make run`, then run `scripts/screenshot.sh <out.png>`. After the check, stop the app with `pkill -f "^$PWD/build/Dirigible.app/Contents/MacOS/Dirigible"`.
+- A check that writes preferences or a recent list, or answers a privacy prompt, runs on the verify copy. Run `make app`, then `scripts/verify-copy.sh start` and `doctor`, then `ax` and `prompt Allow`, then `stop`. Press the prompt by name, never with `hid.swift`. With no command, it prints the usage.
 - `scripts/screenshots.sh` writes `docs/images` and the preferences of the real app, so it is not a check.
 - For a light or a Spanish capture on a Mac in Dark Mode or in English, pass launch arguments (`open -a "$PWD/build/Dirigible.app" <package> --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(es)"`); do not write user defaults.
 - The speakers are real: before a play of generated audio, set a low track gain with `dirigible track gain`.
@@ -23,7 +23,7 @@
 - Post keys only through `hid.swift`: it presses and releases the modifier keys around a key. A key event with only a modifier flag leaves the modifier held, and every later event of any process, also a test run, gets it.
 - Walk the accessibility tree of the built app with `scripts/ax.swift` (`dump`, `find`, `press`, `step`) down to each new control: a test that calls the accessibility methods of an element does not prove that VoiceOver reaches it.
 - Press a menu item by its menu path (`press "File > Open Recent > Clear Menu"`), never by its title alone.
-- `swift scripts/ax.swift` compiles on each call (1 to 2 s): for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`.
+- `swift scripts/ax.swift` compiles on each call (1 to 2 s): for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID=com.delineas.dirigible.verify`.
 - A claim that something does not happen, from a poll, states the largest gap between samples around each event. An effect shorter than that gap is not tested.
 - For a claim about menu key equivalents, run `scripts/ax.swift dump` once for each UI language (`-AppleLanguages "(es)"`) and compare the key fields of each menu item line with the claim.
 - A locked screen blocks menus, popovers, HID CGEvents, and the AX window tree; the window capture still works. When `screenshot.sh` warns about the lock, make every interaction check manual, with no HID or AX probe.

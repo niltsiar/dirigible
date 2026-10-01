@@ -55,8 +55,13 @@ struct TimelineState {
     /// Automatic Scroll: on at open.
     var follows = true
     /// A user scroll during play or a take: no page turn until the head is in view again, a seek,
-    /// a play start, or a take start.
-    var followHeld = false
+    /// a play start, or a take start. "Again" is after the head left the view: a scroll that
+    /// starts with the head in view keeps the hold (Phase 7 finding V3).
+    var followHeld = false {
+        didSet { if !followHeld { headLeftView = false } }
+    }
+    /// The head was out of the view at a tick of the hold.
+    var headLeftView = false
     /// Nil before the first layout.
     var visible: TimelineVisible?
     /// Taller Tracks and Shorter Tracks: automatic at open (0025).
@@ -74,7 +79,11 @@ struct TimelineState {
     mutating func follow(playhead: Frames, origin: Double, frames: Double, direction: Shuttle.Direction) -> Double? {
         if followHeld {
             let at = Double(playhead.count) - origin
-            guard at >= 0, at < frames else { return nil }
+            guard at >= 0, at < frames else {
+                headLeftView = true
+                return nil
+            }
+            guard headLeftView else { return nil }
             followHeld = false
         }
         guard follows else { return nil }

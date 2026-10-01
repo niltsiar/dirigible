@@ -361,7 +361,9 @@ final class TimelineScrollView: NSScrollView {
         if case .playing(let shuttle) = playback { direction = shuttle.direction } else { direction = .forward }
         let turn = state.follow(
             playhead: Frames(Int(playhead)), origin: origin, frames: visibleFrames, direction: direction)
+        // Only a change: a write of the model makes SwiftUI update the views that read it.
         if state.followHeld != model.timeline.followHeld { model.timeline.followHeld = state.followHeld }
+        if state.headLeftView != model.timeline.headLeftView { model.timeline.headLeftView = state.headLeftView }
         if let turn { scroll(toFrame: turn) }
     }
 }

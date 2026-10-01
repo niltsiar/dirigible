@@ -22,4 +22,3 @@ Rules:
 - Each finding names the location (file and line, or plan section), the rule it breaks, and the concrete consequence.
 - Do not suggest an abstraction unless a second use exists now. Premature abstraction is a finding too.
 - Return at most six findings. Zero findings is a valid result.
-- Write in ASD-STE100 style: short sentences, active voice, one idea per sentence.

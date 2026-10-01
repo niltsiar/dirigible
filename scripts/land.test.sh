@@ -2,8 +2,8 @@
 # Check that land.sh runs the land steps of deliver Phase 9 in order and stops at the first
 # failure. Each case uses a temporary repo, a bare remote, and fake make and gh on PATH that log
 # their arguments. Cases: the happy path, a red check, main moved after the check, a run on main
-# or a detached HEAD, an untracked or a changed file, a red governance check, a missing body
-# file, and no arguments. Run by `make test-hooks`.
+# or a detached HEAD, an untracked or a changed file, a red governance check, `risk: yes` with
+# and with no control row, a missing body file, and no arguments. Run by `make test-hooks`.
 set -uo pipefail
 land="$(cd "$(dirname "$0")" && pwd)/land.sh"
 failures=0
@@ -154,6 +154,46 @@ code=$?
 [[ $code -ne 0 ]] || fail 'governance: exit 0'
 grep -q 'the governance check failed' "$c/out" || fail "governance: no reason: $(cat "$c/out")"
 no_side_effects 'governance'
+
+# risk: yes (a file under Sources/DirigibleAudio/) needs a control row in the decisions.tsv of
+# the run folder (the folder of the body file), or a third argument that names the row that says
+# why no control applies. Else the land stops before the checks and the push.
+risk_setup() {
+  setup
+  mkdir -p "$c/work/Sources/DirigibleAudio"
+  echo a > "$c/work/Sources/DirigibleAudio/A.swift"
+  git -C "$c/work" add -A && git -C "$c/work" commit -q -m audio
+  printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-01T01:00\t4\tslice 1\tw\tlogs/s1.log\tdone\n' > "$c/decisions.tsv"
+}
+risk_refused() {
+  [[ $code -ne 0 ]] || fail "$1: exit 0"
+  grep -q "$2" "$c/out" || fail "$1: no '$2' in: $(cat "$c/out")"
+  no_side_effects "$1"
+}
+risk_setup
+rm "$c/decisions.tsv"
+land_in "Add x" "$c/pr.md"
+code=$?
+risk_refused 'risk with no decisions.tsv' 'risk: yes and no decisions.tsv'
+risk_setup
+land_in "Add x" "$c/pr.md"
+code=$?
+risk_refused 'risk with no control row' 'has no control row'
+risk_setup
+land_in "Add x" "$c/pr.md" 2026-10-01T09:99
+code=$?
+risk_refused 'risk with a missing why row' 'no row 2026-10-01T09:99'
+risk_setup
+printf '2026-10-01T02:00\t4\tk1 killed\tw\tcontrols/k1.log\tkilled\n' >> "$c/decisions.tsv"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "risk with a control row: exit $code: $(cat "$c/out")"
+grep -q '^gh pr merge' "$c/log" || fail "risk with a control row: no merge: $(cat "$c/log")"
+risk_setup
+land_in "Add x" "$c/pr.md" 2026-10-01T01:00
+code=$?
+[[ $code -eq 0 ]] || fail "risk with a why row: exit $code: $(cat "$c/out")"
+grep -q '^gh pr merge' "$c/log" || fail "risk with a why row: no merge: $(cat "$c/log")"
 
 # A missing body file refuses before any step.
 setup

@@ -83,6 +83,8 @@ Run the **deslop** skill. Commit the cleanup on its own.
 
 ## Phase 6: Code gate
 
+Before the gate, run `scripts/check-changed.sh origin/main`. When its classes or its risk are higher than in the plan, go back to Phase 2 for the controls and the rounds, and log a row.
+
 Run the **interrogate** skill with target `diff` and the rounds of the class table.
 
 - Fix each "Act on" item in its own commit, a bug fix with its regression test.

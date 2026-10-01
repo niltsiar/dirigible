@@ -107,4 +107,4 @@ Run the **reflect** skill on the branch. Then review the `## Later` headings, an
 
 ## Long autonomous runs
 
-When one session runs several goals or an unattended loop, read `references/long-runs.md` before the first run.
+Read `references/long-runs.md` before a session of several goals or an unattended loop, and during a subagent check.

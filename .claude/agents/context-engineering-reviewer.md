@@ -12,7 +12,7 @@ Read only the rows of the changed files. Pipe the `git diff --name-only` form of
 Check:
 
 - Load tier: each added line loads always (AGENTS.md, a description), per run (a `SKILL.md` body), or on demand (a `references/` file). Name the tier and the words it adds.
-- Budget: `wc -w` of each changed file against its row and its skill total. A rewrite lands at or under 90% of its row.
+- Budget: `wc -w` of each changed file against its row and its skill total. A rewrite sets its row to `wc -w` x 1.1, rounded up to the next 10 (about 9% free).
 - Disclosure: a step that every branch needs stays in `SKILL.md`. Detail that only some branches need goes to `references/`, one level deep.
 - Pointers: `SKILL.md` names each references file by path and says when to read it. A reference over 100 lines starts with a contents list.
 - Duplication: grep a key phrase of each changed rule across `AGENTS.md`, `.claude/skills`, `.claude/agents`, and `docs/principles.md`. One file holds the rule. The others hold a pointer.

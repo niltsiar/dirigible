@@ -21,6 +21,6 @@ Check the diff of the current branch against `main` (`git diff main...HEAD` plus
 
 - Keep behavior unchanged unless fixing a clear bug.
 - Prefer minimal, focused edits over broad rewrites.
-- Run `make check` after the edits. A deslop pass that breaks the build or the tests failed.
+- Run `make check-changed` after the edits.
 - Commit the result as its own `refactor:` or `style:` commit.
-- Keep the final summary concise (1-3 sentences).
+- Keep the final summary to 1-3 sentences.

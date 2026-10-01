@@ -154,6 +154,24 @@ extension TimelineLiveTests {
         await lanes.close()
     }
 
+    /// A draw that does not come from a tick (a new backing scale, a scroll, a refused retry)
+    /// also waits for the session of SwiftUI at the hand-off, so it shows no old clips.
+    @Test func aDrawWithNoTickWaitsForTheSessionAtTheHandOff() async throws {
+        let (lanes, live) = try await stoppedTake()
+        let view = lanes.view
+        try lanes.handOff(seconds: 2, at: 2)
+        let draws = view.lanes.draws
+        view.lanes.needsDisplay = true
+        drawNow(lanes.window)
+        #expect(view.lanes.draws == draws, "a draw with no tick did not wait for the session of SwiftUI")
+
+        lanes.update(peaks: ["take-t1": .computing])
+        drawNow(lanes.window)
+        #expect(view.lanes.draws > draws, "the session of SwiftUI did not draw")
+        #expect(try takePixels(lanes, seconds: 2) == live, "the draw after the session shows the live peaks")
+        await lanes.close()
+    }
+
     @Test func readyPeaksReplaceTheLivePeaks() async throws {
         let (lanes, _) = try await stoppedTake()
         try lanes.handOff(seconds: 2, at: 2)

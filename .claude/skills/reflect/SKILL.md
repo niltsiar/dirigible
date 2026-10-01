@@ -48,7 +48,7 @@ The workflow improves itself without a human in the loop, because each change is
 - Follow the **writing-for-agents** skill for an edit of a skill, an agent, or `AGENTS.md`.
 - Edit repo files only (`.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `docs/`, `Makefile`, `scripts/`), never user-level files under `~/.claude/`.
 - Edit `.claude/hooks/` only when `make test-hooks` covers the change and no existing block case is removed or changed to allow.
-- Commit on the run branch: one commit per changed doc file per run, with its `rules.tsv` rows and the check that replaces its prose. The body names the session moment that caused it.
+- Commit on the run branch: one commit per changed doc file per run, with its `rules.tsv` rows and the check that replaces its prose. The body names the session moment that caused it. With no Accepted item, log `no learnings` in `decisions.tsv` and make no commit.
 - Do not apply an edit that weakens a test gate. Put it in `## Next` of the backlog for the user.
 - Append each Backlog item to `.scratchpads/backlog.md`, in the section that the synthesizer names.
 - Append each Seen once item to `learnings.md` by rule 1, and a line with the date, the key, and the commit hash for each applied learning.

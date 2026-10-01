@@ -20,15 +20,19 @@ if ! COMMAND="$(plutil -extract tool_input.command raw -o - "$input" 2>/dev/null
   block "cannot be checked"
 fi
 
+# Join backslash-newline continuations, as the shell does. Make each run of tabs and spaces
+# one space, so the patterns match `git<TAB>push` and `git  push` too.
+joined="${COMMAND//\\$'\n'/ }"
+NORMALIZED="$(tr -s '\t ' '  ' <<< "$joined")"
 # Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
-NORMALIZED="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$COMMAND")"
+NORMALIZED="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$NORMALIZED")"
 # Put each command of a chain (&&, ||, ;, |) on its own line. grep matches one line at a time,
 # so a pattern cannot match a word of the next command, for example `--base main` of gh.
 NORMALIZED="$(awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' <<< "$NORMALIZED")"
 
 DANGEROUS_PATTERNS=(
   'git push( .*)? (--force|-[a-zA-Z]*f|\+)'
-  "git push .*[ :/'\"]main([ '\"]|\$)"
+  "git push .*[ :/'\"]main([^[:alnum:]_./-]|\$)"
   'git reset --hard'
   'git clean -[a-z]*f'
   'git branch .*(-D|--delete --force|-d -f|-d --force|-f )'
@@ -49,7 +53,6 @@ fi
 
 # A commit in the same command as a make check must run only when the check passed, so only
 # && may join them. After `;`, `||`, a pipe, or a new line, a red check still commits.
-joined="${COMMAND//\\$'\n'/ }"
 if [[ "$joined" =~ make\ check(.*)git\ commit ]] && [[ "${BASH_REMATCH[1]}" =~ [\;\|]|$'\n' ]]; then
   block "runs git commit after make check without && (a red check still commits)"
 fi

@@ -4,8 +4,8 @@
 # Usage: scripts/check-plan.sh <run folder>
 # - analysis.md has a `## Unknowns` table. Each row has an answer and a row cell with a
 #   decisions.tsv time (YYYY-MM-DDTHH:MM). A row with the resolver `split` has a child row (a row
-#   whose parent is its id). The columns are found by the header names id, parent, resolver,
-#   answer, and row. A bar in a cell is written as \|.
+#   whose parent is its id). The columns are id, parent, question, resolver, answer, and row;
+#   the script finds them by the header names. A bar in a cell is written as \|.
 # - plan.md has an `Agents:` line, and each ### heading in its `## Slices` section has a
 #   `- Check:` line.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.

@@ -1,66 +1,69 @@
 ---
 name: reflect
-description: Mine the session for durable learnings with three parallel reviewer subagents, then route each learning to a concrete edit on a repo skill, AGENTS.md, or a structural check. Use when the user says reflect, and as the last step of every deliver run.
+description: Mine the session for durable learnings with three reviewer subagents; log a first occurrence as seen-once, and turn a second one into a skill, AGENTS.md, or check edit. Use when the user says reflect, and as the last step of every deliver run.
 ---
 
 # Reflect
 
-Mine the current session for durable learnings, then route them into edits. This skill is how the workflow of this repo improves itself.
+Mine the current session for durable learnings, then route them into edits. This skill is how the workflow of this repo improves itself. Skip when the session was trivial or when every step followed an existing skill without friction.
 
-## When to invoke
+## Rules
 
-Invoke when the user says "reflect" or "/reflect", and at the end of every deliver run. Skip when the session was trivial or when every step followed an existing skill without friction. One-offs are not learnings.
+The reflect rules of decision 0028:
+
+1. A first occurrence becomes one `seen-once` line in `.scratchpads/learnings.md`, and no skill edit: `- <date> seen-once <run slug> <key>: <learning>`. The cause key is `<ID>/<class>`. The ID is the `docs/workflow/rules.tsv` ID that the learning touches (search the `summary` column), or `NEW-<prefix>-<slug>` for a new rule. The class is from the closed list on the `Failure classes:` line of `references/synthesizer.md`.
+2. `.claude/skills/reflect/scripts/seen.sh <key>` prints the earlier lines of a key. A key match is a candidate until the synthesizer records the earlier line and the shared cause. A second occurrence changes a skill, `AGENTS.md`, or a check. A check or script comes before a sentence: when a lint rule, script, test, hook, or `Makefile` target can enforce the rule, change the proposal to that mechanism, and delete the prose that it replaces. A first occurrence that lost data or user input, or destroyed a file outside the repo, counts as a second one (reason in the commit body).
+3. A new rule replaces or merges text in the same section, within the row of its file in `docs/workflow/budgets.tsv`. Else the item goes to `## Later` of the backlog. A row goes up only in a commit that names a `decisions.tsv` row.
+4. Each rule change updates `docs/workflow/rules.tsv` in the same commit: a `new` row with the source run and the key, or a changed verdict with the run in the reason. The commit body names the run and the earlier learnings line.
+5. The lens panel reviews the diff of the reflect commits once per reflect run, before the merge (step 5).
+6. Each reflect commit runs `make check-changed`, joined to `git commit` with `&&`.
+7. A reflect run removes at most one rule. A duplicate line gets a `merge` row whose target is the kept ID. A stale or no-op line gets a `delete` row whose reason gives the evidence. Skip it when no line qualifies. This is the only removal rule; other docs point here.
+8. When a change deletes, merges, or moves a rule, run once each scenario of `docs/workflow/evals.md` whose `files` column names a changed file.
 
 ## Process
 
 ### 1. Locate the session transcript
 
-Claude Code stores transcripts at `~/.claude/projects/<project-slug>/<session-id>.jsonl`. The project slug is the absolute repo path with every character that is not a letter or a digit replaced by `-`. Only read the transcript of this project. Do not glob across other project folders. That reads private chats from unrelated work.
+Transcripts are at `~/.claude/projects/<project-slug>/<session-id>.jsonl`; the slug is the repo path with each character that is not a letter or a digit replaced by `-`. Read only the transcript of this project: a glob across other project folders reads private chats from unrelated work.
 
 ```bash
 slug="$(git rev-parse --show-toplevel | sed 's/[^A-Za-z0-9]/-/g')"
 ls -t ~/.claude/projects/"$slug"/*.jsonl | head -3
 ```
 
-Take the newest file whose first user message matches this session. If no path resolves, write a tight digest of the session and pass that instead. Also pass the run ledger (`.scratchpads/runs/<run>/`), which records decisions and review verdicts.
+Take the newest file whose first user message matches this session; if none resolves, pass a tight digest. Also pass the run ledger (`.scratchpads/runs/<run>/`): it records decisions and review verdicts.
 
 ### 2. Spawn three reviewers in parallel
 
-One message, three `Agent` calls with `subagent_type: general-purpose`. Use different models where possible to get different angles.
-
-| Lens | `model` | Prompt template |
-|---|---|---|
-| Judgment | `opus` | `references/judgment-reviewer.md` |
-| Tooling | `sonnet` | `references/tooling-reviewer.md` |
-| Divergent | `opus` | `references/divergent-reviewer.md` |
-
-Pass each template verbatim, with the transcript path or digest where marked. Reviewers return findings in their final message.
+In one message, make three `Agent` calls (`general-purpose`), one per template: `references/judgment-reviewer.md` (`opus`), `references/tooling-reviewer.md` (`sonnet`), and `references/divergent-reviewer.md` (`opus`). Different models give different angles. Pass each template verbatim, with the transcript path or digest where marked.
 
 ### 3. Synthesize
 
-One `Agent` call, `subagent_type: general-purpose`, `model: opus`. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns an Accepted, Rejected, and Backlog list.
+Run `.claude/skills/reflect/scripts/seen.sh <key>` for each key, and `grep -n seen-once .scratchpads/learnings.md`. Read `references/synthesizer.md` when you start the synthesis: pass it verbatim to one `Agent` call (`general-purpose`, `opus`), with the reviewer outputs and that output where marked. It returns the Accepted, Seen once, Rejected, and Backlog lists.
 
-### 4. Structural enforcement check
+### 4. Apply
 
-For each Accepted item that a lint rule, script, test, or `Makefile` target would enforce more reliably, change the proposal to that mechanism. See the **encode-lessons-in-structure** principle in `docs/principles.md`. A mechanism beats a sentence.
+The workflow improves itself without a human in the loop, because each change is a commit that a human can read and revert. If the user asked for a checkpoint, show the Accepted list first and wait for approval.
 
-### 5. Apply
+- Follow the **writing-for-agents** skill for an edit of a skill, an agent, or `AGENTS.md`.
+- Edit repo files only (`.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `docs/`, `Makefile`, `scripts/`), never user-level files under `~/.claude/`.
+- Edit `.claude/hooks/` only when `make test-hooks` covers the change and no existing block case is removed or changed to allow.
+- Commit on the run branch: one commit per changed doc file per run, with its `rules.tsv` rows and the check that replaces its prose. The body names the session moment that caused it.
+- Do not apply an edit that weakens a test gate. Put it in `## Next` of the backlog for the user.
+- Append each Backlog item to `.scratchpads/backlog.md`, in the section that the synthesizer names.
+- Append each Seen once item to `learnings.md` by rule 1, and a line with the date, the key, and the commit hash for each applied learning.
 
-This repo allows the workflow to improve itself without a human in the loop, because every change is a git commit that a human can read and revert.
+### 5. Review the reflect diff
 
-- Follow the **writing-for-agents** skill when an edit touches a skill, an agent, or `AGENTS.md`.
-- Apply each Accepted edit to repo files only: `.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `docs/`, `Makefile`, `scripts/`. Never edit user-level files under `~/.claude/`.
-- Edit `.claude/hooks/` only when `make test-hooks` covers the change and no existing block case is removed or changed to allow. When one class of hook false positive is in `learnings.md` twice, fix the hook with a test case. Do not add another workaround line.
-- Commit each learning as its own commit, for example `docs(skills): tdd requires tolerance on DSP asserts`. The body says which session moment caused it.
-- Do not apply an edit that deletes a rule from `AGENTS.md` or weakens a test gate. Put it in the backlog for the user.
-- Append Backlog items to `.scratchpads/backlog.md`.
-- Append one line per applied learning to `.scratchpads/learnings.md` with the date and the commit hash.
+Do this once, after the last reflect commit and before the merge, when the run made a commit.
 
-If the user is present and asked for a checkpoint, show the Accepted list first and wait for approval.
+1. Run `make check-changed BASE=<base>`, where `<base>` is the parent of the first reflect commit. Its `classes:` line picks the lenses.
+2. Run the `review-panel` workflow on that diff (`target: "diff"`, `scope: "<base>"`, `maxRounds: 2`), with the lenses and `paths` of Step 3 of the **interrogate** skill: the five doc lenses for `AGENTS.md`, `.claude/skills`, `.claude/agents`, and `docs/workflow`; `code-quality` for scripts, hooks, the `Makefile`, and `.claude/workflows`. Pass `scriptPath` when `review-panel.js` changed in this session.
+3. Judge round 1 and run the fix check. Each Act on finding gets a fix commit or a revert commit before the merge.
 
 ### 6. Summarize
 
-Short list, no preamble:
+Write the agent count of the reflect run (reviewers, synthesizer, panel) in the Result cell of the run line in `.scratchpads/ledger.md`. Put the summary in the pull request body, so the user reviews each reflect commit. Short list, no preamble:
 
 - Edits applied: `<path>` and commit hash, one line each.
 - Backlog: one line each.

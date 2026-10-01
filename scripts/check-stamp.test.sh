@@ -1,0 +1,113 @@
+#!/bin/bash
+# Check that check-stamp.sh appends a stamp line only for a passing check with a base on a clean
+# tree whose HEAD did not move, and that the reader gives the newest line with the base commit
+# and an ancestor commit, or the reason that no line is usable. Run by `make test-hooks`.
+set -uo pipefail
+stamp_sh="$(cd "$(dirname "$0")" && pwd)/check-stamp.sh"
+failures=0
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
+
+g() { git -C "$tmp/r" "$@"; }
+# A repo with a commit on main and one commit on the branch feat/x.
+new_repo() {
+  rm -rf "$tmp/r"
+  mkdir -p "$tmp/r"
+  g init -q -b main
+  echo a > "$tmp/r/a.txt"
+  g add -A && g commit -q -m base
+  g switch -q -c feat/x
+  echo b > "$tmp/r/b.txt"
+  g add -A && g commit -q -m b
+  file="$tmp/r/$(g rev-parse --git-path dirigible-check-stamp)"
+}
+st() { (cd "$tmp/r" && "$stamp_sh" "$@"); }
+lines() { if [[ -f "$file" ]]; then wc -l < "$file" | tr -d ' '; else echo 0; fi; }
+
+# Write on a clean tree: one line with the commit, its tree, the base commit, and the targets.
+new_repo
+head="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+out="$(st write "$head" clean "$main" check test-slow)" || fail "clean write: exit $?"
+want="$head $(g rev-parse 'HEAD^{tree}') $main check test-slow"
+[[ "$(cat "$file" 2>/dev/null)" == "$want" ]] || fail "clean write: got [$(cat "$file" 2>/dev/null)], want [$want]"
+[[ "$out" == "check-stamp: wrote $head" ]] || fail "clean write: output [$out]"
+got="$(st read main)" || fail "clean read: exit $?"
+[[ "$got" == "$head check test-slow" ]] || fail "clean read: got [$got]"
+
+# A dirty tree at the start, a changed file or an untracked file at the end: no line.
+new_repo
+head="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+out="$(st write "$head" dirty "$main" check)" || fail "dirty at the start: exit $?"
+[[ "$(lines)" == 0 ]] || fail 'dirty at the start: a line was written'
+[[ "$out" == *"no stamp (the tree was dirty)"* ]] || fail "dirty at the start: output [$out]"
+echo b2 > "$tmp/r/b.txt"
+st write "$head" clean "$main" check > /dev/null || fail "changed file: exit $?"
+[[ "$(lines)" == 0 ]] || fail 'changed file: a line was written'
+g checkout -q -- b.txt
+echo u > "$tmp/r/u.txt"
+out="$(st write "$head" clean "$main" check)"
+[[ "$(lines)" == 0 ]] || fail 'untracked file: a line was written'
+[[ "$out" == *"no stamp (the tree is dirty)"* ]] || fail "untracked file: output [$out]"
+
+# HEAD moved during the check: no line.
+new_repo
+head="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+g commit -q --allow-empty -m moved
+out="$(st write "$head" clean "$main" check)" || fail "HEAD moved: exit $?"
+[[ "$(lines)" == 0 ]] || fail 'HEAD moved: a line was written'
+[[ "$out" == *"no stamp (HEAD moved)"* ]] || fail "HEAD moved: output [$out]"
+
+# No base: no line.
+new_repo
+out="$(st write "$(g rev-parse HEAD)" clean none check)" || fail "no base: exit $?"
+[[ "$(lines)" == 0 ]] || fail 'no base: a line was written'
+[[ "$out" == *"no stamp (no base)"* ]] || fail "no base: output [$out]"
+
+# Two lines: a later line with another base (the reflect check) does not hide the usable line,
+# and the file keeps both lines (append-only).
+new_repo
+first="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+st write "$first" clean "$main" check test-slow > /dev/null
+echo c > "$tmp/r/c.txt"
+g add -A && g commit -q -m reflect
+second="$(g rev-parse HEAD)"
+st write "$second" clean "$first" check-docs > /dev/null
+[[ "$(lines)" == 2 ]] || fail "two lines: the file has $(lines) lines"
+got="$(st read main)" || fail "two lines: exit $?"
+[[ "$got" == "$first check test-slow" ]] || fail "two lines: got [$got]"
+# The newest line with the base wins.
+st write "$second" clean "$main" check > /dev/null
+got="$(st read main)" || fail "newest line: exit $?"
+[[ "$got" == "$second check" ]] || fail "newest line: got [$got]"
+
+# The reader gives the reason when no line is usable, with exit 1.
+read_refused() {
+  local name="$1" reason="$2" got code
+  got="$(st read main)"
+  code=$?
+  [[ $code -eq 1 ]] || fail "$name: expected exit 1, got $code"
+  [[ "$got" == "$reason" ]] || fail "$name: got [$got], want [$reason]"
+}
+new_repo
+read_refused 'no stamp' 'no stamp'
+st write "$(g rev-parse HEAD)" clean "$(g rev-parse HEAD)" check > /dev/null
+read_refused 'base moved' 'base moved'
+# A stamp of a commit that is not in HEAD (the commit before a rebase).
+new_repo
+g switch -q -c side
+g commit -q --allow-empty -m side
+st write "$(g rev-parse HEAD)" clean "$(g rev-parse main)" check > /dev/null
+g switch -q feat/x
+read_refused 'not an ancestor' 'not an ancestor'
+
+# A bad base or a bad mode exits nonzero.
+new_repo
+st read does-not-exist > /dev/null 2>&1 && fail 'read with a bad base exits 0'
+st other > /dev/null 2>&1 && fail 'a bad mode exits 0'
+
+[[ $failures -eq 0 ]] && echo "check-stamp tests: all passed"
+exit $((failures > 0))

@@ -81,6 +81,15 @@ expect allow $'make check > log 2>&1 \\\n  && git commit -m "x"'
 # The regex matches make check as a prefix, so make check-changed gets the same rule.
 expect block 'make check-changed; git commit -m "x"'
 expect allow 'make check-changed > log 2>&1 && git commit -m "x"'
+# The inner-commit check of a slice: FILTER is test names with spaces between them.
+expect allow "make check-changed FILTER='ClipTests TrackTests' > log 2>&1 && git commit -F m.txt"
+# Only the check-changed recipe writes the pass stamp. A direct write skips the land check.
+expect block 'echo abc >> .git/dirigible-check-stamp'
+expect block 'cp x "$(git rev-parse --git-path dirigible-check-stamp)"'
+expect block 'scripts/check-stamp.sh write abc clean def check'
+expect block 'bash scripts/check-stamp.sh  write abc clean def check'
+expect allow 'scripts/check-stamp.sh read origin/main'
+expect allow 'scripts/check-stamp.test.sh'
 
 # A quoted main is the same push to main.
 expect block "git push origin 'main'"

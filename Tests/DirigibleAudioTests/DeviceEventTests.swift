@@ -19,6 +19,8 @@ final class ReportLog: @unchecked Sendable {
             }
         }
     }
+    /// Every report, in order.
+    var all: [Report] { lock.withLock { reports } }
     func states(arm: Int) -> [LiveTrack.State] { lock.withLock { reports.compactMap { $0.state(arm: arm) }.map(\.0) } }
     func statuses(arm: Int) -> [Int32?] { lock.withLock { reports.compactMap { $0.state(arm: arm) }.map(\.1) } }
 }
@@ -424,5 +426,17 @@ extension Report {
     func state(arm: Int) -> (LiveTrack.State, Int32?)? {
         guard case .state(_, arm, let state, let status) = self else { return nil }
         return (state, status)
+    }
+
+    /// The level of each arm of a `.levels` report. Nil for a `.state` report.
+    var arms: [Int: ArmLevel]? {
+        guard case .levels(_, let arms, _, _) = self else { return nil }
+        return arms
+    }
+
+    /// The device latency in nanoseconds of a `.levels` report. Nil for a `.state` report.
+    var latencyNanos: Int64? {
+        guard case .levels(_, _, let latency, _) = self else { return nil }
+        return latency
     }
 }

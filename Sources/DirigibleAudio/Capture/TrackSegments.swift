@@ -30,6 +30,16 @@ struct TrackSegments {
         var checkpointed: Int64?
         /// The device frame of the last write or open error. Nil when the track has no error.
         var failedAt: Int64?
+        /// The largest absolute sample and the largest 256-frame block RMS since the last
+        /// `takeLevels`. A track with a write error still gets them: the device is alive.
+        var peak: Float = 0
+        var rms: Float = 0
+        /// The raw host nanoseconds of the frames that `writer` wrote since the last
+        /// `takeLevels`. The bounds stay apart until `takeLevels`, so no `Range` traps.
+        var written: (start: UInt64, end: UInt64)?
+        /// True after a write error since the last `takeLevels`. Then the frames of a reopen
+        /// in the same drain get no span, so the span holds no gap.
+        var spanStopped = false
     }
 
     /// Nil for a monitor.
@@ -46,9 +56,6 @@ struct TrackSegments {
     private var deviceFrames: Int64 = 0
     /// The cause of the first gap of each arm.
     var gaps: [Int: TakeResult.Gap] = [:]
-    /// The largest absolute sample of each arm since the last `takePeaks`. A track with a write
-    /// error still gets its peak: the device is alive.
-    private var peaks: [Int: Float] = [:]
 
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?,
@@ -119,12 +126,17 @@ struct TrackSegments {
         if segment == nil { open(at: record) }
         guard var current = segment else { return true }
 
-        // A forward jump of 2 s or less gets silence.
+        // A forward jump of 2 s or less gets silence. The file holds the silence, so the span
+        // takes it too.
         let gap = Int((record.sampleTime - current.nextSampleTime).rounded())
         if gap > 0 {
+            let silenceStart = record.hostTimeNanos &- Self.nanoseconds(frames: gap, rate: current.rate)
             for index in outputs.indices {
                 let silence = [Float](repeating: 0, count: gap * outputs[index].sources.count)
-                write(index) { writer in try silence.withUnsafeBufferPointer { try writer.write($0, frames: gap) } }
+                let filled = write(index) { writer in
+                    try silence.withUnsafeBufferPointer { try writer.write($0, frames: gap) }
+                }
+                if filled { extend(index, from: silenceStart, to: record.hostTimeNanos) }
             }
             current.fileFrame += Int64(gap)
             deviceFrames += Int64(gap)
@@ -146,11 +158,13 @@ struct TrackSegments {
         }
         while current.nextCheckpoint <= current.fileFrame { current.nextCheckpoint += second }
         current.last = checkpoint
+        let end = record.hostTimeNanos &+ Self.nanoseconds(frames: record.frameCount, rate: record.nominalRate)
         for index in outputs.indices {
             let samples = samples(index, of: record)
-            write(index) { writer in
+            let wrote = write(index) { writer in
                 try samples.withUnsafeBufferPointer { try writer.write($0, frames: record.frameCount) }
             }
+            if wrote { extend(index, from: record.hostTimeNanos, to: end) }
         }
         current.fileFrame += Int64(record.frameCount)
         deviceFrames += Int64(record.frameCount)
@@ -165,7 +179,7 @@ struct TrackSegments {
     }
 
     /// The interleaved samples of the track of output `index` in `record`. It also takes them into
-    /// the peak of the arm.
+    /// the peak and the RMS of the arm.
     private mutating func samples(_ index: Int, of record: InputRecord) -> [Float] {
         let sources = outputs[index].sources
         var samples = [Float](repeating: 0, count: record.frameCount * sources.count)
@@ -176,15 +190,60 @@ struct TrackSegments {
                 samples[frame * sources.count + position] = buffer[frame * width + source.channel]
             }
         }
-        let arm = outputs[index].arm
-        peaks[arm] = samples.reduce(peaks[arm] ?? 0) { max($0, abs($1)) }
+        outputs[index].peak = samples.reduce(outputs[index].peak) { max($0, abs($1)) }
+        // The block of level 0 of `Peaks`.
+        let block = 256 * sources.count
+        for start in stride(from: 0, to: samples.count, by: block) {
+            let part = samples[start..<min(start + block, samples.count)]
+            let rms = (part.reduce(0) { $0 + $1 * $1 } / Float(part.count)).squareRoot()
+            outputs[index].rms = max(outputs[index].rms, rms)
+        }
         return samples
     }
 
-    /// The peak of each arm since the last call, 0 for an arm with no samples, and a new start.
-    mutating func takePeaks() -> [Int: Float] {
-        defer { peaks = [:] }
-        return Dictionary(uniqueKeysWithValues: outputs.map { ($0.arm, peaks[$0.arm] ?? 0) })
+    /// The nanoseconds of `frames` at `rate`.
+    private static func nanoseconds(frames: Int, rate: Double) -> UInt64 {
+        UInt64((Double(frames) * 1e9 / rate).rounded())
+    }
+
+    /// Adds the host span `start..<end`, which the writer of output `index` wrote, to the span of
+    /// its arm. The span keeps the smallest start and the largest end by the signed
+    /// `nanos(from:to:)`, so the order of the host times does not matter.
+    private mutating func extend(_ index: Int, from start: UInt64, to end: UInt64) {
+        guard !outputs[index].spanStopped else { return }
+        guard let span = outputs[index].written else {
+            outputs[index].written = (start, end)
+            return
+        }
+        outputs[index].written = (
+            nanos(from: span.start, to: start) < 0 ? start : span.start,
+            nanos(from: span.end, to: end) > 0 ? end : span.end
+        )
+    }
+
+    /// The device latency in nanoseconds at the nominal rate. It is signed and holds no host time.
+    var latencyNanos: Int64 { Int64((Double(device.latency) * 1e9 / device.nominalRate).rounded()) }
+
+    /// The level of each arm since the last call, and a new start.
+    mutating func takeLevels() -> [Int: ArmLevel] {
+        defer {
+            for index in outputs.indices {
+                outputs[index].peak = 0
+                outputs[index].rms = 0
+                outputs[index].written = nil
+                outputs[index].spanStopped = false
+            }
+        }
+        return Dictionary(
+            uniqueKeysWithValues: outputs.map {
+                ($0.arm, ArmLevel(peak: $0.peak, rms: $0.rms, written: Self.range($0.written)))
+            })
+    }
+
+    /// Nil when there is no span or its end is not after its start, so no `Range` traps.
+    private static func range(_ span: (start: UInt64, end: UInt64)?) -> Range<UInt64>? {
+        guard let span, span.end > span.start else { return nil }
+        return span.start..<span.end
     }
 
     /// Opens a segment for every track that has no error. A track with an error waits for its
@@ -261,14 +320,17 @@ struct TrackSegments {
     }
 
     /// Runs `body` on the segment of output `index`. A write error closes that segment; the
-    /// frames on disk stay.
-    private mutating func write(_ index: Int, _ body: (SegmentWriter) throws -> Void) {
-        guard let writer = outputs[index].writer else { return }
+    /// frames on disk stay. True when `body` ran with no error.
+    @discardableResult
+    private mutating func write(_ index: Int, _ body: (SegmentWriter) throws -> Void) -> Bool {
+        guard let writer = outputs[index].writer else { return false }
         do {
             try body(writer)
+            return true
         } catch {
             try? writer.close()
             fail(index, status: (error as? CaptureError)?.status ?? 0)
+            return false
         }
     }
 
@@ -277,6 +339,7 @@ struct TrackSegments {
     private mutating func fail(_ index: Int, status: Int32) {
         outputs[index].writer = nil
         outputs[index].failedAt = deviceFrames
+        outputs[index].spanStopped = true
         let arm = outputs[index].arm
         gaps[arm] = gaps[arm] ?? .writeFailed
         report(.state(take: take, arm: arm, .writeFailed, status: status))

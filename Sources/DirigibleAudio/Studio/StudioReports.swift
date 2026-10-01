@@ -16,10 +16,10 @@ extension Studio {
             guard transport == .recording(take: take), armed.indices.contains(arm - 1) else { return }
             liveTracks[armed[arm - 1].id]?.state = state
             if state == .deviceLost { liveTracks[armed[arm - 1].id]?.peak = 0 }
-        case .levels(let take, let peaks, let droppedFrames):
+        case .levels(let take, let arms, _, let droppedFrames):
             guard transport == .recording(take: take) else { return }
-            for (arm, peak) in peaks where armed.indices.contains(arm - 1) {
-                liveTracks[armed[arm - 1].id]?.peak = peak
+            for (arm, level) in arms where armed.indices.contains(arm - 1) {
+                liveTracks[armed[arm - 1].id]?.peak = level.peak
                 liveTracks[armed[arm - 1].id]?.droppedFrames = droppedFrames
             }
         }
@@ -42,9 +42,9 @@ extension Studio {
             let id = monitor.tracks[arm - 1].id
             liveTracks[id]?.state = state == .recording ? .monitoring : state
             if state == .deviceLost || state == .retryStopped { liveTracks[id]?.peak = 0 }
-        case .levels(_, let peaks, let droppedFrames):
-            for (arm, peak) in peaks where monitor.tracks.indices.contains(arm - 1) {
-                liveTracks[monitor.tracks[arm - 1].id]?.peak = peak
+        case .levels(_, let arms, _, let droppedFrames):
+            for (arm, level) in arms where monitor.tracks.indices.contains(arm - 1) {
+                liveTracks[monitor.tracks[arm - 1].id]?.peak = level.peak
                 liveTracks[monitor.tracks[arm - 1].id]?.droppedFrames = droppedFrames
             }
         }

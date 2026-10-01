@@ -14,6 +14,7 @@
 
 - Capture one window, never the whole screen: a full-screen capture records private content.
 - For a window of another process (the Gatekeeper dialog of `CoreServicesUIAgent`, Finder), use `scripts/screenshot.sh --owner <process>`. Read its text and button names with `osascript -e 'tell application "System Events" to get entire contents of window 1 of process "<process>"'`. Close it with the button that changes nothing, by its name.
+- A privacy prompt of the verify copy (`UserNotificationCenter`) needs Allow: press it by name with a System Events `click button`. After the check, run `tccutil reset <service> <copy bundle ID>`.
 - A layer read or an offscreen render (`layer.render(in:)`, `cacheDisplay`) does not show what the window server composites, so it cannot prove a redraw or pixel claim. Prove such a claim with a screenshot of the built app after the real gesture.
 - When the change keeps old pixels (a dirty rect, a redraw policy), also compare that screenshot with one after a forced full redraw of the same state.
 - A renderer adds soft pixels (a drop shadow, antialiasing), so a pixel criterion states its alpha threshold.

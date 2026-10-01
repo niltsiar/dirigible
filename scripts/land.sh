@@ -1,16 +1,17 @@
 #!/bin/bash
 # Land the run branch through a pull request (deliver Phase 9).
 # Usage: scripts/land.sh <title> <body-file> [<decisions.tsv time>]
-# It refuses a working tree with changes, because the checks build the working tree and the
-# push sends only the commits. It rebases on origin/main, runs check-governance.sh with the run
-# folder of the body file, and with `risk: yes` from check-changed.sh it needs a control row in
-# the decisions.tsv of that folder: phase 2 or 4, with a log under controls/. The third argument
-# names the row that says why no control applies. Then it runs the checks: none when the pass
-# stamp of check-stamp.sh has HEAD, the targets of the delta when the stamp has an ancestor of
-# HEAD, else `make check-changed BASE=origin/main`. It prints the stamp line. Then it pushes the
-# branch, creates the pull request, refuses the merge when origin/main moved after the checks,
-# merges with a rebase, and updates main. It stops at the first failure and never force-pushes.
-# It prints the PR URL and the commit range on main. scripts/land.test.sh tests it.
+# It refuses a working tree with changes, because the checks build the working tree and the push
+# sends only the commits. It rebases on origin/main (on a conflict, it aborts the rebase and
+# stops), runs check-governance.sh with the run folder of the body file, and with `risk: yes` from
+# check-changed.sh it needs a control row in the decisions.tsv of that folder: phase 2 or 4, with
+# a log under controls/. The third argument names the row that says why no control applies. Then
+# it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
+# delta when the stamp has an ancestor of HEAD, else `make check-changed BASE=origin/main`. It
+# prints the stamp line. Then it pushes the branch, creates the pull request, refuses the merge
+# when origin/main moved after the checks, merges with a rebase, and updates main. It stops at the
+# first failure and never force-pushes. It prints the PR URL and the commit range on main.
+# scripts/land.test.sh tests it.
 set -euo pipefail
 
 die() { echo "land.sh: $1" >&2; exit 1; }
@@ -28,7 +29,10 @@ branch="$(git branch --show-current)"
 [[ -z "$(git status --porcelain)" ]] ||
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"
 git fetch origin
-git rebase origin/main || die "the rebase on origin/main stopped; resolve the conflict with a rebase on a fresh branch"
+if ! git rebase origin/main; then
+    git rebase --abort
+    die "the rebase on origin/main stopped on a conflict; the rebase is aborted, so the branch is as before; resolve the conflict with a rebase on a fresh branch"
+fi
 "$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
 out="$("$here/check-changed.sh" origin/main)" || die "check-changed.sh origin/main failed; nothing is pushed"
 if [[ "$(sed -n 's/^risk: //p' <<<"$out")" == yes ]]; then

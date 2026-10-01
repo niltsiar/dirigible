@@ -1,13 +1,15 @@
 #!/bin/bash
 # Check that check-stamp.sh appends a stamp line only for a passing check with a base on a clean
-# tree whose HEAD did not move, and that the reader gives the newest line with the base commit
-# and an ancestor commit, or the reason that no line is usable. Run by `make test-hooks`.
+# tree whose HEAD did not move, and not when make runs with -n, -t, -i, or -q. Check that the
+# reader gives the newest line with the base commit and an ancestor commit, or the reason that no
+# line is usable. Run by `make test-hooks`.
 set -uo pipefail
 stamp_sh="$(cd "$(dirname "$0")" && pwd)/check-stamp.sh"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+# A git or make value of an outer run (make test-hooks) must not reach the cases.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
@@ -28,11 +30,11 @@ new_repo() {
 st() { (cd "$tmp/r" && "$stamp_sh" "$@"); }
 lines() { if [[ -f "$file" ]]; then wc -l < "$file" | tr -d ' '; else echo 0; fi; }
 
-# Write on a clean tree: one line with the commit, its tree, the base commit, and the targets.
+# Write on a clean tree: one line with the commit, the base commit, and the targets.
 new_repo
 head="$(g rev-parse HEAD)" main="$(g rev-parse main)"
 out="$(st write "$head" clean "$main" check test-slow)" || fail "clean write: exit $?"
-want="$head $(g rev-parse 'HEAD^{tree}') $main check test-slow"
+want="$head $main check test-slow"
 [[ "$(cat "$file" 2>/dev/null)" == "$want" ]] || fail "clean write: got [$(cat "$file" 2>/dev/null)], want [$want]"
 [[ "$out" == "check-stamp: wrote $head" ]] || fail "clean write: output [$out]"
 got="$(st read main)" || fail "clean read: exit $?"
@@ -66,6 +68,34 @@ new_repo
 out="$(st write "$(g rev-parse HEAD)" clean none check)" || fail "no base: exit $?"
 [[ "$(lines)" == 0 ]] || fail 'no base: a line was written'
 [[ "$out" == *"no stamp (no base)"* ]] || fail "no base: output [$out]"
+
+# Make with -n, -t, -i, or -q runs the recipe line of $(MAKE) but not the checks: no line. The
+# first word of MAKEFLAGS has the short flags; a variable word (BASE=origin/main) has an n too.
+new_repo
+head="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+for flags in 'n -- BASE=main' 't -- BASE=main' 'i -- BASE=main' 'q' 'sn -- BASE=main'; do
+  out="$(MAKEFLAGS="$flags" st write "$head" clean "$main" check)" || fail "MAKEFLAGS [$flags]: exit $?"
+  [[ "$(lines)" == 0 ]] || fail "MAKEFLAGS [$flags]: a line was written"
+  [[ "$out" == *"no stamp (make ran with -n, -t, -i, or -q)"* ]] || fail "MAKEFLAGS [$flags]: output [$out]"
+done
+for flags in 'BASE=main FILTER=x' 's -- BASE=main' ' --no-print-directory -- BASE=main'; do
+  rm -f "$file"
+  MAKEFLAGS="$flags" st write "$head" clean "$main" check > /dev/null || fail "MAKEFLAGS [$flags]: exit $?"
+  [[ "$(lines)" == 1 ]] || fail "MAKEFLAGS [$flags]: no line was written"
+done
+# The real recipe under make -n: a stub check-changed.sh gives the target stub-ok.
+new_repo
+mkdir -p "$tmp/r/scripts"
+cp "$(dirname "$stamp_sh")/../Makefile" "$tmp/r/Makefile"
+printf '\nstub-ok:\n\t@echo stub-ok ran\n' >> "$tmp/r/Makefile"
+printf '#!/bin/bash\nprintf "classes: docs\\ntargets: stub-ok\\nrisk: no\\n"\n' > "$tmp/r/scripts/check-changed.sh"
+cp "$stamp_sh" "$tmp/r/scripts/check-stamp.sh"
+chmod +x "$tmp/r/scripts/check-changed.sh"
+g add -A && g commit -q -m make
+(cd "$tmp/r" && make -n check-changed BASE=main) > "$tmp/make.out" 2>&1 || fail "make -n check-changed: exit $?: $(cat "$tmp/make.out")"
+[[ "$(lines)" == 0 ]] || fail "make -n check-changed: a line was written: $(cat "$tmp/make.out")"
+(cd "$tmp/r" && make -s check-changed BASE=main) > "$tmp/make.out" 2>&1 || fail "make check-changed: exit $?: $(cat "$tmp/make.out")"
+[[ "$(lines)" == 1 ]] || fail "make check-changed: no line was written: $(cat "$tmp/make.out")"
 
 # Two lines: a later line with another base (the reflect check) does not hide the usable line,
 # and the file keeps both lines (append-only).

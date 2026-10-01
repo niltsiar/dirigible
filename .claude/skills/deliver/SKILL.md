@@ -103,7 +103,7 @@ Run the **reflect** skill on the branch. With no friction, it logs "no learnings
 ## Phase 9: Land through a pull request
 
 1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`: its checks can take longer than one foreground call. It stops at the first failure. Read its output for the `pr:` and `range:` lines.
-2. If the merge fails, record the conflict in `run.md` and use the **resolving-merge-conflicts** skill on a fresh branch. Leave a leftover local branch after the merge, and record it in `run.md`.
+2. If the land stops on a conflict, record it in `run.md`, and resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge, and record it in `run.md`.
 3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 
 ## Long autonomous runs

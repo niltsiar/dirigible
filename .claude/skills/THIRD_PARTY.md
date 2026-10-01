@@ -24,7 +24,6 @@ More skills come from `mattpocock/skills` (https://github.com/mattpocock/skills,
 | `domain-modeling` | `skills/engineering/domain-modeling` | Matt Pocock |
 | `pr` | `skills/in-progress/pr` (see `pr/CREDITS.md`) | Matt Pocock |
 | `research` | `skills/engineering/research` | Matt Pocock |
-| `resolving-merge-conflicts` | `skills/engineering/resolving-merge-conflicts` | Matt Pocock |
 | `writing-for-agents` | `skills/productivity/writing-for-agents` | Matt Pocock |
 | `.claude/hooks/git-guardrails.sh` | `skills/misc/git-guardrails-claude-code/scripts/block-dangerous-git.sh` | Matt Pocock |
 

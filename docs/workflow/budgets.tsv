@@ -44,8 +44,6 @@ path	words	decision
 .claude/skills/reflect/references/tooling-reviewer.md	660	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/research/	347	baseline
 .claude/skills/research/SKILL.md	347	baseline
-.claude/skills/resolving-merge-conflicts/	122	baseline
-.claude/skills/resolving-merge-conflicts/SKILL.md	122	baseline
 .claude/skills/tdd/	3050	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/tdd/SKILL.md	890	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/tdd/references/flake-triage.md	780	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)

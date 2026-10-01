@@ -21,6 +21,9 @@ final class TimelineRuler: NSRulerView {
     var inputs: RulerInputs? {
         didSet { if inputs != oldValue { needsDisplay = true } }
     }
+    /// The draws and the rect of the last draw, for the ruler guard of a page turn (live take G5).
+    private(set) var draws = 0
+    private(set) var drawnRect = NSRect.zero
 
     init(model: SessionWindow) {
         self.model = model
@@ -39,6 +42,7 @@ final class TimelineRuler: NSRulerView {
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let inputs, let visible = (scrollView as? TimelineScrollView)?.shown else { return }
+        (draws, drawnRect) = (draws + 1, rect)
         // The ruler is as wide as the window, also over the track headers. It draws only over the
         // lanes in view, so the times under the headers do not show there (timeline-scroll symptom 2).
         NSGraphicsContext.saveGraphicsState()

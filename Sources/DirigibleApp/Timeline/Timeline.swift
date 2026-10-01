@@ -54,8 +54,8 @@ struct TimelineState {
     var scale = TimelineScale(framesPerPoint: 512)
     /// Automatic Scroll: on at open.
     var follows = true
-    /// A user scroll during play: no page turn until the playhead is in view again, a seek, or a
-    /// play start.
+    /// A user scroll during play or a take: no page turn until the head is in view again, a seek,
+    /// a play start, or a take start.
     var followHeld = false
     /// Nil before the first layout.
     var visible: TimelineVisible?
@@ -70,7 +70,7 @@ struct TimelineState {
     /// The rename alert: open while not nil.
     var renaming: MarkerRename?
 
-    /// A display tick or a seek during play: the new origin, or nil.
+    /// A display tick during play or a take, or a seek: the new origin, or nil.
     mutating func follow(playhead: Frames, origin: Double, frames: Double, direction: Shuttle.Direction) -> Double? {
         if followHeld {
             let at = Double(playhead.count) - origin

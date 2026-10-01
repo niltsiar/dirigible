@@ -116,6 +116,15 @@ import Testing
     func take(
         armed: [TrackID] = ["t1"], onScreen: Bool = false, _ build: (inout Session) throws -> Void = { _ in }
     ) async throws -> Lanes {
+        try await Self.take(in: folder, app: app, armed: armed, onScreen: onScreen, build)
+    }
+
+    /// The fixture of `take` for other suites. With `ticks` false, the test gives the first tick,
+    /// so its first tick with `taking` is a take start.
+    static func take(
+        in folder: TemporaryFolder, app: AppDelegate, armed: [TrackID] = ["t1"], onScreen: Bool = false,
+        ticks: Bool = true, _ build: (inout Session) throws -> Void = { _ in }
+    ) async throws -> Lanes {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 1, seconds: 1), app: app)
         let url = studio.url
@@ -139,7 +148,7 @@ import Testing
         studio.liveTracks = Dictionary(
             uniqueKeysWithValues: armed.map { ($0, LiveTrack(state: .recording, droppedFrames: 0, peak: 0)) })
         studio.transport = .recording(take: 1)
-        lanes.tick(0)
+        if ticks { lanes.tick(0) }
         return lanes
     }
 
@@ -361,6 +370,8 @@ import Testing
         // Fit zoom of a 3 h history: one loud bin at 1 h.
         lanes.report(0.9, 10_800, peak: 0.1, rms: 0.05)
         lanes.report(3_600, 3_600.05, peak: 0.9, rms: 0.5)
+        // The head at 98% of the view: Automatic Scroll would turn the page away from 1 h.
+        model.timeline.follows = false
         model.timeline.scale = TimelineScale(framesPerPoint: 10_800 * Self.rate * 1.02 / Double(view.shown.width))
         lanes.update()
         lanes.tick(10_800)

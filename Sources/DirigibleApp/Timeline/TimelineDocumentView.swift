@@ -156,16 +156,17 @@ final class TimelineDocumentView: NSView {
         didSet { if oldValue, !holdsWidth { resize() } }
     }
 
-    /// The width of `Viewport.documentWidth`, or the width of the mouse-down during a gesture.
+    /// The width of `Viewport.documentWidth` at the one end of the scroll view (the held end of a
+    /// take), or the width of the mouse-down during a gesture.
     func resize() {
         guard let inputs else { return }
         let session = inputs.session
-        let shown = (enclosingScrollView as? TimelineScrollView)?.shown.width ?? 0
         let width =
             holdsWidth
             ? frame.width
             : Viewport.documentWidth(
-                end: session.end, rate: session.sampleRate, scale: inputs.scale, shown: Double(shown))
+                end: scrollView?.end(of: session) ?? session.end, rate: session.sampleRate, scale: inputs.scale,
+                shown: Double(scrollView?.shown.width ?? 0))
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.bounds = CGRect(x: 0, y: 0, width: increasesContrast ? 2 : 1, height: height)

@@ -10,14 +10,16 @@ extension TimelineScrollView {
         guard let source, shown.width > 0 else { return nil }
         return Viewport(
             scale: source.scale, origin: Double(shown.minX) * source.scale.framesPerPoint, width: Double(shown.width),
-            end: source.session.end, rate: source.session.sampleRate)
+            end: end(of: source.session), rate: source.session.sampleRate)
     }
 
     /// The one entry of every zoom and scroll input (decision 0025). A scroll holds the follow
-    /// during play (0017); during a lane gesture no input changes the scale.
+    /// during play or a take (0017); during a lane gesture no input changes the scale. After a
+    /// take, the input drops the held end first; during a take, the end stays.
     func navigate(_ input: NavigationInput) {
-        guard let viewport, let studio, let model else { return }
-        let context = NavigationContext(viewport: viewport, playhead: studio.playhead, holdsScale: gesture.isActive)
+        if !taking { holdEnd(nil) }
+        guard let viewport, let model else { return }
+        let context = NavigationContext(viewport: viewport, playhead: head, holdsScale: gesture.isActive)
         let target = model.navigation.handle(input, context)
         let navigation = model.navigation
         if model.timeline.canGoBack != navigation.canGoBack || model.timeline.canGoForward != navigation.canGoForward {
@@ -85,13 +87,45 @@ extension TimelineScrollView {
         show(first.scale, origin: first.origin)
     }
 
-    /// Automatic Scroll turned on: the page of the playhead, with the playhead at 11%.
+    /// Automatic Scroll turned on: the page of the head, with the head at 11%.
     func showPlayhead() {
-        guard let studio,
-            let turn = followOrigin(
-                playhead: studio.playhead, origin: origin, frames: visibleFrames, direction: .forward)
+        guard let turn = followOrigin(playhead: head, origin: origin, frames: visibleFrames, direction: .forward)
         else { return }
         scroll(toFrame: turn)
+    }
+
+    /// Autoscroll (0025, U16): during a drag with the pointer past the lanes edge, the lanes scroll
+    /// and the drag goes again at the same window point, so a still pointer also moves the clip.
+    /// The lanes keep their width during the gesture (0020), so the scroll stops at the held width.
+    func autoscrollTick(at now: Double) {
+        guard gesture.autoscrolls, let pointer = dragPointer, shown.width > 0 else {
+            autoscrollTimes = nil
+            return
+        }
+        let x = Double(lanes.convert(pointer.window, from: nil).x - shown.minX)
+        // A lanes edge on the screen edge: the pointer cannot go past it (a maximized window).
+        let edges = window?.convertToScreen(lanes.convert(shown, to: nil)) ?? .zero
+        let screen = window?.screen?.frame
+        let atScreen = (
+            screen.map { edges.minX <= $0.minX + 1 } ?? false, screen.map { edges.maxX >= $0.maxX - 1 } ?? false
+        )
+        let times = autoscrollTimes ?? (last: now - 1.0 / 60, zone: nil)
+        let zone = times.zone ?? now
+        let step = autoscrollStep(
+            x: x, width: Double(shown.width), edgesAtScreen: atScreen, secondsInZone: now - zone,
+            tick: min(now - times.last, 0.1))
+        autoscrollTimes = (now, step == 0 ? nil : zone)
+        // The clip view does not clamp a scroll: stop at 0 and at the held width of the lanes.
+        let last = Double(lanes.frame.width - shown.width) * framesPerPoint
+        let target = min(max(origin + step * framesPerPoint, 0), max(0, last))
+        guard target != origin else { return }
+        userScrolled()
+        scroll(toFrame: target)
+        // Also after a real drag event: the preview of the frame is at the pointer after the
+        // scroll, so the mouse-up drops the clip where the frame showed it (code gate 2 item 2).
+        let point = lanes.convert(pointer.window, from: nil)
+        let y = pointer.ruler ? Double(ruler.convert(pointer.window, from: nil).y) : Double(point.y)
+        mouse(.drag(pointer.ruler ? .ruler(x: Double(point.x), y: y) : .lanes(x: Double(point.x), y: y)))
     }
 
     /// A horizontal scroll that puts `origin` at the left edge of the lanes in view. The vertical

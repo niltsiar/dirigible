@@ -57,7 +57,7 @@ A track records only when its **Arm** check box is on. Dirigible turns on **Arm*
 ### Record a take
 
 1. Choose **Record > Record** (Command-R). The window shows **Recording take 1** and the time.
-2. Record the interview. The armed tracks show the audio as it records. A red line shows the record head.
+2. Record the interview. The armed tracks show the audio as it records. A red line shows the record head. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
 3. Choose **Transport > Stop** (Command-Period). The window shows **Finishing take 1**, then **Take 1 is finished.**
 
 A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. After a take, the playhead is at the end of the take.
@@ -107,7 +107,7 @@ The in point is the start of the selection, and the out point is the end. With n
 - To move the playhead, click the time ruler. A click in an empty part of a track also moves the playhead.
 - The **Transport** menu has the play commands. **Play Forward** plays faster each time that you choose it again: 1x, 2x, then 4x. If you hold its key, the play pauses when you release the key.
 - **Go to Start**, **Go to End**, **Previous Clip Edge**, and **Next Clip Edge** move the playhead.
-- When **View > Automatic Scroll** is on, the view follows the playhead during play.
+- When **View > Automatic Scroll** is on, the view follows the playhead during play, and the record head during a take. If you scroll away during play or a take, the view stays there until the head is in view again.
 
 ### Zoom
 

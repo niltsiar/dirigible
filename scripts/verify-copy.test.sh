@@ -70,7 +70,20 @@ exit 1
 FAKE
 cat >"$tmp/bin/swift" <<'FAKE'
 #!/bin/bash
+# Log the bundle ID variable and the arguments. `swift -` is the lock snippet: print the lock
+# state of the case (default unlocked). Else it is ax.swift: print the dump of the case (default:
+# one window), and exit with the exit code and the stderr of the case.
 echo "DIRIGIBLE_BUNDLE_ID=${DIRIGIBLE_BUNDLE_ID-unset} $*" >>"$FAKE_STATE/swift.log"
+if [[ "${1:-}" == - ]]; then
+    cat >/dev/null
+    cat "$FAKE_STATE/lock" 2>/dev/null || echo unlocked
+    exit "$(cat "$FAKE_STATE/lock.code" 2>/dev/null || echo 0)"
+fi
+if [[ -f "$FAKE_STATE/ax.out" ]]; then cat "$FAKE_STATE/ax.out"; else
+    printf 'Role=AXApplication Title=Dirigible\n Role=AXWindow Title=Pilot Episode\n'
+fi
+[[ ! -f "$FAKE_STATE/ax.err" ]] || cat "$FAKE_STATE/ax.err" >&2
+exit "$(cat "$FAKE_STATE/ax.code" 2>/dev/null || echo 0)"
 FAKE
 cat >"$tmp/bin/osascript" <<'FAKE'
 #!/bin/bash
@@ -409,6 +422,94 @@ echo "buttons Don’t Allow, Allow" >"$state/osascript.status"
 run prompt Permitir
 [[ $code -eq 1 && "$err" == *"Permitir"* && "$err" == *"Don’t Allow, Allow"* ]] ||
     fail "prompt wrong button: exit $code: $err"
+
+# doctor_case: a new case whose sources are older than the app executable, then start.
+doctor_case() {
+    new_case
+    touch -t 202601010000 "$repo/Sources/x.swift" "$repo/Support/x.txt" "$repo/Package.swift" "$repo/Sources" "$repo/Support"
+    touch -t 202609010000 "$real/Contents/MacOS/Dirigible"
+    run start
+    pid="$out"
+}
+# expect_doctor_fail <case> <fact> [<text>]: doctor exits 1 and names the fact (and the text).
+expect_doctor_fail() {
+    run doctor
+    [[ $code -eq 1 ]] || fail "$1: exit $code, not 1: $out $err"
+    grep -q "^FAIL $2" <<<"$out" || fail "$1: no FAIL line for $2: $out"
+    [[ -z "${3:-}" || "$out$err" == *"$3"* ]] || fail "$1: no \"$3\": $out $err"
+}
+
+# C13 doctor ok: one ok line for each of the four facts.
+doctor_case
+run doctor
+[[ $code -eq 0 ]] || fail "doctor ok: exit $code: $out $err"
+[[ "$(grep -c '^ok ' <<<"$out")" -eq 4 && "$(grep -c . <<<"$out")" -eq 4 ]] || fail "doctor ok: not four ok lines: $out"
+[[ "$out" == *"PID $pid"* ]] || fail "doctor ok: no PID $pid: $out"
+grep -qx "DIRIGIBLE_BUNDLE_ID=$copy_id $repo/scripts/ax.swift dump 2" "$state/swift.log" ||
+    fail "doctor ok: no ax dump 2 of the copy: $(cat "$state/swift.log")"
+run stop
+
+# C6 doctor part: doctor prints the PID of the copy, not of the other Dirigible.
+doctor_case
+other="$(dummy "$tmp/case-$n/other/Dirigible")"
+started+=("$other")
+run doctor
+[[ "$out" == *"PID $pid"* && "$out" != *"$other"* ]] || fail "second Dirigible: doctor: $out"
+kill -0 "$other" 2>/dev/null || fail "second Dirigible: doctor stopped the other Dirigible"
+run stop
+
+# C14 (a) no copy runs
+doctor_case
+run stop
+expect_doctor_fail "doctor a" "(a)"
+
+# C14 (b) the executable of build/Dirigible.app changed after start; (c) still holds.
+doctor_case
+touch -t 202609020000 "$real/Contents/MacOS/Dirigible"
+expect_doctor_fail "doctor b" "(b)"
+grep -q "^FAIL (c)" <<<"$out" && fail "doctor b: (c) failed: $out"
+run stop
+
+# C14 (c) a source is newer than the app executable; (b) still holds.
+doctor_case
+run doctor
+grep -q "^FAIL (c)" <<<"$out" && fail "doctor c: (c) failed before the touch: $out"
+touch -t 202609020000 "$repo/Sources/x.swift"
+expect_doctor_fail "doctor c" "(c)" "Sources/x.swift"
+grep -q "^FAIL (b)" <<<"$out" && fail "doctor c: (b) failed: $out"
+run stop
+
+# C14 (c) find error: with no Sources, find exits 1, and (c) prints its stderr.
+doctor_case
+rm -rf "$repo/Sources"
+expect_doctor_fail "doctor c find error" "(c)" "Sources: No such file or directory"
+run stop
+
+# C14 (d) no window, and another ax exit
+doctor_case
+echo "Role=AXApplication Title=Dirigible" >"$state/ax.out"
+expect_doctor_fail "doctor d" "(d)"
+echo "No app with the bundle ID $copy_id runs." >"$state/ax.err"
+echo 1 >"$state/ax.code"
+expect_doctor_fail "doctor d ax failed" "(d)" "ax failed: No app with the bundle ID $copy_id runs."
+run stop
+
+# C14 (e) no Accessibility trust: ax exits 3.
+doctor_case
+: >"$state/ax.out"
+echo "No Accessibility trust. Add the terminal app in System Settings > Privacy & Security > Accessibility." >"$state/ax.err"
+echo 3 >"$state/ax.code"
+expect_doctor_fail "doctor e" "(e)" "No Accessibility trust"
+run stop
+
+# C14 (f) the screen is locked, and the lock snippet finds no session.
+doctor_case
+echo locked >"$state/lock"
+expect_doctor_fail "doctor f" "(f)" "manual"
+: >"$state/lock"
+echo 1 >"$state/lock.code"
+expect_doctor_fail "doctor f no session" "(f)" "manual"
+run stop
 
 # C17: no stop by name, and each recursive delete acts on build/verify or the saved state of the copy.
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"

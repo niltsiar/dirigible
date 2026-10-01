@@ -2,7 +2,8 @@
 # Check that land.sh runs the land steps of deliver Phase 9 in order and stops at the first
 # failure. Each case uses a temporary repo, a bare remote, and fake make and gh on PATH that log
 # their arguments. Cases: the happy path, a red check, main moved after the check, a run on main
-# or a detached HEAD, a missing body file, and no arguments. Run by `make test-hooks`.
+# or a detached HEAD, an untracked or a changed file, a missing body file, and no arguments.
+# Run by `make test-hooks`.
 set -uo pipefail
 land="$(cd "$(dirname "$0")" && pwd)/land.sh"
 failures=0
@@ -125,6 +126,20 @@ code=$?
 [[ $code -ne 0 ]] || fail 'detached: exit 0'
 grep -q 'HEAD is detached' "$c/out" || fail "detached: no reason: $(cat "$c/out")"
 no_side_effects 'detached'
+
+# An untracked file or a changed tracked file refuses before the fetch: the checks build the
+# working tree, and the push sends only the commits.
+for kind in untracked changed; do
+  setup
+  if [[ $kind == untracked ]]; then echo y > "$c/work/y.txt"; else echo x2 > "$c/work/x.txt"; fi
+  land_in "Add x" "$c/pr.md"
+  code=$?
+  [[ $code -ne 0 ]] || fail "$kind file: exit 0"
+  grep -q 'the working tree has changes that the push does not send' "$c/out" || fail "$kind file: no reason: $(cat "$c/out")"
+  [[ "$(git -C "$c/work" rev-parse origin/main)" != "$(git -C "$c/origin.git" rev-parse main)" ]] ||
+    fail "$kind file: the fetch ran"
+  no_side_effects "$kind file"
+done
 
 # A missing body file refuses before any step.
 setup

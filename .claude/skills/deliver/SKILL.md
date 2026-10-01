@@ -16,7 +16,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
 - A criterion change in any phase edits `analysis.md` in the same step and cites its `decisions.tsv` row, which names the old and new value.
-- Before you fake or detect a failure of an external tool, probe it (exit status, stderr, files) and record each result in its `## Unknowns` row; the fake copies it. Guard on the status and the files. For a status with several causes, make your call print a marker text, and guard on that.
+- Before you fake or detect a failure of an external tool, probe it (exit status, stderr, files). Record each result in its `## Unknowns` row. The fake copies each result. Guard on the status and files. For a status with several causes, make your call print a marker text, and guard on that.
 
 ## Phase 0: Open the run
 

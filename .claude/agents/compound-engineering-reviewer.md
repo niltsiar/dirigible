@@ -11,7 +11,7 @@ Read only the rows of the changed files. Pipe the `git diff --name-only` form of
 
 Check:
 
-- Replace or merge: a new rule replaces or merges text in the same section, and the file stays within its row. An added line next to an older line on the same topic is a near-contradiction.
+- Replace or merge: a rule change replaces or merges text in the same section, and the file stays within its row. An added line next to an older line on the same topic is a near-contradiction.
 - Register: each rule change updates `docs/workflow/rules.tsv` in the same commit. A `new` row has the source run and the cause key. A changed verdict has the run in its reason.
 - Seen-once first: a rule from one incident needs an earlier `seen-once` line with the same cause. The high-cost exception of reflect rule 2 (`.claude/skills/reflect/SKILL.md`) can skip this.
 - Sediment: a stale line, a line whose cause no longer exists, or run history ("learned in run N") inside a skill.

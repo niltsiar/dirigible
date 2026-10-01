@@ -9,13 +9,13 @@ Mine the current session for durable learnings, then route them into edits. This
 
 ## Rules
 
-The reflect rules of decision 0028:
+Each learning gets a cause key `<ID>/<class>`. The ID is the `docs/workflow/rules.tsv` ID that the learning touches (search the `summary` column), or `NEW-<prefix>-<slug>` for a new rule. The class is from the closed list on the `Failure classes:` line of `references/synthesizer.md`. The reflect rules of decision 0028:
 
-1. A first occurrence becomes one `seen-once` line in `.scratchpads/learnings.md`, and no skill edit: `- <date> seen-once <run slug> <key>: <learning>`. The cause key is `<ID>/<class>`. The ID is the `docs/workflow/rules.tsv` ID that the learning touches (search the `summary` column), or `NEW-<prefix>-<slug>` for a new rule. The class is from the closed list on the `Failure classes:` line of `references/synthesizer.md`.
+1. A first occurrence becomes one `seen-once` line in `.scratchpads/learnings.md`, and no skill edit: `- <date> seen-once <run slug> <key>: <learning>`.
 2. `.claude/skills/reflect/scripts/seen.sh <key>` prints the earlier lines of a key. A key match is a candidate until the synthesizer records the earlier line and the shared cause. A second occurrence changes a skill, `AGENTS.md`, or a check. A check or script comes before a sentence: when a lint rule, script, test, hook, or `Makefile` target can enforce the rule, change the proposal to that mechanism, and delete the prose that it replaces. A first occurrence that lost data or user input, or destroyed a file outside the repo, counts as a second one (reason in the commit body).
-3. A new rule replaces or merges text in the same section, within the row of its file in `docs/workflow/budgets.tsv`. Else the item goes to `## Later` of the backlog. A row goes up only in a commit that names a `decisions.tsv` row.
+3. Each rule change replaces or merges text in the same section, within the row of its file in `docs/workflow/budgets.tsv`. Else the item goes to `## Later` of the backlog. A row goes up only in a commit that names a `decisions.tsv` row.
 4. Each rule change updates `docs/workflow/rules.tsv` in the same commit: a `new` row with the source run and the key, or a changed verdict with the run in the reason. The commit body names the run and the earlier learnings line.
-5. The lens panel reviews the diff of the reflect commits once per reflect run, before the merge (step 5).
+5. Each rule change goes through the lens panel: it reviews the diff of the reflect commits once per run, before the merge (step 5).
 6. Each reflect commit runs `make check-changed`, joined to `git commit` with `&&`.
 7. A reflect run removes at most one rule. A duplicate line gets a `merge` row whose target is the kept ID. A stale or no-op line gets a `delete` row whose reason gives the evidence. Skip it when no line qualifies. This is the only removal rule; other docs point here.
 8. When a change deletes, merges, or moves a rule, run once each scenario of `docs/workflow/evals.md` whose `files` column names a changed file. A scenario that passed before the change and fails after it reverts the change. A changed file with no scenario gets one first, or the commit body says why none applies.

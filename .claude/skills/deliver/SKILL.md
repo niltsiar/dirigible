@@ -57,9 +57,8 @@ Write `plan.md`:
 | sources | plan gate 1 round; code gate 1 round and a fix check |
 | sources-risk | plan gate 2 rounds; code gate 3 rounds |
 
-- A sources change gets a screenshot or AX check per visible criterion. A tooling control is a failing case in its `.test.sh`.
+- With `risk: yes`, each guard in a risk path gets two mutation controls, replayed once in Phase 7. With `risk: no`, the failing-before test is the control, with no replay. Decision 0028 says when a plan raises a guard to risk. A sources change also gets a screenshot or AX check per visible criterion. A tooling control is a failing case in its `.test.sh`.
 - A 1-round gate calls the workflow with `maxRounds: 2`; round 2 runs only on a critical item.
-- With `risk: yes`, each guard in a risk path gets two mutation controls, replayed once in Phase 7. With `risk: no`, the failing-before test is the control, with no replay. Decision 0028 says when a plan raises a guard to risk.
 
 ## Phase 3: Plan gate
 
@@ -94,7 +93,7 @@ Run the **interrogate** skill with target `diff` and the rounds of the class tab
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each criterion against the real artifact (the built app, the real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` sends you back to Phase 4; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors).
+Run the **verify-this** skill for each criterion against the real artifact (the built app, the real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors).
 
 ## Phase 8: Reflect
 

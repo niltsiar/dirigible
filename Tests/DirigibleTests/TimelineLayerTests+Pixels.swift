@@ -12,10 +12,12 @@ import Testing
 extension TimelineLayerTests {
     /// The pixels of the layer contents that differ from a render of the drawn inputs of the lanes
     /// in the same window, by a new renderer and the same label function: the count and the first.
+    /// The render takes the live take of the lanes too.
     static func wrongPixels(_ view: TimelineScrollView) throws -> (count: Int, first: (column: Int, row: Int)?) {
         let lanes = view.lanes
         let window = try #require(lanes.surfaces.shown, "the layer shows no window")
-        let reference = OwnedPixels.render(try #require(lanes.inputs), window, lanes.palette)
+        let live = lanes.studio.map { LiveLanes($0, head: lanes.liveHead) } ?? LiveLanes()
+        let reference = OwnedPixels.render(try #require(lanes.inputs), window, lanes.palette, live: live)
         var count = 0
         var first: (Int, Int)?
         for row in window.pixels.rows {

@@ -11,10 +11,19 @@ private let drawLog = Logger(subsystem: "com.delineas.dirigible", category: "tim
 
 /// The lanes of the timeline (decisions 0017 and 0022, probe D6): as wide as the session at the
 /// zoom, flipped, with one layer of the lanes in view that `updateLayer()` writes in place. It
-/// renders only its dirty rect and the columns that a scroll shows. It redraws only when `inputs`
-/// or the backing scale changes. The playhead is a layer that moves with no redraw.
+/// renders only its dirty rect and the columns that a scroll shows. It redraws when `inputs` or
+/// the backing scale changes, and at the live ticks of a take (`liveMoved`, `liveChanged`). The
+/// playhead is a layer that moves with no redraw.
 final class TimelineDocumentView: NSView {
     let playhead = CALayer()
+    /// The live take comes from here at each draw (`LiveLanes`). Weak, as in the scroll view.
+    weak var studio: Studio?
+    /// The record head of the last live tick. Nil when no take records or finalizes.
+    private(set) var liveHead: Frames?
+    /// Increase Contrast: the playhead is 2 pt wide, else 1 pt. The display options set it.
+    var increasesContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast {
+        didSet { resize() }
+    }
     /// The pixels of the lanes in view.
     let surfaces = LaneSurfaces()
     /// The renders, for the redraw tests (criteria 10 and 24).
@@ -61,6 +70,24 @@ final class TimelineDocumentView: NSView {
     /// no dirty rect, so it renders only the pixels that the last window did not hold.
     func shownMoved() { layer?.setNeedsDisplay() }
 
+    /// An append to the live store at a tick: marks the columns from the lowest added frame or
+    /// the head of the last live tick, the lower, to `head`, with 1 pt on each side for the
+    /// rounding. The rect has the full height (the 360 pt rule of `changedColumns`).
+    func liveMoved(head: Frames, from: Frames?) {
+        defer { liveHead = head }
+        guard let geometry = inputs?.geometry else { return }
+        let low = min(from ?? head, liveHead ?? head, head)
+        let (x0, x1) = (geometry.x(of: low).rounded(.down), geometry.x(of: head).rounded(.up))
+        setNeedsDisplay(NSRect(x: x0 - 1, y: 0, width: x1 - x0 + 2, height: bounds.height))
+    }
+
+    /// Another change of the live take (a take start, a stop, a track state, the hand-off, a
+    /// finalize error): the lanes in view draw again.
+    func liveChanged(head: Frames?) {
+        liveHead = head
+        needsDisplay = true
+    }
+
     /// The columns of the clips, markers, and Marks that changed from `old`, with 1 pt on each side
     /// for the rounding of the renderer, in the rows of the changed lanes (all rows for new Marks).
     /// Nil when another input changed.
@@ -104,6 +131,13 @@ final class TimelineDocumentView: NSView {
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel(L10n.timelineAccessibility.text)
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(displayOptionsChanged),
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+    }
+
+    @objc private func displayOptionsChanged() {
+        increasesContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
     }
 
     required init?(coder: NSCoder) { nil }
@@ -134,7 +168,7 @@ final class TimelineDocumentView: NSView {
                 end: session.end, rate: session.sampleRate, scale: inputs.scale, shown: Double(shown))
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
-        playhead.bounds = CGRect(x: 0, y: 0, width: 1, height: height)
+        playhead.bounds = CGRect(x: 0, y: 0, width: increasesContrast ? 2 : 1, height: height)
     }
 
     /// Moves the playhead line to `frame`, with no redraw of the lanes.
@@ -186,12 +220,13 @@ final class TimelineDocumentView: NSView {
         let started = ContinuousClock.now
         let dirty = pending
         pending = .null
+        let live = studio.map { LiveLanes($0, head: liveHead) } ?? LiveLanes()
         let drawn: PixelRect
         switch surfaces.show(
             lanes, changed: lanes.pixels(of: dirty),
             draw: { region in
-                renderer.draw(inputs, palette, into: region)
-                Self.drawLabels(inputs, palette, into: region)
+                renderer.draw(inputs, palette, live: live, into: region)
+                Self.drawLabels(inputs, palette, live: live.take, into: region)
             })
         {
         case .drawn(let rect): drawn = rect
@@ -215,18 +250,34 @@ final class TimelineDocumentView: NSView {
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom
     /// left of the box, cut at the box end. It reads only the clips in the frames of the rect of
     /// `region`, lane by lane, and draws only in that rect. A box under 60 pt gets no label: 12,000
-    /// labels at fit zoom took 330 ms per draw (probe L1, decision 0020).
-    static func drawLabels(_ inputs: LaneInputs, _ palette: LanePalette, into region: borrowing PixelRegion) {
+    /// labels at fit zoom took 330 ms per draw (probe L1, decision 0020). The live region of a take
+    /// gets the take label, and an old clip label shows only outside it.
+    static func drawLabels(
+        _ inputs: LaneInputs, _ palette: LanePalette, live: LiveLanes.Take? = nil, into region: borrowing PixelRegion
+    ) {
         guard inputs.laneHeight > 14, let geometry = inputs.geometry, !region.rect.isEmpty else { return }
         let rect = region.window.points(of: region.rect)
         let frames = geometry.frame(at: rect.minX)..<geometry.frame(at: rect.maxX) + Frames(2)
-        var labels: [(box: NSRect, name: String)] = []
+        let regions = live?.boxes(inputs, scale: region.window.scale) ?? [:]
+        var labels: [(box: NSRect, shown: [NSRect], name: String)] = []
         for (lane, track) in inputs.session.tracks.enumerated() {
+            let region = regions[lane]
             for clip in track.clips.clips(overlapping: frames) {
                 let box = NSRect(geometry.box(of: clip, lane: lane))
                 guard box.width >= 60, box.intersects(rect) else { continue }
+                // The parts of the box on each side of the live region.
+                let shown =
+                    region.map { live in
+                        let left = box.divided(atDistance: max(0, live.minX - box.minX), from: .minXEdge).slice
+                        let right = box.divided(atDistance: max(0, box.maxX - live.maxX), from: .maxXEdge).slice
+                        return [left, right].filter { $0.width > 0 }
+                    } ?? [box]
+                guard !shown.isEmpty else { continue }
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
-                labels.append((box, path.hasSuffix(".wav") ? String(path.dropLast(4)) : path))
+                labels.append((box, shown, path.hasSuffix(".wav") ? String(path.dropLast(4)) : path))
+            }
+            if let region, let live, region.width >= 60, region.intersects(rect) {
+                labels.append((region, [region], live.label))
             }
         }
         guard !labels.isEmpty else { return }
@@ -237,10 +288,10 @@ final class TimelineDocumentView: NSView {
             let previous = NSGraphicsContext.current
             NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
             defer { NSGraphicsContext.current = previous }
-            for (box, name) in labels {
+            for (box, shown, name) in labels {
                 // Only in its box: the dirty rect of a drag event holds the boxes it changes.
                 context.saveGState()
-                context.clip(to: box)
+                context.clip(to: shown)
                 name.draw(at: NSPoint(x: box.minX + 4, y: box.maxY - 14), withAttributes: attributes)
                 context.restoreGState()
             }

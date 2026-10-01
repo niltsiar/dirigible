@@ -29,6 +29,19 @@ extension Studio {
 
     public func livePeaks(file: FileID) -> (peaks: LivePeaks, anchor: Frames)? { live.files[file] }
 
+    /// The file map: the live peaks of each take file after its hand-off, with its anchor.
+    public var liveFiles: [FileID: (peaks: LivePeaks, anchor: Frames)] { live.files }
+
+    /// The lowest session frame that an add touched since the last call, over all tracks of the
+    /// take (F1). The call clears it, so the timeline draws each late span once.
+    public func takeLiveAddedFrom() -> Frames? {
+        let lowest = live.tracks.values.compactMap { peaks in peaks.addedFrom.map { peaks.origin + $0 } }.min()
+        // A copy of the keys only: an iterator of the dictionary would hold its storage, and the
+        // next add would copy the bins.
+        for track in Array(live.tracks.keys) { live.tracks[track]?.addedFrom = nil }
+        return lowest
+    }
+
     /// The record head now.
     public func liveHead() -> Frames? { liveHead(atHostNanos: hostNanosNow()) }
 

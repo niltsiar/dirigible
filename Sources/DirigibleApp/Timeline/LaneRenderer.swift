@@ -6,8 +6,11 @@ import DirigibleCore
 import DirigibleTimeline
 import Foundation
 
-/// Every input that the lane pixels read (decision 0017), except the backing scale. The document
-/// view redraws only when this value changes, so an input outside it never redraws.
+/// Every input that the lane pixels read (decision 0017), except the backing scale and the live
+/// take. The document view redraws when this value changes. The live take (`LiveLanes`) is a drawn
+/// input outside it, with its own invalidation (`TimelineScrollView.liveTick`): an append marks
+/// its columns, and any other store change redraws the lanes in view. So a display tick does not
+/// make SwiftUI compare the bins. Every full draw reads the live take.
 struct LaneInputs: Equatable {
     var session: Session
     var peaks: [FileID: PeakState]
@@ -73,16 +76,19 @@ struct LanePalette: Equatable {
 /// the invariant).
 final class LaneRenderer {
     /// The columns of one clip, reused.
-    private var values: [PeakColumn] = []
+    var values: [PeakColumn] = []
 
     /// 20 log10(v / 65535) for each magnitude v.
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
 
-    /// Draws the rect of `region`: the lanes that its rows cross, in its columns.
-    func draw(_ inputs: LaneInputs, _ palette: LanePalette, into region: borrowing PixelRegion) {
+    /// Draws the rect of `region`: the lanes that its rows cross, in its columns. Then the live
+    /// take over the clips.
+    func draw(
+        _ inputs: LaneInputs, _ palette: LanePalette, live: LiveLanes = LiveLanes(), into region: borrowing PixelRegion
+    ) {
         let (window, rect) = (region.window, region.rect)
         guard !rect.isEmpty, let geometry = inputs.geometry else { return }
-        let (scale, laneRows) = (window.scale, window.laneRows)
+        let scale = window.scale
         let tracks = inputs.session.tracks
         let drawn = window.lanes(of: rect.rows).clamped(to: tracks.indices)
         let pixelFrames = inputs.scale.framesPerPoint / scale
@@ -143,38 +149,24 @@ final class LaneRenderer {
                 // clip under one column can hold none (at fit zoom, 2,000 clips per lane drew each
                 // column about 1.7 times).
                 let range = clamped(column(clip.start).rounded(.up))..<clamped(column(clip.end).rounded(.up))
-                guard !range.isEmpty, case .ready(let peaks) = inputs.peaks[clip.file] else { continue }
-                // `fill` sets every column, so only the count matters. The array keeps its memory:
-                // at fit zoom the count changes between 1 and 2 at almost every clip.
-                if values.count != range.count {
-                    values.removeAll(keepingCapacity: true)
-                    values.append(contentsOf: repeatElement(PeakColumn.zero, count: range.count))
-                }
+                guard !range.isEmpty else { continue }
                 let from = Double((clip.offset - clip.start).count) + Double(range.lowerBound) * pixelFrames
-                peaks.fill(&values, from: from, step: pixelFrames)
-                let gain = clip.gain.dB + track.gain.dB
-                values.withUnsafeBufferPointer { values in
-                    Self.decibels.withUnsafeBufferPointer { decibels in
-                        func height(_ value: UInt16) -> Int {
-                            guard value > 0 else { return 0 }
-                            let fraction = (decibels[Int(value)] + gain + 60) / 60
-                            return fraction <= 0 ? 0 : Int(((fraction < 1 ? fraction : 1) * Double(laneRows)).rounded())
-                        }
-                        var index = 0
-                        while index < values.count {
-                            let column = range.lowerBound + index
-                            let peak = height(values[index].peak)
-                            // A cache file can hold an RMS over its peak; the span never inverts.
-                            let rms = min(height(values[index].rms), peak)
-                            // A column span is a strided fill: one call, not one Swift step per pixel.
-                            region.span(palette.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
-                            region.span(palette.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
-                            index += 1
-                        }
-                    }
+                switch inputs.peaks[clip.file] {
+                case .ready(let peaks):
+                    resize(range.count)
+                    peaks.fill(&values, from: from, step: pixelFrames)
+                case .unavailable: continue
+                case .computing, nil:
+                    // A take file before its peaks: the live peaks of its take (live take view), in
+                    // live frames, so the columns equal the last live draw.
+                    guard let (peaks, anchor) = live.files[clip.file] else { continue }
+                    resize(range.count)
+                    peaks.fill(&values, from: from + Double((anchor - peaks.origin).count), step: pixelFrames)
                 }
+                drawColumns(range, gain: clip.gain.dB + track.gain.dB, bottom: bottom, palette, into: region)
             }
         }
+        if let take = live.take { drawLive(take, inputs, palette, into: region) }
 
         if let selection = inputs.marks.selection(in: inputs.session) {
             let band =
@@ -195,6 +187,43 @@ final class LaneRenderer {
         }
         line(inputs.marks.inPoint, palette.inPoint)
         line(inputs.marks.outPoint, palette.outPoint)
+    }
+
+    /// Gives `values` `count` columns. `fill` sets every column, so only the count matters. The
+    /// array keeps its memory: at fit zoom the count changes between 1 and 2 at almost every clip.
+    func resize(_ count: Int) {
+        guard values.count != count else { return }
+        values.removeAll(keepingCapacity: true)
+        values.append(contentsOf: repeatElement(PeakColumn.zero, count: count))
+    }
+
+    /// The one waveform draw of the final and the live columns: `values` from the column
+    /// `range.lowerBound`, rectified on a -60 dB to 0 dB scale with `gain`, light peaks over dark
+    /// RMS, up from the row `bottom`.
+    func drawColumns(
+        _ range: Range<Int>, gain: Double, bottom: Int, _ palette: LanePalette, into region: borrowing PixelRegion
+    ) {
+        let laneRows = region.window.laneRows
+        values.withUnsafeBufferPointer { values in
+            Self.decibels.withUnsafeBufferPointer { decibels in
+                func height(_ value: UInt16) -> Int {
+                    guard value > 0 else { return 0 }
+                    let fraction = (decibels[Int(value)] + gain + 60) / 60
+                    return fraction <= 0 ? 0 : Int(((fraction < 1 ? fraction : 1) * Double(laneRows)).rounded())
+                }
+                var index = 0
+                while index < values.count {
+                    let column = range.lowerBound + index
+                    let peak = height(values[index].peak)
+                    // A cache file can hold an RMS over its peak; the span never inverts.
+                    let rms = min(height(values[index].rms), peak)
+                    // A column span is a strided fill: one call, not one Swift step per pixel.
+                    region.span(palette.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
+                    region.span(palette.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
+                    index += 1
+                }
+            }
+        }
     }
 }
 

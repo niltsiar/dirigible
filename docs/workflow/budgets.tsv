@@ -53,11 +53,11 @@ path	words	decision
 .claude/skills/technical-writing/SKILL.md	1746	baseline
 .claude/skills/unslop/	918	baseline
 .claude/skills/unslop/SKILL.md	918	baseline
-.claude/skills/verify-this/	1770	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
+.claude/skills/verify-this/	1720	2026-10-01-verify-copy D1 (decisions.tsv 2026-10-01T22:17: the driving-the-app.md row goes down by 50)
 .claude/skills/verify-this/SKILL.md	890	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/verify-this/references/driving-the-app.md	880	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/verify-this/references/driving-the-app.md	830	2026-10-01-verify-copy D1 (decisions.tsv 2026-10-01T22:17: 748 words x 1.1 = 822.8, up to the next 10)
 .claude/skills/writing-for-agents/	2191	baseline
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31335	2026-10-01-workflow-speed (decisions.tsv 2026-10-01T19:52: the real sum after the code gate fixes, +196 over 31139, cap +200; trim at decisions.tsv 2026-10-01T19:38; goal 30200)
+TOTAL	31253	2026-10-01-verify-copy D1 (decisions.tsv 2026-10-01T22:17: the real sum after the edit, 82 under 31335)

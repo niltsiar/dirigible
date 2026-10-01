@@ -3,18 +3,15 @@
 ## Launch and stop
 
 - For app behavior, launch the bundle with `make run`, then run `scripts/screenshot.sh <out.png>`.
-- A check that writes preferences or a recent list runs a copy with its own bundle ID: copy `build/Dirigible.app`, set `CFBundleIdentifier` with `PlistBuddy`, sign it again with `codesign --force --sign -`, and open it with `open -a <absolute path>`. The real preferences cannot be restored after a check.
-- `scripts/ax.swift` finds the app by the real bundle ID, so an AX check of the copy needs a copy of `ax.swift` with that ID.
+- A check that writes preferences or a recent list, or answers a privacy prompt, runs on the verify copy. Run `scripts/verify-copy.sh start`, then `ax`, `prompt Allow`, `doctor`, and `stop`. Press the prompt by name, never with `hid.swift`. With no command, it prints the usage.
 - `scripts/screenshots.sh` writes `docs/images` and the preferences of the real app, so it is not a check.
-- For a light or a Spanish capture on a Mac in Dark Mode or in English, pass launch arguments (`open -a "$PWD/build/Dirigible.app" <package> --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(es)"`); do not write user defaults. `open -a` needs an absolute path: a relative one fails in a worktree.
+- For a light or a Spanish capture on a Mac in Dark Mode or in English, pass launch arguments (`open -a "$PWD/build/Dirigible.app" <package> --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(es)"`); do not write user defaults.
 - The speakers are real: before a play of generated audio, set a low track gain with `dirigible track gain`.
-- Stop the app afterwards with `pkill -f build/Dirigible.app/Contents/MacOS/Dirigible`.
 
 ## Capture
 
 - Capture one window, never the whole screen: a full-screen capture records private content.
 - For a window of another process (the Gatekeeper dialog of `CoreServicesUIAgent`, Finder), use `scripts/screenshot.sh --owner <process>`. Read its text and button names with `osascript -e 'tell application "System Events" to get entire contents of window 1 of process "<process>"'`. Close it with the button that changes nothing, by its name.
-- A privacy prompt of the verify copy (`UserNotificationCenter`) needs Allow: press it by name with a System Events `click button`. After the check, run `tccutil reset <service> <copy bundle ID>`.
 - A layer read or an offscreen render (`layer.render(in:)`, `cacheDisplay`) does not show what the window server composites, so it cannot prove a redraw or pixel claim. Prove such a claim with a screenshot of the built app after the real gesture.
 - When the change keeps old pixels (a dirty rect, a redraw policy), also compare that screenshot with one after a forced full redraw of the same state.
 - A renderer adds soft pixels (a drop shadow, antialiasing), so a pixel criterion states its alpha threshold.

@@ -20,4 +20,4 @@
 
 - A rule that classifies a loop run or names the holder of a sample (a trigger that picks a plan branch) is a script in the run folder, not prose.
 - Write it before the data, and run it on the green runs of the baseline loop before the plan gate. A rule that fires on green runs decides nothing: "the failed run has samples that name a CLI test" fired on every run, because each sample named a CLI test.
-- A rule that changes after the data is a criterion change (Phase 4 step 4).
+- A rule that changes after the data is a criterion change (deliver Autonomy rules).

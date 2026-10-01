@@ -15,6 +15,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
+- A criterion change in any phase edits `analysis.md` in the same step; the `decisions.tsv` row names the old and new value.
 
 ## Phase 0: Open the run
 
@@ -32,6 +33,7 @@ Write `analysis.md`:
 - Falsifiable acceptance criteria, each with the test or command that proves it. Each clause gets its own assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. Example: "A 10 s recording from two devices gives two WAV files of 10 s ± 20 ms."
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions, and log the probe.
+- Probe how an external tool fails (exit status, stderr, files) before you write its fake or detector. The fake copies each result. Guard on the status and the files; for a status with several causes, on a marker text that you raise.
 - What is out of scope, in the backlog.
 
 ## Phase 2: Plan
@@ -65,15 +67,14 @@ Write `plan.md`:
 Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interrogate** skill with target `plan` (premortem, devil's advocate, architecture). Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Change the plan for each "Act on" item and log it. Grep each fact that a fix changes, as in Phase 2.
-- Before you detect a failure of an external tool, probe its exit status, product files, and messages. Guard on the exit status and the product files, not on message text.
 - A critical item gets another round, up to the class table. Round 2 follows up on round 1. The last round checks only the earlier fixes. After them and one fix check, the gate is closed: record open risks in `run.md`.
 
 ## Phase 4: Implement
 
-1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <run>/logs/<name>.log 2>&1 && git commit ...`. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
+1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <run>/logs/<name>.log 2>&1 && git commit ...`. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests.
 2. Use Conventional Commits (see `AGENTS.md`).
 3. After each slice, log a row and tick `run.md` with the actual minutes. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
-4. If the plan proves wrong, stop, update `plan.md`, and log why. A changed criterion gets its new text in `analysis.md` in the same step, citing the row, so Phase 7 verifies that text.
+4. If the plan proves wrong, stop, update `plan.md`, and log why.
 5. A slice that changes what a user sees or does updates `docs/guide.md`. Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `on screen: <verdict>, <screenshot path>`.
 
 ## Phase 5: Clean up
@@ -101,7 +102,7 @@ Run the **reflect** skill on the branch. Then review the `## Later` headings, an
 
 ## Phase 9: Land through a pull request
 
-1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`: its checks can take longer than one foreground call. Read its output for the `pr:` and `range:` lines.
+1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`. Read its output for the `pr:` and `range:` lines.
 2. If the land stops on a conflict, resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge. Record the conflict and the branch in `run.md`.
 3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 

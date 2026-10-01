@@ -14,7 +14,7 @@ Check:
 - Failing case: for each added or changed rule, name the test, `check-docs` case, or eval scenario that fails without it. A rule with none is a finding.
 - A scenario that you ask for fails on the docs before the change and passes after it. Give its question and its key points.
 - Held-out cases: a rule fitted to one incident. Ask for a case that the rule was not written from.
-- Regression: when the diff deletes, merges, or moves a rule, name each scenario of `docs/workflow/evals.md` whose `files` column names a changed file. When a changed file has no scenario, name the scenario that it needs.
+- Regression: when the diff trims, deletes, merges, or moves a rule, name each scenario of `docs/workflow/evals.md` whose `files` column names a changed file. When a changed file has no scenario, name the scenario that it needs.
 - Falsifiable criteria: a criterion with no command and no observable result ("clear", "robust", "as needed").
 - Grading: a key point that a quote cannot hold, or a check that passes when the doc returns nothing.
 

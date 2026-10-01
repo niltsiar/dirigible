@@ -24,6 +24,22 @@ The eval of run `2026-09-30-workflow-consolidation` fails:
 
 Each key point that the new set fails is in the new docs, and the answerers read the file that holds it. The rule is present and reached, but the answers do not quote it.
 
+## Result of the fix cycles
+
+Two Phase 4 fix cycles changed the docs and ran the failed scenarios again, three runs each (run folder, `eval-fix-diagnosis.md`). A blind re-grade of the old answers gave the same result as the first grade, row for row.
+
+| Scenario | First run (new) | Fix cycle 1 (`c25d32a`) | Fix cycle 2 (`fd859c9`) |
+|---|---|---|---|
+| E1 | 3 of 6 | 3 of 3 | not run (no changed file) |
+| E3 | 0 of 6 | 3 of 3 | not run (no changed file) |
+| E4 | 0 of 3 | 3 of 3 | not run (no changed file) |
+| E8 | 0 of 3 | 2 of 3 | 3 of 3 |
+| E10 | 0 of 3 | 1 of 3 | 0 of 3 |
+
+- Retention sum after cycle 1: new 44, old 39. No scenario is below old.
+- H2-H13 at `c25d32a`, one run each: no regression. H2 fails key point (c), which also failed in a first-run new answer. H13 stays void. Cycle 2 changed only reflect files, and no holdout names one.
+- The eval still fails: E10 is below two of three. The answers quote "Give each learning a cause key" but not the next sentence, which gives the ID. No answer quotes reflect rule 3 (the budget).
+
 ## Scenarios
 
 The key points of the holdouts H1-H13 stay in the run folder until the eval passes, because a fix that reads them burns the holdouts. `L<n>` in the `Source` column is line n of `.scratchpads/learnings.md` at `3bc03e0`. An ID such as `VER-028` is a row of `docs/workflow/rules.tsv`.

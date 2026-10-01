@@ -246,7 +246,7 @@ DLV-136	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scrip
 DLV-137	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	44c48d3		gh pr merge --rebase --delete-branch keeps history linear
 DLV-138	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	L16	scope	after merge: switch main, pull ff-only, prune
 DLV-139	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; leftover branch	ad21140		leftover local branch after rebase merge stays; log it
-DLV-140	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; merge conflict path	ad21140		merge fails after main moved: stop, log, resolve on fresh branch
+DLV-140	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; merge conflict path; 2026-10-01-workflow-speed D3 (item 14c, C14.2): the resolving-merge-conflicts skill is deleted; resolve the conflict with a rebase on a fresh branch	ad21140		land stops on a conflict: log it, resolve it with a rebase on a fresh branch
 DLV-141	.claude/skills/deliver/SKILL.md	enforced	.claude/hooks/git-guardrails.sh	block() of git-guardrails.sh prints "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1." with $1 = matches 'git push( .*)? (--force|-[a-zA-Z]*f|\+)' (a DANGEROUS_PATTERNS item), exit 2	c5746cd		no force push
 DLV-142	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; run summary	ad21140		run.md done status and summary; list defaults open for the user
 DLV-143	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; PR URL record	ad21140		PR URL goes in run.md and ledger.md

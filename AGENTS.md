@@ -41,7 +41,7 @@ The Makefile comments give the reasons. The toolchain is Xcode 26 with Swift 6.2
 
 ## How to work
 
-Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions, and **bro** to restate your last message in plain words. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `research`, `pr`, `diagnosing-bugs`, `domain-modeling`, and `resolving-merge-conflicts`. Reviewer agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.
+Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions, and **bro** to restate your last message in plain words. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `research`, `pr`, `diagnosing-bugs`, and `domain-modeling`. Reviewer agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.
 
 ## Run ledger in .scratchpads/
 

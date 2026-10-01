@@ -28,7 +28,7 @@ A good verdict is useful, not complete: the user fixes the "Act on" items and sh
 Each "Act on" item in an open or follow-up round has two required fields. An item without both fields is incomplete.
 
 - **Invariant:** the invariant that the item breaks, named by the state, not by the operation in the finding: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
-- **Siblings:** search the code for every read, every write, and every stored copy of that state (split and place, the reader and the edits, the temporary file and the rename). A copy that changes only at a write is a sibling. Also list each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, searched <what>".
+- **Siblings:** search the target for every read, every write, and every stored copy of that state, or for a class of defect (a tool failure read as success), every instance. A copy that changes only at a write is a sibling. Also list each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, searched <what>".
 
 A new check for the same condition can hide an earlier guard, so the fixer runs the controls of those guards again before the fix commit. Pass both fields to the fixer, not only the fix line. The fix covers the finding and every sibling path in the same commit. Accept a fix only when it covers each consumer that the symptom names. Findings in the next round are usually at the edge of a fix that covered only the named path.
 

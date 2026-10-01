@@ -1,10 +1,12 @@
 #!/bin/bash
 # Land the run branch through a pull request (deliver Phase 9).
 # Usage: scripts/land.sh <title> <body-file>
-# It rebases on origin/main, runs `make check-changed BASE=origin/main`, pushes the branch, creates
-# the pull request, refuses the merge when origin/main moved after the checks, merges with a
-# rebase, and updates main. It stops at the first failure and never force-pushes. It prints the
-# PR URL and the commit range on main. scripts/land.test.sh tests it.
+# It refuses a working tree with changes, because the checks build the working tree and the
+# push sends only the commits. It rebases on origin/main, runs `make check-changed
+# BASE=origin/main`, pushes the branch, creates the pull request, refuses the merge when
+# origin/main moved after the checks, merges with a rebase, and updates main. It stops at the
+# first failure and never force-pushes. It prints the PR URL and the commit range on main.
+# scripts/land.test.sh tests it.
 set -euo pipefail
 
 die() { echo "land.sh: $1" >&2; exit 1; }
@@ -18,6 +20,8 @@ branch="$(git branch --show-current)"
 [[ -n "$branch" ]] || die "HEAD is detached; switch to the run branch"
 [[ "$branch" != main ]] || die "refuses to run on main; switch to the run branch"
 
+[[ -z "$(git status --porcelain)" ]] ||
+    die "the working tree has changes that the push does not send; commit them or move them out of the repo"
 git fetch origin
 git rebase origin/main || die "the rebase on origin/main stopped; resolve it with the resolving-merge-conflicts skill"
 make check-changed BASE=origin/main || die "the checks failed; nothing is pushed"

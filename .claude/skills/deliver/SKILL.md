@@ -9,7 +9,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 
 ## Autonomy rules
 
-- For reversible work, choose a default, log it in `decisions.tsv`, and continue. The human corrects it later.
+- For reversible work, choose a default, log it in `decisions.tsv`, and continue. Its row and the PR body name the word or line that reverses it (`Reverse:`, checked by `.claude/skills/deliver/scripts/log-decision.sh`).
 - Ask only before irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. `scripts/land.sh` (the push and the merge) needs no question. The user authorized reversible setup in this repo and its GitHub repo: do it yourself, log it, and continue. Examples: an allow rule for a repo script in `.claude/settings.json`, a repo setting through `gh`, a privacy prompt of the verify copy (`driving-the-app.md`). Never widen a permission because a subagent asked.
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
 - Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool, not a heredoc: the guardrail hook matches the whole command text, quoted text too. If the tool refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
@@ -31,7 +31,7 @@ Write `analysis.md`:
 
 - The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO behaves, with sources.
 - Falsifiable acceptance criteria, each with the test or command that proves it. Each clause gets its own assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. Example: "A 10 s recording from two devices gives two WAV files of 10 s ± 20 ms."
-- Open questions, each answered with a logged default.
+- The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions, and log the probe.
 - What is out of scope, in the backlog.
 
@@ -40,7 +40,8 @@ Write `analysis.md`:
 Write `plan.md`:
 
 - Vertical slices, each ending in a passing test and a commit. The riskiest unknown goes first. Types that reference each other share a slice.
-- For each slice: the first test, the modules, the commit message, and `scripts/check-changed.sh --paths` on its paths. A slice that covers a criterion names the test of its negative control.
+- For each slice (a `###` heading): the first test, the modules, the commit message, an estimate in minutes, and a `- Check:` line with `scripts/check-changed.sh --paths` on its paths. A slice that covers a criterion names the test of its negative control.
+- An `Agents:` line: the agent groups (small adjacent slices of one module share an agent), which groups run at the same time (no shared file or build output), and why the others wait.
 - When the `risk:` line says `yes`, or a plan says that no control is possible, read `references/mutation-controls.md`.
 - When a criterion sets a time budget, adds a way to move or resize something, or a rule classifies loop runs, read `references/performance-criteria.md`.
 - A one-way decision (a file format, a module boundary, a threading model, a dependency) gets the **architect** skill and a record in `docs/decisions/`.
@@ -62,7 +63,7 @@ Write `plan.md`:
 
 ## Phase 3: Plan gate
 
-Run the **interrogate** skill with target `plan` (premortem, devil's advocate, architecture). Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
+Run `scripts/check-plan.sh <run folder>`: it must exit 0, and `scripts/land.sh` runs it again. Then run the **interrogate** skill with target `plan` (premortem, devil's advocate, architecture). Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Change the plan for each "Act on" item and log it. Grep each fact that a fix changes, as in Phase 2.
 - Before you detect a failure of an external tool, probe its exit status, product files, and messages. Guard on the exit status and the product files, not on message text.
@@ -72,9 +73,9 @@ Run the **interrogate** skill with target `plan` (premortem, devil's advocate, a
 
 1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <log> 2>&1 && git commit ...`. A commit inside a slice can add `FILTER='<tests of the slice>'`. The last commit of the slice uses no filter. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
 2. Use Conventional Commits (see `AGENTS.md`).
-3. After each slice, log a row and tick `run.md`. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
+3. After each slice, log a row and tick `run.md` with the actual minutes. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
 4. If the plan proves wrong, stop, update `plan.md`, and log why. A changed criterion gets its new text in `analysis.md` in the same step, citing the row, so Phase 7 verifies that text.
-5. A slice that changes what a user sees or does updates `docs/guide.md`.
+5. A slice that changes what a user sees or does updates `docs/guide.md`. Check the look early: a look-and-feel unknown gets a `prototype` before the plan gate (a throwaway build in the probe sandbox, a screenshot, a verdict against the reference app), and the slice gets a short on-screen check of the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`) before its commit.
 
 ## Phase 5: Clean up
 
@@ -93,7 +94,7 @@ Run the **interrogate** skill with target `diff` and the rounds of the class tab
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each criterion against the real artifact (the built app, the real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run the push check `make check-changed BASE=origin/main` with `run_in_background`, and commit nothing until it ends. `scripts/land.sh` reuses its stamp.
+Run the **verify-this** skill for each criterion against the real artifact (the built app, the real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once: `make bench` and `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs no pairs), then the push check `make check-changed BASE=origin/main` with `run_in_background`. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. A later `Sources/` change runs all three again.
 
 ## Phase 8: Reflect
 
@@ -101,10 +102,9 @@ Run the **reflect** skill on the branch. With no friction, it logs "no learnings
 
 ## Phase 9: Land through a pull request
 
-1. Run `make bench FILTER=<test>` for each optimized budget of a criterion.
-2. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`: its checks can take longer than one foreground call. It stops at the first failure. Read its output for the `pr:` and `range:` lines.
-3. If the merge fails, record the conflict in `run.md` and use the **resolving-merge-conflicts** skill on a fresh branch. Leave a leftover local branch after the merge, and record it in `run.md`.
-4. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
+1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`: its checks can take longer than one foreground call. It stops at the first failure. Read its output for the `pr:` and `range:` lines.
+2. If the merge fails, record the conflict in `run.md` and use the **resolving-merge-conflicts** skill on a fresh branch. Leave a leftover local branch after the merge, and record it in `run.md`.
+3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 
 ## Long autonomous runs
 

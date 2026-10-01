@@ -15,8 +15,8 @@ path	words	decision
 .claude/skills/architect/references/runner-prompt.md	982	baseline
 .claude/skills/bro/	40	baseline
 .claude/skills/bro/SKILL.md	40	baseline
-.claude/skills/deliver/	3650	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/deliver/SKILL.md	1760	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
+.claude/skills/deliver/	3730	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once)
+.claude/skills/deliver/SKILL.md	1950	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once)
 .claude/skills/deliver/references/long-runs.md	220	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/deliver/references/mutation-controls.md	1150	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/deliver/references/performance-criteria.md	530	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31274	2026-10-01-workflow-speed D1 (decisions.tsv 2026-10-01T19:05: the FILTER rule, the pass stamp, and the Phase 7 push check; goal 30200)
+TOTAL	31480	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once; goal 30200)

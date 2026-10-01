@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31061	2026-09-30-workflow-consolidation C6 fix cycle (decisions.tsv 2026-10-01T05:08: the real sum after the eval fixes; goal 30200)
+TOTAL	31066	2026-09-30-workflow-consolidation C6 fix cycles (decisions.tsv 2026-10-01T05:08 and 2026-10-01T05:17: the real sum after the eval fixes; goal 30200)

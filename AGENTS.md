@@ -26,7 +26,7 @@ The Makefile comments give the reasons. The toolchain is Xcode 26 with Swift 6.2
 | `make test-app` | Runs `AppBundleTests` on a new app bundle. |
 | `make dmg` | Builds `build/Dirigible-<version>.dmg` and its `.sha256` file. The DMG is not notarized (C1). |
 | `make test-dmg` | Runs `AppBundleTests` and `DiskImageTests` on the app in the DMG. `make check-changed BASE=origin/main` picks it. |
-| `make run` | Builds the app, quits a running copy, and opens the new one. |
+| `make run` | Builds the app, quits the app of this tree, and opens the new one. |
 | `make lint` | `swift format lint --strict`. |
 | `make format` | Formats the Swift files in place. |
 | `make check-docs` | Checks the docs, this table, the links, and the word budgets of `docs/workflow/budgets.tsv`. |

@@ -40,31 +40,40 @@ public struct Peaks: Hashable, Sendable {
     /// RMS of the bins that the column touches. A column at or after `frames` gets zero.
     public func fill(_ columns: inout [PeakColumn], from: Double, step: Double) {
         let level = Self.binFrames.lastIndex { Double($0) <= step } ?? 0
-        let bin = Double(Self.binFrames[level])
-        let end = Double(frames.count)
-        // Plain loops and pointers: the renderer calls this for each drawn column, also in the
-        // debug build of the tests.
-        levels[level].withUnsafeBufferPointer { bins in
-            let count = Double(bins.count)
-            columns.withUnsafeMutableBufferPointer { out in
-                var index = 0
-                while index < out.count {
-                    let start = from + Double(index) * step
-                    var column = PeakColumn.zero
-                    if start < end {
-                        let low = (start / bin).rounded(.down)
-                        let high = ((start + step) / bin).rounded(.up)
-                        var bin = low < 0 ? 0 : Int(low < count ? low : count)
-                        let last = high < 0 ? 0 : Int(high < count ? high : count)
-                        while bin < last {
-                            if bins[bin].peak > column.peak { column.peak = bins[bin].peak }
-                            if bins[bin].rms > column.rms { column.rms = bins[bin].rms }
-                            bin += 1
-                        }
+        fillColumns(
+            &columns, from: from, step: step, bins: levels[level], bin: Double(Self.binFrames[level]),
+            end: Double(frames.count))
+    }
+}
+
+/// The column loop of `Peaks.fill` and `LivePeaks.fill`. Column i covers the frames
+/// `from + i * step ..< from + (i + 1) * step` and takes the maximum peak and the maximum RMS of
+/// the bins of `bin` frames that it touches. A column at or after `end` gets zero.
+func fillColumns(
+    _ columns: inout [PeakColumn], from: Double, step: Double, bins: [PeakColumn], bin: Double, end: Double
+) {
+    // Plain loops and pointers: the renderer calls this for each drawn column, also in the
+    // debug build of the tests.
+    bins.withUnsafeBufferPointer { bins in
+        let count = Double(bins.count)
+        columns.withUnsafeMutableBufferPointer { out in
+            var index = 0
+            while index < out.count {
+                let start = from + Double(index) * step
+                var column = PeakColumn.zero
+                if start < end {
+                    let low = (start / bin).rounded(.down)
+                    let high = ((start + step) / bin).rounded(.up)
+                    var bin = low < 0 ? 0 : Int(low < count ? low : count)
+                    let last = high < 0 ? 0 : Int(high < count ? high : count)
+                    while bin < last {
+                        if bins[bin].peak > column.peak { column.peak = bins[bin].peak }
+                        if bins[bin].rms > column.rms { column.rms = bins[bin].rms }
+                        bin += 1
                     }
-                    out[index] = column
-                    index += 1
                 }
+                out[index] = column
+                index += 1
             }
         }
     }
@@ -165,4 +174,5 @@ private func upperLevel(_ base: [PeakColumn], _ factor: Int) -> [PeakColumn] {
     return level
 }
 
-private func quantize(_ value: Float) -> UInt16 { value >= 1 ? 65535 : UInt16((value * 65535).rounded()) }
+/// A linear magnitude as a `PeakColumn` value: 65535 = 0 dBFS.
+func quantize(_ value: Float) -> UInt16 { value >= 1 ? 65535 : UInt16((value * 65535).rounded()) }

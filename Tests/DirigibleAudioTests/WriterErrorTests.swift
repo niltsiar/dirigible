@@ -155,6 +155,34 @@ extension DeviceEventTests {
             "the span of arm 2 holds frames that it did not write")
     }
 
+    /// One drain: 0.5 s, then a forward jump of 3 s in the sample time and the host time, then
+    /// 0.5 s. The jump opens a new segment and no file holds the 3 s hole, so the span of each
+    /// arm ends at its last record before the hole.
+    @Test func aHostHoleEndsTheSpanInItsDrain() async throws {
+        let hal = TestHAL([duo])
+        let writer = duoWriter(hal, drain: .seconds(60))
+        let input = SyntheticInput(hal, "duo")
+        var clock = DeviceClock()
+        var records = run(&clock, 0.5, layout: [2])
+        clock.sampleTime += 3 * 48_000
+        clock.hostNanos += 3e9
+        records += run(&clock, 0.5, layout: [2])
+
+        input.play(records)
+        await input.wait()
+        await writer.finish()
+
+        let levels = log.all.compactMap(\.arms)
+        #expect(levels.count == 1)
+        for arm in [1, 2] {
+            let span = try #require(levels.first?[arm]?.written, "arm \(arm) has no span")
+            #expect(
+                abs(nanos(from: takeStart, to: span.lowerBound)) <= 1000
+                    && abs(nanos(from: takeStart + 500_000_000, to: span.upperBound)) <= 1000,
+                "the span of arm \(arm) crosses the host hole")
+        }
+    }
+
     /// Slow: on a disk image, a full disk fails a write of `t1`; after the filler goes, the next
     /// segment opens, so the track has a clip before and after the error.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

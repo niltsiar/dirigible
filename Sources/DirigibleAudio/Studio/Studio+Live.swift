@@ -27,8 +27,6 @@ extension Studio {
 
     public func livePeaks(of track: TrackID) -> LivePeaks? { live.tracks[track] }
 
-    public func livePeaks(file: FileID) -> (peaks: LivePeaks, anchor: Frames)? { live.files[file] }
-
     /// The file map: the live peaks of each take file after its hand-off, with its anchor.
     public var liveFiles: [FileID: (peaks: LivePeaks, anchor: Frames)] { live.files }
 
@@ -49,7 +47,7 @@ extension Studio {
     /// while the take records. While the take that this studio stopped finalizes, it is the
     /// larger of the head at the stop and the last covered frame, so the head takes the tail of
     /// the final drains. Nil at other times, also during a retry of the finalize.
-    public func liveHead(atHostNanos time: UInt64) -> Frames? {
+    func liveHead(atHostNanos time: UInt64) -> Frames? {
         guard let recording = session.recording else { return nil }
         func head(_ time: UInt64) -> Frames {
             let since = Double(nanos(from: recording.takeStartHostTimeNanos, to: time))

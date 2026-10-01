@@ -98,7 +98,7 @@ Run the **verify-this** skill for each criterion against the real artifact (the 
 
 ## Phase 8: Reflect
 
-Run the **reflect** skill on the branch. With no friction, it logs "no learnings" and makes no commit. Then review the `## Later` headings, and move each item that this run made due to `## Next`.
+Run the **reflect** skill on the branch. Then review the `## Later` headings, and move each item that this run made due to `## Next`.
 
 ## Phase 9: Land through a pull request
 

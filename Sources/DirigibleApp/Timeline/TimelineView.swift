@@ -35,8 +35,8 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
 }
 
 /// The scroll view of the lanes: Command-wheel and pinch zoom at the pointer, a user scroll that
-/// holds the follow during play, the page turns of Automatic Scroll, the track headers in the
-/// vertical ruler, and the visible part that the record-over warning reads.
+/// holds the follow during play or a take, the page turns of Automatic Scroll, the track headers
+/// in the vertical ruler, and the visible part that the record-over warning reads.
 final class TimelineScrollView: NSScrollView {
     weak var model: SessionWindow?
     /// Weak: a view that outlives its window keeps no studio, and so no package lock.
@@ -53,6 +53,10 @@ final class TimelineScrollView: NSScrollView {
     private var link: CADisplayLink?
     /// The playhead, the playback, and the take state of the last tick.
     private var last: (playhead: Double, playback: Playback, taking: Bool)?
+    /// The end that a take holds (live take view): during a take, the next minute strictly above
+    /// the head + the frames in view; after it, the frame at the right edge of the view at the
+    /// hand-off. A navigation input after the take drops it.
+    private(set) var heldEnd: Frames?
     /// The live store and the live key of the last live draw (`liveTick`).
     var liveSeen = (version: 0, epoch: 0, key: LiveKey())
     /// The first view is shown: the last view of the window, else the fit at open.
@@ -67,7 +71,7 @@ final class TimelineScrollView: NSScrollView {
     /// The window point of the last lane or ruler drag event, for autoscroll (0025).
     var dragPointer: (window: NSPoint, ruler: Bool)?
     /// The time of the last autoscroll tick, and the time when the pointer entered the zone.
-    private var autoscrollTimes: (last: Double, zone: Double?)?
+    var autoscrollTimes: (last: Double, zone: Double?)?
 
     /// `headerWidth` is the width of the track headers at open.
     init(model: SessionWindow, studio: Studio, headerWidth: HeaderWidth = .standard) {
@@ -189,7 +193,7 @@ final class TimelineScrollView: NSScrollView {
             overview?.inputs = OverviewInputs(
                 session: session, selection: source.marks.selection(in: session)?.range,
                 selectedLanes: session.tracks.indices.filter { source.marks.tracks.contains(session.tracks[$0].id) },
-                extent: Viewport.extent(end: session.end, rate: session.sampleRate))
+                extent: Viewport.extent(end: end(of: session), rate: session.sampleRate))
         }
         ruler.inputs = drawn.geometry.map {
             RulerInputs(
@@ -251,10 +255,32 @@ final class TimelineScrollView: NSScrollView {
 
     @objc private func liveScrollStarted() { userScrolled() }
 
-    /// A user scroll during play holds the follow (decision 0017); the play goes on.
+    /// A user scroll during play or a take holds the follow (decision 0017); the play goes on.
     func userScrolled() {
-        guard let model, studio?.playback != .stopped, !model.timeline.followHeld else { return }
+        guard let model, studio?.playback != .stopped || taking, !model.timeline.followHeld else { return }
         model.timeline.followHeld = true
+    }
+
+    /// A take records or finalizes: the last tick had a live head.
+    var taking: Bool { last?.taking == true }
+
+    /// The one head (F3): the record head of the last tick during a take, else the Studio playhead.
+    var head: Frames {
+        guard let last, last.taking else { return studio?.playhead ?? .zero }
+        return Frames(Int(last.playhead))
+    }
+
+    /// The one end of the timeline (live take view, G3 and G4): the session end, or the held end
+    /// when it is later. The lanes, the strip, and the viewport read it.
+    func end(of session: Session) -> Frames { max(session.end, heldEnd ?? .zero) }
+
+    /// A new held end: the lanes take their new width, and the strip its new extent and frame.
+    func holdEnd(_ end: Frames?) {
+        guard end != heldEnd else { return }
+        heldEnd = end
+        lanes.resize()
+        redraw()
+        viewMoved()
     }
 
     /// The frames and the whole lanes in view, for the record-over warning. It writes only a
@@ -305,54 +331,30 @@ final class TimelineScrollView: NSScrollView {
         autoscrollTick(at: CACurrentMediaTime())
     }
 
-    /// Autoscroll (0025, U16): during a drag with the pointer past the lanes edge, the lanes scroll
-    /// and the drag goes again at the same window point, so a still pointer also moves the clip.
-    /// The lanes keep their width during the gesture (0020), so the scroll stops at the held width.
-    func autoscrollTick(at now: Double) {
-        guard gesture.autoscrolls, let pointer = dragPointer, shown.width > 0 else {
-            autoscrollTimes = nil
-            return
-        }
-        let x = Double(lanes.convert(pointer.window, from: nil).x - shown.minX)
-        // A lanes edge on the screen edge: the pointer cannot go past it (a maximized window).
-        let edges = window?.convertToScreen(lanes.convert(shown, to: nil)) ?? .zero
-        let screen = window?.screen?.frame
-        let atScreen = (
-            screen.map { edges.minX <= $0.minX + 1 } ?? false, screen.map { edges.maxX >= $0.maxX - 1 } ?? false
-        )
-        let times = autoscrollTimes ?? (last: now - 1.0 / 60, zone: nil)
-        let zone = times.zone ?? now
-        let step = autoscrollStep(
-            x: x, width: Double(shown.width), edgesAtScreen: atScreen, secondsInZone: now - zone,
-            tick: min(now - times.last, 0.1))
-        autoscrollTimes = (now, step == 0 ? nil : zone)
-        // The clip view does not clamp a scroll: stop at 0 and at the held width of the lanes.
-        let last = Double(lanes.frame.width - shown.width) * framesPerPoint
-        let target = min(max(origin + step * framesPerPoint, 0), max(0, last))
-        guard target != origin else { return }
-        userScrolled()
-        scroll(toFrame: target)
-        // Also after a real drag event: the preview of the frame is at the pointer after the
-        // scroll, so the mouse-up drops the clip where the frame showed it (code gate 2 item 2).
-        let point = lanes.convert(pointer.window, from: nil)
-        let y = pointer.ruler ? Double(ruler.convert(pointer.window, from: nil).y) : Double(point.y)
-        mouse(.drag(pointer.ruler ? .ruler(x: Double(point.x), y: y) : .lanes(x: Double(point.x), y: y)))
-    }
-
     /// Moves the playhead line, or the record head line during a take (`taking`), and draws the
-    /// live take. During play, the follow can turn the page. A play start, a shuttle change, or a
-    /// move of the playhead while stopped (a seek) ends a hold and shows the playhead when it is
-    /// off the page. A head move in a take and the end of a take are not a seek. The first tick
-    /// only takes the state.
+    /// live take. During play and during a take, the follow can turn the page. A play start, a
+    /// take start, a shuttle change, or a move of the playhead while stopped with no take (a
+    /// seek) ends a hold and shows the head when it is off the page. A head move in a take is not
+    /// a seek. The end of a take (the hand-off or a finalize error) moves only the line and keeps
+    /// the view. The first tick only takes the state.
     func tick(playhead: Double, playback: Playback, taking: Bool = false) {
+        let previous = last
+        last = (playhead, playback, taking)
+        if taking, let rate = source?.session.sampleRate {
+            // The lanes grow a minute at a time, before the follow, so each turn has room.
+            let minute = 60 * rate
+            holdEnd(Frames((Int(playhead + visibleFrames) / minute + 1) * minute))
+        } else if previous?.taking == true {
+            // The session can end before the right edge: keep it, so the clip view keeps the origin.
+            holdEnd(Frames(Int(origin + visibleFrames)))
+        }
         lanes.movePlayhead(to: playhead)
         overview?.movePlayhead(to: playhead)
         liveTick(head: taking ? Frames(Int(playhead)) : nil)
-        defer { last = (playhead, playback, taking) }
-        guard let model, let last, !taking, !last.taking else { return }
-        let started = playback != .stopped && playback != last.playback
-        let seeked = playback == .stopped && playhead != last.playhead
-        guard playback != .stopped || seeked else { return }
+        guard let model, let previous, taking || !previous.taking else { return }
+        let started = taking ? !previous.taking : playback != .stopped && playback != previous.playback
+        let seeked = !taking && playback == .stopped && playhead != previous.playhead
+        guard taking || playback != .stopped || seeked else { return }
         var state = model.timeline
         if started || seeked { state.followHeld = false }
         let direction: Shuttle.Direction

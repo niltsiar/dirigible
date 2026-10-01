@@ -37,12 +37,12 @@ path	words	decision
 .claude/skills/pr/	753	baseline
 .claude/skills/pr/CREDITS.md	71	baseline
 .claude/skills/pr/SKILL.md	682	baseline
-.claude/skills/reflect/	3050	0028 (slice 9 of 2026-09-30-workflow-consolidation: the Failure classes line)
-.claude/skills/reflect/SKILL.md	600	baseline
-.claude/skills/reflect/references/divergent-reviewer.md	574	baseline
-.claude/skills/reflect/references/judgment-reviewer.md	476	baseline
-.claude/skills/reflect/references/synthesizer.md	700	0028 (slice 9 of 2026-09-30-workflow-consolidation: the Failure classes line)
-.claude/skills/reflect/references/tooling-reviewer.md	704	baseline
+.claude/skills/reflect/	3720	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/reflect/SKILL.md	1120	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/reflect/references/divergent-reviewer.md	540	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/reflect/references/judgment-reviewer.md	440	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/reflect/references/synthesizer.md	990	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/reflect/references/tooling-reviewer.md	660	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/research/	347	baseline
 .claude/skills/research/SKILL.md	347	baseline
 .claude/skills/resolving-merge-conflicts/	122	baseline

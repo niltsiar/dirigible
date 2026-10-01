@@ -24,7 +24,7 @@ AGT-022	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows
 AGT-023	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	10edc92		make lint runs strict swift format lint
 AGT-024	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	10edc92		make format rewrites Swift sources in place
 AGT-025	AGENTS.md	keep	AGENTS.md	describes what scripts/check-docs.sh checks; slice 8 shortens it	c3a9c60		make check-docs: research dates, brief IDs, decisions, Commands table rows, guide menus, links
-AGT-026	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	53268ff		check-docs.test.sh covers the docs check
+AGT-026	AGENTS.md	enforced	Makefile	the check-docs recipe runs scripts/check-docs.test.sh before scripts/check-docs.sh (slice 8)	53268ff		check-docs.test.sh covers the docs check
 AGT-027	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	40124f0		dirigible CLI edits and reads session packages (decision 0011)
 AGT-028	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	7723b34		make check-warnings verifies warnings-as-errors per Package.swift target
 AGT-029	AGENTS.md	keep	AGENTS.md	keep; slice 8 adds rows for make test-hooks and make check-slow-gates	L58	hook	make check bundles lint, docs, slow gates, warnings, tests, hooks, app tests
@@ -98,7 +98,7 @@ AGT-096	AGENTS.md	keep	AGENTS.md	zero warnings; C18	7723b34		warnings are errors
 AGT-097	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		Swift file over 400 lines needs a reason; split by responsibility
 AGT-098	AGENTS.md	keep	AGENTS.md	test-first stays (C18)	10edc92		red test first via tdd for each behavior change
 AGT-099	AGENTS.md	merge	TDD-002	duplicate of tdd:10 (audit s2, spec item 7)	10edc92		integration tests with real files and buffers; unit tests for pure functions
-AGT-100	AGENTS.md	keep	AGENTS.md	duplicate of tdd:15 (step 2), not a spec home; slice 8 may point it to tdd	10edc92		generated audio fixtures in tests, no big binary fixtures
+AGT-100	AGENTS.md	merge	TDD-006	duplicate of tdd:15 (step 2); slice 8 points to tdd (row reason)	10edc92		generated audio fixtures in tests, no big binary fixtures
 AGT-101	AGENTS.md	merge	TDD-027	duplicate of tdd:37 (audit s2, spec item 7)	10edc92		literal expected values; processed audio within a stated tolerance
 AGT-102	AGENTS.md	merge	TDD-017	duplicate of tdd:26 (audit s2, spec item 7)	10edc92		a test that passes on empty returns is no test
 AGT-103	AGENTS.md	keep	AGENTS.md	no tdd row states the network ban; tdd:24 covers only the hardware part	10edc92		tests avoid network, real microphone, permission prompts

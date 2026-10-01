@@ -19,7 +19,9 @@ public struct LivePeaks: Sendable {
     /// rounding of the drain ends gives such gaps, and a draw walks each range. A real gap (a lost
     /// device, a write error) is at least one drain of 50 ms, so it stays.
     public private(set) var covered: [Range<Frames>] = []
-    /// The start of the lowest bin that an add touched since the view cleared it (F1).
+    /// The lowest live frame whose draw an add changed since the view cleared it (F1): the start
+    /// of the lowest bin that it touched, or the end of the covered range before its span. The
+    /// box goes from that end to the head, so a span after a gap changes the gap to the lane color.
     var addedFrom: Frames?
 
     init(origin: Frames, startHostNanos: UInt64, rate: Int) {
@@ -47,8 +49,9 @@ public struct LivePeaks: Sendable {
         for bin in low..<high {
             bins[bin] = PeakColumn(peak: max(bins[bin].peak, column.peak), rms: max(bins[bin].rms, column.rms))
         }
+        let before = covered.last { $0.lowerBound <= Frames(lower) }?.upperBound ?? .zero
         cover(Frames(lower)..<Frames(upper))
-        addedFrom = min(addedFrom ?? .limit, Frames(low * binFrames))
+        addedFrom = min(addedFrom ?? .limit, Frames(low * binFrames), before)
         return true
     }
 

@@ -1,6 +1,6 @@
 # Eval set of the workflow docs
 
-This file is the regression set of the workflow docs (`AGENTS.md`, `.claude/skills/`, `.claude/agents/`, `docs/principles.md`, and `scripts/`). Each scenario is a question from a real incident or from a sampled rule of the rule register. Reflect rule 8 and the eval-engineering lens use the `Files` column: a change that deletes, merges, or moves a rule in a file of that column runs the scenario again.
+This file is the regression set of the workflow docs (`AGENTS.md`, `.claude/skills/`, `.claude/agents/`, `docs/principles.md`, and `scripts/`). Each scenario is a question from a real incident or from a sampled rule of the rule register. Reflect rule 8 and the eval-engineering lens use the `Files` column: a change that trims, deletes, merges, or moves a rule in a file of that column runs the scenario again.
 
 ## How the eval runs
 

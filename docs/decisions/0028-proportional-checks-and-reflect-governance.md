@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-10-01
 - Accepted: 2026-09-30, after plan gate rounds 1 and 2 of run `2026-09-30-workflow-consolidation`.
-- Amended: 2026-10-01. A commit inside a slice can run only the tests of the slice. A passing push check writes a stamp that the land reuses. After a fix that follows the replay, only the affected controls replay again.
+- Amended: 2026-10-01. A commit inside a slice can run only the tests of the slice. A passing push check writes a stamp that the land reuses. After a fix that follows the replay, only the affected controls replay again. Reflect rule 8 also runs the scenarios after a trim of a rule.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context
@@ -64,7 +64,7 @@ A mixed change gets the union of the rows of its classes. The larger round count
 5. Once per reflect run, before the merge, the review panel reviews the diff of the reflect commits. The lenses come from the paths of the diff. A blocking finding gets a fix commit or a revert commit.
 6. Each reflect commit runs `make check-changed`.
 7. A reflect run removes at most one rule. The reflect skill holds the full removal rule. In a branch whose only class is docs, `scripts/check-governance.sh` refuses more than one removal when the run has a reflect row.
-8. When a change deletes, merges, or moves a rule, reflect runs the eval scenarios of `docs/workflow/evals.md` that name a changed file. A scenario that passed before the change and fails after it reverts the change. A changed file with no scenario gets one first, or the commit body says why none applies.
+8. When a change trims, deletes, merges, or moves a rule, reflect runs the eval scenarios of `docs/workflow/evals.md` that name a changed file. A scenario that passed before the change and fails after it reverts the change. A changed file with no scenario gets one first, or the commit body says why none applies.
 
 ## Consequences
 

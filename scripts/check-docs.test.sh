@@ -116,6 +116,8 @@ good; rule 'AGT-003	AGENTS.md	branch	AGENTS.md	scope	10edc92		scope'; expect fai
 good; rule 'AGT-003	AGENTS.md	merge	AGT-999	duplicate	10edc92		scope'; expect fail 'register merge to an unknown ID' 'rules.tsv: AGT-003 merges into an unknown id AGT-999'
 good; rule 'AGT-003	AGENTS.md	delete			10edc92		scope'; expect fail 'register delete with no reason' 'rules.tsv: AGT-003 is delete with no reason'
 good; rule 'AGT-003	AGENTS.md	keep	AGENTS.md	scope			scope'; expect fail 'register row with no source' 'rules.tsv: AGT-003 has no source'
+good; rule 'AGT-003	AGENTS.md	keep	no/such.md	scope	10edc92		scope'; expect fail 'register target that does not exist' 'rules.tsv: AGT-003 targets no/such.md, which does not exist'
+good; rule 'AGT-003	AGENTS.md	new		scope	10edc92		scope'; expect fail 'register row with no target' 'rules.tsv: AGT-003 is new with no target'
 good; rm "$tmp/docs/workflow/rules.tsv"; expect fail 'no register' 'docs/workflow/rules.tsv is missing'
 good; sed -i '' '1s/$/	text/' "$tmp/docs/workflow/rules.tsv"; expect fail 'register with a text column' 'rules.tsv: the header is not'
 

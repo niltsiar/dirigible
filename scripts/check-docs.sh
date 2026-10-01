@@ -166,6 +166,11 @@ else
                 if (source[i] == "") print id[i] " has no source"
             }
         }' "$register")
+    # A keep, move, enforced, or new row names the file that holds the rule now.
+    while IFS=$'\t' read -r id verdict target; do
+        if [[ -z "$target" ]]; then err "rules.tsv: $id is $verdict with no target"
+        elif [[ ! -e "$root/$target" ]]; then err "rules.tsv: $id targets $target, which does not exist"; fi
+    done < <(awk -F'\t' 'NR > 1 && $3 ~ /^(keep|move|enforced|new)$/ { print $1 "\t" $3 "\t" $4 }' "$register")
 fi
 
 exit "$fail"

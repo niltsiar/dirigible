@@ -254,19 +254,22 @@ struct LivePeaksTests {
 
     // MARK: The dirty start of slice 3 (F1)
 
-    /// `addedFrom` is the start of the lowest bin that an add touched since the last clear.
-    @Test func addedFromIsTheStartOfTheLowestTouchedBin() {
+    /// `addedFrom` is the lowest frame whose draw an add changed since the last clear: the start
+    /// of the lowest bin that it touched, or the end of the covered range before its span (V1).
+    @Test func addedFromIsTheLowestFrameWhoseDrawChanged() {
         var peaks = live()
         #expect(peaks.addedFrom == nil)
         peaks.add(peak: 0.5, rms: 0.25, span: span(1010, 1060), latencyNanos: 0, now: later)
-        #expect(peaks.addedFrom == Frames(48_000))
-        peaks.add(peak: 0.5, rms: 0.25, span: span(1100, 1150), latencyNanos: 0, now: later)
-        #expect(peaks.addedFrom == Frames(48_000))
+        #expect(peaks.addedFrom == .zero, "no covered range before the first span: the take start")
+
+        peaks.addedFrom = nil
+        peaks.add(peak: 0.5, rms: 0.25, span: span(1060, 1110), latencyNanos: 0, now: later)
+        #expect(peaks.addedFrom == Frames(50_400), "a span with no gap: the start of its lowest bin")
         peaks.add(peak: 0.5, rms: 0.25, span: span(500, 550), latencyNanos: 0, now: later)
-        #expect(peaks.addedFrom == Frames(24_000))
+        #expect(peaks.addedFrom == .zero, "a late span with no covered range before it")
 
         peaks.addedFrom = nil
         peaks.add(peak: 0.5, rms: 0.25, span: span(2000, 2050), latencyNanos: 0, now: later)
-        #expect(peaks.addedFrom == Frames(96_000))
+        #expect(peaks.addedFrom == Frames(53_280), "a span after a gap: the end of the range before it")
     }
 }

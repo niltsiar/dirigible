@@ -5,11 +5,12 @@
 # push sends only the commits. It rebases on origin/main, runs check-governance.sh with the run
 # folder of the body file, and with `risk: yes` from check-changed.sh it needs a control row in
 # the decisions.tsv of that folder: phase 2 or 4, with a log under controls/. The third argument
-# names the row that says why no control applies. Then it runs `make check-changed
-# BASE=origin/main`, pushes the branch, creates the pull request, refuses the merge when
-# origin/main moved after the checks, merges with a rebase, and updates main. It stops at the
-# first failure and never force-pushes. It prints the PR URL and the commit range on main.
-# scripts/land.test.sh tests it.
+# names the row that says why no control applies. Then it runs the checks: none when the pass
+# stamp of check-stamp.sh has HEAD, the targets of the delta when the stamp has an ancestor of
+# HEAD, else `make check-changed BASE=origin/main`. It prints the stamp line. Then it pushes the
+# branch, creates the pull request, refuses the merge when origin/main moved after the checks,
+# merges with a rebase, and updates main. It stops at the first failure and never force-pushes.
+# It prints the PR URL and the commit range on main. scripts/land.test.sh tests it.
 set -euo pipefail
 
 die() { echo "land.sh: $1" >&2; exit 1; }
@@ -27,7 +28,7 @@ branch="$(git branch --show-current)"
 [[ -z "$(git status --porcelain)" ]] ||
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"
 git fetch origin
-git rebase origin/main || die "the rebase on origin/main stopped; resolve it with the resolving-merge-conflicts skill"
+git rebase origin/main || die "the rebase on origin/main stopped; resolve the conflict with a rebase on a fresh branch"
 "$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
 out="$("$here/check-changed.sh" origin/main)" || die "check-changed.sh origin/main failed; nothing is pushed"
 if [[ "$(sed -n 's/^risk: //p' <<<"$out")" == yes ]]; then
@@ -40,7 +41,24 @@ if [[ "$(sed -n 's/^risk: //p' <<<"$out")" == yes ]]; then
             die "risk: yes, and $log has no control row (phase 2 or 4, with a log under controls/); add the controls, or pass the time of the row that says why no control applies"
     fi
 fi
-make check-changed BASE=origin/main || die "the checks failed; nothing is pushed"
+# The pass stamp: a passing push check of HEAD or of an ancestor of HEAD, with this base.
+# --no-renames lists the old path of a move too, as check-changed.sh does.
+if stamp="$("$here/check-stamp.sh" read origin/main)"; then
+    commit="${stamp%% *}"
+    delta="$(git diff --name-only --no-renames "$commit" HEAD)"
+    if [[ -z "$delta" ]]; then
+        echo "stamp: reuse $commit"
+    else
+        out="$("$here/check-changed.sh" --paths --push <<<"$delta")" || die "check-changed.sh failed on the delta after $commit; nothing is pushed"
+        targets="$(sed -n 's/^targets: //p' <<<"$out")"
+        [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
+        echo "stamp: delta $targets"
+        make $targets || die "the checks failed; nothing is pushed"
+    fi
+else
+    echo "stamp: none ($stamp)"
+    make check-changed BASE=origin/main || die "the checks failed; nothing is pushed"
+fi
 git push -u origin "$branch"
 url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"
 echo "pr: $url"

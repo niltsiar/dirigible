@@ -1,7 +1,8 @@
 #!/bin/bash
 # Run the lens selection of review-panel.js with real args and stub agents: the default lenses of
 # each target, an explicit lens list, an unknown key, an empty selection, and a paths scope with
-# no changed file. Run by `make test-hooks`.
+# no changed file. Check that only warning and critical findings go to a skeptic, and that the
+# result lists the nits of each lens under `nits`. Run by `make test-hooks`.
 set -euo pipefail
 PANEL="$(cd "$(dirname "$0")" && pwd)/review-panel.js" exec node - <<'JS'
 const src = require('fs').readFileSync(process.env.PANEL, 'utf8').replace(/^export const meta/m, 'const meta')
@@ -11,13 +12,17 @@ const PATHS = ['AGENTS.md', '.claude/skills', '.claude/agents', 'docs/workflow']
 let failures = 0
 const fail = msg => { console.log(`FAIL: ${msg}`); failures++ }
 
-// The stub agent returns the file list for the paths scope step (label 'scope'), and a clean
-// review with one checked entry for each lens. The stub pipeline passes the lens to each stage.
-async function run(args, files = []) {
-  const prompts = []
+// The stub agent returns the file list for the paths scope step (label 'scope'), the findings of
+// `found[lens]` (none by default) with one checked entry for each lens, and a skeptic verdict that
+// upholds each finding. The stub pipeline passes the lens to each stage.
+async function run(args, files = [], found = {}) {
+  const prompts = [], labels = []
   const agent = async (prompt, opts) => {
     prompts.push(prompt)
-    return opts.label === 'scope' ? { files } : { findings: [], checked: ['stub'] }
+    labels.push(opts.label)
+    if (opts.label === 'scope') return { files }
+    if (opts.label.startsWith('verify:')) return { verdicts: [0, 1, 2].map(index => ({ index, upheld: true, reason: 'stub' })) }
+    return { findings: found[opts.label.slice('review:'.length)] || [], checked: ['stub'] }
   }
   const pipeline = (items, ...stages) => Promise.all(items.map(async item => {
     let r = item
@@ -25,7 +30,27 @@ async function run(args, files = []) {
     return r
   }))
   const result = await new AsyncFunction('args', 'log', 'agent', 'pipeline', src)(args, () => {}, agent, pipeline)
-  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts }
+  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts, labels, panel: result.panel }
+}
+
+const finding = (severity, title) => ({ severity, title, location: 'a.sh:1', failure: 'f', evidence: 'e' })
+const titles = list => JSON.stringify((list || []).map(f => f.title))
+
+// Only warning and critical findings go to the skeptic of a lens; nits go to `nits`.
+async function expectNits(name, found, want) {
+  try {
+    const got = await run({ target: 'diff', lenses: ['premortem'] }, [], { premortem: found })
+    const lens = got.panel[0] || {}
+    const verify = got.prompts.filter((p, i) => got.labels[i] === 'verify:premortem')
+    if (verify.length !== (want.verify ? 1 : 0)) fail(`${name}: ${verify.length} verify:premortem calls, want ${want.verify ? 1 : 0}`)
+    for (const t of want.sent || []) if (!verify.some(p => p.includes(t))) fail(`${name}: the skeptic did not get ${t}`)
+    for (const t of want.nits) if (verify.some(p => p.includes(t))) fail(`${name}: the skeptic got the nit ${t}`)
+    if (titles(lens.nits) !== JSON.stringify(want.nits)) fail(`${name}: nits ${titles(lens.nits)}, want ${JSON.stringify(want.nits)}`)
+    if (titles(lens.survived) !== JSON.stringify(want.sent || [])) fail(`${name}: survived ${titles(lens.survived)}, want ${JSON.stringify(want.sent || [])}`)
+    if (lens.raised !== found.length) fail(`${name}: raised ${lens.raised}, want ${found.length}`)
+  } catch (error) {
+    fail(`${name}: threw ${error.message}`)
+  }
 }
 
 async function expectKeys(name, args, keys, missing = [], files = []) {
@@ -57,6 +82,9 @@ async function expectThrow(name, args, pattern, files = []) {
   await expectThrow('only an unknown key', { target: 'diff', lenses: ['nope'] }, /no lens/)
   await expectThrow('an empty lens list', { target: 'diff', lenses: [] }, /no lens/)
   await expectThrow('a paths scope with no changed file', { target: 'diff', paths: ['no/such/path'] }, /no changed file/)
+  await expectNits('a lens with only nits', [finding('nit', 'nit one'), finding('nit', 'nit two')], { verify: false, nits: ['nit one', 'nit two'] })
+  await expectNits('a nit and a warning', [finding('nit', 'nit one'), finding('warning', 'warn one')], { verify: true, sent: ['warn one'], nits: ['nit one'] })
+  await expectNits('a critical finding', [finding('critical', 'crit one')], { verify: true, sent: ['crit one'], nits: [] })
   if (failures) { console.log(`${failures} failure(s)`); process.exit(1) }
   console.log('review-panel.test.sh: all cases pass')
 })()

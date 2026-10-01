@@ -37,10 +37,13 @@ struct TrackSegments {
         /// The raw host nanoseconds of the frames that `writer` wrote since the last
         /// `takeLevels`. The bounds stay apart until `takeLevels`, so no `Range` traps.
         var written: (start: UInt64, end: UInt64)?
-        /// True after a write error since the last `takeLevels`. Then the frames of a reopen
-        /// in the same drain get no span, so the span holds no gap.
+        /// True after a write error, or after a segment that opens after a host hole, since the
+        /// last `takeLevels`. Then the later frames of the drain get no span, so it holds no gap.
         var spanStopped = false
     }
+
+    /// A host time can move by 200 µs (`Segment`), so a larger gap before a new segment is a hole.
+    private static let holeNanos: Int64 = 1_000_000
 
     /// Nil for a monitor.
     private let files: TakeFiles?
@@ -249,6 +252,11 @@ struct TrackSegments {
     /// Opens a segment for every track that has no error. A track with an error waits for its
     /// 1 s of device frames.
     private mutating func open(at record: InputRecord) {
+        // No file holds the frames of a host hole before the new segment.
+        for index in outputs.indices {
+            guard let span = outputs[index].written else { continue }
+            if nanos(from: span.end, to: record.hostTimeNanos) > Self.holeNanos { outputs[index].spanStopped = true }
+        }
         segments += 1
         segment = Segment(first: record)
         for index in outputs.indices where outputs[index].failedAt == nil {

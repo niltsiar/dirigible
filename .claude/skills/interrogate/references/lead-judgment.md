@@ -48,8 +48,8 @@ In the convergence round:
 
 ## Fix check
 
-After the fixes of the last round that the gate runs (the convergence round, or round 1 of a 1-round gate), run one fix check: one `general-purpose` agent with each accepted finding of all rounds and the fix diff (at the code gate, `git diff` of the fix commits; at the plan gate, `plan.md` and `design.md` before round 1 and now).
+After the fixes of the last round (the convergence round, or round 1 of a 1-round gate), run one fix check: one `general-purpose` agent with each "Act on" item of all rounds and its fix (at the code gate, `git diff` of the fix commits of all rounds; at the plan gate, the diff of `plan.md` and `design.md` against a copy that you save before the first fix).
 
 It answers four questions for each fix. Does the fix answer its finding? Does it add a rule or behavior that no finding asked for? What new failure mode does it add, for example a shared name, path, or constant that concurrent callers collide on? Does its new text contradict a rule that another fix or a settled item of the same gate sets?
 
-Correct a wrong fix. Move an added rule out of the fix and into `## Later` of `.scratchpads/backlog.md`. The fix check is not a review round, so it opens no new areas.
+Correct a wrong fix. Move an added rule to `## Later` of `.scratchpads/backlog.md`. The fix check is not a review round, so it opens no new areas.

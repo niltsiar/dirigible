@@ -1,7 +1,8 @@
 #!/bin/bash
 # Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md and decisions.tsv,
 # plus one line in .scratchpads/ledger.md. Running it again for the slug of an open run,
-# on any day, returns the same folder and changes nothing.
+# on any day, returns the same folder and changes nothing. It prints the backlog section sizes
+# on stderr.
 set -euo pipefail
 
 slug="${1:?usage: new-run.sh <slug>}"
@@ -27,6 +28,23 @@ touch "$root/learnings.md" "$root/backlog.md"
 [[ -f "$root/ledger.md" ]] || printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$root/ledger.md"
 grep -q "| $run |" "$root/ledger.md" || printf '| %s | %s | open | |\n' "$run" "$slug" >> "$root/ledger.md"
 
+# Report the backlog sections on stderr; stdout stays the run folder. Phase 0 reads ## Next at
+# each run start, so a long ## Next costs each run. A backlog item has no date, so the Later
+# count of the last run.md is the record of the change.
+backlog="$root/backlog.md"
+next_words="$(awk '/^## /{s=$0; next} s=="## Next"{n+=NF} END{print n+0}' "$backlog")"
+(( next_words <= 1000 )) || echo "warning: ## Next of backlog.md has $next_words words, over 1000; move items to ## Later" >&2
+later="$(awk '/^## /{s=$0; next} s=="## Later" && /^- /{n++} END{print n+0}' "$backlog")"
+last=""
+for d in "$root"/runs/*/; do [[ "${d%/}" == "$dir" ]] || last="${d%/}"; done
+prev=""
+[[ -f "$last/run.md" ]] && prev="$(sed -n 's/^- Later items: \([0-9][0-9]*\)$/\1/p' "$last/run.md" | head -n 1)"
+if [[ -n "$prev" ]]; then
+    printf 'backlog: ## Later has %d items (%+d since %s)\n' "$later" $((later - prev)) "$(basename "$last")" >&2
+else
+    echo "backlog: ## Later has $later items" >&2
+fi
+
 [[ -f "$dir/decisions.tsv" ]] || printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$dir/decisions.tsv"
 [[ -f "$dir/run.md" ]] || cat > "$dir/run.md" <<MD
 # Run $run
@@ -35,6 +53,7 @@ grep -q "| $run |" "$root/ledger.md" || printf '| %s | %s | open | |\n' "$run" "
 - Goal: $slug
 - Requirements:
 - Branch:
+- Later items: $later
 
 ## Phases
 

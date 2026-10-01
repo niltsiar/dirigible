@@ -7,7 +7,7 @@
 # - checks: the logs/ files with a `check-changed:` or `targets:` line. Filtered: the targets have
 #   test-filter. Push: a base that is not empty, none, or -, or the targets have test-slow or
 #   test-dmg. Repeated: a `check-changed:` line on a clean tree with the commit and the targets of
-#   an earlier line.
+#   an earlier line. With no logs/ folder, the checks and benches lines say so, not zero.
 # - benches: the logs/ files with a `bench:` or `scripts/bench.sh` line; the pairs sets (folders
 #   with a load.txt); repeated: a `bench:` line on a clean tree with an earlier commit and filter.
 # - controls: the logs at the top of controls/ and the different replay logs under controls/replay*.
@@ -57,8 +57,13 @@ repeats() { awk -v kind="$1" '$1 == kind ":" && $5 == "clean" { $5 = ""; if (see
 check_repeats="$(cat "$run"/logs/* 2>/dev/null | repeats check-changed || true)"
 bench_repeats="$(cat "$run"/logs/* 2>/dev/null | repeats bench || true)"
 pairs="$(find "$run" -maxdepth 3 -name load.txt -type f | wc -l | tr -d ' ')"
-echo "checks: $checks logs, $filtered filtered, $push push checks, $check_repeats repeated (same commit and targets)"
-echo "benches: $benches bench logs, $pairs pairs sets, $bench_repeats repeated (same commit and filter)"
+if [[ -d "$run/logs" ]]; then
+    echo "checks: $checks logs, $filtered filtered, $push push checks, $check_repeats repeated (same commit and targets)"
+    echo "benches: $benches bench logs, $pairs pairs sets, $bench_repeats repeated (same commit and filter)"
+else
+    echo "checks: no logs folder"
+    echo "benches: no logs folder, $pairs pairs sets"
+fi
 
 written=0 replayed=0
 if [[ -d "$run/controls" ]]; then

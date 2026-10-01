@@ -70,7 +70,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interro
 
 ## Phase 4: Implement
 
-1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <log> 2>&1 && git commit ...`. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
+1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <run>/logs/<name>.log 2>&1 && git commit ...`. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
 2. Use Conventional Commits (see `AGENTS.md`).
 3. After each slice, log a row and tick `run.md` with the actual minutes. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
 4. If the plan proves wrong, stop, update `plan.md`, and log why. A changed criterion gets its new text in `analysis.md` in the same step, citing the row, so Phase 7 verifies that text.
@@ -93,7 +93,7 @@ Run the **interrogate** skill with target `diff` and the rounds of the class tab
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each criterion against the real artifact (the built app, the real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once: `make bench` and `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs no pairs), then the push check `make check-changed BASE=origin/main` with `run_in_background`. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. A later `Sources/` change runs all three again.
+Run the **verify-this** skill for each criterion against the real artifact (the built app, the real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once, with logs in `<run>/logs/`: `make bench` and `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs no pairs), then the push check `make check-changed BASE=origin/main` with `run_in_background`. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. A later `Sources/` change runs all three again.
 
 ## Phase 8: Reflect
 

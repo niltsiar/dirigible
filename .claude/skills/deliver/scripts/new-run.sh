@@ -1,5 +1,5 @@
 #!/bin/bash
-# Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md and decisions.tsv,
+# Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md, decisions.tsv, and logs/,
 # plus one line in .scratchpads/ledger.md. Running it again for the slug of an open run,
 # on any day, returns the same folder and changes nothing. It prints the backlog section sizes
 # on stderr.
@@ -22,7 +22,8 @@ if [[ -z "$run" ]]; then
     [[ ! -d "$root/runs/$run" ]] || { echo "run $run is closed; choose a new slug" >&2; exit 2; }
 fi
 dir="$root/runs/$run"
-mkdir -p "$dir"
+# logs/ holds the check and bench logs that cost.sh of reflect counts.
+mkdir -p "$dir/logs"
 touch "$root/learnings.md" "$root/backlog.md"
 
 [[ -f "$root/ledger.md" ]] || printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$root/ledger.md"

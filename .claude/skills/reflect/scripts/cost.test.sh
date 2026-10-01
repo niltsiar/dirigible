@@ -123,13 +123,13 @@ no_gh="$(grep -v '^pace: ' <<<"$no_transcript")
 pace: no gh data"
 FAKE_GH=fail check 'gh fails' "$no_gh" "$run"
 
-# A run folder with no logs/ and no controls/ (the early runs): zero counts, and the pace lines.
+# A run folder with no logs/ and no controls/ (the early runs): no false zero for the checks and the
+# benches, zero controls, and the pace lines.
 bare="$tmp/2026-09-19-bare"
 mkdir "$bare"
 cp "$run/decisions.tsv" "$run/run.md" "$bare/"
 out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$bare" 2>&1)" || fail "no logs and no controls: exit $?: $out"
-for line in 'checks: 0 logs, 0 filtered, 0 push checks, 0 repeated (same commit and targets)' \
-  'benches: 0 bench logs, 0 pairs sets, 0 repeated (same commit and filter)' 'controls: 0 written, 0 replayed' 'friction: 4'; do
+for line in 'checks: no logs folder' 'benches: no logs folder, 0 pairs sets' 'controls: 0 written, 0 replayed' 'friction: 4'; do
   grep -qxF -- "$line" <<<"$out" || fail "no logs and no controls: no line '$line' in: $out"
 done
 grep -q '^pace: merges per day ' <<<"$out" || fail "no logs and no controls: no pace line: $out"

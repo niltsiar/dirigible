@@ -67,7 +67,8 @@ check_row 'a default row with Reverse:' $'plan\tuse blue\tno reference app. Reve
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the
-# Later count with the change from the `Later items:` line of the last run.md.
+# Later count with the change from the `Later items:` line of the last run.md. It makes the logs/
+# folder, where cost.sh of reflect counts the check and bench logs.
 new_run="$(dirname "$log")/new-run.sh"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 repo="$tmp/repo"
@@ -81,6 +82,7 @@ dir="$repo/.scratchpads/runs/$(date +%Y-%m-%d)-big"
 [[ "$out" == "$(cd "$repo" && pwd -P)/.scratchpads/runs/$(date +%Y-%m-%d)-big" ]] || fail "new-run stdout is not the run folder: $out"
 grep -q '## Next.*1001 words' "$tmp/err" || fail "no warning that names ## Next and 1001 words: $(cat "$tmp/err")"
 grep -qx -- '- Later items: 3' "$dir/run.md" || fail "run.md has no '- Later items: 3' line"
+[[ -d "$dir/logs" ]] || fail 'new-run made no logs/ folder'
 grep -q '## Later has 3 items (+2 since 2026-01-01-old)' "$tmp/err" || fail "no Later count with the change: $(cat "$tmp/err")"
 
 printf '# Backlog\n\n## Next\n\n- short\n\n## Later\n\n- a\n' > "$repo/.scratchpads/backlog.md"

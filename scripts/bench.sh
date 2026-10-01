@@ -8,6 +8,10 @@
 set -euo pipefail
 filter="${1:?usage: scripts/bench.sh <test filter>}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
+# The cost review of reflect (cost.sh) counts a repeat by the commit and the filter of this line.
+tree=clean
+[[ -z "$(git -C "$root" status --porcelain)" ]] || tree=dirty
+echo "bench: commit $(git -C "$root" rev-parse HEAD) tree $tree filter $filter"
 copy="$root/.build/bench"
 mkdir -p "$copy"
 rsync -a --delete --exclude .build "$root/Package.swift" "$root/Package.resolved" "$root/Sources" "$root/Tests" "$copy/"

@@ -3,7 +3,7 @@ import DirigibleCore
 import DirigibleTimeline
 
 /// The zoom and the scroll of the lanes: the menu keys, Command-wheel and pinch zoom at the
-/// pointer, and the first fit.
+/// pointer, the first fit, and the autoscroll of a drag past the lanes edge.
 extension TimelineScrollView {
     /// The part in view, or nil before the first update with a width.
     var viewport: Viewport? {

@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31073	2026-10-01-guardrail-quoted-text slice 2 (decisions.tsv 2026-10-01T07:01: the real sum after the hook sentence; goal 30200)
+TOTAL	31112	2026-10-01-live-take-view (decisions.tsv 2026-10-01T14:28: the deliver autonomy rule that the user asked for; goal 30200)

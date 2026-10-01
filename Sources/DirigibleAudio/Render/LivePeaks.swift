@@ -15,8 +15,9 @@ public struct LivePeaks: Hashable, Sendable {
     let rate: Int
     let binFrames: Int
     private(set) var bins: [PeakColumn] = []
-    /// The live frames that the spans cover, in order. Touching spans merge; a gap of one frame
-    /// or more stays.
+    /// The live frames that the spans cover, in order. Spans with a gap under one bin merge: the
+    /// rounding of the drain ends gives such gaps, and a draw walks each range. A real gap (a lost
+    /// device, a write error) is at least one drain of 50 ms, so it stays.
     public private(set) var covered: [Range<Frames>] = []
     /// The start of the lowest bin that an add touched since the view cleared it (F1).
     public internal(set) var addedFrom: Frames?
@@ -67,11 +68,12 @@ public struct LivePeaks: Hashable, Sendable {
     private mutating func cover(_ span: Range<Frames>) {
         var lower = span.lowerBound
         var upper = span.upperBound
+        let bin = Frames(binFrames)
         // The spans come in order, so the walk from the end is short.
         var first = covered.count
-        while first > 0, covered[first - 1].upperBound >= lower { first -= 1 }
+        while first > 0, covered[first - 1].upperBound + bin > lower { first -= 1 }
         var last = first
-        while last < covered.count, covered[last].lowerBound <= upper {
+        while last < covered.count, covered[last].lowerBound < upper + bin {
             lower = min(lower, covered[last].lowerBound)
             upper = max(upper, covered[last].upperBound)
             last += 1

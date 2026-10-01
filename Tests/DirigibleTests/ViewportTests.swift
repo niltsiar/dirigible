@@ -117,9 +117,27 @@ struct ViewportTests {
         var state = TimelineState()
         state.followHeld = true
 
+        #expect(state.follow(playhead: 800_000, origin: 0, frames: 737_280, direction: .forward) == nil)
         #expect(state.follow(playhead: 100_000, origin: 0, frames: 737_280, direction: .forward) == nil)
         #expect(!state.followHeld)
         #expect(state.follow(playhead: 693_044, origin: 0, frames: 737_280, direction: .forward) == 611_943)
+    }
+
+    /// V3: a scroll that starts with the head in view holds the follow until the head leaves the
+    /// view and comes back, also past 94%. A new hold starts with the head in the view.
+    @Test func aHoldWithTheHeadInViewWaitsForTheHeadToLeave() {
+        var state = TimelineState()
+        state.followHeld = true
+
+        #expect(state.follow(playhead: 100_000, origin: 0, frames: 737_280, direction: .forward) == nil)
+        #expect(state.follow(playhead: 720_000, origin: 0, frames: 737_280, direction: .forward) == nil)
+        #expect(state.followHeld, "the head did not leave the view")
+
+        #expect(state.follow(playhead: 800_000, origin: 0, frames: 737_280, direction: .forward) == nil)
+        state.followHeld = false
+        state.followHeld = true
+        #expect(state.follow(playhead: 720_000, origin: 0, frames: 737_280, direction: .forward) == nil)
+        #expect(state.followHeld, "the end of a hold clears the head that left the view")
     }
 
     @Test func followOffNeverMovesTheOrigin() {

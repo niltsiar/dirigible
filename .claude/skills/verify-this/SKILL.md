@@ -22,7 +22,7 @@ Verification is not a recap: it proves or disproves one claim with repeatable ev
 - Audio files: `afinfo <file>` for format, channels, sample rate, and duration. `ffprobe -hide_banner <file>` for container facts.
 - Audio levels: `ffmpeg -i <file> -af ebur128 -f null -` for integrated loudness (LUFS) and true peak. `ffmpeg -i <file> -af astats -f null -` for RMS, peak, and noise floor.
 - Session files: `xmllint --noout <file>` for well-formed XML, then read the actual elements.
-- The built app: read `references/driving-the-app.md` when a check launches, drives, or captures the app, when you check a visual report of the user, or when a doc quotes macOS text. A check that writes preferences runs on a copy with its own bundle ID.
+- The built app: read `references/driving-the-app.md` when a check launches, drives, or captures the app, when you check a visual report of the user, or when a doc quotes macOS text. A check that writes preferences runs on the verify copy (`scripts/verify-copy.sh`).
 - Performance: same-machine baseline and treatment timings, or an Instruments trace from `xcrun xctrace record`. Compare the benches with main through `scripts/bench-pairs.sh`. Fix the pair count before the runs, and do not pick the clean pairs after the results.
 - Memory: `leaks <pid>` or `footprint <pid>` before and after the suspected operation.
 

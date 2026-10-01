@@ -15,7 +15,8 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
-- A criterion change in any phase edits `analysis.md` in the same step; the `decisions.tsv` row names the old and new value.
+- A criterion change in any phase edits `analysis.md` in the same step and cites its `decisions.tsv` row, which names the old and new value.
+- Before you fake or detect a failure of an external tool, probe it (exit status, stderr, files) and record each result in its `## Unknowns` row; the fake copies it. Guard on the status and the files. For a status with several causes, make your call print a marker text, and guard on that.
 
 ## Phase 0: Open the run
 
@@ -33,7 +34,6 @@ Write `analysis.md`:
 - Falsifiable acceptance criteria, each with the test or command that proves it. Each clause gets its own assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. Example: "A 10 s recording from two devices gives two WAV files of 10 s ± 20 ms."
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions, and log the probe.
-- Probe how an external tool fails (exit status, stderr, files) before you write its fake or detector. The fake copies each result. Guard on the status and the files; for a status with several causes, on a marker text that you raise.
 - What is out of scope, in the backlog.
 
 ## Phase 2: Plan

@@ -12,19 +12,29 @@ import os
 /// Live take view P1, P2, and P6 with -O (`make bench FILTER=LiveTakeBenchmark`): a display tick
 /// of a take and a page turn in a take are 16 ms p95 or less, and a 60 s width step and the
 /// hand-off are 32 ms or less each. 1440 x 600 pt of lanes at scale 2 under the overview strip.
-/// Fixture (a): the 2 h fixture of `MouseEventBenchmark`, its 6 tracks armed, a take at 2:00:00
-/// with 3 h of bins (216,000 per track). Fixture (b): the default state, 6 empty tracks at the
-/// closest zoom. One tick per 16.7 ms, and a drain of each track before every third tick.
+/// Fixture (a): the 2 h fixture of `MouseEventBenchmark` and 2 empty tracks, its 8 tracks armed,
+/// a take at 2:00:00 with 3 h of bins (216,000 per track). Fixture (b): the default state, 8 empty
+/// tracks at the closest zoom. One tick per 16.7 ms, and a drain of each track before every third
+/// tick.
 @MainActor struct LiveTakeBenchmark {
     #if DEBUG
         static let oneOffBudget = Duration.milliseconds(200)
     #else
         static let oneOffBudget = Duration.milliseconds(32)
     #endif
-    static let tracks = (1...6).map { TrackID("t\($0)") }
+    /// 8 armed tracks, as the design panel asks: 6 fill the 600 pt view at 100 pt lanes.
+    static let tracks = (1...8).map { TrackID("t\($0)") }
     static let takeStart = Frames(MouseEventBenchmark.frames)
     /// The fit of the head after the 3 h history: 864,000,000 frames + 2% in 1440 pt.
     static let fit = Double(MouseEventBenchmark.frames + 10_800 * 48_000) * 1.02 / 1440
+
+    /// The 2 h fixture of `MouseEventBenchmark` (tracks `t1` to `t6`) with `t7` and `t8` empty.
+    static func fixture() throws -> (Session, [FileID: PeakState]) {
+        let (fixture, peaks) = try MouseEventBenchmark.fixture()
+        var session = fixture
+        for track in tracks.dropFirst(6) { try session.addTrack(track, name: track.rawValue, layout: .mono) }
+        return (session, peaks)
+    }
 
     /// The lanes of `session` on screen at `framesPerPoint`, with a take at `start` that has
     /// `history` seconds of bins, after its first two ticks.
@@ -61,7 +71,7 @@ import os
     func aTakeTickFitsOneFrame() async throws {
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)
-        let (session, peaks) = try MouseEventBenchmark.fixture()
+        let (session, peaks) = try Self.fixture()
         var empty = Session(sampleRate: 48_000)
         for track in Self.tracks { try empty.addTrack(track, name: track.rawValue, layout: .mono) }
         let cases: [(String, Session, Double, Frames, Int, Int)] = [
@@ -111,7 +121,7 @@ import os
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aPageTurnInATakeFitsOneFrame() async throws {
         let folder = try TemporaryFolder()
-        let (session, peaks) = try MouseEventBenchmark.fixture()
+        let (session, peaks) = try Self.fixture()
         let (take, model, _) = try await Self.lanes(
             session, peaks, framesPerPoint: 512, at: Self.takeStart, history: 10_800,
             app: AppDelegate(recordings: nil), folder: folder.url)
@@ -143,7 +153,7 @@ import os
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func theOneOffTicksOfATakeFitTwoFrames() async throws {
         let folder = try TemporaryFolder()
-        let (session, peaks) = try MouseEventBenchmark.fixture()
+        let (session, peaks) = try Self.fixture()
         let (take, model, inputs) = try await Self.lanes(
             session, peaks, framesPerPoint: Self.fit, at: Self.takeStart, history: 10_800,
             app: AppDelegate(recordings: nil), folder: folder.url)

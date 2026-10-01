@@ -1,43 +1,19 @@
 ---
 name: domain-modeling
-description: Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a CONTEXT.md, or recording or editing an ADR.
+description: Build and sharpen the domain model of the project. Use when you discuss codebase terms, write or edit `CONTEXT.md` (the glossary), or write or edit a decision record in `docs/decisions/`.
 ---
 
-# Domain Modeling
+# Domain modeling
 
-Actively build and sharpen the project's domain model as you design. This is the *active* discipline: challenging terms, inventing edge-case scenarios, and writing the glossary and decisions down the moment they crystallise. (Merely *reading* `CONTEXT.md` for vocabulary is not this skill: that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)
+Build and sharpen the domain model of the project while you design. This skill is the active work: challenge terms, invent edge-case scenarios, and write the glossary and the decisions down when they become clear. To only read `CONTEXT.md` for vocabulary, you do not need this skill. Use it when you change the model.
 
 ## File structure
 
-Most repos have a single context:
+Most repos have a single context: one `CONTEXT.md` at the root, and the decision records in `docs/decisions/`.
 
-```
-/
-├── CONTEXT.md
-├── docs/
-│   └── decisions/
-│       ├── 0001-event-sourced-orders.md
-│       └── 0002-postgres-for-write-model.md
-└── src/
-```
+If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives. Each context has its own `CONTEXT.md` and can have its own `docs/decisions/`. The root `docs/decisions/` keeps the system-wide decisions.
 
-If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
-
-```
-/
-├── CONTEXT-MAP.md
-├── docs/
-│   └── decisions/                          ← system-wide decisions
-├── src/
-│   ├── ordering/
-│   │   ├── CONTEXT.md
-│   │   └── docs/decisions/                 ← context-specific decisions
-│   └── billing/
-│       ├── CONTEXT.md
-│       └── docs/decisions/
-```
-
-Create files lazily: only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/decisions/` exists, create it when the first ADR is needed.
+Create files lazily: only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/decisions/` exists, create it when the first decision record is needed.
 
 ## During the session
 
@@ -51,7 +27,7 @@ When the user uses vague or overloaded terms, propose a precise canonical term. 
 
 ### Discuss concrete scenarios
 
-When domain relationships are being discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about the boundaries between concepts.
+When you discuss domain relationships, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about the boundaries between concepts.
 
 ### Cross-reference with code
 
@@ -59,16 +35,16 @@ When the user states how something works, check whether the code agrees. If you 
 
 ### Update CONTEXT.md inline
 
-When a term is resolved, update `CONTEXT.md` right there. Don't batch these up: capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
+When a term is resolved, update `CONTEXT.md` at once. Do not batch the updates. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
 
-`CONTEXT.md` should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else. The glossary is also the STE word list of this repo: one term for one concept in code, docs, UI text, and commits.
+Keep implementation details out of `CONTEXT.md`. It is a glossary and nothing else: not a spec, a scratch pad, or a record of implementation decisions. The glossary is also the STE word list of this repo: one term for one concept in code, docs, UI text, and commits.
 
-### Offer ADRs sparingly
+### Offer decision records sparingly
 
-Only offer to create an ADR when all three are true:
+Only offer to write a decision record when all three are true:
 
 1. **Hard to reverse**: the cost of changing your mind later is meaningful
 2. **Surprising without context**: a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off**: there were genuine alternatives and you picked one for specific reasons
 
-If any of the three is missing, skip the ADR. Use the format of the existing records in `docs/decisions/` (see `0001-native-swift-stack.md`); [ADR-FORMAT.md](./ADR-FORMAT.md) says when a short record is enough.
+If any of the three is missing, skip the record. Use the format of the existing records in `docs/decisions/` (see `0001-native-swift-stack.md`); [ADR-FORMAT.md](./ADR-FORMAT.md) says when a short record is enough.

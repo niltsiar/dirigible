@@ -72,7 +72,6 @@ Only for code that touches audio I/O or DSP.
 - Each capture device has its own clock. Look for code that assumes that two devices share a sample clock or a start time. A recording stores the timing data (host time, sample time) to align the tracks later.
 - A recording survives a crash or a device disconnect: the audio already captured stays on disk and readable.
 - Sample-rate and channel-count conversions are explicit. No silent resampling.
-- Compare DSP output with a tolerance, not with exact equality.
 
 ## Security
 

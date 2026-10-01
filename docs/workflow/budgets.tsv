@@ -25,7 +25,6 @@ path	words	decision
 .claude/skills/diagnosing-bugs/	1471	baseline
 .claude/skills/diagnosing-bugs/SKILL.md	1471	baseline
 .claude/skills/domain-modeling/	1297	baseline
-.claude/skills/domain-modeling/ADR-FORMAT.md	432	baseline
 .claude/skills/domain-modeling/CONTEXT-FORMAT.md	335	baseline
 .claude/skills/domain-modeling/SKILL.md	530	baseline
 .claude/skills/interrogate/	4400	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)

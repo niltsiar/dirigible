@@ -47,4 +47,4 @@ Only offer to write a decision record when all three are true:
 2. **Surprising without context**: a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off**: there were genuine alternatives and you picked one for specific reasons
 
-If any of the three is missing, skip the record. Use the format of the existing records in `docs/decisions/` (see `0001-native-swift-stack.md`); [ADR-FORMAT.md](./ADR-FORMAT.md) says when a short record is enough.
+If any of the three is missing, skip the record. Use the format of the existing records in `docs/decisions/` (see `0001-native-swift-stack.md`).

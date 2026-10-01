@@ -26,4 +26,3 @@ Rules:
 - Do not modify files. Use `Bash` only for read-only commands.
 - Each finding quotes the sentence, names the file and line, and gives the rewrite.
 - Return at most eight findings, and list in `checked` the files you read and the commands you ran. Zero findings is a valid result.
-- Write in ASD-STE100 style: short sentences, active voice, one idea per sentence.

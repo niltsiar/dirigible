@@ -45,9 +45,8 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 ## Run ledger in .scratchpads/
 
 - `.scratchpads/` is gitignored. It keeps the working memory of the agents between sessions.
-- Start a run with `.claude/skills/deliver/scripts/new-run.sh <slug>`.
-- At the start of a session, read `ledger.md`, the `## Next` section of `backlog.md`, and the last `run.md`.
-- `decisions.tsv` is append-only. Add rows with `.claude/skills/deliver/scripts/log-decision.sh`, which writes the time from the clock. If the guardrail hook blocks a field, use `--from <file>`. A wrong row gets a new row that corrects it.
+- At the start of a session, read the files that step 1 of deliver Phase 0 names. Open a run with deliver Phase 0.
+- `decisions.tsv` is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh`, also in a subagent. It writes the time from the clock. If the guardrail hook blocks a field, use `--from <file>`. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder: a probe once deleted files in `~`. For a Swift build in a probe, read the header of `scripts/probe.sh` first.
 - The Bash tool shell is zsh. A variable named `path`, `status`, or `argv` breaks every later command with "command not found". Use another name, or `bash -c '...'`.
@@ -92,4 +91,4 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Keep this file true
 
-When a learning repeats, the **reflect** skill changes this file, a skill, or a check, within the budgets of `docs/workflow/budgets.tsv`. Prefer a check (a test, a lint rule, a script) over a new sentence. Commands and paths in this file must work at every commit.
+When a learning repeats, the **reflect** skill changes this file, a skill, or a check by its rules. Commands and paths in this file must work at every commit.

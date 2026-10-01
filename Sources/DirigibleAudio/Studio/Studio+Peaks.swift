@@ -4,7 +4,8 @@ import Foundation
 
 /// The peak state of one pool file (decision 0017).
 public enum PeakState: Hashable, Sendable {
-    /// The view draws the clip box with no waveform.
+    /// The view draws the clip box, with the live peaks of a take file (live take view), else
+    /// with no waveform.
     case computing
     case ready(Peaks)
     /// `openMedia` gave a fault, or a read failed; `missingMedia` has the fault.

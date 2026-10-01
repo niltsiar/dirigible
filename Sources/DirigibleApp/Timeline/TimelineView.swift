@@ -51,8 +51,10 @@ final class TimelineScrollView: NSScrollView {
     /// The target of the display link; the link retains it, and it holds this view weakly.
     private(set) var linkProxy: DisplayLinkProxy?
     private var link: CADisplayLink?
-    /// The playhead and the playback of the last tick.
-    private var last: (playhead: Double, playback: Playback)?
+    /// The playhead, the playback, and the take state of the last tick.
+    private var last: (playhead: Double, playback: Playback, taking: Bool)?
+    /// The live store and the live key of the last live draw (`liveTick`).
+    var liveSeen = (version: 0, epoch: 0, key: LiveKey())
     /// The first view is shown: the last view of the window, else the fit at open.
     var fitted = false
     /// The last inputs of SwiftUI, with the Studio session of the last mouse-down or mouse-up. Never
@@ -73,6 +75,7 @@ final class TimelineScrollView: NSScrollView {
         self.studio = studio
         ruler = TimelineRuler(model: model)
         super.init(frame: .zero)
+        lanes.studio = studio
         headers.width = headerWidth
         hasHorizontalScroller = true
         hasVerticalScroller = true
@@ -287,14 +290,18 @@ final class TimelineScrollView: NSScrollView {
         linkProxy = nil
     }
 
-    /// One display tick: the playhead line between two polls, and the follow.
+    /// One display tick: the record head during a take, else the playhead line between two
+    /// polls, and the follow.
     func displayTick() {
         guard let studio else { return }
         let playback = studio.playback
-        let frame = playheadFrame(
-            polled: studio.playhead, at: studio.playheadTime, now: .now, playback: playback,
-            rate: studio.session.sampleRate)
-        tick(playhead: frame, playback: playback)
+        let head = studio.liveHead()
+        let frame =
+            head.map { Double($0.count) }
+            ?? playheadFrame(
+                polled: studio.playhead, at: studio.playheadTime, now: .now, playback: playback,
+                rate: studio.session.sampleRate)
+        tick(playhead: frame, playback: playback, taking: head != nil)
         autoscrollTick(at: CACurrentMediaTime())
     }
 
@@ -332,14 +339,17 @@ final class TimelineScrollView: NSScrollView {
         mouse(.drag(pointer.ruler ? .ruler(x: Double(point.x), y: y) : .lanes(x: Double(point.x), y: y)))
     }
 
-    /// Moves the playhead line. During play, the follow can turn the page. A play start, a
-    /// shuttle change, or a move of the playhead while stopped (a seek) ends a hold and shows
-    /// the playhead when it is off the page. The first tick only takes the state.
-    func tick(playhead: Double, playback: Playback) {
+    /// Moves the playhead line, or the record head line during a take (`taking`), and draws the
+    /// live take. During play, the follow can turn the page. A play start, a shuttle change, or a
+    /// move of the playhead while stopped (a seek) ends a hold and shows the playhead when it is
+    /// off the page. A head move in a take and the end of a take are not a seek. The first tick
+    /// only takes the state.
+    func tick(playhead: Double, playback: Playback, taking: Bool = false) {
         lanes.movePlayhead(to: playhead)
         overview?.movePlayhead(to: playhead)
-        defer { last = (playhead, playback) }
-        guard let model, let last else { return }
+        liveTick(head: taking ? Frames(Int(playhead)) : nil)
+        defer { last = (playhead, playback, taking) }
+        guard let model, let last, !taking, !last.taking else { return }
         let started = playback != .stopped && playback != last.playback
         let seeked = playback == .stopped && playhead != last.playhead
         guard playback != .stopped || seeked else { return }

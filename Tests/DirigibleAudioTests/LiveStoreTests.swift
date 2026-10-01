@@ -147,6 +147,23 @@ struct LiveStoreTests {
         try await studio.stopRecording()
     }
 
+    /// F1: the view reads the lowest added frame of all tracks in session frames, and the read
+    /// clears it. A late span of one track sets it below a newer span of the other track.
+    @Test func theViewTakesTheLowestAddedFrameOnce() async throws {
+        let studio = try await open(TestHAL([mic, box]))
+        let host = try await start(studio, playhead: 48_000)
+        let generation = studio.generation
+
+        studio.apply(levels(arm: 1, from: host + 2_000_000_000, to: host + 2_100_000_000), generation: generation)
+        studio.apply(levels(arm: 2, from: host + 1_010_000_000, to: host + 1_100_000_000), generation: generation)
+
+        #expect(studio.takeLiveAddedFrom() == Frames(96_000), "the start of the lowest bin, in session frames")
+        #expect(studio.takeLiveAddedFrom() == nil, "the read cleared it")
+        studio.apply(levels(arm: 1, from: host + 3_000_000_000, to: host + 3_100_000_000), generation: generation)
+        #expect(studio.takeLiveAddedFrom() == Frames(192_000))
+        try await studio.stopRecording()
+    }
+
     // MARK: C10
 
     @Test func aNewTakeStartsWithNoBins() async throws {

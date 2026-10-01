@@ -67,6 +67,8 @@ import Observation
     @ObservationIgnored private(set) var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.
     @ObservationIgnored private(set) var armed: [(id: TrackID, writer: DeviceWriter)] = []
+    /// The live peaks and the head of the take (live take view), in `Studio+Live.swift`.
+    @ObservationIgnored var live = LiveStore()
     /// One more for each take that begins. Two takes can have the same number.
     @ObservationIgnored private(set) var generation = 0
     /// The write chain: each package write (an autosave, a start, a finalize, or a placement) runs
@@ -265,6 +267,7 @@ import Observation
         guard !isStarting else { throw .busy }
         guard case .recording(let take) = transport else { return }
         transport = .finalizing(take: take)
+        stopLive()
         diskWatcher?.cancel()
         diskWatcher = nil
         let error = await serialized { () async -> StudioError? in
@@ -326,6 +329,7 @@ import Observation
                 ($0.track, LiveTrack(state: .recording, droppedFrames: 0, peak: 0))
             })
         recordingSince = .now
+        beginLive(started)
         transport = .recording(take: started.take)
         for writer in writers.values { writer.start() }
     }
@@ -337,7 +341,7 @@ import Observation
         let outcome = await completeTake(
             of: session, lock: lock, recordings: recordings, previous: url, leavingUnreadable: leavingUnreadable)
         takeError = outcome.error
-        if outcome.error == nil { takeEnded(outcome.session) }
+        if outcome.error == nil { takeEnded(outcome.session) } else { dropLiveTake() }
         try apply(outcome)
     }
 

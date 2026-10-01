@@ -167,6 +167,7 @@ extension Studio {
     func takeEnded(_ finalized: Session) {
         let ends = finalized.tracks.flatMap(\.clips).filter { session.files[$0.file] == nil }.map(\.end)
         if let end = ends.max() { play.playhead = end }
+        handOffLive(finalized)
     }
 
     /// A new player output drops a stopped Player; the next play makes one.

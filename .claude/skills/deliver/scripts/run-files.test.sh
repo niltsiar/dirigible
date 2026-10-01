@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that log-decision.sh appends one row of six tab-separated columns from a five-line file
 # (--from), changes a tab in a field to a space, refuses a file with four lines and appends
-# nothing, keeps the six-argument form, and refuses a default row with no `Reverse:` in its why.
+# nothing, keeps the six-argument form, and refuses a row whose decision or result starts with
+# default and whose why has no `Reverse:` (any case).
 # Check that new-run.sh reports the backlog sections.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -64,6 +65,14 @@ check_row 'a default row with Reverse:' $'plan\tuse blue\tno reference app. Reve
 [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 1)) ]] || fail 'a default row with Reverse: did not append exactly one row'
 "$log" "$run" plan 'use blue' 'the user asked' evidence 'done' || fail "a row with another result exits $?"
 [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 2)) ]] || fail 'a row with another result did not append exactly one row'
+# The decision column starts with default too; Reverse: matches in any case.
+before="$(shasum -a 256 "$run/decisions.tsv")"
+err="$("$log" "$run" plan 'Default: blue' 'no reference app' evidence 'done' 2>&1)"
+code=$?
+[[ $code -eq 2 ]] || fail "a default decision with no Reverse: expected exit 2, got $code"
+[[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail 'a default decision with no Reverse: decisions.tsv changed'
+"$log" "$run" plan 'use blue' 'no reference app. reverse: say red.' evidence 'default: blue' || fail "a default row with reverse: exits $?"
+[[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 3)) ]] || fail 'a default row with reverse: did not append exactly one row'
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

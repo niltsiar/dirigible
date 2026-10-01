@@ -16,7 +16,7 @@ Check:
 - Subagent boundaries: what the subagent reads, its tools, what it returns, and where it writes. Volume stays out of the lead context.
 - Limits: each long command has a timeout. Each background loop has a stop condition and a clean-up.
 - Caching: the Workflow tool caches a saved workflow by name, and agent types load, at session start. In that session, a change to `.claude/workflows/` or `.claude/agents/` needs `scriptPath` or the general-agent fallback.
-- Hook false positives: `.claude/hooks/git-guardrails.sh` matches the whole command text, also quoted text. A doc step that the hook blocks is a defect.
+- Hook false positives: `.claude/hooks/git-guardrails.sh` matches the whole command text, quoted text too. A doc step that the hook blocks is a defect.
 - Stale references: a command, path, or `make` target that the doc names and the tree does not have.
 
 Rules:

@@ -8,6 +8,7 @@
       "Bash(scripts/bundle.sh:*)",
       "Bash(.claude/skills/deliver/scripts/new-run.sh:*)",
       "Bash(scripts/land.sh:*)",
+      "Bash(scripts/verify-copy.sh:*)",
       "Bash(scripts/check-changed.sh:*)",
       "Bash(scripts/check-governance.sh:*)",
       "Bash(.claude/skills/deliver/scripts/log-decision.sh:*)",

@@ -69,6 +69,7 @@ test-hooks:
 	scripts/ax.test.sh
 	scripts/screenshot.test.sh
 	scripts/screenshots.test.sh
+	scripts/verify-copy.test.sh
 	.claude/skills/deliver/scripts/mutate.test.sh
 	.claude/skills/deliver/scripts/run-files.test.sh
 	.claude/skills/reflect/scripts/seen.test.sh

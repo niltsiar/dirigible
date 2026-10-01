@@ -89,6 +89,18 @@ expect block "git push origin HEAD:'refs/heads/main'"
 expect block 'git push origin "feat/x:main"'
 expect allow "git push -u origin 'feat/main-feature'"
 expect allow 'git push -u origin "main-feature"'
+# Any character that cannot be in a branch name ends main. Any white space separates the words.
+expect block '(git push origin main)'
+expect block 'git push origin main>log 2>&1'
+expect block $'git push origin \\\nmain'
+expect block $'git push\torigin main'
+expect block $'git\tpush origin main'
+expect block $'git -C\t/repo push origin main'
+expect block 'git  push  origin  main'
+expect block $'git push\t-f origin feat/x'
+expect block 'git push origin "main":feat/x'
+expect allow 'git push -u origin main-feature'
+expect allow 'git push origin feat/x > main.log 2>&1'
 
 # The hook matches quoted text too. Each block message gives the reason and tells how to write data.
 expect_message() {

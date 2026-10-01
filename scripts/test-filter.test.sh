@@ -1,0 +1,83 @@
+#!/bin/bash
+# Check that test-filter.sh runs the tests of FILTER as `make test` runs all tests: process 1
+# skips the CLI tests and gets one --filter for each word, process 2 runs the CLI tests of a
+# word that a CLI test file names. Check that it fails closed: no test in each process that ran,
+# a nonzero swift exit, or no word. A fake swift on PATH logs its arguments. Run by `make test-hooks`.
+set -uo pipefail
+repo="$(cd "$(dirname "$0")/.." && pwd)"
+failures=0
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
+
+# A package copy: the script and one CLI test file that names the suite CLIWordTests.
+mkdir -p "$tmp/pkg/scripts" "$tmp/pkg/Tests/DirigibleCLITests" "$tmp/bin"
+cp "$repo/scripts/test-filter.sh" "$tmp/pkg/scripts/test-filter.sh"
+printf 'struct CLIWordTests {}\n' > "$tmp/pkg/Tests/DirigibleCLITests/CLIWordTests.swift"
+
+# The fake swift logs one line for each call. FAKE_P1 and FAKE_P2 set the output of process 1
+# (the call with --skip DirigibleCLITests) and process 2: none (the two no-test strings of
+# mutate.py), xctest (only the XCTest string, and tests ran), tests, or fail (tests, exit 1).
+cat > "$tmp/bin/swift" <<'EOF'
+#!/bin/bash
+echo "swift $*" >> "$FAKE_LOG"
+mode="$FAKE_P2"
+[[ " $* " == *" --skip DirigibleCLITests "* ]] && mode="$FAKE_P1"
+case "$mode" in
+  none) echo 'No matching test cases were run'; echo 'Test run with 0 tests passed after 0.001 seconds.' ;;
+  xctest) echo 'No matching test cases were run'; echo 'Test run with 3 tests passed after 0.1 seconds.' ;;
+  tests) echo 'Test run with 3 tests passed after 0.1 seconds.' ;;
+  fail) echo 'Test run with 3 tests failed after 0.1 seconds with 1 issue.'; exit 1 ;;
+esac
+exit 0
+EOF
+chmod +x "$tmp/bin/swift"
+
+# run <p1> <p2> <words...>: sets code and out; the fake swift log is in $tmp/log.
+run() {
+  local p1="$1" p2="$2"
+  shift 2
+  : > "$tmp/log"
+  out="$(cd / && PATH="$tmp/bin:$PATH" FAKE_LOG="$tmp/log" FAKE_P1="$p1" FAKE_P2="$p2" "$tmp/pkg/scripts/test-filter.sh" "$@" 2>&1)"
+  code=$?
+}
+p1='swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests'
+
+run tests tests ClipTests TrackTests
+[[ $code -eq 0 ]] || fail "two words: exit $code: $out"
+[[ "$(cat "$tmp/log")" == "$p1 --filter ClipTests --filter TrackTests" ]] || fail "two words: calls differ: $(cat "$tmp/log")"
+
+run tests tests ClipTests CLIWordTests
+[[ $code -eq 0 ]] || fail "a CLI word: exit $code: $out"
+want="$p1 --filter ClipTests --filter CLIWordTests
+swift test --filter DirigibleCLITests.*CLIWordTests"
+[[ "$(cat "$tmp/log")" == "$want" ]] || fail "a CLI word: calls differ: $(cat "$tmp/log")"
+
+run none none NoSuchTestName
+[[ $code -eq 1 ]] || fail "no test: expected exit 1, got $code"
+[[ "$out" == *"test-filter: no test matched"* ]] || fail "no test: no reason: $out"
+
+run xctest none ClipTests
+[[ $code -eq 0 ]] || fail "only the XCTest string: exit $code: $out"
+
+run none tests CLIWordTests
+[[ $code -eq 0 ]] || fail "process 1 with no test, process 2 with tests: exit $code: $out"
+
+run none none CLIWordTests
+[[ $code -eq 1 ]] || fail "no test in both processes: expected exit 1, got $code"
+[[ "$(grep -c '^swift ' "$tmp/log")" -eq 2 ]] || fail "no test in both processes: calls: $(cat "$tmp/log")"
+
+# A failed test: the exit status stops the run, and the text check does not hide it.
+run fail tests ClipTests CLIWordTests
+[[ $code -ne 0 ]] || fail 'a failed test in process 1: exit 0'
+[[ "$(grep -c '^swift ' "$tmp/log")" -eq 1 ]] || fail "a failed test in process 1: process 2 ran: $(cat "$tmp/log")"
+run tests fail CLIWordTests
+[[ $code -ne 0 ]] || fail 'a failed test in process 2: exit 0'
+
+run tests tests
+[[ $code -eq 2 ]] || fail "no word: expected exit 2, got $code"
+[[ "$out" == *"usage: "* ]] || fail "no word: no usage: $out"
+[[ ! -s "$tmp/log" ]] || fail "no word: swift ran: $(cat "$tmp/log")"
+
+[[ $failures -eq 0 ]] && echo "test-filter tests: all passed"
+exit $((failures > 0))

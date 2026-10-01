@@ -6,6 +6,8 @@
 #        scripts/check-changed.sh --paths [--push]   the paths from stdin
 #        scripts/check-changed.sh --floor       print the risk floor paths
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
+# With FILTER (test names, for a commit inside a slice), the per-commit target test becomes
+# test-filter. FILTER before the push exits 1: the push runs the full targets.
 set -euo pipefail
 
 # The risk floor. A change to one of these paths always prints `risk: yes`. A path that ends
@@ -47,6 +49,11 @@ case "${1:-}" in
     "") ;;
     *) base="$1" push=1 ;;
 esac
+
+if [[ -n "${FILTER:-}" && $push == 1 ]]; then
+    echo "check-changed: FILTER is for a commit inside a slice; the push check runs with no FILTER" >&2
+    exit 1
+fi
 
 if [[ $mode == stdin ]]; then
     paths="$(cat)"
@@ -92,6 +99,7 @@ for t in check-docs check-fast test check test-slow test-dmg; do
 done
 
 classes="${classes# }" targets="${targets# }"
+[[ -n "${FILTER:-}" && " $targets " == *" test "* ]] && targets="$(sed -E 's/(^| )test( |$)/\1test-filter\2/' <<<"$targets")"
 echo "classes: ${classes:-none}"
 echo "targets: ${targets:-none}"
 echo "risk: $risk"

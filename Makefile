@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app icon-preview test test-slow check-slow-gates check-warnings bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
+.PHONY: setup build app icon-preview test test-filter test-slow check-slow-gates check-warnings bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -21,6 +21,11 @@ icon-preview:
 test:
 	swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests
 	swift test --filter DirigibleCLITests
+
+# Only the tests of FILTER (test or suite names with spaces between them), in the two processes
+# of test. It fails when no test matched.
+test-filter:
+	scripts/test-filter.sh $(FILTER)
 
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
 # variable does not change the count.
@@ -71,6 +76,11 @@ test-hooks:
 	scripts/icon.test.sh
 	scripts/bundle.test.sh
 	scripts/check-changed.test.sh
+	scripts/check-stamp.test.sh
+	scripts/test-filter.test.sh
+	scripts/check-plan.test.sh
+	.claude/skills/deliver/scripts/replay-list.test.sh
+	.claude/skills/reflect/scripts/cost.test.sh
 	scripts/check-governance.test.sh
 	scripts/land.test.sh
 	.claude/workflows/review-panel.test.sh
@@ -102,17 +112,26 @@ check: lint check-docs check-slow-gates check-warnings test test-hooks test-app
 check-fast: lint check-docs check-slow-gates check-warnings test-hooks
 
 # Runs the targets that scripts/check-changed.sh picks for the changed paths (decision 0028).
-# With BASE, the targets before the push. It fails closed: a script error or a missing targets
-# line exits nonzero. An empty make goal would run the default goal setup, so the recipe
-# never calls $(MAKE) with no target.
+# With BASE, the targets before the push. With FILTER and no BASE, test-filter in place of test.
+# It fails closed: a script error or a missing targets line exits nonzero. An empty make goal
+# would run the default goal setup, so the recipe never calls $(MAKE) with no target.
+# The first line names the commit, the tree state, the base commit, and the targets (cost.sh of
+# reflect reads it). After a pass with BASE, scripts/check-stamp.sh appends the pass stamp that
+# land.sh reuses, when the tree stayed clean. This recipe is the only writer of the stamp.
 BASE ?=
+FILTER ?=
 check-changed:
-	@out="$$(scripts/check-changed.sh $(BASE))" || exit 1; \
-	printf '%s\n' "$$out"; \
+	@head="$$(git rev-parse HEAD)" || exit 1; \
+	tree=clean; if [ -n "$$(git status --porcelain)" ]; then tree=dirty; fi; \
+	out="$$(FILTER='$(FILTER)' scripts/check-changed.sh $(BASE))" || exit 1; \
 	targets="$$(printf '%s\n' "$$out" | sed -n 's/^targets: //p')"; \
 	if [ -z "$$targets" ]; then echo "check-changed: no targets line" >&2; exit 1; fi; \
+	base=none; if [ -n '$(BASE)' ]; then base="$$(git rev-parse --verify '$(BASE)^{commit}')" || exit 1; fi; \
+	echo "check-changed: commit $$head tree $$tree base $$base targets $$targets"; \
+	printf '%s\n' "$$out"; \
 	if [ "$$targets" = none ]; then exit 0; fi; \
-	$(MAKE) $$targets
+	$(MAKE) $$targets FILTER='$(FILTER)' || exit 1; \
+	if [ -n '$(BASE)' ]; then scripts/check-stamp.sh write "$$head" "$$tree" "$$base" $$targets; fi
 
 clean:
 	rm -rf .build build

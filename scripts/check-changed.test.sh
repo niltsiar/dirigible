@@ -2,7 +2,9 @@
 # Check that check-changed.sh prints the right three lines for each kind of change, fails closed
 # on a bad or empty base, still sees a moved floor file, and that each risk floor path exists.
 # Check that `make check-changed` of the real Makefile exits nonzero when the script does, and
-# runs no target (not the default goal `setup`) for an empty target list. Run by `make test-hooks`.
+# runs no target (not the default goal `setup`) for an empty target list. Check that FILTER
+# gives test-filter in place of test, and reaches the swift calls through make. Check that a
+# passing make check-changed with BASE writes the stamp, and a red one does not. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 script="$repo/scripts/check-changed.sh"
@@ -10,7 +12,7 @@ failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # A git or make value of an outer run must not reach the temporary repos of this test.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL BASE
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER
 
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
@@ -52,6 +54,16 @@ expect 'docs, tooling, and the Makefile before the push' "$(out 'docs tooling bu
   <<<$'AGENTS.md\nscripts/check-changed.sh\nMakefile'
 expect 'empty list, no base' "$(out none none no)" </dev/null
 
+# FILTER: the tests of the slice in place of all tests. The other targets do not change.
+FILTER=ClipTests expect 'tests with FILTER' "$(out tests test-filter no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
+FILTER=ClipTests expect 'docs with FILTER' "$(out docs check-docs no)" <<<'docs/guide.md'
+FILTER=ClipTests expect 'bundle with FILTER' "$(out bundle check no)" <<<'Makefile'
+FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 'tooling sources' 'check-fast test-filter' no)" \
+  <<<$'scripts/probe.sh\nSources/DirigibleApp/AppDelegate.swift'
+# FILTER before the push: exit nonzero with the reason, because the push runs the full targets.
+got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fail 'FILTER with --push exits 0'
+[[ "$got" == *"FILTER is for a commit inside a slice"* ]] || fail "FILTER with --push: no reason: $got"
+
 # Floor case: each risk floor path exists, so a rename cannot drop a file out of the floor.
 floor="$("$script" --floor)" || fail "--floor exits $?"
 [[ -n "$floor" ]] || fail '--floor prints no path'
@@ -86,6 +98,12 @@ new_repo
 got="$(run_in does-not-exist 2>/dev/null)" && fail 'a bad base exits 0'
 [[ -z "$got" ]] || fail "a bad base prints [$got]"
 
+# FILTER with a base: exit nonzero with the reason.
+new_repo
+printf 'b2\n' > "$tmp/r/scripts/b.sh"
+got="$(cd "$tmp/r" && FILTER=ClipTests "$script" main 2>&1)" && fail 'FILTER with a base exits 0'
+[[ "$got" == *"FILTER is for a commit inside a slice"* ]] || fail "FILTER with a base: no reason: $got"
+
 # A base with no diff: exit 1 and the reason.
 new_repo
 err="$(run_in main 2>&1 >/dev/null)"
@@ -116,7 +134,7 @@ got="$(run_in main)" || fail "a moved floor file: exit $?"
 # `setup`, which sets core.hooksPath, so each case also checks that the value stays unset.
 # make exits 2 when a recipe fails, so a refused case asserts a nonzero exit and its reason.
 make_case() {
-  local name="$1" reason="$2" output code
+  local name="$1" reason="$2" code
   shift 2
   output="$(make -s -C "$tmp/r" check-changed "$@" 2>&1)"
   code=$?
@@ -132,12 +150,47 @@ make_repo() {
   new_repo
   cp "$repo/Makefile" "$tmp/r/Makefile"
   cp "$script" "$tmp/r/scripts/check-changed.sh"
+  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$tmp/r/scripts/"
   g add -A
   g commit -q -m make
 }
 make_repo; make_case 'make check-changed with a bad base' 'does-not-exist' BASE=does-not-exist
 make_repo; make_case 'make check-changed with a base with no diff' 'no changed paths against main' BASE=main
 make_repo; make_case 'make check-changed with no changed path' ''
+# The first line names the commit, the tree state, the base, and the targets (cost.sh reads it).
+[[ "$output" == "check-changed: commit $(g rev-parse HEAD) tree clean base none targets none"$'\n'* ]] ||
+  fail "make check-changed: no check-changed line first: $output"
+
+# FILTER reaches the swift calls through the recipe and the sub-make: one --filter for each word.
+make_repo
+mkdir -p "$tmp/bin" "$tmp/r/Tests/DirigibleCoreTests"
+printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "Test run with 2 tests passed after 0.1 seconds."\n' "$tmp/swift.log" > "$tmp/bin/swift"
+chmod +x "$tmp/bin/swift"
+printf 't\n' > "$tmp/r/Tests/DirigibleCoreTests/T.swift"
+: > "$tmp/swift.log"
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with FILTER' '' "FILTER=ATests BTests"
+[[ "$output" == *"targets: test-filter"* ]] || fail "make check-changed with FILTER: no test-filter target: $output"
+[[ "$(cat "$tmp/swift.log")" == "swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests --filter ATests --filter BTests" ]] ||
+  fail "make check-changed with FILTER: swift calls: $(cat "$tmp/swift.log")"
+
+# The stamp: a passing check with BASE appends it, a red check or no BASE does not.
+# A stub script gives the targets stub-ok or stub-red of the copied Makefile.
+stamp_repo() {
+  make_repo
+  printf '#!/bin/bash\nprintf "classes: docs\\ntargets: %s\\nrisk: no\\n"\n' "$1" > "$tmp/r/scripts/check-changed.sh"
+  printf '\nstub-ok:\n\t@true\nstub-red:\n\t@false\n' >> "$tmp/r/Makefile"
+  g commit -q -am stub
+}
+stamp_read() { (cd "$tmp/r" && scripts/check-stamp.sh read main); }
+stamp_repo stub-ok
+make_case 'make check-changed with BASE' '' BASE=main
+[[ "$(stamp_read)" == "$(g rev-parse HEAD) stub-ok" ]] || fail "make check-changed with BASE: stamp [$(stamp_read)]: $output"
+stamp_repo stub-ok
+make_case 'make check-changed with no BASE' ''
+[[ "$(stamp_read)" == 'no stamp' ]] || fail "make check-changed with no BASE: stamp [$(stamp_read)]"
+stamp_repo stub-red
+make_case 'make check-changed with BASE and a red target' 'Error' BASE=main
+[[ "$(stamp_read)" == 'no stamp' ]] || fail "a red target: stamp [$(stamp_read)]"
 # A script output with no targets line fails, so an empty list never passes.
 make_repo
 printf '#!/bin/bash\necho "classes: none"\n' > "$tmp/r/scripts/check-changed.sh"

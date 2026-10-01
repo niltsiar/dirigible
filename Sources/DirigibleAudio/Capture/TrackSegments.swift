@@ -42,7 +42,8 @@ struct TrackSegments {
         var spanStopped = false
     }
 
-    /// A host time can move by 200 µs (`Segment`), so a larger gap before a new segment is a hole.
+    /// A gap of more than 1 ms before a new segment is a hole. The jitter of a host time is
+    /// 200 µs or less (`Segment`), and a hole is more than 2 s.
     private static let holeNanos: Int64 = 1_000_000
 
     /// Nil for a monitor.

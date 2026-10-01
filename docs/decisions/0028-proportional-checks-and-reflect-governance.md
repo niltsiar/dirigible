@@ -61,7 +61,7 @@ A mixed change gets the union of the rows of its classes. The larger round count
 5. Once per reflect run, before the merge, the review panel reviews the diff of the reflect commits. The lenses come from the paths of the diff. A blocking finding gets a fix commit or a revert commit.
 6. Each reflect commit runs `make check-changed`.
 7. A reflect run removes at most one rule. The reflect skill holds the full removal rule. In a branch whose only class is docs, `scripts/check-governance.sh` refuses more than one removal when the run has a reflect row.
-8. When a change deletes, merges, or moves a rule, reflect runs the eval scenarios of `docs/workflow/evals.md` that name a changed file.
+8. When a change deletes, merges, or moves a rule, reflect runs the eval scenarios of `docs/workflow/evals.md` that name a changed file. A scenario that passed before the change and fails after it reverts the change. A changed file with no scenario gets one first, or the commit body says why none applies.
 
 ## Consequences
 

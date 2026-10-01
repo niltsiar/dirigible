@@ -60,7 +60,7 @@ fi
 # Only the check-changed recipe of the Makefile writes the pass stamp that land.sh reuses, so a
 # direct write cannot skip the land check. A command that names the stamp file is blocked too.
 if grep -qE 'dirigible-check-stamp|check-stamp\.sh write' <<< "$NORMALIZED"; then
-  block "names the pass stamp or writes it (only make check-changed writes it; read it with scripts/check-stamp.sh read)"
+  block "names the pass stamp or writes it (only make check-changed writes it; read it with scripts/check-stamp.sh read origin/main)"
 fi
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do

@@ -18,7 +18,7 @@ The reflect rules of decision 0028:
 5. The lens panel reviews the diff of the reflect commits once per reflect run, before the merge (step 5).
 6. Each reflect commit runs `make check-changed`, joined to `git commit` with `&&`.
 7. A reflect run removes at most one rule. A duplicate line gets a `merge` row whose target is the kept ID. A stale or no-op line gets a `delete` row whose reason gives the evidence. Skip it when no line qualifies. This is the only removal rule; other docs point here.
-8. When a change deletes, merges, or moves a rule, run once each scenario of `docs/workflow/evals.md` whose `files` column names a changed file.
+8. When a change deletes, merges, or moves a rule, run once each scenario of `docs/workflow/evals.md` whose `files` column names a changed file. A scenario that passed before the change and fails after it reverts the change. A changed file with no scenario gets one first, or the commit body says why none applies.
 
 ## Process
 

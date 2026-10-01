@@ -12,6 +12,10 @@
 #        verify-copy.sh prompt <button>
 #                                  press the button of the privacy prompt of the copy, by its
 #                                  whole name; wait up to VERIFY_COPY_PROMPT_WAIT s (default 10)
+#        verify-copy.sh doctor     check four facts, one line each: (a) the copy runs; the build
+#                                  is current: (b) build/Dirigible.app did not change after
+#                                  start, (c) no source is newer than it; (d) the copy shows a
+#                                  window, (e) with Accessibility trust; (f) the screen is unlocked
 #        verify-copy.sh stop       stop the copy and clean up its TCC grants, its preferences,
 #                                  its saved state, and build/verify
 #
@@ -24,6 +28,7 @@ set -euo pipefail
 usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
        verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh prompt <button>
+       verify-copy.sh doctor
        verify-copy.sh stop"
 
 # A plain assignment: `local root=$(...)` hides the exit code of git.
@@ -179,6 +184,62 @@ prompt() {
     exit 1
 }
 
+# Print locked or unlocked. Exit 1 when there is no GUI session (screenshot.sh reads the same key).
+lock_script='import CoreGraphics
+import Foundation
+guard let session = CGSessionCopyCurrentDictionary() as? [String: Any] else {
+    FileHandle.standardError.write(Data("No GUI session.\n".utf8))
+    exit(1)
+}
+print(session["CGSSessionScreenIsLocked"] as? Bool == true ? "locked" : "unlocked")'
+
+# Check each fact and print one line for it. Exit 1 after all facts when one failed. A dirty tree
+# is normal during a verify, so no fact reads git.
+doctor() {
+    local failed="" pids rc out source_mtime recorded build_ok=1
+    local source_exe="$real_app/Contents/MacOS/Dirigible"
+    # Not local: the EXIT trap runs after the function returns.
+    errf="$(mktemp)"
+    trap 'rm -f "$errf"' EXIT
+    pids="$(copy_pids)"
+    if [[ -n "$pids" ]]; then
+        echo "ok (a) the verify copy runs: PID ${pids//$'\n'/ }"
+    else
+        echo "FAIL (a) no verify copy runs. Run scripts/verify-copy.sh start." && failed+=" (a)"
+    fi
+    source_mtime="$(stat -f %m "$source_exe" 2>/dev/null || echo none)"
+    recorded="$(cat "$root/build/verify/source-mtime" 2>/dev/null || echo none)"
+    if [[ "$source_mtime" != "$recorded" ]]; then
+        echo "FAIL (b) build/Dirigible.app changed after start (mtime $source_mtime, start saw $recorded). Run start again."
+        failed+=" (b)" build_ok=0
+    fi
+    rc=0
+    out="$(cd "$root" && find Sources Support Package.swift -newer "$source_exe" -print -quit 2>"$errf")" || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "FAIL (c) find failed (exit $rc): $(cat "$errf")" && failed+=" (c)" build_ok=0
+    elif [[ -n "$out" ]]; then
+        echo "FAIL (c) the build is stale: $out is newer than build/Dirigible.app. Run make app, then start." && failed+=" (c)" build_ok=0
+    fi
+    [[ $build_ok -eq 0 ]] || echo "ok (b, c) the build is current"
+    rc=0
+    out="$(DIRIGIBLE_BUNDLE_ID="$copy_id" swift "$root/scripts/ax.swift" dump 2 2>"$errf")" || rc=$?
+    case $rc in
+        0) if grep -q 'Role=AXWindow' <<<"$out"; then echo "ok (d, e) the copy shows a window"; else
+            echo "FAIL (d) the copy shows no window." && failed+=" (d)"; fi ;;
+        3) echo "FAIL (e) $(cat "$errf")" && failed+=" (e)" ;;
+        *) echo "FAIL (d) ax failed: $(cat "$errf")" && failed+=" (d)" ;;
+    esac
+    rc=0
+    out="$(swift - <<<"$lock_script" 2>"$errf")" || rc=$?
+    if [[ $rc -eq 0 && "$out" == unlocked ]]; then
+        echo "ok (f) the screen is unlocked"
+    else
+        echo "FAIL (f) the screen is locked or has no session (exit $rc: $out $(cat "$errf")). Make the interaction checks manual checks."
+        failed+=" (f)"
+    fi
+    [[ -z "$failed" ]] || { echo "verify-copy.sh: doctor failed:$failed" >&2 && exit 1; }
+}
+
 stop() {
     stop_copy
     cleanup
@@ -188,6 +249,7 @@ case "${1:-}" in
     start) shift; start "$@" ;;
     ax) shift; DIRIGIBLE_BUNDLE_ID="$copy_id" swift "$root/scripts/ax.swift" "$@" ;;
     prompt) [[ $# -eq 2 && -n "$2" ]] || { echo "$usage" >&2 && exit 2; }; prompt "$2" ;;
+    doctor) [[ $# -eq 1 ]] || { echo "$usage" >&2 && exit 2; }; doctor ;;
     stop) [[ $# -eq 1 ]] || { echo "$usage" >&2 && exit 2; }; stop ;;
     *) echo "$usage" >&2 && exit 2 ;;
 esac

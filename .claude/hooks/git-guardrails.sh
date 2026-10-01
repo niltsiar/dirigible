@@ -1,11 +1,13 @@
 #!/bin/bash
 # PreToolUse hook for Bash: block git commands that discard work, skip checks, or bypass
 # the pull request flow. Permission rules in settings.json match only command prefixes;
-# this hook matches the flag anywhere in the command.
+# this hook matches the flag anywhere in the whole command text, quoted text too. A quoted
+# rule is still a rule, so the message tells the agent how to write text that is only data.
 # Exit 2 blocks the command and shows the message to the agent.
 
 block() {
   echo "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1. This command can discard work or bypass the checks. Use the deliver flow: push the run branch and merge through a pull request." >&2
+  echo "If the matched text is only data, write it with the Write tool, a decisions.tsv row with log-decision.sh --from <file>, or a commit message with git commit -F <file>." >&2
   exit 2
 }
 
@@ -26,7 +28,7 @@ NORMALIZED="$(awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' <<< "$NORMALIZED")"
 
 DANGEROUS_PATTERNS=(
   'git push( .*)? (--force|-[a-zA-Z]*f|\+)'
-  'git push .*[ :/]main( |$)'
+  "git push .*[ :/'\"]main([ '\"]|\$)"
   'git reset --hard'
   'git clean -[a-z]*f'
   'git branch .*(-D|--delete --force|-d -f|-d --force|-f )'

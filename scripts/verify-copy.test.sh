@@ -107,7 +107,13 @@ cat >"$tmp/badpgrep/pgrep" <<'FAKE'
 echo "pgrep: illegal pattern" >&2
 exit 2
 FAKE
-chmod +x "$tmp"/bin/* "$tmp/badpgrep/pgrep"
+mkdir -p "$tmp/badcodesign"
+cat >"$tmp/badcodesign/codesign" <<'FAKE'
+#!/bin/bash
+echo "${@: -1}: bundle format unrecognized, invalid, or unsuitable" >&2
+exit 1
+FAKE
+chmod +x "$tmp"/bin/* "$tmp/badpgrep/pgrep" "$tmp/badcodesign/codesign"
 
 # new_case <name>: a fresh temp repo with a copy of the script, a fake build/Dirigible.app, and
 # a fake HOME. It sets repo, copy, exe, real, and state, and exports the state for the fakes.
@@ -351,6 +357,12 @@ for tool in defaults tccutil; do
     [[ ! -s "$state/open.log" ]] || fail "start cleanup error ($tool): open got a call"
 done
 
+# codesign error: start exits 1 with the output of codesign, and opens no copy.
+new_case
+PATH="$tmp/badcodesign:$PATH" run start
+[[ $code -eq 1 && "$err" == *"codesign failed:"*"bundle format unrecognized"* ]] || fail "start codesign error: exit $code: $err"
+[[ ! -s "$state/open.log" ]] || fail "start codesign error: open got a call"
+
 # pgrep error: stop exits 2 with the stderr of pgrep, and build/verify stays.
 new_case
 run start
@@ -439,7 +451,7 @@ expect_doctor_fail() {
     [[ -z "${3:-}" || "$out$err" == *"$3"* ]] || fail "$1: no \"$3\": $out $err"
 }
 
-# C13 doctor ok: one ok line for each of the four facts.
+# C13 doctor ok: four ok lines, for the facts (a) to (f).
 doctor_case
 run doctor
 [[ $code -eq 0 ]] || fail "doctor ok: exit $code: $out $err"

@@ -1,12 +1,13 @@
 #!/bin/bash
 # Check that land.sh runs the land steps of deliver Phase 9 in order and stops at the first
 # failure. Each case uses a temporary repo, a bare remote, and fake make and gh on PATH that log
-# their arguments. Cases: the happy path, a red check, main moved after the check, a run on main
-# or a detached HEAD, an untracked or a changed file, a red governance check, `risk: yes` with
-# and with no control row, a missing body file, and no arguments. The stamp cases: a matching
-# stamp runs no check, a delta after the stamp runs the targets of the delta, and no usable stamp
-# runs the full push check; the governance and the ancestor checks still run. The ratchet case
-# runs the real make check-changed first, so the land runs no check after it. Run by `make test-hooks`.
+# their arguments. Cases: the happy path, a red check, a rebase conflict (the rebase is aborted),
+# main moved after the check, a run on main or a detached HEAD, an untracked or a changed file, a
+# red governance check, `risk: yes` with and with no control row, a missing body file, and no
+# arguments. The stamp cases: a matching stamp runs no check, a delta after the stamp runs the
+# targets of the delta, and no usable stamp runs the full push check; the governance and the
+# ancestor checks still run. The ratchet case runs the real make check-changed first, so the land
+# runs no check after it. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 land="$here/land.sh"
@@ -112,6 +113,21 @@ code=$?
 grep -q 'the checks failed' "$c/out" || fail "red check: no reason: $(cat "$c/out")"
 ! grep -q '^gh ' "$c/log" || fail "red check: gh ran: $(cat "$c/log")"
 ! git -C "$c/origin.git" show-ref -q --verify refs/heads/feat/x || fail 'red check: the branch is on origin'
+
+# A rebase conflict: the land aborts the rebase, so the branch is as before, and stops.
+setup
+echo conflict > "$c/other/x.txt"
+git -C "$c/other" add x.txt && git -C "$c/other" commit -q -m conflict && git -C "$c/other" push -q origin main
+before="$(git -C "$c/work" rev-parse HEAD)"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -ne 0 ]] || fail 'conflict: exit 0'
+grep -q 'the rebase on origin/main stopped on a conflict; the rebase is aborted' "$c/out" || fail "conflict: no reason: $(cat "$c/out")"
+[[ ! -d "$c/work/.git/rebase-merge" && ! -d "$c/work/.git/rebase-apply" ]] ||
+  fail 'conflict: a rebase is in progress'
+[[ "$(git -C "$c/work" branch --show-current)" == feat/x && "$(git -C "$c/work" rev-parse HEAD)" == "$before" ]] ||
+  fail 'conflict: the branch is not as before'
+no_side_effects 'conflict'
 
 # origin/main moves after the check: the pull request exists, the merge does not run.
 setup

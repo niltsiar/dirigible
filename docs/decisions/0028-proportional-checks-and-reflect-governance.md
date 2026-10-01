@@ -44,7 +44,7 @@ A mixed change gets the union of the rows of its classes. The larger round count
 
 - `docs/workflow/budgets.tsv` gives a word limit for each workflow doc, a total for each skill folder, and one `TOTAL` row. `make check-docs` checks the limits.
 - A limit goes up only in a commit that names a `decisions.tsv` row in the `decision` cell. Before the push, `scripts/check-governance.sh` refuses a row that goes up with no `decisions.tsv <time>` in that cell.
-- A rewrite lands at or under 90% of the limit of its file, so the next reflect run has free words.
+- A rewrite sets the row of its file to `wc -w` x 1.1, rounded up to the next 10 (about 9% free), so the next reflect run has free words.
 
 ### Rule register
 
@@ -65,7 +65,7 @@ A mixed change gets the union of the rows of its classes. The larger round count
 
 ## Consequences
 
-- A docs commit runs `check-docs` in seconds, not the full suite. The push still runs the full `make check`, plus `test-slow` or `test-dmg` when the paths need them.
+- A docs commit runs `check-docs` in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints.
 - The path table is one place to change. A wrong class lets a red commit through, so its test compares the whole output for each class and checks the fail-closed exits.
 - Fewer mutation controls run. A defect in a guard outside the risk floor can land when its failing-before test is weak. The plan can raise such a guard to risk.
 - The workflow docs stop growing by one rule for each learning. A rule that does not fit the budget waits for a consolidation run.

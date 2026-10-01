@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
 # its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
-# reflect row, and a run folder that check-plan.sh refuses (an open Unknowns row). Each case uses
+# reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), and a run research
+# file with no docs/research copy. Each case uses
 # a temporary repo with a base commit on main and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -81,6 +82,12 @@ new_repo
 pass 'a good run folder' "$tmp/run"
 sed -i '' 's/| a | 2026-10-01T01:00 |/|  | 2026-10-01T01:00 |/' "$tmp/run/analysis.md"
 refuse 'an open Unknowns row' 'open unknown: | U1 |' "$tmp/run"
+
+# A research file of the run folder has its copy in docs/research.
+new_repo; echo x > "$tmp/run/research-topic.md"
+refuse 'a run research file with no docs/research copy' 'research-topic.md has no docs/research/topic.md' "$tmp/run"
+mkdir -p "$tmp/r/docs/research"; echo x > "$tmp/r/docs/research/topic.md"; commit
+pass 'a run research file with its docs/research copy' "$tmp/run"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

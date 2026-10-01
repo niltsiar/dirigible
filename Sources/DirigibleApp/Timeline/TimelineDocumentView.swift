@@ -254,7 +254,9 @@ final class TimelineDocumentView: NSView {
     /// left of the box, cut at the box end. It reads only the clips in the frames of the rect of
     /// `region`, lane by lane, and draws only in that rect. A box under 60 pt gets no label: 12,000
     /// labels at fit zoom took 330 ms per draw (probe L1, decision 0020). The live region of a take
-    /// gets the take label, and an old clip label shows only outside it.
+    /// gets the take label at each width, cut at the box end, and an old clip label shows only
+    /// outside it. So a column of the take label does not change when the box grows, and the
+    /// partial draw of a tick gives the pixels of a full draw.
     static func drawLabels(
         _ inputs: LaneInputs, _ palette: LanePalette, live: LiveLanes.Take? = nil, into region: borrowing PixelRegion
     ) {
@@ -279,7 +281,7 @@ final class TimelineDocumentView: NSView {
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
                 labels.append((box, shown, path.hasSuffix(".wav") ? String(path.dropLast(4)) : path))
             }
-            if let region, let live, region.width >= 60, region.intersects(rect) {
+            if let region, let live, region.intersects(rect) {
                 labels.append((region, [region], live.label))
             }
         }

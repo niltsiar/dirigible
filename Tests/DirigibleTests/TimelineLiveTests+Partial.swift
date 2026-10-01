@@ -70,4 +70,21 @@ extension TimelineLiveTests {
         #expect(try lanes.runs(at: 0.55, lane: 0) == [Run(lanes.view.lanes.palette.lane, rows)], "the gap")
         await lanes.close()
     }
+
+    /// V2: the box passes 60 pt (0.16 s at 128 frames per point) in partial draws, one span of
+    /// 50 ms per tick. The take label at the box start shows whole, as in a full draw.
+    @Test func theTakeLabelOfPartialDrawsIsWhole() async throws {
+        let lanes = try await take()
+        #expect(lanes.view.framesPerPoint == 128)
+        for tick in 1...6 {
+            let now = Double(tick) * 0.05
+            lanes.report(now - 0.05, now)
+            lanes.tick(now)
+        }
+
+        let differ = try partialMinusFull(lanes, from: 0, to: 0.3, lanes: 0..<1)
+
+        #expect(differ == 0, "\(differ) pixels differ from a full draw")
+        await lanes.close()
+    }
 }

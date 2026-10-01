@@ -97,8 +97,10 @@ check-warnings:
 	scripts/check-warnings.test.sh
 	scripts/check-warnings.sh
 
+# Stop only the app of this tree, by its executable path: the verify copy and the test fakes
+# are also named Dirigible.
 run: app
-	pkill -x Dirigible || true
+	pkill -f "^$(CURDIR)/build/Dirigible.app/Contents/MacOS/Dirigible" || true
 	open build/Dirigible.app
 
 lint:

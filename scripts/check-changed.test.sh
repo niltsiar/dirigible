@@ -28,11 +28,11 @@ expect 'a probe script' "$(out tooling check-fast no)" <<<'scripts/probe.sh'
 expect 'a skill doc and a skill script' "$(out 'docs tooling' check-fast no)" \
   <<<$'.claude/skills/deliver/SKILL.md\n.claude/skills/deliver/scripts/new-run.sh'
 expect 'Makefile per commit' "$(out bundle check no)" <<<'Makefile'
-expect 'Makefile before the push' "$(out bundle 'check test-dmg' no)" --push <<<'Makefile'
+expect 'Makefile before the push' "$(out bundle 'check test-slow test-dmg' no)" --push <<<'Makefile'
 expect 'Package.swift per commit' "$(out build check no)" <<<'Package.swift'
 expect 'Package.swift before the push' "$(out build 'check test-slow' no)" --push <<<'Package.swift'
 expect 'Tests only' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
-expect 'Tests only before the push' "$(out tests check no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
+expect 'Tests only before the push' "$(out tests 'check test-slow' no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'app sources per commit' "$(out sources test no)" <<<'Sources/DirigibleApp/AppDelegate.swift'
 expect 'app sources before the push' "$(out sources 'check test-slow' no)" --push <<<'Sources/DirigibleApp/AppDelegate.swift'
 expect 'capture sources' "$(out sources-risk 'check test-slow' yes)" --push \
@@ -42,12 +42,13 @@ expect 'session writer' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore
 expect 'Makefile and capture sources' "$(out 'sources-risk bundle' 'check test-slow test-dmg' yes)" --push \
   <<<$'Makefile\nSources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'Support' "$(out bundle 'check test-dmg' no)" --push <<<'Support/Info.plist'
+expect 'bundle script before the push' "$(out bundle 'check test-dmg' no)" --push <<<'scripts/bundle.sh'
 expect 'bundle script' "$(out bundle check no)" <<<'scripts/bundle.sh'
 expect 'app bundle test' "$(out bundle check no)" <<<'Tests/DirigibleTests/AppBundleTests.swift'
 expect 'unknown top-level file' "$(out build check no)" <<<'unknown.txt'
 expect 'docs and sources' "$(out 'docs sources' 'check-docs test' no)" \
   <<<$'docs/guide.md\nSources/DirigibleApp/AppDelegate.swift'
-expect 'docs, tooling, and the Makefile before the push' "$(out 'docs tooling bundle' 'check test-dmg' no)" --push \
+expect 'docs, tooling, and the Makefile before the push' "$(out 'docs tooling bundle' 'check test-slow test-dmg' no)" --push \
   <<<$'AGENTS.md\nscripts/check-changed.sh\nMakefile'
 expect 'empty list, no base' "$(out none none no)" </dev/null
 

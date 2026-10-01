@@ -34,8 +34,8 @@ targets_of() {
         docs:*) echo check-docs ;;
         tooling:*) echo check-fast ;;
         tests:0 | sources:0 | sources-risk:0) echo test ;;
-        tests:1 | bundle:0 | build:0) echo check ;;
-        sources:1 | sources-risk:1 | build:1) echo check test-slow ;;
+        bundle:0 | build:0) echo check ;;
+        tests:1 | sources:1 | sources-risk:1 | build:1) echo check test-slow ;;
         bundle:1) echo check test-dmg ;;
     esac
 }
@@ -73,6 +73,8 @@ while IFS= read -r p; do
 done <<<"$paths"
 
 classes="" wanted=" " risk=no
+# The Makefile owns the test-slow recipe, so a Makefile change runs it before the push.
+[[ $push == 1 ]] && grep -qx Makefile <<<"$paths" && wanted+="test-slow "
 for c in docs tooling tests sources sources-risk bundle build; do
     [[ "$found" == *" $c "* ]] || continue
     classes+=" $c"

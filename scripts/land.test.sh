@@ -61,6 +61,9 @@ setup() {
   git -C "$c/other" commit -q --allow-empty -m "main moves"
   git -C "$c/other" push -q origin main
   printf 'body\n' > "$c/pr.md"
+  # The run folder is the folder of the body file; check-governance.sh runs check-plan.sh on it.
+  printf '## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T01:00 |\n' > "$c/analysis.md"
+  printf 'Agents: A = S1.\n\n## Slices\n\n### S1 x\n\n- Check: check-docs.\n' > "$c/plan.md"
   : > "$c/log"
 }
 

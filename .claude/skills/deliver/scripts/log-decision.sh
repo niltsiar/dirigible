@@ -5,6 +5,8 @@
 #        log-decision.sh <run folder> --from <file>
 # With --from, the file has five lines: phase, decision, why, evidence, result. Use it when a
 # field has text that the guardrail hook blocks in a command, for example the check and the commit.
+# A row whose result starts with `default` needs `Reverse:` in its why: the word or line that
+# reverses the default (deliver autonomy rules). Else the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
@@ -20,6 +22,10 @@ fi
 file="$1/decisions.tsv"
 [[ -f "$file" ]] || { echo "no decisions.tsv in $1; open the run with new-run.sh" >&2; exit 2; }
 shift
+if [[ "$(tr '[:upper:]' '[:lower:]' <<<"$5")" == default* && "$3" != *Reverse:* ]]; then
+    echo "the result starts with default, and the why has no Reverse: <the word or line that reverses it>" >&2
+    exit 2
+fi
 
 # A tab or a line break in a field would break the TSV columns. Change each one to a space.
 row="$(date +%FT%R)"

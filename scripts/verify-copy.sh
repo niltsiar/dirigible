@@ -12,10 +12,11 @@
 #        verify-copy.sh prompt <button>
 #                                  press the button of the privacy prompt of the copy, by its
 #                                  whole name; wait up to VERIFY_COPY_PROMPT_WAIT s (default 10)
-#        verify-copy.sh doctor     check four facts, one line each: (a) the copy runs; the build
-#                                  is current: (b) build/Dirigible.app did not change after
-#                                  start, (c) no source is newer than it; (d) the copy shows a
-#                                  window, (e) with Accessibility trust; (f) the screen is unlocked
+#        verify-copy.sh doctor     print four ok lines, for the facts (a) to (f): (a) the copy
+#                                  runs; the build is current: (b) build/Dirigible.app did not
+#                                  change after start, (c) no source is newer than it; (d) the
+#                                  copy shows a window, (e) with Accessibility trust; (f) the
+#                                  screen is unlocked
 #        verify-copy.sh stop       stop the copy and clean up its TCC grants, its preferences,
 #                                  its saved state, and build/verify
 #
@@ -101,7 +102,7 @@ cleanup() {
 }
 
 start() {
-    local open_args=() pid=""
+    local open_args=() pid="" out
     if [[ $# -gt 0 && "$1" != -- ]]; then open_args+=("$1") && shift; fi
     if [[ $# -gt 0 ]]; then
         [[ "$1" == -- ]] || { echo "$usage" >&2 && exit 2; }
@@ -115,7 +116,7 @@ start() {
     cp -R "$real_app" "$copy"
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $copy_id" "$copy/Contents/Info.plist"
     stat -f %m "$real_app/Contents/MacOS/Dirigible" >"$root/build/verify/source-mtime"
-    codesign --force --sign - "$copy" 2>/dev/null
+    out="$(codesign --force --sign - "$copy" 2>&1)" || { echo "verify-copy.sh: codesign failed: $out" >&2 && exit 1; }
     open -a "$copy" ${open_args[@]+"${open_args[@]}"}
     for _ in $(seq 50); do
         pid="$(copy_pids)"

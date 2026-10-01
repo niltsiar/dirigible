@@ -46,7 +46,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 - `.scratchpads/` is gitignored. It keeps the working memory of the agents between sessions.
 - At the start of a session, read the files that step 1 of deliver Phase 0 names. Open a run with deliver Phase 0.
-- `decisions.tsv` is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh`, also in a subagent. It writes the time from the clock. If the guardrail hook blocks a field, use `--from <file>`. A wrong row gets a new row that corrects it.
+- `decisions.tsv` is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh`, also in a subagent. It writes the time from the clock. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder: a probe once deleted files in `~`. For a Swift build in a probe, read the header of `scripts/probe.sh` first.
 - The Bash tool shell is zsh. A variable named `path`, `status`, or `argv` breaks every later command with "command not found". Use another name, or `bash -c '...'`.
@@ -58,7 +58,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change that builds and passes the checks that `make check-changed` picks. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
 - The pre-commit hook refuses a commit that fails `make lint` or the build (tests included). It checks the working tree, so stage whole changes.
-- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks, and a `git commit` joined to `make check` by anything but `&&`. It matches the whole command, so a commit message that quotes a blocked flag is blocked too. Reword the message.
+- `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks, and a `git commit` joined to `make check` by anything but `&&`. It matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F <file>`.
 - The hook allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
   - If the path has changes that you did not make, or that no commit or copy holds, commit them or copy them first.

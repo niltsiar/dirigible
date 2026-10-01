@@ -59,7 +59,7 @@ AGT-057	AGENTS.md	keep	AGENTS.md	commit message rule; C18	10edc92		commit subjec
 AGT-058	AGENTS.md	keep	AGENTS.md	commit message file; C18	ad21140		long commit message goes through .scratchpads/commit-msg.txt and git commit -F
 AGT-059	AGENTS.md	keep	AGENTS.md	plan: keep; C18	c62ae01		pre-commit hook blocks lint or build failures on the working tree; stage whole changes
 AGT-060	AGENTS.md	keep	AGENTS.md	describes .claude/hooks/git-guardrails.sh; plan: keep the rule; C18	ad21140		git-guardrails.sh blocks force push, main push, hard reset, clean, hook skips, bad joins
-AGT-061	AGENTS.md	keep	AGENTS.md	workaround for a hook block; C18	ad21140		guardrail matches the whole command; reword a commit message that quotes a flag
+AGT-061	AGENTS.md	keep	AGENTS.md	workaround for a hook block; C18; 2026-10-01-guardrail-quoted-text keeps the raw match (no scanner) and names the data paths	ad21140		guardrail matches the whole command text, quoted text too; write data with the Write tool, --from, or git commit -F
 AGT-062	AGENTS.md	enforced	Makefile	the test-hooks recipe lists each test script (for example scripts/ax.test.sh, which this list omits); slice 8 points to it; a7401bc added "and the decision log script" to this list	L156	probe	make test-hooks covers the guardrail, probe, hid, screenshot, bench, icon, bundle, flake, mutate tests
 AGT-063	AGENTS.md	keep	AGENTS.md	audit s6: the checkout rules stay; C18	cc9cac1		git checkout/restore <path> allowed under the hard rules below
 AGT-064	AGENTS.md	keep	AGENTS.md	audit s6: the checkout rules stay; C18	cc9cac1		inspect git status --porcelain and git diff of a path before overwriting
@@ -106,7 +106,7 @@ AGT-104	AGENTS.md	merge	DLV-007	duplicate of deliver:16 (audit s2, spec item 5)	
 AGT-105	AGENTS.md	keep	AGENTS.md	plan: keep, still true	10edc92		slow tests behind DIRIGIBLE_SLOW_TESTS; make test-slow runs them
 AGT-106	AGENTS.md	keep	AGENTS.md	conflict with reflect:12 and practice (audit s3); slice 8 sharpens it to the reflect rules	10edc92		reflect edits docs or adds a check when a learning repeats; checks over prose
 AGT-107	AGENTS.md	keep	AGENTS.md	docs truth rule	10edc92		AGENTS.md commands and paths work at every commit
-AGT-108	AGENTS.md	new	AGENTS.md	new in slice 0 of this run	a7401bc		log-decision.sh --from <file> when the hook blocks a field
+AGT-108	AGENTS.md	merge	AGT-061	new in slice 0 of this run; 2026-10-01-guardrail-quoted-text moves --from into the AGT-061 sentence	a7401bc		log-decision.sh --from <file> when the hook blocks a field
 DLV-001	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; scope of one run	ad21140		one run: one goal to a merged PR; each step writes the ledger
 DLV-002	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; phase checklist	cdf55a5		open a todo list of the phases at run start
 DLV-003	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; no phase skipped	cdf55a5		no phase skipped; a short phase still leaves its artifact
@@ -118,7 +118,7 @@ DLV-008	.claude/skills/deliver/SKILL.md	merge	DLV-035	untried limit stated three
 DLV-009	.claude/skills/deliver/SKILL.md	merge	VER-050	hid.swift driving has its home in verify-this:34 (audit 2)	39f0f83		hid.swift CGEvents drive drags and keys on the built app
 DLV-010	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; context rule	cdf55a5		send bulk reading to subagents; keep only conclusions
 DLV-011	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; run files of a subagent	L35	hook	subagent prompt names each run file as a required ledger file
-DLV-012	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; conflicts with the plan run-files rule (Write tool or an empty file, no heredoc); slice 4 aligns	L91	hook	Write tool refuses a run file: subagent uses a Bash heredoc, no retry
+DLV-012	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; conflicts with the plan run-files rule (Write tool or an empty file, no heredoc); slice 4 aligns; 2026-10-01-guardrail-quoted-text adds the hook sentence: no heredoc, the hook matches quoted text	L91	hook	run files by the Write tool, not a heredoc (the hook matches quoted text); if it refuses, an empty file or a .tsv or .txt name
 DLV-013	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; loop rule for subagents	L51	wait	subagent repeat loop runs in foreground, Bash timeout 10 min or less
 DLV-014	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; home of research routing (audit 2)	L26	doc	every research request goes through the research skill to docs/research
 DLV-015	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; home of the loop ban (audit 2)	L173	probe	subagent prompts state a running loop or bench; swift ban alone fails

@@ -147,14 +147,41 @@ struct LivePeaksTests {
         touching.add(peak: 0.5, rms: 0.25, span: span(1000, 2000), latencyNanos: 0, now: later)
         #expect(touching.covered == [Frames(0)..<Frames(96_000)], "touching spans did not merge: \(touching.covered)")
 
+        // A gap under one bin (2400 frames) is a rounding of the drain ends, so it merges.
         // 1_000_020_833 ns is frame 48000.99998, so frame 48001: a gap of one frame.
         var oneFrame = live()
         oneFrame.add(peak: 0.5, rms: 0.25, span: span(0, 1000), latencyNanos: 0, now: later)
         oneFrame.add(
             peak: 0.5, rms: 0.25, span: (start + 1_000_020_833)..<(start + 2_000_000_000), latencyNanos: 0, now: later)
+        #expect(oneFrame.covered == [Frames(0)..<Frames(96_000)], "a gap of one frame stayed: \(oneFrame.covered)")
+
+        // 1_049_979_167 ns is frame 50399.00002: a gap of 2399 frames merges.
+        var underOneBin = live()
+        underOneBin.add(peak: 0.5, rms: 0.25, span: span(0, 1000), latencyNanos: 0, now: later)
+        underOneBin.add(
+            peak: 0.5, rms: 0.25, span: (start + 1_049_979_167)..<(start + 2_000_000_000), latencyNanos: 0, now: later)
         #expect(
-            oneFrame.covered == [Frames(0)..<Frames(48_000), Frames(48_001)..<Frames(96_000)],
-            "a gap of one frame merged: \(oneFrame.covered)")
+            underOneBin.covered == [Frames(0)..<Frames(96_000)], "a gap under one bin stayed: \(underOneBin.covered)")
+
+        var oneBin = live()
+        oneBin.add(peak: 0.5, rms: 0.25, span: span(0, 1000), latencyNanos: 0, now: later)
+        oneBin.add(peak: 0.5, rms: 0.25, span: span(1050, 2000), latencyNanos: 0, now: later)
+        #expect(
+            oneBin.covered == [Frames(0)..<Frames(48_000), Frames(50_400)..<Frames(96_000)],
+            "a gap of one bin merged: \(oneBin.covered)")
+    }
+
+    /// 2 h of 50 ms drains, each odd drain 20,834 ns (one frame) late: the gaps of one frame
+    /// merge, so `covered` keeps one range and a live draw walks one range.
+    @Test func gapsOfOneFrameKeepOneRange() {
+        var peaks = live()
+        let drain: UInt64 = 50_000_000
+        for n in 0..<UInt64(144_000) {
+            let from = start + n * drain + (n % 2 == 1 ? 20_834 : 0)
+            peaks.add(peak: 0.5, rms: 0.25, span: from..<(start + (n + 1) * drain), latencyNanos: 0, now: later)
+        }
+        let one = peaks.covered == [Frames(0)..<Frames(345_600_000)]
+        #expect(one, "2 h of one-frame gaps gave \(peaks.covered.count) ranges")
     }
 
     // MARK: C7

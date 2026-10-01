@@ -72,6 +72,89 @@ extension DeviceEventTests {
         #expect(try samples("take1-1-2").count == 24_000)
     }
 
+    /// A writer of arm 1 on channel 1 and arm 2 on channel 2 of `duo`, with the drain interval
+    /// `drain`.
+    func duoWriter(_ hal: TestHAL, drain: Duration) -> DeviceWriter {
+        let url = folder.url
+        let writer = DeviceWriter(
+            device: duo, tracks: [(arm: 1, channels: .mono(1)), (arm: 2, channels: .mono(2))],
+            files: TakeFiles(take: 1, folder: { url }), hal: hal.hal, report: log.closure, drainInterval: drain,
+            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60))
+        writer.start()
+        return writer
+    }
+
+    /// A directory at the sidecar path of arm 2 makes its first segment fail, and arm 2 reopens
+    /// after 1 s of device frames. Before the reopen, arm 2 reports no written span but its peak,
+    /// and arm 1 reports its span. After the reopen, arm 2 reports a span from the reopen.
+    @Test func aFailedArmReportsNoWrittenSpan() async throws {
+        try FileManager.default.createDirectory(
+            at: folder.url.appending(path: "take1-2-1.sidecar"), withIntermediateDirectories: true)
+        let hal = TestHAL([duo])
+        let writer = duoWriter(hal, drain: .milliseconds(50))
+        let input = SyntheticInput(hal, "duo")
+        var clock = DeviceClock()
+
+        input.play(run(&clock, 0.5, layout: [2]))
+        await input.wait()
+        // The failure is in an earlier drain than the reopen.
+        await drained(hal, "duo")
+        input.play(run(&clock, 1.5, layout: [2]))
+        await input.wait()
+        await writer.finish()
+
+        let reports = log.all
+        let reopen = try #require(reports.firstIndex { $0.state(arm: 2)?.0 == .recording }, "arm 2 did not reopen")
+        let before = reports[..<reopen].compactMap(\.arms)
+        let after = reports[reopen...].compactMap(\.arms)
+        #expect(before.contains { $0[1]?.written != nil })
+        #expect(
+            before.allSatisfy { $0[2]?.written == nil },
+            "arm 2 has a span of frames that it did not write (before the reopen)")
+        #expect(before.allSatisfy { $0[1]?.written == nil || $0[2]?.peak == 0.25 }, "arm 2 has no peak")
+        let reopened = after.compactMap { $0[2]?.written }
+        let first = try #require(reopened.first, "arm 2 has no span after its reopen")
+        #expect(
+            abs(nanos(from: takeStart + 1_000_000_000, to: first.lowerBound)) <= 1000,
+            "arm 2 has a span of frames that it did not write (at the reopen)")
+        let arm1 = reports.compactMap { $0.arms?[1]?.written }
+        #expect(abs(arm1.map { nanos(from: takeStart, to: $0.lowerBound) }.min() ?? .max) <= 1000)
+        #expect(abs(arm1.map { nanos(from: takeStart + 2_000_000_000, to: $0.upperBound) }.max() ?? .max) <= 1000)
+    }
+
+    /// One drain: arm 2 writes 0.5 s, then a forward jump of 3 s starts a new segment whose open
+    /// fails for arm 2, and arm 2 reopens 1 s of device frames later in the same drain. The span
+    /// of arm 2 ends at its last written record, so it holds no gap. Arm 1 spans the whole drain.
+    @Test func aWriteErrorEndsTheSpanInItsDrain() async throws {
+        try FileManager.default.createDirectory(
+            at: folder.url.appending(path: "take1-2-2.sidecar"), withIntermediateDirectories: true)
+        let hal = TestHAL([duo])
+        let writer = duoWriter(hal, drain: .seconds(60))
+        let input = SyntheticInput(hal, "duo")
+        var clock = DeviceClock()
+        var records = run(&clock, 0.5, layout: [2])
+        clock.sampleTime += 3 * 48_000
+        records += run(&clock, 1.5, layout: [2])
+
+        input.play(records)
+        await input.wait()
+        await writer.finish()
+
+        #expect(log.states(arm: 2) == [.writeFailed, .recording])
+        let levels = log.all.compactMap(\.arms)
+        #expect(levels.count == 1)
+        let arm1 = try #require(levels.first?[1]?.written, "arm 1 has no span")
+        #expect(
+            abs(nanos(from: takeStart, to: arm1.lowerBound)) <= 1000
+                && abs(nanos(from: takeStart + 2_000_000_000, to: arm1.upperBound)) <= 1000,
+            "the span of arm 1 is not the whole drain")
+        let arm2 = try #require(levels.first?[2]?.written, "arm 2 has no span")
+        #expect(
+            abs(nanos(from: takeStart, to: arm2.lowerBound)) <= 1000
+                && abs(nanos(from: takeStart + 500_000_000, to: arm2.upperBound)) <= 1000,
+            "the span of arm 2 holds frames that it did not write")
+    }
+
     /// Slow: on a disk image, a full disk fails a write of `t1`; after the filler goes, the next
     /// segment opens, so the track has a clip before and after the error.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

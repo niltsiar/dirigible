@@ -26,7 +26,7 @@ Run the saved workflow `review-panel` with the Workflow tool:
 Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: ".scratchpads/runs/<run>/decisions.tsv", lenses?, paths? } })
 ```
 
-The workflow runs reviewer agents from `.claude/agents/` in parallel. Skeptics try to refute each warning and critical finding, and the lead reads each nit as a Consider item. With no `lenses`, the plan gate runs `premortem` (`.claude/agents/premortem.md`), `devils-advocate`, and `architecture-reviewer`, and the code gate adds `code-quality-reviewer`. At the code gate, run one call for each item below that the classes from `scripts/check-changed.sh` match:
+The workflow runs reviewer agents from `.claude/agents/` in parallel. Skeptics try to refute each warning and critical finding. With no `lenses`, the plan gate runs `premortem` (`.claude/agents/premortem.md`), `devils-advocate`, and `architecture-reviewer`, and the code gate adds `code-quality-reviewer`. At the code gate, run one call for each item below that the classes from `scripts/check-changed.sh` match:
 
 - sources, sources-risk: the default lenses.
 - `AGENTS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "prompt-engineering", "harness-engineering", "eval-engineering", "compound-engineering"]`, with those four paths in `paths`.

@@ -60,4 +60,4 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31480	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once; goal 30200)
+TOTAL	31313	2026-10-01-workflow-speed trim slice (the real sum after the trim: +174 over 31139; goal 30200)

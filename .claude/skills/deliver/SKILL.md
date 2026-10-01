@@ -9,10 +9,9 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 
 ## Autonomy rules
 
-- For reversible work, choose a default, log it in `decisions.tsv`, and continue. Its row and the PR body name the word or line that reverses it (`Reverse:`, checked by `.claude/skills/deliver/scripts/log-decision.sh`).
-- Act on reversible work as the AGENTS.md Git section says; `scripts/land.sh` (the push and the merge) needs no question. A privacy prompt of the verify copy: `driving-the-app.md`.
+- For reversible work (AGENTS.md, Git), choose a default, log it in `decisions.tsv`, and continue. Its row and the PR body name what reverses it (`Reverse:`). `scripts/land.sh` needs no question. A privacy prompt of the verify copy: `driving-the-app.md`.
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
-- Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool, not a heredoc: the guardrail hook matches the whole command text, quoted text too. If the tool refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
+- Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool (AGENTS.md, Git). If the tool refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
@@ -31,7 +30,7 @@ Write `analysis.md`:
 
 - The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO behaves, with sources.
 - Falsifiable acceptance criteria, each with the test or command that proves it. Each clause gets its own assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. Example: "A 10 s recording from two devices gives two WAV files of 10 s ± 20 ms."
-- The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer.
+- The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype`: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions, and log the probe.
 - What is out of scope, in the backlog.
 
@@ -63,7 +62,7 @@ Write `plan.md`:
 
 ## Phase 3: Plan gate
 
-Run `scripts/check-plan.sh <run folder>`: it must exit 0, and `scripts/land.sh` runs it again. Then run the **interrogate** skill with target `plan` (premortem, devil's advocate, architecture). Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
+Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interrogate** skill with target `plan` (premortem, devil's advocate, architecture). Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Change the plan for each "Act on" item and log it. Grep each fact that a fix changes, as in Phase 2.
 - Before you detect a failure of an external tool, probe its exit status, product files, and messages. Guard on the exit status and the product files, not on message text.
@@ -71,11 +70,11 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0, and `scripts/land.sh` 
 
 ## Phase 4: Implement
 
-1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <log> 2>&1 && git commit ...`. A commit inside a slice can add `FILTER='<tests of the slice>'`. The last commit of the slice uses no filter. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
+1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <log> 2>&1 && git commit ...`. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
 2. Use Conventional Commits (see `AGENTS.md`).
 3. After each slice, log a row and tick `run.md` with the actual minutes. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
 4. If the plan proves wrong, stop, update `plan.md`, and log why. A changed criterion gets its new text in `analysis.md` in the same step, citing the row, so Phase 7 verifies that text.
-5. A slice that changes what a user sees or does updates `docs/guide.md`. Check the look early: a look-and-feel unknown gets a `prototype` before the plan gate (a throwaway build in the probe sandbox, a screenshot, a verdict against the reference app), and the slice gets a short on-screen check of the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`) before its commit.
+5. A slice that changes what a user sees or does updates `docs/guide.md`. Before its commit, it gets a short on-screen check of the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`).
 
 ## Phase 5: Clean up
 
@@ -102,8 +101,8 @@ Run the **reflect** skill on the branch. Then review the `## Later` headings, an
 
 ## Phase 9: Land through a pull request
 
-1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`: its checks can take longer than one foreground call. It stops at the first failure. Read its output for the `pr:` and `range:` lines.
-2. If the land stops on a conflict, record it in `run.md`, and resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge, and record it in `run.md`.
+1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`: its checks can take longer than one foreground call. Read its output for the `pr:` and `range:` lines.
+2. If the land stops on a conflict, resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge. Record the conflict and the branch in `run.md`.
 3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 
 ## Long autonomous runs

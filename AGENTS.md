@@ -55,9 +55,9 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 ## Git
 
 - The code is on GitHub: https://github.com/niltsiar/dirigible (`origin`). Use the `gh` CLI for pull requests.
-- Never commit on `main` directly. Work on a branch `<type>/<slug>`. Every run lands through a pull request with `scripts/land.sh`. It runs `make check-changed BASE=origin/main` or reuses the stamp of a passing one (`scripts/check-stamp.sh`), then pushes and merges with a rebase, so `main` stays linear and keeps each commit.
+- Never commit on `main` directly. Work on a branch `<type>/<slug>`. Every run lands through a pull request with `scripts/land.sh`. It merges with a rebase, so `main` stays linear and keeps each commit.
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
-- One commit is one logical change that builds and passes the checks that `make check-changed` picks. A commit inside a slice can add `FILTER='<tests of the slice>'`. The last commit of the slice uses no filter. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
+- One commit is one logical change that builds and passes the checks that `make check-changed` picks. A commit inside a slice, except its last commit, can add `FILTER='<tests of the slice>'`. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
 - The pre-commit hook refuses a commit that fails `make lint` or the build (tests included). It checks the working tree, so stage whole changes.
 - `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks, and a `git commit` joined to `make check` by anything but `&&`. It matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F <file>`. It also blocks a command that names the stamp file, a read-only one too: use `scripts/check-stamp.sh read origin/main`.
 - The hook allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:

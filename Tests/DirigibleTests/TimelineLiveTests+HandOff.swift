@@ -7,8 +7,9 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// The store changes that are not an append, the hand-off, the record over, the head line, and
-/// the surface guards of the live take (C16b, C18, C22 to C26, G2, G6, G7).
+/// The store changes that are not an append, the hold of the head during the finalize, the
+/// hand-off, the record over, the head line, and the surface guards of the live take (C16b,
+/// C18, C21 to C26, G2, G6, G7).
 extension TimelineLiveTests {
     // MARK: C16b, G2
 
@@ -110,6 +111,26 @@ extension TimelineLiveTests {
         await lanes.close()
     }
 
+    // MARK: C21
+
+    @Test func theHeadHoldsDuringTheFinalize() async throws {
+        let lanes = try await take()
+        let view = lanes.view
+        lanes.report(0, 1.9)
+        lanes.tick(1.9)
+        lanes.stop(at: 2)
+        #expect(lanes.studio.playhead != 96_000, "the playhead is another frame")
+
+        var positions: [Double] = []
+        for _ in 0..<10 {
+            view.displayTick()
+            positions.append(Double(view.lanes.playhead.position.x))
+        }
+
+        let frozen = 2 * Self.rate / view.framesPerPoint
+        #expect(positions.allSatisfy { abs($0 - frozen) < 1e-6 }, "\(positions) against \(frozen)")
+        await lanes.close()
+    }
     // MARK: C22, C23
 
     /// The pixels of lane 0 from 110 pt (after the label) to the column before the end of `seconds`.

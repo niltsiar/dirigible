@@ -379,25 +379,4 @@ import Testing
         #expect(Self.near(try lanes.runs(at: 3_700, lane: 0), quiet))
         await lanes.close()
     }
-
-    // MARK: C21
-
-    @Test func theHeadHoldsDuringTheFinalize() async throws {
-        let lanes = try await take()
-        let view = lanes.view
-        lanes.report(0, 1.9)
-        lanes.tick(1.9)
-        lanes.stop(at: 2)
-        #expect(lanes.studio.playhead != 96_000, "the playhead is another frame")
-
-        var positions: [Double] = []
-        for _ in 0..<10 {
-            view.displayTick()
-            positions.append(Double(view.lanes.playhead.position.x))
-        }
-
-        let frozen = 2 * Self.rate / view.framesPerPoint
-        #expect(positions.allSatisfy { abs($0 - frozen) < 1e-6 }, "\(positions) against \(frozen)")
-        await lanes.close()
-    }
 }

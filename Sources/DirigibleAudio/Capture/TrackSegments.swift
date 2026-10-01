@@ -195,7 +195,7 @@ struct TrackSegments {
         }
         outputs[index].peak = samples.reduce(outputs[index].peak) { max($0, abs($1)) }
         // The block of level 0 of `Peaks`.
-        let block = 256 * sources.count
+        let block = Peaks.binFrames[0] * sources.count
         for start in stride(from: 0, to: samples.count, by: block) {
             let part = samples[start..<min(start + block, samples.count)]
             let rms = (part.reduce(0) { $0 + $1 * $1 } / Float(part.count)).squareRoot()

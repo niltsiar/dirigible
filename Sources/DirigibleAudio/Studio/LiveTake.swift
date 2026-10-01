@@ -258,7 +258,7 @@ nonisolated func checkTake(
     guard environment.freeBytes(lock) >= diskMargin else { throw .diskLow }
     let started = try saveTakeStart(
         session, lock: lock, routes: routes, playhead: playhead,
-        hostTimeNanos: AudioConvertHostTimeToNanos(AudioGetCurrentHostTime()))
+        hostTimeNanos: hostNanosNow())
     recordings?.set(started.package, active: true)
     return started
 }

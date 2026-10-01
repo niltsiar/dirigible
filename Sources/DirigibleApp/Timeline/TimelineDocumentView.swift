@@ -218,6 +218,8 @@ final class TimelineDocumentView: NSView {
                 lanes: inputs.session.tracks.count, scale: Double(window?.backingScaleFactor ?? 2),
                 room: Double(scrollView?.contentView.bounds.width ?? 0))
         else { return }
+        // `pending` stays for the draw after the session of SwiftUI.
+        if scrollView?.handOffWaits == true { return }
         let started = ContinuousClock.now
         let dirty = pending
         pending = .null

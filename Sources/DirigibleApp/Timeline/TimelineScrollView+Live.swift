@@ -23,6 +23,14 @@ struct LiveKey: Equatable {
 }
 
 extension TimelineScrollView {
+    /// True from a new epoch until SwiftUI gives the session of the Studio. The hand-off changes
+    /// the session in the same turn as the epoch, and SwiftUI gives the new session later. A draw
+    /// before it shows neither the live region nor the clips, so the tick and each draw wait.
+    var handOffWaits: Bool {
+        guard let studio else { return false }
+        return studio.liveEpoch != liveSeen.epoch && source?.session != studio.session
+    }
+
     /// The live rule of a tick (live take view, decision 0022). A new store version (an append)
     /// marks the columns from the lowest added frame to the head. A tick with no new version
     /// draws nothing, also when the head moved (probe P1: rate bin). A new epoch (a take start,
@@ -32,9 +40,7 @@ extension TimelineScrollView {
         let key = LiveKey(studio)
         let (version, epoch) = (studio.liveVersion, studio.liveEpoch)
         if epoch != liveSeen.epoch || key != liveSeen.key {
-            // The hand-off changes the session in the same turn as the epoch, and SwiftUI gives
-            // the new session later. A draw before it shows neither the live region nor the clips.
-            guard epoch == liveSeen.epoch || source?.session == studio.session else { return }
+            guard !handOffWaits else { return }
             _ = studio.takeLiveAddedFrom()
             liveSeen = (version, epoch, key)
             lanes.liveChanged(head: head)

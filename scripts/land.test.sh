@@ -2,8 +2,8 @@
 # Check that land.sh runs the land steps of deliver Phase 9 in order and stops at the first
 # failure. Each case uses a temporary repo, a bare remote, and fake make and gh on PATH that log
 # their arguments. Cases: the happy path, a red check, main moved after the check, a run on main
-# or a detached HEAD, an untracked or a changed file, a missing body file, and no arguments.
-# Run by `make test-hooks`.
+# or a detached HEAD, an untracked or a changed file, a red governance check, a missing body
+# file, and no arguments. Run by `make test-hooks`.
 set -uo pipefail
 land="$(cd "$(dirname "$0")" && pwd)/land.sh"
 failures=0
@@ -140,6 +140,20 @@ for kind in untracked changed; do
     fail "$kind file: the fetch ran"
   no_side_effects "$kind file"
 done
+
+# A budget row that goes up with no decisions.tsv row stops before the checks and the push.
+setup
+mkdir -p "$c/other/docs/workflow"
+printf 'path\twords\tdecision\na.md\t100\tbaseline\n' > "$c/other/docs/workflow/budgets.tsv"
+git -C "$c/other" add -A && git -C "$c/other" commit -q -m budgets && git -C "$c/other" push -q origin main
+git -C "$c/work" fetch -q && git -C "$c/work" rebase -q origin/main
+printf 'path\twords\tdecision\na.md\t120\traised\n' > "$c/work/docs/workflow/budgets.tsv"
+git -C "$c/work" commit -q -am raise
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -ne 0 ]] || fail 'governance: exit 0'
+grep -q 'the governance check failed' "$c/out" || fail "governance: no reason: $(cat "$c/out")"
+no_side_effects 'governance'
 
 # A missing body file refuses before any step.
 setup

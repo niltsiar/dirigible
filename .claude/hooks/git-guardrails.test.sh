@@ -82,6 +82,25 @@ expect allow $'make check > log 2>&1 \\\n  && git commit -m "x"'
 expect block 'make check-changed; git commit -m "x"'
 expect allow 'make check-changed > log 2>&1 && git commit -m "x"'
 
+# A quoted main is the same push to main.
+expect block "git push origin 'main'"
+expect block 'git push origin "main"'
+expect block "git push origin HEAD:'refs/heads/main'"
+expect block 'git push origin "feat/x:main"'
+expect allow "git push -u origin 'feat/main-feature'"
+expect allow 'git push -u origin "main-feature"'
+
+# The hook matches quoted text too. Each block message gives the reason and tells how to write data.
+expect_message() {
+  local reason="$1" msg
+  expect block "$2"
+  msg="$("$hook" < "$input" 2>&1)"
+  [[ "$msg" == *"$reason"* && "$msg" == *"If the matched text is only data, write it with the Write tool"* ]] \
+    || { echo "FAIL: no reason or no data hint in the message: $2"; failures=$((failures + 1)); }
+}
+expect_message "matches '--no-verify'" "git commit -m 'docs(agents): the hook blocks --no-verify'"
+expect_message 'without &&' $'cat > notes.md <<\'EOF\'\nRun make check; then git commit.\nEOF'
+
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
 settings="$(dirname "$0")/../settings.json"
 python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }

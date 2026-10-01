@@ -66,6 +66,7 @@ test-hooks:
 	scripts/screenshots.test.sh
 	.claude/skills/deliver/scripts/mutate.test.sh
 	.claude/skills/deliver/scripts/run-files.test.sh
+	.claude/skills/reflect/scripts/seen.test.sh
 	scripts/bench-pairs.test.sh
 	scripts/icon.test.sh
 	scripts/bundle.test.sh

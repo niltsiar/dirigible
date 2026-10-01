@@ -136,6 +136,14 @@ while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$count
         else if (sum > row["TOTAL"] + 0) print "the budgeted files are over the TOTAL row: " sum " > " row["TOTAL"]
     }' - "$budgets")
 
+# A loaded workflow doc holds no date: the story of a rule (the date, the run) stays in
+# decisions.tsv, learnings.md, and the commit body. A `Source:` line can give its fetch date.
+for f in "$root"/AGENTS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
+    [[ -f "$f" ]] || continue
+    while IFS= read -r hit; do err "${f#"$root"/}:${hit%%:*}: a date in a loaded doc; put the story in the commit body"; done \
+        < <(grep -nE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$f" | grep -vE '^[0-9]+:Source: ' || true)
+done
+
 # A SKILL.md names each of its references files by path, so an agent can find it. A references
 # file over 100 lines starts with a contents list.
 for f in "$root"/.claude/skills/*/references/*.md; do

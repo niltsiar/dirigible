@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
-# its decision cell, and more than one rules.tsv removal in a docs-only branch of a run with a
-# reflect row. Each case uses a temporary repo with a base commit on main and a branch.
+# its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
+# reflect row, and a run folder that check-plan.sh refuses (an open Unknowns row). Each case uses
+# a temporary repo with a base commit on main and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-governance.sh"
@@ -27,6 +28,8 @@ new_repo() {
   g commit -q -m base
   g switch -q -c feat/x
   printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$tmp/run/decisions.tsv"
+  printf '## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T01:00 |\n' > "$tmp/run/analysis.md"
+  printf 'Agents: A = S1.\n\n## Slices\n\n### S1 x\n\n- Check: check-docs.\n' > "$tmp/run/plan.md"
 }
 commit() { g add -A && g commit -q -m change; }
 row() { printf 'path\twords\tdecision\na.md\t%s\t%s\nb.md\t100\tbaseline\nTOTAL\t200\tbaseline\n' "$1" "$2" > "$budgets"; }
@@ -72,6 +75,12 @@ new_repo; reflect_row; verdicts delete merge; mkdir -p "$tmp/r/scripts"; echo x 
 pass 'two removals in a branch with a script change' "$tmp/run"
 new_repo; reflect_row; verdicts delete merge; commit
 pass 'two removals with no run folder'
+
+# The plan check of the run folder (check-plan.sh) runs with the other checks.
+new_repo
+pass 'a good run folder' "$tmp/run"
+sed -i '' 's/| a | 2026-10-01T01:00 |/|  | 2026-10-01T01:00 |/' "$tmp/run/analysis.md"
+refuse 'an open Unknowns row' 'open unknown: | U1 |' "$tmp/run"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

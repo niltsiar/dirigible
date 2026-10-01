@@ -5,6 +5,7 @@
 #   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`.
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
+# - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan).
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -44,5 +45,9 @@ if [[ -n "$run" && -f "$run/decisions.tsv" && -f "$rules" ]] &&
             fail=1
         fi
     fi
+fi
+if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
+    echo "check-governance: check-plan.sh $run failed" >&2
+    fail=1
 fi
 exit "$fail"

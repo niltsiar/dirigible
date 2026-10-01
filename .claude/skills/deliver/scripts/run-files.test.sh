@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that log-decision.sh appends one row of six tab-separated columns from a five-line file
 # (--from), changes a tab in a field to a space, refuses a file with four lines and appends
-# nothing, and keeps the six-argument form. Check that new-run.sh reports the backlog sections.
+# nothing, keeps the six-argument form, and refuses a default row with no `Reverse:` in its why.
+# Check that new-run.sh reports the backlog sections.
 # Run by `make test-hooks`.
 set -uo pipefail
 log="$(cd "$(dirname "$0")" && pwd)/log-decision.sh"
@@ -42,6 +43,27 @@ code=$?
 
 "$log" "$run" plan decision why evidence done || fail "six arguments exit $?"
 check_row 'six arguments' $'plan\tdecision\twhy\tevidence\tdone'
+
+# A row whose result starts with `default` names the word that reverses it in its why.
+for form in from args; do
+  before="$(shasum -a 256 "$run/decisions.tsv")"
+  if [[ $form == from ]]; then
+    printf 'plan\nuse blue\nno reference app\nevidence\ndefault: blue\n' > "$tmp/default"
+    err="$("$log" "$run" --from "$tmp/default" 2>&1)"
+  else
+    err="$("$log" "$run" plan 'use blue' 'no reference app' evidence 'Default: blue' 2>&1)"
+  fi
+  code=$?
+  [[ $code -eq 2 ]] || fail "a default row with no Reverse: ($form): expected exit 2, got $code"
+  [[ "$err" == *'Reverse:'* ]] || fail "a default row with no Reverse: ($form): no reason in the message: $err"
+  [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail "a default row with no Reverse: ($form): decisions.tsv changed"
+done
+rows="$(wc -l < "$run/decisions.tsv")"
+"$log" "$run" plan 'use blue' 'no reference app. Reverse: say red.' evidence 'default: blue' || fail "a default row with Reverse: exits $?"
+check_row 'a default row with Reverse:' $'plan\tuse blue\tno reference app. Reverse: say red.\tevidence\tdefault: blue'
+[[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 1)) ]] || fail 'a default row with Reverse: did not append exactly one row'
+"$log" "$run" plan 'use blue' 'the user asked' evidence 'done' || fail "a row with another result exits $?"
+[[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 2)) ]] || fail 'a row with another result did not append exactly one row'
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

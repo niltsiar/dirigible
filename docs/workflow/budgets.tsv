@@ -62,5 +62,5 @@ path	words	decision
 .claude/skills/writing-for-agents/	2191	baseline
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
-AGENTS.md	2502	baseline
-TOTAL	33614	0028
+AGENTS.md	1750	2026-09-30-workflow-consolidation slice 8 (decisions.tsv 2026-10-01: AGENTS.md row 1750, plan row 1400 not met)
+TOTAL	31304	0028 (2026-09-30-workflow-consolidation slice 8: the real sum; the run goal is 30200)

@@ -182,7 +182,7 @@ struct LiveStoreTests {
         #expect(studio.livePeaks(of: "t1")?.covered == [], "the new take has no empty live peaks")
         #expect(studio.livePeaks(of: "t1")?.startHostNanos == second)
         #expect(studio.livePeaks(of: "t1")?.origin == Frames(1_000_000))
-        #expect(files.allSatisfy { studio.livePeaks(file: $0) != nil }, "the take start dropped the file map")
+        #expect(files.allSatisfy { studio.liveFiles[$0] != nil }, "the take start dropped the file map")
         try await studio.stopRecording()
     }
 
@@ -233,10 +233,10 @@ struct LiveStoreTests {
         let f1 = try #require(file(of: "t1", in: one))
         let f2 = try #require(file(of: "t2", in: one))
         #expect(f1.start == Frames(4_752) && f2.start == Frames(4_800))
-        #expect(studio.livePeaks(file: f1.file)?.anchor == Frames(4_752), "the anchor of the take file")
-        #expect(studio.livePeaks(file: f2.file)?.anchor == Frames(4_800))
-        #expect(studio.livePeaks(file: f1.file)?.peaks.covered.isEmpty == false)
-        #expect(studio.livePeaks(file: "old") == nil, "a file in the pool before the take got live peaks")
+        #expect(studio.liveFiles[f1.file]?.anchor == Frames(4_752), "the anchor of the take file")
+        #expect(studio.liveFiles[f2.file]?.anchor == Frames(4_800))
+        #expect(studio.liveFiles[f1.file]?.peaks.covered.isEmpty == false)
+        #expect(studio.liveFiles["old"] == nil, "a file in the pool before the take got live peaks")
         #expect(studio.livePeaks(of: "t1") == nil)
 
         studio.peakLoad.states[f1.file] = .unavailable
@@ -250,12 +250,12 @@ struct LiveStoreTests {
         for id in two {
             let clip = try #require(studio.session.tracks.flatMap(\.clips).first { $0.file == id })
             #expect(
-                studio.livePeaks(file: id)?.anchor == clip.start - clip.offset, "file \(id) has no live peaks or anchor"
+                studio.liveFiles[id]?.anchor == clip.start - clip.offset, "file \(id) has no live peaks or anchor"
             )
         }
-        #expect(studio.livePeaks(file: f1.file) == nil, "an entry with unavailable peaks stayed")
-        #expect(studio.livePeaks(file: f2.file) != nil, "an entry with peaks that are not ready went")
-        #expect(studio.livePeaks(file: "old") == nil, "a file in the pool before the take got live peaks")
+        #expect(studio.liveFiles[f1.file] == nil, "an entry with unavailable peaks stayed")
+        #expect(studio.liveFiles[f2.file] != nil, "an entry with peaks that are not ready went")
+        #expect(studio.liveFiles["old"] == nil, "a file in the pool before the take got live peaks")
     }
 
     // MARK: C12
@@ -281,7 +281,7 @@ struct LiveStoreTests {
 
         let clip = try #require(studio.session.track("t1")?.clips.first)
         #expect(clip.start == Frames(4_752) && clip.end == Frames(484_752), "the clip is \(clip.start)..<\(clip.end)")
-        let entry = try #require(studio.livePeaks(file: clip.file))
+        let entry = try #require(studio.liveFiles[clip.file])
         #expect(entry.peaks.covered.count == 1)
         let first = (entry.peaks.covered.first?.lowerBound ?? .zero) + entry.peaks.origin
         let last = (entry.peaks.covered.last?.upperBound ?? .zero) + entry.peaks.origin

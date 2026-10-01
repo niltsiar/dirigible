@@ -107,7 +107,8 @@ struct LivePeaksTests {
         let farPast = peaks.add(
             peak: 1, rms: 1, span: (now + limit - 99_999_999)..<(now + limit + 1), latencyNanos: 0, now: now)
         #expect(!farPast)
-        #expect(peaks == before, "a span that ends past now + \(LivePeaks.futureLimit) ns changed the bins")
+        let same = peaks.bins == before.bins && peaks.covered == before.covered && peaks.addedFrom == nil
+        #expect(same, "a span that ends past now + \(LivePeaks.futureLimit) ns changed the bins")
         #expect(peaks.bins.count == 2)
 
         let atLimit = peaks.add(

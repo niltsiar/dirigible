@@ -4,7 +4,7 @@ import DirigibleCore
 /// the host time `startHostNanos` and the session frame `origin`. A bin holds the largest peak
 /// and the largest RMS of the written spans that touch its `rate / 20` frames (50 ms). The final
 /// peaks of the WAV replace these bins when they are ready (decision 0017).
-public struct LivePeaks: Hashable, Sendable {
+public struct LivePeaks: Sendable {
     /// `add` refuses a span that ends more than this many nanoseconds after its `now`, so a bad
     /// device time cannot grow the bins without a limit.
     static let futureLimit: Int64 = 5_000_000_000
@@ -20,7 +20,7 @@ public struct LivePeaks: Hashable, Sendable {
     /// device, a write error) is at least one drain of 50 ms, so it stays.
     public private(set) var covered: [Range<Frames>] = []
     /// The start of the lowest bin that an add touched since the view cleared it (F1).
-    public internal(set) var addedFrom: Frames?
+    var addedFrom: Frames?
 
     init(origin: Frames, startHostNanos: UInt64, rate: Int) {
         self.origin = origin

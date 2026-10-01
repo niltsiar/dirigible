@@ -1,6 +1,6 @@
 ---
 name: research
-description: Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched (also in the middle of a deliver run), docs or API facts gathered, or reading legwork delegated to a background agent.
+description: Investigate a question against high-trust primary sources and capture the findings as a Markdown file in docs/research. Use when the user names a person, repo, post, URL, or skill set to check, or wants a topic, docs, or API facts researched, also during a run.
 ---
 
 Spin up a **background agent** (the `Agent` tool with `run_in_background: true`) to do the research, so you keep working while it reads.

@@ -10,6 +10,8 @@ Reviewer outputs:
 
 <DIVERGENT_OUTPUT>
 
+Failure classes: `hook` (a hook or guard blocks a safe command or passes an unsafe one), `flake` (a test result changes on a rerun), `wait` (a limit, timeout, or wait is wrong or missing), `control` (a mutation control or a replay goes wrong), `probe` (a probe or on-screen check has a side effect or proves the wrong thing), `claim` (a criterion or a VERIFIED claim is wrong), `tool` (an external tool behaves in an unexpected way), `scope` (a plan, review, or fix misses a sibling place), `doc` (docs drift, duplicate, or contradict), `data` (lost data or lost user input).
+
 Apply each criterion to every finding:
 
 - Durability: still true in 6 months once paths, SHAs, tool versions, and code shapes have changed.

@@ -48,7 +48,7 @@ In the convergence round:
 
 ## Fix check
 
-After the fixes of the last round that the gate runs (the convergence round, or round 1 of a 1-round gate), run one fix check: one `general-purpose` agent with the findings of that round and the diff of the fixes (at the code gate, `git diff` of the fix commits; at the plan gate, a before and after copy of `plan.md` and `design.md`).
+After the fixes of the last round that the gate runs (the convergence round, or round 1 of a 1-round gate), run one fix check: one `general-purpose` agent with each accepted finding of all rounds and the fix diff (at the code gate, `git diff` of the fix commits; at the plan gate, `plan.md` and `design.md` before round 1 and now).
 
 It answers four questions for each fix. Does the fix answer its finding? Does it add a rule or behavior that no finding asked for? What new failure mode does it add, for example a shared name, path, or constant that concurrent callers collide on? Does its new text contradict a rule that another fix or a settled item of the same gate sets?
 

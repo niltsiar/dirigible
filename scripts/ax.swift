@@ -1,6 +1,8 @@
 // Read and act on the accessibility tree of the running Dirigible app, for app checks in the
 // verify phase: the path of VoiceOver, from outside the process. Start the app first with
-// `make run`. The terminal app needs the Accessibility permission (as for hid.swift).
+// `make run`, or set `DIRIGIBLE_BUNDLE_ID` (`scripts/verify-copy.sh ax` sets it for the verify
+// copy). With no variable, the bundle ID is com.delineas.dirigible. The terminal app needs the
+// Accessibility permission (as for hid.swift).
 // A call of an accessibility method in a test does not prove that the tree reaches the element
 // (run 1b: the header ruler was a leaf, so the handle and the track rows were not in the tree).
 //
@@ -23,8 +25,9 @@
 // first "Clear Menu" pressed Apple > Recent Items > Clear Menu and cleared the Recent Items list of
 // the Mac (run 2026-09-30-start-window).
 // A press path with an empty title is refused: a menu separator has an empty title.
-// Exit: 0 done, 1 no Dirigible app or no element, 2 usage or an empty title in the press path, 3 no
-// Accessibility trust, 4 more than one element matches the press path.
+// Exit: 0 done, 1 no app with the bundle ID or no element, 2 usage, an empty title in the press
+// path, or an empty DIRIGIBLE_BUNDLE_ID, 3 no Accessibility trust, 4 more than one element matches
+// the press path.
 import AppKit
 import ApplicationServices
 
@@ -59,13 +62,15 @@ let path = command == "press" ? arguments[1].components(separatedBy: " > ") : []
 if path.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
     fail("The press path \"\(arguments[1])\" has an empty title. Give one title between each \" > \".", 2)
 }
+let bundleID = ProcessInfo.processInfo.environment["DIRIGIBLE_BUNDLE_ID"] ?? "com.delineas.dirigible"
+if bundleID.isEmpty { fail("DIRIGIBLE_BUNDLE_ID is empty. Unset it, or give a bundle ID.", 2) }
 
 func appRoot() -> AXUIElement {
     guard AXIsProcessTrusted() else {
         fail("No Accessibility trust. Add the terminal app in System Settings > Privacy & Security > Accessibility.", 3)
     }
-    guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.delineas.dirigible").first
-    else { fail("No Dirigible app runs. Run make run first.", 1) }
+    guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
+    else { fail("No app with the bundle ID \(bundleID) runs. Run make run, or scripts/verify-copy.sh start.", 1) }
     return AXUIElementCreateApplication(app.processIdentifier)
 }
 

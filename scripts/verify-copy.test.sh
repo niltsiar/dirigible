@@ -335,6 +335,13 @@ PATH="$tmp/badpgrep:$PATH" run stop
 [[ -d "$copy" ]] || fail "pgrep error: build/verify was deleted"
 run stop
 
+# C7 ax: ax.swift of the repo gets the copy ID and the arguments.
+new_case
+run ax dump 1
+[[ $code -eq 0 ]] || fail "ax: exit $code: $err"
+[[ "$(cat "$state/swift.log" 2>/dev/null)" == "DIRIGIBLE_BUNDLE_ID=$copy_id $repo/scripts/ax.swift dump 1" ]] ||
+    fail "ax: swift got: $(cat "$state/swift.log" 2>/dev/null)"
+
 # C17: no stop by name, and each recursive delete acts on build/verify or the saved state of the copy.
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"
 grep -q 'rm -rf' "$here/verify-copy.sh" 2>/dev/null || fail "C17: no rm -rf line"

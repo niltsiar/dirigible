@@ -64,7 +64,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
   - If the path has changes that you did not make, or that no commit or copy holds, commit them or copy them first.
   - Never discard uncommitted work of the user or of another agent.
   - A mutation control restores its file from a hash-checked copy (`mutate.py`), never from git.
-- `.claude/settings.json` allows the deliver commands without a prompt. Long runs also need a permission mode that allows file edits, for example auto mode.
+- `.claude/settings.json` allows the commands that it lists with no prompt. The user decides each allow rule for a new script. Long runs also need a permission mode that allows file edits, for example auto mode.
 
 ## Architecture rules
 

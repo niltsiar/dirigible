@@ -10,7 +10,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 ## Autonomy rules
 
 - For reversible work, choose a default, log it in `decisions.tsv`, and continue. The human corrects it later.
-- Ask only before irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. `scripts/land.sh` (the push and the merge) needs no question.
+- Ask only before irreversible or outward-facing actions: deleting user data, rewriting `main` history, publishing outside this repo. `scripts/land.sh` (the push and the merge) needs no question. A permission prompt can still stop it: the user decides each allow rule in `.claude/settings.json`.
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
 - Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool; if it refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.
@@ -103,7 +103,7 @@ Run the **reflect** skill on the branch. With no friction, it logs "no learnings
 ## Phase 9: Land through a pull request
 
 1. Run `make bench FILTER=<test>` for each optimized budget of a criterion.
-2. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. It stops at the first failure, and prints the PR URL and the commit range.
+2. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`: its checks can take longer than one foreground call. It stops at the first failure. Read its output for the `pr:` and `range:` lines.
 3. If the merge fails, record the conflict in `run.md` and use the **resolving-merge-conflicts** skill on a fresh branch. Leave a leftover local branch after the merge, and record it in `run.md`.
 4. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 

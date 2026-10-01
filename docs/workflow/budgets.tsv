@@ -47,8 +47,11 @@ path	words	decision
 .claude/skills/research/SKILL.md	347	baseline
 .claude/skills/resolving-merge-conflicts/	122	baseline
 .claude/skills/resolving-merge-conflicts/SKILL.md	122	baseline
-.claude/skills/tdd/	2921	baseline
-.claude/skills/tdd/SKILL.md	2921	baseline
+.claude/skills/tdd/	2778	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
+.claude/skills/tdd/SKILL.md	900	0028 (2026-09-30-workflow-consolidation slice 6: row 900, SKILL.md 808 words)
+.claude/skills/tdd/references/flake-triage.md	708	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
+.claude/skills/tdd/references/test-harness.md	546	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
+.claude/skills/tdd/references/waits-and-limits.md	716	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
 .claude/skills/technical-writing/	1746	baseline
 .claude/skills/technical-writing/SKILL.md	1746	baseline
 .claude/skills/unslop/	918	baseline

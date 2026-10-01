@@ -334,6 +334,10 @@ TDD-074	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and
 TDD-075	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		report the failing-before test and its failure
 TDD-076	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		report the passing-after make test run and result
 TDD-077	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; restates tdd:24 explain-why	1e069af		no red evidence possible: say why, name closest check
+TDD-078	.claude/skills/tdd/SKILL.md	new	.claude/skills/tdd/SKILL.md	new in slice 6 of 2026-09-30-workflow-consolidation; the test side of DLV-032 (deliver Phase 1 criterion)	L179	claim	trigger test: one case per start state (window, focus)
+TDD-079	.claude/skills/tdd/references/test-harness.md	new	.claude/skills/tdd/references/test-harness.md	new in slice 6 of 2026-09-30-workflow-consolidation; pending start-window learning (backlog NEXT RUN line), a case of TDD-032	2026-09-30-start-window	tool	shared SwiftUI field editor: use focusedNameEditor(in:)
+TDD-080	.claude/skills/tdd/references/test-harness.md	new	.claude/skills/tdd/references/test-harness.md	new in slice 6 of 2026-09-30-workflow-consolidation; pending start-window learning (backlog NEXT RUN line), a case of TDD-032	2026-09-30-start-window	tool	no synthetic mouse-down to an NSTableView in the test process
+TDD-081	.claude/skills/tdd/SKILL.md	new	.claude/skills/tdd/SKILL.md	new in slice 6 of 2026-09-30-workflow-consolidation; decision 0028 (the red log replaces the separate test: commit)	0028		save the red output; its path goes in decisions.tsv
 VER-001	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	core purpose of the skill	e8ee556		verify-this proves or disproves one claim with repeatable evidence
 VER-002	.claude/skills/verify-this/SKILL.md	delete		no-op: the frontmatter description names the same triggers and loads the skill	e8ee556		trigger phrases for verify-this requests
 VER-003	.claude/skills/verify-this/SKILL.md	keep	.claude/skills/verify-this/SKILL.md	trigger case	e8ee556		bug fix needs a before and after repro

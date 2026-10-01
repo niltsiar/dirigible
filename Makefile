@@ -71,6 +71,7 @@ test-hooks:
 	scripts/icon.test.sh
 	scripts/bundle.test.sh
 	scripts/check-changed.test.sh
+	scripts/check-governance.test.sh
 	scripts/land.test.sh
 	.claude/workflows/review-panel.test.sh
 	scripts/flake-monitor/sample-threads.test.sh

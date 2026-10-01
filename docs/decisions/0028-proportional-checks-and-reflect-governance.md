@@ -43,7 +43,7 @@ A mixed change gets the union of the rows of its classes. The larger round count
 ### Word budgets
 
 - `docs/workflow/budgets.tsv` gives a word limit for each workflow doc, a total for each skill folder, and one `TOTAL` row. `make check-docs` checks the limits.
-- A limit goes up only in a commit that names a `decisions.tsv` row in the `decision` cell.
+- A limit goes up only in a commit that names a `decisions.tsv` row in the `decision` cell. Before the push, `scripts/check-governance.sh` refuses a row that goes up with no `decisions.tsv <time>` in that cell.
 - A rewrite lands at or under 90% of the limit of its file, so the next reflect run has free words.
 
 ### Rule register
@@ -60,7 +60,7 @@ A mixed change gets the union of the rows of its classes. The larger round count
 4. Each change updates `docs/workflow/rules.tsv` in the same commit.
 5. Once per reflect run, before the merge, the review panel reviews the diff of the reflect commits. The lenses come from the paths of the diff. A blocking finding gets a fix commit or a revert commit.
 6. Each reflect commit runs `make check-changed`.
-7. A reflect run removes at most one rule. The reflect skill holds the full removal rule.
+7. A reflect run removes at most one rule. The reflect skill holds the full removal rule. In a branch whose only class is docs, `scripts/check-governance.sh` refuses more than one removal when the run has a reflect row.
 8. When a change deletes, merges, or moves a rule, reflect runs the eval scenarios of `docs/workflow/evals.md` that name a changed file.
 
 ## Consequences

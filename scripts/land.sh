@@ -2,11 +2,11 @@
 # Land the run branch through a pull request (deliver Phase 9).
 # Usage: scripts/land.sh <title> <body-file>
 # It refuses a working tree with changes, because the checks build the working tree and the
-# push sends only the commits. It rebases on origin/main, runs `make check-changed
-# BASE=origin/main`, pushes the branch, creates the pull request, refuses the merge when
-# origin/main moved after the checks, merges with a rebase, and updates main. It stops at the
-# first failure and never force-pushes. It prints the PR URL and the commit range on main.
-# scripts/land.test.sh tests it.
+# push sends only the commits. It rebases on origin/main, runs check-governance.sh with the run
+# folder of the body file, runs `make check-changed BASE=origin/main`, pushes the branch,
+# creates the pull request, refuses the merge when origin/main moved after the checks, merges
+# with a rebase, and updates main. It stops at the first failure and never force-pushes. It
+# prints the PR URL and the commit range on main. scripts/land.test.sh tests it.
 set -euo pipefail
 
 die() { echo "land.sh: $1" >&2; exit 1; }
@@ -15,6 +15,7 @@ die() { echo "land.sh: $1" >&2; exit 1; }
 title="$1" body="$2"
 [[ -f "$body" ]] || die "no body file $body; write it with the pr skill first"
 [[ "$body" == /* ]] || body="$PWD/$body"
+here="$(cd "$(dirname "$0")" && pwd)" run="$(dirname "$body")"
 cd "$(git rev-parse --show-toplevel)"
 branch="$(git branch --show-current)"
 [[ -n "$branch" ]] || die "HEAD is detached; switch to the run branch"
@@ -24,6 +25,7 @@ branch="$(git branch --show-current)"
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"
 git fetch origin
 git rebase origin/main || die "the rebase on origin/main stopped; resolve it with the resolving-merge-conflicts skill"
+"$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
 make check-changed BASE=origin/main || die "the checks failed; nothing is pushed"
 git push -u origin "$branch"
 url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"

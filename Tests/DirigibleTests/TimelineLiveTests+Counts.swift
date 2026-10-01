@@ -35,11 +35,11 @@ extension TimelineLiveTests {
         await until("SwiftUI gives the take session and the zoom") {
             view.source?.session == studio.session && view.framesPerPoint == framesPerPoint
         }
-        let bodiesBefore = model.bodyRuns
         take.tick()
-        // The first take tick runs the SwiftUI bodies of the take state (2 in a probe, in the
-        // draw of the tick). The counts start after them.
-        await until("the first take tick runs no SwiftUI body") { model.bodyRuns > bodiesBefore }
+        // A late SwiftUI update of the take start comes before the counts start. A wait for a
+        // late update has no condition, so it is a time; it can only hide an update. In a probe,
+        // the bodies of the take start ran in the draw of the tick, and none came in 300 ms.
+        try await Task.sleep(for: .milliseconds(200))
         let (updates, bodies, origin, draws) = (view.updates, model.bodyRuns, view.origin, view.lanes.draws)
         let changed = watchLaneInputs(model, studio)
         var (failures, changes) = ([String](), 0)

@@ -8,7 +8,7 @@ extension Studio {
     }
 
     /// A report of another take, also one with the same number, or of a take that ended,
-    /// changes nothing.
+    /// changes nothing. The live store takes `.levels` until the hand-off (`Studio+Live.swift`).
     func apply(_ report: Report, generation: Int) {
         guard generation == self.generation else { return }
         switch report {
@@ -16,7 +16,16 @@ extension Studio {
             guard transport == .recording(take: take), armed.indices.contains(arm - 1) else { return }
             liveTracks[armed[arm - 1].id]?.state = state
             if state == .deviceLost { liveTracks[armed[arm - 1].id]?.peak = 0 }
-        case .levels(let take, let arms, _, let droppedFrames):
+        case .levels(let take, let arms, let latencyNanos, let droppedFrames):
+            // The live store takes the final drains of the finalize too, through its own arm map.
+            if transport == .recording(take: take) || transport == .finalizing(take: take) {
+                let now = hostNanosNow()
+                for (arm, level) in arms {
+                    if let track = live.arms[arm] {
+                        addLive(track: track, level: level, latencyNanos: latencyNanos, now: now)
+                    }
+                }
+            }
             guard transport == .recording(take: take) else { return }
             for (arm, level) in arms where armed.indices.contains(arm - 1) {
                 liveTracks[armed[arm - 1].id]?.peak = level.peak

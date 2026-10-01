@@ -18,7 +18,7 @@ Failure classes: `hook` (a guard blocks a safe command or passes an unsafe one),
 
 Match and route each learning by rules 1-3 of `.claude/skills/reflect/SKILL.md`:
 
-1. Correct a cause key that breaks rule 1.
+1. Give each learning a cause key `<ID>/<class>`, and correct a key in another form. The ID is the `docs/workflow/rules.tsv` ID that the learning touches (search the `summary` column), or `NEW-<prefix>-<slug>` for a new rule. The class is from the `Failure classes:` line.
 2. Merge the findings of one session moment into one learning. Two reviewers that report the same moment are one occurrence.
 3. Compare each learning with the `seen.sh` output of its key and with every `seen-once` line, also of other keys. For a second occurrence, record the earlier line (file:line) and the shared cause. Else the learning is new.
 4. Give each learning one route:

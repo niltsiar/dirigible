@@ -27,7 +27,7 @@ Return 3-5 durable learnings as a numbered list, with no exposition. For each:
 - Principle: one sentence that states the rule that generalizes, not a label or a name.
 - Evidence: the exact moment in the transcript (turn number or short quote).
 - Routing: the `SKILL.md` path as the transcript shows it, `tune description: <skill path>`, or `new skill: <kebab-name>` if no existing skill is a real home.
-- Key: the cause key `<ID>/<class>`, in the form that rule 1 of `.claude/skills/reflect/SKILL.md` gives.
+- Key: the cause key `<ID>/<class>`, in the form that step 1 of `.claude/skills/reflect/references/synthesizer.md` gives.
 
 Skip trivial things (typos, tool retries, mechanical setup), things that the skill the parent followed already makes obvious, and details that drift: SHAs, current file paths, version numbers, exact byte counts.
 

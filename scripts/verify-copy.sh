@@ -7,6 +7,8 @@
 # usage: verify-copy.sh start [<package>] [-- <open arguments>]
 #                                  stop a running copy, clean up, copy build/Dirigible.app, set
 #                                  the bundle ID, sign it, open it, and print its PID
+#        verify-copy.sh ax <ax.swift arguments>
+#                                  run scripts/ax.swift on the copy (DIRIGIBLE_BUNDLE_ID)
 #        verify-copy.sh stop       stop the copy and clean up its TCC grants, its preferences,
 #                                  its saved state, and build/verify
 #
@@ -17,6 +19,7 @@
 set -euo pipefail
 
 usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
+       verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh stop"
 
 # A plain assignment: `local root=$(...)` hides the exit code of git.
@@ -121,6 +124,7 @@ stop() {
 
 case "${1:-}" in
     start) shift; start "$@" ;;
+    ax) shift; DIRIGIBLE_BUNDLE_ID="$copy_id" swift "$root/scripts/ax.swift" "$@" ;;
     stop) [[ $# -eq 1 ]] || { echo "$usage" >&2 && exit 2; }; stop ;;
     *) echo "$usage" >&2 && exit 2 ;;
 esac

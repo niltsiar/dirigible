@@ -28,6 +28,11 @@ expect_usage "press with --tree and no file" press a --tree
 expect_usage "step with no action" step AXSplitter
 expect_usage "step with an unknown action" step AXSplitter wiggle
 
+# An empty DIRIGIBLE_BUNDLE_ID is a usage error, before the Accessibility check (exit 3).
+err="$(DIRIGIBLE_BUNDLE_ID= swift "$ax" dump 2>&1 >/dev/null)"
+code=$?
+[[ $code -eq 2 && "$err" == *"DIRIGIBLE_BUNDLE_ID"* ]] || fail "empty bundle ID: exit $code: $err"
+
 # press: a title that matches two elements is refused, and a path selects one element. The Apple
 # menu is out of the search unless the path starts with it. A press of the first match pressed
 # Apple > Recent Items > Clear Menu and cleared the Recent Items list of the Mac (run

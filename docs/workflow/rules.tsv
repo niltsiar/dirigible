@@ -42,8 +42,8 @@ AGT-040	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill f
 AGT-041	AGENTS.md	keep	AGENTS.md	skills table; slice 8 adds each missing skill folder	10edc92		bro restates the last message plainly on request
 AGT-042	AGENTS.md	keep	AGENTS.md	pointer to the reviewer agents and principles.md	10edc92		four reviewer agents in .claude/agents; principles in docs/principles.md
 AGT-043	AGENTS.md	keep	AGENTS.md	ledger purpose; C18	10edc92		.scratchpads is gitignored agent memory across sessions
-AGT-044	AGENTS.md	keep	AGENTS.md	home of new-run.sh (spec item 2); C18	10edc92		open each run with new-run.sh <slug>
-AGT-045	AGENTS.md	keep	AGENTS.md	conflict with deliver:24 (ledger.md vs last run.md); slices 4 and 8 align them to the ## Next section of backlog.md	10edc92		session start reads: learnings, backlog, last run.md
+AGT-044	AGENTS.md	merge	DLV-019	slice 11 of 2026-09-30-workflow-consolidation: one home in deliver Phase 0; AGENTS.md points to Phase 0	10edc92		open each run with new-run.sh <slug>
+AGT-045	AGENTS.md	merge	DLV-016	slice 11 of 2026-09-30-workflow-consolidation: one home in deliver Phase 0 (it now also reads the last run.md); AGENTS.md points to Phase 0	10edc92		session start reads: learnings, backlog, last run.md
 AGT-046	AGENTS.md	keep	AGENTS.md	home of log-decision.sh and append-only (spec item 2); C18	L66	doc	decisions.tsv append-only; log-decision.sh stamps the clock time
 AGT-047	AGENTS.md	keep	AGENTS.md	correction rule of the log; C18	10edc92		fix a wrong decisions.tsv row with a new correcting row
 AGT-048	AGENTS.md	keep	AGENTS.md	home of real voices out of git (spec item 13); C18	10edc92		real voice recordings stay in .scratchpads, never git
@@ -126,9 +126,9 @@ DLV-016	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	kee
 DLV-017	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; resume an open run	565d66a		Phase 0: find unfinished work and resume an open run on its branch
 DLV-018	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; protects uncommitted work	565d66a		no switch to main with uncommitted changes
 DLV-019	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; the Phase 0 step (audit 2)	565d66a		Phase 0: new-run.sh <slug> opens a new run
-DLV-020	.claude/skills/deliver/SKILL.md	merge	AGT-044	restates what new-run.sh does; home AGENTS.md:71 (audit 2)	cdf55a5		new-run.sh creates the run folder and ledger line; no reopen of a done run
+DLV-020	.claude/skills/deliver/SKILL.md	merge	DLV-019	slice 11 of 2026-09-30-workflow-consolidation: AGT-044 merged into DLV-019, so the merge points at the kept row	cdf55a5		new-run.sh creates the run folder and ledger line; no reopen of a done run
 DLV-021	.claude/skills/deliver/SKILL.md	merge	AGT-046	restates log-decision.sh; home AGENTS.md:73 (audit 2)	L66	doc	log-decision.sh adds each decisions.tsv row with a clock ts
-DLV-022	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; the subagent part is not in AGENTS.md:73	L66	doc	no hand-typed decision row; subagents use log-decision.sh too
+DLV-022	.claude/skills/deliver/SKILL.md	merge	AGT-046	slice 11 of 2026-09-30-workflow-consolidation: AGENTS.md Run ledger holds the log-decision.sh rule, also for a subagent	L66	doc	no hand-typed decision row; subagents use log-decision.sh too
 DLV-023	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 runs the main check only when main has commits that no run landed	565d66a		Phase 0: make check on main; a red main is the run goal
 DLV-024	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; branch before any file change	565d66a		create the <type>/<slug> branch first; every run commit goes on it
 DLV-025	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 1 artifact	cdf55a5		Phase 1 writes analysis.md in the run folder
@@ -233,7 +233,7 @@ DLV-123	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	kee
 DLV-124	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 replays once, only with risk: yes	L177	control	replay all controls once on the landing tree
 DLV-125	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; trap: screenshots.sh writes the real preferences (audit 3)	fc89f68		window change: make the guide screenshots again
 DLV-126	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; Phase 8 step	565d66a		Phase 8: reflect skill turns learnings into commits
-DLV-127	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed	565d66a		make check after reflect commits
+DLV-127	.claude/skills/deliver/SKILL.md	merge	RFL-035	slice 11 of 2026-09-30-workflow-consolidation: reflect rule 6 joins the check to each reflect commit; the deliver copy said after the commits	565d66a		make check after reflect commits
 DLV-128	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 9 changes the reflect rules	565d66a		no friction: log no learnings, no commit
 DLV-129	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	ad21140		Phase 9: rebase on origin/main, then make check
 DLV-130	.claude/skills/deliver/SKILL.md	enforced	scripts/land.sh	slice 4b: scripts/land.sh runs the step; scripts/land.test.sh tests it	ad21140		rebase before first push
@@ -609,7 +609,7 @@ INR-119	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/inte
 INR-120	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates an AGENTS.md Architecture rule for reviewers, no listed home	1e069af		devices have separate clocks; store host and sample time
 INR-121	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates an AGENTS.md Architecture rule for reviewers, no listed home	1e069af		captured audio survives crash or unplug
 INR-122	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	1e069af		explicit sample-rate and channel conversion; no silent resample
-INR-123	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; restates tdd:37 audio tolerance for reviewers, not in the spec list	1e069af		compare DSP output within a tolerance
+INR-123	.claude/skills/interrogate/references/rubric.md	merge	TDD-027	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the tdd tolerance rule; the code-quality reviewer points to tdd	1e069af		compare DSP output within a tolerance
 INR-124	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		flag only security issues with a traced input path
 INR-125	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		security: unsanitized input to SQL, shell, eval, innerHTML
 INR-126	.claude/skills/interrogate/references/rubric.md	keep	.claude/skills/interrogate/references/rubric.md	keep; review rubric	e8ee556		security: auth gaps in new endpoints
@@ -915,3 +915,9 @@ RFR-131	.claude/skills/reflect/references/synthesizer.md	new	.claude/skills/refl
 RFR-132	.claude/skills/reflect/references/judgment-reviewer.md	new	.claude/skills/reflect/references/judgment-reviewer.md	new in slice 9 of 2026-09-30-workflow-consolidation; decision 0028 reflect rule 1 (the miner returns a cause key)	2026-09-30-workflow-consolidation		judgment miner returns a cause key per learning
 RFR-133	.claude/skills/reflect/references/divergent-reviewer.md	new	.claude/skills/reflect/references/divergent-reviewer.md	new in slice 9 of 2026-09-30-workflow-consolidation; decision 0028 reflect rule 1 (the miner returns a cause key)	2026-09-30-workflow-consolidation		divergent miner returns a cause key per learning
 RFR-134	.claude/skills/reflect/references/tooling-reviewer.md	new	.claude/skills/reflect/references/tooling-reviewer.md	new in slice 9 of 2026-09-30-workflow-consolidation; decision 0028 reflect rule 1 (the miner returns a cause key)	2026-09-30-workflow-consolidation		tooling miner returns a cause key per learning
+AGN-060	.claude/agents/compound-engineering-reviewer.md	merge	AGT-003	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the AGENTS.md STE rule (audit 2), as AGN-014 and AGN-059	2026-09-30-workflow-consolidation		reviewer writes findings in STE100 style
+AGN-061	.claude/agents/context-engineering-reviewer.md	merge	AGT-003	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the AGENTS.md STE rule (audit 2), as AGN-014 and AGN-059	2026-09-30-workflow-consolidation		reviewer writes findings in STE100 style
+AGN-062	.claude/agents/eval-engineering-reviewer.md	merge	AGT-003	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the AGENTS.md STE rule (audit 2), as AGN-014 and AGN-059	2026-09-30-workflow-consolidation		reviewer writes findings in STE100 style
+AGN-063	.claude/agents/harness-engineering-reviewer.md	merge	AGT-003	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the AGENTS.md STE rule (audit 2), as AGN-014 and AGN-059	2026-09-30-workflow-consolidation		reviewer writes findings in STE100 style
+AGN-064	.claude/agents/prompt-engineering-reviewer.md	merge	AGT-003	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the AGENTS.md STE rule (audit 2), as AGN-014 and AGN-059	2026-09-30-workflow-consolidation		reviewer writes findings in STE100 style
+DOM-017	.claude/skills/domain-modeling/ADR-FORMAT.md	delete		slice 11 of 2026-09-30-workflow-consolidation: the decision records of this repo live in docs/decisions/ with their own format (0001: Status, Date, Context, Decision, Consequences); the 1-3 sentence template contradicts it, and its When to offer section repeats DOM-012 to DOM-016	2026-09-30-workflow-consolidation		generic ADR template, numbering, and when-to-offer list

@@ -14,14 +14,14 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
 - Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool; if it refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.
-- Send every research request through the **research** skill; its output goes to `docs/research/`. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
+- Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
 
 ## Phase 0: Open the run
 
-1. Read `.scratchpads/ledger.md` and the `## Next` section of the backlog. The **reflect** skill reads `learnings.md`.
+1. Read `.scratchpads/ledger.md`, the `## Next` section of the backlog, and the last `run.md`. The **reflect** skill reads `learnings.md`.
 2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume an open run on its branch: read its `run.md` and `decisions.tsv`, and continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
-3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug>`. Add rows only with `log-decision.sh`, also in subagents.
+3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug>`.
 4. Run `make check` on `main` only when `main` has commits that no run landed. If it is red, the fix is the goal.
 5. Before any file change, create the branch `<type>/<slug>` and write it in `run.md`. Every commit of the run goes on it.
 
@@ -71,7 +71,7 @@ Run the **interrogate** skill with target `plan` (premortem, devil's advocate, a
 
 ## Phase 4: Implement
 
-1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <log> 2>&1 && git commit ...`. A failing test and its fix go in one commit, with the red run logged. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
+1. Each slice follows the **tdd** skill. Join the check and the commit, so a red check stops the commit: `make check-changed > <log> 2>&1 && git commit ...`. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests: timing tests fail under load.
 2. Use Conventional Commits (see `AGENTS.md`).
 3. After each slice, log a row and tick `run.md`. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
 4. If the plan proves wrong, stop, update `plan.md`, and log why. A changed criterion gets its new text in `analysis.md` in the same step, citing the row, so Phase 7 verifies that text.
@@ -79,7 +79,7 @@ Run the **interrogate** skill with target `plan` (premortem, devil's advocate, a
 
 ## Phase 5: Clean up
 
-Run the **deslop** skill and `make check-changed`. Commit the cleanup on its own.
+Run the **deslop** skill. Commit the cleanup on its own.
 
 ## Phase 6: Code gate
 
@@ -96,7 +96,7 @@ Run the **verify-this** skill for each criterion against the real artifact (the 
 
 ## Phase 8: Reflect
 
-Run the **reflect** skill on the branch: a first occurrence becomes a `seen-once` line, and a second one changes the docs within their budgets. Run `make check-changed` after its commits. With no friction, it logs "no learnings" and makes no commit. Then review the `## Later` headings, and move each item that this run made due to `## Next`.
+Run the **reflect** skill on the branch. With no friction, it logs "no learnings" and makes no commit. Then review the `## Later` headings, and move each item that this run made due to `## Next`.
 
 ## Phase 9: Land through a pull request
 

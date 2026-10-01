@@ -1,6 +1,6 @@
 # Mutation controls
 
-With `risk: yes`, each guard in a risk path gets two controls. With `risk: no`, the failing-before test is the control. The docstring of `.claude/skills/deliver/scripts/mutate.py` gives each flag and each result line.
+Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills/deliver/scripts/mutate.py` gives each flag and each result line.
 
 ## Plan the controls
 
@@ -43,5 +43,5 @@ With `risk: yes`, each guard in a risk path gets two controls. With `risk: no`, 
 
 ## Replay once in Phase 7
 
-- Replay each killed control once, on the tree that lands, with `mutate.py --replay <old log> <new log>`. Replay all of them: a change in a caller in a third file can make the mutated code unreachable.
+- Replay each killed control once, on the tree that lands, with `mutate.py --timeout <seconds> --replay <old log> <new log>`. Replay all of them: a change in a caller in a third file can make the mutated code unreachable.
 - A replay runs the logged test command again, with every side effect. After the last replay, build the product again from the clean tree.

@@ -31,7 +31,7 @@ Source: the principle skills of pstack (https://github.com/cursor/plugins, `psta
 - **prove-it-works.** Check the real artifact: run the app, read the file, measure the level. "It compiles" is not proof.
 - **fix-root-causes.** Reproduce first. Ask why until you find the cause. Fix it there. Do not add a guard that hides a crash.
 - **sequence-verifiable-units.** Split work into small units. Each unit ends in a state you can check. Do not start the next unit until the check is green.
-- **test-behavior-not-implementation.** Call the code as its users do and assert a literal expected result. If the test still passes when every function it calls returns nothing, rewrite the test or delete it.
+- **test-behavior-not-implementation.** Call the code as its users do and assert a literal expected result. The **tdd** skill says when a test proves nothing.
 
 ## Delegation
 

@@ -11,7 +11,7 @@ A result that depends on a difference between the test process and the app prove
 
 - `L10n` gives the string keys, because `Bundle.main` is the test runner. A key is wider than most texts, so a layout test chooses its strings on purpose, and a layout must hold at any text width.
 - `#expect(a == b)` of a `CGFloat` and a `Double` with the same value fails: convert both to `Double`.
-- To prove that VoiceOver reaches an element, walk `accessibilityChildren()` from the window content view down to it. A direct call of its accessibility method proves nothing.
+- To prove that VoiceOver reaches an element, walk `accessibilityChildren()` from the window content view down to it.
 
 ## Events and focus
 

@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
-    { title: 'Verify', detail: 'one skeptic per lens tries to refute its findings' },
+    { title: 'Verify', detail: 'one skeptic per lens tries to refute its warning and critical findings' },
   ],
 }
 
@@ -150,8 +150,11 @@ const results = await pipeline(
     // unless it is critical. Split by the reviewer's own field, not by the skeptic's wording.
     const unscoped = f => mode === 'converge' && f.severity !== 'critical' && (!f.priorItem || /^none$/i.test(f.priorItem.trim()))
     const outOfScope = review.findings.filter(unscoped)
-    const findings = review.findings.filter(f => !unscoped(f))
-    if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope }
+    // A nit goes to the lead as a Consider item with no skeptic: a skeptic agent costs more than
+    // the lead's read of a nit.
+    const nits = review.findings.filter(f => !unscoped(f) && f.severity === 'nit')
+    const findings = review.findings.filter(f => !unscoped(f) && f.severity !== 'nit')
+    if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope, nits }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
     return agent(
       `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. A finding that attacks a settled choice without new evidence is not upheld.${ledger ? ` Read ${ledger} first: a finding whose failure already happened in this run is upheld, even if it looks hypothetical.` : ''} Do not modify files.${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
@@ -162,7 +165,7 @@ const results = await pipeline(
       const survived = judged.filter(f => !f.skeptic || f.skeptic.upheld)
       // Keep the refuted findings with the skeptic reason, so the lead can list them under Dismissed.
       const refuted = judged.filter(f => f.skeptic && !f.skeptic.upheld)
-      return { lens: lens.key, raised: review.findings.length, survived, refuted, outOfScope }
+      return { lens: lens.key, raised: review.findings.length, survived, refuted, outOfScope, nits }
     })
   },
 )
@@ -170,7 +173,7 @@ const results = await pipeline(
 const panel = results.filter(Boolean)
 const missing = [...unknown, ...LENSES.filter(l => !panel.some(p => p.lens === l.key)).map(l => l.key)]
 if (missing.length) log(`NO RESULT from lenses: ${missing.join(', ')}. The panel is incomplete.`)
-log(panel.map(p => `${p.lens}: ${p.survived.length}/${p.raised} survived, ${(p.outOfScope || []).length} out of scope`).join(', '))
+log(panel.map(p => `${p.lens}: ${p.survived.length}/${p.raised} survived, ${p.nits.length} nits, ${(p.outOfScope || []).length} out of scope`).join(', '))
 const outOfScope = panel.flatMap(p => (p.outOfScope || []).map(f => ({ lens: p.lens, ...f })))
 if (outOfScope.length) log(`${outOfScope.length} out-of-scope findings for the backlog.`)
 return { target, intent, scope, round, maxRounds, mode, panel, outOfScope, missing }

@@ -13,7 +13,7 @@ Check:
 
 - Replace or merge: a new rule replaces or merges text in the same section, and the file stays within its row. An added line next to an older line on the same topic is a near-contradiction.
 - Register: each rule change updates `docs/workflow/rules.tsv` in the same commit. A `new` row has the source run and the cause key. A changed verdict has the run in its reason.
-- Seen-once first: a rule from one incident needs an earlier `seen-once` line with the same cause. A high-cost incident (lost data, lost user input) can skip this, with the reason in the commit body.
+- Seen-once first: a rule from one incident needs an earlier `seen-once` line with the same cause. The high-cost exception of reflect rule 2 (`.claude/skills/reflect/SKILL.md`) can skip this.
 - Sediment: a stale line, a line whose cause no longer exists, or run history ("learned in run N") inside a skill.
 - Script over prose: a rule that a script or check now enforces keeps its prose.
 - Collapse: a rewrite that drops a failure mode, a tool name, or an exact command. Brevity bias removes these details first.

@@ -58,7 +58,7 @@ The workflow improves itself without a human in the loop, because each change is
 Do this once, after the last reflect commit and before the merge, when the run made a commit.
 
 1. Run `make check-changed BASE=<base>`, where `<base>` is the parent of the first reflect commit. Its `classes:` line picks the lenses.
-2. Run the `review-panel` workflow on that diff (`target: "diff"`, `scope: "<base>"`, `maxRounds: 2`), with the lenses and `paths` of Step 3 of the **interrogate** skill: the five doc lenses for `AGENTS.md`, `.claude/skills`, `.claude/agents`, and `docs/workflow`; `code-quality` for scripts, hooks, the `Makefile`, and `.claude/workflows`. Pass `scriptPath` when `review-panel.js` changed in this session.
+2. Run the `review-panel` workflow on that diff (`target: "diff"`, `scope: "<base>"`, `maxRounds: 2`), with the lenses and `paths` of Step 3 of the **interrogate** skill. Pass `scriptPath` when `review-panel.js` changed in this session.
 3. Judge round 1 and run the fix check. Each Act on finding gets a fix commit or a revert commit before the merge.
 
 ### 6. Summarize

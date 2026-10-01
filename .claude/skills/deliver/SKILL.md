@@ -50,10 +50,10 @@ Write `plan.md`:
 
 `scripts/check-changed.sh` prints `classes:`, `targets:`, and `risk:` (decision 0028). `make check-changed` runs the targets. A mixed change gets the union of its rows and the larger round count.
 
-| Class | Review panel |
+| Class | Review panel rounds (Step 3 of the **interrogate** skill picks the lenses) |
 |---|---|
-| docs | five lenses for `AGENTS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: 1 round and a fix check |
-| tooling, tests, bundle, build | code-quality, 1 round |
+| docs | 1 round and a fix check |
+| tooling, tests, bundle, build | 1 round |
 | sources | plan gate 1 round; code gate 1 round and a fix check |
 | sources-risk | plan gate 2 rounds; code gate 3 rounds |
 
@@ -83,7 +83,7 @@ Run the **deslop** skill. Commit the cleanup on its own.
 
 ## Phase 6: Code gate
 
-Run the **interrogate** skill with target `diff` and the lenses of the class table.
+Run the **interrogate** skill with target `diff` and the rounds of the class table.
 
 - Fix each "Act on" item in its own commit, a bug fix with its regression test.
 - Put each "Consider" item that you skip in `## Later`, with the reason.

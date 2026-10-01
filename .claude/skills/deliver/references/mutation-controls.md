@@ -29,7 +29,7 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 - mutate.py restores only the source file. A tool can crash on the build outputs of a mutant: `hdiutil convert` gave "Segmentation fault: 11" on an old output file. So the build command first deletes or builds again each shared output that its test reads. A `BUILD FAILED` or a tool crash right after another control can come from the outputs of that control.
 - Mark a control whose test command acts on shared state (Mission Control, HID events, a probe) with `--side-effects`. Decide it from what the command does under the mutant: a removed guard can let a test reach a build, the app, or HID events.
 - A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`: a replay into the old folder fails before it reaches the guard.
-- Cite the log path in the `decisions.tsv` row. Phase 7 then replays the control from its log.
+- Save the log under `<run>/controls/`, and cite its path in a `decisions.tsv` row of phase 2 or 4. Phase 7 then replays the control from its log. With `risk: yes`, `scripts/land.sh` refuses a run with no such row, unless its third argument names the row that says why no control applies.
 
 ## When no test fails
 

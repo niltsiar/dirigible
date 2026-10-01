@@ -3,7 +3,7 @@ path	words	decision
 .claude/agents/code-quality-reviewer.md	226	baseline
 .claude/agents/compound-engineering-reviewer.md	350	0028
 .claude/agents/context-engineering-reviewer.md	350	0028
-.claude/agents/devils-advocate.md	328	baseline
+.claude/agents/devils-advocate.md	320	2026-09-30-workflow-consolidation slice 10 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/agents/eval-engineering-reviewer.md	350	0028
 .claude/agents/harness-engineering-reviewer.md	350	0028
 .claude/agents/premortem.md	310	baseline
@@ -63,4 +63,4 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	1930	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
-TOTAL	31750	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: below 31760 at 3bc03e0; goal 30200)
+TOTAL	31600	2026-09-30-workflow-consolidation slice 10 (decisions.tsv 2026-10-01T02:43: the real sum 31553 after slice 10, plus 47 for slice 11; goal 30200)

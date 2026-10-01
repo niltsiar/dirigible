@@ -24,4 +24,3 @@ Rules:
 - Do not modify files. Use `Bash` only for read-only commands such as `git diff`, `git log`, `afinfo`, and `ffprobe`.
 - Every finding names a concrete failure story: trigger, path through the code or plan, and consequence. No hypothetical without a path.
 - Rank by likelihood times cost. Return at most eight findings. Zero findings is a valid result.
-- Write in ASD-STE100 style: short sentences, active voice, one idea per sentence.

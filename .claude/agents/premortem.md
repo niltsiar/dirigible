@@ -17,7 +17,7 @@ Look for:
 - Format and migration: a session file that an older or newer build cannot open. XML that is not valid after an interrupted save.
 - Permissions and platform: microphone permission denied or reset after a rebuild, macOS 14 versus newer APIs, Intel versus Apple silicon.
 - Scale: a two-hour session with six tracks. Memory and disk use.
-- The assumption in the plan that nobody checked.
+- The unknown that the `## Unknowns` table of `analysis.md` does not list.
 
 Rules:
 

@@ -14,7 +14,7 @@ Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a dif
 
 ## Step 2: State the intent and the settled list
 
-Write one paragraph that states the intent, from the plan, the commit messages, and the task in the run ledger. Reviewers judge the execution against it. If you are unsure about the intent, stop and resolve it first.
+Write one paragraph that states the intent, from the plan, the commit messages, and the task in the run ledger. Reviewers judge the execution against it. If you are unsure about the intent, stop and resolve it first. Pass the `## Unknowns` table of `analysis.md` with it. An Act-on finding that shows a missing unknown gets a new row in that table and a `decisions.tsv` row with the text `missed unknown`.
 
 Then list the settled choices, one line each: the scope, the run order, the choices that the user asked for, and the tradeoffs that `decisions.tsv` accepted with a reason. A line about behavior or scope ("no vertical scroll this run") is also a claim about the code: name its holder (a test or a file:line), or pass it as a claim to check. A tradeoff is settled only in the form "we accept X in exchange for Y". A tradeoff that loses user input, or departs from the reference product (Hindenburg), is settled only when the user approved it. Else pass it as a claim to check. When a skeptic refutes a finding against such a line, put the finding in `## Next` of `.scratchpads/backlog.md` as a user decision, not in Dismissed.
 
@@ -26,7 +26,7 @@ Run the saved workflow `review-panel` with the Workflow tool:
 Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: ".scratchpads/runs/<run>/decisions.tsv", lenses?, paths? } })
 ```
 
-The workflow runs reviewer agents from `.claude/agents/` in parallel, then skeptics try to refute each finding. With no `lenses`, the plan gate runs `premortem`, `devils-advocate`, and `architecture-reviewer`, and the code gate adds `code-quality-reviewer`. At the code gate, run one call for each item below that the classes from `scripts/check-changed.sh` match:
+The workflow runs reviewer agents from `.claude/agents/` in parallel. Skeptics try to refute each warning and critical finding, and the lead reads each nit as a Consider item. With no `lenses`, the plan gate runs `premortem` (`.claude/agents/premortem.md`), `devils-advocate`, and `architecture-reviewer`, and the code gate adds `code-quality-reviewer`. At the code gate, run one call for each item below that the classes from `scripts/check-changed.sh` match:
 
 - sources, sources-risk: the default lenses.
 - `AGENTS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "prompt-engineering", "harness-engineering", "eval-engineering", "compound-engineering"]`, with those four paths in `paths`.
@@ -45,7 +45,7 @@ Read `references/reviewer-prompt.md` when the Workflow tool is not available: it
 
 ## Step 4: Synthesize
 
-1. Read the Workflow output file (JSON) with a short `python3` script (`json.JSONDecoder().raw_decode` from the first `{`). Print only the severity, title, and suggestion of `result.panel[].survived[]`, and of `result.panel[].refuted[]` with `skeptic.reason`. Keep the whole file out of the context.
+1. Read the Workflow output file (JSON) with a short `python3` script (`json.JSONDecoder().raw_decode` from the first `{`). Print only the severity, title, and suggestion of `result.panel[].survived[]`, of `result.panel[].refuted[]` with `skeptic.reason`, and of `result.panel[].nits[]`. Keep the whole file out of the context.
 2. Findings from two or more lenses independently are the highest signal.
 3. Merge duplicates and note which lenses raised them.
 4. Note disagreements: one lens that contradicts another is useful context.
@@ -70,5 +70,5 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 - **Act on:** description, lenses, why it matters, Invariant, and Siblings.
 - **Consider:** description, lenses, tradeoff.
 - **Noted:** a brief list.
-- **Dismissed:** each finding with its reason, and each refuted finding with the skeptic reason. Read each reason: overrule a skeptic that refuted a real premise.
+- **Dismissed:** each finding with its reason, each refuted finding with the skeptic reason, and each nit of `nits` that is not a Consider item. Read each reason: overrule a skeptic that refuted a real premise.
 - **Agreement map:** where the lenses agreed or diverged, and what the pattern says.

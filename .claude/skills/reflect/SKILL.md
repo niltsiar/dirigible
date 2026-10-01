@@ -1,11 +1,11 @@
 ---
 name: reflect
-description: Mine the session for durable learnings with three reviewer subagents; log a first occurrence as seen-once, and turn a second one into a skill, AGENTS.md, or check edit. Use when the user says reflect, and as the last step of every deliver run.
+description: Mine the session for durable learnings with reviewer subagents; log a first occurrence as seen-once, and turn a second one into a skill, AGENTS.md, or check edit. Use when the user says reflect, and as the last step of every deliver run.
 ---
 
 # Reflect
 
-Mine the current session for durable learnings, then route them into edits. This skill is how the workflow of this repo improves itself. Skip when the session was trivial or when every step followed an existing skill without friction.
+Mine the current session for durable learnings, then route them into edits. This skill is how the workflow of this repo improves itself.
 
 ## Rules
 
@@ -22,7 +22,7 @@ Each learning gets a cause key `<ID>/<class>`, by step 1 of `references/synthesi
 
 ## Process
 
-### 1. Locate the session transcript
+### 1. Locate the session transcript and print the cost
 
 Transcripts are at `~/.claude/projects/<project-slug>/<session-id>.jsonl`; the slug is the repo path with each character that is not a letter or a digit replaced by `-`. Read only the transcript of this project: a glob across other project folders reads private chats from unrelated work.
 
@@ -31,11 +31,11 @@ slug="$(git rev-parse --show-toplevel | sed 's/[^A-Za-z0-9]/-/g')"
 ls -t ~/.claude/projects/"$slug"/*.jsonl | head -3
 ```
 
-Take the newest file whose first user message matches this session; if none resolves, pass a tight digest. Also pass the run ledger (`.scratchpads/runs/<run>/`): it records decisions and review verdicts.
+Take the newest file whose first user message matches this session; if none resolves, pass a tight digest. Also pass the run ledger (`.scratchpads/runs/<run>/`): it records decisions and review verdicts. Then run `.claude/skills/reflect/scripts/cost.sh <run folder> <transcript>`, also for a run with no friction, and pass its output to the reviewers.
 
-### 2. Spawn three reviewers in parallel
+### 2. Spawn the reviewers
 
-In one message, make three `Agent` calls (`general-purpose`), one per template: `references/judgment-reviewer.md` (`opus`), `references/tooling-reviewer.md` (`sonnet`), and `references/divergent-reviewer.md` (`opus`). Different models give different angles. Pass each template verbatim, with the transcript path or digest where marked.
+When `cost.sh` prints `friction: 0`, make one `Agent` call with `references/judgment-reviewer.md`. Else, in one message, make three `Agent` calls (`general-purpose`), one per template: `references/judgment-reviewer.md` (`opus`), `references/tooling-reviewer.md` (`sonnet`), and `references/divergent-reviewer.md` (`opus`). Different models give different angles. Pass each template verbatim, with the transcript path or digest where marked.
 
 ### 3. Synthesize
 
@@ -57,7 +57,7 @@ The workflow improves itself without a human in the loop, because each change is
 
 Do this once, after the last reflect commit and before the merge, when the run made a commit.
 
-1. Run `make check-changed BASE=<base>`, where `<base>` is the parent of the first reflect commit. Its `classes:` line picks the lenses.
+1. Run `make check-changed BASE=<base>`, where `<base>` is the parent of the first reflect commit. Its `classes:` line picks the lenses. Its pass appends a stamp line, and `scripts/land.sh` still finds the Phase 7 stamp.
 2. Run the `review-panel` workflow on that diff (`target: "diff"`, `scope: "<base>"`, `maxRounds: 2`), with the lenses and `paths` of Step 3 of the **interrogate** skill. Pass `scriptPath` when `review-panel.js` changed in this session.
 3. Judge round 1 and run the fix check. Each Act on finding gets a fix commit or a revert commit before the merge.
 

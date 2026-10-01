@@ -15,11 +15,11 @@ path	words	decision
 .claude/skills/architect/references/runner-prompt.md	982	baseline
 .claude/skills/bro/	40	baseline
 .claude/skills/bro/SKILL.md	40	baseline
-.claude/skills/deliver/	3379	2026-09-30-workflow-consolidation slice 4b (decisions.tsv 2026-10-01T01:38: deliver SKILL.md budget row 1649)
-.claude/skills/deliver/SKILL.md	1649	2026-09-30-workflow-consolidation slice 4b (decisions.tsv 2026-10-01T01:38: deliver SKILL.md budget row 1649)
-.claude/skills/deliver/references/long-runs.md	198	2026-09-30-workflow-consolidation slice 4b (decisions.tsv 2026-10-01T01:38: deliver SKILL.md budget row 1649)
-.claude/skills/deliver/references/mutation-controls.md	1054	2026-09-30-workflow-consolidation slice 4 (decisions.tsv: deliver budget over 0028)
-.claude/skills/deliver/references/performance-criteria.md	478	2026-09-30-workflow-consolidation slice 4 (decisions.tsv: deliver budget over 0028)
+.claude/skills/deliver/	3720	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/deliver/SKILL.md	1820	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/deliver/references/long-runs.md	220	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/deliver/references/mutation-controls.md	1160	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/deliver/references/performance-criteria.md	530	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/deslop/	272	baseline
 .claude/skills/deslop/SKILL.md	272	baseline
 .claude/skills/diagnosing-bugs/	1471	baseline
@@ -28,12 +28,12 @@ path	words	decision
 .claude/skills/domain-modeling/ADR-FORMAT.md	432	baseline
 .claude/skills/domain-modeling/CONTEXT-FORMAT.md	335	baseline
 .claude/skills/domain-modeling/SKILL.md	530	baseline
-.claude/skills/interrogate/	3999	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
-.claude/skills/interrogate/SKILL.md	900	0028 (2026-09-30-workflow-consolidation slice 7: row 900, SKILL.md 898 words)
-.claude/skills/interrogate/references/code-quality-review.md	666	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
-.claude/skills/interrogate/references/lead-judgment.md	1051	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
-.claude/skills/interrogate/references/reviewer-prompt.md	533	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
-.claude/skills/interrogate/references/rubric.md	851	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
+.claude/skills/interrogate/	4400	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/interrogate/SKILL.md	990	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/interrogate/references/code-quality-review.md	740	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/interrogate/references/lead-judgment.md	1160	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/interrogate/references/reviewer-prompt.md	590	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/interrogate/references/rubric.md	940	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/pr/	753	baseline
 .claude/skills/pr/CREDITS.md	71	baseline
 .claude/skills/pr/SKILL.md	682	baseline
@@ -47,20 +47,20 @@ path	words	decision
 .claude/skills/research/SKILL.md	347	baseline
 .claude/skills/resolving-merge-conflicts/	122	baseline
 .claude/skills/resolving-merge-conflicts/SKILL.md	122	baseline
-.claude/skills/tdd/	2778	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
-.claude/skills/tdd/SKILL.md	900	0028 (2026-09-30-workflow-consolidation slice 6: row 900, SKILL.md 808 words)
-.claude/skills/tdd/references/flake-triage.md	708	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
-.claude/skills/tdd/references/test-harness.md	546	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
-.claude/skills/tdd/references/waits-and-limits.md	716	2026-09-30-workflow-consolidation slice 6 (decisions.tsv 2026-10-01T02:02: tdd folder budget row 2778)
+.claude/skills/tdd/	3060	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/tdd/SKILL.md	890	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/tdd/references/flake-triage.md	780	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/tdd/references/test-harness.md	610	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/tdd/references/waits-and-limits.md	790	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/technical-writing/	1746	baseline
 .claude/skills/technical-writing/SKILL.md	1746	baseline
 .claude/skills/unslop/	918	baseline
 .claude/skills/unslop/SKILL.md	918	baseline
-.claude/skills/verify-this/	1639	2026-09-30-workflow-consolidation slice 5 (decisions.tsv 2026-10-01T01:47: verify-this SKILL.md budget row 840)
-.claude/skills/verify-this/SKILL.md	840	2026-09-30-workflow-consolidation slice 5 (decisions.tsv 2026-10-01T01:47: verify-this SKILL.md budget row 840)
-.claude/skills/verify-this/references/driving-the-app.md	799	2026-09-30-workflow-consolidation slice 5 (decisions.tsv 2026-10-01T01:47: verify-this SKILL.md budget row 840)
+.claude/skills/verify-this/	1810	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/verify-this/SKILL.md	930	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/verify-this/references/driving-the-app.md	880	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-agents/	2191	baseline
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
-AGENTS.md	1750	2026-09-30-workflow-consolidation slice 8 (decisions.tsv 2026-10-01: AGENTS.md row 1750, plan row 1400 not met)
-TOTAL	31304	0028 (2026-09-30-workflow-consolidation slice 8: the real sum; the run goal is 30200)
+AGENTS.md	1930	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+TOTAL	31750	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: below 31760 at 3bc03e0; goal 30200)

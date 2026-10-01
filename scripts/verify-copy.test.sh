@@ -74,7 +74,18 @@ echo "DIRIGIBLE_BUNDLE_ID=${DIRIGIBLE_BUNDLE_ID-unset} $*" >>"$FAKE_STATE/swift.
 FAKE
 cat >"$tmp/bin/osascript" <<'FAKE'
 #!/bin/bash
+# Log the arguments and the script on stdin. Print the status line that the case set. With no
+# status line, fail as the AppleScript with no prompt window, or with the error text of the case.
 echo "$*" >>"$FAKE_STATE/osascript.log"
+cat >>"$FAKE_STATE/osascript.script"
+if [[ -f "$FAKE_STATE/osascript.status" ]]; then
+    cat "$FAKE_STATE/osascript.status"
+    exit 0
+fi
+if [[ -f "$FAKE_STATE/osascript.fail" ]]; then
+    cat "$FAKE_STATE/osascript.fail" >&2
+    exit 1
+fi
 echo "execution error: no prompt window (-1719)" >&2
 exit 1
 FAKE
@@ -341,6 +352,63 @@ run ax dump 1
 [[ $code -eq 0 ]] || fail "ax: exit $code: $err"
 [[ "$(cat "$state/swift.log" 2>/dev/null)" == "DIRIGIBLE_BUNDLE_ID=$copy_id $repo/scripts/ax.swift dump 1" ]] ||
     fail "ax: swift got: $(cat "$state/swift.log" 2>/dev/null)"
+
+# now: the time in seconds, with a fraction.
+now() { perl -MTime::HiRes=time -e 'printf "%.3f\n", time'; }
+# run_limited <args...>: run as run, but stop the script after 20 s (a missing poll limit).
+run_limited() {
+    out="$(perl -e 'alarm 20; exec @ARGV' "$script" "$@" 2>"$tmp/err")"
+    code=$?
+    err="$(cat "$tmp/err")"
+}
+calls() { grep -c . "$state/osascript.log" 2>/dev/null || true; }
+
+# C9 prompt shown: one osascript call that checks the window and clicks in the same script. The
+# names come from the prompt of the copy (.scratchpads/verify/live-take-e6fddc5/prompt-ax.txt).
+new_case
+echo clicked >"$state/osascript.status"
+run prompt Allow
+[[ $code -eq 0 ]] || fail "prompt shown: exit $code: $err"
+[[ "$(calls)" -eq 1 ]] || fail "prompt shown: $(calls) osascript calls, not 1"
+[[ "$(cat "$state/osascript.log" 2>/dev/null)" == "- Dirigible-verify.app Allow" ]] ||
+    fail "prompt shown: osascript got: $(cat "$state/osascript.log" 2>/dev/null)"
+script_text="$(cat "$state/osascript.script" 2>/dev/null)"
+[[ "$script_text" == *"exists window 1"* && "$script_text" == *"click button"* ]] ||
+    fail "prompt shown: the AppleScript does not check the window and click in one script"
+
+# C10 prompt not shown: poll to the limit, then exit 1 with the last stderr line.
+new_case
+t0="$(now)"
+VERIFY_COPY_PROMPT_WAIT=1 run_limited prompt Allow
+elapsed="$(echo "$(now) - $t0" | bc)"
+[[ $code -eq 1 && "$err" == *"no privacy prompt"* && "$err" == *"no prompt window (-1719)"* ]] ||
+    fail "prompt not shown: exit $code: $err"
+[[ "$(calls)" -ge 2 ]] || fail "prompt not shown: $(calls) osascript calls, not 2 or more"
+[[ "$(echo "$elapsed >= 1" | bc)" -eq 1 ]] || fail "prompt not shown: it ended after $elapsed s, before the limit"
+
+# C10b prompt error: no Automation grant (-1743), and a -1719 text with no "no prompt window".
+for text in "execution error: Not authorized to send Apple events to System Events. (-1743)" \
+    "execution error: System Events got an error: osascript is not allowed assistive access. (-1719)"; do
+    new_case
+    echo "$text" >"$state/osascript.fail"
+    VERIFY_COPY_PROMPT_WAIT=1 run_limited prompt Allow
+    [[ $code -eq 2 && "$err" == *"$text"* ]] || fail "prompt error ($text): exit $code: $err"
+    [[ "$(calls)" -eq 1 ]] || fail "prompt error ($text): $(calls) osascript calls, not 1"
+done
+
+# C11 prompt of another app
+new_case
+echo "app “Other.app” would like to access the microphone." >"$state/osascript.status"
+run prompt Allow
+[[ $code -eq 1 && "$err" == *"“Other.app” would like to access the microphone."* ]] ||
+    fail "prompt of another app: exit $code: $err"
+
+# C12 prompt wrong button
+new_case
+echo "buttons Don’t Allow, Allow" >"$state/osascript.status"
+run prompt Permitir
+[[ $code -eq 1 && "$err" == *"Permitir"* && "$err" == *"Don’t Allow, Allow"* ]] ||
+    fail "prompt wrong button: exit $code: $err"
 
 # C17: no stop by name, and each recursive delete acts on build/verify or the saved state of the copy.
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"

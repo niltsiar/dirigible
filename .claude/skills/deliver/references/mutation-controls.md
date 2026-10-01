@@ -13,7 +13,6 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 - A test that asserts "X happens during Y" also asserts that Y goes on.
 - The control breaks the mechanism of the claim (a mutation that relaxes a memory order or removes a guard). A control that only corrupts the input of the checker proves only the checker.
 - Run the control under the exact conditions of the claim. Turn on a condition that is off (a compiler feature) with a temporary change that you revert. A control under other conditions proves only itself.
-- Never change a product mechanism only so that a control can kill it: a row gesture added for a control broke single-click select.
 
 ## Run a control
 
@@ -34,7 +33,7 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 ## When no test fails
 
 - Another mechanism can hide the planned mutation. If no test fails, do not pass the item to the code gate. Write a test that reaches the guard past the other mechanism, or remove the guard.
-- When the other mechanism exists only in the test process (Return reaches a list action there that a real Return does not), retire the control with that reason in `decisions.tsv` and prove the path on the built app.
+- When the other mechanism exists only in the test process (Return reaches a list action there that a real Return does not), retire the control with that reason in `decisions.tsv` and prove the path on the built app. Never change a product mechanism only so that a control can kill it: a row gesture added for a control broke single-click select.
 - A mutation that does not reproduce the failure is a finding: record it, then find the mutation that does.
 - When no caller can reach the mutated behavior, the mutant is equivalent. Record the caller reason in `decisions.tsv`, and stop. A probe that measured one effect of the mutant is not a caller reason.
 - A surviving mutant that moves framework setup (a value set before or after an object takes ownership) stays on the replay list. Check it first when a check of the built app finds a defect.

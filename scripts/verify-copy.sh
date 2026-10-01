@@ -9,6 +9,9 @@
 #                                  the bundle ID, sign it, open it, and print its PID
 #        verify-copy.sh ax <ax.swift arguments>
 #                                  run scripts/ax.swift on the copy (DIRIGIBLE_BUNDLE_ID)
+#        verify-copy.sh prompt <button>
+#                                  press the button of the privacy prompt of the copy, by its
+#                                  whole name; wait up to VERIFY_COPY_PROMPT_WAIT s (default 10)
 #        verify-copy.sh stop       stop the copy and clean up its TCC grants, its preferences,
 #                                  its saved state, and build/verify
 #
@@ -20,6 +23,7 @@ set -euo pipefail
 
 usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
        verify-copy.sh ax <ax.swift arguments>
+       verify-copy.sh prompt <button>
        verify-copy.sh stop"
 
 # A plain assignment: `local root=$(...)` hides the exit code of git.
@@ -117,6 +121,64 @@ start() {
     printf '%s\n' "$pid" | head -1
 }
 
+# One poll: find the prompt window of UserNotificationCenter, check that its text names the app,
+# and click the button with the whole name, in one script, so no other window comes between the
+# check and the click. With no prompt window, the script fails with "no prompt window" (-1719).
+# Else it returns one status line: clicked, app <text>, or buttons <names>.
+prompt_script='on run argv
+    set appName to item 1 of argv
+    set buttonName to item 2 of argv
+    tell application "System Events"
+        if not (exists process "UserNotificationCenter") then error "no prompt window" number -1719
+        tell process "UserNotificationCenter"
+            if not (exists window 1) then error "no prompt window" number -1719
+            set promptText to ""
+            repeat with label in static texts of window 1
+                set labelText to value of label
+                if labelText is missing value then set labelText to name of label
+                if labelText is not missing value then set promptText to promptText & labelText & " "
+            end repeat
+            if promptText does not contain appName then return "app " & promptText
+            if not (exists button buttonName of window 1) then
+                set names to {}
+                repeat with candidate in buttons of window 1
+                    set candidateName to name of candidate
+                    if candidateName is not missing value then set end of names to candidateName
+                end repeat
+                set AppleScript'"'"'s text item delimiters to ", "
+                return "buttons " & (names as text)
+            end if
+            click button buttonName of window 1
+            return "clicked"
+        end tell
+    end tell
+end run'
+
+# Poll for the prompt. Only "no prompt window" in a failed call means no prompt yet. Another
+# failure (-1743: no Automation grant; -1719 with another text: no assistive access) exits 2.
+prompt() {
+    local button="$1" wait="${VERIFY_COPY_PROMPT_WAIT:-10}" out rc last="" i
+    [[ "$wait" =~ ^[1-9][0-9]*$ ]] || { echo "verify-copy.sh: VERIFY_COPY_PROMPT_WAIT is not a whole number of seconds: $wait" >&2 && exit 2; }
+    # Two polls per second, with a sleep after each, so the wait is at least the limit.
+    for ((i = 0; i < wait * 2; i++)); do
+        rc=0
+        out="$(osascript - "Dirigible-verify.app" "$button" <<<"$prompt_script" 2>&1)" || rc=$?
+        if [[ $rc -eq 0 ]]; then
+            case "$out" in
+                clicked) echo "Pressed $button." && return 0 ;;
+                "app "*) echo "verify-copy.sh: the prompt does not name Dirigible-verify.app: ${out#app }" >&2 && exit 1 ;;
+                "buttons "*) echo "verify-copy.sh: the prompt has no button \"$button\". Buttons: ${out#buttons }" >&2 && exit 1 ;;
+                *) echo "verify-copy.sh: osascript gave an unknown result: $out" >&2 && exit 2 ;;
+            esac
+        fi
+        [[ "$out" == *"no prompt window"* ]] || { echo "verify-copy.sh: osascript failed (exit $rc): $out" >&2 && exit 2; }
+        last="$out"
+        sleep 0.5
+    done
+    echo "verify-copy.sh: no privacy prompt in $wait s. osascript: $(tail -1 <<<"$last")" >&2
+    exit 1
+}
+
 stop() {
     stop_copy
     cleanup
@@ -125,6 +187,7 @@ stop() {
 case "${1:-}" in
     start) shift; start "$@" ;;
     ax) shift; DIRIGIBLE_BUNDLE_ID="$copy_id" swift "$root/scripts/ax.swift" "$@" ;;
+    prompt) [[ $# -eq 2 && -n "$2" ]] || { echo "$usage" >&2 && exit 2; }; prompt "$2" ;;
     stop) [[ $# -eq 1 ]] || { echo "$usage" >&2 && exit 2; }; stop ;;
     *) echo "$usage" >&2 && exit 2 ;;
 esac

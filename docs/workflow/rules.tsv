@@ -52,9 +52,9 @@ AGT-050	AGENTS.md	keep	AGENTS.md	pointer to the probe.sh header; C18	L92	hook	Sw
 AGT-051	AGENTS.md	keep	AGENTS.md	fixed verdict: keep (spec); one-off L117 (audit s4)	L117	tool	zsh path/status/argv variables clobber PATH; rename or use bash -c
 AGT-052	AGENTS.md	keep	AGENTS.md	remote and PR tool; C18	ad21140		origin is niltsiar/dirigible on GitHub; gh CLI for PRs
 AGT-053	AGENTS.md	keep	AGENTS.md	branch rule; C18	10edc92		no direct main commits; branch named <type>/<slug>
-AGT-054	AGENTS.md	keep	AGENTS.md	land through a pull request; C18	ad21140		deliver Phase 9 lands each run via gh pr merge --rebase
+AGT-054	AGENTS.md	keep	AGENTS.md	land through a pull request; C18; 2026-10-01-workflow-speed D1: land.sh reuses the pass stamp of an ancestor commit	ad21140		land.sh runs the push check or reuses the pass stamp of an ancestor commit, then merges with a rebase
 AGT-055	AGENTS.md	keep	AGENTS.md	commit type rule; C18	10edc92		Conventional Commits types with optional scope
-AGT-056	AGENTS.md	keep	AGENTS.md	home of the per-commit check (spec item 1); C18; slice 8 changes it to the checks that make check-changed picks	10edc92		each commit is one logical change that builds and passes make check
+AGT-056	AGENTS.md	keep	AGENTS.md	home of the per-commit check (spec item 1); C18; slice 8 changes it to the checks that make check-changed picks; 2026-10-01-workflow-speed D1 (item 11): FILTER for a commit inside a slice	10edc92		each commit builds and passes the checks that make check-changed picks; FILTER inside a slice, no filter at the slice end
 AGT-057	AGENTS.md	keep	AGENTS.md	commit message rule; C18	10edc92		commit subject imperative under 72 chars; body gives the why
 AGT-058	AGENTS.md	keep	AGENTS.md	commit message file; C18	ad21140		long commit message goes through .scratchpads/commit-msg.txt and git commit -F
 AGT-059	AGENTS.md	keep	AGENTS.md	plan: keep; C18	c62ae01		pre-commit hook blocks lint or build failures on the working tree; stage whole changes
@@ -207,7 +207,7 @@ DLV-097	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	kee
 DLV-098	.claude/skills/deliver/SKILL.md	merge	DLV-088	grep every copy stated twice; home deliver:50 (audit 2)	L116	doc	changed fact: grep its ID across docs and run files
 DLV-099	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 7 sets rounds per class	cdf55a5		plan gate reruns on a critical item, two rounds at most
 DLV-100	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; detail goes to lead-judgment.md in slice 7	4d1c9f6		round 2 is convergence; then log open risks in run.md
-DLV-101	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed	cdf55a5		Phase 4 per slice: tdd loop, make check, commit
+DLV-101	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice 4 changes it to make check-changed; 2026-10-01-workflow-speed D1 (item 11): FILTER inside a slice, no filter at the slice end, the Phase 7 push check covers the branch	cdf55a5		Phase 4 per slice: tdd loop, make check-changed (FILTER inside a slice), commit
 DLV-102	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; the guardrail hook refuses a join other than &&; slice 4 changes it to make check-changed	L142	hook	check and commit joined by && in one command
 DLV-103	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; slice order	L21	scope	commit a slice before a file of the next slice
 DLV-104	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; audit 2 names tdd:46 as home, but at 3bc03e0 tdd:46 records the load at a flake failure, not a wait before a check	L153	flake	after heavy work wait for normal uptime load before make check
@@ -270,7 +270,7 @@ TDD-007	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workf
 TDD-008	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 drops the L124 example, keeps the rule	L124	claim	user-facing text fixes expected values; test the exact boundary
 TDD-009	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workflow step 4	1e069af		step 4: new test must fail for the intended reason before the fix
 TDD-010	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; workflow step 5	1e069af		step 5: minimal production change that turns the test green
-TDD-011	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 keeps make test as the inner loop	1e069af		step 6: rerun with make test; the whole suite stays green
+TDD-011	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 keeps make test as the inner loop; 2026-10-01-workflow-speed D1 (item 11): the slice tests inside a slice, the check with no filter before the last commit	1e069af		step 6: make check-changed FILTER inside a slice; with no filter before the last commit of the slice
 TDD-012	.claude/skills/tdd/SKILL.md	delete		replaced: 0028 (one commit; the red log goes in decisions.tsv)	1e069af		bug fix may commit red test: first and fix: on top
 TDD-013	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; slice 6 makes one test-plus-code commit the rule for every change (0028)	1e069af		feature lands test and code in one feat: commit
 TDD-014	.claude/skills/tdd/SKILL.md	merge	DLV-007	merge; home of hardware manual check is deliver:16	1e069af		mic, two interfaces, or permission prompt means hardware
@@ -335,7 +335,7 @@ TDD-072	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and
 TDD-073	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L88	wait	producers and watchdogs outlive the wait limit; test owns the clock
 TDD-074	.claude/skills/tdd/SKILL.md	move	.claude/skills/tdd/references/waits-and-limits.md	move	L36	wait	fix every test sharing the same duration in one commit
 TDD-075	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		report the failing-before test and its failure
-TDD-076	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep	1e069af		report the passing-after make test run and result
+TDD-076	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; 2026-10-01-workflow-speed D1: the check with no filter replaces make test	1e069af		report the passing-after check with no filter and its result
 TDD-077	.claude/skills/tdd/SKILL.md	keep	.claude/skills/tdd/SKILL.md	keep; restates tdd:24 explain-why	1e069af		no red evidence possible: say why, name closest check
 TDD-078	.claude/skills/tdd/SKILL.md	new	.claude/skills/tdd/SKILL.md	new in slice 6 of 2026-09-30-workflow-consolidation; the test side of DLV-032 (deliver Phase 1 criterion)	L179	claim	trigger test: one case per start state (window, focus)
 TDD-079	.claude/skills/tdd/references/test-harness.md	new	.claude/skills/tdd/references/test-harness.md	new in slice 6 of 2026-09-30-workflow-consolidation; pending start-window learning (backlog NEXT RUN line), a case of TDD-032	2026-09-30-start-window	tool	shared SwiftUI field editor: use focusedNameEditor(in:)
@@ -924,3 +924,7 @@ AGN-062	.claude/agents/eval-engineering-reviewer.md	merge	AGT-003	slice 11 of 20
 AGN-063	.claude/agents/harness-engineering-reviewer.md	merge	AGT-003	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the AGENTS.md STE rule (audit 2), as AGN-014 and AGN-059	2026-09-30-workflow-consolidation		reviewer writes findings in STE100 style
 AGN-064	.claude/agents/prompt-engineering-reviewer.md	merge	AGT-003	slice 11 of 2026-09-30-workflow-consolidation: duplicate of the AGENTS.md STE rule (audit 2), as AGN-014 and AGN-059	2026-09-30-workflow-consolidation		reviewer writes findings in STE100 style
 DOM-017	.claude/skills/domain-modeling/ADR-FORMAT.md	delete		stale: slice 11 of 2026-09-30-workflow-consolidation: the decision records of this repo live in docs/decisions/ with their own format (0001: Status, Date, Context, Decision, Consequences); the 1-3 sentence template contradicts it, and its When to offer section repeats DOM-012 to DOM-016	2026-09-30-workflow-consolidation		generic ADR template, numbering, and when-to-offer list
+AGT-109	AGENTS.md	new	AGENTS.md	new in D1 of 2026-10-01-workflow-speed (item 11, C11.3, C11.5)	2026-10-01-workflow-speed		make test-filter runs only the tests that match a name; it fails when no test ran
+AGT-110	AGENTS.md	new	AGENTS.md	new in D1 of 2026-10-01-workflow-speed (item 1, C1.14); git-guardrails.test.sh has the block and allow cases	2026-10-01-workflow-speed	hook	the guardrail hook blocks each command that names the stamp file; read it with check-stamp.sh read
+AGT-111	AGENTS.md	new	AGENTS.md	new in D1 of 2026-10-01-workflow-speed (item 1, item 11)	2026-10-01-workflow-speed		make check-changed: BASE gives the push targets; FILTER runs test-filter in place of test
+DLV-154	.claude/skills/deliver/SKILL.md	new	.claude/skills/deliver/SKILL.md	new in D1 of 2026-10-01-workflow-speed (item 1, C1.15)	2026-10-01-workflow-speed		after the last Phase 7 fix, run the push check in the background and make no commit until it ends

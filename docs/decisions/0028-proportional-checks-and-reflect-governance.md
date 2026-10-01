@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-01
 - Accepted: 2026-09-30, after plan gate rounds 1 and 2 of run `2026-09-30-workflow-consolidation`.
+- Amended: 2026-10-01. A commit inside a slice can run only the tests of the slice. A passing push check writes a stamp that the land reuses. After a fix that follows the replay, only the affected controls replay again.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context
@@ -18,6 +19,8 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 - `scripts/check-changed.sh` owns the change classes, the path table, and the risk floor. Docs name the script. They do not copy the table or the paths.
 - The script prints three lines: `classes:`, `targets:`, and `risk:`. With no argument, it prints the make targets for one commit. With a base, it prints the targets before the push.
 - `make check-changed` runs the targets for the commit. `make check-changed BASE=origin/main` runs the targets before the push. The recipe exits nonzero when the script fails, and runs no target for `targets: none`.
+- With `FILTER='<name> <name>'`, the target `test` becomes `test-filter`, which runs only the tests that match a name. It fails when no test ran. A commit inside a slice can use it. The last commit of the slice runs with no filter. `FILTER` with a base exits 1.
+- A passing check with a base, on a clean tree that did not change, appends a stamp line (`scripts/check-stamp.sh`): the commit, the base commit, and the targets. `scripts/land.sh` runs no check when the stamp has HEAD and the base is `origin/main`. When the stamp has an ancestor of HEAD, it runs the push targets of the later commits only.
 - A path that no row matches is class `build`, which runs the full `make check`. A new kind of path is slow, but safe.
 - The script fails closed. A git error exits nonzero. An empty list against a base exits 1.
 - A plan can raise a guard outside the risk floor to risk when its defect loses data or breaks audio. It logs the reason in `decisions.tsv`. A plan cannot lower a floor path. `scripts/check-changed.test.sh` fails when a floor path does not exist.
@@ -26,7 +29,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 ### Mutation controls and the replay
 
 - Mutation controls and the replay key on the `risk:` line, not on the class.
-- With `risk: yes`, each guard in a risk path gets two controls: one for "accepts too much" and one for "refuses too much". Each control has a timeout. The controls replay once, in the verify phase, on the tree that lands.
+- With `risk: yes`, each guard in a risk path gets two controls: one for "accepts too much" and one for "refuses too much". Each control has a timeout. The controls replay once, in the verify phase, on the tree that lands. After a fix that follows that replay, only the controls that `.claude/skills/deliver/scripts/replay-list.sh` lists replay again: their mutated file or their killing test file changed.
 - With `risk: no`, there are no mutation controls. The failing-before test is the control, and there is no replay.
 
 ### Review panel scale
@@ -65,7 +68,9 @@ A mixed change gets the union of the rows of its classes. The larger round count
 
 ## Consequences
 
-- A docs commit runs `check-docs` in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints.
+- A docs commit runs `check-docs` in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints, or reuses a stamp.
+- A filtered commit can break a test outside its filter. The last commit of the slice and the push check find it.
+- The replay after a fix misses a control that only a change in a caller in a third file makes unreachable.
 - The path table is one place to change. A wrong class lets a red commit through, so its test compares the whole output for each class and checks the fail-closed exits.
 - Fewer mutation controls run. A defect in a guard outside the risk floor can land when its failing-before test is weak. The plan can raise such a guard to risk.
 - The workflow docs stop growing by one rule for each learning. A rule that does not fit the budget waits for a consolidation run.

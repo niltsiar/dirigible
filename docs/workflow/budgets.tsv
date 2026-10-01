@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31139	2026-10-01-live-take-view (decisions.tsv 2026-10-01T16:30: the reflect panel fix, the privacy prompt line of driving-the-app.md; goal 30200)
+TOTAL	31274	2026-10-01-workflow-speed D1 (decisions.tsv 2026-10-01T19:05: the FILTER rule, the pass stamp, and the Phase 7 push check; goal 30200)

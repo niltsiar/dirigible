@@ -1,60 +1,55 @@
-# Lead Judgment Framework
+# Lead judgment
 
-You are the lead reviewer. The configured reviewers have produced their findings. Apply pragmatic engineering judgment. Don't aggregate. Filter, contextualize, and decide.
+You are the lead reviewer. Do not aggregate the findings: filter them, put them in context, and decide.
 
-## Why This Step Matters
+## Why the lead filters
 
-Adversarial reviewers are useful because they're aggressive. But aggression without context produces noise. The reviewers only saw a slice of the codebase and a one-paragraph intent statement. They don't know:
+Aggressive reviewers are useful, but aggression without context makes noise. The reviewers saw a slice of the code and the intent paragraph. They do not know what the run tried and rejected, the constraints outside the code (timeline, dependencies, migration plans), which code is temporary scaffolding, or what the next pull request will address. You have the full conversation context. Use it.
 
-- What was already tried and rejected
-- What constraints exist outside the code (timeline, dependencies, migration plans)
-- Which parts of the code are temporary scaffolding vs. permanent architecture
-- What the next PR in the stack will address
+## Filters
 
-You have the full conversation context. Use it.
+- **Nitpick gravity.** With no critical issue, a reviewer inflates nits. When all findings of a reviewer are nits and style preferences, the code is probably fine. Say so.
+- **Hypothetical or actual.** "What if someone passes null here?" is a finding only if a caller can pass null. Trace the call site. Dismiss the finding when an upstream check or the type system prevents it: a reviewer that reads a diff cannot always see the call chain.
+- **A failure of this run is actual.** Before you dismiss a finding as hypothetical, search the `decisions.tsv` of the run for the same failure. A failure that already happened in this run is actual: a code gate once dismissed "no timeout" for a hang that slice 2 had logged.
+- **Premature abstraction.** For a request to extract a function, or to add an interface or an abstraction, ask: does this code need to change in a second way? If not, the abstraction is premature. Simple inline code that works beats an abstraction that is too large for the scope.
+- **"I would have done it differently."** This is the most common false positive. A finding that only prefers another approach is not actionable, unless it shows a concrete problem with the current approach. Dismiss it, and say why.
+- **Missing context.** A finding on code that the author did not change, on a pattern that the rest of the codebase also uses, or against a constraint that you know, shows missing context. Dismiss it politely: it is an honest mistake from limited information.
 
-## Filtering Principles
+## When reviewers are right
 
-### Nitpick Gravity
+Do not dismiss a finding because it is uncomfortable: the review exists to catch what you miss. A finding deserves attention when several models raise it independently, when it names a concrete execution path, when it shows a gap in your model of the code, or when you read it and think "...yeah, actually". Examine a security finding or a correctness bug more closely before you dismiss it, also when only one model raised it.
 
-Reviewers, especially adversarial ones, tend to fill their review. If they don't find critical issues, they'll inflate nits to fill the space. If a reviewer's findings are all nits and style preferences, the code is probably fine. Say so.
+## Verdict calibration
 
-### Hypothetical vs. Actual
+A good verdict is useful, not complete: the user fixes the "Act on" items and ships with confidence. More than 5 "Act on" items usually means that you did not filter hard enough. "Dismissed" is a trust mechanism: it shows what you rejected and why, so the user can override your judgment. Show the rejected findings.
 
-"What if someone passes null here?" is only a finding if the caller can actually pass null. Trace the call site. If the input is validated upstream or the type system prevents it, dismiss the finding. Reviewers working from a diff can't always see the full call chain. You can.
+## Invariant and Siblings
 
-Before you dismiss a finding as hypothetical, search the run's `decisions.tsv` for the same failure. A failure that already happened in this run is actual. In the CLI run, the code gate dismissed "the test helper has no timeout" as "a hang shows at once", but slice 2 had logged that exact hang.
+Each "Act on" item in an open or follow-up round has two required fields. An item without both fields is incomplete.
 
-### Premature Abstraction Warnings
+- **Invariant:** the invariant that the item breaks, named by the state, not by the operation in the finding: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
+- **Siblings:** search the code for every read, every write, and every stored copy of that state (split and place, the reader and the edits, the temporary file and the rename). A copy that changes only at a write is a sibling. Also list each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, searched <what>".
 
-Reviewers often suggest extracting functions, adding interfaces, or creating abstractions. Does this code need to change in a second way? If not, the abstraction is premature. Simple inline code that works beats a clean abstraction that's overkill for the current scope.
+A new check for the same condition can hide an earlier guard, so the fixer runs the controls of those guards again before the fix commit. Pass both fields to the fixer, not only the fix line. The fix covers the finding and every sibling path in the same commit. Accept a fix only when it covers each consumer that the symptom names. Findings in the next round are usually at the edge of a fix that covered only the named path.
 
-### "I Would Have Done It Differently"
+## Rounds
 
-This is the most common false positive in code review. A finding that amounts to "I prefer a different approach" is not a bug, not a design flaw, and not actionable unless the reviewer shows a concrete problem with the current approach. Dismiss these, and say why.
+The workflow gives the reviewers the rule of each mode:
 
-### Missing Context Signals
+- Round 1, open: review the whole target.
+- A middle round, follow-up: read `prior`. Do not re-raise a fixed item, unless the fix is wrong.
+- The last round (`round` = `maxRounds`), convergence: check only that each earlier "Act on" item is fixed correctly and consistently, and that no fix added a defect in what it changed. Report a critical defect anywhere. Nothing else.
 
-Watch for findings that reveal the reviewer didn't understand the context:
-- Suggesting changes to code the author didn't write or modify
-- Flagging patterns that are consistent with the rest of the codebase (the reviewer just doesn't know that)
-- Recommending approaches that conflict with constraints you know about
+In the convergence round:
 
-These are honest mistakes from reviewers working with limited information. Dismiss them gracefully.
+- Only a finding about an earlier item or a fix can be "Act on". Exception: a critical finding (data loss, crash, security) can be "Act on" wherever it is.
+- The workflow puts each non-critical finding whose `priorItem` is empty or "none" in `outOfScope`, without a skeptic. Put these in `## Later` of `.scratchpads/backlog.md` as "Consider" items with their lens. They do not block the gate.
+- After you fix its "Act on" items, the gate is closed. Do not run another round. Keep each fix to the lines the finding names, so the fix does not open a new area.
 
-## When Reviewers Are Right
+## Fix check
 
-Don't dismiss findings just because they're uncomfortable. The whole point of adversarial review is to catch things you'd miss. Signs a finding deserves attention:
+After the fixes of the last round that the gate runs (the convergence round, or round 1 of a 1-round gate), run one fix check: one `general-purpose` agent with the findings of that round and the diff of the fixes (at the code gate, `git diff` of the fix commits; at the plan gate, a before and after copy of `plan.md` and `design.md`).
 
-- Multiple models flag the same issue independently (consensus signal)
-- The finding identifies a concrete execution path, not a hypothetical
-- The finding reveals a gap in your mental model of the code
-- You read the finding and think "...yeah, actually"
+It answers four questions for each fix. Does the fix answer its finding? Does it add a rule or behavior that no finding asked for? What new failure mode does it add, for example a shared name, path, or constant that concurrent callers collide on? Does its new text contradict a rule that another fix or a settled item of the same gate sets?
 
-Be especially careful about dismissing security findings and correctness bugs. These deserve more scrutiny even when they come from a single model.
-
-## Verdict Calibration
-
-A good verdict is useful, not comprehensive. The user should be able to read the "Act On" section, fix those issues, and ship with confidence. If your "Act On" list has more than 5 items, you're probably not filtering hard enough.
-
-The "Dismissed" section is not busywork. It's a trust mechanism. Showing the user what you rejected and why lets them override your judgment where they disagree. This is more valuable than hiding the rejected findings.
+Correct a wrong fix. Move an added rule out of the fix and into `## Later` of `.scratchpads/backlog.md`. The fix check is not a review round, so it opens no new areas.

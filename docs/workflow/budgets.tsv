@@ -28,12 +28,12 @@ path	words	decision
 .claude/skills/domain-modeling/ADR-FORMAT.md	432	baseline
 .claude/skills/domain-modeling/CONTEXT-FORMAT.md	335	baseline
 .claude/skills/domain-modeling/SKILL.md	530	baseline
-.claude/skills/interrogate/	4373	baseline
-.claude/skills/interrogate/SKILL.md	1497	baseline
-.claude/skills/interrogate/references/code-quality-review.md	808	baseline
-.claude/skills/interrogate/references/lead-judgment.md	600	baseline
-.claude/skills/interrogate/references/reviewer-prompt.md	521	baseline
-.claude/skills/interrogate/references/rubric.md	947	baseline
+.claude/skills/interrogate/	3999	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
+.claude/skills/interrogate/SKILL.md	900	0028 (2026-09-30-workflow-consolidation slice 7: row 900, SKILL.md 898 words)
+.claude/skills/interrogate/references/code-quality-review.md	666	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
+.claude/skills/interrogate/references/lead-judgment.md	1051	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
+.claude/skills/interrogate/references/reviewer-prompt.md	533	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
+.claude/skills/interrogate/references/rubric.md	851	2026-09-30-workflow-consolidation slice 7 (decisions.tsv 2026-10-01T02:21: interrogate folder budget row 3999)
 .claude/skills/pr/	753	baseline
 .claude/skills/pr/CREDITS.md	71	baseline
 .claude/skills/pr/SKILL.md	682	baseline

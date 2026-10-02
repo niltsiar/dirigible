@@ -1,11 +1,11 @@
 #!/bin/bash
 # Check each line that cost.sh prints for a fixture run folder: the phase blocks of decisions.tsv,
-# the check and bench logs and their repeats, the controls, the late on-screen findings, the
-# missed unknowns by result token, the critical findings of the review files, the friction rows by
-# result token, the run window, the agents and the idle gaps of a transcript
-# in that window, and the pace lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a folder with
-# no logs/ and no controls/. Check that the deliver Autonomy line that names cost.sh holds each
-# token of the cost.sh regex. Check that scripts/bench.sh prints its bench line before the build. Run by `make test-hooks`.
+# the check and bench logs and their repeats, the controls, the late on-screen findings, the missed
+# unknowns by result token, the critical findings of the review files, the friction rows by result
+# token, the run window, the agents and the idle gaps of a transcript in that window, and the pace
+# lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a folder with
+# no logs/ and no controls/. Check that scripts/bench.sh prints its bench line before the build.
+# Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 cost="$here/cost.sh"
@@ -71,6 +71,7 @@ mkdir -p "$run/eval/sets"
   printf 'D1 (critical, devils-advocate). Refuted.\n'
 } > "$run/review-plan-1.md"
 printf '# Code gate round 1\n\nG3 (critical, eval). A flat list with no section heading.\n' > "$run/review-diff-1.md"
+printf '# Code gate round 2\n\n## Act-On\n\nG4 (critical, harness). A heading with a hyphen.\n' > "$run/review-diff-2.md"
 printf '| P10 (critical) | yes |\n' > "$run/fix-check-plan.md"
 printf 'G9 (critical, eval). A copy.\n' > "$run/eval/sets/review-diff-1.md"
 # The folder birth time: on APFS, a modification time before the birth time moves the birth time.
@@ -119,8 +120,8 @@ benches: 3 bench logs, 2 pairs sets, 1 repeated (same commit and filter)
 controls: 3 written, 2 replayed
 late on-screen: 1
 missed unknowns: 1
-critical findings: 3
-friction: 8
+critical findings: 4
+friction: 9
 window: 2026-09-20T08:20 to 2026-09-20T11:30
 agents: 3
 idle: 12 min in 1 gaps over 5 min
@@ -171,16 +172,6 @@ for zone in UTC:2 Etc/GMT-2:1; do
   out="$(cd "$tmp" && TZ="${zone%:*}" PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tmp/tz.jsonl" 2>&1)"
   grep -qx "agents: ${zone#*:}" <<<"$out" || fail "run window in TZ ${zone%:*}: want agents: ${zone#*:}: $(grep '^agents' <<<"$out")"
 done
-
-# The writer side of the tokens: the deliver Autonomy line that names cost.sh holds each token of
-# the friction regex of cost.sh, in any case.
-tokens="$(grep -oE '\(not verified[|][^)]*\)' "$cost" | head -n 1 | tr -d '()' | tr '|' '\n')"
-writer="$(awk '/^## /{ s = $0; next } s == "## Autonomy rules" && /cost\.sh/' "$here/../../deliver/SKILL.md")"
-if [[ -z "$tokens" || -z "$writer" ]]; then
-  fail "token drift: no token list in cost.sh or no deliver Autonomy line that names cost.sh"
-else
-  while IFS= read -r t; do grep -qiF -- "$t" <<<"$writer" || fail "token drift: the deliver Autonomy line has no '$t'"; done <<<"$tokens"
-fi
 
 out="$("$cost" 2>&1)"
 code=$?

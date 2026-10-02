@@ -7,7 +7,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 # A minimal good tree: one research file, a brief with R1 and R10, releases for both, one accepted record,
-# three menu names in English and Spanish, a guide with each name in bold, and a README with an image.
+# three menu names in English and Spanish, a guide with each name in bold, a README with an image, and a
+# deliver Autonomy rules section with each friction token of a reflect cost.sh.
 good() {
   rm -rf "$tmp/docs" "$tmp/Support" "$tmp/README.md" "$tmp/.claude"
   mkdir -p "$tmp/docs/research" "$tmp/docs/requirements" "$tmp/docs/decisions" "$tmp/docs/images" \
@@ -34,9 +35,13 @@ good() {
   mkdir -p "$tmp/.claude/skills/s/references" "$tmp/docs/workflow"
   printf -- '---\nname: s\n---\n\nRead `references/r.md` when you need the detail.\n' > "$tmp/.claude/skills/s/SKILL.md"
   printf '# R\n\nDetail.\n' > "$tmp/.claude/skills/s/references/r.md"
+  mkdir -p "$tmp/.claude/skills/reflect/scripts" "$tmp/.claude/skills/deliver"
+  printf '#!/bin/bash\n# tokens: /^(not verified|flake|fail)([^a-z]|$)/\n' > "$tmp/.claude/skills/reflect/scripts/cost.sh"
+  printf -- '---\nname: deliver\n---\n\n## Autonomy rules\n\n- A row result starts with its token: `NOT VERIFIED`, `flake`, or `fail`.\n\n## Phase 7\n\nA `flake` here.\n' \
+    > "$tmp/.claude/skills/deliver/SKILL.md"
   printf 'path\twords\tdecision\n' > "$tmp/docs/workflow/budgets.tsv"
   printf '%s\t1000\tbaseline\n' AGENTS.md .claude/agents/x-reviewer.md \
-    .claude/skills/s/SKILL.md .claude/skills/s/references/r.md >> "$tmp/docs/workflow/budgets.tsv"
+    .claude/skills/s/SKILL.md .claude/skills/s/references/r.md .claude/skills/deliver/SKILL.md >> "$tmp/docs/workflow/budgets.tsv"
   printf '.claude/skills/s/\t5000\tbaseline\nTOTAL\t10000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"
   printf 'id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary\n%s\n%s\n' \
     'AGT-001	AGENTS.md	keep	AGENTS.md	scope	10edc92		product scope' \
@@ -123,6 +128,10 @@ good; sed -i '' '1s/$/	text/' "$tmp/docs/workflow/rules.tsv"; expect fail 'regis
 good; printf 'In run 2026-10-01-x the hook failed.\n' >> "$tmp/.claude/skills/s/references/r.md"; expect fail 'a date in a loaded doc' '.claude/skills/s/references/r.md:4: a date in a loaded doc'
 good; printf 'Since 2026-10-01, check.\n' >> "$tmp/AGENTS.md"; expect fail 'a date in AGENTS.md' 'AGENTS.md:5: a date in a loaded doc'
 good; printf 'Source: example.org, fetched 2026-07-18.\n' >> "$tmp/.claude/skills/s/SKILL.md"; expect pass 'a fetch date on a Source line'
+good; sed -i '' 's/, `flake`,/,/' "$tmp/.claude/skills/deliver/SKILL.md"; expect fail 'a cost.sh token only outside the deliver Autonomy rules' '.claude/skills/deliver/SKILL.md: the Autonomy rules have no `flake`'
+good; sed -i '' 's/`fail`\./`failed`./' "$tmp/.claude/skills/deliver/SKILL.md"; expect fail 'a cost.sh token only inside a longer word' '.claude/skills/deliver/SKILL.md: the Autonomy rules have no `fail`'
+good; printf '#!/bin/bash\n' > "$tmp/.claude/skills/reflect/scripts/cost.sh"; expect fail 'cost.sh with no token list' '.claude/skills/reflect/scripts/cost.sh: no token list'
+good; sed -i '' 's/^## Autonomy rules$/## Rules/' "$tmp/.claude/skills/deliver/SKILL.md"; expect fail 'deliver with no Autonomy rules section' '.claude/skills/deliver/SKILL.md: no ## Autonomy rules section'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

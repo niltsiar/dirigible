@@ -10,7 +10,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 ## Autonomy rules
 
 - For reversible work (AGENTS.md, Git), choose a default, log it in `decisions.tsv`, and continue. Its row result starts with `default`; its why and the PR body name what reverses it (`Reverse:`). `scripts/land.sh` needs no question. A privacy prompt of the verify copy: `driving-the-app.md`.
-- A row result starts with its token when one applies: `failed` (a check failed, not a planned red), `flake`, `survived`, `NOT VERIFIED`, or `missed unknown`. `cost.sh` of reflect counts only these tokens.
+- A row result starts with its token when one applies: `failed` or `fail` (a check failed, not a planned red), `flake`, `survived` (a mutant), `NOT VERIFIED`, or `missed unknown`. A token wins over `default`; then put `default` in the why.
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
 - Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool (AGENTS.md, Git). If the tool refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.

@@ -287,7 +287,8 @@ final class DeviceWriter: @unchecked Sendable {
     }
 
     /// A7 and A8: a process-list, default-output, or device-list event of a running app writer.
-    /// The found key rebuilds the tap when it has a new process or output; else the slot takes
+    /// The found key rebuilds the tap when it has a new process or output, and a slot main
+    /// sub-device that is not in the device list rebuilds it (code gate 3 H1); else the slot takes
     /// the found set (fix check 2) and the tap goes on. No output device: lost.
     private func appChanged() {
         guard let app, let current = input?.key else { return }

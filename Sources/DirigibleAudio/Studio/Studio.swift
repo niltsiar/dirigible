@@ -273,14 +273,19 @@ import Observation
         diskWatcher = nil
         let error = await serialized { () async -> StudioError? in
             var gaps: [TrackID: TakeResult.Gap] = [:]
+            var silent: [TrackID: String] = [:]
             for writer in writers.values {
                 for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
+                if let app = await writer.silentApp() {
+                    for (track, owner) in armed where owner === writer { silent[track] = app }
+                }
             }
             let dropped = armed.compactMap { track in
                 track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil
             }
             lastTake = TakeResult(
-                take: take, end: end, gaps: gaps, droppedFrames: Dictionary(uniqueKeysWithValues: dropped))
+                take: take, end: end, gaps: gaps, droppedFrames: Dictionary(uniqueKeysWithValues: dropped),
+                silent: silent)
             writers = [:]
             armed = []
             liveTracks = [:]

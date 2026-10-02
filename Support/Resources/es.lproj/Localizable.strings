@@ -95,6 +95,7 @@
 "track.state.write.failed" = "Error de escritura";
 "track.state.retry.stopped" = "Se dejó de reintentar. Desactiva y activa Monitorizar entradas.";
 "track.state.waiting.app" = "Esperando a %@";
+"track.state.no.sound" = "No hay sonido de %1$@. Si %1$@ reproduce sonido, permite Dirigible en Privacidad y seguridad > Grabación de audio del sistema.";
 "track.dropped" = "Tramas perdidas: %lld";
 "take.recording" = "Grabando la toma %lld";
 "take.finishing" = "Terminando la toma %lld…";

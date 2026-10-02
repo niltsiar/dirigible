@@ -259,3 +259,52 @@ func makeTap(_ found: AppFound) throws(HALError) -> (id: AudioObjectID, device: 
     }
     return (aggregate, device, teardown)
 }
+
+/// A9: the silence check of an app track for one take, by record host time. It starts at the
+/// first drain with a matched process. After 5.0 s of zeros while a matched process plays, it
+/// warns once; it rebuilds the tap at the warning, 10 s after it, and 40 s after it. The first
+/// sample that is not zero ends it: no warning and no rebuild after it. It reads the playing
+/// flag at most once for each second of records.
+struct SilenceCheck {
+    /// The zeros before the warning.
+    static let limit: UInt64 = 5_000_000_000
+    /// The rebuilds after the warning.
+    static let rebuilds: [UInt64] = [0, 10_000_000_000, 40_000_000_000]
+    static let readInterval: UInt64 = 1_000_000_000
+
+    /// True after a routed sample that is not zero in the take.
+    private(set) var heard = false
+    /// The host time of the first drain with a process: the start of the zeros.
+    private var start: UInt64?
+    /// The host time of the last record.
+    private var last: UInt64?
+    private(set) var warnedAt: UInt64?
+    private var done = 0
+    private var nextRead: UInt64 = 0
+
+    /// True while the track shows the warning: it warned and no sound came.
+    var warns: Bool { warnedAt != nil && !heard }
+
+    /// Takes one drain: the host times of its first and last records, whether a routed sample
+    /// was not zero, and whether the tap has a matched process.
+    mutating func take(firstHost: UInt64, lastHost: UInt64, heard: Bool, hasProcess: Bool) {
+        if heard { self.heard = true }
+        if start == nil, hasProcess { start = firstHost }
+        last = lastHost
+    }
+
+    /// The warning and the rebuild that are due now. `playing` reads the app; it runs only when
+    /// a step is due by time, and at most once for each second of records.
+    mutating func due(playing: () -> Bool) -> (warn: Bool, rebuild: Bool) {
+        guard !heard, let start, let last, done < Self.rebuilds.count else { return (false, false) }
+        let from = warnedAt ?? start
+        let wait = warnedAt == nil ? Self.limit : Self.rebuilds[done]
+        guard last &- from >= wait, last >= nextRead else { return (false, false) }
+        nextRead = last &+ Self.readInterval
+        guard playing() else { return (false, false) }
+        let warn = warnedAt == nil
+        if warn { warnedAt = last }
+        done += 1
+        return (warn, true)
+    }
+}

@@ -70,6 +70,8 @@ final class DeviceWriter: @unchecked Sendable {
     /// The last running state that an app writer reported: `.waitingForApp` while its app has no
     /// process, else `.recording`.
     private var appState = LiveTrack.State.recording
+    /// The silence check of an app track for the take (A9).
+    private var silence = SilenceCheck()
     /// The ring of an attach that threw before its IOProc existed: no call can reach it.
     private var spare: CaptureRing?
     private var unwatch: Detach?
@@ -170,6 +172,13 @@ final class DeviceWriter: @unchecked Sendable {
         queue.async { [self] in endHostNanos = end }
     }
 
+    /// The app name when the silence warning showed and no sound came in the take (A9), else nil.
+    func silentApp() async -> String? {
+        await withCheckedContinuation { done in
+            queue.async { [self] in done.resume(returning: silence.warns ? tracks.device.name : nil) }
+        }
+    }
+
     /// The WAV bytes of the take so far, for the disk rule.
     func wavBytes() async -> Int64 {
         await withCheckedContinuation { done in queue.async { [self] in done.resume(returning: tracks.wavBytes) } }
@@ -213,6 +222,7 @@ final class DeviceWriter: @unchecked Sendable {
 
     private func tick() {
         drain()
+        if app != nil, phase == .running { checkSilence() }
         let now = ContinuousClock.now
         if phase == .running, now - lastValid >= (hasRecord ? silenceLimit : firstRecordLimit) {
             lose()
@@ -229,6 +239,7 @@ final class DeviceWriter: @unchecked Sendable {
         guard phase != .finished, let ring = input?.input.ring else { return }
         let end = ring.end()
         var lost = ring.takeDroppedFrames()
+        var hosts: (first: UInt64, last: UInt64)?
         while let popped = ring.pop(before: end) {
             guard let record = popped.record else {
                 tracks.endSegment()
@@ -238,12 +249,17 @@ final class DeviceWriter: @unchecked Sendable {
             if record.hostTimeNanos < endHostNanos, !tracks.write(record) { lost += record.frameCount }
             lastValid = .now
             hasRecord = true
+            hosts = (hosts?.first ?? record.hostTimeNanos, record.hostTimeNanos)
         }
         dropped.wrappingIncrement(by: lost, ordering: .relaxed)
+        let levels = tracks.takeLevels()
+        if app != nil, let hosts {
+            silence.take(
+                firstHost: hosts.first, lastHost: hosts.last, heard: levels.values.contains { $0.peak > 0 },
+                hasProcess: input?.key?.processes.isEmpty == false)
+        }
         report(
-            .levels(
-                take: tracks.take, arms: tracks.takeLevels(), latencyNanos: tracks.latencyNanos,
-                droppedFrames: droppedFrames))
+            .levels(take: tracks.take, arms: levels, latencyNanos: tracks.latencyNanos, droppedFrames: droppedFrames))
     }
 
     /// Detaches the current input and writes the rest of its ring, then keeps the input.
@@ -311,11 +327,20 @@ final class DeviceWriter: @unchecked Sendable {
         reportAppState()
     }
 
-    /// Reports `.waitingForApp` when the app of the current tap has no process, and `.recording`
-    /// when it has one again: one report for each change.
+    /// A9: the silence warning and its rebuilds. The playing flag is a lookup of the app.
+    private func checkSilence() {
+        guard let app else { return }
+        let layout = ChannelLayout(channelCount: tracks.routedWidth) ?? .mono
+        let due = silence.due { hal.lookUpApp(app, layout)?.playing == true }
+        if due.rebuild { rebuild() } else { reportAppState() }
+    }
+
+    /// Reports `.waitingForApp` when the app of the current tap has no process, `.noSound` while
+    /// the silence warning shows, and `.recording` else: one report for each change.
     private func reportAppState() {
         guard app != nil, let key = input?.key else { return }
-        let state: LiveTrack.State = key.processes.isEmpty ? .waitingForApp : .recording
+        let state: LiveTrack.State =
+            key.processes.isEmpty ? .waitingForApp : silence.warns ? .noSound : .recording
         guard state != appState else { return }
         appState = state
         for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, state, status: nil)) }

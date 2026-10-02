@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-10-03. The device list also watches the default devices and the output data source (run 6b).
 - Amended: 2026-09-27. Monitor Inputs is a toolbar toggle and a Record menu item with Shift-Command-M. The check box in the window goes (see 0023).
 
 ## Context
@@ -34,7 +35,7 @@ Probes on 2026-09-24 (macOS 15.7.9, x86_64, Swift 6.2.4; `.scratchpads/runs/2026
 
 **Release.** `monitor(armed: [])`, the hand-over, and `settle()` release the devices. `settle()` empties the request and applies it first, then stops a take. The window turns its toggle off before it settles (close and Quit), so a cancelled close or quit shows the toggle off, the same as the monitor. No `deinit` releases a device. Every app path settles a studio before it drops it (0014).
 
-**Device list.** `DeviceList.shared` (`@Observable @MainActor`, in `DirigibleAudio`) installs one C listener on the device list of the system object, with no client data, in its first read off the main actor. The main actor makes no HAL call. It never removes it. At each call, and when a window becomes key, it reads `InputDevice.all()` off the main actor, one read at a time. Each window reads its menus from it. The 2 s poll goes. A route whose device is not in the list shows "missing"; a monitored track whose device goes away shows "device lost".
+**Device list.** `DeviceList.shared` (`@Observable @MainActor`, in `DirigibleAudio`) installs one C listener on the device list, the default input device, and the default output device of the system object, with no client data, in its first read off the main actor. The main actor makes no HAL call. It never removes them. At each call, and when a window becomes key, it reads `InputDevice.all()` and the defaults (`AudioDefaults`: the default input UID and the speaker flag) off the main actor, one read at a time. Each read adds the same listener to the output data source of the default output device, once per device, before it reads the speaker flag. So no data source change falls between the add and the read. The flag is true only for transport `bltn` with data source `ispk`: a headphone plug changes the data source of the same device (probe P6). Each window reads its menus from it. The 2 s poll goes. A route whose device is not in the list shows "missing"; a monitored track whose device goes away shows "device lost".
 
 **CLI (0011).** No `dirigible monitor` and no `dirigible devices --watch`. The monitor writes nothing to a package, and its output is a live meter for a person; a command would hold the package lock only to meter; `dirigible record` already drives the same IOProc, ring, drain, and peak path. A watch mode needs a long-running loop, a stop on SIGINT, and an output frame, and no script needs it now. A test with a private aggregate device proves the listener with no hardware.
 

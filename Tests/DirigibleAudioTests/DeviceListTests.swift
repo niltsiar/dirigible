@@ -1,5 +1,6 @@
 import CoreAudio
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -53,5 +54,37 @@ struct DeviceListTests {
     @Test func aMissingUIDOrAGoneObjectGivesNil() {
         #expect(InputDevice.lookUp(uid: "no-such-device") == nil)
         #expect(InputDevice.read(AudioObjectID(0xDEAD)) == nil)
+    }
+    // MARK: B2, the default devices
+
+    /// B2a: only the built-in transport with the internal speaker data source is the speakers.
+    @Test func onlyBuiltInSpeakersCountAsSpeakers() {
+        let (speaker, headphones): (UInt32, UInt32) = (0x6973_706B, 0x6864_706E)  // 'ispk', 'hdpn'
+        let cases: [(name: String, transport: UInt32?, dataSource: UInt32?, speakers: Bool)] = [
+            ("bltn ispk", kAudioDeviceTransportTypeBuiltIn, speaker, true),
+            ("bltn hdpn", kAudioDeviceTransportTypeBuiltIn, headphones, false),
+            ("usb nil", kAudioDeviceTransportTypeUSB, nil, false),
+            ("blue nil", kAudioDeviceTransportTypeBluetooth, nil, false),
+            ("bltn nil", kAudioDeviceTransportTypeBuiltIn, nil, false),
+            ("nil ispk", nil, speaker, false),
+        ]
+        for item in cases {
+            #expect(
+                isBuiltInSpeakers(transport: item.transport, dataSource: item.dataSource) == item.speakers,
+                "speaker rule wrong for \(item.name)")
+        }
+    }
+
+    /// B2b: each read also reads the defaults, also when the devices did not change.
+    @MainActor @Test func aChangeReadsTheDefaultsAgain() async {
+        let speakers = OSAllocatedUnfairLock(initialState: true)
+        let list = DeviceList(
+            read: { [] }, defaults: { AudioDefaults(inputUID: "mic", speakers: speakers.withLock { $0 }) })
+        await until(limit: .seconds(20), "no first read") { list.reads >= 1 }
+        #expect(list.defaults == AudioDefaults(inputUID: "mic", speakers: true), "the first read set no defaults")
+        speakers.withLock { $0 = false }
+        list.changed()
+        await until(limit: .seconds(20), "no second read") { list.reads >= 2 }
+        #expect(!list.defaults.speakers, "the read again kept the old speaker flag")
     }
 }

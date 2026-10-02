@@ -1,7 +1,5 @@
 #!/bin/bash
-# Refuse a commit that fails the format check or does not build, tests included.
-# It checks the working tree, not only the staged files. `make setup` enables this hook.
-# The full gate is `make check`; this hook keeps only the fast part so every commit pays for it.
+# Refuse a commit that fails the format check. It checks the working tree, not only the staged
+# files. `make setup` enables this hook. Tests run in the tdd loop and in the push check, not here.
 set -euo pipefail
 make --no-print-directory lint
-swift build --build-tests --quiet

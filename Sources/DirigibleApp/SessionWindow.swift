@@ -168,10 +168,11 @@ enum WindowAlert: Hashable {
         }
     }
 
-    /// Shows an open studio: each track with a route arms, and the window follows `Studio.url`.
+    /// Shows an open studio: each routed track arms, except a track that takes a channel of an
+    /// earlier armed track (`tracksToArm`). The window follows `Studio.url`.
     /// The studio gets the studios of the other windows: a take ends their exports (decision 0019).
     func adopt(_ studio: Studio) {
-        armed = Set(studio.session.tracks.filter { $0.route != nil }.map(\.id))
+        armed = Set(tracksToArm(studio.session.tracks))
         studio.otherStudios = { [weak app, weak studio] in
             app?.windows.values.compactMap(\.studio).filter { $0 !== studio } ?? []
         }

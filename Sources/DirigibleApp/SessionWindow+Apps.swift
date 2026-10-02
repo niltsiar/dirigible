@@ -57,11 +57,8 @@ extension SessionWindow {
                 return [host, guest]
             })
         else { return }
-        for id in added {
-            if let route = idleStudio?.session.track(id)?.route, takenChannels(route).isDisjoint(with: taken) {
-                armed.insert(id)
-            }
-        }
+        let tracks = added.compactMap { idleStudio?.session.track($0) }
+        armed.formUnion(tracksToArm(tracks, taken: taken))
     }
 
     /// Privacy & Security > System Audio Recording.
@@ -93,6 +90,19 @@ func takenChannels(_ route: Route?) -> Set<Route> {
     case nil: []
     case .device(let uid, let channels): Set(channels.numbers.map { .device(uid: uid, channels: .mono($0)) })
     case .app(let bundleID): [.app(bundleID: bundleID)]
+    }
+}
+
+/// The routed tracks of `tracks` that can arm, in order: a track arms when it takes no channel of
+/// `taken` and no channel of an earlier track that arms. The others keep their routes. So Record
+/// does not fail with `channelInUse`.
+func tracksToArm(_ tracks: [Track], taken: Set<Route> = []) -> [TrackID] {
+    var taken = taken
+    return tracks.compactMap { track in
+        let channels = takenChannels(track.route)
+        guard !channels.isEmpty, channels.isDisjoint(with: taken) else { return nil }
+        taken.formUnion(channels)
+        return track.id
     }
 }
 

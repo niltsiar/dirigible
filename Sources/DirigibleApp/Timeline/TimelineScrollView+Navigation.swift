@@ -13,9 +13,9 @@ extension TimelineScrollView {
             end: end(of: source.session), rate: source.session.sampleRate)
     }
 
-    /// The one entry of every zoom and scroll input (decision 0025). A scroll holds the follow
-    /// during play or a take (0017); during a lane gesture no input changes the scale. After a
-    /// take, the input drops the held end first; during a take, the end stays.
+    /// The one entry of every zoom and scroll input (decision 0025). A scroll that moves the view
+    /// holds the follow during play or a take (0017); during a lane gesture no input changes the
+    /// scale. After a take, the input drops the held end first; during a take, the end stays.
     func navigate(_ input: NavigationInput) {
         if !taking { holdEnd(nil) }
         guard let viewport, let model else { return }
@@ -26,7 +26,8 @@ extension TimelineScrollView {
             (model.timeline.canGoBack, model.timeline.canGoForward) = (navigation.canGoBack, navigation.canGoForward)
         }
         guard let target else { return }
-        if input.scrolls { userScrolled() }
+        // Only a move holds: Page Previous at the start or a clamped scroll keeps the follow.
+        if input.scrolls, target.origin != viewport.origin { userScrolled() }
         show(target.scale, origin: target.origin)
         // VoiceOver hears a discrete input or the end of a stroke, not each event of a drag (U15).
         guard !overviewGesture.isActive, !gesture.isActive else { return }
@@ -138,7 +139,7 @@ extension TimelineScrollView {
 
     override func scrollWheel(with event: NSEvent) {
         guard event.modifierFlags.contains(.command) else {
-            // Only a horizontal move holds: a vertical scroll or a brush keeps the follow (P1).
+            // Only a horizontal move holds: a vertical scroll or a brush keeps the follow.
             let before = origin
             super.scrollWheel(with: event)
             if origin != before { userScrolled() }

@@ -129,6 +129,34 @@ struct AppBundleTests {
         #expect(info.contains("\"PlatformVersion\" : \"14.0\""), "Assets.car targets macOS 14.0")
     }
 
+    /// The user guide: an HTML page that `scripts/guide-html.swift` makes from `docs/guide.md`.
+    /// Each image resolves to a file in `Guide/images/`, and each anchor link names a heading id.
+    @Test func theGuideIsInTheBundleWithItsImages() throws {
+        let guide = app.appending(path: "Contents/Resources/Guide/guide.html")
+        let html = try String(contentsOf: guide, encoding: .utf8)
+        #expect(html.contains("<meta charset=\"utf-8\">"))
+        #expect(html.contains("<h1 id=\"dirigible-user-guide\">Dirigible user guide</h1>"))
+        #expect(html.contains("<table>"))
+
+        let images = guide.deletingLastPathComponent().appending(path: "images").path + "/"
+        let sources = html.matches(of: #/src="([^"]+)"/#).map { String($0.1) }
+        #expect(!sources.isEmpty, "the guide shows an image")
+        for source in sources {
+            let file = try #require(URL(string: source, relativeTo: guide)).standardizedFileURL
+            #expect(file.path.hasPrefix(images), "src \(source) is outside Guide/images/")
+            #expect(FileManager.default.fileExists(atPath: file.path), "src \(source) names no file")
+        }
+
+        let ids = Set(html.matches(of: #/ id="([^"]+)"/#).map { String($0.1) })
+        for link in html.matches(of: #/href="([^"]+)"/#).map({ String($0.1) }) {
+            if link.hasPrefix("#") {
+                #expect(ids.contains(String(link.dropFirst())), "no heading for \(link)")
+            } else {
+                #expect(link.hasPrefix("https://"), "the bundled guide cannot open \(link)")
+            }
+        }
+    }
+
     private func propertyList(at path: String) throws -> [String: Any] {
         let data = try Data(contentsOf: app.appending(path: path))
         return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])

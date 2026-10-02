@@ -4,7 +4,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 ## Before you start
 
-- Install Dirigible. The steps are in the [Install section of the README](../README.md#install).
+- Install Dirigible. The steps are in the Install section of the README.
 - The first time that you monitor or record, macOS asks for access to the microphone. If you do not allow the access, Dirigible cannot record. The window then shows the button **Open Privacy Settings**, which opens the setting.
 - A session is one item in Finder, with the name that you give it. Close the session in Dirigible before you copy or move it. Do not change the files inside it.
 - Only one window can open a session at a time.
@@ -68,8 +68,7 @@ A take is one recording, from Record to Stop. After Stop, Dirigible finalizes th
 2. Press Space to play. The playhead moves.
 3. Press Space again to stop. The playhead stays where it stopped.
 
-> [!WARNING]
-> Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
+> **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
 >
 > If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z). The old audio comes back. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 >
@@ -100,7 +99,7 @@ The in point is the start of the selection, and the out point is the end. With n
 
 ## Find your way in a long session
 
-<img src="images/screenshot-zoom.png" width="800" alt="The Dirigible window zoomed to a selection from the marker Intro to the chapter Interview.">
+![The Dirigible window zoomed to a selection from the marker Intro to the chapter Interview.](images/screenshot-zoom.png)
 
 ### Play and move the playhead
 

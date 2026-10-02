@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the app bundle: universal release binary, Info.plist, app icon, and signature.
+# Build the app bundle: universal release binary, Info.plist, app icon, user guide, and signature.
 # The first argument is the bundle path (default build/Dirigible.app). It must be
 # build/<name>.app, because the script deletes that folder first.
 # SIGN_IDENTITY defaults to "-" (ad-hoc). Set it to a local self-signed certificate
@@ -25,6 +25,12 @@ cp "$BIN_DIR/DirigibleApp" "$APP/Contents/MacOS/Dirigible"
 cp Support/Info.plist "$APP/Contents/Info.plist"
 cp -R Support/Resources/. "$APP/Contents/Resources/"
 cp build/icon/Assets.car build/icon/AppIcon.icns "$APP/Contents/Resources/"
+# The user guide as an HTML page, with only the images that it shows. Help > Dirigible Guide
+# opens it. guide-html.swift accepts only images/<name> paths.
+GUIDE="$APP/Contents/Resources/Guide"
+mkdir -p "$GUIDE/images"
+images="$(swift scripts/guide-html.swift docs/guide.md "$GUIDE/guide.html")"
+for image in $images; do cp "docs/$image" "$GUIDE/$image"; done
 codesign --force --sign "$SIGN_IDENTITY" --timestamp=none "$APP"
 
 echo "$APP"

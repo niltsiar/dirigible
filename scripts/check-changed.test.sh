@@ -59,6 +59,7 @@ expect 'Support' "$(out bundle 'check test-dmg' no)" --push <<<'Support/Info.pli
 expect 'bundle script before the push' "$(out bundle 'check test-dmg' no)" --push <<<'scripts/bundle.sh'
 expect 'bundle script' "$(out bundle check no)" <<<'scripts/bundle.sh'
 expect 'app bundle test' "$(out bundle check no)" <<<'Tests/DirigibleTests/AppBundleTests.swift'
+expect 'guide converter' "$(out bundle check no)" <<<'scripts/guide-html.swift'
 expect 'unknown top-level file' "$(out build check no)" <<<'unknown.txt'
 expect 'docs and sources' "$(out 'docs sources' 'check-docs test' no)" \
   <<<$'docs/guide.md\nSources/DirigibleApp/AppDelegate.swift'

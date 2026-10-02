@@ -15,7 +15,9 @@ cat > "$tmp/good.md" <<'EOF'
 
 ### The dirigible tool
 
-Text with **bold**, `a < b`, [the top](#gua-one), and [Apple](https://www.apple.com).
+Text with **bold**, `a < b`, [the top](#gua-one), [Apple](https://www.apple.com), and <https://www.apple.com/mac/>.
+
+---
 
 ![The window](images/shot.png)
 
@@ -50,6 +52,8 @@ for want in \
     '<code>a &lt; b</code>' \
     '<a href="#gua-one">the top</a>' \
     '<a href="https://www.apple.com">Apple</a>' \
+    '<a href="https://www.apple.com/mac/">https://www.apple.com/mac/</a>' \
+    '<hr>' \
     '<img src="images/shot.png" alt="The window">' \
     '<ul><li><p>one</p>' \
     '<ol><li><p>first</p>' \
@@ -74,6 +78,11 @@ refuse 'inline HTML' 'raw HTML' 'Text <img src="images/shot.png"> here.'
 refuse 'block HTML' 'raw HTML' '<img src="images/shot.png">'
 refuse 'image outside images/' 'image outside images/: ../secret.png' '![x](../secret.png)'
 refuse 'remote image' 'image outside images/: https://a.b/x.png' '![x](https://a.b/x.png)'
+refuse 'linked image' 'linked image: ![x](images/shot.png)' '[![x](images/shot.png)](https://www.apple.com)'
+refuse 'relative link' 'a link that the bundled guide cannot open: ../README.md#install' 'See [the README](../README.md#install).'
+refuse 'reference link' 'a link that the bundled guide cannot open: ../README.md' $'See [the README][r].\n\n[r]: ../README.md'
+refuse 'http link' 'a link that the bundled guide cannot open: http://example.com' 'See [x](http://example.com).'
+refuse 'GitHub alert' 'GitHub alert' $'> [!WARNING]\n> Text.'
 
 output="$(swift "$here/guide-html.swift" "$tmp/missing.md" "$tmp/missing.html" 2>&1)"
 status=$?

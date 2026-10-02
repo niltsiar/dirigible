@@ -89,19 +89,17 @@ for doc in README.md docs/guide.md; do
     done
 done
 
-# The app bundle shows the guide as an HTML page (scripts/guide-html.swift). A guide link opens a
-# heading of the guide, an image in docs/images, or a web page. The converter refuses raw HTML, and
-# shows a GitHub alert as plain text. A tag in a code span or a code block is text, not a tag.
+# The app bundle shows the guide as an HTML page. A guide change runs only check-docs, so check-docs
+# runs the converter that scripts/bundle.sh runs: it refuses what the page cannot show.
+# GUIDE_HTML is a compiled converter: check-docs.test.sh compiles it once for all its cases.
 if [[ -f "$root/docs/guide.md" ]]; then
-    while IFS= read -r link; do
-        [[ "$link" =~ ^(#|images/|https://) ]] || err "docs/guide.md: a link that the bundled guide cannot open: $link"
-    done < <(grep -oE '\]\([^)[:space:]]+\)' "$root/docs/guide.md" | sed -E 's/^\]\(//; s/\)$//' || true)
-    while IFS= read -r msg; do err "docs/guide.md:$msg"; done < <(awk '
-        /^```/ { fence = !fence; next }
-        fence { next }
-        { line = $0; gsub(/`[^`]*`/, "", line) }
-        line ~ /<[A-Za-z\/!]/ { print NR ": a raw HTML tag" }
-        /^>[[:space:]]*\[!/ { print NR ": a GitHub alert" }' "$root/docs/guide.md")
+    page="$(mktemp)"
+    converter=("${GUIDE_HTML:-swift}")
+    [[ -n "${GUIDE_HTML:-}" ]] || converter+=("$(dirname "$0")/guide-html.swift")
+    if ! refused="$("${converter[@]}" "$root/docs/guide.md" "$page" 2>&1 >/dev/null)"; then
+        err "docs/guide.md: $refused"
+    fi
+    rm -f "$page"
 fi
 
 # Each agentType of the review panel has its agent file, and that file names the agent in its

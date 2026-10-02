@@ -2,7 +2,8 @@
 // usage: swift scripts/guide-html.swift <guide.md> <out.html>
 // It prints the path of each image, one per line, so scripts/bundle.sh copies only those files.
 // It refuses an element that the page cannot show: raw HTML, a block with no kind or an unknown
-// kind, or an image outside images/. Heading ids follow the slug rule of scripts/check-docs.sh.
+// kind, a GitHub alert, an image outside images/ or in a link, and a link that is not #<heading>
+// or https://. Heading ids follow the slug rule of scripts/check-docs.sh, which runs this script.
 // Exit: 0 written, 1 a refused element (no output file), 2 usage or a missing input.
 import Foundation
 
@@ -15,6 +16,10 @@ let arguments = CommandLine.arguments
 guard arguments.count == 3 else { stop("usage: swift scripts/guide-html.swift <guide.md> <out.html>", 2) }
 guard let markdown = try? String(contentsOfFile: arguments[1], encoding: .utf8) else {
     stop("no file \(arguments[1])", 2)
+}
+// The parser keeps only the link of a linked image and drops the image, so find it in the source.
+if let linked = markdown.range(of: #"\[!\[[^\]]*\]\([^)]*\)\]\("#, options: .regularExpression) {
+    stop("linked image: \(markdown[linked].dropFirst().dropLast(2))", 1)
 }
 let text: AttributedString
 do {
@@ -62,6 +67,7 @@ func tags(_ block: PresentationIntent.IntentType, parent: PresentationIntent.Int
     case .codeBlock: return ("<pre><code>", "</code></pre>\n")
     case .table: return ("<table>", "</table>\n")
     case .tableHeaderRow, .tableRow: return ("<tr>", "</tr>\n")
+    case .thematicBreak: return ("<hr>\n", "")
     case .tableCell:
         if case .tableHeaderRow = parent?.kind { return ("<th>", "</th>") }
         return ("<td>", "</td>")
@@ -79,6 +85,12 @@ for run in text.runs {
     if style.contains(.inlineHTML) || style.contains(.blockHTML) { stop("raw HTML: \(raw)", 1) }
     if !style.subtracting(known).isEmpty { stop("unknown inline style \(style.rawValue): \(raw)", 1) }
     guard let intent = run.presentationIntent else { stop("a block with no kind: \(raw)", 1) }
+    if raw.hasPrefix("[!"), intent.components.contains(where: { $0.kind == .blockQuote }) {
+        stop("GitHub alert: \(raw)", 1)
+    }
+    if let link = run.link?.relativeString, !link.hasPrefix("#"), !link.hasPrefix("https://") {
+        stop("a link that the bundled guide cannot open: \(link)", 1)
+    }
 
     // Close the blocks that this run is not in, then open its new blocks.
     let path = Array(intent.components.reversed())

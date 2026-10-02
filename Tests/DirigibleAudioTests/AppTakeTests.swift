@@ -58,6 +58,14 @@ struct AppTakeTests {
         return studio
     }
 
+    /// Waits until the host clock is `seconds` past the saved take start. Synthetic records in a
+    /// burst run ahead of the clock, and a stop ends the take at the host time of the stop (E1).
+    func passTakeTime(_ studio: Studio, seconds: Double) async throws {
+        let start = try #require(studio.session.recording?.takeStartHostTimeNanos)
+        let end = start &+ UInt64(seconds * 1e9)
+        while hostNanosNow() < end { try await Task.sleep(for: .milliseconds(20)) }
+    }
+
     func clips(_ studio: Studio, _ track: TrackID) -> [Clip] {
         studio.session.track(track).map { Array($0.clips) } ?? []
     }
@@ -92,6 +100,7 @@ struct AppTakeTests {
         appInput.play(appClock.run(seconds: 0.5), takeStartIn: url)
         await micInput.wait()
         await appInput.wait()
+        try await passTakeTime(studio, seconds: 0.6)
         try await studio.stopRecording()
 
         let clip = try #require(clips(studio, "t2").first, "a clip on the app track")
@@ -119,12 +128,13 @@ struct AppTakeTests {
             try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
             started.value = true
         }
-        await until(limit: .seconds(3), "the start waits for the app") { started.value }
+        // The held tap waits up to 30 s; a start that waits for it ends after this limit.
+        await until(limit: .seconds(20), "the start waits for the app") { started.value }
         try await start.value
         let micInput = SyntheticInput(hal, "mic")
         var micClock = DeviceClock()
         micInput.play(micClock.run(seconds: 3), pace: .realTime, takeStartIn: url)
-        await until(limit: .seconds(3), "the disk watch did not tick") { studio.recordTimeLeft != nil }
+        await until(limit: .seconds(20), "the disk watch did not tick") { studio.recordTimeLeft != nil }
         try await Task.sleep(for: .milliseconds(500))
         let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
         let stopHost = hostNanosNow()
@@ -326,6 +336,7 @@ struct AppTakeTests {
         appInput.play(appClock.run(seconds: 0.5), takeStartIn: url)
         await micInput.wait()
         await appInput.wait()
+        try await passTakeTime(studio, seconds: 0.6)
         try await studio.stopRecording()
 
         let host = try #require(clips(studio, "t1").first?.length.count)

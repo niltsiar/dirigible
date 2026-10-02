@@ -74,6 +74,14 @@ extension Studio {
         return ClipID(segment.stem)
     }
 
+    /// Starts the app writers after the first attach of each device writer (A5): a tap that
+    /// starts before the microphone of a Bluetooth headset can stop its IO ([MT-ARCH] in
+    /// `docs/research/process-taps.md`).
+    func startApps() async {
+        for writer in writers.values where writer.app == nil { await writer.started() }
+        for writer in writers.values where writer.app != nil { writer.start() }
+    }
+
     /// The device writer of `uid` in the take that records. For tests.
     func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
 
@@ -103,6 +111,7 @@ extension Studio {
                 return error
             }
             isStarting = false
+            await startApps()
             await handOver()
             return nil
         }

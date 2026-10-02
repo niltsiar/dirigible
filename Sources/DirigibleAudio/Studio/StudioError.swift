@@ -12,8 +12,11 @@ public enum StudioError: Error, Hashable, Sendable {
     case deviceMissing(TrackID)
     /// The route of the armed track names a channel that the device does not have.
     case channelOutOfRange(TrackID)
-    /// Two armed tracks route the same device channel: the first track and the second.
+    /// Two armed tracks route the same device channel, or the same app: the first track and the
+    /// second.
     case channelInUse(TrackID, TrackID)
+    /// An armed track has an app route, and this macOS has no process taps (14.0 and 14.1).
+    case appSourcesUnavailable
     case session(SessionError)
     case file(SessionFileError)
     case finalize(FinalizeError)

@@ -145,6 +145,7 @@ private func recordTake(
 private func refusedCode(_ error: StudioError) -> Int32 {
     switch error {
     case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .placementSpace,
+        .appSourcesUnavailable,
         .session,
         .segment:
         editRefused

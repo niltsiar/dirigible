@@ -93,7 +93,7 @@ struct TrackCommand: ParsableCommand {
 }
 
 /// The refusal of an app route on a macOS with no process taps (A14).
-let appSourcesUnavailable = "app sources need macOS 14.2 or later."
+let appSourcesUnavailableMessage = "app sources need macOS 14.2 or later."
 
 /// Exactly one route form: `--device` with `--channels`, `--app`, or `--none`. No command
 /// leaves the route unstated, so a layout change never removes a route by accident.
@@ -124,6 +124,6 @@ struct RouteOptions: ParsableArguments {
 
     /// Refuses an app route before the package lock when this macOS has no process taps.
     func checkAvailable(_ tapsAvailable: Bool) throws(ExitCode) {
-        if app != nil, !tapsAvailable { throw fail(appSourcesUnavailable, code: editRefused) }
+        if app != nil, !tapsAvailable { throw fail(appSourcesUnavailableMessage, code: editRefused) }
     }
 }

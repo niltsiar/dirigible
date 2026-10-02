@@ -1,4 +1,5 @@
 import Atomics
+import CoreAudio
 import DirigibleCore
 import Foundation
 
@@ -44,6 +45,9 @@ final class DeviceWriter: @unchecked Sendable {
     static let retryInterval = Duration.seconds(1)
 
     private let hal: DeviceHAL
+    /// The bundle ID of an app source (decision 0030), else nil. An app writer makes a tap and
+    /// its aggregate at each attach, and the detach tears both down.
+    let app: String?
     private let report: @Sendable (Report) -> Void
     private let drainInterval: Duration
     private let silenceLimit: Duration
@@ -54,8 +58,9 @@ final class DeviceWriter: @unchecked Sendable {
     private let queue: DispatchQueue
     private var tracks: TrackSegments
     private var phase = Phase.ready
-    /// The attached appearance of the device and its detach.
-    private var input: (input: DeviceInput, detach: Detach)?
+    /// The attached appearance of the device, its detach, and for an app the key of the
+    /// appearance (decision 0030).
+    private var input: (input: DeviceInput, detach: Detach, key: AppKey?)?
     /// The detaches that failed: a late IOProc call can still use their ring bytes.
     private var failedDetaches = 0
     /// The inputs that `keep` kept for the process life.
@@ -80,14 +85,16 @@ final class DeviceWriter: @unchecked Sendable {
     /// checks of `Studio` make every channel exist on the device. `files` is nil for a monitor,
     /// which reports take 0 (`tracks.take`). `drainInterval`,
     /// `silenceLimit`, `firstRecordLimit`, and `ringSeconds` are parameters so that tests stay
-    /// fast.
+    /// fast. `app` is the bundle ID of an app source; then `device` has the UID
+    /// `app:<bundle ID>` and the app name.
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?, hal: DeviceHAL,
         report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
         silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10,
-        keepLimit: Int = .max
+        keepLimit: Int = .max, app: String? = nil
     ) {
         self.hal = hal
+        self.app = app
         self.report = report
         self.drainInterval = drainInterval
         self.silenceLimit = silenceLimit
@@ -95,7 +102,8 @@ final class DeviceWriter: @unchecked Sendable {
         self.ringSeconds = ringSeconds
         self.keepLimit = keepLimit
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
-        self.tracks = TrackSegments(device: device, tracks: tracks, files: files, report: report)
+        self.tracks = TrackSegments(
+            device: device, tracks: tracks, files: files, report: report, routesLastChannels: app != nil)
     }
 
     deinit { timer?.cancel() }
@@ -167,7 +175,8 @@ final class DeviceWriter: @unchecked Sendable {
     private func handle(_ event: Event, from sender: DeviceInput?) {
         guard phase == .running || phase == .lost else { return }
         if case .devicesChanged = event {
-            if phase == .running, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose() }
+            // An app writer has no UID to look up: its own aggregate changes the device list.
+            if phase == .running, app == nil, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose() }
             return comeBack()
         }
         guard let current = input?.input, current === sender else { return }
@@ -235,7 +244,7 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// Detaches the current input and writes the rest of its ring, then keeps the input.
     private func detach() {
-        guard let (current, detach) = input else { return }
+        guard let (current, detach, _) = input else { return }
         let clean = detach()
         drain()
         keep(current, clean: clean)
@@ -283,9 +292,7 @@ final class DeviceWriter: @unchecked Sendable {
             }
             return false
         }
-        guard failedDetaches < Self.failedDetachLimit, let found = hal.lookUp(tracks.device.uid),
-            tracks.hasRoutedChannels(found.device)
-        else { return false }
+        guard failedDetaches < Self.failedDetachLimit, let found = find() else { return false }
         tracks.use(found.device)
         let capacity = CaptureRing.capacity(for: found.device, seconds: ringSeconds)
         if let spare, spare.capacity != capacity {
@@ -297,21 +304,43 @@ final class DeviceWriter: @unchecked Sendable {
         ring.setRate(found.device.nominalRate)
         let input = DeviceInput(id: found.id, ring: ring, writer: self)
         do throws(HALError) {
-            self.input = (input, try hal.attach(input))
+            let detach = try hal.attach(input)
+            let teardown = found.teardown
+            // Each step runs; the detach is clean only when both are (A6). The IOProc goes first:
+            // an aggregate destroy with a live IOProc gives late calls (probe P12).
+            self.input = (input, { [detach(), teardown()].allSatisfy { $0 } }, found.key)
         } catch .undoFailed {
+            _ = found.teardown()
             keep(input, clean: false)
             return false
         } catch .undone {
             // A listener call can still be in progress, as after a clean detach.
-            keep(input, clean: true)
+            keep(input, clean: found.teardown())
             return false
         } catch {
             spare = ring
+            if !found.teardown() { failedDetaches += 1 }
             return false
         }
         phase = .running
         lastValid = .now
         hasRecord = false
         return true
+    }
+
+    /// The device as the lookup finds it now with the routed channels. For an app, a new tap and
+    /// aggregate of its processes now (decision 0030); a device has no teardown.
+    private func find() -> (id: AudioObjectID, device: InputDevice, teardown: Detach, key: AppKey?)? {
+        guard let app else {
+            guard let found = hal.lookUp(tracks.device.uid), tracks.hasRoutedChannels(found.device) else { return nil }
+            return (found.id, found.device, { true }, nil)
+        }
+        let layout = ChannelLayout(channelCount: tracks.routedWidth) ?? .mono
+        guard let found = hal.lookUpApp(app, layout), let tap = try? hal.makeTap(found) else { return nil }
+        guard tracks.hasRoutedChannels(tap.device) else {
+            if !tap.teardown() { failedDetaches += 1 }
+            return nil
+        }
+        return (tap.id, tap.device, tap.teardown, found.key)
     }
 }

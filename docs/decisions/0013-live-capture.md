@@ -4,6 +4,7 @@
 - Date: 2026-09-24
 - Amended: 2026-09-24. A device writer with no take is a monitor. It writes no file, its ring holds 1 s, and it keeps at most 64 detached inputs (see 0015).
 - Amended: 2026-09-27. A take with no segment leaves its anchor file, so the next take has the next number (see 0024 P10). The generation rule does not change.
+- Amended: 2026-10-02. The writer slot of an app appearance owns its tap and aggregate; the detach also destroys both, and it is clean only when each step returns noErr. IsAlive false on an app aggregate rebuilds in place of a loss. The start reads the microphone status only when an armed track has a device route, and starts the app writers after each device writer attached (see 0030).
 
 ## Context
 

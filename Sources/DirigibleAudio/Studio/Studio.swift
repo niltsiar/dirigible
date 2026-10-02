@@ -249,6 +249,7 @@ import Observation
             diskWatcher = watchDisk()
             // A stop from now on waits for this step and does not throw `.busy`.
             isStarting = false
+            await startApps()
             await handOver()
             return .success((started.take, generation))
         }
@@ -320,7 +321,8 @@ import Observation
                 device: device, tracks: tracks, files: TakeFiles(take: started.take, folder: capture),
                 hal: environment.hal,
                 report: report, silenceLimit: environment.silenceLimit,
-                firstRecordLimit: environment.firstRecordLimit, ringSeconds: environment.ringSeconds)
+                firstRecordLimit: environment.firstRecordLimit, ringSeconds: environment.ringSeconds,
+                app: started.routes.first { $0.device == device }?.app)
         }
         // Every route's device is in `devices` above, so its writer exists.
         armed = started.routes.map { ($0.track, writers[$0.device.uid]!) }
@@ -331,7 +333,8 @@ import Observation
         recordingSince = .now
         beginLive(started)
         transport = .recording(take: started.take)
-        for writer in writers.values { writer.start() }
+        // `startApps` starts the app writers after each device writer attached (A5).
+        for writer in writers.values where writer.app == nil { writer.start() }
     }
 
     /// Finalize, the marker, and the save off the main actor, then the outcome here.

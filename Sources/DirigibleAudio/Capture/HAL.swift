@@ -1,4 +1,5 @@
 import CoreAudio
+import DirigibleCore
 
 /// One appearance of a device, from a successful `attach` to its detach: the object ID and the
 /// ring (decision 0013). A device that comes back gets a new `DeviceInput` with a new ring, so a
@@ -29,6 +30,15 @@ struct DeviceHAL: Sendable {
     /// Adds the device-list listener for the life of the take. Its client data holds the writer
     /// weakly, so a failed removal never keeps the writer alive.
     var watchDevices: @Sendable (_ writer: DeviceWriter) -> Detach
+    /// The app source of `bundleID` as the system shows it now, with reads only (decision 0030).
+    var lookUpApp: @Sendable (_ bundleID: String, _ layout: ChannelLayout) -> AppFound? = { _, _ in nil }
+    /// A tap of the processes of `found` and its private aggregate: the aggregate object ID, its
+    /// facts, and the teardown of both.
+    var makeTap:
+        @Sendable (_ found: AppFound) throws(HALError) -> (id: AudioObjectID, device: InputDevice, teardown: Detach) =
+            { _ throws(HALError) in throw .status(kAudioHardwareUnsupportedOperationError) }
+    /// The name of an app, else its bundle ID.
+    var appName: @Sendable (_ bundleID: String) -> String = { $0 }
 }
 
 /// Stops the device, destroys the IOProc, and removes the listeners. True when every call
@@ -185,7 +195,13 @@ extension DeviceHAL {
     static let live = DeviceHAL(
         lookUp: { InputDevice.lookUp(uid: $0) },
         attach: { input throws(HALError) in try attachLive(input) },
-        watchDevices: { writer in watchLive(writer) })
+        watchDevices: { writer in watchLive(writer) },
+        lookUpApp: { bundleID, layout in DirigibleAudio.lookUpApp(bundleID, layout: layout) },
+        makeTap: { found throws(HALError) in
+            guard #available(macOS 14.2, *) else { throw .status(kAudioHardwareUnsupportedOperationError) }
+            return try DirigibleAudio.makeTap(found)
+        },
+        appName: { DirigibleAudio.appName($0) })
 }
 
 /// A raw pointer that a `@Sendable` detach captures. The HAL owns what it points to.

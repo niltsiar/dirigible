@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check that pr-terms.sh lists each run-internal token of a PR body with its line and exits 1,
-# and passes each token that the repo resolves. Each case uses a temporary git repo with one
-# fixture row each in brief.md, evals.md, and rules.tsv, and one commit. Run by `make test-hooks`.
+# and passes each token that the repo resolves. Each case uses a temporary git repo with fixture
+# rows in brief.md, evals.md, and rules.tsv, and one commit. Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/pr-terms.sh"
 failures=0
@@ -18,7 +18,7 @@ mkdir -p "$repo/docs/requirements" "$repo/docs/workflow"
 git init -q "$repo"
 printf '| ID | Requirement |\n|---|---|\n| R13 | The UI is in English and Spanish. |\n| C1 | The DMG is not notarized. |\n' > "$repo/docs/requirements/brief.md"
 printf '| ID | Type |\n|---|---|\n| E4 | policy |\n' > "$repo/docs/workflow/evals.md"
-printf 'id\tfile\tverdict\nAGT-001\tAGENTS.md\tkeep\n' > "$repo/docs/workflow/rules.tsv"
+printf 'id\tfile\tverdict\nAGT-001\tAGENTS.md\tkeep\nDLV-001\tx\tkeep\nINT-001\tx\tkeep\n' > "$repo/docs/workflow/rules.tsv"
 git -C "$repo" add -A
 git -C "$repo" commit -q -m fixture
 # A hash that starts with a digit, so a removed hash would also lose a number.
@@ -58,6 +58,14 @@ flag 'a cause key' 'INT-054/scope' 'INT-054/scope' 'cause key'
 flag 'a new cause key' 'NEW-VER-x' 'NEW-VER-x' 'cause key'
 flag 'a rule ID with no row' 'AGT-099' 'AGT-099' 'run-internal ID'
 pass 'a rule ID with a row in rules.tsv' 'AGT-001'
+flag 'a rule ID of another prefix with no row' 'DLV-112' 'DLV-112' 'run-internal ID'
+# Real technical names: no rules.tsv prefix, three digits, or a chip name after Apple. A bare M2
+# is a manual-check ID.
+pass 'a hash function name' 'SHA-256'
+pass 'a cipher name' 'AES-128'
+pass 'a codec name' 'H264'
+pass 'a chip name' 'an Apple M1'
+flag 'a manual-check ID' '(M2)' 'M2' 'run-internal ID'
 flag 'a commit hash' "$hash" "$hash" 'commit hash'
 flag 'a commit hash in parentheses' "(see $hash)" "$hash" 'commit hash'
 flag 'a full commit hash' "$full" "$full" 'commit hash'

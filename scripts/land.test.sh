@@ -4,10 +4,11 @@
 # their arguments. Cases: the happy path, a red check, a rebase conflict (the rebase is aborted),
 # main moved after the check, a run on main or a detached HEAD, an untracked or a changed file, a
 # red governance check, `risk: yes` with and with no control row, a body that pr-terms.sh flags
-# (before the fetch), a pr-terms.sh error, a missing body file, and no arguments. The stamp cases:
-# a matching stamp runs no check, a delta after the stamp runs the targets of the delta, and no
-# usable stamp runs the full push check; the governance and the ancestor checks still run. The ratchet case runs the real make check-changed first, so the land
-# runs no check after it. Run by `make test-hooks`.
+# (before the fetch), a body that lost a number of logs/pr-draft.md, a pr-terms.sh error, a
+# missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta
+# after the stamp runs the targets of the delta, and no usable stamp runs the full push check; the
+# governance and the ancestor checks still run. The ratchet case runs the real make check-changed
+# first, so the land runs no check after it. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 land="$here/land.sh"
@@ -333,6 +334,21 @@ grep -q 'U3: run-internal ID' "$c/out" || fail "flagged body: U3 is not named: $
 grep -q 'writing-for-humans' "$c/out" || fail "flagged body: the skill is not named: $(cat "$c/out")"
 [[ "$(git -C "$c/work" rev-parse origin/main)" == "$before" ]] || fail 'flagged body: the fetch ran'
 no_side_effects 'flagged body'
+
+# A revision that lost a number of logs/pr-draft.md (the copy before the writing-for-humans
+# skill) refuses before the fetch.
+setup
+mkdir "$c/logs"
+printf 'The row is 31335.\n' > "$c/logs/pr-draft.md"
+printf 'The row is the real sum.\n' > "$c/pr.md"
+before="$(git -C "$c/work" rev-parse origin/main)"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "lost number: exit $code: $(cat "$c/out")"
+grep -q 'lost number: 31335' "$c/out" || fail "lost number: 31335 is not named: $(cat "$c/out")"
+grep -q 'restore' "$c/out" || fail "lost number: no reason: $(cat "$c/out")"
+[[ "$(git -C "$c/work" rev-parse origin/main)" == "$before" ]] || fail 'lost number: the fetch ran'
+no_side_effects 'lost number'
 
 # A pr-terms.sh error (exit 2) is a script failure, not a body to revise: a copy of land.sh
 # beside a stub pr-terms.sh.

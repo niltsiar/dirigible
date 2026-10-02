@@ -36,8 +36,8 @@ path	words	decision
 .claude/skills/pr/	741	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: lowered to the sum of its two rows)
 .claude/skills/pr/CREDITS.md	71	baseline
 .claude/skills/pr/SKILL.md	670	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/reflect/	3720	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
-.claude/skills/reflect/SKILL.md	1120	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/reflect/	3710	2026-10-02-speed-run S5 (the sum of its file rows)
+.claude/skills/reflect/SKILL.md	1080	2026-10-02-speed-run S5 (row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/reflect/references/divergent-reviewer.md	540	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/reflect/references/judgment-reviewer.md	440	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/reflect/references/synthesizer.md	990	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)

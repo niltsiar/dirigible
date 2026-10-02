@@ -159,9 +159,9 @@ extension AudioProcess {
 // MARK: The tap of one app appearance (decision 0030)
 
 /// The identity of one app appearance: the matched process objects, sorted (empty when the app
-/// does not run), and the UID of the output that a matched process reports. Nil when no matched
-/// process reports one: the default output that the aggregate then uses is not part of the key,
-/// so its change alone does not rebuild the tap (code gate E3).
+/// does not run), and an output UID. The key of a writer slot holds the main sub-device UID of
+/// its running aggregate. A found key holds the output that a matched process reports, or nil
+/// when none reports one, so a default output change alone does not rebuild (code gates E3, F2).
 struct AppKey: Hashable, Sendable {
     let processes: [AudioObjectID]
     let output: String?

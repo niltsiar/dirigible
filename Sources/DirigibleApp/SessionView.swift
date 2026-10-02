@@ -80,6 +80,8 @@ struct SessionView: View {
                         Text(L10n.emptySteps.key)
                     } actions: {
                         Button(L10n.menuTrackAdd.key) { model.run(.addTrack) }.disabled(!model.canEdit)
+                        Menu(L10n.menuTrackAddCall.key) { CallTracksItems(model: model) }
+                            .fixedSize().disabled(!model.canEdit)
                     }
                 } else {
                     // An overlay, not a row: the lanes do not move when it shows or goes. It shows
@@ -170,4 +172,26 @@ extension SessionWindow {
     func countBody() { bodyRuns += 1 }
     /// Counts a body run of the record-over overlay that shows the warning, for the tests.
     func countOverlay() { overlayShows += 1 }
+}
+
+/// The items of Track > Add Call Tracks and of the empty state menu (B1c).
+struct CallTracksItems: View {
+    let model: SessionWindow
+
+    var body: some View {
+        ForEach(callMenuItems(model.apps, tapsAvailable: model.tapsAvailable), id: \.self) { item in
+            switch item {
+            case .app(let bundleID, let name):
+                Button {
+                    model.addCallTracks(app: bundleID)
+                } label: {
+                    Text(verbatim: name)
+                }
+            case .noApps: Button(L10n.menuTrackAddCallNoApps.key) {}.disabled(true)
+            case .unavailable: Button(L10n.trackRouteAppsUnavailable.key) {}.disabled(true)
+            case .divider: Divider()
+            case .noApp: Button(L10n.menuTrackAddCallNone.key) { model.addCallTracks(app: nil) }
+            }
+        }
+    }
 }

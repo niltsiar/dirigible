@@ -197,6 +197,7 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 ## Work with tracks
 
 - Choose **Track > Add Track** to add a mono track with no input.
+- Choose **Track > Add Call Tracks** and a call app to add two mono tracks: **Host** records channel 1 of your default input device, and **Guest** records the app. Choose **No App** (**Sin app**) to give **Guest** no input. When no app runs, the menu shows **No Apps Running** (**No hay apps abiertas**). One Undo removes both tracks. A new track that would use the input of an armed track keeps its input, but it is not armed.
 - Type in the name field of a track to change its name. Press Return to keep the name.
 - Use the input menu of a track to choose a device and its channels. One channel gives a mono track, and a pair of channels gives a stereo track. **No Input** removes the input.
 - To remove tracks, select them and choose **Track > Remove Track**. You can also Control-click the header of a track and choose **Remove Track**.
@@ -207,15 +208,15 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 Dirigible can record the sound of another app, for example a Zoom, Teams, or Slack call, on its own track. This needs macOS 14.2 or later.
 
 1. Open the call app.
-2. On the guest track, open the input menu. Under **Apps**, choose the call app. A mono track records a mono mix of the app, and a stereo track records a stereo mix.
-3. Put on headphones, so the guest does not leak into your microphone track.
+2. Choose **Track > Add Call Tracks**, then the call app. Or, on the guest track, open the input menu, and under **Apps** choose the call app. A mono track records a mono mix of the app, and a stereo track records a stereo mix.
+3. Put on headphones, so the guest does not leak into your microphone track. When the output is the built-in speakers and an armed track records an app, the window shows the banner "Use headphones". It does not stop a take.
 4. Record. The first time, macOS asks for access to System Audio Recording. Click **Allow**.
 
 - One app can feed one track only. Record your own microphone on another track.
 - When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
 - When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Open Settings**. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
 - On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
-- In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input.
+- In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input. `dirigible track add-call <package> --device <UID> --channels 1 --app <bundle ID>` adds the **Host** and **Guest** tracks.
 
 ## Export the episode
 
@@ -350,6 +351,7 @@ The **Track** menu (**Pista**).
 | Command | Spanish name | Key |
 |---|---|---|
 | **Add Track** | **Añadir pista** | Option-Command-N |
+| **Add Call Tracks** | **Añadir pistas de llamada** | - |
 | **Remove Track** | **Eliminar pista** | Option-Command-Delete |
 
 ### Record

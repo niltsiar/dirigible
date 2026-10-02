@@ -110,4 +110,149 @@ import Testing
         #expect(!model.canEdit, "the menu is disabled")
         await model.stop()
     }
+
+    // MARK: B1c, Add Call Tracks
+
+    nonisolated static let duo = InputDevice(
+        uid: "duo", name: "Duo", nominalRate: 48_000, availableRates: [48_000...48_000], channelsPerBuffer: [2],
+        latency: 0)!
+
+    /// The running apps by name, a divider, and No App; one disabled item with no app or no taps.
+    @Test func callMenuListsAppsThenNoApp() {
+        #expect(
+            callMenuItems([Self.chrome, Self.zoom], tapsAvailable: true) == [
+                .app(bundleID: "com.google.Chrome", name: "Google Chrome"),
+                .app(bundleID: "us.zoom.xos", name: "zoom.us"), .divider, .noApp,
+            ], "an item for each app")
+        #expect(callMenuItems([], tapsAvailable: true) == [.noApps, .divider, .noApp], "no running app")
+        #expect(callMenuItems([Self.zoom], tapsAvailable: false) == [.unavailable, .divider, .noApp], "the floor")
+    }
+
+    /// `window()` with `duo` in the device list and `input` as the default input device.
+    func callWindow(input: String? = "duo") async throws -> (SessionWindow, Studio) {
+        let (model, studio) = try await window()
+        let list = DeviceList(read: { [Self.duo] }, defaults: { AudioDefaults(inputUID: input) })
+        model.deviceList = list
+        await until("no device read") { list.reads >= 1 }
+        return (model, studio)
+    }
+
+    /// Host on channel 1 of the default input and Guest on the app go after the tracks, both armed,
+    /// in one undo entry; also in a session with no track.
+    @Test func addCallTracksIsOneUndoEntry() async throws {
+        let (model, studio) = try await callWindow()
+        model.armed = []
+        model.addCallTracks(app: "us.zoom.xos")
+        let tracks = studio.session.tracks
+        try #require(tracks.count == 4, "not two new tracks after t1 and t2")
+        let (host, guest) = (tracks[2], tracks[3])
+        #expect(host.name == L10n.trackNameHost.text && guest.name == L10n.trackNameGuest.text)
+        #expect(host.layout == .mono && guest.layout == .mono)
+        #expect(host.route == .device(uid: "duo", channels: .mono(1)), "Host on the default input")
+        #expect(guest.route == .app(bundleID: "us.zoom.xos"), "Guest on the app")
+        #expect(model.armed == [host.id, guest.id], "both armed")
+        try studio.undo()
+        #expect(studio.session.tracks.map(\.id) == ["t1", "t2"], "one undo entry")
+
+        try studio.edit { s throws(SessionError) in
+            try s.removeTrack("t1")
+            try s.removeTrack("t2")
+        }
+        model.addCallTracks(app: nil)
+        #expect(studio.session.tracks.count == 2, "two tracks in an empty session")
+        #expect(studio.session.tracks.last?.route == nil, "No App: Guest has no route")
+        try studio.undo()
+        #expect(studio.session.tracks.isEmpty, "one undo entry")
+    }
+
+    /// During a take the call changes nothing, and the menu is disabled.
+    @Test func addCallTracksDuringATakeChangesNothing() async throws {
+        let (model, studio) = try await callWindow()
+        model.armed = ["t1"]
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+        model.addCallTracks(app: "us.zoom.xos")
+        #expect(studio.session.tracks.count == 2, "no change during a take")
+        #expect(!model.canEdit, "the menu is disabled")
+        await model.stop()
+    }
+
+    /// A pending take adds the tracks, as Add Track does. The take keeps t1 on channel 1 of duo,
+    /// so Host keeps its route and is not armed.
+    @Test func addCallTracksWithAPendingTakeAdds() async throws {
+        let (model, studio) = try await callWindow()
+        model.armed = ["t1"]
+        let clips = model.url.appending(path: clipsFolderName)
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        await model.record()
+        await hal.feed(seconds: 0.5)
+        chmod(clips.path, 0o500)
+        await model.stop()
+        await until("the finalize fails") { studio.transport == .idle }
+        chmod(clips.path, 0o755)
+        try #require(studio.pendingTake != nil)
+
+        model.addCallTracks(app: "us.zoom.xos")
+        let tracks = studio.session.tracks
+        try #require(tracks.count == 4, "no tracks with a pending take")
+        #expect(tracks[2].route == .device(uid: "duo", channels: .mono(1)))
+        #expect(!model.armed.contains(tracks[2].id) && model.armed.contains(tracks[3].id))
+        await model.close()
+    }
+
+    /// No default input, or one that is not in the device list: Host has no route and no arm.
+    @Test(arguments: [nil, "gone"]) func addCallTracksWithNoDefaultInputLeavesHostUnrouted(input: String?) async throws
+    {
+        let (model, studio) = try await callWindow(input: input)
+        model.addCallTracks(app: "us.zoom.xos")
+        let tracks = studio.session.tracks
+        try #require(tracks.count == 4)
+        #expect(tracks[2].route == nil, "Host has no route")
+        #expect(!model.armed.contains(tracks[2].id))
+        #expect(tracks[3].route == .app(bundleID: "us.zoom.xos") && model.armed.contains(tracks[3].id), "control")
+    }
+
+    /// The focus in a name field with a typed name: the name is saved first, as Record does.
+    @Test func addCallTracksWithATypedNameApplies() async throws {
+        let (model, studio) = try await callWindow()
+        model.drafts["t2"] = "Remote"
+        model.addCallTracks(app: "us.zoom.xos")
+        #expect(studio.session.track("t2")?.name == "Remote", "the typed name is saved")
+        #expect(studio.session.tracks.count == 4, "the tracks are added")
+    }
+
+    /// An armed track that takes a channel of a new track blocks its arm; the route stays, and
+    /// Record finds no channel in use. Control: an armed mono(2) on duo lets Host arm.
+    @Test(arguments: [
+        (Route.device(uid: "duo", channels: .mono(1)), false, true),
+        (Route.device(uid: "duo", channels: .stereo(1, 2)), false, true),
+        (Route.app(bundleID: "us.zoom.xos"), true, false),
+        (Route.device(uid: "duo", channels: .mono(2)), true, true),
+    ])
+    func addCallTracksDoesNotArmARouteInUse(armedRoute: Route, hostArms: Bool, guestArms: Bool) async throws {
+        let (model, studio) = try await callWindow()
+        let layout: ChannelLayout = if case .device(_, .stereo) = armedRoute { .stereo } else { .mono }
+        try studio.edit { s throws(SessionError) in
+            try s.setRoute(nil, track: "t1")
+            try s.setLayout(layout, route: armedRoute, track: "t2")
+        }
+        model.armed = ["t2"]
+        model.addCallTracks(app: "us.zoom.xos")
+        let tracks = studio.session.tracks
+        try #require(tracks.count == 4)
+        #expect(
+            tracks[2].route == .device(uid: "duo", channels: .mono(1))
+                && tracks[3].route == .app(bundleID: "us.zoom.xos"))
+        #expect(model.armed.contains(tracks[2].id) == hostArms, "Host arm wrong for \(armedRoute)")
+        #expect(model.armed.contains(tracks[3].id) == guestArms, "Guest arm wrong for \(armedRoute)")
+        let zoom = InputDevice(
+            uid: appUID("us.zoom.xos"), name: "zoom.us", nominalRate: 48_000, availableRates: [],
+            channelsPerBuffer: [2], latency: 0)!
+        let armed = tracks.map(\.id).filter(model.armed.contains)
+        do {
+            _ = try checkRoutes(studio.session, armed: armed, devices: [Self.duo, zoom])
+        } catch {
+            Issue.record("Record would fail: \(error)")
+        }
+    }
 }

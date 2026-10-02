@@ -37,6 +37,33 @@ extension SessionWindow {
         if idleStudio?.session.track(track)?.route == route { armed.insert(track) }
     }
 
+    /// The call preset (B1c): Host on channel 1 of the default input device (no route when the
+    /// device list does not have it) and Guest on `app`, in one undo entry. It saves each typed
+    /// name first, as Record does. It arms each routed new track whose channels no armed track
+    /// takes, so Record does not fail with `channelInUse`; the route stays.
+    func addCallTracks(app: String?) {
+        guard canEdit, let session = idleStudio?.session else { return }
+        commitNames()
+        let input = deviceList.defaults.inputUID.flatMap { uid in devices.contains { $0.uid == uid } ? uid : nil }
+        let taken = session.tracks.filter { armed.contains($0.id) }.reduce(into: Set<Route>()) {
+            $0.formUnion(takenChannels($1.route))
+        }
+        let names = (host: L10n.trackNameHost.text, guest: L10n.trackNameGuest.text)
+        guard
+            let added = edit({ s throws(SessionError) -> [TrackID] in
+                let (host, guest) = (TrackID(), TrackID())
+                try s.addCallTracks(
+                    host: host, guest: guest, names: names, hostDevice: input.map { ($0, 1) }, guestApp: app)
+                return [host, guest]
+            })
+        else { return }
+        for id in added {
+            if let route = idleStudio?.session.track(id)?.route, takenChannels(route).isDisjoint(with: taken) {
+                armed.insert(id)
+            }
+        }
+    }
+
     /// Privacy & Security > System Audio Recording.
     func openAudioCaptureSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AudioCapture")
@@ -56,4 +83,35 @@ enum AppMenuItem: Hashable {
 /// out this process), or the macOS floor.
 func appMenuItems(_ apps: [RunningApp], tapsAvailable: Bool) -> [AppMenuItem] {
     tapsAvailable ? apps.map { .app(bundleID: $0.bundleID, name: $0.name) } : [.unavailable]
+}
+
+/// The channels that a route takes in a take, as `checkRoutes` counts them, one mono device route
+/// per channel. An app route takes the mixdown channels of its layout, and both layouts take
+/// channel 1, so two routes of one app always overlap.
+func takenChannels(_ route: Route?) -> Set<Route> {
+    switch route {
+    case nil: []
+    case .device(let uid, let channels): Set(channels.numbers.map { .device(uid: uid, channels: .mono($0)) })
+    case .app(let bundleID): [.app(bundleID: bundleID)]
+    }
+}
+
+/// An item of the Add Call Tracks menu (B1c).
+enum CallMenuItem: Hashable {
+    case app(bundleID: String, name: String)
+    /// No running app: one disabled item.
+    case noApps
+    /// macOS 14.0 and 14.1 have no process taps: one disabled item (A14).
+    case unavailable
+    case divider
+    /// Guest with no route.
+    case noApp
+}
+
+/// One item for each running app, a divider, and No App.
+func callMenuItems(_ apps: [RunningApp], tapsAvailable: Bool) -> [CallMenuItem] {
+    let items: [CallMenuItem] =
+        !tapsAvailable
+        ? [.unavailable] : apps.isEmpty ? [.noApps] : apps.map { .app(bundleID: $0.bundleID, name: $0.name) }
+    return items + [.divider, .noApp]
 }

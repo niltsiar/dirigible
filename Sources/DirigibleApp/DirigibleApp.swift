@@ -65,6 +65,13 @@ struct DirigibleApp: App {
                 // the responder chain, so a focused text field keeps its typing undo (P12).
                 CommandMenu(L10n.menuTrack.key) {
                     windowButton(.addTrack).disabled(app.key?.canEdit != true)
+                    // `.disabled` on a Menu has no effect in the menu bar: a disabled state is a
+                    // disabled item, not an empty submenu.
+                    if let key = app.key, key.canEdit {
+                        Menu(L10n.menuTrackAddCall.key) { CallTracksItems(model: key) }
+                    } else {
+                        Button(L10n.menuTrackAddCall.key) {}.disabled(true)
+                    }
                     // Its key is one that a text field uses: never disabled (probe K1).
                     ForEach(TimelineCommand.trackItems, id: \.command) { item in menuButton(item) }
                 }

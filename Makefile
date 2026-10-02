@@ -36,9 +36,11 @@ SLOW_TESTS = $(shell grep -rhF -A1 '$(SLOW_GATE)' Tests | grep -oE 'func [A-Za-z
 # The slow tests only. They run in their own process: their disk and CPU load makes the timed
 # tests fail when both run in one process. Before the push, `make check-changed BASE=<ref>`
 # runs `check` first, so the other tests do not run twice. They run one at a time, so the
-# benchmarks do not measure the load of the other slow tests.
+# benchmarks do not measure the load of the other slow tests. A pass writes the date of today,
+# so scripts/check-changed.sh adds test-slow to a push only once a day (decision 0028).
 test-slow: check-slow-gates
 	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
+	date +%F > "$$(git rev-parse --git-common-dir)/dirigible-slow-date"
 
 # The slow tests that match FILTER in an optimized build, for a budget that holds only with -O.
 bench:

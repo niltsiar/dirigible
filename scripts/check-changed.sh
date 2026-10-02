@@ -37,7 +37,7 @@ targets_of() {
         tooling:*) echo check-fast ;;
         tests:0 | sources:0 | sources-risk:0) echo test ;;
         bundle:0 | build:0) echo check ;;
-        tests:1 | sources:1 | sources-risk:1 | build:1) echo check test-slow ;;
+        tests:1 | sources:1 | sources-risk:1 | build:1) echo check ;;
         bundle:1) echo check test-dmg ;;
     esac
 }
@@ -80,14 +80,30 @@ while IFS= read -r p; do
 done <<<"$paths"
 
 classes="" wanted=" " risk=no
-# The Makefile owns the test-slow recipe, so a Makefile change runs it before the push.
-[[ $push == 1 ]] && grep -qx Makefile <<<"$paths" && wanted+="test-slow "
 for c in docs tooling tests sources sources-risk bundle build; do
     [[ "$found" == *" $c "* ]] || continue
     classes+=" $c"
     [[ $c == sources-risk ]] && risk=yes
     for t in $(targets_of "$c"); do wanted+="$t "; done
 done
+
+# Before the push, test-slow runs for risk, a changed slow test (a file with the gate of the
+# Makefile), or a Makefile change (it owns the recipe). A push with Swift tests (check) also runs
+# it when no `make test-slow` passed today on this clone: the recipe writes the date file.
+if [[ $push == 1 ]]; then
+    slow=no
+    [[ $risk == yes ]] && slow=yes
+    grep -qx Makefile <<<"$paths" && slow=yes
+    root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    while IFS= read -r p; do
+        [[ $p == Tests/* ]] && grep -qF 'environment["DIRIGIBLE_SLOW_TESTS"]' "$root/$p" 2>/dev/null && slow=yes
+    done <<<"$paths"
+    if [[ "$wanted" == *" check "* ]]; then
+        date_file="$(git rev-parse --git-common-dir 2>/dev/null)/dirigible-slow-date" || date_file=/dev/null
+        [[ "$(cat "$date_file" 2>/dev/null)" == "$(date +%F)" ]] || slow=yes
+    fi
+    [[ $slow == yes ]] && wanted+="test-slow "
+fi
 
 # check runs check-docs, check-fast, and test; check-fast runs check-docs. Drop what another target runs.
 targets=""

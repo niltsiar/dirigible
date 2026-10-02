@@ -14,7 +14,9 @@ Use this template for writing the PR body:
 ```markdown
 ## Summary
 
-<diagram, diff-sketch, or tree>
+<two or three sentences: what changed for the user or the maintainer, why, and the risk>
+
+<optional: diagram, diff-sketch, or tree>
 
 ## Evidence
 
@@ -33,12 +35,19 @@ Use this template for writing the PR body:
 
 ## Review
 
-<the code gate verdict, inline: each "Act on" item and the commit that fixed it; the manual checks for a human>
+<the code gate verdict, inline: each "Act on" finding in words, with no review ID, and the change that fixed it, in words, with no hash; each default that changes behavior, with its `Reverse:` word; the manual checks for a human>
 
-Requirements: <IDs from docs/requirements/brief.md>
+<details>
+<summary>Audit trail</summary>
+
+<the other defaults, the reflect edits, the backlog items, and the dropped findings>
+
+</details>
+
+Requirements: <each requirement in words, with its R-number from docs/requirements/brief.md in parentheses; say a constraint in words>
 ```
 
-Put the evidence and the verdict in the body. `.scratchpads/` is local only, so never link to it. Write the body in STE (the **technical-writing** skill). The PR title is a plain sentence that says what the PR gives, in sentence case, with no `type(scope):` prefix. Example: `Record each device to its own track`. Conventional Commits apply to commit subjects, not to PR titles.
+Put the evidence and the verdict in the body. `.scratchpads/` is local only, so never link to it. Write the body in STE, then revise it with the **writing-for-humans** skill. The skill first copies `pr.md` to `<run>/logs/pr-draft.md`. `scripts/land.sh` refuses a body that `scripts/pr-terms.sh` flags. The PR title is a plain sentence that says what the PR gives, in sentence case, with no `type(scope):` prefix. Example: `Record each device to its own track`. Conventional Commits apply to commit subjects, not to PR titles.
 
 ## Sections
 

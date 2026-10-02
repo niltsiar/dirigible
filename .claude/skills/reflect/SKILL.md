@@ -65,6 +65,6 @@ Do this once, after the last reflect commit and before the merge, when the run m
 
 Write the agent count of the reflect run (reviewers, synthesizer, panel) in the Result cell of the run line in `.scratchpads/ledger.md`. Put the summary in the pull request body, so the user reviews each reflect commit. Short list, no preamble:
 
-- Edits applied: `<path>` and commit hash, one line each.
-- Backlog: one line each.
+- Edits applied: `<path>`: the change in words, one line each.
+- Backlog: one line each, in words, with no cause key.
 - Dropped: one line per rejected finding and its reason.

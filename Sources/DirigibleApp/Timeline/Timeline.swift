@@ -54,9 +54,10 @@ struct TimelineState {
     var scale = TimelineScale(framesPerPoint: 512)
     /// Automatic Scroll: on at open.
     var follows = true
-    /// A user scroll during play or a take: no page turn until the head is in view again, a seek,
-    /// a play start, or a take start. "Again" is after the head left the view: a scroll that
-    /// starts with the head in view keeps the hold (Phase 7 finding V3).
+    /// A user scroll that moves the view horizontally during play or a take: no page turn until
+    /// the head is in view again, a seek, a play start, or a take start. "Again" is after the head
+    /// left the view: a scroll that starts with the head in view keeps the hold (Phase 7 finding
+    /// V3).
     var followHeld = false {
         didSet { if !followHeld { headLeftView = false } }
     }

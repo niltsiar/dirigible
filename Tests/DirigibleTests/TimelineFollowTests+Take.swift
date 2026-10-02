@@ -141,11 +141,8 @@ extension TimelineFollowTests {
         let lanes = try await take()
         let (model, view, studio) = (lanes.model, lanes.view, lanes.studio)
         run(lanes, from: 800, to: 480_000)
-        view.scroll(toFrame: 0)
 
-        let wheel = try #require(
-            CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: 0, wheel2: -4, wheel3: 0))
-        view.scrollWheel(with: try #require(NSEvent(cgEvent: wheel)))
+        liveScroll(view, toFrame: 0)
         let origin = view.origin
         let turns = run(lanes, from: 480_800, to: 960_000)
 

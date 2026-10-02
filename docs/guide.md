@@ -107,7 +107,7 @@ The in point is the start of the selection, and the out point is the end. With n
 - To move the playhead, click the time ruler. A click in an empty part of a track also moves the playhead.
 - The **Transport** menu has the play commands. **Play Forward** plays faster each time that you choose it again: 1x, 2x, then 4x. If you hold its key, the play pauses when you release the key.
 - **Go to Start**, **Go to End**, **Previous Clip Edge**, and **Next Clip Edge** move the playhead.
-- When **View > Automatic Scroll** is on, the view follows the playhead during play, and the record head during a take. If you scroll during play or a take, the view stays there. It follows again after the head goes out of the view and comes back into it.
+- When **View > Automatic Scroll** is on, the view follows the playhead during play, and the record head during a take. If you scroll left or right during play or a take, the view stays there. It follows again after the head goes out of the view and comes back into it. A scroll up or down does not stop the follow.
 
 ### Zoom
 

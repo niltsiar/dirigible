@@ -138,8 +138,10 @@ extension TimelineScrollView {
 
     override func scrollWheel(with event: NSEvent) {
         guard event.modifierFlags.contains(.command) else {
+            // Only a horizontal move holds: a vertical scroll or a brush keeps the follow (P1).
+            let before = origin
             super.scrollWheel(with: event)
-            userScrolled()
+            if origin != before { userScrolled() }
             return
         }
         let dy = Double(event.scrollingDeltaY)

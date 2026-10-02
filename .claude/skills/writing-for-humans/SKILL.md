@@ -15,8 +15,8 @@ Do each pass once, in order, over the whole text.
 
 0. Copy the body with no overwrite: `cp -n <run>/pr.md <run>/logs/pr-draft.md`.
 1. **Terms.** Run `scripts/pr-terms.sh <run>/pr.md`. Then:
-   1. Replace each flagged ID with its meaning in words, also in backticks.
-   2. Replace each commit hash with the change in words. The Commits tab of the PR lists the hashes.
+   1. Replace each flagged ID with its meaning in words, in plain text or in backticks.
+   2. Replace each commit hash with the change in words. The PR Commits tab lists them.
    3. Keep a resolvable ID only in parentheses after its words.
    4. Define each term that the run made up, at its first use.
 2. **Skim layer.** The first two or three sentences say what changed for the user or the maintainer, why, and the risk.

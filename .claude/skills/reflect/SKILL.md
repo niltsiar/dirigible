@@ -52,7 +52,7 @@ A deliver run with the goal "apply the upkeep items". If the user asked for a ch
 - Edit repo files only (`.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `docs/`, `Makefile`, `scripts/`), never user-level files under `~/.claude/`.
 - Edit `.claude/hooks/` only when `make test-hooks` covers the change and no existing block case is removed or changed to allow.
 - Make one commit per changed doc file, with its `rules.tsv` rows and the check that replaces its prose.
-- Append a `learnings.md` line with the date, the key, and the commit hash.
+- Append a `learnings.md` line with the date, the key, and the commit hash, and remove the item from `## Next`.
 
 Then, once for the batch: the eval pass of rule 8, and the `review-panel` workflow on the diff (`target: "diff"`, `maxRounds: 2`, the five doc lenses and `paths` of Step 3 of the **interrogate** skill, also in a small run). Each Act on finding gets a fix commit or a revert commit before the merge.
 

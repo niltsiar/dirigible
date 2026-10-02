@@ -14,9 +14,10 @@
 # - late on-screen: the phase 7 rows with NOT VERIFIED and "on screen" or "on-screen".
 # - missed unknowns: the rows whose result starts with "missed unknown", in any case.
 # - critical findings: the lines of a review-*.md at the top of the run folder with critical in a
-#   parenthesis, in any case. Not an Intent, Panel, Source, or Sources line, and not a line under a
-#   ## or ### heading other than Act on or Act-on, in any case. A deeper heading (### G1 under
-#   ## Act on) does not change the section. A line under no section heading counts (a flat list).
+#   parenthesis, in any case. Not an Intent, Panel, Source, or Sources line, not an indented line
+#   (a Fix sub-bullet that quotes the format), and not a line under a ## or ### heading other than
+#   Act on or Act-on, in any case. A deeper heading (### G1 under ## Act on) does not change the
+#   section. A line under no section heading counts (a flat list).
 # - friction: the critical findings plus the rows whose result starts with a token, in any case:
 #   NOT VERIFIED, survived, flake, failed, fail, or missed unknown. One criterion ID can come first
 #   (DC4 FAIL, C6 (c) failed). The token ends at a character that is not a letter. The deliver
@@ -88,7 +89,7 @@ critical="$(find "$run" -maxdepth 1 -name 'review-*.md' -type f -exec awk '
         level = index($0, " ") - 1
         if (!section || level <= section) { keep = (tolower($0) ~ /^#+ act[- ]on/); section = level; next }
     }
-    keep && tolower($0) ~ /\([^)]*critical/ && !/^(- )?(\*\*)?(Intent|Panel|Sources?):/ { n++ }
+    keep && !/^[ \t]/ && tolower($0) ~ /\([^)]*critical/ && !/^(- )?(\*\*)?(Intent|Panel|Sources?):/ { n++ }
     END { print n + 0 }' {} \; | awk '{ n += $1 } END { print n + 0 }')"
 awk -F'\t' -v critical="$critical" '
     function token(s) { return tolower(s) ~ /^([a-z]+[0-9]+[a-z]? (\([a-z]\) )?)?(not verified|survived|flake|failed|fail|missed unknown)([^a-z]|$)/ }

@@ -18,7 +18,7 @@ struct InfoCommandTests {
         try session.addFile(AudioFile(id: "f2", path: "guest.wav", layout: .stereo, length: 1000))
         try session.addTrack("host", name: "Host", layout: .mono)
         try session.setGain(Gain(dB: -3.5)!, track: "host")
-        try session.setRoute(Route(deviceUID: "BuiltIn", channels: .mono(1)), track: "host")
+        try session.setRoute(Route.device(uid: "BuiltIn", channels: .mono(1)), track: "host")
         try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 480_000), on: "host")
         try session.split("c1", at: 96_000)
         try session.setGain(Gain(dB: -6)!, clip: "c1@96000")
@@ -155,11 +155,24 @@ struct InfoCommandTests {
                   "layout" : "stereo",
                   "name" : "Guest"
                 }
-              ]
+              ],
+              "version" : 1
             }
 
             """
         #expect(
             try await dirigible("info", package.path, "--json") == CLIResult(status: 0, stdout: expected, stderr: ""))
+    }
+
+    /// A2: `info` shows an app route, and `info --json` shows the session version.
+    @Test func infoShowsAnAppRouteAndVersion2() async throws {
+        try package.edit { try $0.setRoute(.app(bundleID: "us.zoom.xos"), track: "guest") }
+        let json = try await dirigible("info", package.path, "--json")
+        let object = try #require(try JSONSerialization.jsonObject(with: Data(json.stdout.utf8)) as? [String: Any])
+        #expect(object["version"] as? Int == 2, "the session version")
+        let tracks = try #require(object["tracks"] as? [[String: Any]])
+        #expect(tracks.last?["route"] as? [String: String] == ["app": "us.zoom.xos"], "the app route")
+        let text = try await dirigible("info", package.path)
+        #expect(text.stdout.contains("track guest \"Guest\" stereo 0.0 dB route app \"us.zoom.xos\"\n"), "text")
     }
 }

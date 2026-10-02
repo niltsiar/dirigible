@@ -26,8 +26,8 @@ struct MonitorTests {
             try session.addTrack("t1", name: "Host", layout: .mono)
             try session.addTrack("t2", name: "Guest", layout: .mono)
             try session.addTrack("t3", name: "Music", layout: .mono)
-            try session.setRoute(Route(deviceUID: "duo", channels: .mono(1)), track: "t1")
-            try session.setRoute(Route(deviceUID: "duo", channels: .mono(2)), track: "t2")
+            try session.setRoute(Route.device(uid: "duo", channels: .mono(1)), track: "t1")
+            try session.setRoute(Route.device(uid: "duo", channels: .mono(2)), track: "t2")
             try session.write(to: url)
         }
         return (folder, url)
@@ -110,7 +110,7 @@ struct MonitorTests {
         let old = try #require(studio.monitors["duo"]?.number)
 
         try studio.edit { s throws(SessionError) in
-            try s.setRoute(Route(deviceUID: "duo", channels: .mono(2)), track: "t1")
+            try s.setRoute(Route.device(uid: "duo", channels: .mono(2)), track: "t1")
         }
         try await studio.monitor(armed: ["t1"])
         let new = try #require(studio.monitors["duo"]?.number)

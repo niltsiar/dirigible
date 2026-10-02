@@ -1,6 +1,11 @@
+import ArgumentParser
 import DirigibleCore
 import Foundation
 import Testing
+
+@testable import DirigibleCLI
+
+let invalidRouteMessage = "the route has a channel number less than 1 or an empty app ID."
 
 struct TrackCommandTests {
     let package: TemporaryPackage
@@ -35,7 +40,7 @@ struct TrackCommandTests {
         #expect(try fresh.read().track("host")?.gain == Gain(dB: -3.5))
 
         #expect(try await dirigible("track", "route", fresh.path, "host", "--device", "D", "--channels", "1") == silent)
-        #expect(try fresh.read().track("host")?.route == Route(deviceUID: "D", channels: .mono(1)))
+        #expect(try fresh.read().track("host")?.route == Route.device(uid: "D", channels: .mono(1)))
 
         #expect(try await dirigible("track", "layout", fresh.path, "host", "stereo", "--none") == silent)
         #expect(try fresh.read().track("host")?.layout == .stereo)
@@ -44,12 +49,41 @@ struct TrackCommandTests {
         #expect(
             try await dirigible("track", "route", fresh.path, guest.rawValue, "--device", "D", "--channels", "1,2")
                 == silent)
-        #expect(try fresh.read().track(guest)?.route == Route(deviceUID: "D", channels: .stereo(1, 2)))
+        #expect(try fresh.read().track(guest)?.route == Route.device(uid: "D", channels: .stereo(1, 2)))
         #expect(try await dirigible("track", "route", fresh.path, guest.rawValue, "--none") == silent)
         #expect(try fresh.read().track(guest)?.route == nil)
 
         #expect(try await dirigible("track", "remove", fresh.path, "host") == silent)
         #expect(try fresh.read().tracks.map(\.id) == [guest])
+    }
+
+    /// A3: `track route --app` sets an app route, and the package saves version 2.
+    @Test func routeAppSetsAnAppRoute() async throws {
+        #expect(
+            try await track(["route", "PKG", "host", "--app", "us.zoom.xos"])
+                == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(try package.read().track("host")?.route == .app(bundleID: "us.zoom.xos"), "the app route")
+        #expect(String(decoding: try package.xml(), as: UTF8.self).contains(#"version="2""#), "version 2")
+        #expect(
+            try await track(["layout", "PKG", "host", "stereo", "--app", "us.zoom.xos"])
+                == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(try package.read().track("host")?.layout == .stereo, "a stereo mixdown")
+    }
+
+    /// A14: with no process taps (macOS 14.0 and 14.1), `--app` exits 1 and changes nothing.
+    /// The availability is an injected value; a device route still applies.
+    @Test func routeAppNeedsProcessTaps() throws {
+        let before = try package.xml()
+        let route = try TrackCommand.SetRoute.parse([package.path, "host", "--app", "us.zoom.xos"])
+        #expect(throws: ExitCode(editRefused)) { try route.apply(tapsAvailable: false) }
+        let layout = try TrackCommand.SetLayout.parse([package.path, "host", "stereo", "--app", "us.zoom.xos"])
+        #expect(throws: ExitCode(editRefused)) { try layout.apply(tapsAvailable: false) }
+        #expect(try package.xml() == before, "the package did not change")
+        #expect(appSourcesUnavailable == "app sources need macOS 14.2 or later.")
+
+        try TrackCommand.SetRoute.parse([package.path, "host", "--device", "D", "--channels", "1"])
+            .apply(tapsAvailable: false)
+        #expect(try package.read().track("host")?.route == .device(uid: "D", channels: .mono(1)), "control")
     }
 
     @Test func aNameAfterTheSeparatorCanStartWithADash() async throws {
@@ -65,7 +99,9 @@ struct TrackCommandTests {
             ["route", "PKG", "host", "--device", "D", "--channels", "1,2"],
             "the route does not have the layout of track \"host\"."
         ),
-        (["route", "PKG", "host", "--device", "D", "--channels", "0"], "a channel number is less than 1."),
+        (["route", "PKG", "host", "--device", "D", "--channels", "0"], invalidRouteMessage),
+        (["route", "PKG", "host", "--app", ""], invalidRouteMessage),
+        (["route", "PKG", "host", "--app", "a\u{01}b"], "the text \"a\\u{01}b\" has a control character."),
     ])
     func refusedEditExitsOne(arguments: [String], message: String) async throws {
         let before = try package.xml()
@@ -83,10 +119,14 @@ struct TrackCommandTests {
         ["route", "PKG", "host", "--none", "--device", "D", "--channels", "1"],
         ["route", "PKG", "host", "--device", "D"],
         ["route", "PKG", "host"],
+        ["route", "PKG", "host", "--app", "us.zoom.xos", "--device", "D", "--channels", "1"],
+        ["route", "PKG", "host", "--app", "us.zoom.xos", "--device", "D"],
+        ["route", "PKG", "host", "--app", "us.zoom.xos", "--none"],
+        ["layout", "PKG", "host", "stereo", "--app", "us.zoom.xos", "--none"],
         ["layout", "PKG", "host", "stereo"],
     ])
     func usageErrorExits64(arguments: [String]) async throws {
-        try package.edit { try $0.setRoute(Route(deviceUID: "D", channels: .mono(1)), track: "host") }
+        try package.edit { try $0.setRoute(Route.device(uid: "D", channels: .mono(1)), track: "host") }
         let before = try package.xml()
         let result = try await track(arguments)
         #expect(result.status == 64)

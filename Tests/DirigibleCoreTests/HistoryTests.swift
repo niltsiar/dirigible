@@ -102,7 +102,7 @@ struct HistoryTests {
 
     @Test mutating func undoAndRedoRefuseAnotherRouteOrLayoutOnAnArmedTrack() throws {
         try history.edit { try $0.addTrack("t1", name: "Host", layout: .mono) }
-        try history.edit { try $0.setRoute(Route(deviceUID: "usb-1", channels: .mono(1)), track: "t1") }
+        try history.edit { try $0.setRoute(Route.device(uid: "usb-1", channels: .mono(1)), track: "t1") }
         try history.edit { try $0.setLayout(.stereo, route: nil, track: "t1") }
         try history.undo()
         // The undo entry has no route on t1, and the redo entry has the stereo layout.

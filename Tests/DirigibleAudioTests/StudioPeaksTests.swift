@@ -22,7 +22,7 @@ final class PeakPackage: @unchecked Sendable {
         let tone = sine(seconds: 12.5, rate: 48_000, frequency: 375)
         for file in files { try package.addFile(file, channels: [tone]) }
         try package.addTrack("t1", clip: "c1", file: files[0], start: 0, offset: 0, length: 600_000)
-        try package.session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: "t1")
+        try package.session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
         try package.session.write(to: package.url)
     }
 

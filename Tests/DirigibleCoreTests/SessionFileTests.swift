@@ -1,6 +1,7 @@
-import DirigibleCore
 import Foundation
 import Testing
+
+@testable import DirigibleCore
 
 struct SessionFileTests {
     let package: URL
@@ -38,14 +39,84 @@ struct SessionFileTests {
                 </markers>
             </session>
             """
-        #expect(try String(contentsOf: sessionXML, encoding: .utf8) == expected)
+        #expect(try String(contentsOf: sessionXML, encoding: .utf8) == expected, "the version 1 document")
         #expect(FileManager.default.fileExists(atPath: package.appending(path: "Clips").path))
+    }
+
+    /// A2: a session with an app route saves version 2 and `<route app>`, and reads back.
+    @Test func anAppRouteSavesVersion2() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Guest", layout: .mono)
+        try session.addTrack("t2", name: "Host", layout: .mono)
+        try session.setRoute(.app(bundleID: "us.zoom.xos"), track: "t1")
+        try session.setRoute(.device(uid: "usb-1", channels: .mono(1)), track: "t2")
+        #expect(session.fileVersion == 2, "one app route gives version 2")
+
+        try session.write(to: package)
+
+        let expected = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <session xmlns="https://github.com/niltsiar/dirigible/session" version="2" sampleRate="48000">
+                <captures></captures>
+                <files></files>
+                <tracks>
+                    <track id="t1" name="Guest" gain="0" layout="mono">
+                        <route app="us.zoom.xos"></route>
+                    </track>
+                    <track id="t2" name="Host" gain="0" layout="mono">
+                        <route device="usb-1" channels="1"></route>
+                    </track>
+                </tracks>
+                <markers></markers>
+            </session>
+            """
+        #expect(try String(contentsOf: sessionXML, encoding: .utf8) == expected, "the version 2 document")
+        #expect(try Session(contentsOf: package) == session, "version 2 reads back")
+    }
+
+    /// A2 (0024 P6): with no app route the session saves version 1, also after the last app
+    /// route goes.
+    @Test func theLastAppRouteThatGoesSavesVersion1() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Guest", layout: .stereo)
+        #expect(session.fileVersion == 1, "no app route gives version 1")
+        try session.setRoute(.app(bundleID: "us.zoom.xos"), track: "t1")
+        try session.write(to: package)
+        #expect(try String(contentsOf: sessionXML, encoding: .utf8).contains(#"version="2""#))
+
+        try session.setRoute(nil, track: "t1")
+        try session.write(to: package)
+
+        #expect(session.fileVersion == 1, "the last app route went")
+        #expect(try String(contentsOf: sessionXML, encoding: .utf8).contains(#"version="1""#), "saved as version 1")
+    }
+
+    /// A2 (0024 P3): a version 1 reader refuses a version 2 file as newer.
+    @Test func aVersion1ReaderRefusesVersion2() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Guest", layout: .mono)
+        try session.setRoute(.app(bundleID: "us.zoom.xos"), track: "t1")
+        let data = try session.checkedData()
+        #expect(throws: SessionFileError.unsupportedVersion(2)) { try Session(xml: data, newest: 1) }
+        #expect(try Session(xml: data) == session, "control: the current reader reads it")
+    }
+
+    /// A2: a version 2 file with no app route reads; the next save writes version 1.
+    @Test func aVersion2FileWithNoAppRouteReads() throws {
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+        try Data(document(version: "2", tracks: #"<track id="t1" name="A" gain="0" layout="mono"/>"#).utf8)
+            .write(to: sessionXML)
+        let session = try Session(contentsOf: package)
+        #expect(session.tracks.map(\.id) == ["t1"])
+        #expect(session.fileVersion == 1)
     }
 
     @Test func aFullSessionReadsBackEqual() throws {
         let session = try fullSession()
         try session.write(to: package)
-        #expect(try Session(contentsOf: package) == session)
+        #expect(try Session(contentsOf: package) == session, "the full session reads back")
+        #expect(
+            try String(contentsOf: sessionXML, encoding: .utf8).contains(#"version="1""#), "device routes: version 1")
     }
 
     @Test func framesAtTheLimitReadBack() throws {
@@ -134,7 +205,29 @@ struct SessionFileTests {
 
     @Test(arguments: [
         ("<session", SessionFileError.malformedXML),
-        (document(version: "2"), .unsupportedVersion(2)),
+        (document(version: "3"), .unsupportedVersion(3)),
+        (
+            document(tracks: #"<track id="t1" name="A" gain="0" layout="mono"><route app="us.zoom.xos"/></track>"#),
+            .invalidValue(element: "route", attribute: "app")
+        ),
+        (
+            document(
+                version: "2",
+                tracks:
+                    #"<track id="t1" name="A" gain="0" layout="mono"><route device="d" channels="1" app="us.zoom.xos"/></track>"#
+            ), .invalidValue(element: "route", attribute: "app")
+        ),
+        (
+            document(
+                version: "2",
+                tracks:
+                    #"<track id="t1" name="A" gain="0" layout="mono"><route app="us.zoom.xos" channels="1"/></track>"#
+            ), .invalidValue(element: "route", attribute: "app")
+        ),
+        (
+            document(version: "2", tracks: #"<track id="t1" name="A" gain="0" layout="mono"><route app=""/></track>"#),
+            .invalidSession(.invalidRoute)
+        ),
         (document(files: #"<file id="f1" path="a.wav" channels="3" length="10"/>"#), .invalidChannelCount(3)),
         (
             document(
@@ -250,8 +343,8 @@ struct SessionFileTests {
         try session.addFile(AudioFile(id: "f3", path: "imported/intro.wav", layout: .stereo, length: 96_000))
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.addTrack("t2", name: "Guest", layout: .stereo)
-        try session.setRoute(Route(deviceUID: "usb-1", channels: .mono(1)), track: "t1")
-        try session.setRoute(Route(deviceUID: "usb-2", channels: .stereo(3, 4)), track: "t2")
+        try session.setRoute(Route.device(uid: "usb-1", channels: .mono(1)), track: "t1")
+        try session.setRoute(Route.device(uid: "usb-2", channels: .stereo(3, 4)), track: "t2")
         try session.setGain(Gain(dB: -2.5)!, track: "t2")
         try session.place(Clip(id: "c1", file: "f1", start: 1_000, offset: 0, length: 480_000), on: "t1")
         try session.place(Clip(id: "c3", file: "f3", start: 0, offset: 0, length: 96_000), on: "t2")

@@ -13,7 +13,7 @@ struct RecordCommandTests {
     init() throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
-        try session.setRoute(Route(deviceUID: "no-such-device", channels: .mono(1)), track: "t1")
+        try session.setRoute(Route.device(uid: "no-such-device", channels: .mono(1)), track: "t1")
         package = try TemporaryPackage(session)
     }
 

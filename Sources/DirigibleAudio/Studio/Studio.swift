@@ -314,7 +314,7 @@ import Observation
         for route in started.routes where !devices.contains(route.device) { devices.append(route.device) }
         for device in devices {
             let tracks = started.routes.filter { $0.device == device }.map {
-                (arm: $0.arm, channels: $0.route.channels)
+                (arm: $0.arm, channels: $0.channels)
             }
             writers[device.uid] = DeviceWriter(
                 device: device, tracks: tracks, files: TakeFiles(take: started.take, folder: capture),

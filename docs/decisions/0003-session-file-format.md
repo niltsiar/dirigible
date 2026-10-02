@@ -7,6 +7,7 @@
 - Amended: 2026-09-25. A pasted clip gets the first free ID of `<source id>@<start>`. A nudged clip keeps its ID (see 0018).
 - Amended: 2026-09-25. Before an export, the question lists only the files that the range reads on the chosen tracks. After it, the report names each file that rendered as silence (see 0019).
 - Amended: 2026-09-27. The version policy of every file format is in 0024. A package whose `session.xml` has a newer version does not change: the sweep of leftover temporary files runs after the version check (see 0024).
+- Amended: 2026-10-02. A track route can be `<route app="BUNDLEID"/>`. A session with an app route writes `version="2"`; a session with none writes `version="1"` (see 0029).
 
 ## Context
 
@@ -25,7 +26,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 - `<session version="1" sampleRate="48000">` holds `<captures>`, `<files>`, `<tracks>`, `<markers>`, and, while a take runs or is pending, `<recording>`.
 - `<capture id>` is one device segment (0004): `deviceUID`, `deviceName`, `hostTimeNanos` and `sampleTime` of the first frame, `nominalSampleRate`, `measuredSampleRate`, `latency`, and `resampledFromRate` when finalize resampled, and `driftCorrected="false"` when finalize refused the fit. Both can be present.
 - `<file id path channels length capture>`: `channels` is 1 or 2; the parser refuses any other value. `capture` refers to a `<capture id>`. An imported file has no `capture`.
-- `<track id name gain layout="mono|stereo">` with an optional `<route device="UID" channels="1 2"/>` and its `<clip id file start offset length gain/>` children. A file's channel count must match its track's layout; the parser refuses a mismatch.
+- `<track id name gain layout="mono|stereo">` with an optional `<route device="UID" channels="1 2"/>` (or, from version 2, `<route app="BUNDLEID"/>`, 0029) and its `<clip id file start offset length gain/>` children. A file's channel count must match its track's layout; the parser refuses a mismatch.
 - `<marker id name position kind="marker|chapter"/>`.
 - `<recording take="3" playheadFrame="..." takeStartHostTimeNanos="...">` lists the armed track IDs as `<arm track="t1"/>` children. It holds both values of the take anchor, so recovery after a relaunch can place the clips. It is present while a take runs or is pending, and a finalize that succeeds removes it (0004). The reader refuses a `<recording>` with an unknown track ID.
 

@@ -69,9 +69,11 @@ public typealias TrackID = ID<Track>
 public typealias ClipID = ID<Clip>
 public typealias MarkerID = ID<Marker>
 
-/// The device channels that feed a track. The case holds the channel count, so a route with
-/// three channels cannot exist. Channels are 1-based.
-public struct Route: Hashable, Sendable {
+/// The source of a track (decision 0029): device channels, or the audio of an app. A device
+/// case holds the channel count, so a route with three channels cannot exist. Channels are
+/// 1-based. An app case has no channels: the track layout picks a mono or a stereo mixdown
+/// (decision 0006).
+public enum Route: Hashable, Sendable {
     public enum Channels: Hashable, Sendable {
         case mono(Int)
         case stereo(Int, Int)
@@ -91,13 +93,8 @@ public struct Route: Hashable, Sendable {
         }
     }
 
-    public var deviceUID: String
-    public var channels: Channels
-
-    public init(deviceUID: String, channels: Channels) {
-        self.deviceUID = deviceUID
-        self.channels = channels
-    }
+    case device(uid: String, channels: Channels)
+    case app(bundleID: String)
 }
 
 /// One device segment of a take (decision 0004): the timing data that aligns it with the

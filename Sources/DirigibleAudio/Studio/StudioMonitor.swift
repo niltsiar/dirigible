@@ -61,8 +61,9 @@ extension Studio {
     private func monitorPlan() -> [String: [MonitoredTrack]] {
         var plan: [String: [MonitoredTrack]] = [:]
         for id in monitorRequest {
-            guard let route = session.track(id)?.route else { continue }
-            plan[route.deviceUID, default: []].append(MonitoredTrack(id: id, channels: route.channels))
+            // An app route has no monitor: no tap and no prompt at arm time (decision 0029).
+            guard case .device(let uid, let channels) = session.track(id)?.route else { continue }
+            plan[uid, default: []].append(MonitoredTrack(id: id, channels: channels))
         }
         return plan
     }

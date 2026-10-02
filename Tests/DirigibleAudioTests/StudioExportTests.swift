@@ -59,7 +59,7 @@ struct ExportStudioFixture {
         let package = try MixPackage()
         try package.addFile("f1", channels: [ExportTests.tone(frames: 480_000)])
         try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 480_000)
-        try package.session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: "t1")
+        try package.session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
         try extra(package)
         try package.session.write(to: package.url)
         return ExportStudioFixture(package: package)
@@ -177,7 +177,7 @@ struct StudioExportTests {
             studio.environment.microphoneAccess = { .denied }
         } else {
             try studio.edit { session throws(SessionError) in
-                try session.setRoute(Route(deviceUID: "mic", channels: .mono(2)), track: "t1")
+                try session.setRoute(Route.device(uid: "mic", channels: .mono(2)), track: "t1")
             }
         }
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)

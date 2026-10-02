@@ -25,8 +25,8 @@ struct StopPathTests {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.addTrack("t2", name: "Guest", layout: .stereo)
-        try session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: "t1")
-        try session.setRoute(Route(deviceUID: "box", channels: .stereo(1, 2)), track: "t2")
+        try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
+        try session.setRoute(Route.device(uid: "box", channels: .stereo(1, 2)), track: "t2")
         try session.write(to: url)
     }
 
@@ -85,7 +85,7 @@ struct StopPathTests {
                 channelsPerBuffer: [2, 2], latency: 0))
         let studio = try await Studio.open(url)
         try studio.edit { session throws(SessionError) in
-            try session.setRoute(Route(deviceUID: "quad", channels: .mono(3)), track: "t1")
+            try session.setRoute(Route.device(uid: "quad", channels: .mono(3)), track: "t1")
         }
         let tone = sine(seconds: 1, rate: 48_000)
         // Channel 3 is the first channel of the second buffer.
@@ -139,8 +139,8 @@ struct StopPathTests {
         await #expect(throws: StudioError.deviceMissing("t2")) { try await start(["t1", "t2"], [mic]) }
         #expect(try Data(contentsOf: sessionXML) == before)
         try studio.edit { session throws(SessionError) in
-            try session.setRoute(Route(deviceUID: "mic", channels: .mono(3)), track: "t1")
-            try session.setLayout(.mono, route: Route(deviceUID: "mic", channels: .mono(1)), track: "t2")
+            try session.setRoute(Route.device(uid: "mic", channels: .mono(3)), track: "t1")
+            try session.setLayout(.mono, route: Route.device(uid: "mic", channels: .mono(1)), track: "t2")
             try session.addTrack("t3", name: "Music", layout: .mono)
         }
         // Each edit saves (decision 0014), so the bytes to compare are the bytes after its save.
@@ -149,7 +149,7 @@ struct StopPathTests {
         await #expect(throws: StudioError.channelOutOfRange("t1")) { try await start(["t1"], [stereoMic]) }
         #expect(try Data(contentsOf: sessionXML) == before)
         try studio.edit { session throws(SessionError) in
-            try session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: "t1")
+            try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
         }
         await studio.settle()
         before = try Data(contentsOf: sessionXML)

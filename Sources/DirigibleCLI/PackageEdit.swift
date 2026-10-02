@@ -107,7 +107,7 @@ extension SessionError {
             "file \"\(file)\" does not have the layout of track \"\(track)\"."
         case .layoutMismatch(let track, .route): "the route does not have the layout of track \"\(track)\"."
         case .layoutMismatch(let track, .trackHasClips): "track \"\(track)\" has clips, so its layout cannot change."
-        case .invalidRoute: "a channel number is less than 1."
+        case .invalidRoute: "the route has a channel number less than 1 or an empty app ID."
         case .invalidPath(let path): "the path \"\(path)\" is not inside Clips/."
         case .invalidText(let text): "the text \(String(reflecting: text)) has a control character."
         case .frameOutOfRange: "a frame is negative or more than 2^40."
@@ -127,8 +127,8 @@ extension SessionFileError {
         return switch self {
         case .malformedXML: "\(file) is not a Dirigible session file."
         case .unsupportedVersion(let version):
-            "\(file) was made by a newer version of Dirigible (session version \(version)). This build reads version 1 "
-                + "or lower."
+            "\(file) was made by a newer version of Dirigible (session version \(version)). This build reads version "
+                + "\(sessionVersion) or lower."
         case .invalidChannelCount(let count): "\(file) has a file with \(count) channels."
         case .missingAttribute(let element, let attribute):
             "\(file) has a \(element) element with no \(attribute) attribute."

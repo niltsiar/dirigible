@@ -3,7 +3,8 @@ import Foundation
 import Testing
 
 /// Edit-commands criterion 3: every session that the edits make, the reader reads back. A seeded
-/// sequence of `place`, `clear`, `paste`, `splitClips`, and `nudge` edits, then a write and a read.
+/// sequence of `place`, `clear`, `paste`, `splitClips`, `nudge`, and `setRoute` edits (a device
+/// route, an app route, or none, so each session version 1 and 2 shows up), then a write and a read.
 struct EditRoundTripTests {
     @Test(arguments: [UInt64(1), 2, 3])
     func aSeededSequenceOfEditsReadsBack(seed: UInt64) throws {
@@ -18,7 +19,7 @@ struct EditRoundTripTests {
         func tracks(_ layout: ChannelLayout) -> [TrackID] { layout == .mono ? ["a", "b"] : ["s"] }
 
         for step in 0..<400 {
-            let kind = Int.random(in: 0..<6, using: &random)
+            let kind = Int.random(in: 0..<7, using: &random)
             let before = session
             do {
                 switch kind {
@@ -49,6 +50,15 @@ struct EditRoundTripTests {
                     let frames = (0..<Int.random(in: 1...3, using: &random)).map { _ in frame(0...360_000) }
                     try session.splitClips(at: frames, on: ["a", "b", "s"].filter { _ in Bool.random(using: &random) })
                     done["splitClips", default: 0] += 1
+                case 5:
+                    let track = (["a", "b", "s"] as [TrackID]).randomElement(using: &random)!
+                    let channels: Route.Channels = session.track(track)!.layout == .mono ? .mono(1) : .stereo(1, 2)
+                    let routes: [Route?] = [
+                        nil, .device(uid: "usb-1", channels: channels), .app(bundleID: "us.zoom.xos"),
+                        .app(bundleID: "com.google.Chrome"),
+                    ]
+                    try session.setRoute(routes.randomElement(using: &random)!, track: track)
+                    done["setRoute", default: 0] += 1
                 default:
                     let ids = session.tracks.flatMap { $0.clips.map(\.id) }.shuffled(using: &random).prefix(3)
                     try session.nudge(Array(ids), by: frame(-20_000...20_000))
@@ -59,7 +69,8 @@ struct EditRoundTripTests {
             }
         }
 
-        #expect(done.keys.sorted() == ["clear", "nudge", "paste", "paste two lanes", "place", "splitClips"])
+        #expect(
+            done.keys.sorted() == ["clear", "nudge", "paste", "paste two lanes", "place", "setRoute", "splitClips"])
         #expect(session.tracks.allSatisfy { !$0.clips.isEmpty })
         let package = FileManager.default.temporaryDirectory
             .appending(path: "EditRoundTripTests-\(UUID().uuidString)/Episode.dirigible")

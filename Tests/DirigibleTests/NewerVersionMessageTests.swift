@@ -30,7 +30,7 @@ struct NewerVersionMessageTests {
     /// Criterion 6: a newer session file and a damaged session file have their own texts.
     @Test func aNewerSessionFileIsNotADamagedFile() throws {
         try check(
-            .file(.unsupportedVersion(2)), .errorFileNewer,
+            .file(.unsupportedVersion(3)), .errorFileNewer,
             en: "This session was made by a newer version of Dirigible. Update Dirigible to open it.",
             es: "Esta sesión se creó con una versión más nueva de Dirigible. Actualiza Dirigible para abrirla.")
         try check(

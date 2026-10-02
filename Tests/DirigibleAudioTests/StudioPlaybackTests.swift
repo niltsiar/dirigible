@@ -20,7 +20,7 @@ struct StudioPlaybackTests {
         package = try MixPackage()
         try package.addFile("f1", channels: [ramp(frames: 100_000)])
         try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 48_000)
-        try package.session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: "t1")
+        try package.session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
         try package.session.write(to: package.url)
     }
 

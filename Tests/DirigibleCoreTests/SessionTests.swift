@@ -41,12 +41,12 @@ struct SessionTests {
     @Test func aRouteMatchesTheTrackLayout() throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
-        try session.setRoute(Route(deviceUID: "usb-1", channels: .mono(2)), track: "t1")
-        #expect(session.track("t1")?.route == Route(deviceUID: "usb-1", channels: .mono(2)))
+        try session.setRoute(Route.device(uid: "usb-1", channels: .mono(2)), track: "t1")
+        #expect(session.track("t1")?.route == Route.device(uid: "usb-1", channels: .mono(2)))
 
         let before = session
         #expect(throws: SessionError.layoutMismatch("t1", .route)) {
-            try session.setRoute(Route(deviceUID: "usb-1", channels: .stereo(1, 2)), track: "t1")
+            try session.setRoute(Route.device(uid: "usb-1", channels: .stereo(1, 2)), track: "t1")
         }
         #expect(session == before)
     }
@@ -55,21 +55,44 @@ struct SessionTests {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .stereo)
         #expect(throws: SessionError.invalidRoute) {
-            try session.setRoute(Route(deviceUID: "usb-1", channels: .stereo(0, 1)), track: "t1")
+            try session.setRoute(Route.device(uid: "usb-1", channels: .stereo(0, 1)), track: "t1")
         }
+    }
+
+    /// A1: an app route has no channels. The track layout picks a mono or a stereo mixdown.
+    @Test func anAppRouteFitsAMonoAndAStereoTrack() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Guest", layout: .mono)
+        try session.addTrack("t2", name: "Music", layout: .stereo)
+        try session.setRoute(.app(bundleID: "us.zoom.xos"), track: "t1")
+        try session.setRoute(.app(bundleID: "com.google.Chrome"), track: "t2")
+        #expect(session.track("t1")?.route == .app(bundleID: "us.zoom.xos"), "mono app route")
+        #expect(session.track("t2")?.route == .app(bundleID: "com.google.Chrome"), "stereo app route")
+    }
+
+    /// A1: `setRoute` refuses an empty bundle ID and text with a control character (0003).
+    @Test func anAppRouteRefusesAnEmptyIDAndAControlCharacter() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Guest", layout: .mono)
+        let before = session
+        #expect(throws: SessionError.invalidRoute) { try session.setRoute(.app(bundleID: ""), track: "t1") }
+        #expect(throws: SessionError.invalidText("a\u{1}b")) {
+            try session.setRoute(.app(bundleID: "a\u{1}b"), track: "t1")
+        }
+        #expect(session == before, "a refused app route changes nothing")
     }
 
     @Test func aLayoutChangeSetsTheRouteInTheSameCall() throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
-        try session.setRoute(Route(deviceUID: "usb-1", channels: .mono(1)), track: "t1")
+        try session.setRoute(Route.device(uid: "usb-1", channels: .mono(1)), track: "t1")
 
-        try session.setLayout(.stereo, route: Route(deviceUID: "usb-1", channels: .stereo(1, 2)), track: "t1")
+        try session.setLayout(.stereo, route: Route.device(uid: "usb-1", channels: .stereo(1, 2)), track: "t1")
         #expect(session.track("t1")?.layout == .stereo)
-        #expect(session.track("t1")?.route == Route(deviceUID: "usb-1", channels: .stereo(1, 2)))
+        #expect(session.track("t1")?.route == Route.device(uid: "usb-1", channels: .stereo(1, 2)))
 
         #expect(throws: SessionError.layoutMismatch("t1", .route)) {
-            try session.setLayout(.mono, route: Route(deviceUID: "usb-1", channels: .stereo(1, 2)), track: "t1")
+            try session.setLayout(.mono, route: Route.device(uid: "usb-1", channels: .stereo(1, 2)), track: "t1")
         }
     }
 
@@ -149,7 +172,7 @@ struct SessionTests {
         try session.addTrack("t1", name: "A", layout: .mono)
         #expect(throws: SessionError.invalidText(text)) { try session.renameTrack("t1", to: text) }
         #expect(throws: SessionError.invalidText(text)) {
-            try session.setRoute(Route(deviceUID: text, channels: .mono(1)), track: "t1")
+            try session.setRoute(Route.device(uid: text, channels: .mono(1)), track: "t1")
         }
         #expect(throws: SessionError.invalidText(text)) {
             try session.setMarker(Marker(id: "m1", name: text, position: 0, kind: .marker))
@@ -191,7 +214,7 @@ struct SessionTests {
         try session.addTrack("t2", name: "Guest", layout: .mono)
         try session.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 5, armedTracks: ["t1"]))
         let before = session
-        let route = Route(deviceUID: "usb-1", channels: .mono(1))
+        let route = Route.device(uid: "usb-1", channels: .mono(1))
 
         #expect(throws: SessionError.trackInRecording("t1")) { try session.setRoute(route, track: "t1") }
         #expect(throws: SessionError.trackInRecording("t1")) {

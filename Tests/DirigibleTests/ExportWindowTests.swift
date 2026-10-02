@@ -52,7 +52,7 @@ import os
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
         try studio.edit { session throws(SessionError) in
-            try session.setRoute(Route(deviceUID: "duo", channels: .mono(1)), track: "t1")
+            try session.setRoute(Route.device(uid: "duo", channels: .mono(1)), track: "t1")
         }
         return (model, studio, try #require(model.window))
     }
@@ -156,7 +156,7 @@ import os
     @Test func aRefusedRecordInTheSheetShowsItsError() async throws {
         let (model, studio, window) = try await window()
         try studio.edit { session throws(SessionError) in
-            try session.setRoute(Route(deviceUID: "duo", channels: .mono(3)), track: "t1")
+            try session.setRoute(Route.device(uid: "duo", channels: .mono(3)), track: "t1")
         }
         hold(studio)
         let (source, target) = (try #require(model.source(of: .session, in: studio)), target)

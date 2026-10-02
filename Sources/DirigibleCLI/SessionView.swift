@@ -31,9 +31,18 @@ struct SessionView: Encodable {
         let mediaLength: Int?
     }
 
+    /// A device route has `device` and `channels`; an app route has only `app`.
     struct RouteView: Encodable {
-        let device: String
-        let channels: [Int]
+        let device: String?
+        let channels: [Int]?
+        let app: String?
+
+        init(_ route: Route) {
+            switch route {
+            case .device(let uid, let channels): (device, self.channels, app) = (uid, channels.numbers, nil)
+            case .app(let bundleID): (device, channels, app) = (nil, nil, bundleID)
+            }
+        }
     }
 
     struct ClipView: Encodable {
@@ -68,6 +77,8 @@ struct SessionView: Encodable {
         let armedTracks: [String]
     }
 
+    /// The `session.xml` version that a save of this session writes (decision 0029).
+    let version: Int
     let sampleRate: Int
     let captures: [CaptureView]
     let files: [FileView]
@@ -76,6 +87,7 @@ struct SessionView: Encodable {
     let recording: RecordingView?
 
     init(_ session: Session, media: [FileID: MediaFault]) {
+        version = session.fileVersion
         sampleRate = session.sampleRate
         captures = session.sortedCaptures.map {
             CaptureView(
@@ -93,7 +105,7 @@ struct SessionView: Encodable {
         tracks = session.tracks.map { track in
             TrackView(
                 id: track.id.rawValue, name: track.name, gain: track.gain.dB, layout: track.layout.rawValue,
-                route: track.route.map { RouteView(device: $0.deviceUID, channels: $0.channels.numbers) },
+                route: track.route.map(RouteView.init),
                 clips: track.clips.map {
                     ClipView(
                         id: $0.id.rawValue, file: $0.file.rawValue, start: $0.start.count, offset: $0.offset.count,
@@ -122,9 +134,11 @@ func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> 
     var lines = ["\(name): \(session.sampleRate) Hz"]
     for track in session.tracks {
         var line = "track \(track.id) \(quoted(track.name)) \(track.layout.rawValue) \(track.gain)"
-        if let route = track.route {
-            line +=
-                " route \(quoted(route.deviceUID)) \(route.channels.numbers.map(String.init).joined(separator: ","))"
+        switch track.route {
+        case nil: break
+        case .device(let uid, let channels):
+            line += " route \(quoted(uid)) \(channels.numbers.map(String.init).joined(separator: ","))"
+        case .app(let bundleID): line += " route app \(quoted(bundleID))"
         }
         lines.append(line)
         for clip in track.clips {

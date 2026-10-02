@@ -64,6 +64,16 @@ final class TestHAL: @unchecked Sendable {
     private var attachGate: DispatchSemaphore?
     private var detachGate: Gate?
     private var log: [String: [Event]] = [:]
+    // App sources (decision 0030): the found app of each bundle ID, its name, the tap layout,
+    // the aggregate of each tap, and the HAL calls in order.
+    private var apps: [String: AppFound] = [:]
+    private var names: [String: String] = [:]
+    private var tapLayouts: [String: [Int]] = [:]
+    private var aggregates: [AudioObjectID: String] = [:]
+    private var nextAggregate = AudioObjectID(1000)
+    private var failingTeardown: String?
+    private var attachDelays: [String: Duration] = [:]
+    private var callLog: [String] = []
 
     /// A successful attach or a clean detach of one input.
     enum Event: Equatable {
@@ -89,7 +99,38 @@ final class TestHAL: @unchecked Sendable {
         DeviceHAL(
             lookUp: { [self] uid in lookUp(uid) },
             attach: { [self] input throws(HALError) in try attach(input) },
-            watchDevices: { _ in { true } })
+            watchDevices: { _ in { true } },
+            lookUpApp: { [self] bundleID, _ in
+                lock.withLock {
+                    callLog.append("lookUpApp \(bundleID)")
+                    return apps[bundleID]
+                }
+            },
+            makeTap: { [self] found in makeTap(found) },
+            appName: { [self] bundleID in lock.withLock { names[bundleID] ?? bundleID } })
+    }
+
+    /// A tap aggregate with the facts of `found`, or of its tap layout, and a teardown that logs
+    /// its two steps. With `failTeardown("aggregate")` they return an error; every step runs.
+    private func makeTap(_ found: AppFound) -> (id: AudioObjectID, device: InputDevice, teardown: Detach) {
+        let uid = found.device.uid
+        let (id, layout) = lock.withLock {
+            nextAggregate += 1
+            aggregates[nextAggregate] = uid
+            callLog.append("makeTap \(uid)")
+            return (nextAggregate, tapLayouts[uid] ?? found.device.channelsPerBuffer)
+        }
+        let device = InputDevice(
+            uid: "com.delineas.dirigible.tap.\(id)", name: "Tap", nominalRate: found.device.nominalRate,
+            availableRates: found.device.availableRates, channelsPerBuffer: layout, latency: found.device.latency)!
+        let teardown: Detach = { [self] in
+            lock.withLock {
+                callLog.append("destroyAggregate \(uid)")
+                callLog.append("destroyTap \(uid)")
+                return failingTeardown != "aggregate" && failingTeardown != "tap"
+            }
+        }
+        return (id, device, teardown)
     }
 
     private func lookUp(_ uid: String) -> (id: AudioObjectID, device: InputDevice)? {
@@ -125,21 +166,29 @@ final class TestHAL: @unchecked Sendable {
         if let gate = lock.withLock({ attachGate }), gate.wait(timeout: .now() + 30) == .timedOut {
             Issue.record("A held attach was not released in 30 s")
         }
+        let delay = lock.withLock {
+            attachDelays[present.first { $0.value.id == input.id }?.key ?? aggregates[input.id] ?? ""] ?? .zero
+        }
+        if delay > .zero { usleep(UInt32(delay / .microseconds(1))) }
         let (uid, error, live) = lock.withLock {
-            let uid = present.first { $0.value.id == input.id }?.key ?? "id \(input.id)"
+            let uid = present.first { $0.value.id == input.id }?.key ?? aggregates[input.id] ?? "id \(input.id)"
             tries[uid, default: []].append(input)
             return (uid, failure(uid, tries[uid]!.count), self.live.contains(uid))
         }
         if live { return try DeviceHAL.live.attach(input) }
         if let error { throw error }
         lock.withLock {
+            callLog.append("attach \(uid)")
             attached[uid, default: []].append(input)
             capacities[uid, default: []].append(input.ring.capacity)
             log[uid, default: []].append(.attach(input))
         }
         return { [self] in
             lock.withLock { detachGate }?.waitOnce()
-            let (running, clean) = lock.withLock { (self.producers[uid] ?? [], detachResult) }
+            let (running, clean) = lock.withLock {
+                callLog.append("detach \(uid)")
+                return (self.producers[uid] ?? [], detachResult && failingTeardown != "detach")
+            }
             guard clean else { return false }
             for producer in running { producer.stop(input) }
             lock.withLock {
@@ -149,6 +198,29 @@ final class TestHAL: @unchecked Sendable {
             return true
         }
     }
+
+    /// The app that `lookUpApp` finds for `bundleID` (nil: no output device), and its name.
+    func setApp(_ bundleID: String, _ found: AppFound?, name: String? = nil) {
+        lock.withLock {
+            apps[bundleID] = found
+            if let name { names[bundleID] = name }
+        }
+    }
+
+    /// The input layout of the next tap aggregates of `uid` (`app:<bundle ID>`), for example a
+    /// headset microphone before the tap stream (probe P13).
+    func setTapLayout(_ uid: String, _ layout: [Int]) { lock.withLock { tapLayouts[uid] = layout } }
+
+    /// The teardown step that fails from now on: "detach" (the IOProc and the listeners) or
+    /// "aggregate" or "tap" (the destroy of the tap aggregate or of the tap). Nil: every step returns noErr.
+    func failTeardown(_ step: String?) { lock.withLock { failingTeardown = step } }
+
+    /// Each attach of `uid` waits `delay` first: a device that is slow to start.
+    func delayAttach(_ uid: String, by delay: Duration) { lock.withLock { attachDelays[uid] = delay } }
+
+    /// The app lookups, the taps, the successful attaches, the detaches, and the teardown steps,
+    /// in order.
+    var calls: [String] { lock.withLock { callLog } }
 
     /// Puts `device` in the set with object `id`, or takes the UID out with nil.
     func set(_ uid: String, id: AudioObjectID?, device: InputDevice? = nil) {

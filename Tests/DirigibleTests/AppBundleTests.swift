@@ -36,10 +36,19 @@ struct AppBundleTests {
             plist["NSMicrophoneUsageDescription"] as? String
                 == "Dirigible records audio from your microphones and audio interfaces.")
 
+        // A12: the System Audio Recording prompt of an app track (decision 0030).
+        #expect(
+            plist["NSAudioCaptureUsageDescription"] as? String
+                == "Dirigible records the sound of the apps that you pick as track sources, for example a call.")
+
         let spanish = try propertyList(at: "Contents/Resources/es.lproj/InfoPlist.strings")
         #expect(
             spanish["NSMicrophoneUsageDescription"] as? String
                 == "Dirigible graba el audio de tus micrófonos e interfaces de audio.")
+        #expect(
+            spanish["NSAudioCaptureUsageDescription"] as? String
+                == "Dirigible graba el sonido de las apps que eliges como fuente de una pista, por ejemplo una llamada."
+        )
     }
 
     /// A session is a document package (decision 0003): Finder shows it as one file.

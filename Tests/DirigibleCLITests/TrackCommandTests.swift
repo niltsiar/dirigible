@@ -79,7 +79,7 @@ struct TrackCommandTests {
         let layout = try TrackCommand.SetLayout.parse([package.path, "host", "stereo", "--app", "us.zoom.xos"])
         #expect(throws: ExitCode(editRefused)) { try layout.apply(tapsAvailable: false) }
         #expect(try package.xml() == before, "the package did not change")
-        #expect(appSourcesUnavailable == "app sources need macOS 14.2 or later.")
+        #expect(appSourcesUnavailableMessage == "app sources need macOS 14.2 or later.")
 
         try TrackCommand.SetRoute.parse([package.path, "host", "--device", "D", "--channels", "1"])
             .apply(tapsAvailable: false)

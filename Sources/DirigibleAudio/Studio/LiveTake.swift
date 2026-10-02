@@ -76,6 +76,8 @@ struct CaptureEnvironment: Sendable {
     var firstRecordLimit: Duration
     /// Nil when the access is granted.
     var microphoneAccess: @Sendable () -> MicrophoneAccess?
+    /// False on macOS 14.0 and 14.1: no process taps, so no app route records (A14).
+    var tapsAvailable = processTapsAvailable
     /// The free bytes of the volume of the package. Called off the main actor.
     var freeBytes: @Sendable (PackageLock) -> Int64
     var diskCheckInterval: Duration
@@ -165,12 +167,15 @@ final class SleepAssertion: Sendable {
     }
 }
 
-/// An armed track with its arm number (1-based), route, and device, after the route checks.
+/// An armed track with its arm number (1-based), channels, and device, after the route checks.
+/// For an app route, `app` is the bundle ID, `device` has the UID `app:<bundle ID>` and the app
+/// name, and `channels` are the mixdown channels of the tap (decision 0030).
 struct ArmedRoute: Sendable {
     let track: TrackID
     let arm: Int
     let channels: Route.Channels
     let device: InputDevice
+    var app: String? = nil
 }
 
 /// A take that `session.xml` holds: the session with `<recording>`, the take, the routes, and
@@ -182,22 +187,27 @@ struct StartedTake: Sendable {
     let package: URL
 }
 
-/// Checks the route of each armed track against `devices`.
+/// Checks the route of each armed track against `devices`. An app route finds its device by the
+/// UID `app:<bundle ID>` and takes the mixdown channels of the track layout, so a second track
+/// on the same app has a channel in use.
 func checkRoutes(_ session: Session, armed: [TrackID], devices: [InputDevice]) throws(StudioError) -> [ArmedRoute] {
     var routes: [ArmedRoute] = []
     var owners: [String: [Int: TrackID]] = [:]
     for (index, id) in armed.enumerated() {
         guard let track = session.track(id) else { throw .session(.unknownTrack(id)) }
         guard let route = track.route else { throw .noRoute(id) }
-        // ponytail: an app route has no capture path until slice 3 of run 6a; it is a missing device.
-        guard case .device(let uid, let channels) = route, let device = devices.first(where: { $0.uid == uid })
-        else { throw .deviceMissing(id) }
+        let (uid, channels, app): (String, Route.Channels, String?) =
+            switch route {
+            case .device(let uid, let channels): (uid, channels, nil)
+            case .app(let bundleID): (appUID(bundleID), track.layout == .mono ? .mono(1) : .stereo(1, 2), bundleID)
+            }
+        guard let device = devices.first(where: { $0.uid == uid }) else { throw .deviceMissing(id) }
         for channel in channels.numbers {
             guard channel <= device.channelCount else { throw .channelOutOfRange(id) }
             if let owner = owners[device.uid, default: [:]][channel] { throw .channelInUse(owner, id) }
             owners[device.uid, default: [:]][channel] = id
         }
-        routes.append(ArmedRoute(track: id, arm: index + 1, channels: channels, device: device))
+        routes.append(ArmedRoute(track: id, arm: index + 1, channels: channels, device: device, app: app))
     }
     return routes
 }
@@ -237,17 +247,39 @@ func saveTakeStart(
 nonisolated func checkTake(
     of session: Session, armed: [TrackID], environment: CaptureEnvironment
 ) throws(StudioError) -> [ArmedRoute] {
+    let tracks = armed.compactMap { session.track($0) }
+    let hasApp = tracks.contains { if case .app = $0.route { true } else { false } }
+    if hasApp, !environment.tapsAvailable { throw .appSourcesUnavailable }
     var devices: [InputDevice] = []
-    for id in armed {
-        guard case .device(let uid, _) = session.track(id)?.route, !devices.contains(where: { $0.uid == uid }),
-            let found = environment.hal.lookUp(uid)
-        else { continue }
-        devices.append(found.device)
+    for track in tracks {
+        switch track.route {
+        case .device(let uid, _):
+            guard !devices.contains(where: { $0.uid == uid }), let found = environment.hal.lookUp(uid) else { continue }
+            devices.append(found.device)
+        case .app(let bundleID):
+            // The app name and the facts of the output, read only; nil only with no output device.
+            guard !devices.contains(where: { $0.uid == appUID(bundleID) }),
+                let found = environment.hal.lookUpApp(bundleID, track.layout),
+                let device = InputDevice(
+                    uid: appUID(bundleID), name: environment.hal.appName(bundleID),
+                    nominalRate: found.device.nominalRate,
+                    availableRates: found.device.availableRates, channelsPerBuffer: [track.layout.channelCount],
+                    latency: found.device.latency)
+            else { continue }
+            devices.append(device)
+        case nil: continue
+        }
     }
     let routes = try checkRoutes(session, armed: armed, devices: devices)
-    if let access = environment.microphoneAccess() { throw .microphoneAccess(access) }
+    // An app-only take needs no microphone access (A13).
+    if routes.contains(where: { $0.app == nil }), let access = environment.microphoneAccess() {
+        throw .microphoneAccess(access)
+    }
     return routes
 }
+
+/// The device UID of an app source in the capture header and `<capture>` (decision 0029).
+func appUID(_ bundleID: String) -> String { "app:\(bundleID)" }
 
 /// Steps 2 to 5 of the start order of decision 0013, off the main actor: `checkTake`, the disk
 /// check, and the save. Then the list entry, before the attach (decision 0004). `endExport` runs

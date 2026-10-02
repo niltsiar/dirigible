@@ -49,8 +49,11 @@ struct TrackSegments {
     /// Nil for a monitor.
     private let files: TakeFiles?
     private let report: @Sendable (Report) -> Void
-    /// The device layout of the next records.
+    /// The device layout of the next records. Its UID and name stay those of `init` (W4).
     private(set) var device: InputDevice
+    /// An app source: the routed channels count from the last input buffer, because the tap
+    /// stream comes after the inputs of the main sub-device (probe P13).
+    private let routesLastChannels: Bool
     private var outputs: [Output]
     /// The open segment of every track, or nil between segments.
     private var segment: Segment?
@@ -63,9 +66,10 @@ struct TrackSegments {
 
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?,
-        report: @escaping @Sendable (Report) -> Void
+        report: @escaping @Sendable (Report) -> Void, routesLastChannels: Bool = false
     ) {
         self.device = device
+        self.routesLastChannels = routesLastChannels
         self.files = files
         self.report = report
         outputs = tracks.map { Output(arm: $0.arm, channels: $0.channels.numbers) }
@@ -73,6 +77,9 @@ struct TrackSegments {
     }
 
     var arms: [Int] { outputs.map(\.arm) }
+
+    /// The highest routed channel: the mixdown channel count of an app source.
+    var routedWidth: Int { outputs.flatMap(\.channels).max() ?? 0 }
 
     /// The take number of the reports: 0 for a monitor.
     var take: Int { files?.take ?? 0 }
@@ -98,13 +105,22 @@ struct TrackSegments {
         return true
     }
 
-    /// Takes the layout of `device` for the next records.
-    mutating func use(_ device: InputDevice) {
-        self.device = device
+    /// Takes the rate, the latency, and the layout of `found` for the next records. The UID and
+    /// the name stay, so each segment of an app source has `app:<bundle ID>` and the app name,
+    /// not the facts of a new aggregate (W4). The caller checks the routed channels.
+    mutating func use(_ found: InputDevice) {
+        device =
+            InputDevice(
+                uid: device.uid, name: device.name, nominalRate: found.nominalRate,
+                availableRates: found.availableRates, channelsPerBuffer: found.channelsPerBuffer,
+                latency: found.latency) ?? found
         let channels = device.channelsPerBuffer.enumerated().flatMap { buffer, count in
             (0..<count).map { (buffer: buffer, channel: $0) }
         }
-        for index in outputs.indices { outputs[index].sources = outputs[index].channels.map { channels[$0 - 1] } }
+        let first = routesLastChannels ? channels.count - routedWidth : 0
+        for index in outputs.indices {
+            outputs[index].sources = outputs[index].channels.map { channels[first + $0 - 1] }
+        }
     }
 
     /// Writes `record`. False when it drops the record: its byte sizes do not match its layout,

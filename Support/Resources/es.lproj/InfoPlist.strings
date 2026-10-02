@@ -1,2 +1,3 @@
 "NSMicrophoneUsageDescription" = "Dirigible graba el audio de tus micrófonos e interfaces de audio.";
 "Dirigible Session" = "Sesión de Dirigible";
+"NSAudioCaptureUsageDescription" = "Dirigible graba el sonido de las apps que eliges como fuente de una pista, por ejemplo una llamada.";

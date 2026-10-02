@@ -73,6 +73,8 @@
 			</dict>
 		</dict>
 	</array>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Dirigible records the sound of the apps that you pick as track sources, for example a call.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Dirigible records audio from your microphones and audio interfaces.</string>
 </dict>

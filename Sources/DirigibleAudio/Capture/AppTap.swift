@@ -1,5 +1,6 @@
 import CoreAudio
 import CoreServices
+import DirigibleCore
 import Foundation
 
 /// The UID prefix of each tap aggregate that Dirigible makes (decision 0030).
@@ -153,4 +154,102 @@ extension AudioProcess {
             return (pid, AudioProcess(id: id, bundleID: bundleID, path: path, playing: running == 1))
         }
     }
+}
+
+// MARK: The tap of one app appearance (decision 0030)
+
+/// The identity of one app appearance: the matched process objects, sorted (empty when the app
+/// does not run), and the UID of the main sub-device of its aggregate.
+struct AppKey: Hashable, Sendable {
+    let processes: [AudioObjectID]
+    let output: String
+}
+
+/// What the app lookup finds, with reads only: no tap, no aggregate, and no prompt. `device` has
+/// the UID `app:<bundle ID>`, the rate of the output, and one buffer with the mixdown channels.
+struct AppFound: Sendable {
+    let key: AppKey
+    let device: InputDevice
+    /// True when a matched process has `IsRunningOutput` 1.
+    let playing: Bool
+}
+
+/// The description of a private tap aggregate (decision 0006). Auto start is false, so the IO
+/// runs from the take start, also for a tap with no process (probe P11).
+func aggregateDescription(output: String, tapUID: String, uid: String) -> [String: Any] {
+    [
+        kAudioAggregateDeviceNameKey: "Dirigible app tap", kAudioAggregateDeviceUIDKey: uid,
+        kAudioAggregateDeviceMainSubDeviceKey: output, kAudioAggregateDeviceIsPrivateKey: true,
+        kAudioAggregateDeviceIsStackedKey: false, kAudioAggregateDeviceTapAutoStartKey: false,
+        kAudioAggregateDeviceSubDeviceListKey: [[kAudioSubDeviceUIDKey: output]],
+        kAudioAggregateDeviceTapListKey: [[kAudioSubTapDriftCompensationKey: true, kAudioSubTapUIDKey: tapUID]],
+    ]
+}
+
+/// The name of an app from its bundle, else its bundle ID. LaunchServices reads: call it off the
+/// main actor.
+func appName(_ bundleID: String) -> String {
+    launchServicesURL(bundleID).flatMap { AppBundle($0)?.name } ?? bundleID
+}
+
+/// The live app lookup: the A4 process set of the app, the output device of a matched process
+/// (else the default output), and its rate. Nil when there is no output device.
+func lookUpApp(_ bundleID: String, layout: ChannelLayout) -> AppFound? {
+    let processes = appProcesses(
+        bundleID, bundlePath: launchServicesURL(bundleID)?.path,
+        in: AudioProcess.all().filter { $0.pid != getpid() }.map(\.process))
+    let system = AudioObjectID(kAudioObjectSystemObject)
+    let used = processes.lazy.compactMap {
+        try? readArray(
+            $0.id, kAudioProcessPropertyDevices, scope: kAudioObjectPropertyScopeOutput, as: AudioObjectID.self
+        )
+        .first
+    }.first
+    guard
+        let output = used
+            ?? (try? readValue(system, kAudioHardwarePropertyDefaultOutputDevice, as: AudioObjectID.self)),
+        let uid = readString(output, kAudioDevicePropertyDeviceUID),
+        let rate = try? readValue(output, kAudioDevicePropertyNominalSampleRate, as: Float64.self),
+        let device = InputDevice(
+            uid: "app:\(bundleID)", name: bundleID, nominalRate: rate, availableRates: [rate...rate],
+            channelsPerBuffer: [layout.channelCount], latency: 0)
+    else { return nil }
+    return AppFound(
+        key: AppKey(processes: processes.map(\.id).sorted(), output: uid), device: device,
+        playing: processes.contains(where: \.playing))
+}
+
+/// Makes a private, unmuted mixdown tap of the processes of `found` and its private aggregate
+/// (decision 0006). The teardown destroys the aggregate, then the tap; each step runs, and it is
+/// clean only when both return noErr.
+@available(macOS 14.2, *)
+func makeTap(_ found: AppFound) throws(HALError) -> (id: AudioObjectID, device: InputDevice, teardown: Detach) {
+    let description =
+        found.device.channelCount == 1
+        ? CATapDescription(monoMixdownOfProcesses: found.key.processes)
+        : CATapDescription(stereoMixdownOfProcesses: found.key.processes)
+    description.isPrivate = true
+    description.muteBehavior = .unmuted
+    var tap = AudioObjectID(kAudioObjectUnknown)
+    var status = AudioHardwareCreateProcessTap(description, &tap)
+    guard status == noErr else { throw .status(status) }
+    let tapUID = readString(tap, kAudioTapPropertyUID) ?? description.uuid.uuidString
+    var aggregate = AudioObjectID(kAudioObjectUnknown)
+    let wanted = aggregateDescription(
+        output: found.key.output, tapUID: tapUID, uid: tapUIDPrefix + UUID().uuidString)
+    status = AudioHardwareCreateAggregateDevice(wanted as CFDictionary, &aggregate)
+    guard status == noErr else {
+        _ = AudioHardwareDestroyProcessTap(tap)
+        throw .status(status)
+    }
+    let (made, madeTap) = (aggregate, tap)
+    let teardown: Detach = {
+        let aggregateDestroyed = AudioHardwareDestroyAggregateDevice(made) == noErr
+        return AudioHardwareDestroyProcessTap(madeTap) == noErr && aggregateDestroyed
+    }
+    guard let device = InputDevice.read(aggregate) else {
+        _ = teardown()
+        throw .status(kAudioHardwareUnspecifiedError)
+    }
+    return (aggregate, device, teardown)
 }

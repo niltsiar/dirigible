@@ -192,6 +192,7 @@ enum L10n: String, CaseIterable {
     case errorChannelOutOfRange = "error.studio.channel.range"
     case errorChannelInUse = "error.studio.channel.in.use"
     case errorDiskLow = "error.studio.disk.low"
+    case errorAppSourcesUnavailable = "error.studio.app.unavailable"
     case errorPlacementSpace = "error.placement.space"
     case errorMicrophoneDenied = "error.microphone.denied"
     case errorMicrophoneRestricted = "error.microphone.restricted"
@@ -254,6 +255,7 @@ enum L10n: String, CaseIterable {
         case .channelOutOfRange(let track): return errorChannelOutOfRange.format(name(track))
         case .channelInUse(let first, let second): return errorChannelInUse.format(name(first), name(second))
         case .diskLow: return errorDiskLow.text
+        case .appSourcesUnavailable: return errorAppSourcesUnavailable.text
         case .placementSpace(let needed, let free):
             return errorPlacementSpace.format(bytes(needed), bytes(free))
         case .microphoneAccess(.restricted): return errorMicrophoneRestricted.text

@@ -26,8 +26,8 @@ import os
             var session = Session(sampleRate: 48_000)
             try session.addTrack("t1", name: "Host", layout: .mono)
             try session.addTrack("t2", name: "Guest", layout: .mono)
-            try session.setRoute(Route(deviceUID: "duo", channels: .mono(1)), track: "t1")
-            try session.setRoute(Route(deviceUID: "duo", channels: .mono(2)), track: "t2")
+            try session.setRoute(Route.device(uid: "duo", channels: .mono(1)), track: "t1")
+            try session.setRoute(Route.device(uid: "duo", channels: .mono(2)), track: "t2")
             try session.write(to: package)
         }.value
         return package
@@ -73,7 +73,7 @@ import os
 
     /// Control in the same test: with the device in the list, the label is its name.
     @Test func aMissingRouteDeviceShowsMissing() {
-        let route = Route(deviceUID: "duo", channels: .mono(1))
+        let route = Route.device(uid: "duo", channels: .mono(1))
         #expect(routeLabel(route: route, devices: []) == L10n.trackRouteMissing.text)
         #expect(routeLabel(route: route, devices: [duo]) == "Duo")
     }

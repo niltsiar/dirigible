@@ -102,7 +102,7 @@ extension SessionWindow {
             armed.remove(track)
             return
         }
-        let route = Route(deviceUID: device.uid, channels: channels)
+        let route = Route.device(uid: device.uid, channels: channels)
         edit { s throws(SessionError) in try s.setLayout(channels.layout, route: route, track: track) }
         if idleStudio?.session.track(track)?.route == route { armed.insert(track) }
     }

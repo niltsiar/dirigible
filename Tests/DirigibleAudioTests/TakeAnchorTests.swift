@@ -169,8 +169,8 @@ struct TakeAnchorTests {
             var session = Session(sampleRate: 48_000)
             try session.addTrack("t1", name: "Host", layout: .mono)
             try session.addTrack("t2", name: "Guest", layout: .mono)
-            try session.setRoute(Route(deviceUID: "mic", channels: .mono(1)), track: "t1")
-            try session.setRoute(Route(deviceUID: "box", channels: .mono(1)), track: "t2")
+            try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
+            try session.setRoute(Route.device(uid: "box", channels: .mono(1)), track: "t2")
             try session.write(to: url)
         }
         let studio = try await Studio.open(url)

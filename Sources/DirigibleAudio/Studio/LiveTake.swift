@@ -3,6 +3,11 @@ import CoreAudio
 import DirigibleCore
 import IOKit.pwr_mgt
 
+/// True when this macOS has process taps (14.2 or later, decision 0006). An app route needs it.
+public var processTapsAvailable: Bool {
+    if #available(macOS 14.2, *) { true } else { false }
+}
+
 /// The state of one armed track during a take or a monitor (decision 0015).
 public struct LiveTrack: Hashable, Sendable {
     /// `writeFailed` has no cause: a full disk and a volume that goes away give the same status
@@ -164,7 +169,7 @@ final class SleepAssertion: Sendable {
 struct ArmedRoute: Sendable {
     let track: TrackID
     let arm: Int
-    let route: Route
+    let channels: Route.Channels
     let device: InputDevice
 }
 
@@ -184,13 +189,15 @@ func checkRoutes(_ session: Session, armed: [TrackID], devices: [InputDevice]) t
     for (index, id) in armed.enumerated() {
         guard let track = session.track(id) else { throw .session(.unknownTrack(id)) }
         guard let route = track.route else { throw .noRoute(id) }
-        guard let device = devices.first(where: { $0.uid == route.deviceUID }) else { throw .deviceMissing(id) }
-        for channel in route.channels.numbers {
+        // ponytail: an app route has no capture path until slice 3 of run 6a; it is a missing device.
+        guard case .device(let uid, let channels) = route, let device = devices.first(where: { $0.uid == uid })
+        else { throw .deviceMissing(id) }
+        for channel in channels.numbers {
             guard channel <= device.channelCount else { throw .channelOutOfRange(id) }
             if let owner = owners[device.uid, default: [:]][channel] { throw .channelInUse(owner, id) }
             owners[device.uid, default: [:]][channel] = id
         }
-        routes.append(ArmedRoute(track: id, arm: index + 1, route: route, device: device))
+        routes.append(ArmedRoute(track: id, arm: index + 1, channels: channels, device: device))
     }
     return routes
 }
@@ -232,7 +239,7 @@ nonisolated func checkTake(
 ) throws(StudioError) -> [ArmedRoute] {
     var devices: [InputDevice] = []
     for id in armed {
-        guard let uid = session.track(id)?.route?.deviceUID, !devices.contains(where: { $0.uid == uid }),
+        guard case .device(let uid, _) = session.track(id)?.route, !devices.contains(where: { $0.uid == uid }),
             let found = environment.hal.lookUp(uid)
         else { continue }
         devices.append(found.device)

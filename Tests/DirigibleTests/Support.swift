@@ -234,7 +234,7 @@ func timelinePackage(
         for n in 1...tracks {
             let track = TrackID("t\(n)")
             try session.addTrack(track, name: "T\(n)", layout: .mono)
-            try session.setRoute(Route(deviceUID: device, channels: .mono(1)), track: track)
+            try session.setRoute(Route.device(uid: device, channels: .mono(1)), track: track)
             try session.place(
                 Clip(id: ClipID("c\(n)"), file: "f1", start: 0, offset: 0, length: Frames(frames)), on: track)
         }

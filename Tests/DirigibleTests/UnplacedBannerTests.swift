@@ -26,7 +26,7 @@ import Testing
             for (n, channel) in [(1, 1), (2, 2)] {
                 let track = TrackID("t\(n)")
                 try session.addTrack(track, name: "T\(n)", layout: .mono)
-                try session.setRoute(Route(deviceUID: "duo", channels: .mono(channel)), track: track)
+                try session.setRoute(Route.device(uid: "duo", channels: .mono(channel)), track: track)
             }
             try session.write(to: url)
         }.value

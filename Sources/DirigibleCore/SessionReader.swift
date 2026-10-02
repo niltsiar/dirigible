@@ -13,13 +13,15 @@ extension Session {
         try self.init(xml: data)
     }
 
-    init(xml data: Data) throws(SessionFileError) {
+    /// `newest` is the newest version that the reader accepts. A test gives 1 to act as a
+    /// version 1 build.
+    init(xml data: Data, newest: Int = sessionVersion) throws(SessionFileError) {
         guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
             root.localName == "session", root.uri == sessionNamespace
         else { throw .malformedXML }
 
         let version: Int = try root.value("version")
-        guard version <= sessionVersion else { throw .unsupportedVersion(version) }
+        guard version <= newest else { throw .unsupportedVersion(version) }
         guard version >= 1 else { throw .invalidValue(element: "session", attribute: "version") }
         let sampleRate: Int = try root.value("sampleRate")
         guard sampleRate > 0 else { throw .invalidValue(element: "session", attribute: "sampleRate") }
@@ -29,7 +31,7 @@ extension Session {
         var files: [AudioFile] = []
         for node in root.children("files", "file") { files.append(try AudioFile(node)) }
         var tracks: [ParsedTrack] = []
-        for node in root.children("tracks", "track") { tracks.append(try ParsedTrack(node)) }
+        for node in root.children("tracks", "track") { tracks.append(try ParsedTrack(node, version: version)) }
         var markers: [Marker] = []
         for node in root.children("markers", "marker") { markers.append(try Marker(node)) }
         let recording = try root.sessionElements("recording").first.map { node throws(SessionFileError) in
@@ -67,7 +69,7 @@ private struct ParsedTrack {
     let route: Route?
     let clips: [Clip]
 
-    init(_ node: XMLElement) throws(SessionFileError) {
+    init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         id = TrackID(try node.string("id"))
         name = try node.string("name")
         gain = try node.gain("gain")
@@ -76,7 +78,7 @@ private struct ParsedTrack {
         }
         self.layout = layout
         route = try node.sessionElements("route").first.map { route throws(SessionFileError) in
-            try Route(route)
+            try Route(route, version: version)
         }
         var clips: [Clip] = []
         for clip in node.sessionElements("clip") {
@@ -120,7 +122,16 @@ extension AudioFile {
 }
 
 extension Route {
-    fileprivate init(_ node: XMLElement) throws(SessionFileError) {
+    /// `<route device channels/>`, or `<route app/>` from version 2 on (decision 0029). An app
+    /// route with a device or channels, or in a version 1 file, is refused.
+    fileprivate init(_ node: XMLElement, version: Int) throws(SessionFileError) {
+        if let app = node.optionalString("app") {
+            guard version >= 2, node.optionalString("device") == nil, node.optionalString("channels") == nil else {
+                throw .invalidValue(element: "route", attribute: "app")
+            }
+            self = .app(bundleID: app)
+            return
+        }
         let parts = try node.string("channels").split(separator: " ")
         let numbers = parts.compactMap { Int($0) }
         let channels: Channels
@@ -129,7 +140,7 @@ extension Route {
         case (2, 2): channels = .stereo(numbers[0], numbers[1])
         default: throw .invalidValue(element: "route", attribute: "channels")
         }
-        self.init(deviceUID: try node.string("device"), channels: channels)
+        self = .device(uid: try node.string("device"), channels: channels)
     }
 }
 

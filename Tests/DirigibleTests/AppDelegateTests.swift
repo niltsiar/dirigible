@@ -222,7 +222,7 @@ import os
         let package = folder.url.appending(path: "prompt.dirigible")
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
-        try session.setRoute(Route(deviceUID: mic.uid, channels: .mono(1)), track: "t1")
+        try session.setRoute(Route.device(uid: mic.uid, channels: .mono(1)), track: "t1")
         try session.write(to: package)
         let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)

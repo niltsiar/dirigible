@@ -34,7 +34,9 @@ func posixCode(of error: any Error) -> Int32 {
 let sessionNamespace = "https://github.com/niltsiar/dirigible/session"
 /// The folder of the clip files in a package (decision 0003).
 package let clipsFolderName = "Clips"
-let sessionVersion = 1
+/// The newest `session.xml` version that this build reads (decision 0029). A save writes
+/// `Session.fileVersion`.
+package let sessionVersion = 2
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -87,7 +89,7 @@ extension Session {
 
     /// The XML of the session. A file that does not read back would lock the user out of the
     /// session, so it throws `.wouldNotReadBack` then.
-    private func checkedData() throws(SessionFileError) -> Data {
+    func checkedData() throws(SessionFileError) -> Data {
         let data = xmlDocument().xmlData(options: .nodePrettyPrint)
         let readBack: Session
         do throws(SessionFileError) {
@@ -110,7 +112,7 @@ extension Session {
     }
 
     func xmlDocument() -> XMLDocument {
-        let root = element("session", ("version", String(sessionVersion)), ("sampleRate", String(sampleRate)))
+        let root = element("session", ("version", String(fileVersion)), ("sampleRate", String(sampleRate)))
         let namespace = XMLNode(kind: .namespace)
         namespace.name = ""
         namespace.stringValue = sessionNamespace
@@ -144,11 +146,14 @@ extension Session {
             let node = element(
                 "track", ("id", track.id.rawValue), ("name", track.name), ("gain", text(track.gain.dB)),
                 ("layout", track.layout.rawValue))
-            if let route = track.route {
+            switch track.route {
+            case nil: break
+            case .device(let uid, let channels):
                 node.addChild(
                     element(
-                        "route", ("device", route.deviceUID),
-                        ("channels", route.channels.numbers.map(String.init).joined(separator: " "))))
+                        "route", ("device", uid), ("channels", channels.numbers.map(String.init).joined(separator: " "))
+                    ))
+            case .app(let bundleID): node.addChild(element("route", ("app", bundleID)))
             }
             for clip in track.clips {
                 node.addChild(

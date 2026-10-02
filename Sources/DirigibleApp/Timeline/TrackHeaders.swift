@@ -147,13 +147,19 @@ private struct TrackRow: View {
     private var routeText: String {
         // "No Input" reads as a state; the label asks for the action. The item stays "No Input".
         guard let route = track.route else { return L10n.trackRouteChoose.text }
-        return L10n.trackRoute.format(routeLabel(route: route, devices: model.devices), channelsText(route.channels))
+        let label = routeLabel(route: route, devices: model.devices)
+        guard case .device(_, let channels) = route else { return label }
+        return L10n.trackRoute.format(label, channelsText(channels))
     }
 }
 
-/// The device of a route: its name, or the "missing" text when it is not in `devices`.
+/// The source of a route: the device name, or the "missing" text when it is not in `devices`;
+/// the bundle ID of an app.
 func routeLabel(route: Route, devices: [InputDevice]) -> String {
-    devices.first { $0.uid == route.deviceUID }?.name ?? L10n.trackRouteMissing.text
+    switch route {
+    case .device(let uid, _): devices.first { $0.uid == uid }?.name ?? L10n.trackRouteMissing.text
+    case .app(let bundleID): bundleID
+    }
 }
 
 private func channelsText(_ channels: Route.Channels) -> String {

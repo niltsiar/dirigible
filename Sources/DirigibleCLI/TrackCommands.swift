@@ -1,4 +1,5 @@
 import ArgumentParser
+import DirigibleAudio
 import DirigibleCore
 
 struct TrackCommand: ParsableCommand {
@@ -64,7 +65,10 @@ struct TrackCommand: ParsableCommand {
         @Argument(help: "mono or stereo.", transform: parseLayout) var layout: ChannelLayout
         @OptionGroup var route: RouteOptions
 
-        func run() throws {
+        func run() throws { try apply(tapsAvailable: processTapsAvailable) }
+
+        func apply(tapsAvailable: Bool) throws {
+            try route.checkAvailable(tapsAvailable)
             try editPackage(package) { session throws(SessionError) in
                 try session.setLayout(layout, route: route.route, track: TrackID(track))
             }
@@ -77,7 +81,10 @@ struct TrackCommand: ParsableCommand {
         @Argument var track: String
         @OptionGroup var route: RouteOptions
 
-        func run() throws {
+        func run() throws { try apply(tapsAvailable: processTapsAvailable) }
+
+        func apply(tapsAvailable: Bool) throws {
+            try route.checkAvailable(tapsAvailable)
             try editPackage(package) { session throws(SessionError) in
                 try session.setRoute(route.route, track: TrackID(track))
             }
@@ -85,22 +92,38 @@ struct TrackCommand: ParsableCommand {
     }
 }
 
-/// Exactly one route form: `--device` with `--channels`, or `--none`. No command leaves the
-/// route unstated, so a layout change never removes a route by accident.
+/// The refusal of an app route on a macOS with no process taps (A14).
+let appSourcesUnavailable = "app sources need macOS 14.2 or later."
+
+/// Exactly one route form: `--device` with `--channels`, `--app`, or `--none`. No command
+/// leaves the route unstated, so a layout change never removes a route by accident.
 struct RouteOptions: ParsableArguments {
     @Option(help: "The device UID.") var device: String?
     @Option(parsing: .unconditional, help: "One channel, or two as 1,2. Channels start at 1.", transform: parseChannels)
     var channels: Route.Channels?
+    @Option(help: "The bundle ID of an app to record, for example us.zoom.xos.") var app: String?
     @Flag(help: "Remove the route.") var none = false
 
     func validate() throws {
-        guard (device != nil && channels != nil && !none) || (device == nil && channels == nil && none) else {
-            throw ValidationError("Give --device with --channels, or --none.")
+        let given = (device: device != nil, channels: channels != nil, app: app != nil, none: none)
+        let valid: Bool =
+            switch given {
+            case (true, true, false, false), (false, false, true, false), (false, false, false, true): true
+            default: false
+            }
+        guard valid else {
+            throw ValidationError("Give --device with --channels, --app, or --none.")
         }
     }
 
     var route: Route? {
+        if let app { return .app(bundleID: app) }
         guard let device, let channels else { return nil }
-        return Route(deviceUID: device, channels: channels)
+        return .device(uid: device, channels: channels)
+    }
+
+    /// Refuses an app route before the package lock when this macOS has no process taps.
+    func checkAvailable(_ tapsAvailable: Bool) throws(ExitCode) {
+        if app != nil, !tapsAvailable { throw fail(appSourcesUnavailable, code: editRefused) }
     }
 }

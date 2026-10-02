@@ -120,10 +120,22 @@ public struct Session: Hashable, Sendable {
     }
 
     private static func check(_ route: Route?, layout: ChannelLayout, track: TrackID) throws(SessionError) {
-        guard let route else { return }
-        try checkText(route.deviceUID)
-        guard route.channels.numbers.allSatisfy({ $0 >= 1 }) else { throw .invalidRoute }
-        guard route.channels.layout == layout else { throw .layoutMismatch(track, .route) }
+        switch route {
+        case nil: return
+        case .device(let uid, let channels):
+            try checkText(uid)
+            guard channels.numbers.allSatisfy({ $0 >= 1 }) else { throw .invalidRoute }
+            guard channels.layout == layout else { throw .layoutMismatch(track, .route) }
+        case .app(let bundleID):
+            try checkText(bundleID)
+            guard !bundleID.isEmpty else { throw .invalidRoute }
+        }
+    }
+
+    /// The `session.xml` version that holds this session (decision 0024 P6): 2 with an app
+    /// route (decision 0029), else 1.
+    public var fileVersion: Int {
+        tracks.contains { if case .app = $0.route { true } else { false } } ? 2 : 1
     }
 
     /// XML 1.0 cannot hold the other control characters, and it reads tab, LF, and CR in an
@@ -188,6 +200,7 @@ public enum SessionError: Error, Hashable, Sendable {
     case fileInUse(FileID)
     case trackInRecording(TrackID)
     case layoutMismatch(TrackID, LayoutConflict)
+    /// A device channel less than 1, or an empty app ID.
     case invalidRoute
     case invalidPath(String)
     case invalidText(String)

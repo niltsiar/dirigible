@@ -6,11 +6,13 @@
 # It reads prose, code spans, and fenced blocks, and prints one line for each token:
 #   pr-terms: <file>:<line>: <token>: <reason>
 # The reasons:
-# - run-internal ID: a short ID (`U3`, `G12c`, `C1`) or a rule ID (`AGT-099`) that the repo does
-#   not resolve. An R-number resolves with a row in docs/requirements/brief.md, an E or H ID with
-#   a row in docs/workflow/evals.md, and a rule ID with a row in docs/workflow/rules.tsv. A C-ID
-#   never resolves: run criteria and the brief constraints use the same IDs. A missing lookup
-#   file resolves nothing.
+# - run-internal ID: a short ID (`U3`, `G12c`, `C1`: one letter, 1 or 2 digits) or a rule ID
+#   (`AGT-099`: a prefix of docs/workflow/rules.tsv, 3 digits) that the repo does not resolve. An
+#   R-number resolves with a row in docs/requirements/brief.md, an E or H ID with a row in
+#   docs/workflow/evals.md, and a rule ID with a row in docs/workflow/rules.tsv. A C-ID never
+#   resolves: run criteria and the brief constraints use the same IDs. A short ID after `Apple ` is
+#   a chip name (`Apple M1`). A missing lookup file resolves nothing; with no rules.tsv, each
+#   `ABC-123` is a rule ID.
 # - cause key: `ABC-123/word` or `NEW-<class>-<word>`.
 # - commit hash: a hex token of 7 to 40 characters that `git cat-file` finds as a commit, also in
 #   parentheses. The land rebase gives each commit a new hash, so the body says the change in
@@ -37,6 +39,9 @@ root="$(git rev-parse --show-toplevel 2> /dev/null)" || { echo "pr-terms: not in
 brief="$root/docs/requirements/brief.md"
 evals="$root/docs/workflow/evals.md"
 rules="$root/docs/workflow/rules.tsv"
+# The rule-ID prefixes, so a real name (`SHA-256`, `AES-128`) is not a rule ID.
+prefixes="$([[ -f "$rules" ]] && cut -f1 "$rules" | sed -nE 's/^([A-Z]{2,4})-[0-9]{3}$/\1/p' | sort -u | paste -sd'|' - || true)"
+[[ -n "$prefixes" ]] || prefixes='[A-Z]{2,4}'
 
 # row <file> <id>: the file has a table row for the ID.
 row() { [[ -f "$1" ]] && grep -qE "^\| *$2 *\|" "$1"; }
@@ -46,18 +51,19 @@ scan() {
     local body="$1" ln tok
     while IFS=: read -r ln tok; do
         case "$tok" in
+            Apple\ *) continue ;;
             R*) row "$brief" "$tok" && continue ;;
             E* | H*) row "$evals" "$tok" && continue ;;
         esac
         echo "pr-terms: $body:$ln: $tok: run-internal ID"
-    done < <(grep -noE '\b[A-Z][0-9]+[a-z]?\b' "$body" || true)
+    done < <(grep -noE '(Apple )?\b[A-Z][0-9]{1,2}[a-z]?\b' "$body" || true)
 
     while IFS=: read -r ln tok; do
         case "$tok" in
             */* | NEW-*) echo "pr-terms: $body:$ln: $tok: cause key" ;;
             *) [[ -f "$rules" ]] && grep -q "^$tok"$'\t' "$rules" || echo "pr-terms: $body:$ln: $tok: run-internal ID" ;;
         esac
-    done < <(grep -noE '\b[A-Z]{2,4}-[0-9]{3}\b(/[a-z]+)?|\bNEW-[A-Za-z]+-[A-Za-z-]+' "$body" || true)
+    done < <(grep -noE "\\b($prefixes)-[0-9]{3}\\b(/[a-z]+)?|\\bNEW-[A-Za-z]+-[A-Za-z-]+" "$body" || true)
 
     while IFS=: read -r ln tok; do
         if git -C "$root" cat-file -e "$tok^{commit}" 2> /dev/null; then echo "pr-terms: $body:$ln: $tok: commit hash"; fi

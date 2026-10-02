@@ -35,7 +35,7 @@ code=0
 draft="$run/logs/pr-draft.md"
 if [[ -f "$draft" ]]; then
     "$here/pr-terms.sh" --lost "$draft" "$body" >&2 || code=$?
-    [[ $code -ne 1 ]] || die "the body lost numbers of $draft (listed above); restore them"
+    [[ $code -ne 1 ]] || die "the body lost numbers of $draft (listed above); restore them in the body, or correct $draft when its number is wrong"
     [[ $code -eq 0 ]] || die "pr-terms.sh --lost failed (exit $code)"
 fi
 

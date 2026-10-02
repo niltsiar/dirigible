@@ -167,10 +167,12 @@ struct AppKey: Hashable, Sendable {
     let output: String?
 }
 
-/// W1: the found set has a process that the tap lacks, or the reported output changed (E3). A set that only
-/// loses processes keeps the tap: it goes on with zeros (probes P10.4 and P10.5).
+/// W1: the found set has a process that the tap lacks, or a matched process reports an output
+/// that is not the main sub-device of the running aggregate. `current` is the key of the writer
+/// slot, whose output is that main sub-device; a found key with no reported output, or with that
+/// device, keeps the tap (code gate 2 F2).
 func needsRebuild(_ current: AppKey, _ found: AppKey) -> Bool {
-    !Set(found.processes).isSubset(of: current.processes) || found.output != current.output
+    !Set(found.processes).isSubset(of: current.processes) || (found.output != nil && found.output != current.output)
 }
 
 /// What the app lookup finds, with reads only: no tap, no aggregate, and no prompt. `device` has

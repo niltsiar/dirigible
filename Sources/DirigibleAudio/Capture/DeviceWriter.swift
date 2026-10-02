@@ -39,7 +39,7 @@ final class DeviceWriter: @unchecked Sendable {
     private var tracks: TrackSegments
     private var phase = Phase.ready
     /// The attached appearance of the device, its detach, and for an app the key of the
-    /// appearance (decision 0030).
+    /// appearance: its processes and the main sub-device of its aggregate (decision 0030).
     private var input: (input: DeviceInput, detach: Detach, key: AppKey?)?
     /// The detaches that failed: a late IOProc call can still use their ring bytes.
     private var failedDetaches = 0
@@ -295,7 +295,8 @@ final class DeviceWriter: @unchecked Sendable {
             return lose()
         }
         guard needsRebuild(current, found.key) else {
-            input?.key = found.key
+            // Only the processes change: the aggregate keeps its main sub-device.
+            input?.key = AppKey(processes: found.key.processes, output: current.output)
             return reportAppState()
         }
         rebuild()
@@ -389,6 +390,6 @@ final class DeviceWriter: @unchecked Sendable {
             if !tap.teardown() { failedDetaches += 1 }
             return nil
         }
-        return (tap.id, tap.device, tap.teardown, found.key)
+        return (tap.id, tap.device, tap.teardown, AppKey(processes: found.key.processes, output: found.output))
     }
 }

@@ -67,6 +67,9 @@ final class DeviceWriter: @unchecked Sendable {
     private var kept = 0
     /// True after the writer reported `.retryStopped`.
     private var retryStopped = false
+    /// The last running state that an app writer reported: `.waitingForApp` while its app has no
+    /// process, else `.recording`.
+    private var appState = LiveTrack.State.recording
     /// The ring of an attach that threw before its IOProc existed: no call can reach it.
     private var spare: CaptureRing?
     private var unwatch: Detach?
@@ -125,7 +128,7 @@ final class DeviceWriter: @unchecked Sendable {
             timer.resume()
             self.timer = timer
             unwatch = hal.watchDevices(self)
-            if !attach() { lose() }
+            if attach() { reportAppState() } else { lose() }
         }
     }
 
@@ -175,8 +178,8 @@ final class DeviceWriter: @unchecked Sendable {
     private func handle(_ event: Event, from sender: DeviceInput?) {
         guard phase == .running || phase == .lost else { return }
         if case .devicesChanged = event {
-            // An app writer has no UID to look up: its own aggregate changes the device list.
-            if phase == .running, app == nil, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose() }
+            if phase == .running, app != nil { return appChanged() }
+            if phase == .running, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose() }
             return comeBack()
         }
         guard let current = input?.input, current === sender else { return }
@@ -190,7 +193,8 @@ final class DeviceWriter: @unchecked Sendable {
             // The rate is in the ring already: the next record header breaks the segment.
             growRing(rate: rate, channels: tracks.device.channelCount)
         case .alive(false):
-            lose()
+            // A8: an app aggregate rebuilds on the new output; a device is lost.
+            if app != nil { rebuild() } else { lose() }
         case .alive(true), .devicesChanged:
             break
         }
@@ -278,7 +282,43 @@ final class DeviceWriter: @unchecked Sendable {
         guard phase == .lost else { return }
         lastTry = .now
         guard attach() else { return }
+        appState = .recording
         for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, .recording, status: nil)) }
+        reportAppState()
+    }
+
+    /// A7 and A8: a process-list, default-output, or device-list event of a running app writer.
+    /// The found key rebuilds the tap when it has a new process or output; else the slot takes
+    /// the found set (fix check 2) and the tap goes on. No output device: lost.
+    private func appChanged() {
+        guard let app, let current = input?.key else { return }
+        guard let found = hal.lookUpApp(app, ChannelLayout(channelCount: tracks.routedWidth) ?? .mono) else {
+            return lose()
+        }
+        guard needsRebuild(current, found.key) else {
+            input?.key = found.key
+            return reportAppState()
+        }
+        rebuild()
+    }
+
+    /// A new tap and aggregate into a new segment, with no gap: a rebuild is not a loss. A
+    /// rebuild that fails makes the track lost, and the 1 s retry goes on.
+    private func rebuild() {
+        detach()
+        tracks.endSegment()
+        guard attach() else { return lose() }
+        reportAppState()
+    }
+
+    /// Reports `.waitingForApp` when the app of the current tap has no process, and `.recording`
+    /// when it has one again: one report for each change.
+    private func reportAppState() {
+        guard app != nil, let key = input?.key else { return }
+        let state: LiveTrack.State = key.processes.isEmpty ? .waitingForApp : .recording
+        guard state != appState else { return }
+        appState = state
+        for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, state, status: nil)) }
     }
 
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are

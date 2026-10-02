@@ -200,13 +200,9 @@ import Testing
             buttons = self.buttons(in: content)
             return buttons.count == 3
         }
-        // In the order Change…, Create (the left pane, top down), Open Other… (the right pane).
-        let places = buttons.map { $0.convert($0.bounds, to: nil) }
-        let heights = zip(buttons, places)
-            .sorted { ($0.1.minX > 420 ? 1 : 0, -$0.1.minY) < ($1.1.minX > 420 ? 1 : 0, -$1.1.minY) }
-            .map { Double($0.0.alignmentRect(forFrame: $0.0.frame).height) }
-        let even = heights.count == 3 && heights.max()! - heights.min()! <= 0.5 && heights.allSatisfy { $0 < 28 }
-        #expect(even, "one height below 28 pt (Change…, Create, Open Other…): \(heights)")
+        let heights = buttons.map { Double($0.alignmentRect(forFrame: $0.frame).height) }
+        let spread = try #require(heights.max()) - (try #require(heights.min()))
+        #expect(spread <= 0.5 && heights.allSatisfy { $0 < 28 }, "one height below 28 pt: \(heights)")
         await closeAll(app)
     }
 

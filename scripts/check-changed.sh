@@ -1,12 +1,12 @@
 #!/bin/bash
 # Print the change classes of the changed paths, the make targets that they need, and the risk.
 # This script owns the path table and the risk floor (decision 0028). Docs name it, not the table.
-# Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the per-commit targets
+# Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push
 #        scripts/check-changed.sh --paths [--push]   the paths from stdin
 #        scripts/check-changed.sh --floor       print the risk floor paths
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
-# With FILTER (test names, for a commit inside a slice), the per-commit target test becomes
+# With FILTER (test names, for the tdd loop of a slice), the local target test becomes
 # test-filter. FILTER before the push exits 1: the push runs the full targets.
 set -euo pipefail
 
@@ -30,7 +30,7 @@ class_of() {
     esac
 }
 
-# The targets of a class: the per-commit column (push=0) or the before-the-push column (push=1).
+# The targets of a class: the local column (push=0) or the before-the-push column (push=1).
 targets_of() {
     case "$1:$push" in
         docs:*) echo check-docs ;;
@@ -51,7 +51,7 @@ case "${1:-}" in
 esac
 
 if [[ -n "${FILTER:-}" && $push == 1 ]]; then
-    echo "check-changed: FILTER is for a commit inside a slice; the push check runs with no FILTER" >&2
+    echo "check-changed: FILTER is for the tdd loop of a slice; the push check runs with no FILTER" >&2
     exit 1
 fi
 

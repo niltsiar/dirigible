@@ -41,17 +41,17 @@ expect 'docs only' "$(out docs check-docs no)" <<<'.claude/skills/tdd/SKILL.md'
 expect 'a probe script' "$(out tooling check-fast no)" <<<'scripts/probe.sh'
 expect 'a skill doc and a skill script' "$(out 'docs tooling' check-fast no)" \
   <<<$'.claude/skills/deliver/SKILL.md\n.claude/skills/deliver/scripts/new-run.sh'
-expect 'Makefile per commit' "$(out bundle check no)" <<<'Makefile'
+expect 'Makefile local' "$(out bundle check no)" <<<'Makefile'
 expect 'Makefile before the push' "$(out bundle 'check test-slow test-dmg' no)" --push <<<'Makefile'
-expect 'Package.swift per commit' "$(out build check no)" <<<'Package.swift'
+expect 'Package.swift local' "$(out build check no)" <<<'Package.swift'
 expect 'Package.swift before the push' "$(out build check no)" --push <<<'Package.swift'
 expect 'Tests only' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'Tests only before the push' "$(out tests check no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
-expect 'app sources per commit' "$(out sources test no)" <<<'Sources/DirigibleApp/AppDelegate.swift'
+expect 'app sources local' "$(out sources test no)" <<<'Sources/DirigibleApp/AppDelegate.swift'
 expect 'app sources before the push' "$(out sources check no)" --push <<<'Sources/DirigibleApp/AppDelegate.swift'
 expect 'capture sources' "$(out sources-risk 'check test-slow' yes)" --push \
   <<<'Sources/DirigibleAudio/Capture/DeviceWriter.swift'
-expect 'capture sources per commit' "$(out sources-risk test yes)" <<<'Sources/DirigibleAudio/Capture/DeviceWriter.swift'
+expect 'capture sources local' "$(out sources-risk test yes)" <<<'Sources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'session writer' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/SessionWriter.swift'
 expect 'Makefile and capture sources' "$(out 'sources-risk bundle' 'check test-slow test-dmg' yes)" --push \
   <<<$'Makefile\nSources/DirigibleAudio/Capture/DeviceWriter.swift'
@@ -66,9 +66,9 @@ expect 'docs, tooling, and the Makefile before the push' "$(out 'docs tooling bu
   <<<$'AGENTS.md\nscripts/check-changed.sh\nMakefile'
 expect 'empty list, no base' "$(out none none no)" </dev/null
 
-# test-slow before the push: a slow test (a file with the gate) adds it; per commit it does not.
+# test-slow before the push: a slow test (a file with the gate) adds it; the local targets do not.
 expect 'a slow test before the push' "$(out tests 'check test-slow' no)" --push <<<'Tests/DirigibleCoreTests/LongTests.swift'
-expect 'a slow test per commit' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/LongTests.swift'
+expect 'a slow test local' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/LongTests.swift'
 # No passed slow run today: a push with check adds it once; a docs or tooling push does not.
 echo 2000-01-01 > "$e/.git/dirigible-slow-date"
 expect 'no slow run today, Tests' "$(out tests 'check test-slow' no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
@@ -89,7 +89,7 @@ FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 't
   <<<$'scripts/probe.sh\nSources/DirigibleApp/AppDelegate.swift'
 # FILTER before the push: exit nonzero with the reason, because the push runs the full targets.
 got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fail 'FILTER with --push exits 0'
-[[ "$got" == *"FILTER is for a commit inside a slice"* ]] || fail "FILTER with --push: no reason: $got"
+[[ "$got" == *"FILTER is for the tdd loop of a slice"* ]] || fail "FILTER with --push: no reason: $got"
 
 # Floor case: each risk floor path exists, so a rename cannot drop a file out of the floor.
 floor="$("$script" --floor)" || fail "--floor exits $?"
@@ -129,7 +129,7 @@ got="$(run_in does-not-exist 2>/dev/null)" && fail 'a bad base exits 0'
 new_repo
 printf 'b2\n' > "$tmp/r/scripts/b.sh"
 got="$(cd "$tmp/r" && FILTER=ClipTests "$script" main 2>&1)" && fail 'FILTER with a base exits 0'
-[[ "$got" == *"FILTER is for a commit inside a slice"* ]] || fail "FILTER with a base: no reason: $got"
+[[ "$got" == *"FILTER is for the tdd loop of a slice"* ]] || fail "FILTER with a base: no reason: $got"
 
 # A base with no diff: exit 1 and the reason.
 new_repo

@@ -5,6 +5,9 @@ check="$(cd "$(dirname "$0")" && pwd)/check-docs.sh"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+# One compiled converter for every case: `swift guide-html.swift` takes about 1 s per case.
+swiftc -O "$(dirname "$check")/guide-html.swift" -o "$tmp/guide-html" || exit 1
+export GUIDE_HTML="$tmp/guide-html"
 
 # A minimal good tree: one research file, a brief with R1 and R10, releases for both, one accepted record,
 # three menu names in English and Spanish, a guide with each name in bold, a README with an image, and a
@@ -97,11 +100,14 @@ good; printf '[x](docs/guide.md#no-such-heading)\n' >> "$tmp/README.md"; expect 
 good; printf '[x](#no-such-heading)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a missing heading' 'docs/guide.md: no heading for #no-such-heading in docs/guide.md'
 good; printf '[x](../README.md#no-such-heading)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a missing README heading' 'docs/guide.md: no heading for #no-such-heading in README.md'
 good; printf '[x](../README.md#what-dirigible-does-not-do-yet)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a heading of the guide, not of the README' 'docs/guide.md: no heading for #what-dirigible-does-not-do-yet in README.md'
-good; printf '# Readme\n\n## Install\n' >> "$tmp/README.md"; printf '[x](../README.md#install)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a README heading' 'docs/guide.md: a link that the bundled guide cannot open: ../README.md#install'
-good; printf '[x](http://example.com)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to an http page' 'docs/guide.md: a link that the bundled guide cannot open: http://example.com'
-good; printf 'Text <img src="images/x.png"> here.\n' >> "$tmp/docs/guide.md"; expect fail 'raw tag in the guide' 'docs/guide.md:8: a raw HTML tag'
-good; printf '> [!WARNING]\n> Text.\n' >> "$tmp/docs/guide.md"; expect fail 'GitHub alert in the guide' 'docs/guide.md:8: a GitHub alert'
+good; printf '# Readme\n\n## Install\n' >> "$tmp/README.md"; printf '[x](../README.md#install)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a README heading' 'docs/guide.md: guide-html: a link that the bundled guide cannot open: ../README.md#install'
+good; printf '[x](http://example.com)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to an http page' 'docs/guide.md: guide-html: a link that the bundled guide cannot open: http://example.com'
+good; printf 'Text <img src="images/x.png"> here.\n' >> "$tmp/docs/guide.md"; expect fail 'raw tag in the guide' 'docs/guide.md: guide-html: raw HTML'
+good; printf '> [!WARNING]\n> Text.\n' >> "$tmp/docs/guide.md"; expect fail 'GitHub alert in the guide' 'docs/guide.md: guide-html: GitHub alert'
 good; printf 'Type `<name>` in the field.\n' >> "$tmp/docs/guide.md"; expect pass 'a tag in a code span'
+good; printf '\n---\n\nMore.\n' >> "$tmp/docs/guide.md"; expect pass 'a thematic break in the guide'
+good; printf 'See <https://www.apple.com/mac/>.\n' >> "$tmp/docs/guide.md"; expect pass 'an autolink in the guide'
+good; printf 'See [the README][r].\n\n[r]: ../README.md\n' >> "$tmp/docs/guide.md"; expect fail 'a reference link in the guide' 'docs/guide.md: guide-html: a link that the bundled guide cannot open: ../README.md'
 good; rm "$tmp/.claude/agents/x-reviewer.md"; expect fail 'panel agentType with no agent file' 'review-panel.js: agentType x-reviewer has no .claude/agents/x-reviewer.md'
 good; sed -i '' 's/^name: x-reviewer$/name: y-reviewer/' "$tmp/.claude/agents/x-reviewer.md"; expect fail 'agent file with another name' "review-panel.js: .claude/agents/x-reviewer.md has no 'name: x-reviewer' in its frontmatter"
 good; printf -- '---\ndescription: X.\n---\n\nname: x-reviewer\n' > "$tmp/.claude/agents/x-reviewer.md"; expect fail 'name only in the body' "review-panel.js: .claude/agents/x-reviewer.md has no 'name: x-reviewer' in its frontmatter"

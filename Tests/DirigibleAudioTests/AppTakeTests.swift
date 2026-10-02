@@ -139,10 +139,14 @@ struct AppTakeTests {
         let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
         let stopHost = hostNanosNow()
         let stop = Task { try await studio.stopRecording() }
-        try await Task.sleep(for: .milliseconds(1500))
+        // Code gate round 2 F1: the device writer closes while the app writer waits.
+        await until(limit: .seconds(10), "the mic did not detach while the app waits") {
+            hal.calls.contains("detach mic")
+        }
         hal.releaseTaps()
         try await stop.value
         await micInput.wait()
+        #expect(hal.calls.contains("detach app:us.zoom.xos"), "the app writer finished")
 
         let length = try #require(clips(studio, "t1").first?.length.count)
         let expected = Int((Double(stopHost &- takeStart) / 1e9 * 48_000).rounded())

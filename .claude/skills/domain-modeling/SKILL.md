@@ -5,7 +5,7 @@ description: Build and sharpen the domain model of the project. Use when you dis
 
 # Domain modeling
 
-Build and sharpen the domain model of the project while you design. This skill is the active work: challenge terms, invent edge-case scenarios, and write the glossary and the decisions down when they become clear. To only read `CONTEXT.md` for vocabulary, you do not need this skill. Use it when you change the model.
+Build and sharpen the domain model of the project while you design. This skill is the active work: challenge terms, invent edge-case scenarios, and write the glossary and the decisions down when they become clear. Use it when you change the model.
 
 ## File structure
 
@@ -37,7 +37,7 @@ When the user states how something works, check whether the code agrees. If you 
 
 When a term is resolved, update `CONTEXT.md` at once. Do not batch the updates. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
 
-Keep implementation details out of `CONTEXT.md`. It is a glossary and nothing else: not a spec, a scratch pad, or a record of implementation decisions. The glossary is also the STE word list of this repo: one term for one concept in code, docs, UI text, and commits.
+Keep implementation details out of `CONTEXT.md`. It is a glossary and nothing else: not a spec, a scratch pad, or a record of implementation decisions.
 
 ### Offer decision records sparingly
 

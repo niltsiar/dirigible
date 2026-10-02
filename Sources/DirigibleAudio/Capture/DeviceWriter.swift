@@ -294,7 +294,9 @@ final class DeviceWriter: @unchecked Sendable {
         guard let found = hal.lookUpApp(app, ChannelLayout(channelCount: tracks.routedWidth) ?? .mono) else {
             return lose()
         }
-        guard needsRebuild(current, found.key) else {
+        // H1: a main sub-device that no process reports can leave the device list.
+        let mainGone = current.output.map { !hal.deviceExists($0) } ?? false
+        guard needsRebuild(current, found.key) || mainGone else {
             // Only the processes change: the aggregate keeps its main sub-device.
             input?.key = AppKey(processes: found.key.processes, output: current.output)
             return reportAppState()

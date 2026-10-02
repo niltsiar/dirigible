@@ -39,6 +39,8 @@ struct DeviceHAL: Sendable {
             { _ throws(HALError) in throw .status(kAudioHardwareUnsupportedOperationError) }
     /// The name of an app, else its bundle ID.
     var appName: @Sendable (_ bundleID: String) -> String = { $0 }
+    /// True when a device with `uid` is in the device list (an output device too).
+    var deviceExists: @Sendable (_ uid: String) -> Bool = { _ in true }
 }
 
 /// Stops the device, destroys the IOProc, and removes the listeners. True when every call
@@ -68,6 +70,12 @@ extension InputDevice {
     /// The object ID and the facts of the device with `uid`. Nil when the UID is not present
     /// (noErr and device 0, probe P2) or a read fails ('!obj').
     static func lookUp(uid: String) -> (id: AudioObjectID, device: InputDevice)? {
+        guard let id = objectID(uid: uid), let device = read(id) else { return nil }
+        return (id, device)
+    }
+
+    /// The object ID of the device with `uid`, of any direction. Nil when the UID is not present.
+    static func objectID(uid: String) -> AudioObjectID? {
         var address = propertyAddress(kAudioHardwarePropertyTranslateUIDToDevice)
         var qualifier = uid as CFString
         var id = AudioObjectID(kAudioObjectUnknown)
@@ -77,8 +85,7 @@ extension InputDevice {
                 AudioObjectID(kAudioObjectSystemObject), &address, UInt32(MemoryLayout<CFString>.size), qualifier,
                 &size, &id)
         }
-        guard status == noErr, id != kAudioObjectUnknown, let device = read(id) else { return nil }
-        return (id, device)
+        return status == noErr && id != kAudioObjectUnknown ? id : nil
     }
 
     /// The facts of device `id`. Nil when a read fails or the device has no input buffer.
@@ -201,7 +208,7 @@ extension DeviceHAL {
             guard #available(macOS 14.2, *) else { throw .status(kAudioHardwareUnsupportedOperationError) }
             return try DirigibleAudio.makeTap(found)
         },
-        appName: { DirigibleAudio.appName($0) })
+        appName: { DirigibleAudio.appName($0) }, deviceExists: { InputDevice.objectID(uid: $0) != nil })
 }
 
 /// A raw pointer that a `@Sendable` detach captures. The HAL owns what it points to.

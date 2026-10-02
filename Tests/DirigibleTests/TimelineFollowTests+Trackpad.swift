@@ -119,8 +119,8 @@ extension TimelineFollowTests {
         await model.close()
     }
 
-    /// P1 of the post-merge review: a scroll that does not move the view horizontally sets no hold.
-    /// Before the fix, the hold never ended, and the record head went off the view.
+    /// A scroll that does not move the view horizontally sets no hold. Such a hold never ended,
+    /// and the record head went off the view.
     @Test func aVerticalScrollDuringATakeKeepsTheFollow() async throws {
         let lanes = try await take()
         let (model, view, window) = (lanes.model, lanes.view, lanes.window)
@@ -135,6 +135,8 @@ extension TimelineFollowTests {
             drawNow(window)
             await Task.yield()
         }
+        NotificationCenter.default.post(name: NSScrollView.didEndLiveScrollNotification, object: view)
+        #expect(view.liveScrollOrigin == nil, "the live scroll ended")
         #expect(view.origin == start, "a vertical gesture keeps the origin")
         let after = await ticks(view, window, from: head, playback: .stopped, taking: true) { head in
             head < start + 1.2 * view.visibleFrames
@@ -168,7 +170,7 @@ extension TimelineFollowTests {
         await lanes.close()
     }
 
-    /// A knob drag back (plan gate A1): no page turn during the drag, and a hold at its end.
+    /// A knob drag back: no page turn during the drag, and a hold at its end.
     @Test func aLiveScrollThatMovesHolds() async throws {
         let lanes = try await take()
         let (model, view, window) = (lanes.model, lanes.view, lanes.window)
@@ -190,6 +192,28 @@ extension TimelineFollowTests {
         let held = model.timeline.followHeld
         #expect(held, "a knob drag that moved the view holds the follow")
         #expect(after.turns == 0 && view.origin == origin, "no turn while held: \(origin) to \(view.origin)")
+        await lanes.close()
+    }
+
+    /// Page Previous at the start of the session does not move the view, so it sets no hold.
+    @Test func aPagePreviousAtTheStartDuringATakeKeepsTheFollow() async throws {
+        let lanes = try await take()
+        let (model, view, window) = (lanes.model, lanes.view, lanes.window)
+        let (head, _) = await ticks(view, window, from: 0, playback: .stopped, taking: true) { head in
+            head / view.visibleFrames < 0.4
+        }
+        #expect(view.origin == 0, "the first page")
+
+        // The command of Page Previous (Option-Page Up).
+        view.navigate(.page(.backward))
+        #expect(view.origin == 0, "Page Previous at the start does not move the view")
+        let after = await ticks(view, window, from: head, playback: .stopped, taking: true) { head in
+            head < 1.2 * view.visibleFrames
+        }
+
+        #expect(after.turns >= 1, "the page turns at 94%")
+        let held = model.timeline.followHeld
+        #expect(!held, "a Page Previous with no move holds nothing")
         await lanes.close()
     }
 }

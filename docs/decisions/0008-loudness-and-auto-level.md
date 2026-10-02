@@ -14,7 +14,7 @@ R9 asks for automatic volume leveling of each clip. The export needs a loudness 
 
 ## Decision
 
-**Meter.** Implement ITU-R BS.1770-5 in `DirigibleAudio/DSP` (0002) with Accelerate:
+**Meter.** Implement ITU-R BS.1770-5 in a new `DSP/` folder of `DirigibleAudio` (0002) with Accelerate:
 
 - K-weighting biquads computed for each sample rate from the analog prototype.
 - 400 ms blocks with 75% overlap, an absolute gate at -70 LUFS, and a relative gate at -10 LU.

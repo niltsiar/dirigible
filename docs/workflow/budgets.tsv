@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31761	2026-10-02-cost-count-fix code gate D1, D3 (decisions.tsv 2026-10-02T07:37: the real sum, 31737 + 24 net)
+TOTAL	31760	2026-10-02-cost-count-fix code gate fix check (decisions.tsv 2026-10-02T07:48: the real sum, 31761 - 1 net)

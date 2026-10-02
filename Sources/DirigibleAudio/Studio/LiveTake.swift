@@ -21,6 +21,8 @@ public struct LiveTrack: Hashable, Sendable {
         /// The monitor writer of the device kept its limit of inputs and tries no more attach
         /// until the next monitor start (decision 0015).
         case retryStopped
+        /// An app track records silence: the app has no process now (A7).
+        case waitingForApp
     }
 
     public var state: State

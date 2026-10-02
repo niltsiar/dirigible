@@ -300,19 +300,43 @@ private func attachLive(_ input: DeviceInput) throws(HALError) -> Detach {
     return detach
 }
 
+/// The system properties that a writer listens to: the device list, and for an app writer also
+/// the process list and the default output (decision 0030). Each posts `.devicesChanged`.
+private func systemProperties(app: Bool) -> [AudioObjectPropertyAddress] {
+    [propertyAddress(kAudioHardwarePropertyDevices)]
+        + (app
+            ? [
+                propertyAddress(kAudioHardwarePropertyProcessObjectList),
+                propertyAddress(kAudioHardwarePropertyDefaultOutputDevice),
+            ] : [])
+}
+
 private func watchLive(_ writer: DeviceWriter) -> Detach {
     let system = AudioObjectID(kAudioObjectSystemObject)
     let client = ClientData(pointer: Unmanaged.passRetained(WriterBox(writer)).toOpaque())
-    var address = propertyAddress(kAudioHardwarePropertyDevices)
-    guard AudioObjectAddPropertyListener(system, &address, deviceListListener, client.pointer) == noErr else {
-        // No listener: the retry of a lost device still runs each 1 s.
+    var added: [AudioObjectPropertyAddress] = []
+    for property in systemProperties(app: writer.app != nil) {
+        var address = property
+        if AudioObjectAddPropertyListener(system, &address, deviceListListener, client.pointer) == noErr {
+            added.append(property)
+        }
+    }
+    // No listener: the retry of a lost device still runs each 1 s.
+    guard !added.isEmpty else {
         Unmanaged<WriterBox>.fromOpaque(client.pointer).release()
         return { true }
     }
     // The box stays for the process life: a call in progress during the removal can use it
     // after the removal returns (decision 0013).
+    let listening = added
     return {
-        var address = propertyAddress(kAudioHardwarePropertyDevices)
-        return AudioObjectRemovePropertyListener(system, &address, deviceListListener, client.pointer) == noErr
+        var clean = true
+        for property in listening {
+            var address = property
+            clean =
+                AudioObjectRemovePropertyListener(system, &address, deviceListListener, client.pointer) == noErr
+                && clean
+        }
+        return clean
     }
 }

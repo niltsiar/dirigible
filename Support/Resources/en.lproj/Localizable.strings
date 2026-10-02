@@ -94,6 +94,7 @@
 "track.state.device.lost" = "Device lost";
 "track.state.write.failed" = "Write error";
 "track.state.retry.stopped" = "Stopped retrying. Turn Monitor Inputs off and on.";
+"track.state.waiting.app" = "Waiting for %@";
 "track.dropped" = "Dropped frames: %lld";
 "take.recording" = "Recording take %lld";
 "take.finishing" = "Finishing take %lld…";

@@ -70,13 +70,13 @@ private struct TrackRow: View {
                     // A lost device must show during a take at every lane height, so the route and
                     // the state stay on one line, in compact form.
                     compactRoute
-                    if let live = studio.liveTracks[track.id] { CompactLiveState(live: live) }
+                    if let live = studio.liveTracks[track.id] { CompactLiveState(live: live, source: sourceLabel) }
                 }
             }
             if secondLine {
                 HStack(spacing: 8) {
                     routeMenu.frame(minWidth: 0, maxWidth: 240, alignment: .leading).disabled(!model.canEdit)
-                    if let live = studio.liveTracks[track.id] { LiveState(live: live) }
+                    if let live = studio.liveTracks[track.id] { LiveState(live: live, source: sourceLabel) }
                 }
             }
         }
@@ -144,6 +144,9 @@ private struct TrackRow: View {
         }
     }
 
+    /// The source of the route: a device name or an app; empty with no route.
+    private var sourceLabel: String { track.route.map { routeLabel(route: $0, devices: model.devices) } ?? "" }
+
     private var routeText: String {
         // "No Input" reads as a state; the label asks for the action. The item stays "No Input".
         guard let route = track.route else { return L10n.trackRouteChoose.text }
@@ -178,6 +181,8 @@ private func meterLevel(_ live: LiveTrack) -> Double {
 /// dropped frames (orange), with the state text for VoiceOver and as its tooltip.
 private struct CompactLiveState: View {
     let live: LiveTrack
+    /// The route label: the app of a `.waitingForApp` track.
+    let source: String
 
     var body: some View {
         ProgressView(value: meterLevel(live)).frame(width: 16)
@@ -191,12 +196,13 @@ private struct CompactLiveState: View {
         }
     }
 
-    private var fault: LocalizedStringKey? {
+    private var fault: String? {
         switch live.state {
         case .recording, .monitoring: nil
-        case .deviceLost: L10n.trackStateDeviceLost.key
-        case .writeFailed: L10n.trackStateWriteFailed.key
-        case .retryStopped: L10n.trackStateRetryStopped.key
+        case .deviceLost: L10n.trackStateDeviceLost.text
+        case .writeFailed: L10n.trackStateWriteFailed.text
+        case .retryStopped: L10n.trackStateRetryStopped.text
+        case .waitingForApp: L10n.trackStateWaitingForApp.format(source)
         }
     }
 }
@@ -204,6 +210,8 @@ private struct CompactLiveState: View {
 /// The meter and the state of an armed track during a take or a monitor.
 private struct LiveState: View {
     let live: LiveTrack
+    /// The route label: the app of a `.waitingForApp` track.
+    let source: String
 
     var body: some View {
         ProgressView(value: meterLevel(live)).frame(width: 60)
@@ -212,6 +220,7 @@ private struct LiveState: View {
         case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)
         case .writeFailed: Text(L10n.trackStateWriteFailed.key).foregroundStyle(.red)
         case .retryStopped: Text(L10n.trackStateRetryStopped.key).foregroundStyle(.red)
+        case .waitingForApp: Text(verbatim: L10n.trackStateWaitingForApp.format(source)).foregroundStyle(.secondary)
         }
         if live.droppedFrames > 0 {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)

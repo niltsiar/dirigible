@@ -165,6 +165,12 @@ struct AppKey: Hashable, Sendable {
     let output: String
 }
 
+/// W1: the found set has a process that the tap lacks, or the output changed. A set that only
+/// loses processes keeps the tap: it goes on with zeros (probes P10.4 and P10.5).
+func needsRebuild(_ current: AppKey, _ found: AppKey) -> Bool {
+    !Set(found.processes).isSubset(of: current.processes) || found.output != current.output
+}
+
 /// What the app lookup finds, with reads only: no tap, no aggregate, and no prompt. `device` has
 /// the UID `app:<bundle ID>`, the rate of the output, and one buffer with the mixdown channels.
 struct AppFound: Sendable {

@@ -61,12 +61,15 @@ extension EditTakeTests {
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
         model.drafts = ["t1": "Host", "t2": "Guest"]
         model.timeline.marks = Marks(tracks: ["t1"])
+        // Both tracks are on channel 1 of duo, so the open arms only t1 (code gate E1).
+        let armed = model.armed
+        try #require(armed.contains("t1"))
 
         model.run(.removeTrack)
 
         #expect(studio.session.tracks.map(\.id) == ["t2"])
         #expect(model.drafts == ["t2": "Guest"])
-        #expect(model.armed == ["t1", "t2"])
+        #expect(model.armed == armed)
         await model.close()
     }
 

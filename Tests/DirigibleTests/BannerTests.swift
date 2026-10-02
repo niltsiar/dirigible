@@ -472,7 +472,7 @@ struct BannerValueTests {
     @Test func useHeadphonesShowsOnlyForSpeakersAndAnArmedAppTrack() async throws {
         let (model, studio, _, chrome) = try await open(tracks: 2)
         model.deviceList = await speakerList(OSAllocatedUnfairLock(initialState: true))
-        let (first, second) = (studio.session.tracks[0].id, studio.session.tracks[1].id)
+        let first = studio.session.tracks[0].id
         model.setAppRoute("us.zoom.xos", track: first)
         await until(limit: .seconds(5), "the banner shows for an armed app track") { headphones(model) }
         let banner = try #require(model.shown.banners.first { $0 == .useHeadphones })
@@ -486,7 +486,7 @@ struct BannerValueTests {
         model.armed.insert(first)
         await until(limit: .seconds(5), "the banner shows again") { headphones(model) }
         model.setRoute(.mono(1), device: InputDevice.placeholder(uid: "duo", channels: 2), track: first)
-        #expect(model.armed.isSuperset(of: [first, second]), "both device tracks are armed")
+        #expect(model.armed.contains(first), "the device track is armed")
         await until(limit: .seconds(5), "the banner hides with only device tracks") { !headphones(model) }
         await model.close()
     }

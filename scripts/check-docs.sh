@@ -181,4 +181,20 @@ else
     done < <(awk -F'\t' 'NR > 1 && $3 ~ /^(keep|move|enforced|new)$/ { print $1 "\t" $3 "\t" $4 }' "$register")
 fi
 
+# The deliver Autonomy rules name each friction token of reflect cost.sh in backticks, in any case.
+# A row result that starts with no token is not friction for cost.sh. A doc-only edit runs this check.
+cost="$root/.claude/skills/reflect/scripts/cost.sh"
+deliver="$root/.claude/skills/deliver/SKILL.md"
+if [[ -f "$cost" ]]; then
+    tokens="$(grep -oE '\(not verified[|][^)]*\)' "$cost" | head -n 1 | tr -d '()' | tr '|' '\n' || true)"
+    rules="$(awk '/^## /{ s = $0; next } s == "## Autonomy rules"' "$deliver" 2>/dev/null || true)"
+    if [[ -z "$tokens" ]]; then err "${cost#"$root"/}: no token list (not verified|...)"
+    elif [[ -z "$rules" ]]; then err "${deliver#"$root"/}: no ## Autonomy rules section"
+    else
+        while IFS= read -r t; do
+            grep -qiF -- "\`$t\`" <<<"$rules" || err "${deliver#"$root"/}: the Autonomy rules have no \`$t\` (a cost.sh friction token)"
+        done <<<"$tokens"
+    fi
+fi
+
 exit "$fail"

@@ -15,12 +15,13 @@
 # - missed unknowns: the rows whose result starts with "missed unknown", in any case.
 # - critical findings: the lines of a review-*.md at the top of the run folder with critical in a
 #   parenthesis, in any case. Not an Intent, Panel, Source, or Sources line, and not a line under a
-#   ## or ### heading other than Act on. A deeper heading (### G1 under ## Act on) does not change
-#   the section. A line under no section heading counts (a flat list).
+#   ## or ### heading other than Act on or Act-on, in any case. A deeper heading (### G1 under
+#   ## Act on) does not change the section. A line under no section heading counts (a flat list).
 # - friction: the critical findings plus the rows whose result starts with a token, in any case:
 #   NOT VERIFIED, survived, flake, failed, fail, or missed unknown. One criterion ID can come first
 #   (DC4 FAIL, C6 (c) failed). The token ends at a character that is not a letter. The deliver
-#   Autonomy rules tell the writer to start a result with its token.
+#   Autonomy rules tell the writer to start a result with its token; check-docs.sh checks that
+#   they name each token.
 # - window: the time of the first decisions.tsv row (the open time when no row has a time) to the
 #   end of the minute of the latest row (the clock time when no row has a time).
 # - agents and idle: the Agent calls of the transcript in the window, and the gaps over 5 min
@@ -85,7 +86,7 @@ critical="$(find "$run" -maxdepth 1 -name 'review-*.md' -type f -exec awk '
     FNR == 1 { keep = 1; section = 0 }
     FNR > 1 && /^#+ / {
         level = index($0, " ") - 1
-        if (!section || level <= section) { keep = (tolower($0) ~ /^#+ act on/); section = level; next }
+        if (!section || level <= section) { keep = (tolower($0) ~ /^#+ act[- ]on/); section = level; next }
     }
     keep && tolower($0) ~ /\([^)]*critical/ && !/^(- )?(\*\*)?(Intent|Panel|Sources?):/ { n++ }
     END { print n + 0 }' {} \; | awk '{ n += $1 } END { print n + 0 }')"

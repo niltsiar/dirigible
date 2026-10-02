@@ -2,9 +2,10 @@
 # Check each line that cost.sh prints for a fixture run folder: the phase blocks of decisions.tsv,
 # the check and bench logs and their repeats, the controls, the late on-screen findings, the missed
 # unknowns by result token, the critical findings of the review files, the friction rows by result
-# token, the run window, the agents and the idle gaps of a transcript in that window, and the pace
-# lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a folder with
-# no logs/ and no controls/. Check that scripts/bench.sh prints its bench line before the build.
+# token, the run window, the agents, the workflows, and the idle gaps of a transcript in that window,
+# and the pace lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a
+# folder with no logs/ and no controls/. Check that scripts/bench.sh prints its bench line before
+# the build.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -86,7 +87,7 @@ cat > "$transcript" <<'EOF'
 {"type":"assistant","timestamp":"2026-09-20T08:22:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}
 {"type":"assistant","timestamp":"2026-09-20T08:23:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}},{"type":"tool_use","name":"Bash","input":{}}]}}
 {"type":"user","timestamp":"2026-09-20T08:35:00.000Z","message":{"role":"user","content":[{"type":"tool_result","content":"ok"}]}}
-{"type":"assistant","timestamp":"2026-09-20T08:36:30.000Z","message":{"content":[{"type":"text","text":"Agent"},{"type":"tool_use","name":"Agent","input":{}}]}}
+{"type":"assistant","timestamp":"2026-09-20T08:36:30.000Z","message":{"content":[{"type":"text","text":"Agent"},{"type":"tool_use","name":"Agent","input":{}},{"type":"tool_use","name":"Workflow","input":{"name":"review-panel"}}]}}
 {"type":"assistant","timestamp":"2026-09-20T12:00:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}
 EOF
 
@@ -125,6 +126,7 @@ critical findings: 4
 friction: 9
 window: 2026-09-20T08:20 to 2026-09-20T11:30
 agents: 3
+workflows: 1
 idle: 12 min in 1 gaps over 5 min
 pace: 2026-09-20-fixture open to merge 4.0 h
 pace: merges per day 2026-09-11 1 2026-09-12 1 2026-09-13 1 2026-09-14 1 2026-09-15 1 2026-09-16 1 2026-09-17 1 2026-09-18 1 2026-09-19 2 2026-09-20 1"
@@ -146,7 +148,7 @@ check() {
 check 'a run with a transcript' "$want" "$run" "$transcript"
 grep -qx 'gh pr list --state merged --limit 100 --json number,createdAt,mergedAt,title' "$tmp/gh.log" || fail "gh arguments: $(cat "$tmp/gh.log")"
 
-no_transcript="$(sed -e 's/^agents: .*/agents: no transcript/' -e 's/^idle: .*/idle: no transcript/' <<<"$want")"
+no_transcript="$(sed -e 's/^agents: .*/agents: no transcript/' -e 's/^workflows: .*/workflows: no transcript/' -e 's/^idle: .*/idle: no transcript/' <<<"$want")"
 check 'no transcript' "$no_transcript" "$run"
 
 no_gh="$(grep -v '^pace: ' <<<"$no_transcript")

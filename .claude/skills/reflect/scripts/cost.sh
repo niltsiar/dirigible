@@ -25,8 +25,9 @@
 #   they name each token.
 # - window: the time of the first decisions.tsv row (the open time when no row has a time) to the
 #   end of the minute of the latest row (the clock time when no row has a time).
-# - agents and idle: the Agent calls of the transcript in the window, and the gaps over 5 min
-#   between its records in the window. Run windows that overlap share these counts.
+# - agents, workflows, and idle: the Agent calls and the Workflow calls of the transcript in the
+#   window (a Workflow call starts many agents that the transcript does not show), and the gaps
+#   over 5 min between its records in the window. Run windows that overlap share these counts.
 # - pace: open to merge, when run.md names a pull request that gh lists as merged; the merges
 #   on each of the last 10 days with a merge (local dates).
 # cost.test.sh tests it.
@@ -111,11 +112,13 @@ echo "window: ${first:-$open} to ${last:-now}"
 if [[ -n "$transcript" && -f "$transcript" ]]; then
     jq -r --argjson from "$from" --argjson to "$to" 'select(.timestamp) |
         (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $t | select($t >= $from and $t <= $to) |
-        "\($t) \([.message.content[]? | objects | select(.type == "tool_use" and (.name == "Agent" or .name == "Task"))] | length)"' "$transcript" |
-        awk 'NR > 1 && $1 - last > 300 { gap += $1 - last; k++ } { last = $1; agents += $2 }
-            END { printf "agents: %d\nidle: %d min in %d gaps over 5 min\n", agents, gap / 60, k }'
+        [.message.content[]? | objects | select(.type == "tool_use") | .name] as $n |
+        "\($t) \($n | map(select(. == "Agent" or . == "Task")) | length) \($n | map(select(. == "Workflow")) | length)"' "$transcript" |
+        awk 'NR > 1 && $1 - last > 300 { gap += $1 - last; k++ } { last = $1; agents += $2; workflows += $3 }
+            END { printf "agents: %d\nworkflows: %d\nidle: %d min in %d gaps over 5 min\n", agents, workflows, gap / 60, k }'
 else
     echo "agents: no transcript"
+    echo "workflows: no transcript"
     echo "idle: no transcript"
 fi
 

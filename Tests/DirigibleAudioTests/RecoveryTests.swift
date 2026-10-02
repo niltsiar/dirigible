@@ -86,6 +86,18 @@ struct RecoveryTests {
         withExtendedLifetime(writer) {}
     }
 
+    /// The recovery uses the finalize of a take, so a peak of 1.5 gets the same clip gain (A11).
+    @Test func aRecoveredSegmentOverFullScaleGetsTheClipGain() async throws {
+        let writer = try package.segment(samples: sine(seconds: 2, rate: 48_000).map { $0 * 3 }, open: true)
+
+        let studio = try await Studio.open(package.url)
+
+        let gain = try #require(studio.session.track("t1")?.clips.first).gain.dB
+        #expect(abs(gain - 3.5218) < 0.001)
+        #expect(try package.read() == studio.session)
+        withExtendedLifetime(writer) {}
+    }
+
     @Test func aFinalizeThatThrowsKeepsTheTakePendingAndTheFilesUnchanged() async throws {
         try package.segment(samples: sine(seconds: 2, rate: 48_000))
         let clips = package.url.appending(path: "Clips")

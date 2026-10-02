@@ -229,6 +229,97 @@ struct FinalizeTests {
         #expect(vDSP.maximumMagnitude(vDSP.subtract(wav, whole)) <= 0x1p-22)
     }
 
+    /// A float peak p over 1.0: the WAV gets the segment scaled by 1/p and the clip gets +20 log10(p)
+    /// dB, so the play level stays and no sample saturates (A11). The sine hits +1.5 and -1.5.
+    @Test func aPeakOf1Point5ScalesAndSetsTheClipGain() throws {
+        let samples = sine(seconds: 2, rate: 48_000).map { $0 * 3 }
+        try package.segment(samples: samples)
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        let gain = try clip(session).gain.dB
+        #expect(abs(gain - 3.5218) < 0.001)
+        let wav = try readAudio(package.url.appending(path: "Clips/take1-1-1.wav")).samples
+        #expect(wav.count == samples.count)
+        let clean = noEndCode(wav)
+        #expect(clean, "a sample at an end code")
+        let factor = Float(pow(10, gain / 20))
+        let error = zip(wav, samples).map { abs($0 * factor - $1) }.max() ?? 1
+        #expect(error <= 1.5 * 0x1p-23)
+    }
+
+    /// A peak of exactly 1.0 reads the CAF once and keeps gain 0 dB: a normal take costs no second
+    /// pass (A11).
+    @Test func aPeakOf1ReadsTheCAFOnceAndKeepsGainZero() throws {
+        let samples = sine(seconds: 2, rate: 48_000).map { $0 * 2 }
+        try package.segment(samples: samples)
+        let reads = StepCounter()
+
+        let session = try finalizeTake(
+            of: package.read(), in: package.url,
+            readFault: ReadFault(stem: "take1-1-1", block: 0) { _ = reads.next() })
+
+        #expect(try clip(session).gain == .zero)
+        #expect(reads.calls == 1)
+        let wav = try readAudio(package.url.appending(path: "Clips/take1-1-1.wav")).samples
+        let error = zip(wav, samples).map { abs($0 - $1) }.max() ?? 1
+        #expect(error <= 0x1p-23)
+    }
+
+    @Test func aPeakOf1Point0001Scales() throws {
+        try package.segment(samples: sine(seconds: 1, rate: 48_000).map { $0 * 2.0002 })
+        let reads = StepCounter()
+
+        let session = try finalizeTake(
+            of: package.read(), in: package.url,
+            readFault: ReadFault(stem: "take1-1-1", block: 0) { _ = reads.next() })
+
+        #expect(abs(try clip(session).gain.dB - 20 * log10(1.0001)) < 1e-5)
+        #expect(reads.calls == 2)
+        let wav = try readAudio(package.url.appending(path: "Clips/take1-1-1.wav")).samples
+        let clean = noEndCode(wav)
+        #expect(clean, "a sample at an end code")
+    }
+
+    /// The peak is that of the resampled buffer. A square wave overshoots after the resample, so a
+    /// peak of the CAF (1.5) would leave samples over full scale.
+    @Test func aResampledSquareWaveAtPeak1Point5HasNoSaturatedSample() throws {
+        let square = (0..<44_100).map { Float(($0 / 220) % 2 == 0 ? 1.5 : -1.5) }
+        try package.segment(header: TakePackage.header(rate: 44_100), samples: square)
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        #expect(session.captures["take1-1-1"]?.resampledFromRate == 44_100)
+        let wav = try readAudio(package.url.appending(path: "Clips/take1-1-1.wav")).samples
+        let clean = noEndCode(wav)
+        #expect(clean, "a sample at an end code")
+        // The resample overshoot reached the WAV: its peak at play level is over the CAF peak.
+        let factor = Float(pow(10, try clip(session).gain.dB / 20))
+        #expect(vDSP.maximumMagnitude(wav) * factor > 1.55)
+    }
+
+    /// The peak reads every channel: channel 2 at 1.5 scales the segment, also channel 1.
+    @Test func aPeakOnTheSecondChannelScalesTheSegment() throws {
+        let package = try TakePackage(tracks: [("t1", .stereo)])
+        let left = sine(seconds: 1, rate: 48_000)
+        let interleaved = left.flatMap { [$0, $0 * 3] }
+        try package.segment(header: TakePackage.header(channels: 2), samples: interleaved)
+
+        let session = try finalizeTake(of: package.read(), in: package.url)
+
+        let gain = try #require(session.track("t1")?.clips.first).gain.dB
+        #expect(abs(gain - 3.5218) < 0.001)
+        let wav = try readAudio(package.url.appending(path: "Clips/take1-1-1.wav")).samples
+        let clean = noEndCode(wav)
+        #expect(clean, "a sample at an end code")
+        let factor = Float(pow(10, gain / 20))
+        let error = zip(wav, interleaved).map { abs($0 * factor - $1) }.max() ?? 1
+        #expect(error <= 1.5 * 0x1p-23)
+    }
+
+    /// True when no sample is at a 24-bit end code, 8388607 or -8388608.
+    func noEndCode(_ samples: [Float]) -> Bool { samples.allSatisfy { $0 > -1 && $0 < 0x1.fffffcp-1 } }
+
     /// One call of one converter on the whole buffer, with the settings of finalize.
     func convertWhole(_ samples: [Float], from source: Double, to rate: Double) throws -> [Float] {
         let input = try #require(AVAudioFormat(standardFormatWithSampleRate: source, channels: 1))

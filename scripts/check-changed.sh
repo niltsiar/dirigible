@@ -20,7 +20,7 @@ class_of() {
         case "$1" in "$f"*) [[ "$f" == */ || "$1" == "$f" ]] && { echo sources-risk; return; } ;; esac
     done
     case "$1" in
-        Makefile | Support/* | scripts/bundle.sh | scripts/dmg.sh | scripts/test-dmg.sh | scripts/icon.sh | \
+        Makefile | Support/* | scripts/bundle.sh | scripts/guide-html.swift | scripts/dmg.sh | scripts/test-dmg.sh | scripts/icon.sh | \
             Tests/DirigibleTests/AppBundleTests.swift | Tests/DirigibleTests/DiskImageTests.swift) echo bundle ;;
         scripts/* | .claude/hooks/* | .claude/skills/*/scripts/* | .claude/workflows/* | .claude/settings.json | .githooks/*) echo tooling ;;
         docs/* | README.md | AGENTS.md | CLAUDE.md | .claude/skills/*.md | .claude/agents/*) echo docs ;;

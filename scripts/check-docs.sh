@@ -89,6 +89,21 @@ for doc in README.md docs/guide.md; do
     done
 done
 
+# The app bundle shows the guide as an HTML page (scripts/guide-html.swift). A guide link opens a
+# heading of the guide, an image in docs/images, or a web page. The converter refuses raw HTML, and
+# shows a GitHub alert as plain text. A tag in a code span or a code block is text, not a tag.
+if [[ -f "$root/docs/guide.md" ]]; then
+    while IFS= read -r link; do
+        [[ "$link" =~ ^(#|images/|https://) ]] || err "docs/guide.md: a link that the bundled guide cannot open: $link"
+    done < <(grep -oE '\]\([^)[:space:]]+\)' "$root/docs/guide.md" | sed -E 's/^\]\(//; s/\)$//' || true)
+    while IFS= read -r msg; do err "docs/guide.md:$msg"; done < <(awk '
+        /^```/ { fence = !fence; next }
+        fence { next }
+        { line = $0; gsub(/`[^`]*`/, "", line) }
+        line ~ /<[A-Za-z\/!]/ { print NR ": a raw HTML tag" }
+        /^>[[:space:]]*\[!/ { print NR ": a GitHub alert" }' "$root/docs/guide.md")
+fi
+
 # Each agentType of the review panel has its agent file, and that file names the agent in its
 # frontmatter. The panel calls a lens by this name, so a rename on one side breaks the lens.
 panel="$root/.claude/workflows/review-panel.js"

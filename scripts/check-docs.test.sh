@@ -23,7 +23,7 @@ good() {
     > "$tmp/Support/Resources/en.lproj/Localizable.strings"
   printf '"menu.file.export" = "Exportar…";\n"menu.edit.cut" = "Cortar";\n"menu.markers" = "Marcadores";\n' \
     > "$tmp/Support/Resources/es.lproj/Localizable.strings"
-  printf '# Guide\n\n### What Dirigible does not do yet\n\n**Export** **Exportar** **Cut** **Cortar** **Markers** **Marcadores**\n\nSee [the README](../README.md), [the top](#guide), and [Apple](https://www.apple.com).\n' \
+  printf '# Guide\n\n### What Dirigible does not do yet\n\n**Export** **Exportar** **Cut** **Cortar** **Markers** **Marcadores**\n\nSee [the top](#guide), ![x](images/x.png), and [Apple](https://www.apple.com).\n' \
     > "$tmp/docs/guide.md"
   : > "$tmp/docs/images/x.png"
   printf '<picture><source srcset="docs/images/x.png"><img src="docs/images/x.png" alt="x"></picture>\n\nSee [the guide](docs/guide.md) and [what it does not do](docs/guide.md#what-dirigible-does-not-do-yet).\n' \
@@ -97,7 +97,11 @@ good; printf '[x](docs/guide.md#no-such-heading)\n' >> "$tmp/README.md"; expect 
 good; printf '[x](#no-such-heading)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a missing heading' 'docs/guide.md: no heading for #no-such-heading in docs/guide.md'
 good; printf '[x](../README.md#no-such-heading)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a missing README heading' 'docs/guide.md: no heading for #no-such-heading in README.md'
 good; printf '[x](../README.md#what-dirigible-does-not-do-yet)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a heading of the guide, not of the README' 'docs/guide.md: no heading for #what-dirigible-does-not-do-yet in README.md'
-good; printf '# Readme\n\n## Install\n' >> "$tmp/README.md"; printf '[x](../README.md#install)\n' >> "$tmp/docs/guide.md"; expect pass 'guide link to a README heading'
+good; printf '# Readme\n\n## Install\n' >> "$tmp/README.md"; printf '[x](../README.md#install)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to a README heading' 'docs/guide.md: a link that the bundled guide cannot open: ../README.md#install'
+good; printf '[x](http://example.com)\n' >> "$tmp/docs/guide.md"; expect fail 'guide link to an http page' 'docs/guide.md: a link that the bundled guide cannot open: http://example.com'
+good; printf 'Text <img src="images/x.png"> here.\n' >> "$tmp/docs/guide.md"; expect fail 'raw tag in the guide' 'docs/guide.md:8: a raw HTML tag'
+good; printf '> [!WARNING]\n> Text.\n' >> "$tmp/docs/guide.md"; expect fail 'GitHub alert in the guide' 'docs/guide.md:8: a GitHub alert'
+good; printf 'Type `<name>` in the field.\n' >> "$tmp/docs/guide.md"; expect pass 'a tag in a code span'
 good; rm "$tmp/.claude/agents/x-reviewer.md"; expect fail 'panel agentType with no agent file' 'review-panel.js: agentType x-reviewer has no .claude/agents/x-reviewer.md'
 good; sed -i '' 's/^name: x-reviewer$/name: y-reviewer/' "$tmp/.claude/agents/x-reviewer.md"; expect fail 'agent file with another name' "review-panel.js: .claude/agents/x-reviewer.md has no 'name: x-reviewer' in its frontmatter"
 good; printf -- '---\ndescription: X.\n---\n\nname: x-reviewer\n' > "$tmp/.claude/agents/x-reviewer.md"; expect fail 'name only in the body' "review-panel.js: .claude/agents/x-reviewer.md has no 'name: x-reviewer' in its frontmatter"

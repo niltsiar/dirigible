@@ -82,7 +82,7 @@ numbers() {
 if [[ "${1:-}" == --lost ]]; then
     old="$(numbers "$2")"
     new="$(numbers "$3")"
-    out="$(comm -23 <(echo "$old") <(echo "$new") | sed '/^$/d' | sed "s|^|pr-terms: $3: lost number: |")"
+    out="$(comm -23 <(echo "$old") <(echo "$new") | sed -e '/^$/d' -e "s|^|pr-terms: $3: lost number: |")"
 else
     out="$(scan "$1")"
 fi

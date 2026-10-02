@@ -30,8 +30,8 @@ done
 hash="$(git -C "$repo" rev-parse --short=7 HEAD)"
 full="$(git -C "$repo" rev-parse HEAD)"
 
-# flag <case> <token>: a body with the token on line 2 makes the script print the token, its
-# line, and its reason, and exit 1.
+# flag <case> <text> <token> <reason>: a body with the text on line 2 makes the script print the
+# token, its line, and its reason, and exit 1.
 flag() {
     printf 'The run is done.\nThe fix of %s holds.\n' "$2" > "$repo/body.md"
     out="$(cd "$repo" && "$script" body.md 2>&1)"
@@ -39,7 +39,7 @@ flag() {
     [[ $code -eq 1 && "$out" == *"pr-terms: body.md:2: $3: $4"* ]] || fail "$1: exit $code: $out"
 }
 
-# pass <case> <token>: a body with the token prints nothing and exits 0.
+# pass <case> <text>: a body with the text prints nothing and exits 0.
 pass() {
     printf 'The run is done.\nThe fix of %s holds.\n' "$2" > "$repo/body.md"
     out="$(cd "$repo" && "$script" body.md 2>&1)"

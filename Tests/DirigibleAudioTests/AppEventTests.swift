@@ -224,16 +224,44 @@ struct AppEventTests {
         #expect(log.states(arm: 1) == [.deviceLost, .recording])
     }
 
-    /// The rebuild rule (W1): a found process that the tap lacks, or another output.
+    /// The rebuild rule (W1, code gate 2 F2): a found process that the tap lacks, or a reported
+    /// output that is not the main sub-device of the running aggregate (`out` here). No reported
+    /// output, or the same device, keeps the tap.
     @Test(
         arguments: [
             ([41], [41], "out", false), ([41], [41, 42], "out", true), ([41, 42], [41], "out", false),
             ([41], [], "out", false), ([], [41], "out", true), ([41], [42], "out", true), ([41], [41], "usb", true),
-            ([42, 41], [41, 42], "out", false), ([41], [41], nil, true),
+            ([42, 41], [41, 42], "out", false), ([41], [41], nil, false),
         ] as [([AudioObjectID], [AudioObjectID], String?, Bool)])
     func theRebuildRule(current: [AudioObjectID], found: [AudioObjectID], output: String?, rebuild: Bool) {
         #expect(
             needsRebuild(AppKey(processes: current, output: "out"), AppKey(processes: found, output: output))
-                == rebuild)
+                == rebuild, "the rebuild rule")
+    }
+
+    /// F2: a process that starts or stops reporting the output that the aggregate already runs on
+    /// keeps the tap; a reported other output rebuilds it.
+    @Test func aReportOfTheTapOutputKeepsTheTap() async throws {
+        hal.setApp(Self.zoom, found([41], output: nil, main: "BuiltInSpeakerDevice"))
+        let writer = DeviceWriter(
+            device: InputDevice(
+                uid: Self.uid, name: "zoom.us", nominalRate: 48_000, availableRates: [48_000...48_000],
+                channelsPerBuffer: [1], latency: 0)!,
+            tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { [url = folder.url] in url }),
+            hal: hal.hal, report: log.closure, silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            app: Self.zoom)
+        writer.start()
+        await until("no first attach") { hal.inputs(Self.uid).count == 1 }
+        await change(writer, to: [41], output: "BuiltInSpeakerDevice")
+        #expect(taps == 1, "nil to the same main: no rebuild")
+        await change(writer, to: [41], output: nil, main: "BuiltInSpeakerDevice")
+        #expect(taps == 1, "the same main to nil: no rebuild")
+        await change(writer, to: [41], output: "BuiltInSpeakerDevice")
+        #expect(taps == 1, "nil to the same main again: no rebuild")
+        await change(writer, to: [41], output: "USBHeadset")
+        await until("no rebuild") { hal.inputs(Self.uid).count == 2 }
+        await writer.finish()
+
+        #expect(taps == 2, "nil to another device: a rebuild")
     }
 }

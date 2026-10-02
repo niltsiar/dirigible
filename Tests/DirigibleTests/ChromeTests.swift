@@ -84,20 +84,25 @@ struct TimeTextTests {
         #expect(now.on.intersection(ids) == on, "\(phase): on")
     }
 
-    /// Renders the offline Player at 48 kHz in real time for `seconds`, so the poll moves the
-    /// playhead as a real play does.
-    /// With `until`, it goes on past `seconds` until the condition holds, at most 20 s: in a
-    /// full run other suites can hold the main actor, and fewer polls run.
-    func renderRealTime(_ studio: Studio, seconds: Double, until done: () -> Bool = { true }) async throws {
+    /// Renders `seconds` of the offline Player at 48 kHz at the pace of the clock, so the poll
+    /// moves the playhead as a real play does. With `until`, it goes on until the condition holds.
+    /// In a full run other suites can hold the main actor for seconds. Then the clock runs ahead,
+    /// so one turn renders at most 0.1 s, and the render stops at 2 s: the play stays before the
+    /// page turn (94 % of a 3 s session) and the session end, where SwiftUI updates by design.
+    func renderRealTime(_ studio: Studio, seconds: Double, until done: () -> Bool = { true }) async {
         let start = ContinuousClock.now
         var rendered = 0
-        while ContinuousClock.now - start < .seconds(seconds) || (!done() && ContinuousClock.now - start < .seconds(20))
-        {
-            try await Task.sleep(for: .milliseconds(10))
-            let due = Int((ContinuousClock.now - start) / .seconds(1) * 48_000)
-            if due > rendered {
-                _ = await studio.renderOffline(frames: due - rendered)
-                rendered = due
+        while rendered < Int(seconds * 48_000) || (!done() && rendered < 96_000) {
+            guard ContinuousClock.now - start < .seconds(60) else {
+                Issue.record("the render did not end in 60 s: \(rendered) frames")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(10))
+            let due = min(Int((ContinuousClock.now - start) / .seconds(1) * 48_000), 96_000)
+            let frames = min(due - rendered, 4_800)
+            if frames > 0 {
+                _ = await studio.renderOffline(frames: frames)
+                rendered += frames
             }
         }
     }
@@ -327,7 +332,7 @@ struct TimeTextTests {
         await studio.perform(.playStop)
         let (bodies, updates, changes) = (model.bodyRuns, view.updates, time.textChanges)
 
-        try await renderRealTime(studio, seconds: 1) { time.textChanges >= changes + 3 }
+        await renderRealTime(studio, seconds: 1) { time.textChanges >= changes + 3 }
 
         #expect(time.textChanges >= changes + 3, "the play reached the chrome")
         #expect(model.bodyRuns == bodies, "a play ran \(model.bodyRuns - bodies) SwiftUI bodies")

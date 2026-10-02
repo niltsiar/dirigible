@@ -1,6 +1,9 @@
 import Foundation
 import Testing
 
+@testable import DirigibleAudio
+@testable import DirigibleCLI
+
 /// The helper of CLI.swift waits for a child process with no thread of the concurrency pool, and
 /// runs at most the bound of its slots. Each hold test has its own slots, so the other suites
 /// cannot delay its children.
@@ -36,6 +39,17 @@ struct CLIHelperTests {
             #expect(started() == bound)
         }
         #expect(statuses == Array(repeating: 0, count: bound + 2))
+    }
+
+    /// A3: `dirigible apps` writes one line for each app: the bundle ID, the name with no tab
+    /// or line break, and 1 when a process of the app plays.
+    @Test func theAppsLinesHaveThreeFields() {
+        let apps = [
+            RunningApp(
+                bundleID: "com.google.Chrome", name: "Google\tChrome", path: "/A", playing: true, processes: [1]),
+            RunningApp(bundleID: "us.zoom.xos", name: "zoom\nus", path: "/B", playing: false, processes: [2]),
+        ]
+        #expect(appLines(apps) == "com.google.Chrome\tGoogle Chrome\t1\nus.zoom.xos\tzoom us\t0\n", "the apps lines")
     }
 
     /// A child that exits before the helper waits still wakes the helper: a lost wake-up would

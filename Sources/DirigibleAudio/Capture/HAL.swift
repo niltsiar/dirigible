@@ -51,7 +51,8 @@ extension InputDevice {
     /// permission prompt shows (probes P2 and P5).
     public static func all() -> [InputDevice] {
         let system = AudioObjectID(kAudioObjectSystemObject)
-        return ((try? readArray(system, kAudioHardwarePropertyDevices, as: AudioObjectID.self)) ?? []).compactMap(read)
+        return visibleInputs(
+            ((try? readArray(system, kAudioHardwarePropertyDevices, as: AudioObjectID.self)) ?? []).compactMap(read))
     }
 
     /// The object ID and the facts of the device with `uid`. Nil when the UID is not present
@@ -132,13 +133,13 @@ private func readChannels(_ id: AudioObjectID) -> [Int]? {
     return channels(of: configuration.assumingMemoryBound(to: AudioBufferList.self))
 }
 
-private func propertyAddress(
+func propertyAddress(
     _ selector: AudioObjectPropertySelector, scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
 ) -> AudioObjectPropertyAddress {
     AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
 }
 
-private func readValue<Value>(
+func readValue<Value>(
     _ id: AudioObjectID, _ selector: AudioObjectPropertySelector,
     scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal, as type: Value.Type
 ) throws(HALError) -> Value where Value: BitwiseCopyable {
@@ -152,7 +153,7 @@ private func readValue<Value>(
     return value.pointee
 }
 
-private func readString(_ id: AudioObjectID, _ selector: AudioObjectPropertySelector) -> String? {
+func readString(_ id: AudioObjectID, _ selector: AudioObjectPropertySelector) -> String? {
     var address = propertyAddress(selector)
     var value: Unmanaged<CFString>?
     var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
@@ -160,7 +161,7 @@ private func readString(_ id: AudioObjectID, _ selector: AudioObjectPropertySele
     return value?.takeRetainedValue() as String?
 }
 
-private func readArray<Element>(
+func readArray<Element>(
     _ id: AudioObjectID, _ selector: AudioObjectPropertySelector,
     scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal, as type: Element.Type
 ) throws(HALError) -> [Element] where Element: BitwiseCopyable {

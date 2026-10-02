@@ -198,3 +198,21 @@ private func writeGaps(_ gaps: [TrackID: TakeResult.Gap], armed: [TrackID]) -> B
 private func warn(_ message: String) {
     FileHandle.standardError.write(Data("Warning: \(message)\n".utf8))
 }
+
+struct Apps: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "List the running apps that can be a track source.",
+        discussion:
+            "One line for each regular app with an audio process: the bundle ID, the name, and 1 when the app plays "
+            + "sound now (else 0), split by tabs.")
+
+    func run() { print(appLines(RunningApp.all()), terminator: "") }
+}
+
+/// The lines of `dirigible apps`. A tab or a line break in a name becomes a space.
+func appLines(_ apps: [RunningApp]) -> String {
+    apps.map { app in
+        let name = String(app.name.map { $0 == "\t" || $0.isNewline ? " " : $0 })
+        return "\(app.bundleID)\t\(name)\t\(app.playing ? 1 : 0)\n"
+    }.joined()
+}

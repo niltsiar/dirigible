@@ -23,6 +23,9 @@ public struct LiveTrack: Hashable, Sendable {
         case retryStopped
         /// An app track records silence: the app has no process now (A7).
         case waitingForApp
+        /// An app track got only zeros for 5 s while its app plays: the System Audio Recording
+        /// access can be missing (A9).
+        case noSound
     }
 
     public var state: State
@@ -53,6 +56,9 @@ public struct TakeResult: Hashable, Sendable {
     public let gaps: [TrackID: Gap]
     /// The armed tracks whose device dropped frames, each with the count.
     public var droppedFrames: [TrackID: Int] = [:]
+    /// The armed app tracks that showed the silence warning and got no sound in the take, each
+    /// with the app name (A9).
+    public var silent: [TrackID: String] = [:]
 }
 
 /// A microphone access that is not granted. The library reads it and never requests it; the

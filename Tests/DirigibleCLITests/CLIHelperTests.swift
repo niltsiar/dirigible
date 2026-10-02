@@ -52,6 +52,16 @@ struct CLIHelperTests {
         #expect(appLines(apps) == "com.google.Chrome\tGoogle Chrome\t1\nus.zoom.xos\tzoom us\t0\n", "the apps lines")
     }
 
+    /// A9: one warning line for each silent app track, in arm order. It does not change the exit
+    /// code: the track has a clip (row 13:38, "silence line exit code").
+    @Test func theSilenceLineNamesTheTrackAndTheApp() {
+        #expect(
+            silenceWarnings(["t2": "zoom.us", "t1": "Microsoft Teams"], armed: ["t1", "t3", "t2"]) == [
+                "track \"t1\" got only silence from Microsoft Teams; check System Audio Recording in Privacy & Security.",
+                "track \"t2\" got only silence from zoom.us; check System Audio Recording in Privacy & Security.",
+            ], "the silence lines")
+    }
+
     /// A child that exits before the helper waits still wakes the helper: a lost wake-up would
     /// hang the run.
     @Test func aChildThatExitsAtOnceWakesTheHelper() async throws {

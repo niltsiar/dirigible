@@ -174,6 +174,8 @@ func reportTake(_ studio: Studio, take: Int?, armed: [TrackID], result: TakeResu
         codes.append(diskLowStop)
     }
     if writeGaps(result?.gaps ?? [:], armed: armed) { codes.append(trackGap) }
+    // The track has a clip, so a silence line adds no exit code (A9).
+    for line in silenceWarnings(result?.silent ?? [:], armed: armed) { warn(line) }
     if let take {
         for track in armed where !(studio.session.track(track)?.clips.contains { clips.contains($0.id) } ?? false) {
             warn("track \"\(track)\" has no clip from take \(take).")
@@ -194,6 +196,15 @@ private func writeGaps(_ gaps: [TrackID: TakeResult.Gap], armed: [TrackID]) -> B
         }
     }
     return !gaps.isEmpty
+}
+
+/// A9: one line for each silent app track, in arm order.
+func silenceWarnings(_ silent: [TrackID: String], armed: [TrackID]) -> [String] {
+    armed.compactMap { track in
+        silent[track].map {
+            "track \"\(track)\" got only silence from \($0); check System Audio Recording in Privacy & Security."
+        }
+    }
 }
 
 private func warn(_ message: String) {

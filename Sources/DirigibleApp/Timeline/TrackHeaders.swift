@@ -203,6 +203,7 @@ private struct CompactLiveState: View {
         case .writeFailed: L10n.trackStateWriteFailed.text
         case .retryStopped: L10n.trackStateRetryStopped.text
         case .waitingForApp: L10n.trackStateWaitingForApp.format(source)
+        case .noSound: L10n.trackStateNoSound.format(source)
         }
     }
 }
@@ -221,6 +222,7 @@ private struct LiveState: View {
         case .writeFailed: Text(L10n.trackStateWriteFailed.key).foregroundStyle(.red)
         case .retryStopped: Text(L10n.trackStateRetryStopped.key).foregroundStyle(.red)
         case .waitingForApp: Text(verbatim: L10n.trackStateWaitingForApp.format(source)).foregroundStyle(.secondary)
+        case .noSound: Text(verbatim: L10n.trackStateNoSound.format(source)).foregroundStyle(.orange)
         }
         if live.droppedFrames > 0 {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)

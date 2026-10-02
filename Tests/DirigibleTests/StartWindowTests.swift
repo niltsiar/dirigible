@@ -189,6 +189,34 @@ import Testing
         #expect(app.start == nil, "no start window shows during a quit")
     }
 
+    /// Criterion K1 of run 2026-10-02-start-window-buttons: Change…, Create, and Open Other… have
+    /// one height, and each is below the 28 pt of a large button. Before the fix: 17, 28, 20.
+    @Test func theButtonsHaveOneHeight() async throws {
+        app.showStart()
+        let content = try #require(app.start?.window?.contentView)
+        content.layoutSubtreeIfNeeded()
+        var buttons: [NSButton] = []
+        await until("the three buttons are in the view tree") {
+            buttons = self.buttons(in: content)
+            return buttons.count == 3
+        }
+        // In the order Change…, Create (the left pane, top down), Open Other… (the right pane).
+        let places = buttons.map { $0.convert($0.bounds, to: nil) }
+        let heights = zip(buttons, places)
+            .sorted { ($0.1.minX > 420 ? 1 : 0, -$0.1.minY) < ($1.1.minX > 420 ? 1 : 0, -$1.1.minY) }
+            .map { Double($0.0.alignmentRect(forFrame: $0.0.frame).height) }
+        let even = heights.count == 3 && heights.max()! - heights.min()! <= 0.5 && heights.allSatisfy { $0 < 28 }
+        #expect(even, "one height below 28 pt (Change…, Create, Open Other…): \(heights)")
+        await closeAll(app)
+    }
+
+    /// The SwiftUI buttons. A test runner does not run `NSApp`, so SwiftUI gives no accessibility
+    /// children (probe-u2b). Each button is an `NSButton`, and its alignment rect has the height
+    /// that VoiceOver reads in the app.
+    func buttons(in view: NSView) -> [NSButton] {
+        (view as? NSButton).map { [$0] } ?? view.subviews.flatMap { buttons(in: $0) }
+    }
+
     /// Closes the session windows, then the start window that the last close shows.
     func closeAll(_ app: AppDelegate) async {
         for window in app.windows.values { await window.close() }

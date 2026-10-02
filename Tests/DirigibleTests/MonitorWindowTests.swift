@@ -73,9 +73,8 @@ import os
 
     /// Control in the same test: with the device in the list, the label is its name.
     @Test func aMissingRouteDeviceShowsMissing() {
-        let route = Route.device(uid: "duo", channels: .mono(1))
-        #expect(routeLabel(route: route, devices: []) == L10n.trackRouteMissing.text)
-        #expect(routeLabel(route: route, devices: [duo]) == "Duo")
+        #expect(routeLabel(uid: "duo", devices: []) == L10n.trackRouteMissing.text)
+        #expect(routeLabel(uid: "duo", devices: [duo]) == "Duo")
     }
 
     // MARK: Criterion 15

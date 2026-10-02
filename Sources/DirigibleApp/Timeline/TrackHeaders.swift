@@ -168,7 +168,7 @@ private struct TrackRow: View {
         switch track.route {
         case nil: ""
         case .app(let bundleID): model.appName(bundleID)
-        case let route?: routeLabel(route: route, devices: model.devices)
+        case .device(let uid, _): routeLabel(uid: uid, devices: model.devices)
         }
     }
 
@@ -180,13 +180,9 @@ private struct TrackRow: View {
     }
 }
 
-/// The source of a route: the device name, or the "missing" text when it is not in `devices`;
-/// the bundle ID of an app.
-func routeLabel(route: Route, devices: [InputDevice]) -> String {
-    switch route {
-    case .device(let uid, _): devices.first { $0.uid == uid }?.name ?? L10n.trackRouteMissing.text
-    case .app(let bundleID): bundleID
-    }
+/// The device of a route: its name, or the "missing" text when it is not in `devices`.
+func routeLabel(uid: String, devices: [InputDevice]) -> String {
+    devices.first { $0.uid == uid }?.name ?? L10n.trackRouteMissing.text
 }
 
 private func channelsText(_ channels: Route.Channels) -> String {

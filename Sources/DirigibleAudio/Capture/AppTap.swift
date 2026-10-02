@@ -230,7 +230,7 @@ func appFound(
 ) -> AppFound? {
     guard
         let device = InputDevice(
-            uid: "app:\(bundleID)", name: bundleID, nominalRate: rate, availableRates: [rate...rate],
+            uid: appUID(bundleID), name: bundleID, nominalRate: rate, availableRates: [rate...rate],
             channelsPerBuffer: [layout.channelCount], latency: 0)
     else { return nil }
     return AppFound(
@@ -282,7 +282,9 @@ struct SilenceCheck {
     /// The zeros before the warning.
     static let limit: UInt64 = 5_000_000_000
     /// The rebuilds after the warning.
-    static let rebuilds: [UInt64] = [0, 10_000_000_000, 40_000_000_000]
+    static let rebuilds: [UInt64] = [atWarning, 10_000_000_000, 40_000_000_000]
+    /// The first rebuild comes with the warning.
+    static let atWarning: UInt64 = 0
     static let readInterval: UInt64 = 1_000_000_000
 
     /// True after a routed sample that is not zero in the take.

@@ -267,14 +267,9 @@ nonisolated func checkTake(
         case .app(let bundleID):
             // The app name and the facts of the output, read only; nil only with no output device.
             guard !devices.contains(where: { $0.uid == appUID(bundleID) }),
-                let found = environment.hal.lookUpApp(bundleID, track.layout),
-                let device = InputDevice(
-                    uid: appUID(bundleID), name: environment.hal.appName(bundleID),
-                    nominalRate: found.device.nominalRate,
-                    availableRates: found.device.availableRates, channelsPerBuffer: [track.layout.channelCount],
-                    latency: found.device.latency)
+                let found = environment.hal.lookUpApp(bundleID, track.layout)
             else { continue }
-            devices.append(device)
+            devices.append(found.device.named(environment.hal.appName(bundleID)))
         case nil: continue
         }
     }

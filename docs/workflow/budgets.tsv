@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31703	2026-10-02-speed-run S6 (the real sum after the run: 31760 - 64)
+TOTAL	31717	2026-10-02-upkeep-1 review nit (decisions.tsv 2026-10-02T11:48: the blocking-hold sentence of flake-triage.md, +14)

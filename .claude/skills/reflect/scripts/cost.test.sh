@@ -56,8 +56,8 @@ printf '# replay k1\n# result: killed\n' > "$run/controls/replay/k1.log"
 printf '# replay k2\n# result: killed\n' > "$run/controls/replay/k2.log"
 cp "$run/controls/replay/k1.log" "$run/controls/replay-old/k1.log"
 # The critical findings: a parenthesis with critical on a line of a top review-*.md, under the Act on
-# heading or under no section heading; not a summary line, a line under another heading, a
-# fix-check file, or a review file in a subfolder.
+# heading or under no section heading; not a summary line, an indented line (a Fix sub-bullet that
+# quotes the format), a line under another heading, a fix-check file, or a review file in a subfolder.
 mkdir -p "$run/eval/sets"
 {
   printf '# Plan gate round 1\n\n'
@@ -65,6 +65,7 @@ mkdir -p "$run/eval/sets"
   printf '## Act on\n\n'
   printf '### G1 (critical, harness). The TOTAL row fails.\n\n'
   printf -- '- **A1 (Critical, premortem).** The real osascript exits 1.\n'
+  printf -- '  - Fix: each critical line writes (critical, <lens>).\n'
   printf 'P2 (warning, eval). Not critical.\n'
   printf 'No critical item survived.\n\n'
   printf '## Dismissed\n\n'

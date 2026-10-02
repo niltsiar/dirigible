@@ -59,17 +59,17 @@ extension EditTakeTests {
     @Test func theDraftDropsAndTheArmedSetStays() async throws {
         let (model, studio, _, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
+        // Both tracks are on channel 1 of mic, so the open arms only t1 (code gate E1). Channel 2
+        // arms t2 too.
+        model.setRoute(.mono(2), device: InputDevice.placeholder(uid: "mic", channels: 2), track: "t2")
         model.drafts = ["t1": "Host", "t2": "Guest"]
         model.timeline.marks = Marks(tracks: ["t1"])
-        // Both tracks are on channel 1 of duo, so the open arms only t1 (code gate E1).
-        let armed = model.armed
-        try #require(armed.contains("t1"))
 
         model.run(.removeTrack)
 
         #expect(studio.session.tracks.map(\.id) == ["t2"])
         #expect(model.drafts == ["t2": "Guest"])
-        #expect(model.armed == armed)
+        #expect(model.armed == ["t1", "t2"])
         await model.close()
     }
 

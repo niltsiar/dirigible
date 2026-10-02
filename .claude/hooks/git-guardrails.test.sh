@@ -90,6 +90,11 @@ expect block 'scripts/check-stamp.sh write abc clean def check'
 expect block 'bash scripts/check-stamp.sh  write abc clean def check'
 expect allow 'scripts/check-stamp.sh read origin/main'
 expect allow 'scripts/check-stamp.test.sh'
+# Only a passing make test-slow writes the slow-run date. A direct write skips the daily slow run.
+expect block 'date +%F > .git/dirigible-slow-date'
+expect block 'echo 2026-01-01 > "$(git rev-parse --git-common-dir)/dirigible-slow-date"'
+expect allow 'make test-slow'
+expect allow 'scripts/check-changed.test.sh'
 
 # A quoted main is the same push to main.
 expect block "git push origin 'main'"

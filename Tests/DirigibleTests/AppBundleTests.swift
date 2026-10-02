@@ -134,20 +134,22 @@ struct AppBundleTests {
     /// The user guide: an HTML page that `scripts/guide-html.swift` makes from `docs/guide.md`.
     /// Each image resolves to a file in `Guide/images/`, and each anchor link names a heading id.
     @Test func theGuideIsInTheBundleWithItsImages() throws {
+        // make test-dmg reads the app under /var, a link to /private/var: compare real paths.
+        let real = { (url: URL) in url.resolvingSymlinksInPath().standardizedFileURL.path }
         let guide = app.appending(path: "Contents/Resources/Guide/guide.html")
-        #expect(AppDelegate.guideURL(in: try #require(Bundle(url: app))).path == guide.path, "Help opens this file")
+        #expect(real(AppDelegate.guideURL(in: try #require(Bundle(url: app)))) == real(guide), "Help opens this file")
         let html = try String(contentsOf: guide, encoding: .utf8)
         #expect(html.contains("<meta charset=\"utf-8\">"))
         #expect(html.contains("<h1 id=\"dirigible-user-guide\">Dirigible user guide</h1>"))
         #expect(html.contains("<table>"))
 
-        let images = guide.deletingLastPathComponent().appending(path: "images").path + "/"
+        let images = real(guide.deletingLastPathComponent().appending(path: "images")) + "/"
         let sources = html.matches(of: #/src="([^"]+)"/#).map { String($0.1) }
         #expect(!sources.isEmpty, "the guide shows an image")
         for source in sources {
-            let file = try #require(URL(string: source, relativeTo: guide)).standardizedFileURL
-            #expect(file.path.hasPrefix(images), "src \(source) is outside Guide/images/")
-            #expect(FileManager.default.fileExists(atPath: file.path), "src \(source) names no file")
+            let file = real(try #require(URL(string: source, relativeTo: guide)))
+            #expect(file.hasPrefix(images), "src \(source) is outside Guide/images/")
+            #expect(FileManager.default.fileExists(atPath: file), "src \(source) names no file")
         }
 
         let ids = Set(html.matches(of: #/ id="([^"]+)"/#).map { String($0.1) })

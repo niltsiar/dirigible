@@ -35,6 +35,13 @@ public struct InputDevice: Hashable, Sendable {
 
     public var channelCount: Int { channelsPerBuffer.reduce(0, +) }
 
+    /// The same device with `name`: the app name of an app source.
+    func named(_ name: String) -> InputDevice {
+        InputDevice(
+            uid: uid, name: name, nominalRate: nominalRate, availableRates: availableRates,
+            channelsPerBuffer: channelsPerBuffer, latency: latency) ?? self
+    }
+
     /// The device of a monitor writer before its first lookup (decision 0015): one buffer with
     /// `channels` channels. The first attach takes the facts of the found device. A monitor
     /// writes no sidecar, so these facts never reach a file.

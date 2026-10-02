@@ -21,6 +21,12 @@ printf '| ID | Type |\n|---|---|\n| E4 | policy |\n' > "$repo/docs/workflow/eval
 printf 'id\tfile\tverdict\nAGT-001\tAGENTS.md\tkeep\n' > "$repo/docs/workflow/rules.tsv"
 git -C "$repo" add -A
 git -C "$repo" commit -q -m fixture
+# A hash that starts with a digit, so a removed hash would also lose a number.
+i=0
+until [[ "$(git -C "$repo" rev-parse --short=7 HEAD)" == [0-9]* ]]; do
+    i=$((i + 1))
+    git -C "$repo" commit -q --amend -m "fixture $i"
+done
 hash="$(git -C "$repo" rev-parse --short=7 HEAD)"
 full="$(git -C "$repo" rev-parse HEAD)"
 
@@ -77,6 +83,29 @@ code=$?
 out="$(cd "$repo" && "$script" a b 2>&1)"
 code=$?
 [[ $code -eq 2 && "$out" == usage:* ]] || fail "two file arguments: exit $code: $out"
+
+# --lost <original> <revision>: each number of the original that the revision does not have.
+# lost <case> <original text> <revision text> <want>: want is the printed number, or empty for no
+# output and exit 0.
+lost() {
+    printf '%b' "$2" > "$repo/orig.md"
+    printf '%b' "$3" > "$repo/rev.md"
+    out="$(cd "$repo" && "$script" --lost orig.md rev.md 2>&1)"
+    code=$?
+    if [[ -z "$4" ]]; then
+        [[ $code -eq 0 && -z "$out" ]] || fail "$1: exit $code: $out"
+    else
+        [[ $code -eq 1 && "$out" == "pr-terms: rev.md: lost number: $4" ]] || fail "$1: exit $code: $out"
+    fi
+}
+
+lost 'a lost number' 'Net growth +196 words.\nThe row is 31335.\n' 'Net growth +196 words.\nThe row is the real sum.\n' '31335'
+lost 'a removed hash' "Fixed in $hash and 1a2b3c4.\n" 'Fixed by one rule and 1a2b3c4.\n' ''
+lost 'a removed run-internal ID' 'U3 and INT-054/scope hold 2 rows.\n' 'The default and the scope rule hold 2 rows.\n' ''
+lost 'a number that moved to another line' 'A has 12.\nB has 7.\n' 'B has 7.\nA has 12.\n' ''
+out="$(cd "$repo" && "$script" --lost orig.md missing.md 2>&1)"
+code=$?
+[[ $code -eq 2 && "$out" == *"no file missing.md"* ]] || fail "--lost with a missing file: exit $code: $out"
 
 [[ $failures -eq 0 ]] && echo "pr-terms tests: all passed"
 exit $((failures > 0))

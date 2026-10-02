@@ -50,7 +50,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - `decisions.tsv` is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh`, also in a subagent. It writes the time from the clock. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder: a probe once deleted files in `~`. For a Swift build in a probe, read the header of `scripts/probe.sh` first.
-- The Bash tool shell is zsh. A variable named `path`, `status`, or `argv` breaks every later command with "command not found". Use another name, or `bash -c '...'`. Save `c=$?` alone after a check.
+- The Bash tool shell is zsh. A variable named `path`, `status`, or `argv` breaks every later command with "command not found". Use another name, or `bash -c '...'`.
 
 ## Git
 

@@ -33,8 +33,8 @@ struct AppEventTests {
 
     /// A started app writer of arm 1 (mono) whose app has `processes` now. The watchdog limits
     /// are long, so a busy suite gets no second attach before a check.
-    func writer(_ processes: [AudioObjectID]) async -> DeviceWriter {
-        hal.setApp(Self.zoom, found(processes))
+    func writer(_ processes: [AudioObjectID], output: String? = "BuiltInSpeakerDevice") async -> DeviceWriter {
+        hal.setApp(Self.zoom, found(processes, output: output, main: "BuiltInSpeakerDevice"))
         let url = folder.url
         let device = InputDevice(
             uid: Self.uid, name: "zoom.us", nominalRate: 48_000, availableRates: [48_000...48_000],
@@ -192,6 +192,21 @@ struct AppEventTests {
             appFound(Self.zoom, processes: [process], output: "USBHeadset", reported: true, rate: 48_000, layout: .mono)
         )
         #expect(reported.key == AppKey(processes: [41], output: "USBHeadset"), "a reported output in the key")
+    }
+
+    /// Code gate 3 H1: no process reports an output, and the main sub-device of the aggregate
+    /// leaves the device list: a rebuild on the new default output. Control: an event while it is
+    /// there keeps the tap.
+    @Test func aGoneMainSubDeviceRebuildsTheTap() async throws {
+        let writer = await writer([41], output: nil)
+        await change(writer, to: [41], output: nil)
+        #expect(taps == 1, "control: the main sub-device is there")
+        hal.removeOutput("BuiltInSpeakerDevice")
+        await change(writer, to: [41], output: nil, main: "USBHeadset")
+        await until("no rebuild") { hal.inputs(Self.uid).count == 2 }
+        await writer.finish()
+
+        #expect(taps == 2, "a gone main sub-device rebuilds")
     }
 
     /// A8: IsAlive false on the aggregate rebuilds, with no gap.

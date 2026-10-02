@@ -75,6 +75,8 @@ final class TestHAL: @unchecked Sendable {
     private var attachDelays: [String: Duration] = [:]
     private var callLog: [String] = []
     private var tapGate: DispatchSemaphore?
+    /// The output devices that left the device list (`deviceExists` is false for them).
+    private var goneDevices: Set<String> = []
 
     /// A successful attach or a clean detach of one input.
     enum Event: Equatable {
@@ -108,7 +110,8 @@ final class TestHAL: @unchecked Sendable {
                 }
             },
             makeTap: { [self] found in makeTap(found) },
-            appName: { [self] bundleID in lock.withLock { names[bundleID] ?? bundleID } })
+            appName: { [self] bundleID in lock.withLock { names[bundleID] ?? bundleID } },
+            deviceExists: { [self] uid in lock.withLock { !goneDevices.contains(uid) } })
     }
 
     /// A tap aggregate with the facts of `found`, or of its tap layout, and a teardown that logs
@@ -219,6 +222,9 @@ final class TestHAL: @unchecked Sendable {
     /// The teardown step that fails from now on: "detach" (the IOProc and the listeners) or
     /// "aggregate" or "tap" (the destroy of the tap aggregate or of the tap). Nil: every step returns noErr.
     func failTeardown(_ step: String?) { lock.withLock { failingTeardown = step } }
+
+    /// Takes the output device `uid` out of the device list.
+    func removeOutput(_ uid: String) { lock.withLock { _ = goneDevices.insert(uid) } }
 
     /// The next taps wait until `releaseTaps`, with a limit of 30 s: the prompt of a first take.
     func holdTaps() { lock.withLock { tapGate = DispatchSemaphore(value: 0) } }

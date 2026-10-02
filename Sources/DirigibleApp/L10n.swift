@@ -69,6 +69,7 @@ enum L10n: String, CaseIterable {
     case menuMarkersDelete = "menu.markers.delete"
     case menuMarkersPrevious = "menu.markers.previous"
     case menuMarkersNext = "menu.markers.next"
+    case menuHelpGuide = "menu.help.guide"
 
     case panelExportFormat = "panel.export.format"
     case panelExportFormatWAV = "panel.export.format.wav"

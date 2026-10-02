@@ -177,6 +177,7 @@
 "menu.markers.delete" = "Eliminar marcador";
 "menu.markers.previous" = "Marcador anterior";
 "menu.markers.next" = "Marcador siguiente";
+"menu.help.guide" = "Guía de Dirigible";
 "alert.marker.rename" = "Renombrar marcador";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";

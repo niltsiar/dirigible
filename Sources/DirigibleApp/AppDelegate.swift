@@ -43,6 +43,8 @@ import UniformTypeIdentifiers
     @ObservationIgnored private var keyMonitor: Any?
     /// Shows files in Finder. Tests give their own.
     @ObservationIgnored var reveal: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
+    /// Opens a file in its default app. Tests give their own.
+    @ObservationIgnored var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// The first free name of a new session, "Episode 2" for 2. Tests give their own: in the test
     /// process, `L10n` gives the key.
     @ObservationIgnored var nameFormat: @Sendable (Int) -> String = { L10n.startNameDefault.format($0) }
@@ -268,6 +270,16 @@ import UniformTypeIdentifiers
         }
         return nil
     }
+
+    // MARK: Help
+
+    /// The user guide page that `scripts/bundle.sh` makes from `docs/guide.md`. It is English only.
+    nonisolated static func guideURL(in bundle: Bundle) -> URL {
+        bundle.bundleURL.appending(path: "Contents/Resources/Guide/guide.html")
+    }
+
+    /// Help > Dirigible Guide.
+    func openGuide() { openURL(Self.guideURL(in: .main)) }
 
     // MARK: NSApplicationDelegate
 

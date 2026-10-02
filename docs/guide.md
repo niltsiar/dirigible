@@ -372,6 +372,14 @@ The **Transport** menu (**Transporte**).
 |---|---|---|
 | **Start Window** | **Ventana de inicio** | Shift-Command-1 |
 
+### Help
+
+| Command | Spanish name | Key |
+|---|---|---|
+| **Dirigible Guide** | **Guía de Dirigible** | None |
+
+**Dirigible Guide** opens this guide in your web browser. The guide is part of the app, so it opens with no internet connection. The guide is in English only.
+
 ### Commands in the banners
 
 These commands are buttons in the banners of the window, not items of the menu bar. **Retry Finalize** and **Finish Without Unreadable Audio** show in the banner of a take that is not finished. **Place** shows in each row of unplaced audio, and **Place at Playhead on Selected Track** is in its menu.

@@ -5,6 +5,18 @@ import Testing
 
 @testable import DirigibleAudio
 
+/// Compares a time with its budget. With -O (`make bench`), a miss fails the test. In debug, the
+/// budget is a proxy that the load of the suite moves, so a miss only prints a report line.
+func expectWithinBudget(
+    _ value: Duration, _ budget: Duration, _ message: String, sourceLocation: SourceLocation = #_sourceLocation
+) {
+    #if DEBUG
+        if value > budget { print("bench report: \(message) over debug budget \(budget)") }
+    #else
+        #expect(value <= budget, "\(message)", sourceLocation: sourceLocation)
+    #endif
+}
+
 /// Timeline-view criterion 11: a 2 h mono WAV computes in 3 s or less (probe P1: 0.4 s warm).
 struct PeakComputeBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
@@ -28,6 +40,6 @@ struct PeakComputeBenchmark {
 
         #expect(peaks.frames == 345_600_000)
         #expect(peaks.levels[0].count == 1_350_000)
-        #expect(elapsed <= .seconds(3), "the compute took \(elapsed)")
+        expectWithinBudget(elapsed, .seconds(3), "the compute took \(elapsed)")
     }
 }

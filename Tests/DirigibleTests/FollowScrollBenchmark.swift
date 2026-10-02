@@ -75,7 +75,7 @@ import Testing
 
     static func report(_ name: String, _ zoom: String, _ sorted: [Duration]) {
         print("FollowScrollBenchmark \(name), \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
-        #expect(sorted[113] <= MouseEventBenchmark.budget, "\(name), \(zoom): p95 \(sorted[113])")
+        expectWithinBudget(sorted[113], MouseEventBenchmark.budget, "\(name), \(zoom): p95 \(sorted[113])")
     }
 
     /// A forward page turn: the playhead at 95% of the page turns it (decision 0017).

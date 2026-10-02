@@ -52,7 +52,7 @@ struct LaneRenderBenchmark {
             }
             let p95 = times.sorted()[113]
             #expect(windows[0].pixels.columns.count == 2880 && windows[0].pixels.rows.count == 1200)
-            #expect(p95 <= Self.budget, "\(zoom): p95 \(p95)")
+            expectWithinBudget(p95, Self.budget, "\(zoom): p95 \(p95)")
         }
     }
 }
@@ -86,7 +86,7 @@ struct LaneRenderBenchmark {
             times.append(ContinuousClock.now - start)
         }
         let median = times.sorted()[10]
-        #expect(median <= .milliseconds(20), "median \(median)")
+        expectWithinBudget(median, .milliseconds(20), "median \(median)")
     }
 }
 

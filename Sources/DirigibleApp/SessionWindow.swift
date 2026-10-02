@@ -91,6 +91,16 @@ enum WindowAlert: Hashable {
     @ObservationIgnored private var opening: Task<Void, Never>?
     /// Tests give their own list.
     @ObservationIgnored var deviceList = DeviceList.shared
+    /// The running apps of the Apps section of the route menu (A15), and the name of each app
+    /// that a list had. `refreshApps` reads them off the main actor.
+    var apps: [RunningApp] = []
+    @ObservationIgnored var appNames: [String: String] = [:]
+    /// Tests give their own list.
+    @ObservationIgnored var readApps: @Sendable () -> [RunningApp] = { RunningApp.all() }
+    /// The name of an app that does not run, from its bundle. Tests give their own.
+    @ObservationIgnored var readAppName: @Sendable (String) -> String = { DirigibleAudio.appName($0) }
+    /// False on macOS 14.0 and 14.1 (A14). Tests set it.
+    @ObservationIgnored var tapsAvailable = processTapsAvailable
     /// The macOS microphone prompt (decision 0013). Tests give their own.
     @ObservationIgnored var requestMicrophoneAccess: () async -> Bool = {
         await AVCaptureDevice.requestAccess(for: .audio)
@@ -287,6 +297,7 @@ enum WindowAlert: Hashable {
         app?.key = self
         chrome?.refreshRecordTime()
         deviceList.changed()
+        refreshApps()
         if case .open(let studio) = phase { studio.loadPeaks() }
         Task { await idleStudio?.checkMedia() }
     }

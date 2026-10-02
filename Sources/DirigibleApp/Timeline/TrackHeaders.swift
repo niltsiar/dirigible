@@ -76,7 +76,9 @@ private struct TrackRow: View {
             if secondLine {
                 HStack(spacing: 8) {
                     routeMenu.frame(minWidth: 0, maxWidth: 240, alignment: .leading).disabled(!model.canEdit)
-                    if let live = studio.liveTracks[track.id] { LiveState(live: live, source: sourceLabel) }
+                    if let live = studio.liveTracks[track.id] {
+                        LiveState(live: live, source: sourceLabel, openSettings: model.openAudioCaptureSettings)
+                    }
                 }
             }
         }
@@ -142,17 +144,39 @@ private struct TrackRow: View {
                 }
             }
         }
+        Divider()
+        // A15: the running apps, read off the main actor when the menu opens.
+        Section(L10n.trackRouteApps.key) {
+            ForEach(appMenuItems(model.apps, tapsAvailable: model.tapsAvailable), id: \.self) { item in
+                switch item {
+                case .app(let bundleID, let name):
+                    Button {
+                        model.setAppRoute(bundleID, track: track.id)
+                    } label: {
+                        Text(verbatim: name)
+                    }
+                case .unavailable:
+                    Button(L10n.trackRouteAppsUnavailable.key) {}.disabled(true)
+                }
+            }
+        }
+        .onAppear { model.refreshApps() }
     }
 
-    /// The source of the route: a device name or an app; empty with no route.
-    private var sourceLabel: String { track.route.map { routeLabel(route: $0, devices: model.devices) } ?? "" }
+    /// The source of the route: a device name or an app name; empty with no route.
+    private var sourceLabel: String {
+        switch track.route {
+        case nil: ""
+        case .app(let bundleID): model.appName(bundleID)
+        case let route?: routeLabel(route: route, devices: model.devices)
+        }
+    }
 
     private var routeText: String {
         // "No Input" reads as a state; the label asks for the action. The item stays "No Input".
         guard let route = track.route else { return L10n.trackRouteChoose.text }
-        let label = routeLabel(route: route, devices: model.devices)
-        guard case .device(_, let channels) = route else { return label }
-        return L10n.trackRoute.format(label, channelsText(channels))
+        guard case .device(_, let channels) = route else { return sourceLabel }
+        return L10n.trackRoute.format(sourceLabel, channelsText(channels))
     }
 }
 
@@ -181,7 +205,7 @@ private func meterLevel(_ live: LiveTrack) -> Double {
 /// dropped frames (orange), with the state text for VoiceOver and as its tooltip.
 private struct CompactLiveState: View {
     let live: LiveTrack
-    /// The route label: the app of a `.waitingForApp` track.
+    /// The route label: the app of a `.waitingForApp` or `.noSound` track.
     let source: String
 
     var body: some View {
@@ -211,8 +235,10 @@ private struct CompactLiveState: View {
 /// The meter and the state of an armed track during a take or a monitor.
 private struct LiveState: View {
     let live: LiveTrack
-    /// The route label: the app of a `.waitingForApp` track.
+    /// The route label: the app of a `.waitingForApp` or `.noSound` track.
     let source: String
+    /// Opens Privacy & Security > System Audio Recording (A9).
+    let openSettings: () -> Void
 
     var body: some View {
         ProgressView(value: meterLevel(live)).frame(width: 60)
@@ -222,7 +248,9 @@ private struct LiveState: View {
         case .writeFailed: Text(L10n.trackStateWriteFailed.key).foregroundStyle(.red)
         case .retryStopped: Text(L10n.trackStateRetryStopped.key).foregroundStyle(.red)
         case .waitingForApp: Text(verbatim: L10n.trackStateWaitingForApp.format(source)).foregroundStyle(.secondary)
-        case .noSound: Text(verbatim: L10n.trackStateNoSound.format(source)).foregroundStyle(.orange)
+        case .noSound:
+            Text(verbatim: L10n.trackStateNoSound.format(source)).foregroundStyle(.orange)
+            Button(L10n.trackNoSoundSettings.key, action: openSettings)
         }
         if live.droppedFrames > 0 {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)

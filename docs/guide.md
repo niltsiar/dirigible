@@ -13,7 +13,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 - No MP3 export. Export AAC (.m4a) or WAV, and check which formats your podcast host accepts.
 - The export does not write the chapters into the file. The chapters stay in the session.
-- No recording of calls or other apps, for example Zoom or Teams. Dirigible records only input devices, such as microphones and audio interfaces.
+- Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
 - No loudness setting. The export does not change the level of the audio.
 - Delete leaves silence. The clips after the deleted part do not move to close the gap. To close the gap, see [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 
@@ -201,6 +201,21 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 - Use the input menu of a track to choose a device and its channels. One channel gives a mono track, and a pair of channels gives a stereo track. **No Input** removes the input.
 - To remove tracks, select them and choose **Track > Remove Track**. You can also Control-click the header of a track and choose **Remove Track**.
 - To change the width of the track headers, drag their right edge. Double-click the edge to go back to the standard width.
+
+### Record a call or another app
+
+Dirigible can record the sound of another app, for example a Zoom, Teams, or Slack call, on its own track. This needs macOS 14.2 or later.
+
+1. Open the call app.
+2. On the guest track, open the input menu. Under **Apps**, choose the call app. A mono track records a mono mix of the app, and a stereo track records a stereo mix.
+3. Put on headphones, so the guest does not leak into your microphone track.
+4. Record. The first time, macOS asks for access to System Audio Recording. Click **Allow**.
+
+- One app can feed one track only. Record your own microphone on another track.
+- When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
+- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Open Settings**. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
+- On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
+- In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input.
 
 ## Export the episode
 

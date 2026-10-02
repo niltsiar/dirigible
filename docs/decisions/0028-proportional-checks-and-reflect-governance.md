@@ -37,7 +37,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 | Run | Review panel |
 |---|---|
-| Small: `risk: no` | Amended 2026-10-02. Plan gate and code gate: 1 round of at most two lenses that match the classes. Round 2 only on a critical item. A fix check only with Act-on items. One agent runs Phases 1-4. |
+| Small: `risk: no` | Amended 2026-10-02. Plan gate and code gate: 1 round of at most two lenses that match the classes. Round 2 only on a critical item. A fix check only with Act-on items. One subagent runs Phases 1-2 and 4; the lead runs the gates. |
 | `risk: yes` | Plan gate 2 rounds. Code gate 3 rounds, with the lenses of each class. |
 
 ### Word budgets

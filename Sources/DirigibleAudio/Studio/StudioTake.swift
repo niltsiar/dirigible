@@ -82,6 +82,16 @@ extension Studio {
         for writer in writers.values where writer.app != nil { writer.start() }
     }
 
+    /// The armed app tracks whose writer showed the silence warning and got no sound, each with
+    /// the app name (A9). Call it after each writer finished.
+    func silentTracks() async -> [TrackID: String] {
+        var silent: [TrackID: String] = [:]
+        for (track, writer) in armed {
+            if let app = await writer.silentApp() { silent[track] = app }
+        }
+        return silent
+    }
+
     /// The device writer of `uid` in the take that records. For tests.
     func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
 

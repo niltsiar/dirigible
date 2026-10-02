@@ -273,13 +273,10 @@ import Observation
         diskWatcher = nil
         let error = await serialized { () async -> StudioError? in
             var gaps: [TrackID: TakeResult.Gap] = [:]
-            var silent: [TrackID: String] = [:]
             for writer in writers.values {
                 for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
-                if let app = await writer.silentApp() {
-                    for (track, owner) in armed where owner === writer { silent[track] = app }
-                }
             }
+            let silent = await silentTracks()
             let dropped = armed.compactMap { track in
                 track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil
             }
@@ -338,8 +335,7 @@ import Observation
         recordingSince = .now
         beginLive(started)
         transport = .recording(take: started.take)
-        // `startApps` starts the app writers after each device writer attached (A5).
-        for writer in writers.values where writer.app == nil { writer.start() }
+        for writer in writers.values where writer.app == nil { writer.start() }  // Apps: `startApps` (A5).
     }
 
     /// Finalize, the marker, and the save off the main actor, then the outcome here.

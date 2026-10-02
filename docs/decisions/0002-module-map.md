@@ -1,4 +1,4 @@
-# 0002. Module map: two libraries and a thin app
+# 0002. Module map: three libraries and a thin app
 
 - Status: accepted
 - Date: 2026-09-24
@@ -12,6 +12,7 @@
 - Amended: 2026-09-25. `DirigibleApp/Timeline/` holds the timeline view. `Render/Peaks.swift` and `Render/PeakFile.swift` compute the peaks and keep the cache file. `Studio/Studio+Peaks.swift` loads the peaks off the main actor (see 0017).
 - Amended: 2026-09-25. `Render/Export.swift`, `Render/ExportFile.swift`, and `Render/FileMove.swift` hold the export writer; `Render/RenderMix.swift` goes. `Studio/Studio+Export.swift` runs the export job (see 0019).
 - Amended: 2026-09-26. The library target `DirigibleTimeline` holds the timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, and the gesture model. It imports Foundation and depends on `DirigibleCore`. `DirigibleApp` depends on it. `DirigibleTimelineTests` tests it (see 0020).
+- Amended: 2026-10-03. The body states the map after the amendments above.
 
 ## Context
 
@@ -25,22 +26,23 @@ Two designs were compared: few targets, and one target for each capability (capt
 |---|---|---|---|
 | `DirigibleCore` | `Session`, `Track`, `Clip`, `AudioFile`, capture timing, `Marker`, `Frames`, `ChannelLayout`, track routes, edits and their invariants, snapshot undo (`History`), session XML read and atomic write, take alignment and auto-level math | Foundation | 1 |
 | `DirigibleAudio` | Device list, `DeviceWriter` (IOProcs, rings, CAF segments), finalize, recovery, `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | Foundation, CoreAudio, AudioToolbox, AVFoundation, Accelerate, IOKit (the sleep assertion), `Atomics` (swift-atomics, 0005), `DirigibleCore` | 1 |
+| `DirigibleTimeline` | The timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, the gesture model (0020) | Foundation, `DirigibleCore` | 1 |
 | `CLame` | libmp3lame with the decoder off (0007) | none | 2 |
-| `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, both libraries | 1 |
+| `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, the three libraries | 1 |
 | `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the read-edit-save step, error text, the text and JSON views of a session. No logic that the app needs | Foundation, AVFoundation (the microphone access request), `ArgumentParser` (swift-argument-parser), `DirigibleCore`, `DirigibleAudio` | CLI run |
 
-Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCLI` depends on `DirigibleCore` and `DirigibleAudio` (0012). `DirigibleCore` depends on no target.
+Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, `DirigibleApp` to `DirigibleTimeline` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCLI` depends on `DirigibleCore` and `DirigibleAudio` (0012). `DirigibleCore` depends on no target.
 
-Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), and `DirigibleTests` (bundle, localization, import rule).
+Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), `DirigibleTimelineTests`, and `DirigibleTests` (bundle, localization, import rule).
 
 Rules that come with the map:
 
-- **Import-rule test.** SwiftPM cannot stop a target from importing a system framework. A test in `DirigibleTests` reads every file in `Sources/DirigibleCore` and fails on any `import` other than Foundation.
+- **Import-rule test.** SwiftPM cannot stop a target from importing a system framework. A test in `DirigibleTests` reads every file in `Sources/DirigibleCore` and fails on any `import` other than Foundation. It also fails when `DirigibleTimeline` imports more than Foundation and `DirigibleCore` (0020).
 - **Studio is in the library.** "Stop, finalize, add the take as one undo step, save" is logic. Integration tests drive it through `Studio`. The app only maps views and menu commands to `Studio` calls.
 - **Snapshot undo.** `History` keeps `Session` values. `edit { }` records one entry; an edit that changes nothing records none. There is no command protocol with inverse commands.
-- **Actors.** `Studio`, `Player`, and the views are `@MainActor`. Each device writer has its own serial dispatch queue. Each IOProc and listener is a static C function that captures nothing and gets a client-data pointer (0013). Finalize, export, and peak calculation run off the main actor.
+- **Actors.** `Studio` and the views are `@MainActor`. `Player` is an actor (0016). Each device writer has its own serial dispatch queue. Each IOProc and listener is a static C function that captures nothing and gets a client-data pointer (0013). Finalize, export, and peak calculation run off the main actor.
 - **Library code has no UI text.** Errors are enums. The app maps each case to a `.lproj` key.
-- **Folders inside `DirigibleAudio`.** `Capture/`, `Render/`, `DSP/`, and `Studio/`. The 400-line file rule applies.
+- **Folders inside `DirigibleAudio`.** `Capture/`, `Finalize/`, `Render/`, and `Studio/`. The 400-line file rule applies.
 
 ## Consequences
 

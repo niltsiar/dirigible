@@ -50,12 +50,11 @@ struct StartView: View {
                 Text(message.key).font(.callout).foregroundStyle(.red)
             }
             HStack {
-                Label(L10n.startFolder.format(model.folderText), systemImage: "folder")
+                Label(L10n.startFolder.format(model.folderText), systemImage: "folder").font(.callout)
                     .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 8)
-                Button(L10n.startChange.key) { model.changeFolder() }.controlSize(.small).disabled(model.creating)
+                Button(L10n.startChange.key) { model.changeFolder() }.disabled(model.creating)
             }
-            .font(.callout)
             HStack(alignment: .top, spacing: 16) {
                 Text(L10n.startHint.key).font(.footnote).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -65,7 +64,7 @@ struct StartView: View {
                 } label: {
                     Text(L10n.startCreate.key).frame(minWidth: 64)
                 }
-                .buttonStyle(.borderedProminent).controlSize(.large).disabled(model.creating || model.refusal != nil)
+                .buttonStyle(.borderedProminent).disabled(model.creating || model.refusal != nil)
             }
         }
         .padding(16)

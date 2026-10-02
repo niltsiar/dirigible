@@ -8,6 +8,9 @@
 "menu.file.show.clips" = "Mostrar clips en el Finder";
 "menu.track" = "Pista";
 "menu.track.add" = "Añadir pista";
+"menu.track.add.call" = "Añadir pistas de llamada";
+"menu.track.add.call.none" = "Sin app";
+"menu.track.add.call.no.apps" = "No hay apps abiertas";
 "menu.track.remove" = "Eliminar pista";
 "menu.record" = "Grabación";
 "menu.record.start" = "Grabar";
@@ -81,6 +84,8 @@
 "empty.title" = "No hay pistas";
 "empty.steps" = "Añade una pista para cada voz, elige su entrada y pulsa Grabar.";
 "track.default.name" = "Pista %lld";
+"track.name.host" = "Anfitrión";
+"track.name.guest" = "Invitado";
 "track.name" = "Nombre";
 "track.arm" = "Armar";
 "track.layout.mono" = "Mono";
@@ -223,6 +228,7 @@
 "subtitle.tracks" = "Pistas:";
 "subtitle.record.time" = "Grabación:";
 "banner.low.record.time" = "Quedan menos de %lld min de grabación en este disco. Libera espacio antes de grabar.";
+"banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
 "banner.kind.warning" = "Aviso";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Información";

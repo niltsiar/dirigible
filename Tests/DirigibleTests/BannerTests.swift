@@ -456,6 +456,58 @@ struct BannerValueTests {
         await model.close()
     }
 
+    // MARK: B2c, Use headphones
+
+    func headphones(_ model: SessionWindow) -> Bool { model.shown.banners.contains { $0 == .useHeadphones } }
+
+    /// A list with no device and the speaker flag of `speakers`.
+    func speakerList(_ speakers: OSAllocatedUnfairLock<Bool>) async -> DeviceList {
+        let list = DeviceList(read: { [] }, defaults: { AudioDefaults(speakers: speakers.withLock { $0 }) })
+        await until("no device read") { list.reads >= 1 }
+        return list
+    }
+
+    /// The banner shows for the speakers and an armed app track, and Record stays enabled. Not
+    /// armed, or only device tracks: it hides. Each hide comes after a show, so the loop ran.
+    @Test func useHeadphonesShowsOnlyForSpeakersAndAnArmedAppTrack() async throws {
+        let (model, studio, _, chrome) = try await open(tracks: 2)
+        model.deviceList = await speakerList(OSAllocatedUnfairLock(initialState: true))
+        let (first, second) = (studio.session.tracks[0].id, studio.session.tracks[1].id)
+        model.setAppRoute("us.zoom.xos", track: first)
+        await until(limit: .seconds(5), "the banner shows for an armed app track") { headphones(model) }
+        let banner = try #require(model.shown.banners.first { $0 == .useHeadphones })
+        #expect(banner.kind == .warning && banner.announcement == .high)
+        #expect(banner.text == L10n.bannerUseHeadphones.text)
+        let record = try #require(chrome.toolbar.items.first { $0.itemIdentifier == ToolbarItemID.record.identifier })
+        #expect(((record.view as? NSButton)?.isEnabled ?? record.isEnabled) && model.canRecord, "Record is enabled")
+
+        model.armed.remove(first)
+        await until(limit: .seconds(5), "the banner hides when the app track is not armed") { !headphones(model) }
+        model.armed.insert(first)
+        await until(limit: .seconds(5), "the banner shows again") { headphones(model) }
+        model.setRoute(.mono(1), device: InputDevice.placeholder(uid: "duo", channels: 2), track: first)
+        #expect(model.armed.isSuperset(of: [first, second]), "both device tracks are armed")
+        await until(limit: .seconds(5), "the banner hides with only device tracks") { !headphones(model) }
+        await model.close()
+    }
+
+    /// A change of the speaker flag (a headphone plug, or a USB or Bluetooth output) hides it.
+    @Test func useHeadphonesHidesWhenTheFlagChanges() async throws {
+        let (model, studio, _, _) = try await open()
+        let speakers = OSAllocatedUnfairLock(initialState: true)
+        let list = await speakerList(speakers)
+        model.deviceList = list
+        model.setAppRoute("us.zoom.xos", track: studio.session.tracks[0].id)
+        await until(limit: .seconds(5), "the banner shows") { headphones(model) }
+        speakers.withLock { $0 = false }
+        list.changed()
+        await until(limit: .seconds(5), "the banner hides when the flag changes") { !headphones(model) }
+        speakers.withLock { $0 = true }
+        list.changed()
+        await until(limit: .seconds(5), "the banner shows again") { headphones(model) }
+        await model.close()
+    }
+
     /// The buttons under `view` that are not pop-up buttons. SwiftUI puts a check box in an
     /// NSButton with no title.
     func checkBoxes(under view: NSView) -> [NSButton] {

@@ -237,6 +237,14 @@ struct ChromeState: Equatable {
         if let left, showsLowRecordTime(left: left, recording: recording, shownBefore: shownBefore) {
             banners.append(.lowRecordTime(minutes: lowRecordTimeMinutes(left)))
         }
+        if model.deviceList.defaults.speakers,
+            studio.session.tracks.contains(where: { track in
+                guard model.armed.contains(track.id), case .app = track.route else { return false }
+                return true
+            })
+        {
+            banners.append(.useHeadphones)
+        }
         shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
     }
 }
@@ -258,6 +266,8 @@ enum WindowBanner: Equatable {
     case missingMedia([String])
     /// Whole minutes, so the row changes at most once a minute.
     case lowRecordTime(minutes: Int)
+    /// The default output is the built-in speakers and an armed track records an app (F43).
+    case useHeadphones
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -290,12 +300,13 @@ enum WindowBanner: Equatable {
         case .playbackStopped: "playbackStopped"
         case .missingMedia: "missingMedia"
         case .lowRecordTime: "lowRecordTime"
+        case .useHeadphones: "useHeadphones"
         }
     }
 
     var kind: Kind {
         switch self {
-        case .playbackStopped, .lowRecordTime: .warning
+        case .playbackStopped, .lowRecordTime, .useHeadphones: .warning
         case .missingMedia: .error
         }
     }
@@ -305,13 +316,14 @@ enum WindowBanner: Equatable {
         case .playbackStopped(let stop): L10n.message(for: stop)
         case .missingMedia(let paths): L10n.mediaMissing.format(paths.joined(separator: ", "))
         case .lowRecordTime(let minutes): L10n.bannerLowRecordTime.format(minutes)
+        case .useHeadphones: L10n.bannerUseHeadphones.text
         }
     }
 
     /// VoiceOver reads a new banner at this priority. Nil: no announcement.
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
-        case .playbackStopped, .lowRecordTime: .high
+        case .playbackStopped, .lowRecordTime, .useHeadphones: .high
         case .missingMedia: .medium
         }
     }

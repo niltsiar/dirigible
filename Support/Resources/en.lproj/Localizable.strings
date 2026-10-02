@@ -8,6 +8,9 @@
 "menu.file.show.clips" = "Show Clips in Finder";
 "menu.track" = "Track";
 "menu.track.add" = "Add Track";
+"menu.track.add.call" = "Add Call Tracks";
+"menu.track.add.call.none" = "No App";
+"menu.track.add.call.no.apps" = "No Apps Running";
 "menu.track.remove" = "Remove Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
@@ -81,6 +84,8 @@
 "empty.title" = "No Tracks";
 "empty.steps" = "Add a track for each voice, choose its input, then press Record.";
 "track.default.name" = "Track %lld";
+"track.name.host" = "Host";
+"track.name.guest" = "Guest";
 "track.name" = "Name";
 "track.arm" = "Arm";
 "track.layout.mono" = "Mono";
@@ -223,6 +228,7 @@
 "subtitle.tracks" = "Tracks:";
 "subtitle.record.time" = "Record time:";
 "banner.low.record.time" = "Less than %lld min of record time left on this disk. Free up disk space before you record.";
+"banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
 "banner.kind.warning" = "Warning";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Information";

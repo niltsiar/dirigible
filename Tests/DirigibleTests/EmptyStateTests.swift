@@ -37,13 +37,16 @@ import Testing
         let studio = try #require(await model.opened() ? model.studio : nil)
         let window = try #require(model.window)
         var button: NSButton?
-        // The empty content has one button; SwiftUI hosts its label, so the title is empty.
+        // The empty content has one button and the Add Call Tracks menu (B1c), a pop-up button.
+        // SwiftUI hosts the button label, so the title is empty.
+        let buttons = { views(NSButton.self, under: window.contentView).filter { !($0 is NSPopUpButton) } }
         await until(limit: .seconds(10), "the empty state shows its Add Track button") {
             window.contentView?.layoutSubtreeIfNeeded()
-            button = views(NSButton.self, under: window.contentView).first
+            button = buttons().first
             return button != nil
         }
-        #expect(views(NSButton.self, under: window.contentView).count == 1)
+        #expect(buttons().count == 1)
+        #expect(views(NSPopUpButton.self, under: window.contentView).count == 1, "no Add Call Tracks menu")
         model.leafCalls = []
         try #require(button).performClick(nil)
 

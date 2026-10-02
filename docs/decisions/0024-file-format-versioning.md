@@ -4,6 +4,7 @@
 - Date: 2026-09-27
 - Accepted: 2026-09-27, after plan gates 1 and 2 of the format-versioning run. The gates made a newer anchor a per-segment fault, made a finalize keep a newer anchor and end the take, made an anchor read fault keep the take pending before any WAV, and made the next take number count every take file.
 - Changed: 2026-09-27, by code gate 1 of the format-versioning run: P1 freezes the root element, the namespace, and the version attribute of `session.xml`; P8 asks for the lock before a write, not before a read.
+- Amended: 2026-10-02. `session.xml` is version 2 when a track has an app route, else 1 (see 0029).
 - Amends: 0003 (the sweep after the version check), 0012 (a newer sidecar), 0013 (the take number of a take with no segment), 0017 (a newer cache file), 0021 (a newer anchor and the anchor name in the take number).
 
 ## Context
@@ -49,7 +50,7 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 
 | File | Version marker | Current | Newer version in an older build |
 |---|---|---|---|
-| `session.xml` | `version` attribute | 1 | Refused (P3). No change to the package (P4). |
+| `session.xml` | `version` attribute | 2 (1 with no app route, 0029) | Refused (P3). No change to the package (P4). |
 | `Capture/<stem>.sidecar` | magic `DRGSIDE` + digit | 1 | A per-segment "newer version" fault, not "missing or damaged". The take ends and the segment stays unplaced; "leave unreadable" does not treat it as unreadable. The sidecar and the CAF are never written, moved, or deleted. The anchor keeps the recorded time, so a newer build places the segment with `capture place`. A placement in the older build is refused. |
 | `Capture/take<n>.anchor` | magic `DRGANCH` + digit | 1 | A placement that needs the anchor gives a per-segment "newer version" fault. A placement with a track and a start does not read the anchor. A finalize of that take keeps the anchor bytes, writes no anchor, places the segments from `<recording>`, and ends the take. No newer file keeps a take pending. An anchor that the finalize cannot read (an errno other than ENOENT) keeps the take pending with a read error that names the file, before any WAV is written: the build does not write over a file that it cannot identify (P4). |
 | Peak cache `*.peaks` | magic `DIRPEAKS` + UInt32 version | 1 | A miss (P5). |

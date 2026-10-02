@@ -80,7 +80,7 @@ public struct Session: Hashable, Sendable {
     /// The call preset (F06): the mono tracks Host and Guest, in that order, Host on one channel
     /// of `hostDevice` and Guest on the app `guestApp`. A throw adds no track.
     public mutating func addCallTracks(
-        host: TrackID = TrackID(), guest: TrackID = TrackID(), names: (host: String, guest: String),
+        host: TrackID, guest: TrackID, names: (host: String, guest: String),
         hostDevice: (uid: String, channel: Int)?, guestApp: String?
     ) throws(SessionError) {
         var copy = self

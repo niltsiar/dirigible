@@ -85,11 +85,8 @@ import os
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         view.tick(playhead: 0, playback: studio.playback)
-        view.scroll(toFrame: 500_000)
 
-        let wheel = try #require(
-            CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: 0, wheel2: -40, wheel3: 0))
-        view.scrollWheel(with: try #require(NSEvent(cgEvent: wheel)))
+        liveScroll(view, toFrame: 500_000)
         let origin = view.origin
         view.tick(playhead: origin + view.visibleFrames + 10_000, playback: studio.playback)
 

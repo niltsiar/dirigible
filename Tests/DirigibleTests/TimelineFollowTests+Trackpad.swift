@@ -10,24 +10,32 @@ import Testing
 /// finding V3, criterion C32, decision 0017). The events have the scroll phases and the momentum
 /// phases of `scripts/hid.swift scroll --phases`, and a display tick comes after each event.
 extension TimelineFollowTests {
-    /// A trackpad gesture of `dx` points: 10 events with scroll phases (began, then changed), the
-    /// end, 10 momentum events that slow down, and the momentum end.
-    func trackpadScroll(dx: Double) throws -> [NSEvent] {
-        func event(_ dx: Double, phase: Int64, momentum: Int64) throws -> NSEvent {
+    /// A trackpad gesture of `dx` and `dy` points: 10 events with scroll phases (began, then
+    /// changed), the end, 10 momentum events that slow down, and the momentum end.
+    func trackpadScroll(dx: Double, dy: Double = 0) throws -> [NSEvent] {
+        func event(_ part: Double, phase: Int64, momentum: Int64) throws -> NSEvent {
             let event = try #require(
                 CGEvent(
-                    scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: 0, wheel2: Int32(dx),
-                    wheel3: 0))
+                    scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: Int32(dy * part),
+                    wheel2: Int32(dx * part), wheel3: 0))
             event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
             event.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
             event.setIntegerValueField(.scrollWheelEventMomentumPhase, value: momentum)
             return try #require(NSEvent(cgEvent: event))
         }
-        var events = try (0..<10).map { try event(dx / 10, phase: $0 == 0 ? 1 : 2, momentum: 0) }
+        var events = try (0..<10).map { try event(0.1, phase: $0 == 0 ? 1 : 2, momentum: 0) }
         events.append(try event(0, phase: 4, momentum: 0))
-        events += try (0..<10).map { try event(dx / 10 * Double(10 - $0) / 20, phase: 0, momentum: $0 == 0 ? 1 : 2) }
+        events += try (0..<10).map { try event(0.1 * Double(10 - $0) / 20, phase: 0, momentum: $0 == 0 ? 1 : 2) }
         events.append(try event(0, phase: 0, momentum: 3))
         return events
+    }
+
+    /// A user scroll to `frame` as AppKit gives it: a live scroll that moves the view. A synthetic
+    /// wheel event does not move the clip view of the test process (test-harness.md).
+    func liveScroll(_ view: TimelineScrollView, toFrame frame: Double) {
+        NotificationCenter.default.post(name: NSScrollView.willStartLiveScrollNotification, object: view)
+        view.scroll(toFrame: frame)
+        NotificationCenter.default.post(name: NSScrollView.didEndLiveScrollNotification, object: view)
     }
 
     /// Ticks of 8,000 frames from `head` while `more` is true, each with its draw. The head
@@ -69,6 +77,9 @@ extension TimelineFollowTests {
             drawNow(window)
             await Task.yield()
         }
+        // The test process posts the didEnd of a gesture only some of the time: the app posts it.
+        NotificationCenter.default.post(name: NSScrollView.didEndLiveScrollNotification, object: view)
+        #expect(view.liveScrollOrigin == nil, "the live scroll ended")
         let origin = view.origin
         let after = await ticks(view, window, from: head, playback: playback, taking: taking) { head in
             head < origin + 1.2 * view.visibleFrames
@@ -106,5 +117,79 @@ extension TimelineFollowTests {
         await studio.perform(.playStop)
         window.close()
         await model.close()
+    }
+
+    /// P1 of the post-merge review: a scroll that does not move the view horizontally sets no hold.
+    /// Before the fix, the hold never ended, and the record head went off the view.
+    @Test func aVerticalScrollDuringATakeKeepsTheFollow() async throws {
+        let lanes = try await take()
+        let (model, view, window) = (lanes.model, lanes.view, lanes.window)
+        var (head, _) = await ticks(view, window, from: 0, playback: .stopped, taking: true) { head in
+            view.origin == 0 || (head - view.origin) / view.visibleFrames < 0.4
+        }
+        let start = view.origin
+        for event in try trackpadScroll(dx: 0, dy: -200) {
+            view.scrollWheel(with: event)
+            head += 800
+            view.tick(playhead: head, playback: .stopped, taking: true)
+            drawNow(window)
+            await Task.yield()
+        }
+        #expect(view.origin == start, "a vertical gesture keeps the origin")
+        let after = await ticks(view, window, from: head, playback: .stopped, taking: true) { head in
+            head < start + 1.2 * view.visibleFrames
+        }
+
+        #expect(after.turns >= 1, "the page turns at 94%")
+        let held = model.timeline.followHeld
+        #expect(!held, "a vertical scroll holds nothing")
+        #expect(after.head >= view.origin && after.head < view.origin + view.visibleFrames, "the head is in view")
+        await lanes.close()
+    }
+
+    /// A live scroll (a scroller knob drag) with no horizontal move sets no hold.
+    @Test func aLiveScrollWithNoMoveKeepsTheFollow() async throws {
+        let lanes = try await take()
+        let (model, view, window) = (lanes.model, lanes.view, lanes.window)
+        let (head, _) = await ticks(view, window, from: 0, playback: .stopped, taking: true) { head in
+            view.origin == 0 || (head - view.origin) / view.visibleFrames < 0.4
+        }
+        let start = view.origin
+        NotificationCenter.default.post(name: NSScrollView.willStartLiveScrollNotification, object: view)
+        view.tick(playhead: head + 800, playback: .stopped, taking: true)
+        NotificationCenter.default.post(name: NSScrollView.didEndLiveScrollNotification, object: view)
+        let after = await ticks(view, window, from: head + 800, playback: .stopped, taking: true) { head in
+            head < start + 1.2 * view.visibleFrames
+        }
+
+        #expect(after.turns >= 1, "the page turns at 94%")
+        let held = model.timeline.followHeld
+        #expect(!held, "a live scroll with no move holds nothing")
+        await lanes.close()
+    }
+
+    /// A knob drag back (plan gate A1): no page turn during the drag, and a hold at its end.
+    @Test func aLiveScrollThatMovesHolds() async throws {
+        let lanes = try await take()
+        let (model, view, window) = (lanes.model, lanes.view, lanes.window)
+        let (head, _) = await ticks(view, window, from: 0, playback: .stopped, taking: true) { head in
+            view.origin == 0 || (head - view.origin) / view.visibleFrames < 0.4
+        }
+        NotificationCenter.default.post(name: NSScrollView.willStartLiveScrollNotification, object: view)
+        view.scroll(toFrame: view.origin - 0.5 * view.visibleFrames)
+        let origin = view.origin
+        let during = await ticks(view, window, from: head, playback: .stopped, taking: true) { head in
+            head < origin + 1.2 * view.visibleFrames
+        }
+        #expect(during.turns == 0, "no page turn during the drag")
+        NotificationCenter.default.post(name: NSScrollView.didEndLiveScrollNotification, object: view)
+        let after = await ticks(view, window, from: during.head, playback: .stopped, taking: true) { head in
+            head < origin + 1.5 * view.visibleFrames
+        }
+
+        let held = model.timeline.followHeld
+        #expect(held, "a knob drag that moved the view holds the follow")
+        #expect(after.turns == 0 && view.origin == origin, "no turn while held: \(origin) to \(view.origin)")
+        await lanes.close()
     }
 }

@@ -72,6 +72,10 @@ final class TimelineScrollView: NSScrollView {
     var dragPointer: (window: NSPoint, ruler: Bool)?
     /// The time of the last autoscroll tick, and the time when the pointer entered the zone.
     var autoscrollTimes: (last: Double, zone: Double?)?
+    /// The origin at the start of a live scroll (a scroller knob drag, a trackpad gesture): until
+    /// its end, no page turns. ponytail: a start with no end stops the page turns until the next
+    /// end; the app checks showed each start with its end (wheel, trackpad, knob).
+    private(set) var liveScrollOrigin: Double?
 
     /// `headerWidth` is the width of the track headers at open.
     init(model: SessionWindow, studio: Studio, headerWidth: HeaderWidth = .standard) {
@@ -96,6 +100,9 @@ final class TimelineScrollView: NSScrollView {
         rulersVisible = true
         NotificationCenter.default.addObserver(
             self, selector: #selector(liveScrollStarted), name: NSScrollView.willStartLiveScrollNotification,
+            object: self)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(liveScrollEnded), name: NSScrollView.didEndLiveScrollNotification,
             object: self)
     }
 
@@ -253,9 +260,16 @@ final class TimelineScrollView: NSScrollView {
         publishVisible()
     }
 
-    @objc private func liveScrollStarted() { userScrolled() }
+    @objc private func liveScrollStarted() { liveScrollOrigin = origin }
 
-    /// A user scroll during play or a take holds the follow (decision 0017); the play goes on.
+    /// A live scroll that moved the view horizontally holds the follow; one with no move holds nothing.
+    @objc private func liveScrollEnded() {
+        if let start = liveScrollOrigin, origin != start { userScrolled() }
+        liveScrollOrigin = nil
+    }
+
+    /// A user scroll that moves the view during play or a take holds the follow (decision 0017);
+    /// the play goes on.
     func userScrolled() {
         guard let model, studio?.playback != .stopped || taking, !model.timeline.followHeld else { return }
         model.timeline.followHeld = true
@@ -364,7 +378,7 @@ final class TimelineScrollView: NSScrollView {
         // Only a change: a write of the model makes SwiftUI update the views that read it.
         if state.followHeld != model.timeline.followHeld { model.timeline.followHeld = state.followHeld }
         if state.headLeftView != model.timeline.headLeftView { model.timeline.headLeftView = state.headLeftView }
-        if let turn { scroll(toFrame: turn) }
+        if let turn, liveScrollOrigin == nil { scroll(toFrame: turn) }
     }
 }
 

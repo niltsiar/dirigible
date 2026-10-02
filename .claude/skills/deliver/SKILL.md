@@ -76,7 +76,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interro
 2. Use Conventional Commits (see `AGENTS.md`).
 3. After each slice, log a row and tick `run.md` with the actual minutes. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
 4. If the plan proves wrong, stop, update `plan.md`, and log why.
-5. A slice that changes what a user sees or does updates `docs/guide.md`. Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `on screen: <verdict>, <screenshot path>`.
+5. A slice that changes what a user sees or does updates `docs/guide.md`. Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `<verdict>, on screen, <screenshot path>`.
 
 ## Phase 5: Clean up
 

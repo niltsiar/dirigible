@@ -32,15 +32,15 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 
 ## When no test fails
 
-- Another mechanism can hide the planned mutation. If no test fails, do not pass the item to the code gate. Write a test that reaches the guard past the other mechanism, or remove the guard.
+- Another mechanism can hide the planned mutation. If no test fails, record a `decisions.tsv` row with the result `survived`, and do not pass the item to the code gate. Write a test that reaches the guard past the other mechanism, or remove the guard.
 - When the other mechanism exists only in the test process (Return reaches a list action there that a real Return does not), retire the control with that reason in `decisions.tsv` and prove the path on the built app. Never change a product mechanism only so that a control can kill it: a row gesture added for a control broke single-click select.
 - A mutation that does not reproduce the failure is a finding: record it, then find the mutation that does.
 - When no caller can reach the mutated behavior, the mutant is equivalent. Record the caller reason in `decisions.tsv`, and stop. A probe that measured one effect of the mutant is not a caller reason.
 - A surviving mutant that moves framework setup (a value set before or after an object takes ownership) stays on the replay list. Check it first when a check of the built app finds a defect.
-- Run a surviving control again with `DIRIGIBLE_SLOW_TESTS=1`. If only that run kills it, record "guarded only by slow tests" in `decisions.tsv` with the result `survived`.
+- Run a surviving control again with `DIRIGIBLE_SLOW_TESTS=1`. If only that run kills it, record "guarded only by slow tests" in `decisions.tsv` with the result `survived the fast suite`.
 - Retire a control only in a `decisions.tsv` row that names its successor for the same direction, or says why that direction no longer exists.
 
 ## Replay once in Phase 7
 
-- Replay each killed control once, on the tree that lands, with `mutate.py --timeout <seconds> --replay <old log> <new log>`; after a return from Phase 7 to Phase 4, only the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> <commit of the full replay>` prints. Replay all of them otherwise: a change in a caller in a third file can make the mutated code unreachable.
+- Replay each killed control once, on the tree that lands, with `mutate.py --timeout <seconds> --replay <old log> <new log>`; after a return from Phase 7 to Phase 4, only the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> <commit of the full replay>` prints. Replay all of them otherwise: a change in a caller in a third file can make the mutated code unreachable. A replay that survives gets a `decisions.tsv` row with the result `survived`.
 - A replay runs the logged test command again, with every side effect. After the last replay, build the product again from the clean tree.

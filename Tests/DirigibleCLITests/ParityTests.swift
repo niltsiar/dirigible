@@ -10,6 +10,7 @@ struct ParityTests {
         "addFile": ["file add"],
         "removeFile": ["file remove"],
         "addTrack": ["track add"],
+        "addCallTracks": ["track add-call"],
         "removeTrack": ["track remove"],
         "renameTrack": ["track rename"],
         "setGain": ["track gain", "clip gain"],

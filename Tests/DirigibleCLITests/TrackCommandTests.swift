@@ -147,4 +147,57 @@ struct TrackCommandTests {
         #expect(try package.xml() == before)
         #expect(try await dirigible("info", package.path).status == 0)
     }
+
+    // MARK: B1b, track add-call
+
+    /// Host on the device channel and Guest on the app; stdout has the Host ID, then the Guest ID.
+    @Test func addCallWithBothRoutes() async throws {
+        let result = try await track([
+            "add-call", "PKG", "--device", "D", "--channels", "2", "--app", "us.zoom.xos", "--host-id", "h",
+            "--guest-id", "g",
+        ])
+        #expect(result == CLIResult(status: 0, stdout: "h\ng\n", stderr: ""))
+        let session = try package.read()
+        #expect(session.tracks.map(\.id) == ["host", "h", "g"])
+        #expect(session.tracks.map(\.name) == ["Host", "Host", "Guest"])
+        #expect(session.track("h")?.route == .device(uid: "D", channels: .mono(2)), "the Host route")
+        #expect(session.track("g")?.route == .app(bundleID: "us.zoom.xos"), "the Guest route")
+        #expect(session.tracks.allSatisfy { $0.layout == .mono })
+    }
+
+    /// With no option: two tracks with new UUIDs and no route.
+    @Test func addCallWithNoOptions() async throws {
+        let result = try await track(["add-call", "PKG"])
+        #expect(result.status == 0 && result.stderr.isEmpty)
+        let ids = result.stdout.split(separator: "\n").map { TrackID(String($0)) }
+        #expect(ids.count == 2 && ids.allSatisfy { UUID(uuidString: $0.rawValue) != nil }, "two UUIDs")
+        let session = try package.read()
+        #expect(session.tracks.map(\.id) == ["host"] + ids)
+        #expect(session.tracks.dropFirst().allSatisfy { $0.route == nil })
+    }
+
+    /// A half device route or a channel pair exits 64 with its reason and no change.
+    @Test(arguments: [
+        (["add-call", "PKG", "--device", "D"], "Give --device with --channels."),
+        (["add-call", "PKG", "--channels", "1"], "Give --device with --channels."),
+        (["add-call", "PKG", "--device", "D", "--channels", "1,2"], "Host takes one channel."),
+    ])
+    func addCallRefusesAHalfDeviceRouteOrAChannelPair(arguments: [String], message: String) async throws {
+        let before = try package.xml()
+        let result = try await track(arguments)
+        #expect(result.status == 64)
+        #expect(result.stderr.contains(message), "the reason: \(result.stderr)")
+        #expect(try package.xml() == before)
+    }
+
+    /// A14: with no process taps, `--app` exits 1 and changes nothing; a device route applies.
+    @Test func addCallRefusesAnAppWithNoTaps() throws {
+        let before = try package.xml()
+        let call = try TrackCommand.AddCall.parse([package.path, "--app", "us.zoom.xos"])
+        #expect(throws: ExitCode(editRefused)) { try call.apply(tapsAvailable: false) }
+        #expect(try package.xml() == before, "the package did not change")
+
+        try TrackCommand.AddCall.parse([package.path, "--device", "D", "--channels", "1"]).apply(tapsAvailable: false)
+        #expect(try package.read().tracks.count == 3, "control")
+    }
 }

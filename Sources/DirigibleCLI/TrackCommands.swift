@@ -5,7 +5,7 @@ import DirigibleCore
 struct TrackCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "track", abstract: "Add, change, and remove tracks.",
-        subcommands: [Add.self, Remove.self, Rename.self, SetGain.self, SetLayout.self, SetRoute.self])
+        subcommands: [Add.self, AddCall.self, Remove.self, Rename.self, SetGain.self, SetLayout.self, SetRoute.self])
 
     struct Add: ParsableCommand {
         static let configuration = CommandConfiguration(abstract: "Add a track and write its ID.")
@@ -20,6 +20,41 @@ struct TrackCommand: ParsableCommand {
                 try session.addTrack(id, name: name, layout: layout)
             }
             print(id)
+        }
+    }
+
+    /// Not `RouteOptions`: Host takes a device route and Guest an app route in one command.
+    struct AddCall: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "add-call", abstract: "Add the mono tracks Host and Guest of a call, and write their IDs.")
+        @OptionGroup var package: PackageArgument
+        @Option(help: "The device UID of Host.") var device: String?
+        @Option(
+            parsing: .unconditional, help: "The one channel of Host. Channels start at 1.", transform: parseChannels)
+        var channels: Route.Channels?
+        @Option(help: "The bundle ID of the app of Guest, for example us.zoom.xos.") var app: String?
+        @Option(help: "The Host track ID. The default is a new UUID.") var hostId: String?
+        @Option(help: "The Guest track ID. The default is a new UUID.") var guestId: String?
+
+        func validate() throws {
+            guard (device == nil) == (channels == nil) else { throw ValidationError("Give --device with --channels.") }
+            if case .stereo = channels { throw ValidationError("Host takes one channel.") }
+        }
+
+        func run() throws { try apply(tapsAvailable: processTapsAvailable) }
+
+        func apply(tapsAvailable: Bool) throws {
+            if app != nil, !tapsAvailable { throw fail(appSourcesUnavailableMessage, code: editRefused) }
+            let (host, guest) = (hostId.map { TrackID($0) } ?? TrackID(), guestId.map { TrackID($0) } ?? TrackID())
+            var hostDevice: (uid: String, channel: Int)?
+            if let device, case .mono(let channel) = channels { hostDevice = (device, channel) }
+            try editPackage(package) { session throws(SessionError) in
+                try session.addCallTracks(
+                    host: host, guest: guest, names: (host: "Host", guest: "Guest"), hostDevice: hostDevice,
+                    guestApp: app)
+            }
+            print(host)
+            print(guest)
         }
     }
 

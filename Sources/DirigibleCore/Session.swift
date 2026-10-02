@@ -77,6 +77,22 @@ public struct Session: Hashable, Sendable {
         tracks.append(Track(id: id, name: name, layout: layout))
     }
 
+    /// The call preset (F06): the mono tracks Host and Guest, in that order, Host on one channel
+    /// of `hostDevice` and Guest on the app `guestApp`. A throw adds no track.
+    public mutating func addCallTracks(
+        host: TrackID = TrackID(), guest: TrackID = TrackID(), names: (host: String, guest: String),
+        hostDevice: (uid: String, channel: Int)?, guestApp: String?
+    ) throws(SessionError) {
+        var copy = self
+        try copy.addTrack(host, name: names.host, layout: .mono)
+        try copy.addTrack(guest, name: names.guest, layout: .mono)
+        if let hostDevice {
+            try copy.setRoute(.device(uid: hostDevice.uid, channels: .mono(hostDevice.channel)), track: host)
+        }
+        if let guestApp { try copy.setRoute(.app(bundleID: guestApp), track: guest) }
+        self = copy
+    }
+
     /// Removes the track and its clips. The files stay in the pool.
     public mutating func removeTrack(_ id: TrackID) throws(SessionError) {
         let index = try trackIndex(id)

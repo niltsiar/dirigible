@@ -80,8 +80,15 @@ struct DirigibleApp: App {
                             set: { if $0 != (app.key?.monitoring == true) { app.key?.run(.toggleMonitor) } })
                     ).keyboardShortcut(monitor.key).disabled(app.key?.canMonitor != true)
                 }
-                CommandGroup(before: .windowList) {
-                    Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)
+                // One Group: a commands builder takes at most 10 items.
+                Group {
+                    CommandGroup(before: .windowList) {
+                        Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)
+                    }
+                    // No key: Command-? stays with the Help search field of macOS.
+                    CommandGroup(replacing: .help) {
+                        Button(L10n.menuHelpGuide.key) { app.openGuide() }
+                    }
                 }
                 // Plain keys: never disabled, because a disabled item still takes its key (probe
                 // K1). Each action gives a typing key to text or to a panel first.

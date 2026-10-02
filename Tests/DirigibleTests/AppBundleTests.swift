@@ -1,6 +1,8 @@
 import Foundation
 import Testing
 
+@testable import DirigibleApp
+
 /// Checks the app bundle that `scripts/bundle.sh` builds. `make test-app` builds the bundle
 /// and sets `DIRIGIBLE_APP` to its path, so these tests never read a stale bundle.
 /// Without the variable they fail: `make test` skips this suite by name instead.
@@ -133,6 +135,7 @@ struct AppBundleTests {
     /// Each image resolves to a file in `Guide/images/`, and each anchor link names a heading id.
     @Test func theGuideIsInTheBundleWithItsImages() throws {
         let guide = app.appending(path: "Contents/Resources/Guide/guide.html")
+        #expect(AppDelegate.guideURL(in: try #require(Bundle(url: app))).path == guide.path, "Help opens this file")
         let html = try String(contentsOf: guide, encoding: .utf8)
         #expect(html.contains("<meta charset=\"utf-8\">"))
         #expect(html.contains("<h1 id=\"dirigible-user-guide\">Dirigible user guide</h1>"))

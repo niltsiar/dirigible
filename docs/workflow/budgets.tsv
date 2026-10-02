@@ -33,9 +33,9 @@ path	words	decision
 .claude/skills/interrogate/references/lead-judgment.md	1160	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/interrogate/references/reviewer-prompt.md	590	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/interrogate/references/rubric.md	930	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/pr/	753	baseline
+.claude/skills/pr/	741	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: lowered to the sum of its two rows)
 .claude/skills/pr/CREDITS.md	71	baseline
-.claude/skills/pr/SKILL.md	682	baseline
+.claude/skills/pr/SKILL.md	670	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/reflect/	3720	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/reflect/SKILL.md	1120	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/reflect/references/divergent-reviewer.md	540	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
@@ -59,5 +59,7 @@ path	words	decision
 .claude/skills/writing-for-agents/	2191	baseline
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
+.claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
+.claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31285	2026-10-01-verify-copy reflect lens panel (decisions.tsv 2026-10-02T01:15: the real sum after the A1-A4 fixes, 12 over the old row)
+TOTAL	31619	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: the real sum, 31284 + 335 net)

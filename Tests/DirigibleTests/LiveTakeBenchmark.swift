@@ -17,6 +17,7 @@ import os
 /// tracks at the closest zoom. One tick per 16.7 ms, and a drain of each track before every third
 /// tick.
 @MainActor struct LiveTakeBenchmark {
+    /// In debug, the limit of a report line only: the debug hand-off of main measures 146-167 ms.
     #if DEBUG
         static let oneOffBudget = Duration.milliseconds(200)
     #else

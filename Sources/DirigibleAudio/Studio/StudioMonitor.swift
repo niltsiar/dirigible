@@ -47,7 +47,8 @@ extension Studio {
     /// keeps running (probe Q1). `begin` replaced the entries of `liveTracks` already.
     func handOver() async {
         await monitorTurns.run {
-            for writer in writers.values { await writer.started() }
+            // E1: an app writer has no monitor, and its attach can wait for the prompt.
+            for writer in writers.values where writer.app == nil { await writer.started() }
             let released = monitors
             monitors = [:]
             for monitor in released.values { await monitor.writer.finish() }

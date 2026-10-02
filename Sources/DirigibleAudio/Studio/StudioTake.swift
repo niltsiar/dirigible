@@ -82,6 +82,17 @@ extension Studio {
         for writer in writers.values where writer.app != nil { writer.start() }
     }
 
+    /// Finishes each writer and returns the gaps of the take. An app writer can wait for the
+    /// prompt; the end time that `stop` set keeps each other track from recording past the stop
+    /// meanwhile (E1).
+    func finishWriters() async -> [TrackID: TakeResult.Gap] {
+        var gaps: [TrackID: TakeResult.Gap] = [:]
+        for writer in writers.values {
+            for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
+        }
+        return gaps
+    }
+
     /// The armed app tracks whose writer showed the silence warning and got no sound, each with
     /// the app name (A9). Call it after each writer finished.
     func silentTracks() async -> [TrackID: String] {
@@ -141,7 +152,7 @@ extension Studio {
             while !Task.isCancelled {
                 try? await Task.sleep(for: environment.diskCheckInterval)
                 var wav: Int64 = 0
-                for writer in writers { wav += await writer.wavBytes() }
+                for writer in writers { wav += writer.wavBytes }
                 let free = await freeBytes(of: lock, environment)
                 // The stop cancels on the main actor, so a tick after it sets nothing.
                 guard !Task.isCancelled else { return }

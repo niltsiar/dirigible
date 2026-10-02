@@ -3,8 +3,8 @@
 # failure. Each case uses a temporary repo, a bare remote, and fake make and gh on PATH that log
 # their arguments. Cases: the happy path, a red check, a rebase conflict (the rebase is aborted),
 # main moved after the check, a run on main or a detached HEAD, an untracked or a changed file, a
-# red governance check, `risk: yes` with and with no control row, a missing body file, and no
-# arguments. The stamp cases: a matching stamp runs no check, a delta after the stamp runs the
+# red governance check, `risk: yes` with and with no control row, a body that pr-terms.sh flags
+# (before the fetch), a pr-terms.sh error, a missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta after the stamp runs the
 # targets of the delta, and no usable stamp runs the full push check; the governance and the
 # ancestor checks still run. The ratchet case runs the real make check-changed first, so the land
 # runs no check after it. Run by `make test-hooks`.
@@ -319,6 +319,34 @@ git -C "$c/work" add -A && git -C "$c/work" commit -q -m ratchet
 (cd "$c/work" && make -s check-changed BASE=origin/main) > "$c/make.out" 2>&1 || fail "ratchet: make check-changed failed: $(cat "$c/make.out")"
 grep -qx 'stub-ok ran' "$c/make.out" || fail "ratchet: the check ran no target: $(cat "$c/make.out")"
 stamp_case 'ratchet' "stamp: reuse $(git -C "$c/work" rev-parse HEAD)" ''
+
+# A body with a run-internal ID refuses before any step, also before the fetch, and names the
+# writing-for-humans skill. The remote main moved after the clone, so a fetch would show.
+setup
+printf 'Fixed U3.\n' > "$c/pr.md"
+before="$(git -C "$c/work" rev-parse origin/main)"
+[[ "$(git -C "$c/origin.git" rev-parse main)" != "$before" ]] || fail 'flagged body: the remote main did not move'
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "flagged body: exit $code: $(cat "$c/out")"
+grep -q 'U3: run-internal ID' "$c/out" || fail "flagged body: U3 is not named: $(cat "$c/out")"
+grep -q 'writing-for-humans' "$c/out" || fail "flagged body: the skill is not named: $(cat "$c/out")"
+[[ "$(git -C "$c/work" rev-parse origin/main)" == "$before" ]] || fail 'flagged body: the fetch ran'
+no_side_effects 'flagged body'
+
+# A pr-terms.sh error (exit 2) is a script failure, not a body to revise: a copy of land.sh
+# beside a stub pr-terms.sh.
+setup
+mkdir "$c/stub"
+cp "$land" "$c/stub/land.sh"
+printf '#!/bin/bash\necho "pr-terms: broken" >&2\nexit 2\n' > "$c/stub/pr-terms.sh"
+chmod +x "$c/stub/pr-terms.sh"
+(cd "$c/work" && PATH="$bin:$PATH" LAND_LOG="$c/log" "$c/stub/land.sh" "Add x" "$c/pr.md") > "$c/out" 2>&1
+code=$?
+[[ $code -eq 1 ]] || fail "pr-terms error: exit $code: $(cat "$c/out")"
+grep -q 'pr-terms.sh failed (exit 2)' "$c/out" || fail "pr-terms error: no reason: $(cat "$c/out")"
+! grep -q 'writing-for-humans' "$c/out" || fail "pr-terms error: the skill is named: $(cat "$c/out")"
+no_side_effects 'pr-terms error'
 
 # A missing body file refuses before any step.
 setup

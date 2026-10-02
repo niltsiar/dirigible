@@ -1,8 +1,9 @@
 #!/bin/bash
 # Land the run branch through a pull request (deliver Phase 9).
 # Usage: scripts/land.sh <title> <body-file> [<decisions.tsv time>]
-# It refuses a working tree with changes, because the checks build the working tree and the push
-# sends only the commits. It rebases on origin/main (on a conflict, it aborts the rebase and
+# It refuses a body that scripts/pr-terms.sh flags (run-internal IDs or commit hashes), before the
+# fetch. It refuses a working tree with changes, because the checks build the working tree and the
+# push sends only the commits. It rebases on origin/main (on a conflict, it aborts the rebase and
 # stops), runs check-governance.sh with the run folder of the body file, and with `risk: yes` from
 # check-changed.sh it needs a control row in the decisions.tsv of that folder: phase 2 or 4, with
 # a log under controls/. The third argument names the row that says why no control applies. Then
@@ -25,6 +26,11 @@ cd "$(git rev-parse --show-toplevel)"
 branch="$(git branch --show-current)"
 [[ -n "$branch" ]] || die "HEAD is detached; switch to the run branch"
 [[ "$branch" != main ]] || die "refuses to run on main; switch to the run branch"
+# The body check comes before the fetch: pr-terms.sh resolves the hashes in this clone.
+code=0
+"$here/pr-terms.sh" "$body" >&2 || code=$?
+[[ $code -ne 1 ]] || die "the body has run-internal IDs or commit hashes (listed above); revise it with the writing-for-humans skill"
+[[ $code -eq 0 ]] || die "pr-terms.sh failed (exit $code)"
 
 [[ -z "$(git status --porcelain)" ]] ||
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"

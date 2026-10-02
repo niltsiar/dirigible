@@ -37,7 +37,7 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 - A mutation that does not reproduce the failure is a finding: record it, then find the mutation that does.
 - When no caller can reach the mutated behavior, the mutant is equivalent. Record the caller reason in `decisions.tsv`, and stop. A probe that measured one effect of the mutant is not a caller reason.
 - A surviving mutant that moves framework setup (a value set before or after an object takes ownership) stays on the replay list. Check it first when a check of the built app finds a defect.
-- Run a surviving control again with `DIRIGIBLE_SLOW_TESTS=1`. If only that run kills it, record "guarded only by slow tests" in `decisions.tsv`.
+- Run a surviving control again with `DIRIGIBLE_SLOW_TESTS=1`. If only that run kills it, record "guarded only by slow tests" in `decisions.tsv` with the result `survived`.
 - Retire a control only in a `decisions.tsv` row that names its successor for the same direction, or says why that direction no longer exists.
 
 ## Replay once in Phase 7

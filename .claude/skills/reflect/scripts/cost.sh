@@ -14,8 +14,10 @@
 # - late on-screen: the phase 7 rows with NOT VERIFIED and "on screen" or "on-screen".
 # - missed unknowns: the rows with "missed unknown". friction: the rows whose decision or result
 #   has NOT VERIFIED, survived, flake, failed, or missed unknown (not Correction).
-# - agents and idle: the Agent calls of the transcript, and the gaps over 5 min between its
-#   records.
+# - window: the time of the first decisions.tsv row (the open time when no row has a time) to the
+#   end of the minute of the latest row (the clock time when no row has a time).
+# - agents and idle: the Agent calls of the transcript in the window, and the gaps over 5 min
+#   between its records in the window. Run windows that overlap share these counts.
 # - pace: open to merge, when run.md names a pull request that gh lists as merged; the merges
 #   on each of the last 10 days with a merge (local dates).
 # cost.test.sh tests it.
@@ -79,11 +81,21 @@ awk -F'\t' '
     $3 ~ /NOT VERIFIED|survived|flake|failed|missed unknown/ || $6 ~ /NOT VERIFIED|survived|flake|failed|missed unknown/ { friction++ }
     END { printf "late on-screen: %d\nmissed unknowns: %d\nfriction: %d\n", late, missed, friction }' "$run/decisions.tsv"
 
+# The window in epoch seconds: the transcript is in UTC, the run times are local.
+times="$(awk -F'\t' '$1 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$/ { print $1 }' "$run/decisions.tsv" | sort)"
+first="$(head -n 1 <<<"$times")" last="$(tail -n 1 <<<"$times")"
+if [[ -n "$first" ]]; then
+    from="$(epoch "$first")" to="$(($(epoch "$last") + 59))"
+else
+    from="$(stat -f %B "$run")" to="$(date +%s)"
+fi
+echo "window: ${first:-$open} to ${last:-now}"
 if [[ -n "$transcript" && -f "$transcript" ]]; then
-    jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "tool_use" and (.name == "Agent" or .name == "Task")) | .name' "$transcript" |
-        wc -l | awk '{ print "agents: " $1 }'
-    jq -r 'select(.timestamp) | .timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601' "$transcript" |
-        awk 'NR > 1 && $1 - last > 300 { gap += $1 - last; k++ } { last = $1 } END { printf "idle: %d min in %d gaps over 5 min\n", gap / 60, k }'
+    jq -r --argjson from "$from" --argjson to "$to" 'select(.timestamp) |
+        (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $t | select($t >= $from and $t <= $to) |
+        "\($t) \([.message.content[]? | objects | select(.type == "tool_use" and (.name == "Agent" or .name == "Task"))] | length)"' "$transcript" |
+        awk 'NR > 1 && $1 - last > 300 { gap += $1 - last; k++ } { last = $1; agents += $2 }
+            END { printf "agents: %d\nidle: %d min in %d gaps over 5 min\n", agents, gap / 60, k }'
 else
     echo "agents: no transcript"
     echo "idle: no transcript"

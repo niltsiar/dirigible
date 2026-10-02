@@ -274,4 +274,48 @@ struct SessionTests {
         #expect(session.markers.keys.sorted() == ["m2"])
         #expect(throws: SessionError.unknownMarker("m1")) { try session.removeMarker("m1") }
     }
+
+    // MARK: B1a, the call preset
+
+    /// Host then Guest, mono, with their routes, after the tracks that exist.
+    @Test(arguments: [0, 3]) func addCallTracksAppendsHostAndGuest(existing: Int) throws {
+        var session = Session(sampleRate: 48_000)
+        for index in 0..<existing { try session.addTrack(TrackID("t\(index)"), name: "T", layout: .mono) }
+        try session.addCallTracks(
+            host: "host", guest: "guest", names: (host: "Host", guest: "Guest"), hostDevice: (uid: "mic", channel: 2),
+            guestApp: "us.zoom.xos")
+        #expect(session.tracks.count == existing + 2, "not two new tracks")
+        let (host, guest) = (session.tracks[existing], session.tracks[existing + 1])
+        #expect(host.id == "host" && host.name == "Host" && host.layout == .mono)
+        #expect(host.route == .device(uid: "mic", channels: .mono(2)), "the Host route")
+        #expect(guest.id == "guest" && guest.name == "Guest" && guest.layout == .mono)
+        #expect(guest.route == .app(bundleID: "us.zoom.xos"), "the Guest route")
+    }
+
+    /// No route: two tracks with no route.
+    @Test func addCallTracksWithNoRoutes() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addCallTracks(names: (host: "Host", guest: "Guest"), hostDevice: nil, guestApp: nil)
+        #expect(session.tracks.map(\.name) == ["Host", "Guest"])
+        #expect(session.tracks.allSatisfy { $0.route == nil && $0.layout == .mono })
+    }
+
+    /// Control: a bad route or a used ID throws, and no track is added.
+    @Test func aBadCallRouteAddsNoTrack() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t0", name: "T", layout: .mono)
+        let names = (host: "Host", guest: "Guest")
+        #expect(throws: SessionError.invalidRoute) {
+            try session.addCallTracks(names: names, hostDevice: nil, guestApp: "")
+        }
+        #expect(session.tracks.map(\.id) == ["t0"], "an empty app ID added a track")
+        #expect(throws: SessionError.invalidRoute) {
+            try session.addCallTracks(names: names, hostDevice: (uid: "mic", channel: 0), guestApp: nil)
+        }
+        #expect(session.tracks.map(\.id) == ["t0"], "channel 0 added a track")
+        #expect(throws: SessionError.duplicateID("t0")) {
+            try session.addCallTracks(host: "t0", names: names, hostDevice: nil, guestApp: nil)
+        }
+        #expect(session.tracks.map(\.id) == ["t0"], "a used ID added a track")
+    }
 }

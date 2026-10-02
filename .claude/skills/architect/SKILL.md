@@ -33,7 +33,7 @@ Skip Phase A only when the work is genuinely greenfield with no surrounding syst
 
 ## Phase B: Sketch
 
-Spawn two or three `Plan` subagents in one message, one per candidate, with different models where possible (for example `opus` and `sonnet`). Give each the design task, the Phase A grounding, and `references/runner-prompt.md` as its prompt. Each candidate produces a design package shaped per `references/rationale-template.md`. Candidates work independently and do not see each other.
+Spawn two or three `general-purpose` subagents in one message, one per candidate, with different models where possible (for example `opus` and `sonnet`). Give each the design task, the Phase A grounding, and `references/runner-prompt.md` as its prompt. Each candidate produces a design package shaped per `references/rationale-template.md`. Candidates work independently and do not see each other.
 
 Design it twice. Require at least two structurally distinct candidates before synthesis, even when the first looks sufficient. This is the **exhaust-the-design-space** principle in `docs/principles.md` made concrete. Whole-shape alternatives, not point fixes inside one shape.
 

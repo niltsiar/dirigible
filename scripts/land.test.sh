@@ -65,6 +65,8 @@ setup() {
   git -C "$c/other" push -q origin main
   git clone -q "$c/origin.git" "$c/work"
   git -C "$c/work" switch -q -c feat/x
+  # A slow run passed today, so the push targets do not add test-slow for the date.
+  date +%F > "$c/work/.git/dirigible-slow-date"
   echo x > "$c/work/x.txt"
   git -C "$c/work" add x.txt
   git -C "$c/work" commit -q -m feature
@@ -257,7 +259,7 @@ stamp origin/main
 stamp origin/main~1
 stamp_case 'matching stamp' "stamp: reuse $head" ''
 
-# A docs commit after the stamp: only check-docs. A Sources commit: check test-slow.
+# A docs commit after the stamp: only check-docs. A Sources commit: check.
 stamp_setup
 stamp origin/main
 commit_file docs/a.md
@@ -265,7 +267,7 @@ stamp_case 'docs delta' 'stamp: delta check-docs' 'make check-docs'
 stamp_setup
 stamp origin/main
 commit_file Sources/DirigibleApp/X.swift
-stamp_case 'sources delta' 'stamp: delta check test-slow' 'make check test-slow'
+stamp_case 'sources delta' 'stamp: delta check' 'make check'
 
 # A move of a bundle file after the stamp: --no-renames keeps the old path, so the delta is bundle.
 stamp_setup

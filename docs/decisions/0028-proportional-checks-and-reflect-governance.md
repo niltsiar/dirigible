@@ -25,7 +25,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 - A path that no row matches is class `build`, which runs the full `make check`. A new kind of path is slow, but safe.
 - The script fails closed. A git error exits nonzero. An empty list against a base exits 1.
 - A plan can raise a guard outside the risk floor to risk when its defect loses data or breaks audio. It logs the reason in `decisions.tsv`. A plan cannot lower a floor path. `scripts/check-changed.test.sh` fails when a floor path does not exist.
-- `make test-slow` runs only the slow tests. Before the push, `check` runs first.
+- `make test-slow` runs only the slow tests, and a pass writes the date of today. Before the push, `check` runs first. The push adds `test-slow` only for `risk: yes`, a changed slow test, a Makefile change, or a push with `check` when no slow run passed today on this clone.
 
 ### Mutation controls and the replay
 

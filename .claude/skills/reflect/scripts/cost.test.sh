@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check each line that cost.sh prints for a fixture run folder: the phase blocks of decisions.tsv,
 # the check and bench logs and their repeats, the controls, the late on-screen findings, the
-# missed unknowns, the friction rows, the run window, the agents and the idle gaps of a transcript
+# missed unknowns by result token, the critical findings of the review files, the friction rows by
+# result token, the run window, the agents and the idle gaps of a transcript
 # in that window, and the pace lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a folder with
 # no logs/ and no controls/. Check that
 # scripts/bench.sh prints its bench line before the build. Run by `make test-hooks`.
@@ -23,11 +24,16 @@ mkdir -p "$run/logs" "$run/controls/replay" "$run/controls/replay-old" "$run/pai
   printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n'
   printf '2026-09-20T08:20\t1\tanalysis\tw\te\tdone\n'
   printf '2026-09-20T08:30\t2\tplan; missed unknown U9\tw\te\tdone\n'
+  printf '2026-09-20T08:35\t2\tU13: friction counts rows with NOT VERIFIED, survived, flake, failed, or missed unknown\tw\te\tdefault; C7.2\n'
+  printf '2026-09-20T08:36\t2\tU9 from the premortem\tw\te\tmissed unknown U9\n'
   printf '2026-09-20T08:40\t2\tCorrection of the 08:30 row\tw\te\tdone\n'
   printf '2026-09-20T09:00\t4\tslice 1\tit failed once\te\tdone\n'
+  printf '2026-09-20T09:30\t4\tslice 2\tw\te\tDone; no flake in this check\n'
+  printf '2026-09-20T09:40\t4\teval\tw\te\tDC4 FAIL on E1, E4\n'
+  printf '2026-09-20T09:45\t4\tplan fixes\tw\te\t4 failed fixes corrected\n'
   printf '2026-09-20T10:00\t4\tk1 control\tw\tcontrols/k1.log\tsurvived\n'
-  printf '2026-09-20T10:30\t7\tFinding V1 (NOT VERIFIED, C1 on screen)\tw\te\tback to Phase 4\n'
-  printf '2026-09-20T11:00\t4\tfix V1\tw\te\tone flake\n'
+  printf '2026-09-20T10:30\t7\tFinding V1 (NOT VERIFIED, C1 on screen)\tw\te\tNOT VERIFIED; back to Phase 4\n'
+  printf '2026-09-20T11:00\t4\tfix V1\tw\te\tflake: one rerun of the check\n'
   printf '2026-09-20T11:20\t7\tC2 re-check\tw\te\tVERIFIED\n'
   printf '2026-09-20T11:30\t9\tland\tw\te\tmerged\n'
 } > "$run/decisions.tsv"
@@ -49,6 +55,24 @@ printf 'backup\n' > "$run/controls/k1.log.orig"
 printf '# replay k1\n# result: killed\n' > "$run/controls/replay/k1.log"
 printf '# replay k2\n# result: killed\n' > "$run/controls/replay/k2.log"
 cp "$run/controls/replay/k1.log" "$run/controls/replay-old/k1.log"
+# The critical findings: a parenthesis with critical on a line of a top review-*.md, under the Act on
+# heading or under no section heading; not a summary line, a line under another heading, a
+# fix-check file, or a review file in a subfolder.
+mkdir -p "$run/eval/sets"
+{
+  printf '# Plan gate round 1\n\n'
+  printf -- '- **Panel:** premortem 3 raised, devils-advocate 1 of 6 (critical), 1 survived.\n\n'
+  printf '## Act on\n\n'
+  printf '### G1 (critical, harness). The TOTAL row fails.\n\n'
+  printf -- '- **A1 (Critical, premortem).** The real osascript exits 1.\n'
+  printf 'P2 (warning, eval). Not critical.\n'
+  printf 'No critical item survived.\n\n'
+  printf '## Dismissed\n\n'
+  printf 'D1 (critical, devils-advocate). Refuted.\n'
+} > "$run/review-plan-1.md"
+printf '# Code gate round 1\n\nG3 (critical, eval). A flat list with no section heading.\n' > "$run/review-diff-1.md"
+printf '| P10 (critical) | yes |\n' > "$run/fix-check-plan.md"
+printf 'G9 (critical, eval). A copy.\n' > "$run/eval/sets/review-diff-1.md"
 # The folder birth time: on APFS, a modification time before the birth time moves the birth time.
 touch -t 202609200800 "$run"
 
@@ -95,7 +119,8 @@ benches: 3 bench logs, 2 pairs sets, 1 repeated (same commit and filter)
 controls: 3 written, 2 replayed
 late on-screen: 1
 missed unknowns: 1
-friction: 4
+critical findings: 3
+friction: 8
 window: 2026-09-20T08:20 to 2026-09-20T11:30
 agents: 3
 idle: 12 min in 1 gaps over 5 min
@@ -132,7 +157,7 @@ bare="$tmp/2026-09-19-bare"
 mkdir "$bare"
 cp "$run/decisions.tsv" "$run/run.md" "$bare/"
 out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$bare" 2>&1)" || fail "no logs and no controls: exit $?: $out"
-for line in 'checks: no logs folder' 'benches: no logs folder, 0 pairs sets' 'controls: 0 written, 0 replayed' 'friction: 4'; do
+for line in 'checks: no logs folder' 'benches: no logs folder, 0 pairs sets' 'controls: 0 written, 0 replayed' 'critical findings: 0' 'friction: 5'; do
   grep -qxF -- "$line" <<<"$out" || fail "no logs and no controls: no line '$line' in: $out"
 done
 grep -q '^pace: merges per day ' <<<"$out" || fail "no logs and no controls: no pace line: $out"

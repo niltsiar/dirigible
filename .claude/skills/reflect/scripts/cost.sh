@@ -12,8 +12,15 @@
 #   with a load.txt); repeated: a `bench:` line on a clean tree with an earlier commit and filter.
 # - controls: the logs at the top of controls/ and the different replay logs under controls/replay*.
 # - late on-screen: the phase 7 rows with NOT VERIFIED and "on screen" or "on-screen".
-# - missed unknowns: the rows with "missed unknown". friction: the rows whose decision or result
-#   has NOT VERIFIED, survived, flake, failed, or missed unknown (not Correction).
+# - missed unknowns: the rows whose result starts with "missed unknown", in any case.
+# - critical findings: the lines of a review-*.md at the top of the run folder with critical in a
+#   parenthesis, in any case. Not an Intent, Panel, Source, or Sources line, and not a line under a
+#   ## or ### heading other than Act on. A deeper heading (### G1 under ## Act on) does not change
+#   the section. A line under no section heading counts (a flat list).
+# - friction: the critical findings plus the rows whose result starts with a token, in any case:
+#   NOT VERIFIED, survived, flake, failed, fail, or missed unknown. One criterion ID can come first
+#   (DC4 FAIL, C6 (c) failed). The token ends at a character that is not a letter. The deliver
+#   Autonomy rules tell the writer to start a result with its token.
 # - window: the time of the first decisions.tsv row (the open time when no row has a time) to the
 #   end of the minute of the latest row (the clock time when no row has a time).
 # - agents and idle: the Agent calls of the transcript in the window, and the gaps over 5 min
@@ -74,12 +81,21 @@ if [[ -d "$run/controls" ]]; then
 fi
 echo "controls: $written written, $replayed replayed"
 
-awk -F'\t' '
+critical="$(find "$run" -maxdepth 1 -name 'review-*.md' -type f -exec awk '
+    FNR == 1 { keep = 1; section = 0 }
+    FNR > 1 && /^#+ / {
+        level = index($0, " ") - 1
+        if (!section || level <= section) { keep = (tolower($0) ~ /^#+ act on/); section = level; next }
+    }
+    keep && tolower($0) ~ /\([^)]*critical/ && !/^(- )?(\*\*)?(Intent|Panel|Sources?):/ { n++ }
+    END { print n + 0 }' {} \; | awk '{ n += $1 } END { print n + 0 }')"
+awk -F'\t' -v critical="$critical" '
+    function token(s) { return tolower(s) ~ /^([a-z]+[0-9]+[a-z]? (\([a-z]\) )?)?(not verified|survived|flake|failed|fail|missed unknown)([^a-z]|$)/ }
     NR == 1 { next }
     $2 == "7" && /NOT VERIFIED/ && tolower($0) ~ /on screen|on-screen/ { late++ }
-    /missed unknown/ { missed++ }
-    $3 ~ /NOT VERIFIED|survived|flake|failed|missed unknown/ || $6 ~ /NOT VERIFIED|survived|flake|failed|missed unknown/ { friction++ }
-    END { printf "late on-screen: %d\nmissed unknowns: %d\nfriction: %d\n", late, missed, friction }' "$run/decisions.tsv"
+    tolower($6) ~ /^missed unknown/ { missed++ }
+    token($6) { friction++ }
+    END { printf "late on-screen: %d\nmissed unknowns: %d\ncritical findings: %d\nfriction: %d\n", late, missed, critical, friction + critical }' "$run/decisions.tsv"
 
 # The window in epoch seconds: the transcript is in UTC, the run times are local.
 times="$(awk -F'\t' '$1 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$/ { print $1 }' "$run/decisions.tsv" | sort)"

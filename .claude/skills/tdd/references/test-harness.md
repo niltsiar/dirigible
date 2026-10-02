@@ -1,6 +1,6 @@
 # The test process is not the app
 
-A result that depends on a difference between the test process and the app proves only the harness. Before a check becomes manual because the test process says "no", drive the built app (`verify-this/references/driving-the-app.md`).
+A result that depends on how the test process differs from the app proves only the harness. Before a check becomes manual because a test says "no", drive the built app (`verify-this/references/driving-the-app.md`). Repeat a probe app "yes" as a test.
 
 ## Pixels and window chrome
 
@@ -11,14 +11,14 @@ A result that depends on a difference between the test process and the app prove
 
 - `L10n` gives the string keys, because `Bundle.main` is the test runner. A key is wider than most texts, so a layout test chooses its strings on purpose, and a layout must hold at any text width.
 - `#expect(a == b)` of a `CGFloat` and a `Double` with the same value fails: convert both to `Double`.
-- To prove that VoiceOver reaches an element, walk `accessibilityChildren()` from the window content view down to it.
+- Without `NSApp.run()`, SwiftUI content in the runner has no `accessibilityChildren()`: read its NSView tree.
 
 ## Events and focus
 
 - A synthetic `NSEvent` to `scrollWheel(with:)` does not act as an HID scroll does.
 - A test process has no key window, so `NSApp.sendEvent` can give a synthetic key event to the window of another suite. Send it with `NSWindow.sendEvent` to the window of the test.
 - A mouse-down that `NSWindow.sendEvent` gets is a first click: the window takes it to become key, and no view gets it. Send the mouse-down and the mouse-up to the view that `window.contentView?.superview?.hitTest(event.locationInWindow)` gives. First-click behavior stays a manual check.
-- Prove a click on an `NSTableView` on the built app. In the test process, a mouse-down to the table with a posted mouse-up ended the process with exit 0 and no report.
+- Prove a click on an `NSTableView` on the built app. In the test process, a mouse-down with a posted mouse-up ended the process with exit 0 and no report.
 - All windows of the test process share one SwiftUI field editor, and a text field of a parallel suite can take it between a poll and a key. Get the name field editor with `focusedNameEditor(in:)`.
 
 ## The pool, preferences, and seams

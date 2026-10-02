@@ -92,4 +92,4 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Keep this file true
 
-When a learning repeats, the **reflect** skill changes this file, a skill, or a check by its rules. Commands and paths in this file must work at every commit.
+The **reflect** skill queues a repeated learning; an upkeep run changes this file, a skill, or a check. Commands and paths in this file must work at every commit.

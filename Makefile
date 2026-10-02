@@ -28,7 +28,7 @@ test-filter:
 	scripts/test-filter.sh $(FILTER)
 
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
-# variable does not change the count.
+# variable does not change the count. scripts/check-changed.sh repeats the expression: change both.
 SLOW_GATE = environment["DIRIGIBLE_SLOW_TESTS"]
 # The name of each slow test: the function after its gate.
 SLOW_TESTS = $(shell grep -rhF -A1 '$(SLOW_GATE)' Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)

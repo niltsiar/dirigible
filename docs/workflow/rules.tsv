@@ -104,7 +104,7 @@ AGT-102	AGENTS.md	merge	TDD-017	duplicate of tdd:26 (audit s2, spec item 7)	10ed
 AGT-103	AGENTS.md	keep	AGENTS.md	no tdd row states the network ban; tdd:24 covers only the hardware part	10edc92		tests avoid network, real microphone, permission prompts
 AGT-104	AGENTS.md	merge	DLV-007	duplicate of deliver:16 (audit s2, spec item 5)	10edc92		hardware checks become manual checks in the run ledger
 AGT-105	AGENTS.md	keep	AGENTS.md	plan: keep, still true	10edc92		slow tests behind DIRIGIBLE_SLOW_TESTS; make test-slow runs them
-AGT-106	AGENTS.md	keep	AGENTS.md	conflict with reflect:12 and practice (audit s3); slice 8 sharpens it to the reflect rules	10edc92		reflect edits docs or adds a check when a learning repeats; checks over prose
+AGT-106	AGENTS.md	keep	AGENTS.md	conflict with reflect:12 and practice (audit s3); slice 8 sharpens it to the reflect rules; 2026-10-02-speed-run code gate N2: reflect queues a repeated learning; an upkeep run changes the file	10edc92		reflect queues a repeated learning; an upkeep run edits docs or adds a check; checks over prose
 AGT-107	AGENTS.md	keep	AGENTS.md	docs truth rule	10edc92		AGENTS.md commands and paths work at every commit
 AGT-108	AGENTS.md	merge	AGT-061	new in slice 0 of this run; 2026-10-01-guardrail-quoted-text moves --from into the AGT-061 sentence	a7401bc		log-decision.sh --from <file> when the hook blocks a field
 DLV-001	.claude/skills/deliver/SKILL.md	keep	.claude/skills/deliver/SKILL.md	keep; scope of one run	ad21140		one run: one goal to a merged PR; each step writes the ledger

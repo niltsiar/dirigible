@@ -1,4 +1,5 @@
 import AVFoundation
+import Accelerate
 import DirigibleCore
 import Foundation
 
@@ -94,9 +95,9 @@ struct SegmentFinalize {
         let header = sidecar.header
         let choice = RateChoice(header: header, checkpoints: sidecar.checkpoints, frames: Int(input.length))
         let rate = Double(session.sampleRate)
-        guard let length = try convert(input, file: descriptor, from: choice.source, to: rate, into: temporary) else {
-            return .failure(.badAudio)
-        }
+        guard let converted = try convert(input, file: descriptor, from: choice.source, to: rate, into: temporary)
+        else { return .failure(.badAudio) }
+        let (length, gain) = converted
 
         let anchor: Int
         switch target {
@@ -133,7 +134,7 @@ struct SegmentFinalize {
             try copy.place(
                 Clip(
                     id: ClipID(id), file: FileID(id), start: Frames(max(0, anchor)), offset: Frames(offset),
-                    length: Frames(length - offset)),
+                    length: Frames(length - offset), gain: gain),
                 on: target.track)
         } catch {
             return .failure(.session(error))
@@ -168,11 +169,49 @@ struct SegmentFinalize {
 
     /// Reads `input` (open at `descriptor` too) in blocks, converts it from `source` to `rate`
     /// through one converter when the rates differ, and writes, flushes, and reads back the WAV at
-    /// `url`, the temporary name. Returns the frame count of the WAV, or nil for a bad CAF, a
-    /// converter that stops before the end of the stream, or a WAV length that does not read back.
+    /// `url`, the temporary name. Returns the frame count of the WAV and the clip gain, or nil for a
+    /// bad CAF, a converter that stops before the end of the stream, or a WAV length that does not
+    /// read back.
+    ///
+    /// A float peak over full scale saturates in 24 bits (A11). Then a second pass scales the whole
+    /// segment to `ceiling`, and the clip gain gives the level back. A peak of 1.0 or less reads the
+    /// CAF once and keeps gain 0 dB.
     func convert(
         _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double, into url: URL
-    ) throws(FinalizeError) -> Int? {
+    ) throws(FinalizeError) -> (length: Int, gain: Gain)? {
+        guard var result = try pass(input, file: descriptor, from: source, to: rate, into: url, scale: 1) else {
+            return nil
+        }
+        var gain = Gain.zero
+        // An infinite peak gives no finite gain, so it keeps the one pass.
+        let scale = Float(ceiling / Double(result.peak))
+        if result.peak > 1, let scaled = Gain(dB: -20 * log10(Double(scale))) {
+            input.framePosition = 0
+            guard let second = try pass(input, file: descriptor, from: source, to: rate, into: url, scale: scale)
+            else { return nil }
+            result = second
+            gain = scaled
+        }
+        let clip = open(url.path, O_RDONLY | O_CLOEXEC)
+        guard clip >= 0 else { throw .readFailed(file: wav, errno: errno) }
+        defer { close(clip) }
+        if let code = fullFlush(clip) { throw .writeFailed(file: wav, status: code) }
+        do {
+            guard try AVAudioFile(forReading: url).length == AVAudioFramePosition(result.length) else { return nil }
+        } catch {
+            if let code = ioErrno(of: error, file: clip) { throw .readFailed(file: wav, errno: code) }
+            return nil
+        }
+        return (result.length, gain)
+    }
+
+    /// One read of `input` from its position into a new WAV at `url`. Each buffer that goes to the
+    /// writer is multiplied by `scale` first. Returns the frame count and the peak of all channels
+    /// before the scale, or nil as `convert`.
+    private func pass(
+        _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double, into url: URL,
+        scale: Float
+    ) throws(FinalizeError) -> (length: Int, peak: Float)? {
         let channels = input.processingFormat.channelCount
         let capacity = AVAudioFrameCount(blockFrames)
         guard let output = AVAudioFormat(standardFormatWithSampleRate: rate, channels: channels),
@@ -184,14 +223,18 @@ struct SegmentFinalize {
         let reader = BlockReader(
             input: input, descriptor: descriptor, buffer: read, fault: readFault?.stem == name.stem ? readFault : nil)
         var length = 0
+        var peak: Float = 0
+        // The peak and the scale act on the buffer that goes to the writer.
+        func write(_ buffer: AVAudioPCMBuffer) throws(FinalizeError) {
+            peak = max(peak, scaleInPlace(buffer, by: scale))
+            try writer.write(buffer)
+            length += Int(buffer.frameLength)
+        }
         // The same-rate path has no converter and ends at the end of the stream.
         var status = AVAudioConverterOutputStatus.endOfStream
 
         if source == rate {
-            while reader.next() {
-                try writer.write(read)
-                length += Int(read.frameLength)
-            }
+            while reader.next() { try write(read) }
         } else {
             guard let from = AVAudioFormat(standardFormatWithSampleRate: source, channels: channels),
                 let converter = AVAudioConverter(from: from, to: output),
@@ -209,8 +252,7 @@ struct SegmentFinalize {
                     return block
                 }
                 if reader.failure != nil || status == .error { break }
-                try writer.write(written)
-                length += Int(written.frameLength)
+                try write(written)
             }
         }
         if let failure = reader.failure { throw unreadable(caf, failure) }
@@ -218,18 +260,30 @@ struct SegmentFinalize {
         // the whole segment.
         guard !reader.unreadable, status == .endOfStream else { return nil }
         try writer.close()
-        let clip = open(url.path, O_RDONLY | O_CLOEXEC)
-        guard clip >= 0 else { throw .readFailed(file: wav, errno: errno) }
-        defer { close(clip) }
-        if let code = fullFlush(clip) { throw .writeFailed(file: wav, status: code) }
-        do {
-            guard try AVAudioFile(forReading: url).length == AVAudioFramePosition(length) else { return nil }
-        } catch {
-            if let code = ioErrno(of: error, file: clip) { throw .readFailed(file: wav, errno: code) }
-            return nil
-        }
-        return length
+        return (length, peak)
     }
+}
+
+/// The level of the peak sample after the scale of a second pass: two 24-bit steps under full
+/// scale, so the peak gets code 8388606 and no sample saturates (A11).
+private let ceiling = 1 - 0x1p-22
+
+/// Multiplies each channel of `buffer` by `scale` when it is not 1, and returns the peak of all
+/// channels before the scale.
+private func scaleInPlace(_ buffer: AVAudioPCMBuffer, by scale: Float) -> Float {
+    guard let data = buffer.floatChannelData else { return 0 }
+    let frames = vDSP_Length(buffer.frameLength)
+    var peak: Float = 0
+    for channel in 0..<Int(buffer.format.channelCount) {
+        var level: Float = 0
+        vDSP_maxmgv(data[channel], 1, &level, frames)
+        peak = max(peak, level)
+        if scale != 1 {
+            var factor = scale
+            vDSP_vsmul(data[channel], 1, &factor, data[channel], 1, frames)
+        }
+    }
+    return peak
 }
 
 /// The pool file at `path` in `Clips/`. The compare drops "." and empty components and ignores

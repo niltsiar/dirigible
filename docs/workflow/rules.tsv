@@ -49,7 +49,7 @@ AGT-047	AGENTS.md	keep	AGENTS.md	correction rule of the log; C18	10edc92		fix a 
 AGT-048	AGENTS.md	keep	AGENTS.md	home of real voices out of git (spec item 13); C18	10edc92		real voice recordings stay in .scratchpads, never git
 AGT-049	AGENTS.md	keep	AGENTS.md	home of scripts/probe.sh (spec item 4); C18	L70	probe	probe.sh sandboxes each probe to a new .scratchpads or scratchpad folder
 AGT-050	AGENTS.md	keep	AGENTS.md	pointer to the probe.sh header; C18	L92	hook	Swift builds in a probe need the flags from the probe.sh header
-AGT-051	AGENTS.md	keep	AGENTS.md	fixed verdict: keep (spec); one-off L117 (audit s4); reflect of 2026-10-02-readable-pr-text (AGT-051/tool, learnings.md:117, the Bash tool runs zsh and the agent wrote bash habits): save the exit status alone after a check	L117	tool	zsh path/status/argv variables clobber PATH; rename or use bash -c; save c=$? alone after a check
+AGT-051	AGENTS.md	keep	AGENTS.md	fixed verdict: keep (spec); one-off L117 (audit s4)	L117	tool	zsh path/status/argv variables clobber PATH; rename or use bash -c
 AGT-052	AGENTS.md	keep	AGENTS.md	remote and PR tool; C18	ad21140		origin is niltsiar/dirigible on GitHub; gh CLI for PRs
 AGT-053	AGENTS.md	keep	AGENTS.md	branch rule; C18	10edc92		no direct main commits; branch named <type>/<slug>
 AGT-054	AGENTS.md	keep	AGENTS.md	land through a pull request; C18; 2026-10-01-workflow-speed D1: land.sh reuses the pass stamp of an ancestor commit; trim slice of 2026-10-01-workflow-speed: the push check and the stamp reuse are in the land.sh header only	ad21140		every run lands through a pull request with land.sh, which merges with a rebase

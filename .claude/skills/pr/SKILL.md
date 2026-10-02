@@ -47,7 +47,7 @@ Use this template for writing the PR body:
 Requirements: <each requirement in words, with its R-number from docs/requirements/brief.md in parentheses; say a constraint in words>
 ```
 
-Put the evidence and the verdict in the body. `.scratchpads/` is local only, so never link to it. Write the body in STE, then revise it with the **writing-for-humans** skill. The skill first copies `pr.md` to `<run>/logs/pr-draft.md`. `scripts/land.sh` refuses a body that `scripts/pr-terms.sh` flags. The PR title is a plain sentence that says what the PR gives, in sentence case, with no `type(scope):` prefix. Example: `Record each device to its own track`. Conventional Commits apply to commit subjects, not to PR titles.
+Put the evidence and the verdict in the body. `.scratchpads/` is local only, so never link to it. Write the body in STE, then revise it with the **writing-for-humans** skill. The PR title is a plain sentence that says what the PR gives, in sentence case, with no `type(scope):` prefix. Example: `Record each device to its own track`. Conventional Commits apply to commit subjects, not to PR titles.
 
 ## Sections
 

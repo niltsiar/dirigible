@@ -38,7 +38,7 @@ struct AppTakeTests {
         playing: Bool = true
     ) -> AppFound {
         AppFound(
-            key: AppKey(processes: processes, output: "BuiltInSpeakerDevice"),
+            key: AppKey(processes: processes, output: "BuiltInSpeakerDevice"), output: "BuiltInSpeakerDevice",
             device: InputDevice(
                 uid: zoomUID, name: zoom, nominalRate: rate, availableRates: [rate...rate],
                 channelsPerBuffer: [channels], latency: latency)!,

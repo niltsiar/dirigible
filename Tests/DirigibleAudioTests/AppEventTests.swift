@@ -18,9 +18,13 @@ struct AppEventTests {
 
     init() throws { folder = try TemporaryFolder() }
 
-    func found(_ processes: [AudioObjectID], output: String = "BuiltInSpeakerDevice") -> AppFound {
+    /// `output` is the output that a matched process reports (nil: none); `main` is the main
+    /// sub-device, the reported output or else the default output.
+    func found(_ processes: [AudioObjectID], output: String? = "BuiltInSpeakerDevice", main: String? = nil)
+        -> AppFound
+    {
         AppFound(
-            key: AppKey(processes: processes, output: output),
+            key: AppKey(processes: processes, output: output), output: main ?? output ?? "BuiltInSpeakerDevice",
             device: InputDevice(
                 uid: Self.uid, name: Self.zoom, nominalRate: 48_000, availableRates: [48_000...48_000],
                 channelsPerBuffer: [1], latency: 0)!,
@@ -45,10 +49,11 @@ struct AppEventTests {
     }
 
     /// The app has `processes` now, and the writer gets a list event. Waits for its lookup.
-    func change(_ writer: DeviceWriter, to processes: [AudioObjectID], output: String = "BuiltInSpeakerDevice")
-        async
-    {
-        hal.setApp(Self.zoom, found(processes, output: output))
+    func change(
+        _ writer: DeviceWriter, to processes: [AudioObjectID], output: String? = "BuiltInSpeakerDevice",
+        main: String? = nil
+    ) async {
+        hal.setApp(Self.zoom, found(processes, output: output, main: main))
         let lookups = hal.calls.count { $0.hasPrefix("lookUpApp") }
         writer.post(.devicesChanged, from: nil)
         await until("the event did not reach the writer") { hal.calls.count { $0.hasPrefix("lookUpApp") } > lookups }
@@ -157,6 +162,38 @@ struct AppEventTests {
         #expect(taps == 2)
     }
 
+    /// Code gate E3: no matched process reports an output, so the tap uses the default output.
+    /// A change of the default output does not rebuild the tap (the key has no output).
+    @Test func aDefaultOutputFlipWithNoReportedOutputKeepsTheTap() async throws {
+        hal.setApp(Self.zoom, found([41], output: nil, main: "BuiltInSpeakerDevice"))
+        let writer = DeviceWriter(
+            device: InputDevice(
+                uid: Self.uid, name: "zoom.us", nominalRate: 48_000, availableRates: [48_000...48_000],
+                channelsPerBuffer: [1], latency: 0)!,
+            tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { [url = folder.url] in url }),
+            hal: hal.hal, report: log.closure, silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            app: Self.zoom)
+        writer.start()
+        await until("no first attach") { hal.inputs(Self.uid).count == 1 }
+        await change(writer, to: [41], output: nil, main: "USBHeadset")
+        await writer.finish()
+
+        #expect(taps == 1, "a default output flip is no rebuild")
+    }
+
+    /// E3: the output is in the key only when a matched process reports it.
+    @Test func theKeyHasOnlyAReportedOutput() throws {
+        let process = AudioProcess(id: 41, bundleID: Self.zoom, path: "/Applications/zoom.us.app/Z", playing: true)
+        let fallback = try #require(
+            appFound(Self.zoom, processes: [process], output: "Speakers", reported: false, rate: 48_000, layout: .mono))
+        #expect(fallback.key == AppKey(processes: [41], output: nil), "no reported output in the key")
+        #expect(fallback.output == "Speakers", "the aggregate uses the default output")
+        let reported = try #require(
+            appFound(Self.zoom, processes: [process], output: "USBHeadset", reported: true, rate: 48_000, layout: .mono)
+        )
+        #expect(reported.key == AppKey(processes: [41], output: "USBHeadset"), "a reported output in the key")
+    }
+
     /// A8: IsAlive false on the aggregate rebuilds, with no gap.
     @Test func isAliveFalseRebuildsWithNoGap() async throws {
         let writer = await writer([41])
@@ -192,9 +229,9 @@ struct AppEventTests {
         arguments: [
             ([41], [41], "out", false), ([41], [41, 42], "out", true), ([41, 42], [41], "out", false),
             ([41], [], "out", false), ([], [41], "out", true), ([41], [42], "out", true), ([41], [41], "usb", true),
-            ([42, 41], [41, 42], "out", false),
-        ] as [([AudioObjectID], [AudioObjectID], String, Bool)])
-    func theRebuildRule(current: [AudioObjectID], found: [AudioObjectID], output: String, rebuild: Bool) {
+            ([42, 41], [41, 42], "out", false), ([41], [41], nil, true),
+        ] as [([AudioObjectID], [AudioObjectID], String?, Bool)])
+    func theRebuildRule(current: [AudioObjectID], found: [AudioObjectID], output: String?, rebuild: Bool) {
         #expect(
             needsRebuild(AppKey(processes: current, output: "out"), AppKey(processes: found, output: output))
                 == rebuild)

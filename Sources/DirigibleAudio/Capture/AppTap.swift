@@ -159,13 +159,15 @@ extension AudioProcess {
 // MARK: The tap of one app appearance (decision 0030)
 
 /// The identity of one app appearance: the matched process objects, sorted (empty when the app
-/// does not run), and the UID of the main sub-device of its aggregate.
+/// does not run), and the UID of the output that a matched process reports. Nil when no matched
+/// process reports one: the default output that the aggregate then uses is not part of the key,
+/// so its change alone does not rebuild the tap (code gate E3).
 struct AppKey: Hashable, Sendable {
     let processes: [AudioObjectID]
-    let output: String
+    let output: String?
 }
 
-/// W1: the found set has a process that the tap lacks, or the output changed. A set that only
+/// W1: the found set has a process that the tap lacks, or the reported output changed (E3). A set that only
 /// loses processes keeps the tap: it goes on with zeros (probes P10.4 and P10.5).
 func needsRebuild(_ current: AppKey, _ found: AppKey) -> Bool {
     !Set(found.processes).isSubset(of: current.processes) || found.output != current.output
@@ -175,6 +177,9 @@ func needsRebuild(_ current: AppKey, _ found: AppKey) -> Bool {
 /// the UID `app:<bundle ID>`, the rate of the output, and one buffer with the mixdown channels.
 struct AppFound: Sendable {
     let key: AppKey
+    /// The UID of the main sub-device of the aggregate: the reported output, else the default
+    /// output (decision 0006).
+    let output: String
     let device: InputDevice
     /// True when a matched process has `IsRunningOutput` 1.
     let playing: Bool
@@ -205,24 +210,32 @@ func lookUpApp(_ bundleID: String, layout: ChannelLayout) -> AppFound? {
         bundleID, bundlePath: launchServicesURL(bundleID)?.path,
         in: AudioProcess.all().filter { $0.pid != getpid() }.map(\.process))
     let system = AudioObjectID(kAudioObjectSystemObject)
-    let used = processes.lazy.compactMap {
+    let reported = processes.lazy.compactMap {
         try? readArray(
             $0.id, kAudioProcessPropertyDevices, scope: kAudioObjectPropertyScopeOutput, as: AudioObjectID.self
         )
         .first
     }.first
+    let fallback = try? readValue(system, kAudioHardwarePropertyDefaultOutputDevice, as: AudioObjectID.self)
+    guard let output = reported ?? fallback, let uid = readString(output, kAudioDevicePropertyDeviceUID),
+        let rate = try? readValue(output, kAudioDevicePropertyNominalSampleRate, as: Float64.self)
+    else { return nil }
+    return appFound(bundleID, processes: processes, output: uid, reported: reported != nil, rate: rate, layout: layout)
+}
+
+/// What the lookup of an app gives from its reads. `output` is the UID of the main sub-device;
+/// `reported` is true when a matched process reports it, and only then it is in the key (E3).
+func appFound(
+    _ bundleID: String, processes: [AudioProcess], output: String, reported: Bool, rate: Double, layout: ChannelLayout
+) -> AppFound? {
     guard
-        let output = used
-            ?? (try? readValue(system, kAudioHardwarePropertyDefaultOutputDevice, as: AudioObjectID.self)),
-        let uid = readString(output, kAudioDevicePropertyDeviceUID),
-        let rate = try? readValue(output, kAudioDevicePropertyNominalSampleRate, as: Float64.self),
         let device = InputDevice(
             uid: "app:\(bundleID)", name: bundleID, nominalRate: rate, availableRates: [rate...rate],
             channelsPerBuffer: [layout.channelCount], latency: 0)
     else { return nil }
     return AppFound(
-        key: AppKey(processes: processes.map(\.id).sorted(), output: uid), device: device,
-        playing: processes.contains(where: \.playing))
+        key: AppKey(processes: processes.map(\.id).sorted(), output: reported ? output : nil), output: output,
+        device: device, playing: processes.contains(where: \.playing))
 }
 
 /// Makes a private, unmuted mixdown tap of the processes of `found` and its private aggregate
@@ -242,7 +255,7 @@ func makeTap(_ found: AppFound) throws(HALError) -> (id: AudioObjectID, device: 
     let tapUID = readString(tap, kAudioTapPropertyUID) ?? description.uuid.uuidString
     var aggregate = AudioObjectID(kAudioObjectUnknown)
     let wanted = aggregateDescription(
-        output: found.key.output, tapUID: tapUID, uid: tapUIDPrefix + UUID().uuidString)
+        output: found.output, tapUID: tapUID, uid: tapUIDPrefix + UUID().uuidString)
     status = AudioHardwareCreateAggregateDevice(wanted as CFDictionary, &aggregate)
     guard status == noErr else {
         _ = AudioHardwareDestroyProcessTap(tap)

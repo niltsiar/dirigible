@@ -4,8 +4,8 @@
 # missed unknowns by result token, the critical findings of the review files, the friction rows by
 # result token, the run window, the agents and the idle gaps of a transcript
 # in that window, and the pace lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a folder with
-# no logs/ and no controls/. Check that
-# scripts/bench.sh prints its bench line before the build. Run by `make test-hooks`.
+# no logs/ and no controls/. Check that the deliver Autonomy line that names cost.sh holds each
+# token of the cost.sh regex. Check that scripts/bench.sh prints its bench line before the build. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 cost="$here/cost.sh"
@@ -171,6 +171,16 @@ for zone in UTC:2 Etc/GMT-2:1; do
   out="$(cd "$tmp" && TZ="${zone%:*}" PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tmp/tz.jsonl" 2>&1)"
   grep -qx "agents: ${zone#*:}" <<<"$out" || fail "run window in TZ ${zone%:*}: want agents: ${zone#*:}: $(grep '^agents' <<<"$out")"
 done
+
+# The writer side of the tokens: the deliver Autonomy line that names cost.sh holds each token of
+# the friction regex of cost.sh, in any case.
+tokens="$(grep -oE '\(not verified[|][^)]*\)' "$cost" | head -n 1 | tr -d '()' | tr '|' '\n')"
+writer="$(awk '/^## /{ s = $0; next } s == "## Autonomy rules" && /cost\.sh/' "$here/../../deliver/SKILL.md")"
+if [[ -z "$tokens" || -z "$writer" ]]; then
+  fail "token drift: no token list in cost.sh or no deliver Autonomy line that names cost.sh"
+else
+  while IFS= read -r t; do grep -qiF -- "$t" <<<"$writer" || fail "token drift: the deliver Autonomy line has no '$t'"; done <<<"$tokens"
+fi
 
 out="$("$cost" 2>&1)"
 code=$?

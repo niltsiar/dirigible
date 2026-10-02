@@ -14,7 +14,7 @@ Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a dif
 
 ## Step 2: State the intent and the settled list
 
-Write one paragraph that states the intent, from the plan, the commit messages, and the task in the run ledger. Reviewers judge the execution against it. If you are unsure about the intent, stop and resolve it first. Pass the `## Unknowns` table of `analysis.md` with it. An Act-on finding that shows a missing unknown gets a new row in that table and a `decisions.tsv` row with the text `missed unknown`.
+Write one paragraph that states the intent, from the plan, the commit messages, and the task in the run ledger. Reviewers judge the execution against it. If you are unsure about the intent, stop and resolve it first. Pass the `## Unknowns` table of `analysis.md` with it. An Act-on finding that shows a missing unknown gets a new row in that table and a `decisions.tsv` row with the result `missed unknown`.
 
 Then list the settled choices, one line each: the scope, the run order, the choices that the user asked for, and the tradeoffs that `decisions.tsv` accepted with a reason. A line about behavior or scope ("no vertical scroll this run") is also a claim about the code: name its holder (a test or a file:line), or pass it as a claim to check. A tradeoff is settled only in the form "we accept X in exchange for Y". A tradeoff that loses user input, or departs from the reference product (Hindenburg), is settled only when the user approved it. Else pass it as a claim to check. When a skeptic refutes a finding against such a line, put the finding in `## Next` of `.scratchpads/backlog.md` as a user decision, not in Dismissed.
 
@@ -63,11 +63,11 @@ Put every finding in one bucket, with its lens and one line of rationale:
 
 ## Output format
 
-Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return it, with these sections:
+Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return it, with these sections, each under a `##` heading:
 
 - **Intent:** the paragraph from step 2.
 - **Panel:** for each lens, the findings raised and the findings that survived.
-- **Act on:** description, lenses, why it matters, Invariant, and Siblings.
+- **Act on:** description, lenses (a critical item writes `(critical, <lens>)`), why it matters, Invariant, and Siblings.
 - **Consider:** description, lenses, tradeoff.
 - **Noted:** a brief list.
 - **Dismissed:** each finding with its reason, each refuted finding with the skeptic reason, and each nit of `nits` that is not a Consider item. Read each reason: overrule a skeptic that refuted a real premise.

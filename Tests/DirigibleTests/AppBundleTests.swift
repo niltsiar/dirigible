@@ -84,6 +84,23 @@ struct AppBundleTests {
         let english = try propertyList(at: "Contents/Resources/en.lproj/Localizable.strings")
         #expect(spanish["menu.record.start"] as? String == "Grabar")
         #expect(english["menu.record.start"] as? String == "Record")
+        // App sources (A7, A9, A14, A15).
+        let texts: [(key: String, en: String, es: String)] = [
+            ("track.state.waiting.app", "Waiting for %@", "Esperando a %@"),
+            (
+                "track.state.no.sound",
+                "No sound from %1$@. If %1$@ plays sound, allow Dirigible in Privacy & Security > System Audio Recording.",
+                "No hay sonido de %1$@. Si %1$@ reproduce sonido, permite Dirigible en Privacidad y seguridad > Grabación "
+                    + "de audio del sistema."
+            ),
+            ("track.no.sound.settings", "Open Settings", "Abrir Ajustes"),
+            ("track.route.apps", "Apps", "Apps"),
+            ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
+        ]
+        for text in texts {
+            #expect(english[text.key] as? String == text.en, "en \(text.key)")
+            #expect(spanish[text.key] as? String == text.es, "es \(text.key)")
+        }
     }
 
     @Test func binaryRunsOnSonomaOnIntelAndAppleSilicon() throws {

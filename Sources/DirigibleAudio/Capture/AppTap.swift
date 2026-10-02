@@ -194,7 +194,7 @@ func aggregateDescription(output: String, tapUID: String, uid: String) -> [Strin
 
 /// The name of an app from its bundle, else its bundle ID. LaunchServices reads: call it off the
 /// main actor.
-func appName(_ bundleID: String) -> String {
+public func appName(_ bundleID: String) -> String {
     launchServicesURL(bundleID).flatMap { AppBundle($0)?.name } ?? bundleID
 }
 

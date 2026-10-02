@@ -51,24 +51,22 @@ Write `plan.md`:
 
 ### Checks by change class
 
-`scripts/check-changed.sh` prints `classes:`, `targets:`, and `risk:` (decision 0028). `make check-changed` runs the targets. A mixed change gets the union of its rows and the larger round count.
+`scripts/check-changed.sh` prints `classes:`, `targets:`, and `risk:` (decision 0028). `make check-changed` runs the targets.
 
-| Class | Review panel rounds (Step 3 of the **interrogate** skill picks the lenses) |
+| Run | Plan gate and code gate |
 |---|---|
-| docs | 1 round and a fix check |
-| tooling, tests, bundle, build | 1 round |
-| sources | plan gate 1 round; code gate 1 round and a fix check |
-| sources-risk | plan gate 2 rounds; code gate 3 rounds |
+| Small (`risk: no`) | One agent runs Phases 1-4. Each gate: 1 round of at most two lenses that match the classes (docs: one doc lens, for example `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `code-quality`). A fix check only with Act-on items. |
+| `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. Plan gate 2 rounds; code gate 3 rounds. |
 
 - With `risk: yes`, each guard in a risk path gets two mutation controls, replayed once in Phase 7. With `risk: no`, the failing-before test is the control, with no replay. Decision 0028 says when a plan raises a guard to risk. A sources change also gets a screenshot or AX check per visible criterion. A tooling control is a failing case in its `.test.sh`.
 - A 1-round gate calls the workflow with `maxRounds: 2`; round 2 runs only on a critical item.
 
 ## Phase 3: Plan gate
 
-Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interrogate** skill with target `plan` (premortem, devil's advocate, architecture). Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
+Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interrogate** skill with target `plan` and the lenses of the class table. Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Change the plan for each "Act on" item and log it. Grep each fact that a fix changes, as in Phase 2.
-- A critical item gets another round, up to the class table. Round 2 follows up on round 1. The last round checks only the earlier fixes. After them and one fix check, the gate is closed: record open risks in `run.md`.
+- A critical item gets another round, up to the class table. Round 2 follows up on round 1. The last round checks only the earlier fixes. After them and the fix check, the gate is closed: record open risks in `run.md`.
 
 ## Phase 4: Implement
 
@@ -86,7 +84,7 @@ Run the **deslop** skill. Commit the cleanup on its own.
 
 Before the gate, run `scripts/check-changed.sh origin/main`. When its classes or its risk are higher than in the plan, go back to Phase 2 for the controls and the rounds, and log a row.
 
-Run the **interrogate** skill with target `diff` and the rounds of the class table.
+Run the **interrogate** skill with target `diff` and the lenses and rounds of the class table.
 
 - Fix each "Act on" item in its own commit, a bug fix with its regression test.
 - Put each "Consider" item that you skip in `## Later`, with the reason.
@@ -95,7 +93,7 @@ Run the **interrogate** skill with target `diff` and the rounds of the class tab
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each criterion against the real artifact (the built app, real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` gets a `decisions.tsv` row with the result `NOT VERIFIED` and sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once, with logs in `<run>/logs/`: each doc eval, `make bench` and `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs its bench until it passes and runs no pairs), then the push check `make check-changed BASE=origin/main` with `run_in_background`. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. A later `Sources/` change runs all three again. A later doc change runs its evals again.
+Run the **verify-this** skill for each criterion against the real artifact (the built app, real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` gets a `decisions.tsv` row with the result `NOT VERIFIED` and sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once, with logs in `<run>/logs/`: each `docs/workflow/evals.md` scenario of a changed file, `make bench` and `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs its bench until it passes and runs no pairs), then the push check `make check-changed BASE=origin/main` with `run_in_background`. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. A later `Sources/` change runs the bench, the pairs, and the push check again. A later doc change runs its evals again.
 
 ## Phase 8: Reflect
 

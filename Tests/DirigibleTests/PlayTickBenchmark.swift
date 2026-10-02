@@ -76,7 +76,7 @@ import Testing
             let sorted = times.sorted()
             print("PlayTickBenchmark \(zoom): p50 \(sorted[300]), p95 \(sorted[570]) (target 2 ms)")
             #expect(time.textChanges - changes > 50, "the ticks reached the time display")
-            #expect(sorted[570] <= MouseEventBenchmark.budget, "\(zoom): p95 \(sorted[570])")
+            expectWithinBudget(sorted[570], MouseEventBenchmark.budget, "\(zoom): p95 \(sorted[570])")
             chrome.close()
             window.close()
             await model.close()

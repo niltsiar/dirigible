@@ -89,7 +89,7 @@ import Testing
         let sorted = times.sorted()
         let p95 = sorted[Int(Double(sorted.count) * 0.95)]
         print("OverviewBenchmark render: p50 \(sorted[sorted.count / 2]), p95 \(p95), max \(sorted.last!)")
-        #expect(p95 <= .milliseconds(budget), "p95 over \(budget) ms: render \(p95)")
+        expectWithinBudget(p95, .milliseconds(budget), "p95: render \(p95)")
         window.close()
     }
 
@@ -138,7 +138,7 @@ import Testing
             let sorted = times.sorted()
             let p95 = sorted[Int(Double(sorted.count) * 0.95)]
             print("OverviewBenchmark \(zoom): p50 \(sorted[sorted.count / 2]), p95 \(p95), max \(sorted.last!)")
-            #expect(p95 <= .milliseconds(budget), "p95 over \(budget) ms: \(zoom) \(p95)")
+            expectWithinBudget(p95, .milliseconds(budget), "p95: \(zoom) \(p95)")
             window.close()
             await model.close()
         }

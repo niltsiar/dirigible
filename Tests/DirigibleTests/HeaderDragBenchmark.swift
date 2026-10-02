@@ -112,10 +112,11 @@ import Testing
                 "HeaderDragBenchmark \(bench.zoom): one-off events "
                     + oneOff.map { "\($0.0) \($0.1)" }.joined(separator: ", ")
                     + "; max \(oneOff.map(\.1).max() ?? .zero)")
-            #expect(p95 <= MouseEventBenchmark.budget, "header drag p95 \(bench.zoom): \(p95)")
+            expectWithinBudget(p95, MouseEventBenchmark.budget, "header drag p95 \(bench.zoom): \(p95)")
             // A one-off event may take two frames: once per drag, not at each frame.
             let oneOffMax = oneOff.map(\.1).max() ?? .zero
-            #expect(oneOffMax <= MouseEventBenchmark.budget * 2, "header one-off max \(bench.zoom): \(oneOffMax)")
+            expectWithinBudget(
+                oneOffMax, MouseEventBenchmark.budget * 2, "header one-off max \(bench.zoom): \(oneOffMax)")
             window.close()
             await model.close()
         }

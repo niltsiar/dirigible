@@ -47,7 +47,7 @@ extension MouseEventBenchmark {
             }
             view.lanes.mouseUp(with: try mouse(.leftMouseUp, down, in: view))
             print("MouseEventBenchmark range, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
-            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            expectWithinBudget(sorted[113], Self.budget, "\(zoom): p95 \(sorted[113])")
             window.close()
             await model.close()
         }
@@ -79,7 +79,7 @@ extension MouseEventBenchmark {
             }
             view.ruler.mouseUp(with: try rulerMouse(.leftMouseUp, 300, 20, in: view))
             print("MouseEventBenchmark triangle, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
-            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            expectWithinBudget(sorted[113], Self.budget, "\(zoom): p95 \(sorted[113])")
             window.close()
             await model.close()
         }
@@ -120,7 +120,7 @@ extension MouseEventBenchmark {
             view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: down.x + 12, y: down.y), in: view))
             try #require(view.lanes.frame.width > width, "\(zoom): the up gives the new width")
             print("MouseEventBenchmark end move, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
-            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            expectWithinBudget(sorted[113], Self.budget, "\(zoom): p95 \(sorted[113])")
             window.close()
             await model.close()
         }
@@ -162,7 +162,7 @@ extension MouseEventBenchmark {
             view.lanes.mouseUp(with: try mouse(.leftMouseUp, down, in: view))
             let name = laneChange ? "wide lane change" : "wide move"
             print("MouseEventBenchmark \(name), \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
-            #expect(sorted[113] <= Self.budget, "\(zoom): p95 \(sorted[113])")
+            expectWithinBudget(sorted[113], Self.budget, "\(zoom): p95 \(sorted[113])")
             window.close()
             await model.close()
         }

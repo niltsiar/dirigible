@@ -104,7 +104,7 @@ import Testing
             }
             let worst = times.max() ?? .zero
             print("NavigationKeyBenchmark \(name), \(zoom): p50 \(times.sorted()[10]), max \(worst)")
-            #expect(worst <= .milliseconds(budget), "max over \(budget) ms: \(name), \(zoom) \(worst)")
+            expectWithinBudget(worst, .milliseconds(budget), "max: \(name), \(zoom) \(worst)")
             window.close()
             await model.close()
         }

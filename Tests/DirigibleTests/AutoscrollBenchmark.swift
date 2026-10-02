@@ -63,7 +63,7 @@ extension MouseEventBenchmark {
             _ = view.cancelGesture()
             let sorted = times.sorted()
             print("MouseEventBenchmark autoscroll, \(name): p50 \(sorted[60]), p95 \(sorted[113])")
-            #expect(sorted[113] <= Self.budget, "\(name): p95 \(sorted[113])")
+            expectWithinBudget(sorted[113], Self.budget, "\(name): p95 \(sorted[113])")
             window.close()
             await model.close()
         }

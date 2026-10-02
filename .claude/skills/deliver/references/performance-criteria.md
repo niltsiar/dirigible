@@ -3,8 +3,8 @@
 ## A performance criterion
 
 - A performance criterion names its build configuration (debug or optimized) and its size, for example the window size in pixels. Its test asserts the real budget under those conditions.
-- Name the make target that runs the test, for example `make bench FILTER=<test>` for an optimized budget.
-- A timing at other conditions is a proxy and cannot close the criterion. A criterion that no committed command runs is a manual check.
+- Name the make target of the test (`make bench FILTER=<test>`).
+- A timing at other conditions is a proxy: it cannot close the criterion, and a debug miss only prints (`expectWithinBudget`). A criterion that no committed command runs is a manual check.
 - The criterion names each input path that reaches the costly code (each gesture that redraws), the worst-case fixtures (many items per lane, one item wider than the view, a change at the end), and the real input rate. A path that the criterion does not name is not covered by its budget.
 - A pointer gives at most one event per display frame, so the benchmark sends one event per frame: events sent back to back measure the frame throttle.
 - A budget cannot see a regression that stays under it. For a known slow cause (a view body that runs again), also assert a count that does not use time, with a control that puts the cause back.

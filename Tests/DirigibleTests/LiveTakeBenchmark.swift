@@ -11,8 +11,7 @@ import os
 
 /// Live take view P1, P2, and P6 with -O (`make bench FILTER=LiveTakeBenchmark`): a display tick
 /// of a take and a page turn in a take are 16 ms p95 or less, and a 60 s width step and the
-/// hand-off are 32 ms or less each (in debug, a 200 ms proxy for the second-largest of 20).
-/// 1440 x 600 pt of lanes at scale 2 under the overview strip.
+/// hand-off are 32 ms or less each. 1440 x 600 pt of lanes at scale 2 under the overview strip.
 /// Fixture (a): the 2 h fixture of `MouseEventBenchmark` and 2 empty tracks, its 8 tracks armed,
 /// a take at 2:00:00 with 3 h of bins (216,000 per track). Fixture (b): the default state, 8 empty
 /// tracks at the closest zoom. One tick per 16.7 ms, and a drain of each track before every third
@@ -60,36 +59,10 @@ import os
         return (take, model, inputs)
     }
 
-    /// The value that a one-off check compares with `oneOffBudget`. With -O it is the max of
-    /// `times`. In debug it is the second-largest: the 200 ms proxy has 25 % headroom over the
-    /// debug band of main (0.146-0.167 s), and one loaded moment of the full slow suite went over.
-    static func checked(_ times: [Duration]) -> Duration {
-        #if DEBUG
-            times.sorted()[times.count - 2]
-        #else
-            times.max()!
-        #endif
-    }
-
-    /// The control of `checked`: in debug, one loaded moment (60 ms more on one of 20 values near
-    /// the main band) passes, and two fail.
-    #if DEBUG
-        @Test func oneLoadedMomentPassesTheDebugCheck() {
-            let band = Array(repeating: Duration.milliseconds(167), count: 20)
-            var one = band
-            one[7] += .milliseconds(60)
-            var two = one
-            two[13] += .milliseconds(60)
-            #expect(one.max()! > Self.oneOffBudget, "the max check fails on one loaded moment")
-            #expect(Self.checked(one) <= Self.oneOffBudget, "one loaded moment: \(Self.checked(one))")
-            #expect(Self.checked(two) > Self.oneOffBudget, "two loaded moments: \(Self.checked(two))")
-        }
-    #endif
-
     static func report(_ name: String, _ sorted: [Duration]) {
         let p95 = sorted[sorted.count * 95 / 100]
         print("LiveTakeBenchmark \(name): p50 \(sorted[sorted.count / 2]), p95 \(p95)")
-        #expect(p95 <= MouseEventBenchmark.budget, "\(name): p95 \(p95)")
+        expectWithinBudget(p95, MouseEventBenchmark.budget, "\(name): p95 \(p95)")
     }
 
     /// P1 and P3: 600 timed ticks per case (1,200 at fit), with the P3 checks of each tick. At
@@ -203,10 +176,10 @@ import os
             failures += result.failures
             steps.append(result.time)
         }
-        let step = Self.checked(steps)
-        print("LiveTakeBenchmark width step, fit: max \(steps.max()!), checked \(step)")
+        let step = try #require(steps.max())
+        print("LiveTakeBenchmark width step, fit: max \(step)")
         #expect(failures.isEmpty, "width steps: \(failures.prefix(3))")
-        #expect(step <= Self.oneOffBudget, "width step: checked \(step)")
+        expectWithinBudget(step, Self.oneOffBudget, "width step: max \(step)")
 
         let bins = studio.live.tracks
         failures = []
@@ -253,10 +226,10 @@ import os
             view.update(next)
             take.tick()
         }
-        let handOff = Self.checked(handOffs)
-        print("LiveTakeBenchmark hand-off, fit: max \(handOffs.max()!), checked \(handOff)")
+        let handOff = try #require(handOffs.max())
+        print("LiveTakeBenchmark hand-off, fit: max \(handOff)")
         #expect(failures.isEmpty, "hand-offs: \(failures.prefix(3))")
-        #expect(handOff <= Self.oneOffBudget, "hand-off: checked \(handOff)")
+        expectWithinBudget(handOff, Self.oneOffBudget, "hand-off: max \(handOff)")
         take.close()
         take.window.close()
         await model.close()

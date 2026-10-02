@@ -163,8 +163,11 @@ struct AppTakeTests {
         try await studio.startRecording(armed: ["t1"], playhead: 0)
         let micInput = SyntheticInput(hal, "mic")
         var micClock = DeviceClock()
-        micInput.play(micClock.run(seconds: 3), pace: .realTime, takeStartIn: url)
-        await until(limit: .seconds(3), "no record") { (hal.current("mic")?.ring.isEmpty ?? true) == false }
+        // Longer than any delay of a loaded suite: the detach at the stop ends the sends. The wait
+        // reads the segment file, which stays; a ring that the drain empties does not.
+        micInput.play(micClock.run(seconds: 60), pace: .realTime, takeStartIn: url)
+        let segment = url.appending(path: "Capture/take1-1-1.caf").path
+        await until(limit: .seconds(30), "no record") { FileManager.default.fileExists(atPath: segment) }
         try await Task.sleep(for: .milliseconds(500))
         let gate = Gate()
         hal.holdNextDetach(in: gate)

@@ -83,6 +83,7 @@ test-hooks:
 	.claude/skills/deliver/scripts/replay-list.test.sh
 	.claude/skills/reflect/scripts/cost.test.sh
 	scripts/check-governance.test.sh
+	scripts/pr-terms.test.sh
 	scripts/land.test.sh
 	.claude/workflows/review-panel.test.sh
 	scripts/flake-monitor/sample-threads.test.sh

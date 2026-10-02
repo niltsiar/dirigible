@@ -78,6 +78,29 @@ struct DeviceListListenerTests {
         #expect(list.devices.map(\.uid) == ["mic"])
     }
 
+    // MARK: B2b
+
+    /// The system listener watches the device list and both default devices. The read of the
+    /// defaults installs the data source listener on the default output before it reads the
+    /// flag, so no change falls between them. A seam: no assert reads the output of this Mac.
+    @Test func theListenerWatchesTheDefaultDevices() {
+        #expect(
+            DeviceListListener.systemProperties.map(\.mSelector) == [
+                kAudioHardwarePropertyDevices, kAudioHardwarePropertyDefaultInputDevice,
+                kAudioHardwarePropertyDefaultOutputDevice,
+            ], "the system listener misses a default device")
+        var calls: [String] = []
+        let defaults = AudioDefaults.read(
+            output: 42, inputUID: "mic", watch: { calls.append("watch \($0)") },
+            speakers: {
+                calls.append("read \($0)")
+                return true
+            })
+        #expect(calls.contains("watch 42"), "no data source listener on the default output")
+        #expect(calls == ["watch 42", "read 42"], "the flag read comes before the data source install")
+        #expect(defaults == AudioDefaults(inputUID: "mic", speakers: true))
+    }
+
     // MARK: Pool health
 
     /// As many reads as the concurrency pool is wide wait at the async read seam, and a pool hop

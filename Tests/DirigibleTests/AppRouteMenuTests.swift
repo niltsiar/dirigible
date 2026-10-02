@@ -255,4 +255,40 @@ import Testing
             Issue.record("Record would fail: \(error)")
         }
     }
+
+    /// An open arms the routed tracks in order, and a track that takes a channel of an earlier
+    /// armed track stays unarmed with its route, so Record finds no channel in use (code gate E1).
+    /// Control: two channels of one device both arm.
+    @Test(arguments: [
+        (Route.device(uid: "duo", channels: .mono(1)), Route.device(uid: "duo", channels: .stereo(1, 2)), false),
+        (Route.app(bundleID: "us.zoom.xos"), Route.app(bundleID: "us.zoom.xos"), false),
+        (Route.device(uid: "duo", channels: .mono(1)), Route.device(uid: "duo", channels: .mono(2)), true),
+    ])
+    func anOpenArmsNoChannelTwice(first: Route, second: Route, secondArms: Bool) async throws {
+        let url = folder.url.appending(path: "overlap.dirigible")
+        try await Task.detached {
+            var session = Session(sampleRate: 48_000)
+            let layout: ChannelLayout = if case .device(_, .stereo) = second { .stereo } else { .mono }
+            try session.addTrack("t1", name: "A", layout: .mono)
+            try session.addTrack("t2", name: "B", layout: layout)
+            try session.setRoute(first, track: "t1")
+            try session.setRoute(second, track: "t2")
+            try session.write(to: url)
+        }.value
+        let model = await app.open(url)
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        #expect(model.armed.contains("t1"), "the first owner arms")
+        #expect(model.armed.contains("t2") == secondArms, "the arm of t2 is wrong for \(second)")
+        #expect(studio.session.track("t2")?.route == second, "the route stays")
+        let zoom = InputDevice(
+            uid: appUID("us.zoom.xos"), name: "zoom.us", nominalRate: 48_000, availableRates: [],
+            channelsPerBuffer: [2], latency: 0)!
+        do {
+            _ = try checkRoutes(
+                studio.session, armed: ["t1", "t2"].filter(model.armed.contains), devices: [Self.duo, zoom])
+        } catch {
+            Issue.record("Record would fail: \(error)")
+        }
+        await model.close()
+    }
 }

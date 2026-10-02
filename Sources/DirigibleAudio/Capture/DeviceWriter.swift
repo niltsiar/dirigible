@@ -64,6 +64,8 @@ final class DeviceWriter: @unchecked Sendable {
     /// The retry clock: the loss, or the last try.
     private var lastTry = ContinuousClock.now
     private let dropped = ManagedAtomic<Int>(0)
+    /// `tracks.wavBytes` after each drain.
+    private let wavByteCount = ManagedAtomic<Int64>(0)
     private var endHostNanos = UInt64.max
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
@@ -149,7 +151,7 @@ final class DeviceWriter: @unchecked Sendable {
     /// does not grow while the stop waits for the queue. Such a record still restarts the
     /// watchdog clock.
     func end(atHostNanos end: UInt64) {
-        queue.async { [self] in endHostNanos = end }
+        queue.async { [self] in endHostNanos = min(endHostNanos, end) }
     }
 
     /// The app name when the silence warning showed and no sound came in the take (A9), else nil.
@@ -160,9 +162,9 @@ final class DeviceWriter: @unchecked Sendable {
     }
 
     /// The WAV bytes of the take so far, for the disk rule.
-    func wavBytes() async -> Int64 {
-        await withCheckedContinuation { done in queue.async { [self] in done.resume(returning: tracks.wavBytes) } }
-    }
+    /// Any thread reads it with no queue hop, so a writer that waits (an app attach at the prompt,
+    /// E1) never holds the disk watch.
+    var wavBytes: Int64 { wavByteCount.load(ordering: .relaxed) }
 
     private func handle(_ event: Event, from sender: DeviceInput?) {
         guard phase == .running || phase == .lost else { return }
@@ -232,6 +234,7 @@ final class DeviceWriter: @unchecked Sendable {
             hosts = (hosts?.first ?? record.hostTimeNanos, record.hostTimeNanos)
         }
         dropped.wrappingIncrement(by: lost, ordering: .relaxed)
+        wavByteCount.store(tracks.wavBytes, ordering: .relaxed)
         let levels = tracks.takeLevels()
         if app != nil, let hosts {
             silence.take(

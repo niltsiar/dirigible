@@ -107,6 +107,66 @@ struct AppTakeTests {
         #expect(micAttach < tap, "each device attaches before the tap: \(calls)")
     }
 
+    /// Code gate E1: an app attach that waits (the System Audio Recording prompt) never delays the
+    /// device writers or the take control. The start returns, the disk watch ticks, and the stop
+    /// ends the device clip at the stop time; the release then ends the stop.
+    @Test func aWaitingAppAttachDelaysNoDeviceTrack() async throws {
+        let hal = hal()
+        hal.holdTaps()
+        let studio = try await studio(hal)
+        let started = Done()
+        let start = Task { @MainActor in
+            try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
+            started.value = true
+        }
+        await until(limit: .seconds(3), "the start waits for the app") { started.value }
+        try await start.value
+        let micInput = SyntheticInput(hal, "mic")
+        var micClock = DeviceClock()
+        micInput.play(micClock.run(seconds: 3), pace: .realTime, takeStartIn: url)
+        await until(limit: .seconds(3), "the disk watch did not tick") { studio.recordTimeLeft != nil }
+        try await Task.sleep(for: .milliseconds(500))
+        let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
+        let stopHost = hostNanosNow()
+        let stop = Task { try await studio.stopRecording() }
+        try await Task.sleep(for: .milliseconds(1500))
+        hal.releaseTaps()
+        try await stop.value
+        await micInput.wait()
+
+        let length = try #require(clips(studio, "t1").first?.length.count)
+        let expected = Int((Double(stopHost &- takeStart) / 1e9 * 48_000).rounded())
+        // The records lag the take start (the attach and the producer start), so the clip can be
+        // shorter; it never goes past the stop.
+        #expect(length > 0 && length <= expected + 12_000, "the device clip ends at the stop: \(length), \(expected)")
+    }
+
+    /// Code gate E1: the stop sets the end of the take on each writer first, so a device whose
+    /// finish waits (a held detach) writes no record after the stop.
+    @Test func aStopEndsADeviceClipWhileItsDetachWaits() async throws {
+        let hal = hal()
+        let studio = try await studio(hal)
+        try await studio.startRecording(armed: ["t1"], playhead: 0)
+        let micInput = SyntheticInput(hal, "mic")
+        var micClock = DeviceClock()
+        micInput.play(micClock.run(seconds: 3), pace: .realTime, takeStartIn: url)
+        await until(limit: .seconds(3), "no record") { (hal.current("mic")?.ring.isEmpty ?? true) == false }
+        try await Task.sleep(for: .milliseconds(500))
+        let gate = Gate()
+        hal.holdNextDetach(in: gate)
+        let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
+        let stopHost = hostNanosNow()
+        let stop = Task { try await studio.stopRecording() }
+        try await Task.sleep(for: .milliseconds(1500))
+        gate.open()
+        try await stop.value
+        await micInput.wait()
+
+        let length = try #require(clips(studio, "t1").first?.length.count)
+        let expected = Int((Double(stopHost &- takeStart) / 1e9 * 48_000).rounded())
+        #expect(length > 0 && length <= expected + 12_000, "no record after the stop: \(length), \(expected)")
+    }
+
     /// A5 (0006): the aggregate of a tap is private, starts its IO at once (auto start false),
     /// has drift compensation, and has the output of the app as its main sub-device.
     @Test func theAggregateStartsItsIOAtOnce() {
@@ -272,4 +332,9 @@ struct AppTakeTests {
         let guest = try #require(clips(studio, "t2").first?.length.count)
         #expect(abs(guest - 14_400) <= 1 && abs(host - 14_400) <= 1, "both clips end at 0.3 s: \(host), \(guest)")
     }
+}
+
+/// A flag that a main-actor task sets.
+@MainActor final class Done {
+    var value = false
 }

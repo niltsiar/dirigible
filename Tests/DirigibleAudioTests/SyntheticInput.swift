@@ -74,6 +74,7 @@ final class TestHAL: @unchecked Sendable {
     private var failingTeardown: String?
     private var attachDelays: [String: Duration] = [:]
     private var callLog: [String] = []
+    private var tapGate: DispatchSemaphore?
 
     /// A successful attach or a clean detach of one input.
     enum Event: Equatable {
@@ -113,6 +114,10 @@ final class TestHAL: @unchecked Sendable {
     /// A tap aggregate with the facts of `found`, or of its tap layout, and a teardown that logs
     /// its two steps. With `failTeardown("aggregate")` they return an error; every step runs.
     private func makeTap(_ found: AppFound) -> (id: AudioObjectID, device: InputDevice, teardown: Detach) {
+        // A held tap waits as an attach waits while the System Audio Recording prompt shows.
+        if let gate = lock.withLock({ tapGate }), gate.wait(timeout: .now() + 30) == .timedOut {
+            Issue.record("A held tap was not released in 30 s")
+        }
         let uid = found.device.uid
         let (id, layout) = lock.withLock {
             nextAggregate += 1
@@ -214,6 +219,18 @@ final class TestHAL: @unchecked Sendable {
     /// The teardown step that fails from now on: "detach" (the IOProc and the listeners) or
     /// "aggregate" or "tap" (the destroy of the tap aggregate or of the tap). Nil: every step returns noErr.
     func failTeardown(_ step: String?) { lock.withLock { failingTeardown = step } }
+
+    /// The next taps wait until `releaseTaps`, with a limit of 30 s: the prompt of a first take.
+    func holdTaps() { lock.withLock { tapGate = DispatchSemaphore(value: 0) } }
+
+    /// Lets the held taps go on, and stops holding new ones.
+    func releaseTaps() {
+        let gate = lock.withLock {
+            defer { tapGate = nil }
+            return tapGate
+        }
+        for _ in 0..<8 { gate?.signal() }
+    }
 
     /// Each attach of `uid` waits `delay` first: a device that is slow to start.
     func delayAttach(_ uid: String, by delay: Duration) { lock.withLock { attachDelays[uid] = delay } }

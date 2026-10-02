@@ -271,11 +271,11 @@ import Observation
         stopLive()
         diskWatcher?.cancel()
         diskWatcher = nil
+        // E1: the take ends now on every track, also while an app attach waits for the prompt.
+        let now = hostNanosNow()
+        for writer in writers.values { writer.end(atHostNanos: now) }
         let error = await serialized { () async -> StudioError? in
-            var gaps: [TrackID: TakeResult.Gap] = [:]
-            for writer in writers.values {
-                for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
-            }
+            let gaps = await finishWriters()
             let silent = await silentTracks()
             let dropped = armed.compactMap { track in
                 track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil

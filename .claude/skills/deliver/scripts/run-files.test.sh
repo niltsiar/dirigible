@@ -3,7 +3,7 @@
 # (--from), changes a tab in a field to a space, refuses a file with four lines and appends
 # nothing, keeps the six-argument form, and refuses a row whose decision or result starts with
 # default and whose why has no `Reverse:` (any case).
-# Check that new-run.sh reports the backlog sections.
+# Check that new-run.sh reports the backlog sections and the upkeep items.
 # Run by `make test-hooks`.
 set -uo pipefail
 log="$(cd "$(dirname "$0")" && pwd)/log-decision.sh"
@@ -100,6 +100,14 @@ printf '# Run 2026-01-01-old\n' > "$repo/.scratchpads/runs/2026-01-01-old/run.md
 (cd "$repo" && "$new_run" small > /dev/null 2> "$tmp/err") || fail "new-run with a short ## Next exits $?"
 grep -q 'Next' "$tmp/err" && fail "warning for a short ## Next: $(cat "$tmp/err")"
 grep -qx 'backlog: ## Later has 1 items' "$tmp/err" || fail "no Later count without a last count: $(cat "$tmp/err")"
+grep -qx 'upkeep items: 0' "$tmp/err" || fail "no upkeep count of 0: $(cat "$tmp/err")"
+grep -q 'warning' "$tmp/err" && fail "warning with no upkeep item: $(cat "$tmp/err")"
+
+# It counts the upkeep items of ## Next only, and warns at 3 or more (reflect rule 6).
+printf '# Backlog\n\n## Next\n\n- upkeep a: x\n- upkeep b: x\n- upkeep c: x\n\n## Later\n\n- upkeep d: x\n' > "$repo/.scratchpads/backlog.md"
+(cd "$repo" && "$new_run" upkeep > /dev/null 2> "$tmp/err") || fail "new-run with upkeep items exits $?"
+grep -qx 'upkeep items: 3' "$tmp/err" || fail "no upkeep count of 3: $(cat "$tmp/err")"
+grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 3 upkeep items: $(cat "$tmp/err")"
 
 [[ $failures -eq 0 ]] && echo "run-files tests: all passed"
 exit $((failures > 0))

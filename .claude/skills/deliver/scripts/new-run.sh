@@ -2,7 +2,7 @@
 # Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md, decisions.tsv, and logs/,
 # plus one line in .scratchpads/ledger.md. Running it again for the slug of an open run,
 # on any day, returns the same folder and changes nothing. It prints the backlog section sizes
-# on stderr.
+# and the upkeep items of ## Next on stderr.
 set -euo pipefail
 
 slug="${1:?usage: new-run.sh <slug>}"
@@ -45,6 +45,10 @@ if [[ -n "$prev" ]]; then
 else
     echo "backlog: ## Later has $later items" >&2
 fi
+# Reflect rule 6: with 3 or more upkeep items in ## Next, this run is a workflow upkeep run.
+upkeep="$(awk '/^## /{s=$0; next} s=="## Next" && /^- upkeep /{n++} END{print n+0}' "$backlog")"
+echo "upkeep items: $upkeep" >&2
+(( upkeep < 3 )) || echo "warning: $upkeep upkeep items wait; make this run a workflow upkeep run (reflect rule 6)" >&2
 
 [[ -f "$dir/decisions.tsv" ]] || printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$dir/decisions.tsv"
 [[ -f "$dir/run.md" ]] || cat > "$dir/run.md" <<MD

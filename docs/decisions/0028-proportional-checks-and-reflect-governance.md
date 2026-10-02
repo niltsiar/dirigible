@@ -35,14 +35,10 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 ### Review panel scale
 
-| Class | Review panel |
+| Run | Review panel |
 |---|---|
-| docs | The five-lens panel for a diff to `AGENTS.md`, `.claude/skills`, `.claude/agents`, or `docs/workflow`: 1 round and a fix check. Round 2 only on a critical item. Other docs paths: no panel. |
-| tooling, tests, bundle, build | The code-quality lens, 1 round. |
-| sources | Plan gate 1 round. Code gate 1 round and a fix check. Round 2 only on a critical item. |
-| sources-risk | Plan gate 2 rounds. Code gate 3 rounds. |
-
-A mixed change gets the union of the rows of its classes. The larger round count applies.
+| Small: `risk: no` | Amended 2026-10-02. Plan gate and code gate: 1 round of at most two lenses that match the classes. Round 2 only on a critical item. A fix check only with Act-on items. One agent runs Phases 1-4. |
+| `risk: yes` | Plan gate 2 rounds. Code gate 3 rounds, with the lenses of each class. |
 
 ### Word budgets
 

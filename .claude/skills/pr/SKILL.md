@@ -42,7 +42,7 @@ Put the evidence and the verdict in the body. `.scratchpads/` is local only, so 
 
 ## Sections
 
-Skip all preambles and keep prose brief. Use the user's domain language from `CONTEXT.md`.
+Skip all preambles and keep prose brief.
 
 ### Summary
 
@@ -68,13 +68,6 @@ submitForm
   navigateToSession
 ```
 
-- Show UI structure as a component tree, including state and module boundaries that matter:
-
-```tsx
-<SessionPage>(apps / example / src / routes / session.tsx);
-useSessionEvents() < SessionToolbar > <RunSkillButton>(packages / ui);
-```
-
 - Show file responsibility or a broad refactor as a shallow file tree:
 
 ```text
@@ -98,43 +91,6 @@ sequenceDiagram
 
 - Use `diff` when the point is what changes and the surrounding shape already exists. Match the diff shape to the topic.
 
-For a component change:
-
-```diff
- <SessionPage>
-   useSessionEvents()
-   <SessionToolbar>
-+    <RunSkillButton />
-   <SessionTimeline>
-+    <SkillResultCard />
-```
-
-For a file-layout change:
-
-```diff
- src/
- ├── commands/
-+│   └── show-me.ts       # expands the slash command
- ├── sessions/
--└── transport.ts
-+└── transport/
-+    ├── client.ts
-+    └── stream.ts
-```
-
-For a call-tree or call-stack change:
-
-```diff
- submitForm
-   createSession
-     persistPrompt
-+    expandSkillMention
-     launchAgent
--  navigateToSession
-+  navigateToSession
-+    subscribeToEvents
-```
-
 For a state or control-flow change:
 
 ```diff
@@ -146,20 +102,11 @@ For a state or control-flow change:
 +  invalidate cache
 ```
 
-- Show the whole block when most of it is new, when omitted context would hide ownership or order, or when the user needs a copyable target shape:
-
-```ts
-function expandSkill(command: string): string {
-  const skillName = command.slice(1);
-  return `use the ${skillName} skill`;
-}
-```
-
 #### Guidance
 
 Place each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries needed to answer the user's current question or the options to resolve the current discussion point.
 
-You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the user.
+Use one view, or a few. Do not use all of them.
 
 ### Evidence
 

@@ -1,8 +1,8 @@
 #!/bin/bash
 # Check each line that cost.sh prints for a fixture run folder: the phase blocks of decisions.tsv,
 # the check and bench logs and their repeats, the controls, the late on-screen findings, the
-# missed unknowns, the friction rows, the agents and the idle gaps of a transcript, and the pace
-# lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a folder with
+# missed unknowns, the friction rows, the run window, the agents and the idle gaps of a transcript
+# in that window, and the pace lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a folder with
 # no logs/ and no controls/. Check that
 # scripts/bench.sh prints its bench line before the build. Run by `make test-hooks`.
 set -uo pipefail
@@ -55,11 +55,13 @@ touch -t 202609200800 "$run"
 transcript="$tmp/t.jsonl"
 cat > "$transcript" <<'EOF'
 {"type":"mode","mode":"normal"}
-{"type":"user","timestamp":"2026-09-20T08:00:00.000Z","message":{"role":"user","content":"go"}}
-{"type":"assistant","timestamp":"2026-09-20T08:01:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}
-{"type":"assistant","timestamp":"2026-09-20T08:02:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}},{"type":"tool_use","name":"Bash","input":{}}]}}
-{"type":"user","timestamp":"2026-09-20T08:14:00.000Z","message":{"role":"user","content":[{"type":"tool_result","content":"ok"}]}}
-{"type":"assistant","timestamp":"2026-09-20T08:15:30.000Z","message":{"content":[{"type":"text","text":"Agent"},{"type":"tool_use","name":"Agent","input":{}}]}}
+{"type":"assistant","timestamp":"2026-09-20T08:10:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}
+{"type":"user","timestamp":"2026-09-20T08:21:00.000Z","message":{"role":"user","content":"go"}}
+{"type":"assistant","timestamp":"2026-09-20T08:22:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}
+{"type":"assistant","timestamp":"2026-09-20T08:23:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}},{"type":"tool_use","name":"Bash","input":{}}]}}
+{"type":"user","timestamp":"2026-09-20T08:35:00.000Z","message":{"role":"user","content":[{"type":"tool_result","content":"ok"}]}}
+{"type":"assistant","timestamp":"2026-09-20T08:36:30.000Z","message":{"content":[{"type":"text","text":"Agent"},{"type":"tool_use","name":"Agent","input":{}}]}}
+{"type":"assistant","timestamp":"2026-09-20T12:00:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}
 EOF
 
 bin="$tmp/bin"
@@ -94,6 +96,7 @@ controls: 3 written, 2 replayed
 late on-screen: 1
 missed unknowns: 1
 friction: 4
+window: 2026-09-20T08:20 to 2026-09-20T11:30
 agents: 3
 idle: 12 min in 1 gaps over 5 min
 pace: 2026-09-20-fixture open to merge 4.0 h
@@ -133,6 +136,16 @@ for line in 'checks: no logs folder' 'benches: no logs folder, 0 pairs sets' 'co
   grep -qxF -- "$line" <<<"$out" || fail "no logs and no controls: no line '$line' in: $out"
 done
 grep -q '^pace: merges per day ' <<<"$out" || fail "no logs and no controls: no pace line: $out"
+
+# The run window is in epoch seconds: the transcript is in UTC, the run times are local. The window
+# is 08:20 to 11:30 local: 08:20Z to 11:30Z under UTC, 06:20Z to 09:30Z under UTC+2, so the 10:00Z
+# record counts only under UTC.
+printf '%s\n' '{"type":"assistant","timestamp":"2026-09-20T08:30:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}' \
+  '{"type":"assistant","timestamp":"2026-09-20T10:00:00.000Z","message":{"content":[{"type":"tool_use","name":"Agent","input":{}}]}}' > "$tmp/tz.jsonl"
+for zone in UTC:2 Etc/GMT-2:1; do
+  out="$(cd "$tmp" && TZ="${zone%:*}" PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tmp/tz.jsonl" 2>&1)"
+  grep -qx "agents: ${zone#*:}" <<<"$out" || fail "run window in TZ ${zone%:*}: want agents: ${zone#*:}: $(grep '^agents' <<<"$out")"
+done
 
 out="$("$cost" 2>&1)"
 code=$?

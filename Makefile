@@ -80,6 +80,7 @@ test-hooks:
 	scripts/bundle.test.sh
 	scripts/check-changed.test.sh
 	scripts/check-stamp.test.sh
+	scripts/evals-for.test.sh
 	scripts/test-filter.test.sh
 	scripts/check-plan.test.sh
 	.claude/skills/deliver/scripts/replay-list.test.sh

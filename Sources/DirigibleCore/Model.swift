@@ -49,6 +49,55 @@ public struct Gain: Hashable, Sendable, CustomStringConvertible {
     public var description: String { "\(dB) dB" }
 }
 
+/// The fade lengths of a clip (decision 0035). Each length is in `0...Frames.limit`, so a sum
+/// cannot overflow. `Session.check` keeps fadeIn + fadeOut <= the clip length.
+public struct Fades: Hashable, Sendable {
+    public enum Edge: Sendable { case start, end }
+
+    public let fadeIn: Frames
+    public let fadeOut: Frames
+
+    public static let zero = Fades(fadeIn: .zero, fadeOut: .zero)!
+
+    /// Nil for a negative length or a length over `Frames.limit`.
+    public init?(fadeIn: Frames, fadeOut: Frames) {
+        guard fadeIn.isInRange, fadeOut.isInRange else { return nil }
+        self.fadeIn = fadeIn
+        self.fadeOut = fadeOut
+    }
+
+    /// The one curve, for the clip frame `frame` of a clip of `length` frames. Fade-in frame k:
+    /// sin(pi/2 * k / I). Fade-out: sin(pi/2 * (N - k) / O), that is cos(pi/2 * j / O) from the
+    /// fade-out start. 1 outside the fades.
+    public func gain(at frame: Frames, length: Frames) -> Double {
+        var gain = 1.0
+        if frame < fadeIn { gain *= sin(.pi / 2 * Double(frame.count) / Double(fadeIn.count)) }
+        let left = length - frame
+        if left <= fadeOut { gain *= sin(.pi / 2 * Double(left.count) / Double(fadeOut.count)) }
+        return gain
+    }
+
+    /// The fade of `edge` stays, clamped to `length`; the other fade yields to the rest.
+    public func fitted(to length: Frames, keeping edge: Edge) -> Fades {
+        switch edge {
+        case .start:
+            let fadeIn = min(fadeIn, length)
+            return Fades(fadeIn: fadeIn, fadeOut: min(fadeOut, length - fadeIn))!
+        case .end:
+            let fadeOut = min(fadeOut, length)
+            return Fades(fadeIn: min(fadeIn, length - fadeOut), fadeOut: fadeOut)!
+        }
+    }
+
+    /// A cut part keeps only the fade of an edge of `clip` that it keeps, fitted to its length.
+    func cut(_ part: Range<Frames>, of clip: Range<Frames>) -> Fades {
+        let fades = Fades(
+            fadeIn: part.lowerBound == clip.lowerBound ? fadeIn : .zero,
+            fadeOut: part.upperBound == clip.upperBound ? fadeOut : .zero)!
+        return fades.fitted(to: part.upperBound - part.lowerBound, keeping: fades.fadeIn > .zero ? .start : .end)
+    }
+}
+
 public enum ChannelLayout: String, Sendable {
     case mono, stereo
 
@@ -159,14 +208,20 @@ public struct Clip: Identifiable, Hashable, Sendable {
     public var offset: Frames
     public var length: Frames
     public var gain: Gain
+    /// `Session.check` keeps fadeIn + fadeOut <= length (decision 0035).
+    public var fades: Fades
 
-    public init(id: ClipID, file: FileID, start: Frames, offset: Frames, length: Frames, gain: Gain = .zero) {
+    public init(
+        id: ClipID, file: FileID, start: Frames, offset: Frames, length: Frames, gain: Gain = .zero,
+        fades: Fades = .zero
+    ) {
         self.id = id
         self.file = file
         self.start = start
         self.offset = offset
         self.length = length
         self.gain = gain
+        self.fades = fades
     }
 
     public var end: Frames { start + length }

@@ -34,9 +34,9 @@ func posixCode(of error: any Error) -> Int32 {
 let sessionNamespace = "https://github.com/niltsiar/dirigible/session"
 /// The folder of the clip files in a package (decision 0003).
 package let clipsFolderName = "Clips"
-/// The newest `session.xml` version that this build reads (decision 0029). A save writes
+/// The newest `session.xml` version that this build reads (decision 0035). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 2
+package let sessionVersion = 3
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -156,11 +156,14 @@ extension Session {
             case .app(let bundleID): node.addChild(element("route", ("app", bundleID)))
             }
             for clip in track.clips {
-                node.addChild(
-                    element(
-                        "clip", ("id", clip.id.rawValue), ("file", clip.file.rawValue),
-                        ("start", clip.start.description), ("offset", clip.offset.description),
-                        ("length", clip.length.description), ("gain", text(clip.gain.dB))))
+                let clipNode = element(
+                    "clip", ("id", clip.id.rawValue), ("file", clip.file.rawValue),
+                    ("start", clip.start.description), ("offset", clip.offset.description),
+                    ("length", clip.length.description), ("gain", text(clip.gain.dB)))
+                // A fade of 0 is not written, so a clip with no fade keeps its version 1 text (0035).
+                if clip.fades.fadeIn != .zero { add(("fadeIn", clip.fades.fadeIn.description), to: clipNode) }
+                if clip.fades.fadeOut != .zero { add(("fadeOut", clip.fades.fadeOut.description), to: clipNode) }
+                node.addChild(clipNode)
             }
             trackList.addChild(node)
         }

@@ -59,7 +59,8 @@ extension Session {
             for clip in lane.clips {
                 let placed = Clip(
                     id: Self.derivedID(of: clip.id, at: start + clip.start, taken: &taken), file: clip.file,
-                    start: start + clip.start, offset: clip.offset, length: clip.length, gain: clip.gain)
+                    start: start + clip.start, offset: clip.offset, length: clip.length, gain: clip.gain,
+                    fades: clip.fades)
                 try check(placed, on: self.tracks[index])
                 clips.append(placed)
             }

@@ -87,6 +87,51 @@ struct ClipCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// Fades C8 (decision 0035): `clip fade` sets both fades and saves version 3; `info` shows them,
+    /// and `info --json` leaves out a fade of 0.
+    @Test func fadeSetsBothFades() async throws {
+        try package.edit {
+            try $0.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 2000), on: "host")
+            try $0.place(Clip(id: "c2", file: "f1", start: 3000, offset: 3000, length: 1000), on: "host")
+        }
+        #expect(try await package.run("clip", "fade", "PKG", "--clip", "c1", "--in", "480", "--out", "960") == silent)
+        #expect(try clips("host").first?.fades == Fades(fadeIn: 480, fadeOut: 960))
+        #expect(String(decoding: try package.xml(), as: UTF8.self).contains(#"version="3""#), "saved as version 3")
+
+        let text = try await package.run("info", "PKG").stdout
+        #expect(text.contains("  clip c1 file f1 start 0 offset 0 length 2000 0.0 dB fade in 480, out 960\n"))
+        #expect(text.contains("  clip c2 file f1 start 3000 offset 3000 length 1000 0.0 dB\n"), "no fade, no text")
+
+        let json = try await package.run("info", "PKG", "--json").stdout
+        let object = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        let tracks = try #require(object?["tracks"] as? [[String: Any]])
+        let host = try #require(tracks.first?["clips"] as? [[String: Any]])
+        #expect(host[0]["fadeIn"] as? Int == 480 && host[0]["fadeOut"] as? Int == 960, "c1 fades in the JSON")
+        #expect(host[1]["fadeIn"] == nil && host[1]["fadeOut"] == nil, "a fade of 0 is left out")
+
+        #expect(try await package.run("clip", "fade", "PKG", "--clip", "c2", "--in", "0", "--out", "5") == silent)
+        let json2 = try await package.run("info", "PKG", "--json").stdout
+        let clips2 = (try JSONSerialization.jsonObject(with: Data(json2.utf8)) as? [String: Any])
+            .flatMap { ($0["tracks"] as? [[String: Any]])?.first?["clips"] as? [[String: Any]] }
+        #expect(clips2?[1]["fadeIn"] == nil && clips2?[1]["fadeOut"] as? Int == 5, "only fadeOut")
+
+        let before = try package.xml()
+        let cases: [([String], String)] = [
+            (
+                ["--clip", "c2", "--in", "600", "--out", "500"],
+                "the fades of clip \"c2\" do not fit: fadeIn + fadeOut <= 1000."
+            ),
+            (["--clip", "c9", "--in", "0", "--out", "0"], "no clip \"c9\"."),
+            (["--clip", "c1", "--in", "-1", "--out", "0"], "a frame is negative or more than 2^40."),
+        ]
+        for (arguments, message) in cases {
+            #expect(
+                try await package.run(["clip", "fade", "PKG"] + arguments)
+                    == CLIResult(status: 1, stdout: "", stderr: "Error: \(message)\n"))
+        }
+        #expect(try package.xml() == before, "a refused fade changes nothing")
+    }
+
     /// `Range` traps when the lower bound is above the upper bound, so the CLI refuses it first.
     @Test(arguments: [
         ["clip", "clear", "PKG", "--track", "host", "--from", "200", "--to", "100"],

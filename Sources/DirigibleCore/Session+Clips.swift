@@ -54,16 +54,19 @@ extension Session {
     }
 
     /// Gives the clip a new timeline range. The file offset follows the start. The clip does not
-    /// grow into a neighbor.
+    /// grow into a neighbor. The fade of the edge that does not move stays; the other fade yields
+    /// (decision 0035). When both edges move, the fade-in stays.
     public mutating func trim(_ id: ClipID, to range: Range<Frames>) throws(SessionError) {
         let (track, index) = try position(of: id)
         let clip = tracks[track].clips[index]
         guard range.lowerBound.isInRange else { throw .frameOutOfRange }
         let offset = clip.offset + (range.lowerBound - clip.start)
         guard offset >= .zero else { throw .clipOutsideFile(id) }
+        let length = range.upperBound - range.lowerBound
+        let kept: Fades.Edge = range.lowerBound != clip.start && range.upperBound == clip.end ? .end : .start
         let trimmed = Clip(
-            id: id, file: clip.file, start: range.lowerBound, offset: offset,
-            length: range.upperBound - range.lowerBound, gain: clip.gain)
+            id: id, file: clip.file, start: range.lowerBound, offset: offset, length: length, gain: clip.gain,
+            fades: clip.fades.fitted(to: length, keeping: kept))
         try check(trimmed, on: tracks[track])
         if let neighbor = tracks[track].clips.clips(overlapping: trimmed.range).first(where: { $0.id != id }) {
             throw .overlap(id, neighbor.id)
@@ -76,6 +79,27 @@ extension Session {
         var clip = tracks[track].clips[index]
         clip.gain = gain
         tracks[track].clips.replace(at: index, with: clip)
+    }
+
+    /// Sets the fades of each clip in one pass over the lanes (decision 0035). Each clip passes
+    /// `check`. An unknown ID throws `.unknownClip`. A throw changes nothing.
+    public mutating func setFades(_ fades: [ClipID: Fades]) throws(SessionError) {
+        var lanes = tracks
+        var found = 0
+        for track in lanes.indices {
+            for index in lanes[track].clips.indices {
+                guard let new = fades[lanes[track].clips[index].id] else { continue }
+                var clip = lanes[track].clips[index]
+                clip.fades = new
+                try check(clip, on: lanes[track])
+                lanes[track].clips.replace(at: index, with: clip)
+                found += 1
+            }
+        }
+        if found < fades.count, let missing = fades.keys.sorted().first(where: { clip($0) == nil }) {
+            throw .unknownClip(missing)
+        }
+        tracks = lanes
     }
 
     /// Sets the clips of a track from a file: checks each clip and refuses two clips that overlap.
@@ -96,6 +120,9 @@ extension Session {
         guard let file = files[clip.file] else { throw .unknownFile(clip.file) }
         guard file.layout == track.layout else { throw .layoutMismatch(track.id, .file(file.id)) }
         guard clip.length > .zero, clip.length <= file.length - clip.offset else { throw .clipOutsideFile(clip.id) }
+        guard clip.fades.fadeIn + clip.fades.fadeOut <= clip.length else {
+            throw .fadeOutsideClip(clip.id, length: clip.length)
+        }
     }
 
     private func position(of id: ClipID) throws(SessionError) -> (track: Int, index: Int) {

@@ -32,6 +32,16 @@ struct ChangedFramesTests {
         #expect(changedFrames(from: session, to: moved)?.lanes == 0..<2, "the rows of t1 and t2")
     }
 
+    /// Fades C7 (decision 0035): a fade change redraws the frames of its clip on its lane only.
+    @Test func aFadeChangeRedrawsItsClip() throws {
+        let session = try Fixture.session()
+        var faded = session
+        try faded.setFades(["B": Fades(fadeIn: 4_800, fadeOut: 0)!])
+
+        #expect(changedFrames(from: session, to: faded)?.frames == 144_000..<192_000, "the frames of B")
+        #expect(changedFrames(from: session, to: faded)?.lanes == 0..<1, "the rows of t1 only")
+    }
+
     @Test func aChangeOutsideTheClipsRedrawsAll() throws {
         let session = try Fixture.session()
         var gain = session

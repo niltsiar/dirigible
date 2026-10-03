@@ -380,7 +380,7 @@ enum L10n: String, CaseIterable {
         // The window never makes these edits: they are bugs, not user errors.
         case .duplicateID, .unknownCapture, .unknownFile, .unknownTrack, .unknownClip, .unknownMarker,
             .captureInUse, .invalidCapture, .fileInUse, .invalidRoute, .invalidPath, .frameOutOfRange,
-            .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip:
+            .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip:
             return errorSessionOther.text
         }
     }

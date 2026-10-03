@@ -1,4 +1,5 @@
 import DirigibleCore
+import Foundation
 import Testing
 
 /// Clip edits with literal frames. A file "f1" of 100 000 frames, a mono track "t1".
@@ -220,5 +221,79 @@ struct ClipEditTests {
         try session.setGain(Gain(dB: 4)!, clip: "c1")
         #expect(lane("t1").first?.gain == Gain(dB: 4))
         #expect(throws: SessionError.unknownClip("c9")) { try session.setGain(.zero, clip: "c9") }
+    }
+
+    // MARK: Fades (decision 0035)
+
+    func fades(_ id: ClipID) -> Fades? { session.clip(id)?.clip.fades }
+
+    /// The curve: a quarter sine in, its mirror out, 1 outside the fades.
+    @Test func theFadeGainFollowsTheQuarterSine() throws {
+        let fades = try #require(Fades(fadeIn: 480, fadeOut: 960))
+        let gain = { (k: Int) in fades.gain(at: Frames(k), length: 4_800) }
+        #expect(gain(0) == 0, "the first frame of a fade-in is 0")
+        #expect(abs(gain(240) - 0.707_106_78) < 1e-8, "half the fade-in is -3 dB")
+        #expect(gain(480) == 1 && gain(2_000) == 1, "1 between the fades")
+        #expect(abs(gain(3_840) - 1) < 1e-12, "the first frame of the fade-out is 1")
+        #expect(abs(gain(4_799) - sin(Double.pi / 2 / 960)) < 1e-12, "the last frame is sin(pi/2 / O)")
+        #expect(abs(gain(4_320) - 0.707_106_78) < 1e-8, "half the fade-out is -3 dB")
+        #expect(Fades.zero.gain(at: 0, length: 10) == 1, "no fade is 1")
+    }
+
+    /// Fades C4: the edit checks fadeIn + fadeOut <= length, and the batch is atomic.
+    @Test mutating func setFadesChecksTheInvariant() throws {
+        try session.place(clip("c1", start: 0, length: 1_000), on: "t1")
+        try session.place(clip("c2", start: 0, length: 1_000), on: "t2")
+        try session.setFades(["c1": Fades(fadeIn: 400, fadeOut: 600)!])
+        #expect(fades("c1") == Fades(fadeIn: 400, fadeOut: 600), "= length passes")
+
+        let before = session
+        #expect(throws: SessionError.fadeOutsideClip("c2", length: 1_000), "length + 1 is refused") {
+            try session.setFades(["c1": .zero, "c2": Fades(fadeIn: 400, fadeOut: 601)!])
+        }
+        #expect(throws: SessionError.unknownClip("c9"), "an unknown clip is refused") {
+            try session.setFades(["c1": .zero, "c9": .zero])
+        }
+        #expect(session == before, "a refused batch changes nothing")
+        #expect(Fades(fadeIn: -1, fadeOut: 0) == nil && Fades(fadeIn: 0, fadeOut: -1) == nil, "-1 is refused")
+        #expect(Fades(fadeIn: Frames.limit + 1, fadeOut: 0) == nil, "over the limit is refused")
+        #expect(Fades(fadeIn: Frames.limit, fadeOut: Frames.limit) != nil, "the limit passes")
+    }
+
+    /// Fades C6: a clip of 1 000 frames with (300, 500). An edit keeps the fade of a kept edge; the
+    /// fade of a moved or new edge yields.
+    @Test(arguments: [
+        ("split at 400", ["a": Fades(fadeIn: 300, fadeOut: 0)!, "a@1400": Fades(fadeIn: 0, fadeOut: 500)!]),
+        ("clear 400..<600", ["a": Fades(fadeIn: 300, fadeOut: 0)!, "a@1600": Fades(fadeIn: 0, fadeOut: 400)!]),
+        ("trim end to 600", ["a": Fades(fadeIn: 300, fadeOut: 300)!]),
+        ("trim end to 900", ["a": Fades(fadeIn: 300, fadeOut: 500)!]),
+        ("trim start to 600", ["a": Fades(fadeIn: 100, fadeOut: 500)!]),
+        ("extend", ["a": Fades(fadeIn: 300, fadeOut: 500)!]),
+        ("move", ["a": Fades(fadeIn: 300, fadeOut: 500)!]),
+        ("nudge", ["a": Fades(fadeIn: 300, fadeOut: 500)!]),
+        (
+            "excerpt 0..<400 and paste",
+            ["a": Fades(fadeIn: 300, fadeOut: 500)!, "a@5000": Fades(fadeIn: 300, fadeOut: 0)!]
+        ),
+    ])
+    func editsKeepTheFadeOfAKeptEdge(edit: String, expected: [ClipID: Fades]) throws {
+        var session = self.session
+        try session.place(clip("a", start: 1_000, offset: 1_000, length: 1_000), on: "t1")
+        try session.setFades(["a": Fades(fadeIn: 300, fadeOut: 500)!])
+        switch edit {
+        case "split at 400": try session.split("a", at: 1_400)
+        case "clear 400..<600": try session.clear(1_400..<1_600, on: "t1")
+        case "trim end to 600": try session.trim("a", to: 1_000..<1_600)
+        case "trim end to 900": try session.trim("a", to: 1_000..<1_900)
+        case "trim start to 600": try session.trim("a", to: 1_400..<2_000)
+        case "extend": try session.trim("a", to: 500..<2_500)
+        case "move": try session.move("a", to: "t2", start: 3_000)
+        case "nudge": try session.nudge(["a"], by: 480)
+        default:
+            let excerpt = try session.excerpt(of: 1_000..<1_400, on: ["t1"])
+            try session.paste(excerpt, at: 5_000, on: ["t1"])
+        }
+        let found = Dictionary(uniqueKeysWithValues: session.tracks.flatMap(\.clips).map { ($0.id, $0.fades) })
+        #expect(found == expected, "\(edit)")
     }
 }

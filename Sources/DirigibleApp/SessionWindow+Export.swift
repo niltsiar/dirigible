@@ -110,11 +110,13 @@ extension SessionWindow {
         recordRefusal = nil
         exportReport = nil
         defer { recordRefusal = nil }
+        // The file has the session of the export start: an edit during the export does not match it.
+        let revision = studio.sessionRevision
         do throws(StudioError) {
             let result = try await studio.export(source, target.options, to: target.url, replacing: target.confirmed)
             if result.faults.isEmpty {
                 exportReport = result.loudness.map {
-                    ExportReportShown(report: $0, file: target.url.lastPathComponent, revision: studio.sessionRevision)
+                    ExportReportShown(report: $0, file: target.url.lastPathComponent, revision: revision)
                 }
             } else {
                 alert = .exported(paths(of: result.faults, in: studio.session), result.loudness)

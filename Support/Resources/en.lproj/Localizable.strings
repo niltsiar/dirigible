@@ -246,6 +246,7 @@
 "report.peak" = "true peak %.1f dBTP";
 "report.peak.none" = "no true peak (silence)";
 "report.gain" = "gain %+.1f dB";
+"report.gain.large" = "The gain is more than 20 dB: check that the selection has speech.";
 "banner.kind.warning" = "Warning";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Information";

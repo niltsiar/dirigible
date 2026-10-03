@@ -192,6 +192,7 @@ enum L10n: String, CaseIterable {
     case reportPeak = "report.peak"
     case reportPeakNone = "report.peak.none"
     case reportGain = "report.gain"
+    case reportGainLarge = "report.gain.large"
     case bannerKindWarning = "banner.kind.warning"
     case bannerKindError = "banner.kind.error"
     case bannerKindInfo = "banner.kind.info"
@@ -339,6 +340,11 @@ enum L10n: String, CaseIterable {
             report.truePeak.map { reportPeak.format($0) } ?? reportPeakNone.text,
             reportGain.format(report.gain.dB),
         ].joined(separator: ", ")
+    }
+
+    /// The sentence after the report of a gain over the auto-level limit. Empty for a usual gain.
+    static func largeGainHint(for report: LoudnessReport) -> String {
+        report.exceedsLevelLimit ? " " + reportGainLarge.text : ""
     }
 
     /// The text of a stop of playback that the user did not ask for.

@@ -164,7 +164,9 @@ extension WindowAlert {
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text
         case .exported(let paths, let report):
             L10n.alertExported.format(paths.joined(separator: "\n"))
-                + (report.map { "\n\n" + L10n.alertExportedLoudness.format(L10n.message(for: $0)) } ?? "")
+                + (report.map {
+                    "\n\n" + L10n.alertExportedLoudness.format(L10n.message(for: $0)) + L10n.largeGainHint(for: $0)
+                } ?? "")
         }
     }
 }

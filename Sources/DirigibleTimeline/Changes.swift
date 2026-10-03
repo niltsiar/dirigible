@@ -3,7 +3,7 @@ import Foundation
 
 /// The frames and the lanes where the clips or the markers of `new` differ from those of `old`:
 /// from the start of the first changed clip to the end of the last one, with the unchanged lane
-/// neighbor that touches an old or a new changed clip (its fade handle depends on the butt join),
+/// neighbor whose join to a changed clip comes or goes at an edge with no fade (its fade handle),
 /// on the first to the last changed lane, and the old and the new frame of each changed marker
 /// (its line crosses every lane). Nil when another value that the lanes draw differs: the tracks, their gain or layout, or
 /// the files (the labels). So a drag event redraws the boxes and lines that it changed, not the
@@ -39,14 +39,19 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         guard var start = [before.first?.start, after.first?.start].compactMap({ $0 }).min(),
             var end = [before.last?.end, after.last?.end].compactMap({ $0 }).max()
         else { continue }
-        // The unchanged neighbors: the clip just before the run and the clip just after it.
+        // The unchanged neighbors just before and after the run: a fade handle of an edge with no
+        // fade shows only with no join, so a join that comes or goes redraws that neighbor.
         if head > 0 {
             let left = y[y.startIndex + head - 1]
-            if [before.first, after.first].contains(where: { $0?.start == left.end }) { start = left.start }
+            if left.fades.fadeOut == .zero, (before.first?.start == left.end) != (after.first?.start == left.end) {
+                start = left.start
+            }
         }
         if tail > 0 {
             let right = y[y.endIndex - tail]
-            if [before.last, after.last].contains(where: { $0?.end == right.start }) { end = right.end }
+            if right.fades.fadeIn == .zero, (before.last?.end == right.start) != (after.last?.end == right.start) {
+                end = right.end
+            }
         }
         add(start, end, lanes: lane..<lane + 1)
     }

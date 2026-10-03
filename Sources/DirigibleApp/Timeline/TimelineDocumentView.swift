@@ -18,8 +18,6 @@ final class TimelineDocumentView: NSView {
     let playhead = CALayer()
     /// The value of a gain or fade-handle drag at the pointer (run 11b-1).
     let readout = ReadoutLayer()
-    /// The document point of the last mouse-down or drag event: the readout follows it.
-    private var pointer = NSPoint.zero
     /// The live take comes from here at each draw (`LiveLanes`). Weak, as in the scroll view.
     weak var studio: Studio?
     /// The record head of the last live tick. Nil when no take records or finalizes.
@@ -315,11 +313,11 @@ final class TimelineDocumentView: NSView {
         gain == .zero ? name : "\(name)  \(ReadoutLayer.decibels(gain, locale: locale)) dB"
     }
 
-    /// Shows `value` at the pointer, or hides the readout when it is nil.
-    func showReadout(_ value: GestureReadout?) {
+    /// Shows `value` at the document point `point`, or hides the readout when it is nil.
+    func showReadout(_ value: GestureReadout?, at point: NSPoint) {
         // The lanes that the user sees: the clip view goes under the rulers.
         let shown = (scrollView?.shown ?? visibleRect).intersection(bounds)
-        readout.show(value, at: pointer, in: shown, rate: inputs?.session.sampleRate ?? 48_000, view: self)
+        readout.show(value, at: point, in: shown, rate: inputs?.session.sampleRate ?? 48_000, view: self)
     }
 
     // MARK: Mouse
@@ -335,7 +333,6 @@ final class TimelineDocumentView: NSView {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         let flags = event.modifierFlags
-        pointer = convert(event.locationInWindow, from: nil)
         scrollView?.mouse(
             .down(
                 place(event), shift: flags.contains(.shift), command: flags.contains(.command),
@@ -344,7 +341,6 @@ final class TimelineDocumentView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        pointer = convert(event.locationInWindow, from: nil)
         scrollView?.mouse(.drag(place(event)))
         scrollView?.dragPointer = (event.locationInWindow, ruler: false)
         showCursor(event)

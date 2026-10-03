@@ -130,6 +130,25 @@ import Testing
         await model.close()
     }
 
+    /// Code gate K2: during the autoscroll of a fade-handle drag the readout stays at the pointer,
+    /// past the right edge of the lanes in view, while the lanes scroll under it.
+    @Test func theReadoutFollowsThePointerDuringAutoscroll() async throws {
+        let (model, _, window, view) = try await lanes()
+        view.viewWillMove(toWindow: nil)
+        try send(.leftMouseDown, view, 204, 4)
+        let edge = Double(view.shown.maxX)
+        try send(.leftMouseDragged, view, edge + 40, 4)
+
+        for n in 0..<30 { view.autoscrollTick(at: 100 + Double(n) / 60) }
+
+        #expect(view.origin / 512 > 100, "the lanes scrolled")
+        #expect(readout(view) == text(.fade(.start, view.lanes.inputs?.session.clip("c1")?.clip.fades.fadeIn ?? 0)))
+        #expect(abs(view.lanes.readout.frame.maxX - view.shown.maxX) <= 1, "\(view.lanes.readout.frame)")
+        try send(.leftMouseUp, view, edge + 40, 4)
+        window.close()
+        await model.close()
+    }
+
     /// A gain drag event redraws the columns of c1 only (x 200 to 300 with 1 pt on each side), and
     /// a mouse move over the handles and the line renders nothing.
     @Test func aGainDragRedrawsOnlyItsClip() async throws {

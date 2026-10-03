@@ -3,7 +3,8 @@ import Accelerate
 import DirigibleCore
 
 /// Renders the mix of a session (decision 0016): stereo float32, non-interleaved, at the session
-/// rate. Clip gain plus track gain in dB is one linear factor. A mono clip goes to both channels,
+/// rate. Clip gain plus track gain in dB is one linear factor, times the fade factor of decision
+/// 0035. A mono clip goes to both channels,
 /// a stereo clip left to left and right to right (0007). Where no clip or no media is, the mix is
 /// silence. One owner, not Sendable: the Player or the command-line render. It keeps at most
 /// `openLimit` files open and closes the least recently used one, so a session with many files
@@ -28,6 +29,8 @@ final class MixReader {
     /// The files that did not open. They hold no descriptor.
     private var failed: Set<FileID> = []
     private var scratch: [AVAudioFormat: AVAudioPCMBuffer] = [:]
+    /// The fade envelope of one clip part. It grows only for a longer part.
+    private var envelope: [Float] = []
     /// Opens a pool file. Tests give one that throws EMFILE.
     private let openFile: MediaOpen
 
@@ -52,12 +55,28 @@ final class MixReader {
                 }
                 var gain = Float(pow(10, (clip.gain.dB + track.gain.dB) / 20))
                 let target = part.lowerBound.count - range.lowerBound.count
-                let frames = vDSP_Length(read.frameLength)
+                let count = Int(read.frameLength)
+                let frames = vDSP_Length(count)
                 let last = Int(read.format.channelCount) - 1
+                // The clip frame of the part start. Only a part with a frame in a fade reads the envelope.
+                let first = part.lowerBound - clip.start
+                let faded = clip.fades.fadeIn > first || clip.fades.fadeOut > clip.length - first - Frames(count)
+                if faded {
+                    if envelope.count < count { envelope = [Float](repeating: 0, count: count) }
+                    envelope.withUnsafeMutableBufferPointer {
+                        fadeEnvelope(
+                            clip.fades, length: clip.length, from: first, gain: gain,
+                            into: .init(rebasing: $0[..<count]))
+                    }
+                }
                 for channel in 0..<2 {
                     let source = read.floatChannelData![min(channel, last)]
                     let destination = out[channel] + target
-                    vDSP_vsma(source, 1, &gain, destination, 1, destination, 1, frames)
+                    if faded {
+                        vDSP_vma(source, 1, envelope, 1, destination, 1, destination, 1, frames)
+                    } else {
+                        vDSP_vsma(source, 1, &gain, destination, 1, destination, 1, frames)
+                    }
                 }
             }
         }
@@ -108,4 +127,41 @@ final class MixReader {
             return nil
         }
     }
+}
+
+/// Fills `envelope` with `gain` times the fade factor of the clip frames `from ..< from +
+/// envelope.count` of a clip of `length` frames (decision 0035). In each fade it ramps the frame
+/// index from an `Int` start, then scales it, so no clip frame above 2^24 becomes a Float (probe
+/// B1: 1.3e-7 or less). A frame is in at most one fade, because fadeIn + fadeOut <= length.
+func fadeEnvelope(
+    _ fades: Fades, length: Frames, from: Frames, gain: Float, into envelope: UnsafeMutableBufferPointer<Float>
+) {
+    guard let base = envelope.baseAddress else { return }
+    var level = gain
+    vDSP_vfill(&level, base, 1, vDSP_Length(envelope.count))
+    let end = from.count + envelope.count
+    // The fade-in: index k for the frames from ..< I.
+    let inEnd = min(end, fades.fadeIn.count)
+    if from.count < inEnd {
+        sineRamp(base, count: inEnd - from.count, start: from.count, step: 1, fade: fades.fadeIn, gain: gain)
+    }
+    // The fade-out: index N - k, from O down to 1, for the frames N - O ..< N.
+    let outStart = max(from.count, length.count - fades.fadeOut.count)
+    if outStart < end {
+        sineRamp(
+            base + (outStart - from.count), count: end - outStart, start: length.count - outStart, step: -1,
+            fade: fades.fadeOut, gain: gain)
+    }
+}
+
+/// Writes gain * sin(pi/2 * index / fade) for index = start, start + step, and so on.
+private func sineRamp(
+    _ out: UnsafeMutablePointer<Float>, count: Int, start: Int, step: Float, fade: Frames, gain: Float
+) {
+    var (first, step, scale, gain) = (Float(start), step, Float(Double.pi / 2 / Double(fade.count)), gain)
+    let frames = vDSP_Length(count)
+    vDSP_vramp(&first, &step, out, 1, frames)
+    vDSP_vsmul(out, 1, &scale, out, 1, frames)
+    vvsinf(out, out, [Int32(count)])
+    vDSP_vsmul(out, 1, &gain, out, 1, frames)
 }

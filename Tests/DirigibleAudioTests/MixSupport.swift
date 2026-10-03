@@ -82,6 +82,29 @@ final class MixPackage {
     }
 }
 
+/// The fades fixture (decision 0035): track t1 with a DC 0.25 clip at 0..<7000 and no fade, then
+/// track t2 with a DC 0.5 clip "c1" at 1000, length 4800, fadeIn 480, and fadeOut 960. The plain
+/// clip first in the chunk catches an envelope that scales the sum, not the clip.
+func fadedPackage() throws -> MixPackage {
+    let package = try MixPackage()
+    try package.addFile("quarter", channels: [[Float](repeating: 0.25, count: 7000)])
+    try package.addFile("half", channels: [[Float](repeating: 0.5, count: 4800)])
+    try package.addTrack("t1", clip: "plain", file: "quarter", start: 0, offset: 0, length: 7000)
+    try package.addTrack("t2", clip: "c1", file: "half", start: 1000, offset: 0, length: 4800)
+    try package.session.setFades(["c1": #require(Fades(fadeIn: 480, fadeOut: 960))])
+    return package
+}
+
+/// The expected fades fixture mix of `range`: 0.25 plus 0.5 * `Fades.gain` * `gain` in the clip.
+func fadedMix(_ range: Range<Int>, gain: Double = 1) throws -> [Float] {
+    let fades = try #require(Fades(fadeIn: 480, fadeOut: 960))
+    return range.map { frame in
+        let k = frame - 1000
+        let faded = (0..<4800).contains(k) ? 0.5 * gain * fades.gain(at: Frames(k), length: 4800) : 0
+        return Float((frame < 7000 ? 0.25 : 0) + faded)
+    }
+}
+
 /// The two channels of a float buffer.
 func channels(_ buffer: AVAudioPCMBuffer) -> [[Float]] {
     (0..<Int(buffer.format.channelCount)).map {

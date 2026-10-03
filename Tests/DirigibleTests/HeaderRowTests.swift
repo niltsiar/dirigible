@@ -100,7 +100,9 @@ import Testing
     @Test func aOneLineRowShowsTheRouteAndTheState() async throws {
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
-        studio.liveTracks["t2"] = LiveTrack(state: .recording, droppedFrames: 3, peak: 0.1)
+        // The short-term text of run 9b takes room too (code gate 1, K2).
+        studio.liveTracks["t2"] = LiveTrack(
+            state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
         // 240 pt is the tightest one-line row: the layout text and a full live state.
         for width in [180.0, 239, 240, 340] {
             let (window, host) = rows(model, studio, laneHeight: 50, width: width)

@@ -22,7 +22,8 @@ struct TrackHeaders: View {
                 ForEach(studio.session.tracks) { track in
                     TrackRow(
                         model: model, studio: studio, track: track, secondLine: laneHeight >= 56,
-                        showsLayout: geometry.size.width >= (laneHeight >= 56 ? 220 : 240)
+                        showsLayout: geometry.size.width >= (laneHeight >= 56 ? 220 : 240),
+                        showsCompactLoudness: geometry.size.width >= TrackRow.compactLoudnessWidth
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
                     // At the lane edge, as the lanes have no line: the rows read as rows (D8).
@@ -49,6 +50,10 @@ private struct TrackRow: View {
     /// the width: a row whose inputs do not change is not drawn again (a width input made the
     /// one-off header events 2 to 3 times slower).
     let showsLayout: Bool
+    /// The short-term text in the one-line row, from 300 pt: under it the text pushes the
+    /// dropped-frames symbol out of the row. A Bool, as `showsLayout`.
+    let showsCompactLoudness: Bool
+    static let compactLoudnessWidth = 300.0
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -70,7 +75,9 @@ private struct TrackRow: View {
                     // A lost device must show during a take at every lane height, so the route and
                     // the state stay on one line, in compact form.
                     compactRoute
-                    if let live = studio.liveTracks[track.id] { CompactLiveState(live: live, source: sourceLabel) }
+                    if let live = studio.liveTracks[track.id] {
+                        CompactLiveState(live: live, source: sourceLabel, showsLoudness: showsCompactLoudness)
+                    }
                 }
             }
             if secondLine {
@@ -203,10 +210,11 @@ private struct CompactLiveState: View {
     let live: LiveTrack
     /// The route label: the app of a `.waitingForApp` or `.noSound` track.
     let source: String
+    let showsLoudness: Bool
 
     var body: some View {
         ProgressView(value: meterLevel(live)).frame(width: 16)
-        if let loudness = LoudnessText.header(live) { loudnessText(loudness) }
+        if showsLoudness, let loudness = LoudnessText.header(live) { loudnessText(loudness) }
         if let fault {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 .accessibilityLabel(Text(fault)).help(Text(fault))

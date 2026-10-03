@@ -23,6 +23,17 @@ struct Biquad: Sendable {
         (x2, x1, y2, y1) = (x1, x, y1, y)
         return y
     }
+
+    /// Sets each state value under 1e-30 to 0. Exact zeros after a signal otherwise keep the state
+    /// subnormal, which made the meter 47 times slower on the Intel Mac. `feed` calls it once per
+    /// chunk: a guard in `process` costs 26% on every sample. The high-pass needs about 128 000
+    /// samples to decay from 1e-30 to a subnormal value, and a chunk is at most 0.1 s.
+    mutating func flush() {
+        if abs(x1) < 1e-30 { x1 = 0 }
+        if abs(x2) < 1e-30 { x2 = 0 }
+        if abs(y1) < 1e-30 { y1 = 0 }
+        if abs(y2) < 1e-30 { y2 = 0 }
+    }
 }
 
 /// The channel-summed K-weighted mean square of each complete 400 ms block (75% overlap) of one
@@ -120,6 +131,8 @@ public struct LoudnessMeter: Sendable {
                     let y = highPass.process(shelf.process(Double(samples[index])))
                     sum += y * y
                 }
+                shelf.flush()
+                highPass.flush()
                 filters[channel] = (shelf, highPass)
                 // A NaN or an infinity gives a sum that is not finite, also in a step that never completes.
                 if !sum.isFinite { nonFinite = true }

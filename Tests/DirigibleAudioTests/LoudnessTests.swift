@@ -152,6 +152,22 @@ struct LoudnessTests {
         expectLUFS(try measure(signal, block: 1_000).integrated, large.value, tolerance: 0.001, "1 000-frame feed")
     }
 
+    /// Exact zeros after a signal must clear the filter state. A subnormal state makes the meter up
+    /// to 47 times slower on the Intel Mac (code gate round 1, G1).
+    @Test func silenceAfterASignalClearsTheFilterState() throws {
+        var meter = try #require(LoudnessMeter(sampleRate: 48_000, layout: .stereo))
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 48_000))
+        buffer.frameLength = 48_000
+        let signal = tone([(1, -23)])
+        for channel in 0..<2 { buffer.floatChannelData![channel].update(from: signal[channel], count: 48_000) }
+        meter.feed(buffer)
+        for channel in 0..<2 { buffer.floatChannelData![channel].update(repeating: 0, count: 48_000) }
+        for _ in 0..<10 { meter.feed(buffer) }
+        let state = meter.filters.flatMap { [$0.shelf, $0.highPass] }.flatMap { [$0.x1, $0.x2, $0.y1, $0.y2] }
+        #expect(state.allSatisfy { $0 == 0 }, "filter state after silence: \(state)")
+    }
+
     /// The shelf at 1 681.97 Hz must be under Nyquist.
     @Test func meterRefusesARateTheFilterCannotSupport() {
         #expect(LoudnessMeter(sampleRate: 3_363, layout: .stereo) == nil, "3 363 Hz gave a meter")

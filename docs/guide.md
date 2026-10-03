@@ -208,6 +208,18 @@ Choose **Edit > Fade** (Command-F) to fade the clips on the selected tracks. The
 
 A new fade replaces the old fade of that edge. When the two fades are longer than the clip, the other fade becomes shorter. The waveform shows the fade, and on a clip that is 12 pt wide or more on screen, a line marks the fade shape. With no fade to change, you hear a beep. Each Fade is one step in the undo history.
 
+### Change the gain and the fades with the mouse
+
+On a clip that is 40 pt wide or more on screen, a line shows the clip gain, and a small square at each top corner is a fade handle. The line is at the top of a full-scale signal with the gain. Above 0 dB, the line stays at the top of the clip and is dashed, and the clip name shows the gain.
+
+- Drag the line up or down to change the gain of that clip, in steps of 0.1 dB. A drag goes to +20 dB or -20 dB, or stops at the start value when that value is outside these limits.
+- Drag a fade handle to make the fade longer or shorter. The handle stops at the other fade.
+- Double-click the line to set the gain to 0 dB. Double-click a handle to remove that fade.
+- During a drag, a label next to the pointer shows the gain in dB or the fade length in ms.
+- Press Esc during a drag to cancel it.
+
+Each drag and each double-click is one step in the undo history. Where two clips touch with no fade, the edges have no handle.
+
 ### Level the clips
 
 Choose **Tools > Auto Level** (Command-L) to set the gain of each clip that the selection touches, on the selected tracks. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.

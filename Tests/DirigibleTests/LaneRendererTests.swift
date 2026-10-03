@@ -345,8 +345,9 @@ struct LaneRendererTests {
     }
 
     /// Fades C24: in a clip box of 12 pt or more, a 1 px line in the label color marks the top of a
-    /// 0 dBFS waveform in each column whose fade factor is under 1, and only there; in a clip box
-    /// of 11 pt, no line.
+    /// 0 dBFS waveform in each column whose fade factor is under 1; in a clip box of 11 pt, no line.
+    /// Run 11b-1: in this box of 400 pt the gain line continues it with the factor 1 (row 0), and
+    /// the fade handles take rows 1 to 6 of columns 97 to 102 and 347 to 352.
     @Test func aFadeLineOnlyInBoxesOf12Points() throws {
         let full = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400)
         var inputs = Self.inputs(try Self.fadedSession(), peaks: full)
@@ -356,8 +357,10 @@ struct LaneRendererTests {
             let k = column * 256
             let inFade = Self.factor(k) < 1
             let row = min(99, 100 - Self.height(dB: 20 * log10(Self.factor(k))))
-            let lines = Self.rows(pixels, column: column, palette.label)
-            return lines != (inFade ? [row] : [])
+            // The handles at the fade-in end (x 100) and the fade-out start (x 350).
+            let handle = (97..<103).contains(column) || (347..<353).contains(column)
+            let lines = Self.rows(pixels, column: column, palette.label).filter { !handle || !(1..<7).contains($0) }
+            return lines != (inFade ? [row] : [0])
         }
         #expect(misses.isEmpty, "columns with a wrong fade line: \(misses)")
 

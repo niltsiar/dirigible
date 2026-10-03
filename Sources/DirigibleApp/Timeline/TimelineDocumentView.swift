@@ -16,6 +16,10 @@ private let drawLog = Logger(subsystem: "com.delineas.dirigible", category: "tim
 /// playhead is a layer that moves with no redraw.
 final class TimelineDocumentView: NSView {
     let playhead = CALayer()
+    /// The value of a gain or fade-handle drag at the pointer (run 11b-1).
+    let readout = ReadoutLayer()
+    /// The document point of the last mouse-down or drag event: the readout follows it.
+    private var pointer = NSPoint.zero
     /// The live take comes from here at each draw (`LiveLanes`). Weak, as in the scroll view.
     weak var studio: Studio?
     /// The record head of the last live tick. Nil when no take records or finalizes.
@@ -128,6 +132,8 @@ final class TimelineDocumentView: NSView {
         playhead.zPosition = 10
         playhead.actions = ["position": NSNull(), "bounds": NSNull()]
         layer?.addSublayer(playhead)
+        readout.zPosition = 20
+        layer?.addSublayer(readout)
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel(L10n.timelineAccessibility.text)
@@ -279,7 +285,8 @@ final class TimelineDocumentView: NSView {
                     } ?? [box]
                 guard !shown.isEmpty else { continue }
                 let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
-                labels.append((box, shown, path.hasSuffix(".wav") ? String(path.dropLast(4)) : path))
+                let name = path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
+                labels.append((box, shown, Self.labelText(name, gain: clip.gain, locale: .current)))
             }
             if let region, let live, region.intersects(rect) {
                 labels.append((region, [region], live.label))
@@ -303,6 +310,18 @@ final class TimelineDocumentView: NSView {
         }
     }
 
+    /// The label of a clip: its name, and its gain when it is not 0 ("take1-1  -6.0 dB").
+    nonisolated static func labelText(_ name: String, gain: Gain, locale: Locale) -> String {
+        gain == .zero ? name : "\(name)  \(ReadoutLayer.decibels(gain, locale: locale)) dB"
+    }
+
+    /// Shows `value` at the pointer, or hides the readout when it is nil.
+    func showReadout(_ value: GestureReadout?) {
+        // The lanes that the user sees: the clip view goes under the rulers.
+        let shown = (scrollView?.shown ?? visibleRect).intersection(bounds)
+        readout.show(value, at: pointer, in: shown, rate: inputs?.session.sampleRate ?? 48_000, view: self)
+    }
+
     // MARK: Mouse
 
     /// The events go to the gesture of the scroll view (decision 0020).
@@ -316,11 +335,16 @@ final class TimelineDocumentView: NSView {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         let flags = event.modifierFlags
-        scrollView?.mouse(.down(place(event), shift: flags.contains(.shift), command: flags.contains(.command)))
+        pointer = convert(event.locationInWindow, from: nil)
+        scrollView?.mouse(
+            .down(
+                place(event), shift: flags.contains(.shift), command: flags.contains(.command),
+                clicks: event.clickCount))
         showCursor(event)
     }
 
     override func mouseDragged(with event: NSEvent) {
+        pointer = convert(event.locationInWindow, from: nil)
         scrollView?.mouse(.drag(place(event)))
         scrollView?.dragPointer = (event.locationInWindow, ruler: false)
         showCursor(event)
@@ -365,22 +389,4 @@ extension LanePalette {
         }
         return picked
     }
-}
-
-extension NSCursor {
-    /// The cursor of a timeline cursor kind (probe C1: each exists at the macOS 14 target).
-    static func timeline(_ kind: TimelineCursor) -> NSCursor {
-        switch kind {
-        case .arrow: .arrow
-        case .iBeam: .iBeam
-        case .openHand: .openHand
-        case .closedHand: .closedHand
-        case .resizeLeftRight: .resizeLeftRight
-        case .resizeUpDown: .resizeUpDown
-        }
-    }
-}
-
-extension NSRect {
-    init(_ rect: Rect) { self.init(x: rect.x, y: rect.y, width: rect.width, height: rect.height) }
 }

@@ -175,6 +175,16 @@ final class LaneRenderer {
                     range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, palette, into: region)
             }
         }
+        // The gain line and the fade handles (run 11b-1) after the waveforms, from the `Clip` and
+        // `Track` fields only: a clip with no peaks or missing media draws them too, as the hit
+        // test finds them.
+        for lane in drawn {
+            let track = tracks[lane]
+            for clip in track.clips.clips(overlapping: visible)
+            where geometry.box(of: clip, lane: lane).width >= LaneGeometry.controlsWidth {
+                drawControls(clip, track, lane, geometry, palette, into: region)
+            }
+        }
         if let take = live.take { drawLive(take, inputs, palette, into: region) }
 
         if let selection = inputs.marks.selection(in: inputs.session) {
@@ -196,6 +206,44 @@ final class LaneRenderer {
         }
         line(inputs.marks.inPoint, palette.inPoint)
         line(inputs.marks.outPoint, palette.outPoint)
+    }
+
+    /// The gain line of `clip` in the columns that no fade line takes, at the top of a 0 dBFS
+    /// signal with the gains (over 0 dB on the top row, dashed 3 px on and 3 px off in absolute
+    /// columns), and its fade handles: each handle rect inset by 1 pt, filled in the label color.
+    private func drawControls(
+        _ clip: Clip, _ track: Track, _ lane: Int, _ geometry: LaneGeometry, _ palette: LanePalette,
+        into region: borrowing PixelRegion
+    ) {
+        let scale = region.window.scale
+        let (rows, pixelFrames) = (region.window.rows(of: lane..<lane + 1), geometry.scale.framesPerPoint / scale)
+        let gain = clip.gain.dB + track.gain.dB
+        let height = Int((LaneGeometry.gainFraction(dB: gain) * Double(rows.count)).rounded())
+        let row = min(rows.upperBound - height, rows.upperBound - 1)
+        func column(_ frame: Frames) -> Int { Int((geometry.x(of: frame) * scale).rounded(.up)) }
+        let columns = (column(clip.start)..<column(clip.end)).clamped(to: region.rect.columns)
+        guard !columns.isEmpty else { return }
+        if clip.fades == .zero && gain <= 0 {
+            region.fill(palette.label, columns: columns, rows: row..<row + 1)
+        } else {
+            // The columns of `drawColumns`: a column with a fade factor has the fade line.
+            let fades = ColumnFades(
+                fades: clip.fades, length: clip.length,
+                first: Double(columns.lowerBound) * pixelFrames - Double(clip.start.count), step: pixelFrames,
+                line: true)
+            for column in columns where gain <= 0 || (column / 3) % 2 == 0 {
+                guard fades.factor(column - columns.lowerBound) == nil else { continue }
+                region.span(palette.label, column: column, rows: row..<row + 1)
+            }
+        }
+        guard let index = track.clips.index(holding: clip.start) else { return }
+        let handles = geometry.fadeHandles(of: clip, at: index, in: track.clips, lane: lane)
+        func pixel(_ value: Double) -> Int { Int((value * scale).rounded()) }
+        for handle in [handles.start, handles.end].compactMap({ $0 }) {
+            region.fill(
+                palette.label, columns: pixel(handle.minX + 1)..<pixel(handle.maxX - 1),
+                rows: pixel(handle.minY + 1)..<pixel(handle.maxY - 1))
+        }
     }
 
     /// Gives `values` `count` columns. `fill` sets every column, so only the count matters. The

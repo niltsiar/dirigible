@@ -25,7 +25,8 @@
 #define SIZEOF_LONG 8
 #define SIZEOF_FLOAT 4
 #define SIZEOF_DOUBLE 8
-#define TAKEHIRO_IEEE754_HACK 0
+/* No TAKEHIRO_IEEE754_HACK: LAME tests it with #ifdef, so any definition turns it on.
+   LAME 3.101 turned it off by default: on current CPUs it is slower. */
 #define USE_FAST_LOG 1
 #define LAME_LIBRARY_BUILD 1
 typedef float ieee754_float32_t;

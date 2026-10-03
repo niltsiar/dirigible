@@ -316,11 +316,12 @@ extension SessionWindow {
         app?.defaults?.set(showsLoudness, forKey: Self.loudnessKey)
     }
 
-    /// One display tick of the strip, when it shows. During a take or a monitor the armed tracks
-    /// meter their inputs, so the strip shows dashes, not the held values of a play.
+    /// One display tick of the strip, when it shows. While the armed tracks meter their inputs (a
+    /// take, or a monitor with no play) the strip shows dashes, not the held values of a play.
+    /// A monitor only meters (decision 0015), so during a play the strip shows the play mix.
     func loudnessTick(_ studio: Studio) {
         guard let strip = loudnessStrip, strip.window != nil else { return }
-        let inputs = !studio.liveTracks.isEmpty
+        let inputs = !studio.liveTracks.isEmpty && studio.playback == .stopped
         strip.show(
             inputs ? .none : studio.loudness, target: app?.defaults?.string(forKey: ExportSettings.loudnessKey),
             inputs: inputs)

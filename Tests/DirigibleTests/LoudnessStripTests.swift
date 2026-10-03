@@ -224,4 +224,46 @@ import Testing
         studio.liveTracks = [:]
         await model.close()
     }
+
+    /// Monitor Inputs is a meter only (decision 0015): during a play the output is the play mix,
+    /// so the strip shows the play values (code gate 2, J1).
+    @Test func aPlayDuringAMonitorShowsThePlayValues() async throws {
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let app = AppDelegate(recordings: nil, defaults: defaults)
+        let (model, studio) = try await open(app)
+        await until("the strip shows") { shown(model) }
+        let strip = try #require(model.loudnessStrip)
+        let view = try #require(model.timelineView)
+        view.linkProxy?.view = nil
+        studio.liveTracks = ["t1": LiveTrack(state: .monitoring, droppedFrames: 0, peak: 0)]
+        view.displayTick()
+        #expect(strip.texts.integrated == LoudnessText.dash, "a monitor with no play: \(strip.texts)")
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        try #require(studio.playback != .stopped, "the play runs")
+        studio.loudness = Self.playing
+        await until("the strip shows the play values") {
+            view.displayTick()
+            return strip.texts.integrated == "-16.8"
+        }
+        #expect(strip.texts.shortTerm == "-17.4", "a play during a monitor: \(strip.texts)")
+        await studio.perform(.playStop)
+        studio.liveTracks = [:]
+        await model.close()
+    }
+
+    /// `show` with the inputs of the last call does nothing, but a text that the 4 Hz limit held
+    /// back still comes at the next tick.
+    @Test func aHeldTextComesWithTheSameValues() {
+        let strip = strip()
+        var quieter = Self.playing
+        quieter.shortTerm = LUFS(value: -30)
+        strip.show(Self.playing, target: nil, inputs: false, now: 0)
+        strip.show(quieter, target: nil, inputs: false, now: 0.1)
+        #expect(strip.texts.shortTerm == "-17.4", "the limit holds the text back")
+        strip.show(quieter, target: nil, inputs: false, now: 0.3)
+        #expect(
+            strip.texts.shortTerm == "-30.0" && strip.textChanges == 2,
+            "the held text came: \(strip.texts), \(strip.textChanges)")
+    }
 }

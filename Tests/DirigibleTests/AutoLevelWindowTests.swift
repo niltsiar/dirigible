@@ -106,12 +106,14 @@ import Testing
         let (model, studio, window, _) = try await open()
         model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])
         let editor = try await focusName(in: window)
+        let field = try #require(editor.delegate as? NSTextField)
         let text = editor.string
 
         app.timeline(.autoLevel, event: commandKey("l", code: 37, in: window), in: window)
 
         await until("Command-L levels the clip") { studio.canUndo }
-        #expect(editor.string == text, "focused field: the text changed to \(editor.string)")
+        // A redraw of the header after the level can end the edit, so the field holds the text.
+        #expect(field.stringValue == text, "focused field: the text changed to \(field.stringValue)")
         await model.close()
     }
 

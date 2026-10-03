@@ -68,8 +68,14 @@ struct SegmentBreakTests {
         return studio
     }
 
+    /// The clips of t1 with gain 0 dB: the stop levels the take (decision 0031), and these tests
+    /// check only where the segments go.
     func clips(_ studio: Studio) -> [Clip] {
-        studio.session.track("t1").map { Array($0.clips) } ?? []
+        (studio.session.track("t1").map { Array($0.clips) } ?? []).map { clip in
+            var clip = clip
+            clip.gain = .zero
+            return clip
+        }
     }
 
     /// The clip of segment `stem` with no offset.

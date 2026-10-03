@@ -75,7 +75,7 @@ func writeFault(status: OSStatus, errno code: Int32) -> ExportError {
 
 /// Sets `kAudioConverterEncodeBitRate` of the converter of `file`, then a nil converter
 /// configuration, so the file takes the change.
-private func setBitRate(_ bitRate: AACBitRate, of file: ExtAudioFileRef) throws(ExportError) {
+private func setBitRate(_ bitRate: BitRate, of file: ExtAudioFileRef) throws(ExportError) {
     var converter: AudioConverterRef?
     var size = UInt32(MemoryLayout<AudioConverterRef?>.size)
     try check(ExtAudioFileGetProperty(file, kExtAudioFileProperty_AudioConverter, &size, &converter))

@@ -9,9 +9,9 @@ public enum BitDepth: Int, Hashable, Sendable, CaseIterable {
     case bits24 = 24
 }
 
-/// The AAC bit rates in kbit/s that the encoder takes for mono and stereo at 44.1 and 48 kHz
-/// (probe P5).
-public enum AACBitRate: Int, Hashable, Sendable, CaseIterable {
+/// The bit rates in kbit/s of a lossy export. AAC takes each for mono and stereo at 44.1 and
+/// 48 kHz (probe P5); MP3 at 32, 44.1, and 48 kHz (decision 0034).
+public enum BitRate: Int, Hashable, Sendable, CaseIterable {
     case k64 = 64
     case k96 = 96
     case k128 = 128
@@ -25,7 +25,7 @@ public enum AACBitRate: Int, Hashable, Sendable, CaseIterable {
 public enum ExportFormat: Hashable, Sendable {
     case wav(BitDepth)
     case flac(BitDepth)
-    case aac(AACBitRate)
+    case aac(BitRate)
     case floatCAF
 }
 

@@ -95,6 +95,7 @@ enum L10n: String, CaseIterable {
     case panelExportFormat = "panel.export.format"
     case panelExportFormatWAV = "panel.export.format.wav"
     case panelExportFormatAAC = "panel.export.format.aac"
+    case panelExportFormatMP3 = "panel.export.format.mp3"
     case panelExportFormatFLAC = "panel.export.format.flac"
     case panelExportBits = "panel.export.bits"
     case panelExportBitrate = "panel.export.bitrate"

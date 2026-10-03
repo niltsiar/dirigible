@@ -16,7 +16,7 @@ struct ExportTarget {
 /// once, so a Cancel of the panel keeps it, and the next export shows it.
 @Observable @MainActor final class ExportSettings {
     enum Format: String, CaseIterable {
-        case wav, aac, flac
+        case wav, aac, mp3, flac
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -64,6 +64,7 @@ struct ExportTarget {
             switch format {
             case .wav: .wav(bits)
             case .aac: .aac(bitRate)
+            case .mp3: .mp3(bitRate)
             case .flac: .flac(bits)
             }
         return ExportOptions(format: file, layout: layout, rate: rate, loudness: loudness)
@@ -73,6 +74,7 @@ struct ExportTarget {
         switch format {
         case .wav: "wav"
         case .aac: "m4a"
+        case .mp3: "mp3"
         case .flac: "flac"
         }
     }
@@ -114,9 +116,10 @@ private struct ExportAccessory: View {
             Picker(L10n.panelExportFormat.key, selection: $settings.format) {
                 Text(L10n.panelExportFormatWAV.key).tag(ExportSettings.Format.wav)
                 Text(L10n.panelExportFormatAAC.key).tag(ExportSettings.Format.aac)
+                Text(L10n.panelExportFormatMP3.key).tag(ExportSettings.Format.mp3)
                 Text(L10n.panelExportFormatFLAC.key).tag(ExportSettings.Format.flac)
             }
-            if settings.format == .aac {
+            if settings.format == .aac || settings.format == .mp3 {
                 Picker(L10n.panelExportBitrate.key, selection: $settings.bitRate) {
                     ForEach(BitRate.allCases, id: \.self) { rate in
                         Text(verbatim: L10n.panelExportBitrateValue.format(rate.rawValue)).tag(rate)

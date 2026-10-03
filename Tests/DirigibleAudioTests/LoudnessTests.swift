@@ -168,3 +168,38 @@ struct LoudnessTests {
         expectLUFS(loudness.withGain(Gain(dB: 10)!).integrated, -55, "gain +10 dB")
     }
 }
+
+/// Run 8a criteria 11 and 12 (M2): `clipLoudness` reads only the range of the clip.
+extension LoudnessTests {
+    /// 10 s at -28 dBFS, 20 s at -23 dBFS, and 5 s at -10 dBFS, with a clip on the 20 s part. A read
+    /// from frame 0 gives about -24.1 (the relative gate keeps the -28 part). A read to the file end
+    /// gives a value louder than -22.
+    @Test func clipMeasuresOnlyItsRange() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: tone([(10, -28), (20, -23), (5, -10)]))
+        try package.addTrack("t1", layout: .stereo, clip: "c1", file: "f1", start: 0, offset: 480_000, length: 960_000)
+        let clip = try #require(package.session.tracks.first?.clips.first)
+        let (loudness, fault) = try clipLoudness(clip, in: package.session, package: package.url)
+        expectLUFS(loudness.integrated, -23, "clip range")
+        #expect(fault == nil, "clip range: fault \(String(describing: fault))")
+    }
+
+    /// A read that fails on the second block gives no value, not the value of the first block.
+    @Test func aReadFaultInTheLoopIsUnreadable() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: tone([(5, -23)]))
+        try package.addTrack("t1", layout: .stereo, clip: "c1", file: "f1", start: 0, offset: 0, length: 240_000)
+        let clip = try #require(package.session.tracks.first?.clips.first)
+        var reads = 0
+        let (loudness, fault) = try clipLoudness(clip, in: package.session, package: package.url) {
+            file, buffer, count in
+            reads += 1
+            if reads == 2 { throw CocoaError(.fileReadUnknown) }
+            try file.read(into: buffer, frameCount: count)
+        }
+        #expect(
+            loudness.integrated == nil && fault == .unreadable,
+            "read fault: \(String(describing: loudness.integrated)), \(String(describing: fault))")
+        #expect(reads == 2, "read fault: \(reads) reads")
+    }
+}

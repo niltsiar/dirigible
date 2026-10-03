@@ -430,6 +430,8 @@ swift run dirigible create Demo.dirigible --sample-rate 48000
 swift run dirigible info Demo.dirigible
 ```
 
+`dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain.
+
 The text of the tool is English only.
 
 ### Make the screenshots again

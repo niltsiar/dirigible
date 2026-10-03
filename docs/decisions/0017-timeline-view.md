@@ -13,7 +13,7 @@
 - Amended: 2026-09-27. A cache file of a newer version is a miss (see 0024 P5).
 - Amended: 2026-09-28, timeline-navigation run (see 0025): H is "Zoom to Selection or Session": with no selection it zooms to the session, and a second H with the view unchanged goes back. The zoom history and the lane height are window state and are not saved. Command-= also zooms in. New View keys: Zoom Back and Zoom Forward (Option-Command-Left and -Right), Previous Page and Next Page (Option-Page Up and Option-Page Down), Taller Tracks and Shorter Tracks (Command-Down and Command-Up Arrow), and Fit Tracks to Window (no key).
 - Amended: 2026-09-29, record-over-gap run: the record-over overlay reads only the first clip of each armed track that ends after the playhead, not only a clip under the playhead. With the playhead in a gap, a take replaced a clip out of view with no warning.
-- Amended: 2026-10-03, run 11a. The waveform has the fades of 0035, and a fade line in boxes of 12 pt or more.
+- Amended: 2026-10-03, run 11a. The waveform has the fades of 0035, and a fade line in clip boxes of 12 pt or more wide.
 
 ## Context
 

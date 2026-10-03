@@ -344,9 +344,9 @@ struct LaneRendererTests {
         #expect(first >= 99, "fit zoom: the first column keeps full height (\(first) px)")
     }
 
-    /// Fades C24: in a box of 12 pt or more, a 1 px line in the label color marks the top of a
-    /// 0 dBFS waveform in each column whose fade factor is under 1, and only there; in a box of
-    /// 11 pt, no line.
+    /// Fades C24: in a clip box of 12 pt or more, a 1 px line in the label color marks the top of a
+    /// 0 dBFS waveform in each column whose fade factor is under 1, and only there; in a clip box
+    /// of 11 pt, no line.
     @Test func aFadeLineOnlyInBoxesOf12Points() throws {
         let full = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400)
         var inputs = Self.inputs(try Self.fadedSession(), peaks: full)
@@ -361,9 +361,15 @@ struct LaneRendererTests {
         }
         #expect(misses.isEmpty, "columns with a wrong fade line: \(misses)")
 
-        inputs.laneHeight = 11
-        let small = try Self.render(inputs, width: 400)
-        let lines = (0..<400).flatMap { column in (0..<11).filter { small.pixel(column, $0) == palette.label } }
-        #expect(lines.isEmpty, "no fade line in a box of 11 pt")
+        // The box is the clip box: 102,400 frames in 11 pt has no line, in 12 pt it has one.
+        func lines(boxWidth: Double) throws -> Int {
+            inputs.scale = TimelineScale(framesPerPoint: 102_400 / boxWidth)
+            let small = try Self.render(inputs, width: 14)
+            return (0..<14).reduce(0) { sum, column in
+                sum + (0..<100).filter { small.pixel(column, $0) == palette.label }.count
+            }
+        }
+        #expect(try lines(boxWidth: 11) == 0, "no fade line in a clip box of 11 pt")
+        #expect(try lines(boxWidth: 12) > 0, "a fade line in a clip box of 12 pt")
     }
 }

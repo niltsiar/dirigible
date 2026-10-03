@@ -251,6 +251,8 @@ extension Studio {
             let number = play.feed
             let reading = await player.reading()
             if play.feed == number, reading.played == number {
+                // Each branch keeps the last values: a play that ends before a poll ran has its I.
+                loudness = reading.loudness
                 // Only a fault writes: the view of the lanes reads `missingMedia` (decision 0017).
                 if !reading.faults.isEmpty { missingMedia.merge(reading.faults) { $1 } }
                 // The engine stops before the system posts the change, so its position can be
@@ -271,7 +273,6 @@ extension Studio {
                     await player.apply(.stop, number: play.feed)
                 } else {
                     play.playhead = reading.frame
-                    loudness = reading.loudness
                 }
             }
         }

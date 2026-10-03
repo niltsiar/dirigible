@@ -27,6 +27,7 @@ struct ParityTests {
         "splitClips": ["clip split-at"],
         "nudge": ["clip nudge"],
         "setFades": ["clip fade"],
+        "setGains": ["clip gain"],
     ]
 
     static let exemptions: [String: String] = [

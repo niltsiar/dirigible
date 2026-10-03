@@ -223,6 +223,26 @@ struct ClipEditTests {
         #expect(throws: SessionError.unknownClip("c9")) { try session.setGain(.zero, clip: "c9") }
     }
 
+    /// K1: one batch sets each clip as one undo entry; an unknown ID changes nothing.
+    @Test mutating func setGainsSetsEachClipInOnePass() throws {
+        for (id, start) in [("A", 0), ("B", 48_000), ("C", 96_000)] as [(ClipID, Frames)] {
+            try session.place(clip(id, start: start, length: 1_000), on: "t1")
+        }
+        var history = History(session)
+        try history.edit { session throws(SessionError) in
+            try session.setGains(["A": Gain(dB: -6)!, "C": Gain(dB: 3)!])
+        }
+        #expect(history.session.track("t1")?.clips.map(\.gain) == [Gain(dB: -6)!, .zero, Gain(dB: 3)!])
+        try history.undo()
+        #expect(history.session == session, "one undo entry restores both clips")
+        #expect(history.canUndo == false)
+
+        #expect(throws: SessionError.unknownClip("X"), "an unknown clip is refused") {
+            try session.setGains(["A": Gain(dB: -6)!, "X": .zero])
+        }
+        #expect(session.clip("A")?.clip.gain == .zero, "a refused batch changes nothing")
+    }
+
     // MARK: Fades (decision 0035)
 
     func fades(_ id: ClipID) -> Fades? { session.clip(id)?.clip.fades }

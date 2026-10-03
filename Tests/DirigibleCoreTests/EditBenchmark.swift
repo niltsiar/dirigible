@@ -39,6 +39,7 @@ struct EditBenchmark {
         let allFades = Dictionary(
             uniqueKeysWithValues: history.session.tracks.flatMap { $0.clips.map { ($0.id, fades) } })
         #expect(allFades.count == 12_000)
+        let allGains = allFades.mapValues { _ in Gain(dB: -6)! }
 
         let edits: [(String, (inout Session) throws -> Void)] = [
             ("paste of 1,000 clips on 6 tracks", { try $0.paste(excerpt, at: Self.hour, on: tracks) }),
@@ -51,6 +52,7 @@ struct EditBenchmark {
             ),
             ("nudge of 1,000 clips on 6 tracks", { try $0.nudge(firstHour, by: 480) }),
             ("setFades of 12,000 clips", { try $0.setFades(allFades) }),
+            ("setGains of 12,000 clips", { try $0.setGains(allGains) }),
         ]
         for (name, edit) in edits {
             var times: [Duration] = []

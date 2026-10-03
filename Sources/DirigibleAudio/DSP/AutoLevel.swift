@@ -51,7 +51,7 @@ public func autoLevel(_ clips: Set<ClipID>, _ mode: LevelMode, of session: Sessi
     }
     let results = measured.withLock { $0 }
 
-    var leveled = session
+    var gains: [ClipID: Gain] = [:]
     var levels: [ClipID: ClipLevel] = [:]
     let groups =
         mode == .eachClip ? found.map { [$0] } : Dictionary(grouping: found, by: \.track.id).values.map { $0 }
@@ -73,10 +73,12 @@ public func autoLevel(_ clips: Set<ClipID>, _ mode: LevelMode, of session: Sessi
                 levels[item.clip.id] = .noMeasurement
                 continue
             }
-            // The clip is in `session`, so the edit cannot throw.
-            try? leveled.setGain(gain, clip: item.clip.id)
+            gains[item.clip.id] = gain
             levels[item.clip.id] = .leveled(integrated, gain)
         }
     }
+    var leveled = session
+    // Each clip is in `session`, so the edit cannot throw.
+    try? leveled.setGains(gains)
     return (leveled, levels)
 }

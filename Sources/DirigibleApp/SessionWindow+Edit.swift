@@ -118,9 +118,11 @@ extension SessionWindow {
 
 extension SessionWindow {
     /// Auto Level and Auto Level per Track (decision 0031): each whole clip that the selection
-    /// touches, in one undo entry. With no selection or a busy studio, it does nothing and shows no
+    /// touches, in one undo entry. A typed track name saves first, as at Record: the level makes
+    /// the name field read-only. With no selection or a busy studio, it does nothing and shows no
     /// alert. An error shows the alert.
     func level(_ mode: LevelMode) async {
+        commitNames()
         guard let studio = idleStudio, let clips = timeline.marks.clipsToLevel(in: studio.session) else { return }
         do throws(StudioError) { try await studio.level(clips, mode) } catch { alert = .error(error) }
     }

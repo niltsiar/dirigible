@@ -101,19 +101,24 @@ import Testing
         app.timeline(.autoLevelPerTrack, event: nil, in: nil)
     }
 
-    /// 12f. With the focus in a track name field, Command-L levels and the field keeps its text.
+    /// 12f. With the focus in a track name field and a typed name, Command-L saves the name first,
+    /// as Record does, then levels. Code gate 1 K1: the level made the field read-only, and the name
+    /// went with no alert.
     @Test func aFocusedFieldKeepsItsText() async throws {
         let (model, studio, window, _) = try await open()
         model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])
         let editor = try await focusName(in: window)
-        let field = try #require(editor.delegate as? NSTextField)
-        let text = editor.string
+        editor.selectAll(nil)
+        editor.insertText("Guest", replacementRange: editor.selectedRange())
+        await until("the typed name is a draft") { model.drafts["t1"] == "Guest" }
 
         app.timeline(.autoLevel, event: commandKey("l", code: 37, in: window), in: window)
 
-        await until("Command-L levels the clip") { studio.canUndo }
-        // A redraw of the header after the level can end the edit, so the field holds the text.
-        #expect(field.stringValue == text, "focused field: the text changed to \(field.stringValue)")
+        await until("Command-L levels the clip") { studio.session.clip("c1")?.clip.gain != .zero }
+        #expect(
+            studio.session.track("t1")?.name == "Guest",
+            "focused field: the typed name is \(String(describing: studio.session.track("t1")?.name))")
+        #expect(model.drafts["t1"] == nil, "focused field: the draft stays")
         await model.close()
     }
 

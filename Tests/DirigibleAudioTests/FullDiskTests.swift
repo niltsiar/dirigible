@@ -247,6 +247,29 @@ struct FullDiskTests {
         #expect(try Self.visibleFiles(volume) == ["filler", "mix.wav"])
     }
 
+    /// A 60 s stereo MP3 at 256 kbit/s (about 1.9 MB) to a volume with 400 KB free throws
+    /// `.diskFull` and leaves no file (MP3 run criterion 12).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aFullDiskGivesDiskFullForAnMP3() throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "full.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try Self.hdiutil("create", "-size", "20m", "-fs", "HFS+", "-volname", "DirigibleMP3", image.path)
+        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let package = try ExportTests.package([ExportTests.noise(frames: 2_880_000, seed: 9)])
+        let out = volume.appending(path: "mix.mp3")
+        try Self.fill(volume, leaving: 400_000, with: volume.appending(path: "filler"))
+
+        #expect(throws: ExportError.diskFull, "a full disk gives diskFull for an MP3") {
+            try exportMix(
+                package.session, source: #require(ExportSource(range: 0..<2_880_000)),
+                options: ExportOptions(format: .mp3(.k256), layout: .stereo, rate: .session), to: out,
+                package: { package.url })
+        }
+        #expect(try Self.visibleFiles(volume) == ["filler"])
+    }
+
     /// The files in `volume` with no leading dot (the system adds some), and every `.tmp` file.
     static func visibleFiles(_ volume: URL) throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: volume.path).filter {

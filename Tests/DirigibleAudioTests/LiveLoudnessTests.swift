@@ -160,9 +160,11 @@ struct LiveLoudnessTests {
 
     /// The gate of run 8a compared LUFS, with a log10 for each block; `Loudness.integrated` compares
     /// mean squares. On seeded random blocks, with a pair of blocks 1e-9 under and over the
-    /// absolute gate and 1e-6 under and over the relative gate, both give the same value. A block
-    /// within a few bits of a gate can fall on either side in either form: the input has no such
-    /// precision.
+    /// absolute gate and 1e-6 under and over the relative gate, both give the same value. At a
+    /// gate itself the forms can differ: `lufs(meanSquare(g))` is g within a bit or two, so a block
+    /// within a few bits of a gate can fall on either side in either form, and in a probe with
+    /// one-bit pairs one such block moved the result by up to 0.89 LU. The input has no such
+    /// precision, so the pairs stay 1e-9 and 1e-6 from the gates.
     @Test func theMeanSquareGateEqualsTheLog10Gate() {
         func log10Gate(_ blocks: [Double]) -> Double? {
             let absolute = blocks.filter { Loudness.lufs($0) > -70 }

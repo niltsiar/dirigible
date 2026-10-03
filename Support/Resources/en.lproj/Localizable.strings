@@ -185,7 +185,7 @@
 "loudness.average.tip" = "Integrated loudness since the play start, and its duration";
 "loudness.peak.tip" = "Highest true peak, dBTP";
 "loudness.target.tip" = "The export loudness target";
-"loudness.take.tip" = "Each armed track shows its loudness in its header";
+"loudness.take.tip" = "Each armed track shows its loudness in its header when the header is 300 pt or wider, or the lane is tall enough for two lines";
 "menu.edit.in" = "Set In Point";
 "menu.edit.out" = "Set Out Point";
 "menu.edit.deselect" = "Deselect All";

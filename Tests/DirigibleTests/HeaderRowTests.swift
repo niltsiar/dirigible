@@ -153,6 +153,25 @@ import Testing
         await model.close()
     }
 
+    /// The one-line row shows the short-term text from 300 pt: the text after the meter moves the
+    /// meter to the left. At 240 pt the meter stays (code gate 2).
+    @Test func theOneLineRowShowsTheLoudnessFrom300Points() async throws {
+        let (model, studio) = try await model()
+        func meterX(_ width: Double, _ shortTerm: LUFS?) throws -> Double {
+            studio.liveTracks["t2"] = LiveTrack(state: .recording, droppedFrames: 0, peak: 0.1, shortTerm: shortTerm)
+            let (window, host) = rows(model, studio, laneHeight: 50, width: width)
+            defer { window.close() }
+            let meters = controls(host, in: host).filter { $0.kind == "meter" }
+            try #require(meters.count == 1, "one meter at \(width)")
+            return meters[0].frame.minX
+        }
+        for (width, shows) in [(240.0, false), (340.0, true)] {
+            let moved = try meterX(width, nil) - meterX(width, LUFS(value: -17.4))
+            #expect(shows ? moved > 10 : moved == 0, "the text moved the meter \(moved) pt at \(width)")
+        }
+        await model.close()
+    }
+
     @Test func theNameIs13Points() async throws {
         let (model, studio) = try await model()
         let (window, host) = rows(model, studio, laneHeight: 100, width: 340)

@@ -12,7 +12,9 @@ import Testing
 /// research target is 2 ms. A tick is the poll write of the playhead, the chrome loop turn (the
 /// item states, the record-over rule, the time display), the playhead line and the follow, and
 /// the draw. The 2 h fixture of `MouseEventBenchmark`, 1440 x 600 pt of lanes at scale 2, every
-/// track armed, so the record-over rule reads the clips of each tick.
+/// track armed, so the record-over rule reads the clips of each tick. Run 9b criterion 17: the
+/// loudness strip shows under the lanes, and `Studio.loudness` has a new value at each tick; its
+/// texts change at least 20 times and at most 4 times for each second of the loop (the 4 Hz gate).
 @MainActor struct PlayTickBenchmark {
     static let forward = Playback.playing(Shuttle(direction: .forward, rate: .one))
 
@@ -34,14 +36,20 @@ import Testing
             // A titled window, so the chrome has its toolbar and time display.
             let window = NSWindow(
                 contentRect: NSRect(
-                    x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth, height: 660 + scrollerWidth),
+                    x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth,
+                    height: 660 + scrollerWidth + LoudnessStrip.height),
                 styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.appearance = NSAppearance(named: .aqua)
             let view = TimelineScrollView(model: model, studio: studio)
             let pane = TimelinePaneView(scroll: view)
-            pane.frame = try #require(window.contentView).bounds
+            let content = try #require(window.contentView).bounds
+            pane.frame = content.divided(atDistance: LoudnessStrip.height, from: .minYEdge).remainder
             window.contentView?.addSubview(pane)
+            let strip = LoudnessStrip(
+                frame: content.divided(atDistance: LoudnessStrip.height, from: .minYEdge).slice)
+            window.contentView?.addSubview(strip)
+            model.loudnessStrip = strip
             let inputs = LaneInputs(
                 session: session, peaks: peaks, missingMedia: [:], marks: Marks(),
                 scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
@@ -61,21 +69,35 @@ import Testing
             studio.play.playback = Self.forward
             var times: [Duration] = []
             let changes = time.textChanges
+            let (stripChanges, loopStart) = (strip.textChanges, ContinuousClock.now)
             for tick in 1...610 {
                 try await Task.sleep(for: .microseconds(16_700))
                 let playhead = Frames(1_000_000 + tick * 800)
                 let start = ContinuousClock.now
                 studio.play.playhead = playhead
+                studio.loudness = LoudnessValues(
+                    momentary: LUFS(value: -30 + Double(tick % 40) / 2),
+                    shortTerm: LUFS(value: -20 + Double(tick % 30) / 10),
+                    integrated: LUFS(value: -18 + Double(tick % 20) / 10), truePeak: -3 + Double(tick % 10) / 5,
+                    seconds: 600 + Double(tick) / 60)
                 chrome.update()
                 view.tick(playhead: Double(playhead.count), playback: Self.forward)
+                model.loudnessTick(studio, taking: false)
                 drawNow(window)
                 // The first 10 ticks are not timed (the draw after the window shows).
                 if tick > 10 { times.append(ContinuousClock.now - start) }
             }
             studio.play.playback = .stopped
+            let loop = (ContinuousClock.now - loopStart) / .seconds(1)
             let sorted = times.sorted()
             print("PlayTickBenchmark \(zoom): p50 \(sorted[300]), p95 \(sorted[570]) (target 2 ms)")
             #expect(time.textChanges - changes > 50, "the ticks reached the time display")
+            let stripCount = strip.textChanges - stripChanges
+            // The 4 Hz gate counts wall time; a sleep of 16.7 ms can take more, so the limit is
+            // 4 for each second of the loop. With no gate the texts change at each tick (610).
+            #expect(
+                (20...Int(loop * 4) + 1).contains(stripCount),
+                "the strip texts changed \(stripCount) times in \(loop) s")
             expectWithinBudget(sorted[570], MouseEventBenchmark.budget, "\(zoom): p95 \(sorted[570])")
             chrome.close()
             window.close()

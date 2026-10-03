@@ -50,6 +50,10 @@ struct DirigibleApp: App {
                             Button(L10n.menuViewTracksFit.key) { app.timeline(.fitTracks) }
                         }
                     }
+                    Divider()
+                    // It has Command in its keys, so it can be off (probe K1 is about plain keys).
+                    Button(app.loudnessItem.title.key) { app.key?.toggleLoudness() }
+                        .keyboardShortcut(MenuKeys.loudnessMeter).disabled(!app.loudnessItem.enabled)
                 }
                 // The Edit group replaces the system items, so Delete has Backspace (probe E6).
                 CommandGroup(replacing: .pasteboard) {

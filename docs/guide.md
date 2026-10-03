@@ -50,7 +50,7 @@ A track records only when its **Arm** check box is on. Dirigible turns on **Arm*
 
 1. Choose **Record > Monitor Inputs** (Shift-Command-M).
 2. If macOS asks for access to the microphone, click **Allow**.
-3. Speak into each microphone. The meter in the header of its track moves.
+3. Speak into each microphone. The meter in the header of its track moves. After 3 s, the header also shows the loudness of the last 3 s, in LUFS (for example **-17**).
 
 **Monitor Inputs** shows the level of each armed track. It does not send the sound to your headphones.
 
@@ -69,6 +69,20 @@ After Stop, Dirigible also levels the new clips: it sets the gain of each clip s
 1. Choose **Transport > Go to Start** (Home).
 2. Press Space to play. The playhead moves.
 3. Press Space again to stop. The playhead stays where it stopped.
+
+### Read the loudness meter
+
+The loudness meter is the strip below the tracks. It measures the mix that you hear, at 1x forward play only.
+
+- **Loudness** is the loudness of the last 3 s, in LUFS.
+- The bar shows the loudness of the last 400 ms. It is green up to the line of the export target and yellow over it.
+- **Average** is the loudness since the play start, and the time that it measured.
+- **Peak** is the highest true peak, in dBTP. It is red over -1 dBTP.
+- **Target** is the loudness target of the export: -16 LUFS for the podcast target or Off, -23 LUFS for EBU R128.
+
+When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. Play in reverse, at half speed, at 2x, or at 4x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, each armed track shows its loudness in its header.
+
+Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 
 > **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
 >
@@ -344,6 +358,7 @@ macOS adds **Undo** (Command-Z) and **Redo** (Shift-Command-Z) at the top of the
 | **Shorter Tracks** | **Pistas más bajas** | Command-Up Arrow |
 | **Fit Tracks to Window** | **Ajustar pistas a la ventana** | None |
 | **Automatic Scroll** | **Desplazamiento automático** | Option-Command-F |
+| **Show Loudness Meter** / **Hide Loudness Meter** | **Mostrar medidor de sonoridad** / **Ocultar medidor de sonoridad** | Shift-Command-8 |
 
 ### Markers
 

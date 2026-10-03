@@ -58,13 +58,16 @@ import Testing
         }
     }
 
-    /// Runs `prepare` (not timed), then times the event that it returns, 25 times per zoom.
+    /// Runs `prepare` (not timed), then times the event that it returns, 25 times per zoom. Gives
+    /// the p50 and the max of each zoom.
+    @discardableResult
     static func measure(
-        _ name: String, zooms: [(String, Double)] = MouseEventBenchmark.zooms,
+        _ name: String, zooms: [(String, Double)] = MouseEventBenchmark.zooms, budget: Int = budget,
         _ prepare: @MainActor (SessionWindow, Int) -> @MainActor () -> Void
     )
-        async throws
+        async throws -> [(p50: Duration, max: Duration)]
     {
+        var results: [(p50: Duration, max: Duration)] = []
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)
         let (session, peaks) = try MouseEventBenchmark.fixture()
@@ -105,8 +108,10 @@ import Testing
             let worst = times.max() ?? .zero
             print("NavigationKeyBenchmark \(name), \(zoom): p50 \(times.sorted()[10]), max \(worst)")
             expectWithinBudget(worst, .milliseconds(budget), "max: \(name), \(zoom) \(worst)")
+            results.append((times.sorted()[10], worst))
             window.close()
             await model.close()
         }
+        return results
     }
 }

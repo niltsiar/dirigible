@@ -286,4 +286,32 @@ func expectWithinBudget(
             await model.close()
         }
     }
+
+    /// Fades C26: Command-F on Select All at 2 h (12,000 clips with no fade before each event): the
+    /// edit, `changedFrames`, the SwiftUI update, and the draw. The draw after a change of every clip
+    /// takes about 28 ms on the Intel Mac, so the rule is a pair rule (decisions.tsv): the p50 and
+    /// the max are not more than those of a Select All Nudge, a whole-session edit that main has, in
+    /// the same harness and run.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aCommandFOnSelectAllCostsNoMoreThanANudge() async throws {
+        let nudge = try await NavigationKeyBenchmark.measure("nudge", budget: 100_000) { model, n in
+            if let studio = model.studio { model.timeline.marks = Marks.all(in: studio.session) }
+            return { model.run(n % 2 == 0 ? .nudgeRight : .nudgeLeft) }
+        }
+        let fade = try await NavigationKeyBenchmark.measure("fade", budget: 100_000) { model, _ in
+            if let studio = model.studio {
+                let none = Dictionary(
+                    uniqueKeysWithValues: studio.session.tracks.flatMap { $0.clips.map { ($0.id, Fades.zero) } })
+                try? studio.edit { s throws(SessionError) in try s.setFades(none) }
+                model.timeline.marks = Marks.all(in: studio.session)
+            }
+            return { model.run(.fade) }
+        }
+        try #require(fade.count == Self.zooms.count && nudge.count == Self.zooms.count)
+        for (index, (zoom, _)) in Self.zooms.enumerated() {
+            let (fade, nudge) = (fade[index], nudge[index])
+            expectWithinBudget(fade.p50, nudge.p50, "fade p50 \(zoom): \(fade.p50), nudge \(nudge.p50)")
+            expectWithinBudget(fade.max, nudge.max, "fade max \(zoom): \(fade.max), nudge \(nudge.max)")
+        }
+    }
 }

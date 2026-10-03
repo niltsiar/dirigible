@@ -68,7 +68,7 @@ struct LanePalette: Equatable {
 /// Draws the lanes into a caller's pixels (decisions 0017 and 0022, probe D2): a background pattern
 /// per row, then the clip boxes, the missing-media tint, and the waveform as column spans, rectified
 /// on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain and the
-/// fades of decision 0035, and a fade line in boxes of 12 pt or more. Then the
+/// fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the
 /// selection band and the marker, chapter, in, and out lines. One per document view, on the main
 /// thread. It writes every pixel of the rect of the region, and the region refuses every pixel
 /// outside it. Each edge rounds in absolute document pixels, so two partial draws agree with one
@@ -170,7 +170,7 @@ final class LaneRenderer {
                     : ColumnFades(
                         fades: clip.fades, length: clip.length,
                         first: Double(range.lowerBound) * pixelFrames - Double(clip.start.count), step: pixelFrames,
-                        line: inputs.laneHeight >= 12)
+                        line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
                 drawColumns(
                     range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, palette, into: region)
             }
@@ -254,7 +254,7 @@ struct ColumnFades {
     let length: Frames
     let first: Double
     let step: Double
-    /// A 1 px fade line, only in boxes of 12 pt or more.
+    /// A 1 px fade line, only in clip boxes of 12 pt or more wide (0035).
     let line: Bool
 
     /// The maximum of the fade factor over the frames of column `index` (plan gate F2): the fade-in

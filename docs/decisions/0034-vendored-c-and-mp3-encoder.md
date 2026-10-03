@@ -24,7 +24,7 @@ R11 asks for MP3, and 0007 accepts LAME as the static C target `CLame`. Every ta
 - **Asserts.** The LAME asserts stay on in release builds, as in the LAME build. The known trigger is a non-finite or very large sample: the export sets each NaN or infinite sample to 0 and clamps each finite sample to ±64 before the encode.
 - **Init.** One process-global call of `lame_close(lame_init())` fills the global log table before the first MP3 export. The four globals that each `lame_init_params` writes with no lock get the same values each time; that race is accepted.
 - **Encoder.** `ExportFormat.mp3(BitRate)`: CBR at 64, 96, 128, 160, 192, or 256 kbit/s (default 128), joint stereo or mono, LAME quality 3, the LAME tag at the file start, no ID3 tag. The rate is the session rate, 44.1, or 48 kHz; a file rate other than 32, 44.1, or 48 kHz throws `.rateNotSupported` before any file exists. After the LAME setup, an out rate or a bit rate other than the asked one also throws `.rateNotSupported`. LAME changes the rate. No dither. The export report is the measure before the encoder (0032); the file reads up to 0.45 dB lower (U4).
-- **License files.** `Contents/Resources/LAME-COPYING.txt` (the LAME `COPYING`) and `LAME-NOTICE.txt`. `AppBundleTests` checks both.
+- **License files.** `Contents/Resources/LAME-COPYING.txt` (the LAME `COPYING`) and `LAME-NOTICE.txt`. `bundle.sh` adds the line `Source commit: <hash>` (the HEAD commit, with `, with uncommitted changes` for a changed tree) to the bundled notice, so the notice points to the source of the shipped binary. `AppBundleTests` checks both files and the 40-hex commit.
 
 ## Consequences
 

@@ -109,7 +109,7 @@ public struct LoudnessReport: Hashable, Sendable {
 
     /// The gain is over the ±20 dB limit of auto-level (decision 0008). The export does not
     /// limit it (0032), so the window shows it as a warning.
-    public var exceedsLevelLimit: Bool { abs(gain.dB) > levelLimit }
+    public var exceedsLevelLimit: Bool { abs(gain.dB) > Gain.levelLimit }
 }
 
 public struct ExportResult: Hashable, Sendable {

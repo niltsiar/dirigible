@@ -40,6 +40,16 @@ struct ClipZoneTests {
         #expect(LaneGeometry.gainFraction(dB: -6) == 0.9)
     }
 
+    /// Code gate nit: the line of the hit test and the row of the renderer use one scale.
+    @Test func theTwoGainLineFormulasAgree() {
+        for dB in [-70, -60, -45.5, -20, -6, -0.1, 0, 4] {
+            var a = Fixture.a
+            a.gain = Gain(dB: dB)!
+            let y = geometry.gainLineY(a, trackGain: .zero, lane: 0)
+            #expect(abs(y - 60 * (1 - LaneGeometry.gainFraction(dB: dB))) < 1e-9, "\(dB) dB")
+        }
+    }
+
     @Test func theHandlesSitAtTheFadeEnds() throws {
         func handles(_ fadeIn: Int, _ fadeOut: Int) throws -> (start: Rect?, end: Rect?) {
             let session = try session { $0.fades = Fades(fadeIn: Frames(fadeIn), fadeOut: Frames(fadeOut))! }
@@ -119,6 +129,22 @@ struct ClipZoneTests {
         #expect(geometry.hit(101, 2, in: session) == .fade(Fixture.a, .start, lane: 0), "the free edge keeps it")
         try session.setFades(["A": Fades(fadeIn: 0, fadeOut: 480)!])
         #expect(geometry.hit(199, 2, in: session) == .fade(session.clip("A")!.clip, .end, lane: 0))
+    }
+
+    /// Code gate K1: fades that fill the clip leave no gain band (the hit is a handle or a move). At 50 frames per point and this start,
+    /// the fade-in end x is 1 ulp over the fade-out start x, and a range from the two trapped.
+    @Test func fadesThatFillTheClipLeaveNoBand() throws {
+        let geometry = try #require(LaneGeometry(scale: TimelineScale(framesPerPoint: 50), laneHeight: 60))
+        var session = try Fixture.session(withB: false)
+        try session.addFile(AudioFile(id: "fl", path: "fl.wav", layout: .mono, length: 60_000_000))
+        let clip = Clip(id: "L", file: "fl", start: 52_395_616, offset: 0, length: 48_000)
+        try session.place(clip, on: "t2")
+        try session.setFades(["L": Fades(fadeIn: 24_000, fadeOut: 24_000)!])
+        let box = geometry.box(of: clip, lane: 1)
+
+        for x in stride(from: box.minX + 10, to: box.maxX - 10, by: 0.25) {
+            #expect(geometry.hit(x, 63, in: session) != .gain(session.clip("L")!.clip, lane: 1), "x \(x)")
+        }
     }
 
     @Test func joinsFindTheTouchingNeighbors() throws {

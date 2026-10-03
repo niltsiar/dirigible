@@ -43,13 +43,19 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         // fade shows only with no join, so a join that comes or goes redraws that neighbor.
         if head > 0 {
             let left = y[y.startIndex + head - 1]
-            if left.fades.fadeOut == .zero, (before.first?.start == left.end) != (after.first?.start == left.end) {
+            let (old, new) = (before.first?.start == left.end, after.first?.start == left.end)
+            if LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: old)
+                != LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: new)
+            {
                 start = left.start
             }
         }
         if tail > 0 {
             let right = y[y.endIndex - tail]
-            if right.fades.fadeIn == .zero, (before.last?.end == right.start) != (after.last?.end == right.start) {
+            let (old, new) = (before.last?.end == right.start, after.last?.end == right.start)
+            if LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: old)
+                != LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: new)
+            {
                 end = right.end
             }
         }
@@ -83,8 +89,9 @@ private func hull(_ range: Range<Frames>?, _ start: Frames, _ end: Frames) -> Ra
 }
 
 extension ClipLane {
-    /// Whether a lane neighbor touches the clip at `index` (a butt join). Command-F, the fade
-    /// handles, and `changedFrames` read it (decision 0035).
+    /// Whether a lane neighbor touches the clip at `index` (a butt join). Command-F and the fade
+    /// handles read it (decision 0035); `changedFrames` compares the joins of a changed run with
+    /// `LaneGeometry.hasHandle`.
     func joins(at index: Int) -> (before: Bool, after: Bool) {
         let clip = self[index]
         return (

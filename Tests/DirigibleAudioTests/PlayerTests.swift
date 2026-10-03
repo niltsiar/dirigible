@@ -271,4 +271,14 @@ struct PlayerTests {
         #expect(reading.stop == (fails ? .noFreeDescriptor(Int(EMFILE)) : nil))
         #expect(reading.faults == [:], "not a fault of the file")
     }
+
+    /// Fades C12: a forward play from 900 has the fades of the mix.
+    @Test func forwardPlayHasTheFades() async throws {
+        let package = try fadedPackage()
+        let url = package.url
+        let player = Player(package: { url }, output: .offline, session: package.session)
+        await player.apply(.play(from: 900, shuttle: forward), number: 1)
+        let mix = try fadedMix(900..<6900)
+        expectEqual(await player.renderOffline(frames: 6000), [mix, mix], "L from 900, faded")
+    }
 }

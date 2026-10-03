@@ -140,4 +140,43 @@ struct MixTests {
         #expect(reader.faults == [:])
         #expect(try openDescriptors(in: package.url) <= 32)
     }
+
+    // MARK: Fades (decision 0035)
+
+    /// Fades C9: the mix follows `Fades.gain` frame by frame, with literal anchors.
+    @Test func fadesFollowTheQuarterSine() throws {
+        let out = try fadedPackage().mix(0..<7000)
+        let expected = try fadedMix(0..<7000)
+        for channel in out { #expect(maxError(channel, expected) <= 1e-6, "the mix follows Fades.gain") }
+        #expect(abs(out[0][1000] - 0.25) <= 1e-6, "k = 0 gives 0")
+        #expect(abs(out[0][1240] - (0.25 + 0.353_553_39)) <= 1e-6, "k = 240 gives 0.35355")
+        #expect(abs(out[0][5799] - (0.25 + 0.000_818_12)) <= 1e-6, "k = 4799 gives 0.000818")
+    }
+
+    /// Fades C11: clip gain -6 dB, track gain +2 dB, and the fades multiply.
+    @Test func fadeAndGainMultiply() throws {
+        let package = try fadedPackage()
+        try package.session.setGain(#require(Gain(dB: -6)), clip: "c1")
+        try package.session.setGain(#require(Gain(dB: 2)), track: "t2")
+        let out = try package.mix(0..<7000)
+        let expected = try fadedMix(0..<7000, gain: pow(10, -4.0 / 20))
+        for channel in out { #expect(maxError(channel, expected) <= 1e-6, "0.5 * fin * fout * 10^(-4/20)") }
+    }
+
+    /// Fades C14: the envelope at the end of a clip of 2^30 + 7 frames, with no media, is within the
+    /// B1 tolerance of `Fades.gain`.
+    @Test func aFadeAtTheEndOfALongClipIsExact() throws {
+        let length = Frames((1 << 30) + 7)
+        let fades = try #require(Fades(fadeIn: 480, fadeOut: 48_000))
+        // A part at the clip end, and one inside the fade-out: a Float start can round to the
+        // right value at the end only.
+        for from in [length - Frames(4800), length - Frames(30_001)] {
+            var envelope = [Float](repeating: 0, count: 4800)
+            envelope.withUnsafeMutableBufferPointer {
+                fadeEnvelope(fades, length: length, from: from, gain: 1, into: $0)
+            }
+            let expected = (0..<4800).map { Float(fades.gain(at: from + Frames($0), length: length)) }
+            #expect(maxError(envelope, expected) <= 1e-6, "the envelope at the end of a long clip")
+        }
+    }
 }

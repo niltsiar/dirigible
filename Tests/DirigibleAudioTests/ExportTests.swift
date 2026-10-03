@@ -238,6 +238,18 @@ struct ExportTests {
         #expect(out.length == 150_001)
         #expect(abs(Self.rmsDB(Array(out.channels[0][144_000...])) - -20) <= 0.01)
     }
+
+    /// Fades C13: a WAV 24-bit export with loudness Off has the fades of the play (C12 ties the
+    /// play to the mix), within 2^-22 per sample.
+    @Test func fadesExportAsTheyPlay() throws {
+        let package = try fadedPackage()
+        let out = try Self.read(Self.export(package, 0..<6000, Self.options(.wav(.bits24)), to: "fades.wav"))
+        let expected = try fadedMix(0..<6000)
+        #expect(out.channels.count == 2)
+        for channel in out.channels {
+            #expect(maxError(channel, expected) <= 1.0 / 4_194_304, "the export has the fades within 2^-22")
+        }
+    }
 }
 
 /// `ExportSource.init?` refuses a source with no frame or no track (export run criterion 8).

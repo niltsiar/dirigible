@@ -42,4 +42,17 @@ struct RenderMixTests {
         for (a, b) in zip(rendered, try package.mix(0..<9600)) { #expect(maxError(a, b) <= 1e-6) }
         #expect(rendered.map(\.count) == [9600, 9600])
     }
+
+    /// Fades C10: a render in chunks of 100 frames, with seams inside both fades, equals one render.
+    @Test func fadesJoinWithNoSeam() throws {
+        let package = try fadedPackage()
+        let whole = try package.mix(0..<7000)
+        let reader = package.reader()
+        var chunks: [[Float]] = [[], []]
+        for start in stride(from: 0, to: 7000, by: 100) {
+            let part = try package.render(reader, Frames(start)..<Frames(start + 100))
+            for channel in 0..<2 { chunks[channel] += part[channel] }
+        }
+        for (a, b) in zip(chunks, whole) { #expect(maxError(a, b) <= 1e-6, "the chunks equal one render") }
+    }
 }

@@ -87,6 +87,30 @@ struct ClipCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// K3: `clip gain` takes one or more clips and sets them in one edit. A duplicate, an unknown
+    /// clip, or no clip exits nonzero and leaves the file unchanged.
+    @Test func gainSetsManyClips() async throws {
+        try package.edit {
+            for (id, start) in [("A", 0), ("B", 2000), ("C", 4000)] as [(ClipID, Frames)] {
+                try $0.place(Clip(id: id, file: "f1", start: start, offset: start, length: 1000), on: "host")
+            }
+        }
+        #expect(try await package.run("clip", "gain", "PKG", "A", "C", "--db", "-6") == silent)
+        #expect(try clips("host").map(\.gain) == [Gain(dB: -6)!, .zero, Gain(dB: -6)!])
+        #expect(try await package.run("clip", "gain", "PKG", "B", "--db", "2.5") == silent, "one clip still works")
+        #expect(try clips("host").map(\.gain) == [Gain(dB: -6)!, Gain(dB: 2.5)!, Gain(dB: -6)!])
+
+        let before = try package.xml()
+        let duplicate = try await package.run("clip", "gain", "PKG", "A", "A", "--db", "0")
+        #expect(duplicate.status == 64 && duplicate.stderr.contains("Clip \"A\" is given twice."), "\(duplicate)")
+        #expect(
+            try await package.run("clip", "gain", "PKG", "A", "X", "--db", "0")
+                == CLIResult(status: 1, stdout: "", stderr: "Error: no clip \"X\".\n"))
+        let none = try await package.run("clip", "gain", "PKG", "--db", "0")
+        #expect(none.status == 64 && none.stderr.contains("Missing expected argument '<clips> ...'"), "\(none)")
+        #expect(try package.xml() == before, "a refused gain changes nothing")
+    }
+
     /// Fades C8 (decision 0035): `clip fade` sets both fades and saves version 3; `info` shows them,
     /// and `info --json` leaves out a fade of 0.
     @Test func fadeSetsBothFades() async throws {

@@ -81,6 +81,26 @@ extension Session {
         tracks[track].clips.replace(at: index, with: clip)
     }
 
+    /// Sets the gain of each clip in one pass over the lanes. An unknown ID throws `.unknownClip`.
+    /// A throw changes nothing.
+    public mutating func setGains(_ gains: [ClipID: Gain]) throws(SessionError) {
+        var lanes = tracks
+        var found = 0
+        for track in lanes.indices {
+            for index in lanes[track].clips.indices {
+                guard let new = gains[lanes[track].clips[index].id] else { continue }
+                var clip = lanes[track].clips[index]
+                clip.gain = new
+                lanes[track].clips.replace(at: index, with: clip)
+                found += 1
+            }
+        }
+        if found < gains.count, let missing = gains.keys.sorted().first(where: { clip($0) == nil }) {
+            throw .unknownClip(missing)
+        }
+        tracks = lanes
+    }
+
     /// Sets the fades of each clip in one pass over the lanes (decision 0035). Each clip passes
     /// `check`. An unknown ID throws `.unknownClip`. A throw changes nothing.
     public mutating func setFades(_ fades: [ClipID: Fades]) throws(SessionError) {

@@ -152,13 +152,22 @@ struct ClipCommand: ParsableCommand {
     }
 
     struct SetGain: ParsableCommand {
-        static let configuration = CommandConfiguration(commandName: "gain", abstract: "Set the gain of a clip.")
+        static let configuration = CommandConfiguration(
+            commandName: "gain", abstract: "Set the gain of one or more clips in one edit.")
         @OptionGroup var package: PackageArgument
-        @Argument var clip: String
+        @Argument var clips: [String]
         @Option(parsing: .unconditional, help: "The gain in dB.", transform: parseGain) var db: Gain
 
+        func validate() throws {
+            var seen: Set<String> = []
+            if let twice = clips.first(where: { !seen.insert($0).inserted }) {
+                throw ValidationError("Clip \"\(twice)\" is given twice.")
+            }
+        }
+
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in try session.setGain(db, clip: ClipID(clip)) }
+            let gains = Dictionary(uniqueKeysWithValues: clips.map { (ClipID($0), db) })
+            try editPackage(package) { session throws(SessionError) in try session.setGains(gains) }
         }
     }
 }

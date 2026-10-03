@@ -45,14 +45,31 @@ public struct Loudness: Hashable, Sendable {
     let blocks: [Double]
 
     /// The gated integrated loudness of ITU-R BS.1770-5. Nil when no block passes the two gates.
+    /// The gates compare mean squares, not LUFS: `lufs` rises with the mean square, so the result
+    /// is the same with no log10 per block. The live meter computes it at each step of a 2 h play
+    /// (run 9b criterion 8: a log10 per block took 2.3 ms p95 at 2 h).
     public var integrated: LUFS? {
-        let absolute = blocks.filter { Self.lufs($0) > Self.absoluteGate }
-        guard !absolute.isEmpty else { return nil }
-        let relative = Self.lufs(absolute.reduce(0, +) / Double(absolute.count)) + Self.relativeGate
-        let gated = absolute.filter { Self.lufs($0) > relative }
-        guard !gated.isEmpty else { return nil }
-        return LUFS(value: Self.lufs(gated.reduce(0, +) / Double(gated.count)))
+        let absolute = Self.meanSquare(Self.absoluteGate)
+        let (sum, count) = Self.sum(blocks, over: absolute)
+        guard count > 0 else { return nil }
+        let relative = max(absolute, sum / Double(count) * pow(10, Self.relativeGate / 10))
+        let (gatedSum, gatedCount) = Self.sum(blocks, over: relative)
+        guard gatedCount > 0 else { return nil }
+        return LUFS(value: Self.lufs(gatedSum / Double(gatedCount)))
     }
+
+    /// The sum and the count of the blocks over `threshold`.
+    private static func sum(_ blocks: [Double], over threshold: Double) -> (sum: Double, count: Int) {
+        var (sum, count) = (0.0, 0)
+        for block in blocks where block > threshold {
+            sum += block
+            count += 1
+        }
+        return (sum, count)
+    }
+
+    /// The mean square of `lufs`: the inverse of `lufs(_:)`.
+    static func meanSquare(_ lufs: Double) -> Double { pow(10, (lufs + 0.691) / 10) }
 
     /// The loudness of the signal after `gain`. It scales each block, so the gates act on the
     /// scaled blocks.
@@ -82,10 +99,15 @@ public struct LoudnessMeter: Sendable {
     var filters: [(shelf: Biquad, highPass: Biquad)]
     var stepSum = 0.0
     var stepFilled = 0
-    /// The sums of the last four complete steps.
+    /// The sums of the last complete steps: at most the short-term window.
     var steps: [Double] = []
     var blocks: [Double] = []
     var nonFinite = false
+
+    /// The steps of a 400 ms block, which is also the momentary window (EBU Tech 3341).
+    static let blockSteps = 4
+    /// The steps of the 3 s short-term window (EBU Tech 3341).
+    static let shortTermSteps = 30
 
     /// Nil when the shelf frequency is at or over Nyquist (a rate of 3 363 Hz or less).
     public init?(sampleRate: Int, layout: ChannelLayout) {
@@ -125,34 +147,69 @@ public struct LoudnessMeter: Sendable {
                 && Int(format.channelCount) == filters.count && format.sampleRate == Double(sampleRate),
             "the loudness meter takes deinterleaved Float32 at its rate and channel count")
         guard let data = buffer.floatChannelData else { return }
-        let frames = Int(buffer.frameLength)
+        add(frames: Int(buffer.frameLength), stride: 1) { channel, start in UnsafePointer(data[channel] + start) }
+    }
+
+    /// Adds interleaved Float32 frames at the meter rate, with the channel count of the layout:
+    /// the record path. It shares the inner loop of `feed(_ buffer:)`.
+    mutating func feed(interleaved samples: UnsafeBufferPointer<Float>) {
+        guard let base = samples.baseAddress else { return }
+        let channels = filters.count
+        add(frames: samples.count / channels, stride: channels) { channel, start in base + start * channels + channel }
+    }
+
+    /// The one inner loop of both feeds. `first(channel, frame)` points to the sample of that
+    /// channel at that frame; the next frame is `stride` samples after it.
+    private mutating func add(
+        frames: Int, stride: Int, _ first: (_ channel: Int, _ frame: Int) -> UnsafePointer<Float>
+    ) {
         var start = 0
         while start < frames {
             let count = min(frames - start, stepFrames - stepFilled)
             for channel in filters.indices {
                 var (shelf, highPass) = filters[channel]
-                let samples = data[channel] + start
+                let samples = first(channel, start)
                 var sum = 0.0
                 for index in 0..<count {
-                    let y = highPass.process(shelf.process(Double(samples[index])))
+                    let y = highPass.process(shelf.process(Double(samples[index * stride])))
                     sum += y * y
                 }
                 shelf.flush()
                 highPass.flush()
                 filters[channel] = (shelf, highPass)
-                // A NaN or an infinity gives a sum that is not finite, also in a step that never completes.
-                if !sum.isFinite { nonFinite = true }
+                // A NaN or an infinity gives a sum that is not finite, also in a step that never
+                // completes. `result()` then has no blocks (run 8a). The live values count the
+                // part as silence and start the filters of the channel again (run 9b).
+                if !sum.isFinite {
+                    nonFinite = true
+                    filters[channel] = Self.kWeighting(rate: Double(sampleRate))
+                    sum = 0
+                }
                 stepSum += sum
             }
             start += count
             stepFilled += count
             if stepFilled == stepFrames {
                 steps.append(stepSum)
-                if steps.count > 4 { steps.removeFirst() }
-                if steps.count >= 4 { blocks.append(steps.reduce(0, +) / Double(4 * stepFrames)) }
+                if steps.count > Self.shortTermSteps { steps.removeFirst() }
+                if steps.count >= Self.blockSteps {
+                    blocks.append(steps.suffix(Self.blockSteps).reduce(0, +) / Double(Self.blockSteps * stepFrames))
+                }
                 (stepSum, stepFilled) = (0, 0)
             }
         }
+    }
+
+    /// The loudness of the last 400 ms. Nil until 400 ms of steps complete, and for silence.
+    public var momentary: LUFS? { window(Self.blockSteps) }
+
+    /// The loudness of the last 3 s. Nil until 3 s of steps complete, and for silence.
+    public var shortTerm: LUFS? { window(Self.shortTermSteps) }
+
+    private func window(_ count: Int) -> LUFS? {
+        guard steps.count >= count else { return nil }
+        let meanSquare = steps.suffix(count).reduce(0, +) / Double(count * stepFrames)
+        return meanSquare > 0 ? LUFS(value: Loudness.lufs(meanSquare)) : nil
     }
 
     /// The complete blocks so far. An incomplete block at the end does not count (EBU Tech 3341).

@@ -276,8 +276,10 @@ struct BannerValueTests {
         let lanes = try #require(model.timelineView)
         let gap = {
             window.contentView?.layoutSubtreeIfNeeded()
-            // The pane: the overview strip and the lanes (decision 0025).
-            return window.contentLayoutRect.height - (lanes.superview ?? lanes).frame.height
+            // The pane: the overview strip and the lanes (decision 0025); the loudness strip is
+            // below the pane (decision 0033).
+            return window.contentLayoutRect.height - (model.showsLoudness ? LoudnessStrip.height : 0)
+                - (lanes.superview ?? lanes).frame.height
         }
         await until(limit: .seconds(10), "the lanes fill the content") { gap() == 0 }
 
@@ -337,12 +339,13 @@ struct BannerValueTests {
         view.viewWillMove(toWindow: nil)
         model.armed = []
         await studio.perform(.seek(.frame(100_000)))
-        // No row above the lanes: the lanes take the whole content height. The read at open can
-        // show a low-time row that SwiftUI removes later.
+        // No row above the lanes: the lanes take the whole content height less the loudness strip
+        // (decision 0033). The read at open can show a low-time row that SwiftUI removes later.
         await until(limit: .seconds(10), "the lanes fill the content") {
             window.contentView?.layoutSubtreeIfNeeded()
             return model.shown.banners.isEmpty
-                && (view.superview ?? view).frame.height == window.contentLayoutRect.height
+                && (view.superview ?? view).frame.height
+                    == window.contentLayoutRect.height - (model.showsLoudness ? LoudnessStrip.height : 0)
         }
         let before = view.convert(view.bounds, to: nil)
         let shows = model.overlayShows

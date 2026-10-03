@@ -343,7 +343,7 @@ final class TimelineScrollView: NSScrollView {
                 rate: studio.session.sampleRate)
         tick(playhead: frame, playback: playback, taking: head != nil)
         autoscrollTick(at: CACurrentMediaTime())
-        model?.loudnessTick(studio, taking: head != nil)
+        model?.loudnessTick(studio)
     }
 
     /// Moves the playhead line, or the record head line during a take (`taking`), and draws the

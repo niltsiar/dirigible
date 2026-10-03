@@ -80,7 +80,7 @@ The loudness meter is the strip below the tracks. It measures the mix that you h
 - **Peak** is the highest true peak, in dBTP. It is red over -1 dBTP.
 - **Target** is the loudness target of the export: -16 LUFS for the podcast target or Off, -23 LUFS for EBU R128.
 
-When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. Play in reverse, at half speed, at 2x, or at 4x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, each armed track shows its loudness in its header.
+When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. Play in reverse, at half speed, at 2x, or at 4x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take or **Monitor Inputs**, the strip shows dashes, and each armed track shows its loudness in its header.
 
 Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 

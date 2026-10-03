@@ -128,7 +128,7 @@ struct StopLevelTests {
         #expect(writes.count == 2, "write order: \(writes.count) writes")
         Self.expectGain(writes.first ?? outcome.session, "take1-1-1", 0, tolerance: 0, "write order first")
         Self.expectGain(writes.last ?? outcome.session, "take1-1-1", 14, "write order second")
-        #expect(outcome.placed == writes.first, "write order: placed is not the first write")
+        #expect(outcome.beforeLevel == writes.first, "write order: beforeLevel is not the first write")
     }
 
     @Test func aFailedLevelWriteKeepsTheTake() throws {

@@ -70,7 +70,7 @@ struct SegmentBreakTests {
 
     /// The clips of t1 with gain 0 dB: the stop levels the take (decision 0031), and these tests
     /// check only where the segments go.
-    func clips(_ studio: Studio) -> [Clip] {
+    func clipsIgnoringGain(_ studio: Studio) -> [Clip] {
         (studio.session.track("t1").map { Array($0.clips) } ?? []).map { clip in
             var clip = clip
             clip.gain = .zero
@@ -89,7 +89,7 @@ struct SegmentBreakTests {
 
         let studio = try await take(clock.run(seconds: 2))
 
-        #expect(clips(studio) == [clip("take1-1-1", start: 0, length: 96_000)])
+        #expect(clipsIgnoringGain(studio) == [clip("take1-1-1", start: 0, length: 96_000)])
     }
 
     enum Event: String, CaseIterable, Sendable {
@@ -126,7 +126,7 @@ struct SegmentBreakTests {
 
         let studio = try await take(records)
 
-        let placed = clips(studio)
+        let placed = clipsIgnoringGain(studio)
         #expect(placed.map(\.id) == ["take1-1-1", "take1-1-2"])
         #expect(placed.first == clip("take1-1-1", start: 0, length: 48_000))
         let second = try #require(placed.last)
@@ -145,7 +145,7 @@ struct SegmentBreakTests {
         let studio = try await take(records)
 
         #expect(
-            clips(studio) == [
+            clipsIgnoringGain(studio) == [
                 clip("take1-1-1", start: 0, length: 24_000), clip("take1-1-2", start: 24_000, length: 48_000),
             ])
     }
@@ -159,7 +159,7 @@ struct SegmentBreakTests {
 
         let studio = try await take(records)
 
-        #expect(clips(studio) == [clip("take1-1-1", start: 0, length: 144_000)])
+        #expect(clipsIgnoringGain(studio) == [clip("take1-1-1", start: 0, length: 144_000)])
         let samples = try readAudio(url.appending(path: "Capture/take1-1-1.caf")).samples
         #expect(samples.count == 144_000)
         #expect(Set(samples[..<48_000]) == [0.25])
@@ -173,7 +173,7 @@ struct SegmentBreakTests {
 
         let studio = try await take(clock.run(seconds: 120, jitter: 200_000, using: &generator))
 
-        #expect(clips(studio).map(\.id) == ["take1-1-1"])
+        #expect(clipsIgnoringGain(studio).map(\.id) == ["take1-1-1"])
     }
 
     /// The real rate changes 1 s before the header rate shows it (decision 0004).
@@ -187,7 +187,7 @@ struct SegmentBreakTests {
 
         let studio = try await take(records)
 
-        let placed = clips(studio)
+        let placed = clipsIgnoringGain(studio)
         #expect(placed.map(\.id) == ["take1-1-1", "take1-1-2", "take1-1-3"])
         #expect(placed.map(\.start) == placed.map(\.start).sorted())
         let lagged = try #require(studio.session.captures["take1-1-2"])

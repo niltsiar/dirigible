@@ -173,11 +173,9 @@ extension Studio {
         return playhead ?? play.playhead
     }
 
-    /// After a finalize that succeeds: the playhead goes to the largest end of the clips of the
-    /// files that `finalized` adds. A punch-in split gives an old file a new clip ID, so a new
-    /// clip ID alone does not mark a take clip.
+    /// After a finalize that succeeds: the playhead goes to the largest end of the take clips.
     func takeEnded(_ finalized: Session) {
-        let ends = finalized.tracks.flatMap(\.clips).filter { session.files[$0.file] == nil }.map(\.end)
+        let ends = takeClips(of: finalized, before: session).map(\.end)
         if let end = ends.max() { play.playhead = end }
         handOffLive(finalized)
     }

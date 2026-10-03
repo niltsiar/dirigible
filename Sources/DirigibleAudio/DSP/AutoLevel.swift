@@ -6,7 +6,8 @@ import os
 public enum LevelMode: Sendable {
     /// Each clip gets the target alone.
     case eachClip
-    /// The clips of one track get one delta, so the gain differences between them stay.
+    /// The clips of one track get one delta, so the gain differences between them stay, unless a
+    /// gain reaches the ±20 dB limit.
     case equallyPerTrack
 }
 
@@ -67,12 +68,14 @@ public func autoLevel(_ clips: Set<ClipID>, _ mode: LevelMode, of session: Sessi
         }
         let delta = clipTarget(group[0].track.layout) - integrated.value
         for item in readable {
-            guard results[item.clip.id]?.integrated != nil else {
+            let base = mode == .eachClip ? 0 : item.clip.gain.dB
+            // Gain(dB:) is nil only for a value that is not finite.
+            guard results[item.clip.id]?.integrated != nil,
+                let gain = Gain(dB: min(max(base + delta, -levelLimit), levelLimit))
+            else {
                 levels[item.clip.id] = .noMeasurement
                 continue
             }
-            let base = mode == .eachClip ? 0 : item.clip.gain.dB
-            let gain = Gain(dB: min(max(base + delta, -levelLimit), levelLimit))!
             // The clip is in `session`, so the edit cannot throw.
             try? leveled.setGain(gain, clip: item.clip.id)
             levels[item.clip.id] = .leveled(integrated, gain)

@@ -28,7 +28,7 @@ struct TakeOutcome: Sendable {
     var missingMedia: [FileID: MediaFault]? = nil
     /// The session of the first write of a stop that leveled, before the level (decision 0031).
     /// Nil on every other path.
-    var placed: Session? = nil
+    var beforeLevel: Session? = nil
 }
 
 /// The recovery marker of decision 0004, in the package root.
@@ -99,9 +99,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
 }
 
 /// `completeTake` with the save as a parameter, so that a test sees both writes and can make one
-/// fail. The take clips are the clips whose file is not in the pool before the finalize: a record
-/// over gives the right part of an old clip a new ID. A failed level write keeps the take and
-/// gives no error.
+/// fail. A failed level write keeps the take and gives no error.
 nonisolated func completeTake(
     of session: Session, lock: PackageLock, recordings: ActiveRecordings? = nil, previous: URL? = nil,
     leavingUnreadable: Bool = false, level: Bool, write: (Session) throws(SessionFileError) -> Void
@@ -113,12 +111,12 @@ nonisolated func completeTake(
     } catch {
         return TakeOutcome(session: session, error: .file(error), segmentsWithAudio: [], package: nil)
     }
-    func outcome(_ session: Session, _ error: StudioError?, placed: Session? = nil) -> TakeOutcome {
+    func outcome(_ session: Session, _ error: StudioError?, beforeLevel: Session? = nil) -> TakeOutcome {
         let identity = packageIdentity(package)
         recordings?.set(identity, active: session.recording != nil, previous: previous)
         return TakeOutcome(
             session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity,
-            missingMedia: try? checkMedia(session, package: package), placed: placed)
+            missingMedia: try? checkMedia(session, package: package), beforeLevel: beforeLevel)
     }
     let finalized: Session
     do {
@@ -136,15 +134,22 @@ nonisolated func completeTake(
         return outcome(session, .file(error))
     }
     guard level else { return outcome(finalized, nil) }
-    let take = finalized.tracks.flatMap(\.clips).filter { session.files[$0.file] == nil }.map(\.id)
+    let take = takeClips(of: finalized, before: session).map(\.id)
     let leveled = autoLevel(Set(take), .equallyPerTrack, of: finalized, in: package).session
     guard leveled != finalized else { return outcome(finalized, nil) }
     do {
         try write(leveled)
     } catch {
-        return outcome(finalized, nil, placed: finalized)
+        return outcome(finalized, nil, beforeLevel: finalized)
     }
-    return outcome(leveled, nil, placed: finalized)
+    return outcome(leveled, nil, beforeLevel: finalized)
+}
+
+/// The clips of a take (decision 0031): the clips of `finalized` whose file is not in the pool of
+/// `before`. A record over gives the right part of an old clip a new ID, so a new clip ID alone
+/// does not mark a take clip.
+func takeClips(of finalized: Session, before: Session) -> [Clip] {
+    finalized.tracks.flatMap(\.clips).filter { before.files[$0.file] == nil }
 }
 
 /// The placement of decision 0021, off the main actor, in the package that `lock` holds now: the

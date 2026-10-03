@@ -61,7 +61,7 @@ public struct Loudness: Hashable, Sendable {
         return Loudness(blocks: blocks.map { $0 * factor })
     }
 
-    /// The channel weights are 1 for mono and stereo, so the block value is the weighted sum.
+    /// The loudness of a K-weighted mean square: -0.691 + 10 log10(meanSquare) (BS.1770-5, Annex 1).
     static func lufs(_ meanSquare: Double) -> Double { -0.691 + 10 * log10(meanSquare) }
 }
 
@@ -110,7 +110,8 @@ public struct LoudnessMeter: Sendable {
         return (shelf, highPass)
     }
 
-    /// Adds the frames of `buffer`. Any block size works.
+    /// Adds the frames of `buffer`. Any block size works. The channel weights are 1 for mono and
+    /// stereo, so the step sum adds the channels with no weight.
     /// Precondition: deinterleaved Float32 at the meter rate, with the channel count of the layout.
     public mutating func feed(_ buffer: AVAudioPCMBuffer) {
         let format = buffer.format

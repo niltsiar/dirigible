@@ -12,8 +12,8 @@ struct LoudnessCommand: ParsableCommand {
             One line for each clip, track by track in timeline order: the clip ID, a tab, and the \
             BS.1770 loudness with the clip gain (for example "-16.0 LUFS"), "none" when no block passes \
             the gates, "missing", or "unreadable". When the file has fewer frames than the session says, \
-            the value is for the clip frames in the file and the line ends with a tab and "short". It \
-            writes nothing and takes no lock. Exit 2 when the package cannot be read or a clip ID is \
+            the value is for the clip frames in the file and the line ends with a tab and "short". The \
+            value has the clip gain, but no fade and no track gain. It writes nothing and takes no lock. Exit 2 when the package cannot be read or a clip ID is \
             unknown.
             """)
 

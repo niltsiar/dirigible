@@ -223,16 +223,18 @@ final class LaneRenderer {
         func column(_ frame: Frames) -> Int { Int((geometry.x(of: frame) * scale).rounded(.up)) }
         let columns = (column(clip.start)..<column(clip.end)).clamped(to: region.rect.columns)
         guard !columns.isEmpty else { return }
-        if clip.fades == .zero && gain <= 0 {
-            region.fill(palette.label, columns: columns, rows: row..<row + 1)
+        // The columns of `drawColumns` with no fade factor: one run between the fade-in and the
+        // fade-out columns, which have the fade line.
+        let fades = ColumnFades(
+            fades: clip.fades, length: clip.length,
+            first: Double(columns.lowerBound) * pixelFrames - Double(clip.start.count), step: pixelFrames, line: true)
+        var (low, high) = (columns.lowerBound, columns.upperBound)
+        while low < high, fades.factor(low - columns.lowerBound) != nil { low += 1 }
+        while high > low, fades.factor(high - 1 - columns.lowerBound) != nil { high -= 1 }
+        if gain <= 0 {
+            region.fill(palette.label, columns: low..<high, rows: row..<row + 1)
         } else {
-            // The columns of `drawColumns`: a column with a fade factor has the fade line.
-            let fades = ColumnFades(
-                fades: clip.fades, length: clip.length,
-                first: Double(columns.lowerBound) * pixelFrames - Double(clip.start.count), step: pixelFrames,
-                line: true)
-            for column in columns where gain <= 0 || (column / 3) % 2 == 0 {
-                guard fades.factor(column - columns.lowerBound) == nil else { continue }
+            for column in low..<high where (column / 3) % 2 == 0 {
                 region.span(palette.label, column: column, rows: row..<row + 1)
             }
         }

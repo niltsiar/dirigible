@@ -8,5 +8,5 @@ LAME-COPYING.txt, next to this file.
 Dirigible links the LAME encoder statically. It does not contain the LAME decoder (mpglib).
 Dirigible changed 6 LAME files to remove compiler warnings, with no change of behavior. The source
 of Dirigible, with the changed LAME files, the list of changes (Sources/CLame/README.dirigible),
-and the build instructions, is at https://github.com/niltsiar/dirigible. With it, you can build
-Dirigible again with a changed LAME.
+and the build instructions, is at https://github.com/niltsiar/dirigible. The line Source commit
+below names the commit of this build. With it, you can build Dirigible again with a changed LAME.

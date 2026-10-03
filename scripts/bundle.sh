@@ -24,6 +24,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/DirigibleApp" "$APP/Contents/MacOS/Dirigible"
 cp Support/Info.plist "$APP/Contents/Info.plist"
 cp -R Support/Resources/. "$APP/Contents/Resources/"
+# The LGPL notice names the source of this binary: the commit, and a mark when the tree had
+# changes that no commit holds (decision 0034).
+commit="$(git rev-parse HEAD)"
+[[ -z "$(git status --porcelain)" ]] || commit="$commit, with uncommitted changes"
+printf '\nSource commit: %s\n' "$commit" >> "$APP/Contents/Resources/LAME-NOTICE.txt"
 cp build/icon/Assets.car build/icon/AppIcon.icns "$APP/Contents/Resources/"
 # The user guide as an HTML page, with only the images that it shows. Help > Dirigible Guide
 # opens it. guide-html.swift accepts only images/<name> paths.

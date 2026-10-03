@@ -195,7 +195,7 @@ struct AppBundleTests {
     }
 
     /// The app links LAME statically, so the bundle holds the LGPL text and a LAME notice
-    /// (decisions 0007 and 0033).
+    /// (decisions 0007 and 0034). The notice names the commit of the source of this build.
     @Test func theLAMELicenseIsInTheBundle() throws {
         let resources = app.appending(path: "Contents/Resources")
         let license = try String(contentsOf: resources.appending(path: "LAME-COPYING.txt"), encoding: .utf8)
@@ -204,6 +204,7 @@ struct AppBundleTests {
         for text in ["LAME 4.0", "LGPL", "https://github.com/niltsiar/dirigible"] {
             #expect(notice.contains(text), "the notice names \(text)")
         }
+        #expect(notice.contains(#/Source commit: [0-9a-f]{40}/#), "the notice names the source commit")
     }
 
     private func propertyList(at path: String) throws -> [String: Any] {

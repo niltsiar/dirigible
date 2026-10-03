@@ -240,7 +240,8 @@ actor Player {
         // ahead of the heard audio. Start the node again at the last frame that it played.
         let (scheduled, played) = (feed.scheduled, nodeFrames())
         let dry = scheduled < length(feed) && played > scheduled
-        // A full or complete feed returns before the package lookup, a stat 20 times a second.
+        // A full or complete feed skips the package lookup (a stat), so a running play looks up
+        // the package only on a tick that schedules a chunk.
         if !dry, scheduled >= min(length(feed), played + chunk * Self.depth) { return }
         guard let url = try? package() else {
             stop = .packageUnavailable

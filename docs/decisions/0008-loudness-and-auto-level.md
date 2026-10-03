@@ -5,6 +5,7 @@
 - Amended: 2026-10-03, run 8a. Tech 3341 case 6 does not apply: it is a 5.0 signal, and a session has only mono and stereo. True peak and cases 15 to 19 move to run 9. The K-weighting is a hand-written Double biquad, not Accelerate, because `vDSP.Biquad` is not Sendable.
 - Amended: 2026-10-03, run 8b. A clip with no gated block, a missing file, or a read fault keeps its gain, not 0 dB. At stop the take clips of one track share one delta (equally per track). See 0031.
 - Amended: 2026-10-03, run 9a. The true-peak meter and Tech 3341 cases 15 to 19 are done (`DSP/TruePeak.swift`). The export limiter is our own look-ahead true-peak limiter, not `kAudioUnitSubType_PeakLimiter`; the Consequences line on it is history. See 0032.
+- Amended: 2026-10-03, run 9b. One meter still serves all three: the live meter (momentary, short-term, integrated, and true peak) uses `LoudnessMeter` and `TruePeakMeter`, and the gates compare mean squares. See 0033.
 
 ## Context
 

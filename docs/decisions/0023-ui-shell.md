@@ -6,6 +6,7 @@
 - Changed: 2026-09-27, by code gate 1 and Phase 7 of the ui-shell run: the bridging option is set before the window takes the host (P5), and one record-time read runs at a time.
 - Changed: 2026-09-27, run 1b plan: the header width rounds to whole points; the preference key is `timeline.header.width`, a `Double` of points (0024 P11); the pixel tests pin the window appearance; the fallbacks of the header drag go in order (capacity, fixed host width, guide line).
 - Changed: 2026-09-27, run 1b slices 1 and 5: the first fallback (the capacity from the clip view width) held until the header rows flexed; then the second fallback (a fixed header host width during a drag) landed too. `HeaderDragBenchmark` numbers are in "Surface capacity".
+- Amended: 2026-10-03, run 9b. The loudness strip is a row of `SessionView` below the lanes, not a side pane, so the content stays one `NSHostingController`. View > Show/Hide Loudness Meter has Shift-Command-8. See 0033.
 - Amends: 0014 (the window shell and the keys), 0015 (the Monitor Inputs toggle), 0016 (the transport bar), 0017 (the track headers), 0022 (the surface capacity, if the header drag needs it).
 
 ## Context

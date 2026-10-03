@@ -118,7 +118,7 @@ struct StudioExportTests {
         let fixture = try await ExportStudioFixture.make()
         let studio = try await fixture.open()
 
-        let faults = try await studio.export(fixture.source, fixture.options, to: fixture.out, replacing: nil)
+        let faults = try await studio.export(fixture.source, fixture.options, to: fixture.out, replacing: nil).faults
 
         #expect(faults == [:])
         try await ExportStudioFixture.expectTheExport(at: fixture.out)
@@ -252,7 +252,7 @@ struct StudioExportTests {
 @MainActor
 struct StudioExportYieldTests {
     /// Studio B exports its 10 s tone with 1 s chunks, so the export runs until A acts.
-    func exportB() async throws -> (Studio, ExportStudioFixture, Task<[FileID: MediaFault], any Error>) {
+    func exportB() async throws -> (Studio, ExportStudioFixture, Task<ExportResult, any Error>) {
         let fixture = try await ExportStudioFixture.make()
         let studio = try await fixture.open(seam: ChunkSeam(pause: longChunk))
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)

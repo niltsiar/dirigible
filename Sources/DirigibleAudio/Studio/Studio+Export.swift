@@ -9,7 +9,7 @@ struct ExportJob {
     /// The target: the disk check of a take in another studio ends only an export to its volume.
     let url: URL
     var progress: Double
-    let task: Task<Result<[FileID: MediaFault], ExportError>, Never>
+    let task: Task<Result<ExportResult, ExportError>, Never>
 }
 
 extension Studio {
@@ -26,11 +26,11 @@ extension Studio {
     /// Exports `source` of the session of now to `url` (decision 0019). An edit during the export
     /// is saved and does not change the file. It throws `.busy` during a take start, a take, a
     /// finalize, a pending take, another export, or a `settle()`. A take start and `settle()`
-    /// cancel it: then it throws `.export(.cancelled)`. Returns the faults of the files that the
-    /// export read: the report.
+    /// cancel it: then it throws `.export(.cancelled)`. Returns the report: the faults of the
+    /// files that the export read, and the loudness with a target.
     public func export(
         _ source: ExportSource, _ options: ExportOptions, to url: URL, replacing: ConfirmedFile?
-    ) async throws(StudioError) -> [FileID: MediaFault] {
+    ) async throws(StudioError) -> ExportResult {
         try checkIdle()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         exportNumber += 1
@@ -99,7 +99,7 @@ extension Studio {
     private func exportTask(
         _ number: Int, _ session: Session, _ source: ExportSource, _ options: ExportOptions, _ url: URL,
         _ replacing: ConfirmedFile?
-    ) -> Task<Result<[FileID: MediaFault], ExportError>, Never> {
+    ) -> Task<Result<ExportResult, ExportError>, Never> {
         let (lock, step) = (lock, environment.exportChunk)
         let cancelled = OSAllocatedUnfairLock(initialState: false)
         let hop: @Sendable (Double) -> Void = { [weak self] fraction in

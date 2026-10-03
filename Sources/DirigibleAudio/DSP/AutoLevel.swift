@@ -25,7 +25,7 @@ public enum ClipLevel: Hashable, Sendable {
 let levelLimit = 20.0
 
 /// The target loudness of a track layout (decision 0008).
-func clipTarget(_ layout: ChannelLayout) -> Double { layout == .stereo ? -16 : -19 }
+func clipTarget(_ layout: ChannelLayout) -> Double { LoudnessTarget.podcast.integrated(for: layout).value }
 
 /// Gives each clip of `clips` the gain `clipTarget - measured`, clamped to ±20 dB (decisions
 /// 0008 and 0031). It ignores an ID that is not in `session`.

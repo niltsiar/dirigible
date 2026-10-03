@@ -42,15 +42,34 @@ public enum ExportRate: Hashable, Sendable, CaseIterable {
     }
 }
 
+/// A loudness target of decision 0008. A mono export is 3 LU lower than a stereo export.
+public enum LoudnessTarget: String, CaseIterable, Hashable, Sendable {
+    case podcast, speech, ebu, atsc
+
+    public func integrated(for layout: ChannelLayout) -> LUFS {
+        let stereo: Double =
+            switch self {
+            case .podcast: -16
+            case .speech: -18
+            case .ebu: -23
+            case .atsc: -24
+            }
+        return LUFS(value: layout == .stereo ? stereo : stereo - 3)
+    }
+}
+
 public struct ExportOptions: Hashable, Sendable {
     public var format: ExportFormat
     public var layout: ChannelLayout
     public var rate: ExportRate
+    /// Nil: no gain and no limiter.
+    public var loudness: LoudnessTarget?
 
-    public init(format: ExportFormat, layout: ChannelLayout, rate: ExportRate) {
+    public init(format: ExportFormat, layout: ChannelLayout, rate: ExportRate, loudness: LoudnessTarget? = nil) {
         self.format = format
         self.layout = layout
         self.rate = rate
+        self.loudness = loudness
     }
 
     /// The output of `dirigible render`: 32-bit float stereo CAF at the session rate.
@@ -70,6 +89,27 @@ public struct ExportSource: Hashable, Sendable {
         self.range = range
         self.tracks = tracks
     }
+}
+
+/// The loudness of an export with a target (decision 0032). The output values are measured on the
+/// processed signal at the session rate, before the encoder.
+public struct LoudnessReport: Hashable, Sendable {
+    public let target: LUFS
+    /// The mix before the gain. Nil when no block passes the gates: then the gain is 0 dB.
+    public let measured: LUFS?
+    /// `target - measured`, with no limit.
+    public let gain: Gain
+    /// The output after the gain and the limiter.
+    public let output: LUFS?
+    /// The true peak of the output in dBTP. Nil for digital silence.
+    public let truePeak: Double?
+}
+
+public struct ExportResult: Hashable, Sendable {
+    /// The faults of the files that the source read.
+    public let faults: [FileID: MediaFault]
+    /// Nil for an export with no loudness target.
+    public let loudness: LoudnessReport?
 }
 
 public enum ExportError: Error, Hashable, Sendable {
@@ -96,20 +136,24 @@ public enum ExportError: Error, Hashable, Sendable {
 /// the range. A mono export folds each chunk to 0.5 x (L + R) (probe P10). The file rate is the
 /// chosen rate; the converter of `ExtAudioFile` resamples (P4).
 ///
+/// With a loudness target it renders the source twice (decision 0032). Pass 1 measures the mix
+/// before the temporary file exists. Pass 2 applies the gain `target - measured` and the
+/// true-peak limiter at -1 dBTP, and measures the output for the report.
+///
 /// At each chunk and once after the close it reads `isCancelled()`; at each chunk it reads
-/// `package()`, so a package that moves keeps its audio. After each write it calls `progress` when the whole percent changes; the call of 1.0
+/// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
+/// percent changes: pass 1 maps to 0...0.25 and pass 2 to 0.25...1. The call of 1.0
 /// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
 /// folder of `url`, closes and flushes it, then moves it: over `replacing` when the target
 /// still is that item, else with `moveNew`, which never replaces an item. Then it flushes the
 /// folder. Every exit removes the temporary file. It holds an flock on the temporary file while
-/// it runs. At the start it removes the leftovers of an export to `url` that died. Returns the
-/// faults of the files that the source read.
+/// it runs. At the start it removes the leftovers of an export to `url` that died.
 public func exportMix(
     _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
     replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
     chunk: Int = 48_000
-) throws(ExportError) -> [FileID: MediaFault] {
+) throws(ExportError) -> ExportResult {
     let rate = options.rate.hertz(session: session.sampleRate)
     if case .aac = options.format, rate > 48_000 { throw .rateNotSupported(rate) }
     let sessionRate = Double(session.sampleRate)
@@ -120,6 +164,45 @@ public func exportMix(
         let monoBuffer = AVAudioPCMBuffer(pcmFormat: mono, frameCapacity: capacity)
     else { throw .writeFailed(kAudio_ParamError) }
     let folded = options.layout == .mono ? monoBuffer : nil
+    let first = source.range.lowerBound
+    let total = source.range.upperBound.count - first.count
+    let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks)
+    var percent = 0
+    func report(_ whole: Int, _ fraction: Double) {
+        if whole > percent {
+            percent = whole
+            progress(fraction)
+        }
+    }
+    /// Renders the source chunk by chunk and gives each chunk and the frames done to `body`.
+    func render(_ body: (AVAudioPCMBuffer, Int) throws(ExportError) -> Void) throws(ExportError) {
+        var start = first
+        while start < source.range.upperBound {
+            if isCancelled() { throw .cancelled }
+            do { mix.package = try package() } catch { throw .packageUnavailable }
+            let end = min(start + Frames(chunk), source.range.upperBound)
+            mix.render(start..<end, into: mixBuffer)
+            if let error = mix.openError { throw .openFailed(error.code.rawValue) }
+            if let folded { fold(mixBuffer, into: folded) }
+            start = end
+            try body(folded ?? mixBuffer, end.count - first.count)
+        }
+    }
+
+    var stage: LoudnessStage?
+    if let target = options.loudness {
+        var meter = LoudnessMeter(sampleRate: session.sampleRate, layout: options.layout)
+        if meter != nil {
+            try render { buffer, done throws(ExportError) in
+                meter?.feed(buffer)
+                report(25 * done / total, 0.25 * Double(done) / Double(total))
+            }
+        }
+        stage = LoudnessStage(
+            target: target.integrated(for: options.layout), measured: meter?.result().integrated,
+            rate: session.sampleRate, layout: options.layout)
+    }
+
     removeExportLeftovers(of: url)
     let folder = url.deletingLastPathComponent()
     let temporary = folder.appending(path: "\(leftoverPrefix(url))\(UUID().uuidString).tmp")
@@ -136,30 +219,26 @@ public func exportMix(
     // The unlink runs before the close, so no sweep sees the file with no lock.
     defer { close(held) }
     defer { unlink(temporary.path) }
-    let first = source.range.lowerBound
-    let total = source.range.upperBound.count - first.count
-    let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks)
     try writeFile(temporary, format: options.format, rate: rate, client: folded?.format ?? stereo) {
         file throws(ExportError) in
-        var start = first
-        var percent = 0
-        while start < source.range.upperBound {
-            if isCancelled() { throw .cancelled }
-            do { mix.package = try package() } catch { throw .packageUnavailable }
-            let end = min(start + Frames(chunk), source.range.upperBound)
-            mix.render(start..<end, into: mixBuffer)
-            if let error = mix.openError { throw .openFailed(error.code.rawValue) }
-            if let folded { fold(mixBuffer, into: folded) }
-            let buffer = folded ?? mixBuffer
+        var written = 0
+        func write(_ buffer: AVAudioPCMBuffer) throws(ExportError) {
+            stage?.measure(buffer)
+            guard buffer.frameLength > 0 else { return }
             let status = ExtAudioFileWrite(file, buffer.frameLength, buffer.audioBufferList)
             guard status == noErr else { throw writeFault(status: status, errno: errno) }
-            start = end
-            let done = end.count - first.count
-            if done * 100 / total > percent {
-                percent = done * 100 / total
-                progress(Double(done) / Double(total))
+            written += Int(buffer.frameLength)
+            if stage == nil {
+                report(100 * written / total, Double(written) / Double(total))
+            } else {
+                report(25 + 75 * written / total, 0.25 + 0.75 * Double(written) / Double(total))
             }
         }
+        try render { buffer, _ throws(ExportError) in
+            stage?.process(buffer)
+            try write(buffer)
+        }
+        while let drained = stage?.drain(into: folded ?? mixBuffer), drained { try write(folded ?? mixBuffer) }
     }
     // A cancel after the last chunk skips the flush and the move, so a take start does not
     // wait for them (code gate 1).
@@ -172,7 +251,54 @@ public func exportMix(
     }
     // The file is at the target now. A volume that refuses both flushes does not undo the move.
     _ = fullFlush(path: folder.path)
-    return mix.faults
+    return ExportResult(faults: mix.faults, loudness: stage?.report())
+}
+
+/// Pass 2 of an export with a loudness target: the gain, the limiter, and the meters of the
+/// report.
+private struct LoudnessStage {
+    let target: LUFS
+    let measured: LUFS?
+    let gain: Gain
+    private let factor: Float
+    private var limiter: TruePeakLimiter
+    private var loudness: LoudnessMeter?
+    private var truePeak: TruePeakMeter
+
+    init(target: LUFS, measured: LUFS?, rate: Int, layout: ChannelLayout) {
+        self.target = target
+        self.measured = measured
+        // Gain(dB:) is nil only for a value that is not finite.
+        gain = measured.flatMap { Gain(dB: target.value - $0.value) } ?? .zero
+        factor = Float(pow(10, gain.dB / 20))
+        limiter = TruePeakLimiter(ceiling: -1, rate: rate, layout: layout)
+        loudness = LoudnessMeter(sampleRate: rate, layout: layout)
+        truePeak = TruePeakMeter(layout: layout)
+    }
+
+    /// The gain and the limiter, in place. The frame count can go down (the look-ahead).
+    mutating func process(_ buffer: AVAudioPCMBuffer) {
+        var scale = factor
+        for channel in 0..<Int(buffer.format.channelCount) {
+            let samples = buffer.floatChannelData![channel]
+            vDSP_vsmul(samples, 1, &scale, samples, 1, vDSP_Length(buffer.frameLength))
+        }
+        limiter.process(buffer)
+    }
+
+    /// The last frames of the limiter into `buffer`. False when it has none left.
+    mutating func drain(into buffer: AVAudioPCMBuffer) -> Bool { limiter.drain(into: buffer) }
+
+    mutating func measure(_ buffer: AVAudioPCMBuffer) {
+        loudness?.feed(buffer)
+        truePeak.feed(buffer)
+    }
+
+    func report() -> LoudnessReport {
+        LoudnessReport(
+            target: target, measured: measured, gain: gain, output: loudness?.result().integrated,
+            truePeak: truePeak.result())
+    }
 }
 
 /// `mono = 0.5 x (L + R)` of `stereo` (decision 0007).

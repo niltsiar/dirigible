@@ -40,7 +40,8 @@ struct ExportBenchmark {
         let faults = try exportMix(
             package.session, source: #require(ExportSource(range: 0..<frames)),
             options: ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session), to: out,
-            package: { package.url })
+            package: { package.url }
+        ).faults
         let elapsed = clock.now - start
 
         print("ExportBenchmark: \(blocks * 10) s of 8 tracks to AAC 128 in \(elapsed)")

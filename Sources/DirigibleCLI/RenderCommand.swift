@@ -33,7 +33,8 @@ struct Render: ParsableCommand {
         do {
             faults = try exportMix(
                 session, source: source, options: .render, to: output, package: { package.url },
-                isCancelled: interrupt.isCancelled)
+                isCancelled: interrupt.isCancelled
+            ).faults
         } catch .rateNotSupported(let rate) {
             throw fail("cannot write \(out) at \(rate) Hz.", code: packageError)
         } catch {

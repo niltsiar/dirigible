@@ -117,7 +117,7 @@ struct StudioExportJobTests {
         let studio = try await fixture.open(seam: ChunkSeam(at: [2: { unlink(f2.path) }]))
         #expect(await studio.exportFaults(fixture.source) == [:])
 
-        let faults = try await studio.export(fixture.source, fixture.options, to: fixture.out, replacing: nil)
+        let faults = try await studio.export(fixture.source, fixture.options, to: fixture.out, replacing: nil).faults
 
         #expect(faults == ["f2": .missing])
     }

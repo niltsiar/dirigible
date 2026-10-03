@@ -138,7 +138,8 @@ public enum ExportError: Error, Hashable, Sendable {
 ///
 /// With a loudness target it renders the source twice (decision 0032). Pass 1 measures the mix
 /// before the temporary file exists. Pass 2 applies the gain `target - measured` and the
-/// true-peak limiter at -1 dBTP, and measures the output for the report.
+/// true-peak limiter at -1 dBTP, and measures the output for the report. A WAV 16 or FLAC 16
+/// export gets a seeded TPDF dither, also with no target.
 ///
 /// At each chunk and once after the close it reads `isCancelled()`; at each chunk it reads
 /// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
@@ -222,7 +223,12 @@ public func exportMix(
     try writeFile(temporary, format: options.format, rate: rate, client: folded?.format ?? stereo) {
         file throws(ExportError) in
         var written = 0
+        var dither: TPDFDither?
+        if options.format == .wav(.bits16) || options.format == .flac(.bits16) {
+            dither = TPDFDither(channels: options.layout.channelCount)
+        }
         func write(_ buffer: AVAudioPCMBuffer) throws(ExportError) {
+            dither?.apply(buffer)
             stage?.measure(buffer)
             guard buffer.frameLength > 0 else { return }
             let status = ExtAudioFileWrite(file, buffer.frameLength, buffer.audioBufferList)

@@ -40,6 +40,8 @@ struct TrackSegments {
         /// True after a write error, or after a segment that opens after a host hole, since the
         /// last `takeLevels`. Then the later frames of the drain get no span, so it holds no gap.
         var spanStopped = false
+        /// The short-term loudness of the track (decision 0033), at the rate of the records.
+        var loudness: LoudnessMeter?
     }
 
     /// A gap of more than 1 ms before a new segment is a hole. The jitter of a host time is
@@ -211,6 +213,14 @@ struct TrackSegments {
             }
         }
         outputs[index].peak = samples.reduce(outputs[index].peak) { max($0, abs($1)) }
+        // One site for each rate change: a reattach and an in-place change both reach the records.
+        let rate = Int(record.nominalRate.rounded())
+        if outputs[index].loudness?.sampleRate != rate {
+            outputs[index].loudness = ChannelLayout(channelCount: sources.count).flatMap {
+                LoudnessMeter(sampleRate: rate, layout: $0)
+            }
+        }
+        samples.withUnsafeBufferPointer { outputs[index].loudness?.feed(interleaved: $0) }
         // The block of level 0 of `Peaks`.
         let block = Peaks.binFrames[0] * sources.count
         for start in stride(from: 0, to: samples.count, by: block) {
@@ -244,10 +254,12 @@ struct TrackSegments {
     /// The device latency in nanoseconds at the nominal rate. It is signed and holds no host time.
     var latencyNanos: Int64 { Int64((Double(device.latency) * 1e9 / device.nominalRate).rounded()) }
 
-    /// The level of each arm since the last call, and a new start.
+    /// The level of each arm since the last call, and a new start. The short-term value is the
+    /// current one of the meter, also after a drain with no record. The meters keep no blocks.
     mutating func takeLevels() -> [Int: ArmLevel] {
         defer {
             for index in outputs.indices {
+                outputs[index].loudness?.blocks.removeAll()
                 outputs[index].peak = 0
                 outputs[index].rms = 0
                 outputs[index].written = nil
@@ -256,9 +268,16 @@ struct TrackSegments {
         }
         return Dictionary(
             uniqueKeysWithValues: outputs.map {
-                ($0.arm, ArmLevel(peak: $0.peak, rms: $0.rms, written: Self.range($0.written)))
+                (
+                    $0.arm,
+                    ArmLevel(
+                        peak: $0.peak, rms: $0.rms, written: Self.range($0.written), shortTerm: $0.loudness?.shortTerm)
+                )
             })
     }
+
+    /// Tests only: the 400 ms blocks that the meters keep.
+    var loudnessBlocks: Int { outputs.reduce(0) { $0 + ($1.loudness?.blocks.count ?? 0) } }
 
     /// Nil when there is no span or its end is not after its start, so no `Range` traps.
     private static func range(_ span: (start: UInt64, end: UInt64)?) -> Range<UInt64>? {

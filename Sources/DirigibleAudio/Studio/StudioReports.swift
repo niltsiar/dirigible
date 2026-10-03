@@ -15,7 +15,10 @@ extension Studio {
         case .state(let take, let arm, let state, _):
             guard transport == .recording(take: take), armed.indices.contains(arm - 1) else { return }
             liveTracks[armed[arm - 1].id]?.state = state
-            if state == .deviceLost { liveTracks[armed[arm - 1].id]?.peak = 0 }
+            if state == .deviceLost {
+                liveTracks[armed[arm - 1].id]?.peak = 0
+                liveTracks[armed[arm - 1].id]?.shortTerm = nil
+            }
         case .levels(let take, let arms, let latencyNanos, let droppedFrames):
             // The live store takes the final drains of the finalize too, through its own arm map.
             if transport == .recording(take: take) || transport == .finalizing(take: take) {
@@ -29,6 +32,7 @@ extension Studio {
             guard transport == .recording(take: take) else { return }
             for (arm, level) in arms where armed.indices.contains(arm - 1) {
                 liveTracks[armed[arm - 1].id]?.peak = level.peak
+                liveTracks[armed[arm - 1].id]?.shortTerm = level.shortTerm
                 liveTracks[armed[arm - 1].id]?.droppedFrames = droppedFrames
             }
         }
@@ -50,10 +54,14 @@ extension Studio {
             guard monitor.tracks.indices.contains(arm - 1) else { return }
             let id = monitor.tracks[arm - 1].id
             liveTracks[id]?.state = state == .recording ? .monitoring : state
-            if state == .deviceLost || state == .retryStopped { liveTracks[id]?.peak = 0 }
+            if state == .deviceLost || state == .retryStopped {
+                liveTracks[id]?.peak = 0
+                liveTracks[id]?.shortTerm = nil
+            }
         case .levels(_, let arms, _, let droppedFrames):
             for (arm, level) in arms where monitor.tracks.indices.contains(arm - 1) {
                 liveTracks[monitor.tracks[arm - 1].id]?.peak = level.peak
+                liveTracks[monitor.tracks[arm - 1].id]?.shortTerm = level.shortTerm
                 liveTracks[monitor.tracks[arm - 1].id]?.droppedFrames = droppedFrames
             }
         }

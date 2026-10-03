@@ -12,8 +12,10 @@ enum Report: Sendable {
 /// `written` holds the raw host nanoseconds (no latency) of the frames that the writer of the arm
 /// wrote to disk in the drain: the smallest start and the largest end. It is nil when the writer
 /// wrote nothing. A write error ends it until the next drain, also after a reopen in that drain.
+/// `shortTerm` is the short-term loudness of the arm now (decision 0033).
 struct ArmLevel: Sendable, Equatable {
     var peak: Float = 0
     var rms: Float = 0
     var written: Range<UInt64>?
+    var shortTerm: LUFS?
 }

@@ -34,6 +34,11 @@ extension Studio {
         /// Cmd-L measures the clips and saves their gains (decision 0031).
         case leveling
     }
+
+    /// Edits, saves, and a new take wait during a take (0004), a placement (0021), or a level (0031).
+    func checkIdle() throws(StudioError) {
+        guard transport == .idle, !isStarting else { throw .busy }
+    }
 }
 
 /// The playback state of a studio (decision 0016). `Studio` stores one value of it.
@@ -157,6 +162,7 @@ extension Studio {
         let stopped = play.feed
         play.feed += 1
         play.playback = .stopped
+        holdLoudness()
         return stopped
     }
 
@@ -196,8 +202,17 @@ extension Studio {
         guard let player = play.player else { return number }
         if stop { await player.apply(.stop, number: number) }
         let reading = await player.reading()
-        if play.feed == number, reading.played == stopped { play.playhead = reading.frame }
+        if play.feed == number, reading.played == stopped {
+            play.playhead = reading.frame
+            loudness = reading.loudness
+        }
+        if stop { holdLoudness() }
         return number
+    }
+
+    /// A stop holds I and TP; M and S need a running 1x forward play (decision 0033).
+    private func holdLoudness() {
+        (loudness.momentary, loudness.shortTerm) = (nil, nil)
     }
 
     /// Sends the session to the Player with a new revision and no feed number: the running feed
@@ -244,6 +259,7 @@ extension Studio {
                     play.playbackStop = stop
                     play.playback = .stopped
                     play.feed += 1
+                    holdLoudness()
                     await player.apply(.stop, number: play.feed)
                 } else if reading.ended {
                     // At 2x and 4x the Player position can pass the end by less than the rate.
@@ -251,9 +267,11 @@ extension Studio {
                         shuttle.direction == .forward ? min(reading.frame, session.end) : max(reading.frame, .zero)
                     play.playback = .stopped
                     play.feed += 1
+                    holdLoudness()
                     await player.apply(.stop, number: play.feed)
                 } else {
                     play.playhead = reading.frame
+                    loudness = reading.loudness
                 }
             }
         }

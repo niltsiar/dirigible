@@ -158,6 +158,46 @@ struct LiveLoudnessTests {
         }
     }
 
+    /// The gate of run 8a compared LUFS, with a log10 for each block; `Loudness.integrated` compares
+    /// mean squares. On seeded random blocks, with a pair of blocks 1e-9 under and over the
+    /// absolute gate and 1e-6 under and over the relative gate, both give the same value. A block
+    /// within a few bits of a gate can fall on either side in either form: the input has no such
+    /// precision.
+    @Test func theMeanSquareGateEqualsTheLog10Gate() {
+        func log10Gate(_ blocks: [Double]) -> Double? {
+            let absolute = blocks.filter { Loudness.lufs($0) > -70 }
+            guard !absolute.isEmpty else { return nil }
+            let relative = Loudness.lufs(absolute.reduce(0, +) / Double(absolute.count)) - 10
+            let gated = absolute.filter { Loudness.lufs($0) > relative }
+            return gated.isEmpty ? nil : Loudness.lufs(gated.reduce(0, +) / Double(gated.count))
+        }
+        var generator = SeededGenerator(seed: 33)
+        var (worst, differences, straddles) = (0.0, [String](), 0)
+        let edge = Loudness.meanSquare(-70)
+        for set in 0..<500 {
+            var blocks = (0..<Int.random(in: 1...300, using: &generator)).map { _ in
+                Loudness.meanSquare(Double.random(in: -95 ... -5, using: &generator))
+            }
+            blocks += [edge * (1 - 1e-9), edge * (1 + 1e-9)]
+            let absolute = blocks.filter { $0 > edge }
+            // The relative gate of the set with the pair: (sum + 2 x gate) / (n + 2) / 10 = gate.
+            let gate = absolute.reduce(0, +) / Double(10 * absolute.count + 18)
+            if gate > edge * (1 + 1e-6) {
+                blocks += [gate * (1 - 1e-6), gate * (1 + 1e-6)]
+                let mean = blocks.filter { $0 > edge }.reduce(0, +) / Double(absolute.count + 2)
+                if gate * (1 - 1e-6) < mean / 10, gate * (1 + 1e-6) > mean / 10 { straddles += 1 }
+            }
+            let (old, new) = (log10Gate(blocks), Loudness(blocks: blocks).integrated?.value)
+            switch (old, new) {
+            case (nil, nil): continue
+            case (let old?, let new?): worst = max(worst, abs(old - new))
+            default: differences.append("set \(set): \(String(describing: old)), \(String(describing: new))")
+            }
+        }
+        #expect(straddles > 400, "the relative pair straddles the gate in \(straddles) sets")
+        #expect(differences.isEmpty && worst <= 1e-9, "differences: \(differences.prefix(3)), worst \(worst) LU")
+    }
+
     /// Tech 3341 case 19 reads +3.0 dBTP; a sample-peak meter reads -0.03.
     @Test func truePeakMaxAndReset() throws {
         var live = try #require(LiveLoudness(sampleRate: 48_000, layout: .stereo))

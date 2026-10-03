@@ -3,7 +3,7 @@ import Foundation
 
 /// The test helpers of the Player: offline pulls with and without the wait for the feed.
 extension Player {
-    /// Tests only: the chunks that the loudness meter keeps (run 9b criterion 20).
+    /// Tests only: the chunks that the loudness meter keeps.
     var loudnessQueued: Int { loudness.queued }
 
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.

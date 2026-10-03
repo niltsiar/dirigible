@@ -108,6 +108,7 @@
 "take.recording" = "Grabando la toma %lld";
 "take.finishing" = "Terminando la toma %lld…";
 "take.placing" = "Colocando %@…";
+"take.leveling" = "Nivelando clips…";
 "take.pending" = "La toma %lld no está terminada.";
 "take.pending.leave.hint" = "Si el disco no puede volver a leer este audio, termina la toma sin él. El archivo se queda en el paquete y puedes colocarlo más tarde.";
 "take.pending.space" = "Para terminar hacen falta %1$@ libres. Ahora hay %2$@ libres.";

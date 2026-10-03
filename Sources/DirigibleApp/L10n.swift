@@ -139,6 +139,7 @@ enum L10n: String, CaseIterable {
     case takeRecording = "take.recording"
     case takeFinishing = "take.finishing"
     case takePlacing = "take.placing"
+    case takeLeveling = "take.leveling"
     case takePending = "take.pending"
     case takePendingLeaveHint = "take.pending.leave.hint"
     case takePendingSpace = "take.pending.space"

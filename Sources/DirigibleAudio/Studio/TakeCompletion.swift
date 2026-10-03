@@ -26,6 +26,9 @@ struct TakeOutcome: Sendable {
     var package: URL?
     /// Nil when the package left its volume: the check cannot read it.
     var missingMedia: [FileID: MediaFault]? = nil
+    /// The session of the first write of a stop that leveled, before the level (decision 0031).
+    /// Nil on every other path.
+    var placed: Session? = nil
 }
 
 /// The recovery marker of decision 0004, in the package root.
@@ -82,11 +85,27 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
 /// The one step that open, stop, and retry share, in the package that `lock` holds now (decision
 /// 0014): finalize, delete the marker, save, update the list entry, and read the segments with
 /// audio. It resolves the package path once, before the finalize. The entry of `previous`, the
-/// path before a move, goes. Only a retry that the user chose passes `leavingUnreadable`.
+/// path before a move, goes. Only a retry that the user chose passes `leavingUnreadable`. Only
+/// the stop passes `level`: after the save, it levels the take clips with one delta per track
+/// and saves again (decision 0031).
 @concurrent nonisolated func completeTake(
     of session: Session, lock: PackageLock, recordings: ActiveRecordings? = nil, previous: URL? = nil,
-    leavingUnreadable: Bool = false
+    leavingUnreadable: Bool = false, level: Bool = false
 ) async -> TakeOutcome {
+    completeTake(
+        of: session, lock: lock, recordings: recordings, previous: previous, leavingUnreadable: leavingUnreadable,
+        level: level
+    ) { session throws(SessionFileError) in try session.write(under: lock) }
+}
+
+/// `completeTake` with the save as a parameter, so that a test sees both writes and can make one
+/// fail. The take clips are the clips whose file is not in the pool before the finalize: a record
+/// over gives the right part of an old clip a new ID. A failed level write keeps the take and
+/// gives no error.
+nonisolated func completeTake(
+    of session: Session, lock: PackageLock, recordings: ActiveRecordings? = nil, previous: URL? = nil,
+    leavingUnreadable: Bool = false, level: Bool, write: (Session) throws(SessionFileError) -> Void
+) -> TakeOutcome {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
     do {
@@ -94,12 +113,12 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     } catch {
         return TakeOutcome(session: session, error: .file(error), segmentsWithAudio: [], package: nil)
     }
-    func outcome(_ session: Session, _ error: StudioError?) -> TakeOutcome {
+    func outcome(_ session: Session, _ error: StudioError?, placed: Session? = nil) -> TakeOutcome {
         let identity = packageIdentity(package)
         recordings?.set(identity, active: session.recording != nil, previous: previous)
         return TakeOutcome(
             session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity,
-            missingMedia: try? checkMedia(session, package: package))
+            missingMedia: try? checkMedia(session, package: package), placed: placed)
     }
     let finalized: Session
     do {
@@ -112,11 +131,20 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     // to run again.
     unlink(marker(in: package).path)
     do {
-        try finalized.write(under: lock)
+        try write(finalized)
     } catch {
         return outcome(session, .file(error))
     }
-    return outcome(finalized, nil)
+    guard level else { return outcome(finalized, nil) }
+    let take = finalized.tracks.flatMap(\.clips).filter { session.files[$0.file] == nil }.map(\.id)
+    let leveled = autoLevel(Set(take), .equallyPerTrack, of: finalized, in: package).session
+    guard leveled != finalized else { return outcome(finalized, nil) }
+    do {
+        try write(leveled)
+    } catch {
+        return outcome(finalized, nil, placed: finalized)
+    }
+    return outcome(leveled, nil, placed: finalized)
 }
 
 /// The placement of decision 0021, off the main actor, in the package that `lock` holds now: the

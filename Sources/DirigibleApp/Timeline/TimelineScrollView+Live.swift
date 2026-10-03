@@ -17,7 +17,7 @@ struct LiveKey: Equatable {
             self.take = take
             states = studio.liveTracks.mapValues(\.state)
         case .finalizing(let take): (self.take, finalizing) = (take, true)
-        case .idle, .placing: break
+        case .idle, .placing, .leveling: break
         }
     }
 }

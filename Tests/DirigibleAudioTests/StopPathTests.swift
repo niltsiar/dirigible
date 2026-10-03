@@ -69,6 +69,11 @@ struct StopPathTests {
 
         #expect(studio.unplacedSegments == [])
 
+        // Decision 0031: the first undo removes the level of the take, and the clips keep their
+        // finalize gain.
+        #expect(studio.session.tracks.flatMap(\.clips).allSatisfy { $0.gain != .zero }, "the stop did not level")
+        try studio.undo()
+        #expect(studio.session.tracks.flatMap(\.clips).map(\.gain) == [.zero, .zero])
         // The unplaced list follows the session (decision 0012): the undo takes the files away.
         try studio.undo()
         #expect(studio.session.tracks.map(\.clips.count) == [0, 0])

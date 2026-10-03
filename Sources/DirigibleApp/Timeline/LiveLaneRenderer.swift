@@ -60,7 +60,7 @@ extension LiveLanes {
         switch studio.transport {
         case .recording: finalizing = false
         case .finalizing: finalizing = true
-        case .idle, .placing: return
+        case .idle, .placing, .leveling: return
         }
         var tracks: [TrackID: (peaks: LivePeaks, state: LiveTrack.State?)] = [:]
         for id in recording.armedTracks {

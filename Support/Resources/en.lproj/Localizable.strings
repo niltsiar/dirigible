@@ -108,6 +108,7 @@
 "take.recording" = "Recording take %lld";
 "take.finishing" = "Finishing take %lld…";
 "take.placing" = "Placing %@…";
+"take.leveling" = "Leveling clips…";
 "take.pending" = "Take %lld is not finished.";
 "take.pending.leave.hint" = "If the disk cannot read this audio again, finish the take without it. The file stays in the package, and you can place it later.";
 "take.pending.space" = "The finish needs %1$@ free. %2$@ is free now.";

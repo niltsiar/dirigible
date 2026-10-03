@@ -14,8 +14,9 @@ struct LevelCommand: ParsableCommand {
             ID, a tab, and the new gain (for example "+7.0 dB"), "none" when no block passes the gates, \
             or "unreadable" when the file is missing or does not read. Such a clip keeps its gain. \
             With --per-track, the clips of one track get one change, so the gain differences between \
-            them stay. Exit 1 when a clip ID is unknown. Exit 2 when the package cannot be read or \
-            written, is locked, or has a take that is not finalized.
+            them stay, unless a gain reaches the -20...20 dB limit. Exit 1 when a clip ID is unknown. \
+            Exit 2 when the package cannot be read or written, is locked, or has a take that is not \
+            finalized.
             """)
 
     @OptionGroup var package: PackageArgument

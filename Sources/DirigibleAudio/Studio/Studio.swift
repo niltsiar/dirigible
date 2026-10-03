@@ -352,7 +352,7 @@ import Observation
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let error = outcome.error { throw error }
         let before = session.files
-        if let placed = outcome.placed { history.edit { $0 = placed } }
+        if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }
         history.edit { $0 = outcome.session }
         poolChanged(from: before)
     }

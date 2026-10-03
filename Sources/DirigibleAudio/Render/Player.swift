@@ -30,19 +30,21 @@ actor Player {
         var running: Bool
         var stop: PlaybackStop?
         var faults: [FileID: MediaFault]
+        /// The loudness of the heard frame (decision 0033).
+        var loudness: LoudnessValues
     }
 
     /// The chunks that one play keeps scheduled ahead of the node (a calibration knob).
     static let depth = 3
 
-    private struct Graph {
+    struct Graph {
         let engine: AVAudioEngine
         let node: AVAudioPlayerNode
         let format: AVAudioFormat
     }
 
     /// The running play. `scheduled` counts output frames from the play start.
-    private struct Feed {
+    struct Feed {
         let anchor: Frames
         let shuttle: Shuttle
         let mix: MixReader
@@ -52,7 +54,7 @@ actor Player {
     /// The executor of the actor and the queue of the refill tick, with no target queue, as probe
     /// E8 measured it. On macOS 15 and later the tick is a plain dispatch block, so it needs no
     /// thread of the cooperative pool (decision 0016, amended 2026-10-03).
-    private nonisolated let queue = DispatchSerialQueue(label: "Player", qos: .userInteractive)
+    nonisolated let queue = DispatchSerialQueue(label: "Player", qos: .userInteractive)
     nonisolated var unownedExecutor: UnownedSerialExecutor { queue.asUnownedSerialExecutor() }
 
     private let package: @Sendable () throws -> URL
@@ -62,15 +64,15 @@ actor Player {
     /// Opens a pool file. Tests give one that fails.
     private let open: MediaOpen
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
-    private let chunk: Int
+    let chunk: Int
     private var session: Session
     private var revision = 0
     private var number = 0
     private var played = 0
     /// The position while no feed runs.
     private var frame: Frames = .zero
-    private var graph: Graph?
-    private var feed: Feed?
+    private(set) var graph: Graph?
+    private(set) var feed: Feed?
     private var stop: PlaybackStop?
     /// The output presentation latency in session frames, read at each play start. The node
     /// frames run ahead of the heard frames by this much. 0 in offline rendering.
@@ -83,6 +85,8 @@ actor Player {
     private var observer: Observer?
     /// The mix frames under one chunk, reused.
     private var source: AVAudioPCMBuffer?
+    /// The meter of the heard mix (decision 0033).
+    private(set) var loudness: PlayerLoudness
 
     /// Stores values only. The engine is made at the first play.
     init(
@@ -96,6 +100,7 @@ actor Player {
         self.start = start
         self.open = open
         chunk = max(1, session.sampleRate / 10)
+        loudness = PlayerLoudness(sampleRate: session.sampleRate)
     }
 
     /// Does nothing when `number` is not newer than the last feed number.
@@ -105,6 +110,7 @@ actor Player {
         ticker = nil
         self.number = number
         frame = position()
+        loudness.stop(at: frame, played: heardFrames())
         graph?.node.stop()
         feed = nil
         guard case .play(let start, let shuttle) = command else {
@@ -112,6 +118,7 @@ actor Player {
             return
         }
         frame = start
+        loudness.start(at: start, shuttle: shuttle)
         played = number
         stop = nil
         guard let graph = makeGraph() else { return }
@@ -147,10 +154,11 @@ actor Player {
     /// `ended`: the feed scheduled its last frame, and the output played it (the output latency
     /// after the node).
     func reading() -> Reading {
+        loudness.heard(heardFrames())
         let ended = feed.map { $0.scheduled >= length($0) && nodeFrames() - latency >= $0.scheduled } ?? false
         return Reading(
             number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false,
-            stop: stop, faults: feed?.mix.faults ?? [:])
+            stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values)
     }
 
     /// Tests only: posts the configuration change of this engine, as the system does.
@@ -160,75 +168,6 @@ actor Player {
 
     private func outputChanged() {
         stop = .outputChanged
-    }
-
-    /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
-    /// Before each pull it waits until the tick has scheduled the frames, as the device clock
-    /// gives it time to, so the wait ends on the frames, and one budget of 30 s for the call is
-    /// only a hang guard. The budget counts only the time that the wait is awake: in a full suite
-    /// the wait (`Task.sleep`) can wait more than 30 s for a pool thread. On macOS 15 the tick
-    /// needs no pool thread; on macOS 14 its task hop waits too. `starve` pulls with no wait and
-    /// no suspension, so the queue runs no tick and the node can run dry, as a late refill on a
-    /// slow disk does.
-    func renderOffline(frames: Int, starve: Bool = false) async -> [[Float]] {
-        var out: [[Float]] = [[], []]
-        var left = frames
-        var budget = Duration.seconds(30)
-        while left > 0 {
-            let count = min(left, chunk)
-            if !starve { await waitForFeed(count, budget: &budget) }
-            let pulled = pull(count)
-            for channel in 0..<2 { out[channel] += pulled?[channel] ?? [Float](repeating: 0, count: count) }
-            left -= count
-        }
-        return out
-    }
-
-    /// Tests only: pulls `frames` output frames from the offline engine, one chunk each 0.1 s, as
-    /// the device clock does, with no wait for the feed. Each pull is a `queue.asyncAfter` block
-    /// with `assumeIsolated`, so no pull needs a thread of the cooperative pool; a task resume
-    /// onto the queue can wait for one (probe E5). `end` is the instant of the last pull.
-    @available(macOS 15, *)
-    nonisolated func renderPaced(frames: Int) async -> (out: [[Float]], end: ContinuousClock.Instant) {
-        await withCheckedContinuation { done in pace(frames, out: [[], []], done: done) }
-    }
-
-    @available(macOS 15, *)
-    private nonisolated func pace(
-        _ left: Int, out: [[Float]], done: CheckedContinuation<(out: [[Float]], end: ContinuousClock.Instant), Never>
-    ) {
-        queue.asyncAfter(deadline: .now() + .milliseconds(100)) {
-            self.assumeIsolated { player in
-                let count = min(left, player.chunk)
-                let pulled = player.pull(count)
-                var out = out
-                for channel in 0..<2 { out[channel] += pulled?[channel] ?? [Float](repeating: 0, count: count) }
-                if left > count {
-                    player.pace(left - count, out: out, done: done)
-                } else {
-                    done.resume(returning: (out, .now))
-                }
-            }
-        }
-    }
-
-    /// Each poll of 1 ms takes its time off `budget`, at most 10 ms. A later wake-up waited for a
-    /// pool thread, not for the refill.
-    private func waitForFeed(_ count: Int, budget: inout Duration) async {
-        while let feed, feed.scheduled - nodeFrames() < count, feed.scheduled < length(feed), budget > .zero {
-            let start = ContinuousClock.now
-            try? await Task.sleep(for: .milliseconds(1))
-            budget -= min(ContinuousClock.now - start, .milliseconds(10))
-        }
-    }
-
-    private func pull(_ count: Int) -> [[Float]]? {
-        guard let engine = graph?.engine, engine.isRunning,
-            let buffer = AVAudioPCMBuffer(
-                pcmFormat: engine.manualRenderingFormat, frameCapacity: AVAudioFrameCount(count)),
-            (try? engine.renderOffline(AVAudioFrameCount(count), to: buffer)) == .success
-        else { return nil }
-        return (0..<2).map { Array(UnsafeBufferPointer(start: buffer.floatChannelData![$0], count: count)) }
     }
 
     /// Schedules chunks until the feed is `depth` chunks ahead of the node, or at its end. The
@@ -249,6 +188,7 @@ actor Player {
         }
         feed.mix.package = url
         if dry {
+            loudness.restart(scheduled: scheduled)
             graph.node.stop()
             feed = Feed(anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, mix: feed.mix)
             self.feed = feed
@@ -268,12 +208,13 @@ actor Player {
             }
             graph.node.scheduleBuffer(buffer)
             feed.scheduled += count
+            loudness.scheduled(buffer, end: feed.scheduled)
         }
         self.feed = feed
     }
 
     /// The output frames of the whole feed: to the session end (forward) or to 0 (reverse).
-    private func length(_ feed: Feed) -> Int {
+    func length(_ feed: Feed) -> Int {
         let distance = feed.shuttle.direction == .forward ? feed.mix.session.end - feed.anchor : feed.anchor
         return max(0, Int((Double(distance.count) / feed.shuttle.rate.rawValue).rounded(.up)))
     }
@@ -336,6 +277,7 @@ actor Player {
         guard ticker != nil, stop == nil else { return }
         ticks += 1
         refill()
+        loudness.heard(heardFrames())
     }
 
     /// Made outside the actor: NotificationCenter calls it on an internal queue.
@@ -359,8 +301,12 @@ actor Player {
         return feed.shuttle.direction == .forward ? feed.anchor + moved : feed.anchor - moved
     }
 
+    /// The output frames that the output played since the play: the node frames less the
+    /// output latency.
+    private func heardFrames() -> Int { max(0, nodeFrames() - latency) }
+
     /// The output frames that the node played since its play; 0 before the first render.
-    private func nodeFrames() -> Int {
+    func nodeFrames() -> Int {
         guard let node = graph?.node, let time = node.lastRenderTime, time.isSampleTimeValid || time.isHostTimeValid,
             let player = node.playerTime(forNodeTime: time)
         else { return 0 }

@@ -47,6 +47,9 @@ import Observation
     }
     /// The playback state (decision 0016), in `Studio+Transport.swift`.
     var play: PlayState
+    /// The loudness of the heard frame (decision 0033). Only the display tick reads it, so no
+    /// view observes it. It has M and S only while a 1x forward play runs: each stop holds I and TP.
+    @ObservationIgnored public internal(set) var loudness = LoudnessValues.none
     /// The pool files that give no frames or fewer frames. Their clips play as silence (decision
     /// 0003). Not in `play`, so the playhead poll does not update a view that reads it (0017).
     public internal(set) var missingMedia: [FileID: MediaFault]
@@ -393,10 +396,5 @@ import Observation
             }
             writes.end()
         }
-    }
-
-    /// Edits, saves, and a new take wait during a take (0004), a placement (0021), or a level (0031).
-    func checkIdle() throws(StudioError) {
-        guard transport == .idle, !isStarting else { throw .busy }
     }
 }

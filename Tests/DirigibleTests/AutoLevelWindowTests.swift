@@ -118,7 +118,7 @@ import Testing
         #expect(
             studio.session.track("t1")?.name == "Guest",
             "focused field: the typed name is \(String(describing: studio.session.track("t1")?.name))")
-        #expect(model.drafts["t1"] == nil, "focused field: the draft stays")
+        #expect(model.drafts["t1"] == nil, "focused field: the draft is committed")
         await model.close()
     }
 

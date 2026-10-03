@@ -62,7 +62,7 @@ A track records only when its **Arm** check box is on. Dirigible turns on **Arm*
 
 A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. After a take, the playhead is at the end of the take.
 
-After Stop, Dirigible also levels the new clips: it sets the gain of each clip so that it plays at -16 LUFS on a stereo track and -19 LUFS on a mono track. The clips of the take on one track get the same change. The audio files do not change. To remove the level and keep the take, choose **Edit > Undo** one time.
+After Stop, Dirigible also levels the new clips: it sets the gain of each clip so that it plays at -16 LUFS on a stereo track and -19 LUFS on a mono track. The clips of the take on one track get the same change. The audio files do not change. When Dirigible leveled the take, the first Undo removes the level and keeps the take. A take with no change of gain, for example a silent take, gets no level, and the first Undo removes the take.
 
 ### Play the take
 
@@ -72,7 +72,7 @@ After Stop, Dirigible also levels the new clips: it sets the gain of each clip s
 
 > **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
 >
-> If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z) two times. The first Undo removes the automatic level of the take. The second Undo brings the old audio back. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
+> If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z) until the old audio comes back. When Dirigible leveled the take, the first Undo removes the level. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 >
 > Undo works only while the session window is open. When you close the window, you cannot undo.
 

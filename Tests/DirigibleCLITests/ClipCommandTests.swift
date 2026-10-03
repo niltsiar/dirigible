@@ -115,6 +115,13 @@ struct ClipCommandTests {
             .flatMap { ($0["tracks"] as? [[String: Any]])?.first?["clips"] as? [[String: Any]] }
         #expect(clips2?[1]["fadeIn"] == nil && clips2?[1]["fadeOut"] as? Int == 5, "only fadeOut")
 
+        // An absent --in or --out keeps the current value; one of them is required.
+        #expect(try await package.run("clip", "fade", "PKG", "--clip", "c1", "--out", "100") == silent)
+        #expect(try clips("host").first?.fades == Fades(fadeIn: 480, fadeOut: 100), "--out only keeps fadeIn")
+        #expect(try await package.run("clip", "fade", "PKG", "--clip", "c1", "--in", "200") == silent)
+        #expect(try clips("host").first?.fades == Fades(fadeIn: 200, fadeOut: 100), "--in only keeps fadeOut")
+        #expect(try await package.run("clip", "fade", "PKG", "--clip", "c1").status == 64, "no --in and no --out")
+
         let before = try package.xml()
         let cases: [([String], String)] = [
             (

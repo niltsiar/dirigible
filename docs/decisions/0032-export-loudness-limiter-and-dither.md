@@ -1,0 +1,49 @@
+# 0032. Export loudness: two passes, our own look-ahead true-peak limiter, and seeded TPDF dither
+
+- Status: accepted
+- Date: 2026-10-03
+- Accepted: 2026-10-03, after the architect synthesis and plan gates 1 and 2 of run `2026-10-03-export-loudness`.
+- Amends: 0008 (our own limiter, not `kAudioUnitSubType_PeakLimiter`; true peak and cases 15 to 19 are done) and 0019 (dither for 16-bit, two passes, the report banner, `--loudness`).
+
+## Context
+
+0008 asks for export normalization: measure the mix, apply one static gain, limit the true peak to -1 dBTP, measure again, and show the result in the export report. Its presets are -16 (podcast), -18 (speech), -23 (EBU R 128), and -24 (US broadcast) LUFS, each 3 LU lower for a mono export. 0019 writes one pass, rounds 16-bit with no dither (P3), and keeps each export repeatable and FLAC equal to WAV bit for bit. The constraints:
+
+- Apple's `AUPeakLimiter` has no ceiling parameter and is probably a sample-peak limiter: an fs/4 sine at 45 degrees reads 3 dB over its sample peak. A limiter on it needs a lower ceiling, a check, and a retry.
+- AES TD1004 puts -1 dBTP at the input of a lossy codec.
+- A modal alert takes the Record key (`MenuKeys.swift`, `UndoRouting.swift`).
+
+Probes of the run (`.scratchpads/runs/2026-10-03-export-loudness/probe/`): P1 reads Tech 3341 cases 15 to 19 within tolerance at 44.1, 48, and 96 kHz with the 4x FIR of BS.1770-5 Annex 2. L1 and the candidate A probes hold a look-ahead limiter on that detector at most 0.0013 dB over its ceiling on 22 signals; the Swift limiter reads at most 0.000002 dB over its internal ceiling on 12 of them. D1 shows that TPDF dither of ±1 LSB keeps a 0.25 LSB level (mean 0.2513 LSB) where the rounding gives 0.
+
+## Decision
+
+**Meter.** `TruePeakFilter` in `DirigibleAudio/DSP/TruePeak.swift` runs the 4 phases of 12 taps of Annex 2 with `vDSP_conv`, with an 11-frame history per channel. Per frame it gives the largest of |sample| and |each phase output| of the window that ends there. 4x at every rate. `TruePeakMeter` keeps the maximum; digital silence gives nil.
+
+**Limiter.** `TruePeakLimiter` in `DSP/Limiter.swift` is our own, with one gain for all channels. Per frame: the needed gain `min(1, c / truePeak)` with an internal ceiling c of -1.05 dBTP; the minimum over 5 ms plus the 12 FIR frames; a one-pole release of 50 ms; and the mean of the last 5 ms. The audio is delayed by 5 ms plus 10 frames. A drain at the end gives back the delay, so the output length equals the input length for any chunk size. Under the ceiling the gain is exactly 1, so the output equals the input bit for bit.
+
+**Two passes.** With a target, `exportMix` renders the source twice. Pass 1 measures the mix (the mono fold for a mono export) before the temporary file exists. Pass 2 applies the gain `target - measured` with no limit, the limiter, and the dither, then measures the output at the session rate before the encoder. A mix with no gated block gets 0 dB. The progress maps pass 1 to 0...0.25 and pass 2 to 0.25...1, with at most 101 calls. A cancel in either pass leaves no file. `ExportOptions.loudness` is nil by default, and `ExportOptions.render` keeps nil, so `dirigible render` and an export with Off do not change. `exportMix` and `Studio.export` return `ExportResult`: the faults and the `LoudnessReport` (target, measured, gain, output loudness, true peak).
+
+**Dither.** `TPDFDither` in `DSP/Dither.swift` adds ±1 LSB of 16 bit to WAV 16 and FLAC 16, with and without a target: the difference of two uniform values from SplitMix64, one stream per channel, with a fixed seed that starts again at each export. So each export of the same mix gives the same file, and FLAC equals WAV bit for bit. 24-bit, AAC, and the float CAF get no dither.
+
+**App.** The save panel has a Loudness pop-up: Off, Podcast, Speech, EBU R 128, and US broadcast, each with its LUFS value for the chosen channels. The default is Podcast. `export.loudness` stores a token (`off` or the preset), so Off comes back as Off; a missing or unknown value gives Podcast. A clean export with a target shows the report in a non-modal info banner (`WindowBanner.exportReport`, [0023](0023-ui-shell.md)), which VoiceOver reads. The next export start or take start removes it. Record works while it shows. With a file that rendered as silence, the one alert of 0019 names the files and has the report line.
+
+**CLI.** `dirigible export ... [--loudness podcast|speech|ebu|atsc]` prints one line: `loudness -16.0 LUFS, true peak -1.2 dBTP, gain +3.4 dB`, with `none` for no measurement. An unknown name exits 64. With no `--loudness`, the output does not change.
+
+## Consequences
+
+- An export with a target renders the mix twice. The 2 h, 8-track bench to WAV 16 with Podcast takes 30.8 s; the budget is 57 s (`make bench FILTER=LoudnessExportBenchmark`).
+- A 16-bit export with Off changes too: its last bit has dither, so it differs from an export of an earlier version.
+- An export with Off still clips a mix over full scale.
+- An export at a file rate other than the session rate is limited and measured at the session rate. The resampler can raise the true peak by about 0.3 dB, and it filters the dither a little.
+- The report measures the processed signal before the encoder, not the written file: AAC can read a little higher after its decode.
+- The limiter loss is reported, not made up: a mix with loud peaks can read under the target.
+- Each Export Selection is measured and normalized by itself.
+
+## Alternatives considered
+
+- **`AUPeakLimiter` with a trim and a retry (candidate B).** Rejected: a black box with no ceiling parameter, up to 3 passes, and 9 probes before code; its repeatability is unknown.
+- **A feedback limiter with no look-ahead.** Rejected: it cannot catch the first peak.
+- **A read-back meter of the written file.** Rejected: a third pass and an AAC decode.
+- **`kAudioConverterPropertyDithering`.** Rejected for now: its repeatability and its FLAC path are not probed, and a random dither breaks both properties.
+- **A gain limit of ±20 dB, as auto-level.** Rejected: a limit misses the target with no reason that the user sees; the report shows the gain.
+- **The report in a modal alert.** Rejected: it takes the Record key.

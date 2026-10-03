@@ -376,6 +376,7 @@ extension NSCursor {
         case .openHand: .openHand
         case .closedHand: .closedHand
         case .resizeLeftRight: .resizeLeftRight
+        case .resizeUpDown: .resizeUpDown
         }
     }
 }

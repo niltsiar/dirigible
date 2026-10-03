@@ -182,6 +182,21 @@ struct ExportLoudnessTests {
         #expect(!plain.exceedsLevelLimit, "gain \(plain.gain.dB) dB is marked")
     }
 
+    /// The boundary of the limit (run 11b-1, control c2): a gain of exactly 20.0 dB is inside it
+    /// (the info banner), and 20.1 dB or -20.1 dB is over it (the warning).
+    @Test func theLimitItselfIsNotOverTheLimit() throws {
+        func report(_ dB: Double) throws -> LoudnessReport {
+            LoudnessReport(
+                target: LUFS(value: -16), measured: LUFS(value: -16 - dB), gain: try #require(Gain(dB: dB)),
+                output: LUFS(value: -16), truePeak: -1)
+        }
+
+        #expect(try !report(20).exceedsLevelLimit, "20.0 dB is marked")
+        #expect(try !report(-20).exceedsLevelLimit, "-20.0 dB is marked")
+        #expect(try report(20.1).exceedsLevelLimit, "20.1 dB is not marked")
+        #expect(try report(-20.1).exceedsLevelLimit, "-20.1 dB is not marked")
+    }
+
     /// A constant 0.25 LSB of 16 bit, 1 s, stereo.
     static let quarterLSB = [[Float]](repeating: [Float](repeating: 0.25 / 32_768, count: 48_000), count: 2)
 

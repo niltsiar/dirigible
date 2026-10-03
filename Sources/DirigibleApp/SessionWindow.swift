@@ -63,6 +63,16 @@ struct ExportReportShown: Equatable {
     var timeline = TimelineState()
     /// View > Show Loudness Meter (decision 0033): the app preference at open.
     var showsLoudness = true
+    /// View > Show Inspector (run 11b-2): the app preference at open.
+    var showsInspector = false
+    /// The typed text of the inspector field that no commit has saved yet.
+    var inspectorDraft: InspectorDraft?
+    /// The inspector field with the focus, from the pane.
+    @ObservationIgnored var inspectorFocus: InspectorField?
+    /// The body runs of the inspector, for the tests.
+    @ObservationIgnored var inspectorRuns = 0
+    /// The sound of a refused typed number. Tests count it.
+    @ObservationIgnored var beep: () -> Void = { NSSound.beep() }
     /// The loudness strip while SwiftUI keeps it; the display tick draws it.
     @ObservationIgnored weak var loudnessStrip: LoudnessStrip?
     /// The Copy and Cut excerpt of this window (decision 0018): not on the macOS pasteboard,
@@ -126,6 +136,7 @@ struct ExportReportShown: Equatable {
         self.recordings = recordings
         self.app = app
         showsLoudness = app.defaults?.object(forKey: Self.loudnessKey) as? Bool ?? true
+        showsInspector = app.defaults?.bool(forKey: Self.inspectorKey) ?? false
     }
 
     /// The studio of an open window, also while a close waits for it.

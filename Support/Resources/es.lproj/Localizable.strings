@@ -178,6 +178,17 @@
 "menu.view.follow" = "Desplazamiento automático";
 "menu.view.loudness.show" = "Mostrar medidor de sonoridad";
 "menu.view.loudness.hide" = "Ocultar medidor de sonoridad";
+"menu.view.inspector.show" = "Mostrar inspector";
+"menu.view.inspector.hide" = "Ocultar inspector";
+"inspector.clip" = "Clip";
+"inspector.clips" = "Clips: %d";
+"inspector.none" = "Sin selección";
+"inspector.gain" = "Ganancia";
+"inspector.fade.in" = "Entrada";
+"inspector.fade.out" = "Salida";
+"inspector.mixed" = "Varios";
+"inspector.decibels" = "dB";
+"inspector.milliseconds" = "ms";
 "loudness.meter" = "Medidor de sonoridad";
 "loudness.short" = "Sonoridad";
 "loudness.average" = "Media";

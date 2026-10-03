@@ -220,6 +220,18 @@ On a clip that is 40 pt wide or more on screen, a line shows the clip gain, and 
 
 Each drag and each double-click is one step in the undo history. Where two clips touch with no fade, the edges have no handle.
 
+### Type the gain and the fades in the inspector
+
+Choose **View > Show Inspector** (Option-Command-I) to show the inspector at the right of the window. It shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
+
+- Type a value and press Return to set it on each of these clips. The keys then go back to the lanes.
+- Press Tab to set the value and go to the next field. A click outside the field also sets the value.
+- Press Esc to put back the old value.
+- Gain goes from -20 to +20 dB, in steps of 0.1 dB. Type "-6.5" or "-6,5": both work.
+- Type a fade in whole ms, with no separator, for example "1500". A fade stops at the other fade of each clip.
+
+A text that is not a number gives a beep, and the field shows the old value. Each value that you set is one step in the undo history. During a take, the fields are off. New windows keep your choice to show or hide the inspector.
+
 ### Level the clips
 
 Choose **Tools > Auto Level** (Command-L) to set the gain of each clip that the selection touches, on the selected tracks. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.
@@ -385,6 +397,7 @@ macOS adds **Undo** (Command-Z) and **Redo** (Shift-Command-Z) at the top of the
 | **Fit Tracks to Window** | **Ajustar pistas a la ventana** | None |
 | **Automatic Scroll** | **Desplazamiento automático** | Option-Command-F |
 | **Show Loudness Meter** / **Hide Loudness Meter** | **Mostrar medidor de sonoridad** / **Ocultar medidor de sonoridad** | Shift-Command-8 |
+| **Show Inspector** / **Hide Inspector** | **Mostrar inspector** / **Ocultar inspector** | Option-Command-I |
 
 ### Markers
 

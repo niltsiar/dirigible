@@ -23,8 +23,9 @@ struct SessionView: View {
                 Button(L10n.alertOK.key) { model.commitRename() }
                 Button(L10n.alertCancel.key, role: .cancel) { model.timeline.renaming = nil }
             }
-            // 720 pt keeps the transport and the time display in the toolbar (probe P1c).
-            .frame(minWidth: 720, minHeight: 360)
+            // 720 pt keeps the transport and the time display in the toolbar (probe P1c). The
+            // inspector adds its width (run 11b-2).
+            .frame(minWidth: 720 + (model.showsInspector ? InspectorView.width : 0), minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),
                 isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),
@@ -64,34 +65,15 @@ struct SessionView: View {
                 Button(L10n.windowTryAgain.key) { model.open(recovering: model.recovering) }
             }
         case .open(let studio), .closing(let studio?):
-            VStack(alignment: .leading, spacing: 0) {
-                if let error = studio.saveError {
-                    BannerRow(
-                        kind: .error,
-                        text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
-                }
-                TakeBanner(model: model, studio: studio)
-                WindowBanners(model: model)
-                if studio.session.tracks.isEmpty {
-                    // The first action has its button (ux-decisions 14).
-                    ContentUnavailableView {
-                        Label(L10n.emptyTitle.key, systemImage: "waveform")
-                    } description: {
-                        Text(L10n.emptySteps.key)
-                    } actions: {
-                        Button(L10n.menuTrackAdd.key) { model.run(.addTrack) }.disabled(!model.canEdit)
-                        Menu(L10n.menuTrackAddCall.key) { CallTracksItems(model: model) }
-                            .fixedSize().disabled(!model.canEdit)
+            HStack(spacing: 0) {
+                lanes(studio)
+                // Not in the tree when hidden, so a hidden pane runs no body (run 11b-2).
+                if model.showsInspector {
+                    HStack(spacing: 0) {
+                        Divider()
+                        InspectorView(model: model, studio: studio)
                     }
-                } else {
-                    // An overlay, not a row: the lanes do not move when it shows or goes. It shows
-                    // over the ruler, below the overview strip, where the user acts on it (0025).
-                    TimelinePane(model: model, studio: studio).overlay(alignment: .top) {
-                        RecordOverOverlay(model: model).padding(.top, OverviewGeometry.height)
-                    }
-                    if model.showsLoudness {
-                        LoudnessStripView(model: model).frame(height: LoudnessStrip.height)
-                    }
+                    .frame(width: InspectorView.width)
                 }
             }
             // An AppKit sheet: the close button is off while it shows (probe S1).
@@ -100,6 +82,40 @@ struct SessionView: View {
             }
         case .closing(nil), .closed:
             EmptyView()
+        }
+    }
+
+    /// The banners, the lanes, and the loudness strip of an open session.
+    private func lanes(_ studio: Studio) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let error = studio.saveError {
+                BannerRow(
+                    kind: .error,
+                    text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
+            }
+            TakeBanner(model: model, studio: studio)
+            WindowBanners(model: model)
+            if studio.session.tracks.isEmpty {
+                // The first action has its button (ux-decisions 14).
+                ContentUnavailableView {
+                    Label(L10n.emptyTitle.key, systemImage: "waveform")
+                } description: {
+                    Text(L10n.emptySteps.key)
+                } actions: {
+                    Button(L10n.menuTrackAdd.key) { model.run(.addTrack) }.disabled(!model.canEdit)
+                    Menu(L10n.menuTrackAddCall.key) { CallTracksItems(model: model) }
+                        .fixedSize().disabled(!model.canEdit)
+                }
+            } else {
+                // An overlay, not a row: the lanes do not move when it shows or goes. It shows
+                // over the ruler, below the overview strip, where the user acts on it (0025).
+                TimelinePane(model: model, studio: studio).overlay(alignment: .top) {
+                    RecordOverOverlay(model: model).padding(.top, OverviewGeometry.height)
+                }
+                if model.showsLoudness {
+                    LoudnessStripView(model: model).frame(height: LoudnessStrip.height)
+                }
+            }
         }
     }
 }

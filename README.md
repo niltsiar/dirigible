@@ -109,3 +109,5 @@ Agents and humans follow the same rules. `AGENTS.md` has the commands, the archi
 ## License
 
 Apache License 2.0. See `LICENSE` and `NOTICE`.
+
+The MP3 encoder is LAME 4.0 (`Sources/CLame`), under the GNU Library General Public License (LGPL), version 2 or later. The app holds its license text and notice in `Contents/Resources/LAME-COPYING.txt` and `LAME-NOTICE.txt`. `Sources/CLame/README.dirigible` lists the changed LAME files.

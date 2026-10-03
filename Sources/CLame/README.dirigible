@@ -1,0 +1,30 @@
+CLame: the LAME MP3 encoder library in Dirigible
+
+Source: LAME 4.0, https://sourceforge.net/projects/lame/files/lame/4.0/lame-4.0.tar.gz
+SHA-256 of the tarball: 3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb
+License: GNU Library General Public License, version 2 or later. The text is in
+Support/Resources/LAME-COPYING.txt.
+
+What this folder holds:
+- The files of libmp3lame/ of the tarball, with no mpglib_interface.c (no decoder).
+- libmp3lame/vector/lame_intrin.h, and include/lame.h.
+- config.h and this file. These two files are from Dirigible, not from LAME.
+
+config.h does not define TAKEHIRO_IEEE754_HACK. LAME tests it with #ifdef, so a definition with
+the value 0 also turns it on. LAME 3.101 turned it off by default, because it is slower on current
+CPUs. config.h defines no HAVE_XMMINTRIN_H (no SSE code) and no HAVE_MPGLIB (no decoder).
+
+Changed files. Each has a dated notice line at its top. The changes remove compiler warnings
+(decision 0034). They change no behavior and remove no API:
+- VbrTag.c: ~0u in place of -1 in SHIFT_IN_BITS_VALUE (-Wshift-negative-value); two casts
+  (-Wshorten-64-to-32); the always-true check pTagData->toc != NULL in GetVbrTag removed
+  (-Wtautological-pointer-compare: toc is an array).
+- gain_analysis.c: one cast (-Wshorten-64-to-32).
+- id3tag.c: four casts (-Wshorten-64-to-32).
+- lame.c: two literal types in EQ and NEQ (-Wabsolute-value).
+- presets.c: one cast in SET_OPTION and SET__OPTION (-Wabsolute-value).
+- set_get.c: one literal type in EQ (-Wabsolute-value); two casts (-Wshorten-64-to-32).
+
+To update LAME: copy the same files from the new tarball, apply the changes again, and build with
+`make build` and `make app`. Each build must give zero warnings. Then run the MP3 tests: they pin
+the LAME level scale.

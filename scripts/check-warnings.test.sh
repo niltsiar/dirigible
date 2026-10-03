@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check that check-warnings.sh passes a good manifest and fails each manifest that lets a warning
 # through. Run by `make check`. dump-package reads only the manifest, so the fixtures need no
-# source folders, no build, and no network.
+# build and no network. Only the C cases make a source folder with a .c file.
 set -uo pipefail
 check="$(cd "$(dirname "$0")" && pwd)/check-warnings.sh"
 failures=0
@@ -38,6 +38,13 @@ manifest "$strict, .treatWarning(\"DeprecatedDeclaration\", as: .warning)" "$str
 expect fail 'an exception for one warning' 'A: the treatWarning setting'
 manifest "$strict, .treatAllWarnings(as: .warning)" "$strict"; expect fail 'a second setting back to warnings' 'A: the treatAllWarnings setting'
 manifest "$strict, .unsafeFlags([\"-suppress-warnings\"])" "$strict"; expect fail 'an unsafe flag' 'A: the unsafeFlags setting'
+
+# A target with a .c file in its folder needs the setting for C too.
+mkdir -p "$tmp/Sources/A" && touch "$tmp/Sources/A/a.c"
+manifest "$strict" "$strict"; expect fail 'a C target with only the Swift setting' 'A: no treatAllWarnings(as: .error) for C'
+manifest "$strict" "$strict" "$strict"; expect pass 'a C target with the C setting'
+manifest "$strict" "$strict" "$strict, .disableWarning(\"shorten-64-to-32\")"
+expect fail 'a disableWarning setting' 'A: the disableWarning setting'
 
 [[ $failures -eq 0 ]] && echo "check-warnings tests: all passed"
 exit $((failures > 0))

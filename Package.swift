@@ -13,6 +13,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "DirigibleCore"),
+        // LAME 4.0 libmp3lame, with no decoder (decisions 0007 and 0034).
+        .target(
+            name: "CLame", exclude: ["README.dirigible"],
+            cSettings: [.define("HAVE_CONFIG_H"), .headerSearchPath("."), .treatAllWarnings(as: .error)]),
         .target(
             name: "DirigibleAudio",
             dependencies: ["DirigibleCore", .product(name: "Atomics", package: "swift-atomics")]),
@@ -34,8 +38,9 @@ let package = Package(
     ]
 )
 
-// A warning in a target of this package is an error. Fix it at its cause. The settings of a
-// dependency stay its own. scripts/check-warnings.sh checks this loop.
+// A Swift warning in a target of this package is an error. Fix it at its cause. A C target states
+// the same setting in its cSettings. The settings of a dependency stay its own.
+// scripts/check-warnings.sh checks this loop and each C target.
 for target in package.targets {
     target.swiftSettings = (target.swiftSettings ?? []) + [.treatAllWarnings(as: .error)]
 }

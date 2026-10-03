@@ -1,0 +1,12 @@
+Dirigible uses LAME for its MP3 export.
+
+LAME 4.0, the libmp3lame encoder library: https://lame.sourceforge.io/
+Copyright (c) the LAME authors.
+License: GNU Library General Public License, version 2 or later (LGPL). The license text is in
+LAME-COPYING.txt, next to this file.
+
+Dirigible links the LAME encoder statically. It does not contain the LAME decoder (mpglib).
+Dirigible changed 6 LAME files to remove compiler warnings, with no change of behavior. The source
+of Dirigible, with the changed LAME files, the list of changes (Sources/CLame/README.dirigible),
+and the build instructions, is at https://github.com/niltsiar/dirigible. With it, you can build
+Dirigible again with a changed LAME.

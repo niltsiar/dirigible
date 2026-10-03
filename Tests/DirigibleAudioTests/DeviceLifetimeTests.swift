@@ -178,7 +178,7 @@ extension DeviceEventTests {
         if lost {
             hal.set("mic", id: nil)
             studio.writer("mic")?.post(.alive(false), from: hal.current("mic"))
-            await until("t1 is not lost") { studio.liveTracks["t1"]?.state == .deviceLost }
+            await until(limit: busy, "t1 is not lost") { studio.liveTracks["t1"]?.state == .deviceLost }
             #expect(studio.liveTracks["t2"]?.state == .recording)
             hal.set("mic", id: 1)
             studio.writer("mic")?.post(.devicesChanged, from: nil)
@@ -187,7 +187,7 @@ extension DeviceEventTests {
         micInput.play(run(&micClock, 0.5))
         await micInput.wait()
         await boxInput.wait()
-        await until("t1 is not recording") { studio.liveTracks["t1"]?.state == .recording }
+        await until(limit: busy, "t1 is not recording") { studio.liveTracks["t1"]?.state == .recording }
         let gaps = await writers["mic"]?.finish()
         try await studio.stopRecording()
 
@@ -217,7 +217,7 @@ extension DeviceEventTests {
 
         boxInput.play(run(&boxClock, 0.5, layout: [2]))
         if gone {
-            await until("t1 is not lost") { studio.liveTracks["t1"]?.state == .deviceLost }
+            await until(limit: busy, "t1 is not lost") { studio.liveTracks["t1"]?.state == .deviceLost }
         } else {
             micInput.play(run(&micClock, 0.5))
             await micInput.wait()

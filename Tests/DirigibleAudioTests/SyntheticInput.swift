@@ -330,13 +330,12 @@ final class FreeBytes: @unchecked Sendable {
 }
 
 extension CaptureEnvironment {
-    /// The test HAL, a watchdog limit that other tests on the main actor cannot reach (also for
-    /// the first record), the
+    /// The test HAL, `noWatchdog` as the watchdog limit (also for the first record), the
     /// microphone access `access` (nil: authorized), `free` bytes (default 100 GB), a disk
     /// check each 50 ms, the autosave step `saveSession` (default: the live write), a step
     /// before each finalize (default: none), and an offline Player.
     static func test(
-        _ hal: TestHAL, silenceLimit: Duration = .seconds(60), access: MicrophoneAccess? = nil,
+        _ hal: TestHAL, silenceLimit: Duration = noWatchdog, access: MicrophoneAccess? = nil,
         free: FreeBytes = FreeBytes(),
         saveSession: @escaping @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL = live
             .saveSession,

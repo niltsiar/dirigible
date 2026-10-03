@@ -29,7 +29,7 @@ struct RecordTests {
         try session.write(to: url)
     }
 
-    func studio(_ hal: TestHAL, silenceLimit: Duration = .seconds(60)) async throws -> Studio {
+    func studio(_ hal: TestHAL, silenceLimit: Duration = noWatchdog) async throws -> Studio {
         let studio = try await Studio.open(url)
         studio.environment = .test(hal, silenceLimit: silenceLimit)
         return studio

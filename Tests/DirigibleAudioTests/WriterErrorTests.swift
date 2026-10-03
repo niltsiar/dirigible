@@ -79,7 +79,7 @@ extension DeviceEventTests {
         let writer = DeviceWriter(
             device: duo, tracks: [(arm: 1, channels: .mono(1)), (arm: 2, channels: .mono(2))],
             files: TakeFiles(take: 1, folder: { url }), hal: hal.hal, report: log.closure, drainInterval: drain,
-            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60))
+            silenceLimit: noWatchdog, firstRecordLimit: noWatchdog)
         writer.start()
         return writer
     }

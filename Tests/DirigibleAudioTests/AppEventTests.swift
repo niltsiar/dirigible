@@ -32,7 +32,7 @@ struct AppEventTests {
     }
 
     /// A started app writer of arm 1 (mono) whose app has `processes` now. The watchdog limits
-    /// are long, so a busy suite gets no second attach before a check.
+    /// are `noWatchdog`, so a busy suite gets no second attach before a check.
     func writer(_ processes: [AudioObjectID], output: String? = "BuiltInSpeakerDevice") async -> DeviceWriter {
         hal.setApp(Self.zoom, found(processes, output: output, main: "BuiltInSpeakerDevice"))
         let url = folder.url
@@ -41,7 +41,7 @@ struct AppEventTests {
             channelsPerBuffer: [1], latency: 0)!
         let writer = DeviceWriter(
             device: device, tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { url }),
-            hal: hal.hal, report: log.closure, silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            hal: hal.hal, report: log.closure, silenceLimit: noWatchdog, firstRecordLimit: noWatchdog,
             app: Self.zoom)
         writer.start()
         await until("no first attach") { hal.inputs(Self.uid).count == 1 }
@@ -171,7 +171,7 @@ struct AppEventTests {
                 uid: Self.uid, name: "zoom.us", nominalRate: 48_000, availableRates: [48_000...48_000],
                 channelsPerBuffer: [1], latency: 0)!,
             tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { [url = folder.url] in url }),
-            hal: hal.hal, report: log.closure, silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            hal: hal.hal, report: log.closure, silenceLimit: noWatchdog, firstRecordLimit: noWatchdog,
             app: Self.zoom)
         writer.start()
         await until("no first attach") { hal.inputs(Self.uid).count == 1 }
@@ -263,7 +263,7 @@ struct AppEventTests {
                 uid: Self.uid, name: "zoom.us", nominalRate: 48_000, availableRates: [48_000...48_000],
                 channelsPerBuffer: [1], latency: 0)!,
             tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { [url = folder.url] in url }),
-            hal: hal.hal, report: log.closure, silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            hal: hal.hal, report: log.closure, silenceLimit: noWatchdog, firstRecordLimit: noWatchdog,
             app: Self.zoom)
         writer.start()
         await until("no first attach") { hal.inputs(Self.uid).count == 1 }

@@ -245,7 +245,7 @@ extension DeviceEventTests {
         let writer = DeviceWriter(
             device: mic, tracks: [(arm: 1, channels: .mono(1))],
             files: monitor ? nil : TakeFiles(take: 1, folder: { url }), hal: hal.hal, report: log.closure,
-            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60), keepLimit: monitor ? 2 : .max)
+            silenceLimit: noWatchdog, firstRecordLimit: noWatchdog, keepLimit: monitor ? 2 : .max)
         writer.start()
 
         for _ in 0..<5 { writer.post(.devicesChanged, from: nil) }
@@ -267,7 +267,7 @@ extension DeviceEventTests {
         let hal = TestHAL([mic])
         let writer = DeviceWriter(
             device: mic, tracks: [(arm: 1, channels: .mono(1))], files: nil, hal: hal.hal, report: log.closure,
-            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60), keepLimit: 1)
+            silenceLimit: noWatchdog, firstRecordLimit: noWatchdog, keepLimit: 1)
         writer.start()
         await until("no first attach") { hal.inputs("mic").count == 1 }
         let faster = try #require(

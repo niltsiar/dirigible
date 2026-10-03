@@ -79,7 +79,7 @@ struct AppTakeTests {
             channelsPerBuffer: [1], latency: 0)!
         let writer = DeviceWriter(
             device: device, tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { url }),
-            hal: hal.hal, report: log.closure, silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            hal: hal.hal, report: log.closure, silenceLimit: noWatchdog, firstRecordLimit: noWatchdog,
             app: Self.zoom)
         writer.start()
         return writer

@@ -230,7 +230,7 @@ import os
         studio.environment = CaptureEnvironment(
             hal: DeviceHAL(
                 lookUp: { $0 == mic.uid ? (1, mic) : nil }, attach: { _ in { true } }, watchDevices: { _ in { true } }),
-            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60),
+            silenceLimit: noWatchdog, firstRecordLimit: noWatchdog,
             microphoneAccess: { granted.withLock { $0 } ? nil : .notDetermined }, freeBytes: { _ in .max },
             diskCheckInterval: .seconds(60), saveSession: CaptureEnvironment.live.saveSession)
         let (answer, give) = AsyncStream<Void>.makeStream()

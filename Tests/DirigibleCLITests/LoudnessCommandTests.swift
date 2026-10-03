@@ -6,15 +6,17 @@ import Testing
 /// `dirigible loudness` (run 8a criterion 12). Each WAV holds a 1 kHz sine at -23 dBFS in each
 /// channel, which reads -23.0 LUFS in stereo.
 struct LoudnessCommandTests {
-    /// A 32-bit float WAV of `seconds` of the sine, with the same phase in each channel.
-    static func writeWAV(_ url: URL, seconds: Double, rate: Int = 48_000, channels: Int = 2) throws {
+    /// A 32-bit float WAV of `seconds` of the sine at `dBFS`, with the same phase in each channel.
+    static func writeWAV(
+        _ url: URL, seconds: Double, rate: Int = 48_000, channels: Int = 2, dBFS: Double = -23
+    ) throws {
         let frames = Int(seconds * Double(rate))
         let format = try #require(
             AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: AVAudioChannelCount(channels)))
         let file = try AVAudioFile(forWriting: url, settings: format.settings)
         let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)))
         buffer.frameLength = AVAudioFrameCount(frames)
-        let amplitude = pow(10, -23.0 / 20)
+        let amplitude = pow(10, dBFS / 20)
         for channel in 0..<channels {
             for frame in 0..<frames {
                 buffer.floatChannelData![channel][frame] = Float(

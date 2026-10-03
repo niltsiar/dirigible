@@ -33,11 +33,13 @@ extension DeviceEventTests {
 
         input.play(run(&clock, 0.5, layout: [2]))
         await input.wait()
-        if blocked { await until("t1 has no write error") { studio.liveTracks["t1"]?.state == .writeFailed } }
+        if blocked {
+            await until(limit: busy, "t1 has no write error") { studio.liveTracks["t1"]?.state == .writeFailed }
+        }
         #expect(studio.liveTracks["t2"]?.state == .recording)
         input.play(run(&clock, 1.5, layout: [2]))
         await input.wait()
-        await until("t1 is not recording") { studio.liveTracks["t1"]?.state == .recording }
+        await until(limit: busy, "t1 is not recording") { studio.liveTracks["t1"]?.state == .recording }
         let gaps = await writers["duo"]?.finish()
         try await studio.stopRecording()
 

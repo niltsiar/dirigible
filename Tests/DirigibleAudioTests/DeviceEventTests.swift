@@ -29,6 +29,9 @@ final class ReportLog: @unchecked Sendable {
 /// is gone (criterion 15). Each test has its control.
 @MainActor
 struct DeviceEventTests {
+    /// The limit of a wait for a Studio state, which a report hop sets on the main actor. In a
+    /// full suite, the `@MainActor` suites hold it for seconds (the `busy` limit of MonitorTests).
+    let busy = Duration.seconds(20)
     let folder: TemporaryFolder
     let log = ReportLog()
     let mic = InputDevice(

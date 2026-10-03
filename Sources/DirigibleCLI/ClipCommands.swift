@@ -6,7 +6,7 @@ struct ClipCommand: ParsableCommand {
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
         subcommands: [
             Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, Nudge.self, Move.self, Trim.self,
-            SetGain.self,
+            SetGain.self, Fade.self,
         ])
 
     struct Place: ParsableCommand {
@@ -159,6 +159,28 @@ struct ClipCommand: ParsableCommand {
 
         func run() throws {
             try editPackage(package) { session throws(SessionError) in try session.setGain(db, clip: ClipID(clip)) }
+        }
+    }
+}
+
+extension ClipCommand {
+    struct Fade: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Set the fade-in and the fade-out of a clip in frames (decision 0035). 0 removes a fade.")
+        @OptionGroup var package: PackageArgument
+        @Option var clip: String
+        @Option(name: .customLong("in"), parsing: .unconditional, help: "The fade-in length in frames.")
+        var fadeIn: Int
+        @Option(name: .customLong("out"), parsing: .unconditional, help: "The fade-out length in frames.")
+        var fadeOut: Int
+
+        func run() throws {
+            try editPackage(package) { session throws(SessionError) in
+                guard let fades = Fades(fadeIn: Frames(fadeIn), fadeOut: Frames(fadeOut)) else {
+                    throw .frameOutOfRange
+                }
+                try session.setFades([ClipID(clip): fades])
+            }
         }
     }
 }

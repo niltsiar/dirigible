@@ -148,10 +148,11 @@ public struct Session: Hashable, Sendable {
         }
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 2 with an app
-    /// route (decision 0029), else 1.
+    /// The `session.xml` version that holds this session (decision 0024 P6): 3 with a fade
+    /// (decision 0035), else 2 with an app route (decision 0029), else 1.
     public var fileVersion: Int {
-        tracks.contains { if case .app = $0.route { true } else { false } } ? 2 : 1
+        if tracks.contains(where: { $0.clips.contains { $0.fades != .zero } }) { return 3 }
+        return tracks.contains { if case .app = $0.route { true } else { false } } ? 2 : 1
     }
 
     /// XML 1.0 cannot hold the other control characters, and it reads tab, LF, and CR in an
@@ -226,6 +227,8 @@ public enum SessionError: Error, Hashable, Sendable {
     case clipOutsideFile(ClipID)
     case overlap(ClipID, ClipID)
     case frameOutsideClip(ClipID, Frames)
+    /// fadeIn + fadeOut is more than the clip length, which this case holds (decision 0035).
+    case fadeOutsideClip(ClipID, length: Frames)
     /// A paste names a track count that is not the lane count of its excerpt, which this case holds.
     case trackCount(Int)
 }

@@ -34,6 +34,11 @@ struct EditBenchmark {
         let excerpt = try history.session.excerpt(of: .zero..<Self.hour, on: tracks)
         let firstHour = history.session.tracks.flatMap { $0.clips.prefix(1_000).map(\.id) }
         #expect(excerpt.lanes.allSatisfy { $0.clips.count == 1_000 } && firstHour.count == 6_000)
+        // Fades C5: Command-F on Select All sets the fades of every clip in one batch.
+        let fades = Fades(fadeIn: 24_000, fadeOut: 24_000)!
+        let allFades = Dictionary(
+            uniqueKeysWithValues: history.session.tracks.flatMap { $0.clips.map { ($0.id, fades) } })
+        #expect(allFades.count == 12_000)
 
         let edits: [(String, (inout Session) throws -> Void)] = [
             ("paste of 1,000 clips on 6 tracks", { try $0.paste(excerpt, at: Self.hour, on: tracks) }),
@@ -45,6 +50,7 @@ struct EditBenchmark {
                 }
             ),
             ("nudge of 1,000 clips on 6 tracks", { try $0.nudge(firstHour, by: 480) }),
+            ("setFades of 12,000 clips", { try $0.setFades(allFades) }),
         ]
         for (name, edit) in edits {
             var times: [Duration] = []

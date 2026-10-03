@@ -106,10 +106,11 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
 }
 
 extension Clip {
-    /// The part of the clip in `range`, which is inside the clip. The offset follows the start.
+    /// The part of the clip in `range`, which is inside the clip. The offset follows the start. The
+    /// part keeps the fade of each edge that it keeps (decision 0035).
     func cut(to range: Range<Frames>, id: ClipID) -> Clip {
         Clip(
             id: id, file: file, start: range.lowerBound, offset: offset + (range.lowerBound - start),
-            length: range.upperBound - range.lowerBound, gain: gain)
+            length: range.upperBound - range.lowerBound, gain: gain, fades: fades.cut(range, of: self.range))
     }
 }

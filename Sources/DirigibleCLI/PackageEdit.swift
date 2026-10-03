@@ -115,6 +115,8 @@ extension SessionError {
         case .clipOutsideFile(let id): "clip \"\(id)\" is not inside its file."
         case .overlap(let clip, let other): "clip \"\(clip)\" overlaps clip \"\(other)\"."
         case .frameOutsideClip(let id, let frame): "frame \(frame) is not inside clip \"\(id)\"."
+        case .fadeOutsideClip(let id, let length):
+            "the fades of clip \"\(id)\" do not fit: fadeIn + fadeOut <= \(length)."
         case .trackCount(let count): "the excerpt has \(count) tracks, so give \(count) different target tracks."
         }
     }

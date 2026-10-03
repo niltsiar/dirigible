@@ -101,6 +101,104 @@ struct SessionFileTests {
         #expect(try Session(xml: data) == session, "control: the current reader reads it")
     }
 
+    /// Fades C1 (decision 0035): a fade saves version 3. A fade attribute is written only when it
+    /// is not 0, and the file reads back equal.
+    @Test func fadesWriteVersion3AndReadBack() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "a.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 10_000), on: "t1")
+        try session.place(Clip(id: "c2", file: "f1", start: 20_000, offset: 0, length: 10_000), on: "t1")
+        try session.place(Clip(id: "c3", file: "f1", start: 40_000, offset: 0, length: 10_000), on: "t1")
+        try session.setFades(["c1": Fades(fadeIn: 480, fadeOut: 960)!, "c2": Fades(fadeIn: 0, fadeOut: 960)!])
+        #expect(session.fileVersion == 3, "a fade gives version 3")
+
+        try session.write(to: package)
+
+        let xml = try String(contentsOf: sessionXML, encoding: .utf8)
+        #expect(xml.contains(#"<session xmlns="https://github.com/niltsiar/dirigible/session" version="3""#))
+        #expect(
+            xml.contains(
+                #"<clip id="c1" file="f1" start="0" offset="0" length="10000" gain="0" fadeIn="480" fadeOut="960">"#),
+            "c1 has both fade attributes")
+        #expect(
+            xml.contains(#"<clip id="c2" file="f1" start="20000" offset="0" length="10000" gain="0" fadeOut="960">"#),
+            "c2 has only fadeOut")
+        #expect(
+            xml.contains(#"<clip id="c3" file="f1" start="40000" offset="0" length="10000" gain="0">"#),
+            "c3 has no fade attribute")
+        #expect(try Session(contentsOf: package) == session, "version 3 reads back")
+    }
+
+    /// Fades C2 (0024 P6): with no fade, the version stays 1, or 2 with an app route, and no fade
+    /// attribute is written.
+    @Test func noFadeKeepsTheOldVersion() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "a.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 10_000), on: "t1")
+        try session.setFades(["c1": .zero])
+        try session.write(to: package)
+        var xml = try String(contentsOf: sessionXML, encoding: .utf8)
+        #expect(xml.contains(#"version="1""#), "every fade 0 gives version 1")
+        #expect(!xml.contains("fadeIn") && !xml.contains("fadeOut"), "no fade attribute at 0")
+
+        try session.setRoute(.app(bundleID: "us.zoom.xos"), track: "t1")
+        #expect(session.fileVersion == 2, "an app route and no fade gives version 2")
+
+        try session.setFades(["c1": Fades(fadeIn: 1, fadeOut: 0)!])
+        try session.write(to: package)
+        xml = try String(contentsOf: sessionXML, encoding: .utf8)
+        #expect(xml.contains(#"version="3""#), "a fadeIn of 1 frame gives version 3")
+    }
+
+    /// Fades C3: the reader refuses each bad fade, and reads a missing one as 0.
+    @Test func fadeRefusals() throws {
+        let file = #"<file id="f1" path="a.wav" channels="1" length="1000"/>"#
+        func clip(_ fades: String) -> String {
+            #"<track id="t1" name="A" gain="0" layout="mono"><clip id="c1" file="f1" start="0" offset="0" length="1000" gain="0" \#(fades)/></track>"#
+        }
+        func read(_ version: String, _ fades: String, newest: Int = sessionVersion) throws(SessionFileError)
+            -> Session
+        {
+            try Session(xml: Data(document(version: version, files: file, tracks: clip(fades)).utf8), newest: newest)
+        }
+
+        #expect(throws: SessionFileError.unsupportedVersion(3), "a: a version 2 build refuses version 3") {
+            try read("3", #"fadeIn="10""#, newest: 2)
+        }
+        #expect(
+            throws: SessionFileError.invalidValue(element: "clip", attribute: "fadeIn"),
+            "b: a version 2 file with fadeIn is refused"
+        ) { try read("2", #"fadeIn="10""#) }
+        #expect(
+            throws: SessionFileError.invalidValue(element: "clip", attribute: "fadeOut"),
+            "b: a version 1 file with fadeOut is refused"
+        ) { try read("1", #"fadeOut="10""#) }
+        let missing = try? read("3", #"fadeIn="10""#)
+        #expect(
+            missing?.tracks.first?.clips.first?.fades == Fades(fadeIn: 10, fadeOut: 0),
+            "c: a missing fadeOut reads 0")
+        #expect(
+            throws: SessionFileError.invalidSession(.fadeOutsideClip("c1", length: 1000)),
+            "d: fadeIn + fadeOut = length + 1 is refused"
+        ) { try read("3", #"fadeIn="500" fadeOut="501""#) }
+        let full = try? read("3", #"fadeIn="500" fadeOut="500""#)
+        #expect(full?.tracks.first?.clips.first?.fades == Fades(fadeIn: 500, fadeOut: 500), "d: = length reads")
+        #expect(
+            throws: SessionFileError.invalidValue(element: "clip", attribute: "fadeIn"),
+            "e: a negative fadeIn is refused"
+        ) { try read("3", #"fadeIn="-1""#) }
+        #expect(
+            throws: SessionFileError.invalidValue(element: "clip", attribute: "fadeOut"),
+            "e: a negative fadeOut is refused"
+        ) { try read("3", #"fadeOut="-1""#) }
+        #expect(
+            throws: SessionFileError.invalidValue(element: "clip", attribute: "fadeIn"),
+            "e: a fadeIn that is not an integer is refused"
+        ) { try read("3", #"fadeIn="1.5""#) }
+    }
+
     /// A2: a version 2 file with no app route reads; the next save writes version 1.
     @Test func aVersion2FileWithNoAppRouteReads() throws {
         try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
@@ -205,7 +303,7 @@ struct SessionFileTests {
 
     @Test(arguments: [
         ("<session", SessionFileError.malformedXML),
-        (document(version: "3"), .unsupportedVersion(3)),
+        (document(version: "4"), .unsupportedVersion(4)),
         (
             document(tracks: #"<track id="t1" name="A" gain="0" layout="mono"><route app="us.zoom.xos"/></track>"#),
             .invalidValue(element: "route", attribute: "app")

@@ -13,8 +13,8 @@ extension Session {
         try self.init(xml: data)
     }
 
-    /// `newest` is the newest version that the reader accepts. A test gives 1 to act as a
-    /// version 1 build.
+    /// `newest` is the newest version that the reader accepts. A test gives a lower one to act as
+    /// an older build.
     init(xml data: Data, newest: Int = sessionVersion) throws(SessionFileError) {
         guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
             root.localName == "session", root.uri == sessionNamespace
@@ -86,7 +86,8 @@ private struct ParsedTrack {
                 Clip(
                     id: ClipID(try clip.string("id")), file: FileID(try clip.string("file")),
                     start: try clip.frames("start"), offset: try clip.frames("offset"),
-                    length: try clip.frames("length"), gain: try clip.gain("gain")))
+                    length: try clip.frames("length"), gain: try clip.gain("gain"),
+                    fades: try clip.fades(version: version)))
         }
         self.clips = clips
     }
@@ -198,6 +199,22 @@ extension XMLElement {
     fileprivate func gain(_ attribute: String) throws(SessionFileError) -> Gain {
         guard let gain = Gain(dB: try value(attribute)) else { throw invalid(attribute) }
         return gain
+    }
+
+    /// `fadeIn` and `fadeOut` from version 3 on (decision 0035). A missing one is 0. `Fades`
+    /// refuses a negative value or a value over the limit.
+    fileprivate func fades(version: Int) throws(SessionFileError) -> Fades {
+        func length(_ attribute: String) throws(SessionFileError) -> Frames {
+            guard optionalString(attribute) != nil else { return .zero }
+            guard version >= 3 else { throw invalid(attribute) }
+            return try frames(attribute)
+        }
+        let fadeIn = try length("fadeIn")
+        let fadeOut = try length("fadeOut")
+        guard let fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut) else {
+            throw invalid(Fades(fadeIn: fadeIn, fadeOut: .zero) == nil ? "fadeIn" : "fadeOut")
+        }
+        return fades
     }
 
     private func invalid(_ attribute: String) -> SessionFileError {

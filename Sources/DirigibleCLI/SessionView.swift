@@ -52,6 +52,9 @@ struct SessionView: Encodable {
         let offset: Int
         let length: Int
         let gain: Double
+        /// Left out at 0, as in `session.xml` (decision 0035).
+        let fadeIn: Int?
+        let fadeOut: Int?
     }
 
     struct TrackView: Encodable {
@@ -109,7 +112,8 @@ struct SessionView: Encodable {
                 clips: track.clips.map {
                     ClipView(
                         id: $0.id.rawValue, file: $0.file.rawValue, start: $0.start.count, offset: $0.offset.count,
-                        length: $0.length.count, gain: $0.gain.dB)
+                        length: $0.length.count, gain: $0.gain.dB, fadeIn: $0.fades.fadeIn.nonZero,
+                        fadeOut: $0.fades.fadeOut.nonZero)
                 })
         }
         markers = session.sortedMarkers.map {
@@ -144,7 +148,8 @@ func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> 
         for clip in track.clips {
             lines.append(
                 "  clip \(clip.id) file \(clip.file) start \(clip.start) offset \(clip.offset) length \(clip.length) "
-                    + "\(clip.gain)")
+                    + "\(clip.gain)"
+                    + (clip.fades == .zero ? "" : " fade in \(clip.fades.fadeIn), out \(clip.fades.fadeOut)"))
         }
     }
     for file in session.sortedFiles {
@@ -190,6 +195,10 @@ extension MediaFault {
         if case .short(let frames) = self { return frames.count }
         return nil
     }
+}
+
+extension Frames {
+    fileprivate var nonZero: Int? { self == .zero ? nil : count }
 }
 
 extension Session {

@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-10-03, run 8a. Tech 3341 case 6 does not apply: it is a 5.0 signal, and a session has only mono and stereo. True peak and cases 15 to 19 move to run 9. The K-weighting is a hand-written Double biquad, not Accelerate, because `vDSP.Biquad` is not Sendable.
 
 ## Context
 

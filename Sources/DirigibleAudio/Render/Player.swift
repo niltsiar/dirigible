@@ -235,16 +235,18 @@ actor Player {
     /// chunks read the package that the lock holds now; a package that left its volume stops.
     private func refill() {
         guard var feed, let graph else { return }
-        guard let url = try? package() else {
-            stop = .packageUnavailable
-            return
-        }
-        feed.mix.package = url
         // An underrun (a late refill, a slow disk): the node ran dry and its time went on, so
         // the next buffer would play later than its frames say, and the playhead would run
         // ahead of the heard audio. Start the node again at the last frame that it played.
         let (scheduled, played) = (feed.scheduled, nodeFrames())
         let dry = scheduled < length(feed) && played > scheduled
+        // A full or complete feed returns before the package lookup, a stat 20 times a second.
+        if !dry, scheduled >= min(length(feed), played + chunk * Self.depth) { return }
+        guard let url = try? package() else {
+            stop = .packageUnavailable
+            return
+        }
+        feed.mix.package = url
         if dry {
             graph.node.stop()
             feed = Feed(anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, mix: feed.mix)

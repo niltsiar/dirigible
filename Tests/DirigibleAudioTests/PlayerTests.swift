@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -130,6 +131,25 @@ struct PlayerTests {
         let before = await player.ticks
         try await Task.sleep(for: .milliseconds(150))
         #expect(await player.ticks == before, "no tick after a stop")
+    }
+
+    /// A tick with a full feed, or after the feed scheduled its last frame, does no work: it does
+    /// not look up the package, which can be a stat on a slow share, 20 times a second.
+    @Test(arguments: [0, 95_000])
+    func aTickWithAFullFeedDoesNothing(from start: Int) async throws {
+        let url = package.url
+        let lookups = OSAllocatedUnfairLock(initialState: 0)
+        let player = Player(
+            package: {
+                lookups.withLock { $0 += 1 }
+                return url
+            }, output: .offline, session: package.session)
+        await player.apply(.play(from: Frames(start), shuttle: forward), number: 1)
+        let before = lookups.withLock { $0 }
+        let deadline = ContinuousClock.now + .seconds(2)
+        while await player.ticks < 3, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(await player.ticks >= 3, "ticks ran")
+        #expect(lookups.withLock { $0 } == before, "a tick with a full feed looked up the package")
     }
 
     /// Plays, renders one chunk, updates the session, and renders 8 chunks. With `hold`, one child

@@ -31,6 +31,11 @@ func writeMP3(
     lame_set_brate(lame, Int32(bitRate.rawValue))
     lame_set_VBR(lame, vbr_off)
     lame_set_quality(lame, 3)
+    // LAME prints its messages to stderr, and a debug build (SwiftPM defines DEBUG) prints a line
+    // for each granule. Its return values give the errors, so it prints nothing.
+    lame_set_errorf(lame, nil)
+    lame_set_debugf(lame, nil)
+    lame_set_msgf(lame, nil)
     // LAME lowers a rate or a bit rate that MPEG does not allow, and returns 0 (probes U3, U7).
     guard lame_init_params(lame) == 0, lame_get_out_samplerate(lame) == Int32(rate),
         lame_get_brate(lame) == Int32(bitRate.rawValue)

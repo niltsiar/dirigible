@@ -6,7 +6,7 @@ import Testing
 @testable import DirigibleAudio
 
 /// Export run criterion 33: a 2 h session of 8 tracks (8 clips of one 2 h mono WAV) exports to
-/// AAC 128 kbit/s stereo in 120 s or less, optimized build (`make bench FILTER=ExportBenchmark`).
+/// AAC 128 kbit/s stereo, and MP3 run criterion 15 to MP3 128 kbit/s stereo, each in 120 s or less, optimized build (`make bench FILTER=ExportBenchmark`).
 /// A debug build exports 10 min with no budget: a smoke run, not the criterion.
 struct ExportBenchmark {
     /// A package with 8 tracks of one mono WAV of `blocks` x 10 s: a 375 Hz sine at -20 dBFS.
@@ -33,24 +33,36 @@ struct ExportBenchmark {
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aTwoHourEightTrackExportFitsTheBudget() throws {
+        try Self.exportTwoHours(.aac(.k128), to: "mix.m4a")
+    }
+
+    /// MP3 run criterion 15: the same session to MP3 128 kbit/s stereo through LAME, in 120 s or
+    /// less. SwiftPM release builds LAME at -O2; the app build (-Os) is a manual check.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aTwoHourEightTrackMP3ExportFitsTheBudget() throws {
+        try Self.exportTwoHours(.mp3(.k128), to: "mix.mp3")
+    }
+
+    /// Exports the 8 tracks to `format` stereo and expects the exact length and the budget.
+    static func exportTwoHours(_ format: ExportFormat, to name: String) throws {
         #if DEBUG
             let blocks = 60
         #else
             let blocks = 720
         #endif
-        let (package, frames) = try Self.eightTracks(blocks: blocks)
-        let out = package.folder.url.appending(path: "mix.m4a")
+        let (package, frames) = try eightTracks(blocks: blocks)
+        let out = package.folder.url.appending(path: name)
 
         let clock = ContinuousClock()
         let start = clock.now
         let faults = try exportMix(
             package.session, source: #require(ExportSource(range: 0..<frames)),
-            options: ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session), to: out,
+            options: ExportOptions(format: format, layout: .stereo, rate: .session), to: out,
             package: { package.url }
         ).faults
         let elapsed = clock.now - start
 
-        print("ExportBenchmark: \(blocks * 10) s of 8 tracks to AAC 128 in \(elapsed)")
+        print("ExportBenchmark: \(blocks * 10) s of 8 tracks to \(name) in \(elapsed)")
         #expect(faults == [:])
         #expect(try AVAudioFile(forReading: out).length == AVAudioFramePosition(frames.count))
         #if !DEBUG

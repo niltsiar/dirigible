@@ -23,8 +23,10 @@ struct ExportCommandTests {
 
     func out(_ name: String) -> URL { package.folder.appending(path: name) }
 
-    func temporaryFiles() throws -> [String] {
-        try FileManager.default.contentsOfDirectory(atPath: package.folder.path).filter { $0.hasSuffix(".tmp") }
+    func temporaryFiles(in folder: URL? = nil) throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: (folder ?? package.folder).path).filter {
+            $0.hasSuffix(".tmp")
+        }
     }
 
     /// The format ID, the channels, the rate, and the frames of an audio file.
@@ -85,7 +87,8 @@ struct ExportCommandTests {
 
     /// Criterion 31: a usage error gives exit 64 and no file.
     @Test(arguments: [
-        ["--out", "x.mp3"], ["--out", "x.m4a", "--bits", "16"], ["--out", "x.wav", "--bitrate", "96"],
+        ["--out", "x.ogg"], ["--out", "x.m4a", "--bits", "16"], ["--out", "x.wav", "--bitrate", "96"],
+        ["--out", "x.mp3", "--bits", "16"], ["--out", "x.mp3", "--bitrate", "320"],
         ["--out", "x.m4a", "--bitrate", "320"], ["--out", "x.wav", "--rate", "32000"],
         ["--out", "x.wav", "--track", "t9"], ["--out", "x.wav", "--from", "5000", "--to", "5000"],
     ])
@@ -184,8 +187,8 @@ struct ExportCommandTests {
     }
 
     /// Criterion 31: AAC takes 48 kHz at most (probe P5). A 96 kHz session exports AAC with
-    /// `--rate 48000`.
-    @Test func exportAACInA96kHzSession() async throws {
+    /// `--rate 48000`. MP3 run criterion 13: MP3 refuses 96 kHz the same way.
+    @Test func exportAACAndMP3InA96kHzSession() async throws {
         var session = Session(sampleRate: 96_000)
         try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 9600))
         try session.addTrack("t1", name: "Host", layout: .mono)
@@ -212,5 +215,63 @@ struct ExportCommandTests {
         #expect(!FileManager.default.fileExists(atPath: target.path))
         #expect(try await package.run("export", "PKG", "--out", target.path, "--rate", "48000").status == 0)
         #expect(try facts(target).rate == 48_000)
+        let mp3 = package.folder.appending(path: "mix.mp3")
+        #expect(
+            try await package.run("export", "PKG", "--out", mp3.path)
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: cannot write \(mp3.path) at 96000 Hz. Use --rate 44100 or --rate 48000.\n"))
+        #expect(!FileManager.default.fileExists(atPath: mp3.path))
+    }
+
+    /// A package with a 4 s mono WAV at 48 kHz on track t1.
+    static func fourSeconds() throws -> TemporaryPackage {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 192_000))
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 192_000), on: "t1")
+        let package = try TemporaryPackage(session)
+        try RenderCommandTests.writeWAV(package.url.appending(path: "Clips/f1.wav"), frames: 192_000)
+        return package
+    }
+
+    /// MP3 run criterion 13: `.mp3` with `--bitrate`, `--mono`, `--rate`, and `--loudness`.
+    @Test func exportWritesMP3() async throws {
+        let package = try Self.fourSeconds()
+        let plain = package.folder.appending(path: "c.mp3")
+        let loud = package.folder.appending(path: "d.mp3")
+
+        let result = try await package.run(
+            "export", "PKG", "--out", plain.path, "--bitrate", "64", "--mono", "--rate", "44100")
+        let podcast = try await package.run("export", "PKG", "--out", loud.path, "--loudness", "podcast")
+
+        #expect(result == CLIResult(status: 0, stdout: "", stderr: ""))
+        let mp3 = try facts(plain)
+        #expect(
+            mp3.format == kAudioFormatMPEGLayer3 && mp3.channels == 1 && mp3.rate == 44_100 && mp3.frames == 176_400,
+            "\(mp3)")
+        #expect(podcast.status == 0 && podcast.stdout.hasPrefix("loudness "), "\(podcast)")
+        #expect(try facts(loud).channels == 2)
+    }
+
+    /// MP3 run criterion 12: a write that the file size limit cuts short. The limit (in 1024-byte
+    /// blocks of /bin/sh) is under the full size S, so the last write is partial and the next write
+    /// gives EFBIG. SIGXFSZ is ignored, so the write returns -1 and the export exits 2.
+    @Test func aShortMP3WriteFailsTheExport() async throws {
+        let package = try Self.fourSeconds()
+        let full = package.folder.appending(path: "full.mp3")
+        #expect(try await package.run("export", "PKG", "--out", full.path).status == 0)
+        let size = try #require(try FileManager.default.attributesOfItem(atPath: full.path)[.size] as? Int)
+        let target = package.folder.appending(path: "short.mp3")
+        let binary = Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(
+            path: "dirigible")
+
+        let result = try await dirigible(
+            shell: #"trap "" XFSZ; ulimit -f "$1"; exec "$2" export "$3" --out "$4""#, "sh", String((size - 1) / 1024),
+            binary.path, package.path, target.path)
+
+        #expect(result.status == 2 && result.stderr.contains("(status -40)"), "a short MP3 write gives \(result)")
+        #expect(!FileManager.default.fileExists(atPath: target.path))
+        #expect(try temporaryFiles(in: package.folder) == [])
     }
 }

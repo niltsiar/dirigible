@@ -5,9 +5,9 @@ import Foundation
 
 struct Export: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Export the session mix to WAV, AAC (.m4a), or FLAC.",
+        abstract: "Export the session mix to WAV, AAC (.m4a), MP3, or FLAC.",
         discussion: """
-            The extension of --out gives the format: .wav, .m4a, or .flac. Exit 2 when the package cannot \
+            The extension of --out gives the format: .wav, .m4a, .mp3, or .flac. Exit 2 when the package cannot \
             be read, the output path exists (unless --replace), a file in the range is missing, short, or \
             unreadable (unless --allow-missing), or the write fails; a failed export leaves no output file \
             and the old file does not change. A file that the check finds whole but the export cannot read \
@@ -16,13 +16,15 @@ struct Export: ParsableCommand {
             true peak to -1 dBTP. Then it prints one line, for example "loudness -16.0 LUFS, true peak \
             -1.2 dBTP, gain +3.4 dB"; "none" means no measurement, and the gain is then 0 dB. The limit \
             and the printed values are at the session rate: a --rate change can add about 0.3 dB of true \
-            peak. A 16-bit export has TPDF dither.
+            peak. A 16-bit export has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes 32000, \
+            44100, or 48000 Hz. An MP3 decodes up to 0.45 dB lower than the printed loudness: LAME scales \
+            its input.
             """)
 
     @OptionGroup var package: PackageArgument
-    @Option(help: "The output file: .wav, .m4a, or .flac.") var out: String
+    @Option(help: "The output file: .wav, .m4a, .mp3, or .flac.") var out: String
     @Option(help: "The bit depth of WAV and FLAC: 16 or 24. The default is 24.") var bits: Int?
-    @Option(help: "The AAC bit rate in kbit/s: 64, 96, 128, 160, 192, or 256. The default is 128.")
+    @Option(help: "The AAC or MP3 bit rate in kbit/s: 64, 96, 128, 160, 192, or 256. The default is 128.")
     var bitrate: Int?
     @Flag(help: "Fold the mix to one channel: 0.5 x (L + R).") var mono = false
     @Option(help: "The file rate in Hz: 44100 or 48000. The default is the session rate.") var rate: Int?
@@ -49,17 +51,17 @@ struct Export: ParsableCommand {
         let format: ExportFormat
         switch URL(filePath: out).pathExtension.lowercased() {
         case "wav", "flac":
-            guard bitrate == nil else { throw ValidationError("--bitrate is only for .m4a.") }
+            guard bitrate == nil else { throw ValidationError("--bitrate is only for .m4a and .mp3.") }
             guard let depth = BitDepth(rawValue: bits ?? 24) else { throw ValidationError("--bits must be 16 or 24.") }
             format = URL(filePath: out).pathExtension.lowercased() == "wav" ? .wav(depth) : .flac(depth)
-        case "m4a":
+        case "m4a", "mp3":
             guard bits == nil else { throw ValidationError("--bits is only for .wav and .flac.") }
             guard let rate = BitRate(rawValue: bitrate ?? 128) else {
                 throw ValidationError("--bitrate must be 64, 96, 128, 160, 192, or 256.")
             }
-            format = .aac(rate)
+            format = URL(filePath: out).pathExtension.lowercased() == "m4a" ? .aac(rate) : .mp3(rate)
         default:
-            throw ValidationError("--out must end in .wav, .m4a, or .flac.")
+            throw ValidationError("--out must end in .wav, .m4a, .mp3, or .flac.")
         }
         let fileRate: ExportRate
         switch rate {

@@ -27,6 +27,9 @@ func fileDescription(_ format: ExportFormat, rate: Int, channels: UInt32) -> (
     case .aac:
         description.mFormatID = kAudioFormatMPEG4AAC
         return (kAudioFileM4AType, description)
+    case .mp3:
+        description.mFormatID = kAudioFormatMPEGLayer3
+        return (kAudioFileMP3Type, description)
     case .floatCAF:
         description.mFormatID = kAudioFormatLinearPCM
         description.mFormatFlags = kLinearPCMFormatFlagIsFloat | kLinearPCMFormatFlagIsPacked
@@ -38,13 +41,17 @@ func fileDescription(_ format: ExportFormat, rate: Int, channels: UInt32) -> (
     }
 }
 
-/// Makes the file of `format` at `rate` Hz with the channels of `client`, sets `client` as the
-/// client format (the converter changes the rate, probe P4) and the AAC bit rate (P5), runs
-/// `body`, and closes the file.
+/// Makes the file of `format` at `rate` Hz with the channels of `client`, runs `body` with a
+/// function that writes one buffer of `client` frames, and closes the file. MP3 goes through
+/// `writeMP3`. Each other format goes through `ExtAudioFile`, with `client` as the client format
+/// (the converter changes the rate, probe P4) and the AAC bit rate (P5).
 func writeFile(
     _ url: URL, format: ExportFormat, rate: Int, client: AVAudioFormat,
-    _ body: (ExtAudioFileRef) throws(ExportError) -> Void
+    _ body: ((AVAudioPCMBuffer) throws(ExportError) -> Void) throws(ExportError) -> Void
 ) throws(ExportError) {
+    if case .mp3(let bitRate) = format {
+        return try writeMP3(url, bitRate: bitRate, rate: rate, client: client, body)
+    }
     var (type, description) = fileDescription(format, rate: rate, channels: client.channelCount)
     var created: ExtAudioFileRef?
     let status = ExtAudioFileCreateWithURL(
@@ -57,7 +64,10 @@ func writeFile(
                 file, kExtAudioFileProperty_ClientDataFormat, UInt32(MemoryLayout.size(ofValue: clientDescription)),
                 &clientDescription))
         if case .aac(let bitRate) = format { try setBitRate(bitRate, of: file) }
-        try body(file)
+        try body { buffer throws(ExportError) in
+            let status = ExtAudioFileWrite(file, buffer.frameLength, buffer.audioBufferList)
+            guard status == noErr else { throw writeFault(status: status, errno: errno) }
+        }
     } catch {
         ExtAudioFileDispose(file)
         throw error

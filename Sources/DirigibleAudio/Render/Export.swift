@@ -20,12 +20,14 @@ public enum BitRate: Int, Hashable, Sendable, CaseIterable {
     case k256 = 256
 }
 
-/// A bit depth goes only with WAV or FLAC, a bit rate only with AAC. `.floatCAF` is the 32-bit
-/// float CAF of `dirigible render`; the app does not offer it (decision 0019).
+/// A bit depth goes only with WAV or FLAC, a bit rate only with AAC or MP3. `.floatCAF` is the
+/// 32-bit float CAF of `dirigible render`; the app does not offer it (decision 0019). MP3 goes
+/// through LAME (decision 0034).
 public enum ExportFormat: Hashable, Sendable {
     case wav(BitDepth)
     case flac(BitDepth)
     case aac(BitRate)
+    case mp3(BitRate)
     case floatCAF
 }
 
@@ -120,7 +122,8 @@ public struct ExportResult: Hashable, Sendable {
 public enum ExportError: Error, Hashable, Sendable {
     /// An item is at the target. It did not change.
     case exists
-    /// AAC at a file rate above 48 kHz (probe P5). No file was made.
+    /// AAC at a file rate above 48 kHz (probe P5), or MP3 at a file rate other than 32, 44.1, or
+    /// 48 kHz (decision 0034). No file was made.
     case rateNotSupported(Int)
     /// A create, format, write, or close of the file gave this status.
     case writeFailed(OSStatus)
@@ -139,7 +142,7 @@ public enum ExportError: Error, Hashable, Sendable {
 /// Renders `source` of `session` and writes it in `options` to `url` (decision 0019). It
 /// renders `chunk` frames at a time into one reused buffer, so the memory does not grow with
 /// the range. A mono export folds each chunk to 0.5 x (L + R) (probe P10). The file rate is the
-/// chosen rate; the converter of `ExtAudioFile` resamples (P4).
+/// chosen rate; the converter of `ExtAudioFile` resamples (P4), and LAME resamples an MP3.
 ///
 /// With a loudness target it renders the source twice (decision 0032). Pass 1 measures the mix
 /// before the temporary file exists. Pass 2 applies the gain `target - measured` and the
@@ -162,6 +165,8 @@ public func exportMix(
 ) throws(ExportError) -> ExportResult {
     let rate = options.rate.hertz(session: session.sampleRate)
     if case .aac = options.format, rate > 48_000 { throw .rateNotSupported(rate) }
+    // The MPEG-1 rates, where LAME keeps each bit rate of `BitRate` (probes U3 and U7).
+    if case .mp3 = options.format, ![32_000, 44_100, 48_000].contains(rate) { throw .rateNotSupported(rate) }
     let sessionRate = Double(session.sampleRate)
     let capacity = AVAudioFrameCount(chunk)
     guard let stereo = AVAudioFormat(standardFormatWithSampleRate: sessionRate, channels: 2),
@@ -226,7 +231,7 @@ public func exportMix(
     defer { close(held) }
     defer { unlink(temporary.path) }
     try writeFile(temporary, format: options.format, rate: rate, client: folded?.format ?? stereo) {
-        file throws(ExportError) in
+        sink throws(ExportError) in
         var written = 0
         var dither: TPDFDither?
         if options.format == .wav(.bits16) || options.format == .flac(.bits16) {
@@ -236,8 +241,7 @@ public func exportMix(
             dither?.apply(buffer)
             stage?.measure(buffer)
             guard buffer.frameLength > 0 else { return }
-            let status = ExtAudioFileWrite(file, buffer.frameLength, buffer.audioBufferList)
-            guard status == noErr else { throw writeFault(status: status, errno: errno) }
+            try sink(buffer)
             written += Int(buffer.frameLength)
             if stage == nil {
                 report(100 * written / total, Double(written) / Double(total))

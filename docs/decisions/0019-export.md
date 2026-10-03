@@ -4,6 +4,7 @@
 - Date: 2026-09-25
 - Accepted: 2026-09-25, after plan gate 1 of the export run. The gate kept Record on during an export, moved the export to a utility GCD queue, ran the take checks before the cancel, and added the settle gate.
 - Amended: 2026-10-03, run 9a. WAV 16 and FLAC 16 get a seeded TPDF dither; each export stays repeatable, and FLAC equals WAV bit for bit. An export with a loudness target renders two passes: progress maps pass 1 to 0...0.25 and pass 2 to 0.25...1, with at most 101 calls. A clean export with a target shows the report in a banner; with silent files, the one alert also has the report line. `dirigible export` takes `--loudness podcast|speech|ebu|atsc`. Only an export with a target is limited: with Off, a mix over full scale still clips. See 0032.
+- Amended: 2026-10-03, MP3 run. `ExportFormat` has `.mp3(BitRate)`; `AACBitRate` is `BitRate`. MP3 goes through LAME, not `ExtAudioFile`: `writeFile` gives its body a write function. An MP3 file rate other than 32, 44.1, or 48 kHz throws `.rateNotSupported` before any file exists. `dirigible export` takes `.mp3`. See 0034.
 
 ## Context
 

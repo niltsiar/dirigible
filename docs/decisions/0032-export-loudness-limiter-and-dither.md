@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-03
 - Accepted: 2026-10-03, after the architect synthesis and plan gates 1 and 2 of run `2026-10-03-export-loudness`.
+- Amended: 2026-10-03, MP3 run. MP3 gets no dither. LAME scales its input: a decoded MP3 reads up to 0.45 dB lower than the report (see 0034).
 - Amends: 0008 (our own limiter, not `kAudioUnitSubType_PeakLimiter`; true peak and cases 15 to 19 are done) and 0019 (dither for 16-bit, two passes, the report banner, `--loudness`).
 
 ## Context
@@ -23,7 +24,7 @@ Probes of the run (`.scratchpads/runs/2026-10-03-export-loudness/probe/`): P1 re
 
 **Two passes.** With a target, `exportMix` renders the source twice. Pass 1 measures the mix (the mono fold for a mono export) before the temporary file exists. Pass 2 applies the gain `target - measured` with no limit, the limiter, and the dither, then measures the output at the session rate before the encoder. A mix with no gated block gets 0 dB. The progress maps pass 1 to 0...0.25 and pass 2 to 0.25...1, with at most 101 calls. A cancel in either pass leaves no file. `ExportOptions.loudness` is nil by default, and `ExportOptions.render` keeps nil, so `dirigible render` and an export with Off do not change. `exportMix` and `Studio.export` return `ExportResult`: the faults and the `LoudnessReport` (target, measured, gain, output loudness, true peak).
 
-**Dither.** `TPDFDither` in `DSP/Dither.swift` adds ±1 LSB of 16 bit to WAV 16 and FLAC 16, with and without a target: the difference of two uniform values from SplitMix64, one stream per channel, with a fixed seed that starts again at each export. So each export of the same mix gives the same file, and FLAC equals WAV bit for bit. 24-bit, AAC, and the float CAF get no dither.
+**Dither.** `TPDFDither` in `DSP/Dither.swift` adds ±1 LSB of 16 bit to WAV 16 and FLAC 16, with and without a target: the difference of two uniform values from SplitMix64, one stream per channel, with a fixed seed that starts again at each export. So each export of the same mix gives the same file, and FLAC equals WAV bit for bit. 24-bit, AAC, MP3, and the float CAF get no dither.
 
 **App.** The save panel has a Loudness pop-up: Off, Podcast, Speech, EBU R 128, and US broadcast, each with its LUFS value for the chosen channels. The default is Podcast. `export.loudness` stores a token (`off` or the preset), so Off comes back as Off; a missing or unknown value gives Podcast. A clean export with a target shows the report and the file name in a non-modal info banner (`WindowBanner.exportReport`, [0023](0023-ui-shell.md)), which VoiceOver reads. The banner shows only while the session revision (`History.revision`) equals the revision at the export start: the next export, take, edit, undo, or redo removes it, and an edit during the export keeps it from showing. A gain over the ±20 dB limit of auto-level makes it a warning with a hint to check the selection; the gain has no limit. Record works while it shows. With a file that rendered as silence, the one alert of 0019 names the files and has the report line.
 
@@ -35,7 +36,7 @@ Probes of the run (`.scratchpads/runs/2026-10-03-export-loudness/probe/`): P1 re
 - A 16-bit export with Off changes too: its last bit has dither, so it differs from an export of an earlier version.
 - An export with Off still clips a mix over full scale.
 - An export at a file rate other than the session rate is limited and measured at the session rate. The resampler can raise the true peak by about 0.3 dB, and it filters the dither a little.
-- The report measures the processed signal before the encoder, not the written file: AAC can read a little higher after its decode.
+- The report measures the processed signal before the encoder, not the written file: AAC can read a little higher after its decode, and MP3 up to 0.45 dB lower (0034).
 - The limiter loss is reported, not made up: a mix with loud peaks can read under the target.
 - Each Export Selection is measured and normalized by itself.
 

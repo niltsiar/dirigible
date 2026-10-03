@@ -19,7 +19,7 @@ let package = Package(
             cSettings: [.define("HAVE_CONFIG_H"), .headerSearchPath("."), .treatAllWarnings(as: .error)]),
         .target(
             name: "DirigibleAudio",
-            dependencies: ["DirigibleCore", .product(name: "Atomics", package: "swift-atomics")]),
+            dependencies: ["DirigibleCore", "CLame", .product(name: "Atomics", package: "swift-atomics")]),
         .target(name: "DirigibleTimeline", dependencies: ["DirigibleCore"]),
         .executableTarget(
             name: "DirigibleApp", dependencies: ["DirigibleCore", "DirigibleAudio", "DirigibleTimeline"]),

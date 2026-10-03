@@ -18,7 +18,7 @@
 - Amended: 2026-10-03, run 8b. `DirigibleAudio/DSP/AutoLevel.swift` holds `autoLevel` with the meter. `Studio/Studio+Level.swift` holds Cmd-L, and `Studio/Studio+Transport.swift` holds the `Transport` enum (see 0031).
 - Amended: 2026-10-03, run 9a. `DirigibleAudio/DSP/` also holds the true-peak meter (`TruePeak.swift`), the export limiter (`Limiter.swift`), and the dither (`Dither.swift`) (see 0032).
 - Amended: 2026-10-03, run 9b. `DirigibleAudio/DSP/LiveLoudness.swift` holds the live meter, `Render/PlayerLoudness.swift` its Player queue, and `Render/Player+Offline.swift` the offline test pulls. `DirigibleApp/LoudnessStrip.swift` holds the strip (see 0033).
-- Amended: 2026-10-03, MP3 run. `CLame` holds the libmp3lame encoder of LAME 4.0, with C warnings as errors (see 0034).
+- Amended: 2026-10-03, MP3 run. `CLame` holds the libmp3lame encoder of LAME 4.0, with C warnings as errors. `DirigibleAudio` depends on it (see 0034).
 
 ## Context
 
@@ -37,7 +37,7 @@ Two designs were compared: few targets, and one target for each capability (capt
 | `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, the three libraries | 1 |
 | `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the read-edit-save step, error text, the text and JSON views of a session. No logic that the app needs | Foundation, AVFoundation (the microphone access request), `ArgumentParser` (swift-argument-parser), `DirigibleCore`, `DirigibleAudio` | CLI run |
 
-Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, `DirigibleApp` to `DirigibleTimeline` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCLI` depends on `DirigibleCore` and `DirigibleAudio` (0012). `DirigibleCore` depends on no target.
+Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, `DirigibleAudio` to `CLame`, `DirigibleApp` to `DirigibleTimeline` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleCLI` depends on `DirigibleCore` and `DirigibleAudio` (0012). `DirigibleCore` depends on no target.
 
 Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), `DirigibleTimelineTests`, and `DirigibleTests` (bundle, localization, import rule).
 

@@ -217,4 +217,69 @@ struct MarksTests {
         try session.place(Clip(id: "z", file: "f1", start: 0, offset: 0, length: 500), on: "t1")
         #expect(Marks(inPoint: 0, outPoint: 4000, tracks: ["t1"]).nudge(by: -480, in: session) == nil)
     }
+
+    // MARK: Command-F (decision 0035)
+
+    /// Clip A at 48,000 (1 s by default) on t1, clip B (1 s) at `b` on t1, and clip C at 0 on t2.
+    static func fadeSession(a length: Frames = 48_000, b: Frames? = nil, aFades: Fades = .zero) throws -> Session {
+        var session = try session(tracks: 2, clip: false)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 480_000))
+        try session.place(Clip(id: "A", file: "f1", start: 48_000, offset: 0, length: length, fades: aFades), on: "t1")
+        if let b { try session.place(Clip(id: "B", file: "f1", start: b, offset: 0, length: 48_000), on: "t1") }
+        try session.place(Clip(id: "C", file: "f1", start: 0, offset: 0, length: 192_000), on: "t2")
+        return session
+    }
+
+    func fades(_ range: Range<Frames>, _ session: Session, tracks: Set<TrackID> = ["t1"]) -> [ClipID: Fades]? {
+        Marks(inPoint: range.lowerBound, outPoint: range.upperBound, tracks: tracks).fades(in: session)
+    }
+
+    /// C15: a range that holds the clip start fades in to the out point.
+    @Test func fadeAtAClipStart() throws {
+        #expect(fades(40_000..<52_800, try Self.fadeSession()) == ["A": Fades(fadeIn: 4_800, fadeOut: 0)!])
+    }
+
+    /// C16: a range that holds the clip end fades out from the in point.
+    @Test func fadeAtAClipEnd() throws {
+        #expect(fades(91_200..<100_000, try Self.fadeSession()) == ["A": Fades(fadeIn: 0, fadeOut: 4_800)!])
+    }
+
+    /// C17: the whole clip gets min(0.5 s, length / 2) at each end.
+    @Test func fadeOfAWholeClip() throws {
+        #expect(fades(48_000..<96_000, try Self.fadeSession()) == ["A": Fades(fadeIn: 24_000, fadeOut: 24_000)!])
+        #expect(
+            fades(48_000..<76_800, try Self.fadeSession(a: 28_800))
+                == ["A": Fades(fadeIn: 14_400, fadeOut: 14_400)!], "0.6 s")
+        #expect(
+            fades(48_000..<105_600, try Self.fadeSession(a: 57_600))
+                == ["A": Fades(fadeIn: 24_000, fadeOut: 24_000)!], "1.2 s")
+    }
+
+    /// C18: a range inside the clip holds no edge.
+    @Test func fadeInsideAClipDoesNothing() throws {
+        #expect(fades(60_000..<70_000, try Self.fadeSession()) == nil)
+    }
+
+    /// C19: an edge at a butt join gets no fade; a 1-frame gap is not a join.
+    @Test func fadeAtAButtJoinDoesNothing() throws {
+        #expect(fades(90_000..<100_000, try Self.fadeSession(b: 96_000)) == nil, "a butt join")
+        #expect(
+            fades(90_000..<100_000, try Self.fadeSession(b: 96_001))
+                == ["A": Fades(fadeIn: 0, fadeOut: 6_000)!, "B": Fades(fadeIn: 3_999, fadeOut: 0)!], "a 1-frame gap")
+    }
+
+    /// C20: no in point or no selected track that exists gives nil; a clip on a track that is not
+    /// selected does not change.
+    @Test func fadeNeedsASelection() throws {
+        let session = try Self.fadeSession()
+        #expect(Marks(outPoint: 96_000, tracks: ["t1"]).fades(in: session) == nil, "no in point")
+        #expect(fades(48_000..<96_000, session, tracks: ["t9"]) == nil, "no selected track that exists")
+        #expect(fades(48_000..<96_000, session).map { Set($0.keys) } == ["A"], "C on t2 does not change")
+    }
+
+    /// C21: the new fade wins, and the other fade yields.
+    @Test func theNewFadeWins() throws {
+        let session = try Self.fadeSession(aFades: Fades(fadeIn: 0, fadeOut: 40_000)!)
+        #expect(fades(40_000..<62_400, session) == ["A": Fades(fadeIn: 14_400, fadeOut: 33_600)!])
+    }
 }

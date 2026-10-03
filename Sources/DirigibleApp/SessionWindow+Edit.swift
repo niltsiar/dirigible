@@ -62,6 +62,16 @@ extension SessionWindow {
         }
     }
 
+    /// Edit > Fade (decision 0035): the fades of `Marks.fades` in one edit, so one undo entry. With
+    /// no change, a beep.
+    func runFade(_ studio: Studio) {
+        guard let fades = timeline.marks.fades(in: studio.session) else {
+            NSSound.beep()
+            return
+        }
+        edit { session throws(SessionError) in try session.setFades(fades) }
+    }
+
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers
     /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
     /// marker. Rename, Move, and Delete act on the current marker when the session has it.

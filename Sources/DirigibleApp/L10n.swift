@@ -82,6 +82,7 @@ enum L10n: String, CaseIterable {
     case menuEditSplit = "menu.edit.split"
     case menuEditNudgeLeft = "menu.edit.nudge.left"
     case menuEditNudgeRight = "menu.edit.nudge.right"
+    case menuEditFade = "menu.edit.fade"
     case menuMarkers = "menu.markers"
     case menuMarkersAdd = "menu.markers.add"
     case menuMarkersAddChapter = "menu.markers.add.chapter"

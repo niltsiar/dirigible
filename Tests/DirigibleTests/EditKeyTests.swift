@@ -24,7 +24,7 @@ import Testing
                 "cut x \(command)", "copy c \(command)", "paste v \(command)", "delete \u{8} 0",
                 "selectAll a \(command)", "setIn i 0", "setOut o 0",
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)", "split b \(command)",
-                "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)",
+                "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)", "fade f \(command)",
             ])
         let shift = EventModifiers.shift.rawValue
         #expect(

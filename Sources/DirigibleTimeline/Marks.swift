@@ -169,6 +169,40 @@ public struct Marks: Hashable, Sendable {
         return Set(tracks.flatMap { $0.clips.filter { $0.range.overlaps(selection.range) }.map(\.id) })
     }
 
+    /// The fades of Command-F (decision 0035) for each clip on a selected track that overlaps the
+    /// selection. The range holds the clip start when in <= start, and the clip end when end <= out.
+    /// Both: min(0.5 s, length / 2) at each end. The start only: a fade-in to the out point. The end
+    /// only: a fade-out from the in point. An edge at a butt join (a lane neighbor touches it) gets
+    /// no fade in 11a. The new fade wins, and the other fade yields. Nil with no selection or no
+    /// change.
+    public func fades(in session: Session) -> [ClipID: Fades]? {
+        guard let selection = selection(in: session) else { return nil }
+        let (low, high) = (selection.range.lowerBound, selection.range.upperBound)
+        var result: [ClipID: Fades] = [:]
+        for lane in selection.tracks.compactMap(session.track).map(\.clips) {
+            for index in lane.indices where lane[index].range.overlaps(selection.range) {
+                let clip = lane[index]
+                let (start, end) = (low <= clip.start, clip.end <= high)
+                let standard = min(Frames(session.sampleRate / 2), Frames(clip.length.count / 2))
+                let joinBefore = index > lane.startIndex && lane[index - 1].end == clip.start
+                let joinAfter = index + 1 < lane.endIndex && lane[index + 1].start == clip.end
+                let fadeIn = start && !joinBefore ? (end ? standard : high - clip.start) : nil
+                let fadeOut = end && !joinAfter ? (start ? standard : clip.end - low) : nil
+                let fades: Fades
+                switch (fadeIn, fadeOut) {
+                case (let fadeIn?, let fadeOut?): fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut)!
+                case (let fadeIn?, nil):
+                    fades = Fades(fadeIn: fadeIn, fadeOut: clip.fades.fadeOut)!.fitted(to: clip.length, keeping: .start)
+                case (nil, let fadeOut?):
+                    fades = Fades(fadeIn: clip.fades.fadeIn, fadeOut: fadeOut)!.fitted(to: clip.length, keeping: .end)
+                case (nil, nil): continue
+                }
+                if fades != clip.fades { result[clip.id] = fades }
+            }
+        }
+        return result.isEmpty ? nil : result
+    }
+
     /// Select All: 0 to the end on every track. An empty session gives no Marks.
     public static func all(in session: Session) -> Marks {
         session.end == .zero

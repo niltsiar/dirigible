@@ -197,6 +197,7 @@
 "menu.edit.split" = "Dividir";
 "menu.edit.nudge.left" = "Desplazar a la izquierda";
 "menu.edit.nudge.right" = "Desplazar a la derecha";
+"menu.edit.fade" = "Fundido";
 "menu.markers" = "Marcadores";
 "menu.markers.add" = "Añadir marcador";
 "menu.markers.add.chapter" = "Añadir capítulo";

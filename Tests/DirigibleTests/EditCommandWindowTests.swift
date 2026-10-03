@@ -200,4 +200,31 @@ import Testing
         #expect(app.windows[url] == nil)
         await second.close()
     }
+
+    /// Fades C22 (decision 0035): Command-F on a whole clip is one undo entry, with the lanes or the
+    /// track name field focused (probe K1: the field ignores Command-F). A range with no clip edge
+    /// makes no entry.
+    @Test func fadeIsOneUndoEntry() async throws {
+        let (model, studio, window, _) = try await open()
+        let before = studio.session
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+
+        app.timeline(.fade, event: commandKey("f", code: 3, in: window), in: window)
+
+        #expect(studio.session.clip("c1")?.clip.fades == Fades(fadeIn: 24_000, fadeOut: 24_000))
+        #expect(studio.session.clip("c2")?.clip.fades == .zero, "t2 is not selected")
+        model.undo()
+        #expect(studio.session == before && !studio.canUndo, "one entry, and Undo restores the fades")
+
+        model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1"])
+        app.timeline(.fade, event: commandKey("f", code: 3, in: window), in: window)
+        #expect(studio.session == before && !studio.canUndo, "no clip edge: no entry")
+
+        let editor = try await focusName(in: window)
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+        app.timeline(.fade, event: commandKey("f", code: 3, in: window), in: window)
+        #expect(studio.session.clip("c1")?.clip.fades == Fades(fadeIn: 24_000, fadeOut: 24_000), "field focused")
+        #expect(window.firstResponder === editor && studio.canUndo)
+        await model.close()
+    }
 }

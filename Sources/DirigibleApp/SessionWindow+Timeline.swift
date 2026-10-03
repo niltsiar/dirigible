@@ -42,7 +42,7 @@ enum TimelineCommand: Hashable {
     case tallerTracks, shorterTracks, fitTracks
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
-    case split, nudgeLeft, nudgeRight
+    case split, nudgeLeft, nudgeRight, fade
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
     case removeTrack, showInFinder, export, exportSelection
     case autoLevel, autoLevelPerTrack
@@ -75,6 +75,8 @@ enum TimelineCommand: Hashable {
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         case .export, .exportSelection: false
         case .autoLevel, .autoLevelPerTrack: false
+        // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
+        case .fade: false
         }
     }
 
@@ -130,6 +132,7 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .split, title: .menuEditSplit, key: "b", modifiers: .command),
         MenuItem(command: .nudgeLeft, title: .menuEditNudgeLeft, key: .leftArrow, modifiers: .command),
         MenuItem(command: .nudgeRight, title: .menuEditNudgeRight, key: .rightArrow, modifiers: .command),
+        MenuItem(command: .fade, title: .menuEditFade, key: "f", modifiers: .command),
     ]
 
     /// The Markers items (decision 0018). Each key is one that a text field uses, so each item
@@ -229,6 +232,7 @@ extension SessionWindow {
         case .selectAll: timeline.marks = Marks.all(in: studio.session)
         case .cut, .copy, .paste, .delete: runClipboard(command, studio)
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
+        case .fade: runFade(studio)
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
         case .removeTrack: removeTracks(studio.session.tracks.map(\.id).filter(timeline.marks.tracks.contains))

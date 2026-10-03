@@ -58,6 +58,7 @@ import Testing
         for command in [TimelineCommand.cut, .paste, .delete, .split] { model.run(command) }
         model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
         model.run(.nudgeRight)
+        model.run(.fade)
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1", "t2"])
         for command in [
             TimelineCommand.addMarker, .addChapter, .moveMarker, .renameMarker, .deleteMarker, .removeTrack,

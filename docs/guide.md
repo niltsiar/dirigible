@@ -196,6 +196,18 @@ Markers and chapters do not move with the audio. Remove the mistakes before you 
 
 If no track has audio just before the mistake, step 9 moves the playhead to the end of the audio before the mistake. The paste then also removes the silence before the mistake.
 
+### Fade in and fade out
+
+Choose **Edit > Fade** (Command-F) to fade the clips on the selected tracks. The selection sets the fade:
+
+- Click a clip to select all of it. Command-F then gives the clip a fade-in and a fade-out of 0.5 s each, or of half the clip when the clip is shorter than 1 s.
+- A selection that holds the start of a clip gives a fade-in from the clip start to the out point.
+- A selection that holds the end of a clip gives a fade-out from the in point to the clip end.
+- A selection inside a clip does nothing.
+- Where two clips touch, the edges get no fade.
+
+A new fade replaces the old fade of that edge. When the two fades are longer than the clip, the other fade becomes shorter. With no fade to change, you hear a beep. Each Fade is one step in the undo history.
+
 ### Level the clips
 
 Choose **Tools > Auto Level** (Command-L) to set the gain of each clip that the selection touches, on the selected tracks. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.
@@ -342,6 +354,7 @@ macOS adds **Undo** (Command-Z) and **Redo** (Shift-Command-Z) at the top of the
 | **Split** | **Dividir** | Command-B |
 | **Nudge Left** | **Desplazar a la izquierda** | Command-Left Arrow |
 | **Nudge Right** | **Desplazar a la derecha** | Command-Right Arrow |
+| **Fade** | **Fundido** | Command-F |
 
 ### View
 

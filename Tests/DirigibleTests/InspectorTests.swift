@@ -197,8 +197,11 @@ import Testing
         fields = try await paneFields(window)
         try await type("-3", in: fields[0], window, model)
         press("\t", 48, window)
+        // Read the focus with no await after the key: a field of a parallel suite can take the
+        // shared field editor during a wait (`focusedNameEditor(in:)`).
+        let tabbed = focusedField(window)
         await until("Tab commits") { gain(studio, "A") == -3 }
-        #expect(focusedField(window) === fields[1], "Tab goes to Fade In")
+        #expect(tabbed === fields[1], "Tab goes to Fade In")
         #expect(window.makeFirstResponder(view.lanes))
         #expect(undoAll(model, studio) == 1 && studio.session == before, "Tab: one entry")
 
@@ -242,7 +245,7 @@ import Testing
         #expect(fields[0].stringValue == decibels(-7.37))
         await focus(fields[0], window, model)
         press("\t", 48, window)
-        await until("Tab goes to Fade In") { focusedField(window) === fields[1] }
+        #expect(focusedField(window) === fields[1], "Tab goes to Fade In")
         #expect(window.makeFirstResponder(view.lanes))
         #expect(gain(studio, "A") == -7.37 && !studio.canUndo, "a Tab with no typing: no edit")
 
@@ -251,7 +254,7 @@ import Testing
         fields = shownFields(window)
         await focus(fields[0], window, model)
         press("\t", 48, window)
-        await until("Tab goes to Fade In") { focusedField(window) === fields[1] }
+        #expect(focusedField(window) === fields[1], "Tab goes to Fade In")
         await focus(fields[0], window, model)
         press("\r", 36, window)
         try await Task.sleep(for: .milliseconds(200))

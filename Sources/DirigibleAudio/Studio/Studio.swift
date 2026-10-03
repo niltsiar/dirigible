@@ -6,17 +6,9 @@ import Observation
 /// the package lock, runs recovery at open, keeps the pending take, and saves each edit. Every
 /// package write runs in one chain, so no write lands after a later one. The views observe it.
 @Observable @MainActor public final class Studio {
-    public enum Transport: Hashable, Sendable {
-        case idle
-        case recording(take: Int)
-        case finalizing(take: Int)
-        /// A placement (decision 0021) converts and saves this segment.
-        case placing(SegmentName)
-    }
-
     /// The package path in `packageIdentity` form. A write that finds the package moved on its
     /// volume sets it (decision 0014).
-    public private(set) var url: URL
+    public internal(set) var url: URL
     public internal(set) var transport: Transport = .idle
     public var session: Session { history.session }
     /// Derived, not stored: `session.recording` while the transport is idle (decision 0004).
@@ -257,8 +249,9 @@ import Observation
     }
 
     /// Stops the take: drains and closes each device writer, starts the monitor of the request
-    /// again, then finalizes and saves (decision 0004). With no take, it does nothing. A success
-    /// records one undo entry. A failure keeps the take pending and throws.
+    /// again, then finalizes and saves (0004), then levels the take clips and saves again (0031).
+    /// With no take, it does nothing. A success records one undo entry, and one more when the
+    /// level changes a gain. A failure keeps the take pending and throws.
     public func stopRecording() async throws(StudioError) {
         try await stop(.requested)
     }
@@ -291,7 +284,7 @@ import Observation
             // The come back returns its monitor turn before the finalize (decision 0015).
             await monitorTurns.run { await applyMonitor() }
             defer { sleepAssertion = nil }
-            do throws(StudioError) { try await complete(take) } catch { return error }
+            do throws(StudioError) { try await complete(take, level: true) } catch { return error }
             return nil
         }
         if let error { throw error }
@@ -338,19 +331,20 @@ import Observation
         for writer in writers.values where writer.app == nil { writer.start() }  // Apps: `startApps` (A5).
     }
 
-    /// Finalize, the marker, and the save off the main actor, then the outcome here.
-    private func complete(_ take: Int, leavingUnreadable: Bool = false) async throws(StudioError) {
+    /// Finalize, the marker, the save, and the level of a stop off the main actor, then the outcome.
+    private func complete(_ take: Int, leavingUnreadable: Bool = false, level: Bool = false) async throws(StudioError) {
         transport = .finalizing(take: take)
         await environment.beforeFinalize()
         let outcome = await completeTake(
-            of: session, lock: lock, recordings: recordings, previous: url, leavingUnreadable: leavingUnreadable)
+            of: session, lock: lock, recordings: recordings, previous: url, leavingUnreadable: leavingUnreadable,
+            level: level)
         takeError = outcome.error
         if outcome.error == nil { takeEnded(outcome.session) } else { dropLiveTake() }
         try apply(outcome)
     }
 
     /// The end of a finalize or a placement, on the main actor: the package path, the disk facts,
-    /// and the transport; then the error, or one undo entry for the session that the step saved.
+    /// and the transport; then the error, or the undo entries of the take and of its level (0031).
     func apply(_ outcome: TakeOutcome) throws(StudioError) {
         if let package = outcome.package { url = package }
         transport = .idle
@@ -358,8 +352,15 @@ import Observation
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let error = outcome.error { throw error }
         let before = session.files
+        if let placed = outcome.placed { history.edit { $0 = placed } }
         history.edit { $0 = outcome.session }
         poolChanged(from: before)
+    }
+
+    /// The one undo entry of `level`, after its write. The write saved the whole session.
+    func recordLevel(_ leveled: Session) {
+        history.edit { $0 = leveled }
+        saveError = nil
     }
 
     /// Runs `body` after every package write that started before this call. `body` runs in the
@@ -392,8 +393,7 @@ import Observation
         }
     }
 
-    /// Edits, saves, and a new take wait while a take records or finalizes (decision 0004), or while
-    /// a placement runs (decision 0021).
+    /// Edits, saves, and a new take wait during a take (0004), a placement (0021), or a level (0031).
     func checkIdle() throws(StudioError) {
         guard transport == .idle, !isStarting else { throw .busy }
     }

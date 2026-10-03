@@ -24,6 +24,18 @@ public enum PlaybackStop: Hashable, Sendable {
     case noFreeDescriptor(Int)
 }
 
+extension Studio {
+    public enum Transport: Hashable, Sendable {
+        case idle
+        case recording(take: Int)
+        case finalizing(take: Int)
+        /// A placement (decision 0021) converts and saves this segment.
+        case placing(SegmentName)
+        /// Cmd-L measures the clips and saves their gains (decision 0031).
+        case leveling
+    }
+}
+
 /// The playback state of a studio (decision 0016). `Studio` stores one value of it.
 struct PlayState {
     var playback: Playback = .stopped

@@ -22,7 +22,7 @@ struct TakeCommandTests {
     }
 
     /// Writes a closed 2.0 s mono segment for arm `arm` of take 1 with the real writer.
-    func segment(arm: Int) throws {
+    func segment(arm: Int, samples: [Float] = [Float](repeating: 0.25, count: 96_000)) throws {
         let capture = package.url.appending(path: "Capture")
         try FileManager.default.createDirectory(at: capture, withIntermediateDirectories: true)
         let header = CaptureHeader(
@@ -31,7 +31,7 @@ struct TakeCommandTests {
         let writer = try SegmentWriter(
             folder: capture, name: SegmentName(take: 1, arm: arm, segment: 1), header: header)
         try writer.checkpoint(Checkpoint(fileFrame: 0, sampleTime: 0, hostTimeNanos: Self.takeStart))
-        try [Float](repeating: 0.25, count: 96_000).withUnsafeBufferPointer { try writer.write($0, frames: 96_000) }
+        try samples.withUnsafeBufferPointer { try writer.write($0, frames: samples.count) }
         try writer.close()
     }
 
@@ -67,6 +67,19 @@ struct TakeCommandTests {
         let after = try await info()
         #expect(after.clips == [["take1-1-1"], ["take1-2-1"]])
         #expect(after.take == nil)
+    }
+
+    /// Run 8b criterion 9 (M1): `take finalize` does not level. The -30 dBFS sine would get +14 dB.
+    @Test func finalizeDoesNotLevel() async throws {
+        let tone = (0..<96_000).map { Float(pow(10, -30.0 / 20) * sin(2 * .pi * 1000 * Double($0) / 48_000)) }
+        try segment(arm: 1, samples: tone)
+        try segment(arm: 2, samples: tone)
+
+        let result = try await package.run("take", "finalize", "PKG")
+
+        #expect(result.status == 0, "take finalize: \(result)")
+        let gains = try package.read().tracks.flatMap(\.clips).map(\.gain)
+        #expect(gains == [.zero, .zero], "take finalize leveled: \(gains)")
     }
 
     /// The recovery of the open finalizes the take; the armed tracks come from `recoveredTake`.

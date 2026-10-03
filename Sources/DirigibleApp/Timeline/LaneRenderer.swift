@@ -67,7 +67,8 @@ struct LanePalette: Equatable {
 
 /// Draws the lanes into a caller's pixels (decisions 0017 and 0022, probe D2): a background pattern
 /// per row, then the clip boxes, the missing-media tint, and the waveform as column spans, rectified
-/// on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain. Then the
+/// on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain and the
+/// fades of decision 0035, and a fade line in boxes of 12 pt or more. Then the
 /// selection band and the marker, chapter, in, and out lines. One per document view, on the main
 /// thread. It writes every pixel of the rect of the region, and the region refuses every pixel
 /// outside it. Each edge rounds in absolute document pixels, so two partial draws agree with one
@@ -163,7 +164,15 @@ final class LaneRenderer {
                     resize(range.count)
                     peaks.fill(&values, from: from + Double((anchor - peaks.origin).count), step: pixelFrames)
                 }
-                drawColumns(range, gain: clip.gain.dB + track.gain.dB, bottom: bottom, palette, into: region)
+                let fades =
+                    clip.fades == .zero
+                    ? nil
+                    : ColumnFades(
+                        fades: clip.fades, length: clip.length,
+                        first: Double(range.lowerBound) * pixelFrames - Double(clip.start.count), step: pixelFrames,
+                        line: inputs.laneHeight >= 12)
+                drawColumns(
+                    range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, palette, into: region)
             }
         }
         if let take = live.take { drawLive(take, inputs, palette, into: region) }
@@ -199,31 +208,68 @@ final class LaneRenderer {
 
     /// The one waveform draw of the final and the live columns: `values` from the column
     /// `range.lowerBound`, rectified on a -60 dB to 0 dB scale with `gain`, light peaks over dark
-    /// RMS, up from the row `bottom`.
+    /// RMS, up from the row `bottom`. A column in a fade of `fades` adds 20 log10 of its fade factor.
     func drawColumns(
-        _ range: Range<Int>, gain: Double, bottom: Int, _ palette: LanePalette, into region: borrowing PixelRegion
+        _ range: Range<Int>, gain: Double, fades: ColumnFades? = nil, bottom: Int, _ palette: LanePalette,
+        into region: borrowing PixelRegion
     ) {
         let laneRows = region.window.laneRows
         values.withUnsafeBufferPointer { values in
             Self.decibels.withUnsafeBufferPointer { decibels in
-                func height(_ value: UInt16) -> Int {
-                    guard value > 0 else { return 0 }
-                    let fraction = (decibels[Int(value)] + gain + 60) / 60
+                func height(decibels decibel: Double, _ gain: Double) -> Int {
+                    let fraction = (decibel + gain + 60) / 60
                     return fraction <= 0 ? 0 : Int(((fraction < 1 ? fraction : 1) * Double(laneRows)).rounded())
+                }
+                func height(_ value: UInt16, _ gain: Double) -> Int {
+                    value > 0 ? height(decibels: decibels[Int(value)], gain) : 0
                 }
                 var index = 0
                 while index < values.count {
                     let column = range.lowerBound + index
-                    let peak = height(values[index].peak)
+                    // Only a column in a fade computes a factor; 20 log10(0) is -infinity, height 0.
+                    let factor = fades?.factor(index)
+                    let columnGain = factor.map { gain + 20 * log10($0) } ?? gain
+                    let peak = height(values[index].peak, columnGain)
                     // A cache file can hold an RMS over its peak; the span never inverts.
-                    let rms = min(height(values[index].rms), peak)
+                    let rms = min(height(values[index].rms, columnGain), peak)
                     // A column span is a strided fill: one call, not one Swift step per pixel.
                     region.span(palette.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
                     region.span(palette.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
+                    if factor != nil, fades?.line == true {
+                        // The top of a 0 dBFS signal with the gains and the fade, in the lane.
+                        let row = bottom - height(decibels: 0, columnGain) + 1
+                        region.span(palette.label, column: column, rows: min(row, bottom)..<min(row, bottom) + 1)
+                    }
                     index += 1
                 }
             }
         }
+    }
+}
+
+/// The fades of one clip in the columns of a draw (decision 0035): the clip frame of the first
+/// column, and the frames per column.
+struct ColumnFades {
+    let fades: Fades
+    let length: Frames
+    let first: Double
+    let step: Double
+    /// A 1 px fade line, only in boxes of 12 pt or more.
+    let line: Bool
+
+    /// The maximum of the fade factor over the frames of column `index` (plan gate F2): the fade-in
+    /// at min(k + step, I), the fade-out at max(k, N - O). Nil when that maximum is 1, so a column
+    /// that holds a fade end costs nothing: at fit zoom almost every column holds one (bench C25).
+    func factor(_ index: Int) -> Double? {
+        let k = max(0, Int((first + Double(index) * step).rounded(.down)))
+        let end = k + Int(step.rounded(.up))
+        let rising = end < fades.fadeIn.count
+        let falling = fades.fadeOut > .zero && k > length.count - fades.fadeOut.count
+        guard rising || falling else { return nil }
+        var factor = 1.0
+        if rising { factor *= fades.gain(at: Frames(end), length: length) }
+        if falling { factor *= fades.gain(at: Frames(k), length: length) }
+        return factor
     }
 }
 

@@ -28,8 +28,7 @@ func fileDescription(_ format: ExportFormat, rate: Int, channels: UInt32) -> (
         description.mFormatID = kAudioFormatMPEG4AAC
         return (kAudioFileM4AType, description)
     case .mp3:
-        description.mFormatID = kAudioFormatMPEGLayer3
-        return (kAudioFileMP3Type, description)
+        preconditionFailure("MP3 goes through writeMP3")
     case .floatCAF:
         description.mFormatID = kAudioFormatLinearPCM
         description.mFormatFlags = kLinearPCMFormatFlagIsFloat | kLinearPCMFormatFlagIsPacked

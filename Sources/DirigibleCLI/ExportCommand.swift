@@ -49,17 +49,18 @@ struct Export: ParsableCommand {
     /// The options that the arguments give, or a usage error.
     func options() throws(ValidationError) -> ExportOptions {
         let format: ExportFormat
-        switch URL(filePath: out).pathExtension.lowercased() {
+        let pathExtension = URL(filePath: out).pathExtension.lowercased()
+        switch pathExtension {
         case "wav", "flac":
             guard bitrate == nil else { throw ValidationError("--bitrate is only for .m4a and .mp3.") }
             guard let depth = BitDepth(rawValue: bits ?? 24) else { throw ValidationError("--bits must be 16 or 24.") }
-            format = URL(filePath: out).pathExtension.lowercased() == "wav" ? .wav(depth) : .flac(depth)
+            format = pathExtension == "wav" ? .wav(depth) : .flac(depth)
         case "m4a", "mp3":
             guard bits == nil else { throw ValidationError("--bits is only for .wav and .flac.") }
             guard let rate = BitRate(rawValue: bitrate ?? 128) else {
                 throw ValidationError("--bitrate must be 64, 96, 128, 160, 192, or 256.")
             }
-            format = URL(filePath: out).pathExtension.lowercased() == "m4a" ? .aac(rate) : .mp3(rate)
+            format = pathExtension == "m4a" ? .aac(rate) : .mp3(rate)
         default:
             throw ValidationError("--out must end in .wav, .m4a, .mp3, or .flac.")
         }

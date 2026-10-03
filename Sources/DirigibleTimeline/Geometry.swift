@@ -75,6 +75,10 @@ public struct LaneGeometry: Equatable, Sendable {
         Double(lane) * laneHeight + laneHeight * min(max(-(clip.gain.dB + trackGain.dB), 0), 60) / 60
     }
 
+    /// Whether an edge with `fade` frames of fade has a handle: an edge at a butt join with no fade
+    /// has none (decision 0035 leaves it to 11c). `fadeHandles` and `changedFrames` read it.
+    static func hasHandle(fade: Frames, joined: Bool) -> Bool { fade > .zero || !joined }
+
     /// The fade handles of the clip at `index` of `clips` in `lane`: a square at the top of the
     /// box, centered on the fade end and kept inside the box. Nil in a box under `controlsWidth`,
     /// and nil for an edge at a butt join with no fade (decision 0035 leaves that edge to 11c).
@@ -83,7 +87,7 @@ public struct LaneGeometry: Equatable, Sendable {
         guard box.width >= Self.controlsWidth else { return (nil, nil) }
         let joins = clips.joins(at: index)
         func handle(_ end: Double, _ fade: Frames, _ joined: Bool) -> Rect? {
-            guard fade > .zero || !joined else { return nil }
+            guard Self.hasHandle(fade: fade, joined: joined) else { return nil }
             let x = min(max(end - Self.handleSize / 2, box.minX), box.maxX - Self.handleSize)
             return Rect(x: x, y: box.minY, width: Self.handleSize, height: Self.handleSize)
         }
@@ -107,18 +111,26 @@ public struct LaneGeometry: Equatable, Sendable {
         let (box, smallest, trim) = (box(of: clip, lane: lane), 12.0, 4.0)
         guard box.width >= smallest else { return .range(lane: lane) }
         let handles = fadeHandles(of: clip, at: index, in: track.clips, lane: lane)
-        let (start, end) = (handles.start?.contains(x, y) == true, handles.end?.contains(x, y) == true)
-        if start || end {
+        switch (
+            handles.start.flatMap { $0.contains(x, y) ? $0 : nil }, handles.end.flatMap { $0.contains(x, y) ? $0 : nil }
+        ) {
+        case (let start?, let end?):
             // Two handles that overlap split the overlap at its midpoint.
-            let left = start && (!end || x < (handles.end!.minX + handles.start!.maxX) / 2)
-            return .fade(clip, left ? .start : .end, lane: lane)
+            return .fade(clip, x < (end.minX + start.maxX) / 2 ? .start : .end, lane: lane)
+        case (.some, nil): return .fade(clip, .start, lane: lane)
+        case (nil, .some): return .fade(clip, .end, lane: lane)
+        case (nil, nil): break
         }
         if x - box.minX < trim { return .trim(clip, .start, lane: lane) }
         if box.maxX - x < trim { return .trim(clip, .end, lane: lane) }
         if box.width >= Self.controlsWidth {
             let line = max(gainLineY(clip, trackGain: track.gain, lane: lane), box.minY + Self.gainReach)
-            let between = box.minX + self.x(of: clip.fades.fadeIn)...box.maxX - self.x(of: clip.fades.fadeOut)
-            if abs(y - line) <= Self.gainReach, between.contains(x) { return .gain(clip, lane: lane) }
+            // Two comparisons, not a range: when the fades fill the clip, the two ends come from two
+            // float paths, and the fade-in end can be 1 ulp over the fade-out start (code gate K1).
+            let (fadeInEnd, fadeOutStart) = (
+                box.minX + self.x(of: clip.fades.fadeIn), box.maxX - self.x(of: clip.fades.fadeOut)
+            )
+            if abs(y - line) <= Self.gainReach, x >= fadeInEnd, x <= fadeOutStart { return .gain(clip, lane: lane) }
         }
         return y - box.minY < laneHeight * 2 / 3 ? .move(clip, lane: lane) : .range(lane: lane)
     }

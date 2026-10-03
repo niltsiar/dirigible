@@ -21,9 +21,6 @@ public enum ClipLevel: Hashable, Sendable {
     case unreadable
 }
 
-/// The gain limit of decision 0008, in dB, in each direction.
-let levelLimit = 20.0
-
 /// The target loudness of a track layout (decision 0008).
 func clipTarget(_ layout: ChannelLayout) -> Double { LoudnessTarget.podcast.integrated(for: layout).value }
 
@@ -71,7 +68,7 @@ public func autoLevel(_ clips: Set<ClipID>, _ mode: LevelMode, of session: Sessi
             let base = mode == .eachClip ? 0 : item.clip.gain.dB
             // Gain(dB:) is nil only for a value that is not finite.
             guard results[item.clip.id]?.integrated != nil,
-                let gain = Gain(dB: min(max(base + delta, -levelLimit), levelLimit))
+                let gain = Gain(dB: min(max(base + delta, -Gain.levelLimit), Gain.levelLimit))
             else {
                 levels[item.clip.id] = .noMeasurement
                 continue

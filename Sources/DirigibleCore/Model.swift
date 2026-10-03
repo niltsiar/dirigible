@@ -46,6 +46,9 @@ public struct Gain: Hashable, Sendable, CustomStringConvertible {
     }
 
     public static let zero = Gain(dB: 0)!
+    /// The gain limit of decision 0008, in dB, in each direction: auto-level, the warning of the
+    /// export report, and the start rule of the gain drag of the lanes.
+    public static let levelLimit = 20.0
     public var description: String { "\(dB) dB" }
 }
 

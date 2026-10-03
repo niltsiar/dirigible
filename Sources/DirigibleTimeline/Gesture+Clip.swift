@@ -12,10 +12,6 @@ public enum GestureReadout: Equatable, Sendable {
 /// a fade handle sets that fade, and a double-click on either resets it. Each makes one Core edit
 /// on the session of the mouse-down, as a trim does, and the commit selects the clip.
 extension TimelineGesture {
-    /// The auto-level limit of decision 0008 (`levelLimit`, internal to DirigibleAudio). A gain drag
-    /// stays in min(start, -limit) ... max(start, limit), so a start outside it never jumps.
-    static let gainLimit = 20.0
-
     /// A gain drag: the clip at the down, its lane, the gain, and the session with that gain.
     struct GainDrag: Sendable {
         let clip: Clip
@@ -44,7 +40,8 @@ extension TimelineGesture {
     }
 
     /// A gain drag event: the line stays under the pointer (60 dB per lane height), rounded to
-    /// 0.1 dB. A take ends the drag.
+    /// 0.1 dB, from min(start, -limit) to max(start, limit) with `Gain.levelLimit`, so a start
+    /// outside the limit never jumps. A take ends the drag.
     mutating func gainDrag(_ press: Press, _ drag: GainDrag, _ y: Double, _ context: GestureContext) -> [GestureEffect]
     {
         guard context.canEdit else {
@@ -53,7 +50,7 @@ extension TimelineGesture {
         }
         let start = drag.clip.gain.dB
         let dB = ((start + (press.y - y) * 60 / context.geometry.laneHeight) * 10).rounded() / 10
-        guard let gain = Gain(dB: min(max(dB, min(start, -Self.gainLimit)), max(start, Self.gainLimit))),
+        guard let gain = Gain(dB: min(max(dB, min(start, -Gain.levelLimit)), max(start, Gain.levelLimit))),
             gain != drag.gain
         else { return [] }
         var preview = press.base

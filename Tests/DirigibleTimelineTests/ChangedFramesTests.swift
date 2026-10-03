@@ -108,5 +108,16 @@ struct ChangedFramesTests {
         var gap = session
         try gap.trim("B", to: 96_001..<192_000)
         #expect(changedFrames(from: session, to: gap)?.frames == 96_001..<192_000, "a gap of 1 frame is no join")
+
+        // The handle of A depends on the join only when A has no fade at that edge, and only when
+        // the join comes or goes (run 11b-1, the pairs of B3).
+        var faded = session
+        try faded.setFades(["A": Fades(fadeIn: 0, fadeOut: 480)!])
+        var fadedJoin = faded
+        try fadedJoin.trim("B", to: 96_000..<192_000)
+        #expect(changedFrames(from: faded, to: fadedJoin)?.frames == 96_000..<192_000, "A keeps its fade-out handle")
+        var shorter = joined
+        try shorter.trim("B", to: 96_000..<180_000)
+        #expect(changedFrames(from: joined, to: shorter)?.frames == 96_000..<192_000, "A stays joined")
     }
 }

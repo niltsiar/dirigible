@@ -14,7 +14,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 - No MP3 export. Export AAC (.m4a) or WAV, and check which formats your podcast host accepts.
 - The export does not write the chapters into the file. The chapters stay in the session.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
-- No loudness setting. The export does not change the level of the audio.
+- No loudness meter while you record or play. The export measures the loudness: see [Export the episode](#export-the-episode).
 - Delete leaves silence. The clips after the deleted part do not move to close the gap. To close the gap, see [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 
 ## Record your first episode

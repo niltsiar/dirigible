@@ -8,7 +8,9 @@ import Testing
 /// Run 9a criterion 21: the 2 h, 8-track fixture of `ExportBenchmark` exports to WAV 16 stereo
 /// with the podcast target (two passes, the limiter, and the dither) in 57 s or less, optimized
 /// build (`make bench FILTER=LoudnessExportBenchmark`). The first optimized run took 28.4 s, and
-/// the budget is 2 times that. A debug build exports 10 min and only prints.
+/// the budget is 2 times that. So it catches a slowdown of 2 times, not each loss of speed: a
+/// scalar FIR in place of vDSP takes 37.5 s and passes (control c17). A debug build exports
+/// 10 min and only prints.
 struct LoudnessExportBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aTwoHourNormalizedExportFitsTheBudget() throws {

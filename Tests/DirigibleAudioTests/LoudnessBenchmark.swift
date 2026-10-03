@@ -30,4 +30,30 @@ struct LoudnessBenchmark {
         #expect(loudness.integrated != nil)
         expectWithinBudget(elapsed, .seconds(4), "1 h of stereo audio took \(elapsed)")
     }
+
+    /// G1 of code gate round 1: exact zeros after a signal (a process tap with no sound) must not
+    /// leave the filter state subnormal. The budget is the same as for the tone.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func oneHourOfSilenceAfterAToneWithinBudget() throws {
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))
+        let toneBuffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 48_000))
+        toneBuffer.frameLength = 48_000
+        let signal = tone([(1, -23)])
+        for channel in 0..<2 { toneBuffer.floatChannelData![channel].update(from: signal[channel], count: 48_000) }
+        let silence = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 65_536))
+        silence.frameLength = 65_536
+        for channel in 0..<2 { silence.floatChannelData![channel].update(repeating: 0, count: 65_536) }
+        var meter = try #require(LoudnessMeter(sampleRate: 48_000, layout: .stereo))
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        meter.feed(toneBuffer)
+        for _ in 0..<2_637 { meter.feed(silence) }
+        let loudness = meter.result()
+        let elapsed = clock.now - start
+
+        print("bench report: 1 s of tone and 1 h of silence took \(elapsed)")
+        #expect(loudness.integrated != nil)
+        expectWithinBudget(elapsed, .seconds(4), "1 s of tone and 1 h of silence took \(elapsed)")
+    }
 }

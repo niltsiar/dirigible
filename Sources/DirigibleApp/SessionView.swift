@@ -89,6 +89,9 @@ struct SessionView: View {
                     TimelinePane(model: model, studio: studio).overlay(alignment: .top) {
                         RecordOverOverlay(model: model).padding(.top, OverviewGeometry.height)
                     }
+                    if model.showsLoudness {
+                        LoudnessStripView(model: model).frame(height: LoudnessStrip.height)
+                    }
                 }
             }
             // An AppKit sheet: the close button is off while it shows (probe S1).

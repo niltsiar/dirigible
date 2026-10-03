@@ -61,6 +61,10 @@ struct ExportReportShown: Equatable {
     /// The marks, the zoom, Automatic Scroll, and the view of the timeline (decision 0017). Not
     /// saved.
     var timeline = TimelineState()
+    /// View > Show Loudness Meter (decision 0033): the app preference at open.
+    var showsLoudness = true
+    /// The loudness strip while SwiftUI keeps it; the display tick draws it.
+    @ObservationIgnored weak var loudnessStrip: LoudnessStrip?
     /// The Copy and Cut excerpt of this window (decision 0018): not on the macOS pasteboard,
     /// because a file ID names audio only inside its package. A close drops it.
     @ObservationIgnored var clipboard: Excerpt?
@@ -121,6 +125,7 @@ struct ExportReportShown: Equatable {
         self.url = url
         self.recordings = recordings
         self.app = app
+        showsLoudness = app.defaults?.object(forKey: Self.loudnessKey) as? Bool ?? true
     }
 
     /// The studio of an open window, also while a close waits for it.

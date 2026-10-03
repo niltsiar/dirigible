@@ -28,8 +28,10 @@ struct ExportTarget {
     var rate: ExportRate { didSet { defaults.set(Self.name(of: rate), forKey: "export.rate") } }
     /// Nil is Off. It is stored as a token, so Off does not come back as the default.
     var loudness: LoudnessTarget? {
-        didSet { defaults.set(loudness?.rawValue ?? "off", forKey: "export.loudness") }
+        didSet { defaults.set(loudness?.rawValue ?? "off", forKey: Self.loudnessKey) }
     }
+    /// The loudness strip reads it for its target line (decision 0033).
+    nonisolated static let loudnessKey = "export.loudness"
 
     /// The stored options, or the defaults: WAV, 24-bit, 128 kbit/s, stereo, the session rate,
     /// and the podcast loudness target. An unknown loudness token gives the podcast target.
@@ -41,7 +43,7 @@ struct ExportTarget {
         layout = defaults.string(forKey: "export.channels").flatMap(ChannelLayout.init) ?? .stereo
         let rate = defaults.string(forKey: "export.rate")
         self.rate = ExportRate.allCases.first { Self.name(of: $0) == rate } ?? .session
-        let loudness = defaults.string(forKey: "export.loudness")
+        let loudness = defaults.string(forKey: Self.loudnessKey)
         self.loudness = loudness == "off" ? nil : loudness.flatMap(LoudnessTarget.init) ?? .podcast
     }
 

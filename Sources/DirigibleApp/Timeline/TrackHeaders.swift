@@ -206,6 +206,7 @@ private struct CompactLiveState: View {
 
     var body: some View {
         ProgressView(value: meterLevel(live)).frame(width: 16)
+        if let loudness = LoudnessText.header(live) { loudnessText(loudness) }
         if let fault {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 .accessibilityLabel(Text(fault)).help(Text(fault))
@@ -238,6 +239,7 @@ private struct LiveState: View {
 
     var body: some View {
         ProgressView(value: meterLevel(live)).frame(width: 60)
+        if let loudness = LoudnessText.header(live) { loudnessText(loudness) }
         switch live.state {
         case .recording, .monitoring: EmptyView()
         case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)
@@ -252,4 +254,9 @@ private struct LiveState: View {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)
         }
     }
+}
+
+/// The short-term loudness of a track that records or monitors, in whole LU (decision 0033).
+private func loudnessText(_ text: String) -> some View {
+    Text(verbatim: text).monospacedDigit().foregroundStyle(.secondary).help(Text(L10n.loudnessShortTip.key))
 }

@@ -61,6 +61,11 @@ public struct Loudness: Hashable, Sendable {
         return Loudness(blocks: blocks.map { $0 * factor })
     }
 
+    /// The loudness of all blocks of `parts` as one signal. The gaps between the parts do not count.
+    public init(union parts: [Loudness]) { blocks = parts.flatMap(\.blocks) }
+
+    init(blocks: [Double]) { self.blocks = blocks }
+
     /// The loudness of a K-weighted mean square: -0.691 + 10 log10(meanSquare) (BS.1770-5, Annex 1).
     static func lufs(_ meanSquare: Double) -> Double { -0.691 + 10 * log10(meanSquare) }
 }

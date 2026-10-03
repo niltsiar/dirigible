@@ -23,7 +23,7 @@ struct ExportTarget {
 
     var format: Format { didSet { defaults.set(format.rawValue, forKey: "export.format") } }
     var bits: BitDepth { didSet { defaults.set(bits.rawValue, forKey: "export.bits") } }
-    var bitRate: AACBitRate { didSet { defaults.set(bitRate.rawValue, forKey: "export.bitrate") } }
+    var bitRate: BitRate { didSet { defaults.set(bitRate.rawValue, forKey: "export.bitrate") } }
     var layout: ChannelLayout { didSet { defaults.set(layout.rawValue, forKey: "export.channels") } }
     var rate: ExportRate { didSet { defaults.set(Self.name(of: rate), forKey: "export.rate") } }
     /// Nil is Off. It is stored as a token, so Off does not come back as the default.
@@ -44,7 +44,7 @@ struct ExportTarget {
         self.defaults = defaults
         format = defaults.string(forKey: "export.format").flatMap(Format.init) ?? .wav
         bits = BitDepth(rawValue: defaults.integer(forKey: "export.bits")) ?? .bits24
-        bitRate = AACBitRate(rawValue: defaults.integer(forKey: "export.bitrate")) ?? .k128
+        bitRate = BitRate(rawValue: defaults.integer(forKey: "export.bitrate")) ?? .k128
         layout = defaults.string(forKey: "export.channels").flatMap(ChannelLayout.init) ?? .stereo
         let rate = defaults.string(forKey: "export.rate")
         self.rate = ExportRate.allCases.first { Self.name(of: $0) == rate } ?? .session
@@ -118,7 +118,7 @@ private struct ExportAccessory: View {
             }
             if settings.format == .aac {
                 Picker(L10n.panelExportBitrate.key, selection: $settings.bitRate) {
-                    ForEach(AACBitRate.allCases, id: \.self) { rate in
+                    ForEach(BitRate.allCases, id: \.self) { rate in
                         Text(verbatim: L10n.panelExportBitrateValue.format(rate.rawValue)).tag(rate)
                     }
                 }

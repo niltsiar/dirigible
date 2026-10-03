@@ -54,7 +54,7 @@ struct Export: ParsableCommand {
             format = URL(filePath: out).pathExtension.lowercased() == "wav" ? .wav(depth) : .flac(depth)
         case "m4a":
             guard bits == nil else { throw ValidationError("--bits is only for .wav and .flac.") }
-            guard let rate = AACBitRate(rawValue: bitrate ?? 128) else {
+            guard let rate = BitRate(rawValue: bitrate ?? 128) else {
                 throw ValidationError("--bitrate must be 64, 96, 128, 160, 192, or 256.")
             }
             format = .aac(rate)

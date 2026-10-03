@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-10-03, run 8a. Tech 3341 case 6 does not apply: it is a 5.0 signal, and a session has only mono and stereo. True peak and cases 15 to 19 move to run 9. The K-weighting is a hand-written Double biquad, not Accelerate, because `vDSP.Biquad` is not Sendable.
+- Amended: 2026-10-03, run 8b. A clip with no gated block, a missing file, or a read fault keeps its gain, not 0 dB. At stop the take clips of one track share one delta (equally per track). See 0031.
 
 ## Context
 

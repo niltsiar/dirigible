@@ -297,4 +297,73 @@ struct LaneRendererTests {
         #expect(wrong.isEmpty, "\(wrong.count) pixels differ, the first at column \(wrong.first ?? 0)")
         #expect(!rows.contains { one.row($0).contains(0xFFAB_CDEF) }, "the garbage color shows")
     }
+
+    // MARK: Fades (decision 0035)
+
+    /// A 0 dBFS DC clip of 400 pt (102,400 frames) on t1 with a fade-in of 100 pt and a fade-out of
+    /// 50 pt.
+    static func fadedSession() throws -> Session {
+        var session = try Self.session(length: 102_400)
+        try session.setFades(["c1": #require(Fades(fadeIn: 25_600, fadeOut: 12_800))])
+        return session
+    }
+
+    /// The column-max fade factor of the C23 closed form, for a column of 256 frames from `k`.
+    static func factor(_ k: Int) -> Double {
+        var factor = 1.0
+        if k < 25_600 { factor *= sin(.pi / 2 * Double(min(k + 256, 25_600)) / 25_600) }
+        if k + 256 > 89_600 { factor *= sin(.pi / 2 * Double(102_400 - max(k, 89_600)) / 12_800) }
+        return factor
+    }
+
+    /// The waveform height in a 100 px lane of a 0 dBFS signal at `dB`.
+    static func height(dB: Double) -> Int {
+        let fraction = (dB + 60) / 60
+        return fraction <= 0 ? 0 : Int((min(fraction, 1) * 100).rounded())
+    }
+
+    /// Fades C23: each column has the dB height of the maximum fade factor over its frames, and full
+    /// height past the fades. At fit zoom a 0.5 s fade under one column keeps the column full.
+    @Test func aFadeShapesTheWaveform() throws {
+        let full = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400)
+        let pixels = try Self.render(Self.inputs(Self.fadedSession(), peaks: full), width: 400)
+        let palette = LanePalette.light
+        let misses = (0..<400).filter { column in
+            let drawn = (0..<100).filter { [palette.peak, palette.label].contains(pixels.pixel(column, $0)) }.count
+            return abs(drawn - Self.height(dB: 20 * log10(Self.factor(column * 256)))) > 1
+        }
+        #expect(misses.isEmpty, "columns off the dB map of the fade: \(misses)")
+        #expect(Self.rows(pixels, column: 0, palette.peak).count < 50, "column 0 is not full height")
+
+        var fit = try Self.session(length: 480_000)
+        try fit.setFades(["c1": #require(Fades(fadeIn: 24_000, fadeOut: 24_000))])
+        var inputs = Self.inputs(fit, peaks: Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 1875))
+        inputs.scale = TimelineScale(framesPerPoint: 96_000)
+        let fitPixels = try Self.render(inputs, width: 5)
+        let first = (0..<100).filter { [palette.peak, palette.label].contains(fitPixels.pixel(0, $0)) }.count
+        #expect(first >= 99, "fit zoom: the first column keeps full height (\(first) px)")
+    }
+
+    /// Fades C24: in a box of 12 pt or more, a 1 px line in the label color marks the top of a
+    /// 0 dBFS waveform in each column whose fade factor is under 1, and only there; in a box of
+    /// 11 pt, no line.
+    @Test func aFadeLineOnlyInBoxesOf12Points() throws {
+        let full = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400)
+        var inputs = Self.inputs(try Self.fadedSession(), peaks: full)
+        let palette = LanePalette.light
+        let pixels = try Self.render(inputs, width: 400)
+        let misses = (0..<400).filter { column in
+            let k = column * 256
+            let inFade = Self.factor(k) < 1
+            let row = min(99, 100 - Self.height(dB: 20 * log10(Self.factor(k))))
+            let lines = Self.rows(pixels, column: column, palette.label)
+            return lines != (inFade ? [row] : [])
+        }
+        #expect(misses.isEmpty, "columns with a wrong fade line: \(misses)")
+
+        inputs.laneHeight = 11
+        let small = try Self.render(inputs, width: 400)
+        let lines = (0..<400).flatMap { column in (0..<11).filter { small.pixel(column, $0) == palette.label } }
+        #expect(lines.isEmpty, "no fade line in a box of 11 pt")
+    }
 }

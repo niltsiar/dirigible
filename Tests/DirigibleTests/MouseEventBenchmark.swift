@@ -46,7 +46,8 @@ func expectWithinBudget(
 
     /// The session of the 2 h fixture and its peaks: one clip of the whole file on each track, split
     /// every 172,800 frames, so clip n of a track has frames n x 172,800 of its file at the same
-    /// place on the timeline. One split call: 12,000 `place` calls take minutes in debug.
+    /// place on the timeline. One split call: 12,000 `place` calls take minutes in debug. Each clip
+    /// has a fade-in and a fade-out of 0.5 s (fades C25, decision 0035).
     static func fixture() throws -> (Session, [FileID: PeakState]) {
         let peaks = randomPeaks(frames: frames)
         var session = Session(sampleRate: 48_000)
@@ -62,6 +63,9 @@ func expectWithinBudget(
         }
         _ = try session.splitClips(at: (1..<2000).map { Frames($0 * frames / 2000) }, on: tracks)
         #expect(session.tracks.allSatisfy { $0.clips.count == 2000 })
+        let fades = try #require(Fades(fadeIn: 24_000, fadeOut: 24_000))
+        try session.setFades(
+            Dictionary(uniqueKeysWithValues: session.tracks.flatMap { $0.clips.map { ($0.id, fades) } }))
         return (session, states)
     }
 

@@ -206,7 +206,7 @@ Choose **Edit > Fade** (Command-F) to fade the clips on the selected tracks. The
 - A selection inside a clip does nothing.
 - Where two clips touch, the edges get no fade.
 
-A new fade replaces the old fade of that edge. When the two fades are longer than the clip, the other fade becomes shorter. With no fade to change, you hear a beep. Each Fade is one step in the undo history.
+A new fade replaces the old fade of that edge. When the two fades are longer than the clip, the other fade becomes shorter. The waveform shows the fade, and on tracks of 12 pt or more a line marks the fade shape. With no fade to change, you hear a beep. Each Fade is one step in the undo history.
 
 ### Level the clips
 

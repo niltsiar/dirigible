@@ -162,7 +162,9 @@ extension WindowAlert {
         case .microphone(let access): L10n.message(for: .microphoneAccess(access))
         case .confirmStopAndClose: L10n.alertCloseRecording.text
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text
-        case .exported(let paths): L10n.alertExported.format(paths.joined(separator: "\n"))
+        case .exported(let paths, let report):
+            L10n.alertExported.format(paths.joined(separator: "\n"))
+                + (report.map { "\n\n" + L10n.alertExportedLoudness.format(L10n.message(for: $0)) } ?? "")
         }
     }
 }

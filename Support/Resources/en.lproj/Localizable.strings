@@ -214,11 +214,18 @@
 "panel.export.rate.session" = "Session rate (%lld Hz)";
 "panel.export.rate.44100" = "44.1 kHz";
 "panel.export.rate.48000" = "48 kHz";
+"panel.export.loudness" = "Loudness";
+"panel.export.loudness.off" = "Off";
+"panel.export.loudness.podcast" = "Podcast (%lld LUFS)";
+"panel.export.loudness.speech" = "Speech (%lld LUFS)";
+"panel.export.loudness.ebu" = "EBU R 128 (%lld LUFS)";
+"panel.export.loudness.atsc" = "US broadcast (%lld LUFS)";
 "sheet.export.title" = "Exporting…";
 "sheet.export.cancel" = "Cancel";
 "alert.export.missing" = "These files are missing or cannot be read. They export as silence:\n%@";
 "alert.export.confirm" = "Export";
 "alert.exported" = "The export is done. These files were missing or could not be read, and they exported as silence:\n%@";
+"alert.exported.loudness" = "Export result: %@.";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Monitor";
@@ -233,6 +240,12 @@
 "subtitle.record.time" = "Record time:";
 "banner.low.record.time" = "Less than %lld min of record time left on this disk. Free up disk space before you record.";
 "banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
+"banner.export.report" = "The export is done: %@.";
+"report.loudness" = "loudness %.1f LUFS";
+"report.loudness.none" = "loudness not measured";
+"report.peak" = "true peak %.1f dBTP";
+"report.peak.none" = "no true peak (silence)";
+"report.gain" = "gain %+.1f dB";
 "banner.kind.warning" = "Warning";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Information";

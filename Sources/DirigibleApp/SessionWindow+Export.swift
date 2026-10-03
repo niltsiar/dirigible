@@ -102,17 +102,21 @@ extension SessionWindow {
         }
     }
 
-    /// Runs the export. A fault shows its alert, a cancel shows nothing, and a finish shows the
-    /// report only when a file rendered as silence. A refused Record shows in the sheet until the
-    /// end.
+    /// Runs the export. A fault shows its alert, and a cancel shows nothing. A finish with a file
+    /// that rendered as silence shows one alert with the files and the loudness report. A clean
+    /// finish with a target shows the report in a banner, so no modal alert takes the Record key.
+    /// A refused Record shows in the sheet until the end.
     func run(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
         recordRefusal = nil
+        exportReport = nil
         defer { recordRefusal = nil }
         do throws(StudioError) {
-            let faults = try await studio.export(
-                source, target.options, to: target.url, replacing: target.confirmed
-            ).faults
-            if !faults.isEmpty { alert = .exported(paths(of: faults, in: studio.session)) }
+            let result = try await studio.export(source, target.options, to: target.url, replacing: target.confirmed)
+            if result.faults.isEmpty {
+                exportReport = result.loudness
+            } else {
+                alert = .exported(paths(of: result.faults, in: studio.session), result.loudness)
+            }
         } catch .export(.cancelled) {
         } catch {
             alert = .error(error)

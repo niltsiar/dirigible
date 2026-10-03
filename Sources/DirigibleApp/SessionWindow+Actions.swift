@@ -49,6 +49,7 @@ extension SessionWindow {
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
                 try await studio.startRecording(armed: armed)
             }
+            exportReport = nil
         } catch let error where studio.exportProgress != nil {
             // A refused start keeps the export, and its sheet hides a window alert until the end.
             recordRefusal = error

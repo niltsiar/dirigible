@@ -247,6 +247,7 @@ struct ChromeState: Equatable {
         {
             banners.append(.useHeadphones)
         }
+        if let report = model.exportReport { banners.append(.exportReport(report)) }
         shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
     }
 }
@@ -270,6 +271,8 @@ enum WindowBanner: Equatable {
     case lowRecordTime(minutes: Int)
     /// The default output is the built-in speakers and an armed track records an app (F43).
     case useHeadphones
+    /// The loudness of the last clean export with a target (decision 0032).
+    case exportReport(LoudnessReport)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -303,6 +306,7 @@ enum WindowBanner: Equatable {
         case .missingMedia: "missingMedia"
         case .lowRecordTime: "lowRecordTime"
         case .useHeadphones: "useHeadphones"
+        case .exportReport: "exportReport"
         }
     }
 
@@ -310,6 +314,7 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones: .warning
         case .missingMedia: .error
+        case .exportReport: .info
         }
     }
 
@@ -319,6 +324,7 @@ enum WindowBanner: Equatable {
         case .missingMedia(let paths): L10n.mediaMissing.format(paths.joined(separator: ", "))
         case .lowRecordTime(let minutes): L10n.bannerLowRecordTime.format(minutes)
         case .useHeadphones: L10n.bannerUseHeadphones.text
+        case .exportReport(let report): L10n.bannerExportReport.format(L10n.message(for: report))
         }
     }
 
@@ -326,7 +332,7 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones: .high
-        case .missingMedia: .medium
+        case .missingMedia, .exportReport: .medium
         }
     }
 }

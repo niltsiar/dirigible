@@ -93,6 +93,12 @@ enum L10n: String, CaseIterable {
     case panelExportRateSession = "panel.export.rate.session"
     case panelExportRate44100 = "panel.export.rate.44100"
     case panelExportRate48000 = "panel.export.rate.48000"
+    case panelExportLoudness = "panel.export.loudness"
+    case panelExportLoudnessOff = "panel.export.loudness.off"
+    case panelExportLoudnessPodcast = "panel.export.loudness.podcast"
+    case panelExportLoudnessSpeech = "panel.export.loudness.speech"
+    case panelExportLoudnessEBU = "panel.export.loudness.ebu"
+    case panelExportLoudnessATSC = "panel.export.loudness.atsc"
     case sheetExportTitle = "sheet.export.title"
     case sheetExportCancel = "sheet.export.cancel"
     case windowOpening = "window.opening"
@@ -113,6 +119,7 @@ enum L10n: String, CaseIterable {
     case alertExportMissing = "alert.export.missing"
     case alertExportConfirm = "alert.export.confirm"
     case alertExported = "alert.exported"
+    case alertExportedLoudness = "alert.exported.loudness"
 
     case emptyTitle = "empty.title"
     case emptySteps = "empty.steps"
@@ -179,6 +186,12 @@ enum L10n: String, CaseIterable {
     case subtitleRecordTime = "subtitle.record.time"
     case bannerLowRecordTime = "banner.low.record.time"
     case bannerUseHeadphones = "banner.use.headphones"
+    case bannerExportReport = "banner.export.report"
+    case reportLoudness = "report.loudness"
+    case reportLoudnessNone = "report.loudness.none"
+    case reportPeak = "report.peak"
+    case reportPeakNone = "report.peak.none"
+    case reportGain = "report.gain"
     case bannerKindWarning = "banner.kind.warning"
     case bannerKindError = "banner.kind.error"
     case bannerKindInfo = "banner.kind.info"
@@ -316,6 +329,16 @@ enum L10n: String, CaseIterable {
         case .packageUnavailable: errorExportPackage.text
         case .cancelled: ""
         }
+    }
+
+    /// The loudness report of an export with a target (decision 0032): the output loudness, the
+    /// true peak, and the gain.
+    static func message(for report: LoudnessReport) -> String {
+        [
+            report.output.map { reportLoudness.format($0.value) } ?? reportLoudnessNone.text,
+            report.truePeak.map { reportPeak.format($0) } ?? reportPeakNone.text,
+            reportGain.format(report.gain.dB),
+        ].joined(separator: ", ")
     }
 
     /// The text of a stop of playback that the user did not ask for.

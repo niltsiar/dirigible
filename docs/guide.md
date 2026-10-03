@@ -242,8 +242,13 @@ The export panel has these settings. It keeps the last settings that you used.
 | **Bit rate** (AAC) | 64, 96, 128, 160, 192, or 256 kbit/s |
 | **Channels** | **Stereo** or **Mono** |
 | **Sample rate** | The session rate, **44.1 kHz**, or **48 kHz** |
+| **Loudness** | **Off**, **Podcast** (-16 LUFS), **Speech** (-18), **EBU R 128** (-23), or **US broadcast** (-24). A mono export is 3 LU lower: Podcast is -19 LUFS. The default is **Podcast**. |
 
-If an audio file of the session is missing or cannot be read, Dirigible shows its name before the export. Its clips export as silence. Click **Export** to go on, or click **Cancel**.
+With a **Loudness** target, Dirigible measures the mix and applies one gain to reach the target. Then a limiter keeps the true peak at or under -1 dBTP. Export Selection measures the selection only, so each selection gets its own gain. When the export is done, a banner shows the loudness, the true peak, and the gain. The banner goes at the next export or take. You can record while it shows.
+
+With **Off**, the mix exports at its level, and a mix over full scale clips. A 16-bit export gets a low noise (TPDF dither), also with **Off**. So the last bit of a 16-bit file differs from an export of an earlier version. With a sample rate other than the session rate, the true peak can be up to about 0.3 dB over -1 dBTP.
+
+If an audio file of the session is missing or cannot be read, Dirigible shows its name before the export. Its clips export as silence. Click **Export** to go on, or click **Cancel**. After the export, an alert names the files, and with a **Loudness** target it also shows the result.
 
 ## Recover after a crash, an unplug, or a full disk
 

@@ -15,6 +15,7 @@ import os
 /// the app a panel that answers at once.
 @Suite(.serialized) @MainActor struct ExportWindowTests {
     static let options = ExportOptions(format: .wav(.bits16), layout: .stereo, rate: .session)
+    static let podcast = ExportOptions(format: .wav(.bits16), layout: .stereo, rate: .session, loudness: .podcast)
     let folder: TemporaryFolder
     let app = AppDelegate(recordings: nil)
     let hal = CountingHAL()
@@ -294,7 +295,7 @@ import os
         model.answerExportQuestion(export: true)
         #expect(panelCalls == 1)
         await until("the report shows") { model.alert != nil }
-        #expect(model.alert == .exported(["f1.wav"]))
+        #expect(model.alert == .exported(["f1.wav"], nil))
         #expect(FileManager.default.fileExists(atPath: out.path) && studio.exportProgress == nil)
         await model.close()
     }
@@ -312,8 +313,68 @@ import os
         }
         #expect(model.exportStep == nil)
         #expect(model.alert == nil)
+        #expect(model.exportReport == nil, "an export with Off shows a report")
         let file = try AVAudioFile(forReading: out)
         #expect(file.length == 480_000 && file.fileFormat.channelCount == 2)
+        await model.close()
+    }
+
+    /// Run 9a criterion 20: a clean export with a target shows the report in a banner, not in a
+    /// modal alert, and VoiceOver reads it. The next export start removes it.
+    @Test func aTargetExportShowsTheReportBanner() async throws {
+        let (model, studio, _) = try await window()
+        let chrome = try #require(model.chrome)
+        var heard: [String] = []
+        chrome.announce = { text, _ in heard.append(text) }
+        let source = try #require(model.source(of: .session, in: studio))
+
+        await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
+
+        #expect(model.alert == nil, "the report is a modal alert: \(String(describing: model.alert))")
+        let report = try #require(model.exportReport)
+        await until("the report banner shows") { model.shown.banners.contains(.exportReport(report)) }
+        #expect(heard.contains(WindowBanner.exportReport(report).text), "no announcement: \(heard)")
+        let off = ExportTarget(url: folder.url.appending(path: "off.wav"), options: Self.options, confirmed: nil)
+        await model.run(source, off, studio)
+        #expect(model.exportReport == nil)
+        await until("the report banner goes") { !model.shown.banners.contains { $0.key == "exportReport" } }
+        await model.close()
+    }
+
+    /// Run 9a criterion 20: no modal alert or sheet holds the window while the report shows, so
+    /// Record starts a take, and the take start removes the report.
+    @Test func recordStartsWhileTheReportShows() async throws {
+        let (model, studio, window) = try await window()
+        let source = try #require(model.source(of: .session, in: studio))
+        await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
+        await until("the report banner shows") { model.shown.banners.contains { $0.key == "exportReport" } }
+        #expect(model.alert == nil && window.attachedSheet == nil && model.canRecord)
+
+        await model.record()
+
+        #expect(studio.transport == .recording(take: 1))
+        #expect(model.exportReport == nil)
+        await until("the report banner goes") { !model.shown.banners.contains { $0.key == "exportReport" } }
+        await hal.feed(seconds: 0.5)
+        await model.stop()
+        await until("the take finalizes") { studio.transport == .idle }
+        await model.close()
+    }
+
+    /// Run 9a criterion 20: with a silent file, one alert names the file and has the report, and
+    /// no banner shows.
+    @Test func silentFilesAndTheReportShareOneAlert() async throws {
+        let (model, studio, _) = try await window(audio: false)
+        let source = try #require(model.source(of: .session, in: studio))
+
+        await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
+
+        guard case .exported(let paths, let report) = model.alert else {
+            Issue.record("No report alert: \(String(describing: model.alert))")
+            return
+        }
+        #expect(paths == ["f1.wav"] && report != nil, "\(paths) \(String(describing: report))")
+        #expect(model.exportReport == nil)
         await model.close()
     }
 

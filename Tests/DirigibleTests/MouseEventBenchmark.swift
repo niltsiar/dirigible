@@ -305,10 +305,9 @@ func expectWithinBudget(
     /// Fades C26: Command-F on Select All at 2 h (12,000 clips with no fade and no butt join before
     /// each event): the edit, `changedFrames`, the SwiftUI update, and the draw. The draw after a
     /// change of every clip takes about 28 ms on the Intel Mac, so the rule is a pair rule
-    /// (decisions.tsv): the p50 is not more than that of a Select All Nudge, and the max not more than 1.25
-    /// times its max, a
-    /// whole-session edit that main has, in the same harness and run. Each event must fade every
-    /// clip.
+    /// (decisions.tsv). The p50 is not more than the p50 of a Select All Nudge, a whole-session
+    /// edit that main has, in the same harness and run. The max is not more than 1.25 times the
+    /// nudge max. Each event must fade every clip.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aCommandFOnSelectAllCostsNoMoreThanANudge() async throws {
         let nudge = try await NavigationKeyBenchmark.measure("nudge", budget: 100_000) { model, n in

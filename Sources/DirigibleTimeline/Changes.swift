@@ -43,18 +43,18 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         // fade shows only with no join, so a join that comes or goes redraws that neighbor.
         if head > 0 {
             let left = y[y.startIndex + head - 1]
-            let (old, new) = (before.first?.start == left.end, after.first?.start == left.end)
-            if LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: old)
-                != LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: new)
+            let (wasJoined, isJoined) = (before.first?.start == left.end, after.first?.start == left.end)
+            if LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: wasJoined)
+                != LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: isJoined)
             {
                 start = left.start
             }
         }
         if tail > 0 {
             let right = y[y.endIndex - tail]
-            let (old, new) = (before.last?.end == right.start, after.last?.end == right.start)
-            if LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: old)
-                != LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: new)
+            let (wasJoined, isJoined) = (before.last?.end == right.start, after.last?.end == right.start)
+            if LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: wasJoined)
+                != LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: isJoined)
             {
                 end = right.end
             }

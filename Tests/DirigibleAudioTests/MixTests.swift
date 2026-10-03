@@ -179,4 +179,19 @@ struct MixTests {
             #expect(maxError(envelope, expected) <= 1e-6, "the envelope at the end of a long clip")
         }
     }
+
+    /// The two copies of the curve (decision 0035): the vector `fadeEnvelope` equals `Fades.gain`
+    /// within the B1 tolerance across a whole clip with both fades, from the clip start and from a
+    /// part start inside each fade.
+    @Test func theEnvelopeEqualsFadesGain() throws {
+        let fades = try #require(Fades(fadeIn: 480, fadeOut: 960))
+        for (from, count) in [(0, 4800), (100, 700), (4000, 800)] {
+            var envelope = [Float](repeating: 0, count: count)
+            envelope.withUnsafeMutableBufferPointer {
+                fadeEnvelope(fades, length: 4800, from: Frames(from), gain: 0.5, into: $0)
+            }
+            let expected = (from..<from + count).map { Float(0.5 * fades.gain(at: Frames($0), length: 4800)) }
+            #expect(maxError(envelope, expected) <= 1e-6, "the envelope from \(from) equals Fades.gain")
+        }
+    }
 }

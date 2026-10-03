@@ -267,6 +267,8 @@ struct ClipEditTests {
         ("clear 400..<600", ["a": Fades(fadeIn: 300, fadeOut: 0)!, "a@1600": Fades(fadeIn: 0, fadeOut: 400)!]),
         ("trim end to 600", ["a": Fades(fadeIn: 300, fadeOut: 300)!]),
         ("trim end to 900", ["a": Fades(fadeIn: 300, fadeOut: 500)!]),
+        ("trim end to 300", ["a": Fades(fadeIn: 300, fadeOut: 0)!]),
+        ("trim end to 200", ["a": Fades(fadeIn: 200, fadeOut: 0)!]),
         ("trim start to 600", ["a": Fades(fadeIn: 100, fadeOut: 500)!]),
         ("extend", ["a": Fades(fadeIn: 300, fadeOut: 500)!]),
         ("move", ["a": Fades(fadeIn: 300, fadeOut: 500)!]),
@@ -285,6 +287,8 @@ struct ClipEditTests {
         case "clear 400..<600": try session.clear(1_400..<1_600, on: "t1")
         case "trim end to 600": try session.trim("a", to: 1_000..<1_600)
         case "trim end to 900": try session.trim("a", to: 1_000..<1_900)
+        case "trim end to 300": try session.trim("a", to: 1_000..<1_300)
+        case "trim end to 200": try session.trim("a", to: 1_000..<1_200)
         case "trim start to 600": try session.trim("a", to: 1_400..<2_000)
         case "extend": try session.trim("a", to: 500..<2_500)
         case "move": try session.move("a", to: "t2", start: 3_000)

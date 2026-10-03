@@ -68,12 +68,15 @@ public struct Fades: Hashable, Sendable {
 
     /// The one curve, for the clip frame `frame` of a clip of `length` frames. Fade-in frame k:
     /// sin(pi/2 * k / I). Fade-out: sin(pi/2 * (N - k) / O), that is cos(pi/2 * j / O) from the
-    /// fade-out start. 1 outside the fades.
+    /// fade-out start. 1 outside the fades. The domain is 0 <= frame < length. `fadeEnvelope` of
+    /// `MixReader` is the vector copy of this curve; `MixTests.theEnvelopeEqualsFadesGain` compares
+    /// the two.
     public func gain(at frame: Frames, length: Frames) -> Double {
+        precondition(frame >= .zero && frame < length, "A fade gain is for a frame of the clip")
         var gain = 1.0
-        if frame < fadeIn { gain *= sin(.pi / 2 * Double(frame.count) / Double(fadeIn.count)) }
+        if fadeIn > .zero, frame < fadeIn { gain *= sin(.pi / 2 * Double(frame.count) / Double(fadeIn.count)) }
         let left = length - frame
-        if left <= fadeOut { gain *= sin(.pi / 2 * Double(left.count) / Double(fadeOut.count)) }
+        if fadeOut > .zero, left <= fadeOut { gain *= sin(.pi / 2 * Double(left.count) / Double(fadeOut.count)) }
         return gain
     }
 

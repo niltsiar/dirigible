@@ -261,7 +261,8 @@ struct ColumnFades {
     /// at min(k + step, I), the fade-out at max(k, N - O). Nil when that maximum is 1, so a column
     /// that holds a fade end costs nothing: at fit zoom almost every column holds one (bench C25).
     func factor(_ index: Int) -> Double? {
-        let k = max(0, Int((first + Double(index) * step).rounded(.down)))
+        // A rounded column can start at the clip end; the curve takes a frame of the clip.
+        let k = min(max(0, Int((first + Double(index) * step).rounded(.down))), length.count - 1)
         let end = k + Int(step.rounded(.up))
         let rising = end < fades.fadeIn.count
         let falling = fades.fadeOut > .zero && k > length.count - fades.fadeOut.count

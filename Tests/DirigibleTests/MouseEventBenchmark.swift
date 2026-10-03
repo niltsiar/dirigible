@@ -287,26 +287,49 @@ func expectWithinBudget(
         }
     }
 
-    /// Fades C26: Command-F on Select All at 2 h (12,000 clips with no fade before each event): the
-    /// edit, `changedFrames`, the SwiftUI update, and the draw. The draw after a change of every clip
-    /// takes about 28 ms on the Intel Mac, so the rule is a pair rule (decisions.tsv): the p50 and
-    /// the max are not more than those of a Select All Nudge, a whole-session edit that main has, in
-    /// the same harness and run.
+    /// The fixture with no fades and a gap of 1 frame before each clip but the first of a track, so
+    /// no clip touches a neighbor: Command-F on Select All fades every clip (no butt join, 0035).
+    static func gappedFixture() throws -> Session {
+        var (session, _) = try fixture()
+        try session.setFades(
+            Dictionary(uniqueKeysWithValues: session.tracks.flatMap { $0.clips.map { ($0.id, Fades.zero) } }))
+        for track in session.tracks.map(\.id) {
+            for n in 1..<2000 {
+                let frame = Frames(n * frames / 2000)
+                try session.clear(frame..<frame + 1, on: track)
+            }
+        }
+        return session
+    }
+
+    /// Fades C26: Command-F on Select All at 2 h (12,000 clips with no fade and no butt join before
+    /// each event): the edit, `changedFrames`, the SwiftUI update, and the draw. The draw after a
+    /// change of every clip takes about 28 ms on the Intel Mac, so the rule is a pair rule
+    /// (decisions.tsv): the p50 and the max are not more than those of a Select All Nudge, a
+    /// whole-session edit that main has, in the same harness and run. Each event must fade every
+    /// clip.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aCommandFOnSelectAllCostsNoMoreThanANudge() async throws {
         let nudge = try await NavigationKeyBenchmark.measure("nudge", budget: 100_000) { model, n in
             if let studio = model.studio { model.timeline.marks = Marks.all(in: studio.session) }
             return { model.run(n % 2 == 0 ? .nudgeRight : .nudgeLeft) }
         }
-        let fade = try await NavigationKeyBenchmark.measure("fade", budget: 100_000) { model, _ in
+        let gapped = try Self.gappedFixture()
+        let standard = try #require(Fades(fadeIn: 24_000, fadeOut: 24_000))
+        var faded: [Int] = []
+        let fade = try await NavigationKeyBenchmark.measure("fade", budget: 100_000) { model, event in
             if let studio = model.studio {
-                let none = Dictionary(
-                    uniqueKeysWithValues: studio.session.tracks.flatMap { $0.clips.map { ($0.id, Fades.zero) } })
-                try? studio.edit { s throws(SessionError) in try s.setFades(none) }
+                // The count of the last event, before the reset.
+                if event > 0 {
+                    faded.append(studio.session.tracks.reduce(0) { $0 + $1.clips.count { $0.fades == standard } })
+                }
+                try? studio.edit { s throws(SessionError) in s = gapped }
                 model.timeline.marks = Marks.all(in: studio.session)
             }
             return { model.run(.fade) }
         }
+        #expect(
+            faded.count == 48 && faded.allSatisfy { $0 == 12_000 }, "each Command-F fades 12,000 clips: \(Set(faded))")
         try #require(fade.count == Self.zooms.count && nudge.count == Self.zooms.count)
         for (index, (zoom, _)) in Self.zooms.enumerated() {
             let (fade, nudge) = (fade[index], nudge[index])

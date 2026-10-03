@@ -1,0 +1,120 @@
+import DirigibleAudio
+import DirigibleCore
+import Foundation
+
+/// The texts of library errors and reports.
+extension L10n {
+    /// The text of a library error. The switches have no `default`, so a new error case does not
+    /// compile until it has a key. `session` gives the track names; without it, the text shows
+    /// the track ID.
+    static func message(for error: StudioError, session: Session? = nil) -> String {
+        let name = { (id: TrackID) in session?.track(id)?.name ?? id.rawValue }
+        switch error {
+        case .busy: return errorBusy.text
+        case .locked: return errorLocked.text
+        case .noRoute(let track): return errorNoRoute.format(name(track))
+        case .deviceMissing(let track): return errorDeviceMissing.format(name(track))
+        case .channelOutOfRange(let track): return errorChannelOutOfRange.format(name(track))
+        case .channelInUse(let first, let second): return errorChannelInUse.format(name(first), name(second))
+        case .diskLow: return errorDiskLow.text
+        case .appSourcesUnavailable: return errorAppSourcesUnavailable.text
+        case .placementSpace(let needed, let free):
+            return errorPlacementSpace.format(bytes(needed), bytes(free))
+        case .microphoneAccess(.restricted): return errorMicrophoneRestricted.text
+        case .microphoneAccess(.denied), .microphoneAccess(.notDetermined): return errorMicrophoneDenied.text
+        case .session(let error): return message(for: error, name: name)
+        case .file(let error): return message(for: error)
+        case .finalize(.readFailed(let file, let errno)): return errorFinalizeRead.format(file, Int(errno))
+        case .finalize(.writeFailed(let file, let status)): return errorFinalizeWrite.format(file, Int(status))
+        case .finalize(.segmentUnreadable(_, let file, let errno)):
+            return errorFinalizeUnreadable.format(file, Int(errno))
+        case .export(let error): return message(for: error)
+        case .exportYielded: return errorExportYielded.text
+        case .segment(_, .session(let error)): return message(for: error, name: name)
+        case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
+        }
+    }
+
+    /// The key of a placement refusal (decision 0021). A session refusal has the session text.
+    private static func message(for fault: SegmentFault) -> L10n {
+        switch fault {
+        case .notUnplaced: errorSegmentNotUnplaced
+        case .noSidecar: errorSegmentNoSidecar
+        case .newerSidecar: errorSegmentNewer
+        case .badAudio: errorSegmentBadAudio
+        case .beforeTimeline: errorSegmentBeforeStart
+        case .noAlignment: errorSegmentNoAlignment
+        case .newerAnchor: errorSegmentNewerAnchor
+        case .wavInUse: errorSegmentWAVInUse
+        case .session: errorSessionOther
+        }
+    }
+
+    /// The text of an export error. The window shows no alert for a cancel, so `.cancelled` has
+    /// no key.
+    private static func message(for error: ExportError) -> String {
+        switch error {
+        case .exists: errorExportExists.text
+        case .rateNotSupported(let rate): errorExportRate.format(rate)
+        case .diskFull: errorExportDiskFull.text
+        case .writeFailed(let status): errorExportWrite.format(Int(status))
+        case .moveFailed(let code): errorExportMove.format(Int(code))
+        case .openFailed(let code): errorExportOpen.format(Int(code))
+        case .packageUnavailable: errorExportPackage.text
+        case .cancelled: ""
+        }
+    }
+
+    /// The loudness report of an export with a target (decision 0032): the output loudness, the
+    /// true peak, and the gain.
+    static func message(for report: LoudnessReport) -> String {
+        [
+            report.output.map { reportLoudness.format($0.value) } ?? reportLoudnessNone.text,
+            report.truePeak.map { reportPeak.format($0) } ?? reportPeakNone.text,
+            reportGain.format(report.gain.dB),
+        ].joined(separator: ", ")
+    }
+
+    /// The sentence after the report of a gain over the auto-level limit. Empty for a usual gain.
+    static func largeGainHint(for report: LoudnessReport) -> String {
+        report.exceedsLevelLimit ? " " + reportGainLarge.text : ""
+    }
+
+    /// The text of a stop of playback that the user did not ask for.
+    static func message(for stop: PlaybackStop) -> String {
+        switch stop {
+        case .outputChanged: transportStopOutputChanged.text
+        case .outputUnavailable(let code): transportStopOutputUnavailable.format(code)
+        case .packageUnavailable: transportStopPackageUnavailable.text
+        case .noFreeDescriptor(let code): transportStopNoDescriptor.format(code)
+        }
+    }
+
+    private static func message(for error: SessionError, name: (TrackID) -> String) -> String {
+        switch error {
+        case .invalidText: return errorSessionName.text
+        case .layoutMismatch(let track, _): return errorSessionLayout.format(name(track))
+        case .trackInRecording(let track): return errorSessionTrackInTake.format(name(track))
+        case .trackCount(let count): return errorSessionTrackCount.format(count)
+        // The window never makes these edits: they are bugs, not user errors.
+        case .duplicateID, .unknownCapture, .unknownFile, .unknownTrack, .unknownClip, .unknownMarker,
+            .captureInUse, .invalidCapture, .fileInUse, .invalidRoute, .invalidPath, .frameOutOfRange,
+            .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip:
+            return errorSessionOther.text
+        }
+    }
+
+    private static func message(for error: SessionFileError) -> String {
+        switch error {
+        case .unsupportedVersion: return errorFileNewer.text
+        case .malformedXML, .invalidChannelCount, .missingAttribute, .invalidValue, .invalidSession:
+            return errorFileUnreadable.text
+        case .readFailed(let errno): return errorFileRead.format(Int(errno))
+        case .writeFailed(_, let errno): return errorFileWrite.format(Int(errno))
+        case .wouldNotReadBack: return errorFileInternal.text
+        case .locked: return errorLocked.text
+        case .packageMoved: return errorFileMoved.text
+        case .exists: return errorFileExists.text
+        }
+    }
+}

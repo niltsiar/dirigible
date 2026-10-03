@@ -66,6 +66,8 @@ final class TimelineScrollView: NSScrollView {
     private(set) var source: LaneInputs?
     /// The one gesture of the lanes.
     private(set) var gesture = TimelineGesture()
+    /// The document point of the last lane event, also of an autoscroll drag: the readout is there.
+    private var lanePoint = NSPoint.zero
     /// The mouse gesture of the overview strip.
     var overviewGesture = OverviewGesture()
     /// The window point of the last lane or ruler drag event, for autoscroll (0025).
@@ -154,6 +156,11 @@ final class TimelineScrollView: NSScrollView {
             source.session = studio.session
         }
         guard let context = context(source) else { return }
+        switch event {
+        case .down(.lanes(let x, let y), _, _, _), .drag(.lanes(let x, let y)), .up(.lanes(let x, let y)):
+            lanePoint = NSPoint(x: x, y: y)
+        default: break
+        }
         model.apply(gesture.handle(event, context))
         if case .up = event { source.session = studio.session }
         self.source = source
@@ -168,20 +175,7 @@ final class TimelineScrollView: NSScrollView {
         return true
     }
 
-    /// The cursor of the gesture at a lane or ruler point.
-    func cursor(at place: Place) -> TimelineCursor {
-        guard let source, let context = context(source) else { return .arrow }
-        return gesture.cursor(at: place, context)
-    }
-
-    /// The frame and the flag of the ruler menu at the document x `x`. Nil during a gesture, so a
-    /// right-click does not open a menu over a drag (mouse-edits Q10).
-    func menuTarget(at x: Double) -> (frame: Frames, marker: MarkerID?)? {
-        guard !gesture.isActive, let source, let context = context(source) else { return nil }
-        return TimelineGesture.menuTarget(at: x, context)
-    }
-
-    private func context(_ inputs: LaneInputs) -> GestureContext? {
+    func context(_ inputs: LaneInputs) -> GestureContext? {
         guard let model, let studio, let geometry = inputs.geometry else { return nil }
         return GestureContext(
             session: inputs.session, marks: model.timeline.marks, playhead: studio.playhead, geometry: geometry,
@@ -194,7 +188,7 @@ final class TimelineScrollView: NSScrollView {
         drawn.session = gesture.drawn(drawn.session)
         lanes.holdsWidth = gesture.isActive
         lanes.inputs = drawn
-        lanes.showReadout(gesture.readout)
+        lanes.showReadout(gesture.readout, at: lanePoint)
         // The strip shows the committed session, never a preview: it renders at the mouse-up.
         if !gesture.isActive, let source {
             let session = source.session

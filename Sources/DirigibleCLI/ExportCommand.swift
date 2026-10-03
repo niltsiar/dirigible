@@ -11,7 +11,11 @@ struct Export: ParsableCommand {
             be read, the output path exists (unless --replace), a file in the range is missing, short, or \
             unreadable (unless --allow-missing), or the write fails; a failed export leaves no output file \
             and the old file does not change. A file that the check finds whole but the export cannot read \
-            also gives exit 2 (unless --allow-missing); then the output file has its clips as silence.
+            also gives exit 2 (unless --allow-missing); then the output file has its clips as silence. \
+            With --loudness, the export measures the mix, applies one gain to the target, and limits the \
+            true peak to -1 dBTP. Then it prints one line, for example "loudness -16.0 LUFS, true peak \
+            -1.2 dBTP, gain +3.4 dB"; "none" means no measurement, and the gain is then 0 dB. A 16-bit \
+            export has TPDF dither.
             """)
 
     @OptionGroup var package: PackageArgument
@@ -26,6 +30,11 @@ struct Export: ParsableCommand {
     var to: Int?
     @Option(help: "A track to export. Repeat it for more tracks. The default is every track.")
     var track: [String] = []
+    @Option(
+        help:
+            "Normalize to a loudness target: podcast (-16), speech (-18), ebu (-23), or atsc (-24) LUFS; --mono is 3 LU lower."
+    )
+    var loudness: String?
     @Flag(help: "Replace the output file when it exists.") var replace = false
     @Flag(help: "Export the clips of a missing, short, or unreadable file as silence, with a warning.")
     var allowMissing = false
@@ -58,7 +67,14 @@ struct Export: ParsableCommand {
         case 48_000: fileRate = .hz48000
         default: throw ValidationError("--rate must be 44100 or 48000.")
         }
-        return ExportOptions(format: format, layout: mono ? .mono : .stereo, rate: fileRate)
+        var target: LoudnessTarget?
+        if let loudness {
+            guard let value = LoudnessTarget(rawValue: loudness) else {
+                throw ValidationError("--loudness must be podcast, speech, ebu, or atsc.")
+            }
+            target = value
+        }
+        return ExportOptions(format: format, layout: mono ? .mono : .stereo, rate: fileRate, loudness: target)
     }
 
     func run() throws {
@@ -94,12 +110,11 @@ struct Export: ParsableCommand {
         let confirmed = replace ? ConfirmedFile(at: output) : nil
         let interrupt = cancelOnInterrupt()
         defer { interrupt.source.cancel() }
-        let read: [FileID: MediaFault]
+        let result: ExportResult
         do {
-            read = try exportMix(
+            result = try exportMix(
                 session, source: source, options: options, to: output, replacing: confirmed, package: { package.url },
-                isCancelled: interrupt.isCancelled
-            ).faults
+                isCancelled: interrupt.isCancelled)
         } catch .rateNotSupported(let rate) {
             throw fail("cannot write \(out) at \(rate) Hz. Use --rate 44100 or --rate 48000.", code: packageError)
         } catch {
@@ -107,6 +122,7 @@ struct Export: ParsableCommand {
         }
         // The check found no fault, or --allow-missing: a fault of the export itself is a file that
         // went bad after the check. The file is written, so the error says so.
+        let read = result.faults
         guard read.isEmpty || allowMissing else {
             let files = read.sorted { $0.key < $1.key }.map {
                 "file \($0.key) \(path(of: $0.key, in: session)) \(describe($0.value))"
@@ -116,5 +132,10 @@ struct Export: ParsableCommand {
                 code: packageError)
         }
         warn(read, in: session)
+        if let report = result.loudness {
+            let loudness = report.output.map { String(format: "%.1f LUFS", $0.value) } ?? "none"
+            let peak = report.truePeak.map { String(format: "%.1f dBTP", $0) } ?? "none"
+            print("loudness \(loudness), true peak \(peak), gain \(String(format: "%+.1f dB", report.gain.dB))")
+        }
     }
 }

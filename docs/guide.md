@@ -50,7 +50,7 @@ A track records only when its **Arm** check box is on. Dirigible turns on **Arm*
 
 1. Choose **Record > Monitor Inputs** (Shift-Command-M).
 2. If macOS asks for access to the microphone, click **Allow**.
-3. Speak into each microphone. The meter in the header of its track moves. After 3 s, the header also shows the loudness of the last 3 s, in LUFS (for example **-17**).
+3. Speak into each microphone. The meter in the header of its track moves. After 3 s, the header also shows the loudness of the last 3 s, in LUFS (for example **-17**), when the header is 300 pt or wider, or the lane is tall enough for two lines.
 
 **Monitor Inputs** shows the level of each armed track. It does not send the sound to your headphones.
 
@@ -80,7 +80,7 @@ The loudness meter is the strip below the tracks. It measures the mix that you h
 - **Peak** is the highest true peak, in dBTP. It is red over -1 dBTP.
 - **Target** is the loudness target of the export: -16 LUFS for the podcast target or Off, -23 LUFS for EBU R128.
 
-When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. Play in reverse, at half speed, at 2x, or at 4x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take or **Monitor Inputs**, the strip shows dashes, and each armed track shows its loudness in its header.
+When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. Play in reverse, at half speed, at 2x, or at 4x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, or during **Monitor Inputs** with no play, the strip shows dashes. Then each armed track shows its loudness in its header when the header is 300 pt or wider, or the lane is tall enough for two lines.
 
 Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 

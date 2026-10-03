@@ -9,13 +9,8 @@ import Testing
 /// AAC 128 kbit/s stereo in 120 s or less, optimized build (`make bench FILTER=ExportBenchmark`).
 /// A debug build exports 10 min with no budget: a smoke run, not the criterion.
 struct ExportBenchmark {
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func aTwoHourEightTrackExportFitsTheBudget() throws {
-        #if DEBUG
-            let blocks = 60
-        #else
-            let blocks = 720
-        #endif
+    /// A package with 8 tracks of one mono WAV of `blocks` x 10 s: a 375 Hz sine at -20 dBFS.
+    static func eightTracks(blocks: Int) throws -> (package: MixPackage, frames: Frames) {
         let package = try MixPackage()
         let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
         let block = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480_000))
@@ -33,6 +28,17 @@ struct ExportBenchmark {
                 TrackID("t\(track)"), clip: ClipID("c\(track)"), file: "f1", start: 0, offset: 0,
                 length: frames)
         }
+        return (package, frames)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aTwoHourEightTrackExportFitsTheBudget() throws {
+        #if DEBUG
+            let blocks = 60
+        #else
+            let blocks = 720
+        #endif
+        let (package, frames) = try Self.eightTracks(blocks: blocks)
         let out = package.folder.url.appending(path: "mix.m4a")
 
         let clock = ContinuousClock()

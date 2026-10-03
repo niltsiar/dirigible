@@ -328,8 +328,9 @@ actor Player {
         return timer
     }
 
-    /// Returns at once for a tick that came after the next command (a task hop, macOS 14) and
-    /// after a stop of the refill, so a failed refill does not run again each tick.
+    /// Returns at once after a stop: a late tick (a task hop, macOS 14) or a stop of the refill,
+    /// so a failed refill does not run again each tick. After a new play, a late tick of the old
+    /// play only tops up the current feed.
     private func tick() {
         guard ticker != nil, stop == nil else { return }
         ticks += 1

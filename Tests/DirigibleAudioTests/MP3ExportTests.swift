@@ -33,12 +33,18 @@ struct MP3ExportTests {
     @Test func aStereoMP3HasTheFactsAndTheExactLength() throws {
         let package = try ExportTests.package([Self.sine(seconds: 4)])
 
-        let out = try ExportTests.read(ExportTests.export(package, 0..<192_000, Self.mp3(), to: "mix.mp3"))
+        let url = try ExportTests.export(package, 0..<192_000, Self.mp3(), to: "mix.mp3")
+        let out = try ExportTests.read(url)
 
         #expect(out.format.mFormatID == kAudioFormatMPEGLayer3)
         #expect(out.format.mChannelsPerFrame == 2, "stereo MP3 has \(out.format.mChannelsPerFrame) channels")
         #expect(out.rate == 48_000)
         #expect(out.length == 192_000, "the MP3 length is \(out.length), not 192000")
+        // The first frame is the LAME tag: "Info" after the 4-byte header and the 32-byte side
+        // information of a stereo MPEG-1 frame, then the flags and the count of the 168 audio frames.
+        let bytes = try #require(FileManager.default.contents(atPath: url.path))
+        let frames = bytes[44..<48].reduce(0) { $0 << 8 | Int($1) }
+        #expect(bytes[36..<40] == Data("Info".utf8) && frames == 168, "the first frame is no LAME tag of 168 frames")
     }
 
     @Test func aMonoMP3At44kHzHasTheFactsAndTheExactLength() throws {
@@ -55,14 +61,15 @@ struct MP3ExportTests {
 
     /// At 44.1 kHz with 96 or 160 kbit/s, Core Audio often counts the LAME tag frame as audio: it
     /// reads one frame (1152 samples) more. The file is correct: its tag gives 176400 samples, and
-    /// ffmpeg and mpg123 decode 176400 (probe len96). This test pins the Core Audio behavior.
-    @Test func coreAudioReadsA96kbitMP3At44kHzOneFrameLong() throws {
+    /// ffmpeg and mpg123 decode 176400 (probe len96). The test takes both lengths, so a change of
+    /// Core Audio does not fail it, and any other length does.
+    @Test func a96kbitMP3At44kHzHasTheTagLengthOrOneFrameMore() throws {
         let package = try ExportTests.package([Self.sine(seconds: 4)])
 
         let out = try ExportTests.read(
             ExportTests.export(package, 0..<192_000, Self.mp3(.k96, .mono, .hz44100), to: "mix.mp3"))
 
-        #expect(out.length == 176_400 + 1152, "Core Audio reads \(out.length)")
+        #expect([176_400, 176_400 + 1152].contains(out.length), "Core Audio reads \(out.length)")
     }
 
     @Test func a32kHzSessionGivesA32kHzMP3() throws {
@@ -191,6 +198,19 @@ struct MP3ExportTests {
 
     @Test func aHeld1e30MixExportsToMP3() throws {
         try Self.expectExactMP3(of: [Float](repeating: 1e30, count: 192_000))
+    }
+
+    /// A value over the clamp limit becomes the limit, not 0: a held 100 encodes as a loud DC
+    /// step, so the decoded file has more than silence.
+    @Test func aHeld100MixIsClampedNotSilenced() throws {
+        let package = try MixPackage()
+        try Self.addFloatFile(package, "f1", [Float](repeating: 100, count: 192_000))
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 192_000)
+
+        let out = try ExportTests.read(ExportTests.export(package, 0..<192_000, Self.mp3(), to: "mix.mp3"))
+
+        let peak = ExportTests.peak(out.channels[0])
+        #expect(peak > 0.5, "a held 100 decodes with a peak of \(peak)")
     }
 
     /// Exports 4 s of `samples` to MP3 and expects the exact length. The pool file is a float

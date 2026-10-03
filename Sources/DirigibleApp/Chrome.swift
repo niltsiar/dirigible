@@ -327,7 +327,8 @@ enum WindowBanner: Equatable {
         case .missingMedia(let paths): L10n.mediaMissing.format(paths.joined(separator: ", "))
         case .lowRecordTime(let minutes): L10n.bannerLowRecordTime.format(minutes)
         case .useHeadphones: L10n.bannerUseHeadphones.text
-        case .exportReport(let report, let file): L10n.bannerExportReport.format(file, L10n.message(for: report))
+        case .exportReport(let report, let file):
+            L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
         }
     }
 

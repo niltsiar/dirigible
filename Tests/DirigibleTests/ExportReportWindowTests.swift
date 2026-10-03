@@ -2,6 +2,7 @@ import AppKit
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
@@ -88,6 +89,35 @@ extension ExportWindowTests {
         await model.close()
     }
 
+    /// Code gate 2: an edit while the export runs is not in the file, so no report banner shows
+    /// after the export.
+    @Test func anEditDuringTheExportShowsNoReport() async throws {
+        let (model, studio, _) = try await window()
+        // The first chunk waits for the release; the other chunks run at once.
+        let (release, first) = (release, OSAllocatedUnfairLock(initialState: true))
+        studio.environment.exportChunk = {
+            let isFirst = first.withLock { value in
+                defer { value = false }
+                return value
+            }
+            guard isFirst else { return }
+            if release.wait(timeout: .now() + 30) == .timedOut { Issue.record("No release in 30 s") }
+        }
+        let source = try #require(model.source(of: .session, in: studio))
+        let target = ExportTarget(url: out, options: Self.podcast, confirmed: nil)
+        let export = Task { await model.run(source, target, studio) }
+        await until("the export starts") { studio.exportProgress != nil }
+
+        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
+        release.signal()
+        await export.value
+
+        #expect(model.exportReport != nil && model.alert == nil, "the export did not end clean")
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!model.shown.banners.contains { $0.key == "exportReport" }, "a report for a file that does not match")
+        await model.close()
+    }
+
     /// Code gate 1: a gain over the 20 dB auto-level limit (a -60 LUFS selection) shows as a
     /// warning; a usual gain shows as info. Both texts name the file and the report.
     @Test func aLargeGainReportIsAWarning() throws {
@@ -99,6 +129,11 @@ extension ExportWindowTests {
         #expect(WindowBanner.exportReport(try report(gain: 44), file: "a.wav").kind == .warning)
         #expect(WindowBanner.exportReport(try report(gain: 14), file: "a.wav").kind == .info)
         #expect(WindowBanner.exportReport(try report(gain: -21), file: "a.wav").kind == .warning)
+        let large = try report(gain: 44)
+        #expect(WindowBanner.exportReport(large, file: "a.wav").text.hasSuffix(L10n.reportGainLarge.text))
+        #expect(WindowAlert.exported(["f.wav"], large).text.hasSuffix(L10n.reportGainLarge.text))
+        #expect(
+            !WindowBanner.exportReport(try report(gain: 14), file: "a.wav").text.contains(L10n.reportGainLarge.text))
         for language in ["en", "es"] {
             let text = (try? stringsTable(language))?["banner.export.report"] ?? ""
             #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")

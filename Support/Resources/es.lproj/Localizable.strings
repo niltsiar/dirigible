@@ -246,6 +246,7 @@
 "report.peak" = "pico real %.1f dBTP";
 "report.peak.none" = "sin pico real (silencio)";
 "report.gain" = "ganancia %+.1f dB";
+"report.gain.large" = "La ganancia es de más de 20 dB: comprueba que la selección tiene voz.";
 "banner.kind.warning" = "Aviso";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Información";

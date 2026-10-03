@@ -31,6 +31,9 @@ final class TimelineRuler: NSRulerView {
         ruleThickness = Self.thickness
         reservedThicknessForMarkers = 0
         reservedThicknessForAccessoryView = 0
+        // macOS 14 does not clip a view by default: the base line drew past the lanes into the
+        // inspector (run 11b-2, on-screen check).
+        clipsToBounds = true
     }
 
     required init(coder: NSCoder) { fatalError("no coder") }

@@ -178,6 +178,17 @@
 "menu.view.follow" = "Automatic Scroll";
 "menu.view.loudness.show" = "Show Loudness Meter";
 "menu.view.loudness.hide" = "Hide Loudness Meter";
+"menu.view.inspector.show" = "Show Inspector";
+"menu.view.inspector.hide" = "Hide Inspector";
+"inspector.clip" = "Clip";
+"inspector.clips" = "Clips: %d";
+"inspector.none" = "No Selection";
+"inspector.gain" = "Gain";
+"inspector.fade.in" = "Fade In";
+"inspector.fade.out" = "Fade Out";
+"inspector.mixed" = "Mixed";
+"inspector.decibels" = "dB";
+"inspector.milliseconds" = "ms";
 "loudness.meter" = "Loudness meter";
 "loudness.short" = "Loudness";
 "loudness.average" = "Average";

@@ -12,8 +12,9 @@ enum WindowAlert: Hashable {
     case microphone(MicrophoneAccess)
     case confirmStopAndClose
     case confirmUnsavedClose
-    /// The report after an export: the paths of the files that rendered as silence (decision 0003).
-    case exported([String])
+    /// The report after an export: the paths of the files that rendered as silence (decision 0003),
+    /// and the loudness of an export with a target (decision 0032).
+    case exported([String], LoudnessReport?)
 }
 
 /// The state of one session window and its `NSWindowDelegate` (decision 0014). `Studio` is the
@@ -58,6 +59,9 @@ enum WindowAlert: Hashable {
     @ObservationIgnored var clipboard: Excerpt?
     /// The step of Export before the export runs (decision 0019). Nil: no step.
     var exportStep: ExportStep?
+    /// The loudness of the last clean export with a target, for its banner (decision 0032). The
+    /// next export start and the next take start remove it.
+    var exportReport: LoudnessReport?
     /// The error of a take start that its checks refused while an export runs. The progress
     /// sheet shows it: a window alert would wait behind the sheet until the export ends.
     var recordRefusal: StudioError?

@@ -26,8 +26,13 @@ struct ExportTarget {
     var bitRate: AACBitRate { didSet { defaults.set(bitRate.rawValue, forKey: "export.bitrate") } }
     var layout: ChannelLayout { didSet { defaults.set(layout.rawValue, forKey: "export.channels") } }
     var rate: ExportRate { didSet { defaults.set(Self.name(of: rate), forKey: "export.rate") } }
+    /// Nil is Off. It is stored as a token, so Off does not come back as the default.
+    var loudness: LoudnessTarget? {
+        didSet { defaults.set(loudness?.rawValue ?? "off", forKey: "export.loudness") }
+    }
 
-    /// The stored options, or the defaults: WAV, 24-bit, 128 kbit/s, stereo, the session rate.
+    /// The stored options, or the defaults: WAV, 24-bit, 128 kbit/s, stereo, the session rate,
+    /// and the podcast loudness target. An unknown loudness token gives the podcast target.
     init(defaults: UserDefaults) {
         self.defaults = defaults
         format = defaults.string(forKey: "export.format").flatMap(Format.init) ?? .wav
@@ -36,6 +41,8 @@ struct ExportTarget {
         layout = defaults.string(forKey: "export.channels").flatMap(ChannelLayout.init) ?? .stereo
         let rate = defaults.string(forKey: "export.rate")
         self.rate = ExportRate.allCases.first { Self.name(of: $0) == rate } ?? .session
+        let loudness = defaults.string(forKey: "export.loudness")
+        self.loudness = loudness == "off" ? nil : loudness.flatMap(LoudnessTarget.init) ?? .podcast
     }
 
     private static func name(of rate: ExportRate) -> String {
@@ -53,7 +60,7 @@ struct ExportTarget {
             case .aac: .aac(bitRate)
             case .flac: .flac(bits)
             }
-        return ExportOptions(format: file, layout: layout, rate: rate)
+        return ExportOptions(format: file, layout: layout, rate: rate, loudness: loudness)
     }
 
     var fileExtension: String {
@@ -123,9 +130,27 @@ private struct ExportAccessory: View {
                 Text(L10n.panelExportRate44100.key).tag(ExportRate.hz44100)
                 Text(L10n.panelExportRate48000.key).tag(ExportRate.hz48000)
             }
+            Picker(L10n.panelExportLoudness.key, selection: $settings.loudness) {
+                Text(L10n.panelExportLoudnessOff.key).tag(LoudnessTarget?.none)
+                ForEach(LoudnessTarget.allCases, id: \.self) { target in
+                    Text(verbatim: name(target)).tag(Optional(target))
+                }
+            }
         }
         .padding()
-        .frame(width: 320)
+        .frame(width: 420)
         .onChange(of: settings.format) { typeChanged(settings.contentType) }
+    }
+
+    /// The preset name with its value for the chosen channels: -16 stereo, -19 mono for Podcast.
+    private func name(_ target: LoudnessTarget) -> String {
+        let key: L10n =
+            switch target {
+            case .podcast: .panelExportLoudnessPodcast
+            case .speech: .panelExportLoudnessSpeech
+            case .ebu: .panelExportLoudnessEBU
+            case .atsc: .panelExportLoudnessATSC
+            }
+        return key.format(Int(target.integrated(for: settings.layout).value))
     }
 }

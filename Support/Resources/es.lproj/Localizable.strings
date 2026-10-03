@@ -214,11 +214,18 @@
 "panel.export.rate.session" = "Frecuencia de la sesión (%lld Hz)";
 "panel.export.rate.44100" = "44,1 kHz";
 "panel.export.rate.48000" = "48 kHz";
+"panel.export.loudness" = "Sonoridad";
+"panel.export.loudness.off" = "Desactivada";
+"panel.export.loudness.podcast" = "Pódcast (%lld LUFS)";
+"panel.export.loudness.speech" = "Voz (%lld LUFS)";
+"panel.export.loudness.ebu" = "EBU R 128 (%lld LUFS)";
+"panel.export.loudness.atsc" = "Emisión de EE. UU. (%lld LUFS)";
 "sheet.export.title" = "Exportando…";
 "sheet.export.cancel" = "Cancelar";
 "alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "La exportación terminó. Estos archivos faltaban o no se podían leer, y se exportaron como silencio:\n%@";
+"alert.exported.loudness" = "Resultado de la exportación: %@.";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Monitorizar";
@@ -233,6 +240,12 @@
 "subtitle.record.time" = "Grabación:";
 "banner.low.record.time" = "Quedan menos de %lld min de grabación en este disco. Libera espacio antes de grabar.";
 "banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
+"banner.export.report" = "La exportación terminó: %@.";
+"report.loudness" = "sonoridad %.1f LUFS";
+"report.loudness.none" = "sonoridad sin medir";
+"report.peak" = "pico real %.1f dBTP";
+"report.peak.none" = "sin pico real (silencio)";
+"report.gain" = "ganancia %+.1f dB";
 "banner.kind.warning" = "Aviso";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Información";

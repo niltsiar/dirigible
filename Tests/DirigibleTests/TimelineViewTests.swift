@@ -152,7 +152,8 @@ import Testing
 
     /// Code gate 1 item 1: the tracks do not fit the default window. After a vertical scroll to
     /// each lane, the header of its track (the name field, on the line of the arm toggle) is
-    /// beside the lane and in view. A wheel over a header scrolls the lanes and the headers.
+    /// beside the lane and in view. A wheel over a header goes to the scroll view of the lanes
+    /// and starts its live scroll; the headers are its vertical ruler, so they scroll with the lanes.
     @Test func eachTrackHeaderScrollsWithItsLane() async throws {
         let (window, _, view) = try await openWindow(tracks: Self.tracksThatDoNotFit)
         let content = try #require(window.window?.contentView)

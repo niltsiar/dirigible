@@ -134,11 +134,13 @@ extension TimelineLiveTests {
     // MARK: C22, C23
 
     /// The pixels of lane 0 from 110 pt (after the label) to the column before the end of `seconds`.
+    /// The rows under the top 8 pt: there the clip after the finalize has its gain line and fade
+    /// handles (run 11b-1), and the live take has none.
     func takePixels(_ lanes: Lanes, seconds: Double) throws -> [[UInt32]] {
         let window = try #require(lanes.view.lanes.surfaces.shown)
         let first = Int(110 * window.scale) - window.pixels.columns.lowerBound
         let end = try lanes.column(seconds) - 1 - window.pixels.columns.lowerBound
-        return try window.rows(of: 0..<1).map {
+        return try window.rows(of: 0..<1).dropFirst(Int(LaneGeometry.handleSize * window.scale)).map {
             Array(try #require(lanes.view.lanes.surfaces.frontRow($0))[first..<end])
         }
     }
@@ -217,7 +219,9 @@ extension TimelineLiveTests {
         drawNow(lanes.window)
 
         let rows = try #require(lanes.view.lanes.surfaces.shown).laneRows
-        #expect(try lanes.runs(at: 1.5, lane: 0) == [Run(lanes.view.lanes.palette.clip, rows)])
+        let palette = lanes.view.lanes.palette
+        let runs = [Run(palette.label, 1), Run(palette.clip, rows - 1)]
+        #expect(try lanes.runs(at: 1.5, lane: 0) == runs, "the 0 dB line of run 11b-1 on the top row")
         await lanes.close()
     }
 

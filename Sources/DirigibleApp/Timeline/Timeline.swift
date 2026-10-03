@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleAudio
 import DirigibleCore
 import DirigibleTimeline
@@ -90,4 +91,22 @@ struct TimelineState {
         guard follows else { return nil }
         return followOrigin(playhead: playhead, origin: origin, frames: frames, direction: direction)
     }
+}
+
+extension NSCursor {
+    /// The cursor of a timeline cursor kind (probe C1: each exists at the macOS 14 target).
+    static func timeline(_ kind: TimelineCursor) -> NSCursor {
+        switch kind {
+        case .arrow: .arrow
+        case .iBeam: .iBeam
+        case .openHand: .openHand
+        case .closedHand: .closedHand
+        case .resizeLeftRight: .resizeLeftRight
+        case .resizeUpDown: .resizeUpDown
+        }
+    }
+}
+
+extension NSRect {
+    init(_ rect: Rect) { self.init(x: rect.x, y: rect.y, width: rect.width, height: rect.height) }
 }

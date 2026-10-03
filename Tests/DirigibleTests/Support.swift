@@ -292,12 +292,14 @@ func timelinePackage(
 
 /// A mouse event at the document point `point` of the lanes of `view`.
 @MainActor func mouse(
-    _ type: NSEvent.EventType, _ point: NSPoint, in view: TimelineScrollView, flags: NSEvent.ModifierFlags = []
+    _ type: NSEvent.EventType, _ point: NSPoint, in view: TimelineScrollView, flags: NSEvent.ModifierFlags = [],
+    clicks: Int = 1
 ) throws -> NSEvent {
     try #require(
         NSEvent.mouseEvent(
             with: type, location: view.lanes.convert(point, to: nil), modifierFlags: flags, timestamp: 0,
-            windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+            windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: clicks,
+            pressure: 1))
 }
 
 /// A mouse event on the time ruler of `view`: at the document x `x` and the ruler y `y` (the ruler

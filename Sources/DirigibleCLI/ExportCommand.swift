@@ -98,7 +98,8 @@ struct Export: ParsableCommand {
         do {
             read = try exportMix(
                 session, source: source, options: options, to: output, replacing: confirmed, package: { package.url },
-                isCancelled: interrupt.isCancelled)
+                isCancelled: interrupt.isCancelled
+            ).faults
         } catch .rateNotSupported(let rate) {
             throw fail("cannot write \(out) at \(rate) Hz. Use --rate 44100 or --rate 48000.", code: packageError)
         } catch {

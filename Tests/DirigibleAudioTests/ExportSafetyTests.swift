@@ -58,7 +58,7 @@ struct ExportSafetyTests {
         let confirmed = try #require(ConfirmedFile(at: url))
         let (session, packageURL, url, source, options) = (package.session, package.url, url, source, options)
 
-        let task = Task { () -> (Result<[FileID: MediaFault], ExportError>, Duration?, Int) in
+        let task = Task { () -> (Result<ExportResult, ExportError>, Duration?, Int) in
             let clock = ContinuousClock()
             var cancelled: ContinuousClock.Instant?
             var late = 0
@@ -216,7 +216,7 @@ struct ExportSafetyTests {
     /// blocks no thread of the concurrency pool.
     @Test func theSweepKeepsTheFileOfALiveExport() async throws {
         let (held, release) = (StepCounter(), DispatchSemaphore(value: 0))
-        let result = LockedBox<Result<[FileID: MediaFault], ExportError>>()
+        let result = LockedBox<Result<ExportResult, ExportError>>()
         let (session, packageURL, url, source, options) = (package.session, package.url, url, source, options)
         let first = Thread {
             var waited = false

@@ -110,7 +110,8 @@ extension SessionWindow {
         defer { recordRefusal = nil }
         do throws(StudioError) {
             let faults = try await studio.export(
-                source, target.options, to: target.url, replacing: target.confirmed)
+                source, target.options, to: target.url, replacing: target.confirmed
+            ).faults
             if !faults.isEmpty { alert = .exported(paths(of: faults, in: studio.session)) }
         } catch .export(.cancelled) {
         } catch {

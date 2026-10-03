@@ -34,7 +34,8 @@ struct RenderMixTests {
 
         let faults = try exportMix(
             package.session, source: #require(ExportSource(range: 0..<9600)), options: .render, to: out,
-            package: { package.url }, chunk: 4096)
+            package: { package.url }, chunk: 4096
+        ).faults
 
         #expect(faults == [:])
         let rendered = try Self.read(out)

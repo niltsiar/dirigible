@@ -13,6 +13,7 @@
 - Amended: 2026-09-25. `Render/Export.swift`, `Render/ExportFile.swift`, and `Render/FileMove.swift` hold the export writer; `Render/RenderMix.swift` goes. `Studio/Studio+Export.swift` runs the export job (see 0019).
 - Amended: 2026-09-26. The library target `DirigibleTimeline` holds the timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, and the gesture model. It imports Foundation and depends on `DirigibleCore`. `DirigibleApp` depends on it. `DirigibleTimelineTests` tests it (see 0020).
 - Amended: 2026-10-03. The body states the map after the amendments above.
+- Amended: 2026-10-03, player-executor run. The `Player` runs on its own serial dispatch queue, with its own refill tick (see 0016).
 
 ## Context
 
@@ -40,7 +41,7 @@ Rules that come with the map:
 - **Import-rule test.** SwiftPM cannot stop a target from importing a system framework. A test in `DirigibleTests` reads every file in `Sources/DirigibleCore` and fails on any `import` other than Foundation. It also fails when `DirigibleTimeline` imports more than Foundation and `DirigibleCore` (0020).
 - **Studio is in the library.** "Stop, finalize, add the take as one undo step, save" is logic. Integration tests drive it through `Studio`. The app only maps views and menu commands to `Studio` calls.
 - **Snapshot undo.** `History` keeps `Session` values. `edit { }` records one entry; an edit that changes nothing records none. There is no command protocol with inverse commands.
-- **Actors.** `Studio` and the views are `@MainActor`. `Player` is an actor (0016). Each device writer has its own serial dispatch queue. Each IOProc and listener is a static C function that captures nothing and gets a client-data pointer (0013). Finalize, export, and peak calculation run off the main actor.
+- **Actors.** `Studio` and the views are `@MainActor`. The `Player` is an actor on its own serial dispatch queue, with its own refill tick (0016). Each device writer has its own serial dispatch queue. Each IOProc and listener is a static C function that captures nothing and gets a client-data pointer (0013). Finalize, export, and peak calculation run off the main actor.
 - **Library code has no UI text.** Errors are enums. The app maps each case to a `.lproj` key.
 - **Folders inside `DirigibleAudio`.** `Capture/`, `Finalize/`, `Render/`, and `Studio/`. The 400-line file rule applies.
 

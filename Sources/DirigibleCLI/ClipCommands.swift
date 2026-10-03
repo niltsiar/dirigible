@@ -166,20 +166,30 @@ struct ClipCommand: ParsableCommand {
 extension ClipCommand {
     struct Fade: ParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Set the fade-in and the fade-out of a clip in frames (decision 0035). 0 removes a fade.")
+            abstract: "Set the fade-in or the fade-out of a clip in frames (decision 0035). 0 removes a fade.")
         @OptionGroup var package: PackageArgument
         @Option var clip: String
-        @Option(name: .customLong("in"), parsing: .unconditional, help: "The fade-in length in frames.")
-        var fadeIn: Int
-        @Option(name: .customLong("out"), parsing: .unconditional, help: "The fade-out length in frames.")
-        var fadeOut: Int
+        @Option(
+            name: .customLong("in"), parsing: .unconditional,
+            help: "The fade-in length in frames. The default is the current value.")
+        var fadeIn: Int?
+        @Option(
+            name: .customLong("out"), parsing: .unconditional,
+            help: "The fade-out length in frames. The default is the current value.")
+        var fadeOut: Int?
+
+        func validate() throws {
+            guard fadeIn != nil || fadeOut != nil else { throw ValidationError("Give --in, --out, or both.") }
+        }
 
         func run() throws {
             try editPackage(package) { session throws(SessionError) in
-                guard let fades = Fades(fadeIn: Frames(fadeIn), fadeOut: Frames(fadeOut)) else {
-                    throw .frameOutOfRange
-                }
-                try session.setFades([ClipID(clip): fades])
+                let id = ClipID(clip)
+                guard let current = session.clip(id)?.clip.fades else { throw .unknownClip(id) }
+                let fadeIn = fadeIn.map { Frames($0) } ?? current.fadeIn
+                let fadeOut = fadeOut.map { Frames($0) } ?? current.fadeOut
+                guard let fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut) else { throw .frameOutOfRange }
+                try session.setFades([id: fades])
             }
         }
     }

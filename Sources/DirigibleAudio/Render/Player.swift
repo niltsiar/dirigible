@@ -7,9 +7,10 @@ import Foundation
 /// the main mixer, on the system default output or in offline manual rendering. An actor, so
 /// the engine start and the file reads never run on the main actor.
 ///
-/// A play schedules chunks of 0.1 s ahead of the node. Each `.dataConsumed` handler asks for a
-/// refill, and the refill reads the node position, so a late handler of an earlier play only
-/// tops up the current feed.
+/// A play schedules chunks of 0.1 s ahead of the node. A tick on the queue of the actor runs the
+/// refill each half chunk, and the refill reads the node position. The next command ends the
+/// tick. The tick does not wait for the `.dataConsumed` handler: AVFAudio delivers it on a queue
+/// that a full cooperative pool delays (decision 0016, amended 2026-10-03).
 actor Player {
     enum Output { case device, offline }
     /// Only these change the feed number. A seek or a shuttle change is a new play.
@@ -48,6 +49,12 @@ actor Player {
         var scheduled = 0
     }
 
+    /// The executor of the actor and the queue of the refill tick, with no target queue, as probe
+    /// E8 measured it. On macOS 15 and later the tick is a plain dispatch block, so it needs no
+    /// thread of the cooperative pool (decision 0016, amended 2026-10-03).
+    private nonisolated let queue = DispatchSerialQueue(label: "Player", qos: .userInteractive)
+    nonisolated var unownedExecutor: UnownedSerialExecutor { queue.asUnownedSerialExecutor() }
+
     private let package: @Sendable () throws -> URL
     private let output: Output
     /// Starts the engine. Tests give one that throws.
@@ -68,6 +75,10 @@ actor Player {
     /// The output presentation latency in session frames, read at each play start. The node
     /// frames run ahead of the heard frames by this much. 0 in offline rendering.
     private var latency = 0
+    /// The refill tick of the running play; nil while no play runs.
+    private var ticker: DispatchSourceTimer?
+    /// Tests only: the ticks that ran.
+    private(set) var ticks = 0
     /// The configuration-change observer of the engine, removed with the Player.
     private var observer: Observer?
     /// The mix frames under one chunk, reused.
@@ -90,6 +101,8 @@ actor Player {
     /// Does nothing when `number` is not newer than the last feed number.
     func apply(_ command: Command, number: Int) {
         guard number > self.number else { return }
+        ticker?.cancel()
+        ticker = nil
         self.number = number
         frame = position()
         graph?.node.stop()
@@ -119,6 +132,7 @@ actor Player {
         feed = Feed(anchor: start, shuttle: shuttle, mix: MixReader(package: url, session: session, open: open))
         refill()
         graph.node.play()
+        ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
     }
 
     /// The session of the next chunks. The running feed goes on. Does nothing when `revision`
@@ -149,13 +163,13 @@ actor Player {
     }
 
     /// Tests only: pulls `frames` output frames from the offline engine, as two channel arrays.
-    /// Before each pull it waits until the handlers have scheduled the frames, as the device
-    /// clock gives them time to. In a full suite a refill task can wait seconds for a thread of
-    /// the cooperative pool, so the wait ends on the frames, and one budget of 30 s for the call
-    /// is only a hang guard. The budget counts only the time that the wait is awake: in a full
-    /// suite the wait itself can wait more than 30 s for a pool thread, together with the refill.
-    /// `starve` pulls with no wait and no suspension, so no refill runs and the node can run dry,
-    /// as a late refill on a slow disk does.
+    /// Before each pull it waits until the tick has scheduled the frames, as the device clock
+    /// gives it time to, so the wait ends on the frames, and one budget of 30 s for the call is
+    /// only a hang guard. The budget counts only the time that the wait is awake: in a full suite
+    /// the wait (`Task.sleep`) can wait more than 30 s for a pool thread. On macOS 15 the tick
+    /// needs no pool thread; on macOS 14 its task hop waits too. `starve` pulls with no wait and
+    /// no suspension, so the queue runs no tick and the node can run dry, as a late refill on a
+    /// slow disk does.
     func renderOffline(frames: Int, starve: Bool = false) async -> [[Float]] {
         var out: [[Float]] = [[], []]
         var left = frames
@@ -168,6 +182,34 @@ actor Player {
             left -= count
         }
         return out
+    }
+
+    /// Tests only: pulls `frames` output frames from the offline engine, one chunk each 0.1 s, as
+    /// the device clock does, with no wait for the feed. Each pull is a `queue.asyncAfter` block
+    /// with `assumeIsolated`, so no pull needs a thread of the cooperative pool; a task resume
+    /// onto the queue can wait for one (probe E5). `end` is the instant of the last pull.
+    @available(macOS 15, *)
+    nonisolated func renderPaced(frames: Int) async -> (out: [[Float]], end: ContinuousClock.Instant) {
+        await withCheckedContinuation { done in pace(frames, out: [[], []], done: done) }
+    }
+
+    @available(macOS 15, *)
+    private nonisolated func pace(
+        _ left: Int, out: [[Float]], done: CheckedContinuation<(out: [[Float]], end: ContinuousClock.Instant), Never>
+    ) {
+        queue.asyncAfter(deadline: .now() + .milliseconds(100)) {
+            self.assumeIsolated { player in
+                let count = min(left, player.chunk)
+                let pulled = player.pull(count)
+                var out = out
+                for channel in 0..<2 { out[channel] += pulled?[channel] ?? [Float](repeating: 0, count: count) }
+                if left > count {
+                    player.pace(left - count, out: out, done: done)
+                } else {
+                    done.resume(returning: (out, .now))
+                }
+            }
+        }
     }
 
     /// Each poll of 1 ms takes its time off `budget`, at most 10 ms. A later wake-up waited for a
@@ -221,8 +263,7 @@ actor Player {
                 stop = .noFreeDescriptor(Int(error.code.rawValue))
                 return
             }
-            graph.node.scheduleBuffer(
-                buffer, completionCallbackType: .dataConsumed, completionHandler: Self.consumed(self))
+            graph.node.scheduleBuffer(buffer)
             feed.scheduled += count
         }
         self.feed = feed
@@ -263,14 +304,34 @@ actor Player {
         return true
     }
 
-    /// Made outside the actor: an AVFAudio thread calls it (AGENTS.md).
-    private nonisolated static func consumed(_ player: Player)
-        -> @Sendable (AVAudioPlayerNodeCompletionCallbackType) -> Void
-    {
-        { [weak player] _ in
-            guard let player else { return }
-            Task { await player.refill() }
+    /// Starts the refill tick on `queue`. Made outside the actor: the timer calls the handler on
+    /// `queue` (AGENTS.md, Audio callbacks). The leeway of 1 ms is that of probe E8.
+    private nonisolated static func tick(_ player: Player, every period: DispatchTimeInterval) -> DispatchSourceTimer {
+        let timer = DispatchSource.makeTimerSource(queue: player.queue)
+        timer.schedule(deadline: .now() + period, repeating: period, leeway: .milliseconds(1))
+        timer.setEventHandler { [weak player, weak timer] in
+            guard let player else {
+                timer?.cancel()
+                return
+            }
+            if #available(macOS 15, *) {
+                player.assumeIsolated { $0.tick() }
+            } else {
+                // macOS 14 has no `checkIsolated` (SE-0424): `assumeIsolated` from a dispatch
+                // block crashes there (probe E2). The task hop can wait for the pool.
+                Task { await player.tick() }
+            }
         }
+        timer.activate()
+        return timer
+    }
+
+    /// Returns at once for a tick that came after the next command (a task hop, macOS 14) and
+    /// after a stop of the refill, so a failed refill does not run again each tick.
+    private func tick() {
+        guard ticker != nil, stop == nil else { return }
+        ticks += 1
+        refill()
     }
 
     /// Made outside the actor: NotificationCenter calls it on an internal queue.

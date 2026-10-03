@@ -89,6 +89,9 @@ struct DirigibleApp: App {
                 }
                 // One Group: a commands builder takes at most 10 items.
                 Group {
+                    CommandMenu(L10n.menuTools.key) {
+                        ForEach(TimelineCommand.toolItems, id: \.command) { item in menuButton(item) }
+                    }
                     CommandGroup(before: .windowList) {
                         Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)
                     }

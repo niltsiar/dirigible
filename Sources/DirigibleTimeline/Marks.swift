@@ -161,6 +161,14 @@ public struct Marks: Hashable, Sendable {
         return (clips.map(\.id), offset, marks)
     }
 
+    /// The clips of Auto Level (decision 0031): each whole clip on a selected track whose range
+    /// overlaps the selection. Nil with no selection.
+    public func clipsToLevel(in session: Session) -> Set<ClipID>? {
+        guard let selection = selection(in: session) else { return nil }
+        let tracks = selection.tracks.compactMap(session.track)
+        return Set(tracks.flatMap { $0.clips.filter { $0.range.overlaps(selection.range) }.map(\.id) })
+    }
+
     /// Select All: 0 to the end on every track. An empty session gives no Marks.
     public static func all(in session: Session) -> Marks {
         session.end == .zero

@@ -163,6 +163,22 @@ struct MarksTests {
     /// Edit-commands criterion 18: the clips fully inside the range on the selected tracks; a left
     /// offset stops at frame 0; the Marks move with the clips. Controls: the overlapping clips
     /// fail the b row; no clamp fails the left rows.
+    /// Run 8b criterion 12b: each whole clip that the selection touches on its tracks. The range is
+    /// half-open: a clip that starts at the out point is not in the set.
+    @Test func clipsToLevelTakesEachTouchedClip() throws {
+        var session = try Self.session()
+        try session.place(Clip(id: "c2", file: "f1", start: 480_000, offset: 0, length: 480_000), on: "t1")
+        try session.place(Clip(id: "c3", file: "f1", start: 0, offset: 0, length: 480_000), on: "t2")
+
+        #expect(Marks(inPoint: 1000, outPoint: 2000, tracks: ["t1"]).clipsToLevel(in: session) == ["c1"])
+        #expect(
+            Marks(inPoint: 1000, outPoint: 480_000, tracks: ["t1", "t2"]).clipsToLevel(in: session) == ["c1", "c3"])
+        #expect(Marks(inPoint: 479_999, outPoint: 480_001, tracks: ["t1"]).clipsToLevel(in: session) == ["c1", "c2"])
+        #expect(Marks(inPoint: 0, outPoint: 10, tracks: ["t3"]).clipsToLevel(in: session) == [])
+        #expect(Marks(tracks: ["t1"]).clipsToLevel(in: session) == nil)
+        #expect(Marks(inPoint: 0, outPoint: 10).clipsToLevel(in: session) == nil)
+    }
+
     @Test func nudge() throws {
         var session = try Self.session(tracks: 2, clip: false)
         try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 480_000))

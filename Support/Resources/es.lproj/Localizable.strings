@@ -19,6 +19,9 @@
 "menu.unplaced.place" = "Colocar";
 "menu.unplaced.place.playhead" = "Colocar en el cursor en la pista seleccionada";
 "menu.record.monitor" = "Monitorizar entradas";
+"menu.tools" = "Herramientas";
+"menu.tools.level" = "Nivelar automáticamente";
+"menu.tools.level.track" = "Nivelar automáticamente por pista";
 
 /* Errores */
 "error.studio.busy" = "Hay una toma en curso o terminando. Espera a que termine.";

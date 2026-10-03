@@ -45,6 +45,7 @@ enum TimelineCommand: Hashable {
     case split, nudgeLeft, nudgeRight
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
     case removeTrack, showInFinder, export, exportSelection
+    case autoLevel, autoLevelPerTrack
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
     /// responder of the key window, so a focused text field takes it before the window (probe E3).
@@ -73,6 +74,7 @@ enum TimelineCommand: Hashable {
         case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         case .export, .exportSelection: false
+        case .autoLevel, .autoLevelPerTrack: false
         }
     }
 
@@ -145,6 +147,12 @@ enum TimelineCommand: Hashable {
     /// The Remove Track item of the Track menu.
     static let trackItems = [
         MenuItem(command: .removeTrack, title: .menuTrackRemove, key: .delete, modifiers: [.command, .option])
+    ]
+
+    /// The Tools items (decision 0031).
+    static let toolItems = [
+        MenuItem(command: .autoLevel, title: .menuToolsLevel, key: "l", modifiers: .command),
+        MenuItem(command: .autoLevelPerTrack, title: .menuToolsLevelTrack, key: "l", modifiers: [.command, .option]),
     ]
 
     /// The Show Clips in Finder, Export, and Export Selection items of the File menu.
@@ -227,6 +235,8 @@ extension SessionWindow {
         case .showInFinder: Task { await showClipsInFinder() }
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }
+        case .autoLevel: Task { await level(.eachClip) }
+        case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
         }
     }
 }

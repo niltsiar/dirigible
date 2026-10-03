@@ -282,8 +282,7 @@ final class TimelineDocumentView: NSView {
                         return [left, right].filter { $0.width > 0 }
                     } ?? [box]
                 guard !shown.isEmpty else { continue }
-                let path = inputs.session.files[clip.file]?.path ?? clip.file.rawValue
-                let name = path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
+                let name = ClipInspection.name(of: clip, in: inputs.session)
                 labels.append((box, shown, Self.labelText(name, gain: clip.gain, locale: .current)))
             }
             if let region, let live, region.intersects(rect) {

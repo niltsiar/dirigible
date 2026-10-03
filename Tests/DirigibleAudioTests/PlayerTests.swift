@@ -85,9 +85,52 @@ struct PlayerTests {
 
     /// The flake of a full run: synchronous tests of other suites held every thread of the
     /// cooperative pool past the 30 s guard of `renderOffline`, so the waiter and the refill task
-    /// waited together, and the render then pulled with no feed (`maxError 0.9536207`).
+    /// waited together, and the render then pulled with no feed (`maxError 0.9536207`). On macOS
+    /// 15 the refill tick needs no pool thread and only the waiter waits; the test guards the
+    /// awake-time budget of the wait.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aFullPoolKeepsTheFeed() async throws { try await updateKeepsTheFeed(holdingThePoolFor: .seconds(32)) }
+
+    /// On macOS 15 and later the refill tick needs no thread of the cooperative pool (decision
+    /// 0016, amended 2026-10-03). Holders block every pool thread at each priority, 33 included,
+    /// for 3 s; in waves they hold the pool for about 6 s (probes E3, E8). Meanwhile the Player
+    /// queue pulls 20 chunks, one each 0.1 s, with no wait for the feed. The node holds 3 chunks,
+    /// so a refill that waits for the pool gives silence after 0.3 s. The test awaits each holder
+    /// also after a failure, so no holder blocks the pool for the next test.
+    @available(macOS 15, *)
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aHeldPoolDoesNotDelayTheRefill() async throws {
+        let player = player()
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        let start = ContinuousClock.now
+        let priorities = [TaskPriority.low, .medium, .high, .userInitiated, TaskPriority(rawValue: 33)]
+        let holders = priorities.flatMap { priority in
+            (0..<ProcessInfo.processInfo.activeProcessorCount).map { _ in
+                Task.detached(priority: priority) { _ = usleep(3_000_000) }
+            }
+        }
+        let (out, end) = await player.renderPaced(frames: 20 * 4800)
+        let resumed = ContinuousClock.now
+        for holder in holders { await holder.value }
+        expectEqual(out, try package.mix(0..<96_000), "a held pool did not delay the refill")
+        #expect(
+            end - start < .seconds(3) && resumed - start >= .milliseconds(2800), "the pool was held during the render")
+    }
+
+    /// A play refills on a tick of the Player queue, and the next command ends the tick (decision
+    /// 0016, amended 2026-10-03). The poll is the sync before the stop; the wait after the stop
+    /// only gives a late tick time to run.
+    @Test func aStopEndsTheTicks() async throws {
+        let player = player()
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        let deadline = ContinuousClock.now + .seconds(2)
+        while await player.ticks == 0, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(await player.ticks > 0, "ticks run during a play")
+        await player.apply(.stop, number: 2)
+        let before = await player.ticks
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(await player.ticks == before, "no tick after a stop")
+    }
 
     /// Plays, renders one chunk, updates the session, and renders 8 chunks. With `hold`, one child
     /// task per pool thread blocks its thread for `hold` right before the 8 chunks. The test task

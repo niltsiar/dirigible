@@ -21,6 +21,8 @@ public struct Rect: Equatable, Sendable {
     public var maxX: Double { x + width }
     public var minY: Double { y }
     public var maxY: Double { y + height }
+
+    func contains(_ x: Double, _ y: Double) -> Bool { x >= minX && x < maxX && y >= minY && y < maxY }
 }
 
 /// The one conversion between document points and frames, for the hit test and the drawing
@@ -55,43 +57,95 @@ public struct LaneGeometry: Equatable, Sendable {
     /// 1 pt cannot be seen or hit again; settled Q4 of the mouse-edits run).
     var trimMinimum: Frames { Frames(max(1, Int(scale.framesPerPoint))) }
 
-    /// The zone under a lane point (mouse-edits criterion 1). On a clip: 4 pt inside each edge
-    /// trims, the upper two thirds moves, and the lower third is a range. A box under 12 pt is all
-    /// range, so a small drag at fit zoom cannot move a clip that the user cannot see.
+    /// The narrowest clip box (points) that draws and hits the gain line and the fade handles.
+    public static let controlsWidth = 40.0
+    /// The side of a fade handle (points).
+    public static let handleSize = 8.0
+    /// The gain band: the points above and below the gain line.
+    static let gainReach = 3.0
+
+    /// The fraction of the lane height of a 0 dBFS signal at `dB` on the -60 dB to 0 dB scale of
+    /// the waveform (decision 0017). `LaneRenderer` draws with it, so the line and the waveform agree.
+    public static func gainFraction(dB: Double) -> Double { min(max((dB + 60) / 60, 0), 1) }
+
+    /// The y of the gain line of `clip` in `lane`: the top of a 0 dBFS signal with the clip gain
+    /// and the track gain: the lane height times 1 - `gainFraction` under the lane top. Over 0 dB
+    /// the line stays at the lane top. The product comes first, so a whole dB gives an exact y.
+    public func gainLineY(_ clip: Clip, trackGain: Gain, lane: Int) -> Double {
+        Double(lane) * laneHeight + laneHeight * min(max(-(clip.gain.dB + trackGain.dB), 0), 60) / 60
+    }
+
+    /// The fade handles of the clip at `index` of `clips` in `lane`: a square at the top of the
+    /// box, centered on the fade end and kept inside the box. Nil in a box under `controlsWidth`,
+    /// and nil for an edge at a butt join with no fade (decision 0035 leaves that edge to 11c).
+    public func fadeHandles(of clip: Clip, at index: Int, in clips: ClipLane, lane: Int) -> (start: Rect?, end: Rect?) {
+        let box = box(of: clip, lane: lane)
+        guard box.width >= Self.controlsWidth else { return (nil, nil) }
+        let joins = clips.joins(at: index)
+        func handle(_ end: Double, _ fade: Frames, _ joined: Bool) -> Rect? {
+            guard fade > .zero || !joined else { return nil }
+            let x = min(max(end - Self.handleSize / 2, box.minX), box.maxX - Self.handleSize)
+            return Rect(x: x, y: box.minY, width: Self.handleSize, height: Self.handleSize)
+        }
+        return (
+            handle(box.minX + x(of: clip.fades.fadeIn), clip.fades.fadeIn, joins.before),
+            handle(box.maxX - x(of: clip.fades.fadeOut), clip.fades.fadeOut, joins.after)
+        )
+    }
+
+    /// The zone under a lane point (mouse-edits criterion 1, run 11b-1). On a clip, in this order:
+    /// a fade handle, 4 pt inside each edge trims, the gain band (3 pt around the gain line, at
+    /// least 3 pt under the box top, between the fades), the upper two thirds moves, and the lower
+    /// third is a range. The handles and the band need a box of `controlsWidth`. A box under
+    /// 12 pt is all range, so a small drag at fit zoom cannot move a clip that the user cannot see.
     func hit(_ x: Double, _ y: Double, in session: Session) -> LaneHit {
         let lane = lane(at: y)
         guard lane < session.tracks.count else { return .range(lane: nil) }
-        let clips = session.tracks[lane].clips
-        guard let index = clips.index(holding: frame(at: x)) else { return .range(lane: lane) }
-        let clip = clips[index]
+        let track = session.tracks[lane]
+        guard let index = track.clips.index(holding: frame(at: x)) else { return .range(lane: lane) }
+        let clip = track.clips[index]
         let (box, smallest, trim) = (box(of: clip, lane: lane), 12.0, 4.0)
         guard box.width >= smallest else { return .range(lane: lane) }
+        let handles = fadeHandles(of: clip, at: index, in: track.clips, lane: lane)
+        let (start, end) = (handles.start?.contains(x, y) == true, handles.end?.contains(x, y) == true)
+        if start || end {
+            // Two handles that overlap split the overlap at its midpoint.
+            let left = start && (!end || x < (handles.end!.minX + handles.start!.maxX) / 2)
+            return .fade(clip, left ? .start : .end, lane: lane)
+        }
         if x - box.minX < trim { return .trim(clip, .start, lane: lane) }
         if box.maxX - x < trim { return .trim(clip, .end, lane: lane) }
+        if box.width >= Self.controlsWidth {
+            let line = max(gainLineY(clip, trackGain: track.gain, lane: lane), box.minY + Self.gainReach)
+            let between = box.minX + self.x(of: clip.fades.fadeIn)...box.maxX - self.x(of: clip.fades.fadeOut)
+            if abs(y - line) <= Self.gainReach, between.contains(x) { return .gain(clip, lane: lane) }
+        }
         return y - box.minY < laneHeight * 2 / 3 ? .move(clip, lane: lane) : .range(lane: lane)
     }
 }
 
-/// The edge of a clip.
-enum Edge: Equatable, Sendable { case start, end }
+/// The edge of a clip: one enum for the trim and the fades.
+typealias Edge = Fades.Edge
 
 /// The zone of a lane point. `lane` nil: under the last lane.
 enum LaneHit: Equatable, Sendable {
     case trim(Clip, Edge, lane: Int)
     case move(Clip, lane: Int)
+    case gain(Clip, lane: Int)
+    case fade(Clip, Edge, lane: Int)
     case range(lane: Int?)
 
     var lane: Int? {
         switch self {
-        case .trim(_, _, let lane), .move(_, let lane): lane
+        case .trim(_, _, let lane), .move(_, let lane), .gain(_, let lane), .fade(_, _, let lane): lane
         case .range(let lane): lane
         }
     }
 
-    /// The clip of a trim or move zone.
+    /// The clip of a clip zone.
     var clip: Clip? {
         switch self {
-        case .trim(let clip, _, _), .move(let clip, _): clip
+        case .trim(let clip, _, _), .move(let clip, _), .gain(let clip, _), .fade(let clip, _, _): clip
         case .range: nil
         }
     }
@@ -99,7 +153,8 @@ enum LaneHit: Equatable, Sendable {
     /// The cursor over the zone, with no gesture.
     var cursor: TimelineCursor {
         switch self {
-        case .trim: .resizeLeftRight
+        case .trim, .fade: .resizeLeftRight
+        case .gain: .resizeUpDown
         case .move: .arrow
         case .range: .iBeam
         }
@@ -162,7 +217,9 @@ public enum RulerGeometry {
 
 /// The cursor kinds of the timeline (probe C1: all exist at the macOS 14 target). The views map
 /// them to `NSCursor`.
-public enum TimelineCursor: Equatable, Sendable { case arrow, iBeam, openHand, closedHand, resizeLeftRight }
+public enum TimelineCursor: Equatable, Sendable {
+    case arrow, iBeam, openHand, closedHand, resizeLeftRight, resizeUpDown
+}
 
 /// The frames that an edge of `clip` can reach in a trim (mouse-edits criterion 6): the neighbor
 /// in `lane`, the start or the end of its file (`fileLength` frames), frame 0, `Frames.limit`, and

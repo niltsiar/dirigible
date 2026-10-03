@@ -16,9 +16,10 @@ public struct GestureContext: Sendable {
     }
 }
 
-/// A mouse event of the lanes, Esc, or a change of the session under an active gesture.
+/// A mouse event of the lanes, Esc, or a change of the session under an active gesture. `clicks`
+/// is the click count of the mouse-down (2 for a double-click).
 public enum GestureEvent: Equatable, Sendable {
-    case down(Place, shift: Bool, command: Bool)
+    case down(Place, shift: Bool, command: Bool, clicks: Int = 1)
     case drag(Place)
     case up(Place)
     case escape
@@ -70,12 +71,14 @@ public struct TimelineGesture: Sendable {
         case point(MarkPoint)
     }
 
-    /// The mouse-down: its target, point, frame, modifiers, and the session and Marks at that time.
+    /// The mouse-down: its target, point, frame, modifiers, click count, and the session and Marks
+    /// at that time.
     struct Press: Sendable {
         let target: Target
         let x, y: Double
         let frame: Frames
         let shift, command: Bool
+        let clicks: Int
         let marks: Marks
         let base: Session
 
@@ -113,6 +116,9 @@ public struct TimelineGesture: Sendable {
         case pressed(Press)
         case moving(Press, Move)
         case trimming(Press, Trim)
+        /// A drag of the gain line or of a fade handle (`Gesture+Clip.swift`).
+        case gaining(Press, GainDrag)
+        case fading(Press, FadeDrag)
         case ranging(Press)
         /// A flag drag: the marker at the down, and the session with the marker moved.
         case markerDrag(Press, Marker, preview: Session)
@@ -134,18 +140,18 @@ public struct TimelineGesture: Sendable {
         return true
     }
 
-    /// True in a drag that follows the pointer: a move, a trim, a range, a flag, or a triangle.
-    /// Autoscroll runs only then (decision 0025).
+    /// True in a drag that follows the pointer: a move, a trim, a fade handle, a range, a flag, or
+    /// a triangle. Autoscroll runs only then (decision 0025).
     public var autoscrolls: Bool {
         switch state {
-        case .moving, .trimming, .ranging, .markerDrag, .pointDrag: true
-        case .idle, .dropped, .pressed: false
+        case .moving, .trimming, .fading, .ranging, .markerDrag, .pointDrag: true
+        case .idle, .dropped, .pressed, .gaining: false
         }
     }
 
     public mutating func handle(_ event: GestureEvent, _ context: GestureContext) -> [GestureEffect] {
         switch event {
-        case .down(let place, let shift, let command):
+        case .down(let place, let shift, let command, let clicks):
             state = .idle
             let target: Target
             switch place {
@@ -163,7 +169,7 @@ public struct TimelineGesture: Sendable {
             state = .pressed(
                 Press(
                     target: target, x: x, y: y, frame: context.geometry.frame(at: x), shift: shift, command: command,
-                    marks: context.marks, base: context.session))
+                    clicks: clicks, marks: context.marks, base: context.session))
             return []
         case .drag(let place):
             return drag(place, context)
@@ -171,9 +177,11 @@ public struct TimelineGesture: Sendable {
             let effects = drag(place, context)
             defer { state = .idle }
             switch state {
-            case .pressed(let press): return click(press, context)
+            case .pressed(let press): return reset(press, context) ?? click(press, context)
             case .moving(let press, let move): return commit(press, move, context)
             case .trimming(let press, let trim): return commit(press, trim, context)
+            case .gaining(let press, let gain): return commit(press, gain, context)
+            case .fading(let press, let fade): return commit(press, fade, context)
             case .markerDrag(let press, let original, let preview): return commit(press, original, preview)
             case .ranging, .pointDrag: return effects
             case .idle, .dropped: return []
@@ -184,7 +192,7 @@ public struct TimelineGesture: Sendable {
             case .pressed:
                 state = .idle
                 return []
-            case .moving, .trimming, .markerDrag:
+            case .moving, .trimming, .gaining, .fading, .markerDrag:
                 state = .dropped
                 return []
             case .ranging(let press), .pointDrag(let press, _):
@@ -193,7 +201,7 @@ public struct TimelineGesture: Sendable {
             }
         case .sessionChanged:
             switch state {
-            case .moving, .trimming, .markerDrag: state = .dropped
+            case .moving, .trimming, .gaining, .fading, .markerDrag: state = .dropped
             case .pressed(let press) where press.target.edits: state = .idle
             default: break
             }
@@ -201,11 +209,14 @@ public struct TimelineGesture: Sendable {
         }
     }
 
-    /// The session to draw over the inputs: the preview of a move, a trim, or a flag drag.
+    /// The session to draw over the inputs: the preview of a move, a trim, a gain or fade drag, or
+    /// a flag drag.
     public func drawn(_ session: Session) -> Session {
         switch state {
         case .moving(_, let move): move.preview
         case .trimming(_, let trim): trim.preview
+        case .gaining(_, let gain): gain.preview
+        case .fading(_, let fade): fade.preview
         case .markerDrag(_, _, let preview): preview
         default: session
         }
@@ -215,7 +226,8 @@ public struct TimelineGesture: Sendable {
     public func cursor(at place: Place, _ context: GestureContext) -> TimelineCursor {
         switch state {
         case .moving: return .closedHand
-        case .trimming, .markerDrag, .pointDrag: return .resizeLeftRight
+        case .trimming, .fading, .markerDrag, .pointDrag: return .resizeLeftRight
+        case .gaining: return .resizeUpDown
         case .ranging: return .iBeam
         case .idle, .dropped, .pressed: break
         }
@@ -255,6 +267,15 @@ public struct TimelineGesture: Sendable {
                 state = .trimming(
                     press,
                     Trim(clip: clip, edge: edge, lane: lane, limits: limits, range: clip.range, preview: press.base))
+                return drag(place, context)
+            case .lane(.gain(let clip, let lane)):
+                guard context.canEdit else { return [] }
+                state = .gaining(press, GainDrag(clip: clip, lane: lane, gain: clip.gain, preview: press.base))
+                return drag(place, context)
+            case .lane(.fade(let clip, let edge, let lane)):
+                guard context.canEdit else { return [] }
+                state = .fading(
+                    press, FadeDrag(clip: clip, edge: edge, lane: lane, fades: clip.fades, preview: press.base))
                 return drag(place, context)
             case .lane(.range):
                 state = .ranging(press)
@@ -298,6 +319,10 @@ public struct TimelineGesture: Sendable {
             (trim.range, trim.preview) = (range, preview)
             state = .trimming(press, trim)
             return []
+        case .gaining(let press, let gain):
+            return gainDrag(press, gain, y, context)
+        case .fading(let press, let fade):
+            return fadeDrag(press, fade, x, context)
         case .ranging(let press):
             let drag = Marks.drag(
                 from: press.frame, to: geometry.frame(at: x), lanes: (geometry.lane(at: press.y), geometry.lane(at: y)),
@@ -312,10 +337,11 @@ public struct TimelineGesture: Sendable {
 
     /// A mouse-up under the threshold. On a clip: the clip range on its track, no seek. In the
     /// range zone (and every press with Shift or Command), the rules of decision 0017.
-    private func click(_ press: Press, _ context: GestureContext) -> [GestureEffect] {
+    func click(_ press: Press, _ context: GestureContext) -> [GestureEffect] {
         guard case .lane(let hit) = press.target else { return rulerClick(press) }
         switch hit {
-        case .move(let clip, let lane), .trim(let clip, _, let lane):
+        case .move(let clip, let lane), .trim(let clip, _, let lane), .gain(let clip, let lane),
+            .fade(let clip, _, let lane):
             return [.marks(Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id]))]
         case .range(let lane):
             guard let lane, context.session.tracks.indices.contains(lane) else { return [] }

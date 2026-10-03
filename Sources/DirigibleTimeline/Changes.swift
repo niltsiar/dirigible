@@ -2,9 +2,10 @@ import DirigibleCore
 import Foundation
 
 /// The frames and the lanes where the clips or the markers of `new` differ from those of `old`:
-/// from the start of the first changed clip to the end of the last one, on the first to the last
-/// changed lane, and the old and the new frame of each changed marker (its line crosses every
-/// lane). Nil when another value that the lanes draw differs: the tracks, their gain or layout, or
+/// from the start of the first changed clip to the end of the last one, with the unchanged lane
+/// neighbor that touches an old or a new changed clip (its fade handle depends on the butt join),
+/// on the first to the last changed lane, and the old and the new frame of each changed marker
+/// (its line crosses every lane). Nil when another value that the lanes draw differs: the tracks, their gain or layout, or
 /// the files (the labels). So a drag event redraws the boxes and lines that it changed, not the
 /// lanes in view (decision 0020). A lane with no change costs one compare of its clip storage.
 public func changedFrames(from old: Session, to new: Session) -> (frames: Range<Frames>, lanes: Range<Int>)? {
@@ -35,9 +36,18 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         let (before, after) = (
             x[(x.startIndex + head)..<(x.endIndex - tail)], y[(y.startIndex + head)..<(y.endIndex - tail)]
         )
-        guard let start = [before.first?.start, after.first?.start].compactMap({ $0 }).min(),
-            let end = [before.last?.end, after.last?.end].compactMap({ $0 }).max()
+        guard var start = [before.first?.start, after.first?.start].compactMap({ $0 }).min(),
+            var end = [before.last?.end, after.last?.end].compactMap({ $0 }).max()
         else { continue }
+        // The unchanged neighbors: the clip just before the run and the clip just after it.
+        if head > 0 {
+            let left = y[y.startIndex + head - 1]
+            if [before.first, after.first].contains(where: { $0?.start == left.end }) { start = left.start }
+        }
+        if tail > 0 {
+            let right = y[y.endIndex - tail]
+            if [before.last, after.last].contains(where: { $0?.end == right.start }) { end = right.end }
+        }
         add(start, end, lanes: lane..<lane + 1)
     }
     return (changed ?? .zero ..< .zero, lanes ?? 0..<0)
@@ -65,4 +75,16 @@ public func changedFrames(from old: Marks, to new: Marks, in session: Session) -
 /// The smallest range that holds `range` and `start ..< end`.
 private func hull(_ range: Range<Frames>?, _ start: Frames, _ end: Frames) -> Range<Frames> {
     min(range?.lowerBound ?? start, start)..<max(range?.upperBound ?? end, end)
+}
+
+extension ClipLane {
+    /// Whether a lane neighbor touches the clip at `index` (a butt join). Command-F, the fade
+    /// handles, and `changedFrames` read it (decision 0035).
+    func joins(at index: Int) -> (before: Bool, after: Bool) {
+        let clip = self[index]
+        return (
+            index > startIndex && self[index - 1].end == clip.start,
+            index + 1 < endIndex && self[index + 1].start == clip.end
+        )
+    }
 }

@@ -89,4 +89,24 @@ struct ChangedFramesTests {
         #expect(changedFrames(from: Marks(), to: marks, in: session) == 48_000..<192_001)
         #expect(changedFrames(from: marks, to: marks, in: session) == .zero ..< .zero)
     }
+
+    /// Z9 of run 11b-1 (plan gate H1): a handle of a clip depends on its lane neighbor (no handle
+    /// at a butt join with no fade), so a change that makes or breaks a join redraws the neighbor.
+    @Test func aChangeAtAButtJoinRedrawsTheNeighbor() throws {
+        let session = try Fixture.session()
+        var joined = session
+        try joined.trim("B", to: 96_000..<192_000)
+        #expect(changedFrames(from: session, to: joined)?.frames == 48_000..<192_000, "A joins the new B")
+        #expect(changedFrames(from: joined, to: session)?.frames == 48_000..<192_000, "A leaves the old B")
+
+        var split = session
+        _ = try split.split("A", at: 72_000)
+        var cleared = split
+        try cleared.clear(72_000..<96_000, on: "t1")
+        #expect(changedFrames(from: split, to: cleared)?.frames == 48_000..<96_000, "the left part loses its join")
+
+        var gap = session
+        try gap.trim("B", to: 96_001..<192_000)
+        #expect(changedFrames(from: session, to: gap)?.frames == 96_001..<192_000, "a gap of 1 frame is no join")
+    }
 }

@@ -184,10 +184,9 @@ public struct Marks: Hashable, Sendable {
                 let clip = lane[index]
                 let (start, end) = (low <= clip.start, clip.end <= high)
                 let standard = min(Frames(session.sampleRate / 2), Frames(clip.length.count / 2))
-                let joinBefore = index > lane.startIndex && lane[index - 1].end == clip.start
-                let joinAfter = index + 1 < lane.endIndex && lane[index + 1].start == clip.end
-                let fadeIn = start && !joinBefore ? (end ? standard : high - clip.start) : nil
-                let fadeOut = end && !joinAfter ? (start ? standard : clip.end - low) : nil
+                let joins = lane.joins(at: index)
+                let fadeIn = start && !joins.before ? (end ? standard : high - clip.start) : nil
+                let fadeOut = end && !joins.after ? (start ? standard : clip.end - low) : nil
                 let fades: Fades
                 switch (fadeIn, fadeOut) {
                 case (let fadeIn?, let fadeOut?): fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut)!

@@ -348,7 +348,10 @@ import os
         let source = try #require(model.source(of: .session, in: studio))
         await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
         await until("the report banner shows") { model.shown.banners.contains { $0.key == "exportReport" } }
-        #expect(model.alert == nil && window.attachedSheet == nil && model.canRecord)
+        // The progress sheet ends its close after the export; under load it shows a little longer.
+        await until("the progress sheet goes") { window.attachedSheet == nil }
+        #expect(model.alert == nil && model.canRecord)
+        #expect(model.shown.banners.contains { $0.key == "exportReport" }, "the report went with the sheet")
 
         await model.record()
 

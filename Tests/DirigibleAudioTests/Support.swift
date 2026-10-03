@@ -168,6 +168,11 @@ func records(
     }
 }
 
+/// The silence and first-record limit of a test writer that no test reaches: one day. A loaded
+/// full suite holds a test for more than 60 s, and a watchdog that fires in a test gives a second
+/// attach that the test did not ask for. A watchdog test sets its own limit.
+let noWatchdog = Duration.seconds(86_400)
+
 /// Runs `body` off the main actor, so a slow child process or disk write does not hold the
 /// main-actor tests that measure time.
 @concurrent nonisolated func offMainActor(_ body: @Sendable () throws -> Void) async throws { try body() }

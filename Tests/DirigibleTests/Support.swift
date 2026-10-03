@@ -29,6 +29,12 @@ import os
     }
 }
 
+/// The silence and first-record limit of a test writer that no test reaches: one day. A loaded
+/// full suite holds a test for more than 60 s, and a watchdog that fires in a test gives a second
+/// attach that the test did not ask for. A watchdog test sets its own limit. A copy of the
+/// constant of `DirigibleAudioTests`.
+let noWatchdog = Duration.seconds(86_400)
+
 /// With `DIRIGIBLE_FLAKE_MONITOR` set, prints `WAIT <helper> <seconds> s <text>` for a wait over
 /// 2 s. `scripts/flake-monitor/loop.sh` takes the worst wait of each helper, and the hang guards
 /// take their limits from it. A copy of the function of `DirigibleAudioTests`.
@@ -98,8 +104,8 @@ final class CountingHAL: Sendable {
                 }
             }, watchDevices: { _ in { true } })
         environment.microphoneAccess = { nil }
-        environment.silenceLimit = .seconds(60)
-        environment.firstRecordLimit = .seconds(60)
+        environment.silenceLimit = noWatchdog
+        environment.firstRecordLimit = noWatchdog
         return environment
     }
 

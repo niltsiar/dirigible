@@ -40,10 +40,10 @@ struct DeviceEventTests {
 
     init() throws { folder = try TemporaryFolder() }
 
-    /// A started writer of arm `arm` on channel `channel` of `device`. The watchdog limit is long
+    /// A started writer of arm `arm` on channel `channel` of `device`. The watchdog limit is `noWatchdog`
     /// unless a test sets it. The first-record limit is the watchdog limit unless a test sets it.
     func writer(
-        _ device: InputDevice, _ hal: TestHAL, arm: Int = 1, channel: Int = 1, silenceLimit: Duration = .seconds(60),
+        _ device: InputDevice, _ hal: TestHAL, arm: Int = 1, channel: Int = 1, silenceLimit: Duration = noWatchdog,
         firstRecordLimit: Duration? = nil
     ) -> DeviceWriter {
         let url = folder.url

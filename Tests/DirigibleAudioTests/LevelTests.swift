@@ -142,7 +142,7 @@ struct LevelTests {
         let writer = DeviceWriter(
             device: device, tracks: tracks, files: TakeFiles(take: 1, folder: { url }), hal: hal.hal,
             report: log.closure, drainInterval: oneDrain ? .seconds(60) : .milliseconds(50),
-            silenceLimit: .seconds(60), firstRecordLimit: .seconds(60))
+            silenceLimit: noWatchdog, firstRecordLimit: noWatchdog)
         writer.start()
         return writer
     }

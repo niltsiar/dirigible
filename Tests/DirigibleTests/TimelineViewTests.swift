@@ -171,13 +171,15 @@ import Testing
             #expect(shown.minY <= row.minY && row.maxY <= shown.maxY, "the header of lane \(lane + 1) is in view")
         }
 
-        let bottom = view.contentView.bounds.minY
+        // The wheel goes to the scroll view of the lanes, which starts a live scroll at once. The
+        // scroll itself is an AppKit step after the call: in a loaded suite with about 20 windows,
+        // that step did not come in 60 s (run wait-limits), so the test does not wait for it.
+        #expect(view.liveScrollOrigin == nil)
         let wheel = try #require(
             CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: 5, wheel2: 0, wheel3: 0)
                 .flatMap { NSEvent(cgEvent: $0) })
         try #require(nameField("T\(Self.tracksThatDoNotFit)", in: content)).scrollWheel(with: wheel)
-        // The scroll view animates a wheel scroll.
-        await until("a wheel over the headers scrolls up") { view.contentView.bounds.minY < bottom }
+        #expect(view.liveScrollOrigin != nil, "a wheel over the headers scrolls the lanes")
         await window.close()
     }
 

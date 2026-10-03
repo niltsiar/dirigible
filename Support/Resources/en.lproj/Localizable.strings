@@ -240,7 +240,7 @@
 "subtitle.record.time" = "Record time:";
 "banner.low.record.time" = "Less than %lld min of record time left on this disk. Free up disk space before you record.";
 "banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
-"banner.export.report" = "The export is done: %@.";
+"banner.export.report" = "The export of %1$@ is done: %2$@.";
 "report.loudness" = "loudness %.1f LUFS";
 "report.loudness.none" = "loudness not measured";
 "report.peak" = "true peak %.1f dBTP";

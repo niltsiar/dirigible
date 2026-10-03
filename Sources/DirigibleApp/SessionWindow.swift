@@ -17,6 +17,13 @@ enum WindowAlert: Hashable {
     case exported([String], LoudnessReport?)
 }
 
+/// The loudness report of an export, the name of its file, and the session revision at its end.
+struct ExportReportShown: Equatable {
+    let report: LoudnessReport
+    let file: String
+    let revision: Int
+}
+
 /// The state of one session window and its `NSWindowDelegate` (decision 0014). `Studio` is the
 /// model; this type adds only window state and maps the actions to `Studio` calls.
 @Observable @MainActor final class SessionWindow: NSObject, NSWindowDelegate {
@@ -59,9 +66,9 @@ enum WindowAlert: Hashable {
     @ObservationIgnored var clipboard: Excerpt?
     /// The step of Export before the export runs (decision 0019). Nil: no step.
     var exportStep: ExportStep?
-    /// The loudness of the last clean export with a target, for its banner (decision 0032). The
-    /// next export start and the next take start remove it.
-    var exportReport: LoudnessReport?
+    /// The last clean export with a target, for its banner (decision 0032). The next export
+    /// start and the next take start remove it; the banner shows only at its session revision.
+    var exportReport: ExportReportShown?
     /// The error of a take start that its checks refused while an export runs. The progress
     /// sheet shows it: a window alert would wait behind the sheet until the export ends.
     var recordRefusal: StudioError?

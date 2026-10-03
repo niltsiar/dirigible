@@ -101,8 +101,13 @@ public struct LoudnessReport: Hashable, Sendable {
     public let gain: Gain
     /// The output after the gain and the limiter.
     public let output: LUFS?
-    /// The true peak of the output in dBTP. Nil for digital silence.
+    /// The true peak of the output in dBTP. Nil only for digital silence: a 16-bit export has
+    /// dither, so it is never silent.
     public let truePeak: Double?
+
+    /// The gain is over the ±20 dB limit of auto-level (decision 0008). The export does not
+    /// limit it (0032), so the window shows it as a warning.
+    public var exceedsLevelLimit: Bool { abs(gain.dB) > levelLimit }
 }
 
 public struct ExportResult: Hashable, Sendable {

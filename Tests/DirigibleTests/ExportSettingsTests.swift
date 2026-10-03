@@ -37,6 +37,13 @@ import Testing
         #expect(
             ExportSettings(defaults: defaults).options
                 == ExportOptions(format: .wav(.bits16), layout: .mono, rate: .hz48000, loudness: .podcast))
+
+        // MP3 run criterion 14: MP3 takes the bit rate, and comes back from the defaults.
+        again.format = .mp3
+        again.bitRate = .k96
+        #expect(again.options.format == .mp3(.k96))
+        #expect(again.fileExtension == "mp3" && again.contentType == .mp3)
+        #expect(ExportSettings(defaults: defaults).options.format == .mp3(.k96))
     }
 
     /// Run 9a criterion 19: the loudness target is stored as a token. Off comes back as Off; a

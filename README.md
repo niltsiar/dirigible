@@ -19,9 +19,9 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Play forward and backward with the J, K, and L keys, at slow and fast speeds.
 - Find your way in a long session with the Session overview, zoom to the selection, and a zoom history.
 - Add markers and chapters in the time ruler.
-- Export WAV, AAC (.m4a), or FLAC, in mono or stereo, at 44.1 kHz or 48 kHz, at a loudness target such as -16 LUFS for a podcast, with the true peak at or under -1 dBTP.
+- Export WAV, AAC (.m4a), MP3, or FLAC, in mono or stereo, at 44.1 kHz or 48 kHz, at a loudness target such as -16 LUFS for a podcast, with the true peak at or under -1 dBTP.
 
-Dirigible does not yet export MP3, write chapters into the export, record other apps, or show a loudness meter. Delete leaves silence. See [What Dirigible does not do yet](docs/guide.md#what-dirigible-does-not-do-yet).
+Dirigible does not yet write chapters into the export, record other apps, or show a loudness meter. Delete leaves silence. See [What Dirigible does not do yet](docs/guide.md#what-dirigible-does-not-do-yet).
 
 ## Install
 

@@ -96,6 +96,12 @@ struct AppBundleTests {
             ("track.no.sound.settings", "Open Settings", "Abrir Ajustes"),
             ("track.route.apps", "Apps", "Apps"),
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
+            // MP3 run criterion 14.
+            ("panel.export.format.mp3", "MP3", "MP3"),
+            (
+                "error.export.rate", "This format cannot be exported at %lld Hz. Select 44.1 kHz or 48 kHz.",
+                "Este formato no se puede exportar a %lld Hz. Elige 44,1 kHz o 48 kHz."
+            ),
         ]
         for text in texts {
             #expect(english[text.key] as? String == text.en, "en \(text.key)")

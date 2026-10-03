@@ -11,7 +11,6 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 ### What Dirigible does not do yet
 
-- No MP3 export. Export AAC (.m4a) or WAV, and check which formats your podcast host accepts.
 - The export does not write the chapters into the file. The chapters stay in the session.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
 - No loudness meter while you record or play. The export measures the loudness: see [Export the episode](#export-the-episode).
@@ -251,9 +250,9 @@ The export panel has these settings. It keeps the last settings that you used.
 
 | Setting | Values |
 |---|---|
-| **Format** | **WAV**, **AAC (.m4a)**, or **FLAC** |
+| **Format** | **WAV**, **AAC (.m4a)**, **MP3**, or **FLAC** |
 | **Bit depth** (WAV and FLAC) | 16 or 24 |
-| **Bit rate** (AAC) | 64, 96, 128, 160, 192, or 256 kbit/s |
+| **Bit rate** (AAC and MP3) | 64, 96, 128, 160, 192, or 256 kbit/s |
 | **Channels** | **Stereo** or **Mono** |
 | **Sample rate** | The session rate, **44.1 kHz**, or **48 kHz** |
 | **Loudness** | **Off**, **Podcast** (-16 LUFS), **Speech** (-18), **EBU R 128** (-23), or **US broadcast** (-24). A mono export is 3 LU lower: Podcast is -19 LUFS. The default is **Podcast**. |
@@ -261,6 +260,8 @@ The export panel has these settings. It keeps the last settings that you used.
 With a **Loudness** target, Dirigible measures the mix and applies one gain to reach the target. Then a limiter keeps the true peak at or under -1 dBTP. Export Selection measures the selection only, so each selection gets its own gain. When the export is done, a banner names the file and shows the loudness, the true peak, and the gain. The banner goes at the next export, take, edit, undo, or redo, because the file then no longer matches the session. An edit during the export also removes it. You can record while it shows. When the gain is more than 20 dB, the banner is a warning: check that the selection has speech.
 
 With **Off**, the mix exports at its level, and a mix over full scale clips. A 16-bit export gets a low noise (TPDF dither), also with **Off**. So the last bit of a 16-bit file differs from an export of an earlier version. With a sample rate other than the session rate, the true peak can be up to about 0.3 dB over -1 dBTP.
+
+AAC and MP3 cannot export a 96 kHz session at the session rate: set **Sample rate** to **44.1 kHz** or **48 kHz**. An MP3 file plays up to 0.45 dB lower than the loudness in the banner, because the MP3 encoder lowers the level a little against clipping. Apple apps can show an MP3 at 44.1 kHz with 96 or 160 kbit/s as 26 ms longer than the export.
 
 If an audio file of the session is missing or cannot be read, Dirigible shows its name before the export. Its clips export as silence. Click **Export** to go on, or click **Cancel**. After the export, an alert names the files, and with a **Loudness** target it also shows the result.
 

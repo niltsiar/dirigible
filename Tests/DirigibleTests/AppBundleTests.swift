@@ -188,6 +188,18 @@ struct AppBundleTests {
         }
     }
 
+    /// The app links LAME statically, so the bundle holds the LGPL text and a LAME notice
+    /// (decisions 0007 and 0033).
+    @Test func theLAMELicenseIsInTheBundle() throws {
+        let resources = app.appending(path: "Contents/Resources")
+        let license = try String(contentsOf: resources.appending(path: "LAME-COPYING.txt"), encoding: .utf8)
+        #expect(license.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("GNU LIBRARY GENERAL PUBLIC LICENSE"))
+        let notice = try String(contentsOf: resources.appending(path: "LAME-NOTICE.txt"), encoding: .utf8)
+        for text in ["LAME 4.0", "LGPL", "https://github.com/niltsiar/dirigible"] {
+            #expect(notice.contains(text), "the notice names \(text)")
+        }
+    }
+
     private func propertyList(at path: String) throws -> [String: Any] {
         let data = try Data(contentsOf: app.appending(path: path))
         return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])

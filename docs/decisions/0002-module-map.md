@@ -18,6 +18,7 @@
 - Amended: 2026-10-03, run 8b. `DirigibleAudio/DSP/AutoLevel.swift` holds `autoLevel` with the meter. `Studio/Studio+Level.swift` holds Cmd-L, and `Studio/Studio+Transport.swift` holds the `Transport` enum (see 0031).
 - Amended: 2026-10-03, run 9a. `DirigibleAudio/DSP/` also holds the true-peak meter (`TruePeak.swift`), the export limiter (`Limiter.swift`), and the dither (`Dither.swift`) (see 0032).
 - Amended: 2026-10-03, run 9b. `DirigibleAudio/DSP/LiveLoudness.swift` holds the live meter, `Render/PlayerLoudness.swift` its Player queue, and `Render/Player+Offline.swift` the offline test pulls. `DirigibleApp/LoudnessStrip.swift` holds the strip (see 0033).
+- Amended: 2026-10-03, MP3 run. `CLame` holds the libmp3lame encoder of LAME 4.0, with C warnings as errors (see 0034).
 
 ## Context
 
@@ -32,7 +33,7 @@ Two designs were compared: few targets, and one target for each capability (capt
 | `DirigibleCore` | `Session`, `Track`, `Clip`, `AudioFile`, capture timing, `Marker`, `Frames`, `ChannelLayout`, track routes, edits and their invariants, snapshot undo (`History`), session XML read and atomic write, take alignment and auto-level math | Foundation | 1 |
 | `DirigibleAudio` | Device list, `DeviceWriter` (IOProcs, rings, CAF segments), finalize, recovery, `Player` (AVAudioEngine), `exportMix`, waveform peaks. Later: headphone check, loudness meter, process taps, noise reduction. `Studio`, the `@MainActor` facade that the app calls | Foundation, CoreAudio, AudioToolbox, AVFoundation, Accelerate, IOKit (the sleep assertion), `Atomics` (swift-atomics, 0005), `DirigibleCore` | 1 |
 | `DirigibleTimeline` | The timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, the gesture model (0020) | Foundation, `DirigibleCore` | 1 |
-| `CLame` | libmp3lame with the decoder off (0007) | none | 2 |
+| `CLame` | libmp3lame of LAME 4.0 with no decoder, C warnings as errors (0007, 0034) | none | 2 |
 | `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, the three libraries | 1 |
 | `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the read-edit-save step, error text, the text and JSON views of a session. No logic that the app needs | Foundation, AVFoundation (the microphone access request), `ArgumentParser` (swift-argument-parser), `DirigibleCore`, `DirigibleAudio` | CLI run |
 

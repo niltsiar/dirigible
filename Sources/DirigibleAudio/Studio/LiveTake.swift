@@ -33,6 +33,9 @@ public struct LiveTrack: Hashable, Sendable {
     public var droppedFrames: Int
     /// The largest absolute sample of the last drain (linear, 0 or more). 0 after `.deviceLost`.
     public var peak: Float
+    /// The short-term loudness (3 s) of the track (decision 0033). Nil until 3 s of input, and
+    /// after `.deviceLost` or `.retryStopped`.
+    public var shortTerm: LUFS? = nil
 }
 
 /// Why a take ended.

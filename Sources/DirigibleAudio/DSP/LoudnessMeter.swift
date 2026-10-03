@@ -46,8 +46,8 @@ public struct Loudness: Hashable, Sendable {
 
     /// The gated integrated loudness of ITU-R BS.1770-5. Nil when no block passes the two gates.
     /// The gates compare mean squares, not LUFS: `lufs` rises with the mean square, so the result
-    /// is the same with no log10 per block. The live meter computes it at each step of a 2 h play
-    /// (run 9b criterion 8: a log10 per block took 2.3 ms p95 at 2 h).
+    /// is the same with no log10 per block. The live meter computes it at each step of a play
+    /// (decision 0033).
     public var integrated: LUFS? {
         let absolute = Self.meanSquare(Self.absoluteGate)
         let (sum, count) = Self.sum(blocks, over: absolute)
@@ -178,8 +178,9 @@ public struct LoudnessMeter: Sendable {
                 highPass.flush()
                 filters[channel] = (shelf, highPass)
                 // A NaN or an infinity gives a sum that is not finite, also in a step that never
-                // completes. `result()` then has no blocks (run 8a). The live values count the
-                // part as silence and start the filters of the channel again (run 9b).
+                // completes. `result()` then has no blocks, so the integrated value of the live
+                // meter stays nil until the next reset. M and S count the part as silence, and
+                // the filters of the channel start again.
                 if !sum.isFinite {
                     nonFinite = true
                     filters[channel] = Self.kWeighting(rate: Double(sampleRate))

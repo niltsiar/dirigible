@@ -97,6 +97,7 @@ struct ExportTests {
 
     /// Two mono tracks with the same file sum to twice each sample, so the mix reaches 1.5. The
     /// converter rounds half up and clips (probe P3): `floor(x * 32768 + 0.5)` in -32768...32767.
+    /// The TPDF dither of decision 0032 moves each value by at most 1, and the clipped values stay.
     @Test func aWAV16RoundsAndClips() throws {
         let steps = [0.75, -0.75, 0.5, -0.5].map { Int($0 * 8_388_608) } + [64, -64, 63, -63, 65, -65, 192, -192]
         let values = (steps + Array(stride(from: -4_194_304, to: 4_194_304, by: 4099))).map { Float($0) / 8_388_608 }
@@ -111,9 +112,9 @@ struct ExportTests {
         #expect(out.format.mBitsPerChannel == 16)
         let integers = out.channels[0].map { Int(($0 * 32768).rounded()) }
         let expected = values.map { min(max(Int((Double(2 * $0) * 32768 + 0.5).rounded(.down)), -32768), 32767) }
-        #expect(integers == expected)
+        let near = zip(integers, expected).allSatisfy { abs($0 - $1) <= 1 }
+        #expect(integers.count == expected.count && near, "a value is more than 1 from the rounded value")
         #expect(integers.prefix(2) == [32767, -32768])
-        #expect(integers[4..<10] == [1, 0, 0, 0, 1, -1])
     }
 
     @Test(arguments: [BitDepth.bits16, .bits24])

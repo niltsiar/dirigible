@@ -171,4 +171,33 @@ struct ExportLoudnessTests {
         let names = try FileManager.default.contentsOfDirectory(atPath: package.folder.url.path)
         #expect(!names.contains { $0.hasSuffix(".tmp") }, "left: \(names)")
     }
+
+    /// A constant 0.25 LSB of 16 bit, 1 s, stereo.
+    static let quarterLSB = [[Float]](repeating: [Float](repeating: 0.25 / 32_768, count: 48_000), count: 2)
+
+    /// TPDF dither keeps a level under 1 LSB: the mean of the integers is 0.25 LSB. With no
+    /// dither the converter rounds each sample to 0 (probe D1).
+    @Test func aWAV16HasTPDFDither() throws {
+        let back = try ExportTests.read(Self.export(Self.quarterLSB, Self.options(nil, bits: .bits16)).url)
+
+        for channel in back.channels {
+            let integers = channel.map { Int(($0 * 32_768).rounded()) }
+            let mean = Double(integers.reduce(0, +)) / Double(integers.count)
+            #expect(abs(mean - 0.25) <= 0.02, "the mean: \(mean) LSB, not 0.25")
+            #expect(Set(integers).isSubset(of: [-1, 0, 1]), "values: \(Set(integers).sorted())")
+        }
+    }
+
+    /// The seed is fixed, so two exports are equal. A 24-bit export has no dither.
+    @Test func ditherIsRepeatableAndOnlyFor16Bit() throws {
+        // Each export keeps its package, so its folder stays until the end.
+        let first = try Self.export(Self.quarterLSB, Self.options(nil, bits: .bits16), to: "a.wav")
+        let second = try Self.export(Self.quarterLSB, Self.options(nil, bits: .bits16), to: "b.wav")
+        let deep = try ExportTests.read(Self.export(Self.quarterLSB, Self.options(nil), to: "c.wav").url)
+
+        let same = try Data(contentsOf: first.url) == Data(contentsOf: second.url)
+        #expect(same, "two 16-bit exports differ")
+        let values = Set(deep.channels.joined().map { Int(($0 * 8_388_608).rounded()) })
+        #expect(values == [64], "the 24-bit values: \(values.sorted())")
+    }
 }

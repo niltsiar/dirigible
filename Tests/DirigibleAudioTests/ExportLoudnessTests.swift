@@ -172,6 +172,16 @@ struct ExportLoudnessTests {
         #expect(!names.contains { $0.hasSuffix(".tmp") }, "left: \(names)")
     }
 
+    /// Code gate 1: a gain over the 20 dB auto-level limit is marked, so the window can show it
+    /// as a warning. A -60 LUFS selection gets +44 dB; a -30 LUFS one gets +14 dB.
+    @Test func aLargeGainIsMarked() throws {
+        let quiet = try #require(try Self.export(tone([(20, -60)]), Self.options(.podcast)).result.loudness)
+        let plain = try #require(try Self.export(tone([(20, -30)]), Self.options(.podcast)).result.loudness)
+
+        #expect(quiet.exceedsLevelLimit, "gain \(quiet.gain.dB) dB is not marked")
+        #expect(!plain.exceedsLevelLimit, "gain \(plain.gain.dB) dB is marked")
+    }
+
     /// A constant 0.25 LSB of 16 bit, 1 s, stereo.
     static let quarterLSB = [[Float]](repeating: [Float](repeating: 0.25 / 32_768, count: 48_000), count: 2)
 

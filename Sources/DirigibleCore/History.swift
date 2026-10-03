@@ -8,6 +8,9 @@ public struct History: Hashable, Sendable {
     public private(set) var session: Session
     private var undoStack: [Session] = []
     private var redoStack: [Session] = []
+    /// One more for each recorded edit, undo, and redo, so a reader can tell that the session
+    /// changed since a moment (the export report banner).
+    public private(set) var revision = 0
 
     public init(_ session: Session) {
         self.session = session
@@ -29,6 +32,7 @@ public struct History: Hashable, Sendable {
         if withOldRecording != session {
             undoStack.append(session)
             redoStack.removeAll()
+            revision += 1
         }
         session = copy
         return result
@@ -42,6 +46,7 @@ public struct History: Hashable, Sendable {
         undoStack.removeLast()
         redoStack.append(session)
         session = restored
+        revision += 1
     }
 
     public mutating func redo() throws(SessionError) {
@@ -50,6 +55,7 @@ public struct History: Hashable, Sendable {
         redoStack.removeLast()
         undoStack.append(session)
         session = restored
+        revision += 1
     }
 
     private func keepingRecording(_ entry: Session) throws(SessionError) -> Session {

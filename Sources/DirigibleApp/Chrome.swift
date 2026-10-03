@@ -247,7 +247,9 @@ struct ChromeState: Equatable {
         {
             banners.append(.useHeadphones)
         }
-        if let report = model.exportReport { banners.append(.exportReport(report)) }
+        if let shown = model.exportReport, shown.revision == studio.sessionRevision {
+            banners.append(.exportReport(shown.report, file: shown.file))
+        }
         shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
     }
 }
@@ -271,8 +273,9 @@ enum WindowBanner: Equatable {
     case lowRecordTime(minutes: Int)
     /// The default output is the built-in speakers and an armed track records an app (F43).
     case useHeadphones
-    /// The loudness of the last clean export with a target (decision 0032).
-    case exportReport(LoudnessReport)
+    /// The loudness of the last clean export with a target and the name of its file (decision
+    /// 0032). A warning when the gain is over the auto-level limit.
+    case exportReport(LoudnessReport, file: String)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -314,7 +317,7 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones: .warning
         case .missingMedia: .error
-        case .exportReport: .info
+        case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
     }
 
@@ -324,7 +327,7 @@ enum WindowBanner: Equatable {
         case .missingMedia(let paths): L10n.mediaMissing.format(paths.joined(separator: ", "))
         case .lowRecordTime(let minutes): L10n.bannerLowRecordTime.format(minutes)
         case .useHeadphones: L10n.bannerUseHeadphones.text
-        case .exportReport(let report): L10n.bannerExportReport.format(L10n.message(for: report))
+        case .exportReport(let report, let file): L10n.bannerExportReport.format(file, L10n.message(for: report))
         }
     }
 

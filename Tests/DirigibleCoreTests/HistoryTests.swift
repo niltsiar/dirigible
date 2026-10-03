@@ -17,6 +17,18 @@ struct HistoryTests {
         #expect(!history.canUndo)
     }
 
+    /// Run 9a code gate 1: the export report banner goes at the first session change, so the
+    /// revision counts each recorded edit, undo, and redo, and no edit that changes nothing.
+    @Test mutating func theRevisionCountsEachChange() throws {
+        #expect(history.revision == 0)
+        try history.edit { try $0.addTrack("t1", name: "Host", layout: .mono) }
+        history.edit { _ in }
+        #expect(history.revision == 1, "after an edit and an edit that changes nothing")
+        try history.undo()
+        try history.redo()
+        #expect(history.revision == 3, "after an undo and a redo")
+    }
+
     @Test mutating func anEditThatChangesNothingRecordsNothing() throws {
         try history.edit { try $0.addTrack("t1", name: "Host", layout: .mono) }
         try history.undo()

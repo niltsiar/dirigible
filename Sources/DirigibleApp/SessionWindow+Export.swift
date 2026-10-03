@@ -113,7 +113,9 @@ extension SessionWindow {
         do throws(StudioError) {
             let result = try await studio.export(source, target.options, to: target.url, replacing: target.confirmed)
             if result.faults.isEmpty {
-                exportReport = result.loudness
+                exportReport = result.loudness.map {
+                    ExportReportShown(report: $0, file: target.url.lastPathComponent, revision: studio.sessionRevision)
+                }
             } else {
                 alert = .exported(paths(of: result.faults, in: studio.session), result.loudness)
             }

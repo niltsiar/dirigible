@@ -11,6 +11,8 @@ import Observation
     public internal(set) var url: URL
     public internal(set) var transport: Transport = .idle
     public var session: Session { history.session }
+    /// One more for each recorded edit, undo, and redo of the session.
+    public var sessionRevision: Int { history.revision }
     /// Derived, not stored: `session.recording` while the transport is idle (decision 0004).
     public var pendingTake: Recording? { transport == .idle ? session.recording : nil }
     /// The last error of a finalize or of the save after it. Nil after a success.

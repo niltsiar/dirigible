@@ -82,7 +82,7 @@ import Testing
                     seconds: 600 + Double(tick) / 60)
                 chrome.update()
                 view.tick(playhead: Double(playhead.count), playback: Self.forward)
-                model.loudnessTick(studio, taking: false)
+                model.loudnessTick(studio)
                 drawNow(window)
                 // The first 10 ticks are not timed (the draw after the window shows).
                 if tick > 10 { times.append(ContinuousClock.now - start) }

@@ -29,7 +29,7 @@ import Testing
 
     @Test func stripTextsFollowTheValues() {
         let strip = strip()
-        strip.show(Self.playing, target: LUFS(value: -16), taking: false, now: 0)
+        strip.show(Self.playing, target: nil, inputs: false, now: 0)
         #expect(
             strip.texts
                 == LoudnessTexts(
@@ -38,14 +38,14 @@ import Testing
             "\(strip.texts)")
         var quieter = Self.playing
         quieter.truePeak = -1.2
-        strip.show(quieter, target: LUFS(value: -16), taking: false, now: 1)
+        strip.show(quieter, target: nil, inputs: false, now: 1)
         #expect(strip.texts.peak == "-1.2" && !strip.texts.peakOver, "TP -1.2: \(strip.texts)")
         // The stopped values: nil M and S draw dashes; I and TP stay.
         var stopped = Self.playing
         (stopped.momentary, stopped.shortTerm) = (nil, nil)
-        strip.show(stopped, target: LUFS(value: -16), taking: false, now: 2)
+        strip.show(stopped, target: nil, inputs: false, now: 2)
         #expect(strip.texts.shortTerm == "\u{2013}" && strip.texts.integrated == "-16.8", "stopped: \(strip.texts)")
-        strip.show(.none, target: LUFS(value: -16), taking: false, now: 3)
+        strip.show(.none, target: nil, inputs: false, now: 3)
         #expect(
             strip.texts == LoudnessTexts(target: "-16"), "no values: \(strip.texts)")
         #expect(LoudnessText.duration(3_725) == "1:02:05")
@@ -64,16 +64,16 @@ import Testing
     @Test func theTargetIsTheStereoPresetValue() {
         defer { UserDefaults().removePersistentDomain(forName: suite) }
         let settings = ExportSettings(defaults: defaults)
-        #expect(loudnessTarget(defaults).value == -16, "no preference")
+        #expect(loudnessTarget(defaults.string(forKey: ExportSettings.loudnessKey)).value == -16, "no preference")
         settings.layout = .mono
         settings.loudness = .podcast
-        #expect(loudnessTarget(defaults).value == -16, "podcast, mono")
+        #expect(loudnessTarget(defaults.string(forKey: ExportSettings.loudnessKey)).value == -16, "podcast, mono")
         settings.layout = .stereo
-        #expect(loudnessTarget(defaults).value == -16, "podcast, stereo")
+        #expect(loudnessTarget(defaults.string(forKey: ExportSettings.loudnessKey)).value == -16, "podcast, stereo")
         settings.loudness = .ebu
-        #expect(loudnessTarget(defaults).value == -23, "EBU")
+        #expect(loudnessTarget(defaults.string(forKey: ExportSettings.loudnessKey)).value == -23, "EBU")
         settings.loudness = nil
-        #expect(loudnessTarget(defaults).value == -16, "Off")
+        #expect(loudnessTarget(defaults.string(forKey: ExportSettings.loudnessKey)).value == -16, "Off")
         #expect(loudnessTarget(nil).value == -16, "no defaults")
     }
 
@@ -88,7 +88,7 @@ import Testing
             values.shortTerm = LUFS(value: -20 + Double(tick % 50) / 10)
             values.integrated = LUFS(value: -18 + Double(tick % 37) / 10)
             values.seconds = Double(tick) / 60
-            strip.show(values, target: LUFS(value: -16), taking: false, now: Double(tick) / 60)
+            strip.show(values, target: nil, inputs: false, now: Double(tick) / 60)
         }
         #expect((20...45).contains(strip.textChanges), "text changes: \(strip.textChanges)")
         #expect((1...10).contains(strip.accessibilityChanges), "VoiceOver value changes: \(strip.accessibilityChanges)")
@@ -100,10 +100,10 @@ import Testing
     @Test func aTakeShowsDashesAndTheHeaderTip() {
         let strip = strip()
         strip.layoutSubtreeIfNeeded()
-        strip.show(.none, target: LUFS(value: -16), taking: true, now: 0)
+        strip.show(.none, target: nil, inputs: true, now: 0)
         #expect(strip.texts.shortTerm == "\u{2013}")
         #expect(strip.toolTip(at: NSPoint(x: 20, y: 14)) == L10n.loudnessTakeTip.text)
-        strip.show(.none, target: LUFS(value: -16), taking: false, now: 1)
+        strip.show(.none, target: nil, inputs: false, now: 1)
         #expect(strip.toolTip(at: NSPoint(x: 20, y: 14)) == L10n.loudnessShortTip.text)
     }
 
@@ -188,6 +188,40 @@ import Testing
             strip.textChanges == texts && strip.layerChanges == layers,
             "a hidden strip: \(strip.textChanges - texts) texts, \(strip.layerChanges - layers) layers")
         await studio.perform(.playStop)
+        await model.close()
+    }
+
+    /// A take or a monitor after a play: the strip shows dashes in each value cell, not the held
+    /// values of the play (criterion 14 (d), decision 0033; code gate 1, K1).
+    @Test(arguments: ["take", "monitor"])
+    func metersOfTheInputsShowDashes(_ path: String) async throws {
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let app = AppDelegate(recordings: nil, defaults: defaults)
+        let (model, studio) = try await open(app)
+        await until("the strip shows") { shown(model) }
+        let strip = try #require(model.loudnessStrip)
+        let view = try #require(model.timelineView)
+        view.linkProxy?.view = nil
+        studio.loudness = Self.playing
+        view.displayTick()
+        #expect(strip.texts.integrated == "-16.8", "the play values: \(strip.texts)")
+
+        if path == "take" {
+            try LiveTake.begin(studio, tracks: ["t1"], at: .zero, take: 1)
+        } else {
+            studio.liveTracks = ["t1": LiveTrack(state: .monitoring, droppedFrames: 0, peak: 0)]
+        }
+        // The texts change at most 4 times a second.
+        await until("\(path): the strip shows dashes") {
+            view.displayTick()
+            return strip.texts.integrated == LoudnessText.dash
+        }
+        #expect(strip.texts == LoudnessTexts(target: "-16"), "\(path): \(strip.texts)")
+        if path == "take" {
+            studio.transport = .idle
+            _ = try? studio.edit { s throws(SessionError) in try s.setRecording(nil) }
+        }
+        studio.liveTracks = [:]
         await model.close()
     }
 }

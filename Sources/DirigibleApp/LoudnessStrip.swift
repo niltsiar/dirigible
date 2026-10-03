@@ -48,11 +48,11 @@ enum LoudnessText {
     }
 }
 
-/// The line of the strip: the stereo target of the export preset; with Off, the podcast target.
-/// The meter measures the stereo mix, so a mono export at -19 equals this line (decision 0033).
-func loudnessTarget(_ defaults: UserDefaults?) -> LUFS {
-    let token = defaults?.string(forKey: ExportSettings.loudnessKey)
-    return (token.flatMap(LoudnessTarget.init) ?? .podcast).integrated(for: .stereo)
+/// The line of the strip for the stored token of the export preset: its stereo target; with Off,
+/// the podcast target. The meter measures the stereo mix, so a mono export at -19 equals this line
+/// (decision 0033).
+func loudnessTarget(_ token: String?) -> LUFS {
+    (ExportSettings.loudness(token: token) ?? .podcast).integrated(for: .stereo)
 }
 
 /// The loudness strip below the lanes (decision 0033): an opaque row of 28 pt. The display tick
@@ -69,7 +69,11 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
     private(set) var layerChanges = 0
     private(set) var accessibilityChanges = 0
     private var accessibilityText = ""
-    private var taking = false
+    /// The inputs of the last `show`. A call with the same inputs and nothing pending does nothing.
+    private var shown: Shown?
+    /// A text or a VoiceOver value that its rate limit held back.
+    private var pending = false
+    private var inputs = false
     private var lastText = -CFTimeInterval.infinity
     private var lastAccessibility = -CFTimeInterval.infinity
     private var momentary: Double?
@@ -99,9 +103,21 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
     override var isOpaque: Bool { true }
     override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: Self.height) }
 
-    /// Takes the values of the heard frame. `now` is a test seam.
-    func show(_ values: LoudnessValues, target: LUFS, taking: Bool, now: CFTimeInterval = CACurrentMediaTime()) {
-        self.taking = taking
+    private struct Shown: Equatable {
+        let values: LoudnessValues
+        let token: String?
+        let inputs: Bool
+    }
+
+    /// Takes the values of the heard frame and the stored token of the export target. `inputs`:
+    /// the armed tracks meter their inputs (a take or a monitor). `now` is a test seam.
+    func show(
+        _ values: LoudnessValues, target token: String?, inputs: Bool, now: CFTimeInterval = CACurrentMediaTime()
+    ) {
+        let input = Shown(values: values, token: token, inputs: inputs)
+        guard input != shown || pending else { return }
+        (shown, self.inputs) = (input, inputs)
+        let target = loudnessTarget(token)
         let next = LoudnessText.texts(values, target: target)
         if next != texts, now - lastText >= Self.textInterval {
             let relayout = next.duration.count != texts.duration.count
@@ -114,12 +130,13 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
             (momentary, self.target) = (values.momentary?.value, target.value)
             placeBar()
         }
-        let spoken = taking ? L10n.loudnessTakeTip.text : spokenText
+        let spoken = inputs ? L10n.loudnessTakeTip.text : spokenText
         if spoken != accessibilityText, now - lastAccessibility >= Self.accessibilityInterval {
             (accessibilityText, lastAccessibility) = (spoken, now)
             accessibilityChanges += 1
             NSAccessibility.post(element: self, notification: .valueChanged)
         }
+        pending = next != texts || spoken != accessibilityText
     }
 
     private var spokenText: String {
@@ -260,7 +277,7 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
     /// The tooltip of the cell at `point`; the EBU names are here, not on the strip.
     func toolTip(at point: NSPoint) -> String {
         let cells = geometry.cells
-        if taking || cells.isEmpty { return taking ? L10n.loudnessTakeTip.text : L10n.loudnessShortTip.text }
+        if inputs || cells.isEmpty { return inputs ? L10n.loudnessTakeTip.text : L10n.loudnessShortTip.text }
         if point.x < geometry.bar.minX - 7 { return L10n.loudnessShortTip.text }
         if point.x < cells[1].x - Self.gap / 2 { return L10n.loudnessMomentaryTip.text }
         if point.x < cells[2].x - Self.gap / 2 { return L10n.loudnessAverageTip.text }
@@ -299,10 +316,14 @@ extension SessionWindow {
         app?.defaults?.set(showsLoudness, forKey: Self.loudnessKey)
     }
 
-    /// One display tick of the strip, when it shows.
-    func loudnessTick(_ studio: Studio, taking: Bool) {
+    /// One display tick of the strip, when it shows. During a take or a monitor the armed tracks
+    /// meter their inputs, so the strip shows dashes, not the held values of a play.
+    func loudnessTick(_ studio: Studio) {
         guard let strip = loudnessStrip, strip.window != nil else { return }
-        strip.show(studio.loudness, target: loudnessTarget(app?.defaults), taking: taking)
+        let inputs = !studio.liveTracks.isEmpty
+        strip.show(
+            inputs ? .none : studio.loudness, target: app?.defaults?.string(forKey: ExportSettings.loudnessKey),
+            inputs: inputs)
     }
 }
 

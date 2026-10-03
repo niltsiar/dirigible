@@ -41,9 +41,13 @@ import Testing
                 "showInFinder r \(EventModifiers([.command, .shift]).rawValue)", "export e \(command)",
                 "exportSelection e \(EventModifiers([.command, .shift]).rawValue)",
             ])
+        #expect(
+            TimelineCommand.toolItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
+                "autoLevel l \(command)", "autoLevelPerTrack l \(EventModifiers([.command, .option]).rawValue)",
+            ])
         let items =
             TimelineCommand.viewItems + edit + TimelineCommand.markerItems + TimelineCommand.trackItems
-            + TimelineCommand.fileItems
+            + TimelineCommand.fileItems + TimelineCommand.toolItems
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
         #expect(KeyRule.problems(keys) == [])

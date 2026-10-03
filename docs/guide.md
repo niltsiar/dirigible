@@ -62,6 +62,8 @@ A track records only when its **Arm** check box is on. Dirigible turns on **Arm*
 
 A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. After a take, the playhead is at the end of the take.
 
+After Stop, Dirigible also levels the new clips: it sets the gain of each clip so that it plays at -16 LUFS on a stereo track and -19 LUFS on a mono track. The clips of the take on one track get the same change. The audio files do not change. To remove the level and keep the take, choose **Edit > Undo** one time.
+
 ### Play the take
 
 1. Choose **Transport > Go to Start** (Home).
@@ -70,7 +72,7 @@ A take is one recording, from Record to Stop. After Stop, Dirigible finalizes th
 
 > **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
 >
-> If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z). The old audio comes back. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
+> If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z) two times. The first Undo removes the automatic level of the take. The second Undo brings the old audio back. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 >
 > Undo works only while the session window is open. When you close the window, you cannot undo.
 
@@ -180,6 +182,14 @@ Markers and chapters do not move with the audio. Remove the mistakes before you 
 11. Play the result before you close the session. If the result is wrong, choose **Edit > Undo** three times to undo the paste, the cut, and the delete.
 
 If no track has audio just before the mistake, step 9 moves the playhead to the end of the audio before the mistake. The paste then also removes the silence before the mistake.
+
+### Level the clips
+
+Choose **Tools > Auto Level** (Command-L) to set the gain of each clip that the selection touches, on the selected tracks. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.
+
+Choose **Tools > Auto Level per Track** (Option-Command-L) to give the clips of one track the same change. The differences in level between them stay.
+
+With no selection, the commands do nothing. Each command is one step in the undo history.
 
 ## Add markers and chapters
 
@@ -364,6 +374,15 @@ The **Record** menu (**Grabación**).
 | **Retry Finalize** | **Reintentar la finalización** | Option-Command-R |
 | **Monitor Inputs** | **Monitorizar entradas** | Shift-Command-M |
 
+### Tools
+
+The **Tools** menu (**Herramientas**).
+
+| Command | Spanish name | Key |
+|---|---|---|
+| **Auto Level** | **Nivelar automáticamente** | Command-L |
+| **Auto Level per Track** | **Nivelar automáticamente por pista** | Option-Command-L |
+
 ### Transport
 
 The **Transport** menu (**Transporte**).
@@ -430,7 +449,7 @@ swift run dirigible create Demo.dirigible --sample-rate 48000
 swift run dirigible info Demo.dirigible
 ```
 
-`dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain.
+`dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain. `dirigible level Demo.dirigible` sets the gain of each clip as **Tools > Auto Level** does. Add `--per-track` for **Auto Level per Track**.
 
 The text of the tool is English only.
 

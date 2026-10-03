@@ -19,6 +19,9 @@
 "menu.unplaced.place" = "Place";
 "menu.unplaced.place.playhead" = "Place at Playhead on Selected Track";
 "menu.record.monitor" = "Monitor Inputs";
+"menu.tools" = "Tools";
+"menu.tools.level" = "Auto Level";
+"menu.tools.level.track" = "Auto Level per Track";
 
 /* Errors */
 "error.studio.busy" = "A take records or finishes. Wait until it ends.";

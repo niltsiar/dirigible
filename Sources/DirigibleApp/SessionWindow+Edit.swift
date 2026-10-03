@@ -117,6 +117,14 @@ extension SessionWindow {
 }
 
 extension SessionWindow {
+    /// Auto Level and Auto Level per Track (decision 0031): each whole clip that the selection
+    /// touches, in one undo entry. With no selection or a busy studio, it does nothing and shows no
+    /// alert. An error shows the alert.
+    func level(_ mode: LevelMode) async {
+        guard let studio = idleStudio, let clips = timeline.marks.clipsToLevel(in: studio.session) else { return }
+        do throws(StudioError) { try await studio.level(clips, mode) } catch { alert = .error(error) }
+    }
+
     /// Removes the tracks in one undo entry, or none: a track of a pending take gives its alert
     /// (decision 0012). The name drafts of the removed tracks go. The armed set stays, so an undo
     /// gives back an armed track; every reader of the set filters it by the session tracks.

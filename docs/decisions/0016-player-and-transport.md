@@ -7,6 +7,7 @@
 - Amended: 2026-09-27. The transport bar goes. Its controls are toolbar items, its time is a toolbar time display, and its warnings are banners; the record-over warning is an overlay over the lanes (see 0023).
 - Amended: 2026-09-29, record-over-gap run: the record-over overlay reads only the first clip of each armed track that ends after the playhead, not only a clip under the playhead. With the playhead in a gap, a take replaced a clip out of view with no warning.
 - Amended: 2026-10-03, player-executor run. The `Player` refills on its own clock: a timer on its own serial dispatch queue, each half chunk, from a play to the next command. The `.dataConsumed` handler goes: AVFAudio delivers it on a QoS 21 queue that a full cooperative pool delays. On macOS 14 the tick keeps a `Task` hop (SE-0424). See below.
+- Amended: 2026-10-03, run 9b. The Player feeds the live loudness meter per scheduled chunk of a 1x forward play when the output has played it, and `Reading` carries the values of the heard frame. See 0033.
 
 ## Context
 

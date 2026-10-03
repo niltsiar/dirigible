@@ -17,6 +17,7 @@
 - Amended: 2026-10-03, run 8a. `DirigibleAudio/DSP/` holds the BS.1770 loudness meter and `clipLoudness`. The K-weighting is a hand-written Double biquad, not Accelerate (see 0008).
 - Amended: 2026-10-03, run 8b. `DirigibleAudio/DSP/AutoLevel.swift` holds `autoLevel` with the meter. `Studio/Studio+Level.swift` holds Cmd-L, and `Studio/Studio+Transport.swift` holds the `Transport` enum (see 0031).
 - Amended: 2026-10-03, run 9a. `DirigibleAudio/DSP/` also holds the true-peak meter (`TruePeak.swift`), the export limiter (`Limiter.swift`), and the dither (`Dither.swift`) (see 0032).
+- Amended: 2026-10-03, run 9b. `DirigibleAudio/DSP/LiveLoudness.swift` holds the live meter, `Render/PlayerLoudness.swift` its Player queue, and `Render/Player+Offline.swift` the offline test pulls. `DirigibleApp/LoudnessStrip.swift` holds the strip (see 0033).
 
 ## Context
 

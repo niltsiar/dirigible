@@ -87,7 +87,7 @@ private struct ParsedTrack {
                     id: ClipID(try clip.string("id")), file: FileID(try clip.string("file")),
                     start: try clip.frames("start"), offset: try clip.frames("offset"),
                     length: try clip.frames("length"), gain: try clip.gain("gain"),
-                    fades: try clip.fades(version: version)))
+                    fades: try clip.fades(version: version), crossfades: try clip.crossfades(version: version)))
         }
         self.clips = clips
     }
@@ -215,6 +215,20 @@ extension XMLElement {
             throw invalid(Fades(fadeIn: fadeIn, fadeOut: .zero) == nil ? "fadeIn" : "fadeOut")
         }
         return fades
+    }
+
+    /// `crossfadeIn` and `crossfadeOut` from version 4 on (decision 0036). A missing one is 0.
+    /// `Crossfades` refuses an odd or negative value or a value over the limit. `ClipLane` checks
+    /// the pairing.
+    fileprivate func crossfades(version: Int) throws(SessionFileError) -> Crossfades {
+        func length(_ attribute: String) throws(SessionFileError) -> Frames {
+            guard optionalString(attribute) != nil else { return .zero }
+            guard version >= 4 else { throw invalid(attribute) }
+            let value = try frames(attribute)
+            guard Crossfades(start: value, end: .zero) != nil else { throw invalid(attribute) }
+            return value
+        }
+        return Crossfades(start: try length("crossfadeIn"), end: try length("crossfadeOut"))!
     }
 
     private func invalid(_ attribute: String) -> SessionFileError {

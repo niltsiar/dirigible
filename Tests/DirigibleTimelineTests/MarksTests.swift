@@ -268,6 +268,17 @@ struct MarksTests {
                 == ["A": Fades(fadeIn: 0, fadeOut: 6_000)!, "B": Fades(fadeIn: 3_999, fadeOut: 0)!], "a 1-frame gap")
     }
 
+    /// Crossfades F2: Command-F gives no fade at a crossfade edge, and the fade of the free edge
+    /// fits the room beside the crossfade half (1,000 - 600).
+    @Test func fadeSkipsACrossfadeEdge() throws {
+        var session = try Self.fadeSession(a: 1_000)
+        try session.place(Clip(id: "B", file: "f1", start: 49_000, offset: 10_000, length: 48_000), on: "t1")
+        try session.setCrossfades(["A": 1_200])
+        #expect(
+            fades(40_000..<100_000, session)
+                == ["A": Fades(fadeIn: 400, fadeOut: 0)!, "B": Fades(fadeIn: 0, fadeOut: 24_000)!])
+    }
+
     /// C20: no in point or no selected track that exists gives nil; a clip on a track that is not
     /// selected does not change.
     @Test func fadeNeedsASelection() throws {

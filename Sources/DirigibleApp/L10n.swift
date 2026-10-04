@@ -260,6 +260,7 @@ enum L10n: String, CaseIterable {
     case errorSessionLayout = "error.session.layout"
     case errorSessionTrackInTake = "error.session.track.in.take"
     case errorSessionTrackCount = "error.session.track.count"
+    case errorSessionCrossfadeHandle = "error.session.crossfade.handle"
     case errorSessionOther = "error.session.other"
     case errorFileUnreadable = "error.file.unreadable"
     case errorFileNewer = "error.file.newer"

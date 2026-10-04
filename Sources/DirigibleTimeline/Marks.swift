@@ -181,8 +181,8 @@ public struct Marks: Hashable, Sendable {
     /// selection. The range holds the clip start when in <= start, and the clip end when end <= out.
     /// Both: min(0.5 s, length / 2) at each end. The start only: a fade-in to the out point. The end
     /// only: a fade-out from the in point. An edge at a butt join (a lane neighbor touches it) gets
-    /// no fade in 11a. The new fade wins, and the other fade yields. Nil with no selection or no
-    /// change.
+    /// no fade in 11a, so an edge with a crossfade gets none. The new fade wins, and the other fade
+    /// yields, also to the half of a crossfade (decision 0036). Nil with no selection or no change.
     public func fades(in session: Session) -> [ClipID: Fades]? {
         guard let selection = selection(in: session), let touched = touchedClips(in: session) else { return nil }
         let (low, high) = (selection.range.lowerBound, selection.range.upperBound)
@@ -198,9 +198,9 @@ public struct Marks: Hashable, Sendable {
             switch (fadeIn, fadeOut) {
             case (let fadeIn?, let fadeOut?): fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut)!
             case (let fadeIn?, nil):
-                fades = Fades(fadeIn: fadeIn, fadeOut: clip.fades.fadeOut)!.fitted(to: clip.length, keeping: .start)
+                fades = clip.fitting(Fades(fadeIn: fadeIn, fadeOut: clip.fades.fadeOut)!, keeping: .start)
             case (nil, let fadeOut?):
-                fades = Fades(fadeIn: clip.fades.fadeIn, fadeOut: fadeOut)!.fitted(to: clip.length, keeping: .end)
+                fades = clip.fitting(Fades(fadeIn: clip.fades.fadeIn, fadeOut: fadeOut)!, keeping: .end)
             case (nil, nil): continue
             }
             if fades != clip.fades { result[clip.id] = fades }

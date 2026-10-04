@@ -148,9 +148,11 @@ public struct Session: Hashable, Sendable {
         }
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 3 with a fade
-    /// (decision 0035), else 2 with an app route (decision 0029), else 1.
+    /// The `session.xml` version that holds this session (decision 0024 P6): 4 with a crossfade
+    /// (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route (decision
+    /// 0029), else 1.
     public var fileVersion: Int {
+        if tracks.contains(where: { $0.clips.contains { $0.crossfades != .zero } }) { return 4 }
         if tracks.contains(where: { $0.clips.contains { $0.fades != .zero } }) { return 3 }
         return tracks.contains { if case .app = $0.route { true } else { false } } ? 2 : 1
     }
@@ -227,8 +229,19 @@ public enum SessionError: Error, Hashable, Sendable {
     case clipOutsideFile(ClipID)
     case overlap(ClipID, ClipID)
     case frameOutsideClip(ClipID, Frames)
-    /// fadeIn + fadeOut is more than the clip length, which this case holds (decision 0035).
+    /// The fades and the crossfade halves of the clip are more than its length, which this case
+    /// holds (decisions 0035 and 0036).
     case fadeOutsideClip(ClipID, length: Frames)
+    /// The file of the clip has fewer than `needed` frames past the clip edge for half the
+    /// crossfade there (decision 0036).
+    case crossfadeOutsideFile(ClipID, needed: Frames)
+    /// No clip touches the crossfade edge of the clip with the same crossfade length (decision 0036).
+    case crossfadeWithoutJoin(ClipID)
+    /// The clip after this clip plays on from the same file frame, so a crossfade there would be
+    /// 3 dB too loud (decision 0036).
+    case crossfadeAtSeamlessJoin(ClipID)
+    /// The clip has a fade and a crossfade at one edge (decision 0036).
+    case fadeAtCrossfade(ClipID)
     /// A paste names a track count that is not the lane count of its excerpt, which this case holds.
     case trackCount(Int)
 }

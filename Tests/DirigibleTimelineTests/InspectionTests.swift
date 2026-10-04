@@ -109,6 +109,19 @@ struct InspectionTests {
         #expect(try inspect(marks(4.2, 4.4)).gain == .value(Gain(dB: -40)!), "a stored value outside the limit shows")
     }
 
+    /// Crossfades F2: a typed fade of many clips skips an edge with a crossfade, and the free edge
+    /// of that clip stops at its room (1 s - 480 frames).
+    @Test mutating func aFadeOfManyClipsSkipsACrossfadeEdge() throws {
+        try session.place(Clip(id: "X", file: "fa", start: second, offset: 200_000, length: second), on: "t1")
+        try session.setCrossfades(["A": 960])
+        let clips: [ClipID] = ["A", "X", "B", "C"]
+        let out = Fades(fadeIn: 0, fadeOut: 24_000)!
+        #expect(ClipInspection.fades(.end, ms: 500, for: clips, in: session) == ["X": out, "B": out, "C": out])
+        #expect(
+            ClipInspection.fades(.start, ms: 99_999, for: ["A", "X"], in: session)
+                == ["A": Fades(fadeIn: 47_520, fadeOut: 0)!], "A stops at its room; X has a crossfade at its start")
+    }
+
     /// I7: whole ms to frames; the fade stops at the other fade; a huge or negative value clamps.
     @Test mutating func aTypedFadeStopsAtTheOtherFade() throws {
         func fades(_ edge: Fades.Edge, _ ms: Double, _ clips: [ClipID]) -> [ClipID: Fades]? {

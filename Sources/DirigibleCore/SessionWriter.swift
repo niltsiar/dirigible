@@ -34,9 +34,9 @@ func posixCode(of error: any Error) -> Int32 {
 let sessionNamespace = "https://github.com/niltsiar/dirigible/session"
 /// The folder of the clip files in a package (decision 0003).
 package let clipsFolderName = "Clips"
-/// The newest `session.xml` version that this build reads (decision 0035). A save writes
+/// The newest `session.xml` version that this build reads (decision 0036). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 3
+package let sessionVersion = 4
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -163,6 +163,11 @@ extension Session {
                 // A fade of 0 is not written, so a clip with no fade keeps its version 1 text (0035).
                 if clip.fades.fadeIn != .zero { add(("fadeIn", clip.fades.fadeIn.description), to: clipNode) }
                 if clip.fades.fadeOut != .zero { add(("fadeOut", clip.fades.fadeOut.description), to: clipNode) }
+                // A crossfade of 0 is not written either, so a clip with none keeps its old text (0036).
+                if clip.crossfades.start != .zero {
+                    add(("crossfadeIn", clip.crossfades.start.description), to: clipNode)
+                }
+                if clip.crossfades.end != .zero { add(("crossfadeOut", clip.crossfades.end.description), to: clipNode) }
                 node.addChild(clipNode)
             }
             trackList.addChild(node)

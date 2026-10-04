@@ -55,18 +55,22 @@ extension Session {
 
     /// Gives the clip a new timeline range. The file offset follows the start. The clip does not
     /// grow into a neighbor. The fade of the edge that does not move stays; the other fade yields
-    /// (decision 0035). When both edges move, the fade-in stays.
+    /// (decision 0035). When both edges move, the fade-in stays. The crossfade of an edge that does
+    /// not move stays, and the fades yield to its half (decision 0036).
     public mutating func trim(_ id: ClipID, to range: Range<Frames>) throws(SessionError) {
         let (track, index) = try position(of: id)
         let clip = tracks[track].clips[index]
         guard range.lowerBound.isInRange else { throw .frameOutOfRange }
         let offset = clip.offset + (range.lowerBound - clip.start)
         guard offset >= .zero else { throw .clipOutsideFile(id) }
-        let length = range.upperBound - range.lowerBound
         let kept: Fades.Edge = range.lowerBound != clip.start && range.upperBound == clip.end ? .end : .start
-        let trimmed = Clip(
-            id: id, file: clip.file, start: range.lowerBound, offset: offset, length: length, gain: clip.gain,
-            fades: clip.fades.fitted(to: length, keeping: kept))
+        var trimmed = Clip(
+            id: id, file: clip.file, start: range.lowerBound, offset: offset,
+            length: range.upperBound - range.lowerBound, gain: clip.gain,
+            crossfades: Crossfades(
+                start: range.lowerBound == clip.start ? clip.crossfades.start : .zero,
+                end: range.upperBound == clip.end ? clip.crossfades.end : .zero)!)
+        trimmed.fades = trimmed.fitting(clip.fades, keeping: kept)
         try check(trimmed, on: tracks[track])
         if let neighbor = tracks[track].clips.clips(overlapping: trimmed.range).first(where: { $0.id != id }) {
             throw .overlap(id, neighbor.id)
@@ -134,13 +138,22 @@ extension Session {
     }
 
     /// Checks the clip against its file and its track. The comparisons cannot overflow:
-    /// the start is in `0...Frames.limit`, and the length is not more than the file length.
+    /// the start is in `0...Frames.limit`, and the length is not more than the file length. Each
+    /// crossfade half has media handle in the file (decision 0036). `ClipLane` checks the pairing.
     func check(_ clip: Clip, on track: Track) throws(SessionError) {
         guard clip.start.isInRange, clip.offset >= .zero else { throw .frameOutOfRange }
         guard let file = files[clip.file] else { throw .unknownFile(clip.file) }
         guard file.layout == track.layout else { throw .layoutMismatch(track.id, .file(file.id)) }
         guard clip.length > .zero, clip.length <= file.length - clip.offset else { throw .clipOutsideFile(clip.id) }
-        guard clip.fades.fadeIn + clip.fades.fadeOut <= clip.length else {
+        let (before, after) = (clip.crossfades.start.half, clip.crossfades.end.half)
+        guard (before == .zero || clip.fades.fadeIn == .zero) && (after == .zero || clip.fades.fadeOut == .zero) else {
+            throw .fadeAtCrossfade(clip.id)
+        }
+        guard before <= clip.offset else { throw .crossfadeOutsideFile(clip.id, needed: before) }
+        guard clip.offset + clip.length + after <= file.length else {
+            throw .crossfadeOutsideFile(clip.id, needed: after)
+        }
+        guard clip.reach(.start) + clip.reach(.end) <= clip.length else {
             throw .fadeOutsideClip(clip.id, length: clip.length)
         }
     }

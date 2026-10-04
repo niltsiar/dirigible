@@ -6,8 +6,8 @@
 # red governance check, `risk: yes` with and with no control row, a body that pr-terms.sh flags
 # (before the fetch), a body that lost a number of logs/pr-draft.md, a pr-terms.sh error, a
 # missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta
-# after the stamp runs the targets of the delta, and no usable stamp runs the full push check; the
-# governance and the ancestor checks still run. The ratchet case runs the real make check-changed
+# after the stamp runs the targets of the delta after the load wait, and no usable stamp runs the
+# full push check; the governance and the ancestor checks still run. The ratchet case runs the real make check-changed
 # first, so the land runs no check after it. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -50,7 +50,13 @@ case "$1 $2" in
   "pr merge") git push -q origin HEAD:main ;;
 esac
 EOF
-chmod +x "$bin/make" "$bin/gh"
+# The fake sysctl logs its arguments and gives 8 cores and a load of 1.00, for the load wait.
+cat > "$bin/sysctl" <<'EOF'
+#!/bin/bash
+echo "sysctl $*" >> "$LAND_LOG"
+case "$2" in hw.ncpu) echo 8 ;; vm.loadavg) echo "{ 1.00 1.00 1.00 }" ;; esac
+EOF
+chmod +x "$bin/make" "$bin/gh" "$bin/sysctl"
 
 # A new case: a remote with one commit on main, a clone on the branch feat/x with one commit,
 # and one more commit on origin/main after the branch, so the land must rebase.
@@ -264,10 +270,15 @@ stamp_setup
 stamp origin/main
 commit_file docs/a.md
 stamp_case 'docs delta' 'stamp: delta check-docs' 'make check-docs'
+! grep -q '^sysctl' "$c/log" || fail "docs delta: the load wait read the load: $(cat "$c/log")"
 stamp_setup
 stamp origin/main
 commit_file Sources/DirigibleApp/X.swift
 stamp_case 'sources delta' 'stamp: delta check' 'make check'
+# The delta runs Swift tests, so the load wait reads the load before make.
+[[ "$(grep -E '^(sysctl -n vm.loadavg|make check)$' "$c/log")" == $'sysctl -n vm.loadavg\nmake check' ]] ||
+  fail "sources delta: no load wait before make check: $(cat "$c/log")"
+grep -q 'check-changed: load 1.00, under 8' "$c/out" || fail "sources delta: no load line: $(cat "$c/out")"
 
 # A move of a bundle file after the stamp: --no-renames keeps the old path, so the delta is bundle.
 stamp_setup

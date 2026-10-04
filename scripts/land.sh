@@ -9,8 +9,8 @@
 # check-changed.sh it needs a control row in the decisions.tsv of that folder: phase 2 or 4, with
 # a log under controls/. The third argument names the row that says why no control applies. Then
 # it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
-# delta when the stamp has an ancestor of HEAD, else `make check-changed BASE=origin/main`. It
-# prints the stamp line. Then it pushes the branch, creates the pull request, refuses the merge
+# delta after the load wait of check-changed.sh when the stamp has an ancestor of HEAD, else
+# `make check-changed BASE=origin/main`. It prints the stamp line. Then it pushes the branch, creates the pull request, refuses the merge
 # when origin/main moved after the checks, merges with a rebase, and updates main. It stops at the
 # first failure and never force-pushes. It prints the PR URL and the commit range on main.
 # scripts/land.test.sh tests it.
@@ -70,6 +70,7 @@ if stamp="$("$here/check-stamp.sh" read origin/main)"; then
         targets="$(sed -n 's/^targets: //p' <<<"$out")"
         [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
         echo "stamp: delta $targets"
+        "$here/check-changed.sh" --wait-load $targets || die "the load wait failed; nothing is pushed"
         make $targets || die "the checks failed; nothing is pushed"
     fi
 else

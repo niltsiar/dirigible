@@ -29,16 +29,17 @@ extension DeviceEventTests {
         #expect(log.states(arm: 1).starts(with: [.deviceLost, .recording]))
     }
 
-    /// Control of the watchdog: records with no pause keep the device. The producer sends for
-    /// 60 s, longer than a full suite can hold the main actor, and `finish()` stops it.
+    /// Control of the watchdog: records with no pause keep the device, also when `finish()`
+    /// comes late. The producer sends for 600 s, longer than any wait of the test, and the detach
+    /// of `finish()` stops it.
     @Test func aDeviceWithNoPauseKeepsItsFirstAttach() async throws {
         let hal = TestHAL([mic])
         let input = SyntheticInput(hal, "mic")
         var clock = DeviceClock()
-        input.play(run(&clock, 60), pace: .realTime)
+        input.play(run(&clock, 600), pace: .realTime)
         let writer = writer(mic, hal, silenceLimit: .seconds(1))
 
-        try await Task.sleep(for: .seconds(2))
+        try await Task.sleep(for: .seconds(3))
         let gaps = await writer.finish()
         await input.wait()
 
@@ -49,22 +50,24 @@ extension DeviceEventTests {
 
     /// A device that starts its IO 3 s after the attach keeps its first attach: the first
     /// record of an appearance has a longer limit. Control: a first-record limit of 1 s (the
-    /// watchdog limit) loses the device before its first record. The producer sends for 60 s,
-    /// longer than a full suite can hold the main actor, and `finish()` stops it.
+    /// watchdog limit) loses the device before its first record. The silence limit is
+    /// `noWatchdog`, so a late `finish()` after the end of the producer keeps the device:
+    /// `theSilenceLimitFollowsTheFirstRecord` tests the silence limit after the first record.
     @Test(arguments: [Duration.seconds(10), .seconds(1)])
     func aSlowStartKeepsTheFirstAttach(firstRecordLimit: Duration) async throws {
         let hal = TestHAL([mic])
         let input = SyntheticInput(hal, "mic")
         var clock = DeviceClock()
-        input.play(run(&clock, 60), pace: .realTime, delay: .seconds(3))
-        let writer = writer(mic, hal, silenceLimit: .seconds(1), firstRecordLimit: firstRecordLimit)
+        input.play(run(&clock, 0.5), pace: .realTime, delay: .seconds(3))
+        let writer = writer(mic, hal, firstRecordLimit: firstRecordLimit)
         let slow = firstRecordLimit > .seconds(3)
 
         await until(limit: .seconds(10), "no segment and no second attach") {
             (try? stems().isEmpty) == false || hal.tries("mic").count >= 2
         }
-        let gaps = await writer.finish()
         await input.wait()
+        try await Task.sleep(for: .seconds(3))
+        let gaps = await writer.finish()
 
         // The control can try more than twice when the finish comes late.
         let tries = hal.tries("mic").count

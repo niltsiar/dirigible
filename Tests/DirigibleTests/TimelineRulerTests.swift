@@ -243,6 +243,21 @@ import Testing
         await model.close()
     }
 
+    /// `ui-panel.md` item 2: a click on empty ruler time seeks and keeps the current marker, so
+    /// the user can click a flag, click the ruler, then choose Move Marker to Playhead.
+    @Test func anEmptyRulerClickKeepsTheCurrentMarker() async throws {
+        let (model, studio, window, view) = try await lanes()
+        model.timeline.marker = "m1"
+
+        try press(view, 600)
+        try release(view, 601)
+
+        await until("the click seeks") { studio.playhead == 307_200 }
+        #expect(model.timeline.marker == "m1")
+        window.close()
+        await model.close()
+    }
+
     /// Criterion M2: Add Marker and Next Marker set the current marker of the ruler, and Esc and
     /// Deselect All clear it, with no mouse event. Control: a ruler value set only at a mouse
     /// event fails the Add step.

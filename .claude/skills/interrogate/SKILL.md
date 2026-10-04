@@ -23,7 +23,7 @@ Then list the settled choices, one line each: the scope, the run order, the choi
 Run the saved workflow `review-panel` with the Workflow tool:
 
 ```
-Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: ".scratchpads/runs/<run>/decisions.tsv", lenses?, paths? } })
+Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: ".scratchpads/runs/<run>/decisions.tsv", lenses?, paths?, worktree: "<absolute worktree path>" } })
 ```
 
 The workflow runs reviewer agents from `.claude/agents/` in parallel. Skeptics try to refute each warning and critical finding. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, the plan gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate adds `code-quality-reviewer` and makes one call per item below that the classes from `scripts/check-changed.sh` match:
@@ -33,11 +33,11 @@ The workflow runs reviewer agents from `.claude/agents/` in parallel. Skeptics t
 - tooling, tests, bundle, build: `lenses: ["code-quality"]`, with their changed paths in `paths`. Skip this call when the default lenses run.
 - other docs paths: no panel.
 
-Take `maxRounds` from the class table of the **deliver** skill. An error for an empty lens selection, or for a `paths` scope with no changed file, is not a clean review: correct the arguments.
+Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or for a `paths` scope with no changed file, is not a clean review: correct the arguments. A branch in a worktree needs `worktree`.
 
-Pass `round`, and the verdict files of the earlier rounds in `prior`. The workflow picks the mode: open (round 1), follow-up, or convergence (`round` = `maxRounds`). Each round finds new edge cases, so an open last round never closes the gate. The convergence round closes it.
+Pass `round`, and the earlier verdict files in `prior`. The workflow picks the mode: open (round 1), follow-up, or convergence (`round` = `maxRounds`). An open last round never closes the gate; the convergence round closes it.
 
-The Workflow tool caches saved workflows by name at session start. If `.claude/workflows/review-panel.js` changed in this session, pass `scriptPath: ".claude/workflows/review-panel.js"` instead of `name`.
+The Workflow tool caches saved workflows at session start: after a change to `.claude/workflows/review-panel.js` in this session, pass `scriptPath: ".claude/workflows/review-panel.js"` instead of `name`.
 
 A lens in `missing` (no result, or no `checked` list) makes the gate incomplete, because an empty result looks the same as "no findings". Run that lens again with the Agent tool before you judge.
 

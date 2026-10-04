@@ -77,6 +77,22 @@ async function expectThrow(name, args, pattern, files = []) {
   const scoped = await expectKeys('five lenses on a skills diff', { target: 'diff', lenses: FIVE, paths: PATHS }, FIVE, [], ['AGENTS.md'])
   if (scoped && !scoped.prompts.some(p => p.includes(`git diff main...HEAD -- ${PATHS.join(' ')}`))) fail('five lenses on a skills diff: no reviewer prompt has the paths scope')
   await expectKeys('default diff lenses', { target: 'diff' }, ['premortem', 'devils-advocate', 'architecture', 'code-quality'])
+  // A worktree arg: each git command of the scope, reviewer, and skeptic prompts runs with -C, and
+  // each prompt names the tree for file reads. The main checkout has an empty diff for a branch
+  // that lives in a worktree.
+  try {
+    const got = await run({ target: 'diff', lenses: ['premortem'], paths: ['a.sh'], worktree: '/abs/wt' }, ['a.sh'], { premortem: [finding('warning', 'warn one')] })
+    for (const label of ['scope', 'review:premortem', 'verify:premortem']) {
+      const prompt = got.prompts[got.labels.indexOf(label)]
+      if (!prompt) { fail(`worktree: no ${label} prompt`); continue }
+      if (!prompt.includes('`git -C /abs/wt diff')) fail(`worktree: the ${label} prompt has no git -C /abs/wt diff`)
+      if (/`git diff/.test(prompt)) fail(`worktree: the ${label} prompt has a git diff with no -C`)
+      if (!prompt.includes('read each file there')) fail(`worktree: the ${label} prompt does not name the tree for file reads`)
+    }
+  } catch (error) {
+    fail(`worktree: threw ${error.message}`)
+  }
+  await expectThrow('a relative worktree', { target: 'diff', worktree: 'wt' }, /absolute path/)
   await expectKeys('default plan lenses', { target: 'plan' }, ['premortem', 'devils-advocate', 'architecture'])
   await expectKeys('an unknown key', { target: 'diff', lenses: ['premortem', 'nope'] }, ['premortem'], ['nope'])
   await expectThrow('only an unknown key', { target: 'diff', lenses: ['nope'] }, /no lens/)

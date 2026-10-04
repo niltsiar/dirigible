@@ -47,7 +47,9 @@ import Testing
         await model.close()
     }
 
-    @Test func cutPutsTheExcerptOnTheClipboardAndClears() async throws {
+    /// Decision 0037 (C7): Cut closes the gap on every track. Control: the Release 1 clear keeps
+    /// the gap on t2 (0..<48 000 and 96 000..<2 880 000).
+    @Test func cutPutsTheExcerptOnTheClipboardAndClosesTheGap() async throws {
         let (model, studio, _, _) = try await open()
         model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1", "t2"])
 
@@ -60,7 +62,9 @@ import Testing
                 [Clip(id: "c1", file: "f1", start: 0, offset: 48_000, length: 48_000)],
                 [Clip(id: "c2", file: "f1", start: 0, offset: 48_000, length: 48_000)],
             ])
-        #expect(Array(studio.session.track("t2")!.clips).map(\.range) == [0..<48_000, 96_000..<2_880_000])
+        for track in ["t1", "t2", "t3"] as [TrackID] {
+            #expect(Array(studio.session.track(track)!.clips).map(\.range) == [0..<48_000, 48_000..<2_832_000])
+        }
         await model.close()
     }
 

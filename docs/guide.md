@@ -161,7 +161,7 @@ A selection has an in point, an out point, and one or more tracks. Two triangles
 
 ### Change the audio
 
-- **Cut** copies the selection and leaves silence.
+- **Cut** copies the selection, removes it from all tracks, and closes the gap.
 - **Copy** copies the selection. You can paste it only in the same window.
 - **Paste** puts the copy at the playhead on the selected tracks. With no track selected, it uses the tracks that you copied from. The copy replaces the audio under it.
 - **Delete** removes the selection and leaves silence.
@@ -377,7 +377,11 @@ macOS adds **Undo** (Command-Z) and **Redo** (Shift-Command-Z) at the top of the
 | **Cut** | **Cortar** | Command-X |
 | **Copy** | **Copiar** | Command-C |
 | **Paste** | **Pegar** | Command-V |
+| **Insert** | **Insertar** | Command-I |
 | **Delete** | **Eliminar** | Delete |
+| **Delete and Close Gap** | **Eliminar y cerrar hueco** | Shift-Delete |
+| **Cut in Selected Tracks** | **Cortar en las pistas seleccionadas** | Option-Command-X |
+| **Delete and Close Gap in Selected Tracks** | **Eliminar y cerrar hueco en las pistas seleccionadas** | Option-Shift-Delete |
 | **Select All** | **Seleccionar todo** | Command-A |
 | **Set In Point** | **Marcar entrada** | I |
 | **Set Out Point** | **Marcar salida** | O |

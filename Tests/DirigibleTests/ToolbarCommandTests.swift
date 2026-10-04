@@ -136,7 +136,9 @@ struct ToolbarMenuTests {
 
         model.timeline.marks = Marks(inPoint: 0, outPoint: 24_000, tracks: ["t1"])
         try await click(.cut, chrome)
-        #expect(studio.session.track("t1")?.clips.first?.start == 24_000, "Cut removed no range")
+        // Cut closes the gap (decision 0037): the clip starts at 0 and is 24 000 frames shorter.
+        let first = studio.session.track("t1")?.clips.first
+        #expect(first?.start == 0 && first?.length == 456_000, "Cut removed no range: \(String(describing: first))")
 
         let editor = try await focusName(in: window)
         editor.selectAll(nil)

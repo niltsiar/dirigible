@@ -2,6 +2,12 @@
 // app checks in the verify phase. Start the app first with `make run`.
 // The terminal app needs the Accessibility permission, and the screen must be unlocked.
 // Points are from the top-left corner of the window. Each event waits 20 ms.
+// The target app has the bundle ID in DIRIGIBLE_BUNDLE_ID (default com.delineas.dirigible; the
+// verify copy is com.delineas.dirigible.verify). Before each burst of events (a key with its
+// modifier keys, a typed character, a click, a drag, an up, a scroll), the script activates the
+// target app and waits up to 2 s until it is frontmost. Else it posts nothing and exits 4. A
+// HID event goes to the frontmost app: the verify copy once opened behind the terminal, and the
+// keys and the text of a check went to the terminal (run 2026-10-04-hid-front).
 //
 // usage: hid.swift drag <x> <y> <dx> <dy> [--no-up]   a left drag in 20 steps, then the up
 //        hid.swift up <x> <y>                         a left mouse-up (after drag --no-up)
@@ -9,6 +15,9 @@
 //        hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
 //                                                     a key down and up (53 = Esc, 6 = Z), with the
 //                                                     modifier keys down before it and up after it
+//        hid.swift type <text> [--dry-run]            the text, one key down and up for each
+//                                                     character, with no modifier; a word that
+//                                                     starts with "--" is a flag, not text
 //        hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
 //                                                     one mouse wheel event in lines at the point;
 //                                                     with --phases a trackpad gesture of 10 events
@@ -18,8 +27,11 @@
 //                                                     horizontal scroll only for lines)
 // A key event with a modifier flag and no modifier key left the system modifier held: every later
 // CGEvent of any process took it (run 1b Phase 7: the wheel of two tests became a Command-wheel).
-// --dry-run prints the key and wheel events and posts nothing.
-// Exit: 0 posted, 1 no Dirigible window, 2 usage, 3 no Accessibility trust.
+// --dry-run does the frontmost check, then prints the key, text, and wheel events and posts nothing.
+// Exit: 0 posted, 1 no Dirigible window, 2 usage or an empty DIRIGIBLE_BUNDLE_ID, 3 no
+// Accessibility trust, 4 the target app is not frontmost (it does not run, or it did not come to
+// the front in 2 s).
+import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
@@ -29,6 +41,7 @@ let usage = """
            hid.swift up <x> <y>
            hid.swift click <x> <y> [--right] [--double]
            hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
+           hid.swift type <text> [--dry-run]
            hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
 
     """
@@ -44,11 +57,38 @@ let known: Set = ["--no-up", "--right", "--double", "--command", "--shift", "--o
 guard flags.isSubset(of: known) else { fail(usage, 2) }
 let words = arguments.filter { !$0.hasPrefix("--") }
 guard let command = words.first else { fail(usage, 2) }
-let numbers = words.dropFirst().map(Double.init)
+let text = command == "type" ? words.dropFirst().joined(separator: " ") : ""
+if command == "type", text.isEmpty || !flags.isSubset(of: ["--dry-run"]) { fail(usage, 2) }
+let numbers = command == "type" ? [] : words.dropFirst().map(Double.init)
 guard numbers.allSatisfy({ $0 != nil }) else { fail(usage, 2) }
 let values = numbers.compactMap { $0 }
-let counts = ["drag": 4, "up": 2, "click": 2, "key": 1, "scroll": 4]
+let counts = ["drag": 4, "up": 2, "click": 2, "key": 1, "type": 0, "scroll": 4]
 guard let count = counts[command], values.count == count else { fail(usage, 2) }
+let bundleID = ProcessInfo.processInfo.environment["DIRIGIBLE_BUNDLE_ID"] ?? "com.delineas.dirigible"
+if bundleID.isEmpty { fail("DIRIGIBLE_BUNDLE_ID is empty. Unset it, or give a bundle ID.", 2) }
+
+/// Waits and lets the run loop run, so that the frontmost app of NSWorkspace stays current.
+func wait(_ seconds: Double) { RunLoop.current.run(until: Date(timeIntervalSinceNow: seconds)) }
+func wait20ms() { wait(0.02) }
+
+/// Brings the target app to the front, or exits 4. Call it before each burst of events, never
+/// between a modifier key down and its up.
+@discardableResult
+func requireFront() -> NSRunningApplication {
+    let notFront = "The target app is not frontmost: \(bundleID)"
+    guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
+        fail("\(notFront) does not run. Nothing was posted.", 4)
+    }
+    if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleID { return app }
+    app.activate(options: [])
+    for _ in 0..<100 {
+        wait20ms()
+        if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleID { return app }
+    }
+    fail("\(notFront) did not come to the front in 2 s. Nothing was posted.", 4)
+}
+
+let target = requireFront()
 
 // The key events: each modifier key down, the key down and up, each modifier key up.
 let modifiers: [(flag: String, code: CGKeyCode, mask: CGEventFlags)] = [
@@ -77,6 +117,10 @@ if command == "key" {
         exit(0)
     }
 }
+if command == "type", flags.contains("--dry-run") {
+    print("type \(text)")
+    exit(0)
+}
 /// A mouse wheel gives lines; a trackpad gesture gives pixels.
 let units: CGScrollEventUnit = flags.contains("--phases") ? .pixel : .line
 if command == "scroll", flags.contains("--dry-run") {
@@ -90,8 +134,6 @@ guard AXIsProcessTrusted() else {
     fail("No Accessibility trust. Add the terminal app in System Settings > Privacy & Security > Accessibility.", 3)
 }
 
-func wait20ms() { usleep(20_000) }
-
 func post(_ keys: [(code: CGKeyCode, down: Bool, mask: CGEventFlags)]) {
     for key in keys {
         let event = CGEvent(keyboardEventSource: nil, virtualKey: key.code, keyDown: key.down)
@@ -101,13 +143,31 @@ func post(_ keys: [(code: CGKeyCode, down: Bool, mask: CGEventFlags)]) {
     }
 }
 
-if command == "key" {
+switch command {
+case "key":
+    requireFront()
     post(keyEvents)
     exit(0)
+case "type":
+    for character in text {
+        requireFront()
+        let utf16 = Array(String(character).utf16)
+        for down in [true, false] {
+            let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: down)
+            event?.flags = []
+            event?.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
+            event?.post(tap: .cghidEventTap)
+            wait20ms()
+        }
+    }
+    exit(0)
+default:
+    break
 }
 
+// The window of the target app, by its PID: the real app and the verify copy have the same name.
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-guard let window = windows.first(where: { $0[kCGWindowOwnerName as String] as? String == "Dirigible" }),
+guard let window = windows.first(where: { $0[kCGWindowOwnerPID as String] as? pid_t == target.processIdentifier }),
     let bounds = window[kCGWindowBounds as String] as? [String: Double], let left = bounds["X"], let top = bounds["Y"]
 else { fail("No Dirigible window on screen. Run make run first.", 1) }
 let origin = CGPoint(x: left + values[0], y: top + values[1])
@@ -118,6 +178,7 @@ func mouse(_ type: CGEventType, _ point: CGPoint) {
     wait20ms()
 }
 
+requireFront()
 switch command {
 case "drag":
     mouse(.mouseMoved, origin)

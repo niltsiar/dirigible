@@ -5,7 +5,7 @@ description: "Use for \"verify this\", \"prove it works\", \"did this fix it\", 
 
 # Verify This
 
-Verification is not a recap: it proves or disproves one claim with repeatable evidence. Use it when a bug fix needs a before/after repro, when a UI, CLI, API, performance, or memory claim needs measurement, or when a test passes but the user-visible behavior needs confirmation. For a vague claim ("the code is cleaner"), ask for a measurable claim first.
+Verification proves or disproves one claim with repeatable evidence: a before/after repro of a bug fix, a measured UI, CLI, API, performance, or memory claim, or the user-visible behavior behind a passing test. For a vague claim ("the code is cleaner"), ask for a measurable claim first.
 
 ## Workflow
 
@@ -21,7 +21,7 @@ Verification is not a recap: it proves or disproves one claim with repeatable ev
 - Code behavior: focused tests or a minimal repro script.
 - Audio files: `afinfo <file>` for format, channels, sample rate, and duration. `ffprobe -hide_banner <file>` for container facts.
 - Audio levels: `ffmpeg -i <file> -af ebur128 -f null -` for integrated loudness (LUFS) and true peak. `ffmpeg -i <file> -af astats -f null -` for RMS, peak, and noise floor.
-- Session files: `xmllint --noout <file>` for well-formed XML, then read the actual elements.
+- Session files: `xmllint --noout <file>`, then read the actual elements. To check an edit with no screen, apply it to a scratch package with the `dirigible` CLI, then read the result with `dirigible info`, `render`, or `export` and `afinfo`. Start no CLI build while a test or a bench runs.
 - The built app: read `references/driving-the-app.md` when a check launches, drives, or captures the app, when you check a visual report of the user, or when a doc quotes macOS text. A check that writes preferences runs on the verify copy (`scripts/verify-copy.sh`).
 - Performance: same-machine baseline and treatment timings, or an Instruments trace from `xcrun xctrace record`. Compare the benches with main through `scripts/bench-pairs.sh`. Fix the pair count before the runs, and do not pick the clean pairs after the results.
 - Memory: `leaks <pid>` or `footprint <pid>` before and after the suspected operation.

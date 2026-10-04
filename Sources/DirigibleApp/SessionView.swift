@@ -139,6 +139,7 @@ private struct TimelinePane: View {
             let height = model.timeline.laneHeight.points(free: free, tracks: tracks.count)
             TimelineLanes(
                 model: model, studio: studio, inputs: laneInputs(model, studio, laneHeight: height),
+                currentMarker: model.timeline.marker,
                 headers: TrackHeaders(model: model, studio: studio, laneHeight: height))
         }
     }

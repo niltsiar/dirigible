@@ -11,6 +11,7 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
     let model: SessionWindow
     let studio: Studio
     let inputs: LaneInputs
+    let currentMarker: MarkerID?
     /// Row n is the header of lane n, with the lane height.
     let headers: Headers
 
@@ -31,6 +32,7 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
         view.updates += 1
         view.headers.host.rootView = AnyView(headers)
         view.update(inputs)
+        view.ruler.current = currentMarker
     }
 }
 

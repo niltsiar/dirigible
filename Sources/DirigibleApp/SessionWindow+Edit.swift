@@ -115,7 +115,9 @@ extension SessionWindow {
 
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers
     /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
-    /// marker. Rename, Move, and Delete act on the current marker when the session has it.
+    /// marker. Rename, Move, and Delete act on the current marker when the session has it, else
+    /// they beep; Move with the marker at the playhead beeps too. During a take they do nothing
+    /// and do not beep, as no edit command acts then (decision 0018).
     func runMarker(_ command: TimelineCommand, _ studio: Studio) {
         let (session, playhead) = (studio.session, studio.playhead)
         switch command {
@@ -131,11 +133,12 @@ extension SessionWindow {
                 .min { ($0.kind == .chapter ? 1 : 0, $0.id) < ($1.kind == .chapter ? 1 : 0, $1.id) }?.id
             Task { await studio.perform(.seek(.frame(frame))) }
         case .renameMarker, .moveMarker, .deleteMarker:
-            guard var marker = timeline.marker.flatMap({ session.markers[$0] }) else { return }
+            guard canEdit else { return }
+            guard var marker = timeline.marker.flatMap({ session.markers[$0] }) else { return beep() }
             switch command {
-            // During a take the alert does not open, as no edit command acts then (decision 0018).
-            case .renameMarker where canEdit: timeline.renaming = MarkerRename(id: marker.id, name: marker.name)
+            case .renameMarker: timeline.renaming = MarkerRename(id: marker.id, name: marker.name)
             case .moveMarker:
+                guard marker.position != playhead else { return beep() }
                 marker.position = playhead
                 edit { s throws(SessionError) in try s.setMarker(marker) }
             case .deleteMarker:

@@ -72,7 +72,7 @@ struct TimelineState {
     var canGoBack = false
     var canGoForward = false
     /// The current marker (decision 0018): Rename, Move, and Delete act on it. An undo can remove
-    /// it from the session; then they do nothing.
+    /// it from the session; then they beep.
     var marker: MarkerID?
     /// The rename alert: open while not nil.
     var renaming: MarkerRename?

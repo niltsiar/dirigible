@@ -111,5 +111,7 @@ struct GainLineRendererTests {
         #expect(text(.fade(.start, 22_080), es, "es") == "Entrada 460 ms")
         #expect(text(.fade(.end, 24), en, "en") == "Fade Out 1 ms", "rounded to the nearest ms")
         #expect(text(.fade(.end, 24), es, "es") == "Salida 1 ms")
+        #expect(text(.crossfade(960), en, "en") == "Crossfade 20 ms")
+        #expect(text(.crossfade(960), es, "es") == "Fundido cruzado 20 ms")
     }
 }

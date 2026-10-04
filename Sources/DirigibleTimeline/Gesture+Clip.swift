@@ -6,10 +6,13 @@ public enum GestureReadout: Equatable, Sendable {
     case gain(Gain)
     /// The edge of the fade and its length.
     case fade(Fades.Edge, Frames)
+    /// The length of a crossfade (decision 0036).
+    case crossfade(Frames)
 }
 
 /// The clip part of the gesture (run 11b-1): a drag of the gain line sets the clip gain, a drag of
-/// a fade handle sets that fade, and a double-click on either resets it. Each makes one Core edit
+/// a fade handle sets that fade or the crossfade of that edge (decision 0036), and a double-click
+/// on either resets it. Each makes one Core edit
 /// on the session of the mouse-down, as a trim does, and the commit selects the clip.
 extension TimelineGesture {
     /// A gain drag: the clip at the down, its lane, the gain, and the session with that gain.
@@ -30,13 +33,48 @@ extension TimelineGesture {
         var preview: Session
     }
 
-    /// The value of a gain or fade drag; nil in every other state.
+    /// A crossfade-handle drag (decision 0036): the clip at the down, the edge of the handle, its
+    /// lane, the left clip of the join, the limit of the join at the down, the length, and the
+    /// session with that length.
+    struct CrossfadeDrag: Sendable {
+        let clip: Clip
+        let edge: Edge
+        let lane: Int
+        let left: ClipID
+        let limit: Frames
+        var length: Frames
+        var preview: Session
+    }
+
+    /// The value of a gain, fade, or crossfade drag; nil in every other state.
     public var readout: GestureReadout? {
         switch state {
         case .gaining(_, let drag): .gain(drag.gain)
         case .fading(_, let drag): .fade(drag.edge, drag.edge == .start ? drag.fades.fadeIn : drag.fades.fadeOut)
+        case .crossfading(_, let drag): .crossfade(drag.length)
         default: nil
         }
+    }
+
+    /// The index of the left clip of the join at `edge` of the clip, in `clips`; nil when the
+    /// lane does not hold the clip.
+    static func joinLeft(of clip: Clip, _ edge: Edge, in clips: ClipLane) -> Int? {
+        clips.index(holding: clip.start).map { edge == .end ? $0 : $0 - 1 }
+    }
+
+    /// The drag of a handle: a crossfade drag at an edge with a crossfade, else a fade drag.
+    func handleState(_ press: Press, _ clip: Clip, _ edge: Edge, _ lane: Int) -> State {
+        let clips = press.base.tracks[lane].clips
+        let length = clip.crossfades[edge]
+        guard length != .zero, let left = Self.joinLeft(of: clip, edge, in: clips) else {
+            return .fading(press, FadeDrag(clip: clip, edge: edge, lane: lane, fades: clip.fades, preview: press.base))
+        }
+        let limit = press.base.crossfadeLimit(after: left, in: clips) ?? length
+        return .crossfading(
+            press,
+            CrossfadeDrag(
+                clip: clip, edge: edge, lane: lane, left: clips[left].id, limit: limit, length: length,
+                preview: press.base))
     }
 
     /// A gain drag event: the line stays under the pointer (60 dB per lane height), rounded to
@@ -85,6 +123,30 @@ extension TimelineGesture {
         return []
     }
 
+    /// A crossfade-handle drag event, relative to the press: a drag away from the join adds 2 x its
+    /// frames, and a drag toward it takes them off, from 0 to the limit at the down. 0 removes the
+    /// crossfade from both clips, and a drag back out makes it again. A take ends the drag.
+    mutating func crossfadeDrag(_ press: Press, _ drag: CrossfadeDrag, _ x: Double, _ context: GestureContext)
+        -> [GestureEffect]
+    {
+        guard context.canEdit else {
+            state = .dropped
+            return []
+        }
+        let twice = Frames(2 * press.delta(to: x, context.geometry).count)
+        let start = drag.clip.crossfades[drag.edge]
+        let length = min(max(.zero, drag.edge == .end ? start - twice : start + twice), drag.limit)
+        guard length != drag.length else { return [] }
+        var preview = press.base
+        // The clamp keeps the length even and inside the limit, so no input reaches a throw. A
+        // throw keeps the last preview.
+        guard (try? preview.setCrossfades([drag.left: length])) != nil else { return [] }
+        var drag = drag
+        (drag.length, drag.preview) = (length, preview)
+        state = .crossfading(press, drag)
+        return []
+    }
+
     /// The mouse-up of a gain drag: one commit when the gain changed; else a click.
     func commit(_ press: Press, _ drag: GainDrag, _ context: GestureContext) -> [GestureEffect] {
         guard drag.gain != drag.clip.gain else { return click(press, context) }
@@ -97,14 +159,27 @@ extension TimelineGesture {
         return [.commit(commit(press, drag.clip, drag.lane, drag.preview))]
     }
 
-    /// The mouse-up of a double-click on the gain band or a fade handle: one commit that sets the
-    /// gain to 0 dB or that fade to 0. Nil (a click) when it changes nothing or a take runs.
+    /// The mouse-up of a crossfade-handle drag: one commit when the length changed; else a click.
+    func commit(_ press: Press, _ drag: CrossfadeDrag, _ context: GestureContext) -> [GestureEffect] {
+        guard drag.length != drag.clip.crossfades[drag.edge] else { return click(press, context) }
+        return [.commit(commit(press, drag.clip, drag.lane, drag.preview))]
+    }
+
+    /// The mouse-up of a double-click on the gain band or a handle: one commit that sets the gain
+    /// to 0 dB, that fade to 0, or removes the crossfade of that edge. Nil (a click) when it
+    /// changes nothing or a take runs.
     func reset(_ press: Press, _ context: GestureContext) -> [GestureEffect]? {
         guard press.clicks >= 2, context.canEdit, case .lane(let hit) = press.target else { return nil }
         var result = press.base
         switch hit {
         case .gain(let clip, let lane):
             guard clip.gain != .zero, (try? result.setGain(.zero, clip: clip.id)) != nil else { return nil }
+            return [.commit(commit(press, clip, lane, result))]
+        case .fade(let clip, let edge, let lane) where clip.crossfades[edge] != .zero:
+            let clips = press.base.tracks[lane].clips
+            guard let left = Self.joinLeft(of: clip, edge, in: clips),
+                (try? result.setCrossfades([clips[left].id: .zero])) != nil
+            else { return nil }
             return [.commit(commit(press, clip, lane, result))]
         case .fade(let clip, let edge, let lane):
             let old = clip.fades

@@ -162,6 +162,7 @@
 "timeline.readout.gain" = "Gain %@ dB";
 "timeline.readout.fade.in" = "Fade In %@ ms";
 "timeline.readout.fade.out" = "Fade Out %@ ms";
+"timeline.readout.crossfade" = "Crossfade %@ ms";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Zoom In";

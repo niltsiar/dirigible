@@ -39,6 +39,20 @@ struct TrimLimitsTests {
         #expect(try limits(g, .start, withG) == 96_000...143_520)
     }
 
+    /// G9 (run 11c-2): a trim stops at half of the crossfade at the other edge, and at least at the
+    /// minimum. A has a crossfade of 19,200 at its end, so its start stops 9,600 before its end; B
+    /// has it at its start, so its end stops 9,600 after its start. Fail value: 1 frame past.
+    @Test func aTrimStopsAtTheCrossfadeHalf() throws {
+        var session = try Fixture.session()
+        try session.move("B", to: "t1", start: 96_000)
+        try session.setCrossfades(["A": 19_200])
+        let (a, b) = (session.clip("A")!.clip, session.clip("B")!.clip)
+
+        #expect(try limits(a, .start, session).upperBound == 86_400)
+        #expect(try limits(b, .end, session).lowerBound == 105_600)
+        #expect(try limits(a, .end, session).lowerBound == 48_480, "no crossfade at the start of A: the minimum")
+    }
+
     /// A clip shorter than the minimum, and a clip that passes the end of its WAV (a WAV shorter
     /// than its pool entry): the range still holds the edge where it is.
     @Test func trimLimitsAlwaysHoldTheCurrentEdge() throws {

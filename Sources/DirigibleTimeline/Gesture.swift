@@ -116,9 +116,10 @@ public struct TimelineGesture: Sendable {
         case pressed(Press)
         case moving(Press, Move)
         case trimming(Press, Trim)
-        /// A drag of the gain line or of a fade handle (`Gesture+Clip.swift`).
+        /// A drag of the gain line, of a fade handle, or of a crossfade handle (`Gesture+Clip.swift`).
         case gaining(Press, GainDrag)
         case fading(Press, FadeDrag)
+        case crossfading(Press, CrossfadeDrag)
         case ranging(Press)
         /// A flag drag: the marker at the down, and the session with the marker moved.
         case markerDrag(Press, Marker, preview: Session)
@@ -144,7 +145,7 @@ public struct TimelineGesture: Sendable {
     /// a triangle. Autoscroll runs only then (decision 0025).
     public var autoscrolls: Bool {
         switch state {
-        case .moving, .trimming, .fading, .ranging, .markerDrag, .pointDrag: true
+        case .moving, .trimming, .fading, .crossfading, .ranging, .markerDrag, .pointDrag: true
         case .idle, .dropped, .pressed, .gaining: false
         }
     }
@@ -182,6 +183,7 @@ public struct TimelineGesture: Sendable {
             case .trimming(let press, let trim): return commit(press, trim, context)
             case .gaining(let press, let gain): return commit(press, gain, context)
             case .fading(let press, let fade): return commit(press, fade, context)
+            case .crossfading(let press, let crossfade): return commit(press, crossfade, context)
             case .markerDrag(let press, let original, let preview): return commit(press, original, preview)
             case .ranging, .pointDrag: return effects
             case .idle, .dropped: return []
@@ -192,7 +194,7 @@ public struct TimelineGesture: Sendable {
             case .pressed:
                 state = .idle
                 return []
-            case .moving, .trimming, .gaining, .fading, .markerDrag:
+            case .moving, .trimming, .gaining, .fading, .crossfading, .markerDrag:
                 state = .dropped
                 return []
             case .ranging(let press), .pointDrag(let press, _):
@@ -201,7 +203,7 @@ public struct TimelineGesture: Sendable {
             }
         case .sessionChanged:
             switch state {
-            case .moving, .trimming, .gaining, .fading, .markerDrag: state = .dropped
+            case .moving, .trimming, .gaining, .fading, .crossfading, .markerDrag: state = .dropped
             case .pressed(let press) where press.target.edits: state = .idle
             default: break
             }
@@ -217,6 +219,7 @@ public struct TimelineGesture: Sendable {
         case .trimming(_, let trim): trim.preview
         case .gaining(_, let gain): gain.preview
         case .fading(_, let fade): fade.preview
+        case .crossfading(_, let crossfade): crossfade.preview
         case .markerDrag(_, _, let preview): preview
         default: session
         }
@@ -226,7 +229,7 @@ public struct TimelineGesture: Sendable {
     public func cursor(at place: Place, _ context: GestureContext) -> TimelineCursor {
         switch state {
         case .moving: return .closedHand
-        case .trimming, .fading, .markerDrag, .pointDrag: return .resizeLeftRight
+        case .trimming, .fading, .crossfading, .markerDrag, .pointDrag: return .resizeLeftRight
         case .gaining: return .resizeUpDown
         case .ranging: return .iBeam
         case .idle, .dropped, .pressed: break
@@ -274,8 +277,7 @@ public struct TimelineGesture: Sendable {
                 return drag(place, context)
             case .lane(.fade(let clip, let edge, let lane)):
                 guard context.canEdit else { return [] }
-                state = .fading(
-                    press, FadeDrag(clip: clip, edge: edge, lane: lane, fades: clip.fades, preview: press.base))
+                state = handleState(press, clip, edge, lane)
                 return drag(place, context)
             case .lane(.range):
                 state = .ranging(press)
@@ -323,6 +325,8 @@ public struct TimelineGesture: Sendable {
             return gainDrag(press, gain, y, context)
         case .fading(let press, let fade):
             return fadeDrag(press, fade, x, context)
+        case .crossfading(let press, let crossfade):
+            return crossfadeDrag(press, crossfade, x, context)
         case .ranging(let press):
             let drag = Marks.drag(
                 from: press.frame, to: geometry.frame(at: x), lanes: (geometry.lane(at: press.y), geometry.lane(at: y)),

@@ -23,7 +23,7 @@ Match and route each learning by rules 1-3 of `.claude/skills/reflect/SKILL.md`:
 3. Compare each learning with the `seen.sh` output of its key and with every `seen-once` line, also of other keys. For a second occurrence, record the earlier line (file:line) and the shared cause. Else the learning is new.
 4. Give each learning one route:
    - `seen-once`: a new learning. It gets one line in `learnings.md` and no skill edit.
-   - `enforce`: a test, script, hook, lint rule, or `Makefile` target can enforce it. Name the mechanism, its test, and the prose that it replaces. When one class of hook false positive is in `learnings.md` twice, fix the hook with a test case. Do not add another workaround line.
+   - `enforce`: a mechanism can enforce it. Take the first that fits: a compiler check (a type, an access level), then a test, script, hook, lint rule, or `Makefile` target. Name the mechanism, its test, and the prose that it replaces. When one class of hook false positive is in `learnings.md` twice, fix the hook with a test case. Do not add another workaround line.
    - `replace` or `merge`: it changes an existing rule in the same section, or joins one. For a merge, name the kept ID.
    - `backlog`: it fails the budget test, or it needs a user decision.
 

@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// Crossfades at a butt join (decision 0036). Track "t1" (mono). Clip A on file "fa" and clip B on
+/// Crossfades at a butt join (decision 0036). Tracks "t1" and "t2" (mono). Clip A on file "fa" and clip B on
 /// file "fb", each file 10 000 frames. A is 1 000 ..< 5 000 at offset 1 000, B is 5 000 ..< 9 000 at
 /// offset 1 000, so the join J is 5 000 with 5 000 frames of handle after A and 1 000 before B.
 struct CrossfadeTests {
@@ -15,6 +15,7 @@ struct CrossfadeTests {
             try session.addFile(AudioFile(id: id, path: "\(id).wav", layout: .mono, length: 10_000))
         }
         try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.addTrack("t2", name: "Guest", layout: .mono)
     }
 
     /// Places A and B with the given changes, on a session with no other clips.
@@ -161,6 +162,8 @@ struct CrossfadeTests {
     @Test(
         arguments: [
             ("move A", [:]),
+            ("move A to t2", [:]),
+            ("move B to t2", [:]),
             ("trim A's end", [:]),
             ("trim B's start", [:]),
             ("clear over J", [:]),
@@ -192,6 +195,8 @@ struct CrossfadeTests {
         try session.setCrossfades(["A": 960])
         switch edit {
         case "move A": try session.move("A", to: "t1", start: 0)
+        case "move A to t2": try session.move("A", to: "t2", start: 1_000)
+        case "move B to t2": try session.move("B", to: "t2", start: 5_000)
         case "trim A's end": try session.trim("A", to: 1_000..<4_500)
         case "trim B's start": try session.trim("B", to: 5_500..<9_000)
         case "clear over J": try session.clear(4_900..<5_100, on: "t1")

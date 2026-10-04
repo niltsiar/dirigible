@@ -107,19 +107,22 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     mutating func insert(sorted clips: [Clip]) {
         var merged: [Clip] = []
         merged.reserveCapacity(storage.count + clips.count)
+        var inserted: [Int] = []
         var (i, j) = (0, 0)
         while i < storage.count || j < clips.count {
             if j == clips.count || (i < storage.count && storage[i].start < clips[j].start) {
                 merged.append(storage[i])
                 i += 1
             } else {
+                inserted.append(merged.count)
                 merged.append(clips[j])
                 j += 1
             }
         }
         assert(zip(merged, merged.dropFirst()).allSatisfy { $0.end <= $1.start }, "An insert overlaps a clip")
         storage = merged
-        repair(storage.indices)
+        // The lane held its pairing before, so only the joins next to an inserted clip can change.
+        for index in inserted { repair((index - 1)..<(index + 2)) }
     }
 
     /// The index of the clip with `start <= frame < end`, by binary search.
@@ -145,9 +148,10 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair(storage.indices)
     }
 
+    /// Only the joins of the two new neighbors can change.
     mutating func remove(at index: Int) {
         storage.remove(at: index)
-        repair(storage.indices)
+        repair((index - 1)..<(index + 1))
     }
 
     /// One clip changes and no clip moves, so only the joins of its neighbors can break.

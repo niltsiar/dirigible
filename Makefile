@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app icon-preview test test-filter test-slow check-slow-gates check-warnings bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
+.PHONY: setup build app icon-preview test test-filter test-slow check-slow-gates check-warnings check-sizes bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -102,6 +102,12 @@ check-warnings:
 	scripts/check-warnings.test.sh
 	scripts/check-warnings.sh
 
+# No Swift file under Sources/ or Tests/ is over 400 lines without an entry in
+# scripts/check-sizes.allow (AGENTS.md, File size).
+check-sizes:
+	scripts/check-sizes.test.sh
+	scripts/check-sizes.sh
+
 # Stop only the app of this tree, by its executable path: the verify copy and the test fakes
 # are also named Dirigible.
 run: app
@@ -114,10 +120,10 @@ lint:
 format:
 	swift format format --in-place --recursive $(SWIFT_SOURCES)
 
-check: lint check-docs check-slow-gates check-warnings test test-hooks test-app
+check: lint check-docs check-slow-gates check-warnings check-sizes test test-hooks test-app
 
 # The checks with no Swift test: for a change to scripts, hooks, or workflows.
-check-fast: lint check-docs check-slow-gates check-warnings test-hooks
+check-fast: lint check-docs check-slow-gates check-warnings check-sizes test-hooks
 
 # Runs the targets that scripts/check-changed.sh picks for the changed paths (decision 0028).
 # With BASE, the targets before the push. With FILTER and no BASE, test-filter in place of test.

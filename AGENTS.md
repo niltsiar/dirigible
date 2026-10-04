@@ -31,11 +31,12 @@ The Makefile comments give the reasons. The toolchain is Xcode 26 with Swift 6.2
 | `make format` | Formats the Swift files in place. |
 | `make check-docs` | Checks the docs, this table, the links, and the word budgets of `docs/workflow/budgets.tsv`. |
 | `make check-warnings` | Checks that each target treats warnings as errors. |
+| `make check-sizes` | Checks the 400-line limit of each Swift file. |
 | `make test-hooks` | Runs the tests of the hooks and scripts that the Makefile lists. |
 | `make check-fast` | `make check` with no Swift test. |
 | `make check-changed` | Runs the targets that `scripts/check-changed.sh` picks for the changed paths (decision 0028). `BASE=<ref>` gives the targets before the push. `FILTER='<name> <name>'` runs `test-filter` in place of `test`. |
 | `make test-filter FILTER='<name> <name>'` | Only the tests that match a name. It fails when no test ran. |
-| `make check` | `lint`, `check-docs`, `check-slow-gates`, `check-warnings`, `test`, `test-hooks`, and `test-app`. |
+| `make check` | `lint`, `check-docs`, `check-slow-gates`, `check-warnings`, `check-sizes`, `test`, `test-hooks`, and `test-app`. |
 | `make clean` | Deletes `.build` and `build`. |
 | `swift run dirigible --help` | The command-line tool. It makes, changes, and reads session packages (decision 0011). |
 
@@ -82,7 +83,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - **Localized UI.** Every user-facing string has an English and a Spanish text, and no UI text is only in code. UI strings go in `Support/Resources/<lang>.lproj/Localizable.strings`. Views look them up in `Bundle.main`, never `Bundle.module` (decision 0010). Permission texts go in `Support/Info.plist` and `es.lproj/InfoPlist.strings`. `AppBundleTests` checks both. The `dirigible` command-line text is English only, because scripts and agents compare it.
 - **CLI parity.** Each new public library feature that operates on a session package or an audio file (an edit, an import, a render, or an export) gets a `dirigible` command and a `DirigibleCLITests` test in the same run. `ParityTests` checks the public mutating methods of `DirigibleCore`. Another public feature gets one line in its run that says why it has no command. The CLI only parses, calls the library, and prints.
 - **No warnings.** Each target treats compiler warnings as errors (SE-0480). Fix a warning at its cause, never with a flag or an exception that hides it.
-- **File size.** A Swift file over 400 lines needs a reason. Split by responsibility, not by execution order.
+- **File size.** A Swift file over 400 lines needs a reason in `scripts/check-sizes.allow`. Split by responsibility, not by execution order. A fix run adds an entry; a refactor run splits.
 
 ## Testing rules
 

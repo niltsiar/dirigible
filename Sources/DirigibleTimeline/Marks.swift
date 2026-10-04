@@ -161,12 +161,20 @@ public struct Marks: Hashable, Sendable {
         return (clips.map(\.id), offset, marks)
     }
 
-    /// The clips of Auto Level (decision 0031): each whole clip on a selected track whose range
-    /// overlaps the selection. Nil with no selection.
-    public func clipsToLevel(in session: Session) -> Set<ClipID>? {
+    /// Each clip on a selected track whose range overlaps the selection, in session order, as its
+    /// lane and its index there. Auto Level, Command-F, and the inspector take these clips. Nil
+    /// with no selection.
+    public func touchedClips(in session: Session) -> [(lane: ClipLane, index: Int)]? {
         guard let selection = selection(in: session) else { return nil }
-        let tracks = selection.tracks.compactMap(session.track)
-        return Set(tracks.flatMap { $0.clips.filter { $0.range.overlaps(selection.range) }.map(\.id) })
+        return selection.tracks.compactMap(session.track).map(\.clips).flatMap { lane in
+            lane.indices.filter { lane[$0].range.overlaps(selection.range) }.map { (lane, $0) }
+        }
+    }
+
+    /// The clips of Auto Level (decision 0031): each whole clip that the selection touches. Nil
+    /// with no selection.
+    public func clipsToLevel(in session: Session) -> Set<ClipID>? {
+        touchedClips(in: session).map { Set($0.map { $0.lane[$0.index].id }) }
     }
 
     /// The fades of Command-F (decision 0035) for each clip on a selected track that overlaps the
@@ -176,28 +184,26 @@ public struct Marks: Hashable, Sendable {
     /// no fade in 11a. The new fade wins, and the other fade yields. Nil with no selection or no
     /// change.
     public func fades(in session: Session) -> [ClipID: Fades]? {
-        guard let selection = selection(in: session) else { return nil }
+        guard let selection = selection(in: session), let touched = touchedClips(in: session) else { return nil }
         let (low, high) = (selection.range.lowerBound, selection.range.upperBound)
         var result: [ClipID: Fades] = [:]
-        for lane in selection.tracks.compactMap(session.track).map(\.clips) {
-            for index in lane.indices where lane[index].range.overlaps(selection.range) {
-                let clip = lane[index]
-                let (start, end) = (low <= clip.start, clip.end <= high)
-                let standard = min(Frames(session.sampleRate / 2), Frames(clip.length.count / 2))
-                let joins = lane.joins(at: index)
-                let fadeIn = start && !joins.before ? (end ? standard : high - clip.start) : nil
-                let fadeOut = end && !joins.after ? (start ? standard : clip.end - low) : nil
-                let fades: Fades
-                switch (fadeIn, fadeOut) {
-                case (let fadeIn?, let fadeOut?): fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut)!
-                case (let fadeIn?, nil):
-                    fades = Fades(fadeIn: fadeIn, fadeOut: clip.fades.fadeOut)!.fitted(to: clip.length, keeping: .start)
-                case (nil, let fadeOut?):
-                    fades = Fades(fadeIn: clip.fades.fadeIn, fadeOut: fadeOut)!.fitted(to: clip.length, keeping: .end)
-                case (nil, nil): continue
-                }
-                if fades != clip.fades { result[clip.id] = fades }
+        for (lane, index) in touched {
+            let clip = lane[index]
+            let (start, end) = (low <= clip.start, clip.end <= high)
+            let standard = min(Frames(session.sampleRate / 2), Frames(clip.length.count / 2))
+            let joins = lane.joins(at: index)
+            let fadeIn = start && !joins.before ? (end ? standard : high - clip.start) : nil
+            let fadeOut = end && !joins.after ? (start ? standard : clip.end - low) : nil
+            let fades: Fades
+            switch (fadeIn, fadeOut) {
+            case (let fadeIn?, let fadeOut?): fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut)!
+            case (let fadeIn?, nil):
+                fades = Fades(fadeIn: fadeIn, fadeOut: clip.fades.fadeOut)!.fitted(to: clip.length, keeping: .start)
+            case (nil, let fadeOut?):
+                fades = Fades(fadeIn: clip.fades.fadeIn, fadeOut: fadeOut)!.fitted(to: clip.length, keeping: .end)
+            case (nil, nil): continue
             }
+            if fades != clip.fades { result[clip.id] = fades }
         }
         return result.isEmpty ? nil : result
     }

@@ -69,7 +69,8 @@ struct ExportReportShown: Equatable {
     var inspectorDraft: InspectorDraft?
     /// The inspector field with the focus, from the pane.
     @ObservationIgnored var inspectorFocus: InspectorField?
-    /// The body runs of the inspector, for the tests.
+    /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
+    /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0
     /// The sound of a refused typed number. Tests count it.
     @ObservationIgnored var beep: () -> Void = { NSSound.beep() }

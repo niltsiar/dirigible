@@ -83,6 +83,16 @@ public struct Fades: Hashable, Sendable {
         return gain
     }
 
+    /// The fade of `edge` at `value`, from 0 to the start of the other fade in a clip of `length`:
+    /// the other fade never yields (the fade handle and the inspector). Nil only for a value over
+    /// `Frames.limit`.
+    public func setting(_ edge: Edge, to value: Frames, length: Frames) -> Fades? {
+        switch edge {
+        case .start: Fades(fadeIn: min(max(.zero, value), length - fadeOut), fadeOut: fadeOut)
+        case .end: Fades(fadeIn: fadeIn, fadeOut: min(max(.zero, value), length - fadeIn))
+        }
+    }
+
     /// The fade of `edge` stays, clamped to `length`; the other fade yields to the rest.
     public func fitted(to length: Frames, keeping edge: Edge) -> Fades {
         switch edge {

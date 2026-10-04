@@ -15,6 +15,7 @@
 - Amended: 2026-09-29, record-over-gap run: the record-over overlay reads only the first clip of each armed track that ends after the playhead, not only a clip under the playhead. With the playhead in a gap, a take replaced a clip out of view with no warning.
 - Amended: 2026-10-03, run 11a. The waveform has the fades of 0035, and a fade line in clip boxes of 12 pt or more wide.
 - Amended: 2026-10-04, runs 11c-1 and 11c-2: the waveform takes the fades of the sounding clip inside its box, and the fade lines of a crossfade cross at the join as an X, drawn in their own pass after the waveforms (see 0036).
+- Amended: 2026-10-04, multi-clip-selection run (see 0038): a Command-click on the upper part of a clip toggles the clip in a clip selection. The lower part of a clip and a gap keep the track toggle.
 
 ## Context
 

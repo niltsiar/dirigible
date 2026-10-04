@@ -40,7 +40,7 @@ This document records how Hindenburg edits regions and markers with the mouse: s
 
 ## 6. Selection with Shift
 
-- In PRO 2, a Shift-drag from an empty area draws a marquee that selects the regions in its rectangle [V-marquee] [HG]. Inference: Hindenburg has two selection kinds (regions and a range). Dirigible Release 1 has one kind, the range (decision 0018).
+- In PRO 2, a Shift-drag from an empty area draws a marquee that selects the regions in its rectangle [V-marquee] [HG]. Inference: Hindenburg has two selection kinds (regions and a range). Dirigible has two kinds, a range and a clip set, and one is active at a time (decision 0038).
 - Shift-click extends the selection [HM p. 27].
 
 ## 7. Markers and in and out points on the ruler

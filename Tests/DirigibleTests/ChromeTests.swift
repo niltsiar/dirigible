@@ -109,10 +109,13 @@ struct TimeTextTests {
 
     // MARK: A9
 
+    /// During a take the zoom items stay on, as the View menu and the gestures (beta B1.1): a zoom
+    /// changes no session data. The edit items and Go to Start stay off.
     @Test func theItemsFollowTheWindowState() async throws {
         let (model, studio, chrome) = try await open()
-        let ids: Set<ToolbarItemID> = [.record, .stop, .play, .monitor, .addTrack, .split, .zoomIn]
-        let idle: Set<ToolbarItemID> = [.record, .play, .monitor, .addTrack, .split, .zoomIn]
+        let zoom: Set<ToolbarItemID> = [.zoomOut, .zoomIn, .zoomToSession]
+        let ids = zoom.union([.record, .stop, .play, .monitor, .addTrack, .split, .delete])
+        let idle = zoom.union([.record, .play, .monitor, .addTrack, .split, .delete])
         await expectShown(chrome, "idle", ids: ids, enabled: idle, on: [])
 
         model.monitoring = true
@@ -127,7 +130,8 @@ struct TimeTextTests {
         await expectShown(chrome, "play stopped", ids: ids, enabled: idle, on: [])
 
         await model.record()
-        await expectShown(chrome, "take", ids: ids, enabled: [.record, .stop, .monitor], on: [.record])
+        await expectShown(chrome, "take", ids: ids, enabled: zoom.union([.record, .stop, .monitor]), on: [.record])
+        #expect(!ChromeState(model: model).enabled.contains(.start), "Go to Start is on during the take")
         await hal.feed(seconds: 0.2)
         await model.stop()
         await until("the finalize ends") { studio.transport == .idle }

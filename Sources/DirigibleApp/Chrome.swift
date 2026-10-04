@@ -216,9 +216,10 @@ struct ChromeState: Equatable {
         if recording || model.canRecord { enabled.insert(.record) }
         if recording || playing { enabled.insert(.stop) }
         if model.canMonitor { enabled.insert(.monitor) }
+        // A zoom changes no session data, so it runs during a take, as the View menu and the gestures.
+        enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession])
         if model.canEdit {
             enabled.formUnion([.addTrack, .play, .start, .end, .split, .cut, .copy, .paste, .delete])
-            enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession])
             if model.isOn(.export) { enabled.insert(.export) }
         }
         if recording { on.insert(.record) }

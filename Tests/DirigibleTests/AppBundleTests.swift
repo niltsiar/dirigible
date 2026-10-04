@@ -98,6 +98,8 @@ struct AppBundleTests {
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.
             ("panel.export.format.mp3", "MP3", "MP3"),
+            // Beta fixes criterion V5.
+            ("menu.app.about", "About Dirigible", "Acerca de Dirigible"),
             (
                 "error.export.rate", "This format cannot be exported at %lld Hz. Select 44.1 kHz or 48 kHz.",
                 "Este formato no se puede exportar a %lld Hz. Elige 44,1 kHz o 48 kHz."
@@ -205,6 +207,27 @@ struct AppBundleTests {
             #expect(notice.contains(text), "the notice names \(text)")
         }
         #expect(notice.contains(#/Source commit: [0-9a-f]{40}/#), "the notice names the source commit")
+    }
+
+    /// Criteria V1 and V2: `CFBundleVersion` stays 1, because Launch Services opens a session
+    /// package in the registered copy with the highest value. `DirigibleCommit` holds the short
+    /// hash of the source, with `-dirty` when the notice says that the tree had changes. In a git
+    /// work tree, the hash is also the hash of HEAD.
+    @Test func theBundleNamesItsSourceCommit() throws {
+        let plist = try propertyList(at: "Contents/Info.plist")
+        #expect(plist["CFBundleVersion"] as? String == "1")
+        let commit = try #require(plist["DirigibleCommit"] as? String)
+        let value = try #require(commit.wholeMatch(of: #/([0-9a-f]{7,40})(-dirty)?/#), "DirigibleCommit is \(commit)")
+        let notice = try String(
+            contentsOf: app.appending(path: "Contents/Resources/LAME-NOTICE.txt"), encoding: .utf8)
+        let source = try #require(notice.firstMatch(of: #/Source commit: ([0-9a-f]{40})(, with uncommitted changes)?/#))
+        #expect(source.1.hasPrefix(value.1), "the notice has \(source.1)")
+        #expect((value.2 != nil) == (source.2 != nil), "the dirty mark of \(commit) and of the notice")
+        let repo = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        if let head = try? run("/usr/bin/git", "-C", repo.path, "rev-parse", "HEAD") {
+            #expect(head.hasPrefix(value.1), "HEAD is \(head)")
+        }
     }
 
     private func propertyList(at path: String) throws -> [String: Any] {

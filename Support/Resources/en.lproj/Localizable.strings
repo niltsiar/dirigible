@@ -226,6 +226,7 @@
 "menu.markers.previous" = "Previous Marker";
 "menu.markers.next" = "Next Marker";
 "menu.help.guide" = "Dirigible Guide";
+"menu.app.about" = "About Dirigible";
 "alert.marker.rename" = "Rename Marker";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Chapter %lld";

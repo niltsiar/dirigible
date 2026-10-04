@@ -4,6 +4,7 @@
 - Date: 2026-09-25
 - Amended: 2026-10-04, run 12 (see 0037). Cut closes the gap on all tracks. Delete keeps the gap. Edit adds Insert (Command-I), Delete and Close Gap (Shift-Backspace), and a group with Cut in Selected Tracks (Option-Command-X) and Delete and Close Gap in Selected Tracks (Option-Shift-Backspace). The two Backspace items forward their key to a focused field (K3).
 - Accepted: 2026-09-25, after plan gate 1 of the edit-commands run. The gate kept the armed set at Remove Track, added the range check before each sum in paste and nudge, typed the nudge offset as `Frames`, and added the save coalescing.
+- Amended: 2026-10-04, multi-clip-selection run (see 0038): the window selection has a second kind, a clip set. Nudge moves the set clips, or the clips that the range holds whole, and the set stays. Delete of a set calls `removeClips`. Copy, Cut, and the ripple items beep on a set. Remove Track does nothing for a set.
 
 ## Context
 

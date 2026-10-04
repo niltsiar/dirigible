@@ -22,4 +22,10 @@ code=$?
 kill -0 "$pid" 2>/dev/null || fail "a running Dirigible: the script stopped it"
 [[ ! -e "$tmp/shots" ]] || fail "a running Dirigible: the folder was made"
 
+# The images must not depend on the stored View preferences: the launch arguments pin the
+# inspector hidden and the loudness meter shown. The argument domain wins over a stored value.
+args="$(awk '/^open -a "\$app"/ { on = 1 } on { print } on && !/\\$/ { exit }' "$shots")"
+[[ "$args" == *"-view.inspector.shown NO"* ]] || fail "the launch does not pin the inspector hidden: $args"
+[[ "$args" == *"-view.loudness.shown YES"* ]] || fail "the launch does not pin the loudness meter shown: $args"
+
 [[ $failures -eq 0 ]] && echo "screenshots tests: all passed" || { echo "screenshots tests: $failures failed"; exit 1; }

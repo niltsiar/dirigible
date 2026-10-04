@@ -21,6 +21,9 @@ public struct GestureContext: Sendable {
         (self.session, self.selection, self.playhead, self.geometry, self.canEdit, self.canRipple) =
             (session, selection, playhead, geometry, canEdit, canRipple)
     }
+
+    /// The range of the selection; no Marks for a clip set.
+    var marks: Marks { selection.marks ?? Marks() }
 }
 
 /// A mouse event of the lanes, Esc, or a change of the session under an active gesture. `clicks`

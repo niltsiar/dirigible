@@ -104,9 +104,6 @@ extension TimelineGesture.Target {
 }
 
 extension GestureContext {
-    /// The range of the selection; no Marks for a clip set.
-    var marks: Marks { selection.marks ?? Marks() }
-
     func rulerHit(_ x: Double, _ y: Double) -> RulerHit? {
         RulerGeometry.hit(x, y, markers: session.markers, marks: marks, geometry: geometry)
     }

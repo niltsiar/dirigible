@@ -80,12 +80,12 @@ extension TimelineGesture {
     mutating func moveDrag(_ press: Press, _ move: Move, _ x: Double, _ y: Double, _ context: GestureContext)
         -> [GestureEffect]
     {
-        var move = move
-        let geometry = context.geometry
         guard context.canEdit else {
             state = .dropped
             return []
         }
+        var move = move
+        let geometry = context.geometry
         let base = press.base
         let delta = press.delta(to: x, geometry)
         let start = min(max(.zero, move.clip.start + delta), .limit - move.clip.length)

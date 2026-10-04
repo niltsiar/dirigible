@@ -135,6 +135,7 @@ extension SessionError {
         case .fadeAtCrossfade(let id):
             "clip \"\(id)\" has a crossfade at that edge, so it cannot also have a fade there."
         case .trackCount(let count): "the excerpt has \(count) tracks, so give \(count) different target tracks."
+        case .laneOutOfRange(let id): "the lane offset moves clip \"\(id)\" past the first or the last track."
         }
     }
 }

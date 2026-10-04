@@ -2,7 +2,7 @@ import DirigibleCore
 import Foundation
 import Testing
 
-/// Edit-commands criteria 9 and 10: `clip paste`, `clip split-at`, `clip nudge`, and a
+/// Edit-commands criteria 9 and 10: `clip paste`, `clip split-at`, `clip nudge`, `clip remove`, and a
 /// repeatable `--track` on `clip clear`. The fixture of criterion 2: clip "A" on track "a" at
 /// 0..<48 000, clip "C" on "b" at 90 000..<150 000, and the stereo clip "G" on "s".
 struct EditCommandTests {
@@ -20,6 +20,8 @@ struct EditCommandTests {
         try session.place(Clip(id: "G", file: "g", start: 0, offset: 0, length: 48_000), on: "s")
         package = try TemporaryPackage(session)
     }
+
+    let silent = CLIResult(status: 0, stdout: "", stderr: "")
 
     private func clips(_ track: TrackID) throws -> [Clip] { Array(try #require(try package.read().track(track)).clips) }
 
@@ -128,6 +130,37 @@ struct EditCommandTests {
         let result = try await package.run("clip", "nudge", "PKG", "C", "--by", "\(Int.max)")
         #expect(
             result == CLIResult(status: 1, stdout: "", stderr: "Error: a frame is negative or more than 2^40.\n"))
+        #expect(try package.xml() == before)
+    }
+
+    /// Multi-clip-selection C10: `--lanes` moves clips to other tracks; a lane past the last track
+    /// and a track of the other layout exit 1 and change nothing.
+    @Test func nudgeWithLanesMovesClipsToOtherTracks() async throws {
+        #expect(try await package.run("clip", "nudge", "PKG", "A", "--by", "0", "--lanes", "1") == silent)
+        #expect(try clips("a") == [])
+        #expect(try clips("b").map(\.id) == ["A", "C"])
+        let before = try package.xml()
+        #expect(
+            try await package.run("clip", "nudge", "PKG", "C", "--by", "0", "--lanes", "2")
+                == CLIResult(
+                    status: 1, stdout: "",
+                    stderr: "Error: the lane offset moves clip \"C\" past the first or the last track.\n"))
+        #expect(
+            try await package.run("clip", "nudge", "PKG", "C", "--by", "0", "--lanes", "1")
+                == CLIResult(
+                    status: 1, stdout: "", stderr: "Error: file \"f\" does not have the layout of track \"s\".\n"))
+        #expect(try package.xml() == before)
+    }
+
+    /// Multi-clip-selection C10: `clip remove` leaves a gap; an unknown clip exits 1 and changes nothing.
+    @Test func removeLeavesAGap() async throws {
+        #expect(try await package.run("clip", "remove", "PKG", "A", "G") == silent)
+        #expect(try clips("a") == [] && clips("s") == [])
+        #expect(try clips("b").map(\.id) == ["C"])
+        let before = try package.xml()
+        #expect(
+            try await package.run("clip", "remove", "PKG", "C", "x")
+                == CLIResult(status: 1, stdout: "", stderr: "Error: no clip \"x\".\n"))
         #expect(try package.xml() == before)
     }
 

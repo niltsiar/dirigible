@@ -45,6 +45,16 @@ extension Session {
         return right
     }
 
+    /// Removes the clips and leaves gaps (decision 0038). A broken crossfade join loses its
+    /// crossfade (decision 0036). An unknown ID throws, and a throw changes nothing.
+    public mutating func removeClips(_ ids: [ClipID]) throws(SessionError) {
+        if let missing = ids.first(where: { clip($0) == nil }) { throw .unknownClip(missing) }
+        let removed = Set(ids)
+        for index in tracks.indices where tracks[index].clips.contains(where: { removed.contains($0.id) }) {
+            tracks[index].clips.remove(ids: removed)
+        }
+    }
+
     /// Moves the clip to `start` on `track`, and overwrites the clips under it there.
     /// A move to the same track and start changes nothing, so it keeps the crossfades (decision 0036).
     public mutating func move(_ id: ClipID, to track: TrackID, start: Frames) throws(SessionError) {

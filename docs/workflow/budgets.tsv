@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31682	2026-10-04-workflow-upkeep (decisions.tsv 2026-10-04T09:57: lowered by the net delta, -16)
+TOTAL	31706	2026-10-04-architecture-refactor slice 6 (decisions.tsv: raised by the net delta of the File size rule and the check-sizes row, +24)

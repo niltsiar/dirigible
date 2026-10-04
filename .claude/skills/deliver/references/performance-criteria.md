@@ -3,7 +3,6 @@
 ## A performance criterion
 
 - A performance criterion names its build configuration (debug or optimized), its size (for example the window size in pixels), and the make target of its test (`make bench FILTER=<test>`). Its test asserts the real budget under those conditions.
-- Phase 1 gives a relative budget an absolute limit that a user feels (50 ms, 3 frames at 60 Hz). Each budget clears the A/A spread of its bench (`scripts/bench-pairs.sh`).
 - A timing at other conditions is a proxy: it cannot close the criterion, and a debug miss only prints (`expectWithinBudget`). A criterion that no committed command runs is a manual check.
 - The criterion names each input path that reaches the costly code (each gesture that redraws), the worst-case fixtures (many items per lane, one item wider than the view, a change at the end), and the real input rate. A path that it does not name is outside its budget.
 - The benchmark sends one event per display frame, as a pointer does: events back to back measure the frame throttle.
@@ -11,8 +10,9 @@
 - A test that reads a DEBUG-only counter is in `#if DEBUG` too: `make bench` builds the tests with no DEBUG.
 - In a bench that times two events in one frame (a real event, then a tick), assert for each event that it changed the output, as a Bool after the clock stops. Run a control that sends the same input twice: a per-frame count passes when either event does the work.
 
-## A missed budget
+## A time budget
 
+- Phase 1 gives a relative budget an absolute limit that a user feels (50 ms, 3 frames at 60 Hz). Each budget clears the A/A spread of its bench (`scripts/bench-pairs.sh`).
 - Before the plan gate and each fix try, sum the measured parts of the path, name the limiter, and compute the best possible saving. A bound that cannot meet the budget makes the design change a planned slice, or a `criterion change`.
 - A try is one change, `make bench` before and after, and the slice tests. Keep a gain past the A/A spread, else revert in full. One `decisions.tsv` row per try; no pairs.
 

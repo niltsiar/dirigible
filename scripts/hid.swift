@@ -11,7 +11,9 @@
 // check: a held left button after a failed drag is worse than an up in another app. With no
 // target window, the up goes to the pointer location.
 //
-// usage: hid.swift drag <x> <y> <dx> <dy> [--no-up]   a left drag in 20 steps, then the up
+// usage: hid.swift drag <x> <y> <dx> <dy> [--no-up] [--option]
+//                                                     a left drag in 20 steps, then the up; with
+//                                                     --option the Option key is down around it
 //        hid.swift up <x> <y>                         a left mouse-up (after drag --no-up)
 //        hid.swift click <x> <y> [--right] [--double] a click (a right click; a double-click)
 //        hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
@@ -41,7 +43,7 @@ import CoreGraphics
 import Foundation
 
 let usage = """
-    usage: hid.swift drag <x> <y> <dx> <dy> [--no-up]
+    usage: hid.swift drag <x> <y> <dx> <dy> [--no-up] [--option]
            hid.swift up <x> <y>
            hid.swift click <x> <y> [--right] [--double]
            hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
@@ -200,15 +202,19 @@ if let bounds = window?[kCGWindowBounds as String] as? [String: Double], let lef
     fail("No Dirigible window on screen. Run make run first.", 1)
 }
 
+/// A mouse event with the flags of the held modifier keys (an Option drag, run 12).
 func mouse(_ type: CGEventType, _ point: CGPoint) {
-    CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
-        .post(tap: .cghidEventTap)
+    let event = CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
+    event?.flags = heldMask
+    event?.post(tap: .cghidEventTap)
     wait20ms()
 }
 
 if command != "up" { requireFront() }
 switch command {
 case "drag":
+    post(modifierKeys(down: true))
+    defer { post(modifierKeys(down: false)) }
     mouse(.mouseMoved, origin)
     mouse(.leftMouseDown, origin)
     let end = CGPoint(x: origin.x + values[2], y: origin.y + values[3])

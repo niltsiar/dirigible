@@ -19,7 +19,7 @@
 
 ## Drive and inspect
 
-- To drive the app, run `scripts/hid.swift` (a drag, a drag with `--no-up` and then `up` outside the window, `click <x> <y>` with `--right` or `--double`, Esc, Cmd-Z with `key 6 --command`, `--shift` and `--option`, a trackpad scroll with `scroll ... --phases`).
+- To drive the app, run `scripts/hid.swift` (a drag, a drag with `--no-up` and then `up` (at the pointer) or `up <x> <y>` in window points, `click <x> <y>` with `--right` or `--double`, Esc, Cmd-Z with `key 6 --command`, `--shift` and `--option`, a trackpad scroll with `scroll ... --phases`).
 - Send keys and text only through `hid.swift` (`key`, `type <text>`), never `osascript` keystroke or key code. It refuses (exit 4) when the app is not frontmost, and it releases each modifier key it presses.
 - Walk the accessibility tree of the built app with `scripts/ax.swift` (`dump`, `find`, `press`, `step`) down to each new control: a test that calls the accessibility methods of an element does not prove that VoiceOver reaches it.
 - Press a menu item by its menu path (`press "File > Open Recent > Clear Menu"`), never by its title alone.

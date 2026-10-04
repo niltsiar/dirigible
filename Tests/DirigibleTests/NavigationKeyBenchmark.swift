@@ -58,11 +58,11 @@ import Testing
         }
     }
 
-    /// Runs `prepare` (not timed), then times the event that it returns, 25 times per zoom. Gives
-    /// the p50 and the max of each zoom.
+    /// Runs `prepare` (not timed), then times the event that it returns, `events` times per zoom.
+    /// The first 5 events are not timed. Gives the p50 and the max of each zoom.
     @discardableResult
     static func measure(
-        _ name: String, zooms: [(String, Double)] = MouseEventBenchmark.zooms, budget: Int = budget,
+        _ name: String, zooms: [(String, Double)] = MouseEventBenchmark.zooms, budget: Int = budget, events: Int = 25,
         _ prepare: @MainActor (SessionWindow, Int) -> @MainActor () -> Void
     )
         async throws -> [(p50: Duration, max: Duration)]
@@ -82,7 +82,7 @@ import Testing
             let studio = try #require(model.studio)
             try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
             var times: [Duration] = []
-            for event in 0..<25 {
+            for event in 0..<events {
                 // The SwiftUI update of the pane: the lane height of the window model over 600 pt.
                 func update() {
                     var current = inputs
@@ -106,9 +106,10 @@ import Testing
                 try #require(view.lanes.draws > draws, "\(name), \(zoom): event \(event) rendered no lanes")
             }
             let worst = times.max() ?? .zero
-            print("NavigationKeyBenchmark \(name), \(zoom): p50 \(times.sorted()[10]), max \(worst)")
+            let p50 = times.sorted()[times.count / 2]
+            print("NavigationKeyBenchmark \(name), \(zoom): p50 \(p50), max \(worst)")
             expectWithinBudget(worst, .milliseconds(budget), "max: \(name), \(zoom) \(worst)")
-            results.append((times.sorted()[10], worst))
+            results.append((p50, worst))
             window.close()
             await model.close()
         }

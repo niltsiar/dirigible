@@ -301,6 +301,13 @@ import Testing
         #expect(gain(studio, "A") == -3, "Export acts on the typed gain: \(String(describing: gain(studio, "A")))")
         await until("the export flow ends") { model.exportStep == nil || model.isAskingExportQuestion }
         model.answerExportQuestion(export: false)
+
+        try await type("-4", in: try await paneFields(window)[0], window, model)
+        app.key = model
+        app.transport(.pause, event: nil, in: window)
+        #expect(
+            gain(studio, "A") == -4, "a Transport item acts on the typed gain: \(String(describing: gain(studio, "A")))"
+        )
         await model.close()
     }
 

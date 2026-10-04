@@ -168,11 +168,9 @@ enum TimelineCommand: Hashable {
 
 extension SessionWindow {
     /// The toolbar entry (decision 0023): each command goes to the place that its menu item
-    /// reaches.
+    /// reaches. The generic menu entry run(_:) and the Transport menu commit only the inspector
+    /// value; Remove Track drops the name drafts of its tracks.
     func run(_ command: WindowCommand) {
-        // A menu command acts on the typed inspector value (code gate round 1, A1). Not the typed
-        // track names: Remove Track drops the name drafts of its tracks.
-        commitInspector()
         switch command {
         case .timeline(let command): run(command)
         case .transport(let command): transport(command)
@@ -180,7 +178,9 @@ extension SessionWindow {
             // The menu items of the window actions call this function too.
             leafCalls?.append("\(command)")
             switch command {
-            case .addTrack: addTrack()
+            case .addTrack:
+                commitInspector()
+                addTrack()
             case .record: Task { await record() }
             case .stop: Task { await stopOrPause() }
             default: monitoring.toggle()
@@ -191,6 +191,7 @@ extension SessionWindow {
     /// A transport command: the Transport menu and the toolbar come here (decision 0016).
     func transport(_ command: TransportCommand) {
         leafCalls?.append("\(command)")
+        commitInspector()
         Task { await studio?.perform(command) }
     }
 

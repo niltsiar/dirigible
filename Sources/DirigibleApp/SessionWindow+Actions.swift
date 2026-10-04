@@ -92,8 +92,9 @@ extension SessionWindow {
     }
 
     /// Record, Close, Quit, Auto Level, Place, Retry, and a mouse-down on the lanes save each typed
-    /// name and the typed inspector value first, also with the focus still in its field. A menu
-    /// command commits only the inspector value.
+    /// name and the typed inspector value first, also with the focus still in its field. The
+    /// generic menu entry run(_:) and the Transport menu commit only the inspector value; Remove
+    /// Track drops the name drafts of its tracks.
     func commitNames() {
         for track in drafts.keys { commitName(track) }
         commitInspector()

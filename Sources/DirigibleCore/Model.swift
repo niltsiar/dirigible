@@ -84,8 +84,8 @@ public struct Fades: Hashable, Sendable {
     }
 
     /// The fade of `edge` at `value`, from 0 to the start of the other fade in a clip of `length`:
-    /// the other fade never yields (the fade handle and the inspector). Nil only for a value over
-    /// `Frames.limit`.
+    /// the other fade never yields (the fade handle and the inspector). Nil only when `length` is
+    /// shorter than the other fade.
     public func setting(_ edge: Edge, to value: Frames, length: Frames) -> Fades? {
         switch edge {
         case .start: Fades(fadeIn: min(max(.zero, value), length - fadeOut), fadeOut: fadeOut)

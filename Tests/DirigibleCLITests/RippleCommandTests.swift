@@ -131,6 +131,19 @@ struct RippleCommandTests {
         #expect(result.status == 0, "RIPPLE-C3 a CAF that does not open blocks: \(result)")
     }
 
+    /// Code gate 2 item 1: a CAF that the user cannot read now (mode 000) can place later, so it
+    /// still blocks. Control: a rule that a CAF that does not open never blocks.
+    @Test func aSplitTakeWithAnUnreadableCAFStaysBlocked() async throws {
+        let fixture = try await PlaceCommandTests()
+        let caf = fixture.capture.appending(path: "take1-1-1.caf")
+        chmod(caf.path, 0)
+        defer { chmod(caf.path, 0o644) }
+        let before = try fixture.package.xml()
+        let result = try await fixture.package.run("clip", "ripple-delete", "PKG", "--from", "0", "--to", "48000")
+        #expect(result.status == 3, "RIPPLE-C4 an unreadable CAF does not block: \(result)")
+        #expect(try fixture.package.xml() == before)
+    }
+
     /// C20. With no segment of take 1 on the timeline, the take moves as one unit, so each ripple
     /// runs. Control: the old guard that refuses any unplaced segment.
     @Test func aWhollyUnplacedTakeAllowsEachRippleCommand() async throws {

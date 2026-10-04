@@ -132,16 +132,32 @@ public func newerSidecarVersion(of segment: SegmentName, in package: URL) -> Int
 /// the unplaced list (decision 0012). In name order. It reads files, so call it off the main actor.
 func segmentsWithAudio(in package: URL) -> [SegmentName] { scanSegments(in: package).withAudio }
 
-/// `segmentsWithAudio`, and the segments whose CAF does not open: they can never place, so they
-/// do not block a ripple (decision 0037).
+/// `segmentsWithAudio`, and the segments whose CAF is not audio: they can never place, so they do
+/// not block a ripple (decision 0037). As `SegmentFinalize.place` tells them, a CAF that opens and
+/// reads whole but that AVAudioFile refuses is not audio (`badAudio`). A CAF that does not open
+/// (probe 2026-10-04: mode 000 gives open() EACCES and AVAudioFile -54) or that a read errno stops
+/// can place later, so it still blocks.
 func scanSegments(in package: URL) -> (withAudio: [SegmentName], unopenable: Set<SegmentName>) {
     var unopenable: Set<SegmentName> = []
     let withAudio = ((try? captureSegments(in: package)) ?? []).filter { name in
-        let file = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.stem).caf"))
-        if file == nil { unopenable.insert(name) }
-        return (file?.length ?? 1) > 0
+        let url = package.appending(path: "\(captureFolderName)/\(name.stem).caf")
+        do {
+            return try AVAudioFile(forReading: url).length > 0
+        } catch {
+            if isNotAudio(url, error) { unopenable.insert(name) }
+            return true
+        }
     }
     return (withAudio, unopenable)
+}
+
+/// True when the file at `url` opens and reads whole: the refusal `error` of AVAudioFile is then
+/// a format fault, not a disk fault.
+private func isNotAudio(_ url: URL, _ error: any Error) -> Bool {
+    let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)
+    guard descriptor >= 0 else { return false }
+    defer { close(descriptor) }
+    return ioErrno(of: error, file: descriptor) == nil
 }
 
 /// The `segments` whose take is not the pending take and that no file of the session refers to.

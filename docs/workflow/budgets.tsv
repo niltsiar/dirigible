@@ -15,11 +15,11 @@ path	words	decision
 .claude/skills/architect/references/runner-prompt.md	982	baseline
 .claude/skills/bro/	40	baseline
 .claude/skills/bro/SKILL.md	40	baseline
-.claude/skills/deliver/	3730	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once)
+.claude/skills/deliver/	3813	2026-10-04-workflow-speed-2 S4 (decisions.tsv 2026-10-04T19:46: the perf fix order, +83 words)
 .claude/skills/deliver/SKILL.md	1950	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once)
 .claude/skills/deliver/references/long-runs.md	220	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/deliver/references/mutation-controls.md	1150	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/deliver/references/performance-criteria.md	530	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/deliver/references/performance-criteria.md	560	2026-10-04-workflow-speed-2 S4 (decisions.tsv 2026-10-04T19:46: the perf fix order, +83 words)
 .claude/skills/deslop/	272	baseline
 .claude/skills/deslop/SKILL.md	272	baseline
 .claude/skills/diagnosing-bugs/	1471	baseline
@@ -62,4 +62,4 @@ path	words	decision
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31706	2026-10-04-architecture-refactor slice 6 (decisions.tsv 2026-10-04T19:26: the File size rule and the check-sizes row add 26 words; the row goes up 24 and uses the 2 words of slack)
+TOTAL	31763	2026-10-04-workflow-speed-2 S4 (decisions.tsv 2026-10-04T19:47: raised until S14 lowers it to the run sum)

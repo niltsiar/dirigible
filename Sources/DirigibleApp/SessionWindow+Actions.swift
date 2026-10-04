@@ -6,7 +6,7 @@ import DirigibleCore
 extension SessionWindow {
     /// The studio when it takes a command: open, no take, no start.
     var idleStudio: Studio? {
-        guard case .open(let studio) = phase, studio.transport == .idle, !studio.isStarting else { return nil }
+        guard case .open(let studio) = phase, studio.isIdle else { return nil }
         return studio
     }
 

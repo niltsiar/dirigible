@@ -12,7 +12,15 @@ import Testing
 /// c1, a fade-in on the next clip of t1, a crossfade at the second join of t2, a marker inside the
 /// span that the drag deletes, a marker after it, and a selection band on t3 before the edit.
 extension TimelineLayerTests {
-    @Test func aRippleDragEqualsAFullRender() async throws {
+    /// The share of the pixels of a drag preview at a zoom that is not a whole number of frames
+    /// per point that can differ from a full render (code gate 1 item 1): the move is a whole
+    /// number of columns, but its frames are rounded, so a peak or an edge can move by one column.
+    /// The mouse-up draws the lanes in full.
+    static let previewTolerance = 0.01
+
+    /// At 512 frames per point the preview is exact. At 511.3, see `previewTolerance`.
+    @Test(arguments: [512.0, 511.3])
+    func aRippleDragEqualsAFullRender(framesPerPoint: Double) async throws {
         let (model, studio, window, view) = try await lanes(onScreen: true)
         try studio.edit { session throws(SessionError) in
             try session.setFades(["c1": Fades(fadeIn: 0, fadeOut: 4_800)!])
@@ -24,12 +32,24 @@ extension TimelineLayerTests {
             try session.setMarker(Marker(id: "inside", name: "Inside", position: 60_000, kind: .marker))
             try session.setMarker(Marker(id: "after", name: "After", position: 200_000, kind: .chapter))
         }
-        model.timeline.scale = TimelineScale(framesPerPoint: 512)
+        model.timeline.scale = TimelineScale(framesPerPoint: framesPerPoint)
+        let whole = framesPerPoint == framesPerPoint.rounded()
         model.timeline.marks = Marks(inPoint: 5_000, outPoint: 30_000, tracks: ["t3"])
         view.update(inputs(model, studio))
         drawNow(window)
         let shifts = view.lanes.surfaces.shifted
         var failures: [String] = []
+        /// A drag event may differ from a full render by `previewTolerance` at a zoom that is not
+        /// whole; a mouse-up or an edit by none.
+        func check(_ step: String, preview: Bool) throws {
+            let wrong = try Self.wrongPixels(view)
+            let pixels = try #require(view.lanes.surfaces.shown).pixels
+            let allowed =
+                preview && !whole ? Double(pixels.columns.count * pixels.rows.count) * Self.previewTolerance : 0
+            if Double(wrong.count) > allowed {
+                failures.append("\(step): \(wrong.count) pixels, the first \(String(describing: wrong.first))")
+            }
+        }
         // The end trim zone of c1 on t1 is 4 pt wide.
         let box = try #require(view.lanes.clipFrame("c1"))
         let edge = NSPoint(x: box.maxX - 2, y: box.minY + 10)
@@ -39,17 +59,13 @@ extension TimelineLayerTests {
             view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: x, y: edge.y), in: view))
             drawNow(window)
             await Task.yield()
-            let wrong = try Self.wrongPixels(view)
-            if wrong.count > 0 {
-                failures.append("drag \(n) to \(x): \(wrong.count) pixels, the first \(wrong.first!)")
-            }
+            try check("drag \(n) to \(x)", preview: true)
         }
         let preview = view.lanes.inputs?.session != studio.session
         #expect(preview, "the drag shows a preview, box \(box)")
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: edge.x - 56.5, y: edge.y), in: view))
         drawNow(window)
-        let wrong = try Self.wrongPixels(view)
-        if wrong.count > 0 { failures.append("mouse-up: \(wrong.count) pixels, the first \(wrong.first!)") }
+        try check("mouse-up", preview: false)
         // A second drag of the same edge, with the Marks of the commit on c1: it draws by a shift.
         view.update(inputs(model, studio))
         drawNow(window)
@@ -62,8 +78,7 @@ extension TimelineLayerTests {
             view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: end.x + dx, y: end.y), in: view))
             drawNow(window)
             await Task.yield()
-            let wrong = try Self.wrongPixels(view)
-            if wrong.count > 0 { failures.append("marked drag \(n): \(wrong.count) pixels, the first \(wrong.first!)") }
+            try check("marked drag \(n)", preview: true)
             marked.append(view.lanes.surfaces.shifted)
         }
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: end.x - 12, y: end.y), in: view))
@@ -77,10 +92,11 @@ extension TimelineLayerTests {
             view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: head.x + dx, y: head.y), in: view))
             drawNow(window)
             await Task.yield()
-            let wrong = try Self.wrongPixels(view)
-            if wrong.count > 0 { failures.append("start drag \(n): \(wrong.count) pixels, the first \(wrong.first!)") }
+            try check("start drag \(n)", preview: true)
         }
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: head.x + 4, y: head.y), in: view))
+        drawNow(window)
+        try check("start mouse-up", preview: false)
         // One edit that ripples and removes a later marker: its old line must go from the copy. The
         // Marks of the mouse-up are on the clip, after the edit, so they go first.
         model.timeline.marks = Marks()
@@ -93,9 +109,9 @@ extension TimelineLayerTests {
         }
         view.update(inputs(model, studio))
         drawNow(window)
-        let removed = try Self.wrongPixels(view)
-        if removed.count > 0 { failures.append("removed marker: \(removed.count) pixels, the first \(removed.first!)") }
-        #expect(view.lanes.surfaces.shifted == before + 1, "the edit draws by a shift")
+        try check("removed marker", preview: false)
+        // The edit moves 10 240 frames: a whole number of columns only at a whole zoom.
+        #expect(view.lanes.surfaces.shifted == before + (whole ? 1 : 0), "the edit draws by a shift at a whole zoom")
         #expect(failures.isEmpty, "\(failures)")
         #expect(view.lanes.surfaces.shifted > shifts + 4, "most drag events draw by a shift")
         window.close()

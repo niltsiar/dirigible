@@ -85,13 +85,16 @@ final class TimelineDocumentView: NSView {
     /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of
     /// the renderer; the move in columns; and the strips: from the dirty rect to that column, and
     /// 1 pt around each stray marker line, on every lane in view. Nil when the move is not a whole
-    /// number of columns.
+    /// number of columns within one frame: a ripple drag moves by whole points, and each of the two
+    /// previews rounds its frames at a zoom that is not whole.
     private func laneShift(
         _ shift: ShiftedFrames, _ dirty: NSRect, _ lanes: LaneWindow
     ) -> LaneSurfaces.Shift? {
         guard let geometry = inputs?.geometry, !dirty.isNull else { return nil }
-        let columns = Double(shift.delta.count) / geometry.scale.framesPerPoint * lanes.scale
-        guard columns == columns.rounded(), abs(columns) < 1e9 else { return nil }
+        let framesPerColumn = geometry.scale.framesPerPoint / lanes.scale
+        let columns = Double(shift.delta.count) / framesPerColumn
+        guard abs(columns - columns.rounded()) * framesPerColumn <= 1, abs(columns) < 1e9 else { return nil }
+        if columns != columns.rounded() { roundedShift = true }
         let x = geometry.x(of: shift.from) + 1
         let strip = lanes.pixels(
             of: NSRect(x: dirty.minX, y: bounds.minY, width: max(0, x - dirty.minX), height: bounds.height))
@@ -99,7 +102,7 @@ final class TimelineDocumentView: NSView {
             lanes.pixels(of: NSRect(x: geometry.x(of: $0) - 1, y: bounds.minY, width: 3, height: bounds.height))
         }
         return LaneSurfaces.Shift(
-            column: Int((x * lanes.scale).rounded(.up)), by: Int(columns), strips: [strip] + strays)
+            column: Int((x * lanes.scale).rounded(.up)), by: Int(columns.rounded()), strips: [strip] + strays)
     }
 
     override var wantsUpdateLayer: Bool { true }
@@ -195,8 +198,17 @@ final class TimelineDocumentView: NSView {
     /// past the session end drew all lanes. The lanes are at least as wide as the view, so the part
     /// past them is not in view; the mouse-up gives the new width.
     var holdsWidth = false {
-        didSet { if oldValue, !holdsWidth { resize() } }
+        didSet {
+            guard oldValue, !holdsWidth else { return }
+            resize()
+            // A shift of a gesture at a zoom that is not whole rounded its frames: one full draw.
+            if roundedShift { (needsDisplay, roundedShift) = (true, false) }
+        }
     }
+
+    /// True after a shift whose move in frames is not exactly its move in columns (a zoom that is
+    /// not a whole number of frames per point). The end of the gesture draws the lanes in full.
+    private var roundedShift = false
 
     /// The width of `Viewport.documentWidth` at the one end of the scroll view (the held end of a
     /// take), or the width of the mouse-down during a gesture.

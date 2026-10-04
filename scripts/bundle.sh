@@ -36,6 +36,6 @@ GUIDE="$APP/Contents/Resources/Guide"
 mkdir -p "$GUIDE/images"
 images="$(swift scripts/guide-html.swift docs/guide.md "$GUIDE/guide.html")"
 for image in $images; do cp "docs/$image" "$GUIDE/$image"; done
-codesign --force --sign "$SIGN_IDENTITY" --timestamp=none "$APP"
+SIGN_IDENTITY="$SIGN_IDENTITY" scripts/sign-app.sh "$APP"
 
 echo "$APP"

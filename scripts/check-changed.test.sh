@@ -6,7 +6,9 @@
 # gives test-filter in place of test, and reaches the swift calls through make. Check that a
 # passing make check-changed with BASE writes the stamp, and a red one does not. Check that the push
 # adds test-slow only for risk, a slow test, a Makefile change, or no passed slow run today, and
-# that a passing make test-slow writes the date. Run by `make test-hooks`.
+# that a passing make test-slow writes the date. Check that the recipe waits for a load under the
+# core count before Swift tests, stops the wait at CHECK_LOAD_WAIT, and reads no load for docs
+# targets. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 script="$repo/scripts/check-changed.sh"
@@ -199,10 +201,43 @@ printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "Test run with 2 tests passed
 chmod +x "$tmp/bin/swift"
 printf 't\n' > "$tmp/r/Tests/DirigibleCoreTests/T.swift"
 : > "$tmp/swift.log"
+# A fake sysctl gives 8 cores and the loads of $tmp/load, one line for each call; the last line
+# stays. A fake sleep logs its seconds, so a wait takes no time.
+cat > "$tmp/bin/sysctl" <<EOF
+#!/bin/bash
+echo "\$*" >> "$tmp/sysctl.log"
+case "\$2" in
+  hw.ncpu) echo 8 ;;
+  vm.loadavg) echo "{ \$(head -n 1 "$tmp/load") 1.00 1.00 }"; [[ \$(wc -l < "$tmp/load") -gt 1 ]] && sed -i '' 1d "$tmp/load" ;;
+esac
+exit 0
+EOF
+printf '#!/bin/bash\necho "$1" >> "%s"\n' "$tmp/sleep.log" > "$tmp/bin/sleep"
+chmod +x "$tmp/bin/sysctl" "$tmp/bin/sleep"
+echo 1.00 > "$tmp/load"
 PATH="$tmp/bin:$PATH" make_case 'make check-changed with FILTER' '' "FILTER=ATests BTests"
 [[ "$output" == *"targets: test-filter"* ]] || fail "make check-changed with FILTER: no test-filter target: $output"
 [[ "$(cat "$tmp/swift.log")" == "swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests --filter ATests --filter BTests" ]] ||
   fail "make check-changed with FILTER: swift calls: $(cat "$tmp/swift.log")"
+
+# The load wait: before Swift tests, the recipe waits until the 1-minute load is under the core
+# count, prints each load that it reads, and after CHECK_LOAD_WAIT seconds runs the tests anyway.
+: > "$tmp/swift.log"; : > "$tmp/sleep.log"
+printf '9.50\n8.00\n2.00\n' > "$tmp/load"
+PATH="$tmp/bin:$PATH" make_case 'a high load, then a low load' '' FILTER=ATests
+[[ "$output" == *"load 9.50, not under 8"*"load 8.00, not under 8"*"load 2.00, under 8"* ]] || fail "a high load: no load lines in order: $output"
+[[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a high load: sleeps [$(cat "$tmp/sleep.log")]"
+[[ -s "$tmp/swift.log" ]] || fail 'a high load: the tests did not run after the wait'
+: > "$tmp/swift.log"; : > "$tmp/sleep.log"
+echo 9.50 > "$tmp/load"
+CHECK_LOAD_WAIT=20 CHECK_LOAD_MAX=4.5 PATH="$tmp/bin:$PATH" make_case 'a load that stays high' '' FILTER=ATests
+[[ "$output" == *"load 9.50 after 20 s, not under 4.5: run the tests"* ]] || fail "a load that stays high: no stop line: $output"
+[[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a load that stays high: sleeps [$(cat "$tmp/sleep.log")]"
+[[ -s "$tmp/swift.log" ]] || fail 'a load that stays high: the tests did not run'
+# Targets with no Swift test read no load.
+: > "$tmp/sysctl.log"
+got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-docs check-fast)" || fail "--wait-load with docs targets exits $?"
+[[ -z "$got" && ! -s "$tmp/sysctl.log" ]] || fail "--wait-load with docs targets read the load: [$got] [$(cat "$tmp/sysctl.log")]"
 
 # make test-slow writes the date of today after a pass, and nothing after a red run.
 make_repo

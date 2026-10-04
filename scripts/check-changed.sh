@@ -5,6 +5,7 @@
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push
 #        scripts/check-changed.sh --paths [--push]   the paths from stdin
 #        scripts/check-changed.sh --floor       print the risk floor paths
+#        scripts/check-changed.sh --wait-load <targets>   wait for a normal load before Swift tests
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
 # With FILTER (test names, for the tdd loop of a slice), the local target test becomes
 # test-filter. FILTER before the push exits 1: the push runs the full targets.
@@ -42,9 +43,34 @@ targets_of() {
     esac
 }
 
+# A build in another worktree makes timing tests fail (DLV-157). Before a target other than
+# check-docs and check-fast, wait until the 1-minute load is under CHECK_LOAD_MAX (default: the
+# core count). Read it each 10 s; after CHECK_LOAD_WAIT seconds (default 900), run the tests anyway.
+wait_load() {
+    local rest=" $* " t max load waited=0 limit="${CHECK_LOAD_WAIT:-900}"
+    for t in check-docs check-fast none; do rest="${rest// $t / }"; done
+    [[ -n "${rest// /}" ]] || return 0
+    max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
+    while :; do
+        load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
+        if awk -v l="$load" -v m="$max" 'BEGIN { exit !(l < m) }'; then
+            echo "check-changed: load $load, under $max: run the tests"
+            return 0
+        fi
+        if ((waited >= limit)); then
+            echo "check-changed: load $load after $waited s, not under $max: run the tests"
+            return 0
+        fi
+        echo "check-changed: load $load, not under $max (CHECK_LOAD_MAX): wait 10 s, up to $limit s (CHECK_LOAD_WAIT)"
+        sleep 10
+        waited=$((waited + 10))
+    done
+}
+
 push=0 mode=git base=""
 case "${1:-}" in
     --floor) printf '%s\n' $floor; exit 0 ;;
+    --wait-load) shift; wait_load "$@"; exit 0 ;;
     --paths) mode=stdin; [[ "${2:-}" == --push ]] && push=1 ;;
     "") ;;
     *) base="$1" push=1 ;;

@@ -69,7 +69,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interro
 
 ## Phase 4: Implement
 
-1. Each slice follows the **tdd** skill. No other check runs before a commit. Commit the slice before a file of the next slice. After heavy work, wait until `uptime` shows a normal load before a check that runs tests.
+1. Each slice follows the **tdd** skill. No other check runs before a commit. Commit the slice before a file of the next slice.
 2. Use Conventional Commits (see `AGENTS.md`).
 3. After each slice, log a row and tick `run.md` with the actual minutes. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
 4. If the plan proves wrong, stop, update `plan.md`, and log why.

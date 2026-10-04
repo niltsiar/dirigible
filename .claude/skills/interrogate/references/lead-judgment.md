@@ -21,7 +21,7 @@ Do not dismiss a finding because it is uncomfortable: the review exists to catch
 
 ## Verdict calibration
 
-A good verdict is useful, not complete: the user fixes the "Act on" items and ships with confidence. More than 5 "Act on" items usually means that you did not filter hard enough. "Dismissed" is a trust mechanism: it shows what you rejected and why, so the user can override your judgment. Show the rejected findings.
+A good verdict is useful, not complete: the user fixes the "Act on" items and ships with confidence. More than 5 "Act on" items usually means that you did not filter hard enough. Show each dismissed finding and why, so the user can override your judgment.
 
 ## Invariant and Siblings
 
@@ -30,7 +30,7 @@ Each "Act on" item in an open or follow-up round has two required fields. An ite
 - **Invariant:** the invariant that the item breaks, named by the state, not by the operation in the finding: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
 - **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter call. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>".
 
-A new check for the same condition can hide an earlier guard, so the fixer runs the controls of those guards again before the fix commit. Pass both fields to the fixer, not only the fix line. The fix covers the finding and every sibling path in the same commit. Accept a fix only when it covers each consumer that the symptom names. Findings in the next round are usually at the edge of a fix that covered only the named path.
+A new check for the same condition can hide an earlier guard, so the fixer runs the controls of those guards again before the fix commit. Pass both fields to the fixer, not only the fix line. The fix covers the finding and every sibling path in the same commit. Accept a fix only when it covers each consumer that the symptom names. When the fix relaxes a guard, also name what the guard must still refuse.
 
 ## Rounds
 

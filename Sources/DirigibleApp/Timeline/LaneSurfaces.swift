@@ -133,6 +133,16 @@ struct LaneWindow: Equatable {
     private(set) var lastCopied: [PixelRect] = []
     /// Test support: refuse each new surface, as a failed allocation does.
     var refusesNewSurfaces = false
+    /// Test support: the updates that copied the later region by a shift (decision 0037).
+    private(set) var shifted = 0
+
+    /// A ripple drag (decision 0037): the columns at or after `column` show the front moved by `by`
+    /// columns, and only the `strips` and the columns that the shift shows at an edge draw.
+    struct Shift: Equatable {
+        let column: Int
+        let by: Int
+        let strips: [PixelRect]
+    }
 
     /// The result of `show`.
     enum Result: Equatable {
@@ -159,8 +169,11 @@ struct LaneWindow: Equatable {
 
     /// Shows `window`, with new pixels in `changed` (a rect in the window, from `pixels(of:)`) and in
     /// the part of the window that the window of the front does not hold. `draw` writes every pixel
-    /// of the rect of its region.
-    func show(_ window: LaneWindow, changed: PixelRect, draw: (borrowing PixelRegion) -> Void) -> Result {
+    /// of the rect of its region. A `shift` applies only when the front shows the same window;
+    /// else `changed` draws.
+    func show(
+        _ window: LaneWindow, changed: PixelRect, shift: Shift? = nil, draw: (borrowing PixelRegion) -> Void
+    ) -> Result {
         let old = shown
         if changed.isEmpty, old == window { return .unchanged }
         let pick = slots.indices.filter { $0 != front }.min { slots[$0].commit < slots[$1].commit }!
@@ -176,13 +189,25 @@ struct LaneWindow: Equatable {
         let from = old?.capacity == window.capacity ? old : nil
         let source = from == nil ? nil : front.flatMap { slots[$0].surface }
         let overlap = from?.pixels.intersection(window.pixels) ?? .empty
-        let drawn = changed.union(Self.outside(overlap, of: window.pixels))
+        let shift = from == window && source != nil ? shift : nil
+        // With a shift, the later region is new for the history: the other slots copy it later.
+        let all = window.pixels.columns
+        let later = shift.map {
+            PixelRect(
+                columns: min(max($0.column, all.lowerBound), all.upperBound)..<all.upperBound, rows: window.pixels.rows)
+        }
+        let strips = (shift?.strips ?? []).map { $0.intersection(window.pixels) }.filter { !$0.isEmpty }
+        let drawn =
+            later.map { strips.reduce($0) { $0.union($1) } } ?? changed.union(Self.outside(overlap, of: window.pixels))
         // Buffer age: a slot that shows the same pixels as the new window lacks only the pixels
         // that the later commits drew, so it copies only those rects (in the overlap) from the
         // front. Else it copies the overlap, shifted.
         let aged = slots[pick].window == window
+        let left = later.map {
+            PixelRect(columns: window.pixels.columns.lowerBound..<$0.columns.lowerBound, rows: $0.rows)
+        }
         let copies = (aged ? history.filter { $0.commit > slots[pick].commit }.map(\.drawn) : [overlap])
-            .map { $0.intersection(overlap) }.filter { !$0.isEmpty }
+            .map { $0.intersection(left ?? overlap) }.filter { !$0.isEmpty }
 
         surface.lock(options: [], seed: nil)
         if surface.isInUse { writesInUse += 1 }
@@ -190,10 +215,29 @@ struct LaneWindow: Equatable {
         lastCopied = copies
         if let source, let from {
             source.lock(options: .readOnly, seed: nil)
-            for rect in copies { Self.copy(rect, except: drawn, from: source, from, to: surface, window) }
+            let except = shift == nil ? drawn : strips.first ?? .empty
+            for rect in copies { Self.copy(rect, except: except, from: source, from, to: surface, window) }
+            if let shift, let later { Self.copy(later, by: shift.by, from: source, to: surface, window) }
             source.unlock(options: .readOnly, seed: nil)
         }
-        draw(PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: drawn))
+        if let shift, let later {
+            // The strip, then the columns of `later` whose source is outside the window.
+            let sourced = (all.lowerBound + shift.by)..<(all.upperBound + shift.by)
+            let edges = [
+                later.columns.lowerBound..<max(later.columns.lowerBound, min(sourced.lowerBound, all.upperBound)),
+                max(
+                    later.columns.lowerBound, min(later.columns.upperBound, sourced.upperBound))..<later.columns
+                    .upperBound,
+            ].map { PixelRect(columns: $0, rows: later.rows) }
+            for rect in strips + edges where !rect.isEmpty {
+                draw(
+                    PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: rect)
+                )
+            }
+            shifted += 1
+        } else {
+            draw(PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: drawn))
+        }
         surface.unlock(options: [], seed: nil)
 
         commits += 1
@@ -276,6 +320,24 @@ struct LaneWindow: Equatable {
                     address(target, to, part.lowerBound, row), address(source, from, part.lowerBound, row),
                     part.count * 4)
             }
+        }
+    }
+
+    /// Copies the pixels of `target` from `source`, which shows the same window, moved by `by`
+    /// columns: target column c gets source column c - by. A column whose source is outside the
+    /// window does not change; the caller draws it.
+    private static func copy(
+        _ target: PixelRect, by: Int, from source: IOSurface, to surface: IOSurface, _ window: LaneWindow
+    ) {
+        let all = window.pixels.columns
+        let columns = target.columns.clamped(to: (all.lowerBound + by)..<(all.upperBound + by))
+        guard !columns.isEmpty else { return }
+        for row in target.rows {
+            let offset = (row - window.pixels.rows.lowerBound)
+            memcpy(
+                surface.baseAddress + offset * surface.bytesPerRow + (columns.lowerBound - all.lowerBound) * 4,
+                source.baseAddress + offset * source.bytesPerRow + (columns.lowerBound - by - all.lowerBound) * 4,
+                columns.count * 4)
         }
     }
 

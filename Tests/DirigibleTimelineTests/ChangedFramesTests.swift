@@ -37,6 +37,25 @@ struct ChangedFramesTests {
             "from the old end of A to the new end of B: \(String(describing: changed?.frames))")
     }
 
+    /// Slice 2b (decision 0037): a ripple trim moves the later region of every lane by one delta,
+    /// from the first moved clip of the latest lane. Controls: a plain trim, and a marker that does
+    /// not move with the clips.
+    @Test func aRippleShiftsTheLaterRegion() throws {
+        var session = try Fixture.session()
+        try session.place(Clip(id: "D", file: "fb", start: 120_000, offset: 0, length: 24_000), on: "t2")
+        try session.setMarker(Marker(id: "m", name: "m", position: 170_000, kind: .marker))
+        var rippled = session
+        try rippled.rippleTrim("A", edge: .end, by: 9_600, on: session.tracks.map(\.id))
+        let shift = shiftedFrames(from: session, to: rippled)
+        #expect(shift?.from == 153_600 && shift?.delta == 9_600 && shift?.strays == [], "\(String(describing: shift))")
+        var trimmed = session
+        try trimmed.trim("A", to: 48_000..<100_000)
+        #expect(shiftedFrames(from: session, to: trimmed) == nil, "a plain trim moves no later clip")
+        var stuck = rippled
+        try stuck.setMarker(Marker(id: "m", name: "m", position: 170_000, kind: .marker))
+        #expect(shiftedFrames(from: session, to: stuck)?.strays == [179_600, 170_000], "a marker that stays")
+    }
+
     @Test func aMoveToAnotherLaneChangesBothLanes() throws {
         let session = try Fixture.session()
         var moved = session

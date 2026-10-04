@@ -45,7 +45,9 @@ import Testing
             // After the clock: each event took the trimmed end to a new place.
             try #require(
                 zip(ends.dropFirst(2), ends.dropFirst(3)).allSatisfy { $0 != $1 }, "\(zoom): an event kept the end")
-            print("MouseEventRippleBenchmark ripple trim, \(zoom): p50 \(sorted[60]), p95 \(sorted[113])")
+            print(
+                "MouseEventRippleBenchmark ripple trim, \(zoom): p50 \(sorted[60]), p95 \(sorted[113]),"
+                    + " shifted \(view.lanes.surfaces.shifted), made \(view.lanes.surfaces.made)")
             expectWithinBudget(sorted[113], MouseEventBenchmark.budget, "\(zoom): p95 \(sorted[113])")
             window.close()
             await model.close()

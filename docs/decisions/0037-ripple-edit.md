@@ -2,7 +2,7 @@
 
 - Status: proposed
 - Date: 2026-10-04
-- Amends: 0011 (the ripple commands), 0012 and 0021 (no ripple under a pending or split take), 0018 (Cut closes the gap, run 12 slice 3), 0020 (the Option edge drag and the lane menu, run 12 slices 2 and 4).
+- Amends: 0011 (the ripple commands), 0022 (the shift draw of a ripple drag), 0012 and 0021 (no ripple under a pending or split take), 0018 (Cut closes the gap, run 12 slice 3), 0020 (the Option edge drag and the lane menu, run 12 slices 2 and 4).
 
 ## Context
 
@@ -20,6 +20,7 @@ Release 2 run 12 (`docs/requirements/releases.md` item 12) adds ripple edits (F2
 - **Shift mutator.** `ClipLane.shift(from:by:)` moves each clip that starts at or after a frame. The joins inside the moved part stay paired, so the repair reads only the join at its edge. A crossfade that moves whole keeps its length; a crossfade at a join at R.start, at R.end, or at the insert frame goes from both clips (0036 drop rule). The new join of a ripple gets no crossfade.
 - **No ripple under a pending or split take.** No edit moves the timeline under a take whose parts place at their old absolute frames apart from the parts already placed. A pending take places at its take anchor, and a split take (an unplaced segment with a sibling segment of the same take that a session file refers to) places its rest at its old frames. A wholly unplaced take, for example after an undo past a take, moves as one unit, and a placement refuses an occupied span, so it does not block a ripple. One public predicate in DirigibleAudio, `rippleBlocked(segments:session:)`, and its package form `rippleBlocked(in:session:)`, serve the window, the gesture, the lane menu, and the CLI.
 - **CLI.** `dirigible clip ripple-delete <package> --from --to [--track]...`, `dirigible clip ripple-insert <package> --at --length [--track]...`, and `dirigible clip ripple-trim <package> <clip> --edge start|end --by <frames> [--track]...` (its own command: `clip trim` takes `--from` and `--to` as its range). No `--track` means all tracks. `--from` not under `--to` and a negative `--length` exit 64. A split take exits 3, and a `<recording>` exits 2 (0004). Ripple Cut has no command: `excerpt` does not change the package, and `clip ripple-delete` makes the edit.
+- **Drag draw.** A ripple trim drag moves every later clip, so a full draw of the lanes in view (10 ms p50) and of the ruler text went over the 16 ms budget (p95 23.6 ms at fit zoom). The lanes copy the later region of the last frame by the move (amends 0022), and the ruler caches its typeset text: p95 12.5 ms. A preview of only the trimmed lane stays refused, because it hides the audio that the other tracks lose.
 - **Format.** No session format change. A session with no fade and no crossfade writes version 1 after a ripple.
 
 ## Consequences

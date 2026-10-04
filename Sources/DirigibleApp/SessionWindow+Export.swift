@@ -93,8 +93,10 @@ extension SessionWindow {
     func choose(_ source: ExportSource, _ studio: Studio) {
         guard let window, let app else { return }
         exportStep = .choosing
-        app.chooseExport(window, url.deletingPathExtension().lastPathComponent, studio.session.sampleRate) {
-            [weak self] target in
+        app.chooseExport(
+            window, url.deletingPathExtension().lastPathComponent, studio.session.sampleRate,
+            ExportSettings(defaults: app.defaults)
+        ) { [weak self] target in
             guard let self, exportStep == .choosing else { return }
             exportStep = nil
             guard let target, let studio = idleStudio else { return }

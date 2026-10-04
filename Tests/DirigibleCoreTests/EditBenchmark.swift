@@ -65,6 +65,10 @@ struct EditBenchmark {
         let ripples: [(String, (inout Session) throws -> Void)] = [
             ("rippleDelete near the start on 6 tracks", { try $0.rippleDelete(100_000..<200_000, on: tracks) }),
             ("rippleInsert near the start on 6 tracks", { try $0.rippleInsert(48_000, at: 100_000, on: tracks) }),
+            (
+                "rippleTrim of the first clip on 6 tracks",
+                { try $0.rippleTrim("c0", edge: .end, by: -4_800, on: tracks) }
+            ),
         ]
         for (name, edit) in ripples { try Self.measure(name, History(marked), edit) }
     }

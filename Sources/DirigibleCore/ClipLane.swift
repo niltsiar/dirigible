@@ -166,6 +166,16 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair((first - 1)..<(first + 1))
     }
 
+    /// Replaces the clip at `index` with `clip`, which has the same start, and moves each later
+    /// clip by the change of its end (a ripple trim, decision 0037). The caller checks the ends.
+    /// The later clips move whole, so only the joins of the clip can change (0036).
+    mutating func ripple(at index: Int, with clip: Clip) {
+        let offset = clip.end - storage[index].end
+        storage[index] = clip
+        for later in (index + 1)..<storage.count { storage[later].start = storage[later].start + offset }
+        repair((index - 1)..<(index + 2))
+    }
+
     /// One clip changes and no clip moves, so only the joins of its neighbors can break.
     mutating func replace(at index: Int, with clip: Clip) {
         storage[index] = clip

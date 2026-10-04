@@ -45,6 +45,38 @@ extension ClipCommand {
     }
 }
 
+extension ClipCommand {
+    struct RippleTrim: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract:
+                "Move one edge of a clip and ripple the span on the tracks: the later clips and the markers move "
+                + "with the edge. The clip start stays.")
+        @OptionGroup var package: PackageArgument
+        @Argument var clip: String
+        @Option(help: "start or end.", transform: parseEdge) var edge: Fades.Edge
+        @Option(
+            parsing: .unconditional,
+            help: "The frames to move the edge; negative moves left. At the start edge, positive removes audio.")
+        var by: Int
+        @Option(help: "A track. Give none for all tracks, or one or more. The track of the clip always ripples.")
+        var track: [String] = []
+
+        func run() throws {
+            try editPackage(package, ripple: true) { session throws(SessionError) in
+                try session.rippleTrim(ClipID(clip), edge: edge, by: Frames(by), on: scope(track, of: session))
+            }
+        }
+    }
+}
+
+private func parseEdge(_ text: String) throws -> Fades.Edge {
+    switch text {
+    case "start": .start
+    case "end": .end
+    default: throw ValidationError("An edge is start or end.")
+    }
+}
+
 /// The tracks of `--track`, or all tracks when there is none.
 private func scope(_ tracks: [String], of session: Session) -> [TrackID] {
     tracks.isEmpty ? session.tracks.map(\.id) : tracks.map { TrackID($0) }

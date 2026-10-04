@@ -4,10 +4,10 @@ import DirigibleTimeline
 
 /// The gesture questions of the window: the cursor and the ruler menu (decision 0020).
 extension TimelineScrollView {
-    /// The cursor of the gesture at a lane or ruler point.
-    func cursor(at place: Place) -> TimelineCursor {
+    /// The cursor of the gesture at a lane or ruler point; `option` is the state of the Option key.
+    func cursor(at place: Place, option: Bool = false) -> TimelineCursor {
         guard let source, let context = context(source) else { return .arrow }
-        return gesture.cursor(at: place, context)
+        return gesture.cursor(at: place, context, option: option)
     }
 
     /// The frame and the flag of the ruler menu at the document x `x`. Nil during a gesture, so a

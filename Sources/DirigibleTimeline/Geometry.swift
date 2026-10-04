@@ -236,6 +236,24 @@ public enum RulerGeometry {
 /// them to `NSCursor`.
 public enum TimelineCursor: Equatable, Sendable {
     case arrow, iBeam, openHand, closedHand, resizeLeftRight, resizeUpDown
+    /// An Option press or drag on a trim zone of this edge (decision 0037).
+    case rippleTrim(Fades.Edge)
+}
+
+/// The deltas that an edge of `clip` can take in a ripple trim (decision 0037): the limits of
+/// `trimLimits` with no neighbor term. The start of its file (the offset only: the clip start
+/// stays, so frame 0 does not limit it), the end of its file, `Frames.limit` for its end, and a
+/// length of `minimum` or of half the crossfade at the other edge, the larger. The range always
+/// holds 0.
+func rippleTrimLimits(_ clip: Clip, edge: Edge, fileLength: Frames, minimum: Frames) -> ClosedRange<Frames> {
+    let other = edge == .start ? clip.crossfades.end : clip.crossfades.start
+    let shortest = clip.length - max(minimum, Frames(other.count / 2))
+    switch edge {
+    case .start: return min(.zero, .zero - clip.offset)...max(.zero, shortest)
+    case .end:
+        let longest = min(fileLength - clip.offset - clip.length, .limit - clip.end)
+        return min(.zero, .zero - shortest)...max(.zero, longest)
+    }
 }
 
 /// The frames that an edge of `clip` can reach in a trim (mouse-edits criterion 6): the neighbor

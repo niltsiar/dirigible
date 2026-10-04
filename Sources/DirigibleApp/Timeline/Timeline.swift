@@ -103,6 +103,8 @@ extension NSCursor {
         case .closedHand: .closedHand
         case .resizeLeftRight: .resizeLeftRight
         case .resizeUpDown: .resizeUpDown
+        case .rippleTrim(.start): .resizeLeft
+        case .rippleTrim(.end): .resizeRight
         }
     }
 }

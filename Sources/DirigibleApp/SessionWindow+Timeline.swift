@@ -262,7 +262,10 @@ extension SessionWindow {
         case .fade: runFade(studio)
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
-        case .removeTrack: removeTracks(studio.session.tracks.map(\.id).filter(timeline.range.tracks.contains))
+        case .removeTrack:
+            // A clip set picks clips, not tracks: Remove Track does nothing (decision 0038).
+            guard let marks = timeline.selection.marks else { return }
+            removeTracks(studio.session.tracks.map(\.id).filter(marks.tracks.contains))
         case .showInFinder: Task { await showClipsInFinder() }
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }

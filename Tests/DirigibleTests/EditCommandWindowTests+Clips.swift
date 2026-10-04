@@ -32,6 +32,8 @@ extension EditCommandWindowTests {
             model.run(command)
         }
         #expect(beeps == 5 && studio.session == before && model.clipboard == nil, "beeps \(beeps)")
+        model.run(.removeTrack)
+        #expect(studio.session == before && !model.canPlaceAtPlayhead, "C11h: a clip set picks no track")
         #expect(model.timeline.selection == .clips(try #require(ClipSet(["c1", "c2"]))), "the set stays")
 
         await studio.perform(.seek(.frame(24_000)))

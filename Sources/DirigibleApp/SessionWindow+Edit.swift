@@ -26,8 +26,8 @@ extension SessionWindow {
             return
         }
         if command == .copy {
-            if case .clips = timeline.selection { return beep() }
-            guard let selection = timeline.range.selection(in: studio.session) else { return }
+            guard let marks = timeline.selection.marks else { return beep() }
+            guard let selection = marks.selection(in: studio.session) else { return }
             clipboard = (try? studio.session.excerpt(of: selection.range, on: selection.tracks)) ?? clipboard
             return
         }
@@ -50,10 +50,10 @@ extension SessionWindow {
     func runRipple(_ command: TimelineCommand, _ studio: Studio) {
         guard canEdit else { return }
         if command == .insert { return insert(studio) }
-        // A ripple needs a range scope (decision 0037), so a clip set beeps (decision 0038).
-        if case .clips = timeline.selection { return beep() }
         let selectedOnly = command == .cutSelectedTracks || command == .deleteCloseGapSelectedTracks
-        guard let scope = timeline.range.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
+        // A ripple needs a range scope (decision 0037), so a clip set beeps (decision 0038).
+        guard let marks = timeline.selection.marks else { return beep() }
+        guard let scope = marks.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
         guard !rippleBlocked(segments: studio.rippleSegments, session: studio.session) else { return beep() }
         let cuts = command == .cut || command == .cutSelectedTracks
         let done = edit { session throws(SessionError) -> Excerpt? in

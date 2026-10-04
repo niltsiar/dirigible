@@ -205,13 +205,14 @@ extension TimelineGesture {
             preview: press.base)
     }
 
-    /// A ripple trim drag event: the edge moves by the pointer delta, clamped to the limits, and
-    /// the preview is `rippleTrim` on all tracks. The delta does not stop at x 0, so a start edge
-    /// at frame 0 extends into its file. The clip start stays, so the range of a start trim
-    /// changes at its end.
+    /// A ripple trim drag event: the edge moves by the pointer motion in whole points, clamped to
+    /// the limits, and the preview is `rippleTrim` on all tracks. Whole points move the later
+    /// region by whole device columns at any zoom, so the lanes can draw it by a shift (decision
+    /// 0037). The delta does not stop at x 0, so a start edge at frame 0 extends into its file. The
+    /// clip start stays, so the range of a start trim changes at its end.
     mutating func rippleDrag(_ press: Press, _ trim: Trim, _ x: Double, _ geometry: LaneGeometry) -> [GestureEffect] {
-        let delta =
-            abs(x - press.x) < Self.threshold ? .zero : Frames(Int(x * geometry.scale.framesPerPoint)) - press.frame
+        let points = abs(x - press.x) < Self.threshold ? 0 : (x - press.x).rounded()
+        let delta = Frames(Int((points * geometry.scale.framesPerPoint).rounded()))
         let moved = min(max(delta, trim.limits.lowerBound), trim.limits.upperBound)
         let range = trim.clip.start..<(trim.edge == .start ? trim.clip.end - moved : trim.clip.end + moved)
         guard range != trim.range else { return [] }

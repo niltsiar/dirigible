@@ -70,8 +70,10 @@ session="$(cd "$folder" && pwd -P)/Demo Episode.dirigible"
 refuse_running
 pid=""
 trap '[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
+# The View preferences in the arguments win over the stored ones, so the images do not depend on
+# them. The inspector toggle below starts from hidden.
 open -a "$app" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(en)" \
-    -AppleLocale en_US -ApplePersistenceIgnoreState YES
+    -AppleLocale en_US -ApplePersistenceIgnoreState YES -view.inspector.shown NO -view.loudness.shown YES
 # No copy ran before the launch, so the one Dirigible process is the launched one.
 # open can return before the process shows, so wait up to 10 s for it.
 for _ in $(seq 1 20); do
@@ -135,7 +137,7 @@ for code in 121 34 121 31 4; do key "$code"; done
 sleep 1
 shot screenshot-zoom.png
 # Option-Command-I: show the inspector of the selection. Then hide it again, because the app
-# keeps the choice for new windows.
+# stores the choice for new windows.
 key 34 --command --option
 sleep 1
 shot screenshot-inspector.png

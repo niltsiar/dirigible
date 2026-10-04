@@ -28,13 +28,19 @@ import Testing
             let shown = n == 0 ? withBig : session
             let package = folder.url.appending(path: "\(n)")
             try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
-            let (window, view, model) = try await MouseEventBenchmark.lanesOnScreen(
+            let (window, view, model, inputs) = try await MouseEventBenchmark.lanesAndInputs(
                 shown, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)
             try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
             let first = try #require(shown.tracks[0].clips.first)
             let box = try #require(view.lanes.clipFrame(first.id))
             try #require(box.width >= 12 && box.maxX < 1300, "\(zoom): \(box)")
             let down = NSPoint(x: box.maxX - 2, y: box.minY + 10)
+            // The Marks of a ripple commit are on the clip: the state of a second drag.
+            var marked = inputs
+            marked.marks = Marks(inPoint: first.start, outPoint: first.end, tracks: ["t1"])
+            model.timeline.marks = marked.marks
+            view.update(marked)
+            drawNow(window)
             view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view, flags: .option))
             var ends: [Frames] = []
             let sorted = try await MouseEventBenchmark.pacedDrags(view, window, zoom) { event in

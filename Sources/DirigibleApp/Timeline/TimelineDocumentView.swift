@@ -70,14 +70,16 @@ final class TimelineDocumentView: NSView {
         }
     }
 
-    /// The shift of `shiftedFrames` from `old` to the inputs, when the Marks do not change and
-    /// their lines and band are left of the old and the new later region.
+    /// The shift of `shiftedFrames` from `old` to the inputs, when the Marks do not change. The
+    /// Marks lines and band stay at their frames, so the copied region starts 1 pt past them in
+    /// the old and the new lanes: after a ripple commit, the Marks are on the dragged clip.
     private func shift(from old: LaneInputs?) -> (from: Frames, delta: Frames, strays: [Frames])? {
-        guard let old, let inputs, old.marks == inputs.marks,
+        guard let old, let inputs, let geometry = inputs.geometry, old.marks == inputs.marks,
             let shift = shiftedFrames(from: old.session, to: inputs.session)
         else { return nil }
-        let marks = [inputs.marks.inPoint, inputs.marks.outPoint].compactMap { $0 }
-        return marks.allSatisfy { $0 < min(shift.from, shift.from - shift.delta) } ? shift : nil
+        guard let last = [inputs.marks.inPoint, inputs.marks.outPoint].compactMap({ $0 }).max() else { return shift }
+        let pad = Frames(Int(geometry.scale.framesPerPoint.rounded(.up)))
+        return (max(shift.from, last + pad + max(.zero, shift.delta)), shift.delta, shift.strays)
     }
 
     /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of

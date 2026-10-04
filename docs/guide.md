@@ -114,7 +114,7 @@ The in point is the start of the selection, and the out point is the end. With n
 
 ## Find your way in a long session
 
-![The Dirigible window zoomed to a selection from the marker Intro to the chapter Interview.](images/screenshot-zoom.png)
+![The Dirigible window zoomed to a selection from the marker Intro to the chapter Interview, with a fade-in on the first clip.](images/screenshot-zoom.png)
 
 ### Play and move the playhead
 
@@ -221,6 +221,8 @@ On a clip that is 40 pt wide or more on screen, a line shows the clip gain, and 
 Each drag and each double-click is one step in the undo history. Where two clips touch with no fade, the edges have no handle.
 
 ### Type the gain and the fades in the inspector
+
+![The inspector at the right of the window, for two clips: Gain 0.0 dB, Fade In Mixed, and Fade Out 0 ms.](images/screenshot-inspector.png)
 
 Choose **View > Show Inspector** (Option-Command-I) to show the inspector at the right of the window. It shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
 
@@ -528,7 +530,7 @@ The screenshots of the README and of this guide come from a script. The script m
 3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`. The script builds the app first.
 4. Do not move the pointer or other windows over the Dirigible window until the script stops.
 
-The script writes `docs/images/screenshot-edit.png` and `docs/images/screenshot-zoom.png`. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, and when the display scale is not 2x (Retina). The images are 2360 x 1544 pixels.
+The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, and `docs/images/screenshot-inspector.png`. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, and when the display scale is not 2x (Retina). The images are 2360 x 1544 pixels.
 
 ### Make the banner again
 

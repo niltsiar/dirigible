@@ -87,14 +87,26 @@ public func changedFrames(from old: Marks, to new: Marks, in session: Session) -
     return changed ?? .zero ..< .zero
 }
 
-/// The frames where the selection `new` draws differently from `old` on the lanes of `session`.
-/// Empty when nothing changed.
+/// The frames where the selection `new` draws differently from `old` on the lanes of `session`
+/// (decision 0038): two ranges compare as Marks; two clip sets give the boxes of the clips that one
+/// set has and the other does not; a range and a clip set give the band and lines of the range and
+/// the boxes of the set. Empty when nothing changed.
 public func changedFrames(from old: Selection, to new: Selection, in session: Session) -> Range<Frames> {
     guard old != new else { return .zero ..< .zero }
+    let ranges: [Range<Frames>]
     switch (old, new) {
     case (.range(let a), .range(let b)): return changedFrames(from: a, to: b, in: session)
-    default: return .zero ..< .limit
+    case (.clips(let a), .clips(let b)): ranges = boxes(of: a.ids.symmetricDifference(b.ids), in: session)
+    case (.range(let marks), .clips(let set)), (.clips(let set), .range(let marks)):
+        ranges = [changedFrames(from: Marks(), to: marks, in: session)] + boxes(of: set.ids, in: session)
     }
+    let changed = ranges.filter { !$0.isEmpty }.reduce(nil) { hull($0, $1.lowerBound, $1.upperBound) }
+    return changed ?? .zero ..< .zero
+}
+
+/// The frames of the clips of `session` with an ID in `ids`.
+private func boxes(of ids: Set<ClipID>, in session: Session) -> [Range<Frames>] {
+    session.tracks.flatMap { $0.clips.filter { ids.contains($0.id) }.map(\.range) }
 }
 
 /// The smallest range that holds `range` and `start ..< end`.

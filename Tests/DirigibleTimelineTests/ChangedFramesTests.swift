@@ -168,4 +168,18 @@ struct ChangedFramesTests {
         try shorter.trim("B", to: 96_000..<180_000)
         #expect(changedFrames(from: joined, to: shorter)?.frames == 96_000..<192_000, "A stays joined")
     }
+
+    /// C15a (decision 0038): a clip set is a drawn value, so a Command-click redraws the box of the
+    /// clip that it adds or removes. Control: a compare that ignores the clip set gives no frames.
+    @Test func aClipSelectionChangeRedrawsTheToggledBox() throws {
+        let session = try Fixture.session()
+        let a = Selection.clips(try #require(ClipSet(["A"])))
+        let ab = Selection.clips(try #require(ClipSet(["A", "B"])))
+        #expect(changedFrames(from: a, to: ab, in: session) == 144_000..<192_000, "the box of B")
+        #expect(changedFrames(from: ab, to: a, in: session) == 144_000..<192_000)
+        #expect(changedFrames(from: .none, to: a, in: session) == 48_000..<96_000, "the box of A")
+        let range = Selection.range(Marks(inPoint: 0, outPoint: 24_000, tracks: ["t2"]))
+        #expect(changedFrames(from: range, to: a, in: session) == 0..<96_000, "the band and the box")
+        #expect(changedFrames(from: ab, to: ab, in: session).isEmpty)
+    }
 }

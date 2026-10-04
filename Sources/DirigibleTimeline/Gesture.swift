@@ -121,6 +121,8 @@ public struct TimelineGesture: Sendable {
         case dropped
         case pressed(Press)
         case moving(Press, Move)
+        /// A drag of a clip of a selection of 2 or more clips (decision 0038).
+        case grouping(Press, GroupMove)
         case trimming(Press, Trim)
         /// A drag of the gain line, of a fade handle, or of a crossfade handle (`Gesture+Clip.swift`).
         case gaining(Press, GainDrag)
@@ -151,7 +153,7 @@ public struct TimelineGesture: Sendable {
     /// a triangle. Autoscroll runs only then (decision 0025).
     public var autoscrolls: Bool {
         switch state {
-        case .moving, .trimming, .fading, .crossfading, .ranging, .markerDrag, .pointDrag: true
+        case .moving, .grouping, .trimming, .fading, .crossfading, .ranging, .markerDrag, .pointDrag: true
         case .idle, .dropped, .pressed, .gaining: false
         }
     }
@@ -164,7 +166,8 @@ public struct TimelineGesture: Sendable {
             switch place {
             case .lanes(let x, let y):
                 let hit = context.geometry.hit(x, y, in: context.session)
-                target = .lane(shift || command ? .range(lane: hit.lane) : hit)
+                // Command on a clip keeps the clip for a toggle at the up (decision 0038).
+                target = .lane(shift || (command && hit.clip == nil) ? .range(lane: hit.lane) : hit)
             case .ruler(let x, let y):
                 switch rulerTarget(x, y, context) {
                 case .none: return []
@@ -186,6 +189,7 @@ public struct TimelineGesture: Sendable {
             switch state {
             case .pressed(let press): return reset(press, context) ?? click(press, context)
             case .moving(let press, let move): return commit(press, move, context)
+            case .grouping(let press, let group): return commit(press, group, context)
             case .trimming(let press, let trim): return commit(press, trim, context)
             case .gaining(let press, let gain): return commit(press, gain, context)
             case .fading(let press, let fade): return commit(press, fade, context)
@@ -200,7 +204,7 @@ public struct TimelineGesture: Sendable {
             case .pressed:
                 state = .idle
                 return []
-            case .moving, .trimming, .gaining, .fading, .crossfading, .markerDrag:
+            case .moving, .grouping, .trimming, .gaining, .fading, .crossfading, .markerDrag:
                 state = .dropped
                 return []
             case .ranging(let press), .pointDrag(let press, _):
@@ -209,7 +213,7 @@ public struct TimelineGesture: Sendable {
             }
         case .sessionChanged:
             switch state {
-            case .moving, .trimming, .gaining, .fading, .crossfading, .markerDrag: state = .dropped
+            case .moving, .grouping, .trimming, .gaining, .fading, .crossfading, .markerDrag: state = .dropped
             case .pressed(let press) where press.target.edits: state = .idle
             default: break
             }
@@ -222,6 +226,7 @@ public struct TimelineGesture: Sendable {
     public func drawn(_ session: Session) -> Session {
         switch state {
         case .moving(_, let move): move.preview
+        case .grouping(_, let group): group.preview
         case .trimming(_, let trim): trim.preview
         case .gaining(_, let gain): gain.preview
         case .fading(_, let fade): fade.preview
@@ -235,7 +240,7 @@ public struct TimelineGesture: Sendable {
     /// With `option`, a trim zone gives the ripple cursor of its edge (decision 0037).
     public func cursor(at place: Place, _ context: GestureContext, option: Bool = false) -> TimelineCursor {
         switch state {
-        case .moving: return .closedHand
+        case .moving, .grouping: return .closedHand
         case .trimming(_, let trim) where trim.ripple: return .rippleTrim(trim.edge)
         case .trimming, .fading, .crossfading, .markerDrag, .pointDrag: return .resizeLeftRight
         case .gaining: return .resizeUpDown
@@ -259,6 +264,11 @@ public struct TimelineGesture: Sendable {
             return []
         case .pressed(let press):
             guard hypot(x - press.x, y - press.y) >= Self.threshold else { return [] }
+            // A Command-drag from a clip stays a range drag (decision 0020).
+            if press.command, case .lane = press.target {
+                state = .ranging(press)
+                return drag(place, context)
+            }
             switch press.target {
             case .flag(let marker):
                 guard context.canEdit else { return [] }
@@ -269,9 +279,7 @@ public struct TimelineGesture: Sendable {
                 return drag(place, context)
             case .lane(.move(let clip, let lane)):
                 guard context.canEdit else { return [] }
-                let track = press.base.tracks[lane].id
-                state = .moving(
-                    press, Move(clip: clip, lane: lane, track: track, start: clip.start, preview: press.base))
+                state = moveState(press, clip, lane)
                 return drag(place, context)
             case .lane(.trim(let clip, let edge, let lane)):
                 guard context.canEdit else { return [] }
@@ -297,6 +305,8 @@ public struct TimelineGesture: Sendable {
             }
         case .moving(let press, let move):
             return moveDrag(press, move, x, y, context)
+        case .grouping(let press, let group):
+            return groupDrag(press, group, x, y, context)
         case .trimming(let press, var trim):
             guard context.canEdit else {
                 state = .dropped

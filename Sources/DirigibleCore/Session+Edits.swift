@@ -100,6 +100,11 @@ extension Session {
     public mutating func nudge(_ clips: [ClipID], by offset: Frames) throws(SessionError) {
         // The offset is in -limit...limit before any sum, so a sum with a clip start cannot overflow.
         guard offset >= .zero - .limit, offset <= .limit else { throw .frameOutOfRange }
+        // An offset of 0 changes nothing, so it keeps the crossfades (decision 0036).
+        if offset == .zero {
+            if let missing = clips.first(where: { clip($0) == nil }) { throw .unknownClip(missing) }
+            return
+        }
         let moving = Set(clips)
         var copy = self
         var taken = clipIDs

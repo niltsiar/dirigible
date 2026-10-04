@@ -43,8 +43,10 @@ extension Session {
     }
 
     /// Moves the clip to `start` on `track`, and overwrites the clips under it there.
+    /// A move to the same track and start changes nothing, so it keeps the crossfades (decision 0036).
     public mutating func move(_ id: ClipID, to track: TrackID, start: Frames) throws(SessionError) {
         let (source, index) = try position(of: id)
+        if tracks[source].id == track, tracks[source].clips[index].start == start { return }
         var moved = tracks[source].clips[index]
         moved.start = start
         var copy = self

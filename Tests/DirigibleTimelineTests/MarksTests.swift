@@ -260,7 +260,8 @@ struct MarksTests {
         #expect(fades(60_000..<70_000, try Self.fadeSession()) == nil)
     }
 
-    /// C19: an edge at a butt join gets no fade; a 1-frame gap is not a join.
+    /// C19: an edge at a butt join gets no fade; a 1-frame gap is not a join. B has offset 0, so
+    /// the join has no handle before B and Command-F makes no crossfade there either (0036).
     @Test func fadeAtAButtJoinDoesNothing() throws {
         #expect(fades(90_000..<100_000, try Self.fadeSession(b: 96_000)) == nil, "a butt join")
         #expect(

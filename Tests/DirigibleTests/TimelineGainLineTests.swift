@@ -165,6 +165,25 @@ import Testing
         await model.close()
     }
 
+    /// R4 (run 11c-2): c9 joins c1 at x 300 with a crossfade of 20,480 frames (20 pt on each
+    /// side). A gain drag of c1 redraws to x 320, where its fade line over c9 ends (fail value: x 301).
+    @Test func aGainDragRedrawsTheCrossfadeLine() async throws {
+        let (model, _, window, view) = try await lanes { s throws(SessionError) in
+            try s.place(Clip(id: "c9", file: "f1", start: 153_600, offset: 300_000, length: 51_200), on: "t1")
+            try s.setCrossfades(["c1": 20_480])
+        }
+        try send(.leftMouseDown, view, 250, 3)
+
+        try send(.leftMouseDragged, view, 250, 13)
+        drawNow(window)
+
+        let rect = view.lanes.drawnRect
+        #expect(rect.maxX >= 320 && rect.maxX <= 322, "\(rect)")
+        try send(.leftMouseUp, view, 250, 13)
+        window.close()
+        await model.close()
+    }
+
     @Test func aMouseMoveRendersNothing() async throws {
         let (model, _, window, view) = try await lanes()
         drawNow(window)

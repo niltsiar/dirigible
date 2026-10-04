@@ -42,6 +42,21 @@ struct ChangedFramesTests {
         #expect(changedFrames(from: session, to: faded)?.lanes == 0..<1, "the rows of t1 only")
     }
 
+    /// R4 (run 11c-2): with a crossfade of 19,200 at J = 96,000, a gain change of A alone redraws
+    /// to J + L/2 (fail value: A.end), and a change of the length redraws A.start ..< B.end.
+    @Test func aCrossfadeChangesItsSoundingRange() throws {
+        var session = try Fixture.session()
+        try session.move("B", to: "t1", start: 96_000)
+        try session.setCrossfades(["A": 19_200])
+        var gain = session
+        try gain.setGain(Gain(dB: -6)!, clip: "A")
+        var length = session
+        try length.setCrossfades(["A": 960])
+
+        #expect(changedFrames(from: session, to: gain)?.frames == 48_000..<105_600)
+        #expect(changedFrames(from: session, to: length)?.frames == 48_000..<144_000)
+    }
+
     @Test func aChangeOutsideTheClipsRedrawsAll() throws {
         let session = try Fixture.session()
         var gain = session

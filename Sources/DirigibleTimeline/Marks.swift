@@ -181,8 +181,8 @@ public struct Marks: Hashable, Sendable {
     /// selection. The range holds the clip start when in <= start, and the clip end when end <= out.
     /// Both: min(0.5 s, length / 2) at each end. The start only: a fade-in to the out point. The end
     /// only: a fade-out from the in point. An edge at a butt join (a lane neighbor touches it) gets
-    /// no fade in 11a, so an edge with a crossfade gets none. The new fade wins, and the other fade
-    /// yields, also to the half of a crossfade (decision 0036). Nil with no selection or no change.
+    /// no fade: `crossfades(in:)` gives the join a crossfade (decision 0036). The new fade wins, and
+    /// the other fade yields, also to the half of a crossfade. Nil with no selection or no change.
     public func fades(in session: Session) -> [ClipID: Fades]? {
         guard let selection = selection(in: session), let touched = touchedClips(in: session) else { return nil }
         let (low, high) = (selection.range.lowerBound, selection.range.upperBound)
@@ -206,6 +206,49 @@ public struct Marks: Hashable, Sendable {
             if fades != clip.fades { result[clip.id] = fades }
         }
         return result.isEmpty ? nil : result
+    }
+
+    /// The crossfades of Command-F (decision 0036), keyed by the left clip, at each butt join J of
+    /// a selected track with in < J < out: 20 ms (even) when the range holds both clips whole, else
+    /// 2 x min(J - in, out - J), centered on J. Each length clamps to `crossfadeLimit`. A join also
+    /// clamps to the room that the join before it leaves in the clip between them, so two new
+    /// halves never pass the length of a short clip. A join that gets 0 or its present length is
+    /// left out. Nil with no selection or no change.
+    func crossfades(in session: Session) -> [ClipID: Frames]? {
+        guard let selection = selection(in: session) else { return nil }
+        let (low, high) = (selection.range.lowerBound, selection.range.upperBound)
+        let standard = Frames(session.sampleRate / 50 / 2 * 2)
+        let lanes = selection.tracks.compactMap(session.track).map(\.clips)
+        var result: [ClipID: Frames] = [:]
+        result.reserveCapacity(lanes.reduce(0) { $0 + $1.count })
+        for lane in lanes {
+            // The half that this pass gave to the start of the clip at `index`.
+            var given: (index: Int, half: Frames)?
+            for (index, (a, b)) in zip(lane, lane.dropFirst()).enumerated()
+            where low < a.end && a.end < high && a.end == b.start {
+                guard var limit = session.crossfadeLimit(after: index, in: lane) else { continue }
+                if let given, given.index == index { limit = min(limit, Frames(2 * (a.length - given.half).count)) }
+                let wanted =
+                    low <= a.start && b.end <= high ? standard : Frames(2 * min(a.end - low, high - a.end).count)
+                let length = min(wanted, limit)
+                guard length > .zero else { continue }
+                given = (index + 1, Frames(length.count / 2))
+                if length != a.crossfades.end { result[a.id] = length }
+            }
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    /// Command-F (decisions 0035 and 0036): the crossfades of `crossfades(in:)`, then the fades of
+    /// `fades(in:)` on that result, so a free fade fits beside a new crossfade half. One result, so
+    /// the window makes one edit and one undo entry. Nil when nothing changes.
+    public func faded(_ session: Session) throws(SessionError) -> Session? {
+        var result = session
+        let crossfades = crossfades(in: session)
+        if let crossfades { try result.setCrossfades(crossfades) }
+        let fades = fades(in: result)
+        if let fades { try result.setFades(fades) }
+        return crossfades == nil && fades == nil ? nil : result
     }
 
     /// Select All: 0 to the end on every track. An empty session gives no Marks.

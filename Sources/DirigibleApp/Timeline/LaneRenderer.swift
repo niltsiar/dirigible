@@ -68,7 +68,8 @@ struct LanePalette: Equatable {
 /// Draws the lanes into a caller's pixels (decisions 0017 and 0022, probe D2): a background pattern
 /// per row, then the clip boxes, the missing-media tint, and the waveform as column spans, rectified
 /// on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain and the
-/// fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the
+/// fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the fade lines of
+/// the crossfade halves outside the boxes (decision 0036), the gain lines and handles, the
 /// selection band and the marker, chapter, in, and out lines. One per document view, on the main
 /// thread. It writes every pixel of the rect of the region, and the region refuses every pixel
 /// outside it. Each edge rounds in absolute document pixels, so two partial draws agree with one
@@ -164,15 +165,25 @@ final class LaneRenderer {
                     resize(range.count)
                     peaks.fill(&values, from: from + Double((anchor - peaks.origin).count), step: pixelFrames)
                 }
+                // The fades as the clip sounds: a crossfade is the fade of its edge (decision 0036).
+                let sounding = clip.sounding
                 let fades =
-                    clip.fades == .zero
+                    sounding.fades == .zero
                     ? nil
                     : ColumnFades(
-                        fades: clip.fades, length: clip.length,
-                        first: Double(range.lowerBound) * pixelFrames - Double(clip.start.count), step: pixelFrames,
-                        line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
+                        fades: sounding.fades, length: sounding.length,
+                        first: Double(range.lowerBound) * pixelFrames - Double(sounding.start.count),
+                        step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
                 drawColumns(
                     range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, palette, into: region)
+            }
+        }
+        // The fade line of each crossfade half outside its box, over the waveform of the neighbor
+        // (decision 0036). The sounding query finds a clip whose box is outside the columns.
+        for lane in drawn {
+            let track = tracks[lane]
+            for clip in track.clips.clips(soundingIn: visible) where clip.crossfades != .zero {
+                drawCrossfadeLines(clip, track, lane, geometry, palette, into: region)
             }
         }
         // The gain line and the fade handles (run 11b-1) after the waveforms, from the `Clip` and
@@ -246,9 +257,8 @@ final class LaneRenderer {
                     region.span(palette.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
                     region.span(palette.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
                     if factor != nil, fades?.line == true {
-                        // The top of a 0 dBFS signal with the gains and the fade, in the lane.
-                        let row = bottom - height(decibels: 0, columnGain) + 1
-                        region.span(palette.label, column: column, rows: min(row, bottom)..<min(row, bottom) + 1)
+                        let row = Self.lineRow(columnGain, bottom: bottom, laneRows: laneRows)
+                        region.span(palette.label, column: column, rows: row..<row + 1)
                     }
                     index += 1
                 }

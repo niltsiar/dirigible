@@ -10,13 +10,16 @@ extension Session {
     public mutating func setCrossfades(_ lengths: [ClipID: Frames]) throws(SessionError) {
         var lanes = tracks
         var found = 0
-        for track in lanes.indices {
-            let lane = lanes[track].clips
-            var changed: [Int: Clip] = [:]
-            for index in lane.indices {
-                guard let length = lengths[lane[index].id] else { continue }
+        for track in lanes.indices where found < lengths.count {
+            let owner = lanes[track]
+            let lane = owner.clips
+            // The changed clips in index order: only the right clip of the join before can change
+            // again, so the list needs no dictionary and no sort (bench B2 of run 11c-2).
+            var changed: [(index: Int, clip: Clip)] = []
+            for (index, clip) in lane.enumerated() {
+                guard let length = lengths[clip.id] else { continue }
                 found += 1
-                var left = changed[index] ?? lane[index]
+                var left = changed.last?.index == index ? changed.removeLast().clip : clip
                 let join = lane.join(after: index)
                 guard join != .none else { throw .crossfadeWithoutJoin(left.id) }
                 if length != .zero, join == .seamless { throw .crossfadeAtSeamlessJoin(left.id) }
@@ -29,9 +32,11 @@ extension Session {
                     left.fades = left.fitting(Fades(fadeIn: left.fades.fadeIn, fadeOut: .zero)!, keeping: .end)
                     right.fades = right.fitting(Fades(fadeIn: .zero, fadeOut: right.fades.fadeOut)!, keeping: .start)
                 }
-                (changed[index], changed[index + 1]) = (left, right)
+                changed.append((index, left))
+                changed.append((index + 1, right))
+                if found == lengths.count { break }
             }
-            for index in changed.keys.sorted() { try check(changed[index]!, on: lanes[track]) }
+            for (_, clip) in changed { try check(clip, on: owner) }
             lanes[track].clips.replace(changed)
         }
         if found < lengths.count, let missing = lengths.keys.sorted().first(where: { clip($0) == nil }) {
@@ -40,16 +45,16 @@ extension Session {
         tracks = lanes
     }
 
-    /// The longest crossfade at the end of `left`: 2 x the least of the handle after `left`, the
-    /// handle before its neighbor, and the room of each clip beside the crossfade half at its other
-    /// edge (its fades yield). 0 at a seamless join. Nil with no touching neighbor.
-    public func crossfadeLimit(after left: ClipID) -> Frames? {
-        guard let (track, index) = try? position(of: left) else { return nil }
-        let lane = tracks[track].clips
-        let join = lane.join(after: index)
-        guard join != .none, let file = files[lane[index].file] else { return nil }
+    /// The longest crossfade at the join after the clip at `left` of `lane`: 2 x the least of the
+    /// handle after that clip, the handle before its neighbor, and the room of each clip beside the
+    /// crossfade half at its other edge (its fades yield). 0 at a seamless join. Nil with no
+    /// touching neighbor or no pool file. The index makes it constant time, so Command-F on Select
+    /// All reads it for each join with no clip search.
+    public func crossfadeLimit(after left: Int, in lane: ClipLane) -> Frames? {
+        let join = lane.join(after: left)
+        guard join != .none, let file = files[lane[left].file] else { return nil }
         if join == .seamless { return .zero }
-        let (a, b) = (lane[index], lane[index + 1])
+        let (a, b) = (lane[left], lane[left + 1])
         let half = min(
             file.length - (a.offset + a.length), b.offset, a.crossfadeRoom(.end), b.crossfadeRoom(.start))
         return Frames(2 * max(0, half.count))

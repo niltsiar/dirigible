@@ -17,7 +17,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Record the sound of another app, for example a call, on its own track (macOS 14.2 or later).
 - Keep the recorded audio after a crash, an unplug, or a full disk.
 - Edit with the keyboard or the mouse: cut, copy, paste, delete, split, nudge, move, and trim. Each edit is one undo step.
-- Set the gain and the fades of a clip with the mouse, with Command-F, or in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.
+- Drag the gain line and the fade handles of a clip, press Command-F for a fade, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.
 - Read the loudness of the mix in the meter below the tracks while you play.
 - Play forward and backward with the J, K, and L keys, at slow and fast speeds.
 - Find your way in a long session with the Session overview, zoom to the selection, and a zoom history.

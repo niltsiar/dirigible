@@ -48,6 +48,26 @@ extension UnplacedBannerTests {
         await reopened.close()
     }
 
+    /// Code gate 2 item 1: a CAF that the user cannot read now (mode 000) can place later, so after
+    /// a reopen it still blocks, with a beep. Control: a rule that a CAF that does not open never
+    /// blocks.
+    @Test func aSplitTakeWithAnUnreadableCAFStaysBlocked() async throws {
+        let url = try await splitTake()
+        let caf = url.appending(path: "\(captureFolderName)/\(Self.second.stem).caf")
+        chmod(caf.path, 0)
+        defer { chmod(caf.path, 0o644) }
+        let (reopened, again) = try await timelineModel(url, app: app)
+        var beeps = 0
+        reopened.beep = { beeps += 1 }
+        reopened.timeline.marks = Marks(inPoint: 0, outPoint: 4_800, tracks: ["t1"])
+        let before = again.session
+
+        reopened.run(.deleteCloseGap)
+
+        #expect(again.session == before && beeps == 1, "RIPPLE-W5 an unreadable CAF does not block")
+        await reopened.close()
+    }
+
     /// A split take in a closed package: take1-1-1 placed, take1-2-1 not. The studio goes at the
     /// return, so its package lock goes too.
     func splitTake() async throws -> URL {

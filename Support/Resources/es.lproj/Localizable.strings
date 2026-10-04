@@ -39,7 +39,6 @@
 "error.session.layout" = "La disposición de la pista «%@» no puede cambiar.";
 "error.session.track.in.take" = "La pista «%@» está en la toma que espera a terminar.";
 "error.session.track.count" = "La copia tiene %lld pistas. Seleccione el mismo número de pistas para pegarla.";
-"error.session.crossfade.handle" = "Un clip tiene muy poco audio en su archivo para este fundido cruzado.";
 "error.session.other" = "La sesión rechazó el cambio.";
 "error.file.unreadable" = "El archivo de la sesión está dañado.";
 "error.file.newer" = "Esta sesión se creó con una versión más nueva de Dirigible. Actualiza Dirigible para abrirla.";

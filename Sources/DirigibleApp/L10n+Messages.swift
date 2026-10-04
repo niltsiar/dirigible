@@ -96,12 +96,11 @@ extension L10n {
         case .layoutMismatch(let track, _): return errorSessionLayout.format(name(track))
         case .trackInRecording(let track): return errorSessionTrackInTake.format(name(track))
         case .trackCount(let count): return errorSessionTrackCount.format(count)
-        case .crossfadeOutsideFile: return errorSessionCrossfadeHandle.text
         // The window never makes these edits: they are bugs, not user errors.
         case .duplicateID, .unknownCapture, .unknownFile, .unknownTrack, .unknownClip, .unknownMarker,
             .captureInUse, .invalidCapture, .fileInUse, .invalidRoute, .invalidPath, .frameOutOfRange,
-            .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip, .crossfadeWithoutJoin,
-            .crossfadeAtSeamlessJoin, .fadeAtCrossfade:
+            .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip, .crossfadeOutsideFile,
+            .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .fadeAtCrossfade:
             return errorSessionOther.text
         }
     }

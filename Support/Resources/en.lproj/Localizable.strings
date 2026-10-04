@@ -39,7 +39,6 @@
 "error.session.layout" = "The layout of track “%@” cannot change.";
 "error.session.track.in.take" = "Track “%@” is in the take that waits to finish.";
 "error.session.track.count" = "The copy has %lld tracks. Select as many tracks to paste it.";
-"error.session.crossfade.handle" = "A clip has too little audio in its file for this crossfade.";
 "error.session.other" = "The session refused the change.";
 "error.file.unreadable" = "The session file is damaged.";
 "error.file.newer" = "This session was made by a newer version of Dirigible. Update Dirigible to open it.";

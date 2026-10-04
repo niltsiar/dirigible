@@ -69,9 +69,7 @@ extension Session {
         var trimmed = Clip(
             id: id, file: clip.file, start: range.lowerBound, offset: offset,
             length: range.upperBound - range.lowerBound, gain: clip.gain,
-            crossfades: Crossfades(
-                start: range.lowerBound == clip.start ? clip.crossfades.start : .zero,
-                end: range.upperBound == clip.end ? clip.crossfades.end : .zero)!)
+            crossfades: .kept(edgesOf: clip, in: range))
         trimmed.fades = trimmed.fitting(clip.fades, keeping: kept)
         try check(trimmed, on: tracks[track])
         if let neighbor = tracks[track].clips.clips(overlapping: trimmed.range).first(where: { $0.id != id }) {
@@ -160,7 +158,7 @@ extension Session {
         }
     }
 
-    private func position(of id: ClipID) throws(SessionError) -> (track: Int, index: Int) {
+    func position(of id: ClipID) throws(SessionError) -> (track: Int, index: Int) {
         for (track, lane) in tracks.map(\.clips).enumerated() {
             if let index = lane.firstIndex(where: { $0.id == id }) { return (track, index) }
         }

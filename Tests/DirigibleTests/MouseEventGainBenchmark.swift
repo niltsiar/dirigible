@@ -97,6 +97,13 @@ import Testing
     /// the handle at its new place that removes the fade-in.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aFadeHandleDragEventFitsOneFrameAtTwoHours() async throws {
+        _ = try await Self.fadeDrag()
+    }
+
+    /// The fade-handle drag of B1 and B2; returns the p50 of each zoom (`MouseEventCrossfadeBenchmark`
+    /// compares with it).
+    static func fadeDrag() async throws -> [Duration] {
+        var p50: [Duration] = []
         let (session, peaks) = try Self.fixture()
         try await Self.eachZoom(session, peaks) { zoom, window, view, box in
             let fadeEnd = box.minX + 24_000 / view.lanes.framesPerPoint
@@ -115,7 +122,9 @@ import Testing
                 view.lanes.mouseUp(with: try mouse(.leftMouseUp, handle, in: view, clicks: 2))
             }
             Self.report("fade", zoom, sorted, oneOff: [up, reset])
+            p50.append(sorted[60])
         }
+        return p50
     }
 
     /// B4: the full draw of the lanes in view with -20 dB on every second clip (the line 33 pt under

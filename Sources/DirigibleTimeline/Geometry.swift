@@ -103,9 +103,10 @@ public struct LaneGeometry: Equatable, Sendable {
 
     /// The zone under a lane point (mouse-edits criterion 1, run 11b-1). On a clip, in this order:
     /// a fade handle, 4 pt inside each edge trims, the gain band (3 pt around the gain line, at
-    /// least 3 pt under the box top, between the fades), the upper two thirds moves, and the lower
-    /// third is a range. The handles and the band need a box of `controlsWidth`. A box under
-    /// 12 pt is all range, so a small drag at fit zoom cannot move a clip that the user cannot see.
+    /// least 3 pt under the box top, between the fades and the crossfade halves), the upper two
+    /// thirds moves, and the lower third is a range. The handles and the band need a box of
+    /// `controlsWidth`. A box under 12 pt is all range, so a small drag at fit zoom cannot move a
+    /// clip that the user cannot see.
     func hit(_ x: Double, _ y: Double, in session: Session) -> LaneHit {
         let lane = lane(at: y)
         guard lane < session.tracks.count else { return .range(lane: nil) }
@@ -132,7 +133,7 @@ public struct LaneGeometry: Equatable, Sendable {
             // Two comparisons, not a range: when the fades fill the clip, the two ends come from two
             // float paths, and the fade-in end can be 1 ulp over the fade-out start (code gate K1).
             let (fadeInEnd, fadeOutStart) = (
-                box.minX + self.x(of: clip.fades.fadeIn), box.maxX - self.x(of: clip.fades.fadeOut)
+                box.minX + self.x(of: clip.reach(.start)), box.maxX - self.x(of: clip.reach(.end))
             )
             if abs(y - line) <= Self.gainReach, x >= fadeInEnd, x <= fadeOutStart { return .gain(clip, lane: lane) }
         }
@@ -239,7 +240,8 @@ public enum TimelineCursor: Equatable, Sendable {
 
 /// The frames that an edge of `clip` can reach in a trim (mouse-edits criterion 6): the neighbor
 /// in `lane`, the start or the end of its file (`fileLength` frames), frame 0, `Frames.limit`, and
-/// a length of `minimum`. The range always holds the current edge, so it is never empty.
+/// a length of `minimum` or of half the crossfade at the other edge, the larger (decision 0036).
+/// The range always holds the current edge, so it is never empty.
 func trimLimits(_ clip: Clip, edge: Edge, in lane: ClipLane, fileLength: Frames, minimum: Frames)
     -> ClosedRange<Frames>
 {
@@ -248,10 +250,10 @@ func trimLimits(_ clip: Clip, edge: Edge, in lane: ClipLane, fileLength: Frames,
     case .start:
         let previous = index.flatMap { $0 > lane.startIndex ? lane[$0 - 1].end : nil } ?? .zero
         let low = max(previous, clip.start - clip.offset, .zero)
-        return min(low, clip.start)...max(clip.start, clip.end - minimum)
+        return min(low, clip.start)...max(clip.start, clip.end - max(minimum, Frames(clip.crossfades.end.count / 2)))
     case .end:
         let next = index.flatMap { $0 + 1 < lane.endIndex ? lane[$0 + 1].start : nil } ?? .limit
         let high = min(next, clip.start + fileLength - clip.offset, .limit)
-        return min(clip.end, clip.start + minimum)...max(clip.end, high)
+        return min(clip.end, clip.start + max(minimum, Frames(clip.crossfades.start.count / 2)))...max(clip.end, high)
     }
 }

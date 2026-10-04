@@ -153,6 +153,33 @@ struct ClipZoneTests {
         #expect(geometry.fadeHandles(of: plain[1], at: 1, in: plain, lane: 0).start == nil)
     }
 
+    /// G8 (run 11c-2): at L/2 under 4 pt (960 frames, 1 pt) the two handles meet at J (x 200) and
+    /// cover the top 8 pt of both trim zones; under them the trim stays.
+    @Test func aCrossfadeHandleCoversTheTopOfTheTrim() throws {
+        var session = try Fixture.session()
+        try session.move("B", to: "t1", start: 96_000)
+        try session.setCrossfades(["A": 960])
+        let (a, b) = (session.clip("A")!.clip, session.clip("B")!.clip)
+
+        #expect(geometry.hit(198, 2, in: session) == .fade(a, .end, lane: 0))
+        #expect(geometry.hit(202, 2, in: session) == .fade(b, .start, lane: 0))
+        #expect(geometry.hit(198, 20, in: session) == .trim(a, .end, lane: 0))
+        #expect(geometry.hit(202, 20, in: session) == .trim(b, .start, lane: 0))
+    }
+
+    /// G11 (run 11c-2): the gain band of A at -20 dB (y 20) stops at the crossfade half (x 180).
+    /// Fail value: the band up to the join.
+    @Test func theGainBandStopsAtTheCrossfade() throws {
+        var session = try Fixture.session()
+        try session.move("B", to: "t1", start: 96_000)
+        try session.setGain(Gain(dB: -20)!, clip: "A")
+        try session.setCrossfades(["A": 19_200])
+        let a = session.clip("A")!.clip
+
+        #expect(geometry.hit(170, 20, in: session) == .gain(a, lane: 0))
+        #expect(geometry.hit(185, 20, in: session) == .move(a, lane: 0))
+    }
+
     /// Code gate K1: fades that fill the clip leave no gain band (the hit is a handle or a move). At 50 frames per point and this start,
     /// the fade-in end x is 1 ulp over the fade-out start x, and a range from the two trapped.
     @Test func fadesThatFillTheClipLeaveNoBand() throws {

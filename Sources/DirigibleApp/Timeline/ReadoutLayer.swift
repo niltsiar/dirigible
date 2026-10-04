@@ -2,7 +2,7 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 
-/// The value of a gain or fade-handle drag next to the pointer (run 11b-1): a text layer over the
+/// The value of a gain, fade-handle, or crossfade-handle drag next to the pointer (run 11b-1): a text layer over the
 /// lanes, so it never changes a lane pixel and needs no lane redraw (decision 0020).
 final class ReadoutLayer: CATextLayer {
     override init() {
@@ -49,17 +49,24 @@ final class ReadoutLayer: CATextLayer {
 
     static func font() -> NSFont { .monospacedDigitSystemFont(ofSize: 11, weight: .regular) }
 
-    /// The text of `readout`: the gain in dB to 0.1, or the fade length in whole ms at `rate`, in
+    /// The text of `readout`: the gain in dB to 0.1, or the fade or crossfade length in whole ms at `rate`, in
     /// the number format of `locale`. `value` gives the string of a key (a test passes a table).
     static func text(_ readout: GestureReadout, rate: Int, locale: Locale, value: (L10n) -> String) -> String {
         switch readout {
         case .gain(let gain):
             return String(format: value(.timelineReadoutGain), decibels(gain, locale: locale))
         case .fade(let edge, let length):
-            let ms = (Double(length.count) * 1000 / Double(rate)).rounded()
             let key: L10n = edge == .start ? .timelineReadoutFadeIn : .timelineReadoutFadeOut
-            return String(format: value(key), ms.formatted(.number.precision(.fractionLength(0)).locale(locale)))
+            return String(format: value(key), milliseconds(length, rate: rate, locale: locale))
+        case .crossfade(let length):
+            return String(format: value(.timelineReadoutCrossfade), milliseconds(length, rate: rate, locale: locale))
         }
+    }
+
+    /// A length in whole ms at `rate`: "460".
+    static func milliseconds(_ length: Frames, rate: Int, locale: Locale) -> String {
+        (Double(length.count) * 1000 / Double(rate)).rounded()
+            .formatted(.number.precision(.fractionLength(0)).locale(locale))
     }
 
     /// A gain to 0.1 dB with its sign: "-6.0", "+4.0", "0.0" (in Spanish "-6,0").

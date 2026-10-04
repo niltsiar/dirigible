@@ -87,7 +87,7 @@ async function expectThrow(name, args, pattern, files = []) {
       if (!prompt) { fail(`worktree: no ${label} prompt`); continue }
       if (!prompt.includes('`git -C /abs/wt diff')) fail(`worktree: the ${label} prompt has no git -C /abs/wt diff`)
       if (/`git diff/.test(prompt)) fail(`worktree: the ${label} prompt has a git diff with no -C`)
-      if (!prompt.includes('read each file there')) fail(`worktree: the ${label} prompt does not name the tree for file reads`)
+      if (!prompt.includes('read each tracked file there')) fail(`worktree: the ${label} prompt does not name the tree for file reads`)
     }
   } catch (error) {
     fail(`worktree: threw ${error.message}`)

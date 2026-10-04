@@ -54,7 +54,7 @@ final class TimelineDocumentView: NSView {
     private var pending = NSRect.null
     /// The shift of a ripple drag for the next `updateLayer()` (decision 0037). Each other display
     /// request clears it, so it applies only when it is the one change since the last draw.
-    private var pendingShift: ShiftedFrames?
+    var pendingShift: ShiftedFrames?
 
     override func setNeedsDisplay(_ rect: NSRect) {
         pending = pending.union(rect)
@@ -68,45 +68,6 @@ final class TimelineDocumentView: NSView {
             if newValue { (pending, pendingShift) = (bounds, nil) }
             super.needsDisplay = newValue
         }
-    }
-
-    /// The shift of `shiftedFrames` from `old` to the inputs, when the Marks do not change. The
-    /// Marks lines and band stay at their frames, so the copied region starts 1 pt past them in
-    /// the old and the new lanes: after a ripple commit, the Marks are on the dragged clip.
-    private func shift(from old: LaneInputs?) -> ShiftedFrames? {
-        guard let old, let inputs, let geometry = inputs.geometry, old.marks == inputs.marks,
-            let shift = shiftedFrames(from: old.session, to: inputs.session)
-        else { return nil }
-        guard let last = [inputs.marks.inPoint, inputs.marks.outPoint].compactMap({ $0 }).max() else { return shift }
-        let pad = Frames(Int(geometry.scale.framesPerPoint.rounded(.up)))
-        return (max(shift.from, last + pad + max(.zero, shift.delta)), shift.delta, shift.strays)
-    }
-
-    /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of
-    /// the renderer; the move in columns; and the strips: from the dirty rect to that column, and
-    /// 1 pt around each stray marker line, on every lane in view. Nil when the move is not a whole
-    /// number of columns within one frame (a ripple drag moves by whole points, and each of the two
-    /// previews rounds its frames at a zoom that is not whole), or not exact outside a gesture.
-    private func laneShift(
-        _ shift: ShiftedFrames, _ dirty: NSRect, _ lanes: LaneWindow
-    ) -> LaneSurfaces.Shift? {
-        guard let geometry = inputs?.geometry, !dirty.isNull else { return nil }
-        let framesPerColumn = geometry.scale.framesPerPoint / lanes.scale
-        let columns = Double(shift.delta.count) / framesPerColumn
-        // A rounded move only in a gesture: its end draws the lanes in full. An edit, an undo, or a
-        // redo has no such end, so it takes an exact move only.
-        let rounded = columns != columns.rounded()
-        guard abs(columns - columns.rounded()) * framesPerColumn <= 1, abs(columns) < 1e9, !rounded || holdsWidth
-        else { return nil }
-        if rounded { roundedShift = true }
-        let x = geometry.x(of: shift.from) + 1
-        let strip = lanes.pixels(
-            of: NSRect(x: dirty.minX, y: bounds.minY, width: max(0, x - dirty.minX), height: bounds.height))
-        let strays = shift.strays.map {
-            lanes.pixels(of: NSRect(x: geometry.x(of: $0) - 1, y: bounds.minY, width: 3, height: bounds.height))
-        }
-        return LaneSurfaces.Shift(
-            column: Int((x * lanes.scale).rounded(.up)), by: Int(columns.rounded()), strips: [strip] + strays)
     }
 
     override var wantsUpdateLayer: Bool { true }
@@ -212,7 +173,7 @@ final class TimelineDocumentView: NSView {
 
     /// True after a shift whose move in frames is not exactly its move in columns (a zoom that is
     /// not a whole number of frames per point). The end of the gesture draws the lanes in full.
-    private var roundedShift = false
+    var roundedShift = false
 
     /// The width of `Viewport.documentWidth` at the one end of the scroll view (the held end of a
     /// take), or the width of the mouse-down during a gesture.

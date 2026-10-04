@@ -121,9 +121,6 @@ shot() {
         exit 1
     fi
     mv "$folder/$1" "$images/$1"
-    # A capture has extended attributes (FinderInfo). bundle.sh copies the image into the app, and
-    # codesign refuses an app with them ("resource fork, Finder information, or similar detritus").
-    xattr -c "$images/$1"
 }
 
 key() { swift "$repo/scripts/hid.swift" key "$@"; }

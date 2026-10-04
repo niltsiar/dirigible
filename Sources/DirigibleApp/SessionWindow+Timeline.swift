@@ -26,6 +26,7 @@ extension SessionWindow {
             case .marks(let marks): timeline.marks = marks
             case .seek(let frame): Task { await studio.perform(.seek(.frame(frame))) }
             case .currentMarker(let id): timeline.marker = id
+            case .beep: beep()
             case .commit(let commit):
                 guard edit({ session in commit.apply(to: &session) }) == true else { continue }
                 if let marks = commit.marks { timeline.marks = marks }

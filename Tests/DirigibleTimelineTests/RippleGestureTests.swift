@@ -121,12 +121,14 @@ struct RippleGestureTests {
         #expect(drawn == session && up(260) == [], "a take")
     }
 
-    /// C20. Control: an Option press that commits with `canRipple` false.
+    /// C20 and code gate 1 item 4: a blocked Option press beeps once, as the menu does. Control: an
+    /// Option press that commits with `canRipple` false, or a silent one.
     @Test mutating func anOptionPressThatCannotRippleMakesNoCommit() {
         down(198, canRipple: false)
-        drag(250, canRipple: false)
+        #expect(gesture.handle(.drag(.lanes(x: 250, y: 10)), context(canRipple: false)) == [.beep], "one beep")
+        #expect(gesture.handle(.drag(.lanes(x: 260, y: 10)), context(canRipple: false)) == [], "no second beep")
         #expect(drawn == session, "no preview")
-        #expect(commits(up(250, canRipple: false)).isEmpty, "no commit")
+        #expect(commits(up(260, canRipple: false)).isEmpty, "no commit")
     }
 
     /// C15b. The drawn session holds the moved markers, and the ruler draws them. Control: the

@@ -47,7 +47,7 @@ extension SessionWindow {
         if command == .insert { return insert(studio) }
         let selectedOnly = command == .cutSelectedTracks || command == .deleteCloseGapSelectedTracks
         guard let scope = timeline.marks.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
-        guard !rippleBlocked(segments: studio.unplacedSegments, session: studio.session) else { return NSSound.beep() }
+        guard !rippleBlocked(segments: studio.unplacedSegments, session: studio.session) else { return beep() }
         let cuts = command == .cut || command == .cutSelectedTracks
         let done = edit { session throws(SessionError) -> Excerpt? in
             let excerpt = cuts ? try session.excerpt(of: scope.range, on: scope.selected) : nil
@@ -68,7 +68,7 @@ extension SessionWindow {
         let files = studio.session.files
         guard clipboard.lanes.allSatisfy({ $0.clips.allSatisfy { files[$0.file] != nil } }),
             !rippleBlocked(segments: studio.unplacedSegments, session: studio.session)
-        else { return NSSound.beep() }
+        else { return beep() }
         let (at, all) = (studio.playhead, studio.session.tracks.map(\.id))
         let inserted = edit { session throws(SessionError) -> Bool in
             try session.rippleInsert(clipboard.length, at: at, on: all)

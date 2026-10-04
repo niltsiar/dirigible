@@ -192,10 +192,9 @@ extension TimelineGesture {
     }
 
     /// The trim of a press on a trim zone: a ripple trim with Option (decision 0037), else the
-    /// plain trim. Nil when the file is not in the pool, or when an Option press cannot ripple (a
-    /// pending or split take): that press makes no edit.
+    /// plain trim. Nil when the file is not in the pool.
     func trim(_ press: Press, _ clip: Clip, _ edge: Edge, _ lane: Int, _ context: GestureContext) -> Trim? {
-        guard let file = press.base.files[clip.file], !press.option || context.canRipple else { return nil }
+        guard let file = press.base.files[clip.file] else { return nil }
         let minimum = context.geometry.trimMinimum
         let limits =
             press.option

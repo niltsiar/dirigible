@@ -36,8 +36,10 @@ extension Studio {
     }
 
     /// Edits, saves, and a new take wait during a take (0004), a placement (0021), or a level (0031).
+    public var isIdle: Bool { transport == .idle && !isStarting }
+
     func checkIdle() throws(StudioError) {
-        guard transport == .idle, !isStarting else { throw .busy }
+        guard isIdle else { throw .busy }
     }
 }
 
@@ -101,7 +103,7 @@ extension Studio {
             try? await stopRecording()
             return
         }
-        guard transport == .idle, !isStarting else { return }
+        guard isIdle else { return }
         let current = play.playback.shuttle
         if case .seek(let seek) = command {
             guard let target = frame(of: seek) else { return }

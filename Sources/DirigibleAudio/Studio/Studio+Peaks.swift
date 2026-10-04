@@ -79,7 +79,7 @@ extension Studio {
     func peaksMayRun() async -> PeakPause {
         var waited = false
         while !peaksStopped() {
-            guard transport != .idle || isStarting else { return waited ? .waited : .go }
+            guard !isIdle else { return waited ? .waited : .go }
             waited = true
             try? await Task.sleep(for: .milliseconds(100))
         }

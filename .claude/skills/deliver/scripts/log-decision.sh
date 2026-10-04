@@ -7,8 +7,9 @@
 # field has text that the guardrail hook blocks in a command, for example the check and the commit.
 # A row whose decision or result starts with `default` (any case) needs `Reverse:` (any case) in
 # its why: the word or line that reverses the default (deliver autonomy rules). The phase is one
-# digit (0-9), so land.sh finds the control rows of phase 2 and 4. Else the script appends
-# nothing and exits 2.
+# digit (0-9), so land.sh finds the control rows of phase 2 and 4. A decision that starts with
+# `criterion change` (any case) needs an analysis.md in the run folder that changed after the last
+# row, and the words old and new. Else the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
@@ -29,6 +30,16 @@ lower() { tr '[:upper:]' '[:lower:]' <<<"$1"; }
 if [[ "$(lower "$2")" == default* || "$(lower "$5")" == default* ]] && [[ "$(lower "$3")" != *reverse:* ]]; then
     echo "the decision or the result starts with default, and the why has no Reverse: <the word or line that reverses it>" >&2
     exit 2
+fi
+# analysis.md is gitignored, so the test is its mtime. Two criterion change rows need two edits.
+if [[ "$(lower "$2")" == "criterion change"* ]]; then
+    [[ "${file%/*}/analysis.md" -nt "$file" ]] || {
+        echo "a criterion change row needs an analysis.md edit first: change the criterion in ${file%/*}/analysis.md, then log the row" >&2
+        exit 2
+    }
+    word='(^|[^a-z])old([^a-z]|$)'
+    text="$(lower "$2 $3")"
+    [[ "$text" =~ $word && "$text" =~ ${word/old/new} ]] || { echo "a criterion change row names the old and new value (the words old and new)" >&2; exit 2; }
 fi
 
 # A tab or a line break in a field would break the TSV columns. Change each one to a space.

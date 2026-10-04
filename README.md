@@ -72,6 +72,8 @@ Use a DMG that `make dmg` built, or a DMG that the maintainer of the project gav
 2. Drag **Dirigible** to **Applications**.
 3. Open Dirigible from the Applications folder.
 
+To report a bug, give the text of **Dirigible > About Dirigible**: the version and, in parentheses, the commit of the build.
+
 `make dmg` also writes `Dirigible-<version>.dmg.sha256`. To check a DMG against this file, put both files in one folder and run `shasum -a 256 -c Dirigible-<version>.dmg.sha256` there. The result must be `OK`.
 
 ### Open Dirigible for the first time

@@ -38,9 +38,11 @@ final class TimelineDocumentView: NSView {
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
+            let first = pending.isNull
             if let rect = changedColumns(from: oldValue) {
                 // Inputs that draw the same pixels give an empty rect: no draw.
                 if !rect.isEmpty { setNeedsDisplay(rect) }
+                pendingShift = first ? shift(from: oldValue) : nil
             } else {
                 needsDisplay = true
             }
@@ -50,18 +52,52 @@ final class TimelineDocumentView: NSView {
 
     /// The document rect to render at the next `updateLayer()`.
     private var pending = NSRect.null
+    /// The shift of a ripple drag for the next `updateLayer()` (decision 0037). Each other display
+    /// request clears it, so it applies only when it is the one change since the last draw.
+    private var pendingShift: (from: Frames, delta: Frames, strays: [Frames])?
 
     override func setNeedsDisplay(_ rect: NSRect) {
         pending = pending.union(rect)
+        pendingShift = nil
         super.setNeedsDisplay(rect)
     }
 
     override var needsDisplay: Bool {
         get { super.needsDisplay }
         set {
-            if newValue { pending = bounds }
+            if newValue { (pending, pendingShift) = (bounds, nil) }
             super.needsDisplay = newValue
         }
+    }
+
+    /// The shift of `shiftedFrames` from `old` to the inputs, when the Marks do not change and
+    /// their lines and band are left of the old and the new later region.
+    private func shift(from old: LaneInputs?) -> (from: Frames, delta: Frames, strays: [Frames])? {
+        guard let old, let inputs, old.marks == inputs.marks,
+            let shift = shiftedFrames(from: old.session, to: inputs.session)
+        else { return nil }
+        let marks = [inputs.marks.inPoint, inputs.marks.outPoint].compactMap { $0 }
+        return marks.allSatisfy { $0 < min(shift.from, shift.from - shift.delta) } ? shift : nil
+    }
+
+    /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of
+    /// the renderer; the move in columns; and the strips: from the dirty rect to that column, and
+    /// 1 pt around each stray marker line, on every lane in view. Nil when the move is not a whole
+    /// number of columns.
+    private func laneShift(
+        _ shift: (from: Frames, delta: Frames, strays: [Frames]), _ dirty: NSRect, _ lanes: LaneWindow
+    ) -> LaneSurfaces.Shift? {
+        guard let geometry = inputs?.geometry, !dirty.isNull else { return nil }
+        let columns = Double(shift.delta.count) / geometry.scale.framesPerPoint * lanes.scale
+        guard columns == columns.rounded(), abs(columns) < 1e9 else { return nil }
+        let x = geometry.x(of: shift.from) + 1
+        let strip = lanes.pixels(
+            of: NSRect(x: dirty.minX, y: bounds.minY, width: max(0, x - dirty.minX), height: bounds.height))
+        let strays = shift.strays.map {
+            lanes.pixels(of: NSRect(x: geometry.x(of: $0) - 1, y: bounds.minY, width: 3, height: bounds.height))
+        }
+        return LaneSurfaces.Shift(
+            column: Int((x * lanes.scale).rounded(.up)), by: Int(columns), strips: [strip] + strays)
     }
 
     override var wantsUpdateLayer: Bool { true }
@@ -226,11 +262,12 @@ final class TimelineDocumentView: NSView {
         if scrollView?.handOffWaits == true { return }
         let started = ContinuousClock.now
         let dirty = pending
-        pending = .null
+        let shift = pendingShift.flatMap { laneShift($0, dirty, lanes) }
+        (pending, pendingShift) = (.null, nil)
         let live = studio.map { LiveLanes($0, head: liveHead) } ?? LiveLanes()
         let drawn: PixelRect
         switch surfaces.show(
-            lanes, changed: lanes.pixels(of: dirty),
+            lanes, changed: lanes.pixels(of: dirty), shift: shift,
             draw: { region in
                 renderer.draw(inputs, palette, live: live, into: region)
                 Self.drawLabels(inputs, palette, live: live.take, into: region)
@@ -252,64 +289,6 @@ final class TimelineDocumentView: NSView {
         drawnRect = lanes.points(of: drawn)
         let milliseconds = Double((ContinuousClock.now - started) / .microseconds(1)) / 1000
         drawLog.debug("lanes draw \(milliseconds, format: .fixed(precision: 2)) ms, \(drawn.columns.count) columns")
-    }
-
-    /// The clip label: its file path without `.wav` (Release 1 clips have no name), at the bottom
-    /// left of the box, cut at the box end. It reads only the clips in the frames of the rect of
-    /// `region`, lane by lane, and draws only in that rect. A box under 60 pt gets no label: 12,000
-    /// labels at fit zoom took 330 ms per draw (probe L1, decision 0020). The live region of a take
-    /// gets the take label at each width, cut at the box end, and an old clip label shows only
-    /// outside it. So a column of the take label does not change when the box grows, and the
-    /// partial draw of a tick gives the pixels of a full draw.
-    static func drawLabels(
-        _ inputs: LaneInputs, _ palette: LanePalette, live: LiveLanes.Take? = nil, into region: borrowing PixelRegion
-    ) {
-        guard inputs.laneHeight > 14, let geometry = inputs.geometry, !region.rect.isEmpty else { return }
-        let rect = region.window.points(of: region.rect)
-        let frames = geometry.frame(at: rect.minX)..<geometry.frame(at: rect.maxX) + Frames(2)
-        let regions = live?.boxes(inputs, scale: region.window.scale) ?? [:]
-        var labels: [(box: NSRect, shown: [NSRect], name: String)] = []
-        for (lane, track) in inputs.session.tracks.enumerated() {
-            let region = regions[lane]
-            for clip in track.clips.clips(overlapping: frames) {
-                let box = NSRect(geometry.box(of: clip, lane: lane))
-                guard box.width >= 60, box.intersects(rect) else { continue }
-                // The parts of the box on each side of the live region.
-                let shown =
-                    region.map { live in
-                        let left = box.divided(atDistance: max(0, live.minX - box.minX), from: .minXEdge).slice
-                        let right = box.divided(atDistance: max(0, box.maxX - live.maxX), from: .maxXEdge).slice
-                        return [left, right].filter { $0.width > 0 }
-                    } ?? [box]
-                guard !shown.isEmpty else { continue }
-                let name = ClipInspection.name(of: clip, in: inputs.session)
-                labels.append((box, shown, Self.labelText(name, gain: clip.gain, locale: .current)))
-            }
-            if let region, let live, region.intersects(rect) {
-                labels.append((region, [region], live.label))
-            }
-        }
-        guard !labels.isEmpty else { return }
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: palette.labelColor,
-        ]
-        region.withContext { context in
-            let previous = NSGraphicsContext.current
-            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
-            defer { NSGraphicsContext.current = previous }
-            for (box, shown, name) in labels {
-                // Only in its box: the dirty rect of a drag event holds the boxes it changes.
-                context.saveGState()
-                context.clip(to: shown)
-                name.draw(at: NSPoint(x: box.minX + 4, y: box.maxY - 14), withAttributes: attributes)
-                context.restoreGState()
-            }
-        }
-    }
-
-    /// The label of a clip: its name, and its gain when it is not 0 ("take1-1  -6.0 dB").
-    nonisolated static func labelText(_ name: String, gain: Gain, locale: Locale) -> String {
-        gain == .zero ? name : "\(name)  \(ReadoutLayer.decibels(gain, locale: locale)) dB"
     }
 
     /// Shows `value` at the document point `point`, or hides the readout when it is nil.

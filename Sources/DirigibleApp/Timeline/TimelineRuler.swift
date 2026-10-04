@@ -54,10 +54,6 @@ final class TimelineRuler: NSRulerView {
         NSRect(x: left, y: bounds.minY, width: max(0, bounds.maxX - left), height: bounds.height).clip()
         let points = inputs.geometry.scale.framesPerPoint
         let rate = Double(max(1, inputs.rate))
-        let labelFont: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor,
-        ]
         // A label every 80 pt or more.
         let steps: [Double] = [0.1, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]
         let step = steps.first { $0 * rate / points >= 80 } ?? 7200
@@ -67,7 +63,9 @@ final class TimelineRuler: NSRulerView {
         while seconds * rate / points <= Double(visible.maxX) {
             let at = x(of: seconds * rate / points)
             NSRect(x: at, y: Self.thickness - 6, width: 1, height: 6).fill()
-            rulerLabel(seconds, tenths: step < 1).draw(at: NSPoint(x: at + 3, y: 2), withAttributes: labelFont)
+            draw(
+                rulerLabel(seconds, tenths: step < 1), at: NSPoint(x: at + 3, y: 2), color: .secondaryLabelColor,
+                digits: true)
             seconds += step
         }
         for marker in inputs.markers.values.sorted(by: { $0.position < $1.position }) {
@@ -78,12 +76,43 @@ final class TimelineRuler: NSRulerView {
             let box = RulerGeometry.flagReach.upperBound
             NSRect(x: at, y: 12, width: box, height: box).fill()
             // A marker name is user data: it shows as typed.
-            marker.name.draw(
-                at: NSPoint(x: at + 8, y: 10),
-                withAttributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: color])
+            draw(marker.name, at: NSPoint(x: at + 8, y: 10), color: color, digits: false)
         }
         triangle(inputs.marks.inPoint, inputs.geometry, .systemGreen)
         triangle(inputs.marks.outPoint, inputs.geometry, .systemRed)
+    }
+
+    /// The typeset lines of the ruler text, by text, font, color, and appearance. A ripple drag
+    /// moves every later flag, and the typesetting of the text was half of the ruler draw (run 12).
+    private var lines: [String: (line: CTLine, ascent: CGFloat)] = [:]
+
+    /// Draws `text` with its top left at `point`, in the 10 pt system font (monospaced digits for
+    /// the time labels), as `NSString.draw(at:)` places it in this flipped view.
+    private func draw(_ text: String, at point: NSPoint, color: NSColor, digits: Bool) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let key = "\(digits)|\(color)|\(effectiveAppearance.name.rawValue)|\(text)"
+        let typeset =
+            lines[key]
+            ?? {
+                let font =
+                    digits ? NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular) : .systemFont(ofSize: 10)
+                var cgColor = color.cgColor
+                effectiveAppearance.performAsCurrentDrawingAppearance { cgColor = color.cgColor }
+                let string = NSAttributedString(
+                    string: text,
+                    attributes: [
+                        .font: font, NSAttributedString.Key(kCTForegroundColorAttributeName as String): cgColor,
+                    ])
+                if lines.count > 1_000 { lines.removeAll() }
+                let made = (CTLineCreateWithAttributedString(string), font.ascender)
+                lines[key] = made
+                return made
+            }()
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        context.textPosition = CGPoint(x: point.x, y: point.y + typeset.ascent)
+        CTLineDraw(typeset.line, context)
     }
 
     private func triangle(_ frame: Frames?, _ geometry: LaneGeometry, _ color: NSColor) {

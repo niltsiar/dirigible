@@ -104,3 +104,60 @@ extension ClipLane {
         )
     }
 }
+
+/// The part of the lanes that `new` draws as `old` moved by `delta` frames (a ripple, decision
+/// 0037): on every lane, each clip that sounds at `from` or later starts there or later and is a
+/// clip of `old` moved by `delta`. The draw then copies those pixels and draws the frames before
+/// `from` and the marker lines in `strays`: the new line and the moved old line of each marker
+/// at `from` or later that does not move by `delta` (a marker that a ripple delete stops at the
+/// range start). `from` is the sounding start of the first moved clip of the lane where it is the
+/// latest, or its sounding end when its join to the clip before it comes or goes. Nil when no lane moves its last clip, or when the rule does not hold: the lanes then
+/// draw in full.
+public func shiftedFrames(from old: Session, to new: Session) -> (from: Frames, delta: Frames, strays: [Frames])? {
+    guard old.tracks.count == new.tracks.count else { return nil }
+    func moved(_ clip: Clip, by delta: Frames) -> Clip {
+        var clip = clip
+        clip.start = clip.start + delta
+        return clip
+    }
+    var delta: Frames?
+    for (a, b) in zip(old.tracks, new.tracks) {
+        guard let x = a.clips.last, let y = b.clips.last, x != y else { continue }
+        let shift = y.start - x.start
+        guard shift != .zero, moved(x, by: shift) == y, delta == nil || delta == shift else { return nil }
+        delta = shift
+    }
+    guard let delta else { return nil }
+    var from = Frames.zero
+    for (a, b) in zip(old.tracks, new.tracks) {
+        var (i, j) = (a.clips.endIndex - 1, b.clips.endIndex - 1)
+        while i >= a.clips.startIndex, j >= b.clips.startIndex, moved(a.clips[i], by: delta) == b.clips[j] {
+            (i, j) = (i - 1, j - 1)
+        }
+        guard j + 1 < b.clips.endIndex else { continue }
+        // The fade handle of the first moved clip shows only with no join, so a join that comes or
+        // goes puts that clip in the drawn part.
+        let first = b.clips[j + 1]
+        let joined = (j >= b.clips.startIndex && b.clips[j].end == first.start)
+        let wasJoined = (i >= a.clips.startIndex && a.clips[i].end == a.clips[i + 1].start)
+        from = max(from, joined == wasJoined ? first.sounding.start : first.sounding.end)
+    }
+    // The check of the rule at `from`, on each lane and for the markers.
+    for (a, b) in zip(old.tracks, new.tracks) {
+        let before = a.clips.clips(soundingIn: (from - delta)..<Frames.limit + Frames.limit)
+        let after = b.clips.clips(soundingIn: from..<Frames.limit + Frames.limit)
+        guard before.allSatisfy({ $0.sounding.start >= from - delta }), after.allSatisfy({ $0.sounding.start >= from }),
+            before.map({ moved($0, by: delta) }) == after
+        else { return nil }
+    }
+    var strays: [Frames] = []
+    for id in Set(old.markers.keys).union(new.markers.keys) {
+        let (a, b) = (old.markers[id], new.markers[id])
+        let shifted = a.flatMap { $0.position >= from - delta ? $0.position + delta : nil }
+        let late = b.flatMap { $0.position >= from ? $0.position : nil }
+        guard shifted != nil || late != nil else { continue }
+        if shifted == late, a?.kind == b?.kind { continue }
+        strays += [shifted, late].compactMap { $0 }
+    }
+    return (from, delta, strays)
+}

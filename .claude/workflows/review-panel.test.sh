@@ -15,12 +15,13 @@ const fail = msg => { console.log(`FAIL: ${msg}`); failures++ }
 // The stub agent returns the file list for the diff scope step (label 'scope'), the findings of
 // `found[lens]` (none by default) with one checked entry for each lens, and a skeptic verdict that
 // upholds each finding. The stub pipeline passes the lens to each stage.
-async function run(args, files = ['a.sh'], found = {}) {
+async function run(args, files = ['a.sh'], found = {}, typedFails = false) {
   const prompts = [], labels = []
   const agent = async (prompt, opts) => {
     prompts.push(prompt)
     labels.push(opts.label)
     if (opts.label === 'scope') return { files }
+    if (typedFails && opts.agentType) throw new Error('no agent type')
     if (opts.label.startsWith('verify:')) return { verdicts: [0, 1, 2].map(index => ({ index, upheld: true, reason: 'stub' })) }
     return { findings: found[opts.label.slice('review:'.length)] || [], checked: ['stub'] }
   }
@@ -91,6 +92,13 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
     }
   } catch (error) {
     fail(`worktree: threw ${error.message}`)
+  }
+  // The fallback of a failed typed agent reads the agent file of the worktree.
+  try {
+    const got = await run({ target: 'diff', lenses: ['premortem'], worktree: '/abs/wt' }, ['a.sh'], {}, true)
+    if (!got.prompts.some(p => p.startsWith('Read /abs/wt/.claude/agents/premortem.md'))) fail('worktree fallback: no read of the worktree agent file')
+  } catch (error) {
+    fail(`worktree fallback: threw ${error.message}`)
   }
   await expectThrow('a relative worktree', { target: 'diff', worktree: 'wt' }, /absolute path/)
   await expectKeys('default plan lenses', { target: 'plan' }, ['premortem', 'devils-advocate', 'architecture'])

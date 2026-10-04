@@ -1,0 +1,34 @@
+# 0037. Ripple edit: all tracks by default, markers follow, one shift mutator, and no ripple under a split take
+
+- Status: proposed
+- Date: 2026-10-04
+- Amends: 0011 (the ripple commands), 0012 and 0021 (no ripple under a pending or split take), 0018 (Cut closes the gap, run 12 slice 3), 0020 (the Option edge drag and the lane menu, run 12 slices 2 and 4).
+
+## Context
+
+Release 2 run 12 (`docs/requirements/releases.md` item 12) adds ripple edits (F20, F68): Ripple Delete, Ripple Cut, Ripple Insert, a ripple trim with a modifier, and a context menu on the lanes. Hindenburg PRO Cut closes the gap on the tracks of the selection, and Insert pushes the later audio on the track. Final Cut Pro ripples one spine; the other clips ride on it. Logic Pro "Cut Section Between Locators" changes all tracks, or only the selected regions. Dirigible has no spine and no connected clips, so a ripple of one track breaks the sync of a podcast with a separate track per voice. No reference app has a ripple-trim modifier. The research of the run: `docs/research/ripple-edit.md`.
+
+## Decision
+
+- **Scope.** A ripple changes all tracks by default. Only an explicit act limits it to the selected tracks: the two "in Selected Tracks" items of the Edit menu. A track given twice ripples once.
+- **Ripple Delete.** `Session.rippleDelete(_ range:on:)` clears the range on each scope track (the edge clips split by the 0003 ID rule), then moves each clip at or after `range.upperBound` left by the length of the range.
+- **Ripple Insert.** `Session.rippleInsert(_ length:at:on:)` splits the clip that holds the frame strictly inside it, then moves each clip at or after the frame right by the length. It inserts silence. A clip end past `Frames.limit` throws `.frameOutOfRange`.
+- **Rule M (markers).** Markers follow the ripple in every scope. A Ripple Delete of R moves a marker at or after R.end left by the length of R, and a marker inside R to R.start. An insert at p moves a marker at or after p right by the length. Two markers can share a frame. Each moved marker is checked before the edit writes, so a marker past `Frames.limit` throws `.frameOutOfRange` and changes nothing. In a selected-tracks edit, the markers can drift from the tracks that did not move.
+- **One edit.** Each ripple is one Core edit on a copy, so a throw changes nothing, and one undo entry.
+- **Shift mutator.** `ClipLane.shift(from:by:)` moves each clip that starts at or after a frame. The joins inside the moved part stay paired, so the repair reads only the join at its edge. A crossfade that moves whole keeps its length; a crossfade at a join at R.start, at R.end, or at the insert frame goes from both clips (0036 drop rule). The new join of a ripple gets no crossfade.
+- **No ripple under a pending or split take.** No edit moves the timeline under a take whose parts place at their old absolute frames apart from the parts already placed. A pending take places at its take anchor, and a split take (an unplaced segment with a sibling segment of the same take that a session file refers to) places its rest at its old frames. A wholly unplaced take, for example after an undo past a take, moves as one unit, and a placement refuses an occupied span, so it does not block a ripple. One public predicate in DirigibleAudio, `rippleBlocked(segments:session:)`, and its package form `rippleBlocked(in:session:)`, serve the window, the gesture, the lane menu, and the CLI.
+- **CLI.** `dirigible clip ripple-delete <package> --from --to [--track]...` and `dirigible clip ripple-insert <package> --at --length [--track]...`. No `--track` means all tracks. `--from` not under `--to` and a negative `--length` exit 64. A split take exits 3, and a `<recording>` exits 2 (0004). Ripple Cut has no command: `excerpt` does not change the package, and `clip ripple-delete` makes the edit.
+- **Format.** No session format change. A session with no fade and no crossfade writes version 1 after a ripple.
+
+## Consequences
+
+- A user with an unplaced segment of a split take cannot ripple until the segment is placed (`dirigible capture place` or the banner of the window).
+- A selected-tracks ripple moves the markers with the moved tracks, so they can drift from the tracks that did not move. The guide warns about it.
+- An edit that moves the timeline later (a ripple move) must call the same predicate.
+
+## Alternatives considered
+
+- Markers move only in an all-tracks edit (Hindenburg, REAPER): rejected, one rule for every scope is simpler to learn, and the guide warns about the drift.
+- A dialog that asks what the markers do (Logic Pro): rejected, a dialog on each edit slows the edit.
+- Refuse a ripple for any unplaced segment: rejected, an undo past a take makes all its segments unplaced and no tool discards them, so Cut would stay blocked for good.
+- A ripple of only the tracks of the selection by default (Hindenburg Cut): rejected, it breaks the sync of the other voices with no warning.

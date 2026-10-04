@@ -1,4 +1,5 @@
 import ArgumentParser
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -7,7 +8,8 @@ let editRefused: Int32 = 1
 /// The exit code for a package that cannot be read, written, or made, is locked, or keeps a
 /// pending take (decisions 0011 and 0012).
 let packageError: Int32 = 2
-/// The exit code for captured audio that is not on the timeline (`take finalize`, decision 0012).
+/// The exit code for captured audio that is not on the timeline (`take finalize`, decision 0012),
+/// and for a ripple with a split take (decision 0037).
 let unplacedAudio: Int32 = 3
 
 /// Writes one line `Error: <message>` to stderr and returns the exit code to throw.
@@ -29,24 +31,31 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
 /// P4), refuses one whose `session.xml` holds `<recording>` (decision 0004), applies `body`, and
 /// saves. The lock is held until the save ends. The package does not change when the lock, the
 /// read, the refusal, the edit, or the save fails. Writes one error line to stderr and throws the
-/// exit code.
+/// exit code. A `ripple` edit also refuses a split take with exit 3 (`rippleBlocked`, decision 0037).
 func editPackage<Result>(
-    _ package: PackageArgument, _ body: (inout Session) throws(SessionError) -> Result
+    _ package: PackageArgument, ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
     let locked = { (error: SessionFileError) in fail(error.message(package: package.path), code: packageError) }
     return try PackageLock.withLock(package.url, locked: locked) { lock throws(ExitCode) -> Result in
-        try editLocked(package, lock, body)
+        try editLocked(package, lock, ripple: ripple, body)
     }
 }
 
 private func editLocked<Result>(
-    _ package: PackageArgument, _ lock: PackageLock, _ body: (inout Session) throws(SessionError) -> Result
+    _ package: PackageArgument, _ lock: PackageLock, ripple: Bool,
+    _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
     var session = try readPackage(package)
     Session.removeTemporaryFiles(in: package.url)
     guard session.recording == nil else {
         throw fail(
             "\(package.path) has a take that is not finalized; open it in Dirigible first.", code: packageError)
+    }
+    if ripple, rippleBlocked(in: package.url, session: session) {
+        throw fail(
+            "\(package.path) has a take with some segments on the timeline and some not. A ripple moves the "
+                + "timeline under the other segments, so place them first (dirigible capture place).",
+            code: unplacedAudio)
     }
     let result: Result
     do {

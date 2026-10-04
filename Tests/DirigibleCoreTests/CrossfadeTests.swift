@@ -259,7 +259,7 @@ struct CrossfadeTests {
     }
 
     /// F4: after random edits on a lane with crossfades, each crossfade has its partner and the
-    /// session saves. A refused edit changes nothing.
+    /// session saves. A refused edit changes nothing. The edits include the ripples of 0037 (C5).
     @Test func randomEditsKeepTheSessionSavable() throws {
         var withCrossfade = 0
         var done: [String: Int] = [:]
@@ -283,7 +283,7 @@ struct CrossfadeTests {
             for step in 0..<6 {
                 let before = session
                 if session.tracks[0].clips.contains(where: { $0.crossfades != .zero }) { withCrossfade += 1 }
-                let kind = step < 2 ? 8 : Int.random(in: 0..<9, using: &random)
+                let kind = step < 2 ? 8 : Int.random(in: 0..<11, using: &random)
                 do {
                     switch kind {
                     case 0:
@@ -323,6 +323,13 @@ struct CrossfadeTests {
                         guard let clip = anyClip() else { continue }
                         try session.setFades([clip.id: Fades(fadeIn: frame(0...3_000), fadeOut: frame(0...3_000))!])
                         done["setFades", default: 0] += 1
+                    case 9:
+                        let start = frame(0...22_000)
+                        try session.rippleDelete(start..<(start + frame(1...6_000)), on: ["t1"])
+                        done["rippleDelete", default: 0] += 1
+                    case 10:
+                        try session.rippleInsert(frame(1...8_000), at: frame(0...24_000), on: ["t1"])
+                        done["rippleInsert", default: 0] += 1
                     default:
                         var lengths: [ClipID: Frames] = [:]
                         let lane = session.tracks[0].clips
@@ -346,6 +353,6 @@ struct CrossfadeTests {
             }
         }
         #expect(withCrossfade >= 1_000, "edits on a lane with a crossfade: \(withCrossfade)")
-        #expect(done.keys.count == 9, "each kind of edit ran: \(done)")
+        #expect(done.keys.count == 11, "each kind of edit ran: \(done)")
     }
 }

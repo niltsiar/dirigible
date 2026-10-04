@@ -250,6 +250,32 @@ struct ExportTests {
             #expect(maxError(channel, expected) <= 1.0 / 4_194_304, "the export has the fades within 2^-22")
         }
     }
+
+    /// Crossfades X3: a WAV 24-bit export has the crossfade of the play, within 2^-22 per sample.
+    @Test func aCrossfadeExportsAsItPlays() throws {
+        let package = try crossfadedPackage()
+        let out = try Self.read(Self.export(package, 0..<22_000, Self.options(.wav(.bits24)), to: "crossfade.wav"))
+        let expected = crossfadedMix(0..<22_000)
+        #expect(out.channels.count == 2)
+        for (channel, values) in zip(out.channels, expected) {
+            #expect(maxError(channel, values) <= 1.0 / 4_194_304, "the export has the crossfade within 2^-22")
+        }
+    }
+
+    /// Crossfades X2: the preflight of a range from J + 1 checks the file of A, which sounds there
+    /// from its handle, and not the file of a clip that ends before the crossfade (C on t2).
+    @Test func aRangeInsideACrossfadeChecksBothFiles() throws {
+        let package = try crossfadedPackage()
+        try package.addFile("other", channels: [[Float](repeating: 0, count: 1_000)])
+        try package.addTrack("t2", clip: "C", file: "other", start: 10_000, offset: 0, length: 700)
+        for file in ["left", "other"] {
+            try FileManager.default.removeItem(at: package.url.appending(path: "\(clipsFolderName)/\(file).wav"))
+        }
+        let source = try #require(ExportSource(range: 11_001..<11_100))
+        #expect(
+            try checkMedia(package.session, package: package.url, source: source) == ["left": .missing],
+            "only the file of A is missing in the range")
+    }
 }
 
 /// `ExportSource.init?` refuses a source with no frame or no track (export run criterion 8).

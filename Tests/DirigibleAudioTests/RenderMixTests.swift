@@ -55,4 +55,18 @@ struct RenderMixTests {
         }
         for (a, b) in zip(chunks, whole) { #expect(maxError(a, b) <= 1e-6, "the chunks equal one render") }
     }
+
+    /// Crossfades X2: a render that starts inside the crossfade, also after J, finds A by its
+    /// sounding range and equals the same frames of a render from 0.
+    @Test func aCrossfadeRendersFromAnyStart() throws {
+        let package = try crossfadedPackage()
+        let whole = try package.mix(0..<22_000)
+        for start in [10_760, 11_001, 11_239] {
+            let part = try package.mix(Frames(start)..<Frames(start + 1_000))
+            for channel in 0..<2 {
+                let expected = Array(whole[channel][start..<start + 1_000])
+                #expect(maxError(part[channel], expected) <= 1e-6, "from \(start): channel \(channel)")
+            }
+        }
+    }
 }

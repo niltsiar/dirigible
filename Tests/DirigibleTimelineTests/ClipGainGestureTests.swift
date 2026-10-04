@@ -17,7 +17,7 @@ struct ClipGainGestureTests {
 
     func context(marks: Marks = Marks(), canEdit: Bool = true) -> GestureContext {
         GestureContext(
-            session: session, marks: marks, playhead: 1000, geometry: Fixture.geometry, canEdit: canEdit,
+            session: session, selection: .range(marks), playhead: 1000, geometry: Fixture.geometry, canEdit: canEdit,
             canRipple: true)
     }
 
@@ -47,7 +47,7 @@ struct ClipGainGestureTests {
 
     func commitMarks(_ effects: [GestureEffect]) -> Marks? {
         guard effects.count == 1, case .commit(let commit) = effects[0] else { return nil }
-        return commit.marks
+        return commit.selection?.marks
     }
 
     mutating func setA(gain: Double = 0, fades: Fades = .zero) throws {

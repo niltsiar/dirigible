@@ -10,7 +10,7 @@ extension SessionWindow {
     /// changes only after a Copy that ran, or a Cut of `runRipple` that ran.
     func runClipboard(_ command: TimelineCommand, _ studio: Studio) {
         if command == .paste {
-            guard let clipboard, let targets = timeline.marks.pasteTracks(for: clipboard, in: studio.session) else {
+            guard let clipboard, let targets = timeline.range.pasteTracks(for: clipboard, in: studio.session) else {
                 return
             }
             // An undo can remove a pool file that the clipboard names (code gate 1).
@@ -21,11 +21,11 @@ extension SessionWindow {
             }
             let at = studio.playhead
             if edit({ session throws(SessionError) in try session.paste(clipboard, at: at, on: targets) }) != nil {
-                timeline.marks = Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets))
+                timeline.selection = .range(Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets)))
             }
             return
         }
-        guard [.copy, .delete].contains(command), let selection = timeline.marks.selection(in: studio.session)
+        guard [.copy, .delete].contains(command), let selection = timeline.range.selection(in: studio.session)
         else { return }
         if command == .copy {
             clipboard = (try? studio.session.excerpt(of: selection.range, on: selection.tracks)) ?? clipboard
@@ -44,7 +44,7 @@ extension SessionWindow {
         guard canEdit else { return }
         if command == .insert { return insert(studio) }
         let selectedOnly = command == .cutSelectedTracks || command == .deleteCloseGapSelectedTracks
-        guard let scope = timeline.marks.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
+        guard let scope = timeline.range.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
         guard !rippleBlocked(segments: studio.rippleSegments, session: studio.session) else { return beep() }
         let cuts = command == .cut || command == .cutSelectedTracks
         let done = edit { session throws(SessionError) -> Excerpt? in
@@ -54,13 +54,13 @@ extension SessionWindow {
         }
         guard let done else { return }
         if let excerpt = done { clipboard = excerpt }
-        timeline.marks = Marks()
+        timeline.selection = .none
         Task { await studio.perform(.seek(.frame(scope.range.lowerBound))) }
     }
 
     /// Insert: one edit, a ripple insert on all tracks and a paste of the clipboard.
     private func insert(_ studio: Studio) {
-        guard let clipboard, let targets = timeline.marks.pasteTracks(for: clipboard, in: studio.session) else {
+        guard let clipboard, let targets = timeline.range.pasteTracks(for: clipboard, in: studio.session) else {
             return
         }
         let files = studio.session.files
@@ -74,7 +74,7 @@ extension SessionWindow {
             return true
         }
         if inserted == true {
-            timeline.marks = Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets))
+            timeline.selection = .range(Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets)))
         }
     }
 
@@ -82,7 +82,7 @@ extension SessionWindow {
     /// one entry; the Marks move with the clips, so the next press moves them again.
     func runSplitOrNudge(_ command: TimelineCommand, _ studio: Studio) {
         if command == .split {
-            let points = timeline.marks.splitPoints(playhead: studio.playhead, in: studio.session)
+            let points = timeline.range.splitPoints(playhead: studio.playhead, in: studio.session)
             edit { session throws(SessionError) in try session.splitClips(at: points.frames, on: points.tracks) }
             return
         }
@@ -95,16 +95,16 @@ extension SessionWindow {
         case .nudgeRight: offset = step
         default: return
         }
-        guard let move = timeline.marks.nudge(by: offset, in: studio.session) else { return }
+        guard let move = timeline.range.nudge(by: offset, in: studio.session) else { return }
         if edit({ session throws(SessionError) in try session.nudge(move.clips, by: move.offset) }) != nil {
-            timeline.marks = move.marks
+            timeline.selection = .range(move.marks)
         }
     }
 
     /// Edit > Fade (decisions 0035 and 0036): the crossfades and the fades of `Marks.faded` in one
     /// edit, so one undo entry. With no change, a beep. During a take `edit` refuses, with no beep.
     func runFade(_ studio: Studio) {
-        let marks = timeline.marks
+        let marks = timeline.range
         let changed = edit { session throws(SessionError) -> Bool in
             guard let result = try marks.faded(session) else { return false }
             session = result
@@ -177,7 +177,7 @@ extension SessionWindow {
     /// alert. An error shows the alert.
     func level(_ mode: LevelMode) async {
         commitNames()
-        guard let studio = idleStudio, let clips = timeline.marks.clipsToLevel(in: studio.session) else { return }
+        guard let studio = idleStudio, let clips = timeline.range.clipsToLevel(in: studio.session) else { return }
         do throws(StudioError) { try await studio.level(clips, mode) } catch { alert = .error(error) }
     }
 
@@ -196,7 +196,7 @@ extension SessionWindow {
     func showClipsInFinder() async {
         guard let studio else { return }
         let session = studio.session
-        let selection = timeline.marks.selection(in: session)
+        let selection = timeline.range.selection(in: session)
         let tracks = selection?.tracks.compactMap(session.track) ?? session.tracks
         let files = tracks.flatMap { track in
             track.clips.filter { clip in selection.map { clip.range.overlaps($0.range) } ?? true }.map(\.file)

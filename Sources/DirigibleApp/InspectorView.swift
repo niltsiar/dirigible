@@ -33,7 +33,7 @@ struct InspectorView: View {
 
     var body: some View {
         let _ = model.countInspector()
-        let inspection = ClipInspection(marks: model.timeline.marks, session: studio.session)
+        let inspection = ClipInspection(selection: model.timeline.selection, session: studio.session)
         VStack(alignment: .leading, spacing: 10) {
             Text(verbatim: Self.title(inspection)).font(.headline).lineLimit(1).truncationMode(.middle)
             Divider()
@@ -147,7 +147,8 @@ extension SessionWindow {
             inspectorDraft?.text = text
             return
         }
-        guard let studio = idleStudio, let inspection = ClipInspection(marks: timeline.marks, session: studio.session)
+        guard let studio = idleStudio,
+            let inspection = ClipInspection(selection: timeline.selection, session: studio.session)
         else { return }
         let shown = InspectorView.text(field, inspection, rate: studio.session.sampleRate)
         guard text != shown else { return }

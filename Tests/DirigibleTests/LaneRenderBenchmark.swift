@@ -40,7 +40,7 @@ struct LaneRenderBenchmark {
 
         for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
             let inputs = LaneInputs(
-                session: session, peaks: states, missingMedia: [:], marks: Marks(),
+                session: session, peaks: states, missingMedia: [:], selection: .none,
                 scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
             let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
             let pixels = windows.map { OwnedPixels($0) }
@@ -75,7 +75,8 @@ struct LaneRenderBenchmark {
             }
         }
         let inputs = LaneInputs(
-            session: session, peaks: [:], missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 512),
+            session: session, peaks: [:], missingMedia: [:], selection: .none,
+            scale: TimelineScale(framesPerPoint: 512),
             laneHeight: 100)
         let pixels = OwnedPixels(try #require(laneWindow(inputs, x: 4000, width: 10, scale: 2)))
 

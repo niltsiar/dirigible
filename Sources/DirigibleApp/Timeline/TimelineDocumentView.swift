@@ -103,8 +103,8 @@ final class TimelineDocumentView: NSView {
         guard var old, let inputs, let geometry = inputs.geometry,
             let clips = changedFrames(from: old.session, to: inputs.session)
         else { return nil }
-        let marks = changedFrames(from: old.marks, to: inputs.marks, in: inputs.session)
-        (old.session, old.marks) = (inputs.session, inputs.marks)
+        let marks = changedFrames(from: old.selection, to: inputs.selection, in: inputs.session)
+        (old.session, old.selection) = (inputs.session, inputs.selection)
         guard old == inputs else { return nil }
         let changed = [clips.frames, marks].filter { !$0.isEmpty }
         guard let low = changed.map(\.lowerBound).min(), let high = changed.map(\.upperBound).max() else {

@@ -20,7 +20,7 @@ import Testing
 
     /// The SwiftUI update after a change of the Studio session or the Marks.
     func swiftUIUpdate(_ pane: TimelinePaneView, _ model: SessionWindow, _ studio: Studio) {
-        pane.scroll.update(laneInputs(model, studio, marks: model.timeline.marks))
+        pane.scroll.update(laneInputs(model, studio, selection: model.timeline.selection))
     }
 
     /// N4: the strip bottom is the ruler top; 8 tracks at the automatic height all fit under the

@@ -48,7 +48,7 @@ extension SessionWindow {
         case .session:
             return ExportSource(range: .zero..<studio.session.end)
         case .selection:
-            guard let selection = timeline.marks.selection(in: studio.session) else { return nil }
+            guard let selection = timeline.selection.marks?.selection(in: studio.session) else { return nil }
             return ExportSource(range: selection.range, tracks: Set(selection.tracks))
         }
     }

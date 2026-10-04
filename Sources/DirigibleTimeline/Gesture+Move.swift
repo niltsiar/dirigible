@@ -48,15 +48,19 @@ extension TimelineGesture {
         switch hit {
         case .move(let clip, let lane), .trim(let clip, _, let lane), .gain(let clip, let lane),
             .fade(let clip, _, let lane):
-            return [.marks(Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id]))]
+            return [
+                .selection(.range(Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])))
+            ]
         case .range(let lane):
             guard let lane, context.session.tracks.indices.contains(lane) else { return [] }
             let track = context.session.tracks[lane].id
             if press.shift {
-                return [.marks(context.marks.extended(to: press.frame, lane: track, playhead: context.playhead))]
+                return [
+                    .selection(.range(context.marks.extended(to: press.frame, lane: track, playhead: context.playhead)))
+                ]
             }
-            if press.command { return [.marks(context.marks.toggled(track))] }
-            return [.marks(Marks()), .seek(press.frame)]
+            if press.command { return [.selection(.range(context.marks.toggled(track)))] }
+            return [.selection(.none), .seek(press.frame)]
         }
     }
 
@@ -67,6 +71,6 @@ extension TimelineGesture {
             return click(press, context)
         }
         let marks = Marks(inPoint: move.start, outPoint: move.start + move.clip.length, tracks: [move.track])
-        return [.commit(GestureCommit(base: press.base, result: move.preview, marks: marks, marker: nil))]
+        return [.commit(GestureCommit(base: press.base, result: move.preview, selection: .range(marks), marker: nil))]
     }
 }

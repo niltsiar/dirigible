@@ -149,7 +149,8 @@ private struct TimelinePane: View {
 /// updates no SwiftUI view of the lanes (decision 0017).
 @MainActor func laneInputs(_ model: SessionWindow, _ studio: Studio, laneHeight: Double) -> LaneInputs {
     LaneInputs(
-        session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, marks: model.timeline.marks,
+        session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia,
+        selection: model.timeline.selection,
         scale: model.timeline.scale, laneHeight: laneHeight)
 }
 

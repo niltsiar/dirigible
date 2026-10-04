@@ -53,7 +53,7 @@ import Testing
 
         /// The SwiftUI update of the lanes, at the zoom of the window.
         func update(peaks: [FileID: PeakState]? = nil) {
-            var inputs = laneInputs(model, studio, marks: model.timeline.marks)
+            var inputs = laneInputs(model, studio, selection: model.timeline.selection)
             inputs.scale = model.timeline.scale
             if let peaks { inputs.peaks = peaks }
             view.update(inputs)

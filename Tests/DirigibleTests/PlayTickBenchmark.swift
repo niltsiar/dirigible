@@ -51,7 +51,7 @@ import Testing
             window.contentView?.addSubview(strip)
             model.loudnessStrip = strip
             let inputs = LaneInputs(
-                session: session, peaks: peaks, missingMedia: [:], marks: Marks(),
+                session: session, peaks: peaks, missingMedia: [:], selection: .none,
                 scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
             view.update(inputs)
             view.update(inputs)

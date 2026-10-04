@@ -241,9 +241,21 @@ func timelinePackage(
     CATransaction.flush()
 }
 
-@MainActor func laneInputs(_ model: SessionWindow, _ studio: Studio, marks: Marks = Marks()) -> LaneInputs {
+/// Test shims of decision 0038: the range tests read and write the window selection as Marks.
+extension TimelineState {
+    var marks: Marks? {
+        get { selection.marks }
+        set { selection = .range(newValue ?? Marks()) }
+    }
+}
+
+extension ClipInspection {
+    init?(marks: Marks, session: Session) { self.init(selection: .range(marks), session: session) }
+}
+
+@MainActor func laneInputs(_ model: SessionWindow, _ studio: Studio, selection: Selection = .none) -> LaneInputs {
     LaneInputs(
-        session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, marks: marks,
+        session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, selection: selection,
         scale: TimelineScale(framesPerPoint: 512), laneHeight: 100)
 }
 
@@ -253,7 +265,7 @@ func timelinePackage(
 @MainActor func documentView(_ session: Session) -> (NSWindow, TimelineDocumentView) {
     let view = TimelineDocumentView()
     view.inputs = LaneInputs(
-        session: session, peaks: [:], missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 512),
+        session: session, peaks: [:], missingMedia: [:], selection: .none, scale: TimelineScale(framesPerPoint: 512),
         laneHeight: 100)
     let window = NSWindow(
         contentRect: NSRect(origin: .zero, size: view.frame.size), styleMask: [.borderless], backing: .buffered,

@@ -238,7 +238,7 @@ extension TimelineGesture {
         case .move(let clip, let lane), .trim(let clip, _, let lane), .gain(let clip, let lane),
             .fade(let clip, _, let lane):
             let track = session.tracks[lane].id
-            if let selection = context.marks.selection(in: session), selection.tracks.contains(track),
+            if let selection = context.selection.marks?.selection(in: session), selection.tracks.contains(track),
                 selection.range.contains(context.geometry.frame(at: x))
             {
                 return nil
@@ -251,6 +251,6 @@ extension TimelineGesture {
     /// The commit of a clip edit, with the Marks on the clip range on its track.
     private func commit(_ press: Press, _ clip: Clip, _ lane: Int, _ result: Session) -> GestureCommit {
         let marks = Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])
-        return GestureCommit(base: press.base, result: result, marks: marks, marker: nil)
+        return GestureCommit(base: press.base, result: result, selection: .range(marks), marker: nil)
     }
 }

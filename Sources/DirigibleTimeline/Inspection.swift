@@ -21,8 +21,9 @@ public struct ClipInspection: Equatable, Sendable {
     public let fadeOut: Shown<Frames>
 
     /// Nil with no selection or no clip in it. One pass over the clips of the selected tracks.
-    public init?(marks: Marks, session: Session) {
-        guard let touched = marks.touchedClips(in: session)?.map({ $0.lane[$0.index] }), let first = touched.first
+    public init?(selection: Selection, session: Session) {
+        guard let touched = selection.marks?.touchedClips(in: session)?.map({ $0.lane[$0.index] }),
+            let first = touched.first
         else { return nil }
         var (gain, fadeIn, fadeOut) = (
             Shown.value(first.gain), Shown.value(first.fades.fadeIn), Shown.value(first.fades.fadeOut)

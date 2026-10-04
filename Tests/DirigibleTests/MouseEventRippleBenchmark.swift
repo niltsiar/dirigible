@@ -39,8 +39,8 @@ import Testing
             let down = NSPoint(x: box.maxX - 2, y: box.minY + 10)
             // The Marks of a ripple commit are on the clip: the state of a second drag.
             var marked = inputs
-            marked.marks = Marks(inPoint: first.start, outPoint: first.end, tracks: ["t1"])
-            model.timeline.marks = marked.marks
+            marked.selection = .range(Marks(inPoint: first.start, outPoint: first.end, tracks: ["t1"]))
+            model.timeline.selection = marked.selection
             view.update(marked)
             drawNow(window)
             view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view, flags: .option))

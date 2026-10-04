@@ -96,7 +96,7 @@ import Testing
     /// (x 200) and the in point (x 100) are under the track headers.
     func scrolledLanes() async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView) {
         let (model, studio, window, view) = try await lanes()
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 51_200)))
+        view.update(laneInputs(model, studio, selection: .range(Marks(inPoint: 51_200))))
         view.scroll(toFrame: 153_600)
         drawNow(window)
         try #require(view.shown.minX == 300, "\(view.shown)")
@@ -119,7 +119,7 @@ import Testing
     /// keeps the pixels that it has at scroll 0, where no time is left of the lanes.
     @Test func theRulerDrawsNothingOverTheHeaders() async throws {
         let (model, studio, window, view) = try await lanes()
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 51_200)))
+        view.update(laneInputs(model, studio, selection: .range(Marks(inPoint: 51_200))))
         drawNow(window)
         let empty = try headerPart(of: view)
         try #require(empty.count > 1000, "the ruler part over the headers")

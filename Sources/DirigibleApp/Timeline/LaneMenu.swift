@@ -41,9 +41,9 @@ extension TimelineScrollView {
     /// gesture.
     func laneMenu(at place: Place) -> NSMenu? {
         guard !gesture.isActive, let model, let studio, let source, let context = context(source) else { return nil }
-        if let marks = TimelineGesture.contextMarks(at: place, context) { model.timeline.marks = marks }
+        if let marks = TimelineGesture.contextMarks(at: place, context) { model.timeline.selection = .range(marks) }
         let session = studio.session
-        let marks = model.timeline.marks
+        let marks = model.timeline.range
         let points = marks.splitPoints(playhead: studio.playhead, in: session)
         var copy = session
         let split = (try? copy.splitClips(at: points.frames, on: points.tracks))?.isEmpty == false

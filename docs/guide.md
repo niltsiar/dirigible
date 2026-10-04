@@ -13,7 +13,6 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 - The export does not write the chapters into the file. The chapters stay in the session.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
-- The window cannot make or show a crossfade. Only the `dirigible` tool can make one: see [The dirigible tool](#the-dirigible-tool).
 - Delete leaves silence. The clips after the deleted part do not move to close the gap. To close the gap, see [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 
 ## Record your first episode
@@ -204,9 +203,14 @@ Choose **Edit > Fade** (Command-F) to fade the clips on the selected tracks. The
 - A selection that holds the start of a clip gives a fade-in from the clip start to the out point.
 - A selection that holds the end of a clip gives a fade-out from the in point to the clip end.
 - A selection inside a clip does nothing.
-- Where two clips touch, the edges get no fade.
+- Where two clips touch, the edges get no fade. A selection that starts before the join and ends after it gives a crossfade: the first clip fades out while the second clip fades in. The crossfade is centered on the join and is twice as long as the shorter part of the selection on each side of the join. When the selection holds both clips whole, the crossfade is 20 ms.
+- A selection that only ends or starts at the join gives no crossfade.
 
-A new fade replaces the old fade of that edge. When the two fades are longer than the clip, the other fade becomes shorter. The waveform shows the fade, and on a clip that is 12 pt wide or more on screen, a line marks the fade shape. With no fade to change, you hear a beep. Each Fade is one step in the undo history.
+![A crossfade of 200 ms at a join in the Host track: the fade lines of the two clips cross at the join as an X, with a handle at each end.](images/screenshot-crossfade.png)
+
+A crossfade needs audio in each file past the join, for half its length. Dirigible makes the crossfade as long as that audio and the clips allow. Where a short clip is between two joins, the first join gets the room in that clip. Two parts of a split clip that continue the same audio get no crossfade.
+
+A new fade replaces the old fade of that edge. When the two fades are longer than the clip, the other fade becomes shorter. The waveform shows the fade, and on a clip that is 12 pt wide or more on screen, a line marks the fade shape. The two lines of a crossfade cross at the join as an X. With no fade or crossfade to change, you hear a beep. Each Fade is one step in the undo history.
 
 ### Change the gain and the fades with the mouse
 
@@ -214,15 +218,16 @@ On a clip that is 40 pt wide or more on screen, a line shows the clip gain, and 
 
 - Drag the line up or down to change the gain of that clip, in steps of 0.1 dB. A drag goes to +20 dB or -20 dB, or stops at the start value when that value is outside these limits.
 - Drag a fade handle to make the fade longer or shorter. The handle stops at the other fade.
-- Double-click the line to set the gain to 0 dB. Double-click a handle to remove that fade.
-- During a drag, a label next to the pointer shows the gain in dB or the fade length in ms.
+- A crossfade has a handle at each end of its X. Drag a handle away from the join to make the crossfade longer on both sides, or toward the join to make it shorter. A drag onto the join removes the crossfade. The handle stops where the audio or the clip ends.
+- Double-click the line to set the gain to 0 dB. Double-click a handle to remove that fade or crossfade.
+- During a drag, a label next to the pointer shows the gain in dB, or the fade or crossfade length in ms.
 - Press Esc during a drag to cancel it.
 
-Each drag and each double-click is one step in the undo history. Where two clips touch with no fade, the edges have no handle.
+Each drag and each double-click is one step in the undo history. Where two clips touch with no fade and no crossfade, the edges have no handle: press Command-F on a selection across the join to make a crossfade.
 
 ### Type the gain and the fades in the inspector
 
-![The inspector at the right of the window, for two clips: Gain 0.0 dB, Fade In Mixed, and Fade Out 0 ms.](images/screenshot-inspector.png)
+![The inspector at the right of the window, for three clips: Gain 0.0 dB, Fade In Mixed, and Fade Out 0 ms.](images/screenshot-inspector.png)
 
 Choose **View > Show Inspector** (Option-Command-I) to show the inspector at the right of the window. It shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
 

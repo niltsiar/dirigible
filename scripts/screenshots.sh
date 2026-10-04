@@ -4,7 +4,8 @@
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in English (US number format) and light mode, and writes
-# docs/images/screenshot-edit.png, screenshot-zoom.png, and screenshot-inspector.png. The app also
+# docs/images/screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png, and
+# screenshot-crossfade.png. The app also
 # writes its preferences (the recent list, the inspector) for the real bundle ID, so do not run
 # this script as a check.
 # The terminal app needs the Screen Recording and Accessibility permissions, and the screen must be
@@ -29,7 +30,8 @@ swift build --package-path "$repo" --product dirigible >/dev/null
 cli="$(swift build --package-path "$repo" --show-bin-path)/dirigible"
 
 # The session: two tracks with alternate lines of two `say` voices, the marker Intro, the chapter
-# Interview, two fades, and a gain of -6 dB. The file name is the clip label in the window.
+# Interview, two fades, a gain of -6 dB, and a crossfade of 200 ms where a cut of 0.25 s at 2 s
+# into Host 1 closes. The file name is the clip label in the window.
 "$repo/scripts/probe.sh" "$folder" bash -c '
 set -euo pipefail
 cli="$1"
@@ -57,6 +59,11 @@ for line in "${lines[@]}"; do
     frames="$(afinfo "$pkg/Clips/$file" | awk "/audio packets/ {print \$3}")"
     id="$("$cli" file add "$pkg" --path "$file" --layout mono --length "$frames")"
     clip="$("$cli" clip place "$pkg" --track "$track" --file "$id" --start "$at" --length "$frames")"
+    if [[ "$who $n" == "Host 1" ]]; then
+        "$cli" clip clear "$pkg" --track "$track" --from $((at + 96000)) --to $((at + 108000))
+        "$cli" clip move "$pkg" "$clip@$((at + 108000))" --track "$track" --start $((at + 96000))
+        "$cli" clip crossfade "$pkg" --clip "$clip" --length 9600 >/dev/null
+    fi
     [[ "$who $n" != "Host 1" ]] || "$cli" clip fade "$pkg" --clip "$clip" --in 24000 >/dev/null
     [[ "$who $n" != "Host 4" ]] || "$cli" clip fade "$pkg" --clip "$clip" --out 24000 >/dev/null
     [[ "$who $n" != "Guest 2" ]] || "$cli" clip gain "$pkg" "$clip" --db -6 >/dev/null
@@ -142,8 +149,18 @@ key 34 --command --option
 sleep 1
 shot screenshot-inspector.png
 key 34 --command --option
+# Esc clears the selection. Home, then Shift-Right two times: the playhead goes to the join in
+# Host 1. View > Zoom In six times (the menu, so the key layout does not matter): zoom in at the
+# playhead, so the X of the crossfade is about 200 pt.
+key 53
+key 115
+key 124 --shift
+key 124 --shift
+for _ in 1 2 3 4 5 6; do swift "$repo/scripts/ax.swift" press "View > Zoom In" >/dev/null; done
+sleep 1
+shot screenshot-crossfade.png
 
-for png in "$images"/screenshot-{edit,zoom,inspector}.png; do
+for png in "$images"/screenshot-{edit,zoom,inspector,crossfade}.png; do
     [[ "$(stat -f %z "$png")" -le 1000000 ]] || sips --resampleWidth 1600 "$png" >/dev/null
     echo "$png"
 done

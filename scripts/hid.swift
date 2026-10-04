@@ -8,13 +8,13 @@
 // app and waits up to 2 s until its PID is frontmost. Else it posts nothing more and exits 4. A
 // HID event goes to the frontmost app: the verify copy once opened behind the terminal, and the
 // keys and the text of a check went to the terminal (run 2026-10-04-hid-front). An up has no
-// check: a held left button after a failed drag is worse than an up in another app. With no
-// target window, the up goes to the pointer location.
+// check: a held left button after a failed drag is worse than an up in another app. A bare up,
+// or an up with no target window, goes to the pointer location.
 //
 // usage: hid.swift drag <x> <y> <dx> <dy> [--no-up] [--option]
 //                                                     a left drag in 20 steps, then the up; with
 //                                                     --option the Option key is down around it
-//        hid.swift up <x> <y>                         a left mouse-up (after drag --no-up)
+//        hid.swift up [<x> <y>] [--dry-run]           a left mouse-up (after drag --no-up)
 //        hid.swift click <x> <y> [--right] [--double] [--control]
 //                                                     a click (a right click; a double-click; a
 //                                                     Control-click)
@@ -36,7 +36,8 @@
 //                                                     horizontal scroll only for lines)
 // A key event with a modifier flag and no modifier key left the system modifier held: every later
 // CGEvent of any process took it (run 1b Phase 7: the wheel of two tests became a Command-wheel).
-// --dry-run prints the key, text, and wheel events, and posts nothing. It needs no target app.
+// --dry-run prints the key, text, and wheel events, and the origin of an up (`up pointer|window
+// <x> <y>`). It posts nothing and needs no target app.
 // Exit: 0 posted, 1 no Dirigible window, 2 usage or an empty DIRIGIBLE_BUNDLE_ID, 3 no
 // Accessibility trust, 4 the target app is not frontmost (it does not run, more than one app has
 // the bundle ID, or it did not come to the front in 2 s), 5 the point of a click, a drag start,
@@ -48,7 +49,7 @@ import Foundation
 
 let usage = """
     usage: hid.swift drag <x> <y> <dx> <dy> [--no-up] [--option]
-           hid.swift up <x> <y>
+           hid.swift up [<x> <y>] [--dry-run]
            hid.swift click <x> <y> [--right] [--double] [--control]
            hid.swift move <x> <y>
            hid.swift key <code> [--command] [--shift] [--option] [--control] [--dry-run]
@@ -77,7 +78,9 @@ let numbers = command == "type" ? [] : words.dropFirst().map(Double.init)
 guard numbers.allSatisfy({ $0 != nil }) else { fail(usage, 2) }
 let values = numbers.compactMap { $0 }
 let counts = ["drag": 4, "up": 2, "click": 2, "move": 2, "key": 1, "type": 0, "scroll": 4]
-guard let count = counts[command], values.count == count else { fail(usage, 2) }
+guard let count = counts[command], values.count == count || (command == "up" && values.isEmpty) else {
+    fail(usage, 2)
+}
 let bundleID = ProcessInfo.processInfo.environment["DIRIGIBLE_BUNDLE_ID"] ?? "com.delineas.dirigible"
 if bundleID.isEmpty { fail("DIRIGIBLE_BUNDLE_ID is empty. Unset it, or give a bundle ID.", 2) }
 
@@ -152,9 +155,37 @@ if command == "scroll", flags.contains("--dry-run") {
     exit(0)
 }
 
-// The check comes before the Accessibility check, so a test with no target app posts nothing.
-let apps = runningTargets()
+// The check comes before the Accessibility check, so a test with no target app posts nothing. A
+// bare up needs no target.
+let apps = command == "up" && !values.isEmpty ? runningTargets() : []
 let target: NSRunningApplication? = command == "up" ? (apps.count == 1 ? apps.first : nil) : requireFront()
+
+/// The screen point: the top-left corner of the target window plus the point. A bare up, or an up
+/// with no target window, takes the pointer location.
+func screenPoint() -> (point: CGPoint, source: String) {
+    let pointer = (CGEvent(source: nil)?.location ?? .zero, "pointer")
+    if command == "up", values.isEmpty { return pointer }
+    // The window of the target app, by its PID: the real app and the verify copy have the same name.
+    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+    let window = target.flatMap { app in
+        windows.first { $0[kCGWindowOwnerPID as String] as? pid_t == app.processIdentifier }
+    }
+    guard let bounds = window?[kCGWindowBounds as String] as? [String: Double], let left = bounds["X"],
+        let top = bounds["Y"], let width = bounds["Width"], let height = bounds["Height"]
+    else {
+        if command == "up" { return pointer }
+        fail("No Dirigible window on screen. Run make run first.", 1)
+    }
+    if command != "up", !(0..<width).contains(values[0]) || !(0..<height).contains(values[1]) {
+        fail("The point \(values[0]), \(values[1]) is outside the target window (\(width) x \(height)).", 5)
+    }
+    return (CGPoint(x: left + values[0], y: top + values[1]), "window")
+}
+if command == "up", flags.contains("--dry-run") {
+    let (point, source) = screenPoint()
+    print("up \(source) \(Int(point.x)) \(Int(point.y))")
+    exit(0)
+}
 
 guard AXIsProcessTrusted() else {
     fail("No Accessibility trust. Add the terminal app in System Settings > Privacy & Security > Accessibility.", 3)
@@ -191,24 +222,7 @@ default:
     break
 }
 
-// The window of the target app, by its PID: the real app and the verify copy have the same name.
-let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-let window = target.flatMap { app in
-    windows.first { $0[kCGWindowOwnerPID as String] as? pid_t == app.processIdentifier }
-}
-let origin: CGPoint
-if let bounds = window?[kCGWindowBounds as String] as? [String: Double], let left = bounds["X"],
-    let top = bounds["Y"], let width = bounds["Width"], let height = bounds["Height"]
-{
-    if command != "up", !(0..<width).contains(values[0]) || !(0..<height).contains(values[1]) {
-        fail("The point \(values[0]), \(values[1]) is outside the target window (\(width) x \(height)).", 5)
-    }
-    origin = CGPoint(x: left + values[0], y: top + values[1])
-} else if command == "up" {
-    origin = CGEvent(source: nil)?.location ?? .zero
-} else {
-    fail("No Dirigible window on screen. Run make run first.", 1)
-}
+let origin = screenPoint().point
 
 /// A mouse event with the flags of the held modifier keys (an Option drag, run 12).
 func mouse(_ type: CGEventType, _ point: CGPoint) {

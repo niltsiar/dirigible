@@ -13,7 +13,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 - The export does not write the chapters into the file. The chapters stay in the session.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
-- No loudness meter while you record or play. The export measures the loudness: see [Export the episode](#export-the-episode).
+- The window cannot make or show a crossfade. Only the `dirigible` tool can make one: see [The dirigible tool](#the-dirigible-tool).
 - Delete leaves silence. The clips after the deleted part do not move to close the gap. To close the gap, see [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 
 ## Record your first episode
@@ -509,6 +509,13 @@ swift run dirigible info Demo.dirigible
 ```
 
 `dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain. `dirigible level Demo.dirigible` sets the gain of each clip as **Tools > Auto Level** does. Add `--per-track` for **Auto Level per Track**.
+
+These commands change clips and the export. `info` shows the clip IDs. A length is in frames: at 48 kHz, 24000 frames are 0.5 s.
+
+- `dirigible clip gain Demo.dirigible <clip> <clip> --db -6` sets the gain of one or more clips in one edit.
+- `dirigible clip fade Demo.dirigible --clip <clip> --in 24000 --out 24000` sets the fades of a clip. 0 removes a fade.
+- `dirigible clip crossfade Demo.dirigible --clip <clip> --length 4800` crossfades a clip into the clip that starts where it ends. The length is an even number of frames, and 0 removes the crossfade. Both clips need audio in their files past the join, for half the length. Play and export use the crossfade, and `info` shows it. Two parts of a split clip that continue the same audio get no crossfade. An edit that breaks the join, for example a move or a delete of one clip, removes the crossfade. A session with a crossfade does not open in a version of Dirigible from before the crossfades.
+- `dirigible export Demo.dirigible --out Episode.mp3 --loudness podcast` exports with a loudness target: `podcast`, `speech`, `ebu`, or `atsc`, as the **Loudness** setting of the export panel.
 
 The text of the tool is English only.
 

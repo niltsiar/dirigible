@@ -103,11 +103,12 @@ struct DirigibleApp: App {
                     CommandGroup(before: .windowList) {
                         Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)
                     }
-                    // The standard panel shows "Version <short version> (<source commit>)".
+                    // The standard panel shows "Version <short version> (<source commit>)". A build with
+                    // no bundle (`swift run`) has no DirigibleCommit and shows the standard text.
                     CommandGroup(replacing: .appInfo) {
                         Button(L10n.menuAppAbout.key) {
-                            let version = aboutVersion(info: Bundle.main.infoDictionary ?? [:])
-                            NSApp.orderFrontStandardAboutPanel(options: version.map { [.version: $0] } ?? [:])
+                            let commit = Bundle.main.object(forInfoDictionaryKey: "DirigibleCommit") as? String
+                            NSApp.orderFrontStandardAboutPanel(options: commit.map { [.version: $0] } ?? [:])
                         }
                     }
                     // No key: Command-? stays with the Help search field of macOS.
@@ -141,7 +142,3 @@ struct DirigibleApp: App {
             .keyboardShortcut(item.key, modifiers: item.modifiers)
     }
 }
-
-/// The text in parentheses after the version in the About panel: the source commit that
-/// `scripts/bundle.sh` writes, or nil (the standard text) in a build with no bundle, as `swift run`.
-func aboutVersion(info: [String: Any]) -> String? { info["DirigibleCommit"] as? String }

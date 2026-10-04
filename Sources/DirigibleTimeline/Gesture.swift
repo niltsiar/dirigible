@@ -37,6 +37,8 @@ public enum GestureEffect: Equatable, Sendable {
     /// The current marker of the window (decision 0018).
     case currentMarker(MarkerID)
     case commit(GestureCommit)
+    /// A refused press: an Option press on a trim zone under a pending or split take (0037).
+    case beep
 }
 
 /// One Core edit on the session of the mouse-down (`base`), and the Marks or the current marker
@@ -274,7 +276,13 @@ public struct TimelineGesture: Sendable {
                     press, Move(clip: clip, lane: lane, track: track, start: clip.start, preview: press.base))
                 return drag(place, context)
             case .lane(.trim(let clip, let edge, let lane)):
-                guard context.canEdit, let trim = trim(press, clip, edge, lane, context) else { return [] }
+                guard context.canEdit else { return [] }
+                // A ripple trim that cannot ripple: one beep, and the press ends (decision 0037).
+                if press.option, !context.canRipple {
+                    state = .dropped
+                    return [.beep]
+                }
+                guard let trim = trim(press, clip, edge, lane, context) else { return [] }
                 state = .trimming(press, trim)
                 return drag(place, context)
             case .lane(.gain(let clip, let lane)):

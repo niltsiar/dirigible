@@ -22,8 +22,11 @@ extension UnplacedBannerTests {
         model.timeline.marks = Marks(inPoint: 0, outPoint: 4_800, tracks: ["t1"])
         model.run(.copy)
         let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
         for command in rippleCommands { model.run(command) }
         #expect(studio.session == before, "RIPPLE-W1 a ripple ran with a split take")
+        #expect(beeps == rippleCommands.count, "each refused ripple beeps")
         #expect(model.alert == nil)
         await model.close()
     }

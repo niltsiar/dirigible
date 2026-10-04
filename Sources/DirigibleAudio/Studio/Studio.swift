@@ -20,16 +20,16 @@ import Observation
     /// The segments of CAFs with audio that no pool file points to (decision 0012). Derived from
     /// the session on each read, so an edit, an undo, or a redo changes it.
     public var unplacedSegments: [SegmentName] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
-    /// The unplaced segments that can block a ripple (decision 0037): a segment whose CAF does not
-    /// open can never place, so it does not.
-    public var rippleSegments: [SegmentName] { unplacedSegments.filter { !unopenableSegments.contains($0) } }
+    /// The unplaced segments that can block a ripple (decision 0037): a segment whose CAF opens
+    /// but is not audio can never place, so it does not.
+    public var rippleSegments: [SegmentName] { unplacedSegments.filter { !notAudioSegments.contains($0) } }
     public var canUndo: Bool { history.canUndo }
     public var canRedo: Bool { history.canRedo }
 
     private var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
     private var segmentsWithAudio: [SegmentName]
-    private var unopenableSegments: Set<SegmentName>
+    private var notAudioSegments: Set<SegmentName>
     /// The live state of each armed track of the take or of the monitor (decision 0015), from
     /// the reports of the drain. Empty while no take records and no monitor runs.
     public internal(set) var liveTracks: [TrackID: LiveTrack] = [:]
@@ -116,7 +116,7 @@ import Observation
         self.history = History(opened.session)
         self.takeError = opened.takeError
         self.segmentsWithAudio = opened.segmentsWithAudio
-        self.unopenableSegments = opened.unopenableSegments
+        self.notAudioSegments = opened.notAudioSegments
         self.recoveredTake = opened.recoveredTake
         self.play = PlayState(at: opened.session.end)
         self.missingMedia = opened.missingMedia
@@ -359,7 +359,7 @@ import Observation
         if let package = outcome.package { url = package }
         transport = .idle
         segmentsWithAudio = outcome.segmentsWithAudio
-        unopenableSegments = outcome.unopenableSegments
+        notAudioSegments = outcome.notAudioSegments
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let error = outcome.error { throw error }
         let before = session.files

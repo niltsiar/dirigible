@@ -31,9 +31,9 @@ extension UnplacedBannerTests {
         await model.close()
     }
 
-    /// Code gate 1 item 2: the unplaced segment of a split take whose CAF does not open can never
+    /// Code gate 1 item 2: the unplaced segment of a split take whose CAF is not audio can never
     /// place, so after a reopen it does not block. Control: the block of every unplaced segment.
-    @Test func aSplitTakeWithACAFThatDoesNotOpenAllowsARipple() async throws {
+    @Test func aSplitTakeWithACAFThatIsNotAudioAllowsARipple() async throws {
         let url = try await splitTake()
         try Data("not a CAF".utf8).write(to: url.appending(path: "\(captureFolderName)/\(Self.second.stem).caf"))
         let (reopened, again) = try await timelineModel(url, app: app)
@@ -44,7 +44,7 @@ extension UnplacedBannerTests {
 
         reopened.run(.deleteCloseGap)
 
-        #expect(again.session.markers["m"]?.position == 5_200, "RIPPLE-W4 a CAF that does not open blocks")
+        #expect(again.session.markers["m"]?.position == 5_200, "RIPPLE-W4 a CAF that is not audio blocks")
         await reopened.close()
     }
 

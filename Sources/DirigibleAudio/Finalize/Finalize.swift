@@ -137,18 +137,18 @@ func segmentsWithAudio(in package: URL) -> [SegmentName] { scanSegments(in: pack
 /// reads whole but that AVAudioFile refuses is not audio (`badAudio`). A CAF that does not open
 /// (probe 2026-10-04: mode 000 gives open() EACCES and AVAudioFile -54) or that a read errno stops
 /// can place later, so it still blocks.
-func scanSegments(in package: URL) -> (withAudio: [SegmentName], unopenable: Set<SegmentName>) {
-    var unopenable: Set<SegmentName> = []
+func scanSegments(in package: URL) -> (withAudio: [SegmentName], notAudio: Set<SegmentName>) {
+    var notAudio: Set<SegmentName> = []
     let withAudio = ((try? captureSegments(in: package)) ?? []).filter { name in
         let url = package.appending(path: "\(captureFolderName)/\(name.stem).caf")
         do {
             return try AVAudioFile(forReading: url).length > 0
         } catch {
-            if isNotAudio(url, error) { unopenable.insert(name) }
+            if isNotAudio(url, error) { notAudio.insert(name) }
             return true
         }
     }
-    return (withAudio, unopenable)
+    return (withAudio, notAudio)
 }
 
 /// True when the file at `url` opens and reads whole: the refusal `error` of AVAudioFile is then
@@ -180,11 +180,11 @@ public func rippleBlocked(segments: [SegmentName], session: Session) -> Bool {
 }
 
 /// `rippleBlocked(segments:session:)` with the segments in `Capture/` of `package`. A segment
-/// whose CAF does not open can never place, so it does not block. It reads files, so call it off
-/// the main actor.
+/// whose CAF opens but is not audio can never place, so it does not block. It reads files, so
+/// call it off the main actor.
 public func rippleBlocked(in package: URL, session: Session) -> Bool {
     let scan = scanSegments(in: package)
-    return rippleBlocked(segments: scan.withAudio.filter { !scan.unopenable.contains($0) }, session: session)
+    return rippleBlocked(segments: scan.withAudio.filter { !scan.notAudio.contains($0) }, session: session)
 }
 
 /// The segment names of the CAFs in `Capture/`, in name order. A missing folder has none.

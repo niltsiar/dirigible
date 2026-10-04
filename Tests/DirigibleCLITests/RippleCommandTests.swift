@@ -122,17 +122,17 @@ struct RippleCommandTests {
         }
     }
 
-    /// Code gate 1 item 2: a split take whose unplaced segment has a CAF that does not open can
+    /// Code gate 1 item 2: a split take whose unplaced segment has a CAF that is not audio can
     /// never place, so it does not block a ripple. Control: the block of every unplaced segment.
-    @Test func aSplitTakeWithACAFThatDoesNotOpenAllowsARipple() async throws {
+    @Test func aSplitTakeWithACAFThatIsNotAudioAllowsARipple() async throws {
         let fixture = try await PlaceCommandTests()
         try Data("not a CAF".utf8).write(to: fixture.capture.appending(path: "take1-1-1.caf"))
         let result = try await fixture.package.run("clip", "ripple-delete", "PKG", "--from", "0", "--to", "48000")
-        #expect(result.status == 0, "RIPPLE-C3 a CAF that does not open blocks: \(result)")
+        #expect(result.status == 0, "RIPPLE-C3 a CAF that is not audio blocks: \(result)")
     }
 
     /// Code gate 2 item 1: a CAF that the user cannot read now (mode 000) can place later, so it
-    /// still blocks. Control: a rule that a CAF that does not open never blocks.
+    /// still blocks. Control: a rule that a CAF that is not audio or does not open never blocks.
     @Test func aSplitTakeWithAnUnreadableCAFStaysBlocked() async throws {
         let fixture = try await PlaceCommandTests()
         let caf = fixture.capture.appending(path: "take1-1-1.caf")

@@ -19,7 +19,7 @@ extension TimelineDocumentView {
     /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of
     /// the renderer; the move in columns; and the strips: from the dirty rect to that column, and
     /// 1 pt around each stray marker line, on every lane in view. Nil when the move is not a whole
-    /// number of columns within one frame (a ripple drag moves by whole points, and each of the two
+    /// number of columns within one frame (a ripple drag moves by whole device columns, and each of the two
     /// previews rounds its frames at a zoom that is not whole), or not exact outside a gesture.
     func laneShift(
         _ shift: ShiftedFrames, _ dirty: NSRect, _ lanes: LaneWindow

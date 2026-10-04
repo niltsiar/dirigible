@@ -62,14 +62,16 @@ extension SessionWindow {
         }
     }
 
-    /// Edit > Fade (decision 0035): the fades of `Marks.fades` in one edit, so one undo entry. With
-    /// no change, a beep.
+    /// Edit > Fade (decisions 0035 and 0036): the crossfades and the fades of `Marks.faded` in one
+    /// edit, so one undo entry. With no change, a beep. During a take `edit` refuses, with no beep.
     func runFade(_ studio: Studio) {
-        guard let fades = timeline.marks.fades(in: studio.session) else {
-            NSSound.beep()
-            return
+        let marks = timeline.marks
+        let changed = edit { session throws(SessionError) -> Bool in
+            guard let result = try marks.faded(session) else { return false }
+            session = result
+            return true
         }
-        edit { session throws(SessionError) in try session.setFades(fades) }
+        if changed == false { NSSound.beep() }
     }
 
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers

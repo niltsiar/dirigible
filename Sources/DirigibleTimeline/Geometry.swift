@@ -75,26 +75,30 @@ public struct LaneGeometry: Equatable, Sendable {
         Double(lane) * laneHeight + laneHeight * min(max(-(clip.gain.dB + trackGain.dB), 0), 60) / 60
     }
 
-    /// Whether an edge with `fade` frames of fade has a handle: an edge at a butt join with no fade
-    /// has none (decision 0035 leaves it to 11c). `fadeHandles` and `changedFrames` read it.
-    static func hasHandle(fade: Frames, joined: Bool) -> Bool { fade > .zero || !joined }
+    /// Whether an edge with `fade` frames of fade and a crossfade of `crossfade` frames has a
+    /// handle: an edge at a butt join with no fade and no crossfade has none (decisions 0035 and
+    /// 0036). `fadeHandles` and `changedFrames` read it.
+    static func hasHandle(fade: Frames, crossfade: Frames, joined: Bool) -> Bool {
+        fade > .zero || crossfade > .zero || !joined
+    }
 
     /// The fade handles of the clip at `index` of `clips` in `lane`: a square at the top of the
-    /// box, centered on the fade end and kept inside the box. Nil in a box under `controlsWidth`,
-    /// and nil for an edge at a butt join with no fade (decision 0035 leaves that edge to 11c).
+    /// box, centered on the fade end or on the end of the crossfade half, and kept inside the box.
+    /// Nil in a box under `controlsWidth`, and nil for an edge at a butt join with no fade and no
+    /// crossfade (decisions 0035 and 0036).
     public func fadeHandles(of clip: Clip, at index: Int, in clips: ClipLane, lane: Int) -> (start: Rect?, end: Rect?) {
         let box = box(of: clip, lane: lane)
         guard box.width >= Self.controlsWidth else { return (nil, nil) }
         let joins = clips.joins(at: index)
-        func handle(_ end: Double, _ fade: Frames, _ joined: Bool) -> Rect? {
-            guard Self.hasHandle(fade: fade, joined: joined) else { return nil }
+        func handle(_ edge: Edge, _ joined: Bool) -> Rect? {
+            guard Self.hasHandle(fade: clip.fades[edge], crossfade: clip.crossfades[edge], joined: joined) else {
+                return nil
+            }
+            let end = edge == .start ? box.minX + x(of: clip.reach(.start)) : box.maxX - x(of: clip.reach(.end))
             let x = min(max(end - Self.handleSize / 2, box.minX), box.maxX - Self.handleSize)
             return Rect(x: x, y: box.minY, width: Self.handleSize, height: Self.handleSize)
         }
-        return (
-            handle(box.minX + x(of: clip.fades.fadeIn), clip.fades.fadeIn, joins.before),
-            handle(box.maxX - x(of: clip.fades.fadeOut), clip.fades.fadeOut, joins.after)
-        )
+        return (handle(.start, joins.before), handle(.end, joins.after))
     }
 
     /// The zone under a lane point (mouse-edits criterion 1, run 11b-1). On a clip, in this order:

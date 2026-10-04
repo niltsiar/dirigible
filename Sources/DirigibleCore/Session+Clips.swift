@@ -110,14 +110,16 @@ extension Session {
     public mutating func setFades(_ fades: [ClipID: Fades]) throws(SessionError) {
         var lanes = tracks
         var found = 0
-        for track in lanes.indices {
-            for index in lanes[track].clips.indices {
-                guard let new = fades[lanes[track].clips[index].id] else { continue }
-                var clip = lanes[track].clips[index]
+        // The scan stops at the last clip of the map, so a small map on an early track is quick.
+        for track in lanes.indices where found < fades.count {
+            for (index, old) in lanes[track].clips.enumerated() {
+                guard let new = fades[old.id] else { continue }
+                var clip = old
                 clip.fades = new
                 try check(clip, on: lanes[track])
                 lanes[track].clips.replace(at: index, with: clip)
                 found += 1
+                if found == fades.count { break }
             }
         }
         if found < fades.count, let missing = fades.keys.sorted().first(where: { clip($0) == nil }) {

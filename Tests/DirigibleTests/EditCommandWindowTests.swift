@@ -227,4 +227,40 @@ import Testing
         #expect(window.firstResponder === editor && studio.canUndo)
         await model.close()
     }
+
+    /// C10 (run 11c-2): Command-F at a butt join makes the crossfade, and with Select All the free
+    /// fades too, in one undo entry, with the lanes or the track name field focused. t1 has c1 at
+    /// 0 ..< 96,000 and b at 96,000 ..< 144,000 with frames from 192,000 of f1, so the join has
+    /// handles and is not seamless. A take: `EditTakeTests.editsDoNothingDuringATake`.
+    @Test func crossfadeIsOneUndoEntry() async throws {
+        let (model, studio, window, _) = try await open()
+        try studio.edit { s throws(SessionError) in
+            try s.clear(96_000..<2_880_000, on: "t1")
+            try s.place(Clip(id: "b", file: "f1", start: 96_000, offset: 192_000, length: 48_000), on: "t1")
+        }
+        let before = studio.session
+        func crossfades(_ id: ClipID) -> Crossfades? { studio.session.clip(id)?.clip.crossfades }
+
+        model.timeline.marks = Marks(inPoint: 95_000, outPoint: 97_500, tracks: ["t1"])
+        app.timeline(.fade, event: commandKey("f", code: 3, in: window), in: window)
+        #expect(
+            crossfades("c1") == Crossfades(start: 0, end: 2_000) && crossfades("b") == Crossfades(start: 2_000, end: 0))
+        model.undo()
+        #expect(studio.session == before, "one entry")
+
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 144_000, tracks: ["t1"])
+        app.timeline(.fade, event: commandKey("f", code: 3, in: window), in: window)
+        #expect(crossfades("c1") == Crossfades(start: 0, end: 960))
+        #expect(studio.session.clip("c1")?.clip.fades == Fades(fadeIn: 24_000, fadeOut: 0))
+        #expect(studio.session.clip("b")?.clip.fades == Fades(fadeIn: 0, fadeOut: 24_000))
+        model.undo()
+        #expect(studio.session == before, "the crossfade and the fades are one entry")
+
+        let editor = try await focusName(in: window)
+        model.timeline.marks = Marks(inPoint: 95_000, outPoint: 97_500, tracks: ["t1"])
+        app.timeline(.fade, event: commandKey("f", code: 3, in: window), in: window)
+        #expect(crossfades("c1") == Crossfades(start: 0, end: 2_000), "field focused")
+        #expect(window.firstResponder === editor)
+        await model.close()
+    }
 }

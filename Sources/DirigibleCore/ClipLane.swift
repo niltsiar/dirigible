@@ -161,10 +161,10 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair((index - 1)..<(index + 2))
     }
 
-    /// Replaces several clips in place, then repairs once: both clips of a new crossfade change
-    /// before the repair reads their join.
-    mutating func replace(_ clips: [Int: Clip]) {
-        guard let low = clips.keys.min(), let high = clips.keys.max() else { return }
+    /// Replaces several clips in place, sorted by index, then repairs once: both clips of a new
+    /// crossfade change before the repair reads their join.
+    mutating func replace(_ clips: [(index: Int, clip: Clip)]) {
+        guard let low = clips.first?.index, let high = clips.last?.index else { return }
         for (index, clip) in clips { storage[index] = clip }
         repair((low - 1)..<(high + 2))
     }

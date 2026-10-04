@@ -2,12 +2,14 @@ import DirigibleCore
 import Foundation
 
 /// The frames and the lanes where the clips or the markers of `new` differ from those of `old`:
-/// from the start of the first changed clip to the end of the last one, with the unchanged lane
-/// neighbor whose join to a changed clip comes or goes at an edge with no fade (its fade handle),
-/// on the first to the last changed lane, and the old and the new frame of each changed marker
-/// (its line crosses every lane). Nil when another value that the lanes draw differs: the tracks, their gain or layout, or
-/// the files (the labels). So a drag event redraws the boxes and lines that it changed, not the
-/// lanes in view (decision 0020). A lane with no change costs one compare of its clip storage.
+/// from the sounding start of the first changed clip to the sounding end of the last one (the clip
+/// and the outer half of each crossfade, decision 0036), with the unchanged lane neighbor whose
+/// join to a changed clip comes or goes at an edge with no fade (its fade handle), on the first to
+/// the last changed lane, and the old and the new frame of each changed marker (its line crosses
+/// every lane). Nil when another value that the lanes draw differs: the tracks, their gain or
+/// layout, or the files (the labels). So a drag event redraws the boxes and lines that it changed,
+/// not the lanes in view (decision 0020). A lane with no change costs one compare of its clip
+/// storage.
 public func changedFrames(from old: Session, to new: Session) -> (frames: Range<Frames>, lanes: Range<Int>)? {
     guard old.tracks.count == new.tracks.count, old.files == new.files else { return nil }
     var changed: Range<Frames>?
@@ -32,20 +34,22 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         var (head, tail) = (0, 0)
         while head < common, x[x.startIndex + head] == y[y.startIndex + head] { head += 1 }
         while tail < common - head, x[x.endIndex - 1 - tail] == y[y.endIndex - 1 - tail] { tail += 1 }
-        // A lane is in order and has no overlap: the first and the last changed clip give the frames.
+        // A lane is in order and has no overlap: the first and the last changed clip give the frames,
+        // with the half of a crossfade outside the clip, where its fade line draws (decision 0036).
         let (before, after) = (
             x[(x.startIndex + head)..<(x.endIndex - tail)], y[(y.startIndex + head)..<(y.endIndex - tail)]
         )
-        guard var start = [before.first?.start, after.first?.start].compactMap({ $0 }).min(),
-            var end = [before.last?.end, after.last?.end].compactMap({ $0 }).max()
+        guard var start = [before.first?.sounding.start, after.first?.sounding.start].compactMap({ $0 }).min(),
+            var end = [before.last?.sounding.end, after.last?.sounding.end].compactMap({ $0 }).max()
         else { continue }
         // The unchanged neighbors just before and after the run: a fade handle of an edge with no
-        // fade shows only with no join, so a join that comes or goes redraws that neighbor.
+        // fade and no crossfade shows only with no join, so a join that comes or goes redraws that
+        // neighbor.
         if head > 0 {
             let left = y[y.startIndex + head - 1]
             let (wasJoined, isJoined) = (before.first?.start == left.end, after.first?.start == left.end)
-            if LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: wasJoined)
-                != LaneGeometry.hasHandle(fade: left.fades.fadeOut, joined: isJoined)
+            if LaneGeometry.hasHandle(fade: left.fades.fadeOut, crossfade: left.crossfades.end, joined: wasJoined)
+                != LaneGeometry.hasHandle(fade: left.fades.fadeOut, crossfade: left.crossfades.end, joined: isJoined)
             {
                 start = left.start
             }
@@ -53,8 +57,8 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         if tail > 0 {
             let right = y[y.endIndex - tail]
             let (wasJoined, isJoined) = (before.last?.end == right.start, after.last?.end == right.start)
-            if LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: wasJoined)
-                != LaneGeometry.hasHandle(fade: right.fades.fadeIn, joined: isJoined)
+            if LaneGeometry.hasHandle(fade: right.fades.fadeIn, crossfade: right.crossfades.start, joined: wasJoined)
+                != LaneGeometry.hasHandle(fade: right.fades.fadeIn, crossfade: right.crossfades.start, joined: isJoined)
             {
                 end = right.end
             }

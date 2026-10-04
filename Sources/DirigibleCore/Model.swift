@@ -295,8 +295,9 @@ extension Clip {
     /// The timeline range of `sounding`.
     var soundingRange: Range<Frames> { (start - crossfades.start.half)..<(end + crossfades.end.half) }
 
-    /// The frames of the clip that `edge` reaches: its fade plus half its crossfade.
-    func reach(_ edge: Fades.Edge) -> Frames { fades[edge] + crossfades[edge].half }
+    /// The frames of the clip that `edge` reaches: its fade plus half its crossfade. The fade
+    /// handle sits at the reach.
+    public func reach(_ edge: Fades.Edge) -> Frames { fades[edge] + crossfades[edge].half }
 
     /// The room of `edge`: the length minus the reach of the other edge.
     public func room(_ edge: Fades.Edge) -> Frames { length - reach(edge.other) }

@@ -31,6 +31,12 @@ struct CrossfadeTests {
     func crossfades(_ id: ClipID) -> Crossfades? { session.clip(id)?.clip.crossfades }
     func fades(_ id: ClipID) -> Fades? { session.clip(id)?.clip.fades }
 
+    /// The lane form of `crossfadeLimit` for the clip `id`; nil when no lane holds it.
+    func limit(after id: ClipID) -> Frames? {
+        guard let (track, index) = try? session.position(of: id) else { return nil }
+        return session.crossfadeLimit(after: index, in: session.tracks[track].clips)
+    }
+
     /// All crossfades of the lanes, by clip ID; a clip with none is left out.
     var allCrossfades: [ClipID: Crossfades] {
         Dictionary(
@@ -115,7 +121,7 @@ struct CrossfadeTests {
             var test = try CrossfadeTests()
             try test.session.addFile(AudioFile(id: "fs", path: "fs.wav", layout: .mono, length: 5_300))
             try test.join(a: a, b: b)
-            return test.session.crossfadeLimit(after: "A")
+            return test.limit(after: "A")
         }
         #expect(try limit(a: { $0.file = "fs" }) == 600, "handle after A: 300")
         #expect(try limit(b: { $0.offset = 200 }) == 400, "handle before B: 200")
@@ -129,12 +135,12 @@ struct CrossfadeTests {
         var test = try CrossfadeTests()
         try test.join()
         try test.session.setCrossfades(["A": 960])
-        #expect(test.session.crossfadeLimit(after: "A") == 2_000, "A's own crossfade does not bound the limit")
-        #expect(test.session.crossfadeLimit(after: "B") == nil, "no join after B")
+        #expect(test.limit(after: "A") == 2_000, "A's own crossfade does not bound the limit")
+        #expect(test.limit(after: "B") == nil, "no join after B")
 
         var seamless = try CrossfadeTests()
         try seamless.join(b: { ($0.file, $0.offset) = ("fa", 5_000) })
-        #expect(seamless.session.crossfadeLimit(after: "A") == 0, "a seamless join gives 0")
+        #expect(seamless.limit(after: "A") == 0, "a seamless join gives 0")
         #expect(throws: SessionError.crossfadeAtSeamlessJoin("A"), "setCrossfades refuses a seamless join") {
             try seamless.session.setCrossfades(["A": 960])
         }
@@ -319,9 +325,10 @@ struct CrossfadeTests {
                         done["setFades", default: 0] += 1
                     default:
                         var lengths: [ClipID: Frames] = [:]
-                        for clip in session.tracks[0].clips where Bool.random(using: &random) {
-                            guard let limit = session.crossfadeLimit(after: clip.id) else { continue }
-                            lengths[clip.id] = Frames(
+                        let lane = session.tracks[0].clips
+                        for index in lane.indices where Bool.random(using: &random) {
+                            guard let limit = session.crossfadeLimit(after: index, in: lane) else { continue }
+                            lengths[lane[index].id] = Frames(
                                 min(limit.count, Int.random(in: 0...2_000, using: &random)) / 2 * 2)
                         }
                         try session.setCrossfades(lengths)

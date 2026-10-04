@@ -131,6 +131,28 @@ struct ClipZoneTests {
         #expect(geometry.hit(199, 2, in: session) == .fade(session.clip("A")!.clip, .end, lane: 0))
     }
 
+    /// G0 (run 11c-2): a crossfade of 19,200 frames (20 pt on each side of J at x 200) has a handle
+    /// at J - L/2 in A and at J + L/2 in B, each inside its box. With no crossfade, the joined
+    /// edges have none.
+    @Test func aCrossfadeHasAHandleAtEachHalf() throws {
+        var session = try Fixture.session()
+        try session.move("B", to: "t1", start: 96_000)
+        try session.setCrossfades(["A": 19_200])
+        let lane = session.tracks[0].clips
+
+        #expect(
+            geometry.fadeHandles(of: lane[0], at: 0, in: lane, lane: 0).end == Rect(x: 176, y: 0, width: 8, height: 8))
+        #expect(
+            geometry.fadeHandles(of: lane[1], at: 1, in: lane, lane: 0).start == Rect(x: 216, y: 0, width: 8, height: 8)
+        )
+        #expect(LaneGeometry.hasHandle(fade: .zero, crossfade: 960, joined: true))
+        #expect(!LaneGeometry.hasHandle(fade: .zero, crossfade: .zero, joined: true))
+        try session.setCrossfades(["A": 0])
+        let plain = session.tracks[0].clips
+        #expect(geometry.fadeHandles(of: plain[0], at: 0, in: plain, lane: 0).end == nil)
+        #expect(geometry.fadeHandles(of: plain[1], at: 1, in: plain, lane: 0).start == nil)
+    }
+
     /// Code gate K1: fades that fill the clip leave no gain band (the hit is a handle or a move). At 50 frames per point and this start,
     /// the fade-in end x is 1 ulp over the fade-out start x, and a range from the two trapped.
     @Test func fadesThatFillTheClipLeaveNoBand() throws {

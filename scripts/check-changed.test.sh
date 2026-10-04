@@ -234,9 +234,17 @@ CHECK_LOAD_WAIT=20 CHECK_LOAD_MAX=4.5 PATH="$tmp/bin:$PATH" make_case 'a load th
 [[ "$output" == *"load 9.50 after 20 s, not under 4.5: run the tests"* ]] || fail "a load that stays high: no stop line: $output"
 [[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a load that stays high: sleeps [$(cat "$tmp/sleep.log")]"
 [[ -s "$tmp/swift.log" ]] || fail 'a load that stays high: the tests did not run'
+# The default cap is 300 s, so the wait and the tests of a slice fit in one 600 s Bash call. The
+# load lines go to stderr.
+: > "$tmp/sleep.log"
+echo 9.50 > "$tmp/load"
+got="$(CHECK_LOAD_MAX=4.5 PATH="$tmp/bin:$PATH" "$script" --wait-load test 2> "$tmp/wait.err")" || fail "the default cap exits $?"
+[[ -z "$got" ]] || fail "the default cap: load lines on stdout: [$(tail -n 1 <<<"$got")]"
+grep -q 'load 9.50 after 300 s, not under 4.5: run the tests' "$tmp/wait.err" || fail "the default cap: no stop line at 300 s: $(tail -n 1 "$tmp/wait.err")"
+[[ "$(wc -l < "$tmp/sleep.log" | tr -d ' ')" == 30 ]] || fail "the default cap: $(wc -l < "$tmp/sleep.log") sleeps, want 30"
 # Targets with no Swift test read no load.
 : > "$tmp/sysctl.log"
-got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-docs check-fast)" || fail "--wait-load with docs targets exits $?"
+got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-docs check-fast 2>&1)" || fail "--wait-load with docs targets exits $?"
 [[ -z "$got" && ! -s "$tmp/sysctl.log" ]] || fail "--wait-load with docs targets read the load: [$got] [$(cat "$tmp/sysctl.log")]"
 
 # make test-slow writes the date of today after a pass, and nothing after a red run.

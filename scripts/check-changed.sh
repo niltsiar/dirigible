@@ -45,23 +45,24 @@ targets_of() {
 
 # A build in another worktree makes timing tests fail (DLV-157). Before a target other than
 # check-docs and check-fast, wait until the 1-minute load is under CHECK_LOAD_MAX (default: the
-# core count). Read it each 10 s; after CHECK_LOAD_WAIT seconds (default 900), run the tests anyway.
+# core count). Read it each 10 s. After CHECK_LOAD_WAIT seconds (default 300, so the wait and the
+# tests of a slice fit in one 600 s Bash call), run the tests anyway. The load lines go to stderr.
 wait_load() {
-    local rest=" $* " t max load waited=0 limit="${CHECK_LOAD_WAIT:-900}"
+    local rest=" $* " t max load waited=0 limit="${CHECK_LOAD_WAIT:-300}"
     for t in check-docs check-fast none; do rest="${rest// $t / }"; done
     [[ -n "${rest// /}" ]] || return 0
     max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
     while :; do
         load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
         if awk -v l="$load" -v m="$max" 'BEGIN { exit !(l < m) }'; then
-            echo "check-changed: load $load, under $max: run the tests"
+            echo "check-changed: load $load, under $max: run the tests" >&2
             return 0
         fi
         if ((waited >= limit)); then
-            echo "check-changed: load $load after $waited s, not under $max: run the tests"
+            echo "check-changed: load $load after $waited s, not under $max: run the tests" >&2
             return 0
         fi
-        echo "check-changed: load $load, not under $max (CHECK_LOAD_MAX): wait 10 s, up to $limit s (CHECK_LOAD_WAIT)"
+        echo "check-changed: load $load, not under $max (CHECK_LOAD_MAX): wait 10 s, up to $limit s (CHECK_LOAD_WAIT)" >&2
         sleep 10
         waited=$((waited + 10))
     done

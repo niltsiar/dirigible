@@ -13,7 +13,6 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 - The export does not write the chapters into the file. The chapters stay in the session.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
-- Delete leaves silence. The clips after the deleted part do not move to close the gap. To close the gap, see [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 
 ## Record your first episode
 
@@ -94,7 +93,7 @@ Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and *
 2. Click the time ruler above the tracks at the start of the mistake. The playhead moves there.
 3. Press I to set the in point.
 4. Click the time ruler at the end of the mistake, then press O to set the out point.
-5. Choose **Edit > Delete** (Delete). The mistake goes, and silence stays in its place.
+5. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks.
 
 The in point is the start of the selection, and the out point is the end. With no track selected, I and O select all tracks.
 
@@ -164,36 +163,33 @@ A selection has an in point, an out point, and one or more tracks. Two triangles
 - **Cut** copies the selection, removes it from all tracks, and closes the gap.
 - **Copy** copies the selection. You can paste it only in the same window.
 - **Paste** puts the copy at the playhead on the selected tracks. With no track selected, it uses the tracks that you copied from. The copy replaces the audio under it.
+- **Insert** moves the audio at the playhead and after it to the right on all tracks, by the length of the copy. Then it puts the copy at the playhead, as **Paste** does. Paste and Insert act at the playhead, not at the selection.
 - **Delete** removes the selection and leaves silence.
+- **Delete and Close Gap** removes the selection from all tracks and moves the audio after it to the left (a ripple delete).
+- **Cut in Selected Tracks** and **Delete and Close Gap in Selected Tracks** close the gap only on the selected tracks. The other tracks do not move, so they can go out of sync with the moved tracks. The markers move with the moved tracks.
 - **Split** cuts the clips at the in point and the out point. With no selection, it cuts the clips at the playhead.
 - **Nudge Left** and **Nudge Right** move the clips that are fully in the selection by 10 ms.
 - Drag the upper part of a clip to move it. You can drag it to another track of the same type, mono or stereo. The clip replaces the audio under it.
-- Drag the edge of a clip to make it shorter or longer.
+- Drag the edge of a clip to make it shorter or longer. The edge stops at the clip next to it.
+- Hold Option and drag the edge of a clip to make a ripple trim. The audio after the edge moves with it on all tracks, and so do the markers. A shorter clip also removes that part of the other tracks; a longer clip adds silence to them. At the start edge, the clip start stays and the audio slides under it. With Option held over an edge, the pointer shows an arrow that points away from the clip.
+- Control-click or right-click a track to open its menu: **Cut**, **Copy**, **Paste**, **Insert**, **Delete**, **Delete and Close Gap**, **Split**, **Fade**, **Add Marker**, and **Add Chapter**. A right-click on a clip outside the selection selects that clip first. The menu shows only the commands that apply.
 - Press Esc during a drag to cancel it.
 
 Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the last edit.
 
 ### Remove a mistake and close the gap
 
-To remove a part and move the audio after it to the left, delete the mistake first. Then cut the audio after the mistake, and paste it at the start of the mistake. Because of the delete, no part of the mistake stays, also when the mistake is longer than the audio after it.
-
-Paste right after the cut. The cut audio and the undo history stay only while the session window is open. When you close the window, you cannot paste the cut audio or undo the cut.
-
-Markers and chapters do not move with the audio. Remove the mistakes before you add markers. If markers are after the mistake, move each one after the paste. Move it to the left by the distance that the audio moved. This is the length of the mistake, or more when the paste also removes silence before the mistake (see the note after step 11). Drag its flag, or click the flag, move the playhead to the new position, and choose **Markers > Move Marker to Playhead**.
+To remove a part and move the audio after it to the left on all tracks, use a ripple delete:
 
 1. Choose **Edit > Deselect All**.
 2. Move the playhead to the start of the mistake. Then choose **Edit > Set In Point**.
 3. Move the playhead to the end of the mistake. Then choose **Edit > Set Out Point**. The selection is on all tracks.
-4. Choose **Edit > Delete**. The mistake becomes silence on all tracks. If the mistake goes to the end of the session, stop here.
-5. Choose **View > Zoom to Selection or Session**. Click the time ruler in the silence. Then choose **Transport > Next Clip Edge**. The playhead goes to the end of the silence.
-6. Choose **Edit > Set In Point**.
-7. Choose **Transport > Go to End**, then choose **Edit > Set Out Point**. The selection goes from the end of the silence to the end of the session.
-8. Choose **Edit > Cut**. The session now ends at the start of the silence.
-9. Choose **Transport > Go to End**. The playhead goes to the start of the silence.
-10. Choose **Edit > Paste** right after the cut. The audio after the mistake now starts at the playhead, and the gap is closed.
-11. Play the result before you close the session. If the result is wrong, choose **Edit > Undo** three times to undo the paste, the cut, and the delete.
+4. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks. The playhead goes to the start of the old mistake.
+5. Play the result. If it is wrong, choose **Edit > Undo**.
 
-If no track has audio just before the mistake, step 9 moves the playhead to the end of the audio before the mistake. The paste then also removes the silence before the mistake.
+The markers after the mistake move to the left with the audio. A marker in the mistake goes to its start. **Edit > Cut** does the same and also copies the mistake.
+
+You cannot close a gap while a take waits for its end, or while part of a take is not on its tracks: the command beeps. Finish the take, or put its audio on a track first (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 
 ### Fade in and fade out
 
@@ -256,7 +252,7 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 - Control-click a flag and choose **Delete Marker** to delete it.
 - Click a flag to move the playhead to it. The flag becomes the current marker.
 - Drag a flag to move it.
-- **Edit > Cut**, **Edit > Paste**, and **Edit > Delete** do not move the flags. See [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
+- **Edit > Paste** and **Edit > Delete** do not move the flags. **Edit > Cut**, **Edit > Delete and Close Gap**, **Edit > Insert**, and an Option drag of a clip edge move the flags after the edit with the audio. See [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
 - **Rename Marker**, **Move Marker to Playhead**, and **Delete Marker** change the current marker.
 - **Previous Marker** and **Next Marker** move the playhead to a flag and make it the current marker.
 

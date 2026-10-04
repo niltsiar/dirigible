@@ -146,7 +146,8 @@ struct StudioPeaksSettleTests {
 
     /// Plan gate 2 item 5: the pass checks `settling` at each file start, also for cache hits.
     @Test @MainActor func settleStopsACacheHitLoadAtAFileStart() async throws {
-        let ids = (1...20).map { FileID("f\($0)") }
+        // Two digits: the pass loads in sorted ID order, so each wait below covers one file.
+        let ids = (1...20).map { FileID(String(format: "f%02d", $0)) }
         let fixture = try await PeakPackage.make(files: ids)
         var first: Studio? = try await fixture.studio()
         for id in ids { _ = await waitForPeaks(first!, id) }

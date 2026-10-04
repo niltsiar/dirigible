@@ -292,4 +292,17 @@ import Testing
         window.close()
         await model.close()
     }
+
+    /// Multi-clip-selection C14 (`ui-panel.md` 6): a clip set draws nothing on the ruler: no
+    /// triangle and no span. Control: a range gives the ruler its in point.
+    @Test func aClipSelectionDrawsNothingOnTheRuler() async throws {
+        let (model, studio, window, view) = try await lanes()
+        view.update(laneInputs(model, studio, selection: .range(Marks(inPoint: 51_200))))
+        #expect(view.ruler.inputs?.marks == Marks(inPoint: 51_200), "the control")
+        let clip = try #require(studio.session.tracks.first?.clips.first?.id)
+        view.update(laneInputs(model, studio, selection: .clips(try #require(ClipSet([clip])))))
+        #expect(view.ruler.inputs?.marks == Marks())
+        window.close()
+        await model.close()
+    }
 }

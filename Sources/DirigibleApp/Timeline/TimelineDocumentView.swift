@@ -354,17 +354,18 @@ final class TimelineDocumentView: NSView {
 }
 
 extension LanePalette {
-    /// The palette of `appearance`: the appearance and the accent resolve together.
+    /// The palette of `appearance`: the appearance and the accent resolve together. The outline of
+    /// a selected clip is the accent in both appearances (decision 0038).
     static func pick(for appearance: NSAppearance) -> LanePalette {
         var picked = LanePalette.light
         appearance.performAsCurrentDrawingAppearance {
-            guard appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
-                let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB)
-            else { return }
+            guard let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) else { return }
             func channel(_ value: CGFloat) -> UInt32 { UInt32((value * 255).rounded()) }
-            picked = .dark(
-                accent: 0xFF00_0000 | channel(accent.redComponent) << 16 | channel(accent.greenComponent) << 8
-                    | channel(accent.blueComponent))
+            let pixel =
+                0xFF00_0000 | channel(accent.redComponent) << 16 | channel(accent.greenComponent) << 8
+                | channel(accent.blueComponent)
+            picked = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark(accent: pixel) : picked
+            picked.outline = pixel
         }
         return picked
     }

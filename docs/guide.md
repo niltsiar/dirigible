@@ -147,7 +147,7 @@ The **Session overview** is the strip above the time ruler. It shows the whole s
 
 ## Select and edit
 
-A selection has an in point, an out point, and one or more tracks. Two triangles in the time ruler show the in point and the out point.
+A selection is a range or a set of clips. A range has an in point, an out point, and one or more tracks. Two triangles in the time ruler show the in point and the out point. A set of clips can hold clips on different tracks. Each clip of the set shows a tint and an outline in the accent color, and the time ruler shows nothing.
 
 ### Make a selection
 
@@ -155,9 +155,11 @@ A selection has an in point, an out point, and one or more tracks. Two triangles
 - Drag in the lower part of a clip, or in an empty part of a track, to select a range on the tracks that you drag across.
 - Click the upper part of a clip to select that clip.
 - Shift-click a track to select from the playhead to the click. Shift-drag to make the selection larger.
-- Command-click a track to add it to the selection or remove it from the selection.
+- Command-click the upper part of a clip to add it to the set of clips or remove it from the set. When a range is selected, the set starts with the clips that the range holds fully.
+- Command-click the lower part of a clip, or an empty part of a track, to add the track to the range or remove it from the range.
 - Drag a triangle in the time ruler to move the in point or the out point.
 - Choose **Edit > Select All** to select the whole session. Choose **Edit > Deselect All**, or press Esc, to clear the selection.
+- **Set In Point**, **Set Out Point**, **Select All**, and a drag that selects a range replace a set of clips with a range.
 
 ### Change the audio
 
@@ -169,11 +171,13 @@ A selection has an in point, an out point, and one or more tracks. Two triangles
 - **Delete and Close Gap** removes the selection from all tracks and moves the audio after it to the left (a ripple delete).
 - **Cut in Selected Tracks** and **Delete and Close Gap in Selected Tracks** close the gap only on the selected tracks. The other tracks do not move, so they can go out of sync with the moved tracks. The markers move with the moved tracks.
 - **Split** cuts the clips at the in point and the out point. With no selection, it cuts the clips at the playhead.
-- **Nudge Left** and **Nudge Right** move the clips that are fully in the selection by 10 ms.
+- **Nudge Left** and **Nudge Right** move the clips that are fully in the selection, or the set of clips, by 10 ms.
 - Drag the upper part of a clip to move it. You can drag it to another track of the same type, mono or stereo. The clip replaces the audio under it.
+- Drag a clip of a set of clips, or a clip that a range holds fully with other clips, to move all these clips together. They keep their distances in time and in tracks. When one clip would go to a track of the other type, all clips stay on their tracks and move only in time. After the drag, the moved clips are the set of clips. A click with no drag selects only that clip.
+- With a set of clips, **Delete** removes the clips and leaves silence. **Split** cuts the clips of the set at the playhead. **Fade**, **Auto Level**, the inspector, and **Show Clips in Finder** act on the clips of the set. **Paste** and **Insert** use the first track of the set. **Copy**, **Cut**, and the **Delete and Close Gap** commands beep and change nothing.
 - Drag the edge of a clip to make it shorter or longer. The edge stops at the clip next to it.
 - Hold Option and drag the edge of a clip to make a ripple trim. The audio after the edge moves with it on all tracks, and so do the markers. A shorter clip also removes that part of the other tracks; a longer clip adds silence to them. At the start edge, the clip start stays and the audio slides under it. With Option held over an edge, the pointer shows an arrow that points away from the clip.
-- Control-click or right-click a track to open its menu: **Cut**, **Copy**, **Paste**, **Insert**, **Delete**, **Delete and Close Gap**, **Split**, **Fade**, **Add Marker**, and **Add Chapter**. A right-click on a clip outside the selection selects that clip first. The menu shows only the commands that apply.
+- Control-click or right-click a track to open its menu: **Cut**, **Copy**, **Paste**, **Insert**, **Delete**, **Delete and Close Gap**, **Split**, **Fade**, **Add Marker**, and **Add Chapter**. A right-click on a clip outside the selection selects that clip first; a right-click on a clip of a set of clips keeps the set. The menu shows only the commands that apply.
 - Press Esc during a drag to cancel it.
 
 Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the last edit.

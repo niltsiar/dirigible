@@ -17,11 +17,10 @@ extension Session {
                 guard let length = lengths[lane[index].id] else { continue }
                 found += 1
                 var left = changed[index] ?? lane[index]
-                guard index + 1 < lane.count, lane[index + 1].start == left.end else {
-                    throw .crossfadeWithoutJoin(left.id)
-                }
+                let join = lane.join(after: index)
+                guard join != .none else { throw .crossfadeWithoutJoin(left.id) }
+                if length != .zero, join == .seamless { throw .crossfadeAtSeamlessJoin(left.id) }
                 var right = lane[index + 1]
-                if length != .zero, left.isSeamless(with: right) { throw .crossfadeAtSeamlessJoin(left.id) }
                 guard let end = Crossfades(start: left.crossfades.start, end: length),
                     let start = Crossfades(start: length, end: right.crossfades.end)
                 else { throw .frameOutOfRange }
@@ -45,15 +44,14 @@ extension Session {
     /// handle before its neighbor, and the room of each clip beside the crossfade half at its other
     /// edge (its fades yield). 0 at a seamless join. Nil with no touching neighbor.
     public func crossfadeLimit(after left: ClipID) -> Frames? {
-        guard let track = tracks.first(where: { $0.clips.contains { $0.id == left } }),
-            let index = track.clips.firstIndex(where: { $0.id == left }), index + 1 < track.clips.count
-        else { return nil }
-        let (a, b) = (track.clips[index], track.clips[index + 1])
-        guard a.end == b.start, let file = files[a.file] else { return nil }
-        if a.isSeamless(with: b) { return .zero }
+        guard let (track, index) = try? position(of: left) else { return nil }
+        let lane = tracks[track].clips
+        let join = lane.join(after: index)
+        guard join != .none, let file = files[lane[index].file] else { return nil }
+        if join == .seamless { return .zero }
+        let (a, b) = (lane[index], lane[index + 1])
         let half = min(
-            file.length - (a.offset + a.length), b.offset, a.length - a.crossfades.start.half,
-            b.length - b.crossfades.end.half)
+            file.length - (a.offset + a.length), b.offset, a.crossfadeRoom(.end), b.crossfadeRoom(.start))
         return Frames(2 * max(0, half.count))
     }
 }

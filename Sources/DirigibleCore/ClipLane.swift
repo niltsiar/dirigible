@@ -22,13 +22,23 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         }
     }
 
+    /// The join of the clips at `left` and `left + 1` (decision 0036).
+    enum Join { case none, seamless, butt }
+
+    /// `.none` when no clip is at `left` or `left + 1`, or the two clips do not touch.
+    func join(after left: Int) -> Join {
+        guard left >= 0, left + 1 < storage.count, storage[left].end == storage[left + 1].start else { return .none }
+        return storage[left].isSeamless(with: storage[left + 1]) ? .seamless : .butt
+    }
+
     /// The fault of the crossfade at the join of the clips at `left` and `left + 1`, named for
     /// `id`; nil when the join holds it.
     private func joinFault(_ left: Int, id: ClipID) -> SessionError? {
-        guard left >= 0, left + 1 < storage.count else { return .crossfadeWithoutJoin(id) }
-        let (a, b) = (storage[left], storage[left + 1])
-        guard a.end == b.start, a.crossfades.end == b.crossfades.start else { return .crossfadeWithoutJoin(id) }
-        return a.isSeamless(with: b) ? .crossfadeAtSeamlessJoin(id) : nil
+        let join = join(after: left)
+        guard join != .none, storage[left].crossfades.end == storage[left + 1].crossfades.start else {
+            return .crossfadeWithoutJoin(id)
+        }
+        return join == .seamless ? .crossfadeAtSeamlessJoin(id) : nil
     }
 
     /// Drops each crossfade of the clips in `indices` whose join does not hold it.
@@ -36,9 +46,10 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         for index in indices.clamped(to: storage.indices) where storage[index].crossfades != .zero {
             let id = storage[index].id
             let old = storage[index].crossfades
-            let start = joinFault(index - 1, id: id) == nil ? old.start : .zero
-            let end = joinFault(index, id: id) == nil ? old.end : .zero
-            if start != old.start || end != old.end { storage[index].crossfades = Crossfades(start: start, end: end)! }
+            let new = Crossfades(
+                valid: joinFault(index - 1, id: id) == nil ? old.start : .zero,
+                end: joinFault(index, id: id) == nil ? old.end : .zero)
+            if new != old { storage[index].crossfades = new }
         }
     }
 
@@ -55,7 +66,7 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     /// least one frame in `range`. The render, the media check, and the draw read it, so a clip
     /// that sounds in a range from its handle is found.
     public func clips(soundingIn range: Range<Frames>) -> [Clip] {
-        storage.filter { $0.sounding.range.overlaps(range) }
+        storage.filter { $0.soundingRange.overlaps(range) }
     }
 
     /// Clears the range of the clip, then inserts the clip (Hindenburg paste).
@@ -148,8 +159,9 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     /// Replaces several clips in place, then repairs once: both clips of a new crossfade change
     /// before the repair reads their join.
     mutating func replace(_ clips: [Int: Clip]) {
+        guard let low = clips.keys.min(), let high = clips.keys.max() else { return }
         for (index, clip) in clips { storage[index] = clip }
-        for index in clips.keys { repair((index - 1)..<(index + 2)) }
+        repair((low - 1)..<(high + 2))
     }
 }
 
@@ -161,12 +173,11 @@ extension Clip {
         var part = Clip(
             id: id, file: file, start: range.lowerBound, offset: offset + (range.lowerBound - start),
             length: range.upperBound - range.lowerBound, gain: gain, fades: fades.cut(range, of: self.range))
+        let kept = Crossfades.kept(edgesOf: self, in: range)
+        part.crossfades = kept
         part.crossfades = Crossfades(
-            start: range.lowerBound == start ? crossfades.start : .zero,
-            end: range.upperBound == end ? crossfades.end : .zero)!
-        part.crossfades = Crossfades(
-            start: part.crossfades.start.half <= part.room(.start) ? part.crossfades.start : .zero,
-            end: part.crossfades.end.half <= part.room(.end) ? part.crossfades.end : .zero)!
+            valid: kept.start.half <= part.room(.start) ? kept.start : .zero,
+            end: kept.end.half <= part.room(.end) ? kept.end : .zero)
         return part
     }
 }

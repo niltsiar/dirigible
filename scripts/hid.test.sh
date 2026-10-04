@@ -30,10 +30,15 @@ expect_usage "an unknown flag" key 53 --control
 expect_usage "type with no text" type --dry-run
 expect_usage "type with a modifier flag" type a --command
 
-# The target app is not frontmost (no app has the bundle ID): exit 4, and no event line, also
-# with --dry-run. The incident of run 2026-10-04-hid-front sent the keys to the terminal.
+expect_usage "type with a newline" type $'a\nb'
+expect_usage "type with a tab" type $'a\tb'
+
+# A real command with no target app (no app has the bundle ID): exit 4 and no event line. The
+# incident of run 2026-10-04-hid-front sent the keys to the terminal. The check comes before the
+# Accessibility check, so the case posts nothing. A dry run needs no target app, so no case
+# depends on the frontmost app of the desktop or brings an app to the front.
 errf="$(mktemp)"
-for args in "key 53 --dry-run" "type -20 --dry-run" "click 10 20"; do
+for args in "key 53" "type -20" "click 10 20" "scroll 10 20 0 -3"; do
     # shellcheck disable=SC2086
     out="$(DIRIGIBLE_BUNDLE_ID=com.example.no-such-app swift "$hid" $args 2>"$errf")"
     code=$?
@@ -42,12 +47,8 @@ for args in "key 53 --dry-run" "type -20 --dry-run" "click 10 20"; do
     grep -q "not frontmost" "$errf" || fail "$args with no target app: no message"
 done
 rm -f "$errf"
-
-# The order cases need a frontmost target: use the app that is frontmost now (activation of the
-# frontmost app changes nothing).
-front="$(lsappinfo info -only bundleid "$(lsappinfo front)" | sed -E 's/.*="?([^"]*)"?/\1/')"
-[[ -n "$front" ]] || { echo "hid tests: no frontmost app (lsappinfo)"; exit 1; }
-export DIRIGIBLE_BUNDLE_ID="$front"
+[[ "$(DIRIGIBLE_BUNDLE_ID=com.example.no-such-app swift "$hid" key 53 --dry-run 2>&1)" == $'down 53 flags 0\nup 53 flags 0' ]] \
+    || fail "a dry run with no target app"
 [[ "$(swift "$hid" type -20 --dry-run 2>&1)" == "type -20" ]] || fail "type -20 in a dry run"
 
 # The modifier keys go down before the key and up after it (55 Command, 58 Option; flags 1048576

@@ -30,7 +30,7 @@ import os
         let (target, panels) = (
             ExportTarget(url: folder.url.appending(path: "mix.wav"), options: Self.options, confirmed: nil), panels
         )
-        app.chooseExport = { _, _, _, done in
+        app.chooseExport = { _, _, _, _, done in
             panels.withLock { $0 += 1 }
             done(target)
         }
@@ -47,9 +47,11 @@ import os
     /// A window of a package in `folder` (default: the test folder) with track `t1` on channel 1
     /// of `duo` (the counting HAL), and a clip of `f1`: 10 s of silence, or a missing file with
     /// `audio: false`.
-    func window(audio: Bool = true, in folder: URL? = nil) async throws -> (SessionWindow, Studio, NSWindow) {
+    func window(audio: Bool = true, in folder: URL? = nil, app: AppDelegate? = nil) async throws -> (
+        SessionWindow, Studio, NSWindow
+    ) {
         let package = try await timelinePackage(in: folder ?? self.folder.url, tracks: 1, seconds: 10, audio: audio)
-        let model = await app.open(package)
+        let model = await (app ?? self.app).open(package)
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
         try studio.edit { session throws(SessionError) in
@@ -333,6 +335,50 @@ import os
             return
         }
         #expect(model.canExport)
+        await model.close()
+    }
+
+    /// Architecture-refactor criteria C1 and C2: the save panel gets the export settings of the
+    /// injected app defaults, and a change goes to the store that the loudness strip reads.
+    @Test func thePanelUsesTheAppDefaults() async throws {
+        let suite = "ExportWindowTests.\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.set("flac", forKey: "export.format")
+        let app = AppDelegate(recordings: nil, defaults: defaults)
+        var settings: ExportSettings?
+        app.chooseExport = { _, _, _, given, done in
+            settings = given
+            done(nil)
+        }
+        let (model, _, _) = try await window(app: app)
+
+        await model.export(.session)
+
+        let panel = try #require(settings, "the save panel did not open")
+        #expect(panel.format == .flac, "the panel did not read the app defaults")
+        panel.loudness = .ebu
+        #expect(defaults.string(forKey: ExportSettings.loudnessKey) == "ebu", "the change went to another store")
+        await model.close()
+    }
+
+    /// Criterion C3: with no app defaults, the panel gets the default values and writes nothing.
+    @Test func thePanelWithNoAppDefaultsUsesTheDefaultValues() async throws {
+        var settings: ExportSettings?
+        app.chooseExport = { _, _, _, given, done in
+            settings = given
+            done(nil)
+        }
+        let (model, _, _) = try await window()
+        let before = UserDefaults.standard.string(forKey: "export.format")
+
+        await model.export(.session)
+
+        let panel = try #require(settings, "the save panel did not open")
+        #expect(panel.format == .wav, "no app defaults gave \(panel.format)")
+        panel.format = before == "mp3" ? .aac : .mp3
+        let after = UserDefaults.standard.string(forKey: "export.format")
+        #expect(after == before, "the panel wrote the standard defaults")
         await model.close()
     }
 }

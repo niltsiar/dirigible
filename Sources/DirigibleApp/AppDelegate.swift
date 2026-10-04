@@ -66,12 +66,11 @@ import UniformTypeIdentifiers
         alert.messageText = L10n.message(for: error)
         alert.runModal()
     }
-    /// The save panel of Export as a sheet of a window: the name, the session rate, and the
-    /// answer. Tests give their own.
+    /// The save panel of Export as a sheet of a window: the name, the session rate, the
+    /// settings of the pop-ups, and the answer. Tests give their own.
     @ObservationIgnored var chooseExport:
-        (NSWindow, String, Int, @escaping @MainActor (ExportTarget?) -> Void) -> Void = {
-            ExportPanel.begin(
-                for: $0, name: $1, sessionRate: $2, settings: ExportSettings(defaults: .standard), done: $3)
+        (NSWindow, String, Int, ExportSettings, @escaping @MainActor (ExportTarget?) -> Void) -> Void = {
+            ExportPanel.begin(for: $0, name: $1, sessionRate: $2, settings: $3, done: $4)
         }
 
     /// The app: the list of active recordings in Application Support.

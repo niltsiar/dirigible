@@ -13,22 +13,23 @@ struct ExportTarget {
 }
 
 /// The options of the save panel pop-ups (decision 0019). Each change goes to `defaults` at
-/// once, so a Cancel of the panel keeps it, and the next export shows it.
+/// once, so a Cancel of the panel keeps it, and the next export shows it. Nil `defaults`: the
+/// default of each value and no writes (tests).
 @Observable @MainActor final class ExportSettings {
     enum Format: String, CaseIterable {
         case wav, aac, mp3, flac
     }
 
-    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let defaults: UserDefaults?
 
-    var format: Format { didSet { defaults.set(format.rawValue, forKey: "export.format") } }
-    var bits: BitDepth { didSet { defaults.set(bits.rawValue, forKey: "export.bits") } }
-    var bitRate: BitRate { didSet { defaults.set(bitRate.rawValue, forKey: "export.bitrate") } }
-    var layout: ChannelLayout { didSet { defaults.set(layout.rawValue, forKey: "export.channels") } }
-    var rate: ExportRate { didSet { defaults.set(Self.name(of: rate), forKey: "export.rate") } }
+    var format: Format { didSet { defaults?.set(format.rawValue, forKey: "export.format") } }
+    var bits: BitDepth { didSet { defaults?.set(bits.rawValue, forKey: "export.bits") } }
+    var bitRate: BitRate { didSet { defaults?.set(bitRate.rawValue, forKey: "export.bitrate") } }
+    var layout: ChannelLayout { didSet { defaults?.set(layout.rawValue, forKey: "export.channels") } }
+    var rate: ExportRate { didSet { defaults?.set(Self.name(of: rate), forKey: "export.rate") } }
     /// Nil is Off. It is stored as a token, so Off does not come back as the default.
     var loudness: LoudnessTarget? {
-        didSet { defaults.set(loudness?.rawValue ?? "off", forKey: Self.loudnessKey) }
+        didSet { defaults?.set(loudness?.rawValue ?? "off", forKey: Self.loudnessKey) }
     }
     /// The loudness strip reads it for its target line (decision 0033).
     nonisolated static let loudnessKey = "export.loudness"
@@ -40,15 +41,15 @@ struct ExportTarget {
 
     /// The stored options, or the defaults: WAV, 24-bit, 128 kbit/s, stereo, the session rate,
     /// and the podcast loudness target. An unknown loudness token gives the podcast target.
-    init(defaults: UserDefaults) {
+    init(defaults: UserDefaults?) {
         self.defaults = defaults
-        format = defaults.string(forKey: "export.format").flatMap(Format.init) ?? .wav
-        bits = BitDepth(rawValue: defaults.integer(forKey: "export.bits")) ?? .bits24
-        bitRate = BitRate(rawValue: defaults.integer(forKey: "export.bitrate")) ?? .k128
-        layout = defaults.string(forKey: "export.channels").flatMap(ChannelLayout.init) ?? .stereo
-        let rate = defaults.string(forKey: "export.rate")
+        format = defaults?.string(forKey: "export.format").flatMap(Format.init) ?? .wav
+        bits = BitDepth(rawValue: defaults?.integer(forKey: "export.bits") ?? 0) ?? .bits24
+        bitRate = BitRate(rawValue: defaults?.integer(forKey: "export.bitrate") ?? 0) ?? .k128
+        layout = defaults?.string(forKey: "export.channels").flatMap(ChannelLayout.init) ?? .stereo
+        let rate = defaults?.string(forKey: "export.rate")
         self.rate = ExportRate.allCases.first { Self.name(of: $0) == rate } ?? .session
-        loudness = Self.loudness(token: defaults.string(forKey: Self.loudnessKey))
+        loudness = Self.loudness(token: defaults?.string(forKey: Self.loudnessKey))
     }
 
     private static func name(of rate: ExportRate) -> String {

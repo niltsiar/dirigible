@@ -31,7 +31,8 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
 /// P4), refuses one whose `session.xml` holds `<recording>` (decision 0004), applies `body`, and
 /// saves. The lock is held until the save ends. The package does not change when the lock, the
 /// read, the refusal, the edit, or the save fails. Writes one error line to stderr and throws the
-/// exit code. A `ripple` edit also refuses a split take with exit 3 (`rippleBlocked`, decision 0037).
+/// exit code. A `ripple` edit also refuses a split take with exit 3 (`rippleBlocked`, decision
+/// 0037).
 func editPackage<Result>(
     _ package: PackageArgument, ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {

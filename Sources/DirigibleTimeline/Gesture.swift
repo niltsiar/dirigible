@@ -323,8 +323,8 @@ public struct TimelineGesture: Sendable {
                 state = .dropped
                 return []
             }
-            let delta = press.delta(to: x, geometry)
             if trim.ripple { return rippleDrag(press, trim, x, geometry) }
+            let delta = press.delta(to: x, geometry)
             let edge = trim.edge == .start ? trim.clip.start : trim.clip.end
             let frame = min(max(edge + delta, trim.limits.lowerBound), trim.limits.upperBound)
             let range = trim.edge == .start ? frame..<trim.clip.end : trim.clip.start..<frame

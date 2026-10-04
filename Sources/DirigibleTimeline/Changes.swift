@@ -114,8 +114,8 @@ public typealias ShiftedFrames = (from: Frames, delta: Frames, strays: [Frames])
 /// `from` and the marker lines in `strays`: the new line and the moved old line of each marker
 /// at `from` or later that does not move by `delta` (a marker that a ripple delete stops at the
 /// range start). `from` is the sounding start of the first moved clip of the lane where it is the
-/// latest, or its sounding end when its join to the clip before it comes or goes. Nil when no lane moves its last clip, or when the rule does not hold: the lanes then
-/// draw in full.
+/// latest, or its sounding end when its join to the clip before it comes or goes. Nil when no
+/// lane moves its last clip, or when the rule does not hold: the lanes then draw in full.
 public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? {
     guard old.tracks.count == new.tracks.count else { return nil }
     func moved(_ clip: Clip, by delta: Frames) -> Clip {

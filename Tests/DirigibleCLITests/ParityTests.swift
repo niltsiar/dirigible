@@ -31,6 +31,7 @@ struct ParityTests {
         "setCrossfades": ["clip crossfade"],
         "rippleDelete": ["clip ripple-delete"],
         "rippleInsert": ["clip ripple-insert"],
+        "rippleTrim": ["clip ripple-trim"],
     ]
 
     static let exemptions: [String: String] = [

@@ -2,8 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
-/// `dirigible clip ripple-delete` and `clip ripple-insert` (decision 0037, criteria C3, C17, and
-/// C20). Tracks host, guest, and music (mono) on file f1 of 480 000 frames.
+/// `dirigible clip ripple-delete`, `clip ripple-insert`, and `clip ripple-trim` (decision 0037,
+/// criteria C3, C11, C17, and C20). Tracks host, guest, and music (mono) on file f1 of 480 000 frames.
 struct RippleCommandTests {
     let package: TemporaryPackage
 
@@ -61,6 +61,24 @@ struct RippleCommandTests {
         #expect(try await Self.markers(package) == ["before": 24_000, "inside": 84_000, "after": 168_000])
     }
 
+    /// C11 (CLI). No `--track` ripples every track. Control: the plain `trim` (no other track changes).
+    @Test func rippleTrimRipplesEveryTrack() async throws {
+        let result = try await package.run("clip", "ripple-trim", "PKG", "host", "--edge", "end", "--by", "-100000")
+        #expect(result == CLIResult(status: 0, stdout: "", stderr: ""))
+        for track in ["host", "guest", "music"] as [TrackID] {
+            #expect(try clips(track).map(\.range) == [0..<100_000], "\(track) loses the span before the old end")
+        }
+        #expect(try await Self.markers(package) == ["before": 24_000, "inside": 60_000, "after": 100_000])
+    }
+
+    /// C11 (CLI). A bad edge exits 64 with its reason, and the package does not change.
+    @Test func rippleTrimRefusesABadEdge() async throws {
+        let before = try package.xml()
+        let result = try await package.run("clip", "ripple-trim", "PKG", "host", "--edge", "middle", "--by", "10")
+        #expect(result.status == 64 && result.stderr.contains("An edge is start or end."), "\(result)")
+        #expect(try package.xml() == before)
+    }
+
     /// C17. Each bad value exits 64 with its reason, and the package does not change.
     @Test(
         arguments: [
@@ -95,6 +113,7 @@ struct RippleCommandTests {
         for arguments in [
             ["clip", "ripple-delete", "PKG", "--from", "0", "--to", "48000"],
             ["clip", "ripple-insert", "PKG", "--at", "0", "--length", "48000"],
+            ["clip", "ripple-trim", "PKG", "take1-2-1", "--edge", "end", "--by", "-4800"],
         ] {
             let result = try await fixture.package.run(arguments)
             #expect(result.status == 3, "RIPPLE-C1 \(arguments[1]) with a split take: \(result)")
@@ -121,5 +140,12 @@ struct RippleCommandTests {
         let insert = try await package.run("clip", "ripple-insert", "PKG", "--at", "0", "--length", "48000")
         #expect(insert.status == 0, "RIPPLE-C2 ripple-insert with a wholly unplaced take: \(insert)")
         #expect(try await Self.markers(package) == ["m": 200_000])
+        try package.edit {
+            try $0.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 96_000))
+            try $0.place(Clip(id: "c", file: "f", start: 0, offset: 0, length: 48_000), on: "t1")
+        }
+        let trim = try await package.run("clip", "ripple-trim", "PKG", "c", "--edge", "end", "--by", "4800")
+        #expect(trim.status == 0, "RIPPLE-C2 ripple-trim with a wholly unplaced take: \(trim)")
+        #expect(try await Self.markers(package) == ["m": 204_800])
     }
 }

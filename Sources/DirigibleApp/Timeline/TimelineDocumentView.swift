@@ -335,7 +335,7 @@ final class TimelineDocumentView: NSView {
         scrollView?.mouse(
             .down(
                 place(event), shift: flags.contains(.shift), command: flags.contains(.command),
-                clicks: event.clickCount))
+                option: flags.contains(.option), clicks: event.clickCount))
         showCursor(event)
     }
 
@@ -363,8 +363,28 @@ final class TimelineDocumentView: NSView {
     override func mouseMoved(with event: NSEvent) { showCursor(event) }
     override func cursorUpdate(with event: NSEvent) { showCursor(event) }
 
+    /// The modifier keys that the hover path reads. `flagsChanged` reaches only the first
+    /// responder, so a hover with the focus in a name field reads the keys here (decision 0037).
+    /// A test sets it: it cannot set `NSEvent.modifierFlags`.
+    var modifierFlags: () -> NSEvent.ModifierFlags = { NSEvent.modifierFlags }
+    /// The last cursor kind that the lanes set, and the lane point of the last hover or mouse event.
+    private(set) var shownCursor: TimelineCursor?
+    private var hoverPlace: Place?
+
+    /// An Option key-down or key-up sets the cursor again at the last point, with no mouse move.
+    override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        if let hoverPlace { showCursor(at: hoverPlace, option: event.modifierFlags.contains(.option)) }
+    }
+
     private func showCursor(_ event: NSEvent) {
-        guard let kind = scrollView?.cursor(at: place(event)) else { return }
+        showCursor(at: place(event), option: modifierFlags().contains(.option))
+    }
+
+    private func showCursor(at place: Place, option: Bool) {
+        hoverPlace = place
+        guard let kind = scrollView?.cursor(at: place, option: option) else { return }
+        shownCursor = kind
         NSCursor.timeline(kind).set()
     }
 }

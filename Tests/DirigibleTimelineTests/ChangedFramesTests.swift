@@ -23,6 +23,20 @@ struct ChangedFramesTests {
         #expect(changedFrames(from: session, to: later)?.frames == 144_000..<248_000, "A before B does not change")
     }
 
+    /// C15a (decision 0037): a ripple trim on lane 0 changes each scope lane from the edit point to
+    /// the moved clips. Control: lanes 0..<1.
+    @Test func aRippleChangesEveryScopeLane() throws {
+        var session = try Fixture.session()
+        try session.place(Clip(id: "D", file: "fb", start: 120_000, offset: 0, length: 24_000), on: "t2")
+        var rippled = session
+        try rippled.rippleTrim("A", edge: .end, by: 9_600, on: session.tracks.map(\.id))
+        let changed = changedFrames(from: session, to: rippled)
+        #expect(changed?.lanes == 0..<2, "the rows of t1 and t2")
+        #expect(
+            changed.map { $0.frames.lowerBound <= 96_000 && $0.frames.upperBound >= 201_600 } == true,
+            "from the old end of A to the new end of B: \(String(describing: changed?.frames))")
+    }
+
     @Test func aMoveToAnotherLaneChangesBothLanes() throws {
         let session = try Fixture.session()
         var moved = session

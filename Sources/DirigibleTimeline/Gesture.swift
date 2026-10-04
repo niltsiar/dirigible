@@ -2,24 +2,28 @@ import DirigibleCore
 import Foundation
 
 /// What the gesture reads at each event (decision 0020). `canEdit` is false while a take starts,
-/// records, or finalizes.
+/// records, or finalizes. `canRipple` is false while a take is pending or split (decision 0037).
 public struct GestureContext: Sendable {
     public var session: Session
     public var marks: Marks
     public var playhead: Frames
     public var geometry: LaneGeometry
     public var canEdit: Bool
+    public var canRipple: Bool
 
-    public init(session: Session, marks: Marks, playhead: Frames, geometry: LaneGeometry, canEdit: Bool) {
-        (self.session, self.marks, self.playhead, self.geometry, self.canEdit) =
-            (session, marks, playhead, geometry, canEdit)
+    public init(
+        session: Session, marks: Marks, playhead: Frames, geometry: LaneGeometry, canEdit: Bool, canRipple: Bool = true
+    ) {
+        (self.session, self.marks, self.playhead, self.geometry, self.canEdit, self.canRipple) =
+            (session, marks, playhead, geometry, canEdit, canRipple)
     }
 }
 
 /// A mouse event of the lanes, Esc, or a change of the session under an active gesture. `clicks`
-/// is the click count of the mouse-down (2 for a double-click).
+/// is the click count of the mouse-down (2 for a double-click). Option on a trim zone makes a
+/// ripple trim (decision 0037).
 public enum GestureEvent: Equatable, Sendable {
-    case down(Place, shift: Bool, command: Bool, clicks: Int = 1)
+    case down(Place, shift: Bool, command: Bool, option: Bool = false, clicks: Int = 1)
     case drag(Place)
     case up(Place)
     case escape
@@ -77,7 +81,7 @@ public struct TimelineGesture: Sendable {
         let target: Target
         let x, y: Double
         let frame: Frames
-        let shift, command: Bool
+        let shift, command, option: Bool
         let clicks: Int
         let marks: Marks
         let base: Session
@@ -99,11 +103,13 @@ public struct TimelineGesture: Sendable {
     }
 
     /// A trim of one edge: the frames that the edge can reach (`trimLimits` at the drag start) and
-    /// the session with the clip at `range`.
+    /// the session with the clip at `range`. A ripple trim (decision 0037) holds the deltas that
+    /// the edge can take (`rippleTrimLimits`) in `limits`.
     struct Trim: Sendable {
         let clip: Clip
         let edge: Edge
         let lane: Int
+        let ripple: Bool
         let limits: ClosedRange<Frames>
         var range: Range<Frames>
         var preview: Session
@@ -152,7 +158,7 @@ public struct TimelineGesture: Sendable {
 
     public mutating func handle(_ event: GestureEvent, _ context: GestureContext) -> [GestureEffect] {
         switch event {
-        case .down(let place, let shift, let command, let clicks):
+        case .down(let place, let shift, let command, let option, let clicks):
             state = .idle
             let target: Target
             switch place {
@@ -170,7 +176,7 @@ public struct TimelineGesture: Sendable {
             state = .pressed(
                 Press(
                     target: target, x: x, y: y, frame: context.geometry.frame(at: x), shift: shift, command: command,
-                    clicks: clicks, marks: context.marks, base: context.session))
+                    option: option, clicks: clicks, marks: context.marks, base: context.session))
             return []
         case .drag(let place):
             return drag(place, context)
@@ -226,16 +232,21 @@ public struct TimelineGesture: Sendable {
     }
 
     /// The cursor at `place`: the kind of the gesture while it runs, else the kind of the zone.
-    public func cursor(at place: Place, _ context: GestureContext) -> TimelineCursor {
+    /// With `option`, a trim zone gives the ripple cursor of its edge (decision 0037).
+    public func cursor(at place: Place, _ context: GestureContext, option: Bool = false) -> TimelineCursor {
         switch state {
         case .moving: return .closedHand
+        case .trimming(_, let trim) where trim.ripple: return .rippleTrim(trim.edge)
         case .trimming, .fading, .crossfading, .markerDrag, .pointDrag: return .resizeLeftRight
         case .gaining: return .resizeUpDown
         case .ranging: return .iBeam
         case .idle, .dropped, .pressed: break
         }
         switch place {
-        case .lanes(let x, let y): return context.geometry.hit(x, y, in: context.session).cursor
+        case .lanes(let x, let y):
+            let hit = context.geometry.hit(x, y, in: context.session)
+            if option, case .trim(_, let edge, _) = hit { return .rippleTrim(edge) }
+            return hit.cursor
         case .ruler(let x, let y): return context.rulerHit(x, y)?.cursor ?? .arrow
         }
     }
@@ -263,13 +274,8 @@ public struct TimelineGesture: Sendable {
                     press, Move(clip: clip, lane: lane, track: track, start: clip.start, preview: press.base))
                 return drag(place, context)
             case .lane(.trim(let clip, let edge, let lane)):
-                guard context.canEdit, let file = press.base.files[clip.file] else { return [] }
-                let limits = trimLimits(
-                    clip, edge: edge, in: press.base.tracks[lane].clips, fileLength: file.length,
-                    minimum: geometry.trimMinimum)
-                state = .trimming(
-                    press,
-                    Trim(clip: clip, edge: edge, lane: lane, limits: limits, range: clip.range, preview: press.base))
+                guard context.canEdit, let trim = trim(press, clip, edge, lane, context) else { return [] }
+                state = .trimming(press, trim)
                 return drag(place, context)
             case .lane(.gain(let clip, let lane)):
                 guard context.canEdit else { return [] }
@@ -310,6 +316,7 @@ public struct TimelineGesture: Sendable {
                 return []
             }
             let delta = press.delta(to: x, geometry)
+            if trim.ripple { return rippleDrag(press, trim, x, geometry) }
             let edge = trim.edge == .start ? trim.clip.start : trim.clip.end
             let frame = min(max(edge + delta, trim.limits.lowerBound), trim.limits.upperBound)
             let range = trim.edge == .start ? frame..<trim.clip.end : trim.clip.start..<frame

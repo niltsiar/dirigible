@@ -157,7 +157,7 @@ final class TimelineScrollView: NSScrollView {
         }
         guard let context = context(source) else { return }
         switch event {
-        case .down(.lanes(let x, let y), _, _, _), .drag(.lanes(let x, let y)), .up(.lanes(let x, let y)):
+        case .down(.lanes(let x, let y), _, _, _, _), .drag(.lanes(let x, let y)), .up(.lanes(let x, let y)):
             lanePoint = NSPoint(x: x, y: y)
         default: break
         }
@@ -177,9 +177,11 @@ final class TimelineScrollView: NSScrollView {
 
     func context(_ inputs: LaneInputs) -> GestureContext? {
         guard let model, let studio, let geometry = inputs.geometry else { return nil }
+        // One predicate for every ripple entry point (decision 0037): a pending or split take.
         return GestureContext(
             session: inputs.session, marks: model.timeline.marks, playhead: studio.playhead, geometry: geometry,
-            canEdit: model.canEdit)
+            canEdit: model.canEdit,
+            canRipple: !rippleBlocked(segments: studio.unplacedSegments, session: studio.session))
     }
 
     /// Draws the gesture over the source.

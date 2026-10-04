@@ -191,6 +191,42 @@ extension TimelineGesture {
         }
     }
 
+    /// The trim of a press on a trim zone: a ripple trim with Option (decision 0037), else the
+    /// plain trim. Nil when the file is not in the pool, or when an Option press cannot ripple (a
+    /// pending or split take): that press makes no edit.
+    func trim(_ press: Press, _ clip: Clip, _ edge: Edge, _ lane: Int, _ context: GestureContext) -> Trim? {
+        guard let file = press.base.files[clip.file], !press.option || context.canRipple else { return nil }
+        let minimum = context.geometry.trimMinimum
+        let limits =
+            press.option
+            ? rippleTrimLimits(clip, edge: edge, fileLength: file.length, minimum: minimum)
+            : trimLimits(clip, edge: edge, in: press.base.tracks[lane].clips, fileLength: file.length, minimum: minimum)
+        return Trim(
+            clip: clip, edge: edge, lane: lane, ripple: press.option, limits: limits, range: clip.range,
+            preview: press.base)
+    }
+
+    /// A ripple trim drag event: the edge moves by the pointer delta, clamped to the limits, and
+    /// the preview is `rippleTrim` on all tracks. The delta does not stop at x 0, so a start edge
+    /// at frame 0 extends into its file. The clip start stays, so the range of a start trim
+    /// changes at its end.
+    mutating func rippleDrag(_ press: Press, _ trim: Trim, _ x: Double, _ geometry: LaneGeometry) -> [GestureEffect] {
+        let delta =
+            abs(x - press.x) < Self.threshold ? .zero : Frames(Int(x * geometry.scale.framesPerPoint)) - press.frame
+        let moved = min(max(delta, trim.limits.lowerBound), trim.limits.upperBound)
+        let range = trim.clip.start..<(trim.edge == .start ? trim.clip.end - moved : trim.clip.end + moved)
+        guard range != trim.range else { return [] }
+        var preview = press.base
+        // The limits keep the clip in its file, so only a later clip past `Frames.limit` throws. A
+        // throw keeps the last preview (decision 0020).
+        let tracks = press.base.tracks.map(\.id)
+        guard (try? preview.rippleTrim(trim.clip.id, edge: trim.edge, by: moved, on: tracks)) != nil else { return [] }
+        var trim = trim
+        (trim.range, trim.preview) = (range, preview)
+        state = .trimming(press, trim)
+        return []
+    }
+
     /// The commit of a clip edit, with the Marks on the clip range on its track.
     private func commit(_ press: Press, _ clip: Clip, _ lane: Int, _ result: Session) -> GestureCommit {
         let marks = Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])

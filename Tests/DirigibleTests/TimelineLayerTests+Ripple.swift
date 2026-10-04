@@ -66,6 +66,16 @@ extension TimelineLayerTests {
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: edge.x - 56.5, y: edge.y), in: view))
         drawNow(window)
         try check("mouse-up", preview: false)
+        // Code gate 2 item 2: an undo and a redo of the ripple are no preview, so they are exact.
+        // The Marks of the commit go in first, so the undo changes only the session.
+        view.update(inputs(model, studio))
+        drawNow(window)
+        for (step, action) in [("undo", model.undo), ("redo", model.redo)] {
+            action()
+            view.update(inputs(model, studio))
+            drawNow(window)
+            try check(step, preview: false)
+        }
         // A second drag of the same edge, with the Marks of the commit on c1: it draws by a shift.
         view.update(inputs(model, studio))
         drawNow(window)
@@ -112,6 +122,16 @@ extension TimelineLayerTests {
         try check("removed marker", preview: false)
         // The edit moves 10 240 frames: a whole number of columns only at a whole zoom.
         #expect(view.lanes.surfaces.shifted == before + (whole ? 1 : 0), "the edit draws by a shift at a whole zoom")
+        // Code gate 2 item 2: an edit outside a gesture whose move is 41 columns at 511.3 frames
+        // per point within one frame (10 482 frames) takes no rounded shift: it draws in full.
+        let edited = view.lanes.surfaces.shifted
+        try studio.edit { session throws(SessionError) in
+            try session.rippleDelete(5_000..<15_482, on: session.tracks.map(\.id))
+        }
+        view.update(inputs(model, studio))
+        drawNow(window)
+        try check("rounded edit", preview: false)
+        if !whole { #expect(view.lanes.surfaces.shifted == edited, "an edit takes a rounded shift") }
         #expect(failures.isEmpty, "\(failures)")
         #expect(view.lanes.surfaces.shifted > shifts + 4, "most drag events draw by a shift")
         window.close()

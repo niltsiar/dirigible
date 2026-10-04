@@ -85,16 +85,20 @@ final class TimelineDocumentView: NSView {
     /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of
     /// the renderer; the move in columns; and the strips: from the dirty rect to that column, and
     /// 1 pt around each stray marker line, on every lane in view. Nil when the move is not a whole
-    /// number of columns within one frame: a ripple drag moves by whole points, and each of the two
-    /// previews rounds its frames at a zoom that is not whole.
+    /// number of columns within one frame (a ripple drag moves by whole points, and each of the two
+    /// previews rounds its frames at a zoom that is not whole), or not exact outside a gesture.
     private func laneShift(
         _ shift: ShiftedFrames, _ dirty: NSRect, _ lanes: LaneWindow
     ) -> LaneSurfaces.Shift? {
         guard let geometry = inputs?.geometry, !dirty.isNull else { return nil }
         let framesPerColumn = geometry.scale.framesPerPoint / lanes.scale
         let columns = Double(shift.delta.count) / framesPerColumn
-        guard abs(columns - columns.rounded()) * framesPerColumn <= 1, abs(columns) < 1e9 else { return nil }
-        if columns != columns.rounded() { roundedShift = true }
+        // A rounded move only in a gesture: its end draws the lanes in full. An edit, an undo, or a
+        // redo has no such end, so it takes an exact move only.
+        let rounded = columns != columns.rounded()
+        guard abs(columns - columns.rounded()) * framesPerColumn <= 1, abs(columns) < 1e9, !rounded || holdsWidth
+        else { return nil }
+        if rounded { roundedShift = true }
         let x = geometry.x(of: shift.from) + 1
         let strip = lanes.pixels(
             of: NSRect(x: dirty.minX, y: bounds.minY, width: max(0, x - dirty.minX), height: bounds.height))

@@ -10,6 +10,9 @@ public struct GestureContext: Sendable {
     public var geometry: LaneGeometry
     public var canEdit: Bool
     public var canRipple: Bool
+    /// The device columns of one point (the backing scale): a ripple drag moves by whole columns,
+    /// so the lanes can draw it by a shift (decision 0037).
+    public var columnsPerPoint = 1.0
 
     public init(
         session: Session, marks: Marks, playhead: Frames, geometry: LaneGeometry, canEdit: Bool, canRipple: Bool
@@ -323,7 +326,7 @@ public struct TimelineGesture: Sendable {
                 state = .dropped
                 return []
             }
-            if trim.ripple { return rippleDrag(press, trim, x, geometry) }
+            if trim.ripple { return rippleDrag(press, trim, x, context) }
             let delta = press.delta(to: x, geometry)
             let edge = trim.edge == .start ? trim.clip.start : trim.clip.end
             let frame = min(max(edge + delta, trim.limits.lowerBound), trim.limits.upperBound)

@@ -37,7 +37,8 @@ import Testing
 
     /// Control: another order, or one group.
     @Test func theGroupsAreInOrder() {
-        let groups = LaneMenu.groups(selection: true, clipboard: true, split: true, canEdit: true, canRipple: true)
+        let groups = LaneMenu.groups(
+            selection: true, clips: false, clipboard: true, split: true, canEdit: true, canRipple: true)
         #expect(
             groups.map { $0.map(\.command) } == [
                 [.cut, .copy, .paste, .insert], [.delete, .deleteCloseGap, .split, .fade], [.addMarker, .addChapter],
@@ -61,26 +62,30 @@ import Testing
 
     /// Only Cut, Copy, and Paste dim; the others hide. Control: a shown Delete with no selection.
     @Test func itemsThatDoNotApplyHide() {
-        let none = LaneMenu.groups(selection: false, clipboard: false, split: false, canEdit: true, canRipple: true)
+        let none = LaneMenu.groups(
+            selection: false, clips: false, clipboard: false, split: false, canEdit: true, canRipple: true)
         #expect(
             none.map { $0.map(\.command) } == [[.cut, .copy, .paste], [.addMarker, .addChapter]],
             "no selection, no clipboard, no clip at the playhead")
         #expect(none[0].map(\.enabled) == [false, false, false], "Cut, Copy, and Paste dim")
-        let split = LaneMenu.groups(selection: false, clipboard: true, split: true, canEdit: true, canRipple: true)
+        let split = LaneMenu.groups(
+            selection: false, clips: false, clipboard: true, split: true, canEdit: true, canRipple: true)
         #expect(
             split.map { $0.map(\.command) } == [[.cut, .copy, .paste, .insert], [.split], [.addMarker, .addChapter]])
     }
 
     /// During a take, only the marker group shows. Control: a shown edit item.
     @Test func aTakeHidesTheEditItems() {
-        let take = LaneMenu.groups(selection: true, clipboard: true, split: true, canEdit: false, canRipple: false)
+        let take = LaneMenu.groups(
+            selection: true, clips: false, clipboard: true, split: true, canEdit: false, canRipple: false)
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
     /// C20: a pending or split take hides Cut, Insert, and Delete and Close Gap. Control: a shown
     /// ripple item.
     @Test func aPendingTakeHidesTheRippleItems() {
-        let blocked = LaneMenu.groups(selection: true, clipboard: true, split: true, canEdit: true, canRipple: false)
+        let blocked = LaneMenu.groups(
+            selection: true, clips: false, clipboard: true, split: true, canEdit: true, canRipple: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
                 [.copy, .paste], [.delete, .split, .fade], [.addMarker, .addChapter],

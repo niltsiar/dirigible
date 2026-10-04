@@ -17,7 +17,7 @@ enum LaneMenu {
     /// The groups of the menu, with no empty group. `split` is true when a clip is at the split
     /// frames; `clips` is true for a clip set with a clip.
     static func groups(
-        selection: Bool, clips: Bool = false, clipboard: Bool, split: Bool, canEdit: Bool, canRipple: Bool
+        selection: Bool, clips: Bool, clipboard: Bool, split: Bool, canEdit: Bool, canRipple: Bool
     ) -> [[Item]] {
         let ripple = canEdit && canRipple
         let range = selection && !clips

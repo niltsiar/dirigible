@@ -105,6 +105,9 @@ extension ClipLane {
     }
 }
 
+/// The result of `shiftedFrames`.
+public typealias ShiftedFrames = (from: Frames, delta: Frames, strays: [Frames])
+
 /// The part of the lanes that `new` draws as `old` moved by `delta` frames (a ripple, decision
 /// 0037): on every lane, each clip that sounds at `from` or later starts there or later and is a
 /// clip of `old` moved by `delta`. The draw then copies those pixels and draws the frames before
@@ -113,7 +116,7 @@ extension ClipLane {
 /// range start). `from` is the sounding start of the first moved clip of the lane where it is the
 /// latest, or its sounding end when its join to the clip before it comes or goes. Nil when no lane moves its last clip, or when the rule does not hold: the lanes then
 /// draw in full.
-public func shiftedFrames(from old: Session, to new: Session) -> (from: Frames, delta: Frames, strays: [Frames])? {
+public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? {
     guard old.tracks.count == new.tracks.count else { return nil }
     func moved(_ clip: Clip, by delta: Frames) -> Clip {
         var clip = clip

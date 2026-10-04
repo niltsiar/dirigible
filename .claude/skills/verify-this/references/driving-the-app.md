@@ -20,10 +20,10 @@
 ## Drive and inspect
 
 - To drive the app, run `scripts/hid.swift` (a drag, a drag with `--no-up` and then `up` outside the window, `click <x> <y>` with `--right` or `--double`, Esc, Cmd-Z with `key 6 --command`, `--shift` and `--option`, a trackpad scroll with `scroll ... --phases`).
-- Post keys only through `hid.swift`: it presses and releases the modifier keys around a key. A key event with only a modifier flag leaves the modifier held, and every later event of any process, also a test run, gets it.
+- Send keys and text only through `hid.swift` (`key`, `type <text>`), never `osascript` keystroke or key code. It refuses (exit 4) when the app is not frontmost, and it releases each modifier key it presses.
 - Walk the accessibility tree of the built app with `scripts/ax.swift` (`dump`, `find`, `press`, `step`) down to each new control: a test that calls the accessibility methods of an element does not prove that VoiceOver reaches it.
 - Press a menu item by its menu path (`press "File > Open Recent > Clear Menu"`), never by its title alone.
-- `swift scripts/ax.swift` compiles on each call (1 to 2 s): for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID=com.delineas.dirigible.verify`.
+- `swift scripts/ax.swift` compiles on each call (1 to 2 s): for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID=com.delineas.dirigible.verify` for `ax.swift` and `hid.swift`.
 - A claim that something does not happen, from a poll, states the largest gap between samples around each event. An effect shorter than that gap is not tested.
 - For a claim about menu key equivalents, run `scripts/ax.swift dump` once for each UI language (`-AppleLanguages "(es)"`) and compare the key fields of each menu item line with the claim.
 - A locked screen blocks menus, popovers, HID CGEvents, and the AX window tree; the window capture still works. When `screenshot.sh` warns about the lock, make every interaction check manual, with no HID or AX probe.

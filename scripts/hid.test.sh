@@ -1,6 +1,6 @@
 #!/bin/bash
-# Check the argument parsing of hid.swift and the order of its key events (--dry-run). It posts
-# no event: each case ends before the Accessibility check. Run by `make test-hooks`.
+# Check the argument parsing of hid.swift, the frontmost guard (exit 4), and the order of its key
+# events (--dry-run). It posts no event: each case ends before the post. Run by `make test-hooks`.
 set -uo pipefail
 hid="$(cd "$(dirname "$0")" && pwd -P)/hid.swift"
 failures=0
@@ -27,6 +27,28 @@ expect_usage "scroll with one number" scroll 5
 
 expect_usage "click with one number" click 10
 expect_usage "an unknown flag" key 53 --control
+expect_usage "type with no text" type --dry-run
+expect_usage "type with a modifier flag" type a --command
+
+# The target app is not frontmost (no app has the bundle ID): exit 4, and no event line, also
+# with --dry-run. The incident of run 2026-10-04-hid-front sent the keys to the terminal.
+errf="$(mktemp)"
+for args in "key 53 --dry-run" "type -20 --dry-run" "click 10 20"; do
+    # shellcheck disable=SC2086
+    out="$(DIRIGIBLE_BUNDLE_ID=com.example.no-such-app swift "$hid" $args 2>"$errf")"
+    code=$?
+    [[ $code -eq 4 ]] || fail "$args with no target app: exit $code, not 4"
+    [[ -z "$out" ]] || fail "$args with no target app: an event line: $out"
+    grep -q "not frontmost" "$errf" || fail "$args with no target app: no message"
+done
+rm -f "$errf"
+
+# The order cases need a frontmost target: use the app that is frontmost now (activation of the
+# frontmost app changes nothing).
+front="$(lsappinfo info -only bundleid "$(lsappinfo front)" | sed -E 's/.*="?([^"]*)"?/\1/')"
+[[ -n "$front" ]] || { echo "hid tests: no frontmost app (lsappinfo)"; exit 1; }
+export DIRIGIBLE_BUNDLE_ID="$front"
+[[ "$(swift "$hid" type -20 --dry-run 2>&1)" == "type -20" ]] || fail "type -20 in a dry run"
 
 # The modifier keys go down before the key and up after it (55 Command, 58 Option; flags 1048576
 # and 524288): a flag on the key event alone left the system modifier held.

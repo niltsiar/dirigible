@@ -15,8 +15,12 @@
 //                                                     a left drag in 20 steps, then the up; with
 //                                                     --option the Option key is down around it
 //        hid.swift up <x> <y>                         a left mouse-up (after drag --no-up)
-//        hid.swift click <x> <y> [--right] [--double] a click (a right click; a double-click)
-//        hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
+//        hid.swift click <x> <y> [--right] [--double] [--control]
+//                                                     a click (a right click; a double-click; a
+//                                                     Control-click)
+//        hid.swift move <x> <y>                       a mouse move with no button
+//        Each point is from the top-left corner of the window, also for up.
+//        hid.swift key <code> [--command] [--shift] [--option] [--control] [--dry-run]
 //                                                     a key down and up (53 = Esc, 6 = Z), with the
 //                                                     modifier keys down before it and up after it
 //        hid.swift type <text> [--dry-run]            the text, one key down and up for each
@@ -45,8 +49,9 @@ import Foundation
 let usage = """
     usage: hid.swift drag <x> <y> <dx> <dy> [--no-up] [--option]
            hid.swift up <x> <y>
-           hid.swift click <x> <y> [--right] [--double]
-           hid.swift key <code> [--command] [--shift] [--option] [--dry-run]
+           hid.swift click <x> <y> [--right] [--double] [--control]
+           hid.swift move <x> <y>
+           hid.swift key <code> [--command] [--shift] [--option] [--control] [--dry-run]
            hid.swift type <text> [--dry-run]    (no newline or tab)
            hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
 
@@ -59,7 +64,9 @@ func fail(_ message: String, _ code: Int32) -> Never {
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 let flags = Set(arguments.filter { $0.hasPrefix("--") })
-let known: Set = ["--no-up", "--right", "--double", "--command", "--shift", "--option", "--dry-run", "--phases"]
+let known: Set = [
+    "--no-up", "--right", "--double", "--command", "--shift", "--option", "--control", "--dry-run", "--phases",
+]
 guard flags.isSubset(of: known) else { fail(usage, 2) }
 let words = arguments.filter { !$0.hasPrefix("--") }
 guard let command = words.first else { fail(usage, 2) }
@@ -69,7 +76,7 @@ if command == "type", badText || !flags.isSubset(of: ["--dry-run"]) { fail(usage
 let numbers = command == "type" ? [] : words.dropFirst().map(Double.init)
 guard numbers.allSatisfy({ $0 != nil }) else { fail(usage, 2) }
 let values = numbers.compactMap { $0 }
-let counts = ["drag": 4, "up": 2, "click": 2, "key": 1, "type": 0, "scroll": 4]
+let counts = ["drag": 4, "up": 2, "click": 2, "move": 2, "key": 1, "type": 0, "scroll": 4]
 guard let count = counts[command], values.count == count else { fail(usage, 2) }
 let bundleID = ProcessInfo.processInfo.environment["DIRIGIBLE_BUNDLE_ID"] ?? "com.delineas.dirigible"
 if bundleID.isEmpty { fail("DIRIGIBLE_BUNDLE_ID is empty. Unset it, or give a bundle ID.", 2) }
@@ -107,6 +114,7 @@ func requireFront(posted: Int = 0) -> NSRunningApplication {
 // The key events: each modifier key down, the key down and up, each modifier key up.
 let modifiers: [(flag: String, code: CGKeyCode, mask: CGEventFlags)] = [
     ("--command", 55, .maskCommand), ("--shift", 56, .maskShift), ("--option", 58, .maskAlternate),
+    ("--control", 59, .maskControl),
 ]
 var keyEvents: [(code: CGKeyCode, down: Bool, mask: CGEventFlags)] = []
 let held = modifiers.filter { flags.contains($0.flag) }
@@ -225,8 +233,12 @@ case "drag":
     if !flags.contains("--no-up") { mouse(.leftMouseUp, end) }
 case "up":
     mouse(.leftMouseUp, origin)
+case "move":
+    mouse(.mouseMoved, origin)
 case "click":
     mouse(.mouseMoved, origin)
+    post(modifierKeys(down: true))
+    defer { post(modifierKeys(down: false)) }
     let right = flags.contains("--right")
     for clicks in flags.contains("--double") ? [1, 2] : [1] {
         for type: CGEventType in right ? [.rightMouseDown, .rightMouseUp] : [.leftMouseDown, .leftMouseUp] {
@@ -234,6 +246,7 @@ case "click":
                 mouseEventSource: nil, mouseType: type, mouseCursorPosition: origin, mouseButton: right ? .right : .left
             )
             event?.setIntegerValueField(.mouseEventClickState, value: Int64(clicks))
+            event?.flags = heldMask
             event?.post(tap: .cghidEventTap)
             wait20ms()
         }

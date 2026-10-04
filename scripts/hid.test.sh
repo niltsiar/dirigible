@@ -26,7 +26,7 @@ expect_usage "key with no code" key
 expect_usage "scroll with one number" scroll 5
 
 expect_usage "click with one number" click 10
-expect_usage "an unknown flag" key 53 --control
+expect_usage "an unknown flag" key 53 --hyper
 expect_usage "type with no text" type --dry-run
 expect_usage "type with a modifier flag" type a --command
 

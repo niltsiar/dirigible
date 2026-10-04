@@ -44,7 +44,14 @@ extension Selection {
     /// joined set clips whole, and chains the results, so one edit makes one undo entry. Nil when
     /// nothing changes.
     public func faded(_ session: Session) throws(SessionError) -> Session? {
-        guard case .clips = self else { return try marks?.faded(session) }
+        switch self {
+        case .range(let marks): return try marks.faded(session)
+        case .clips: return try fadedRuns(session)
+        }
+    }
+
+    /// The runs of joined set clips of `faded`, each as a range on its track, chained.
+    private func fadedRuns(_ session: Session) throws(SessionError) -> Session? {
         var runs: [Marks] = []
         var last: (clip: Clip, lane: Int)?
         for (clip, lane) in selectedClips(in: session) {
@@ -62,9 +69,12 @@ extension Selection {
 
     /// The clips of Auto Level (decision 0031). Nil with no selection.
     public func clipsToLevel(in session: Session) -> Set<ClipID>? {
-        guard case .clips = self else { return marks?.clipsToLevel(in: session) }
-        let ids = Set(selectedClips(in: session).map(\.clip.id))
-        return ids.isEmpty ? nil : ids
+        switch self {
+        case .range(let marks): return marks.clipsToLevel(in: session)
+        case .clips:
+            let ids = Set(selectedClips(in: session).map(\.clip.id))
+            return ids.isEmpty ? nil : ids
+        }
     }
 
     /// The tracks of a paste: for a clip set, the first track with a set clip and the tracks under
@@ -81,9 +91,13 @@ extension Selection {
     /// The frames and tracks of a split: for a clip set, the playhead on the tracks where a set
     /// clip holds it.
     public func splitPoints(playhead: Frames, in session: Session) -> (frames: [Frames], tracks: [TrackID]) {
-        guard case .clips = self else { return (marks ?? Marks()).splitPoints(playhead: playhead, in: session) }
-        let holding = tracks(of: selectedClips(in: session).filter { $0.clip.range.contains(playhead) }, in: session)
-        return ([playhead], session.tracks.map(\.id).filter(holding.contains))
+        switch self {
+        case .range(let marks): return marks.splitPoints(playhead: playhead, in: session)
+        case .clips:
+            let holding = tracks(
+                of: selectedClips(in: session).filter { $0.clip.range.contains(playhead) }, in: session)
+            return ([playhead], session.tracks.map(\.id).filter(holding.contains))
+        }
     }
 
     /// I and O: a clip set gives a range on its tracks.
@@ -97,22 +111,31 @@ extension Selection {
 
     /// The Marks of I and O: the range, or no points on the tracks of a clip set.
     private func rangeMarks(in session: Session) -> Marks {
-        marks ?? Marks(tracks: tracks(of: selectedClips(in: session), in: session))
+        switch self {
+        case .range(let marks): marks
+        case .clips: Marks(tracks: tracks(of: selectedClips(in: session), in: session))
+        }
     }
 
     /// Zoom to Selection: the range, or the span of the set clips (a view, not an edit).
     public func span(in session: Session) -> Range<Frames>? {
-        guard case .clips = self else { return marks?.selection(in: session)?.range }
-        let clips = selectedClips(in: session).map(\.clip)
-        guard let start = clips.map(\.start).min(), let end = clips.map(\.end).max() else { return nil }
-        return start..<end
+        switch self {
+        case .range(let marks): return marks.selection(in: session)?.range
+        case .clips:
+            let clips = selectedClips(in: session).map(\.clip)
+            guard let start = clips.map(\.start).min(), let end = clips.map(\.end).max() else { return nil }
+            return start..<end
+        }
     }
 
     /// Show Clips in Finder: the files of the set clips, of the clips that overlap the range on its
     /// tracks, or of every clip with no selection.
     public func files(in session: Session) -> Set<FileID> {
-        if case .clips = self { return Set(selectedClips(in: session).map(\.clip.file)) }
-        let selection = marks?.selection(in: session)
+        let selection: (range: Range<Frames>, tracks: [TrackID])?
+        switch self {
+        case .range(let marks): selection = marks.selection(in: session)
+        case .clips: return Set(selectedClips(in: session).map(\.clip.file))
+        }
         let tracks = selection?.tracks.compactMap(session.track) ?? session.tracks
         return Set(
             tracks.flatMap { track in

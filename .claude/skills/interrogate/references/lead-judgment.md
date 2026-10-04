@@ -10,10 +10,10 @@ Aggressive reviewers are useful, but aggression without context makes noise. The
 
 - **Nitpick gravity.** With no critical issue, a reviewer inflates nits. When all findings of a reviewer are nits and style preferences, the code is probably fine. Say so.
 - **Hypothetical or actual.** "What if someone passes null here?" is a finding only if a caller can pass null. Trace the call site. Dismiss the finding when an upstream check or the type system prevents it: a reviewer that reads a diff cannot always see the call chain.
-- **A failure of this run is actual.** Before you dismiss a finding as hypothetical, search the `decisions.tsv` of the run for the same failure. A failure that already happened in this run is actual: a code gate once dismissed "no timeout" for a hang that slice 2 had logged.
-- **Premature abstraction.** For a request to extract a function, or to add an interface or an abstraction, ask: does this code need to change in a second way? If not, the abstraction is premature. Simple inline code that works beats an abstraction that is too large for the scope.
+- **A failure of this run is actual.** Before you dismiss a finding as hypothetical, search the `decisions.tsv` of the run for the same failure. A failure that already happened in this run is actual.
+- **Premature abstraction.** For a request to extract a function, or to add an interface or an abstraction, ask: does this code need to change in a second way? If not, the abstraction is premature.
 - **"I would have done it differently."** This is the most common false positive. A finding that only prefers another approach is not actionable, unless it shows a concrete problem with the current approach. Dismiss it, and say why.
-- **Missing context.** A finding on code that the author did not change, on a pattern that the rest of the codebase also uses, or against a constraint that you know, shows missing context. Dismiss it politely: it is an honest mistake from limited information.
+- **Missing context.** A finding on code that the author did not change, on a pattern that the rest of the codebase also uses, or against a constraint that you know, shows missing context. Dismiss it politely.
 
 ## When reviewers are right
 

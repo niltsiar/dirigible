@@ -6,7 +6,7 @@ struct ClipCommand: ParsableCommand {
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
         subcommands: [
             Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, Nudge.self, Move.self, Trim.self,
-            SetGain.self, Fade.self,
+            SetGain.self, Fade.self, Crossfade.self,
         ])
 
     struct Place: ParsableCommand {
@@ -202,6 +202,35 @@ extension ClipCommand {
             }
         }
     }
+}
+
+extension ClipCommand {
+    struct Crossfade: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract:
+                "Set the crossfade at the end of a clip and the start of the clip that touches it, in frames "
+                + "(decision 0036). 0 removes it.")
+        @OptionGroup var package: PackageArgument
+        @Option(help: "The left clip of the join.") var clip: String
+        @Option(
+            parsing: .unconditional, help: "The crossfade length in frames, an even number.",
+            transform: parseCrossfadeLength)
+        var length: Frames
+
+        func run() throws {
+            try editPackage(package) { session throws(SessionError) in
+                try session.setCrossfades([ClipID(clip): length])
+            }
+        }
+    }
+}
+
+/// An even number of frames, 0 or more. `Session` refuses a length over the limit.
+func parseCrossfadeLength(_ text: String) throws -> Frames {
+    guard let count = Int(text), count >= 0, count % 2 == 0 else {
+        throw ValidationError("A crossfade length is an even number of frames, 0 or more.")
+    }
+    return Frames(count)
 }
 
 /// `--from` and `--to`. `Range` traps when the lower bound is above the upper bound, so the

@@ -55,6 +55,9 @@ struct SessionView: Encodable {
         /// Left out at 0, as in `session.xml` (decision 0035).
         let fadeIn: Int?
         let fadeOut: Int?
+        /// Left out at 0, as in `session.xml` (decision 0036).
+        let crossfadeIn: Int?
+        let crossfadeOut: Int?
     }
 
     struct TrackView: Encodable {
@@ -113,7 +116,8 @@ struct SessionView: Encodable {
                     ClipView(
                         id: $0.id.rawValue, file: $0.file.rawValue, start: $0.start.count, offset: $0.offset.count,
                         length: $0.length.count, gain: $0.gain.dB, fadeIn: $0.fades.fadeIn.nonZero,
-                        fadeOut: $0.fades.fadeOut.nonZero)
+                        fadeOut: $0.fades.fadeOut.nonZero, crossfadeIn: $0.crossfades.start.nonZero,
+                        crossfadeOut: $0.crossfades.end.nonZero)
                 })
         }
         markers = session.sortedMarkers.map {
@@ -149,7 +153,9 @@ func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> 
             lines.append(
                 "  clip \(clip.id) file \(clip.file) start \(clip.start) offset \(clip.offset) length \(clip.length) "
                     + "\(clip.gain)"
-                    + (clip.fades == .zero ? "" : " fade in \(clip.fades.fadeIn), out \(clip.fades.fadeOut)"))
+                    + (clip.fades == .zero ? "" : " fade in \(clip.fades.fadeIn), out \(clip.fades.fadeOut)")
+                    + (clip.crossfades.start == .zero ? "" : " crossfade in \(clip.crossfades.start)")
+                    + (clip.crossfades.end == .zero ? "" : " crossfade out \(clip.crossfades.end)"))
         }
     }
     for file in session.sortedFiles {

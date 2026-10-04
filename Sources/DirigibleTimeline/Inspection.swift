@@ -79,8 +79,9 @@ public struct ClipInspection: Equatable, Sendable {
     }
 
     /// The fade of `edge` at `ms` whole ms, for each clip of `clips` whose fades change. The value
-    /// clamps in Double to 0...the clip length before the Int conversion, then stops at the other
-    /// fade (the rule of the fade handle). A clip that is gone drops out. Nil with no change.
+    /// clamps in Double to 0...the clip length before the Int conversion, then stops at the room of
+    /// the edge (the rule of the fade handle). A clip that is gone, or that has a crossfade at
+    /// `edge`, drops out. Nil with no change.
     public static func fades(_ edge: Fades.Edge, ms: Double, for clips: [ClipID], in session: Session)
         -> [ClipID: Fades]?
     {
@@ -90,7 +91,7 @@ public struct ClipInspection: Equatable, Sendable {
         for track in session.tracks {
             for clip in track.clips where ids.contains(clip.id) {
                 let value = Frames(Int(min(max(frames, 0), Double(clip.length.count))))
-                if let new = clip.fades.setting(edge, to: value, length: clip.length), new != clip.fades {
+                if let new = clip.fades(setting: edge, to: value), new != clip.fades {
                     result[clip.id] = new
                 }
             }

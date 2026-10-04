@@ -116,7 +116,14 @@ extension SessionError {
         case .overlap(let clip, let other): "clip \"\(clip)\" overlaps clip \"\(other)\"."
         case .frameOutsideClip(let id, let frame): "frame \(frame) is not inside clip \"\(id)\"."
         case .fadeOutsideClip(let id, let length):
-            "the fades of clip \"\(id)\" do not fit: fadeIn + fadeOut <= \(length)."
+            "the fades and crossfades of clip \"\(id)\" are longer than the clip (\(length) frames)."
+        case .crossfadeOutsideFile(let id, let needed):
+            "clip \"\(id)\" needs \(needed) frames of audio past its edge in its file for this crossfade."
+        case .crossfadeWithoutJoin(let id): "no clip touches the crossfade edge of clip \"\(id)\"."
+        case .crossfadeAtSeamlessJoin(let id):
+            "clip \"\(id)\" and the next clip play one piece of audio; a crossfade there would be 3 dB too loud."
+        case .fadeAtCrossfade(let id):
+            "clip \"\(id)\" has a crossfade at that edge, so it cannot also have a fade there."
         case .trackCount(let count): "the excerpt has \(count) tracks, so give \(count) different target tracks."
         }
     }

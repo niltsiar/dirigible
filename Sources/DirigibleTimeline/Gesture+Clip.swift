@@ -62,18 +62,18 @@ extension TimelineGesture {
         return []
     }
 
-    /// A fade-handle drag event: the fade end follows the pointer, from 0 to the start of the other
-    /// fade (it never shortens the other fade). A take ends the drag.
+    /// A fade-handle drag event: the fade end follows the pointer, from 0 to the room of the edge
+    /// (it never shortens the other fade or a crossfade). A take ends the drag.
     mutating func fadeDrag(_ press: Press, _ drag: FadeDrag, _ x: Double, _ context: GestureContext) -> [GestureEffect]
     {
         guard context.canEdit else {
             state = .dropped
             return []
         }
-        let (old, length) = (drag.clip.fades, drag.clip.length)
+        let old = drag.clip.fades
         let delta = press.delta(to: x, context.geometry)
-        let fades = old.setting(
-            drag.edge, to: drag.edge == .start ? old.fadeIn + delta : old.fadeOut - delta, length: length)
+        let fades = drag.clip.fades(
+            setting: drag.edge, to: drag.edge == .start ? old.fadeIn + delta : old.fadeOut - delta)
         guard let fades, fades != drag.fades else { return [] }
         var preview = press.base
         // The clamp keeps the sum in the clip, so no input reaches a throw. A throw keeps the last
@@ -108,7 +108,7 @@ extension TimelineGesture {
             return [.commit(commit(press, clip, lane, result))]
         case .fade(let clip, let edge, let lane):
             let old = clip.fades
-            let fades = old.setting(edge, to: .zero, length: clip.length)
+            let fades = clip.fades(setting: edge, to: .zero)
             guard let fades, fades != old, (try? result.setFades([clip.id: fades])) != nil else { return nil }
             return [.commit(commit(press, clip, lane, result))]
         case .move, .trim, .range:

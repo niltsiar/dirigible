@@ -199,6 +199,90 @@ struct SessionFileTests {
         ) { try read("3", #"fadeIn="1.5""#) }
     }
 
+    /// Crossfades F1 (decision 0036): a crossfade writes version 4, crossfadeOut on A, and
+    /// crossfadeIn on B, and reads back. A version 3 build refuses the file.
+    @Test func crossfadesWriteVersion4AndReadBack() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "fa", path: "a.wav", layout: .mono, length: 10_000))
+        try session.addFile(AudioFile(id: "fb", path: "b.wav", layout: .mono, length: 10_000))
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.place(Clip(id: "A", file: "fa", start: 1_000, offset: 1_000, length: 4_000), on: "t1")
+        try session.place(Clip(id: "B", file: "fb", start: 5_000, offset: 1_000, length: 4_000), on: "t1")
+        try session.setFades(["B": Fades(fadeIn: 0, fadeOut: 100)!])
+        #expect(session.fileVersion == 3, "fades and no crossfade give version 3")
+        try session.setCrossfades(["A": 960])
+        #expect(session.fileVersion == 4, "a crossfade gives version 4")
+
+        try session.write(to: package)
+        let xml = try String(contentsOf: sessionXML, encoding: .utf8)
+        #expect(xml.contains(#"<session xmlns="https://github.com/niltsiar/dirigible/session" version="4""#))
+        #expect(
+            xml.contains(
+                #"<clip id="A" file="fa" start="1000" offset="1000" length="4000" gain="0" crossfadeOut="960">"#),
+            "A has crossfadeOut")
+        #expect(
+            xml.contains(
+                #"<clip id="B" file="fb" start="5000" offset="1000" length="4000" gain="0" fadeOut="100" crossfadeIn="960">"#
+            ), "B has crossfadeIn")
+        #expect(try Session(contentsOf: package) == session, "version 4 reads back")
+        #expect(throws: SessionFileError.unsupportedVersion(4), "a version 3 build refuses version 4") {
+            try Session(xml: Data(xml.utf8), newest: 3)
+        }
+    }
+
+    /// Crossfades F1: the reader refuses each bad crossfade, and reads a written 0 as none.
+    @Test func theReaderRefusesEachBadCrossfade() throws {
+        let files =
+            #"<file id="fa" path="a.wav" channels="1" length="10000"/><file id="fb" path="b.wav" channels="1" length="10000"/>"#
+        func read(_ version: String, a: String, b: String, bFile: String = "fb", bOffset: Int = 1_000)
+            throws(SessionFileError) -> Session
+        {
+            let tracks = """
+                <track id="t1" name="A" gain="0" layout="mono">\
+                <clip id="A" file="fa" start="1000" offset="1000" length="4000" gain="0" \(a)/>\
+                <clip id="B" file="\(bFile)" start="5000" offset="\(bOffset)" length="4000" gain="0" \(b)/></track>
+                """
+            return try Session(xml: Data(document(version: version, files: files, tracks: tracks).utf8))
+        }
+
+        let good = try? read("4", a: #"crossfadeOut="960""#, b: #"crossfadeIn="960""#)
+        #expect(good?.clip("B")?.clip.crossfades == Crossfades(start: 960, end: 0), "a pair of 960 reads")
+        let zero = try? read("4", a: #"crossfadeOut="0""#, b: #"crossfadeIn="0""#)
+        #expect(zero?.clip("A")?.clip.crossfades == .zero, "a written 0 reads as no crossfade")
+        let cases: [(String, String, String, SessionFileError)] = [
+            (
+                "3", #"crossfadeOut="960""#, #"crossfadeIn="960""#,
+                .invalidValue(element: "clip", attribute: "crossfadeOut")
+            ),
+            (
+                "4", #"crossfadeOut="961""#, #"crossfadeIn="961""#,
+                .invalidValue(element: "clip", attribute: "crossfadeOut")
+            ),
+            (
+                "4", #"crossfadeOut="960""#, #"crossfadeIn="-2""#,
+                .invalidValue(element: "clip", attribute: "crossfadeIn")
+            ),
+            ("4", #"crossfadeIn="960""#, "", .invalidSession(.crossfadeWithoutJoin("A"))),
+            ("4", #"crossfadeOut="960""#, "", .invalidSession(.crossfadeWithoutJoin("A"))),
+            ("4", "", #"crossfadeIn="960""#, .invalidSession(.crossfadeWithoutJoin("B"))),
+            ("4", #"crossfadeOut="960""#, #"crossfadeIn="962""#, .invalidSession(.crossfadeWithoutJoin("A"))),
+            ("4", "", #"crossfadeOut="960""#, .invalidSession(.crossfadeWithoutJoin("B"))),
+            (
+                "4", #"crossfadeOut="960" fadeOut="10""#, #"crossfadeIn="960""#,
+                .invalidSession(.fadeAtCrossfade("A"))
+            ),
+        ]
+        for (version, a, b, error) in cases {
+            #expect(throws: error, "version \(version), A \(a), B \(b)") { try read(version, a: a, b: b) }
+        }
+        #expect(throws: SessionFileError.invalidSession(.crossfadeOutsideFile("B", needed: 480)), "a short handle") {
+            try read("4", a: #"crossfadeOut="960""#, b: #"crossfadeIn="960""#, bOffset: 479)
+        }
+        #expect(throws: SessionFileError.invalidSession(.crossfadeAtSeamlessJoin("A")), "a seamless join") {
+            try read("4", a: #"crossfadeOut="960""#, b: #"crossfadeIn="960""#, bFile: "fa", bOffset: 5_000)
+        }
+    }
+
     /// A2: a version 2 file with no app route reads; the next save writes version 1.
     @Test func aVersion2FileWithNoAppRouteReads() throws {
         try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
@@ -303,7 +387,7 @@ struct SessionFileTests {
 
     @Test(arguments: [
         ("<session", SessionFileError.malformedXML),
-        (document(version: "4"), .unsupportedVersion(4)),
+        (document(version: "5"), .unsupportedVersion(5)),
         (
             document(tracks: #"<track id="t1" name="A" gain="0" layout="mono"><route app="us.zoom.xos"/></track>"#),
             .invalidValue(element: "route", attribute: "app")

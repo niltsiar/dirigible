@@ -1,3 +1,4 @@
+import DirigibleCore
 import Foundation
 import Testing
 
@@ -21,6 +22,20 @@ struct LocalizationTests {
                 "es: no value for a.two", "es: key a.extra is not in L10n",
                 "a.one: specifiers [\"%@\"] in en, [\"%lld\"] in es",
             ])
+    }
+
+    /// Crossfades F2b: a crossfade with too little audio in its file has its own text; the window
+    /// never makes the other crossfade errors, so they share the text of a refused change.
+    @Test func aCrossfadeHandleShortfallHasItsOwnText() throws {
+        let key = L10n.errorSessionCrossfadeHandle
+        #expect(L10n.message(for: .session(.crossfadeOutsideFile("B", needed: 480))) == key.rawValue)
+        #expect(try stringsTable("en")[key.rawValue] == "A clip has too little audio in its file for this crossfade.")
+        #expect(
+            try stringsTable("es")[key.rawValue]
+                == "Un clip tiene muy poco audio en su archivo para este fundido cruzado.")
+        for error in [SessionError.crossfadeWithoutJoin("A"), .crossfadeAtSeamlessJoin("A"), .fadeAtCrossfade("A")] {
+            #expect(L10n.message(for: .session(error)) == L10n.errorSessionOther.rawValue, "\(error)")
+        }
     }
 
     @Test func checkerFindsAnEmptyValue() {

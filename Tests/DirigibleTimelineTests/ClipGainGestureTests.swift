@@ -109,6 +109,19 @@ struct ClipGainGestureTests {
         #expect(drawnA().fades == Fades(fadeIn: 0, fadeOut: 24_000), "left of the clip start")
     }
 
+    /// Crossfades G10: with a crossfade of 9,600 at the end of A, the fade-in handle stops at the
+    /// room of the start, 48,000 - 4,800; no preview reaches a throw.
+    @Test mutating func aFadeDragStopsAtTheCrossfade() throws {
+        try session.move("B", to: "t1", start: 96_000)
+        try session.setCrossfades(["A": 9_600])
+        down(104, 4)
+        _ = drag(199, 4)
+        #expect(drawnA().fades == Fades(fadeIn: 43_200, fadeOut: 0), "the fade-in stops at the crossfade half")
+        let result = try #require(committed(up(199, 4)))
+        #expect(result.clip("A")?.clip.fades == Fades(fadeIn: 43_200, fadeOut: 0))
+        #expect(result.clip("A")?.clip.crossfades == Crossfades(start: 0, end: 9_600), "the crossfade stays")
+    }
+
     @Test mutating func fadeOutHandleDragsFromTheEnd() throws {
         down(196, 4)
         _ = drag(176, 4)

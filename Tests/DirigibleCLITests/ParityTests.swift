@@ -28,6 +28,7 @@ struct ParityTests {
         "nudge": ["clip nudge"],
         "setFades": ["clip fade"],
         "setGains": ["clip gain"],
+        "setCrossfades": ["clip crossfade"],
     ]
 
     static let exemptions: [String: String] = [

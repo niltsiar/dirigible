@@ -178,10 +178,12 @@ final class TimelineScrollView: NSScrollView {
     func context(_ inputs: LaneInputs) -> GestureContext? {
         guard let model, let studio, let geometry = inputs.geometry else { return nil }
         // One predicate for every ripple entry point (decision 0037): a pending or split take.
-        return GestureContext(
+        var context = GestureContext(
             session: inputs.session, marks: model.timeline.marks, playhead: studio.playhead, geometry: geometry,
             canEdit: model.canEdit,
             canRipple: !rippleBlocked(segments: studio.rippleSegments, session: studio.session))
+        context.columnsPerPoint = Double(window?.backingScaleFactor ?? 2)
+        return context
     }
 
     /// Draws the gesture over the source.

@@ -75,6 +75,18 @@ struct RippleGestureTests {
         #expect(commits(effects).first?.marks == Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"]))
     }
 
+    /// Code gate 2 item 4: the move snaps to whole device columns, so at 2 columns per point a
+    /// drag of 10.5 pt moves the edge 10.5 pt (5 040 frames). Control: a snap to whole points.
+    @Test mutating func theMoveSnapsToDeviceColumns() {
+        var retina = context()
+        retina.columnsPerPoint = 2
+        _ = gesture.handle(.down(.lanes(x: 198, y: 10), shift: false, command: false, option: true), retina)
+        _ = gesture.handle(.drag(.lanes(x: 208.5, y: 10)), retina)
+        #expect(drawn.clip("A")?.clip.end == 101_040)
+        _ = gesture.handle(.drag(.lanes(x: 208.7, y: 10)), retina)
+        #expect(drawn.clip("A")?.clip.end == 101_040, "208.7 pt is 21 columns from the press, as 208.5")
+    }
+
     /// C12. A drag toward the start stops at a length of 1 pt.
     @Test mutating func theRippleEdgeStopsAtOnePoint() throws {
         down(198)

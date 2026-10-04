@@ -1,8 +1,9 @@
 #!/bin/bash
 # The pass stamp of a push check (`make check-changed BASE=<base>`), so that land.sh does not run
 # the same checks again. The file is dirigible-check-stamp in `git rev-parse --git-common-dir`:
-# all worktrees share it, and `git worktree remove` keeps it. It is append-only, so a later check with another base (the reflect
-# check) does not hide a usable line. A line is: <commit> <base commit> <targets>.
+# all worktrees share it, and `git worktree remove` keeps it. It is append-only, so a later check
+# with another base (the reflect check) does not hide a usable line. A line is: <commit> <base
+# commit> <targets>.
 # Usage: scripts/check-stamp.sh write <HEAD at the start> <clean|dirty at the start> <base commit|none> <targets>
 #          Only the check-changed recipe of the Makefile calls it, after a pass. The guardrail
 #          hook blocks a direct call. It appends a line only when the tree was clean at the

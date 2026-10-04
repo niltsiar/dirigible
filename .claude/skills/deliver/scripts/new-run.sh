@@ -57,7 +57,9 @@ product="$(awk -F'|' -v cur="$run" '
     name ~ /architecture/ { split("", seen); n = 0; next }
     name != cur && name !~ /workflow|upkeep|docs/ && !(name in seen) { seen[name] = 1; n++ }
     END { print n + 0 }' "$root/ledger.md")"
-(( product < 5 )) || echo "architecture audit due: $product product runs since the last architecture run; audit the module boundaries, the files near 400 lines, the copies, and the red flags of .claude/skills/architect/references/design-red-flags.md" >&2
+(( product < 5 )) || echo "architecture audit due: $product product runs since the last architecture run;" \
+    "audit the module boundaries, the files near 400 lines, the copies, and the red flags of" \
+    ".claude/skills/architect/references/design-red-flags.md" >&2
 
 [[ -f "$dir/decisions.tsv" ]] || printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$dir/decisions.tsv"
 [[ -f "$dir/run.md" ]] || cat > "$dir/run.md" <<MD

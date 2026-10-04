@@ -113,11 +113,10 @@ def score(tag, results):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 3:
-        EVAL = sys.argv[2]
-    if EVAL and sys.argv[1] == "packets":
+    command, EVAL = sys.argv[1:3] if len(sys.argv) > 3 else ("", "")
+    if command == "packets":
         packets(sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), sys.argv[6:])
-    elif EVAL and sys.argv[1] == "score":
+    elif command == "score":
         score(sys.argv[3], sys.argv[4:])
     else:
         print(__doc__, file=sys.stderr)

@@ -103,7 +103,8 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair(storage.indices)
     }
 
-    /// Merges clips that are sorted by start and do not overlap the lane or each other.
+    /// Merges clips that are sorted by start and do not overlap the lane or each other. It repairs
+    /// only the joins next to each inserted clip: the lane is paired before the edit (0036).
     mutating func insert(sorted clips: [Clip]) {
         var merged: [Clip] = []
         merged.reserveCapacity(storage.count + clips.count)
@@ -148,7 +149,7 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair(storage.indices)
     }
 
-    /// Only the joins of the two new neighbors can change.
+    /// Only the joins of the two new neighbors can change: the lane is paired before the edit (0036).
     mutating func remove(at index: Int) {
         storage.remove(at: index)
         repair((index - 1)..<(index + 1))

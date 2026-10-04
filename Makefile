@@ -126,6 +126,7 @@ check-fast: lint check-docs check-slow-gates check-warnings test-hooks
 # The first line names the commit, the tree state, the base commit, and the targets (cost.sh of
 # reflect reads it). After a pass with BASE, scripts/check-stamp.sh appends the pass stamp that
 # land.sh reuses, when the tree stayed clean. This recipe is the only writer of the stamp.
+# Before Swift tests, it waits for a normal load (check-changed.sh --wait-load).
 BASE ?=
 FILTER ?=
 check-changed:
@@ -138,6 +139,7 @@ check-changed:
 	echo "check-changed: commit $$head tree $$tree base $$base targets $$targets"; \
 	printf '%s\n' "$$out"; \
 	if [ "$$targets" = none ]; then exit 0; fi; \
+	scripts/check-changed.sh --wait-load $$targets || exit 1; \
 	$(MAKE) $$targets FILTER='$(FILTER)' || exit 1; \
 	if [ -n '$(BASE)' ]; then scripts/check-stamp.sh write "$$head" "$$tree" "$$base" $$targets; fi
 

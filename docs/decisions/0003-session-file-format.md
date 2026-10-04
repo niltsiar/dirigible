@@ -9,6 +9,7 @@
 - Amended: 2026-09-27. The version policy of every file format is in 0024. A package whose `session.xml` has a newer version does not change: the sweep of leftover temporary files runs after the version check (see 0024).
 - Amended: 2026-10-02. A track route can be `<route app="BUNDLEID"/>`. A session with an app route writes `version="2"`; a session with none writes `version="1"` (see 0029).
 - Amended: 2026-10-03, run 11a. A clip has `fadeIn` and `fadeOut` from version 3. A fade of 0 is not written, unlike gain, so a clip with no fade keeps its text (see 0035).
+- Amended: 2026-10-04, run 11c-1. A clip has `crossfadeIn` and `crossfadeOut` from version 4. A crossfade of 0 is not written (see 0036).
 
 ## Context
 
@@ -36,7 +37,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 - Every position and length is an integer frame count at the session rate. No decimal seconds. A frame value is in 0...2^40 (about 260 days at 48 kHz), so no sum of two values can overflow. The edits refuse a value outside this range, and the reader uses the same edits, so a file that the app writes always reads back.
 - Clips on one track never overlap. Placing a clip overwrites the clips under it: they are trimmed, split, or removed (Hindenburg paste). A trim does not grow a clip into its neighbor. The reader refuses two clips that overlap.
 - When an edit splits a clip, the right part gets the first free ID of `<id>@<frame>`, `<id>@<frame>-2`, and so on, where `<frame>` is the start of the right part. The ID depends only on the session, so finalize and undo stay deterministic.
-- Gain is in dB. Zero values are written, not left out. A fade of 0 is not written (0035).
+- Gain is in dB. Zero values are written, not left out. A fade of 0 is not written (0035), and a crossfade of 0 is not written (0036).
 - The model keeps the layout rule on every edit, not only at parse time. Adding, moving, or routing a clip or a file of the other layout throws `.layoutMismatch`. A layout change of a track that has clips throws too. A route has 1 channel on a mono track and 2 on a stereo track; the parser refuses a mismatch, and `setRoute` throws `.layoutMismatch`.
 - The reader refuses a file with a dangling ID (a clip whose file, or a file whose capture, does not exist in the XML). A missing or short audio file does not refuse the load: the clip gets a "missing media" state, and the player renders it as silence. Export does not ship that silence without notice: before it renders, it lists the missing-media clips and asks the user to confirm, and the export report names them.
 - The take anchor: timeline start = playhead at record start + (first-frame host time - take start host time) - latency. Host time is compared only inside one take.
@@ -52,7 +53,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 
 ## Consequences
 
-- Later versions add fades, gain envelopes, effects (R8, R9), pan, mute, solo, chapter metadata, and loudness per file. Each raises the version.
+- Version 3 adds fades (0035), and version 4 adds crossfades (0036). Later versions add gain envelopes, effects (R8, R9), pan, mute, solo, chapter metadata, and loudness per file. Each raises the version.
 - A user who wants the WAV files opens the package with "Show Package Contents". The Release 1 timeline run decides whether the app also offers "Reveal clips in Finder".
 - The UTI and the `LSTypeIsPackage` entry go in `Support/Info.plist` in the Release 1 session run, checked by `AppBundleTests`.
 

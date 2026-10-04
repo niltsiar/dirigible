@@ -139,9 +139,9 @@ async function review(lens) {
   try {
     return await agent(`Review with your ${lens.key} lens.\n\n${task}`, { ...opts, agentType: lens.agentType })
   } catch (error) {
-    log(`${lens.key}: typed agent failed (${error && error.message}). Retrying as a general agent that reads .claude/agents/${lens.agentType}.md`)
+    log(`${lens.key}: typed agent failed (${error && error.message}). Retrying as a general agent that reads ${worktree ? `${worktree}/` : ''}.claude/agents/${lens.agentType}.md`)
     return agent(
-      `Read .claude/agents/${lens.agentType}.md. Act as that reviewer and follow its rules. Do not modify files.\n\n${task}`,
+      `Read ${worktree ? `${worktree}/` : ''}.claude/agents/${lens.agentType}.md. Act as that reviewer and follow its rules. Do not modify files.\n\n${task}`,
       { ...opts, model: lens.model },
     )
   }

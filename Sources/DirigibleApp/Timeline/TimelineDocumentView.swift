@@ -365,7 +365,8 @@ final class TimelineDocumentView: NSView {
     /// responder, so a hover with the focus in a name field reads the keys here (decision 0037).
     /// A test sets it: it cannot set `NSEvent.modifierFlags`.
     var modifierFlags: () -> NSEvent.ModifierFlags = { NSEvent.modifierFlags }
-    /// The last cursor kind that the lanes set, and the lane point of the last hover or mouse event.
+    /// The last cursor kind that the lanes set, and the lane point of the last hover or mouse
+    /// event.
     private(set) var shownCursor: TimelineCursor?
     private var hoverPlace: Place?
 

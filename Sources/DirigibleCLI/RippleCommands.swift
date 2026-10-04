@@ -2,7 +2,8 @@ import ArgumentParser
 import DirigibleCore
 
 /// The ripple edits (decision 0037). No `--track` means all tracks. A split take exits 3. Ripple
-/// Cut has no command: `excerpt` does not change the package, and `clip ripple-delete` makes the edit.
+/// Cut has no command: `excerpt` does not change the package, and `clip ripple-delete` makes the
+/// edit.
 extension ClipCommand {
     struct RippleDelete: ParsableCommand {
         static let configuration = CommandConfiguration(

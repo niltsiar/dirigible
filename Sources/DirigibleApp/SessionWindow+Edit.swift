@@ -7,7 +7,7 @@ import DirigibleTimeline
 /// and calls `edit` at most once, so it is one undo entry. During a take `edit` does nothing.
 extension SessionWindow {
     /// Copy, Paste, and Delete. With no selection, Copy and Delete do nothing. The clipboard
-    /// changes only after a Copy or a Cut that ran.
+    /// changes only after a Copy that ran, or a Cut of `runRipple` that ran.
     func runClipboard(_ command: TimelineCommand, _ studio: Studio) {
         if command == .paste {
             guard let clipboard, let targets = timeline.marks.pasteTracks(for: clipboard, in: studio.session) else {

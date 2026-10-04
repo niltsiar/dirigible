@@ -22,6 +22,7 @@ expect_usage "no command"
 expect_usage "unknown command" wiggle 1 2
 expect_usage "drag with two numbers" drag 10 20
 expect_usage "up with a word" up 10 left
+expect_usage "up with one number" up 5
 expect_usage "key with no code" key
 expect_usage "scroll with one number" scroll 5
 
@@ -50,6 +51,18 @@ rm -f "$errf"
 [[ "$(DIRIGIBLE_BUNDLE_ID=com.example.no-such-app swift "$hid" key 53 --dry-run 2>&1)" == $'down 53 flags 0\nup 53 flags 0' ]] \
     || fail "a dry run with no target app"
 [[ "$(swift "$hid" type -20 --dry-run 2>&1)" == "type -20" ]] || fail "type -20 in a dry run"
+
+# A dry run of an up prints its origin and exits before the Accessibility check and any post. A
+# bare up goes to the pointer, also when the target app has a window on screen (Finder): the
+# window branch read a point that a bare up does not have.
+for app in com.example.no-such-app com.apple.finder; do
+    out="$(DIRIGIBLE_BUNDLE_ID=$app swift "$hid" up --dry-run 2>&1)"
+    code=$?
+    [[ $code -eq 0 && "$out" =~ ^up\ pointer\ -?[0-9]+\ -?[0-9]+$ ]] || fail "a bare up with $app: exit $code: $out"
+done
+out="$(DIRIGIBLE_BUNDLE_ID=com.example.no-such-app swift "$hid" up 5 5 --dry-run 2>&1)"
+code=$?
+[[ $code -eq 0 && "$out" =~ ^up\ pointer\ -?[0-9]+\ -?[0-9]+$ ]] || fail "up 5 5 with no target app: exit $code: $out"
 
 # The modifier keys go down before the key and up after it (55 Command, 58 Option; flags 1048576
 # and 524288): a flag on the key event alone left the system modifier held.

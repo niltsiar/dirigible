@@ -1,1 +1,2 @@
 # The Swift files over 400 lines that make check-sizes lets pass: <path><TAB><reason>.
+Sources/DirigibleAudio/Studio/Studio.swift	the save chain stays private to Studio.swift (no-data-loss rule); split by responsibility in its own refactor run

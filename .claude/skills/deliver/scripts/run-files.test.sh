@@ -151,7 +151,7 @@ grep -qx 'upkeep items: 3' "$tmp/err" || fail "no upkeep count of 3: $(cat "$tmp
 grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 3 upkeep items: $(cat "$tmp/err")"
 
 # It reminds of an architecture audit at 5 distinct product runs after the last run whose name has
-# architecture. A run has an open and a done row. The current run, and a run whose name has
+# architecture and a done row. A run has an open and a done row. The current run, and a run whose name has
 # workflow, upkeep, or docs, do not count.
 ledger_rows() {
   printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
@@ -167,8 +167,11 @@ audit audit-five
 grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder at 5 product runs: $(cat "$tmp/err")"
 ledger_rows 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 2026-01-05-p4 2026-01-06-p5
 printf '| 2026-01-07-architecture-b | x | open | |\n' >> "$repo/.scratchpads/ledger.md"
+audit audit-open
+grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "an open architecture run reset the count: $(cat "$tmp/err")"
+printf '| 2026-01-07-architecture-b | x | done | |\n' >> "$repo/.scratchpads/ledger.md"
 audit audit-reset
-grep -q 'architecture audit' "$tmp/err" && fail "a reminder after an open architecture run: $(cat "$tmp/err")"
+grep -q 'architecture audit' "$tmp/err" && fail "a reminder after a done architecture run: $(cat "$tmp/err")"
 ledger_rows 2026-01-01-architecture-a 2026-01-02-workflow-a 2026-01-03-upkeep-b 2026-01-04-docs-c 2026-01-05-workflow-d 2026-01-06-docs-e
 audit audit-docs
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder for workflow, upkeep, and docs runs: $(cat "$tmp/err")"

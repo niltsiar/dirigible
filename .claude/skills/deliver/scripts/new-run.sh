@@ -49,12 +49,13 @@ fi
 upkeep="$(awk '/^## /{s=$0; next} s=="## Next" && /^- upkeep /{n++} END{print n+0}' "$backlog")"
 echo "upkeep items: $upkeep" >&2
 (( upkeep < 3 )) || echo "warning: $upkeep upkeep items wait; make this run a workflow upkeep run (reflect rule 6)" >&2
-# The distinct product runs after the last run whose name has architecture. A run has an open and
-# a done row. The current run, and a run whose name has workflow, upkeep, or docs, do not count.
+# The distinct product runs after the done row of the last run whose name has architecture: an
+# open audit has not audited yet. A run has an open and a done row. The current run, and a run
+# whose name has workflow, upkeep, or docs, do not count.
 product="$(awk -F'|' -v cur="$run" '
-    { name = $2; gsub(/ /, "", name) }
+    { name = $2; gsub(/ /, "", name); state = $4; gsub(/ /, "", state) }
     name !~ /^[0-9]{4}-/ { next }
-    name ~ /architecture/ { split("", seen); n = 0; next }
+    name ~ /architecture/ { if (state == "done") { split("", seen); n = 0 }; next }
     name != cur && name !~ /workflow|upkeep|docs/ && !(name in seen) { seen[name] = 1; n++ }
     END { print n + 0 }' "$root/ledger.md")"
 (( product < 5 )) || echo "architecture audit due: $product product runs since the last architecture run;" \

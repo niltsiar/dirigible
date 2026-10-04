@@ -20,11 +20,14 @@ extension Session {
         tracks[index].clips.overwrite(with: clip) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
     }
 
-    /// Removes the frames in `range` from the track and leaves a gap.
-    public mutating func clear(_ range: Range<Frames>, on track: TrackID) throws(SessionError) {
-        let index = try trackIndex(track)
-        var taken = clipIDs
-        tracks[index].clips.clear([range]) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
+    /// Removes the frames in `range` from each track of `tracks` and leaves a gap. An unknown
+    /// track throws before a change. The tracks clear in order, each with the IDs of the session
+    /// at its turn, so an ID that an earlier track frees is free again.
+    public mutating func clear(_ range: Range<Frames>, on tracks: [TrackID]) throws(SessionError) {
+        for index in try trackIndices(tracks) {
+            var taken = clipIDs
+            self.tracks[index].clips.clear([range]) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
+        }
     }
 
     /// Splits the clip at `frame` and returns the ID of the right part. The default ID is the

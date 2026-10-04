@@ -239,7 +239,7 @@ import Testing
     @Test func crossfadeIsOneUndoEntry() async throws {
         let (model, studio, window, _) = try await open()
         try studio.edit { s throws(SessionError) in
-            try s.clear(96_000..<2_880_000, on: "t1")
+            try s.clear(96_000..<2_880_000, on: ["t1"])
             try s.place(Clip(id: "b", file: "f1", start: 96_000, offset: 192_000, length: 48_000), on: "t1")
         }
         let before = studio.session

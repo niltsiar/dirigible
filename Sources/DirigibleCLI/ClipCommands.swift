@@ -43,7 +43,7 @@ struct ClipCommand: ParsableCommand {
 
         func run() throws {
             try editPackage(package) { session throws(SessionError) in
-                for track in track { try session.clear(range.frames, on: TrackID(track)) }
+                try session.clear(range.frames, on: track.map { TrackID($0) })
             }
         }
     }

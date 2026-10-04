@@ -167,7 +167,7 @@ struct StopLevelTests {
     @Test @MainActor func placementDoesNotLevel() async throws {
         let package = try Self.pendingTake([(1, -30)])
         var session = try finalizeTake(of: package.read(), in: package.url)
-        try session.clear(.zero..<Frames.limit, on: "t1")
+        try session.clear(.zero..<Frames.limit, on: ["t1"])
         try session.removeFile("take1-1-1")
         try session.write(to: package.url)
         let studio = try await Studio.open(package.url)

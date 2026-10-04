@@ -19,7 +19,7 @@ extension MouseEventBenchmark {
         for track in session.tracks.map(\.id) {
             for n in 1..<2000 {
                 let frame = Frames(n * frames / 2000)
-                try session.clear(frame..<frame + 1, on: track)
+                try session.clear(frame..<frame + 1, on: [track])
             }
         }
         return session

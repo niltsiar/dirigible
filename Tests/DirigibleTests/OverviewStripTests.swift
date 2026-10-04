@@ -52,7 +52,7 @@ import Testing
         try studio.edit { s throws(SessionError) in
             try s.setMarker(Marker(id: "m", name: "M", position: 240_000, kind: .marker))
             try s.setMarker(Marker(id: "c", name: "C", position: 384_000, kind: .chapter))
-            try s.clear(288_000..<336_000, on: "t2")
+            try s.clear(288_000..<336_000, on: ["t2"])
         }
         model.timeline.marks = Marks(inPoint: 144_000, outPoint: 192_000, tracks: ["t2"])
         swiftUIUpdate(pane, model, studio)
@@ -109,7 +109,7 @@ import Testing
         let dimmed = shot.pixel(column: Int(x(720_000) * scale), row: gapRow)
         #expect(dimmed.allSatisfy { $0 < 0xE8 - 20 }, "the part outside the frame is dimmed: \(dimmed)")
 
-        try studio.edit { s throws(SessionError) in try s.clear(480_000..<528_000, on: "t1") }
+        try studio.edit { s throws(SessionError) in try s.clear(480_000..<528_000, on: ["t1"]) }
         swiftUIUpdate(pane, model, studio)
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))

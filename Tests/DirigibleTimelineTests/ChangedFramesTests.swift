@@ -150,7 +150,7 @@ struct ChangedFramesTests {
         var split = session
         _ = try split.split("A", at: 72_000)
         var cleared = split
-        try cleared.clear(72_000..<96_000, on: "t1")
+        try cleared.clear(72_000..<96_000, on: ["t1"])
         #expect(changedFrames(from: split, to: cleared)?.frames == 48_000..<96_000, "the left part loses its join")
 
         var gap = session

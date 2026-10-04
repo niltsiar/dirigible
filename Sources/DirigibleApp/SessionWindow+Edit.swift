@@ -31,9 +31,7 @@ extension SessionWindow {
             clipboard = (try? studio.session.excerpt(of: selection.range, on: selection.tracks)) ?? clipboard
             return
         }
-        edit { session throws(SessionError) in
-            for track in selection.tracks { try session.clear(selection.range, on: track) }
-        }
+        edit { session throws(SessionError) in try session.clear(selection.range, on: selection.tracks) }
     }
 
     /// Cut, Delete and Close Gap, their selected-tracks twins, and Insert (decision 0037). Cut and

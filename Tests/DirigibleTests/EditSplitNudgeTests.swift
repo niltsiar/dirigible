@@ -14,7 +14,7 @@ extension EditCommandWindowTests {
     func threeClipsOnT1(_ studio: Studio) throws {
         try studio.edit { s throws(SessionError) in
             try s.splitClips(at: [48_000, 96_000], on: ["t1"])
-            try s.clear(0..<200, on: "t1")
+            try s.clear(0..<200, on: ["t1"])
         }
     }
 

@@ -104,12 +104,34 @@ struct ClipEditTests {
 
     @Test mutating func clearLeavesAGap() throws {
         try session.place(clip("c1", start: 0, length: 90_000), on: "t1")
-        try session.clear(30_000..<50_000, on: "t1")
+        try session.clear(30_000..<50_000, on: ["t1"])
         #expect(
             lane("t1") == [
                 clip("c1", start: 0, length: 30_000),
                 clip("c1@50000", start: 50_000, offset: 50_000, length: 40_000),
             ])
+    }
+
+    /// Architecture-refactor criterion C8: a clear on two tracks gives the IDs of one clear per
+    /// track. The clear frees "c1@50000" on t1 first, so the right part on t2 takes it again.
+    @Test mutating func clearOnSeveralTracksReusesAnIDThatAnEarlierTrackFrees() throws {
+        try session.place(clip("c1@50000", start: 30_000, offset: 30_000, length: 20_000), on: "t1")
+        try session.place(clip("c1", start: 0, length: 90_000), on: "t2")
+        try session.clear(30_000..<50_000, on: ["t1", "t2"])
+        #expect(lane("t1") == [])
+        #expect(
+            lane("t2") == [
+                clip("c1", start: 0, length: 30_000),
+                clip("c1@50000", start: 50_000, offset: 50_000, length: 40_000),
+            ])
+    }
+
+    /// Criterion C9: a clear with an unknown track throws and changes no track.
+    @Test mutating func clearWithAnUnknownTrackChangesNothing() throws {
+        try session.place(clip("c1", start: 0, length: 90_000), on: "t1")
+        let before = session
+        #expect(throws: SessionError.unknownTrack("nope")) { try session.clear(30_000..<50_000, on: ["t1", "nope"]) }
+        #expect(session == before)
     }
 
     @Test mutating func splitReturnsTheRightHalf() throws {
@@ -141,7 +163,7 @@ struct ClipEditTests {
         try session.place(clip("c1", start: 0, length: 60_000), on: "t1")
         try session.place(clip("p1", start: 20_000, length: 10_000), on: "t1")
         try session.move("c1@30000", to: "t2", start: 0)
-        try session.clear(20_000..<30_000, on: "t1")
+        try session.clear(20_000..<30_000, on: ["t1"])
         try session.trim("c1", to: 0..<60_000)
         try session.place(clip("p2", start: 20_000, length: 10_000), on: "t1")
         #expect(lane("t1").map(\.id) == ["c1", "p2", "c1@30000-2"])
@@ -304,7 +326,7 @@ struct ClipEditTests {
         try session.setFades(["a": Fades(fadeIn: 300, fadeOut: 500)!])
         switch edit {
         case "split at 400": try session.split("a", at: 1_400)
-        case "clear 400..<600": try session.clear(1_400..<1_600, on: "t1")
+        case "clear 400..<600": try session.clear(1_400..<1_600, on: ["t1"])
         case "trim end to 600": try session.trim("a", to: 1_000..<1_600)
         case "trim end to 900": try session.trim("a", to: 1_000..<1_900)
         case "trim end to 300": try session.trim("a", to: 1_000..<1_300)

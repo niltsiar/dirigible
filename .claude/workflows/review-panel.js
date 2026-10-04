@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality, or a chosen lens list) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its warning and critical findings' },
@@ -25,6 +25,12 @@ const lenses = args && args.lenses !== undefined ? args.lenses : null
 const paths = args && args.paths !== undefined ? args.paths : null
 if (lenses && !Array.isArray(lenses)) throw new Error('args.lenses must be a list of lens keys')
 if (paths && (!Array.isArray(paths) || !paths.length || target !== 'diff')) throw new Error('args.paths must be a non-empty list of paths, with target "diff"')
+// A branch in a worktree has an empty diff in the main checkout, so every git command and file
+// read goes to the tree that args.worktree names.
+const worktree = (args && args.worktree) || ''
+if (worktree && !worktree.startsWith('/')) throw new Error('args.worktree must be an absolute path')
+const git = worktree ? `git -C ${worktree}` : 'git'
+const treeText = worktree ? ` The branch is checked out in ${worktree}: read each file there, not in the main checkout.` : ''
 
 // A lens with no gate runs only when args.lenses names it.
 const ALL_LENSES = [
@@ -93,15 +99,15 @@ const VERDICTS = {
 
 const pathArgs = paths ? ` -- ${paths.join(' ')}` : ''
 const targetText = target === 'plan'
-  ? `The target is the plan at ${scope}. Read it and every file it references.`
-  : `The target is the diff of the current branch against ${scope}: run \`git diff ${scope}...HEAD${pathArgs}\` and \`git diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.`
+  ? `The target is the plan at ${scope}. Read it and every file it references.${treeText}`
+  : `The target is the diff of the current branch against ${scope}: run \`${git} diff ${scope}...HEAD${pathArgs}\` and \`${git} diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.${treeText}`
 
 // The script has no shell, so one agent lists the changed files of the paths scope. A scope with
 // no changed file gives reviewers nothing to read, and their empty result looks like a clean review.
 // review-panel.test.sh stubs this step by its label.
 if (paths) {
   const scoped = await agent(
-    `Run \`git diff --name-only ${scope}...HEAD${pathArgs}\` and \`git diff --name-only HEAD${pathArgs}\`. Return each file that either command prints, once. Do not modify files.`,
+    `Run \`${git} diff --name-only ${scope}...HEAD${pathArgs}\` and \`${git} diff --name-only HEAD${pathArgs}\`. Return each file that either command prints, once. Do not modify files.${treeText}`,
     { label: 'scope', phase: 'Review', effort: 'low', schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } } }, required: ['files'] } },
   )
   const files = (scoped && Array.isArray(scoped.files)) ? scoped.files : []

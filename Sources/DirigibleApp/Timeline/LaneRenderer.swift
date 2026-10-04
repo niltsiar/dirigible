@@ -31,6 +31,9 @@ struct LanePalette: Equatable {
     var lane, clip, peak, rms, missing, missingOutline, label, marker, chapter, inPoint, outPoint: UInt32
     /// The accent color that the selection band blends toward; nil: the band is half as bright.
     var accent: UInt32?
+    /// The system accent color: the outline of a selected clip, and the color of its tint
+    /// (decision 0038).
+    var outline: UInt32 = 0xFF00_7AFF
 
     static let light = LanePalette(
         lane: 0xFFE8_ECF2, clip: 0xFFC4_DAF5, peak: 0xFF7A_A7E0, rms: 0xFF1F_4F9E, missing: 0xFFF4_C4C4,
@@ -43,8 +46,20 @@ struct LanePalette: Equatable {
         var palette = light
         (palette.lane, palette.clip, palette.peak, palette.rms) = (0xFF1E_1F22, 0xFF2C_3E57, 0xFF6E_9FE0, 0xFFA9_C8F2)
         (palette.missing, palette.missingOutline, palette.label) = (0xFF4A_2427, 0xFFFF_6961, 0xFFE6_E6E6)
-        palette.accent = accent
+        (palette.accent, palette.outline) = (accent, accent)
         return palette
+    }
+
+    /// A pixel of a selected clip box: each channel 25 % toward the outline color, rounded to the
+    /// nearest (decision 0038).
+    func tinted(_ pixel: UInt32) -> UInt32 {
+        var result: UInt32 = 0xFF00_0000
+        for shift: UInt32 in [0, 8, 16] {
+            let (c, o) = (Int((pixel >> shift) & 0xFF), Int((outline >> shift) & 0xFF))
+            let step = o - c
+            result |= UInt32(c + (step + (step < 0 ? -2 : 2)) / 4) << shift
+        }
+        return result
     }
 
     /// A pixel under the selection band: half as bright, or in Dark Mode each channel 30 % toward
@@ -210,7 +225,25 @@ final class LaneRenderer {
                     column(selection.range.lowerBound).rounded(.up))..<Int(
                     column(selection.range.upperBound).rounded(.up))
             for lane in drawn where selection.tracks.contains(tracks[lane].id) {
-                region.select(palette, columns: band, rows: window.rows(of: lane..<lane + 1))
+                region.blend(columns: band, rows: window.rows(of: lane..<lane + 1), palette.selected)
+            }
+        }
+        // A clip set: a tint and a 2 pt outline on each box of the set, by clip ID, so the look
+        // follows the clips in a drag preview (decision 0038).
+        if case .clips(let set) = inputs.selection {
+            let width = Int((2 * scale).rounded())
+            for lane in drawn {
+                let rows = window.rows(of: lane..<lane + 1)
+                for clip in tracks[lane].clips.clips(overlapping: visible) where set.ids.contains(clip.id) {
+                    let (left, right) = (Int(column(clip.start).rounded(.down)), Int(column(clip.end).rounded(.up)))
+                    region.blend(columns: left..<right, rows: rows, palette.tinted)
+                    for columns in [left..<left + width, right - width..<right] {
+                        region.fill(palette.outline, columns: columns, rows: rows)
+                    }
+                    for edge in [rows.lowerBound..<rows.lowerBound + width, rows.upperBound - width..<rows.upperBound] {
+                        region.fill(palette.outline, columns: left..<right, rows: edge)
+                    }
+                }
             }
         }
         // A line crosses every lane; the region keeps it to the rect.
@@ -298,76 +331,4 @@ struct ColumnFades {
         if falling { factor *= fades.gain(at: Frames(k), length: length) }
         return factor
     }
-}
-
-/// The writable pixels of a draw (plan gate 1 item 5): a window of document pixels over the memory
-/// of a locked surface, or of a test. Every write keeps to `rect`, the rect of the draw, so a draw
-/// never changes a pixel outside it: the selection band never halves a copied pixel. The pointer is
-/// private, and the value is not copyable: it is lent into a closure and does not escape it. The
-/// `CGContext` of `withContext` must not escape its closure either; that is a rule, not a type.
-struct PixelRegion: ~Copyable {
-    private let base: UnsafeMutableRawPointer
-    private let bytesPerRow: Int
-    let window: LaneWindow
-    /// The pixels that this draw writes, in the window.
-    let rect: PixelRect
-
-    /// `base` is the pixel of the first column and row of `window`.
-    init(base: UnsafeMutableRawPointer, bytesPerRow: Int, window: LaneWindow, rect: PixelRect) {
-        (self.base, self.bytesPerRow, self.window) = (base, bytesPerRow, window)
-        self.rect = rect.intersection(window.pixels)
-    }
-
-    private func address(_ column: Int, _ row: Int) -> UnsafeMutablePointer<UInt32> {
-        (base + (row - window.pixels.rows.lowerBound) * bytesPerRow).assumingMemoryBound(to: UInt32.self)
-            + (column - window.pixels.columns.lowerBound)
-    }
-
-    /// Sets `rows` of `column` to `color`. `vDSP_vfill` moves the 32 bits of the pixel as a float,
-    /// with no arithmetic, so the bits stay the same.
-    func span(_ color: UInt32, column: Int, rows: Range<Int>) {
-        let rows = rows.clamped(to: rect.rows)
-        guard rect.columns.contains(column), !rows.isEmpty else { return }
-        var value = Float(bitPattern: color)
-        address(column, rows.lowerBound).withMemoryRebound(to: Float.self, capacity: 1) {
-            vDSP_vfill(&value, $0, vDSP_Stride(bytesPerRow / 4), vDSP_Length(rows.count))
-        }
-    }
-
-    func fill(_ color: UInt32, columns: Range<Int>, rows: Range<Int>) {
-        let (columns, rows) = (columns.clamped(to: rect.columns), rows.clamped(to: rect.rows))
-        guard !columns.isEmpty else { return }
-        var pattern = color
-        for row in rows { memset_pattern4(address(columns.lowerBound, row), &pattern, columns.count * 4) }
-    }
-
-    /// The selection band: each pixel through `palette.selected`.
-    func select(_ palette: LanePalette, columns: Range<Int>, rows: Range<Int>) {
-        let (columns, rows) = (columns.clamped(to: rect.columns), rows.clamped(to: rect.rows))
-        guard !columns.isEmpty else { return }
-        for row in rows {
-            let pixels = address(columns.lowerBound, row)
-            for index in 0..<columns.count { pixels[index] = palette.selected(pixels[index]) }
-        }
-    }
-
-    /// A context over the window in flipped document points, clipped to `rect`: the labels draw
-    /// only over the pixels of this draw (plan gate 1 item 3).
-    func withContext(_ body: (CGContext) -> Void) {
-        guard
-            let context = CGContext(
-                data: base, width: window.pixels.columns.count, height: window.pixels.rows.count, bitsPerComponent: 8,
-                bytesPerRow: bytesPerRow, space: Self.space,
-                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
-        else { return }
-        let scale = window.scale
-        context.translateBy(x: 0, y: Double(window.pixels.rows.count))
-        context.scaleBy(x: scale, y: -scale)
-        context.translateBy(
-            x: -Double(window.pixels.columns.lowerBound) / scale, y: -Double(window.pixels.rows.lowerBound) / scale)
-        context.clip(to: window.points(of: rect))
-        body(context)
-    }
-
-    private static let space = CGColorSpace(name: CGColorSpace.sRGB)!
 }

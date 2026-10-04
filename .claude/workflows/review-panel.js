@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality, or a chosen lens list) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its warning and critical findings' },
@@ -102,17 +102,19 @@ const targetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read it and every file it references.${treeText}`
   : `The target is the diff of the current branch against ${scope}: run \`${git} diff ${scope}...HEAD${pathArgs}\` and \`${git} diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.${treeText}`
 
-// The script has no shell, so one agent lists the changed files of the paths scope. A scope with
-// no changed file gives reviewers nothing to read, and their empty result looks like a clean review.
+// The script has no shell, so one agent lists the changed files of the diff. A diff with no
+// changed file (the main checkout of a branch in a worktree, or a paths scope that matches
+// nothing) gives reviewers nothing to read, and their empty result looks like a clean review.
 // review-panel.test.sh stubs this step by its label.
-if (paths) {
+if (target === 'diff') {
   const scoped = await agent(
     `Run \`${git} diff --name-only ${scope}...HEAD${pathArgs}\` and \`${git} diff --name-only HEAD${pathArgs}\`. Return each file that either command prints, once. Do not modify files.${treeText}`,
     { label: 'scope', phase: 'Review', effort: 'low', schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } } }, required: ['files'] } },
   )
   const files = (scoped && Array.isArray(scoped.files)) ? scoped.files : []
-  if (!files.length) throw new Error(`The paths scope (${paths.join(' ')}) has no changed file against ${scope}. The panel did not run.`)
-  log(`Paths scope: ${files.length} changed files.`)
+  const where = `${paths ? `The paths scope (${paths.join(' ')})` : 'The diff'}${worktree ? ` in ${worktree}` : ''}`
+  if (!files.length) throw new Error(`${where} has no changed file against ${scope}. Pass worktree for a branch in a worktree. The panel did not run.`)
+  log(`Diff scope: ${files.length} changed files.`)
 }
 
 // Without this list, the devil's advocate attacked user requests and accepted tradeoffs,

@@ -12,7 +12,9 @@ extension SessionWindow {
 
     /// The one selected track of the session, else nil.
     private var selectedTrack: TrackID? {
-        let selected = studio?.session.tracks.map(\.id).filter(timeline.range.tracks.contains) ?? []
+        // A clip set picks clips, not tracks, so it has no selected track (decision 0038).
+        guard let marks = timeline.selection.marks else { return nil }
+        let selected = studio?.session.tracks.map(\.id).filter(marks.tracks.contains) ?? []
         return selected.count == 1 ? selected[0] : nil
     }
 

@@ -6,8 +6,8 @@ import DirigibleTimeline
 /// The edit commands of the session window (decision 0018). Each command reads the selection once
 /// and calls `edit` at most once, so it is one undo entry. During a take `edit` does nothing.
 extension SessionWindow {
-    /// Cut, Copy, Paste, and Delete. With no selection, Cut, Copy, and Delete do nothing. The
-    /// clipboard changes only after a Copy or a Cut that ran.
+    /// Copy, Paste, and Delete. With no selection, Copy and Delete do nothing. The clipboard
+    /// changes only after a Copy or a Cut that ran.
     func runClipboard(_ command: TimelineCommand, _ studio: Studio) {
         if command == .paste {
             guard let clipboard, let targets = timeline.marks.pasteTracks(for: clipboard, in: studio.session) else {
@@ -25,18 +25,59 @@ extension SessionWindow {
             }
             return
         }
-        guard [.cut, .copy, .delete].contains(command), let selection = timeline.marks.selection(in: studio.session)
+        guard [.copy, .delete].contains(command), let selection = timeline.marks.selection(in: studio.session)
         else { return }
         if command == .copy {
             clipboard = (try? studio.session.excerpt(of: selection.range, on: selection.tracks)) ?? clipboard
             return
         }
-        let excerpt = edit { session throws(SessionError) in
-            let excerpt = try session.excerpt(of: selection.range, on: selection.tracks)
+        edit { session throws(SessionError) in
             for track in selection.tracks { try session.clear(selection.range, on: track) }
+        }
+    }
+
+    /// Cut, Delete and Close Gap, their selected-tracks twins, and Insert (decision 0037). Cut and
+    /// Delete and Close Gap ripple the selection out of all tracks, or of the selected tracks for
+    /// a twin; the Marks clear and the playhead goes to the start of the range. Cut puts the
+    /// selected tracks on the clipboard. Insert moves all tracks right by the clipboard length at
+    /// the playhead and pastes there, as Paste does. With no selection or no clipboard, nothing.
+    /// During a take, nothing. Under a pending or split take (`rippleBlocked`), a beep.
+    func runRipple(_ command: TimelineCommand, _ studio: Studio) {
+        guard canEdit else { return }
+        if command == .insert { return insert(studio) }
+        let selectedOnly = command == .cutSelectedTracks || command == .deleteCloseGapSelectedTracks
+        guard let scope = timeline.marks.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
+        guard !rippleBlocked(segments: studio.unplacedSegments, session: studio.session) else { return NSSound.beep() }
+        let cuts = command == .cut || command == .cutSelectedTracks
+        let done = edit { session throws(SessionError) -> Excerpt? in
+            let excerpt = cuts ? try session.excerpt(of: scope.range, on: scope.selected) : nil
+            try session.rippleDelete(scope.range, on: scope.tracks)
             return excerpt
         }
-        if command == .cut, let excerpt { clipboard = excerpt }
+        guard let done else { return }
+        if let excerpt = done { clipboard = excerpt }
+        timeline.marks = Marks()
+        Task { await studio.perform(.seek(.frame(scope.range.lowerBound))) }
+    }
+
+    /// Insert: one edit, a ripple insert on all tracks and a paste of the clipboard.
+    private func insert(_ studio: Studio) {
+        guard let clipboard, let targets = timeline.marks.pasteTracks(for: clipboard, in: studio.session) else {
+            return
+        }
+        let files = studio.session.files
+        guard clipboard.lanes.allSatisfy({ $0.clips.allSatisfy { files[$0.file] != nil } }),
+            !rippleBlocked(segments: studio.unplacedSegments, session: studio.session)
+        else { return NSSound.beep() }
+        let (at, all) = (studio.playhead, studio.session.tracks.map(\.id))
+        let inserted = edit { session throws(SessionError) -> Bool in
+            try session.rippleInsert(clipboard.length, at: at, on: all)
+            try session.paste(clipboard, at: at, on: targets)
+            return true
+        }
+        if inserted == true {
+            timeline.marks = Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets))
+        }
     }
 
     /// Split and Nudge. A split with no clip at its frames makes no undo entry. Each Nudge press is

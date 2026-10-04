@@ -208,6 +208,10 @@
 "menu.edit.copy" = "Copy";
 "menu.edit.paste" = "Paste";
 "menu.edit.delete" = "Delete";
+"menu.edit.delete.close.gap" = "Delete and Close Gap";
+"menu.edit.insert" = "Insert";
+"menu.edit.cut.selected.tracks" = "Cut in Selected Tracks";
+"menu.edit.delete.close.gap.selected.tracks" = "Delete and Close Gap in Selected Tracks";
 "menu.edit.select.all" = "Select All";
 "menu.edit.split" = "Split";
 "menu.edit.nudge.left" = "Nudge Left";

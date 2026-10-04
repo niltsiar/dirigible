@@ -59,9 +59,11 @@ struct DirigibleApp: App {
                 }
                 // The Edit group replaces the system items, so Delete has Backspace (probe E6).
                 CommandGroup(replacing: .pasteboard) {
-                    ForEach(TimelineCommand.pasteboardItems + TimelineCommand.editItems, id: \.command) { item in
-                        menuButton(item)
-                    }
+                    ForEach(TimelineCommand.pasteboardItems, id: \.command) { item in menuButton(item) }
+                    Divider()
+                    ForEach(TimelineCommand.rippleItems, id: \.command) { item in menuButton(item) }
+                    Divider()
+                    ForEach(TimelineCommand.editItems, id: \.command) { item in menuButton(item) }
                 }
                 // Every marker key is one that a text field uses: never disabled (probe K1).
                 CommandMenu(L10n.menuMarkers.key) {

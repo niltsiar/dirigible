@@ -17,12 +17,15 @@ import Testing
 
     /// F16. The menus are built from these tables. Control: a second item on Command-C fails.
     @Test func everyItemHasItsKeyAndNoKeyRepeats() {
-        let edit = TimelineCommand.pasteboardItems + TimelineCommand.editItems
+        let edit = TimelineCommand.pasteboardItems + TimelineCommand.rippleItems + TimelineCommand.editItems
         let command = EventModifiers.command.rawValue
         #expect(
             edit.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
-                "cut x \(command)", "copy c \(command)", "paste v \(command)", "delete \u{8} 0",
-                "selectAll a \(command)", "setIn i 0", "setOut o 0",
+                "cut x \(command)", "copy c \(command)", "paste v \(command)", "insert i \(command)", "delete \u{8} 0",
+                "deleteCloseGap \u{8} \(EventModifiers.shift.rawValue)", "selectAll a \(command)",
+                "cutSelectedTracks x \(EventModifiers([.command, .option]).rawValue)",
+                "deleteCloseGapSelectedTracks \u{8} \(EventModifiers([.shift, .option]).rawValue)", "setIn i 0",
+                "setOut o 0",
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)", "split b \(command)",
                 "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)", "fade f \(command)",
             ])

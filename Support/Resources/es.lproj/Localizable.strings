@@ -208,6 +208,10 @@
 "menu.edit.copy" = "Copiar";
 "menu.edit.paste" = "Pegar";
 "menu.edit.delete" = "Eliminar";
+"menu.edit.delete.close.gap" = "Eliminar y cerrar hueco";
+"menu.edit.insert" = "Insertar";
+"menu.edit.cut.selected.tracks" = "Cortar en las pistas seleccionadas";
+"menu.edit.delete.close.gap.selected.tracks" = "Eliminar y cerrar hueco en las pistas seleccionadas";
 "menu.edit.select.all" = "Seleccionar todo";
 "menu.edit.split" = "Dividir";
 "menu.edit.nudge.left" = "Desplazar a la izquierda";

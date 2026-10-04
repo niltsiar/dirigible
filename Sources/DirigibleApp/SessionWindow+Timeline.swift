@@ -42,6 +42,9 @@ enum TimelineCommand: Hashable {
     case tallerTracks, shorterTracks, fitTracks
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
+    /// The ripple items of decision 0037: Delete and Close Gap, Insert, and the two twins that
+    /// ripple only the selected tracks. Cut closes the gap too.
+    case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
     case split, nudgeLeft, nudgeRight, fade
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
     case removeTrack, showInFinder, export, exportSelection
@@ -66,6 +69,10 @@ enum TimelineCommand: Hashable {
     var forwardsKey: Bool {
         switch self {
         case .zoomToSelection, .setIn, .setOut, .delete, .split, .nudgeLeft, .nudgeRight: true
+        // Shift-Backspace and Option-Shift-Backspace delete text in a field (0018 K3).
+        case .deleteCloseGap, .deleteCloseGapSelectedTracks: true
+        // A text field does nothing with Command-I or Option-Command-X (probe K5 of run 12).
+        case .insert, .cutSelectedTracks: false
         // A text field moves the caret to its start or end with Command-Up and Command-Down.
         case .tallerTracks, .shorterTracks: true
         case .fitTracks: false
@@ -116,12 +123,24 @@ enum TimelineCommand: Hashable {
     static let viewItems = viewGroups.flatMap { $0 }
 
     /// The items that replace the system pasteboard group (probe E6). Delete has Backspace (F16).
+    /// Cut, Delete and Close Gap, and Insert ripple all tracks (decision 0037).
     static let pasteboardItems = [
         MenuItem(command: .cut, title: .menuEditCut, key: "x", modifiers: .command),
         MenuItem(command: .copy, title: .menuEditCopy, key: "c", modifiers: .command),
         MenuItem(command: .paste, title: .menuEditPaste, key: "v", modifiers: .command),
+        MenuItem(command: .insert, title: .menuEditInsert, key: "i", modifiers: .command),
         MenuItem(command: .delete, title: .menuEditDelete, key: .delete, modifiers: []),
+        MenuItem(command: .deleteCloseGap, title: .menuEditDeleteCloseGap, key: .delete, modifiers: .shift),
         MenuItem(command: .selectAll, title: .menuEditSelectAll, key: "a", modifiers: .command),
+    ]
+
+    /// The twins that ripple only the selected tracks, in their own Edit group (decision 0037).
+    static let rippleItems = [
+        MenuItem(
+            command: .cutSelectedTracks, title: .menuEditCutSelectedTracks, key: "x", modifiers: [.command, .option]),
+        MenuItem(
+            command: .deleteCloseGapSelectedTracks, title: .menuEditDeleteCloseGapSelectedTracks, key: .delete,
+            modifiers: [.shift, .option]),
     ]
 
     /// The Edit items after the pasteboard items.
@@ -235,7 +254,9 @@ extension SessionWindow {
             timeline.marks = Marks()
             timeline.marker = nil
         case .selectAll: timeline.marks = Marks.all(in: studio.session)
-        case .cut, .copy, .paste, .delete: runClipboard(command, studio)
+        case .copy, .paste, .delete: runClipboard(command, studio)
+        case .cut, .deleteCloseGap, .insert, .cutSelectedTracks, .deleteCloseGapSelectedTracks:
+            runRipple(command, studio)
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
         case .fade: runFade(studio)
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:

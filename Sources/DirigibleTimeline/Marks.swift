@@ -148,17 +148,25 @@ public struct Marks: Hashable, Sendable {
     /// keeps every start at 0 or more, and the Marks moved by that offset (the in point not below
     /// 0). Nil when no clip moves.
     public func nudge(by step: Frames, in session: Session) -> (clips: [ClipID], offset: Frames, marks: Marks)? {
-        guard let selection = selection(in: session) else { return nil }
-        let range = selection.range
-        let clips = selection.tracks.compactMap(session.track).flatMap { track in
-            track.clips.filter { range.lowerBound <= $0.start && $0.end <= range.upperBound }
-        }
+        guard let range = selection(in: session)?.range else { return nil }
+        let clips = heldClips(in: session).map(\.clip)
         guard let first = clips.map(\.start).min() else { return nil }
         let offset = max(step, .zero - first)
         guard offset != .zero else { return nil }
         let marks = Marks(
             inPoint: max(.zero, range.lowerBound + offset), outPoint: range.upperBound + offset, tracks: tracks)
         return (clips.map(\.id), offset, marks)
+    }
+
+    /// Each clip on a selected track that the selection holds whole, in session order, with its
+    /// lane. Nudge and a group drag move these clips (decisions 0018 and 0038).
+    func heldClips(in session: Session) -> [(clip: Clip, lane: Int)] {
+        guard let selection = selection(in: session) else { return [] }
+        let range = selection.range
+        return session.tracks.indices.filter { selection.tracks.contains(session.tracks[$0].id) }.flatMap { lane in
+            session.tracks[lane].clips.filter { range.lowerBound <= $0.start && $0.end <= range.upperBound }
+                .map { ($0, lane) }
+        }
     }
 
     /// Each clip on a selected track whose range overlaps the selection, in session order, as its

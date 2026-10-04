@@ -16,6 +16,27 @@ public enum Selection: Hashable, Sendable {
         if case .range(let marks) = self { return marks }
         return nil
     }
+
+    /// The selected clips in session order, with their lanes: the set clips that the session
+    /// still has, or the clips that the range holds whole. Every Core call on a clip set takes its
+    /// IDs from here, so a stale ID never reaches Core.
+    public func selectedClips(in session: Session) -> [(clip: Clip, lane: Int)] {
+        switch self {
+        case .range(let marks): return marks.heldClips(in: session)
+        case .clips(let set):
+            return session.tracks.indices.flatMap { lane in
+                session.tracks[lane].clips.filter { set.ids.contains($0.id) }.map { ($0, lane) }
+            }
+        }
+    }
+
+    /// Command-click on a clip: the selected clips with the clip added, or removed when it is in
+    /// them. No clip left gives no selection.
+    public func toggling(_ clip: ClipID, in session: Session) -> Selection {
+        var ids = Set(selectedClips(in: session).map(\.clip.id))
+        if ids.remove(clip) == nil { ids.insert(clip) }
+        return ClipSet(ids).map { .clips($0) } ?? .none
+    }
 }
 
 /// The clips of a clip selection: never empty. An ID that an undo removed stays until the next read

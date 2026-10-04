@@ -35,9 +35,10 @@ extension Studio {
         case leveling
     }
 
-    /// Edits, saves, and a new take wait during a take (0004), a placement (0021), or a level (0031).
+    /// True when no take, placement, or level runs, and no take starts.
     public var isIdle: Bool { transport == .idle && !isStarting }
 
+    /// Edits, saves, and a new take wait during a take (0004), a placement (0021), or a level (0031).
     func checkIdle() throws(StudioError) {
         guard isIdle else { throw .busy }
     }

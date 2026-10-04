@@ -32,7 +32,7 @@ struct EditRoundTripTests {
                     try session.place(clip, on: tracks(layout).randomElement(using: &random)!)
                     done["place", default: 0] += 1
                 case 1:
-                    try session.clear(range(), on: (["a", "b", "s"] as [TrackID]).randomElement(using: &random)!)
+                    try session.clear(range(), on: [(["a", "b", "s"] as [TrackID]).randomElement(using: &random)!])
                     done["clear", default: 0] += 1
                 case 2:
                     let source = (["a", "b", "s"] as [TrackID]).randomElement(using: &random)!

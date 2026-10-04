@@ -142,7 +142,7 @@ struct RippleTrimTests {
     func aRippleTrimDropsTheCrossfadeAtTheTrimmedEdge(edge: Fades.Edge, delta: Int) throws {
         var test = try RippleTrimTests()
         // A has offset 4 800, so a start longer by 4 800 reaches offset 0 with no handle for a kept half.
-        try test.session.clear(48_000..<96_000, on: "a")
+        try test.session.clear(48_000..<96_000, on: ["a"])
         try test.session.place(Clip(id: "A", file: "f", start: 48_000, offset: 4_800, length: 48_000), on: "a")
         try test.session.place(Clip(id: "P", file: "f", start: 24_000, offset: 300_000, length: 24_000), on: "a")
         try test.session.place(Clip(id: "N", file: "f", start: 96_000, offset: 300_000, length: 24_000), on: "a")

@@ -205,9 +205,9 @@ struct CrossfadeTests {
         case "move B to t2": try session.move("B", to: "t2", start: 5_000)
         case "trim A's end": try session.trim("A", to: 1_000..<4_500)
         case "trim B's start": try session.trim("B", to: 5_500..<9_000)
-        case "clear over J": try session.clear(4_900..<5_100, on: "t1")
-        case "delete A": try session.clear(1_000..<5_000, on: "t1")
-        case "delete B": try session.clear(5_000..<9_000, on: "t1")
+        case "clear over J": try session.clear(4_900..<5_100, on: ["t1"])
+        case "delete A": try session.clear(1_000..<5_000, on: ["t1"])
+        case "delete B": try session.clear(5_000..<9_000, on: ["t1"])
         case "paste B alone":
             try session.paste(try session.excerpt(of: 5_000..<9_000, on: ["t1"]), at: 20_000, on: ["t1"])
         case "split inside A's last L/2": try session.split("A", at: 4_800)
@@ -295,7 +295,7 @@ struct CrossfadeTests {
                         done["place", default: 0] += 1
                     case 1:
                         let start = frame(0...22_000)
-                        try session.clear(start..<(start + frame(1...3_000)), on: "t1")
+                        try session.clear(start..<(start + frame(1...3_000)), on: ["t1"])
                         done["clear", default: 0] += 1
                     case 2:
                         let start = frame(0...20_000)

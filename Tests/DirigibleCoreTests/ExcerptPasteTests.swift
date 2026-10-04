@@ -100,7 +100,7 @@ struct ExcerptPasteTests {
         try session.addFile(AudioFile(id: "h", path: "h.wav", layout: .mono, length: 1_000))
         try session.place(Clip(id: "H", file: "h", start: 200_000, offset: 0, length: 1_000), on: "a")
         let excerpt = try session.excerpt(of: 200_000..<201_000, on: ["a"])
-        try session.clear(200_000..<201_000, on: "a")
+        try session.clear(200_000..<201_000, on: ["a"])
         try session.removeFile("h")
         let before = session
         #expect(throws: SessionError.unknownFile("h")) { try session.paste(excerpt, at: 0, on: ["b"]) }

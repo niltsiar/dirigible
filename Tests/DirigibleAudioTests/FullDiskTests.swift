@@ -70,7 +70,7 @@ struct FullDiskTests {
             let source = try TakePackage()
             try source.segment(samples: sine(seconds: 10, rate: 48_000))
             var session = try finalizeTake(of: source.read(), in: source.url)
-            try session.clear(.zero..<Frames.limit, on: "t1")
+            try session.clear(.zero..<Frames.limit, on: ["t1"])
             try session.removeFile("take1-1-1")
             try session.write(to: source.url)
             try FileManager.default.removeItem(at: source.url.appending(path: "Clips/take1-1-1.wav"))

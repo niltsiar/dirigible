@@ -90,7 +90,7 @@ extension TimelineLiveTests {
         var inputs = try #require(view.lanes.inputs)
         inputs.session = try {
             var session = inputs.session
-            try session.clear(0..<384_000, on: "t1")
+            try session.clear(0..<384_000, on: ["t1"])
             return session
         }()
         let bare = OwnedPixels.render(

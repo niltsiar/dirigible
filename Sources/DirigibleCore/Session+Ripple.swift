@@ -120,7 +120,7 @@ extension Session {
     }
 
     /// The index of each track of `ids`, in order, with each track once.
-    private func trackIndices(_ ids: [TrackID]) throws(SessionError) -> [Int] {
+    func trackIndices(_ ids: [TrackID]) throws(SessionError) -> [Int] {
         var indices: [Int] = []
         for id in ids {
             let index = try trackIndex(id)

@@ -47,7 +47,7 @@ struct EditBenchmark {
             (
                 "clear of 1 h on 6 tracks",
                 { session in
-                    for track in tracks { try session.clear(Self.hour..<(Self.hour + Self.hour), on: track) }
+                    for track in tracks { try session.clear(Self.hour..<(Self.hour + Self.hour), on: [track]) }
                 }
             ),
             ("nudge of 1,000 clips on 6 tracks", { try $0.nudge(firstHour, by: 480) }),

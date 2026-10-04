@@ -26,7 +26,7 @@ struct PlaceSegmentTests {
         try package.segment(arm: 2, samples: sine(seconds: 2, rate: 48_000, frequency: 500))
         var session = try finalizeTake(of: package.read(), in: package.url)
         try #require(session.track("t1")?.clips.map { $0 } == [Self.recorded])
-        try session.clear(.zero..<Frames.limit, on: "t1")
+        try session.clear(.zero..<Frames.limit, on: ["t1"])
         try session.removeFile("take1-1-1")
         try session.write(to: package.url)
     }

@@ -181,7 +181,7 @@ final class TimelineScrollView: NSScrollView {
         return GestureContext(
             session: inputs.session, marks: model.timeline.marks, playhead: studio.playhead, geometry: geometry,
             canEdit: model.canEdit,
-            canRipple: !rippleBlocked(segments: studio.unplacedSegments, session: studio.session))
+            canRipple: !rippleBlocked(segments: studio.rippleSegments, session: studio.session))
     }
 
     /// Draws the gesture over the source.

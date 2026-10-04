@@ -138,6 +138,8 @@ The Dirigible model (0003): a session has tracks. A track holds clips at absolut
 
 ## 10. Ripple edit for Release 2 (F20)
 
+The rules that Dirigible chose are in `docs/decisions/0037-ripple-edit.md`, with the research in `docs/research/ripple-edit.md`.
+
 ### What FCP teaches
 
 - FCP ripples one spine. The spine is safe to ripple because every other clip rides on it through a connection [MT] [CC].

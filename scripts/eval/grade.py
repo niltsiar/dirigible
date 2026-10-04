@@ -8,10 +8,12 @@ packets: grade.py packets <eval> <tag> <seed> <packets> <set>:<run>:<kept.json> 
   answer (set, run, scenario) a random neutral label, shuffles the answers of each
   scenario, splits the scenarios into <packets> files <eval>/grade/packet-<tag>-<n>.md, and
   appends the label map to labels.tsv (the grader never reads labels.tsv).
+  A tag that labels.tsv already holds exits 2.
 score:   grade.py score <eval> <tag> <result.json> ...
   Each result file is a JSON list of {"label", "key", "result"}. A scenario passes in a
   run when each of its key points is PASS. A key point with no result is FAIL. Appends
-  rows to scores.tsv: scenario, type, set, run, result, missing. The type is the Type
+  rows to scores.tsv: tag, scenario, type, set, run, result, missing. A tag that
+  scores.tsv already holds exits 2. The type is the Type
   cell of the Scenarios table of docs/workflow/evals.md in the tree of this script.
 """
 import json
@@ -37,6 +39,14 @@ def types():
     return out
 
 
+def refuse_used(tag, name, column):
+    """Exit 2 when the tag is in the column of the file: a second append counts twice."""
+    path = os.path.join(EVAL, name)
+    if os.path.exists(path) and any(line.split("\t")[column] == tag for line in open(path, encoding="utf-8")):
+        print(f"grade.py: {name} already holds tag {tag}; use a new tag", file=sys.stderr)
+        sys.exit(2)
+
+
 def keys():
     text = open(os.path.join(EVAL, "keys.md"), encoding="utf-8").read()
     out = {}
@@ -47,6 +57,7 @@ def keys():
 
 
 def packets(tag, seed, n, specs):
+    refuse_used(tag, "labels.tsv", 1)
     rnd = random.Random(seed)
     k = keys()
     answers = {}
@@ -84,6 +95,7 @@ def packets(tag, seed, n, specs):
 
 
 def score(tag, results):
+    refuse_used(tag, "scores.tsv", 0)
     k = keys()
     typ = types()
     got = {}
@@ -98,14 +110,14 @@ def score(tag, results):
         missing = [x for x in k[sid] if got.get((label, x)) != "PASS"]
         if sid not in typ:
             sys.exit(f"grade.py: {sid} has no row in {EVALS}")
-        rows.append((sid, typ[sid], set_name, run, "FAIL" if missing else "PASS", ",".join(missing)))
+        rows.append((tag, sid, typ[sid], set_name, run, "FAIL" if missing else "PASS", ",".join(missing)))
     order = list(k)
-    rows.sort(key=lambda r: (order.index(r[0]), r[2], r[3]))
+    rows.sort(key=lambda r: (order.index(r[1]), r[3], r[4]))
     path = os.path.join(EVAL, "scores.tsv")
     new = not os.path.exists(path)
     with open(path, "a", encoding="utf-8") as f:
         if new:
-            f.write("scenario\ttype\tset\trun\tresult\tmissing\n")
+            f.write("tag\tscenario\ttype\tset\trun\tresult\tmissing\n")
         for r in rows:
             f.write("\t".join(r) + "\n")
     for r in rows:

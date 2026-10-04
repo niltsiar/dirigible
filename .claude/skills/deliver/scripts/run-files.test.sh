@@ -2,7 +2,7 @@
 # Check that log-decision.sh appends one row of six tab-separated columns from a five-line file
 # (--from), changes a tab in a field to a space, refuses a file with four lines and appends
 # nothing, keeps the six-argument form, and refuses a row whose decision or result starts with
-# default and whose why has no `Reverse:` (any case).
+# default and whose why has no `Reverse:` (any case), and refuses a phase that is not one digit.
 # Check that new-run.sh reports the backlog sections and the upkeep items.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -25,34 +25,34 @@ check_row() {
   [[ "$(cut -f2- <<< "$row")" == "$want" ]] || fail "$name: fields differ: $row"
 }
 
-printf 'implement\nuse make check && git commit\nwhy\nevidence\ndone\n' > "$tmp/five"
+printf '4\nuse make check && git commit\nwhy\nevidence\ndone\n' > "$tmp/five"
 "$log" "$run" --from "$tmp/five" || fail "--from with five lines exits $?"
-check_row '--from' $'implement\tuse make check && git commit\twhy\tevidence\tdone'
+check_row '--from' $'4\tuse make check && git commit\twhy\tevidence\tdone'
 [[ "$(wc -l < "$run/decisions.tsv")" -eq 1 ]] || fail '--from did not append exactly one row'
 
-printf 'implement\na\tb\nwhy\nevidence\ndone\n' > "$tmp/tab"
+printf '4\na\tb\nwhy\nevidence\ndone\n' > "$tmp/tab"
 "$log" "$run" --from "$tmp/tab" || fail "--from with a tab exits $?"
-check_row 'a tab in a field' $'implement\ta b\twhy\tevidence\tdone'
+check_row 'a tab in a field' $'4\ta b\twhy\tevidence\tdone'
 
 before="$(shasum -a 256 "$run/decisions.tsv")"
-printf 'implement\ndecision\nwhy\nevidence\n' > "$tmp/four"
+printf '4\ndecision\nwhy\nevidence\n' > "$tmp/four"
 err="$("$log" "$run" --from "$tmp/four" 2>&1)"
 code=$?
 [[ $code -eq 2 ]] || fail "four lines: expected exit 2, got $code"
 [[ "$err" == *"five lines"* ]] || fail "four lines: no reason in the message: $err"
 [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail 'four lines: decisions.tsv changed'
 
-"$log" "$run" plan decision why evidence done || fail "six arguments exit $?"
-check_row 'six arguments' $'plan\tdecision\twhy\tevidence\tdone'
+"$log" "$run" 2 decision why evidence done || fail "six arguments exit $?"
+check_row 'six arguments' $'2\tdecision\twhy\tevidence\tdone'
 
 # A row whose result starts with `default` names the word that reverses it in its why.
 for form in from args; do
   before="$(shasum -a 256 "$run/decisions.tsv")"
   if [[ $form == from ]]; then
-    printf 'plan\nuse blue\nno reference app\nevidence\ndefault: blue\n' > "$tmp/default"
+    printf '2\nuse blue\nno reference app\nevidence\ndefault: blue\n' > "$tmp/default"
     err="$("$log" "$run" --from "$tmp/default" 2>&1)"
   else
-    err="$("$log" "$run" plan 'use blue' 'no reference app' evidence 'Default: blue' 2>&1)"
+    err="$("$log" "$run" 2 'use blue' 'no reference app' evidence 'Default: blue' 2>&1)"
   fi
   code=$?
   [[ $code -eq 2 ]] || fail "a default row with no Reverse: ($form): expected exit 2, got $code"
@@ -60,19 +60,34 @@ for form in from args; do
   [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail "a default row with no Reverse: ($form): decisions.tsv changed"
 done
 rows="$(wc -l < "$run/decisions.tsv")"
-"$log" "$run" plan 'use blue' 'no reference app. Reverse: say red.' evidence 'default: blue' || fail "a default row with Reverse: exits $?"
-check_row 'a default row with Reverse:' $'plan\tuse blue\tno reference app. Reverse: say red.\tevidence\tdefault: blue'
+"$log" "$run" 2 'use blue' 'no reference app. Reverse: say red.' evidence 'default: blue' || fail "a default row with Reverse: exits $?"
+check_row 'a default row with Reverse:' $'2\tuse blue\tno reference app. Reverse: say red.\tevidence\tdefault: blue'
 [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 1)) ]] || fail 'a default row with Reverse: did not append exactly one row'
-"$log" "$run" plan 'use blue' 'the user asked' evidence 'done' || fail "a row with another result exits $?"
+"$log" "$run" 2 'use blue' 'the user asked' evidence 'done' || fail "a row with another result exits $?"
 [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 2)) ]] || fail 'a row with another result did not append exactly one row'
 # The decision column starts with default too; Reverse: matches in any case.
 before="$(shasum -a 256 "$run/decisions.tsv")"
-err="$("$log" "$run" plan 'Default: blue' 'no reference app' evidence 'done' 2>&1)"
+err="$("$log" "$run" 2 'Default: blue' 'no reference app' evidence 'done' 2>&1)"
 code=$?
 [[ $code -eq 2 ]] || fail "a default decision with no Reverse: expected exit 2, got $code"
 [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail 'a default decision with no Reverse: decisions.tsv changed'
-"$log" "$run" plan 'use blue' 'no reference app. reverse: say red.' evidence 'default: blue' || fail "a default row with reverse: exits $?"
+"$log" "$run" 2 'use blue' 'no reference app. reverse: say red.' evidence 'default: blue' || fail "a default row with reverse: exits $?"
 [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 3)) ]] || fail 'a default row with reverse: did not append exactly one row'
+
+# The phase is one digit, so land.sh finds the control rows of phase 2 and 4.
+for phase in '4 implement' implement 10 ''; do
+  before="$(shasum -a 256 "$run/decisions.tsv")"
+  err="$("$log" "$run" "$phase" decision why evidence done 2>&1)"
+  code=$?
+  [[ $code -eq 2 ]] || fail "phase '$phase': expected exit 2, got $code"
+  [[ "$err" == *'one digit'* ]] || fail "phase '$phase': no reason in the message: $err"
+  [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail "phase '$phase': decisions.tsv changed"
+done
+printf '4 implement\ndecision\nwhy\nevidence\ndone\n' > "$tmp/phase"
+"$log" "$run" --from "$tmp/phase" 2> /dev/null && fail "--from with the phase '4 implement' exits 0"
+"$log" "$run" 0 decision why evidence done || fail "phase 0 exits $?"
+"$log" "$run" 9 decision why evidence done || fail "phase 9 exits $?"
+check_row 'phase 9' $'9\tdecision\twhy\tevidence\tdone'
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

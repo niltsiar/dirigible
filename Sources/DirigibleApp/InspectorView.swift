@@ -186,7 +186,7 @@ extension SessionWindow {
     /// Widens the window to the minimum with the pane, inside the visible screen.
     private func widenForInspector() {
         guard let window else { return }
-        let missing = 720 + InspectorView.width - window.contentRect(forFrameRect: window.frame).width
+        let missing = SessionView.minWidth + InspectorView.width - window.contentRect(forFrameRect: window.frame).width
         guard missing > 0 else { return }
         var frame = window.frame
         frame.size.width += missing

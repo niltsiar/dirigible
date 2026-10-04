@@ -22,11 +22,8 @@ public struct ClipInspection: Equatable, Sendable {
 
     /// Nil with no selection or no clip in it. One pass over the clips of the selected tracks.
     public init?(marks: Marks, session: Session) {
-        guard let selection = marks.selection(in: session) else { return nil }
-        let touched = selection.tracks.compactMap(session.track).flatMap {
-            $0.clips.clips(overlapping: selection.range)
-        }
-        guard let first = touched.first else { return nil }
+        guard let touched = marks.touchedClips(in: session)?.map({ $0.lane[$0.index] }), let first = touched.first
+        else { return nil }
         var (gain, fadeIn, fadeOut) = (
             Shown.value(first.gain), Shown.value(first.fades.fadeIn), Shown.value(first.fades.fadeOut)
         )
@@ -92,13 +89,10 @@ public struct ClipInspection: Equatable, Sendable {
         var result: [ClipID: Fades] = [:]
         for track in session.tracks {
             for clip in track.clips where ids.contains(clip.id) {
-                let old = clip.fades
-                let room = clip.length - (edge == .start ? old.fadeOut : old.fadeIn)
-                let length = Frames(Int(min(max(frames, 0), Double(room.count))))
-                let new =
-                    edge == .start
-                    ? Fades(fadeIn: length, fadeOut: old.fadeOut) : Fades(fadeIn: old.fadeIn, fadeOut: length)
-                if let new, new != old { result[clip.id] = new }
+                let value = Frames(Int(min(max(frames, 0), Double(clip.length.count))))
+                if let new = clip.fades.setting(edge, to: value, length: clip.length), new != clip.fades {
+                    result[clip.id] = new
+                }
             }
         }
         return result.isEmpty ? nil : result

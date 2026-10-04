@@ -6,6 +6,9 @@ import SwiftUI
 /// The content of a session window. It reads `SessionWindow` and `Studio` and sends the actions
 /// back; it keeps no copy of the take state.
 struct SessionView: View {
+    /// The minimum content width with no inspector (0023).
+    static let minWidth = 720.0
+
     let model: SessionWindow
 
     var body: some View {
@@ -25,7 +28,7 @@ struct SessionView: View {
             }
             // 720 pt keeps the transport and the time display in the toolbar (probe P1c). The
             // inspector adds its width (run 11b-2).
-            .frame(minWidth: 720 + (model.showsInspector ? InspectorView.width : 0), minHeight: 360)
+            .frame(minWidth: Self.minWidth + (model.showsInspector ? InspectorView.width : 0), minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),
                 isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),

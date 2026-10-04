@@ -72,10 +72,8 @@ extension TimelineGesture {
         }
         let (old, length) = (drag.clip.fades, drag.clip.length)
         let delta = press.delta(to: x, context.geometry)
-        let fades =
-            drag.edge == .start
-            ? Fades(fadeIn: min(max(.zero, old.fadeIn + delta), length - old.fadeOut), fadeOut: old.fadeOut)
-            : Fades(fadeIn: old.fadeIn, fadeOut: min(max(.zero, old.fadeOut - delta), length - old.fadeIn))
+        let fades = old.setting(
+            drag.edge, to: drag.edge == .start ? old.fadeIn + delta : old.fadeOut - delta, length: length)
         guard let fades, fades != drag.fades else { return [] }
         var preview = press.base
         // The clamp keeps the sum in the clip, so no input reaches a throw. A throw keeps the last
@@ -110,8 +108,7 @@ extension TimelineGesture {
             return [.commit(commit(press, clip, lane, result))]
         case .fade(let clip, let edge, let lane):
             let old = clip.fades
-            let fades =
-                edge == .start ? Fades(fadeIn: .zero, fadeOut: old.fadeOut) : Fades(fadeIn: old.fadeIn, fadeOut: .zero)
+            let fades = old.setting(edge, to: .zero, length: clip.length)
             guard let fades, fades != old, (try? result.setFades([clip.id: fades])) != nil else { return nil }
             return [.commit(commit(press, clip, lane, result))]
         case .move, .trim, .range:

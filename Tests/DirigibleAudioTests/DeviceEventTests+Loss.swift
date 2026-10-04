@@ -73,6 +73,26 @@ extension DeviceEventTests {
         #expect(gaps == (slow ? [:] : [1: .deviceLost]))
     }
 
+    /// After the first record of an appearance, the silence limit replaces the first-record
+    /// limit, and a new attach uses the first-record limit again. Each producer starts 3 s
+    /// after its attach: the second producer gives a segment only when attach 2 waits 10 s.
+    @Test func theSilenceLimitFollowsTheFirstRecord() async throws {
+        let hal = TestHAL([mic])
+        let input = SyntheticInput(hal, "mic")
+        var clock = DeviceClock()
+        input.play(run(&clock, 0.5), pace: .realTime, delay: .seconds(3))
+        clock.sampleTime = 0
+        input.play(run(&clock, 0.5), pace: .realTime, attach: 2, delay: .seconds(3))
+        let writer = writer(mic, hal, silenceLimit: .seconds(1), firstRecordLimit: .seconds(10))
+
+        await until(limit: busy, "no second segment") { (try? stems()) == ["take1-1-1", "take1-1-2"] }
+        let gaps = await writer.finish()
+        await input.wait()
+
+        #expect(hal.tries("mic").count >= 2)
+        #expect(gaps == [1: .deviceLost])
+    }
+
     @Test(arguments: [false, true])
     func aNewObjectIDIsALossAndABack(changed: Bool) async throws {
         let hal = TestHAL([])

@@ -25,9 +25,11 @@ new_repo() {
   g switch -q -c feat/x
   echo b > "$tmp/r/b.txt"
   g add -A && g commit -q -m b
-  file="$tmp/r/$(g rev-parse --git-path dirigible-check-stamp)"
+  file="$(g rev-parse --path-format=absolute --git-common-dir)/dirigible-check-stamp"
 }
 st() { (cd "$tmp/r" && "$stamp_sh" "$@"); }
+# st_in <dir> <args>: run check-stamp.sh in another worktree.
+st_in() { local d="$1"; shift; (cd "$d" && "$stamp_sh" "$@"); }
 lines() { if [[ -f "$file" ]]; then wc -l < "$file" | tr -d ' '; else echo 0; fi; }
 
 # Write on a clean tree: one line with the commit, the base commit, and the targets.
@@ -113,6 +115,25 @@ got="$(st read main)" || fail "two lines: exit $?"
 st write "$second" clean "$main" check > /dev/null
 got="$(st read main)" || fail "newest line: exit $?"
 [[ "$got" == "$second check" ]] || fail "newest line: got [$got]"
+
+# A stamp written in a linked worktree survives `git worktree remove`: the main checkout reads it.
+new_repo
+g worktree add -q -b wt1 "$tmp/wt" feat/x
+head="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+st_in "$tmp/wt" write "$head" clean "$main" check > /dev/null || fail "worktree write: exit $?"
+g worktree remove "$tmp/wt"
+got="$(st read main)" || fail "read after worktree remove: exit $?"
+[[ "$got" == "$head check" ]] || fail "read after worktree remove: got [$got]"
+
+# A stamp of the main checkout is read in a linked worktree whose HEAD descends from it.
+new_repo
+head="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+st write "$head" clean "$main" check > /dev/null
+g worktree add -q -b wt2 "$tmp/wt" feat/x
+git -C "$tmp/wt" commit -q --allow-empty -m later
+got="$(st_in "$tmp/wt" read main)" || fail "read in a linked worktree: exit $?"
+[[ "$got" == "$head check" ]] || fail "read in a linked worktree: got [$got]"
+g worktree remove --force "$tmp/wt"
 
 # The reader gives the reason when no line is usable, with exit 1.
 read_refused() {

@@ -34,7 +34,7 @@ fi
 # analysis.md is gitignored, so the test is its mtime. Two criterion change rows need two edits.
 if [[ "$(lower "$2")" == "criterion change"* ]]; then
     [[ "${file%/*}/analysis.md" -nt "$file" ]] || {
-        echo "a criterion change row needs an analysis.md edit first: change the criterion in ${file%/*}/analysis.md, then log the row" >&2
+        echo "a criterion change row needs an analysis.md that is newer than the last row: change the criterion in ${file%/*}/analysis.md, then log the row" >&2
         exit 2
     }
     word='(^|[^a-z])old([^a-z]|$)'

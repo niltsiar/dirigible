@@ -67,6 +67,7 @@ extension SessionWindow {
     }
 
     func retry() async {
+        commitNames()
         guard canRetry else { return }
         try? await idleStudio?.retryFinalize()
         await refreshPendingSpace()
@@ -90,8 +91,9 @@ extension SessionWindow {
         edit { s throws(SessionError) in try s.renameTrack(track, to: name) }
     }
 
-    /// Record, Close, Quit, Auto Level, and a mouse-down on the lanes save each typed name and the
-    /// typed inspector value first, also with no Return and with the focus still in its field.
+    /// Record, Close, Quit, Auto Level, Place, Retry, and a mouse-down on the lanes save each typed
+    /// name and the typed inspector value first, also with the focus still in its field. A menu
+    /// command commits only the inspector value.
     func commitNames() {
         for track in drafts.keys { commitName(track) }
         commitInspector()

@@ -157,12 +157,12 @@ extension SessionWindow {
 
     /// Sets the typed value on the clips of the draft as one edit. A text equal to the shown text,
     /// or empty, makes no edit. A text that does not parse beeps. The draft goes in each case, so
-    /// the field shows the value again.
+    /// the field shows the value again. A busy studio keeps the draft for a later commit.
     func commitInspector() {
-        guard let draft = inspectorDraft else { return }
+        guard let draft = inspectorDraft, let session = idleStudio?.session else { return }
         inspectorDraft = nil
         let text = draft.text.trimmingCharacters(in: .whitespaces)
-        guard text != draft.shown, !text.isEmpty, let session = idleStudio?.session else { return }
+        guard text != draft.shown, !text.isEmpty else { return }
         switch draft.field {
         case .gain:
             guard let dB = ClipInspection.decibels(text) else { return beep() }

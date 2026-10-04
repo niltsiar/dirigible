@@ -279,4 +279,60 @@ import Testing
         #expect(undoAll(model, studio) == 1 && studio.session == before, "one entry")
         await model.close()
     }
+
+    // MARK: Code gate round 1
+
+    /// A1: a menu command commits the typed value first, so Split and Export act on it.
+    @Test func aMenuCommandCommitsTheDraftFirst() async throws {
+        let (model, studio, window, _) = try await open(try await package())
+        model.timeline.marks = overA
+        try await type("-6", in: try await paneFields(window)[0], window, model)
+
+        model.run(.split)
+        let pieces = studio.session.track("t1")?.clips.filter { $0.range.overlaps(0..<48_000) } ?? []
+        #expect(pieces.count == 3, "Split: \(pieces.map(\.id))")
+        #expect(pieces.allSatisfy { $0.gain == Gain(dB: -6) }, "Split acts on the typed gain: \(pieces.map(\.gain))")
+
+        model.undo()
+        model.undo()
+        try await type("-3", in: try await paneFields(window)[0], window, model)
+        app.chooseExport = { _, _, _, done in done(nil) }
+        model.run(.export)
+        #expect(gain(studio, "A") == -3, "Export acts on the typed gain: \(String(describing: gain(studio, "A")))")
+        await until("the export flow ends") { model.exportStep == nil || model.isAskingExportQuestion }
+        model.answerExportQuestion(export: false)
+        await model.close()
+    }
+
+    /// A2: a busy studio keeps the draft, and Place, Retry, and Leave Unreadable commit it first.
+    @Test func aBusyStudioKeepsTheDraft() async throws {
+        let (model, studio, window, _) = try await open(try await package(device: "duo"))
+        studio.environment = hal.environment
+        model.timeline.marks = overA
+        try await type("-6", in: try await paneFields(window)[0], window, model)
+
+        try await studio.startRecording(armed: ["t1"])
+        model.commitInspector()
+        #expect(model.inspectorDraft?.text == "-6", "a take keeps the draft")
+        #expect(gain(studio, "A") == 0)
+        await hal.feed(seconds: 0.5)
+        await model.stop()
+        await until("the take finalizes") { studio.transport == .idle }
+        model.commitInspector()
+        #expect(gain(studio, "A") == -6, "the commit after the take sets the value")
+
+        let commits: [(String, () async -> Void)] = [
+            ("Place", { await model.place(SegmentName(take: 1, arm: 1, segment: 1), atPlayhead: false) }),
+            ("Retry", { await model.retry() }),
+            ("Leave Unreadable", { await model.finishLeavingUnreadable() }),
+        ]
+        for (name, action) in commits {
+            model.timeline.marks = overB
+            try await type("-2", in: try await paneFields(window)[0], window, model)
+            await action()
+            #expect(gain(studio, "B") == -2, "\(name) commits the draft first")
+            model.undo()
+        }
+        await model.close()
+    }
 }

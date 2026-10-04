@@ -22,9 +22,12 @@ public struct ClipInspection: Equatable, Sendable {
 
     /// Nil with no selection or no clip in it. One pass over the clips of the selected tracks.
     public init?(selection: Selection, session: Session) {
-        guard let touched = selection.marks?.touchedClips(in: session)?.map({ $0.lane[$0.index] }),
-            let first = touched.first
-        else { return nil }
+        let touched =
+            switch selection {
+            case .range(let marks): marks.touchedClips(in: session)?.map { $0.lane[$0.index] } ?? []
+            case .clips: selection.selectedClips(in: session).map(\.clip)
+            }
+        guard let first = touched.first else { return nil }
         var (gain, fadeIn, fadeOut) = (
             Shown.value(first.gain), Shown.value(first.fades.fadeIn), Shown.value(first.fades.fadeOut)
         )

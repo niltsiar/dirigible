@@ -17,6 +17,14 @@ public enum Selection: Hashable, Sendable {
         return nil
     }
 
+    /// True for a range with no frames or no live track, and for a set with no live clip.
+    public func isEmpty(in session: Session) -> Bool {
+        switch self {
+        case .range(let marks): marks.selection(in: session) == nil
+        case .clips: selectedClips(in: session).isEmpty
+        }
+    }
+
     /// The selected clips in session order, with their lanes: the set clips that the session
     /// still has, or the clips that the range holds whole. Every Core call on a clip set takes its
     /// IDs from here, so a stale ID never reaches Core.

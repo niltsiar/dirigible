@@ -231,7 +231,7 @@ extension SessionWindow {
         case .zoomOut: timelineView?.navigate(.zoom(by: 2))
         case .zoomToSession: timelineView?.navigate(.fitSession)
         case .zoomToSelection:
-            timelineView?.navigate(.toggleSelection(timeline.selection.marks?.selection(in: studio.session)?.range))
+            timelineView?.navigate(.toggleSelection(timeline.selection.span(in: studio.session)))
         case .zoomBack: timelineView?.navigate(.back)
         case .zoomForward: timelineView?.navigate(.forward)
         case .pagePrevious: timelineView?.navigate(.page(.backward))
@@ -249,8 +249,8 @@ extension SessionWindow {
             timeline.follows.toggle()
             timeline.followHeld = false
             if timeline.follows { timelineView?.showPlayhead() }
-        case .setIn: timeline.selection = .range(timeline.range.settingIn(studio.playhead, in: studio.session))
-        case .setOut: timeline.selection = .range(timeline.range.settingOut(studio.playhead, in: studio.session))
+        case .setIn: timeline.selection = .range(timeline.selection.settingIn(studio.playhead, in: studio.session))
+        case .setOut: timeline.selection = .range(timeline.selection.settingOut(studio.playhead, in: studio.session))
         case .deselectAll:
             timeline.selection = .none
             timeline.marker = nil

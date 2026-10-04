@@ -228,22 +228,24 @@ extension TimelineGesture {
         return []
     }
 
-    /// The Marks after a right-click at `place` (decision 0037, `ui-panel.md` 5): the range of the
-    /// clip under it on its track, as a click gives, when the click is outside the selection. Nil
-    /// inside the selection, in a gap, and outside the lanes: the Marks stay.
-    public static func contextMarks(at place: Place, _ context: GestureContext) -> Marks? {
+    /// The selection after a right-click at `place` (decision 0037, `ui-panel.md` 5): the range of
+    /// the clip under it on its track, as a click gives, when the click is outside the selection.
+    /// Nil inside the selection (also on a clip of a clip set, decision 0038), in a gap, and
+    /// outside the lanes: the selection stays.
+    public static func contextSelection(at place: Place, _ context: GestureContext) -> Selection? {
         guard case .lanes(let x, let y) = place else { return nil }
         let session = context.session
         switch context.geometry.hit(x, y, in: session) {
         case .move(let clip, let lane), .trim(let clip, _, let lane), .gain(let clip, let lane),
             .fade(let clip, _, let lane):
             let track = session.tracks[lane].id
+            if case .clips(let set) = context.selection, set.ids.contains(clip.id) { return nil }
             if let selection = context.selection.marks?.selection(in: session), selection.tracks.contains(track),
                 selection.range.contains(context.geometry.frame(at: x))
             {
                 return nil
             }
-            return Marks(inPoint: clip.start, outPoint: clip.end, tracks: [track])
+            return .range(Marks(inPoint: clip.start, outPoint: clip.end, tracks: [track]))
         case .range: return nil
         }
     }

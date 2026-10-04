@@ -48,8 +48,10 @@ extension Session {
     /// Removes the clips and leaves gaps (decision 0038). A broken crossfade join loses its
     /// crossfade (decision 0036). An unknown ID throws, and a throw changes nothing.
     public mutating func removeClips(_ ids: [ClipID]) throws(SessionError) {
-        if let missing = ids.first(where: { clip($0) == nil }) { throw .unknownClip(missing) }
+        // One pass over the lanes: a check of each ID with `clip(_:)` scans every lane per ID.
         let removed = Set(ids)
+        let present = Set(tracks.lazy.flatMap(\.clips).map(\.id).filter(removed.contains))
+        if let missing = ids.first(where: { !present.contains($0) }) { throw .unknownClip(missing) }
         for index in tracks.indices where tracks[index].clips.contains(where: { removed.contains($0.id) }) {
             tracks[index].clips.remove(ids: removed)
         }

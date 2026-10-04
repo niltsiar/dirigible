@@ -27,6 +27,15 @@ import Testing
         return (model, studio, window, view)
     }
 
+    /// The lanes of a session window, through SwiftUI, with m1 on the ruler, and the x of m1.
+    func openedLanes() async throws -> (SessionWindow, Studio, TimelineScrollView, Double) {
+        let (model, studio, _, view) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
+        model.edit { s throws(SessionError) in try s.setMarker(Self.flag) }
+        await until("the ruler shows the flag") { view.ruler.inputs?.markers["m1"] != nil }
+        return (model, studio, view, try #require(view.ruler.inputs?.geometry.x(of: Self.flag.position)))
+    }
+
     func press(_ view: TimelineScrollView, _ x: Double, _ y: Double = 10) throws {
         view.ruler.mouseDown(with: try rulerMouse(.leftMouseDown, x, y, in: view))
     }
@@ -43,11 +52,8 @@ import Testing
     /// mouse-down makes the lanes the first responder, so Esc ends the flag drag, not the edit of
     /// the field. It proves the routing only (manual check M3).
     @Test func escapeDuringAFlagDragWithAFocusedFieldReachesTheGesture() async throws {
-        let (model, studio, window, view) = try await openLanes(
-            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
-        model.edit { s throws(SessionError) in try s.setMarker(Self.flag) }
-        await until("the ruler shows the flag") { view.ruler.inputs?.markers["m1"] != nil }
-        let x = try #require(view.ruler.inputs?.geometry.x(of: Self.flag.position))
+        let (model, studio, view, x) = try await openedLanes()
+        let window = try #require(view.window)
         _ = try await focusName(in: window)
 
         try press(view, x + 1)
@@ -219,15 +225,6 @@ import Testing
         #expect(studio.session.markers["m1"]?.position == 0)
         window.close()
         await model.close()
-    }
-
-    /// The lanes of a session window, through SwiftUI, with m1 on the ruler, and the x of m1.
-    func openedLanes() async throws -> (SessionWindow, Studio, TimelineScrollView, Double) {
-        let (model, studio, _, view) = try await openLanes(
-            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
-        model.edit { s throws(SessionError) in try s.setMarker(Self.flag) }
-        await until("the ruler shows the flag") { view.ruler.inputs?.markers["m1"] != nil }
-        return (model, studio, view, try #require(view.ruler.inputs?.geometry.x(of: Self.flag.position)))
     }
 
     /// Criterion 11: a click on a flag makes it the current marker and seeks to it. Criterion M1:

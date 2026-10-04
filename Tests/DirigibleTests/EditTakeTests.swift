@@ -37,7 +37,7 @@ import Testing
 
     /// Cut, Paste, Delete, Split, Nudge, the marker edits, and Remove Track change nothing and show no alert
     /// while a take records; Rename Marker opens no alert; a refused Cut keeps the clipboard, and a
-    /// refused Delete Marker keeps the current marker. Copy runs. The take goes on: after the stop, each track has a take
+    /// refused Delete Marker keeps the current marker. No marker command beeps. Copy runs. The take goes on: after the stop, each track has a take
     /// clip with frames. Controls: an edit with no idle check shows the `.busy` alert; a clipboard
     /// set before the edit changes on the refused Cut.
     @Test func editsDoNothingDuringATake() async throws {

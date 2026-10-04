@@ -163,6 +163,8 @@ import Testing
             }
         }
 
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(model.inspectorDraft == nil, "a draft after the gesture: \(String(describing: model.inspectorDraft))")
         #expect(gain(studio, "A") == -3, "A: \(String(describing: gain(studio, "A")))")
         #expect(
             gain(studio, "B").map { $0 < 0 } == true, "B has the drag gain: \(String(describing: gain(studio, "B")))")
@@ -217,6 +219,7 @@ import Testing
         try await Task.sleep(for: .milliseconds(200))
         #expect(window.firstResponder === view.lanes, "Esc gives the focus to the lanes")
         #expect(studio.session == before && !studio.canUndo, "Esc: no edit")
+        #expect(model.inspectorDraft == nil, "a draft after Esc: \(String(describing: model.inspectorDraft))")
         await until("Esc puts back the shown text") { shownFields(window).first?.stringValue == decibels(0) }
 
         fields = try await paneFields(window)

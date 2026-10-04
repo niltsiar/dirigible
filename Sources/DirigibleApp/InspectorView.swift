@@ -122,23 +122,27 @@ extension SessionWindow {
     /// text first, and moves a focus in the pane to the lanes. A show widens a window that is
     /// narrower than the minimum, with no animation.
     func toggleInspector() {
-        if showsInspector {
-            commitInspector()
-            if inspectorFocus != nil {
-                inspectorFocus = nil
-                focusLanes()
-            }
-        }
         showsInspector.toggle()
         app?.defaults?.set(showsInspector, forKey: Self.inspectorKey)
-        if showsInspector { widenForInspector() }
+        if showsInspector {
+            widenForInspector()
+            return
+        }
+        // After the flag: the focus move makes the field send its old text, which `type` ignores.
+        commitInspector()
+        if inspectorFocus != nil {
+            inspectorFocus = nil
+            focusLanes()
+        }
     }
 
     /// A typed key in an inspector field. The first key of a field commits the draft of another
     /// field and starts a draft with the clips of the inspection. The field also sends its text
     /// when it shows a new value or ends its editing; a text equal to the shown text is not a key,
-    /// so it starts no draft.
+    /// so it starts no draft. A field that a hide removes sends its old text: a hidden pane takes
+    /// no text, else a later commit sets that old value again.
     func type(_ text: String, in field: InspectorField) {
+        guard showsInspector else { return }
         if inspectorDraft?.field == field {
             inspectorDraft?.text = text
             return

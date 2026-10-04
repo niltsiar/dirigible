@@ -155,6 +155,17 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair((index - 1)..<(index + 1))
     }
 
+    /// Moves each clip that starts at or after `frame` by `offset` (a ripple, decision 0037). The
+    /// caller checks that the moved clips do not overlap the clip before them and that their ends
+    /// stay in range. The joins inside the moved part stay paired, so only the join at the edge of
+    /// the move can change (0036).
+    mutating func shift(from frame: Frames, by offset: Frames) {
+        guard offset != .zero, let first = storage.firstIndex(where: { $0.start >= frame }) else { return }
+        for index in first..<storage.count { storage[index].start = storage[index].start + offset }
+        assert(first == 0 || storage[first - 1].end <= storage[first].start, "A shift overlaps a clip")
+        repair((first - 1)..<(first + 1))
+    }
+
     /// One clip changes and no clip moves, so only the joins of its neighbors can break.
     mutating func replace(at index: Int, with clip: Clip) {
         storage[index] = clip

@@ -54,19 +54,34 @@ struct EditBenchmark {
             ("setFades of 12,000 clips", { try $0.setFades(allFades) }),
             ("setGains of 12,000 clips", { try $0.setGains(allGains) }),
         ]
-        for (name, edit) in edits {
-            var times: [Duration] = []
-            for _ in 0..<20 {
-                var copy = history
-                let start = ContinuousClock.now
-                try copy.edit(edit)
-                times.append(ContinuousClock.now - start)
-                #expect(copy.canUndo)
-            }
-            let p95 = times.sorted()[18]
-            print("EditBenchmark \(name): p95 \(p95)")
-            expectWithinBudget(p95, Self.budget, "\(name): p95 \(p95)")
+        for (name, edit) in edits { try Self.measure(name, history, edit) }
+
+        // Ripple C14b (decision 0037): 100 markers, and each later clip on 6 tracks moves.
+        var marked = history.session
+        for n in 0..<100 {
+            try marked.setMarker(
+                Marker(id: MarkerID("m\(n)"), name: "M", position: Frames(n * 3_456_000), kind: .marker))
         }
+        let ripples: [(String, (inout Session) throws -> Void)] = [
+            ("rippleDelete near the start on 6 tracks", { try $0.rippleDelete(100_000..<200_000, on: tracks) }),
+            ("rippleInsert near the start on 6 tracks", { try $0.rippleInsert(48_000, at: 100_000, on: tracks) }),
+        ]
+        for (name, edit) in ripples { try Self.measure(name, History(marked), edit) }
+    }
+
+    /// Runs `edit` 20 times on a copy of `history`, and compares the p95 with the budget.
+    static func measure(_ name: String, _ history: History, _ edit: (inout Session) throws -> Void) throws {
+        var times: [Duration] = []
+        for _ in 0..<20 {
+            var copy = history
+            let start = ContinuousClock.now
+            try copy.edit(edit)
+            times.append(ContinuousClock.now - start)
+            #expect(copy.canUndo)
+        }
+        let p95 = times.sorted()[18]
+        print("EditBenchmark \(name): p95 \(p95)")
+        expectWithinBudget(p95, Self.budget, "\(name): p95 \(p95)")
     }
 
     /// Places 2 000 clips on the first track, then pastes that track onto the other five.

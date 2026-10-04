@@ -11,6 +11,7 @@
 - Amended: 2026-09-25. `dirigible export` writes WAV, AAC, or FLAC. `dirigible render` calls the same writer and keeps its text and exit codes; a full disk gives "the disk is full" (see 0019).
 - Amended: 2026-09-26. `dirigible capture place` puts one unplaced segment on the timeline: exit 1 for a refused placement, 2 for a package fault or a pending take, 64 for a stem that does not parse or a negative `--at`. `take finalize --leave-unreadable` ends a take without its unreadable segments; without the flag, that error names the flag (see 0021).
 - Amended: 2026-10-03, run 8a. `dirigible loudness` prints the integrated loudness of each clip with its clip gain. It writes nothing and takes no lock (see 0008).
+- Amended: 2026-10-04, run 12. `clip ripple-delete` and `clip ripple-insert` ripple all tracks, or the `--track` tracks. A split take exits 3 (see 0037).
 
 ## Context
 

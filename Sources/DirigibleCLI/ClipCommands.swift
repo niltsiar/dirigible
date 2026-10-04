@@ -6,7 +6,7 @@ struct ClipCommand: ParsableCommand {
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
         subcommands: [
             Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, Nudge.self, Move.self, Trim.self,
-            SetGain.self, Fade.self, Crossfade.self,
+            SetGain.self, Fade.self, Crossfade.self, RippleDelete.self, RippleInsert.self,
         ])
 
     struct Place: ParsableCommand {

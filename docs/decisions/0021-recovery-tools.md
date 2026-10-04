@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-26
 - Amended: 2026-09-27. The anchor magic is a 7-byte prefix and a version digit. A newer anchor is a per-segment fault at a placement that needs it. A finalize keeps a newer anchor and ends the take; an anchor that does not read keeps the take pending before any WAV. The anchor name counts for the next take number (see 0024).
+- Amended: 2026-10-04, run 12. A split take, an unplaced segment with a placed segment of the same take, blocks each ripple until the segment is placed; a wholly unplaced take does not (see 0037).
 
 ## Context
 

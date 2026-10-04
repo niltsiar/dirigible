@@ -144,6 +144,24 @@ func unplacedSegments(_ segments: [SegmentName], session: Session) -> [SegmentNa
     return segments.filter { $0.take != session.recording?.take && !referenced.contains(CaptureID($0.stem)) }
 }
 
+/// True when a ripple must not move the timeline (decision 0037): the session has a pending
+/// take, or a take is split. A take is split when one of its `segments` is unplaced and a file of
+/// the session refers to another segment of that take. A pending take places at its take anchor,
+/// and a split take places its rest at its old frames, so a ripple breaks their sync. A wholly
+/// unplaced take moves as one unit, so it does not block. No file I/O.
+public func rippleBlocked(segments: [SegmentName], session: Session) -> Bool {
+    if session.recording != nil { return true }
+    let placedTakes = Set(
+        session.files.values.compactMap { $0.capture.flatMap { SegmentName(stem: $0.rawValue)?.take } })
+    return unplacedSegments(segments, session: session).contains { placedTakes.contains($0.take) }
+}
+
+/// `rippleBlocked(segments:session:)` with the segments in `Capture/` of `package`. It reads
+/// files, so call it off the main actor.
+public func rippleBlocked(in package: URL, session: Session) -> Bool {
+    rippleBlocked(segments: segmentsWithAudio(in: package), session: session)
+}
+
 /// The segment names of the CAFs in `Capture/`, in name order. A missing folder has none.
 func captureSegments(in package: URL) throws(FinalizeError) -> [SegmentName] {
     let folder = package.appending(path: captureFolderName)

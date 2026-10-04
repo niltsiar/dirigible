@@ -308,7 +308,12 @@ final class TimelineDocumentView: NSView {
         return .lanes(x: Double(point.x), y: Double(point.y))
     }
 
+    /// The lane menu (decision 0037). AppKit asks for it at a right-click and a Control-click.
+    override func menu(for event: NSEvent) -> NSMenu? { scrollView?.laneMenu(at: place(event)) }
+
     override func mouseDown(with event: NSEvent) {
+        // A Control-click opens the menu and starts no press (`ui-panel.md` 5).
+        guard !event.modifierFlags.contains(.control) else { return }
         window?.makeFirstResponder(self)
         let flags = event.modifierFlags
         scrollView?.mouse(

@@ -27,7 +27,7 @@ AGT-025	AGENTS.md	keep	AGENTS.md	describes what scripts/check-docs.sh checks; sl
 AGT-026	AGENTS.md	enforced	Makefile	the check-docs recipe runs scripts/check-docs.test.sh before scripts/check-docs.sh (slice 8)	53268ff		check-docs.test.sh covers the docs check
 AGT-027	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	40124f0		dirigible CLI edits and reads session packages (decision 0011)
 AGT-028	AGENTS.md	keep	AGENTS.md	command row; slice 8 shortens the Commands rows	7723b34		make check-warnings verifies warnings-as-errors per Package.swift target
-AGT-029	AGENTS.md	keep	AGENTS.md	keep; slice 8 adds rows for make test-hooks and make check-slow-gates	L58	hook	make check bundles lint, docs, slow gates, warnings, tests, hooks, app tests
+AGT-029	AGENTS.md	keep	AGENTS.md	keep; slice 8 adds rows for make test-hooks and make check-slow-gates	L58	hook	make check bundles lint, docs, slow gates, warnings, sizes, tests, hooks, app tests
 AGT-030	AGENTS.md	merge	AGT-056	duplicate of the per-commit check rule (audit s2, spec item 1); 0028 changes it in slice 8	10edc92		full make check green before each commit
 AGT-031	AGENTS.md	keep	AGENTS.md	toolchain fact	10edc92		Xcode 26 and Swift 6.2, SwiftPM only, decision 0001
 AGT-032	AGENTS.md	keep	AGENTS.md	entry point to the deliver flow	10edc92		deliver skill drives every feature, requirement, or bug through its phases
@@ -95,7 +95,7 @@ AGT-093	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		ParityTests cov
 AGT-094	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		other public features log why they lack a CLI command
 AGT-095	AGENTS.md	keep	AGENTS.md	architecture rule; C18	2ea3dd1		CLI only parses, calls, prints; its logic lives in a library
 AGT-096	AGENTS.md	keep	AGENTS.md	zero warnings; C18	7723b34		warnings are errors per target (SE-0480); fix the cause, no suppression
-AGT-097	AGENTS.md	keep	AGENTS.md	architecture rule; C18	10edc92		Swift file over 400 lines needs a reason; split by responsibility
+AGT-097	AGENTS.md	enforced	Makefile	check-sizes in make check and check-fast fails a Swift file over 400 lines with no reason in scripts/check-sizes.allow	10edc92		Swift file over 400 lines needs a reason; split by responsibility
 AGT-098	AGENTS.md	keep	AGENTS.md	test-first stays (C18)	10edc92		red test first via tdd for each behavior change
 AGT-099	AGENTS.md	merge	TDD-002	duplicate of tdd:10 (audit s2, spec item 7)	10edc92		integration tests with real files and buffers; unit tests for pure functions
 AGT-100	AGENTS.md	merge	TDD-006	duplicate of tdd:15 (step 2); slice 8 points to tdd (row reason)	10edc92		generated audio fixtures in tests, no big binary fixtures

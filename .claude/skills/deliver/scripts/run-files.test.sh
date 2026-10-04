@@ -4,7 +4,8 @@
 # nothing, keeps the six-argument form, and refuses a row whose decision or result starts with
 # default and whose why has no `Reverse:` (any case), and refuses a phase that is not one digit.
 # Check that a criterion change row needs a newer analysis.md and the words old and new.
-# Check that new-run.sh reports the backlog sections and the upkeep items.
+# Check that new-run.sh reports the backlog sections, the upkeep items, and a due architecture
+# audit.
 # Run by `make test-hooks`.
 set -uo pipefail
 log="$(cd "$(dirname "$0")" && pwd)/log-decision.sh"
@@ -148,6 +149,29 @@ printf '# Backlog\n\n## Next\n\n- upkeep a: x\n- upkeep b: x\n- upkeep c: x\n\n#
 (cd "$repo" && "$new_run" upkeep > /dev/null 2> "$tmp/err") || fail "new-run with upkeep items exits $?"
 grep -qx 'upkeep items: 3' "$tmp/err" || fail "no upkeep count of 3: $(cat "$tmp/err")"
 grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 3 upkeep items: $(cat "$tmp/err")"
+
+# It reminds of an architecture audit at 5 distinct product runs after the last run whose name has
+# architecture. A run has an open and a done row. The current run, and a run whose name has
+# workflow, upkeep, or docs, do not count.
+ledger_rows() {
+  printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
+  local r
+  for r in "$@"; do printf '| %s | x | open | |\n| %s | x | done | |\n' "$r" "$r" >> "$repo/.scratchpads/ledger.md"; done
+}
+audit() { (cd "$repo" && "$new_run" "$1" > /dev/null 2> "$tmp/err") || fail "new-run $1 exits $?"; }
+ledger_rows 2026-01-01-architecture-a 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 2026-01-05-p4
+audit audit-four
+grep -q 'architecture audit' "$tmp/err" && fail "a reminder at 4 product runs: $(cat "$tmp/err")"
+ledger_rows 2026-01-01-architecture-a 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 2026-01-05-p4 2026-01-06-p5
+audit audit-five
+grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder at 5 product runs: $(cat "$tmp/err")"
+ledger_rows 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 2026-01-05-p4 2026-01-06-p5
+printf '| 2026-01-07-architecture-b | x | open | |\n' >> "$repo/.scratchpads/ledger.md"
+audit audit-reset
+grep -q 'architecture audit' "$tmp/err" && fail "a reminder after an open architecture run: $(cat "$tmp/err")"
+ledger_rows 2026-01-01-architecture-a 2026-01-02-workflow-a 2026-01-03-upkeep-b 2026-01-04-docs-c 2026-01-05-workflow-d 2026-01-06-docs-e
+audit audit-docs
+grep -q 'architecture audit' "$tmp/err" && fail "a reminder for workflow, upkeep, and docs runs: $(cat "$tmp/err")"
 
 [[ $failures -eq 0 ]] && echo "run-files tests: all passed"
 exit $((failures > 0))

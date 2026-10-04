@@ -39,6 +39,7 @@ DANGEROUS_PATTERNS=(
   'git (checkout|restore) (-- )?\.( |$)'
   'git switch .*(--discard-changes|-f( |$)|--force)'
   'git stash (drop|clear)'
+  'git worktree remove .*(--force|-f( |$))'
   '--no-verify'
   'git commit( .*)? -n( |$)'
   'gh pr merge .*--admin'

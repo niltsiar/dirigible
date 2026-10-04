@@ -72,8 +72,11 @@ import Observation
     @ObservationIgnored var live = LiveStore()
     /// One more for each take that begins. Two takes can have the same number.
     @ObservationIgnored private(set) var generation = 0
-    /// The write chain of every package write, in `Studio+Save.swift`.
-    @ObservationIgnored var save = SaveChain()
+    /// The write chain: each package write (an autosave, a start, a finalize, or a placement) runs
+    /// in its turn, so the writes run one at a time in the order of their calls.
+    @ObservationIgnored private let writes = TurnQueue()
+    /// True from `scheduleSave` until its write starts.
+    @ObservationIgnored private var saveWaits = false
     /// The monitor order (decision 0015): each change of the monitor runs in one turn. Code that
     /// holds a monitor turn never waits for a package write, so the two orders cannot wait for
     /// each other.
@@ -371,14 +374,33 @@ import Observation
         saveError = nil
     }
 
-    /// The end of an autosave: the package path, or the error.
-    func saveEnded(_ result: Result<URL, StudioError>) {
-        switch result {
-        case .success(let package):
-            url = package
-            saveError = nil
-        case .failure(let error):
-            saveError = error
+    /// Runs `body` after every package write that started before this call. `body` runs in the
+    /// task of the caller, so no actor hop comes between its end and the caller.
+    func serialized<T>(_ body: () async -> T) async -> T { await writes.run(body) }
+
+    /// Tests only: the calls that wait for their turn of the package writes.
+    var writesWaiting: Int { writes.waiters }
+
+    /// Writes the session off the main actor, after the previous package write. It takes its
+    /// ticket now, so a later start or finalize writes after it. A save that waits for its turn
+    /// writes the session of that turn, so a later call adds no write: a held Nudge key makes at
+    /// most one write in progress and one that waits (decision 0018).
+    private func scheduleSave() {
+        sendSession()
+        guard !saveWaits else { return }
+        saveWaits = true
+        let (lock, save, ticket) = (lock, environment.saveSession, writes.ticket())
+        Task {
+            await writes.wait(for: ticket)
+            saveWaits = false
+            switch await writeSession(session, lock: lock, previous: url, recordings: recordings, save) {
+            case .success(let package):
+                url = package
+                saveError = nil
+            case .failure(let error):
+                saveError = error
+            }
+            writes.end()
         }
     }
 }

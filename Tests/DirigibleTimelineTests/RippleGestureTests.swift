@@ -19,7 +19,7 @@ struct RippleGestureTests {
 
     func context(canEdit: Bool = true, canRipple: Bool = true) -> GestureContext {
         GestureContext(
-            session: session, marks: Marks(), playhead: 0, geometry: Fixture.geometry, canEdit: canEdit,
+            session: session, selection: .none, playhead: 0, geometry: Fixture.geometry, canEdit: canEdit,
             canRipple: canRipple)
     }
 
@@ -72,7 +72,7 @@ struct RippleGestureTests {
         let effects = up(498)
         #expect(commits(effects).count == 1, "one commit, one undo entry")
         #expect(committed(effects) == expected)
-        #expect(commits(effects).first?.marks == Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"]))
+        #expect(commits(effects).first?.selection == .range(Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"])))
     }
 
     /// Code gate 2 item 4: the move snaps to whole device columns, so at 2 columns per point a
@@ -102,7 +102,7 @@ struct RippleGestureTests {
         try session.place(Clip(id: "Z", file: "fb", start: 0, offset: 4_800, length: 24_000), on: "t2")
         var gesture = TimelineGesture()
         let context = GestureContext(
-            session: session, marks: Marks(), playhead: 0, geometry: Fixture.geometry, canEdit: true, canRipple: true)
+            session: session, selection: .none, playhead: 0, geometry: Fixture.geometry, canEdit: true, canRipple: true)
         _ = gesture.handle(.down(.lanes(x: 1, y: 70), shift: false, command: false, option: true), context)
         _ = gesture.handle(.drag(.lanes(x: -19, y: 70)), context)
         #expect(

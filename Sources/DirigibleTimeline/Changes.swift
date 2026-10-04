@@ -87,6 +87,16 @@ public func changedFrames(from old: Marks, to new: Marks, in session: Session) -
     return changed ?? .zero ..< .zero
 }
 
+/// The frames where the selection `new` draws differently from `old` on the lanes of `session`.
+/// Empty when nothing changed.
+public func changedFrames(from old: Selection, to new: Selection, in session: Session) -> Range<Frames> {
+    guard old != new else { return .zero ..< .zero }
+    switch (old, new) {
+    case (.range(let a), .range(let b)): return changedFrames(from: a, to: b, in: session)
+    default: return .zero ..< .limit
+    }
+}
+
 /// The smallest range that holds `range` and `start ..< end`.
 private func hull(_ range: Range<Frames>?, _ start: Frames, _ end: Frames) -> Range<Frames> {
     min(range?.lowerBound ?? start, start)..<max(range?.upperBound ?? end, end)

@@ -23,13 +23,13 @@ extension SessionWindow {
         guard let studio else { return }
         for effect in effects {
             switch effect {
-            case .marks(let marks): timeline.marks = marks
+            case .selection(let selection): timeline.selection = selection
             case .seek(let frame): Task { await studio.perform(.seek(.frame(frame))) }
             case .currentMarker(let id): timeline.marker = id
             case .beep: beep()
             case .commit(let commit):
                 guard edit({ session in commit.apply(to: &session) }) == true else { continue }
-                if let marks = commit.marks { timeline.marks = marks }
+                if let selection = commit.selection { timeline.selection = selection }
                 if let marker = commit.marker { timeline.marker = marker }
             }
         }
@@ -231,7 +231,7 @@ extension SessionWindow {
         case .zoomOut: timelineView?.navigate(.zoom(by: 2))
         case .zoomToSession: timelineView?.navigate(.fitSession)
         case .zoomToSelection:
-            timelineView?.navigate(.toggleSelection(timeline.marks.selection(in: studio.session)?.range))
+            timelineView?.navigate(.toggleSelection(timeline.selection.marks?.selection(in: studio.session)?.range))
         case .zoomBack: timelineView?.navigate(.back)
         case .zoomForward: timelineView?.navigate(.forward)
         case .pagePrevious: timelineView?.navigate(.page(.backward))
@@ -249,12 +249,12 @@ extension SessionWindow {
             timeline.follows.toggle()
             timeline.followHeld = false
             if timeline.follows { timelineView?.showPlayhead() }
-        case .setIn: timeline.marks = timeline.marks.settingIn(studio.playhead, in: studio.session)
-        case .setOut: timeline.marks = timeline.marks.settingOut(studio.playhead, in: studio.session)
+        case .setIn: timeline.selection = .range(timeline.range.settingIn(studio.playhead, in: studio.session))
+        case .setOut: timeline.selection = .range(timeline.range.settingOut(studio.playhead, in: studio.session))
         case .deselectAll:
-            timeline.marks = Marks()
+            timeline.selection = .none
             timeline.marker = nil
-        case .selectAll: timeline.marks = Marks.all(in: studio.session)
+        case .selectAll: timeline.selection = .range(Marks.all(in: studio.session))
         case .copy, .paste, .delete: runClipboard(command, studio)
         case .cut, .deleteCloseGap, .insert, .cutSelectedTracks, .deleteCloseGapSelectedTracks:
             runRipple(command, studio)
@@ -262,7 +262,7 @@ extension SessionWindow {
         case .fade: runFade(studio)
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
-        case .removeTrack: removeTracks(studio.session.tracks.map(\.id).filter(timeline.marks.tracks.contains))
+        case .removeTrack: removeTracks(studio.session.tracks.map(\.id).filter(timeline.range.tracks.contains))
         case .showInFinder: Task { await showClipsInFinder() }
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }

@@ -8,7 +8,7 @@ extension TimelineDocumentView {
     /// Marks lines and band stay at their frames, so the copied region starts 1 pt past them in
     /// the old and the new lanes: after a ripple commit, the Marks are on the dragged clip.
     func shift(from old: LaneInputs?) -> ShiftedFrames? {
-        guard let old, let inputs, let geometry = inputs.geometry, old.marks == inputs.marks,
+        guard let old, let inputs, let geometry = inputs.geometry, old.selection == inputs.selection,
             let shift = shiftedFrames(from: old.session, to: inputs.session)
         else { return nil }
         guard let last = [inputs.marks.inPoint, inputs.marks.outPoint].compactMap({ $0 }).max() else { return shift }

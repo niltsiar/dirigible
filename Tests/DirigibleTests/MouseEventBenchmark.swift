@@ -104,7 +104,7 @@ func expectWithinBudget(
         pane.frame = try #require(window.contentView).bounds
         window.contentView?.addSubview(pane)
         let inputs = LaneInputs(
-            session: session, peaks: peaks, missingMedia: [:], marks: Marks(),
+            session: session, peaks: peaks, missingMedia: [:], selection: .none,
             scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: laneHeight)
         // The first update fits the session; the second sets the zoom of the test.
         view.update(inputs)

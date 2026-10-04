@@ -12,7 +12,7 @@ extension SessionWindow {
 
     /// The one selected track of the session, else nil.
     private var selectedTrack: TrackID? {
-        let selected = studio?.session.tracks.map(\.id).filter(timeline.marks.tracks.contains) ?? []
+        let selected = studio?.session.tracks.map(\.id).filter(timeline.range.tracks.contains) ?? []
         return selected.count == 1 ? selected[0] : nil
     }
 

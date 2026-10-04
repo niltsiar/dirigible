@@ -41,7 +41,7 @@ struct LaneRendererTests {
     ) -> LaneInputs {
         LaneInputs(
             session: session, peaks: ["f1": .ready(Self.peaks(peaks)), "f2": .ready(Self.peaks(peaks))],
-            missingMedia: missing, marks: marks, scale: TimelineScale(framesPerPoint: 256), laneHeight: 100)
+            missingMedia: missing, selection: .range(marks), scale: TimelineScale(framesPerPoint: 256), laneHeight: 100)
     }
 
     /// The pixels of a draw of the document points 0 ..< `width` of all lanes at `scale`.
@@ -202,7 +202,7 @@ struct LaneRendererTests {
                 "f1": .ready(Self.peaks([Self.zero, Self.zero])),
                 "f2": .ready(Self.peaks(Array(repeating: full, count: 4))),
             ],
-            missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 256), laneHeight: 100)
+            missingMedia: [:], selection: .none, scale: TimelineScale(framesPerPoint: 256), laneHeight: 100)
 
         let pixels = try Self.render(inputs, width: 5)
 
@@ -281,7 +281,7 @@ struct LaneRendererTests {
         let inputs = LaneInputs(
             session: session, peaks: ["f1": .ready(randomPeaks(frames: 2_000_000))],
             missingMedia: ["f1": .short(12_345)],
-            marks: Marks(inPoint: 1_780_001, outPoint: 1_830_777, tracks: ["t2"]),
+            selection: .range(Marks(inPoint: 1_780_001, outPoint: 1_830_777, tracks: ["t2"])),
             scale: TimelineScale(framesPerPoint: 1333.37), laneHeight: 100)
         let window = try #require(laneWindow(inputs, x: 1333, width: 100, scale: 2))
         #expect(window.pixels.columns == 2666..<2866)

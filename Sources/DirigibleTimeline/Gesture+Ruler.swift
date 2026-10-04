@@ -57,7 +57,7 @@ extension TimelineGesture {
             let low = marks.inPoint.map { $0 + Frames(1) } ?? .zero
             marks.outPoint = min(max(low, frame + delta), .limit)
         }
-        return [.marks(marks)]
+        return [.selection(.range(marks))]
     }
 
     /// A click on a flag makes it the current marker and seeks to it; a click on a triangle seeks
@@ -75,7 +75,7 @@ extension TimelineGesture {
     /// marker. A drag back to the start is a click.
     func commit(_ press: Press, _ original: Marker, _ preview: Session) -> [GestureEffect] {
         guard preview.markers[original.id]?.position != original.position else { return rulerClick(press) }
-        return [.commit(GestureCommit(base: press.base, result: preview, marks: nil, marker: original.id))]
+        return [.commit(GestureCommit(base: press.base, result: preview, selection: nil, marker: original.id))]
     }
 
     /// The frame and the flag under the ruler x `x`, for the ruler menu (criterion 13). A flag under
@@ -104,6 +104,9 @@ extension TimelineGesture.Target {
 }
 
 extension GestureContext {
+    /// The range of the selection; no Marks for a clip set.
+    var marks: Marks { selection.marks ?? Marks() }
+
     func rulerHit(_ x: Double, _ y: Double) -> RulerHit? {
         RulerGeometry.hit(x, y, markers: session.markers, marks: marks, geometry: geometry)
     }

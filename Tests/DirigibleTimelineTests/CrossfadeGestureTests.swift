@@ -20,7 +20,7 @@ struct CrossfadeGestureTests {
 
     func context(canEdit: Bool = true) -> GestureContext {
         GestureContext(
-            session: session, marks: Marks(), playhead: 0, geometry: Fixture.geometry, canEdit: canEdit,
+            session: session, selection: .none, playhead: 0, geometry: Fixture.geometry, canEdit: canEdit,
             canRipple: true)
     }
 
@@ -113,7 +113,7 @@ struct CrossfadeGestureTests {
     @Test mutating func shiftMakesARangePress() {
         down(180, shift: true)
         let effects = drag(170)
-        #expect(effects.contains { if case .marks = $0 { true } else { false } })
+        #expect(effects.contains { if case .selection = $0 { true } else { false } })
         #expect(drawn.a?.end == 19_200 && gesture.readout == nil)
     }
 

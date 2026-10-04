@@ -29,16 +29,16 @@ extension TimelineMouseTests {
         try drag(view, 310, 10)
         drawNow(window)
         #expect(view.lanes.drawnRect == NSRect(x: 249, y: 0, width: 112, height: 200), "only the event")
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t2"])))
+        view.update(laneInputs(model, studio, selection: .range(Marks(inPoint: 0, outPoint: 512_000, tracks: ["t2"]))))
         drawNow(window)
         #expect(view.lanes.drawnRect == NSRect(x: 0, y: 0, width: 1002, height: 200), "new Marks: all rows")
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t8"])))
+        view.update(laneInputs(model, studio, selection: .range(Marks(inPoint: 0, outPoint: 512_000, tracks: ["t8"]))))
         drawNow(window)
         let draws = view.lanes.draws
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t9"])))
+        view.update(laneInputs(model, studio, selection: .range(Marks(inPoint: 0, outPoint: 512_000, tracks: ["t9"]))))
         drawNow(window)
         #expect(view.lanes.draws == draws, "Marks that draw the same pixels draw nothing")
-        var inputs = laneInputs(model, studio, marks: Marks(inPoint: 0, outPoint: 512_000, tracks: ["t9"]))
+        var inputs = laneInputs(model, studio, selection: .range(Marks(inPoint: 0, outPoint: 512_000, tracks: ["t9"])))
         inputs.peaks = ["f1": .ready(randomPeaks(frames: 960_000))]
         view.update(inputs)
         drawNow(window)
@@ -55,7 +55,9 @@ extension TimelineMouseTests {
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
         try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
         let (window, view) = standaloneLanes(model, studio)
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 204_800, outPoint: 409_600, tracks: ["t1", "t2"])))
+        view.update(
+            laneInputs(
+                model, studio, selection: .range(Marks(inPoint: 204_800, outPoint: 409_600, tracks: ["t1", "t2"]))))
         drawNow(window)
         #expect(view.lanes.drawnRect == NSRect(x: 399, y: 0, width: 403, height: 200), "the Marks")
         try press(view, 250, 10)
@@ -82,7 +84,8 @@ extension TimelineMouseTests {
         let (window, view) = standaloneLanes(model, studio)
         try #require(view.shown.minY == 0 && view.shown.height == 376, "\(view.shown)")
         let all = Set((1...8).map { TrackID("t\($0)") })
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 204_800, outPoint: 307_200, tracks: all)))
+        view.update(
+            laneInputs(model, studio, selection: .range(Marks(inPoint: 204_800, outPoint: 307_200, tracks: all))))
         drawNow(window)
         #expect(view.lanes.drawnRect == NSRect(x: 399, y: 0, width: 203, height: 400), "the Marks")
         try press(view, 250, 10)

@@ -54,7 +54,7 @@ import Testing
         await until("the click seeks") { abs(studio.playhead.count - 102_400) <= 512 }
         view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 300, y: 150), in: view, flags: .command))
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 150), in: view, flags: .command))
-        #expect(model.timeline.marks.tracks == ["t2"])
+        #expect(model.timeline.marks?.tracks == ["t2"])
         lanesWindow.close()
         await model.close()
     }
@@ -326,7 +326,8 @@ import Testing
         let clip = Clip(id: "c2", file: "f1", start: 48_000, offset: 0, length: 96_000)
         try session.place(clip, on: "t2")
         let inputs = LaneInputs(
-            session: session, peaks: [:], missingMedia: [:], marks: Marks(), scale: TimelineScale(framesPerPoint: 512),
+            session: session, peaks: [:], missingMedia: [:], selection: .none,
+            scale: TimelineScale(framesPerPoint: 512),
             laneHeight: 100)
         let geometry = try #require(LaneGeometry(scale: inputs.scale, laneHeight: inputs.laneHeight))
         let box = geometry.box(of: clip, lane: 1)

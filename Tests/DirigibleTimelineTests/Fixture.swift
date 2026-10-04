@@ -25,3 +25,12 @@ enum Fixture {
         return session
     }
 }
+
+/// Test shims of decision 0038: the range tests write a range selection as Marks.
+extension GestureEffect {
+    static func marks(_ marks: Marks) -> GestureEffect { .selection(.range(marks)) }
+}
+
+extension ClipInspection {
+    init?(marks: Marks, session: Session) { self.init(selection: .range(marks), session: session) }
+}

@@ -15,7 +15,7 @@ struct GestureTests {
         _ session: Session? = nil, marks: Marks = Marks(), playhead: Frames = 1000, canEdit: Bool = true
     ) -> GestureContext {
         GestureContext(
-            session: session ?? self.session, marks: marks, playhead: playhead, geometry: Fixture.geometry,
+            session: session ?? self.session, selection: .range(marks), playhead: playhead, geometry: Fixture.geometry,
             canEdit: canEdit, canRipple: true)
     }
 
@@ -98,7 +98,7 @@ struct GestureTests {
         #expect(place("A", in: result) == Spot("t1", 96_000..<144_000))
         #expect(result?.clip("A")?.clip.offset == 0 && result?.clip("B")?.clip == Fixture.b)
         guard case .commit(let commit) = effects.first else { return }
-        #expect(commit.marks == Marks(inPoint: 96_000, outPoint: 144_000, tracks: ["t1"]))
+        #expect(commit.selection == .range(Marks(inPoint: 96_000, outPoint: 144_000, tracks: ["t1"])))
         #expect(!gesture.isActive && drawn == session)
     }
 
@@ -259,7 +259,7 @@ struct GestureTests {
         let result = committed(effects)
         #expect(place("A", in: result) == Spot("t1", 57_600..<96_000) && result?.clip("A")?.clip.offset == 9_600)
         guard case .commit(let commit) = effects.first else { return }
-        #expect(commit.marks == Marks(inPoint: 57_600, outPoint: 96_000, tracks: ["t1"]))
+        #expect(commit.selection == .range(Marks(inPoint: 57_600, outPoint: 96_000, tracks: ["t1"])))
         #expect(!gesture.isActive && drawn == session)
         _ = down(101, 10)
         _ = drag(121, 10)

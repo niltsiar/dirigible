@@ -51,7 +51,9 @@ struct MarkerRename: Hashable {
 
 /// The timeline state of one window (decision 0017). None of it is saved.
 struct TimelineState {
-    var marks = Marks()
+    var selection = Selection.none
+    /// The range of the selection; no Marks for a clip set (decision 0038).
+    var range: Marks { selection.marks ?? Marks() }
     var scale = TimelineScale(framesPerPoint: 512)
     /// Automatic Scroll: on at open.
     var follows = true

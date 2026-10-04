@@ -29,7 +29,7 @@ import Testing
         #expect(window.firstResponder?.tryToPerform(#selector(NSResponder.selectAll(_:)), with: nil) == true)
 
         #expect(model.timeline.marks == Marks.all(in: studio.session))
-        #expect(model.timeline.marks.tracks.count == 2)
+        #expect(model.timeline.marks?.tracks.count == 2)
         await model.close()
     }
 

@@ -5,7 +5,7 @@ import Foundation
 /// records, or finalizes. `canRipple` is false while a take is pending or split (decision 0037).
 public struct GestureContext: Sendable {
     public var session: Session
-    public var marks: Marks
+    public var selection: Selection
     public var playhead: Frames
     public var geometry: LaneGeometry
     public var canEdit: Bool
@@ -15,10 +15,11 @@ public struct GestureContext: Sendable {
     public var columnsPerPoint = 1.0
 
     public init(
-        session: Session, marks: Marks, playhead: Frames, geometry: LaneGeometry, canEdit: Bool, canRipple: Bool
+        session: Session, selection: Selection, playhead: Frames, geometry: LaneGeometry, canEdit: Bool,
+        canRipple: Bool
     ) {
-        (self.session, self.marks, self.playhead, self.geometry, self.canEdit, self.canRipple) =
-            (session, marks, playhead, geometry, canEdit, canRipple)
+        (self.session, self.selection, self.playhead, self.geometry, self.canEdit, self.canRipple) =
+            (session, selection, playhead, geometry, canEdit, canRipple)
     }
 }
 
@@ -35,7 +36,7 @@ public enum GestureEvent: Equatable, Sendable {
 
 /// What the window does for an event.
 public enum GestureEffect: Equatable, Sendable {
-    case marks(Marks)
+    case selection(Selection)
     case seek(Frames)
     /// The current marker of the window (decision 0018).
     case currentMarker(MarkerID)
@@ -44,12 +45,12 @@ public enum GestureEffect: Equatable, Sendable {
     case beep
 }
 
-/// One Core edit on the session of the mouse-down (`base`), and the Marks or the current marker
-/// after it. Only the gesture makes one.
+/// One Core edit on the session of the mouse-down (`base`), and the selection or the current
+/// marker after it. Only the gesture makes one.
 public struct GestureCommit: Equatable, Sendable {
     let base: Session
     let result: Session
-    public let marks: Marks?
+    public let selection: Selection?
     public let marker: MarkerID?
 
     /// Sets `session` to the result when it is still `base` and returns true; else changes nothing
@@ -80,16 +81,19 @@ public struct TimelineGesture: Sendable {
         case point(MarkPoint)
     }
 
-    /// The mouse-down: its target, point, frame, modifiers, click count, and the session and Marks
-    /// at that time.
+    /// The mouse-down: its target, point, frame, modifiers, click count, and the session and the
+    /// selection at that time.
     struct Press: Sendable {
         let target: Target
         let x, y: Double
         let frame: Frames
         let shift, command, option: Bool
         let clicks: Int
-        let marks: Marks
+        let selection: Selection
         let base: Session
+
+        /// The range of the selection at the down; no Marks for a clip set.
+        var marks: Marks { selection.marks ?? Marks() }
 
         /// The frames from the down to `x`: zero under the threshold of horizontal movement, so the
         /// jitter of a click or a drag to another lane never changes the time of an edit.
@@ -172,7 +176,7 @@ public struct TimelineGesture: Sendable {
             state = .pressed(
                 Press(
                     target: target, x: x, y: y, frame: context.geometry.frame(at: x), shift: shift, command: command,
-                    option: option, clicks: clicks, marks: context.marks, base: context.session))
+                    option: option, clicks: clicks, selection: context.selection, base: context.session))
             return []
         case .drag(let place):
             return drag(place, context)
@@ -201,7 +205,7 @@ public struct TimelineGesture: Sendable {
                 return []
             case .ranging(let press), .pointDrag(let press, _):
                 state = .dropped
-                return [.marks(press.marks)]
+                return [.selection(press.selection)]
             }
         case .sessionChanged:
             switch state {
@@ -321,7 +325,7 @@ public struct TimelineGesture: Sendable {
             let drag = Marks.drag(
                 from: press.frame, to: geometry.frame(at: x), lanes: (geometry.lane(at: press.y), geometry.lane(at: y)),
                 in: context.session)
-            return [.marks(press.shift ? press.marks.extended(by: drag) : drag)]
+            return [.selection(.range(press.shift ? press.marks.extended(by: drag) : drag))]
         case .markerDrag(let press, let original, _):
             return markerDrag(press, original, x, context)
         case .pointDrag(let press, let point):
@@ -335,6 +339,6 @@ public struct TimelineGesture: Sendable {
         guard trim.range != trim.clip.range else { return click(press, context) }
         let marks = Marks(
             inPoint: trim.range.lowerBound, outPoint: trim.range.upperBound, tracks: [press.base.tracks[trim.lane].id])
-        return [.commit(GestureCommit(base: press.base, result: trim.preview, marks: marks, marker: nil))]
+        return [.commit(GestureCommit(base: press.base, result: trim.preview, selection: .range(marks), marker: nil))]
     }
 }

@@ -19,7 +19,7 @@ struct RulerGestureTests {
 
     func context(_ session: Session? = nil, canEdit: Bool = true) -> GestureContext {
         GestureContext(
-            session: session ?? self.session, marks: marks, playhead: 1000, geometry: Fixture.geometry,
+            session: session ?? self.session, selection: .range(marks), playhead: 1000, geometry: Fixture.geometry,
             canEdit: canEdit, canRipple: true)
     }
 
@@ -55,7 +55,7 @@ struct RulerGestureTests {
         let result = committed(up(251, 10))
 
         #expect(result?.position == 120_000)
-        #expect(result?.commit.marker == "m1" && result?.commit.marks == nil)
+        #expect(result?.commit.marker == "m1" && result?.commit.selection == nil)
         #expect(!gesture.isActive && drawn == session)
     }
 

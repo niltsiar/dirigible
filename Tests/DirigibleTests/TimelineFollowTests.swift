@@ -134,7 +134,8 @@ import os
         let (model, studio, lanesWindow, view) = try await lanes()
         let draws = view.lanes.draws
 
-        view.update(laneInputs(model, studio, marks: Marks(inPoint: 1000, outPoint: 50_000, tracks: ["t1"])))
+        view.update(
+            laneInputs(model, studio, selection: .range(Marks(inPoint: 1000, outPoint: 50_000, tracks: ["t1"]))))
         drawNow(lanesWindow)
 
         #expect(view.lanes.draws == draws + 1)

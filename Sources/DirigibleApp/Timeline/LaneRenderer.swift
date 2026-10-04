@@ -15,13 +15,15 @@ struct LaneInputs: Equatable {
     var session: Session
     var peaks: [FileID: PeakState]
     var missingMedia: [FileID: MediaFault]
-    var marks: Marks
+    var selection: Selection
     var scale: TimelineScale
     /// Points.
     var laneHeight: Double
 
     /// The one point and frame conversion of the lanes (decision 0020).
     var geometry: LaneGeometry? { LaneGeometry(scale: scale, laneHeight: laneHeight) }
+    /// The range that draws its band and lines; no Marks for a clip set (decision 0038).
+    var marks: Marks { selection.marks ?? Marks() }
 }
 
 /// The lane colors as pixels: 0xAARRGGBB in a little-endian word (BGRA in memory).

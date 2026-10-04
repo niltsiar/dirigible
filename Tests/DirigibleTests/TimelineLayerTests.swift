@@ -60,7 +60,7 @@ import Testing
 
     /// The inputs of SwiftUI: the Studio session and the Marks of the window, with the peaks.
     func inputs(_ model: SessionWindow, _ studio: Studio, laneHeight: Double = 100) -> LaneInputs {
-        var inputs = laneInputs(model, studio, marks: model.timeline.marks)
+        var inputs = laneInputs(model, studio, selection: model.timeline.selection)
         inputs.peaks = Self.peaks
         inputs.laneHeight = laneHeight
         inputs.scale = model.timeline.scale

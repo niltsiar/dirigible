@@ -12,7 +12,7 @@ public struct GestureContext: Sendable {
     public var canRipple: Bool
 
     public init(
-        session: Session, marks: Marks, playhead: Frames, geometry: LaneGeometry, canEdit: Bool, canRipple: Bool = true
+        session: Session, marks: Marks, playhead: Frames, geometry: LaneGeometry, canEdit: Bool, canRipple: Bool
     ) {
         (self.session, self.marks, self.playhead, self.geometry, self.canEdit, self.canRipple) =
             (session, marks, playhead, geometry, canEdit, canRipple)

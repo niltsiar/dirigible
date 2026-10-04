@@ -16,7 +16,7 @@ struct GestureTests {
     ) -> GestureContext {
         GestureContext(
             session: session ?? self.session, marks: marks, playhead: playhead, geometry: Fixture.geometry,
-            canEdit: canEdit)
+            canEdit: canEdit, canRipple: true)
     }
 
     mutating func down(_ x: Double, _ y: Double, shift: Bool = false, command: Bool = false) -> [GestureEffect] {

@@ -50,6 +50,24 @@ extension TimelineLayerTests {
         drawNow(window)
         let wrong = try Self.wrongPixels(view)
         if wrong.count > 0 { failures.append("mouse-up: \(wrong.count) pixels, the first \(wrong.first!)") }
+        // A second drag of the same edge, with the Marks of the commit on c1: it draws by a shift.
+        view.update(inputs(model, studio))
+        drawNow(window)
+        #expect(view.lanes.inputs?.marks.outPoint == view.lanes.inputs?.session.clip("c1")?.clip.end, "Marks on c1")
+        var marked = [view.lanes.surfaces.shifted]
+        let again = try #require(view.lanes.clipFrame("c1"))
+        let end = NSPoint(x: again.maxX - 2, y: again.minY + 10)
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, end, in: view, flags: .option))
+        for (n, dx) in [-6.0, -12].enumerated() {
+            view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: end.x + dx, y: end.y), in: view))
+            drawNow(window)
+            await Task.yield()
+            let wrong = try Self.wrongPixels(view)
+            if wrong.count > 0 { failures.append("marked drag \(n): \(wrong.count) pixels, the first \(wrong.first!)") }
+            marked.append(view.lanes.surfaces.shifted)
+        }
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: end.x - 12, y: end.y), in: view))
+        #expect(marked == [marked[0], marked[0] + 1, marked[0] + 2], "the Marks on the clip keep the shift")
         // A start edge: the clip start stays, and the audio slides under it.
         let second = try #require(view.lanes.inputs?.session.tracks[0].clips[1])
         let start = try #require(view.lanes.clipFrame(second.id))

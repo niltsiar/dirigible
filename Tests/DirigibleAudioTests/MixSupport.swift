@@ -122,3 +122,41 @@ func maxError(_ a: [Float], _ b: [Float]) -> Float {
 func slice(_ channels: [[Float]], _ range: Range<Int>) -> [[Float]] {
     channels.map { Array($0[range]) }
 }
+
+/// The crossfade fixture (decision 0036): stereo track t1 with clip A on a file of (1, 0) at
+/// 1,000 ..< 11,000 and clip B on a file of (0, 1) at 11,000 ..< 21,000, each at offset 5,000 in a
+/// file of 30,000 frames, with a crossfade of `length` at the join J = 11,000. The left channel is
+/// A alone and the right channel B alone.
+func crossfadedPackage(_ length: Int = 480) throws -> MixPackage {
+    let package = try MixPackage()
+    let (one, zero) = ([Float](repeating: 1, count: 30_000), [Float](repeating: 0, count: 30_000))
+    try package.addFile("left", channels: [one, zero])
+    try package.addFile("right", channels: [zero, one])
+    try package.addTrack("t1", layout: .stereo, clip: "A", file: "left", start: 1_000, offset: 5_000, length: 10_000)
+    try package.session.place(Clip(id: "B", file: "right", start: 11_000, offset: 5_000, length: 10_000), on: "t1")
+    try package.session.setCrossfades(["A": Frames(length)])
+    return package
+}
+
+/// The expected crossfade mix of `range`, in Double: over J - L/2 ..< J + L/2, with i = t - (J -
+/// L/2), the left channel is sin(pi/2 * (L - i) / L) and the right channel sin(pi/2 * i / L).
+func crossfadedMix(_ range: Range<Int>, length: Int = 480) -> [[Double]] {
+    let first = 11_000 - length / 2
+    let left = range.map { t -> Double in
+        guard t >= 1_000 else { return 0 }
+        return t < first
+            ? 1 : t < 11_000 + length / 2 ? sin(.pi / 2 * Double(length - (t - first)) / Double(length)) : 0
+    }
+    let right = range.map { t -> Double in
+        guard t < 21_000 else { return 0 }
+        return t >= 11_000 + length / 2 ? 1 : t >= first ? sin(.pi / 2 * Double(t - first) / Double(length)) : 0
+    }
+    return [left, right]
+}
+
+/// The largest absolute difference of a rendered channel and a Double channel; infinity when the
+/// counts differ.
+func maxError(_ a: [Float], _ b: [Double]) -> Double {
+    guard a.count == b.count else { return .infinity }
+    return zip(a, b).map { abs(Double($0) - $1) }.max() ?? 0
+}

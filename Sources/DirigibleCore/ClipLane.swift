@@ -51,6 +51,13 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         storage.filter { $0.range.overlaps(range) }
     }
 
+    /// The clips whose sounding range (decision 0036: the clip plus half of each crossfade) has at
+    /// least one frame in `range`. The render, the media check, and the draw read it, so a clip
+    /// that sounds in a range from its handle is found.
+    public func clips(soundingIn range: Range<Frames>) -> [Clip] {
+        storage.filter { $0.sounding.range.overlaps(range) }
+    }
+
     /// Clears the range of the clip, then inserts the clip (Hindenburg paste).
     mutating func overwrite(with clip: Clip, rightID: (Clip, Frames) -> ClipID) {
         clear([clip.range], rightID: rightID)

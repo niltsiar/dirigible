@@ -281,4 +281,18 @@ struct PlayerTests {
         let mix = try fadedMix(900..<6900)
         expectEqual(await player.renderOffline(frames: 6000), [mix, mix], "L from 900, faded")
     }
+
+    /// Crossfades X3: a forward play from 10,000 has the crossfade of the mix.
+    @Test func forwardPlayHasTheCrossfade() async throws {
+        let package = try crossfadedPackage()
+        let url = package.url
+        let player = Player(package: { url }, output: .offline, session: package.session)
+        await player.apply(.play(from: 10_000, shuttle: forward), number: 1)
+        let out = await player.renderOffline(frames: 2_000)
+        let expected = crossfadedMix(10_000..<12_000)
+        #expect(out.count == 2)
+        for (channel, values) in zip(out, expected) {
+            #expect(maxError(channel, values) <= 1e-6, "the play has the crossfade")
+        }
+    }
 }

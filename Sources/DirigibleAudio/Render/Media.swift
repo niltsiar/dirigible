@@ -13,7 +13,7 @@ public enum MediaFault: Hashable, Sendable {
 }
 
 /// The fault of each pool file of the session that is not whole. With a source, only the files
-/// of the clips that overlap its range on its tracks (decision 0019). It reads the disk, so never
+/// of the clips that sound in its range on its tracks (decisions 0019 and 0036). It reads the disk, so never
 /// call it on the main actor. Throws when the process has no free descriptor: that is not a
 /// fault of a file.
 public func checkMedia(
@@ -24,7 +24,7 @@ public func checkMedia(
     if let source {
         let read = Set(
             session.tracks.filter { source.tracks?.contains($0.id) ?? true }.flatMap {
-                $0.clips.clips(overlapping: source.range).map(\.file)
+                $0.clips.clips(soundingIn: source.range).map(\.file)
             })
         files = files.filter { read.contains($0.id) }
     }

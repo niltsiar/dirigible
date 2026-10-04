@@ -194,4 +194,36 @@ struct MixTests {
             #expect(maxError(envelope, expected) <= 1e-6, "the envelope from \(from) equals Fades.gain")
         }
     }
+
+    // MARK: Crossfades (decision 0036)
+
+    /// Crossfades X1: A gives a(i) on the left and B gives b(i) on the right, within 1e-6 of the
+    /// Double formula, and left^2 + right^2 is 1 within 1e-6 over the crossfade.
+    @Test(arguments: [480, 4_800])
+    func aCrossfadeHasEqualPower(length: Int) throws {
+        let out = try crossfadedPackage(length).mix(0..<22_000)
+        let expected = crossfadedMix(0..<22_000, length: length)
+        for channel in 0..<2 {
+            let error = maxError(out[channel], expected[channel])
+            #expect(error <= 1e-6, "L \(length): channel \(channel) follows the formula, error \(error)")
+        }
+        let power = (11_000 - length / 2..<11_000 + length / 2).map { t in
+            abs(Double(out[0][t]) * Double(out[0][t]) + Double(out[1][t]) * Double(out[1][t]) - 1)
+        }.max()!
+        #expect(power <= 1e-6, "L \(length): equal power, error \(power)")
+    }
+
+    /// Crossfades X1: the envelope of a crossfaded clip, read through `Clip.sounding`, equals
+    /// `Fades.gain` of the sounding clip, so the render and the draw read one geometry.
+    @Test func theEnvelopeOfACrossfadeEqualsFadesGain() throws {
+        let package = try crossfadedPackage(4_800)
+        let sounding = try #require(package.session.clip("A")?.clip.sounding)
+        #expect(sounding.start == 1_000 && sounding.length == 12_400 && sounding.fades.fadeOut == 4_800)
+        var envelope = [Float](repeating: 0, count: 5_000)
+        envelope.withUnsafeMutableBufferPointer {
+            fadeEnvelope(sounding.fades, length: sounding.length, from: 7_400, gain: 1, into: $0)
+        }
+        let expected = (7_400..<12_400).map { Float(sounding.fades.gain(at: Frames($0), length: sounding.length)) }
+        #expect(maxError(envelope, expected) <= 1e-6, "the envelope of the sounding clip equals Fades.gain")
+    }
 }

@@ -15,7 +15,7 @@ path	words	decision
 .claude/skills/architect/references/runner-prompt.md	982	baseline
 .claude/skills/bro/	40	baseline
 .claude/skills/bro/SKILL.md	40	baseline
-.claude/skills/deliver/	3813	2026-10-04-workflow-speed-2 S4 (decisions.tsv 2026-10-04T19:46: the perf fix order, +83 words)
+.claude/skills/deliver/	3846	2026-10-04-workflow-speed-2 S9 (decisions.tsv 2026-10-04T19:57: goal-type lines, governance check, quoted evals, +63 words)
 .claude/skills/deliver/SKILL.md	1950	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once)
 .claude/skills/deliver/references/long-runs.md	220	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/deliver/references/mutation-controls.md	1150	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)

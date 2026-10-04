@@ -43,6 +43,8 @@ extension InspectorTests {
         try await type("-3", in: fields[0], window, model)
         model.toggleInspector()
         #expect(gain(studio, "A") == -3, "a hide commits the typed text")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(model.inspectorDraft == nil, "a draft after the hide: \(String(describing: model.inspectorDraft))")
         #expect(window.firstResponder === view.lanes, "a hide gives the focus to the lanes")
         #expect(undoAll(model, studio) == 1, "a hide: one entry")
 

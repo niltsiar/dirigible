@@ -56,19 +56,41 @@ extension MouseEventBenchmark {
         try Self.expectLikeANudge(fade, nudge, "fade")
     }
 
-    /// The pair rule of the Command-F benches: per zoom, the p50 is not more than the nudge p50,
-    /// and the max is not more than 1.25 times the nudge max.
+    /// The pair rule of the Command-F benches: per zoom, the p50 is not more than `p50Budget` of
+    /// the nudge p50, and the max is not more than 1.25 times the nudge max.
     static func expectLikeANudge(
-        _ command: [(p50: Duration, max: Duration)], _ nudge: [(p50: Duration, max: Duration)], _ name: String
+        _ command: [(p50: Duration, max: Duration)], _ nudge: [(p50: Duration, max: Duration)], _ name: String,
+        p50Factor: Double = 1, p50Under: Duration? = nil
     ) throws {
         try #require(command.count == zooms.count && nudge.count == zooms.count)
         for (index, (zoom, _)) in zooms.enumerated() {
             let (command, nudge) = (command[index], nudge[index])
-            expectWithinBudget(command.p50, nudge.p50, "\(name) p50 \(zoom): \(command.p50), nudge \(nudge.p50)")
+            let budget = p50Budget(nudge: nudge.p50, factor: p50Factor, under: p50Under)
+            expectWithinBudget(command.p50, budget, "\(name) p50 \(zoom): \(command.p50), budget \(budget)")
             // The max is one sample of 24. In the 11b-1 bench pairs it missed by up to 16 %, also in A/A runs.
             expectWithinBudget(
                 command.max, nudge.max * 1.25, "\(name) max \(zoom): \(command.max), 1.25 x nudge \(nudge.max)")
         }
+    }
+
+    /// The p50 budget of a Command-F bench: `factor` x the nudge p50, and under `under` when it is
+    /// given (1 ns less, so a p50 at `under` misses).
+    static func p50Budget(nudge: Duration, factor: Double, under: Duration?) -> Duration {
+        let pair = nudge * factor
+        guard let under else { return pair }
+        return min(pair, under - .nanoseconds(1))
+    }
+
+    /// The B2 rule of run 11c-2 (decisions.tsv, criterion change): 1.25 x the nudge p50 and under
+    /// 50 ms. Fail values: 1.3 x the nudge p50, and 50 ms with a slow nudge.
+    @Test func theJoinsBudgetIsAPairRuleUnderFiftyMilliseconds() {
+        func passes(_ p50: Duration, nudge: Duration) -> Bool {
+            p50 <= Self.p50Budget(nudge: nudge, factor: 1.25, under: .milliseconds(50))
+        }
+        let nudge = Duration.milliseconds(38)
+        #expect(passes(nudge * 1.2, nudge: nudge) && !passes(nudge * 1.3, nudge: nudge))
+        #expect(passes(.milliseconds(49), nudge: .milliseconds(45)), "1.25 x 45 ms is over the ceiling")
+        #expect(!passes(.milliseconds(50), nudge: .milliseconds(45)), "50 ms is not under 50 ms")
     }
 
     /// The fixture with no fades and two files on each track, which alternate: clip k of track n
@@ -104,7 +126,9 @@ extension MouseEventBenchmark {
 
     /// B2 (run 11c-2): Command-F on Select All of `joinedFixture` (decision 0036): 11,994
     /// crossfades and the fades of the 12 free edges, `changedFrames`, the SwiftUI update, and the
-    /// draw, by the pair rule of `expectLikeANudge`. Each event must make every crossfade.
+    /// draw. The p50 is not more than 1.25 x the nudge p50 and under 50 ms (criterion change of
+    /// run 11c-2: two edit passes over 12,000 clips), and the max keeps the rule of
+    /// `expectLikeANudge`. Each event must make every crossfade.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aCommandFOnJoinsCostsNoMoreThanANudge() async throws {
         let nudge = try await NavigationKeyBenchmark.measure("nudge", budget: 100_000) { model, n in
@@ -128,6 +152,6 @@ extension MouseEventBenchmark {
         #expect(
             made.count == 48 && made.allSatisfy { $0 == 11_994 }, "each Command-F makes 11,994 crossfades: \(Set(made))"
         )
-        try Self.expectLikeANudge(crossfade, nudge, "crossfade")
+        try Self.expectLikeANudge(crossfade, nudge, "crossfade", p50Factor: 1.25, p50Under: .milliseconds(50))
     }
 }

@@ -149,6 +149,30 @@ struct ToolbarMenuTests {
         await model.close()
     }
 
+    /// Criterion Z4, the closest automated check (a test has no real microphone): during a take, a
+    /// click on Zoom In halves the frames per point. Control: Zoom In off during the take fails the
+    /// state read.
+    @Test func aZoomClickDuringATakeZooms() async throws {
+        let (model, studio, _, chrome) = try await open()
+        model.armed = ["t1"]
+        await model.record()
+        try #require(model.canStop)
+        await hal.feed(seconds: 0.2)
+        let record = try #require(try item(.record, chrome).view as? NSButton)
+        await until(limit: .seconds(10), "the toolbar shows the take") { record.state == .on }
+        let view = try #require(model.timelineView)
+        let zoom = view.framesPerPoint
+        // `click` runs an item with no button view directly, so the test reads the state first.
+        #expect(try item(.zoomIn, chrome).isEnabled, "Zoom In is off during the take")
+
+        try await click(.zoomIn, chrome)
+
+        #expect(abs(view.framesPerPoint - zoom / 2) < 0.001, "\(view.framesPerPoint) after \(zoom)")
+        model.run(.stop)
+        await until("the take ends") { studio.transport == .idle }
+        await model.close()
+    }
+
     /// A7: Stop ends a take, and the take stays in the session.
     @Test func stopEndsATakeAndKeepsIt() async throws {
         let (model, studio, _, _) = try await open()

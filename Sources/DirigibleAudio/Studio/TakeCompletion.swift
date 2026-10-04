@@ -9,8 +9,8 @@ struct OpenedPackage: Sendable {
     var session: Session
     var takeError: StudioError?
     var segmentsWithAudio: [SegmentName]
-    /// The segments whose CAF does not open (decision 0037).
-    var unopenableSegments: Set<SegmentName> = []
+    /// The segments whose CAF opens but is not audio (decision 0037).
+    var notAudioSegments: Set<SegmentName> = []
     /// The pending take that the recovery finalized.
     var recoveredTake: Recording? = nil
     /// The pool files that are not whole (decision 0016).
@@ -23,8 +23,8 @@ struct TakeOutcome: Sendable {
     var session: Session
     var error: StudioError?
     var segmentsWithAudio: [SegmentName]
-    /// The segments whose CAF does not open (decision 0037).
-    var unopenableSegments: Set<SegmentName> = []
+    /// The segments whose CAF opens but is not audio (decision 0037).
+    var notAudioSegments: Set<SegmentName> = []
     /// The package path that the lock holds (`packageIdentity` form). Nil when the package left
     /// its volume.
     var package: URL?
@@ -65,7 +65,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         let scan = scanSegments(in: package)
         return OpenedPackage(
             lock: lock, package: identity, session: session, takeError: error,
-            segmentsWithAudio: scan.withAudio, unopenableSegments: scan.unopenable,
+            segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
             missingMedia: (try? checkMedia(session, package: package)) ?? [:])
     }
 
@@ -83,7 +83,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: identity)
     return OpenedPackage(
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
-        segmentsWithAudio: outcome.segmentsWithAudio, unopenableSegments: outcome.unopenableSegments,
+        segmentsWithAudio: outcome.segmentsWithAudio, notAudioSegments: outcome.notAudioSegments,
         recoveredTake: outcome.error == nil ? session.recording : nil,
         missingMedia: outcome.missingMedia ?? [:])
 }
@@ -122,7 +122,7 @@ nonisolated func completeTake(
         recordings?.set(identity, active: session.recording != nil, previous: previous)
         let scan = scanSegments(in: package)
         return TakeOutcome(
-            session: session, error: error, segmentsWithAudio: scan.withAudio, unopenableSegments: scan.unopenable,
+            session: session, error: error, segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
             package: identity,
             missingMedia: try? checkMedia(session, package: package), beforeLevel: beforeLevel)
     }
@@ -180,7 +180,7 @@ func takeClips(of finalized: Session, before: Session) -> [Clip] {
         if identity != previous { recordings?.set(identity, active: session.recording != nil, previous: previous) }
         let scan = scanSegments(in: package)
         return TakeOutcome(
-            session: session, error: error, segmentsWithAudio: scan.withAudio, unopenableSegments: scan.unopenable,
+            session: session, error: error, segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
             package: identity,
             missingMedia: try? checkMedia(session, package: package))
     }

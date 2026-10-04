@@ -39,7 +39,8 @@ import Testing
     /// Criterion 16: a click at x = 200 pt on lane 2 seeks to 102,400 (± one point of frames) and
     /// empties the Marks; a Command-click selects the lane under the pointer. The plain click is in
     /// the lower third of the clip (the range zone): a click on the upper part selects the clip
-    /// (mouse-edits criterion 2).
+    /// (mouse-edits criterion 2). The Command-click is in the lower third too: on the upper part it
+    /// toggles the clip (decision 0038).
     @Test func aClickInALaneSeeksThePlayheadAndEmptiesTheMarks() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
@@ -52,8 +53,8 @@ import Testing
 
         #expect(model.timeline.marks == Marks())
         await until("the click seeks") { abs(studio.playhead.count - 102_400) <= 512 }
-        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 300, y: 150), in: view, flags: .command))
-        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 150), in: view, flags: .command))
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 300, y: 180), in: view, flags: .command))
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 180), in: view, flags: .command))
         #expect(model.timeline.marks?.tracks == ["t2"])
         lanesWindow.close()
         await model.close()

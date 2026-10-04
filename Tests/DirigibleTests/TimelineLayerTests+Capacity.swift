@@ -2,7 +2,6 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 import Foundation
-import IOSurface
 import Testing
 
 @testable import DirigibleApp

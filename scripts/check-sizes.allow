@@ -1,2 +1,1 @@
 # The Swift files over 400 lines that make check-sizes lets pass: <path><TAB><reason>.
-# In a fix run, an entry with a reason is the default; the split gets its own refactor run.

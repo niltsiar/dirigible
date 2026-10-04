@@ -26,6 +26,7 @@ struct ParityTests {
         "paste": ["clip paste"],
         "splitClips": ["clip split-at"],
         "nudge": ["clip nudge"],
+        "removeClips": ["clip remove"],
         "setFades": ["clip fade"],
         "setGains": ["clip gain"],
         "setCrossfades": ["clip crossfade"],

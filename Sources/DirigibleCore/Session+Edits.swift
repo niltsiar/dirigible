@@ -94,20 +94,20 @@ extension Session {
         return rights
     }
 
-    /// Moves the clips by `offset` on their own tracks. They keep their IDs. The clips come out
-    /// first, so two moved clips never cut each other. A clip that does not move is cut under the
-    /// new ranges; its right part gets "<id>@<moved end>". A throw changes nothing.
-    public mutating func nudge(_ clips: [ClipID], by offset: Frames) throws(SessionError) {
+    /// Moves the clips by `offset` and by `lanes` tracks (decision 0038). They keep their IDs. Every
+    /// moved clip comes out of every lane first, so two moved clips never cut each other. A clip that
+    /// does not move is cut under the new ranges; its right part gets "<id>@<moved end>". Only an
+    /// offset of 0 with a lane offset of 0 changes nothing. A throw changes nothing.
+    public mutating func nudge(_ clips: [ClipID], by offset: Frames, lanes: Int = 0) throws(SessionError) {
         // The offset is in -limit...limit before any sum, so a sum with a clip start cannot overflow.
         guard offset >= .zero - .limit, offset <= .limit else { throw .frameOutOfRange }
-        // An offset of 0 changes nothing, so it keeps the crossfades (decision 0036).
-        if offset == .zero {
+        // No move changes nothing, so it keeps the crossfades (decision 0036).
+        if offset == .zero && lanes == 0 {
             if let missing = clips.first(where: { clip($0) == nil }) { throw .unknownClip(missing) }
             return
         }
         let moving = Set(clips)
-        var copy = self
-        var taken = clipIDs
+        var moves: [(source: Int, clips: [Clip])] = []
         var found = 0
         for index in tracks.indices {
             let moved = tracks[index].clips.filter { moving.contains($0.id) }.map { clip in
@@ -115,15 +115,28 @@ extension Session {
                 clip.start = clip.start + offset
                 return clip
             }
-            guard !moved.isEmpty else { continue }
+            guard let first = moved.first else { continue }
             found += moved.count
+            // The magnitude check comes first, so the sum cannot overflow.
+            guard lanes.magnitude < UInt(tracks.count), tracks.indices.contains(index + lanes) else {
+                throw .laneOutOfRange(first.id)
+            }
             // The start is in range before the end sum, and the length is not more than the limit.
             guard moved.allSatisfy({ $0.start.isInRange && $0.end.isInRange }) else { throw .frameOutOfRange }
-            copy.tracks[index].clips.remove(ids: moving)
-            copy.tracks[index].clips.clear(moved.map(\.range)) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
-            copy.tracks[index].clips.insert(sorted: moved)
+            if lanes != 0 { for clip in moved { try check(clip, on: tracks[index + lanes]) } }
+            moves.append((index, moved))
         }
         if found < moving.count, let missing = clips.first(where: { clip($0) == nil }) { throw .unknownClip(missing) }
+        var copy = self
+        var taken = clipIDs
+        for (source, _) in moves { copy.tracks[source].clips.remove(ids: moving) }
+        // One lane offset for all clips, so each target lane takes the sorted clips of one lane.
+        for (source, moved) in moves {
+            copy.tracks[source + lanes].clips.clear(moved.map(\.range)) {
+                Self.derivedID(of: $0.id, at: $1, taken: &taken)
+            }
+            copy.tracks[source + lanes].clips.insert(sorted: moved)
+        }
         self = copy
     }
 }

@@ -5,7 +5,7 @@ struct ClipCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
         subcommands: [
-            Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, Nudge.self, Move.self, Trim.self,
+            Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, Nudge.self, Remove.self, Move.self, Trim.self,
             SetGain.self, Fade.self, Crossfade.self, RippleDelete.self, RippleInsert.self, RippleTrim.self,
         ])
 
@@ -96,14 +96,26 @@ struct ClipCommand: ParsableCommand {
 
     struct Nudge: ParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Move clips by a number of frames on their tracks. They overwrite the clips under them.")
+            abstract: "Move clips by a number of frames and tracks. They overwrite the clips under them.")
         @OptionGroup var package: PackageArgument
         @Argument var clips: [String] = []
         @Option(parsing: .unconditional, help: "The frames to move; negative moves left.") var by: Int
+        @Option(parsing: .unconditional, help: "The tracks to move; negative moves up.") var lanes = 0
 
         func run() throws {
             try editPackage(package) { session throws(SessionError) in
-                try session.nudge(clips.map { ClipID($0) }, by: Frames(by))
+                try session.nudge(clips.map { ClipID($0) }, by: Frames(by), lanes: lanes)
+            }
+        }
+    }
+
+    struct Remove: ParsableCommand {
+        static let configuration = CommandConfiguration(abstract: "Remove clips and leave gaps.")
+        @OptionGroup var package: PackageArgument
+        @Argument var clips: [String] = []
+
+        func run() throws {
+            try editPackage(package) { session throws(SessionError) in try session.removeClips(clips.map { ClipID($0) })
             }
         }
     }

@@ -100,7 +100,7 @@ extension L10n {
         case .duplicateID, .unknownCapture, .unknownFile, .unknownTrack, .unknownClip, .unknownMarker,
             .captureInUse, .invalidCapture, .fileInUse, .invalidRoute, .invalidPath, .frameOutOfRange,
             .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip, .crossfadeOutsideFile,
-            .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .fadeAtCrossfade:
+            .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .fadeAtCrossfade, .laneOutOfRange:
             return errorSessionOther.text
         }
     }

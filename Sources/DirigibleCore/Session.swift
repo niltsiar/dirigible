@@ -244,4 +244,6 @@ public enum SessionError: Error, Hashable, Sendable {
     case fadeAtCrossfade(ClipID)
     /// A paste names a track count that is not the lane count of its excerpt, which this case holds.
     case trackCount(Int)
+    /// A nudge with a lane offset puts this clip past the first or the last track (decision 0038).
+    case laneOutOfRange(ClipID)
 }

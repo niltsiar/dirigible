@@ -3,9 +3,10 @@
 # Usage: scripts/screenshots.sh <folder>. The script builds the app and the CLI of this tree first.
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
-# The script opens build/Dirigible.app in English and light mode, and writes
-# docs/images/screenshot-edit.png and docs/images/screenshot-zoom.png. The app also writes its
-# preferences (the recent list) for the real bundle ID, so do not run this script as a check.
+# The script opens build/Dirigible.app in English (US number format) and light mode, and writes
+# docs/images/screenshot-edit.png, screenshot-zoom.png, and screenshot-inspector.png. The app also
+# writes its preferences (the recent list, the inspector) for the real bundle ID, so do not run
+# this script as a check.
 # The terminal app needs the Screen Recording and Accessibility permissions, and the screen must be
 # unlocked. Keep the pointer and other windows off the Dirigible window while the script runs.
 # A running copy of the app ignores the launch arguments, and it can hold a real session. The
@@ -27,8 +28,8 @@ images="$repo/docs/images"
 swift build --package-path "$repo" --product dirigible >/dev/null
 cli="$(swift build --package-path "$repo" --show-bin-path)/dirigible"
 
-# The session: two tracks with alternate lines of two `say` voices, the marker Intro, and the
-# chapter Interview. The file name is the clip label in the window.
+# The session: two tracks with alternate lines of two `say` voices, the marker Intro, the chapter
+# Interview, two fades, and a gain of -6 dB. The file name is the clip label in the window.
 "$repo/scripts/probe.sh" "$folder" bash -c '
 set -euo pipefail
 cli="$1"
@@ -55,7 +56,10 @@ for line in "${lines[@]}"; do
     say -v "$voice" -o "$pkg/Clips/$file" --data-format=LEI16@48000 "$text"
     frames="$(afinfo "$pkg/Clips/$file" | awk "/audio packets/ {print \$3}")"
     id="$("$cli" file add "$pkg" --path "$file" --layout mono --length "$frames")"
-    "$cli" clip place "$pkg" --track "$track" --file "$id" --start "$at" --length "$frames" >/dev/null
+    clip="$("$cli" clip place "$pkg" --track "$track" --file "$id" --start "$at" --length "$frames")"
+    [[ "$who $n" != "Host 1" ]] || "$cli" clip fade "$pkg" --clip "$clip" --in 24000 >/dev/null
+    [[ "$who $n" != "Host 4" ]] || "$cli" clip fade "$pkg" --clip "$clip" --out 24000 >/dev/null
+    [[ "$who $n" != "Guest 2" ]] || "$cli" clip gain "$pkg" "$clip" --db -6 >/dev/null
     [[ "$who $n" != "Host 1" ]] || "$cli" marker set "$pkg" --name Intro --at "$at" >/dev/null
     [[ "$who $n" != "Host 2" ]] || "$cli" marker set "$pkg" --name Interview --kind chapter --at "$at" >/dev/null
     at=$((at + frames + 24000))
@@ -67,7 +71,7 @@ refuse_running
 pid=""
 trap '[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
 open -a "$app" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(en)" \
-    -ApplePersistenceIgnoreState YES
+    -AppleLocale en_US -ApplePersistenceIgnoreState YES
 # No copy ran before the launch, so the one Dirigible process is the launched one.
 # open can return before the process shows, so wait up to 10 s for it.
 for _ in $(seq 1 20); do
@@ -117,6 +121,9 @@ shot() {
         exit 1
     fi
     mv "$folder/$1" "$images/$1"
+    # A capture has extended attributes (FinderInfo). bundle.sh copies the image into the app, and
+    # codesign refuses an app with them ("resource fork, Finder information, or similar detritus").
+    xattr -c "$images/$1"
 }
 
 key() { swift "$repo/scripts/hid.swift" key "$@"; }
@@ -130,8 +137,14 @@ shot screenshot-edit.png
 for code in 121 34 121 31 4; do key "$code"; done
 sleep 1
 shot screenshot-zoom.png
+# Option-Command-I: show the inspector of the selection. Then hide it again, because the app
+# keeps the choice for new windows.
+key 34 --command --option
+sleep 1
+shot screenshot-inspector.png
+key 34 --command --option
 
-for png in "$images/screenshot-edit.png" "$images/screenshot-zoom.png"; do
+for png in "$images"/screenshot-{edit,zoom,inspector}.png; do
     [[ "$(stat -f %z "$png")" -le 1000000 ]] || sips --resampleWidth 1600 "$png" >/dev/null
     echo "$png"
 done

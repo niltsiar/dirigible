@@ -170,6 +170,9 @@ extension SessionWindow {
     /// The toolbar entry (decision 0023): each command goes to the place that its menu item
     /// reaches.
     func run(_ command: WindowCommand) {
+        // A menu command acts on the typed inspector value (code gate round 1, A1). Not the typed
+        // track names: Remove Track drops the name drafts of its tracks.
+        commitInspector()
         switch command {
         case .timeline(let command): run(command)
         case .transport(let command): transport(command)
@@ -200,6 +203,7 @@ extension SessionWindow {
     /// Runs a timeline command on this window.
     func run(_ command: TimelineCommand) {
         leafCalls?.append("\(command)")
+        commitInspector()
         guard let studio else { return }
         switch command {
         case .zoomIn: timelineView?.navigate(.zoom(by: 0.5))

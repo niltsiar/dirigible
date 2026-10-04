@@ -19,6 +19,7 @@ extension SessionWindow {
     /// Places `segment` at its recorded track and time, or at the playhead on the selected track.
     /// A refusal shows the error alert.
     func place(_ segment: SegmentName, atPlayhead: Bool) async {
+        commitNames()
         guard canPlace, let studio = idleStudio else { return }
         var (track, start): (TrackID?, Frames?) = (nil, nil)
         if atPlayhead {
@@ -42,6 +43,7 @@ extension SessionWindow {
     /// Ends the pending take without its unreadable segments; they stay unplaced. A failure keeps
     /// the take pending, and the banner shows it.
     func finishLeavingUnreadable() async {
+        commitNames()
         guard canFinishLeavingUnreadable else { return }
         try? await idleStudio?.retryFinalize(leavingUnreadable: true)
         await refreshPendingSpace()

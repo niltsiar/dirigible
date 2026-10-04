@@ -184,6 +184,8 @@ struct CrossfadeTests {
                 ["A@3000": Crossfades(start: 0, end: 960)!, "B": Crossfades(start: 960, end: 0)!]
             ),
             ("trim A's start", ["A": Crossfades(start: 0, end: 960)!, "B": Crossfades(start: 960, end: 0)!]),
+            ("move A to its own place", ["A": Crossfades(start: 0, end: 960)!, "B": Crossfades(start: 960, end: 0)!]),
+            ("nudge A alone by 0", ["A": Crossfades(start: 0, end: 960)!, "B": Crossfades(start: 960, end: 0)!]),
         ] as [(String, [ClipID: Crossfades])])
     mutating func anEditThatBreaksAJoinDropsTheCrossfade(edit: String, expected: [ClipID: Crossfades]) throws {
         try join()
@@ -207,6 +209,8 @@ struct CrossfadeTests {
             try session.paste(try session.excerpt(of: 2_000..<8_000, on: ["t1"]), at: 19_000, on: ["t1"])
         case "split outside the reaches": try session.split("A", at: 3_000)
         case "trim A's start": try session.trim("A", to: 2_000..<5_000)
+        case "move A to its own place": try session.move("A", to: "t1", start: 1_000)
+        case "nudge A alone by 0": try session.nudge(["A"], by: 0)
         default: Issue.record("no edit \(edit)")
         }
         #expect(allCrossfades == expected, "\(edit): the crossfades after the edit")

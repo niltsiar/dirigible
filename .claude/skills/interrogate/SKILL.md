@@ -33,7 +33,7 @@ The workflow runs reviewer agents from `.claude/agents/` in parallel. Skeptics t
 - tooling, tests, bundle, build: `lenses: ["code-quality"]`, with their changed paths in `paths`. Skip this call when the default lenses run.
 - other docs paths: no panel.
 
-Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or for a `paths` scope with no changed file, is not a clean review: correct the arguments. A branch in a worktree needs `worktree`.
+Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or for a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 
 Pass `round`, and the earlier verdict files in `prior`. The workflow picks the mode: open (round 1), follow-up, or convergence (`round` = `maxRounds`). An open last round never closes the gate; the convergence round closes it.
 

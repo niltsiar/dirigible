@@ -12,10 +12,10 @@ const PATHS = ['AGENTS.md', '.claude/skills', '.claude/agents', 'docs/workflow']
 let failures = 0
 const fail = msg => { console.log(`FAIL: ${msg}`); failures++ }
 
-// The stub agent returns the file list for the paths scope step (label 'scope'), the findings of
+// The stub agent returns the file list for the diff scope step (label 'scope'), the findings of
 // `found[lens]` (none by default) with one checked entry for each lens, and a skeptic verdict that
 // upholds each finding. The stub pipeline passes the lens to each stage.
-async function run(args, files = [], found = {}) {
+async function run(args, files = ['a.sh'], found = {}) {
   const prompts = [], labels = []
   const agent = async (prompt, opts) => {
     prompts.push(prompt)
@@ -39,7 +39,7 @@ const titles = list => JSON.stringify((list || []).map(f => f.title))
 // Only warning and critical findings go to the skeptic of a lens; nits go to `nits`.
 async function expectNits(name, found, want) {
   try {
-    const got = await run({ target: 'diff', lenses: ['premortem'] }, [], { premortem: found })
+    const got = await run({ target: 'diff', lenses: ['premortem'] }, ['a.sh'], { premortem: found })
     const lens = got.panel[0] || {}
     const verify = got.prompts.filter((p, i) => got.labels[i] === 'verify:premortem')
     if (verify.length !== (want.verify ? 1 : 0)) fail(`${name}: ${verify.length} verify:premortem calls, want ${want.verify ? 1 : 0}`)
@@ -53,7 +53,7 @@ async function expectNits(name, found, want) {
   }
 }
 
-async function expectKeys(name, args, keys, missing = [], files = []) {
+async function expectKeys(name, args, keys, missing = [], files = ['a.sh']) {
   try {
     const got = await run(args, files)
     if (JSON.stringify(got.keys) !== JSON.stringify(keys)) fail(`${name}: keys ${JSON.stringify(got.keys)}, want ${JSON.stringify(keys)}`)
@@ -64,7 +64,7 @@ async function expectKeys(name, args, keys, missing = [], files = []) {
   }
 }
 
-async function expectThrow(name, args, pattern, files = []) {
+async function expectThrow(name, args, pattern, files = ['a.sh']) {
   try {
     await run(args, files)
     fail(`${name}: did not throw`)
@@ -97,7 +97,9 @@ async function expectThrow(name, args, pattern, files = []) {
   await expectKeys('an unknown key', { target: 'diff', lenses: ['premortem', 'nope'] }, ['premortem'], ['nope'])
   await expectThrow('only an unknown key', { target: 'diff', lenses: ['nope'] }, /no lens/)
   await expectThrow('an empty lens list', { target: 'diff', lenses: [] }, /no lens/)
-  await expectThrow('a paths scope with no changed file', { target: 'diff', paths: ['no/such/path'] }, /no changed file/)
+  await expectThrow('a paths scope with no changed file', { target: 'diff', paths: ['no/such/path'] }, /no changed file/, [])
+  // A diff with no changed file (the main checkout of a branch in a worktree) stops the panel too.
+  await expectThrow('a diff with no changed file', { target: 'diff' }, /no changed file/, [])
   await expectNits('a lens with only nits', [finding('nit', 'nit one'), finding('nit', 'nit two')], { verify: false, nits: ['nit one', 'nit two'] })
   await expectNits('a nit and a warning', [finding('nit', 'nit one'), finding('warning', 'warn one')], { verify: true, sent: ['warn one'], nits: ['nit one'] })
   await expectNits('a critical finding', [finding('critical', 'crit one')], { verify: true, sent: ['crit one'], nits: [] })

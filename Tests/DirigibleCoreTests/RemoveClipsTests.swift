@@ -34,4 +34,26 @@ struct RemoveClipsTests {
         #expect(throws: SessionError.unknownClip("x")) { try session.removeClips(["A", "x"]) }
         #expect(session == before)
     }
+
+    /// Code gate 1 item 2: a Delete of a clip set after Select All (6 tracks of 2,000 clips) checks
+    /// the IDs in one pass. Control: a check of each ID with `clip(_:)` scans every lane per ID,
+    /// about 72 million compares, which takes seconds even in an optimized build.
+    @Test func removeClipsOfTwelveThousandClipsIsOnePass() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 2_000_000))
+        let tracks = (1...6).map { TrackID("t\($0)") }
+        for track in tracks {
+            try session.addTrack(track, name: track.rawValue, layout: .mono)
+            try session.place(
+                Clip(id: ClipID("c-\(track)"), file: "f", start: 0, offset: 0, length: 2_000_000), on: track)
+        }
+        _ = try session.splitClips(at: (1..<2000).map { Frames($0 * 1_000) }, on: tracks)
+        let ids = session.tracks.flatMap { $0.clips.map(\.id) }
+        try #require(ids.count == 12_000)
+        let start = ContinuousClock.now
+        try session.removeClips(ids)
+        let elapsed = ContinuousClock.now - start
+        #expect(session.tracks.allSatisfy { $0.clips.isEmpty })
+        #expect(elapsed < .milliseconds(1_500), "removeClips of 12,000 clips took \(elapsed)")
+    }
 }

@@ -13,6 +13,23 @@ extension LaneRenderer {
         return min(bottom - height + 1, bottom)
     }
 
+    /// Adds to `crossfaded` each clip of `inView` with a crossfade, and the lane neighbor just
+    /// before the first and just after the last of them when its crossfade half reaches into the
+    /// box of that clip: a half reaches only into the box of its neighbor (decision 0036).
+    func collectCrossfades(_ inView: [Clip], of clips: ClipLane, lane: Int) {
+        for clip in inView where clip.crossfades != .zero { crossfaded.append((lane, clip)) }
+        if let first = inView.first, first.crossfades.start != .zero, let index = clips.index(holding: first.start),
+            index > clips.startIndex
+        {
+            crossfaded.append((lane, clips[index - 1]))
+        }
+        if let last = inView.last, last.crossfades.end != .zero, let index = clips.index(holding: last.start),
+            index + 1 < clips.endIndex
+        {
+            crossfaded.append((lane, clips[index + 1]))
+        }
+    }
+
     /// The fade line of each crossfade half of `clip` outside its box: over the box of the
     /// neighbor, from the join to the end of the half. `drawColumns` draws the line inside the
     /// box. Only in boxes of 12 pt or more, as the fade line; never a waveform outside the box.

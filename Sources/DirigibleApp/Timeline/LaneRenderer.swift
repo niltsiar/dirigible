@@ -79,6 +79,9 @@ struct LanePalette: Equatable {
 final class LaneRenderer {
     /// The columns of one clip, reused.
     var values: [PeakColumn] = []
+    /// The clips with a crossfade that the fade-line pass draws, with their lanes, reused. The
+    /// waveform pass collects them, so a draw with no crossfade scans no lane again.
+    var crossfaded: [(lane: Int, clip: Clip)] = []
 
     /// 20 log10(v / 65535) for each magnitude v.
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
@@ -143,10 +146,13 @@ final class LaneRenderer {
             fillRun()
             region.fill(palette.lane, columns: gap..<end, rows: rows)
         }
+        crossfaded.removeAll(keepingCapacity: true)
         for lane in drawn {
             let track = tracks[lane]
             let bottom = window.rows(of: lane..<lane + 1).upperBound - 1
-            for clip in track.clips.clips(overlapping: visible) {
+            let inView = track.clips.clips(overlapping: visible)
+            collectCrossfades(inView, of: track.clips, lane: lane)
+            for clip in inView {
                 // The columns whose first frame is in the clip: each column draws one waveform. A
                 // clip under one column can hold none (at fit zoom, 2,000 clips per lane drew each
                 // column about 1.7 times).
@@ -166,26 +172,24 @@ final class LaneRenderer {
                     peaks.fill(&values, from: from + Double((anchor - peaks.origin).count), step: pixelFrames)
                 }
                 // The fades as the clip sounds: a crossfade is the fade of its edge (decision 0036).
-                let sounding = clip.sounding
+                // Most clips have no crossfade and skip the sounding copy.
+                let sounding = clip.crossfades == .zero ? nil : clip.sounding
+                let (clipFades, length, start) =
+                    sounding.map { ($0.fades, $0.length, $0.start) } ?? (clip.fades, clip.length, clip.start)
                 let fades =
-                    sounding.fades == .zero
+                    clipFades == .zero
                     ? nil
                     : ColumnFades(
-                        fades: sounding.fades, length: sounding.length,
-                        first: Double(range.lowerBound) * pixelFrames - Double(sounding.start.count),
+                        fades: clipFades, length: length,
+                        first: Double(range.lowerBound) * pixelFrames - Double(start.count),
                         step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
                 drawColumns(
                     range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, palette, into: region)
             }
         }
         // The fade line of each crossfade half outside its box, over the waveform of the neighbor
-        // (decision 0036). The sounding query finds a clip whose box is outside the columns.
-        for lane in drawn {
-            let track = tracks[lane]
-            for clip in track.clips.clips(soundingIn: visible) where clip.crossfades != .zero {
-                drawCrossfadeLines(clip, track, lane, geometry, palette, into: region)
-            }
-        }
+        // (decision 0036).
+        for (lane, clip) in crossfaded { drawCrossfadeLines(clip, tracks[lane], lane, geometry, palette, into: region) }
         // The gain line and the fade handles (run 11b-1) after the waveforms, from the `Clip` and
         // `Track` fields only: a clip with no peaks or missing media draws them too, as the hit
         // test finds them.

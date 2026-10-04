@@ -364,8 +364,9 @@ extension LanePalette {
             let pixel =
                 0xFF00_0000 | channel(accent.redComponent) << 16 | channel(accent.greenComponent) << 8
                 | channel(accent.blueComponent)
-            picked = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark(accent: pixel) : picked
-            picked.outline = pixel
+            picked =
+                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                ? .dark(accent: pixel) : .light(accent: pixel)
         }
         return picked
     }

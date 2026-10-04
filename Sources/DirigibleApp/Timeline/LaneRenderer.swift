@@ -32,13 +32,20 @@ struct LanePalette: Equatable {
     /// The accent color that the selection band blends toward; nil: the band is half as bright.
     var accent: UInt32?
     /// The system accent color: the outline of a selected clip, and the color of its tint
-    /// (decision 0038).
+    /// (decision 0038). `light` has the default blue; `pick` gives the accent of the system.
     var outline: UInt32 = 0xFF00_7AFF
 
     static let light = LanePalette(
         lane: 0xFFE8_ECF2, clip: 0xFFC4_DAF5, peak: 0xFF7A_A7E0, rms: 0xFF1F_4F9E, missing: 0xFFF4_C4C4,
         missingOutline: 0xFFC8_2020, label: 0xFF26_2626, marker: 0xFFF2_8C1A, chapter: 0xFF8E_44AD,
         inPoint: 0xFF2E_A043, outPoint: 0xFFE0_3A3A)
+
+    /// The lanes in light mode with the accent color of the system.
+    static func light(accent: UInt32) -> LanePalette {
+        var palette = light
+        palette.outline = accent
+        return palette
+    }
 
     /// The lanes in Dark Mode (ux-visual-perf section 1). The label on the clip has a contrast of
     /// about 8.7:1. The lines keep their light colors.

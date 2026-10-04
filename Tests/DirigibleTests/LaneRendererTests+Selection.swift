@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleCore
 import DirigibleTimeline
 import Foundation
@@ -58,5 +59,14 @@ struct LaneRendererSelectionTests {
             (0..<100).allSatisfy { picked.pixel(column, $0) == plain.pixel(column, $0) }
         }
         #expect(c, "C is not in the set: no tint, no outline")
+    }
+
+    /// Code gate 1 item 3: the outline is the system accent in light mode too.
+    @Test func theLightPaletteTakesTheAccent() throws {
+        #expect(LanePalette.light(accent: 0xFFFF_2D55).outline == 0xFFFF_2D55)
+        let accent = try #require(NSColor.controlAccentColor.usingColorSpace(.sRGB))
+        let red = UInt32((accent.redComponent * 255).rounded())
+        let picked = LanePalette.pick(for: try #require(NSAppearance(named: .aqua)))
+        #expect((picked.outline >> 16) & 0xFF == red && picked.accent == nil, "the accent, and no band accent")
     }
 }

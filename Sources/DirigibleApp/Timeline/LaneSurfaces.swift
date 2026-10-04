@@ -215,8 +215,10 @@ struct LaneWindow: Equatable {
         lastCopied = copies
         if let source, let from {
             source.lock(options: .readOnly, seed: nil)
-            let except = shift == nil ? drawn : strips.first ?? .empty
-            for rect in copies { Self.copy(rect, except: except, from: source, from, to: surface, window) }
+            // With a shift, the draws after the copies write the strips.
+            for rect in copies {
+                Self.copy(rect, except: shift == nil ? drawn : .empty, from: source, from, to: surface, window)
+            }
             if let shift, let later { Self.copy(later, by: shift.by, from: source, to: surface, window) }
             source.unlock(options: .readOnly, seed: nil)
         }

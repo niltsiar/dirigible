@@ -54,7 +54,7 @@ final class TimelineDocumentView: NSView {
     private var pending = NSRect.null
     /// The shift of a ripple drag for the next `updateLayer()` (decision 0037). Each other display
     /// request clears it, so it applies only when it is the one change since the last draw.
-    private var pendingShift: (from: Frames, delta: Frames, strays: [Frames])?
+    private var pendingShift: ShiftedFrames?
 
     override func setNeedsDisplay(_ rect: NSRect) {
         pending = pending.union(rect)
@@ -73,7 +73,7 @@ final class TimelineDocumentView: NSView {
     /// The shift of `shiftedFrames` from `old` to the inputs, when the Marks do not change. The
     /// Marks lines and band stay at their frames, so the copied region starts 1 pt past them in
     /// the old and the new lanes: after a ripple commit, the Marks are on the dragged clip.
-    private func shift(from old: LaneInputs?) -> (from: Frames, delta: Frames, strays: [Frames])? {
+    private func shift(from old: LaneInputs?) -> ShiftedFrames? {
         guard let old, let inputs, let geometry = inputs.geometry, old.marks == inputs.marks,
             let shift = shiftedFrames(from: old.session, to: inputs.session)
         else { return nil }
@@ -87,7 +87,7 @@ final class TimelineDocumentView: NSView {
     /// 1 pt around each stray marker line, on every lane in view. Nil when the move is not a whole
     /// number of columns.
     private func laneShift(
-        _ shift: (from: Frames, delta: Frames, strays: [Frames]), _ dirty: NSRect, _ lanes: LaneWindow
+        _ shift: ShiftedFrames, _ dirty: NSRect, _ lanes: LaneWindow
     ) -> LaneSurfaces.Shift? {
         guard let geometry = inputs?.geometry, !dirty.isNull else { return nil }
         let columns = Double(shift.delta.count) / geometry.scale.framesPerPoint * lanes.scale

@@ -94,5 +94,44 @@ got="$(run --quoted main)" || fail "--quoted: exit $?"
 got="$(run main)" || fail "no --quoted: exit $?"
 [[ "$got" == $'E1\nE2\nE3\nE4\nE5\nE7\nH1\nE6' ]] || fail "no --quoted: got [$(tr '\n' ' ' <<<"$got")]"
 
+# The eval runner of scripts/eval/. The run files (keys.md, labels.tsv) stay in the eval folder of
+# the run, never in the runner folder.
+eval_dir="$repo/scripts/eval"
+for f in build-copy.sh quote-check.py pointed-missing.py grade.py; do
+  [[ -f "$eval_dir/$f" ]] || fail "scripts/eval/$f is missing"
+done
+for f in keys.md labels.tsv; do [[ ! -e "$eval_dir/$f" ]] || fail "scripts/eval/$f is a run file"; done
+
+# build-copy.sh refuses a copy folder outside .scratchpads/ and $TMPDIR, and a folder that holds
+# files, before it changes anything.
+copy_refused() {
+  local name="$1" dir="$2" reason="$3" err code
+  err="$(cd "$tmp/r" && TMPDIR="$tmp/t" "$eval_dir/build-copy.sh" HEAD "$dir" "$tmp/copy.log" 2>&1)"
+  code=$?
+  [[ $code -eq 2 ]] || fail "$name: exit $code, not 2"
+  [[ "$err" == *"$reason"* ]] || fail "$name: no '$reason' in the message: $err"
+}
+mkdir -p "$tmp/t/full"
+printf 'keep\n' > "$tmp/t/full/marker"
+copy_refused 'a folder outside' "$tmp/outside/copy" 'outside .scratchpads/ and TMPDIR'
+[[ ! -e "$tmp/outside" ]] || fail 'a folder outside: the folder was made'
+copy_refused 'a folder with ..' "$tmp/t/../outside" 'outside .scratchpads/ and TMPDIR'
+copy_refused 'a folder that holds files' "$tmp/t/full" 'holds files'
+[[ "$(cat "$tmp/t/full/marker" 2>/dev/null)" == keep ]] || fail 'a folder that holds files: the marker file changed'
+[[ ! -e "$tmp/copy.log" ]] || fail 'a refused copy wrote its log'
+
+# grade.py takes each Type from the Scenarios table of docs/workflow/evals.md of its tree, and
+# writes scores.tsv in the eval folder that the call names.
+mkdir -p "$tmp/g/scripts/eval" "$tmp/g/docs/workflow" "$tmp/g/run"
+cp "$eval_dir/grade.py" "$tmp/g/scripts/eval/"
+printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n| E1 | retention | s | q | (a) k | `a.md` | - | - |\n| E23 | policy | s | q | (a) k | `a.md` | - | - |\n' > "$tmp/g/docs/workflow/evals.md"
+printf '## E1\n(a) k\n\n## E23\n(a) k\n' > "$tmp/g/run/keys.md"
+printf 'L1\tt\t1\tE1\tnew\t1\nL2\tt\t1\tE23\tnew\t1\n' > "$tmp/g/run/labels.tsv"
+printf '[{"label": "L1", "key": "(a)", "result": "PASS"}, {"label": "L2", "key": "(a)", "result": "PASS"}]\n' > "$tmp/g/res.json"
+python3 "$tmp/g/scripts/eval/grade.py" score "$tmp/g/run" t "$tmp/g/res.json" > /dev/null || fail "grade.py score: exit $?"
+[[ "$(cut -f1,2 "$tmp/g/run/scores.tsv" 2>/dev/null | tail -n 2)" == $'E1\tretention\nE23\tpolicy' ]] \
+  || fail "grade.py types: got [$(cat "$tmp/g/run/scores.tsv" 2>/dev/null)]"
+[[ ! -e "$tmp/g/scripts/eval/scores.tsv" ]] || fail 'grade.py wrote scores.tsv in the runner folder'
+
 [[ $failures -eq 0 ]] && echo "evals-for tests: all passed"
 exit $((failures > 0))

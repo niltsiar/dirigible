@@ -130,11 +130,18 @@ public func newerSidecarVersion(of segment: SegmentName, in package: URL) -> Int
 
 /// The segments of the CAFs in `Capture/` that have frames or do not open: the disk fact under
 /// the unplaced list (decision 0012). In name order. It reads files, so call it off the main actor.
-func segmentsWithAudio(in package: URL) -> [SegmentName] {
-    ((try? captureSegments(in: package)) ?? []).filter { name in
+func segmentsWithAudio(in package: URL) -> [SegmentName] { scanSegments(in: package).withAudio }
+
+/// `segmentsWithAudio`, and the segments whose CAF does not open: they can never place, so they
+/// do not block a ripple (decision 0037).
+func scanSegments(in package: URL) -> (withAudio: [SegmentName], unopenable: Set<SegmentName>) {
+    var unopenable: Set<SegmentName> = []
+    let withAudio = ((try? captureSegments(in: package)) ?? []).filter { name in
         let file = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.stem).caf"))
+        if file == nil { unopenable.insert(name) }
         return (file?.length ?? 1) > 0
     }
+    return (withAudio, unopenable)
 }
 
 /// The `segments` whose take is not the pending take and that no file of the session refers to.
@@ -156,10 +163,12 @@ public func rippleBlocked(segments: [SegmentName], session: Session) -> Bool {
     return unplacedSegments(segments, session: session).contains { placedTakes.contains($0.take) }
 }
 
-/// `rippleBlocked(segments:session:)` with the segments in `Capture/` of `package`. It reads
-/// files, so call it off the main actor.
+/// `rippleBlocked(segments:session:)` with the segments in `Capture/` of `package`. A segment
+/// whose CAF does not open can never place, so it does not block. It reads files, so call it off
+/// the main actor.
 public func rippleBlocked(in package: URL, session: Session) -> Bool {
-    rippleBlocked(segments: segmentsWithAudio(in: package), session: session)
+    let scan = scanSegments(in: package)
+    return rippleBlocked(segments: scan.withAudio.filter { !scan.unopenable.contains($0) }, session: session)
 }
 
 /// The segment names of the CAFs in `Capture/`, in name order. A missing folder has none.

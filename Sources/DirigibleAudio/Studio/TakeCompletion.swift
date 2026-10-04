@@ -9,6 +9,8 @@ struct OpenedPackage: Sendable {
     var session: Session
     var takeError: StudioError?
     var segmentsWithAudio: [SegmentName]
+    /// The segments whose CAF does not open (decision 0037).
+    var unopenableSegments: Set<SegmentName> = []
     /// The pending take that the recovery finalized.
     var recoveredTake: Recording? = nil
     /// The pool files that are not whole (decision 0016).
@@ -21,6 +23,8 @@ struct TakeOutcome: Sendable {
     var session: Session
     var error: StudioError?
     var segmentsWithAudio: [SegmentName]
+    /// The segments whose CAF does not open (decision 0037).
+    var unopenableSegments: Set<SegmentName> = []
     /// The package path that the lock holds (`packageIdentity` form). Nil when the package left
     /// its volume.
     var package: URL?
@@ -58,9 +62,10 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     // The list follows `session.xml`: a stale entry goes, and a pending take keeps its entry.
     func opened(_ session: Session, _ error: StudioError? = nil) -> OpenedPackage {
         recordings?.set(identity, active: session.recording != nil)
+        let scan = scanSegments(in: package)
         return OpenedPackage(
             lock: lock, package: identity, session: session, takeError: error,
-            segmentsWithAudio: segmentsWithAudio(in: package),
+            segmentsWithAudio: scan.withAudio, unopenableSegments: scan.unopenable,
             missingMedia: (try? checkMedia(session, package: package)) ?? [:])
     }
 
@@ -78,7 +83,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
     let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: identity)
     return OpenedPackage(
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
-        segmentsWithAudio: outcome.segmentsWithAudio, recoveredTake: outcome.error == nil ? session.recording : nil,
+        segmentsWithAudio: outcome.segmentsWithAudio, unopenableSegments: outcome.unopenableSegments,
+        recoveredTake: outcome.error == nil ? session.recording : nil,
         missingMedia: outcome.missingMedia ?? [:])
 }
 
@@ -114,8 +120,10 @@ nonisolated func completeTake(
     func outcome(_ session: Session, _ error: StudioError?, beforeLevel: Session? = nil) -> TakeOutcome {
         let identity = packageIdentity(package)
         recordings?.set(identity, active: session.recording != nil, previous: previous)
+        let scan = scanSegments(in: package)
         return TakeOutcome(
-            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity,
+            session: session, error: error, segmentsWithAudio: scan.withAudio, unopenableSegments: scan.unopenable,
+            package: identity,
             missingMedia: try? checkMedia(session, package: package), beforeLevel: beforeLevel)
     }
     let finalized: Session
@@ -170,8 +178,10 @@ func takeClips(of finalized: Session, before: Session) -> [Clip] {
     func outcome(_ session: Session, _ error: StudioError?) -> TakeOutcome {
         let identity = packageIdentity(package)
         if identity != previous { recordings?.set(identity, active: session.recording != nil, previous: previous) }
+        let scan = scanSegments(in: package)
         return TakeOutcome(
-            session: session, error: error, segmentsWithAudio: segmentsWithAudio(in: package), package: identity,
+            session: session, error: error, segmentsWithAudio: scan.withAudio, unopenableSegments: scan.unopenable,
+            package: identity,
             missingMedia: try? checkMedia(session, package: package))
     }
     // The disk rule of a finalize, for one segment.

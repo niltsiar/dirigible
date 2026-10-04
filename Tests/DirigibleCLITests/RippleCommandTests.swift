@@ -122,6 +122,15 @@ struct RippleCommandTests {
         }
     }
 
+    /// Code gate 1 item 2: a split take whose unplaced segment has a CAF that does not open can
+    /// never place, so it does not block a ripple. Control: the block of every unplaced segment.
+    @Test func aSplitTakeWithACAFThatDoesNotOpenAllowsARipple() async throws {
+        let fixture = try await PlaceCommandTests()
+        try Data("not a CAF".utf8).write(to: fixture.capture.appending(path: "take1-1-1.caf"))
+        let result = try await fixture.package.run("clip", "ripple-delete", "PKG", "--from", "0", "--to", "48000")
+        #expect(result.status == 0, "RIPPLE-C3 a CAF that does not open blocks: \(result)")
+    }
+
     /// C20. With no segment of take 1 on the timeline, the take moves as one unit, so each ripple
     /// runs. Control: the old guard that refuses any unplaced segment.
     @Test func aWhollyUnplacedTakeAllowsEachRippleCommand() async throws {

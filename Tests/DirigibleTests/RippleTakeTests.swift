@@ -31,6 +31,34 @@ extension UnplacedBannerTests {
         await model.close()
     }
 
+    /// Code gate 1 item 2: the unplaced segment of a split take whose CAF does not open can never
+    /// place, so after a reopen it does not block. Control: the block of every unplaced segment.
+    @Test func aSplitTakeWithACAFThatDoesNotOpenAllowsARipple() async throws {
+        let url = try await splitTake()
+        try Data("not a CAF".utf8).write(to: url.appending(path: "\(captureFolderName)/\(Self.second.stem).caf"))
+        let (reopened, again) = try await timelineModel(url, app: app)
+        _ = try again.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "m", name: "M", position: 10_000, kind: .marker))
+        }
+        reopened.timeline.marks = Marks(inPoint: 0, outPoint: 4_800, tracks: ["t1"])
+
+        reopened.run(.deleteCloseGap)
+
+        #expect(again.session.markers["m"]?.position == 5_200, "RIPPLE-W4 a CAF that does not open blocks")
+        await reopened.close()
+    }
+
+    /// A split take in a closed package: take1-1-1 placed, take1-2-1 not. The studio goes at the
+    /// return, so its package lock goes too.
+    func splitTake() async throws -> URL {
+        let (model, studio) = try await open()
+        _ = try await unplacedTake(model, studio)
+        await model.place(Self.first, atPlayhead: false)
+        try #require(studio.unplacedSegments == [Self.second])
+        await model.close()
+        return model.url
+    }
+
     /// Control: the guard of any unplaced segment refuses this ripple.
     @Test func anUndoneTakeAllowsARipple() async throws {
         let (model, studio) = try await open()

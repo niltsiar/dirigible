@@ -60,11 +60,17 @@ import Testing
         model.run(.nudgeRight)
         model.run(.fade)
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1", "t2"])
+        var beeps = 0
+        model.beep = { beeps += 1 }
         for command in [
             TimelineCommand.addMarker, .addChapter, .moveMarker, .renameMarker, .deleteMarker, .removeTrack,
         ] {
             model.run(command)
         }
+        model.timeline.marker = nil
+        for command in [TimelineCommand.moveMarker, .renameMarker, .deleteMarker] { model.run(command) }
+        model.timeline.marker = marker
+        #expect(beeps == 0, "a marker command beeps during the take (criterion M8)")
 
         #expect(studio.session == before && studio.canUndo == undo && model.alert == nil)
         #expect(model.timeline.renaming == nil, "the rename alert opened during the take")

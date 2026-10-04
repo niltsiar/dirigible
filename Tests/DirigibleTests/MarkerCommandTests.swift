@@ -161,14 +161,18 @@ import Testing
         await model.close()
     }
 
+    /// Criterion M7: a Move that moves the marker does not beep.
     @Test func moveToPlayhead() async throws {
         let (model, studio, _) = try await open()
+        var beeps = 0
+        model.beep = { beeps += 1 }
         try threeMarkers(studio)
         model.timeline.marker = "m1"
         await seek(studio, 200_000)
 
         model.run(.moveMarker)
 
+        #expect(beeps == 0)
         #expect(studio.session.markers["m1"]?.position == 200_000)
         #expect(studio.session.markers["m3"]?.position == 96_000)
         model.undo()
@@ -176,10 +180,48 @@ import Testing
         await model.close()
     }
 
+    /// Criterion M6: with the current marker at the playhead, Move beeps once and makes no undo
+    /// entry. Control: a Move with no position check beeps 0 times.
+    @Test func moveToTheSamePositionBeeps() async throws {
+        let (model, studio, _) = try await open()
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        try threeMarkers(studio)
+        model.timeline.marker = "m1"
+        await seek(studio, 48_000)
+        let before = studio.session
+
+        model.run(.moveMarker)
+
+        #expect(beeps == 1)
+        #expect(studio.session == before)
+        model.undo()
+        #expect(studio.session.markers.isEmpty, "the undo removes the fixture markers, not a Move entry")
+        await model.close()
+    }
+
+    /// Criterion M4: with no current marker, Rename, Move, and Delete Marker each beep once and
+    /// change nothing.
+    @Test func aMarkerCommandWithNoCurrentMarkerBeeps() async throws {
+        let (model, studio, _) = try await open()
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        try threeMarkers(studio)
+        await seek(studio, 200_000)
+        let before = studio.session
+
+        for command in [TimelineCommand.renameMarker, .moveMarker, .deleteMarker] { model.run(command) }
+
+        #expect(beeps == 3)
+        #expect(studio.session == before && model.alert == nil && model.timeline.renaming == nil)
+        await model.close()
+    }
+
     /// After Delete and Undo, m1 is back, but the slot is empty. Control: a Delete that keeps the
     /// slot deletes m1 again.
     @Test func deleteClearsTheSlotAndASecondDeleteDoesNothing() async throws {
         let (model, studio, _) = try await open()
+        model.beep = {}
         try threeMarkers(studio)
         model.timeline.marker = "m1"
 
@@ -196,6 +238,8 @@ import Testing
     /// `renameActsOnTheCurrentMarker`.
     @Test func anUndoneMarkerIsNotActedOn() async throws {
         let (model, studio, _) = try await open()
+        var beeps = 0
+        model.beep = { beeps += 1 }
         await seek(studio, 24_000)
         model.run(.addMarker)
         model.undo()
@@ -204,6 +248,7 @@ import Testing
         for command in [TimelineCommand.renameMarker, .moveMarker, .deleteMarker] { model.run(command) }
 
         #expect(studio.session == before && model.alert == nil && model.timeline.renaming == nil)
+        #expect(beeps == 3, "criterion M5")
         await model.close()
     }
 

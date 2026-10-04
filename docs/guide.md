@@ -251,9 +251,11 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 - Control-click the time ruler and choose **Add Marker** or **Add Chapter** to add a flag at that point.
 - Control-click a flag and choose **Delete Marker** to delete it.
 - Click a flag to move the playhead to it. The flag becomes the current marker.
-- Drag a flag to move it.
+- Drag a flag to move it. The flag becomes the current marker.
+- The current marker shows its name in bold on a filled label in the flag color. Press Esc or choose **Edit > Deselect All** to clear it.
 - **Edit > Paste** and **Edit > Delete** do not move the flags. **Edit > Cut**, **Edit > Delete and Close Gap**, **Edit > Insert**, and an Option drag of a clip edge move the flags after the edit with the audio. See [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
-- **Rename Marker**, **Move Marker to Playhead**, and **Delete Marker** change the current marker.
+- **Rename Marker**, **Move Marker to Playhead**, and **Delete Marker** change the current marker. With no current marker, the command beeps.
+- To move the current marker with the menu, put the playhead at the new point: click the time ruler, or play. Then choose **Markers > Move Marker to Playhead**. When the marker is already at the playhead, the command beeps. A click on the ruler away from a flag keeps the current marker.
 - **Previous Marker** and **Next Marker** move the playhead to a flag and make it the current marker.
 
 ## Work with tracks

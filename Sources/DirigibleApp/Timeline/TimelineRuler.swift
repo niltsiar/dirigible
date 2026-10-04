@@ -21,6 +21,10 @@ final class TimelineRuler: NSRulerView {
     var inputs: RulerInputs? {
         didSet { if inputs != oldValue { needsDisplay = true } }
     }
+    /// The current marker of the window (decision 0018): it draws with its own look.
+    var current: MarkerID? {
+        didSet { if current != oldValue { needsDisplay = true } }
+    }
     /// The draws and the rect of the last draw, for the ruler guard of a page turn (live take G5).
     private(set) var draws = 0
     private(set) var drawnRect = NSRect.zero
@@ -63,20 +67,38 @@ final class TimelineRuler: NSRulerView {
         while seconds * rate / points <= Double(visible.maxX) {
             let at = x(of: seconds * rate / points)
             NSRect(x: at, y: Self.thickness - 6, width: 1, height: 6).fill()
-            draw(
-                rulerLabel(seconds, tenths: step < 1), at: NSPoint(x: at + 3, y: 2), color: .secondaryLabelColor,
-                digits: true)
+            let label = typeset(
+                rulerLabel(seconds, tenths: step < 1), color: .secondaryLabelColor,
+                font: .monospacedDigitSystemFont(ofSize: 10, weight: .regular))
+            draw(label, at: NSPoint(x: at + 3, y: 2))
             seconds += step
         }
-        for marker in inputs.markers.values.sorted(by: { $0.position < $1.position }) {
+        // The current marker draws last, so its label is on top.
+        let markers = inputs.markers.values.sorted {
+            ($0.id == current ? 1 : 0, $0.position) < ($1.id == current ? 1 : 0, $1.position)
+        }
+        for marker in markers {
             let color: NSColor = marker.kind == .marker ? .systemOrange : .systemPurple
             let at = x(of: inputs.geometry.x(of: marker.position))
+            let isCurrent = marker.id == current
             color.setFill()
-            NSRect(x: at, y: 0, width: 1, height: Self.thickness).fill()
+            NSRect(x: at, y: 0, width: isCurrent ? 2 : 1, height: Self.thickness).fill()
             let box = RulerGeometry.flagReach.upperBound
             NSRect(x: at, y: 12, width: box, height: box).fill()
-            // A marker name is user data: it shows as typed.
-            draw(marker.name, at: NSPoint(x: at + 8, y: 10), color: color, digits: false)
+            // A marker name is user data: it shows as typed. The current marker shows its name in
+            // semibold on a pill in the flag color: black on orange and white on purple, for contrast.
+            let name = NSPoint(x: at + 8, y: 10)
+            guard isCurrent else {
+                draw(typeset(marker.name, color: color, font: .systemFont(ofSize: 10)), at: name)
+                continue
+            }
+            let text = typeset(
+                marker.name, color: marker.kind == .marker ? .black : .white,
+                font: .systemFont(ofSize: 10, weight: .semibold))
+            let width = CTLineGetTypographicBounds(text.line, nil, nil, nil)
+            NSBezierPath(roundedRect: NSRect(x: at + 5, y: 9, width: width + 6, height: 14), xRadius: 3, yRadius: 3)
+                .fill()
+            draw(text, at: name)
         }
         triangle(inputs.marks.inPoint, inputs.geometry, .systemGreen)
         triangle(inputs.marks.outPoint, inputs.geometry, .systemRed)
@@ -86,16 +108,11 @@ final class TimelineRuler: NSRulerView {
     /// moves every later flag, and the typesetting of the text was half of the ruler draw (run 12).
     private var lines: [String: (line: CTLine, ascent: CGFloat)] = [:]
 
-    /// Draws `text` with its top left at `point`, in the 10 pt system font (monospaced digits for
-    /// the time labels), as `NSString.draw(at:)` places it in this flipped view.
-    private func draw(_ text: String, at point: NSPoint, color: NSColor, digits: Bool) {
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let key = "\(digits)|\(color)|\(effectiveAppearance.name.rawValue)|\(text)"
-        let typeset =
-            lines[key]
+    /// The typeset line of `text` in `font` and `color`, from the cache.
+    private func typeset(_ text: String, color: NSColor, font: NSFont) -> (line: CTLine, ascent: CGFloat) {
+        let key = "\(font.fontName)|\(color)|\(effectiveAppearance.name.rawValue)|\(text)"
+        return lines[key]
             ?? {
-                let font =
-                    digits ? NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular) : .systemFont(ofSize: 10)
                 var cgColor = color.cgColor
                 effectiveAppearance.performAsCurrentDrawingAppearance { cgColor = color.cgColor }
                 let string = NSAttributedString(
@@ -108,6 +125,12 @@ final class TimelineRuler: NSRulerView {
                 lines[key] = made
                 return made
             }()
+    }
+
+    /// Draws a typeset line with its top left at `point`, as `NSString.draw(at:)` places it in
+    /// this flipped view.
+    private func draw(_ typeset: (line: CTLine, ascent: CGFloat), at point: NSPoint) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
         defer { context.restoreGState() }
         context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)

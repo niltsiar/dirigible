@@ -10,9 +10,10 @@
 # a log under controls/. The third argument names the row that says why no control applies. Then
 # it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
 # delta after the load wait of check-changed.sh when the stamp has an ancestor of HEAD, else
-# `make check-changed BASE=origin/main`. It prints the stamp line. Then it pushes the branch, creates the pull request, refuses the merge
-# when origin/main moved after the checks, merges with a rebase, and updates main. It stops at the
-# first failure and never force-pushes. It prints the PR URL and the commit range on main.
+# `make check-changed BASE=origin/main`. It prints the stamp line. Then it pushes the branch,
+# creates the pull request, refuses the merge when origin/main moved after the checks, merges with
+# a rebase, and updates main. It stops at the first failure and never force-pushes. It prints the
+# PR URL and the commit range on main.
 # scripts/land.test.sh tests it.
 set -euo pipefail
 

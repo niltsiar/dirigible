@@ -7,8 +7,8 @@
 # (before the fetch), a body that lost a number of logs/pr-draft.md, a pr-terms.sh error, a
 # missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta
 # after the stamp runs the targets of the delta after the load wait, and no usable stamp runs the
-# full push check; the governance and the ancestor checks still run. The ratchet case runs the real make check-changed
-# first, so the land runs no check after it. Run by `make test-hooks`.
+# full push check; the governance and the ancestor checks still run. The ratchet case runs the
+# real make check-changed first, so the land runs no check after it. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 land="$here/land.sh"

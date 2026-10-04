@@ -3,6 +3,7 @@
 # (--from), changes a tab in a field to a space, refuses a file with four lines and appends
 # nothing, keeps the six-argument form, and refuses a row whose decision or result starts with
 # default and whose why has no `Reverse:` (any case), and refuses a phase that is not one digit.
+# Check that a criterion change row needs a newer analysis.md and the words old and new.
 # Check that new-run.sh reports the backlog sections and the upkeep items.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -88,6 +89,30 @@ printf '4 implement\ndecision\nwhy\nevidence\ndone\n' > "$tmp/phase"
 "$log" "$run" 0 decision why evidence done || fail "phase 0 exits $?"
 "$log" "$run" 9 decision why evidence done || fail "phase 9 exits $?"
 check_row 'phase 9' $'9\tdecision\twhy\tevidence\tdone'
+
+# A criterion change row needs an analysis.md that changed after the last row, and the words old
+# and new. /bin/bash compares whole seconds, so touch -t puts decisions.tsv in the past.
+refused() {
+  local name="$1" reason="$2" before err code
+  shift 2
+  before="$(shasum -a 256 "$run/decisions.tsv")"
+  err="$("$log" "$run" "$@" 2>&1)"
+  code=$?
+  [[ $code -eq 2 ]] || fail "$name: expected exit 2, got $code"
+  [[ "$err" == *"$reason"* ]] || fail "$name: no '$reason' in the message: $err"
+  [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail "$name: decisions.tsv changed"
+}
+change=(4 'Criterion change C1: old 3 s, new 5 s' 'the probe gives 4 s' evidence done)
+refused 'a criterion change with no analysis.md' analysis.md "${change[@]}"
+touch -t 200001010000 "$run/analysis.md"
+refused 'a criterion change with an old analysis.md' analysis.md "${change[@]}"
+touch "$run/analysis.md"
+touch -t 200001010000 "$run/decisions.tsv"
+refused 'a criterion change with no old and new' 'old and new' 4 'criterion change C1: 5 s' 'the probe gives 4 s' evidence done
+"$log" "$run" "${change[@]}" || fail "a criterion change after an analysis.md edit exits $?"
+check_row 'a criterion change after an analysis.md edit' $'4\tCriterion change C1: old 3 s, new 5 s\tthe probe gives 4 s\tevidence\tdone'
+refused 'a second criterion change with no new analysis.md edit' analysis.md "${change[@]}"
+"$log" "$run" 7 'criterion 4 verified' 'the test passes' evidence done || fail "a criterion verification row exits $?"
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

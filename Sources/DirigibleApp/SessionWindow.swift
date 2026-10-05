@@ -94,6 +94,8 @@ struct ExportReportShown: Equatable {
     /// The last clean export with a target, for its banner (decision 0032). The next export
     /// start and the next take start remove it; the banner shows only at its session revision.
     var exportReport: ExportReportShown?
+    /// The running import (decision 0040). Nil: no import.
+    var importJob: ImportJob?
     /// The error of a take start that its checks refused while an export runs. The progress
     /// sheet shows it: a window alert would wait behind the sheet until the export ends.
     var recordRefusal: StudioError?
@@ -180,6 +182,8 @@ struct ExportReportShown: Equatable {
         let window = UndoRoutingWindow(contentViewController: host)
         window.model = self
         window.isReleasedWhenClosed = false
+        // No window tabs, so no File > New Tab item takes Command-T (decision 0040).
+        window.tabbingMode = .disallowed
         window.delegate = self
         self.window = window
         chrome = SessionChrome(model: self, window: window)

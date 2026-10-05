@@ -29,12 +29,13 @@ extension SessionWindow {
     var canExport: Bool { exportStudio.flatMap { source(of: .session, in: $0) } != nil }
     var canExportSelection: Bool { exportStudio.flatMap { source(of: .selection, in: $0) } != nil }
 
-    /// Export and Export Selection are off when they cannot run. Their keys have Command, so the
+    /// Import Audio, Export, and Export Selection are off when they cannot run. Their keys have Command, so the
     /// plain-key rule (probe K1) does not apply. The other items are never off.
     func isOn(_ command: TimelineCommand) -> Bool {
         switch command {
         case .export: canExport
         case .exportSelection: canExportSelection
+        case .importAudio: canImport
         case .zoomBack: timeline.canGoBack
         case .zoomForward: timeline.canGoForward
         default: true

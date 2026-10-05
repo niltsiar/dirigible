@@ -60,6 +60,58 @@ import Testing
         #expect(field.stringValue == (focus ? "k" : ""))
         #expect(!takesTransportKeys(panel))
     }
+
+    /// Run 2026-10-05-alert-return-hang C1: an alert whose buttons do not take Return (an OK
+    /// with the cancel role) is a panel where no responder uses the key. AppKit routes the key
+    /// from `NSWindow.keyDown` to the main menu, as the hang sample shows. The main menu has the
+    /// forwarding items of Rename Track (Return) and Play (Space), as SwiftUI builds them. The
+    /// item stops a loop at depth 3, so the test fails and does not hang.
+    @Test(arguments: [("\r", UInt16(36)), (" ", UInt16(49))])
+    func anUnusedKeyDoesNotReenterItsMenuItem(character: String, code: UInt16) {
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: [.titled], backing: .buffered,
+            defer: false)
+        let event = key(.keyDown, character, code: code, in: panel)
+        let item = ForwardingItem { [app] in
+            if character == " " {
+                app.transport(.playStop, event: event, in: panel)
+            } else {
+                app.timeline(.renameTrack, event: event, in: panel)
+            }
+        }
+        let menu = NSMenu()
+        let top = NSMenuItem(title: "Test", action: nil, keyEquivalent: "")
+        top.submenu = NSMenu(title: "Test")
+        let entry = NSMenuItem(title: "Forward", action: #selector(ForwardingItem.fire(_:)), keyEquivalent: character)
+        entry.keyEquivalentModifierMask = []
+        entry.target = item
+        top.submenu?.addItem(entry)
+        menu.addItem(top)
+        let saved = NSApp.mainMenu
+        NSApp.mainMenu = menu
+        defer { NSApp.mainMenu = saved }
+
+        item.fire(nil)
+
+        #expect(item.calls == 1, "the key re-entered its menu item: \(item.calls) calls")
+    }
+}
+
+/// A menu item action that runs `body`, and stops a nested call at depth 3.
+@MainActor final class ForwardingItem: NSObject {
+    let body: () -> Void
+    private(set) var calls = 0
+    private var depth = 0
+
+    init(_ body: @escaping () -> Void) { self.body = body }
+
+    @objc func fire(_ sender: Any?) {
+        calls += 1
+        guard depth < 3 else { return }
+        depth += 1
+        defer { depth -= 1 }
+        body()
+    }
 }
 
 /// J and L: a tap latches, a hold of 0.3 s or more plays while held (criterion 23, probe H1).

@@ -55,9 +55,9 @@ got="$(run does-not-exist 2>/dev/null)" && fail 'a bad base exits 0'
 got="$(run --quoted does-not-exist 2>/dev/null)" && fail '--quoted with a bad base exits 0'
 [[ -z "$got" ]] || fail "--quoted with a bad base prints [$got]"
 
-# --quoted prints a scenario with a changed Files cell only when a key point quotes a changed line
-# (a deleted line or an added line) of such a file, it is a holdout, or the base lacks it. A
-# quoted term has 8 or more characters, matches as a whole term, and is not in the stop list.
+# --quoted prints a scenario with a changed Files cell only when a key point quotes the changed
+# words of a hunk of such a file, it is a holdout, or the base lacks it. A quoted term has 8 or
+# more characters, matches as a whole term, and is not in the stop list.
 rm -rf "$tmp/r"
 mkdir -p "$tmp/r/docs/workflow"
 g init -q -b main
@@ -93,6 +93,35 @@ got="$(run --quoted main)" || fail "--quoted: exit $?"
 [[ "$got" == $'E1\nE5\nE7\nH1\nE6' ]] || fail "--quoted: got [$(tr '\n' ' ' <<<"$got")], want [E1 E5 E7 H1 E6]"
 got="$(run main)" || fail "no --quoted: exit $?"
 [[ "$got" == $'E1\nE2\nE3\nE4\nE5\nE7\nH1\nE6' ]] || fail "no --quoted: got [$(tr '\n' ' ' <<<"$got")]"
+
+# --quoted matches a key point only against the words that differ between the deleted and the
+# added lines of one hunk: a clause that stays the same on a changed line does not count. A
+# paragraph that moves to another hunk counts as changed.
+rm -rf "$tmp/r"
+mkdir -p "$tmp/r/docs/workflow"
+g init -q -b main
+cat > "$tmp/r/docs/workflow/evals.md" <<'EOF'
+# Evals
+
+## Scenarios
+
+| ID | Type | Source | Question | Key points | Files | Old | New |
+|---|---|---|---|---|---|---|---|
+| E1 | retention | s | q | (a) Wait for a quiet machine before the bench. | `a.md` | - | - |
+| E2 | retention | s | q | (a) Stop the replays first with `pkill -INT -f mutate.py`. | `a.md` | - | - |
+| E3 | retention | s | q | (a) Log each default in the decisions file. | `b.md` | - | - |
+| E4 | retention | s | q | (a) Keep `moved-term-x` in place. | `b.md` | - | - |
+EOF
+printf 'Wait for a calm machine before the bench, and stop the replays first with `pkill -INT -f mutate.py`.\n' > "$tmp/r/a.md"
+printf 'Log each default in the decisions file.\nKeep `moved-term-x` here.\nOne.\nTwo.\nThree.\n' > "$tmp/r/b.md"
+g add -A
+g commit -q -m base
+g switch -q -c feat/x
+printf 'Wait for a quiet machine before the bench, and stop the replays first with `pkill -INT -f mutate.py`.\n' > "$tmp/r/a.md"
+printf 'One.\nTwo.\nThree.\nLog each default in the decisions file.\nKeep `moved-term-x` here.\n' > "$tmp/r/b.md"
+g commit -q -am change
+got="$(run --quoted main)" || fail "--quoted changed words: exit $?"
+[[ "$got" == $'E1\nE3\nE4' ]] || fail "--quoted changed words: got [$(tr '\n' ' ' <<<"$got")], want [E1 E3 E4]"
 
 # The eval runner of scripts/eval/. The run files (keys.md, labels.tsv) stay in the eval folder of
 # the run, never in the runner folder.

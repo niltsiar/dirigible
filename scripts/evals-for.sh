@@ -4,9 +4,9 @@
 # eval pass of an upkeep run (reflect rule 8) run the scenarios of --quoted.
 # Usage: scripts/evals-for.sh [--quoted] <base>
 # --quoted keeps only a scenario that is new since <base>, a holdout, or a scenario whose key
-# points quote a changed line (a deleted or an added line) of a changed file of its Files cell:
-# a backticked term of 8 or more characters, as a whole term and not in the stop list, or a run
-# of 5 words (case and punctuation ignored).
+# points quote the changed words of a hunk of a changed file of its Files cell: a backticked term
+# of 8 or more characters (a whole term, not in the stop list) whose count differs between the
+# deleted and the added lines, or a run of 5 words (case and punctuation ignored) in one side only.
 # A bad base exits nonzero with nothing on stdout. scripts/evals-for.test.sh tests it.
 set -euo pipefail
 quoted=""
@@ -53,19 +53,20 @@ import sys
 diff, base, files, evals = sys.argv[1:5]
 STOP = {"decisions.tsv", "analysis.md", "run.md", "plan.md"}
 
-# The changed lines of each file: the - and + lines of each hunk.
-lines, cur, in_hunk = {}, None, False
+# The hunks of each file: the deleted lines and the added lines of each hunk.
+hunks, cur, in_hunk = {}, None, False
 for raw in open(diff, encoding="utf-8", errors="replace"):
     raw = raw.rstrip("\n")
     if raw.startswith("diff --git "):
         cur, in_hunk = None, False
+    elif raw.startswith("@@") and cur:
+        in_hunk = True
+        hunks.setdefault(cur, []).append(([], []))
     elif not in_hunk:
         if raw.startswith(("--- a/", "+++ b/")):
             cur = raw[6:]
-        elif raw.startswith("@@"):
-            in_hunk = True
-    elif raw[:1] in "+-" and cur:
-        lines.setdefault(cur, []).append(raw[1:])
+    elif raw[:1] in "+-":
+        hunks[cur][-1][raw[0] == "+"].append(raw[1:])
 
 
 def rows(path):
@@ -79,8 +80,10 @@ def rows(path):
             yield cells[1].strip(), cells[-5], cells[-4]
 
 
-def words(text):
-    return " ".join(re.findall(r"[a-z0-9]+", re.sub(r"\([a-z]\)", " ", text.lower())))
+def grams(text):
+    """The runs of 5 words of a text, with case and punctuation ignored."""
+    w = re.findall(r"[a-z0-9]+", re.sub(r"\([a-z]\)", " ", text.lower()))
+    return {" ".join(w[i : i + 5]) for i in range(len(w) - 4)}
 
 
 changed = {f for f in open(files, encoding="utf-8").read().split("\n") if f}
@@ -92,14 +95,13 @@ for sid, keys, cell in rows(evals):
     if sid not in base_ids or "holdout" in keys:
         print(sid)
         continue
-    text = [line for f in hit for line in lines.get(f, [])]
     terms = [t for t in re.findall(r"`([^`]+)`", keys) if len(t) >= 8 and t not in STOP]
     pattern = [re.compile(r"(?<![A-Za-z0-9_-])" + re.escape(t) + r"(?![A-Za-z0-9_-])") for t in terms]
-    w = words(keys).split()
-    grams = {" ".join(w[i : i + 5]) for i in range(len(w) - 4)}
-    for line in text:
-        padded = " " + words(line) + " "
-        if any(p.search(line) for p in pattern) or any(" " + g + " " in padded for g in grams):
+    for gone, added in (h for f in hit for h in hunks.get(f, [])):
+        gone, added = "\n".join(gone), "\n".join(added)
+        if any(len(p.findall(gone)) != len(p.findall(added)) for p in pattern) or grams(keys) & (
+            grams(gone) ^ grams(added)
+        ):
             print(sid)
             break
 PY

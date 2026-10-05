@@ -61,5 +61,5 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
-AGENTS.md	1920	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-TOTAL	31700	2026-10-04-workflow-speed-2 rebase on 21333ed (the architecture-refactor run raised the sum to 31706; this run lowers it by 6, to 31700)
+AGENTS.md	1882	2026-10-05-upkeep-batch slice 9 (decisions.tsv 2026-10-05T09:12): AGENTS.md goes from 1814 to 1776 words, so the row goes down by 38
+TOTAL	31662	2026-10-05-upkeep-batch slice 9 (decisions.tsv 2026-10-05T09:12): AGENTS.md is 38 words shorter, so TOTAL goes down by 38

@@ -59,7 +59,7 @@ struct ToolbarMenuTests {
     init() throws {
         folder = try TemporaryFolder()
         NSWindow.allowsAutomaticWindowTabbing = false
-        app.chooseExport = { _, _, _, _, done in done(nil) }
+        app.chooseExport = { _, _, _, _, _, done in done(nil) }
     }
 
     /// A window of 2 tracks on channel 1 of `duo`, each with a 10 s clip, the counting HAL, and

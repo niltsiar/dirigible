@@ -84,18 +84,39 @@ struct ExportTarget {
     var contentType: UTType { UTType(filenameExtension: fileExtension) ?? .audio }
 }
 
+/// The line of the export panel about the tracks of the source that are not heard (decision
+/// 0039): the count, or the silent-file text when no track is heard.
+struct ExportNote: Equatable {
+    let key: L10n
+    /// The unheard tracks of the source.
+    let count: Int
+
+    var text: String { key.format(count) }
+}
+
+/// Nil when every track of the source is heard. It counts with `Session.heardTracks(in:)`, the
+/// filter of the mix.
+func exportNote(_ session: Session, _ source: ExportSource) -> ExportNote? {
+    let heard = session.heardTracks(in: source.tracks).count
+    let unheard = (source.tracks?.count ?? session.tracks.count) - heard
+    guard unheard > 0 else { return nil }
+    if heard == 0 { return ExportNote(key: .panelExportNoteSilent, count: unheard) }
+    return ExportNote(key: unheard == 1 ? .panelExportNoteOne : .panelExportNoteMany, count: unheard)
+}
+
 /// The save panel of Export with its accessory pop-ups, as a sheet of `window`.
 enum ExportPanel {
-    /// Calls `done` with the target at OK, or with nil at Cancel.
+    /// Calls `done` with the target at OK, or with nil at Cancel. `note` is one line under the
+    /// pop-ups; the panel asks nothing more.
     @MainActor static func begin(
-        for window: NSWindow, name: String, sessionRate: Int, settings: ExportSettings,
+        for window: NSWindow, name: String, sessionRate: Int, settings: ExportSettings, note: String?,
         done: @escaping @MainActor (ExportTarget?) -> Void
     ) {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = name
         panel.allowedContentTypes = [settings.contentType]
         panel.accessoryView = NSHostingView(
-            rootView: ExportAccessory(settings: settings, sessionRate: sessionRate) { [weak panel] type in
+            rootView: ExportAccessory(settings: settings, sessionRate: sessionRate, note: note) { [weak panel] type in
                 panel?.allowedContentTypes = [type]
             })
         panel.beginSheetModal(for: window) { response in
@@ -110,6 +131,7 @@ enum ExportPanel {
 private struct ExportAccessory: View {
     @Bindable var settings: ExportSettings
     let sessionRate: Int
+    let note: String?
     let typeChanged: (UTType) -> Void
 
     var body: some View {
@@ -145,6 +167,9 @@ private struct ExportAccessory: View {
                 ForEach(LoudnessTarget.allCases, id: \.self) { target in
                     Text(verbatim: name(target)).tag(Optional(target))
                 }
+            }
+            if let note {
+                Text(verbatim: note).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding()

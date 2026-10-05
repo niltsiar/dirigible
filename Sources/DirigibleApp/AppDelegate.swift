@@ -67,10 +67,10 @@ import UniformTypeIdentifiers
         alert.runModal()
     }
     /// The save panel of Export as a sheet of a window: the name, the session rate, the
-    /// settings of the pop-ups, and the answer. Tests give their own.
+    /// settings of the pop-ups, the note of unheard tracks, and the answer. Tests give their own.
     @ObservationIgnored var chooseExport:
-        (NSWindow, String, Int, ExportSettings, @escaping @MainActor (ExportTarget?) -> Void) -> Void = {
-            ExportPanel.begin(for: $0, name: $1, sessionRate: $2, settings: $3, done: $4)
+        (NSWindow, String, Int, ExportSettings, String?, @escaping @MainActor (ExportTarget?) -> Void) -> Void = {
+            ExportPanel.begin(for: $0, name: $1, sessionRate: $2, settings: $3, note: $4, done: $5)
         }
 
     /// The app: the list of active recordings in Application Support.

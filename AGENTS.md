@@ -14,13 +14,12 @@ The Makefile comments give the reasons. The toolchain is Xcode 26 with Swift 6.2
 
 | Command | What it does |
 |---|---|
-| `make setup` | Enables the pre-commit hook. Run it once per clone. |
+| `make setup` | Enables the git hooks. Run it once per clone. |
 | `make build` | Debug build. |
 | `make test` | All tests except `AppBundleTests` and `DiskImageTests`, for the red-green loop. A bare `swift test` fails these two on purpose. `DirigibleCLITests` runs in its own process. |
-| `make test-slow` | The slow tests only. `make check` does not run the slow tests. |
+| `make test-slow` | The slow tests only. |
 | `make check-slow-gates` | Checks that each slow-test gate has its `func` on the next line. |
 | `make bench FILTER=<test>` | The slow tests that match `FILTER`, optimized. `swift test -c release` runs the `@main` of the app, not the tests. |
-| `scripts/bench-pairs.sh <main worktree> <filter> <pairs> <out>` | Compares `make bench` of main and this tree by the 0022 rule. |
 | `make app` | Release build of `build/Dirigible.app` (universal, ad-hoc signed). |
 | `make icon-preview` | Renders the icon to `build/icon-preview/` for review, with no Swift build (decision 0026). |
 | `make test-app` | Runs `AppBundleTests` on a new app bundle. |
@@ -59,7 +58,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - Never commit on `main` directly. Work on a branch `<type>/<slug>`. Every run lands through a pull request with `scripts/land.sh`. It merges with a rebase, so `main` stays linear and keeps each commit.
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change. Only lint runs before each commit: tests run in the **tdd** loop and in the push check before the land. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
-- The pre-commit hook refuses a commit that fails `make lint`. It checks the working tree, so stage whole changes.
+- The pre-commit hook runs `make lint` on the working tree, so stage whole changes.
 - `.claude/hooks/git-guardrails.sh` blocks git commands that discard work or skip checks, and a `git commit` joined to `make check` by anything but `&&`. It matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F <file>`.
 - The hook allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
@@ -89,7 +88,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 - Write the failing test first (the **tdd** skill). Every behavior change comes with a test that fails without it. The tdd skill has the rules for test kinds, fixtures, and asserts.
 - Tests do not use the network, the real microphone, or a permission prompt.
-- Keep the suite fast. Put a slow test behind `DIRIGIBLE_SLOW_TESTS=1`. `make test-slow` runs it.
+- Keep the suite fast. Put a slow test behind `DIRIGIBLE_SLOW_TESTS=1`.
 
 ## Keep this file true
 

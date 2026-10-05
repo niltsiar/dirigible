@@ -14,7 +14,7 @@ bench="$(cd "$here/../../../../scripts" && pwd)/bench.sh"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE CHECK_LOAD_MAX
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 TZ=UTC
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
@@ -207,7 +207,7 @@ printf '.build\n' > "$b/.gitignore"
 printf '#!/bin/bash\nexit 0\n' > "$bin/swift"
 chmod +x "$bin/swift"
 # A stub check-changed.sh logs the load wait call of bench.sh and does not wait.
-printf '#!/bin/bash\necho "$CHECK_LOAD_MAX $*" >> "%s"\n' "$tmp/wait.log" > "$b/scripts/check-changed.sh"
+printf '#!/bin/bash\necho "max=${CHECK_LOAD_MAX:-cores} $*" >> "%s"\n' "$tmp/wait.log" > "$b/scripts/check-changed.sh"
 chmod +x "$b/scripts/check-changed.sh"
 git -C "$b" init -q
 git -C "$b" add -A
@@ -215,8 +215,9 @@ git -C "$b" commit -q -m base
 head="$(git -C "$b" rev-parse HEAD)"
 out="$(cd "$b" && PATH="$bin:$PATH" scripts/bench.sh FooBench 2>&1)" || fail "bench.sh on a clean tree exits $?: $out"
 [[ "$(head -n 1 <<<"$out")" == "bench: commit $head tree clean filter FooBench" ]] || fail "bench.sh on a clean tree: $out"
-# After the build, bench.sh waits with a load maximum of 4, and prints the load before and after the run.
-[[ "$(cat "$tmp/wait.log" 2>/dev/null)" == "4 --wait-load bench" ]] || fail "bench.sh wait call: [$(cat "$tmp/wait.log" 2>/dev/null)]"
+# After the build, bench.sh waits with the default load maximum of check-changed.sh (the core count:
+# its own build just raised the load), and prints the load before and after the run.
+[[ "$(cat "$tmp/wait.log" 2>/dev/null)" == "max=cores --wait-load bench" ]] || fail "bench.sh wait call: [$(cat "$tmp/wait.log" 2>/dev/null)]"
 [[ "$(grep -c '^bench: load [0-9.]*$' <<<"$out")" == 2 ]] || fail "bench.sh load lines: $out"
 echo x > "$b/x.txt"
 out="$(cd "$b" && PATH="$bin:$PATH" scripts/bench.sh FooBench 2>&1)" || fail "bench.sh on a dirty tree exits $?: $out"

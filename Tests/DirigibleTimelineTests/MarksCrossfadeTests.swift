@@ -59,7 +59,8 @@ struct MarksCrossfadeTests {
     }
 
     /// The lane-indexed edits of Command-F give the same session as the edits by clip ID, for
-    /// ranges across, inside, and around the joins and the gap of two tracks.
+    /// ranges across, inside, and around the joins and the gap of two tracks. Both paths use the
+    /// same lane results, so the test covers only the map from a clip ID to its lane index.
     @Test func theLaneEditsMatchTheEditsByID() throws {
         var session = try Self.session(a: 900, aFades: Fades(fadeIn: 300, fadeOut: 300)!)
         try session.place(Clip(id: "D", file: "fb", start: 144_000, offset: 100_000, length: 24_000), on: "t1")

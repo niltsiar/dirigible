@@ -283,6 +283,7 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the **Arm
 - Option-click **M** or **S** to give all tracks the new state.
 - To mute or solo the selected tracks, choose **Track > Mute Track** (Shift-M) or **Track > Solo Track** (Shift-S). When one selected track is off, all selected tracks go on. Else all go off. With no selected track, the Mac beeps.
 - During play, you hear the change after at most 0.3 s, with a short crossfade and no click.
+- The lanes of the tracks that you do not hear are dimmed.
 - Each change is one step of **Edit > Undo**, and the session saves it. During a take, the buttons are off.
 - On a narrow header, the buttons hide, so the input and the track state keep their room. The menu items and the keys still work.
 - A session with a muted or soloed track does not open in a version of Dirigible from before mute and solo.

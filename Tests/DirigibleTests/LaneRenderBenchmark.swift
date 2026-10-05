@@ -36,6 +36,8 @@ struct LaneRenderBenchmark {
             )
             states[file] = .ready(peaks)
         }
+        // One muted track (mute and solo C11 f): the dim is a layer, so the lane draw stays the same.
+        try session.setMuted(true, tracks: ["t2"])
         let renderer = LaneRenderer()
 
         for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {

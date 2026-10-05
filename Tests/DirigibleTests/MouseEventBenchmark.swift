@@ -66,6 +66,8 @@ func expectWithinBudget(
         let fades = try #require(Fades(fadeIn: 24_000, fadeOut: 24_000))
         try session.setFades(
             Dictionary(uniqueKeysWithValues: session.tracks.flatMap { $0.clips.map { ($0.id, fades) } }))
+        // One dimmed lane (mute and solo C11 f): the dim layer is in each bench of this fixture.
+        try session.setMuted(true, tracks: [tracks[1]])
         return (session, states)
     }
 

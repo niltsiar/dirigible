@@ -147,13 +147,25 @@ check '2:mutate' 'a replay of a control with side effects' --replay "$tmp/fx" "$
 check '1:survived' 'an allowed replay of a control with side effects' --allow-side-effects --replay "$tmp/fx" "$tmp/fx-again"
 grep -q '^# side-effects: yes' "$tmp/fx-again" || { echo "FAIL: the replay lost the mark"; failures=$((failures + 1)); }
 
-# Succeeds when the process <pid> has ended.
-ended() { ! kill -0 "$1" 2>/dev/null; }
+# Succeeds when the process <pid> ends in [tenths] tenths of a second (default 50). A killed
+# orphan exists until launchd reaps it, so one check at once is not enough.
+ended() {
+  for _ in $(seq "${2:-50}"); do
+    kill -0 "$1" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  return 1
+}
 
 # A process that ends soon after the check has ended for ended (flakes-2: the killed sleep of
 # the stop case was not reaped yet under load).
 sleep 0.5 &
 ended $! || { echo "FAIL: the test still runs after a late exit"; failures=$((failures + 1)); }
+# A process that lives past the bound has not ended.
+sleep 30 &
+late=$!
+! ended "$late" 3 || { echo "FAIL: a process that lives past the bound has ended"; failures=$((failures + 1)); }
+{ kill "$late" && wait "$late"; } 2>/dev/null
 
 # A stop by SIGTERM (not only SIGINT) restores the file and ends the test (start-window Phase 7: a
 # replay ran for hours, and SIGTERM skipped the restore).
@@ -162,7 +174,9 @@ before="$(shasum -a 256 "$file")"
 for sig in TERM HUP INT; do
   "$mutate" "$file" 'b = 1' 'b = 2' "$tmp/stop" "$build" "sleep 32 & echo \$! > $tmp/pid; wait" > "$tmp/stop.out" 2>&1 &
   runner=$!
-  for _ in $(seq 50); do grep -q 'b = 2' "$file" && [[ -s "$tmp/pid" ]] && break; sleep 0.1; done
+  started=no
+  for _ in $(seq 300); do grep -q 'b = 2' "$file" && [[ -s "$tmp/pid" ]] && started=yes && break; sleep 0.1; done
+  [[ $started == yes ]] || { echo "FAIL: the test did not start under SIG$sig"; failures=$((failures + 1)); }
   kill -"$sig" "$runner"
   wait "$runner"
   code=$?

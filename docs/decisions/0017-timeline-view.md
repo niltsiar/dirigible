@@ -16,6 +16,7 @@
 - Amended: 2026-10-03, run 11a. The waveform has the fades of 0035, and a fade line in clip boxes of 12 pt or more wide.
 - Amended: 2026-10-04, runs 11c-1 and 11c-2: the waveform takes the fades of the sounding clip inside its box, and the fade lines of a crossfade cross at the join as an X, drawn in their own pass after the waveforms (see 0036).
 - Amended: 2026-10-04, multi-clip-selection run (see 0038): a Command-click on the upper part of a clip toggles the clip in a clip selection. The lower part of a clip and a gap keep the track toggle.
+- Amended: 2026-10-05, ui-polish run: a click on a track header selects its track (`Selection.clickingHeader`). Command toggles the track, and Shift spans from the selected tracks. A range keeps its points. The selected header shows the source list selection color. A click on the name selects; a double-click, Track > Rename Track (Return), or the Rename action starts the rename.
 
 ## Context
 

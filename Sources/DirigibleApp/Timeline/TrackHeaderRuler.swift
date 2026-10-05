@@ -101,9 +101,7 @@ final class TrackHeaderRuler: NSRulerView {
     /// Commits the typed track names and ends the text focus, as a lane mouse-down does: a focused
     /// field takes Esc, and an AX step gives the rows a new width at once.
     private func endTextEdit() {
-        guard let timeline = scrollView as? TimelineScrollView else { return }
-        timeline.model?.commitNames()
-        window?.makeFirstResponder(timeline.lanes)
+        (scrollView as? TimelineScrollView)?.model?.endNameEdit()
     }
 
     /// Esc: true when a header drag ran and Esc ended it with the start width.

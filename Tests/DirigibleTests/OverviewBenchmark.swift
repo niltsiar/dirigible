@@ -124,7 +124,8 @@ import Testing
                 let start = ContinuousClock.now
                 view.navigate(input(zoom, view))
                 // The SwiftUI update of the pane: a new scale or visible part runs its body.
-                view.headers.host.rootView = AnyView(TrackHeaders(model: model, studio: studio, laneHeight: 100))
+                view.headers.host.rootView = AnyView(
+                    TrackHeaders(model: model, studio: studio, laneHeight: 100, selected: []))
                 MouseEventBenchmark.swiftUIUpdate(view, model, inputs)
                 drawNow(window)
                 if event > 10 { times.append(ContinuousClock.now - start) }

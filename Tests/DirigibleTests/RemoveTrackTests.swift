@@ -103,4 +103,24 @@ extension EditTakeTests {
         #expect(studio.session.tracks.map(\.id) == ["t1"])
         await model.close()
     }
+
+    /// C17: the menu of a selected row removes the selected tracks. The menu of another row first
+    /// selects that row alone, and then removes only its track; a selected row keeps the selection.
+    @Test func theHeaderMenuOfASelectedRowRemovesTheSelection() async throws {
+        let (model, studio, _, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 4, seconds: 60))
+        model.timeline.marks = Marks(tracks: ["t1", "t2"])
+
+        model.showHeaderMenu("t2")
+        #expect(model.timeline.marks == Marks(tracks: ["t1", "t2"]), "a selected row keeps the selection")
+        model.removeFromHeader("t2")
+        #expect(studio.session.tracks.map(\.id) == ["t3", "t4"])
+
+        model.showHeaderMenu("t4")
+        #expect(model.timeline.marks == Marks(tracks: ["t4"]), "the menu selects its row first")
+        model.timeline.marks = Marks(tracks: ["t3"])
+        model.removeFromHeader("t4")
+        #expect(studio.session.tracks.map(\.id) == ["t3"], "a row that is not selected removes its track")
+        await model.close()
+    }
 }

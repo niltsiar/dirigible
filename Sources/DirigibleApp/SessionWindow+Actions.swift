@@ -83,8 +83,9 @@ extension SessionWindow {
     }
 
     /// Saves the typed name of the track. The draft goes also when the rename is refused, so
-    /// the field shows the saved name again.
+    /// the field shows the saved name again. The rename of the track ends, also with no draft.
     func commitName(_ track: TrackID) {
+        if renamingTrack == track { renamingTrack = nil }
         guard let name = drafts.removeValue(forKey: track), idleStudio?.session.track(track)?.name != name else {
             return
         }

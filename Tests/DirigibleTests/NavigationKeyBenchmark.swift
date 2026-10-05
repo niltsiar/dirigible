@@ -89,7 +89,7 @@ import Testing
                     var current = inputs
                     current.laneHeight = model.timeline.laneHeight.points(free: 600, tracks: 6)
                     view.headers.host.rootView = AnyView(
-                        TrackHeaders(model: model, studio: studio, laneHeight: current.laneHeight))
+                        TrackHeaders(model: model, studio: studio, laneHeight: current.laneHeight, selected: []))
                     MouseEventBenchmark.swiftUIUpdate(view, model, current)
                 }
                 let action = prepare(model, event)

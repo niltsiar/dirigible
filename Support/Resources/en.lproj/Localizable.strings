@@ -12,6 +12,7 @@
 "menu.track.add.call.none" = "No App";
 "menu.track.add.call.no.apps" = "No Apps Running";
 "menu.track.remove" = "Remove Track";
+"menu.track.rename" = "Rename Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
 "menu.record.retry" = "Retry Finalize";
@@ -153,6 +154,7 @@
 /* Timeline (decision 0017) */
 "timeline.accessibility" = "Timeline";
 "timeline.header.handle" = "Track header width";
+"timeline.header.rename" = "Rename";
 
 /* The overview strip (decision 0025) */
 "timeline.overview" = "Session overview";

@@ -140,7 +140,9 @@ private struct TimelinePane: View {
             TimelineLanes(
                 model: model, studio: studio, inputs: laneInputs(model, studio, laneHeight: height),
                 currentMarker: model.timeline.marker,
-                headers: TrackHeaders(model: model, studio: studio, laneHeight: height))
+                headers: TrackHeaders(
+                    model: model, studio: studio, laneHeight: height,
+                    selected: model.timeline.selection.headerTracks(in: studio.session)))
         }
     }
 }

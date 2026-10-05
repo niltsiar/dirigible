@@ -37,7 +37,10 @@ final class ChunkSeam: @unchecked Sendable {
             return records.count
         }
         actions[call]?()
-        if pause > 0 { Thread.sleep(forTimeInterval: pause) }
+        // The pause leaves out the main-actor holds of other suites, so an export that a test
+        // cancels does not end while the test waits for the main actor (run flakes-2, S4).
+        let watch = Stopwatch()
+        while watch.elapsed < .seconds(pause) { Thread.sleep(forTimeInterval: 0.05) }
     }
 }
 

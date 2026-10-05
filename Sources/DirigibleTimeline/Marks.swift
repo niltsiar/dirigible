@@ -170,7 +170,7 @@ public struct Marks: Hashable, Sendable {
     }
 
     /// Each clip on a selected track whose range overlaps the selection, in session order, as its
-    /// lane and its index there. Auto Level, Command-F, and the inspector take these clips. Nil
+    /// lane and its index there. Auto Level and the inspector take these clips. Nil
     /// with no selection.
     public func touchedClips(in session: Session) -> [(lane: ClipLane, index: Int)]? {
         guard let selection = selection(in: session) else { return nil }

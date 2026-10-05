@@ -40,7 +40,8 @@ extension SessionWindow {
         importJob = ImportJob(name: url.lastPathComponent)
         importJob?.task = Task { [weak self] in
             do throws(StudioError) {
-                let clip = try await studio.importAudio(url, to: target) { [weak self] in self?.importJob?.progress = $0
+                let clip = try await studio.importAudio(url, to: target) { [weak self] fraction in
+                    self?.importJob?.progress = fraction
                 }
                 self?.timeline.selection = ClipSet([clip]).map { .clips($0) } ?? .none
             } catch .audioImport(.cancelled) {

@@ -36,15 +36,23 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
 func editPackage<Result>(
     _ package: PackageArgument, ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
+    try editPackage(package, ripple: ripple, refused: { fail($0.message, code: editRefused) }, body)
+}
+
+/// `editPackage` for a body with its own error: `refused` writes its line and gives its exit code.
+func editPackage<Result, Failure: Error>(
+    _ package: PackageArgument, ripple: Bool = false, refused: (Failure) -> ExitCode,
+    _ body: (inout Session) throws(Failure) -> Result
+) throws(ExitCode) -> Result {
     let locked = { (error: SessionFileError) in fail(error.message(package: package.path), code: packageError) }
     return try PackageLock.withLock(package.url, locked: locked) { lock throws(ExitCode) -> Result in
-        try editLocked(package, lock, ripple: ripple, body)
+        try editLocked(package, lock, ripple: ripple, refused: refused, body)
     }
 }
 
-private func editLocked<Result>(
-    _ package: PackageArgument, _ lock: PackageLock, ripple: Bool,
-    _ body: (inout Session) throws(SessionError) -> Result
+private func editLocked<Result, Failure: Error>(
+    _ package: PackageArgument, _ lock: PackageLock, ripple: Bool, refused: (Failure) -> ExitCode,
+    _ body: (inout Session) throws(Failure) -> Result
 ) throws(ExitCode) -> Result {
     var session = try readPackage(package)
     Session.removeTemporaryFiles(in: package.url)
@@ -62,7 +70,7 @@ private func editLocked<Result>(
     do {
         result = try body(&session)
     } catch {
-        throw fail(error.message, code: editRefused)
+        throw refused(error)
     }
     do {
         // The package that the lock holds, also after a rename (decision 0014).

@@ -42,7 +42,7 @@ struct ImportStudioFixture {
 }
 
 /// The progress values that an import gives, on the main actor.
-@MainActor final class Progress {
+@MainActor final class ProgressValues {
     var list: [Double] = []
 }
 
@@ -80,7 +80,7 @@ struct StudioImportTests {
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         _ = await studio.renderOffline(frames: 4_800)
-        let values = Progress()
+        let values = ProgressValues()
 
         let importing = Task { try await studio.importAudio(fixture.source, to: newTrack) { values.list.append($0) } }
         await gate.entered()

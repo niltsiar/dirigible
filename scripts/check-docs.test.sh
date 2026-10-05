@@ -11,9 +11,10 @@ export GUIDE_HTML="$tmp/guide-html"
 
 # A minimal good tree: one research file, a brief with R1 and R10, releases for both, one accepted record,
 # three menu names in English and Spanish, a guide with each name in bold, a README with an image, and a
-# deliver Autonomy rules section with each friction token of a reflect cost.sh.
+# deliver Autonomy rules section with each friction token of a reflect cost.sh, and a CLI with the root
+# commands info and clip.
 good() {
-  rm -rf "$tmp/docs" "$tmp/Support" "$tmp/README.md" "$tmp/.claude"
+  rm -rf "$tmp/docs" "$tmp/Support" "$tmp/README.md" "$tmp/.claude" "$tmp/Sources"
   mkdir -p "$tmp/docs/research" "$tmp/docs/requirements" "$tmp/docs/decisions" "$tmp/docs/images" \
     "$tmp/Support/Resources/en.lproj" "$tmp/Support/Resources/es.lproj"
   printf '# Topic\n\nDate: 2026-09-24\n\n## Sources\n\n- x\n' > "$tmp/docs/research/topic.md"
@@ -36,7 +37,16 @@ good() {
     > "$tmp/.claude/workflows/review-panel.js"
   printf -- '---\nname: x-reviewer\ndescription: X.\n---\n\nBody.\n' > "$tmp/.claude/agents/x-reviewer.md"
   mkdir -p "$tmp/.claude/skills/s/references" "$tmp/docs/workflow"
-  printf -- '---\nname: s\n---\n\nRead `references/r.md` when you need the detail.\n' > "$tmp/.claude/skills/s/SKILL.md"
+  printf -- '---\nname: s\n---\n\nRead `references/r.md` when you need the detail.\nRun `dirigible clip cut`, `dirigible info`, or `dirigible --help`.\n' > "$tmp/.claude/skills/s/SKILL.md"
+  mkdir -p "$tmp/Sources/DirigibleCLI"
+  printf '%s\n' 'struct Dirigible: ParsableCommand {' '    static let configuration = CommandConfiguration(' \
+    '        commandName: "dirigible",' '        subcommands: [' '            Info.self, ClipCommand.self,' '        ])' '}' '' \
+    'struct Info: ParsableCommand {' '    static let configuration = CommandConfiguration(abstract: "Show.")' '}' \
+    > "$tmp/Sources/DirigibleCLI/Dirigible.swift"
+  printf '%s\n' 'struct ClipCommand: ParsableCommand {' '    static let configuration = CommandConfiguration(' \
+    '        commandName: "clip", abstract: "Clips.", subcommands: [Cut.self])' '' '    struct Cut: ParsableCommand {' \
+    '        static let configuration = CommandConfiguration(commandName: "cut", abstract: "Cut.")' '    }' '}' \
+    > "$tmp/Sources/DirigibleCLI/ClipCommands.swift"
   printf '# R\n\nDetail.\n' > "$tmp/.claude/skills/s/references/r.md"
   mkdir -p "$tmp/.claude/skills/reflect/scripts" "$tmp/.claude/skills/deliver"
   printf '#!/bin/bash\n# tokens: /^(not verified|flake|fail)([^a-z]|$)/\n' > "$tmp/.claude/skills/reflect/scripts/cost.sh"
@@ -142,6 +152,8 @@ good; sed -i '' 's/, `flake`,/,/' "$tmp/.claude/skills/deliver/SKILL.md"; expect
 good; sed -i '' 's/`fail`\./`failed`./' "$tmp/.claude/skills/deliver/SKILL.md"; expect fail 'a cost.sh token only inside a longer word' '.claude/skills/deliver/SKILL.md: the Autonomy rules have no `fail`'
 good; printf '#!/bin/bash\n' > "$tmp/.claude/skills/reflect/scripts/cost.sh"; expect fail 'cost.sh with no token list' '.claude/skills/reflect/scripts/cost.sh: no token list'
 good; sed -i '' 's/^## Autonomy rules$/## Rules/' "$tmp/.claude/skills/deliver/SKILL.md"; expect fail 'deliver with no Autonomy rules section' '.claude/skills/deliver/SKILL.md: no ## Autonomy rules section'
+good; printf 'Run `dirigible show`.\n' >> "$tmp/.claude/skills/s/SKILL.md"; expect fail 'a dirigible command that the CLI does not have' '.claude/skills/s/SKILL.md:7: `dirigible show` is not a command of Sources/DirigibleCLI'
+good; printf 'Run `dirigible cut`.\n' >> "$tmp/README.md"; expect fail 'a subcommand used as a root command' 'README.md:4: `dirigible cut` is not a command of Sources/DirigibleCLI'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

@@ -13,7 +13,8 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   killed (hang) the test ran past --timeout; the script killed it (exit 0)
   survived      the build and the test passed (exit 1)
   BUILD FAILED  the mutant did not build, so it proves nothing (exit 2)
-  WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4)
+  WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4); it prints
+                up to 10 compared lines that hold ✘, failed, or error
   NO TESTS      the test passed, but it ran no test: the filter matched nothing (exit 5)
   stopped       SIGINT, SIGTERM, or SIGHUP stopped the run; the files are restored (exit 130)
 With --expect, a kill counts only when the output of the test has <text>, for example the
@@ -240,4 +241,7 @@ if code == 0 and expected is not None:
 with open(log, 'a') as out:
     out.write(f'# result: {result}\n')
 print(f'{result}: {log}')
+if code == 4:
+    # The compared failure lines, so the next --expect copies their printed form.
+    print('\n'.join([line for line in reasons if re.search('✘|failed|error', line, re.I)][:10]))
 sys.exit(code)

@@ -193,31 +193,27 @@ private let flakeMonitorIsOn = ProcessInfo.processInfo.environment["DIRIGIBLE_FL
 /// back (a report hop) runs before the last check.
 ///
 /// In a full suite, other `@MainActor` suites hold the main actor for up to 18.8 s (run
-/// flakes-2, the monitored suite). A sleep that returns more than 1 s late moves the deadline by
-/// its lag, so such a hold does not use up the limit. `cap` (default 3 x `limit`) is the
-/// longest wait in wall time, so a hang still fails.
+/// flakes-2, the monitored suite). The limit counts the time of a `Stopwatch`, so such a hold
+/// does not use up the limit. `cap` (default 3 x `limit`) is the longest wait in wall time, so a
+/// hang still fails.
 @MainActor
 func until(
     limit: Duration = .seconds(1), cap: Duration? = nil, _ message: String, _ condition: () -> Bool
 ) async {
-    let start = ContinuousClock.now
-    defer { reportWait("until", since: start, message) }
-    let last = start + (cap ?? limit * 3)
-    var end = start + limit
+    let watch = Stopwatch()
+    defer { reportWait("until", since: watch.start, message) }
+    let cap = cap ?? limit * 3
+    func over() -> Bool { watch.elapsed >= limit || watch.wall >= cap }
     var expired = false
     while !condition() {
         guard !expired else {
             Issue.record("\(message) (limit \(limit))")
             return
         }
-        expired = ContinuousClock.now >= end
-        let asleep = ContinuousClock.now
+        expired = over()
         try? await Task.sleep(for: .milliseconds(10))
-        let lag = ContinuousClock.now - asleep - .milliseconds(10)
-        if lag > .seconds(1), end < last {
-            end = min(end + lag, last)
-            expired = false
-        }
+        // A hold during the sleep moves the deadline.
+        expired = expired && over()
     }
 }
 

@@ -65,8 +65,8 @@ struct RecordTests {
     }
 
     /// A take that ends early returns soon after its end, not after the full duration: a disk
-    /// low stop, and a stop from another caller. The limit is 10 s less than the duration,
-    /// because a full suite can hold the main actor for 30 s.
+    /// low stop, and a stop from another caller. The limit is 10 s less than the duration. The
+    /// `Stopwatch` leaves out the main-actor holds of other suites (run flakes-2, S4).
     @Test(arguments: [TakeEnd.diskLow, .requested])
     func aTimedTakeThatEndsEarlyReturnsSoon(end: TakeEnd) async throws {
         let free = FreeBytes()
@@ -77,12 +77,12 @@ struct RecordTests {
             await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
             if end == .diskLow { free.value = 0 } else { try? await studio.stopRecording() }
         }
-        let start = ContinuousClock.now
+        let watch = Stopwatch()
 
         let result = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(60))
         await stopper.value
 
-        #expect(ContinuousClock.now - start < .seconds(50), "returned after \(ContinuousClock.now - start)")
+        #expect(watch.elapsed < .seconds(50), "returned after \(watch.elapsed) (wall \(watch.wall))")
         #expect(result.end == end)
         #expect(studio.transport == .idle)
     }
@@ -107,7 +107,8 @@ struct RecordTests {
 
     /// A cancelled call stops its take at once, as an early end, and returns its result. Before
     /// the fix, the wait spun on the main actor until the deadline. The limit is 10 s less than
-    /// the shorter duration, because a full suite can hold the main actor for 30 s. A duration
+    /// the shorter duration, on a `Stopwatch` that leaves out the main-actor holds of other suites
+    /// (run flakes-2, S4). A duration
     /// of 1e12 s trapped in the end time after the save of `<recording>`.
     @Test(arguments: [60, 1e12])
     func aCancelledRecordStopsItsTake(seconds: Double) async throws {
@@ -117,12 +118,12 @@ struct RecordTests {
             try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(seconds))
         }
         await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
-        let start = ContinuousClock.now
+        let watch = Stopwatch()
 
         recorder.cancel()
         let result = try await recorder.value
 
-        #expect(ContinuousClock.now - start < .seconds(50), "returned after \(ContinuousClock.now - start)")
+        #expect(watch.elapsed < .seconds(50), "returned after \(watch.elapsed) (wall \(watch.wall))")
         #expect(result == TakeResult(take: 1, end: .requested, gaps: [:]))
         #expect(studio.transport == .idle)
         #expect(studio.pendingTake == nil)

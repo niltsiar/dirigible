@@ -31,6 +31,12 @@ expect_usage "an unknown flag" key 53 --hyper
 expect_usage "type with no text" type --dry-run
 expect_usage "type with a modifier flag" type a --command
 
+# The usage comes from the flag table of each verb: the click line lists every flag that click
+# takes, and a flag of another verb is a usage error. No app has the bundle ID, so nothing posts.
+usage_text="$(swift "$hid" 2>&1)"
+grep -qE '^ *(usage: )?hid\.swift click <x> <y> .*--command' <<<"$usage_text" || fail "the click usage has no --command: $usage_text"
+DIRIGIBLE_BUNDLE_ID=com.example.no-such-app expect_usage "drag with a click flag" drag 1 2 3 4 --right
+
 expect_usage "type with a newline" type $'a\nb'
 expect_usage "type with a tab" type $'a\tb'
 

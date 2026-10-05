@@ -94,6 +94,21 @@ struct ExportStudioFixture {
 struct StudioExportTests {
     enum StartPath: CaseIterable { case startRecording, startTake }
 
+    /// A paused chunk on the main thread is an issue with a name, not a hang: the main-actor
+    /// probe of the pause cannot run there (code gate 1 of run flakes-2, item 1).
+    @Test func aPausedChunkOnTheMainThreadIsAnIssue() {
+        // The probe last ran before this test: 0.5 s later, its lag passes 1 s during the pause.
+        _ = MainActorHolds.shared.total
+        Thread.sleep(forTimeInterval: 0.5)
+        let watch = Stopwatch()
+        withKnownIssue {
+            ChunkSeam(pause: longChunk).step()
+        } matching: { issue in
+            issue.comments.contains { $0.rawValue.contains("main thread") }
+        }
+        #expect(watch.wall < .seconds(longChunk * 3 + 1))
+    }
+
     /// Starts `path` on `t1`, and returns the host time of the take start.
     func start(_ path: StartPath, _ studio: Studio, _ fixture: ExportStudioFixture) async throws(StudioError) -> UInt64
     {

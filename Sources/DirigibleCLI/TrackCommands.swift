@@ -97,7 +97,7 @@ struct TrackCommand: ParsableCommand {
 
     struct Mute: ParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Mute tracks: the mix, the export, and the render leave them out (decision 0039).")
+            abstract: "Mute tracks: the mix, the export, and the render leave them out.")
         @OptionGroup var package: PackageArgument
         @Argument(help: "The track IDs.") var tracks: [String] = []
         @Flag(help: "Unmute the tracks.") var off = false

@@ -110,11 +110,9 @@ import Testing
         try click(try flagPoint(.muted, row: 0, in: view), in: window)
 
         #expect(flags(studio) == ["M-", "--"], "the click acts with the name focused")
-        // U22: the found focus result goes to the decisions.tsv row of slice 5.
-        let focused = window.firstResponder === editor
-        print(
-            "U22 focus after the click: field \(focused ? "keeps" : "loses") the focus; name \(studio.session.track("t1")?.name ?? ""); draft \(model.drafts["t1"] ?? "none")"
-        )
+        #expect(
+            window.firstResponder === editor && model.drafts["t1"] == "T1x",
+            "U22: the field keeps the focus and the draft")
         await model.close()
     }
 

@@ -12,7 +12,7 @@ struct TrackHeaders: View {
     let selected: [TrackID]
     /// The header widths from which a row shows M and S, on one line and on two lines (decision
     /// 0039): the narrowest widths where every view of a row with a full live state stays inside
-    /// the row (measured in slice 5 of run 2026-10-05-mute-solo). Under them the route and the
+    /// the row (`HeaderRowTests.muteAndSoloShowOnlyWhereTheyFit`). Under them the route and the
     /// state keep their room; Shift-M and Shift-S still act.
     static let muteSoloWidth = 316.0
     static let muteSoloTwoLineWidth = 261.0

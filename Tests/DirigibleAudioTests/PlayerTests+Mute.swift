@@ -107,12 +107,13 @@ extension PlayerTests {
     }
 
     /// Two flag changes before the next refill crossfade from the mix of the scheduled chunks,
-    /// not from the session between the updates.
+    /// not from the session between the updates. Each update changes the heard set: t1 and t2,
+    /// then t2 alone, then t1 alone.
     @Test func twoUpdatesCrossfadeFromTheScheduledMix() async throws {
         let (old, muted) = try addSecondTrack()
         var soloed = muted
         try soloed.setMuted(false, tracks: ["t1"])
-        try soloed.setSoloed(true, tracks: ["t2"])
+        try soloed.setSoloed(true, tracks: ["t1"])
         let player = player()
         await player.apply(.play(from: 0, shuttle: forward), number: 1)
         await player.update(muted, revision: 1)

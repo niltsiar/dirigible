@@ -191,7 +191,7 @@ public struct Marks: Hashable, Sendable {
     /// only: a fade-out from the in point. An edge at a butt join (a lane neighbor touches it) gets
     /// no fade: `crossfades(in:)` gives the join a crossfade (decision 0036). The new fade wins, and
     /// the other fade yields, also to the half of a crossfade. Nil with no selection or no change.
-    public func fades(in session: Session) -> [ClipID: Fades]? {
+    func fades(in session: Session) -> [ClipID: Fades]? {
         fadeEdits(in: session).map { edits in
             Dictionary(
                 uniqueKeysWithValues: edits.flatMap { track, list in

@@ -16,7 +16,7 @@ path	words	decision
 .claude/skills/bro/	40	baseline
 .claude/skills/bro/SKILL.md	40	baseline
 .claude/skills/deliver/	3886	2026-10-04-workflow-speed-2 S10 (decisions.tsv 2026-10-04T19:59: the stop predicate and the pause line, +40 words)
-.claude/skills/deliver/SKILL.md	1950	2026-10-01-workflow-speed D2 (decisions.tsv 2026-10-01T19:10: the Unknowns table, the look check, the agent groups, bench and pairs once)
+.claude/skills/deliver/SKILL.md	1947	2026-10-05-upkeep-batch-2 S3 (lowered to the new count: the bug-goal sentence and no slice estimate)
 .claude/skills/deliver/references/long-runs.md	250	2026-10-04-workflow-speed-2 S10 (decisions.tsv 2026-10-04T19:59: the stop predicate and the pause line, +40 words)
 .claude/skills/deliver/references/mutation-controls.md	1150	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/deliver/references/performance-criteria.md	560	2026-10-04-workflow-speed-2 S4 (decisions.tsv 2026-10-04T19:46: the perf fix order, +83 words)
@@ -30,7 +30,7 @@ path	words	decision
 .claude/skills/interrogate/	4390	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/interrogate/SKILL.md	990	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/interrogate/references/code-quality-review.md	740	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
-.claude/skills/interrogate/references/lead-judgment.md	1160	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/interrogate/references/lead-judgment.md	982	2026-10-05-upkeep-batch-2 S2 and code gate (lowered to the new count: one field sentence and the replay rule)
 .claude/skills/interrogate/references/reviewer-prompt.md	590	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/interrogate/references/rubric.md	930	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/pr/	741	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: lowered to the sum of its two rows)

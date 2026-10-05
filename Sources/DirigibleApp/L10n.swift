@@ -115,6 +115,9 @@ enum L10n: String, CaseIterable {
     case menuAppAbout = "menu.app.about"
 
     case panelExportFormat = "panel.export.format"
+    case panelExportNoteOne = "panel.export.note.one"
+    case panelExportNoteMany = "panel.export.note.many"
+    case panelExportNoteSilent = "panel.export.note.silent"
     case panelExportFormatWAV = "panel.export.format.wav"
     case panelExportFormatAAC = "panel.export.format.aac"
     case panelExportFormatMP3 = "panel.export.format.mp3"

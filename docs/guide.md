@@ -308,7 +308,7 @@ Dirigible can record the sound of another app, for example a Zoom, Teams, or Sla
 
 - **File > Export** exports all tracks, from the start to the end of the session.
 - **File > Export Selection** exports the selection only: the time from the in point to the out point, on the selected tracks.
-- The export has only the tracks that you hear: it leaves out muted tracks, and, while a track is soloed, the tracks that are not soloed.
+- The export has only the tracks that you hear: it leaves out muted tracks, and, while a track is soloed, the tracks that are not soloed. Then the export panel shows a line with the number of these tracks. When you hear no track of the export, the line says that the file will be silent. `dirigible export` and `dirigible render` show the same note as a warning.
 
 The export panel has these settings. It keeps the last settings that you used.
 

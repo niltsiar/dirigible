@@ -95,7 +95,7 @@ extension SessionWindow {
         exportStep = .choosing
         app.chooseExport(
             window, url.deletingPathExtension().lastPathComponent, studio.session.sampleRate,
-            ExportSettings(defaults: app.defaults)
+            ExportSettings(defaults: app.defaults), exportNote(studio.session, source)?.text
         ) { [weak self] target in
             guard let self, exportStep == .choosing else { return }
             exportStep = nil

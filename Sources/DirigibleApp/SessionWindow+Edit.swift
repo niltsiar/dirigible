@@ -51,7 +51,7 @@ extension SessionWindow {
     func runRipple(_ command: TimelineCommand, _ studio: Studio) {
         guard canEdit else { return }
         if command == .insert { return insert(studio) }
-        if command == .cut, case .clips = timeline.selection { return cutClips() }
+        if command == .cut, case .clips = timeline.selection { return cutClips(studio) }
         let selectedOnly = command == .cutSelectedTracks || command == .deleteCloseGapSelectedTracks
         // A ripple needs a range scope (decision 0037), so a clip set beeps (decision 0038).
         guard let marks = timeline.selection.marks else { return beep() }
@@ -71,15 +71,15 @@ extension SessionWindow {
 
     /// Cut of a clip set (decision 0038): one edit copies the set clips and removes them. The gaps
     /// and the playhead stay. It is no ripple, so a pending or split take does not block it.
-    private func cutClips() {
+    private func cutClips(_ studio: Studio) {
         let selection = timeline.selection
-        let cut = edit { session throws(SessionError) -> Excerpt? in
-            guard let excerpt = try selection.excerpt(in: session), let result = try selection.deleted(session)
-            else { return nil }
+        guard let excerpt = try? selection.excerpt(in: studio.session) else { return }
+        let cut = edit { session throws(SessionError) -> Bool in
+            guard let result = try selection.deleted(session) else { return false }
             session = result
-            return excerpt
+            return true
         }
-        guard case let excerpt?? = cut else { return }
+        guard cut == true else { return }
         clipboard = excerpt
         timeline.selection = .none
     }

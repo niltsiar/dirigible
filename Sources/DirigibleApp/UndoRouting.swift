@@ -94,8 +94,18 @@ final class UndoRoutingWindow: NSWindow {
 /// action first calls this. When the key window does not take transport keys (a panel, an
 /// alert, a focused text field), it gives the key-down to the first responder of that window,
 /// which inserts it (probe K3), and returns true. With no key window, it returns false.
+///
+/// When no responder uses the key (an alert whose OK has the cancel role), `NSWindow.keyDown`
+/// routes it back to the menu item of the key, which calls this again. That call returns true and
+/// forwards nothing, so the key ends there (run 2026-10-05-alert-return-hang).
 @MainActor func forwardTypingKey(_ event: NSEvent, in keyWindow: NSWindow?) -> Bool {
     guard event.type == .keyDown, let keyWindow, !takesTransportKeys(keyWindow) else { return false }
+    guard !forwardingKey else { return true }
+    forwardingKey = true
+    defer { forwardingKey = false }
     (keyWindow.firstResponder ?? keyWindow).keyDown(with: event)
     return true
 }
+
+/// True while `forwardTypingKey` gives a key-down to a window.
+@MainActor private var forwardingKey = false

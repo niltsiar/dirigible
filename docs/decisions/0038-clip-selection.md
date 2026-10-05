@@ -4,6 +4,7 @@
 - Date: 2026-10-04
 - Accepted: 2026-10-04, after plan gate 1 of run `2026-10-04-multi-clip-selection`. The gate added the live IDs of every Core call on a clip set, Command-F on a set through `Marks.faded` per run, and the lane-only nudge guard.
 - Amends: 0017 (Command-click on the upper part of a clip), 0018 (a second selection kind; the nudge of a clip set), 0020 (Command at the mouse-down on a clip; the group move and its commit).
+- Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard`. Copy and Cut act on a clip set through `Session.excerpt(of:)`: whole clips with their time and track offsets. A set paste clears only the frames under each pasted clip. Cut of a set is no ripple. After Paste or Insert of a set excerpt, the selection is the pasted clips. The lane menu shows Cut and Copy on a set. CLI: `dirigible clip paste-clips`.
 
 ## Context
 
@@ -49,20 +50,21 @@ public enum Selection: Hashable, Sendable {
 | Command | Clip set |
 |---|---|
 | Delete | `removeClips` of the set; the gaps stay; the selection is empty |
-| Copy, Cut | Beep, no change (`Excerpt` is range-shaped) |
+| Copy | `Session.excerpt(of:)` of the live set clips, kind `.clips`; no change to the session |
+| Cut | One edit: the set excerpt and `removeClips`; the gaps stay; the playhead stays; the selection is empty. No ripple, so a pending or split take does not block it |
 | Delete and Close Gap, the two "in Selected Tracks" items | Beep (a ripple needs a range scope, 0037) |
-| Paste, Insert | The first track (session order) with a set clip, at the playhead |
+| Paste, Insert | The first track (session order) with a set clip, at the playhead. After a set excerpt, the selection is the pasted clips |
 | Split | The playhead, only on the tracks where a set clip holds it |
 | Nudge | `nudge` of the set clips; the start stops at 0; the set stays |
 | Command-F | `Marks.faded` for each per-track run of joined set clips, chained into one Session |
 | Auto Level, the inspector (Mixed), Show Clips in Finder | The set clips |
 | Remove Track, Export Selection, Place at Playhead | Nothing: a clip pick is not a track pick, and a hull exports clips that the user did not pick |
 | Zoom to Selection | The span of the set (a view, not an edit) |
-| Lane menu | A right-click on a set clip keeps the set |
+| Lane menu | A right-click on a set clip keeps the set. Cut and Copy show and are enabled; Cut shows also under a pending or split take |
 
 **Core.** `Session.nudge(_:by:lanes:)` moves N clips by a frame offset and a lane offset. Pass 1 reads and checks: a target track past the last track throws the new `SessionError.laneOutOfRange`, a target of the other layout throws `.layoutMismatch`, and a frame out of range throws `.frameOutOfRange`. Pass 2, on a copy, takes every moving clip out of every lane, then clears and inserts on each target lane. Only an offset of 0 with a lane offset of 0 changes nothing. `ClipLane` repairs a broken crossfade join (0036), so two joined clips that move together keep their crossfade. `Session.removeClips(_:)` removes clips and leaves gaps; an unknown ID throws. A throw changes nothing.
 
-**CLI (0011).** `dirigible clip nudge <package> <clip>... --by N --lanes L` (`--lanes` 0 is the default) and `dirigible clip remove <package> <clip>...`.
+**CLI (0011).** `dirigible clip nudge <package> <clip>... --by N --lanes L` (`--lanes` 0 is the default), `dirigible clip remove <package> <clip>...`, and `dirigible clip paste-clips <package> <clip>... --at N [--onto T]...` (one `--onto` for each track from the first to the last clip; the default is the source tracks). Cut of a set has no command: it is `paste-clips` and `clip remove`.
 
 **Look.** A selected clip box draws a light tint and a 2 pt outline in the system accent color, by clip ID, so the look follows the clips during a drag. A clip set draws no band and nothing on the ruler.
 
@@ -76,7 +78,7 @@ public enum Selection: Hashable, Sendable {
 - Two Core edits serve the drags: `move` for one clip, `nudge` for a group. The single move, its IDs, and its bench do not change.
 - A drag inside a range moves every clip that the range holds whole when the range holds the pressed clip whole and holds 2 or more clips. After Select All, a drag moves every clip.
 - Three test-support shims (`Timeline.marks`, `GestureEffect.marks(_:)`, `ClipInspection(marks:session:)`) keep the range tests as they were. Sources has one path.
-- A later Copy and Cut of a clip set needs a new excerpt shape, for example `Session.excerpt(of clips:)`.
+- Copy and Cut of a clip set use `Session.excerpt(of:)`, a second excerpt shape with the kind `.clips` (run `2026-10-05-clip-set-clipboard`).
 
 ## Alternatives considered
 

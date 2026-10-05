@@ -123,6 +123,29 @@ g commit -q -am change
 got="$(run --quoted main)" || fail "--quoted changed words: exit $?"
 [[ "$got" == $'E1\nE3\nE4' ]] || fail "--quoted changed words: got [$(tr '\n' ' ' <<<"$got")], want [E1 E3 E4]"
 
+# A word added next to a quoted rule changes it: a negation before it, a qualifier after it.
+rm -rf "$tmp/r"
+mkdir -p "$tmp/r/docs/workflow"
+g init -q -b main
+cat > "$tmp/r/docs/workflow/evals.md" <<'EOF'
+# Evals
+
+## Scenarios
+
+| ID | Type | Source | Question | Key points | Files | Old | New |
+|---|---|---|---|---|---|---|---|
+| E1 | retention | s | q | (a) Stop the replays first with the stop flag. | `a.md` | - | - |
+| E2 | retention | s | q | (a) Log each default in the decisions file. | `a.md` | - | - |
+EOF
+printf 'Stop the replays first with the stop flag.\nLog each default in the decisions file.\n' > "$tmp/r/a.md"
+g add -A
+g commit -q -m base
+g switch -q -c feat/x
+printf 'Never stop the replays first with the stop flag.\nLog each default in the decisions file only for a product run.\n' > "$tmp/r/a.md"
+g commit -q -am change
+got="$(run --quoted main)" || fail "--quoted added words: exit $?"
+[[ "$got" == $'E1\nE2' ]] || fail "--quoted added words: got [$(tr '\n' ' ' <<<"$got")], want [E1 E2]"
+
 # The eval runner of scripts/eval/. The run files (keys.md, labels.tsv) stay in the eval folder of
 # the run, never in the runner folder.
 eval_dir="$repo/scripts/eval"

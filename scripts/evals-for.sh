@@ -6,7 +6,8 @@
 # --quoted keeps only a scenario that is new since <base>, a holdout, or a scenario whose key
 # points quote the changed words of a hunk of a changed file of its Files cell: a backticked term
 # of 8 or more characters (a whole term, not in the stop list) whose count differs between the
-# deleted and the added lines, or a run of 5 words (case and punctuation ignored) in one side only.
+# deleted and the added lines, or a run of 5 words (case and punctuation ignored) that touches a
+# changed word span of the hunk.
 # A bad base exits nonzero with nothing on stdout. scripts/evals-for.test.sh tests it.
 set -euo pipefail
 quoted=""
@@ -47,6 +48,7 @@ trap 'rm -rf "$tmp"' EXIT
 git show "$1:docs/workflow/evals.md" > "$tmp/base.md" 2>/dev/null || : > "$tmp/base.md"
 printf '%s\n' "$changed" > "$tmp/files"
 python3 - "$tmp/diff" "$tmp/base.md" "$tmp/files" docs/workflow/evals.md <<'PY'
+import difflib
 import re
 import sys
 
@@ -80,10 +82,25 @@ def rows(path):
             yield cells[1].strip(), cells[-5], cells[-4]
 
 
-def grams(text):
-    """The runs of 5 words of a text, with case and punctuation ignored."""
-    w = re.findall(r"[a-z0-9]+", re.sub(r"\([a-z]\)", " ", text.lower()))
+def words(text):
+    """The words of a text, with case and punctuation ignored."""
+    return re.findall(r"[a-z0-9]+", re.sub(r"\([a-z]\)", " ", text.lower()))
+
+
+def grams(w):
+    """The runs of 5 words of a word list."""
     return {" ".join(w[i : i + 5]) for i in range(len(w) - 4)}
+
+
+def changed_grams(gone, added):
+    """The 5-word runs that touch a changed word span, on both sides. A span grows by 5 words on
+    each side, so a negation before a quoted rule or a qualifier after it changes the rule."""
+    a, b = words(gone), words(added)
+    out = set()
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if tag != "equal":
+            out |= grams(a[max(0, i1 - 5) : i2 + 5]) | grams(b[max(0, j1 - 5) : j2 + 5])
+    return out
 
 
 changed = {f for f in open(files, encoding="utf-8").read().split("\n") if f}
@@ -99,9 +116,9 @@ for sid, keys, cell in rows(evals):
     pattern = [re.compile(r"(?<![A-Za-z0-9_-])" + re.escape(t) + r"(?![A-Za-z0-9_-])") for t in terms]
     for gone, added in (h for f in hit for h in hunks.get(f, [])):
         gone, added = "\n".join(gone), "\n".join(added)
-        if any(len(p.findall(gone)) != len(p.findall(added)) for p in pattern) or grams(keys) & (
-            grams(gone) ^ grams(added)
-        ):
+        if any(len(p.findall(gone)) != len(p.findall(added)) for p in pattern) or grams(
+            words(keys)
+        ) & changed_grams(gone, added):
             print(sid)
             break
 PY

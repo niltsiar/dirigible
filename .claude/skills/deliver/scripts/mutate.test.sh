@@ -147,6 +147,14 @@ check '2:mutate' 'a replay of a control with side effects' --replay "$tmp/fx" "$
 check '1:survived' 'an allowed replay of a control with side effects' --allow-side-effects --replay "$tmp/fx" "$tmp/fx-again"
 grep -q '^# side-effects: yes' "$tmp/fx-again" || { echo "FAIL: the replay lost the mark"; failures=$((failures + 1)); }
 
+# Succeeds when the process <pid> has ended.
+ended() { ! kill -0 "$1" 2>/dev/null; }
+
+# A process that ends soon after the check has ended for ended (flakes-2: the killed sleep of
+# the stop case was not reaped yet under load).
+sleep 0.5 &
+ended $! || { echo "FAIL: the test still runs after a late exit"; failures=$((failures + 1)); }
+
 # A stop by SIGTERM (not only SIGINT) restores the file and ends the test (start-window Phase 7: a
 # replay ran for hours, and SIGTERM skipped the restore).
 printf 'a = 1\nb = 1\n' > "$file"
@@ -160,7 +168,7 @@ for sig in TERM HUP INT; do
   code=$?
   [[ "$code:$(cut -d: -f1 "$tmp/stop.out")" == "130:stopped" ]] || { echo "FAIL: SIG$sig gave $code: $(cat "$tmp/stop.out")"; failures=$((failures + 1)); }
   [[ "$(shasum -a 256 "$file")" == "$before" ]] || { echo "FAIL: file changed after SIG$sig"; failures=$((failures + 1)); }
-  ! kill -0 "$(cat "$tmp/pid")" 2>/dev/null || { echo "FAIL: the test still runs after SIG$sig"; kill "$(cat "$tmp/pid")"; failures=$((failures + 1)); }
+  ended "$(cat "$tmp/pid")" || { echo "FAIL: the test still runs after SIG$sig"; kill "$(cat "$tmp/pid")"; failures=$((failures + 1)); }
   rm -f "$tmp/pid"
 done
 

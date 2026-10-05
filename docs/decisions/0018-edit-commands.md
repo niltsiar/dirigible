@@ -5,6 +5,7 @@
 - Amended: 2026-10-04, run 12 (see 0037). Cut closes the gap on all tracks. Delete keeps the gap. Edit adds Insert (Command-I), Delete and Close Gap (Shift-Backspace), and a group with Cut in Selected Tracks (Option-Command-X) and Delete and Close Gap in Selected Tracks (Option-Shift-Backspace). The two Backspace items forward their key to a focused field (K3).
 - Accepted: 2026-09-25, after plan gate 1 of the edit-commands run. The gate kept the armed set at Remove Track, added the range check before each sum in paste and nudge, typed the nudge offset as `Frames`, and added the save coalescing.
 - Amended: 2026-10-04, multi-clip-selection run (see 0038): the window selection has a second kind, a clip set. Nudge moves the set clips, or the clips that the range holds whole, and the set stays. Delete of a set calls `removeClips`. Copy, Cut, and the ripple items beep on a set. Remove Track does nothing for a set.
+- Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard` (see 0038). Copy and Cut act on a clip set; the ripple items still beep on a set. `Excerpt` has a kind. A paste of a range excerpt still clears the whole block. A paste of a clip set excerpt clears only the frames under each pasted clip: the gaps between the set clips were not copied, so they keep the audio of the target. After Paste or Insert of a set excerpt, the selection is the pasted clips.
 
 ## Context
 
@@ -24,8 +25,8 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 
 **Core edits.** `DirigibleCore/Session+Edits.swift` adds bulk edits with one taken-ID set per edit:
 
-- `excerpt(of:on:) -> Excerpt`: the parts of the clips in a range on some tracks, with starts relative to the range start. Only this function makes an `Excerpt`.
-- `paste(_:at:on:) -> [ClipID]`: lane i goes to track i. It clears the whole block (start ..< start + length) on each target, also under a gap of the excerpt, then inserts the lane clips. A pasted clip gets the first free ID of `<source id>@<start>` (the 0003 rule of a split). `start` and the excerpt length are checked against 0...2^40 before any sum, so a huge `start` refuses instead of trapping. A throw changes nothing. `SessionError.trackCount` refuses a target count that is not the lane count, and a target track given twice.
+- `excerpt(of:on:) -> Excerpt`: the parts of the clips in a range on some tracks, with starts relative to the range start, kind `.range`. Only this function and `excerpt(of:)` (the whole clips of a clip set, kind `.clips`, 0038) make an `Excerpt`.
+- `paste(_:at:on:) -> [ClipID]`: lane i goes to track i. For a `.range` excerpt, it clears the whole block (start ..< start + length) on each target, also under a gap of the excerpt; for a `.clips` excerpt, only the frames under each pasted clip. Then it inserts the lane clips. A pasted clip gets the first free ID of `<source id>@<start>` (the 0003 rule of a split). `start` and the excerpt length are checked against 0...2^40 before any sum, so a huge `start` refuses instead of trapping. A throw changes nothing. `SessionError.trackCount` refuses a target count that is not the lane count, and a target track given twice.
 - `splitClips(at:on:) -> [ClipID]`: each clip that holds a frame strictly inside it splits; frames go in descending order.
 - `nudge(_:by: Frames)`: the clips move on their own tracks and keep their IDs; they come out first, so two moved clips never cut each other. The offset is a typed `Frames`, not a raw `Int`, and is checked against the limit before it is added to a clip start, so a huge offset refuses instead of trapping.
 - `markerPosition(after:)` and `markerPosition(before:)`.
@@ -34,7 +35,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 
 **CLI (0011).** `dirigible clip paste` (a source range and tracks, `--at`, optional `--onto`; writes the pasted IDs), `dirigible clip split-at` (repeatable `--track` and `--at`; writes the right IDs), `dirigible clip nudge <clip>... --by N`, and a repeatable `--track` on `clip clear`. Markers and tracks use the existing `marker set`, `marker remove`, and `track remove`. Show Clips in Finder has no command: it writes nothing, and `info` lists the pool paths.
 
-**Selection policy in the app.** The selection stays window state (0017). Pure functions on `Marks` give the paste targets (the first selected track and the tracks under it; with no selected track, the source tracks; when the tracks under it are too few, Core refuses with `trackCount` and the window shows its alert), the split points (the in and out points on the selected tracks; with no range, the playhead on the selected tracks or on all tracks), and the nudge (the clips fully inside the range, 10 ms per press, clamped at frame 0; the Marks move with them). After Paste, the selection is the pasted range. 4c has one selection kind: run 4d makes a click on a clip set the range to that clip.
+**Selection policy in the app.** The selection stays window state (0017). Pure functions on `Marks` give the paste targets (the first selected track and the tracks under it; with no selected track, the source tracks; when the tracks under it are too few, Core refuses with `trackCount` and the window shows its alert), the split points (the in and out points on the selected tracks; with no range, the playhead on the selected tracks or on all tracks), and the nudge (the clips fully inside the range, 10 ms per press, clamped at frame 0; the Marks move with them). After Paste, the selection is the pasted range, or the pasted clips for a clip set excerpt (0038). 4c has one selection kind: run 4d makes a click on a clip set the range to that clip.
 
 **Clipboard.** One `Excerpt` per window, in memory. It is not on `NSPasteboard`: a `FileID` names audio only inside its package, and a paste into another package needs a file copy (F61). A close drops it.
 
@@ -63,7 +64,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 
 - **A selection-aware edit engine in Core** (`EditCommand` with a Core `Selection`). Rejected: the selection policy is window state (0017), the CLI would have to build a selection, and the engine mostly forwards to `Session`.
 - **The app loops `place` and `split`.** Rejected: 12.6 s for a paste of 1,000 clips on 6 tracks (P4).
-- **Paste clears only under the pasted clips.** Rejected: the gaps of the copied range play silence, and the paste must give the same sound.
+- **Paste clears only under the pasted clips.** Rejected for a range excerpt: the gaps of the copied range play silence, and the paste must give the same sound. A clip set excerpt uses it, because its gaps were not copied (0038).
 - **Fresh UUIDs for pasted clips.** Rejected: not deterministic (0003).
 - **The clipboard on the general pasteboard.** Rejected for Release 1 (B1 shows it works): the pool IDs are per package.
 - **Keep the system Edit items and add a "Clear" item on Backspace.** Rejected: two delete items; the HIG asks for one Delete item.

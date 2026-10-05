@@ -4,6 +4,7 @@
 - Date: 2026-10-04
 - Accepted: 2026-10-04, after plan gates 1 and 2 and the implementation of run 12 (`2026-10-04-ripple-edit`).
 - Amends: 0011 (the ripple commands), 0022 (the shift draw of a ripple drag), 0012 and 0021 (no ripple under a pending or split take), 0018 (Cut closes the gap, run 12 slice 3), 0020 (the Option edge drag and the lane menu, run 12 slices 2 and 4).
+- Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard` (see 0038). Cut of a clip set is no ripple: it removes the set clips, the gaps stay, and the playhead stays. So a pending or split take does not block it, and the lane menu shows it then. The ripple rules stay for a range.
 
 ## Context
 

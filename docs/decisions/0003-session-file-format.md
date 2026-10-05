@@ -7,6 +7,7 @@
 - Amended: 2026-09-25. A pasted clip gets the first free ID of `<source id>@<start>`. A nudged clip keeps its ID (see 0018).
 - Amended: 2026-09-25. Before an export, the question lists only the files that the range reads on the chosen tracks. After it, the report names each file that rendered as silence (see 0019).
 - Amended: 2026-09-27. The version policy of every file format is in 0024. A package whose `session.xml` has a newer version does not change: the sweep of leftover temporary files runs after the version check (see 0024).
+- Amended: 2026-10-05, run `2026-10-05-mute-solo`. Version 5 adds `muted` and `soloed` on `<track>` (see 0039).
 - Amended: 2026-10-02. A track route can be `<route app="BUNDLEID"/>`. A session with an app route writes `version="2"`; a session with none writes `version="1"` (see 0029).
 - Amended: 2026-10-03, run 11a. A clip has `fadeIn` and `fadeOut` from version 3. A fade of 0 is not written, unlike gain, so a clip with no fade keeps its text (see 0035).
 - Amended: 2026-10-04, run 11c-1. A clip has `crossfadeIn` and `crossfadeOut` from version 4. A crossfade of 0 is not written (see 0036).
@@ -53,7 +54,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 
 ## Consequences
 
-- Version 3 adds fades (0035), and version 4 adds crossfades (0036). Later versions add gain envelopes, effects (R8, R9), pan, mute, solo, chapter metadata, and loudness per file. Each raises the version.
+- Version 3 adds fades (0035), version 4 adds crossfades (0036), and version 5 adds mute and solo (0039). Later versions add gain envelopes, effects (R8, R9), pan, chapter metadata, and loudness per file. Each raises the version.
 - A user who wants the WAV files opens the package with "Show Package Contents". The Release 1 timeline run decides whether the app also offers "Reveal clips in Finder".
 - The UTI and the `LSTypeIsPackage` entry go in `Support/Info.plist` in the Release 1 session run, checked by `AppBundleTests`.
 

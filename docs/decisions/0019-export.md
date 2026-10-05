@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-25
 - Accepted: 2026-09-25, after plan gate 1 of the export run. The gate kept Record on during an export, moved the export to a utility GCD queue, ran the take checks before the cancel, and added the settle gate.
+- Amended: 2026-10-05, run `2026-10-05-mute-solo`. The export renders only the heard tracks of its source, and the media check of an export skips the files of unheard tracks. The panel and `dirigible export` say when a track of the source is not heard (see 0039).
 - Amended: 2026-10-03, run 9a. WAV 16 and FLAC 16 get a seeded TPDF dither; each export stays repeatable, and FLAC equals WAV bit for bit. An export with a loudness target renders two passes: progress maps pass 1 to 0...0.25 and pass 2 to 0.25...1, with at most 101 calls. A clean export with a target shows the report in a banner; with silent files, the one alert also has the report line. `dirigible export` takes `--loudness podcast|speech|ebu|atsc`. Only an export with a target is limited: with Off, a mix over full scale still clips. See 0032.
 - Amended: 2026-10-03, MP3 run. `ExportFormat` has `.mp3(BitRate)`; `AACBitRate` is `BitRate`. MP3 goes through LAME, not `ExtAudioFile`: `writeFile` gives its body a write function. An MP3 file rate other than 32, 44.1, or 48 kHz throws `.rateNotSupported` before any file exists. `dirigible export` takes `.mp3`. See 0034.
 
@@ -33,7 +34,7 @@ Probes on 2026-09-25 (Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/r
 
 **Mono.** The mix renders stereo (0016). A mono export folds each chunk to `0.5 * (L + R)` in our code before the write (0007, P10). A mono track (L = R) keeps its level. A signal only in L is 6.02 dB lower. L = -R gives silence.
 
-**Range and tracks.** The export takes a frame range and an optional set of track IDs. `MixReader` skips the tracks that are not in the set.
+**Range and tracks.** The export takes a frame range and an optional set of track IDs. `MixReader` reads `Session.heardTracks(in:)`: the tracks of the set that are heard, so it skips the tracks that are not in the set, are muted, or are not soloed while another track is (0039).
 
 **Progress and Cancel.** `exportMix` renders and writes 1 s chunks. After each write it calls a synchronous progress closure on the export thread when the percent changes (at most 101 calls), and it calls a cancel check (`Task.isCancelled` by default). A cancel throws `.cancelled`. The last call (1.0) comes after the last write and before the close and the move. After the close, the export reads the cancel check once more: a cancel there throws `.cancelled` before the flush and the move, so a take start does not wait for them (code gate 1).
 

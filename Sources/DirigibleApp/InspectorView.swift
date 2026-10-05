@@ -103,7 +103,7 @@ struct InspectorView: View {
         switch field {
         case .gain:
             guard case .value(let gain) = inspection.gain else { return "" }
-            return ReadoutLayer.decibels(gain, locale: .current)
+            return ReadoutLayer.decibels(gain.dB, locale: .current)
         case .fadeIn: fade = inspection.fadeIn
         case .fadeOut: fade = inspection.fadeOut
         }

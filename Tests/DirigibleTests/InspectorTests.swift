@@ -115,7 +115,7 @@ import Testing
     }
 
     func gain(_ studio: Studio, _ clip: ClipID) -> Double? { studio.session.clip(clip)?.clip.gain.dB }
-    func decibels(_ dB: Double) -> String { ReadoutLayer.decibels(Gain(dB: dB)!, locale: .current) }
+    func decibels(_ dB: Double) -> String { ReadoutLayer.decibels(dB, locale: .current) }
 
     /// The editor of `window` with the focus in a field of the pane, or nil.
     func focusedField(_ window: NSWindow) -> NSTextField? {

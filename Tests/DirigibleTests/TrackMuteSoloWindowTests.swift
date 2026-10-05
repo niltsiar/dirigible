@@ -100,6 +100,26 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 1: only a mouse click with Option sets every track. A key press or an AX
+    /// press (no mouse event, or a key event with Option held) sets only its track.
+    @Test func onlyAMouseClickWithOptionSetsEveryTrack() throws {
+        func mouse(_ type: NSEvent.EventType, _ flags: NSEvent.ModifierFlags) throws -> NSEvent {
+            try #require(
+                NSEvent.mouseEvent(
+                    with: type, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil,
+                    eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        let space = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: .option, timestamp: 0, windowNumber: 0, context: nil,
+                characters: " ", charactersIgnoringModifiers: " ", isARepeat: false, keyCode: 49))
+        #expect(MuteSoloToggles.isOptionClick(try mouse(.leftMouseUp, .option)), "an Option-click")
+        #expect(MuteSoloToggles.isOptionClick(try mouse(.leftMouseDown, .option)), "an Option mouse-down")
+        #expect(!MuteSoloToggles.isOptionClick(try mouse(.leftMouseUp, [])), "a plain click")
+        #expect(!MuteSoloToggles.isOptionClick(space), "Option-Space on a focused button")
+        #expect(!MuteSoloToggles.isOptionClick(nil), "an AX press with no event")
+    }
+
     /// C7 e: with the name field focused, a click on M still acts.
     @Test func aClickOnMWithTheNameFocusedActs() async throws {
         let (model, studio, window, view) = try await open()

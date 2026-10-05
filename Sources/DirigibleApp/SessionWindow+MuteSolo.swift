@@ -54,6 +54,13 @@ struct MuteSoloToggles: View {
         .disabled(!model.canEdit)
     }
 
+    /// True for a mouse click with Option. A key press or an AX press of the button sets only its
+    /// track, also with Option held.
+    static func isOptionClick(_ event: NSEvent?) -> Bool {
+        guard let event, event.type == .leftMouseDown || event.type == .leftMouseUp else { return false }
+        return event.modifierFlags.contains(.option)
+    }
+
     private func toggle(_ flag: TrackFlag, letter: L10n, help: L10n, fill: NSColor, text: Color) -> some View {
         Toggle(
             isOn: Binding(
@@ -61,8 +68,7 @@ struct MuteSoloToggles: View {
                 // new track.
                 get: { model.studio?.session.track(track.id).map(flag.isOn) ?? false },
                 set: { on in
-                    let all = NSApp.currentEvent?.modifierFlags.contains(.option) == true
-                    model.setFlag(flag, on, track: track.id, all: all)
+                    model.setFlag(flag, on, track: track.id, all: Self.isOptionClick(NSApp.currentEvent))
                 })
         ) { Text(letter.key) }
         .toggleStyle(FlagToggleStyle(fill: Color(nsColor: fill), letter: text))

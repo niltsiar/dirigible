@@ -40,7 +40,7 @@ import Testing
             (TimelineCommand.trackItems + TimelineCommand.fileItems).map {
                 "\($0.command) \($0.key.character) \($0.modifiers.rawValue)"
             } == [
-                "removeTrack \u{8} \(EventModifiers([.command, .option]).rawValue)",
+                "renameTrack \r 0", "removeTrack \u{8} \(EventModifiers([.command, .option]).rawValue)",
                 "showInFinder r \(EventModifiers([.command, .shift]).rawValue)", "export e \(command)",
                 "exportSelection e \(EventModifiers([.command, .shift]).rawValue)",
             ])

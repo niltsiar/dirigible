@@ -12,6 +12,7 @@
 "menu.track.add.call.none" = "Sin app";
 "menu.track.add.call.no.apps" = "No hay apps abiertas";
 "menu.track.remove" = "Eliminar pista";
+"menu.track.rename" = "Renombrar pista";
 "menu.record" = "Grabación";
 "menu.record.start" = "Grabar";
 "menu.record.retry" = "Reintentar la finalización";
@@ -153,6 +154,7 @@
 /* Línea de tiempo (decisión 0017) */
 "timeline.accessibility" = "Línea de tiempo";
 "timeline.header.handle" = "Ancho de las cabeceras";
+"timeline.header.rename" = "Renombrar";
 
 /* La vista general de la sesión (decisión 0025) */
 "timeline.overview" = "Vista general de la sesión";

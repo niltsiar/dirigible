@@ -214,6 +214,47 @@ extension SessionWindow {
         }
     }
 
+    /// Gives the focus to the lanes and commits the typed track names, as a lane mouse-down does:
+    /// a focused field takes Esc. A header click and the header handle come here. The focus goes
+    /// first: the end of the edit writes the text of the field to its draft, so after a commit it
+    /// wrote the old name, and the next commit gave the old name back.
+    func endNameEdit() {
+        if let view = timelineView { view.window?.makeFirstResponder(view.lanes) }
+        commitNames()
+    }
+
+    /// A click on a track header: the rule of `Selection.clickingHeader`. A Control-click shows
+    /// the header menu, so it selects nothing here. A click on the header of the renamed track
+    /// keeps the rename: the second click of the double-click that started it comes here too.
+    func clickHeader(_ track: TrackID, flags: NSEvent.ModifierFlags) {
+        guard !flags.contains(.control), renamingTrack != track, let studio else { return }
+        endNameEdit()
+        timeline.selection = timeline.selection.clickingHeader(
+            track, command: flags.contains(.command), shift: flags.contains(.shift), in: studio.session)
+    }
+
+    /// Starts the rename of `track`: its name field takes the text focus. During a take the name
+    /// is read-only, so it beeps.
+    func startRename(_ track: TrackID) {
+        guard canEdit else { return beep() }
+        renamingTrack = track
+    }
+
+    /// The header menu of `track` shows: a row that is not selected becomes the selection, so the
+    /// menu acts on the row that the user sees selected (ui-panel 8).
+    func showHeaderMenu(_ track: TrackID) {
+        guard let studio, !timeline.selection.headerTracks(in: studio.session).contains(track) else { return }
+        clickHeader(track, flags: [])
+    }
+
+    /// Remove Track of the header menu: the selected tracks when the row is selected, else the track
+    /// of the row.
+    func removeFromHeader(_ track: TrackID) {
+        guard let studio else { return }
+        let selected = timeline.selection.headerTracks(in: studio.session)
+        removeTracks(selected.contains(track) ? studio.session.tracks.map(\.id).filter(selected.contains) : [track])
+    }
+
     /// Shows in Finder the pool files of `Selection.files`. Only files on disk go; with none, a
     /// beep.
     func showClipsInFinder() async {

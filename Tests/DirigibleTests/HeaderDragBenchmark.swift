@@ -56,7 +56,7 @@ import Testing
             }
             if rows {
                 view.headers.host.rootView = AnyView(
-                    TrackHeaders(model: model, studio: studio, laneHeight: laneHeight))
+                    TrackHeaders(model: model, studio: studio, laneHeight: laneHeight, selected: []))
             }
             drawNow(window)
             try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")

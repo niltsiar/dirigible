@@ -36,8 +36,8 @@ The start window and **File > Open Recent** list the 10 sessions that you opened
 ### Set up the tracks
 
 1. Choose **Track > Add Track** (Option-Command-N) two times. The window shows **Track 1** and **Track 2**.
-2. Click the name field of **Track 1**, type `Host`, and press Return.
-3. Click the name field of **Track 2**, type `Guest`, and press Return.
+2. Double-click the name of **Track 1**, type `Host`, and press Return.
+3. Double-click the name of **Track 2**, type `Guest`, and press Return.
 4. On the **Host** track, click **Choose Input** (**Elegir entrada** in Spanish). Under the name of the built-in microphone, choose **Channel 1**.
 5. On the **Guest** track, click **Choose Input**. Under the name of the USB microphone, choose **Channel 1**.
 6. Make sure that the **Arm** check box (**Armar** in Spanish) is on for each track.
@@ -157,6 +157,7 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - Shift-click a track to select from the playhead to the click. Shift-drag to make the selection larger.
 - Command-click the upper part of a clip to add it to the set of clips or remove it from the set. When a range is selected, the set starts with the clips that the range holds fully.
 - Command-click the lower part of a clip, or an empty part of a track, to add the track to the range or remove it from the range.
+- Click the header of a track, or its name, to select that track. The header shows the selection color. The in point and the out point stay. Command-click a header to add its track or remove it. Shift-click a header to select all tracks from the selected tracks to that track.
 - Drag a triangle in the time ruler to move the in point or the out point.
 - Choose **Edit > Select All** to select the whole session. Choose **Edit > Deselect All**, or press Esc, to clear the selection.
 - **Set In Point**, **Set Out Point**, **Select All**, and a drag that selects a range replace a set of clips with a range.
@@ -268,9 +269,9 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 
 - Choose **Track > Add Track** to add a mono track with no input.
 - Choose **Track > Add Call Tracks** and a call app to add two mono tracks: **Host** records channel 1 of your default input device, and **Guest** records the app. Choose **No App** (**Sin app**) to give **Guest** no input. When no app runs, the menu shows **No Apps Running** (**No hay apps abiertas**). One Undo removes both tracks. A new track that would use the input of an armed track keeps its input, but it is not armed.
-- Type in the name field of a track to change its name. Press Return to keep the name.
+- To change the name of a track, double-click its name, type the name, and press Return. Or select the track, choose **Track > Rename Track** (Return), and type the name.
 - Use the input menu of a track to choose a device and its channels. One channel gives a mono track, and a pair of channels gives a stereo track. **No Input** removes the input.
-- To remove tracks, select them and choose **Track > Remove Track**. You can also Control-click the header of a track and choose **Remove Track**.
+- To remove tracks, select them and choose **Track > Remove Track**. You can also Control-click the header of a track and choose **Remove Track**. When the header is selected, the menu removes all selected tracks. Else the header becomes the selection, and the menu removes only its track.
 - To change the width of the track headers, drag their right edge. Double-click the edge to go back to the standard width.
 
 ### Record a call or another app
@@ -442,6 +443,7 @@ The **Track** menu (**Pista**).
 |---|---|---|
 | **Add Track** | **Añadir pista** | Option-Command-N |
 | **Add Call Tracks** | **Añadir pistas de llamada** | - |
+| **Rename Track** | **Renombrar pista** | Return |
 | **Remove Track** | **Eliminar pista** | Option-Command-Delete |
 
 ### Record

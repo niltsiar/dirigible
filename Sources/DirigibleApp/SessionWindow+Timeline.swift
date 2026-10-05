@@ -48,7 +48,7 @@ enum TimelineCommand: Hashable {
     case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
     case split, nudgeLeft, nudgeRight, fade
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
-    case removeTrack, showInFinder, export, exportSelection
+    case renameTrack, removeTrack, showInFinder, export, exportSelection
     case autoLevel, autoLevelPerTrack
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -78,7 +78,8 @@ enum TimelineCommand: Hashable {
         case .tallerTracks, .shorterTracks: true
         case .fitTracks: false
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
-        case .removeTrack, .showInFinder: true
+        // A focused text field ends its edit with Return.
+        case .renameTrack, .removeTrack, .showInFinder: true
         case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         case .export, .exportSelection: false
@@ -167,9 +168,10 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .nextMarker, title: .menuMarkersNext, key: .pageDown, modifiers: []),
     ]
 
-    /// The Remove Track item of the Track menu.
+    /// The Rename Track and Remove Track items of the Track menu.
     static let trackItems = [
-        MenuItem(command: .removeTrack, title: .menuTrackRemove, key: .delete, modifiers: [.command, .option])
+        MenuItem(command: .renameTrack, title: .menuTrackRename, key: .return, modifiers: []),
+        MenuItem(command: .removeTrack, title: .menuTrackRemove, key: .delete, modifiers: [.command, .option]),
     ]
 
     /// The Tools items (decision 0031).
@@ -262,6 +264,11 @@ extension SessionWindow {
         case .fade: runFade(studio)
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
+        case .renameTrack:
+            // The first track that the headers show as selected; a clip set picks no track.
+            let selected = timeline.selection.headerTracks(in: studio.session)
+            guard let track = studio.session.tracks.first(where: { selected.contains($0.id) }) else { return beep() }
+            startRename(track.id)
         case .removeTrack:
             // A clip set picks clips, not tracks: Remove Track does nothing (decision 0038).
             guard let marks = timeline.selection.marks else { return }

@@ -53,6 +53,10 @@ struct ExportReportShown: Equatable {
     /// The typed name of each track that no rename has saved yet. A name field shows its draft,
     /// else the saved name.
     var drafts: [TrackID: String] = [:]
+    /// The track whose name field takes the text focus: a double-click on the name, Track > Rename
+    /// Track, or the Rename action sets it, and the commit of its name clears it. Else a click on
+    /// the name selects the track.
+    var renamingTrack: TrackID?
     /// Monitor Inputs (decision 0015): off at open, not saved. With the armed tracks, it drives
     /// `Studio.monitor(armed:)`.
     var monitoring = false
@@ -100,6 +104,9 @@ struct ExportReportShown: Equatable {
     var shown = ShownChrome()
     /// The SwiftUI body runs of the window content, for the tests.
     @ObservationIgnored var bodyRuns = 0
+    /// The body runs of the track headers and of their rows, for the tests: a header width change
+    /// that keeps the layout and a range drag over the same tracks run none (code gate 3, C16).
+    @ObservationIgnored var headerRuns = (headers: 0, rows: 0)
     /// The body runs of the record-over overlay that show the warning, for the tests.
     @ObservationIgnored var overlayShows = 0
     /// The record time left of the armed tracks before a take; only

@@ -7,21 +7,20 @@ struct TrackHeaders: View {
     let model: SessionWindow
     let studio: Studio
     let laneHeight: Double
-    #if DEBUG
-        /// The runs of the body of a row, for a test: a header width change that keeps the layout
-        /// runs no row body (code gate 3).
-        static var rowBodies = 0
-        static func countRowBody() { rowBodies += 1 }
-    #endif
+    /// The tracks that `Selection.headerTracks` gives. A Set, not the selection: a range drag
+    /// over the same tracks gives an equal input, so it runs no row body (ui-polish C16).
+    let selected: Set<TrackID>
 
     var body: some View {
+        let _ = model.countHeaderRun(row: false)
         // The layout of a row comes from the header width and the lane height only, never from
         // the text: a typed name that picks another layout rebuilds its field (code gate 1).
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(studio.session.tracks) { track in
                     TrackRow(
-                        model: model, studio: studio, track: track, secondLine: laneHeight >= 56,
+                        model: model, studio: studio, track: track, selected: selected.contains(track.id),
+                        secondLine: laneHeight >= 56,
                         showsLayout: geometry.size.width >= (laneHeight >= 56 ? 220 : 240),
                         showsCompactLoudness: geometry.size.width >= TrackRow.compactLoudnessWidth
                     )
@@ -42,6 +41,7 @@ private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
     let track: Track
+    let selected: Bool
     /// True in a lane of 56 pt or more: the row has two lines (H7).
     let secondLine: Bool
     /// The layout text, when the header width has room for it: from 220 pt on two lines, from 240 pt
@@ -55,11 +55,14 @@ private struct TrackRow: View {
     let showsCompactLoudness: Bool
     static let compactLoudnessWidth = 300.0
     @FocusState private var focused: Bool
+    /// Key: the window is key, so a selected row shows the emphasized fill.
+    @Environment(\.controlActiveState) private var activeState
+
+    private var style: HeaderRowStyle { HeaderRowStyle(selected: selected, emphasized: activeState == .key) }
+    private var renaming: Bool { model.renamingTrack == track.id }
 
     var body: some View {
-        #if DEBUG
-            let _ = TrackHeaders.countRowBody()
-        #endif
+        let _ = model.countHeaderRun(row: true)
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 if secondLine { arm } else { arm.labelsHidden() }
@@ -91,26 +94,59 @@ private struct TrackRow: View {
         }
         .controlSize(.small)
         .padding(.horizontal, 8)
-        .contextMenu { Button(L10n.menuTrackRemove.key) { model.removeTracks([track.id]) } }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .foregroundStyle(style.text.map { Color(nsColor: $0) } ?? .primary)
+        .background { if let fill = style.fill { Color(nsColor: fill) } }
+        .contentShape(Rectangle())
+        // The controls of the row take their own clicks.
+        .onTapGesture(perform: click)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .contextMenu {
+            // The menu content appears when the menu opens (ui-panel 8).
+            Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track.id) }
+                .onAppear { model.showHeaderMenu(track.id) }
+        }
     }
 
     private var arm: some View {
         Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit).fixedSize()
     }
 
-    /// The name is the main text of the row: 13 pt, and it takes the free width.
+    /// The name is the main text of the row: 13 pt, and it takes the free width. It reads as a
+    /// label: a click on it selects the track, and a double-click starts the rename (ui-panel 5).
+    /// The field stays in the row, so a rename keeps the layout.
     private var nameField: some View {
         TextField(L10n.trackName.key, text: name)
+            .textFieldStyle(.plain)
             .focused($focused)
             .onSubmit { model.commitName(track.id) }
             .onChange(of: focused) { if !focused { model.commitName(track.id) } }
+            .onChange(of: renaming, initial: true) { if renaming { focused = true } }
             .disabled(!model.canEdit)
             .controlSize(.regular)
+            .foregroundStyle(renaming ? .primary : style.text.map { Color(nsColor: $0) } ?? .primary)
+            .background { if renaming { Color(nsColor: .textBackgroundColor) } }
+            .overlay {
+                // Over the field, so a click does not give it the text focus.
+                // A click selects at once, and the second click of a double-click renames.
+                if !renaming {
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture(count: 2) { model.startRename(track.id) }
+                        .simultaneousGesture(TapGesture().onEnded(click))
+                }
+            }
+            .accessibilityAction(named: Text(L10n.headerRename.key)) { model.startRename(track.id) }
             .frame(minWidth: 60, maxWidth: .infinity)
     }
 
+    private func click() { model.clickHeader(track.id, flags: NSApp.currentEvent?.modifierFlags ?? []) }
+
+    /// The saved name comes from the session, not from `track`: the end of an edit after a commit
+    /// reads the name before this row has the new track, and it wrote the old name as a draft.
     private var name: Binding<String> {
-        Binding(get: { model.drafts[track.id] ?? track.name }, set: { model.drafts[track.id] = $0 })
+        Binding(
+            get: { model.drafts[track.id] ?? studio.session.track(track.id)?.name ?? track.name },
+            set: { model.drafts[track.id] = $0 })
     }
 
     private var armed: Binding<Bool> {
@@ -184,6 +220,28 @@ private struct TrackRow: View {
         guard let route = track.route else { return L10n.trackRouteChoose.text }
         guard case .device(_, let channels) = route else { return sourceLabel }
         return L10n.trackRoute.format(sourceLabel, channelsText(channels))
+    }
+}
+
+extension SessionWindow {
+    /// Counts a body run of the track headers or of one row, for the tests.
+    func countHeaderRun(row: Bool) {
+        if row { headerRuns.rows += 1 } else { headerRuns.headers += 1 }
+    }
+}
+
+/// The look of a header row: the selection colors of a macOS source list (ui-panel 4). Nil: the
+/// default of the row.
+struct HeaderRowStyle: Equatable {
+    let fill: NSColor?
+    let text: NSColor?
+
+    /// `emphasized`: the window is key.
+    init(selected: Bool, emphasized: Bool) {
+        fill =
+            selected
+            ? (emphasized ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor) : nil
+        text = selected && emphasized ? .alternateSelectedControlTextColor : nil
     }
 }
 

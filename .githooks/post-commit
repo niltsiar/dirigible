@@ -1,0 +1,5 @@
+#!/bin/bash
+# Delete the commit message file after each commit, so the next `git commit -F` cannot take a stale
+# message. A worktree uses this folder of the main checkout, so the path comes from the work tree
+# that commits. .claude/hooks/git-guardrails.test.sh tests it.
+rm -f "$(git rev-parse --show-toplevel)/.scratchpads/commit-msg.txt"

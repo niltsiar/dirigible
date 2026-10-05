@@ -1,12 +1,14 @@
 #!/bin/bash
-# Check that git-guardrails.sh blocks and allows the right commands. Run by `make check`.
+# Check that git-guardrails.sh blocks and allows the right commands, and that the post-commit hook
+# of .githooks deletes the commit message file. Run by `make check`.
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
 
 # Build the hook input with plutil, the same tool the hook reads it with (no jq on macOS 14).
 input="$(mktemp)"
-trap 'rm -f "$input"' EXIT
+tmp="$(mktemp -d)"
+trap 'rm -f "$input"; rm -rf "$tmp"' EXIT
 
 expect() {
   local want="$1" command="$2" got
@@ -143,6 +145,29 @@ ok = any(e.get("matcher") == "Bash"
          for e in entries)
 sys.exit(0 if ok else 1)
 ' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register git-guardrails.sh for Bash"; failures=$((failures + 1)); }
+
+# The shipped post-commit hook deletes .scratchpads/commit-msg.txt of the work tree that commits, so
+# the next `git commit -F` cannot take a stale message. A worktree uses the hooks folder of the main
+# checkout, and the hook deletes the file of the worktree only. With no file, the hook exits 0.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+gc() { git -C "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty "${@:2}"; }
+post_fail() { echo "FAIL: post-commit: $1"; failures=$((failures + 1)); }
+git init -q "$tmp/r"
+mkdir -p "$tmp/r/.githooks" "$tmp/r/.scratchpads"
+cp "$(dirname "$0")/../../.githooks/post-commit" "$tmp/r/.githooks/" || post_fail 'no .githooks/post-commit'
+git -C "$tmp/r" config core.hooksPath "$tmp/r/.githooks"
+printf 'one\n' > "$tmp/r/.scratchpads/commit-msg.txt"
+gc "$tmp/r" -F .scratchpads/commit-msg.txt || post_fail 'a commit with -F failed'
+[[ ! -e "$tmp/r/.scratchpads/commit-msg.txt" ]] || post_fail 'the message file is still there after the commit'
+gc "$tmp/r" -m two || post_fail 'a commit with no message file failed'
+(cd "$tmp/r" && .githooks/post-commit) || post_fail "the hook exits $? with no message file"
+git -C "$tmp/r" worktree add -q "$tmp/w" 2>/dev/null || post_fail 'git worktree add failed'
+mkdir -p "$tmp/w/.scratchpads"
+printf 'main\n' > "$tmp/r/.scratchpads/commit-msg.txt"
+printf 'three\n' > "$tmp/w/.scratchpads/commit-msg.txt"
+gc "$tmp/w" -F .scratchpads/commit-msg.txt || post_fail 'a commit in the worktree failed'
+[[ ! -e "$tmp/w/.scratchpads/commit-msg.txt" ]] || post_fail 'the worktree message file is still there'
+[[ "$(cat "$tmp/r/.scratchpads/commit-msg.txt" 2>/dev/null)" == main ]] || post_fail 'a worktree commit deleted the file of the main checkout'
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

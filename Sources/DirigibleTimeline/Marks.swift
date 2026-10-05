@@ -163,7 +163,7 @@ public struct Marks: Hashable, Sendable {
     func heldClips(in session: Session) -> [(clip: Clip, lane: Int)] {
         guard let selection = selection(in: session) else { return [] }
         let range = selection.range
-        return session.tracks.indices.filter { selection.tracks.contains(session.tracks[$0].id) }.flatMap { lane in
+        return selectedIndices(in: session).flatMap { lane in
             session.tracks[lane].clips.filter { range.lowerBound <= $0.start && $0.end <= range.upperBound }
                 .map { ($0, lane) }
         }

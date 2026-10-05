@@ -59,6 +59,12 @@ test="echo '◇ Test foo(bar:) started.'; echo \"Test Case '-[T foo]' started.\"
 expect_text '4:WRONG FAILURE' 'the expected text is only in a progress line' 'foo('
 expect_text '4:WRONG FAILURE' 'the expected text is only in an XCTest progress line' '[T foo]'
 expect_text '0:killed' 'the failure line after the progress lines has the text' 'expected a = 1'
+# WRONG FAILURE prints, after the result line, up to 10 compared lines that hold a failure mark
+# (the form to copy into the next --expect).
+test="echo 'plain line'; for i in 1 2 3 4 5 6 7 8 9; do echo \"✘ Test t\$i() recorded an issue: (x → nil) == \$i\"; done; echo 'error: line 10'; echo 'line 11 failed'; exit 1"
+got="$("$mutate" --expect 'not in the output' "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" "$test" 2>&1)"
+[[ "$(sed -n 2p <<<"$got")" == '✘ Test t1() recorded an issue: (x → nil) == 1' ]] || { echo "FAIL: WRONG FAILURE: no failing line after the result: $got"; failures=$((failures + 1)); }
+[[ "$got" == *'error: line 10'* && "$got" != *'line 11 failed'* && "$got" != *'plain line'* ]] || { echo "FAIL: WRONG FAILURE: not the first 10 failing lines: $got"; failures=$((failures + 1)); }
 test="grep -q 'a = 1' '$file' || { echo 'expected a = 1'; exit 1; }"
 
 # --timeout: a test that runs past the limit is killed with its process group and counts as a kill.

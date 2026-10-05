@@ -83,7 +83,7 @@ public func importAudio(
     guard free >= needed else { throw .space(file: name, needed: needed, free: free) }
 
     let clips = package.appending(path: clipsFolderName)
-    let stem = importStem(of: source, in: session, clips: clips)
+    let stem = importStem(of: source, in: session, package: package)
     let wav = "\(clipsFolderName)/\(stem).wav"
     let temporary = clips.appending(path: ".\(stem).wav.tmp")
     var renamed = false
@@ -127,21 +127,24 @@ public func importAudio(
 }
 
 /// The stem of the WAV and the IDs of an import of `source` (decision 0040): the file name with no
-/// extension, with no "/", ":", leading ".", or character that a session cannot store, or
-/// "Imported" when nothing is left. A stem that a file ID, a clip ID, a pool path, or a name in
-/// `clips` uses, in any case, gets " 2", " 3", and so on.
-func importStem(of source: URL, in session: Session, clips: URL) -> String {
+/// extension, with no leading "." and no character that a session or an exFAT volume cannot
+/// store, or "Imported" when nothing is left. A stem that a file ID, a clip ID, a pool path, a
+/// name in `Clips/`, or a segment stem in `Capture/` uses, in any case, gets " 2", " 3", and so on.
+func importStem(of source: URL, in session: Session, package: URL) -> String {
     var base = String(
         String.UnicodeScalarView(
             source.deletingPathExtension().lastPathComponent.unicodeScalars.filter {
-                $0 != "/" && $0 != ":" && $0.isStorableInSession
+                !"/:?*<>|\"\\".unicodeScalars.contains($0) && $0.isStorableInSession
             }))
     while base.hasPrefix(".") { base.removeFirst() }
     if base.isEmpty { base = "Imported" }
-    let names =
-        session.files.values.flatMap { [$0.id.rawValue, $0.path] }
-        + session.tracks.flatMap(\.clips).map(\.id.rawValue)
-        + ((try? FileManager.default.contentsOfDirectory(atPath: clips.path)) ?? [])
+    func listing(_ folder: String) -> [String] {
+        (try? FileManager.default.contentsOfDirectory(atPath: package.appending(path: folder).path)) ?? []
+    }
+    let segments: [String] = listing(captureFolderName).map { ($0 as NSString).deletingPathExtension }
+    let pool: [String] = session.files.values.flatMap { [$0.id.rawValue, $0.path] }
+    let names: [String] =
+        pool + session.tracks.flatMap(\.clips).map(\.id.rawValue) + listing(clipsFolderName) + segments
     let used = Set(names.map { $0.lowercased() })
     var (stem, number) = (base, 2)
     while used.contains(stem.lowercased()) || used.contains("\(stem).wav".lowercased()) {

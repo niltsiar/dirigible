@@ -231,10 +231,8 @@ extension SessionWindow {
         }
     }
 
-    /// Gives the focus to the lanes and commits the typed track names, as a lane mouse-down does:
-    /// a focused field takes Esc. A header click and the header handle come here. The focus goes
-    /// first: the end of the edit writes the text of the field to its draft, so after a commit it
-    /// wrote the old name, and the next commit gave the old name back.
+    /// Gives the focus to the lanes and commits the typed track names, in the order of a lane
+    /// mouse-down: a focused field takes Esc. A header click and the header handle come here.
     func endNameEdit() {
         if let view = timelineView { view.window?.makeFirstResponder(view.lanes) }
         commitNames()
@@ -269,7 +267,7 @@ extension SessionWindow {
     func removeFromHeader(_ track: TrackID) {
         guard let studio else { return }
         let selected = timeline.selection.headerTracks(in: studio.session)
-        removeTracks(selected.contains(track) ? studio.session.tracks.map(\.id).filter(selected.contains) : [track])
+        removeTracks(selected.contains(track) ? selected : [track])
     }
 
     /// Shows in Finder the pool files of `Selection.files`. Only files on disk go; with none, a

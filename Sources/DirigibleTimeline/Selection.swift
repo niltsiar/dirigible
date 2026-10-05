@@ -46,11 +46,12 @@ public enum Selection: Hashable, Sendable {
         return ClipSet(ids).map { .clips($0) } ?? .none
     }
 
-    /// The tracks that the headers show as selected: the live tracks of a range, also with no
-    /// points. A clip set picks clips, not tracks, so it gives none (decision 0038).
-    public func headerTracks(in session: Session) -> Set<TrackID> {
+    /// The tracks that the headers show as selected, in session order: the live tracks of a
+    /// range, also with no points. A clip set picks clips, not tracks, so it gives none (decision
+    /// 0038).
+    public func headerTracks(in session: Session) -> [TrackID] {
         guard let marks else { return [] }
-        return Set(session.tracks.map(\.id).filter(marks.tracks.contains))
+        return session.tracks.map(\.id).filter(marks.tracks.contains)
     }
 
     /// A click on the header of `track`. A range keeps its points; a clip set becomes a range with
@@ -61,7 +62,7 @@ public enum Selection: Hashable, Sendable {
         if command { return .range(marks.toggled(track)) }
         var tracks: Set<TrackID> = [track]
         if shift {
-            let picked = headerTracks(in: session).union([track])
+            let picked = Set(headerTracks(in: session) + [track])
             let lanes = session.tracks.indices.filter { picked.contains(session.tracks[$0].id) }
             if let first = lanes.first, let last = lanes.last { tracks = Set(session.tracks[first...last].map(\.id)) }
         }

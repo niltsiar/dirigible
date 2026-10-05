@@ -52,9 +52,9 @@ extension Session {
         let picked = tracks.map { $0.clips.filter { wanted.contains($0.id) } }
         let present = Set(picked.joined().map(\.id))
         if let missing = clips.first(where: { !present.contains($0) }) { throw .unknownClip(missing) }
-        let used = picked.indices.filter { !picked[$0].isEmpty }
-        guard let first = used.first, let last = used.last, let start = picked.compactMap(\.first?.start).min(),
-            let end = picked.compactMap(\.last?.end).max()
+        guard let first = picked.firstIndex(where: { !$0.isEmpty }),
+            let last = picked.lastIndex(where: { !$0.isEmpty }),
+            let start = picked.compactMap(\.first?.start).min(), let end = picked.compactMap(\.last?.end).max()
         else { return Excerpt(kind: .clips, length: .zero, lanes: []) }
         let lanes = (first...last).map { index in
             Excerpt.Lane(

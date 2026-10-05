@@ -269,7 +269,8 @@ root="$(git -C "$tmp/r" rev-parse --show-toplevel)"
 other="101 $root/.claude/worktrees/x/.build/debug/swiftpm-testing-helper --test-bundle-path $root/.claude/worktrees/x/.build/debug/T.xctest"
 printf '%s\n%s\n\n' "$other" "$other" > "$tmp/procs"
 wait_case || fail "a test of another tree: exit $?"
-[[ "$(grep -c 'a test of another tree runs (pid 101): wait 10 s' "$tmp/wait.err")" == 2 ]] || fail "a test of another tree: wait lines: $(cat "$tmp/wait.err")"
+# The wait line names the helper with its command line, so its tree is known.
+[[ "$(grep -cF "a test of another tree runs (pid ${other/ /: }): wait 10 s" "$tmp/wait.err")" == 2 ]] || fail "a test of another tree: wait lines: $(cat "$tmp/wait.err")"
 [[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: load 1.00, under 8: run the tests" ]] || fail "a test of another tree: last line: $(tail -n 1 "$tmp/wait.err")"
 [[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a test of another tree: sleeps [$(cat "$tmp/sleep.log")]"
 grep -qx -- "-lf /swiftpm-testing-helper " "$tmp/pgrep.log" || fail "a test of another tree: pgrep arguments [$(head -n 1 "$tmp/pgrep.log")]"
@@ -282,7 +283,7 @@ wait_case || fail "no test and a low load: exit $?"
 printf '%s\n' "$other" > "$tmp/procs"
 CHECK_LOAD_WAIT=20 wait_case || fail "a test of another tree that stays: exit $?"
 [[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a test of another tree that stays: sleeps [$(cat "$tmp/sleep.log")]"
-[[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: a test of another tree runs after 20 s: run the tests" ]] || fail "a test of another tree that stays: last line: $(tail -n 1 "$tmp/wait.err")"
+[[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: a test of another tree runs after 20 s (pid ${other/ /: }): run the tests" ]] || fail "a test of another tree that stays: last line: $(tail -n 1 "$tmp/wait.err")"
 : > "$tmp/procs"
 
 # make test-slow writes the date of today after a pass, and nothing after a red run.

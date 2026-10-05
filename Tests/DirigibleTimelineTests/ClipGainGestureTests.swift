@@ -186,7 +186,7 @@ struct ClipGainGestureTests {
         down(150, 2)
         #expect(gesture.readout == nil, "no drag yet")
         _ = drag(150, 8)
-        #expect(gesture.readout == .gain(Gain(dB: -6)!))
+        #expect(gesture.readout == .gain(Gain(dB: -6)!, from: .zero), "the gain and the start gain")
         _ = up(150, 8)
         #expect(gesture.readout == nil)
 

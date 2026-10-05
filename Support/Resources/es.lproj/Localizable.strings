@@ -163,7 +163,7 @@
 "timeline.overview.value" = "De %1$@ a %2$@ de %3$@";
 "timeline.overview.fit" = "Mostrar toda la sesión";
 "timeline.overview.help" = "Haz clic para ir. Arrastra el marco para moverte, los bordes para el zoom.";
-"timeline.readout.gain" = "Ganancia %@ dB";
+"timeline.readout.gain" = "Ganancia %@ dB (%@)";
 "timeline.readout.fade.in" = "Entrada %@ ms";
 "timeline.readout.fade.out" = "Salida %@ ms";
 "timeline.readout.crossfade" = "Fundido cruzado %@ ms";

@@ -106,7 +106,7 @@ import Testing
 
         try send(.leftMouseDown, view, 250, 3)
         try send(.leftMouseDragged, view, 250, 13)
-        #expect(readout(view) == text(.gain(Gain(dB: -6)!)))
+        #expect(readout(view) == text(.gain(Gain(dB: -6)!, from: .zero)))
         let frame = view.lanes.readout.frame
         let lanesInView = view.shown.intersection(view.lanes.bounds)
         #expect(frame.minX > 250 && lanesInView.contains(frame), "near the pointer, in the lanes in view")
@@ -232,6 +232,53 @@ import Testing
 
         model.undo()
         #expect(studio.session == before, "one undo entry, the second double-click made none")
+        window.close()
+        await model.close()
+    }
+
+    /// C24 and C24b: over 0 dB the gain line stays on the lane top, so the readout shows a bar:
+    /// a drag from +6.0 dB to +4.0 dB moves the marker left by 2/40 of the bar, and the text shows
+    /// the change since the mouse-down at +8.0 dB.
+    @Test func theReadoutMarkerMovesAboveZero() async throws {
+        let (model, _, window, view) = try await lanes { s throws(SessionError) in
+            try s.setGain(Gain(dB: 8)!, clip: "c1")
+        }
+        let bar = view.lanes.readout.bar
+        try send(.leftMouseDown, view, 250, 3)
+        // A drag starts after a few points: the first event goes to +6.0 dB.
+        try send(.leftMouseDragged, view, 250, 3 + 2 / 0.6)
+        try #require(readout(view) == text(.gain(Gain(dB: 6)!, from: Gain(dB: 8)!)))
+        let start = view.lanes.readout.marker.frame.midX
+        #expect(!bar.isHidden && bar.frame.width >= 80, "the gain readout shows the bar: \(bar.frame)")
+
+        try send(.leftMouseDragged, view, 250, 3 + 4 / 0.6)
+        #expect(readout(view) == text(.gain(Gain(dB: 4)!, from: Gain(dB: 8)!)))
+        let moved = start - view.lanes.readout.marker.frame.midX
+        #expect(abs(moved - bar.frame.width * 2 / 40) <= 1, "the marker moved \(moved) pt on \(bar.frame.width) pt")
+        let geometry = try #require(LaneGeometry(scale: TimelineScale(framesPerPoint: 512), laneHeight: 100))
+        let clip = try #require(view.lanes.inputs?.session.clip("c1")?.clip)
+        #expect(geometry.gainLineY(clip, trackGain: .zero, lane: 0) == 0, "the line stays on the lane top")
+        try send(.leftMouseUp, view, 250, 3 + 4 / 0.6)
+        window.close()
+        await model.close()
+    }
+
+    /// C25: the bar ends are the gain limits, so a gain outside them puts the marker at the end.
+    @Test func theReadoutMarkerStopsAtTheBarEnds() {
+        #expect(ReadoutLayer.markerX(Gain(dB: 0)!, barWidth: 80) == 40)
+        #expect(ReadoutLayer.markerX(Gain(dB: 20)!, barWidth: 80) == 80)
+        #expect(ReadoutLayer.markerX(Gain(dB: 24)!, barWidth: 80) == 80)
+        #expect(ReadoutLayer.markerX(Gain(dB: -30)!, barWidth: 80) == 0)
+    }
+
+    /// C26: a fade readout has no bar.
+    @Test func aFadeReadoutHasNoBar() async throws {
+        let (model, _, window, view) = try await lanes()
+        try send(.leftMouseDown, view, 204, 4)
+        try send(.leftMouseDragged, view, 247.125, 4)
+        try #require(readout(view) == text(.fade(.start, 22_080)))
+        #expect(view.lanes.readout.bar.isHidden && view.lanes.readout.marker.isHidden)
+        try send(.leftMouseUp, view, 247.125, 4)
         window.close()
         await model.close()
     }

@@ -163,7 +163,7 @@
 "timeline.overview.value" = "%1$@ to %2$@ of %3$@";
 "timeline.overview.fit" = "Show Whole Session";
 "timeline.overview.help" = "Click to go there. Drag the frame to scroll, its edges to zoom.";
-"timeline.readout.gain" = "Gain %@ dB";
+"timeline.readout.gain" = "Gain %@ dB (%@)";
 "timeline.readout.fade.in" = "Fade In %@ ms";
 "timeline.readout.fade.out" = "Fade Out %@ ms";
 "timeline.readout.crossfade" = "Crossfade %@ ms";

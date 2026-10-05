@@ -5,6 +5,7 @@
 - Accepted: 2026-10-03, after plan gates 1 and 2 of run `2026-10-03-clip-gain-fades` (part 11a).
 - Amends: 0003 (fades from version 3; a fade of 0 is not written), 0016 (the mix has the fade factor), 0017 (the waveform has the fades), 0024 (the `session.xml` version table).
 - Amended: 2026-10-04, run 11c-1. The 11c plan, the fade stop rule, and Command-F at a join point to 0036.
+- Amended: 2026-10-05, ui-polish run: the gain readout adds the change since the mouse-down ("Gain +4.0 dB (-2.0)") and a bar sublayer from -20 dB to +20 dB (`Gain.levelLimit`) with a 0 dB tick and a marker at the gain, so a drag over 0 dB shows a change. The bar is layer frames only: no lane pixel changes. A fade and a crossfade readout have no bar.
 
 ## Context
 

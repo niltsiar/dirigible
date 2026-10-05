@@ -9,7 +9,7 @@
 
 The tester asks for M and S buttons in each track header, as in Hindenburg PRO (feedback B2.12 and B2.13). Mute and solo change the mix, so they touch the one render path (`MixReader`) of the Player, the export, and `dirigible render` (0016, 0019). The flags can live in the session (saved, on the undo stack, in the CLI) or in the window, as the Arm set does.
 
-Logic Pro, GarageBand, and Audition leave a muted track out of a bounce, and a Hindenburg solo exports only the soloed track. Hindenburg saves `Muted` per track. `dirigible export` and `render` read only `session.xml`. So a window state makes the app export and the CLI export of one package differ, on state that a reopen loses.
+Logic Pro, GarageBand, and Audition leave a muted track out of a bounce, and a Hindenburg solo exports only the soloed track. Hindenburg saves `Muted` per track. The sources are in [the mute and solo research](../research/mute-solo.md). `dirigible export` and `render` read only `session.xml`. So a window state makes the app export and the CLI export of one package differ, on state that a reopen loses.
 
 ## Decision
 

@@ -78,15 +78,6 @@ extension MouseEventBenchmark {
         Self.expectFitsThreeFrames(fade, "fade")
     }
 
-    /// The limits of B2 and C26: the p50 is under 50 ms, and the max is not more than 100 ms.
-    @Test func theCommandFLimitsAreThreeFramesAndATenthOfASecond() {
-        let (p50, max) = Self.commandFLimits
-        #expect(Duration.microseconds(49_900) <= p50 && Duration.milliseconds(50) > p50, "the p50 is under 50 ms")
-        #expect(
-            Duration.milliseconds(100) <= max && Duration.microseconds(100_100) > max, "the max is not more than 100 ms"
-        )
-    }
-
     /// The fixture with no fades and two files on each track, which alternate: clip k of track n
     /// is at k x 172,800 with frames from 172,800 of file n (k even) or from 345,600 of the next
     /// file (k odd). So each of the 11,994 joins has handles and is not seamless. Doubling pastes

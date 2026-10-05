@@ -3,11 +3,13 @@
 # Usage: cost.sh <run folder> [<transcript.jsonl>]
 # - open: the birth time of the folder. phase: one line for each block of rows of the same phase
 #   in decisions.tsv, in file order. A block ends at its last row and starts at the end of the
-#   block before it (the first block starts at open).
-# - checks: the logs/ files with a `check-changed:` or `targets:` line. Filtered: the targets have
-#   test-filter. Push: a base that is not empty, none, or -, or the targets have test-slow or
-#   test-dmg. Repeated: a `check-changed:` line on a clean tree with the commit and the targets of
-#   an earlier line. With no logs/ folder, the checks and benches lines say so, not zero.
+#   block before it (the first block starts at open). A first row over 30 min after the start of
+#   its block (a wait before the work) adds `, first row after <N> min`.
+# - checks: the logs/ files with a `check-changed: commit` or `targets:` line (not the load wait
+#   lines of a bench log). Filtered: the targets have test-filter. Push: a base that is not empty,
+#   none, or -, or the targets have test-slow or test-dmg. Repeated: a `check-changed:` line on a
+#   clean tree with the commit and the targets of an earlier line. With no logs/ folder, the
+#   checks and benches lines say so, not zero.
 # - benches: the logs/ files with a `bench:` or `scripts/bench.sh` line; the pairs sets (folders
 #   with a load.txt); repeated: a `bench:` line on a clean tree with an earlier commit and filter.
 # - controls: the logs at the top of controls/ and the different replay logs under controls/replay*.
@@ -43,18 +45,21 @@ epoch() { date -j -f %Y-%m-%dT%H:%M:%S "$1:00" +%s; }
 echo "run: $name"
 echo "open: $open"
 start="$open"
-while read -r phase end; do
-    echo "phase $phase: $start to $end, $((($(epoch "$end") - $(epoch "$start")) / 60)) min"
+while read -r phase first end; do
+    gap=$((($(epoch "$first") - $(epoch "$start")) / 60)) late=""
+    if ((gap > 30)); then late=", first row after $gap min"; fi
+    echo "phase $phase: $start to $end, $((($(epoch "$end") - $(epoch "$start")) / 60)) min$late"
     start="$end"
 done < <(awk -F'\t' '$1 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$/ {
-        if (NR > 1 && $2 != p && p != "") print p, e
+        if (NR > 1 && $2 != p && p != "") print p, f, e
+        if ($2 != p) f = $1
         p = $2; e = $1
-    } END { if (p != "") print p, e }' "$run/decisions.tsv")
+    } END { if (p != "") print p, f, e }' "$run/decisions.tsv")
 
 checks=0 filtered=0 push=0 benches=0
 for f in "$run"/logs/*; do
     [[ -f "$f" ]] || continue
-    if grep -qE '^(check-changed: |targets: )' "$f"; then
+    if grep -qE '^(check-changed: commit |targets: )' "$f"; then
         checks=$((checks + 1))
         grep -qE '^targets: .*test-filter|^check-changed: .* targets .*test-filter' "$f" && filtered=$((filtered + 1))
         base="$(sed -n -E 's/^check-changed: .* base ([^ ]*) targets .*/\1/p' "$f" | head -n 1)"

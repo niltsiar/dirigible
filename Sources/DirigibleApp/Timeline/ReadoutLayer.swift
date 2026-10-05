@@ -85,9 +85,9 @@ final class ReadoutLayer: CATextLayer {
     static func text(_ readout: GestureReadout, rate: Int, locale: Locale, value: (L10n) -> String) -> String {
         switch readout {
         case .gain(let gain, let start):
-            let change = Gain(dB: gain.dB - start.dB) ?? .zero
             return String(
-                format: value(.timelineReadoutGain), decibels(gain, locale: locale), decibels(change, locale: locale))
+                format: value(.timelineReadoutGain), decibels(gain.dB, locale: locale),
+                decibels(gain.dB - start.dB, locale: locale))
         case .fade(let edge, let length):
             let key: L10n = edge == .start ? .timelineReadoutFadeIn : .timelineReadoutFadeOut
             return String(format: value(key), milliseconds(length, rate: rate, locale: locale))
@@ -102,9 +102,9 @@ final class ReadoutLayer: CATextLayer {
             .formatted(.number.precision(.fractionLength(0)).locale(locale))
     }
 
-    /// A gain to 0.1 dB with its sign: "-6.0", "+4.0", "0.0" (in Spanish "-6,0").
-    static func decibels(_ gain: Gain, locale: Locale) -> String {
-        gain.dB.formatted(
+    /// A gain or a gain change in dB to 0.1, with its sign: "-6.0", "+4.0", "0.0" (in Spanish "-6,0").
+    static func decibels(_ dB: Double, locale: Locale) -> String {
+        dB.formatted(
             .number.precision(.fractionLength(1)).sign(strategy: .always(includingZero: false)).locale(locale))
     }
 }

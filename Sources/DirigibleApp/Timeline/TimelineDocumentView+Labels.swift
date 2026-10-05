@@ -60,6 +60,6 @@ extension TimelineDocumentView {
 
     /// The label of a clip: its name, and its gain when it is not 0 ("take1-1  -6.0 dB").
     nonisolated static func labelText(_ name: String, gain: Gain, locale: Locale) -> String {
-        gain == .zero ? name : "\(name)  \(ReadoutLayer.decibels(gain, locale: locale)) dB"
+        gain == .zero ? name : "\(name)  \(ReadoutLayer.decibels(gain.dB, locale: locale)) dB"
     }
 }

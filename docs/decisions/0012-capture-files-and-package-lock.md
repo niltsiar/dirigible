@@ -5,6 +5,7 @@
 - Amended: 2026-09-26. The finalize that ends a take writes the take anchor file `Capture/take<n>.anchor`. The per-segment finalize writes each WAV through a temporary name and never overwrites a pool file with a stem path (the WAV guard). A read errno on the CAF or the sidecar of one segment is `FinalizeError.segmentUnreadable`: it keeps the take pending, as before, unless the user chooses to finish without unreadable audio. A command places one unplaced segment through the per-segment finalize (see 0021).
 - Amended: 2026-09-27. The sidecar magic is a 7-byte prefix and a version digit. A newer sidecar is not a bad sidecar: its segment stays unplaced with a newer-version fault, and the take ends. The next take number counts every file name that starts with `take<n>` (see 0024).
 - Amended: 2026-10-04, run 12. No edit moves the timeline under a pending take or a split take: the window and the CLI refuse each ripple then (see 0037).
+- Amended: 2026-10-05, run `2026-10-05-file-import`. `Clips/` also holds imported WAVs, `<name>.wav`, with no capture. The import uses the same conversion, write order, and flush (see 0040).
 
 ## Context
 

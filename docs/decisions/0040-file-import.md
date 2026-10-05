@@ -7,7 +7,7 @@
 
 ## Context
 
-The user imports a WAV, AIFF, FLAC, MP3, or M4A file into a track (F61, part of R7). A reference to a file outside the package can go missing, so the package must hold a copy. `MixReader` opens a pool file only at the session rate and with the channel count of its layout (0016). Finalize already converts a CAF into a 24-bit WAV at the session rate (0012). Hindenburg converts an import to the session rate with no prompt and levels it. Logic and Audition put a menu import on the selected track at the playhead. The sources are in the file import research of run `2026-10-05-file-import`.
+The user imports a WAV, AIFF, FLAC, MP3, or M4A file into a track (F61, part of R7). A reference to a file outside the package can go missing, so the package must hold a copy. `MixReader` opens a pool file only at the session rate and with the channel count of its layout (0016). Finalize already converts a CAF into a 24-bit WAV at the session rate (0012). Hindenburg converts an import to the session rate with no prompt and levels it. Logic and Audition put a menu import on the selected track at the playhead. The sources are in [the file import research](../research/file-import.md).
 
 ## Decision
 

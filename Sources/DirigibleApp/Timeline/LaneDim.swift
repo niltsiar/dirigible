@@ -20,7 +20,8 @@ final class LaneDim {
 
     /// Sets the layers again only when the unheard lanes, the lane geometry, or the color changed.
     func update(_ session: Session, laneHeight: Double, width: Double, color: UInt32) {
-        let lanes = session.tracks.indices.filter { !session.isAudible(session.tracks[$0].id) }
+        let heard = Set(session.heardTracks(in: nil).map(\.id))
+        let lanes = session.tracks.indices.filter { !heard.contains(session.tracks[$0].id) }
         let next = Shown(lanes: lanes, laneHeight: laneHeight, width: width, color: color)
         guard next != shown else { return }
         shown = next

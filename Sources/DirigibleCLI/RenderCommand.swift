@@ -90,11 +90,10 @@ func warn(_ faults: [FileID: MediaFault], in session: Session) {
 /// One warning line on stderr when a track of the source is not heard (decision 0039), or no
 /// track is: then the file is silent.
 func warnUnheard(_ session: Session, source: ExportSource) {
-    let heard = session.heardTracks(in: source.tracks).count
-    let unheard = (source.tracks?.count ?? session.tracks.count) - heard
+    let unheard = session.unheardCount(in: source.tracks)
     guard unheard > 0 else { return }
     let line =
-        heard == 0
+        session.heardTracks(in: source.tracks).isEmpty
         ? "no track is heard; the file is silent."
         : unheard == 1
             ? "1 track is muted or not soloed and is not in the export."

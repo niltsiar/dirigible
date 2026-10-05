@@ -29,7 +29,8 @@ struct TrackMuteSoloTests {
             var session = try twoTracks()
             try session.setMuted(true, tracks: row.muted)
             try session.setSoloed(true, tracks: row.soloed)
-            let audible = [session.isAudible("t1"), session.isAudible("t2")]
+            let heard = session.heardTracks(in: nil).map(\.id)
+            let audible = [heard.contains("t1"), heard.contains("t2")]
             #expect(audible == row.audible, "audible rule: \(row.name)")
         }
     }
@@ -63,6 +64,20 @@ struct TrackMuteSoloTests {
         #expect(session.heardTracks(in: ["t2"]).isEmpty, "no track of the set is heard")
         try session.setMuted(true, tracks: ["t1", "t3"])
         #expect(session.heardTracks(in: nil).isEmpty, "every soloed track muted: silence, not all tracks")
+    }
+
+    /// Code gate 1 item 3: the one count of the export notes. A track of the set that the rule
+    /// does not hear counts; a track out of the set or not in the session does not.
+    @Test func unheardCountCountsTheTracksOfTheSet() throws {
+        var session = try twoTracks()
+        try session.addTrack("t3", name: "Music", layout: .stereo)
+        #expect(session.unheardCount(in: nil) == 0, "no flag")
+        try session.setMuted(true, tracks: ["t1"])
+        #expect(session.unheardCount(in: nil) == 1, "t1 muted")
+        #expect(session.unheardCount(in: ["t2", "t3"]) == 0, "the set has no unheard track")
+        try session.setSoloed(true, tracks: ["t3"])
+        #expect(session.unheardCount(in: nil) == 2, "t1 muted and t2 not soloed")
+        #expect(session.unheardCount(in: ["t1", "t9"]) == 1, "a track not in the session does not count")
     }
 
     /// C4 a, e: a mute and a solo write version 5 and the attributes, and read back equal.

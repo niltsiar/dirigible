@@ -158,18 +158,19 @@ public struct Session: Hashable, Sendable {
         for index in try ids.map(trackIndex) { tracks[index].isSoloed = on }
     }
 
-    /// Not muted, and no track is soloed or this track is soloed (decision 0039). False for an
-    /// unknown track.
-    public func isAudible(_ id: TrackID) -> Bool {
-        track(id).map(isHeard) ?? false
-    }
-
-    /// The tracks that the mix reads: in `ids` (nil: all tracks) and audible, in session order.
+    /// The tracks that the mix reads: in `ids` (nil: all tracks) and heard, in session order.
     /// An empty result is silence, never all tracks.
     public func heardTracks(in ids: Set<TrackID>?) -> [Track] {
         tracks.filter { (ids?.contains($0.id) ?? true) && isHeard($0) }
     }
 
+    /// The tracks of `ids` (nil: all tracks) that are in the session and not heard: the count of
+    /// the export notes.
+    public func unheardCount(in ids: Set<TrackID>?) -> Int {
+        tracks.filter { ids?.contains($0.id) ?? true }.count - heardTracks(in: ids).count
+    }
+
+    /// Not muted, and no track is soloed or this track is soloed (decision 0039): the one rule.
     private func isHeard(_ track: Track) -> Bool {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }

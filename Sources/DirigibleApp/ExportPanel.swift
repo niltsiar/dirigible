@@ -94,13 +94,14 @@ struct ExportNote: Equatable {
     var text: String { key.format(count) }
 }
 
-/// Nil when every track of the source is heard. It counts with `Session.heardTracks(in:)`, the
-/// filter of the mix.
+/// Nil when every track of the source is heard. It counts with `Session.unheardCount(in:)`, from
+/// the filter of the mix.
 func exportNote(_ session: Session, _ source: ExportSource) -> ExportNote? {
-    let heard = session.heardTracks(in: source.tracks).count
-    let unheard = (source.tracks?.count ?? session.tracks.count) - heard
+    let unheard = session.unheardCount(in: source.tracks)
     guard unheard > 0 else { return nil }
-    if heard == 0 { return ExportNote(key: .panelExportNoteSilent, count: unheard) }
+    if session.heardTracks(in: source.tracks).isEmpty {
+        return ExportNote(key: .panelExportNoteSilent, count: unheard)
+    }
     return ExportNote(key: unheard == 1 ? .panelExportNoteOne : .panelExportNoteMany, count: unheard)
 }
 

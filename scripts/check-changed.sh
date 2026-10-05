@@ -59,7 +59,10 @@ wait_load() {
         load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
         # pgrep and grep exit 1 with no match, so the pipeline stays in a condition (set -e).
         if other="$(pgrep -lf '/swiftpm-testing-helper ' | grep -vF "$root/.build/")"; then
-            why="a test of another tree runs (pid ${other%% *})" stop="a test of another tree runs after $waited s"
+            # The command line names the tree of the helper, so a stale helper can be stopped.
+            other="${other%%$'\n'*}"
+            other="pid ${other/ /: }"
+            why="a test of another tree runs ($other)" stop="a test of another tree runs after $waited s ($other)"
         elif awk -v l="$load" -v m="$max" 'BEGIN { exit !(l < m) }'; then
             echo "check-changed: load $load, under $max: run the tests" >&2
             return 0

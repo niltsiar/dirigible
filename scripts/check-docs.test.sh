@@ -35,7 +35,7 @@ good() {
   mkdir -p "$tmp/.claude/workflows" "$tmp/.claude/agents"
   printf "const LENSES = [\n  { key: 'x', agentType: 'x-reviewer', gates: ['diff'] },\n]\nagent(task, { agentType: lens.agentType })\n" \
     > "$tmp/.claude/workflows/review-panel.js"
-  printf -- '---\nname: x-reviewer\ndescription: X.\n---\n\nBody.\n' > "$tmp/.claude/agents/x-reviewer.md"
+  printf -- '---\nname: x-reviewer\ndescription: X.\n---\n\nBody.\n\n```bash\nswift run dirigible --help\ndirigible clip cut Demo.dirigible\n```\n' > "$tmp/.claude/agents/x-reviewer.md"
   mkdir -p "$tmp/.claude/skills/s/references" "$tmp/docs/workflow"
   printf -- '---\nname: s\n---\n\nRead `references/r.md` when you need the detail.\nRun `dirigible clip cut`, `dirigible info`, or `dirigible --help`.\n' > "$tmp/.claude/skills/s/SKILL.md"
   mkdir -p "$tmp/Sources/DirigibleCLI"
@@ -154,6 +154,9 @@ good; printf '#!/bin/bash\n' > "$tmp/.claude/skills/reflect/scripts/cost.sh"; ex
 good; sed -i '' 's/^## Autonomy rules$/## Rules/' "$tmp/.claude/skills/deliver/SKILL.md"; expect fail 'deliver with no Autonomy rules section' '.claude/skills/deliver/SKILL.md: no ## Autonomy rules section'
 good; printf 'Run `dirigible show`.\n' >> "$tmp/.claude/skills/s/SKILL.md"; expect fail 'a dirigible command that the CLI does not have' '.claude/skills/s/SKILL.md:7: `dirigible show` is not a command of Sources/DirigibleCLI'
 good; printf 'Run `dirigible cut`.\n' >> "$tmp/README.md"; expect fail 'a subcommand used as a root command' 'README.md:4: `dirigible cut` is not a command of Sources/DirigibleCLI'
+good; printf 'Run `swift run dirigible show`.\n' >> "$tmp/.claude/skills/s/SKILL.md"; expect fail 'an unknown command after swift run' '.claude/skills/s/SKILL.md:7: `dirigible show` is not a command of Sources/DirigibleCLI'
+good; printf '```\ndirigible show Demo.dirigible\n```\n' >> "$tmp/.claude/agents/x-reviewer.md"; expect fail 'an unknown command in a fenced block' '.claude/agents/x-reviewer.md:13: `dirigible show` is not a command of Sources/DirigibleCLI'
+good; rm -rf "$tmp/Sources"; expect fail 'no CLI file' 'Sources/DirigibleCLI/Dirigible.swift is missing'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

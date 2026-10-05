@@ -3,9 +3,9 @@ import DirigibleAudio
 import DirigibleCore
 import DirigibleTimeline
 
-/// The running import of a window (decision 0040). The banner row shows it.
+/// The running import of a window (decision 0040). The banner row shows it with the file name of
+/// `Studio.importRun`.
 struct ImportJob {
-    let name: String
     var progress = 0.0
     var task: Task<Void, Never>?
 }
@@ -37,12 +37,10 @@ extension SessionWindow {
     func startImport(_ url: URL) {
         guard canImport, let studio = idleStudio else { return }
         let target = importTarget(timeline.selection, in: studio.session, playhead: studio.playhead)
-        importJob = ImportJob(name: url.lastPathComponent)
+        importJob = ImportJob()
         importJob?.task = Task { [weak self] in
             do throws(StudioError) {
-                let clip = try await studio.importAudio(url, to: target) { [weak self] fraction in
-                    self?.importJob?.progress = fraction
-                }
+                let clip = try await studio.importAudio(url, to: target) { [weak self] in self?.importProgressed($0) }
                 self?.timeline.selection = ClipSet([clip]).map { .clips($0) } ?? .none
             } catch .audioImport(.cancelled) {
             } catch {
@@ -50,6 +48,12 @@ extension SessionWindow {
             }
             self?.importJob = nil
         }
+    }
+
+    /// A progress hop of the running import. Hops can arrive out of order, so the bar keeps the
+    /// largest fraction.
+    func importProgressed(_ fraction: Double) {
+        if let progress = importJob?.progress { importJob?.progress = max(progress, fraction) }
     }
 
     /// The Cancel button of the banner. The import ends within one block.

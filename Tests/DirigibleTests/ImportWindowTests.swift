@@ -141,7 +141,7 @@ import Testing
         model.run(TimelineCommand.importAudio)
         await until("the import holds") { entered.value }
 
-        #expect(model.importJob?.name == "Voice.wav" && studio.importRun?.name == "Voice.wav", "the banner name")
+        #expect(model.importJob != nil && studio.importRun?.name == "Voice.wav", "the banner name")
         #expect(!model.canRecord && !model.isOn(.importAudio), "Record and Import Audio are off")
         model.run(TimelineCommand.split)
         model.run(TimelineCommand.removeTrack)
@@ -155,6 +155,19 @@ import Testing
         #expect(model.alert == nil && studio.session == before, "a cancel shows nothing and changes nothing")
         model.run(TimelineCommand.split)
         #expect(studio.session != before, "after the import, Split acts")
+        await model.close()
+    }
+
+    /// Code gate 1 item 6: progress hops can arrive out of order; the bar never goes back.
+    @Test func theProgressNeverGoesDown() async throws {
+        let (model, _, _) = try await open()
+        model.importJob = ImportJob()
+
+        model.importProgressed(0.6)
+        model.importProgressed(0.4)
+
+        #expect(model.importJob?.progress == 0.6, "progress never goes down")
+        model.importJob = nil
         await model.close()
     }
 

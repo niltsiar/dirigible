@@ -23,10 +23,10 @@ struct ClipConversion {
     var isCancelled: () -> Bool = { false }
 
     /// Reads `input` (open at `descriptor` too) in blocks, maps its channels to `channels`,
-    /// converts it from `source` to `rate` through one converter when the rates differ, and writes, flushes, and reads back the WAV at
-    /// `url`, the temporary name. Returns the frame count of the WAV and the clip gain, or nil for a
-    /// bad input, a converter that stops before the end of the stream, or a WAV length that does not
-    /// read back, or a cancel.
+    /// converts it from `source` to `rate` through one converter when the rates differ, and
+    /// writes, flushes, and reads back the WAV at `url`, the temporary name. Returns the frame
+    /// count of the WAV and the clip gain, or nil for a bad input, a converter that stops before
+    /// the end of the stream, a WAV length that does not read back, or a cancel.
     ///
     /// A float peak over full scale saturates in 24 bits (A11). Then a second pass scales the whole
     /// input to `ceiling`, and the clip gain gives the level back. A peak of 1.0 or less reads the

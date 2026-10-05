@@ -114,4 +114,26 @@ extension EditTakeTests {
         #expect(model.alert == nil)
         await model.close()
     }
+
+    /// Clip-set-clipboard C7b (U18): a failed finalize places no clip of the take, so no set clip
+    /// can belong to the pending take, and a set Cut acts. Control: a finalize that places the
+    /// clips before it throws fails the first check.
+    @Test func aPendingTakeHasNoClipSoASetCutActs() async throws {
+        let model = await app.open(try await package())
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        let clips = studio.session.tracks.map { Array($0.clips) }
+        try await pendingTake(model, studio)
+        #expect(studio.session.tracks.map { Array($0.clips) } == clips, "the pending take has no clip")
+        model.timeline.selection = .clips(try #require(ClipSet(["c1", "c2"])))
+        var beeps = 0
+        model.beep = { beeps += 1 }
+
+        model.run(.cut)
+
+        #expect(studio.session.tracks.allSatisfy { $0.clips.isEmpty } && beeps == 0)
+        #expect(model.clipboard?.kind == .clips && studio.pendingTake != nil)
+        model.undo()
+        #expect(studio.session.tracks.map { Array($0.clips) } == clips, "one undo entry")
+        await model.close()
+    }
 }

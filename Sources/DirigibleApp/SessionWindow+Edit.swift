@@ -8,7 +8,8 @@ import DirigibleTimeline
 extension SessionWindow {
     /// Copy, Paste, and Delete. With no selection, Copy and Delete do nothing. The clipboard
     /// changes only after a Copy that ran, or a Cut of `runRipple` that ran. On a clip set, Copy
-    /// beeps (decision 0038: `Excerpt` is range-shaped), and Delete removes the clips.
+    /// copies the set clips whole, and Delete removes the clips (decision 0038). After a Paste, the
+    /// selection is the pasted range, or the pasted clips for a set excerpt.
     func runClipboard(_ command: TimelineCommand, _ studio: Studio) {
         if command == .paste {
             guard let clipboard, let targets = timeline.selection.pasteTracks(for: clipboard, in: studio.session)
@@ -20,15 +21,14 @@ extension SessionWindow {
                 return
             }
             let at = studio.playhead
-            if edit({ session throws(SessionError) in try session.paste(clipboard, at: at, on: targets) }) != nil {
-                timeline.selection = .range(Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets)))
+            if let pasted = edit({ session throws(SessionError) in try session.paste(clipboard, at: at, on: targets) })
+            {
+                timeline.selection = Selection(pasted: pasted, of: clipboard, at: at, on: targets)
             }
             return
         }
         if command == .copy {
-            guard let marks = timeline.selection.marks else { return beep() }
-            guard let selection = marks.selection(in: studio.session) else { return }
-            clipboard = (try? studio.session.excerpt(of: selection.range, on: selection.tracks)) ?? clipboard
+            clipboard = (try? timeline.selection.excerpt(in: studio.session)) ?? clipboard
             return
         }
         guard command == .delete else { return }
@@ -46,10 +46,12 @@ extension SessionWindow {
     /// a twin; the Marks clear and the playhead goes to the start of the range. Cut puts the
     /// selected tracks on the clipboard. Insert moves all tracks right by the clipboard length at
     /// the playhead and pastes there, as Paste does. With no selection or no clipboard, nothing.
-    /// During a take, nothing. Under a pending or split take (`rippleBlocked`), a beep.
+    /// During a take, nothing. Under a pending or split take (`rippleBlocked`), a beep. Cut of a
+    /// clip set is no ripple (`cutClips`).
     func runRipple(_ command: TimelineCommand, _ studio: Studio) {
         guard canEdit else { return }
         if command == .insert { return insert(studio) }
+        if command == .cut, case .clips = timeline.selection { return cutClips() }
         let selectedOnly = command == .cutSelectedTracks || command == .deleteCloseGapSelectedTracks
         // A ripple needs a range scope (decision 0037), so a clip set beeps (decision 0038).
         guard let marks = timeline.selection.marks else { return beep() }
@@ -67,6 +69,21 @@ extension SessionWindow {
         Task { await studio.perform(.seek(.frame(scope.range.lowerBound))) }
     }
 
+    /// Cut of a clip set (decision 0038): one edit copies the set clips and removes them. The gaps
+    /// and the playhead stay. It is no ripple, so a pending or split take does not block it.
+    private func cutClips() {
+        let selection = timeline.selection
+        let cut = edit { session throws(SessionError) -> Excerpt? in
+            guard let excerpt = try selection.excerpt(in: session), let result = try selection.deleted(session)
+            else { return nil }
+            session = result
+            return excerpt
+        }
+        guard case let excerpt?? = cut else { return }
+        clipboard = excerpt
+        timeline.selection = .none
+    }
+
     /// Insert: one edit, a ripple insert on all tracks and a paste of the clipboard.
     private func insert(_ studio: Studio) {
         guard let clipboard, let targets = timeline.selection.pasteTracks(for: clipboard, in: studio.session) else {
@@ -77,14 +94,11 @@ extension SessionWindow {
             !rippleBlocked(segments: studio.rippleSegments, session: studio.session)
         else { return beep() }
         let (at, all) = (studio.playhead, studio.session.tracks.map(\.id))
-        let inserted = edit { session throws(SessionError) -> Bool in
+        let inserted = edit { session throws(SessionError) -> [ClipID] in
             try session.rippleInsert(clipboard.length, at: at, on: all)
-            try session.paste(clipboard, at: at, on: targets)
-            return true
+            return try session.paste(clipboard, at: at, on: targets)
         }
-        if inserted == true {
-            timeline.selection = .range(Marks(inPoint: at, outPoint: at + clipboard.length, tracks: Set(targets)))
-        }
+        if let inserted { timeline.selection = Selection(pasted: inserted, of: clipboard, at: at, on: targets) }
     }
 
     /// Split and Nudge. A split with no clip at its frames makes no undo entry. Each Nudge press is

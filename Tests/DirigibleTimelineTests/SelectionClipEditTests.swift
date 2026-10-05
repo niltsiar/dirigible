@@ -97,4 +97,31 @@ struct SelectionClipEditTests {
         #expect(set.settingOut(30_000, in: session) == Marks(outPoint: 30_000, tracks: ["t1", "t2"]))
         #expect(Selection.none.settingIn(30_000, in: session) == Marks(inPoint: 30_000, tracks: ["t1", "t2", "t3"]))
     }
+
+    /// Clip-set-clipboard C6: Copy takes the live set clips whole, or the range. Control: the hull
+    /// range 0 ..< 144,000 on t1 and t2 holds C.
+    @Test func aClipSetExcerptHoldsOnlyTheSetClips() throws {
+        let excerpt = try #require(try set.excerpt(in: session))
+        #expect(excerpt == (try session.excerpt(of: ["A", "B"])) && excerpt.kind == .clips)
+        #expect(excerpt.lanes.map { $0.clips.map(\.id) } == [["A"], ["B"]], "C is not copied")
+        #expect(try Self.clips(["A", "B", "gone"]).excerpt(in: session) == excerpt, "a stale ID drops")
+        #expect(try Self.clips(["gone"]).excerpt(in: session) == nil)
+        #expect(try Selection.none.excerpt(in: session) == nil)
+        let range = Selection.range(Marks(inPoint: 0, outPoint: 144_000, tracks: ["t1", "t2"]))
+        #expect(try range.excerpt(in: session) == (try session.excerpt(of: 0..<144_000, on: ["t1", "t2"])))
+        #expect(try range.excerpt(in: session)?.lanes[0].clips.map(\.id) == ["A", "C"], "the control holds C")
+    }
+
+    /// Clip-set-clipboard C8c: after a paste, a set excerpt selects the pasted clips, and a range
+    /// excerpt selects the pasted range.
+    @Test func theSelectionAfterAPasteFollowsTheExcerptKind() throws {
+        let clips = try session.excerpt(of: ["A", "B"])
+        #expect(
+            Selection(pasted: ["A@500", "B@500"], of: clips, at: 500, on: ["t2", "t3"])
+                == Self.clips(["A@500", "B@500"]))
+        let range = try session.excerpt(of: 0..<48_000, on: ["t1"])
+        #expect(
+            Selection(pasted: ["A@500"], of: range, at: 500, on: ["t3"])
+                == .range(Marks(inPoint: 500, outPoint: 48_500, tracks: ["t3"])))
+    }
 }

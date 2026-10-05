@@ -10,8 +10,6 @@ final class ReadoutLayer: CATextLayer {
     let bar = CALayer()
     let tick = CALayer()
     let marker = CALayer()
-    /// The height under the text that the bar takes.
-    static let barSpace = 10.0
 
     override init() {
         super.init()
@@ -63,7 +61,7 @@ final class ReadoutLayer: CATextLayer {
             bar.frame = NSRect(x: 6, y: height + 2, width: barWidth, height: 2)
             tick.frame = NSRect(x: 6 + barWidth / 2 - 0.5, y: height, width: 1, height: 6)
             marker.frame = NSRect(x: 6 + Self.markerX(gain, barWidth: barWidth) - 1, y: height - 1, width: 2, height: 8)
-            height += Self.barSpace
+            height += 10
         }
         // The lanes are flipped: above the pointer is a lower y. With no room above, it goes below.
         let above = point.y - 12 - height

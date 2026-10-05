@@ -7,9 +7,9 @@ struct TrackHeaders: View {
     let model: SessionWindow
     let studio: Studio
     let laneHeight: Double
-    /// The tracks that `Selection.headerTracks` gives. A Set, not the selection: a range drag
-    /// over the same tracks gives an equal input, so it runs no row body (ui-polish C16).
-    let selected: Set<TrackID>
+    /// The tracks that `Selection.headerTracks` gives, not the selection: a range drag over the
+    /// same tracks gives an equal input, so it runs no row body (ui-polish C16).
+    let selected: [TrackID]
 
     var body: some View {
         let _ = model.countHeaderRun(row: false)
@@ -59,6 +59,7 @@ private struct TrackRow: View {
     @Environment(\.controlActiveState) private var activeState
 
     private var style: HeaderRowStyle { HeaderRowStyle(selected: selected, emphasized: activeState == .key) }
+    private var textColor: Color { style.text.map { Color(nsColor: $0) } ?? .primary }
     private var renaming: Bool { model.renamingTrack == track.id }
 
     var body: some View {
@@ -95,7 +96,7 @@ private struct TrackRow: View {
         .controlSize(.small)
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .foregroundStyle(style.text.map { Color(nsColor: $0) } ?? .primary)
+        .foregroundStyle(textColor)
         .background { if let fill = style.fill { Color(nsColor: fill) } }
         .contentShape(Rectangle())
         // The controls of the row take their own clicks.
@@ -124,7 +125,7 @@ private struct TrackRow: View {
             .onChange(of: renaming, initial: true) { if renaming { focused = true } }
             .disabled(!model.canEdit)
             .controlSize(.regular)
-            .foregroundStyle(renaming ? .primary : style.text.map { Color(nsColor: $0) } ?? .primary)
+            .foregroundStyle(renaming ? .primary : textColor)
             .background { if renaming { Color(nsColor: .textBackgroundColor) } }
             .overlay {
                 // Over the field, so a click does not give it the text focus.

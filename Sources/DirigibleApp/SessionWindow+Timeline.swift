@@ -267,13 +267,11 @@ extension SessionWindow {
             runMarker(command, studio)
         case .renameTrack:
             // The first track that the headers show as selected; a clip set picks no track.
-            let selected = timeline.selection.headerTracks(in: studio.session)
-            guard let track = studio.session.tracks.first(where: { selected.contains($0.id) }) else { return beep() }
-            startRename(track.id)
+            guard let track = timeline.selection.headerTracks(in: studio.session).first else { return beep() }
+            startRename(track)
         case .removeTrack:
             // A clip set picks clips, not tracks: Remove Track does nothing (decision 0038).
-            guard let marks = timeline.selection.marks else { return }
-            removeTracks(studio.session.tracks.map(\.id).filter(marks.tracks.contains))
+            removeTracks(timeline.selection.headerTracks(in: studio.session))
         case .showInFinder: Task { await showClipsInFinder() }
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }

@@ -41,6 +41,12 @@ struct SessionView: View {
                 case .confirmUnsavedClose:
                     Button(L10n.alertCloseUnsavedConfirm.key, role: .destructive) { model.closeAnyway() }
                     Button(L10n.alertCancel.key, role: .cancel) { model.cancelUnsavedClose() }
+                case .confirmRemoveTracks(let ids):
+                    ForEach(removeQuestionButtons, id: \.title) { button in
+                        Button(button.title.key, role: button.role) {
+                            if button.role == nil { model.confirmRemoveTracks(ids) }
+                        }
+                    }
                 case .microphone:
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
@@ -188,6 +194,7 @@ extension WindowAlert {
         case .microphone(let access): L10n.message(for: .microphoneAccess(access))
         case .confirmStopAndClose: L10n.alertCloseRecording.text
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text
+        case .confirmRemoveTracks: L10n.alertTrackRemove.text
         case .exported(let paths, let report):
             L10n.alertExported.format(paths.joined(separator: "\n"))
                 + (report.map {
@@ -196,6 +203,13 @@ extension WindowAlert {
         }
     }
 }
+
+/// The buttons of the Remove Track question. Remove is the default button (Return) and has no
+/// destructive style: the user chose Remove, and Undo gives the tracks back (ui-panel 2). Cancel
+/// has the cancel role (Esc).
+let removeQuestionButtons: [(title: L10n, role: ButtonRole?)] = [
+    (.alertTrackRemoveConfirm, nil), (.alertCancel, .cancel),
+]
 
 extension SessionWindow {
     /// Counts a run of a SwiftUI body of the window content, for the tests (ui-shell A21).

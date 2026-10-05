@@ -144,6 +144,8 @@ enum L10n: String, CaseIterable {
     case alertCloseRecordingConfirm = "alert.close.recording.confirm"
     case alertCloseUnsaved = "alert.close.unsaved"
     case alertCloseUnsavedConfirm = "alert.close.unsaved.confirm"
+    case alertTrackRemove = "alert.track.remove"
+    case alertTrackRemoveConfirm = "alert.track.remove.confirm"
     case alertQuitRecording = "alert.quit.recording"
     case alertQuitRecordingConfirm = "alert.quit.recording.confirm"
     case alertQuitUnsaved = "alert.quit.unsaved"

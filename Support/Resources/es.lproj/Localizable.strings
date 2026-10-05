@@ -78,6 +78,8 @@
 "alert.close.recording.confirm" = "Detener y cerrar";
 "alert.close.unsaved" = "No se pudieron guardar los últimos cambios. ¿Cerrar de todos modos?";
 "alert.close.unsaved.confirm" = "Cerrar";
+"alert.track.remove" = "¿Eliminar las pistas y sus clips?";
+"alert.track.remove.confirm" = "Eliminar";
 "alert.quit.recording" = "¿Detener la grabación y salir?";
 "alert.quit.recording.confirm" = "Detener y salir";
 "alert.quit.unsaved" = "No se pudieron guardar los últimos cambios de estas sesiones: %@. ¿Salir de todos modos?";

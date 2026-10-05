@@ -67,7 +67,7 @@ for review in "$run"/review-*.md; do
             if (item && !nit)
                 for (f = 1; f <= 2; f++)
                     if (text !~ (field[f] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:"))
-                        print file ": Act on item " item " has no " field[f] " field"
+                        print file ": Act on item " item " has no " field[f] " field (a review file from before the rule: add the fields, or do not edit it)"
             item = ""
         }
         function close_section() {

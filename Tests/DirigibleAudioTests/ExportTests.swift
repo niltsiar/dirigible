@@ -276,6 +276,21 @@ struct ExportTests {
             try checkMedia(package.session, package: package.url, source: source) == ["left": .missing],
             "only the file of A is missing in the range")
     }
+
+    /// Mute and solo C3: a float CAF export with t1 muted has only t2 (0.5) at each frame.
+    @Test func anExportLeavesOutAMutedTrack() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: [[Float](repeating: 0.25, count: 48_000)])
+        try package.addFile("f2", channels: [[Float](repeating: 0.5, count: 48_000)])
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 48_000)
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 0, offset: 0, length: 48_000)
+        try package.session.setMuted(true, tracks: ["t1"])
+
+        let out = try Self.read(Self.export(package, 0..<48_000, Self.options(.floatCAF), to: "mix.caf"))
+
+        #expect(out.length == 48_000)
+        #expect(out.channels.count == 2 && out.channels.allSatisfy { $0.allSatisfy { $0 == 0.5 } }, "only t2 is heard")
+    }
 }
 
 /// `ExportSource.init?` refuses a source with no frame or no track (export run criterion 8).

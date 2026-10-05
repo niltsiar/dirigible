@@ -6,8 +6,9 @@ import DirigibleCore
 /// rate. Clip gain plus track gain in dB is one linear factor, times the fade factor of decision
 /// 0035 of the sounding clip, whose fades hold its crossfades (decision 0036). A mono clip goes to
 /// both channels,
-/// a stereo clip left to left and right to right (0007). Where no clip or no media is, the mix is
-/// silence. One owner, not Sendable: the Player or the command-line render. It keeps at most
+/// a stereo clip left to left and right to right (0007). It reads only the heard tracks of its
+/// track set: muted and unsoloed tracks are out (decision 0039). Where no clip or no media is, the
+/// mix is silence. One owner, not Sendable: the Player or the command-line render. It keeps at most
 /// `openLimit` files open and closes the least recently used one, so a session with many files
 /// does not use up the descriptors of the process. Each read stops at the real length of the file
 /// (probe E6c).
@@ -23,7 +24,8 @@ final class MixReader {
     private(set) var openError: POSIXError?
     /// The package path. The Player sets it to the path that the lock holds at each refill.
     var package: URL
-    /// The tracks that the mix reads. Nil: every track.
+    /// The track set of the mix. Nil: every track. `Session.heardTracks(in:)` then leaves out the
+    /// tracks that are not heard.
     let tracks: Set<TrackID>?
     /// The open files, the most recently used last.
     private var files: [(id: FileID, file: AVAudioFile)] = []
@@ -48,7 +50,7 @@ final class MixReader {
         buffer.frameLength = AVAudioFrameCount(count)
         let out = buffer.floatChannelData!
         for channel in 0..<2 { out[channel].update(repeating: 0, count: count) }
-        for track in session.tracks where tracks?.contains(track.id) ?? true {
+        for track in session.heardTracks(in: tracks) {
             for clip in track.clips.clips(soundingIn: range).map(\.sounding) {
                 let part = max(clip.start, range.lowerBound)..<min(clip.end, range.upperBound)
                 guard let read = read(clip.file, from: clip.offset + (part.lowerBound - clip.start), part) else {

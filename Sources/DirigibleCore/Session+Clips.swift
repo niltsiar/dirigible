@@ -123,22 +123,36 @@ extension Session {
     /// Sets the fades of each clip in one pass over the lanes (decision 0035). Each clip passes
     /// `check`. An unknown ID throws `.unknownClip`. A throw changes nothing.
     public mutating func setFades(_ fades: [ClipID: Fades]) throws(SessionError) {
-        var lanes = tracks
+        var edits: [Int: [(index: Int, fades: Fades)]] = [:]
         var found = 0
         // The scan stops at the last clip of the map, so a small map on an early track is quick.
-        for track in lanes.indices where found < fades.count {
-            for (index, old) in lanes[track].clips.enumerated() {
-                guard let new = fades[old.id] else { continue }
-                var clip = old
-                clip.fades = new
-                try check(clip, on: lanes[track])
-                lanes[track].clips.replace(at: index, with: clip)
+        for track in tracks.indices where found < fades.count {
+            for (index, clip) in tracks[track].clips.enumerated() {
+                guard let new = fades[clip.id] else { continue }
+                edits[track, default: []].append((index, new))
                 found += 1
                 if found == fades.count { break }
             }
         }
+        var copy = self
+        try copy.setFades(lanes: edits)
         if found < fades.count, let missing = fades.keys.sorted().first(where: { clip($0) == nil }) {
             throw .unknownClip(missing)
+        }
+        self = copy
+    }
+
+    /// `setFades(_:)` by lane, with no clip ID lookup (Command-F, bench B2): the key is the index
+    /// of a track, and each value lists the clips by their index in its lane, in index order.
+    package mutating func setFades(lanes edits: [Int: [(index: Int, fades: Fades)]]) throws(SessionError) {
+        var lanes = tracks
+        for track in edits.keys.sorted() {
+            for (index, fades) in edits[track] ?? [] {
+                var clip = lanes[track].clips[index]
+                clip.fades = fades
+                try check(clip, on: lanes[track])
+                lanes[track].clips.replace(at: index, with: clip)
+            }
         }
         tracks = lanes
     }

@@ -94,6 +94,16 @@ struct CrossfadeTests {
         }
     }
 
+    /// The lane form of `setCrossfades` keeps the join rule, and a throw changes nothing.
+    @Test mutating func theLaneFormRefusesAClipWithNoJoin() throws {
+        try join()
+        let before = session
+        #expect(throws: SessionError.crossfadeWithoutJoin("B"), "no clip touches the end of B") {
+            try session.setCrossfades(lanes: [0: [(index: 0, length: 960), (index: 1, length: 960)]])
+        }
+        #expect(session == before)
+    }
+
     /// F2: a crossfade whose half does not fit beside the crossfade at the other edge is refused; a
     /// fade at the other edge yields first.
     @Test mutating func theRoomOfAClip() throws {

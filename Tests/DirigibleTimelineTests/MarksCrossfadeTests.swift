@@ -58,6 +58,30 @@ struct MarksCrossfadeTests {
         #expect(fades("A", short) == Fades(fadeIn: 420, fadeOut: 0))
     }
 
+    /// The lane-indexed edits of Command-F give the same session as the edits by clip ID, for
+    /// ranges across, inside, and around the joins and the gap of two tracks.
+    @Test func theLaneEditsMatchTheEditsByID() throws {
+        var session = try Self.session(a: 900, aFades: Fades(fadeIn: 300, fadeOut: 300)!)
+        try session.place(Clip(id: "D", file: "fb", start: 144_000, offset: 100_000, length: 24_000), on: "t1")
+        try session.place(Clip(id: "E", file: "fa", start: 200_000, offset: 0, length: 48_000), on: "t1")
+        try session.place(Clip(id: "F", file: "fb", start: 96_000, offset: 0, length: 48_000), on: "t2")
+        var changed = 0
+        for range in [0..<300_000, 95_000..<97_500, 50_000..<150_000, 143_000..<210_000] as [Range<Frames>] {
+            for tracks in [["t1"], ["t1", "t2"]] as [Set<TrackID>] {
+                let marks = marks(range, tracks: tracks)
+                var byID = session
+                if let lengths = marks.crossfades(in: session) { try byID.setCrossfades(lengths) }
+                if let fades = marks.fades(in: byID) { try byID.setFades(fades) }
+                var byLane = session
+                if let joins = marks.crossfadeJoins(in: session) { try byLane.setCrossfades(lanes: joins) }
+                if let fades = marks.fadeEdits(in: byLane) { try byLane.setFades(lanes: fades) }
+                #expect(byLane == byID, "\(range) \(tracks)")
+                if byID != session { changed += 1 }
+            }
+        }
+        #expect(changed == 8, "each case changes the session")
+    }
+
     /// C3: a range that ends or starts at J makes no crossfade, and the join edge gets no fade.
     @Test func aRangeThatTouchesTheJoinMakesNoCrossfade() throws {
         let session = try Self.session()

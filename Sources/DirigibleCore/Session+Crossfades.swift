@@ -8,18 +8,36 @@ extension Session {
     /// throws `.crossfadeWithoutJoin`, a seamless join `.crossfadeAtSeamlessJoin`, and a length
     /// that `Crossfades` refuses `.frameOutOfRange`. A throw changes nothing.
     public mutating func setCrossfades(_ lengths: [ClipID: Frames]) throws(SessionError) {
-        var lanes = tracks
+        var joins: [Int: [(index: Int, length: Frames)]] = [:]
         var found = 0
-        for track in lanes.indices where found < lengths.count {
+        for track in tracks.indices where found < lengths.count {
+            for (index, clip) in tracks[track].clips.enumerated() {
+                guard let length = lengths[clip.id] else { continue }
+                joins[track, default: []].append((index, length))
+                found += 1
+                if found == lengths.count { break }
+            }
+        }
+        var copy = self
+        try copy.setCrossfades(lanes: joins)
+        if found < lengths.count, let missing = lengths.keys.sorted().first(where: { clip($0) == nil }) {
+            throw .unknownClip(missing)
+        }
+        self = copy
+    }
+
+    /// `setCrossfades(_:)` by lane, with no clip ID lookup (Command-F, bench B2): the key is the
+    /// index of a track, and each value lists the clips by their index in its lane, in index order.
+    package mutating func setCrossfades(lanes joins: [Int: [(index: Int, length: Frames)]]) throws(SessionError) {
+        var lanes = tracks
+        for track in joins.keys.sorted() {
             let owner = lanes[track]
             let lane = owner.clips
             // The changed clips in index order: only the right clip of the join before can change
             // again, so the list needs no dictionary and no sort (bench B2 of run 11c-2).
             var changed: [(index: Int, clip: Clip)] = []
-            for (index, clip) in lane.enumerated() {
-                guard let length = lengths[clip.id] else { continue }
-                found += 1
-                var left = changed.last?.index == index ? changed.removeLast().clip : clip
+            for (index, length) in joins[track] ?? [] {
+                var left = changed.last?.index == index ? changed.removeLast().clip : lane[index]
                 let join = lane.join(after: index)
                 guard join != .none else { throw .crossfadeWithoutJoin(left.id) }
                 if length != .zero, join == .seamless { throw .crossfadeAtSeamlessJoin(left.id) }
@@ -34,13 +52,9 @@ extension Session {
                 }
                 changed.append((index, left))
                 changed.append((index + 1, right))
-                if found == lengths.count { break }
             }
             for (_, clip) in changed { try check(clip, on: owner) }
             lanes[track].clips.replace(changed)
-        }
-        if found < lengths.count, let missing = lengths.keys.sorted().first(where: { clip($0) == nil }) {
-            throw .unknownClip(missing)
         }
         tracks = lanes
     }

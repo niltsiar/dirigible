@@ -167,16 +167,18 @@ done
 grep -q '^pace: merges per day ' <<<"$out" || fail "no logs and no controls: no pace line: $out"
 
 # A block whose first row comes over 30 min after its start (a wait before the work) gets a
-# suffix; 30 min gets none. A bench log with a load wait line counts as a bench, not as a check.
+# suffix; 30 min gets none. A bench log with a load wait line counts as a bench, not as a check. The
+# delta check of land.sh (a `stamp: delta` line) counts as a check.
 late="$tmp/2026-09-20-late"
 mkdir -p "$late/logs"
 printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-09-20T08:31\t1\ta\tw\te\tdone\n2026-09-20T09:01\t2\tb\tw\te\tdone\n2026-09-20T09:05\t2\tc\tw\te\tdone\n' > "$late/decisions.tsv"
 printf 'bench: commit bbb tree clean filter LiveBench\ncheck-changed: load 3.00, under 4: run the tests\nbench: load 3.00\n' > "$late/logs/b1.log"
+printf 'stamp: delta check\nclasses: sources\n' > "$late/logs/land.log"
 touch -t 202609200800 "$late"
 out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$late" 2>&1)" || fail "a late first row: exit $?: $out"
 for line in 'phase 1: 2026-09-20T08:00 to 2026-09-20T08:31, 31 min, first row after 31 min' \
   'phase 2: 2026-09-20T08:31 to 2026-09-20T09:05, 34 min' \
-  'checks: 0 logs, 0 filtered, 0 push checks, 0 repeated (same commit and targets)' \
+  'checks: 1 logs, 0 filtered, 0 push checks, 0 repeated (same commit and targets)' \
   'benches: 1 bench logs, 0 pairs sets, 0 repeated (same commit and filter)'; do
   grep -qxF -- "$line" <<<"$out" || fail "a late first row: no line '$line' in: $out"
 done

@@ -5,11 +5,11 @@
 #   in decisions.tsv, in file order. A block ends at its last row and starts at the end of the
 #   block before it (the first block starts at open). A first row over 30 min after the start of
 #   its block (a wait before the work) adds `, first row after <N> min`.
-# - checks: the logs/ files with a `check-changed: commit` or `targets:` line (not the load wait
-#   lines of a bench log). Filtered: the targets have test-filter. Push: a base that is not empty,
-#   none, or -, or the targets have test-slow or test-dmg. Repeated: a `check-changed:` line on a
-#   clean tree with the commit and the targets of an earlier line. With no logs/ folder, the
-#   checks and benches lines say so, not zero.
+# - checks: the logs/ files with a `check-changed: commit`, `targets:`, or `stamp: delta` line (not
+#   the load wait lines of a bench log). Filtered: the targets have test-filter. Push: a base
+#   that is not empty, none, or -, or the targets have test-slow or test-dmg. Repeated: a
+#   `check-changed:` line on a clean tree with the commit and the targets of an earlier line. With
+#   no logs/ folder, the checks and benches lines say so, not zero.
 # - benches: the logs/ files with a `bench:` or `scripts/bench.sh` line; the pairs sets (folders
 #   with a load.txt); repeated: a `bench:` line on a clean tree with an earlier commit and filter.
 # - controls: the logs at the top of controls/ and the different replay logs under controls/replay*.
@@ -59,7 +59,7 @@ done < <(awk -F'\t' '$1 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$/ {
 checks=0 filtered=0 push=0 benches=0
 for f in "$run"/logs/*; do
     [[ -f "$f" ]] || continue
-    if grep -qE '^(check-changed: commit |targets: )' "$f"; then
+    if grep -qE '^(check-changed: commit |targets: |stamp: delta )' "$f"; then
         checks=$((checks + 1))
         grep -qE '^targets: .*test-filter|^check-changed: .* targets .*test-filter' "$f" && filtered=$((filtered + 1))
         base="$(sed -n -E 's/^check-changed: .* base ([^ ]*) targets .*/\1/p' "$f" | head -n 1)"

@@ -52,6 +52,36 @@ extension SessionFileTests {
         ) { try read("3", #"fadeIn="1.5""#) }
     }
 
+    /// Mute and solo C4 d: a version 4 file with `muted` or `soloed` is refused, and so is a
+    /// value that is not `true` or `false`.
+    @Test func aVersion4FileWithMutedIsRefused() throws {
+        func read(_ version: String, _ flags: String) throws(SessionFileError) -> Session {
+            let track = #"<track id="t1" name="A" gain="0" layout="mono" \#(flags)/>"#
+            return try Session(xml: Data(document(version: version, tracks: track).utf8))
+        }
+        #expect(throws: SessionFileError.invalidValue(element: "track", attribute: "muted"), "muted in version 4") {
+            try read("4", #"muted="true""#)
+        }
+        #expect(throws: SessionFileError.invalidValue(element: "track", attribute: "soloed"), "soloed in version 4") {
+            try read("4", #"soloed="true""#)
+        }
+        #expect(throws: SessionFileError.invalidValue(element: "track", attribute: "muted"), "muted=\"yes\"") {
+            try read("5", #"muted="yes""#)
+        }
+        let read5 = try? read("5", #"muted="true""#)
+        #expect(read5?.tracks.first?.isMuted == true, "control: muted in version 5 reads")
+    }
+
+    /// Mute and solo C4 c (0024 P3): a build of version 4 refuses a version 5 file.
+    @Test func aBuildOfVersion4RefusesVersion5() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.setMuted(true, tracks: ["t1"])
+        let data = try session.checkedData()
+        #expect(throws: SessionFileError.unsupportedVersion(5)) { try Session(xml: data, newest: 4) }
+        #expect(try Session(xml: data) == session, "control: the current reader reads it")
+    }
+
     /// Crossfades F1: the reader refuses each bad crossfade, and reads a written 0 as none.
     @Test func theReaderRefusesEachBadCrossfade() throws {
         let files =
@@ -107,7 +137,7 @@ extension SessionFileTests {
 
     @Test(arguments: [
         ("<session", SessionFileError.malformedXML),
-        (document(version: "5"), .unsupportedVersion(5)),
+        (document(version: "6"), .unsupportedVersion(6)),
         (
             document(tracks: #"<track id="t1" name="A" gain="0" layout="mono"><route app="us.zoom.xos"/></track>"#),
             .invalidValue(element: "route", attribute: "app")

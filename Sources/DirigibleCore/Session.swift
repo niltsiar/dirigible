@@ -148,10 +148,37 @@ public struct Session: Hashable, Sendable {
         }
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 4 with a crossfade
-    /// (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route (decision
-    /// 0029), else 1.
+    /// An unknown track throws and changes nothing.
+    public mutating func setMuted(_ on: Bool, tracks ids: [TrackID]) throws(SessionError) {
+        for index in try ids.map(trackIndex) { tracks[index].isMuted = on }
+    }
+
+    /// An unknown track throws and changes nothing.
+    public mutating func setSoloed(_ on: Bool, tracks ids: [TrackID]) throws(SessionError) {
+        for index in try ids.map(trackIndex) { tracks[index].isSoloed = on }
+    }
+
+    /// Not muted, and no track is soloed or this track is soloed (decision 0039). False for an
+    /// unknown track.
+    public func isAudible(_ id: TrackID) -> Bool {
+        track(id).map(isHeard) ?? false
+    }
+
+    /// The tracks that the mix reads: in `ids` (nil: all tracks) and audible, in session order.
+    /// An empty result is silence, never all tracks.
+    public func heardTracks(in ids: Set<TrackID>?) -> [Track] {
+        tracks.filter { (ids?.contains($0.id) ?? true) && isHeard($0) }
+    }
+
+    private func isHeard(_ track: Track) -> Bool {
+        !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
+    }
+
+    /// The `session.xml` version that holds this session (decision 0024 P6): 5 with a muted or
+    /// soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
+    /// (decision 0035), else 2 with an app route (decision 0029), else 1.
     public var fileVersion: Int {
+        if tracks.contains(where: { $0.isMuted || $0.isSoloed }) { return 5 }
         if tracks.contains(where: { $0.clips.contains { $0.crossfades != .zero } }) { return 4 }
         if tracks.contains(where: { $0.clips.contains { $0.fades != .zero } }) { return 3 }
         return tracks.contains { if case .app = $0.route { true } else { false } } ? 2 : 1

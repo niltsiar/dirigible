@@ -47,6 +47,8 @@ extension Session {
                 try setGain(track.gain, track: track.id)
                 try setRoute(track.route, track: track.id)
                 try setClips(track.clips, on: track.id)
+                try setMuted(track.isMuted, tracks: [track.id])
+                try setSoloed(track.isSoloed, tracks: [track.id])
             }
             // setMarker replaces a marker with the same ID, so a file with two would lose one.
             var markerIDs: Set<MarkerID> = []
@@ -68,9 +70,13 @@ private struct ParsedTrack {
     let layout: ChannelLayout
     let route: Route?
     let clips: [Clip]
+    let isMuted: Bool
+    let isSoloed: Bool
 
     init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         id = TrackID(try node.string("id"))
+        isMuted = try node.flag("muted", version: version)
+        isSoloed = try node.flag("soloed", version: version)
         name = try node.string("name")
         gain = try node.gain("gain")
         guard let layout = ChannelLayout(rawValue: try node.string("layout")) else {
@@ -229,6 +235,14 @@ extension XMLElement {
             return value
         }
         return Crossfades(start: try length("crossfadeIn"), end: try length("crossfadeOut"))!
+    }
+
+    /// `muted` and `soloed` from version 5 on (decision 0039): `true` or `false`. A missing one is
+    /// false.
+    fileprivate func flag(_ attribute: String, version: Int) throws(SessionFileError) -> Bool {
+        guard let value = optionalString(attribute) else { return false }
+        guard version >= 5, let flag = Bool(value) else { throw invalid(attribute) }
+        return flag
     }
 
     private func invalid(_ attribute: String) -> SessionFileError {

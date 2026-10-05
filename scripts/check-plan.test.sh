@@ -121,6 +121,18 @@ good
 printf '## Act on\n\n1. (nit, x) A nit.\n2. (critical, x) A fix.\n   - **Invariant (state):** x\n   - **Siblings:** y\n' > "$review"
 pass 'a nit with no field and a critical item with both fields'
 good
+printf '## Act on\n\n1. A fix with no tag.\n   Invariant: x\n' > "$review"
+refuse 'an untagged Act on item with no Siblings field' 'review-plan-1.md: Act on item 1 has no Siblings field'
+good
+printf '## Act on (all fixed)\n\n1. (warning, x) A fix.\n   Siblings: y\n' > "$review"
+refuse 'an Act on heading with more words' 'review-plan-1.md: Act on item 1 has no Invariant field'
+good
+printf '## Act on\n\n- **A1 (warning, x).** A fix.\n' > "$review"
+refuse 'an Act on section with a bullet item' 'review-plan-1.md: ## Act on has no numbered item'
+good
+printf '## Act on\n\nNone.\n\n## Consider\n\n- A note.\n' > "$review"
+pass 'an empty Act on section'
+good
 printf '## Act on\n\n1. (warning, x) A fix.\n' > "$review"
 touch -t 202601010000 "$review"
 pass 'a review file older than the field rule'

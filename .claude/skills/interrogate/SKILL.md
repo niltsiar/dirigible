@@ -67,7 +67,7 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 
 - **Intent:** the paragraph from step 2.
 - **Panel:** for each lens, the findings raised and the findings that survived.
-- **Act on:** description, lenses (a critical item writes `(critical, <lens>)`), why it matters, Invariant, and Siblings.
+- **Act on:** a numbered list. Each item starts with `(<severity>, <lenses>)`, then the description, why it matters, Invariant, and Siblings.
 - **Consider:** description, lenses, tradeoff.
 - **Noted:** a brief list.
 - **Dismissed:** each finding with its reason, each refuted finding with the skeptic reason, and each nit of `nits` that is not a Consider item. Read each reason: overrule a skeptic that refuted a real premise.

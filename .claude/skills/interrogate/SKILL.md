@@ -72,3 +72,5 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 - **Noted:** a brief list.
 - **Dismissed:** each finding with its reason, each refuted finding with the skeptic reason, and each nit of `nits` that is not a Consider item. Read each reason: overrule a skeptic that refuted a real premise.
 - **Agreement map:** where the lenses agreed or diverged, and what the pattern says.
+
+Then run `scripts/check-plan.sh <run folder>`. It must exit 0 before the fixer starts.

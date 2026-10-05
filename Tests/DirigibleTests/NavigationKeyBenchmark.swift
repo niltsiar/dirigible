@@ -67,6 +67,7 @@ import Testing
     )
         async throws -> [(p50: Duration, max: Duration)]
     {
+        try #require(events > 5, "the first 5 events are not timed")
         var results: [(p50: Duration, max: Duration)] = []
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)

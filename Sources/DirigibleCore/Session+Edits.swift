@@ -72,7 +72,8 @@ extension Session {
     /// on the track, also under a gap of the excerpt; a clip set excerpt clears only the frames
     /// under each pasted clip. Then the paste adds the lane clips. A pasted clip gets
     /// the first free ID of "<source id>@<start>"; the right part of a cut clip gets
-    /// "<id>@<block end>". Returns the pasted IDs, lane by lane. A throw changes nothing.
+    /// "<id>@<end of the cleared range>": the block end, or the end of the pasted clip. Returns
+    /// the pasted IDs, lane by lane. A throw changes nothing.
     @discardableResult
     public mutating func paste(_ excerpt: Excerpt, at start: Frames, on tracks: [TrackID]) throws(SessionError)
         -> [ClipID]

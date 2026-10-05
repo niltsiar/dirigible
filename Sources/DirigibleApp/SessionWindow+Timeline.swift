@@ -48,7 +48,7 @@ enum TimelineCommand: Hashable {
     case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
     case split, nudgeLeft, nudgeRight, fade
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
-    case renameTrack, removeTrack, showInFinder, export, exportSelection
+    case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, export, exportSelection
     case autoLevel, autoLevelPerTrack
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -80,6 +80,8 @@ enum TimelineCommand: Hashable {
         case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         // A focused text field ends its edit with Return.
         case .renameTrack, .removeTrack, .showInFinder: true
+        // A focused text field types the capital letter of Shift-M and Shift-S.
+        case .muteTracks, .soloTracks: true
         case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         case .export, .exportSelection: false
@@ -168,10 +170,12 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .nextMarker, title: .menuMarkersNext, key: .pageDown, modifiers: []),
     ]
 
-    /// The Rename Track and Remove Track items of the Track menu.
+    /// The Rename Track, Remove Track, Mute Track, and Solo Track items of the Track menu.
     static let trackItems = [
         MenuItem(command: .renameTrack, title: .menuTrackRename, key: .return, modifiers: []),
         MenuItem(command: .removeTrack, title: .menuTrackRemove, key: .delete, modifiers: [.command, .option]),
+        MenuItem(command: .muteTracks, title: .menuTrackMute, key: "m", modifiers: .shift),
+        MenuItem(command: .soloTracks, title: .menuTrackSolo, key: "s", modifiers: .shift),
     ]
 
     /// The Tools items (decision 0031).
@@ -272,6 +276,8 @@ extension SessionWindow {
         case .removeTrack:
             // A clip set picks clips, not tracks: Remove Track does nothing (decision 0038).
             removeTracks(timeline.selection.headerTracks(in: studio.session))
+        case .muteTracks: toggleFlag(.muted)
+        case .soloTracks: toggleFlag(.soloed)
         case .showInFinder: Task { await showClipsInFinder() }
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }

@@ -210,4 +210,25 @@ if [[ -f "$cost" ]]; then
     fi
 fi
 
+# Each backticked `dirigible <command>` in AGENTS.md, the README, the guide, a skill, or an agent
+# names a root command of the CLI: a type of the subcommands list of Dirigible.swift, by the
+# commandName of its configuration, else by its type name in kebab case. An option passes.
+cli="$root/Sources/DirigibleCLI"
+if [[ -f "$cli/Dirigible.swift" ]]; then
+    commands=" "
+    for t in $(awk '/subcommands: \[/ { p = 1 } p { print } p && /\]/ { exit }' "$cli/Dirigible.swift" | grep -oE '[A-Za-z]+\.self' | sed 's/\.self$//'); do
+        name="$(awk -v t="$t" '
+            $0 ~ "^struct " t "[:{ ]" { s = 1; next }
+            s && /^    static let configuration/ { c = 1 }
+            c && !/^    static let configuration/ && !/^        / { exit }
+            c && match($0, /commandName: "[^"]+"/) { print substr($0, RSTART + 14, RLENGTH - 15); exit }
+        ' "$cli"/*.swift)"
+        commands+="${name:-$(sed -E 's/([a-z0-9])([A-Z])/\1-\2/g' <<<"$t" | tr '[:upper:]' '[:lower:]')} "
+    done
+    while IFS=: read -r f n text; do
+        word="${text#\`dirigible }" && word="${word%%[ \`]*}"
+        [[ "$word" == -* || "$commands" == *" $word "* ]] || err "${f#"$root"/}:$n: \`dirigible $word\` is not a command of Sources/DirigibleCLI"
+    done < <(grep -rnoE --include='*.md' '`dirigible [^`]+`' "$root/AGENTS.md" "$root/README.md" "$root/docs/guide.md" "$root/.claude/skills" "$root/.claude/agents" 2>/dev/null || true)
+fi
+
 exit "$fail"

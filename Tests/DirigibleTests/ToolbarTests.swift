@@ -16,6 +16,7 @@ struct ToolbarValueTests {
                 "track.add", "record.monitor", "transport.stop", "transport.play", "transport.record",
                 "transport.time", "transport.start", "transport.end", "edit.split", "edit.cut", "edit.copy",
                 "edit.paste", "edit.delete", "view.zoom.out", "view.zoom.in", "view.zoom.session", "file.export",
+                "view.inspector",
             ])
     }
 
@@ -23,9 +24,10 @@ struct ToolbarValueTests {
     @Test func theDefaultSetHasTheGroupsInOrder() {
         #expect(
             ToolbarItemID.defaults.map(\.rawValue) == [
-                "track.add", "NSToolbarSpaceItem", "record.monitor", "transport.stop", "transport.play",
-                "transport.record", "transport.time", "NSToolbarSpaceItem", "edit.split", "edit.delete",
-                "NSToolbarFlexibleSpaceItem", "view.zoom.out", "view.zoom.in", "view.zoom.session", "file.export",
+                "track.add", "NSToolbarSpaceItem", "record.monitor", "transport.start", "transport.stop",
+                "transport.play", "transport.record", "transport.time", "NSToolbarSpaceItem", "edit.split",
+                "edit.delete", "NSToolbarFlexibleSpaceItem", "view.zoom.out", "view.zoom.in", "view.zoom.session",
+                "file.export", "view.inspector",
             ])
     }
 
@@ -37,7 +39,7 @@ struct ToolbarValueTests {
             .cut: "scissors", .copy: "doc.on.doc", .paste: "doc.on.clipboard", .delete: "trash",
             .zoomOut: "minus.magnifyingglass", .zoomIn: "plus.magnifyingglass",
             .zoomToSession: "arrow.up.left.and.down.right.magnifyingglass", .export: "square.and.arrow.up",
-            .start: "backward.end.fill", .end: "forward.end.fill",
+            .start: "backward.end.fill", .end: "forward.end.fill", .inspector: "sidebar.trailing",
         ]
         for id in ToolbarItemID.allCases {
             #expect(id.symbol == symbols[id], "\(id)")
@@ -52,7 +54,8 @@ struct ToolbarValueTests {
     @Test func eachItemHasItsPriority() {
         let boost = NSToolbarItem.VisibilityPriority(rawValue: NSToolbarItem.VisibilityPriority.standard.rawValue + 500)
         let priorities: [ToolbarItemID: NSToolbarItem.VisibilityPriority] = [
-            .stop: .high, .play: .high, .record: .high, .time: .high, .monitor: boost, .export: boost,
+            .stop: .high, .play: .high, .record: .high, .time: .high, .inspector: .high, .monitor: boost,
+            .export: boost,
             .addTrack: .standard, .start: .standard, .end: .standard, .split: .low, .cut: .low, .copy: .low,
             .paste: .low, .delete: .low, .zoomOut: .low, .zoomIn: .low, .zoomToSession: .low,
         ]
@@ -172,7 +175,10 @@ struct ToolbarValueTests {
     @Test func theTransportStaysVisibleAtTheMinimumWidth() async throws {
         let (model, window, chrome) = try await open(String(repeating: "Interview ", count: 12))
         try #require(window.title.count == 120)
-        let transport: Set<String> = ["transport.stop", "transport.play", "transport.record", "transport.time"]
+        // C22b: the inspector item stays with the transport.
+        let transport: Set<String> = [
+            "transport.stop", "transport.play", "transport.record", "transport.time", "view.inspector",
+        ]
         let wide = transport.union(["record.monitor", "file.export"])
 
         for language in ["en", "es"] {

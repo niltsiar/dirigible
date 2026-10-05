@@ -232,7 +232,7 @@ Each drag and each double-click is one step in the undo history. Where two clips
 
 ![The inspector at the right of the window, for three clips: Gain 0.0 dB, Fade In Mixed, and Fade Out 0 ms.](images/screenshot-inspector.png)
 
-Choose **View > Show Inspector** (Option-Command-I) to show the inspector at the right of the window. It shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
+Choose **View > Show Inspector** (Option-Command-I), or click **Inspector** at the right end of the toolbar, to show the inspector at the right of the window. If you changed the toolbar before, choose **View > Customize Toolbar** to add the **Inspector** and **Go to Start** buttons. It shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
 
 - Type a value and press Return to set it on each of these clips. The keys then go back to the lanes.
 - Press Tab to set the value and go to the next field. A click outside the field also sets the value.

@@ -19,4 +19,12 @@ cd "$copy"
 sed -i '' -e 's/\.executableTarget(/.target(/' -e '/\.executable(name:/d' Package.swift
 grep -rl '^@main$' Sources | xargs sed -i '' 's/^@main$//'
 swift build -c release -Xswiftc -enable-testing --build-tests
-DIRIGIBLE_SLOW_TESTS=1 swift test -c release -Xswiftc -enable-testing --skip-build --no-parallel --filter "$filter"
+# Another tree that builds or tests slows the timed run (DLV-157): wait for a load under
+# BENCH_LOAD_MAX (default 4) and no test of another tree. The load lines show what the run had.
+CHECK_LOAD_MAX="${BENCH_LOAD_MAX:-4}" "$root/scripts/check-changed.sh" --wait-load bench
+load() { echo "bench: load $(sysctl -n vm.loadavg | awk '{ print $2 }')"; }
+load
+code=0
+DIRIGIBLE_SLOW_TESTS=1 swift test -c release -Xswiftc -enable-testing --skip-build --no-parallel --filter "$filter" || code=$?
+load
+exit "$code"

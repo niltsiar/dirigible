@@ -191,12 +191,18 @@ printf '@main\nstruct App {}\n' > "$b/Sources/App/App.swift"
 printf '.build\n' > "$b/.gitignore"
 printf '#!/bin/bash\nexit 0\n' > "$bin/swift"
 chmod +x "$bin/swift"
+# A stub check-changed.sh logs the load wait call of bench.sh and does not wait.
+printf '#!/bin/bash\necho "$CHECK_LOAD_MAX $*" >> "%s"\n' "$tmp/wait.log" > "$b/scripts/check-changed.sh"
+chmod +x "$b/scripts/check-changed.sh"
 git -C "$b" init -q
 git -C "$b" add -A
 git -C "$b" commit -q -m base
 head="$(git -C "$b" rev-parse HEAD)"
 out="$(cd "$b" && PATH="$bin:$PATH" scripts/bench.sh FooBench 2>&1)" || fail "bench.sh on a clean tree exits $?: $out"
 [[ "$(head -n 1 <<<"$out")" == "bench: commit $head tree clean filter FooBench" ]] || fail "bench.sh on a clean tree: $out"
+# After the build, bench.sh waits with a load maximum of 4, and prints the load before and after the run.
+[[ "$(cat "$tmp/wait.log" 2>/dev/null)" == "4 --wait-load bench" ]] || fail "bench.sh wait call: [$(cat "$tmp/wait.log" 2>/dev/null)]"
+[[ "$(grep -c '^bench: load [0-9.]*$' <<<"$out")" == 2 ]] || fail "bench.sh load lines: $out"
 echo x > "$b/x.txt"
 out="$(cd "$b" && PATH="$bin:$PATH" scripts/bench.sh FooBench 2>&1)" || fail "bench.sh on a dirty tree exits $?: $out"
 [[ "$(head -n 1 <<<"$out")" == "bench: commit $head tree dirty filter FooBench" ]] || fail "bench.sh on a dirty tree: $out"

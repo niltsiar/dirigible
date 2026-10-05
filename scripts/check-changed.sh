@@ -5,7 +5,7 @@
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push
 #        scripts/check-changed.sh --paths [--push]   the paths from stdin
 #        scripts/check-changed.sh --floor       print the risk floor paths
-#        scripts/check-changed.sh --wait-load <targets>   wait for a normal load before Swift tests
+#        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
 # With FILTER (test names, for the tdd loop of a slice), the local target test becomes
 # test-filter. FILTER before the push exits 1: the push runs the full targets.
@@ -43,26 +43,34 @@ targets_of() {
     esac
 }
 
-# A build in another worktree makes timing tests fail (DLV-157). Before a target other than
-# check-docs and check-fast, wait until the 1-minute load is under CHECK_LOAD_MAX (default: the
-# core count). Read it each 10 s. After CHECK_LOAD_WAIT seconds (default 300, so the wait and the
-# tests of a slice fit in one 600 s Bash call), run the tests anyway. The load lines go to stderr.
+# A build or a test in another worktree makes timing tests fail (DLV-157). Before a target other
+# than check-docs and check-fast, wait until the 1-minute load is under CHECK_LOAD_MAX (default:
+# the core count) and no swiftpm-testing-helper of another tree runs (its command line does not
+# hold <root>/.build/). Read both each 10 s. After CHECK_LOAD_WAIT seconds (default 300, so the
+# wait and the tests of a slice fit in one 600 s Bash call), run the tests anyway. The lines go
+# to stderr.
 wait_load() {
-    local rest=" $* " t max load waited=0 limit="${CHECK_LOAD_WAIT:-300}"
+    local rest=" $* " t max load other why stop root waited=0 limit="${CHECK_LOAD_WAIT:-300}"
     for t in check-docs check-fast none; do rest="${rest// $t / }"; done
     [[ -n "${rest// /}" ]] || return 0
     max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
+    root="$(git rev-parse --show-toplevel)"
     while :; do
         load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
-        if awk -v l="$load" -v m="$max" 'BEGIN { exit !(l < m) }'; then
+        # pgrep and grep exit 1 with no match, so the pipeline stays in a condition (set -e).
+        if other="$(pgrep -lf '/swiftpm-testing-helper ' | grep -vF "$root/.build/")"; then
+            why="a test of another tree runs (pid ${other%% *})" stop="a test of another tree runs after $waited s"
+        elif awk -v l="$load" -v m="$max" 'BEGIN { exit !(l < m) }'; then
             echo "check-changed: load $load, under $max: run the tests" >&2
             return 0
+        else
+            why="load $load, not under $max (CHECK_LOAD_MAX)" stop="load $load after $waited s, not under $max"
         fi
         if ((waited >= limit)); then
-            echo "check-changed: load $load after $waited s, not under $max: run the tests" >&2
+            echo "check-changed: $stop: run the tests" >&2
             return 0
         fi
-        echo "check-changed: load $load, not under $max (CHECK_LOAD_MAX): wait 10 s, up to $limit s (CHECK_LOAD_WAIT)" >&2
+        echo "check-changed: $why: wait 10 s, up to $limit s (CHECK_LOAD_WAIT)" >&2
         sleep 10
         waited=$((waited + 10))
     done

@@ -213,7 +213,18 @@ esac
 exit 0
 EOF
 printf '#!/bin/bash\necho "$1" >> "%s"\n' "$tmp/sleep.log" > "$tmp/bin/sleep"
-chmod +x "$tmp/bin/sysctl" "$tmp/bin/sleep"
+# A fake pgrep logs its arguments and prints the first line of $tmp/procs, one line for each
+# call; the last line stays. An empty line is no match: no output and exit 1, as the real pgrep.
+cat > "$tmp/bin/pgrep" <<EOF
+#!/bin/bash
+echo "\$*" >> "$tmp/pgrep.log"
+line="\$(head -n 1 "$tmp/procs")"
+[[ \$(wc -l < "$tmp/procs") -gt 1 ]] && sed -i '' 1d "$tmp/procs"
+[[ -n "\$line" ]] || exit 1
+echo "\$line"
+EOF
+: > "$tmp/procs"
+chmod +x "$tmp/bin/sysctl" "$tmp/bin/sleep" "$tmp/bin/pgrep"
 echo 1.00 > "$tmp/load"
 PATH="$tmp/bin:$PATH" make_case 'make check-changed with FILTER' '' "FILTER=ATests BTests"
 [[ "$output" == *"targets: test-filter"* ]] || fail "make check-changed with FILTER: no test-filter target: $output"
@@ -246,6 +257,33 @@ grep -q 'load 9.50 after 300 s, not under 4.5: run the tests' "$tmp/wait.err" ||
 : > "$tmp/sysctl.log"
 got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-docs check-fast 2>&1)" || fail "--wait-load with docs targets exits $?"
 [[ -z "$got" && ! -s "$tmp/sysctl.log" ]] || fail "--wait-load with docs targets read the load: [$got] [$(cat "$tmp/sysctl.log")]"
+
+# A test of another tree (a swiftpm-testing-helper whose command line does not hold
+# <root>/.build/, also a nested worktree) makes the wait go on at a low load. A helper of this
+# tree does not. The wait matches the executable path, not the bare word.
+wait_case() {
+  : > "$tmp/sleep.log"; : > "$tmp/pgrep.log"; echo 1.00 > "$tmp/load"
+  got="$(cd "$tmp/r" && PATH="$tmp/bin:$PATH" "$script" --wait-load test 2> "$tmp/wait.err")"
+}
+root="$(git -C "$tmp/r" rev-parse --show-toplevel)"
+other="101 $root/.claude/worktrees/x/.build/debug/swiftpm-testing-helper --test-bundle-path $root/.claude/worktrees/x/.build/debug/T.xctest"
+printf '%s\n%s\n\n' "$other" "$other" > "$tmp/procs"
+wait_case || fail "a test of another tree: exit $?"
+[[ "$(grep -c 'a test of another tree runs (pid 101): wait 10 s' "$tmp/wait.err")" == 2 ]] || fail "a test of another tree: wait lines: $(cat "$tmp/wait.err")"
+[[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: load 1.00, under 8: run the tests" ]] || fail "a test of another tree: last line: $(tail -n 1 "$tmp/wait.err")"
+[[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a test of another tree: sleeps [$(cat "$tmp/sleep.log")]"
+grep -qx -- "-lf /swiftpm-testing-helper " "$tmp/pgrep.log" || fail "a test of another tree: pgrep arguments [$(head -n 1 "$tmp/pgrep.log")]"
+printf '102 %s/.build/debug/swiftpm-testing-helper --test-bundle-path %s/.build/debug/T.xctest\n' "$root" "$root" > "$tmp/procs"
+wait_case || fail "a test of this tree: exit $?"
+[[ ! -s "$tmp/sleep.log" ]] && ! grep -q 'wait 10 s' "$tmp/wait.err" || fail "a test of this tree: it waited: $(cat "$tmp/wait.err")"
+: > "$tmp/procs"
+wait_case || fail "no test and a low load: exit $?"
+[[ ! -s "$tmp/sleep.log" && "$(cat "$tmp/wait.err")" == "check-changed: load 1.00, under 8: run the tests" ]] || fail "no test and a low load: [$(cat "$tmp/wait.err")]"
+printf '%s\n' "$other" > "$tmp/procs"
+CHECK_LOAD_WAIT=20 wait_case || fail "a test of another tree that stays: exit $?"
+[[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a test of another tree that stays: sleeps [$(cat "$tmp/sleep.log")]"
+[[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: a test of another tree runs after 20 s: run the tests" ]] || fail "a test of another tree that stays: last line: $(tail -n 1 "$tmp/wait.err")"
+: > "$tmp/procs"
 
 # make test-slow writes the date of today after a pass, and nothing after a red run.
 make_repo

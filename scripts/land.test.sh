@@ -56,7 +56,10 @@ cat > "$bin/sysctl" <<'EOF'
 echo "sysctl $*" >> "$LAND_LOG"
 case "$2" in hw.ncpu) echo 8 ;; vm.loadavg) echo "{ 1.00 1.00 1.00 }" ;; esac
 EOF
-chmod +x "$bin/make" "$bin/gh" "$bin/sysctl"
+# The fake pgrep finds no test of another tree (no output, exit 1, as the real pgrep), so a test
+# run of another worktree does not make the load wait go on.
+printf '#!/bin/bash\nexit 1\n' > "$bin/pgrep"
+chmod +x "$bin/make" "$bin/gh" "$bin/sysctl" "$bin/pgrep"
 
 # A new case: a remote with one commit on main, a clone on the branch feat/x with one commit,
 # and one more commit on origin/main after the branch, so the land must rebase.

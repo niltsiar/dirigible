@@ -57,9 +57,11 @@ extension Player {
     }
 
     /// Each poll of 1 ms takes its time off `budget`, at most 10 ms. A later wake-up waited for a
-    /// pool thread, not for the refill.
+    /// pool thread, not for the refill. The node position can be the start of the last pull, not
+    /// its end, so the wait asks for one chunk more than the pull: with one chunk, a pull on a
+    /// full suite ran before the refill and played silence.
     private func waitForFeed(_ count: Int, budget: inout Duration) async {
-        while let feed, feed.scheduled - nodeFrames() < count, feed.scheduled < length(feed), budget > .zero {
+        while let feed, feed.scheduled - nodeFrames() < count + chunk, feed.scheduled < length(feed), budget > .zero {
             let start = ContinuousClock.now
             try? await Task.sleep(for: .milliseconds(1))
             budget -= min(ContinuousClock.now - start, .milliseconds(10))

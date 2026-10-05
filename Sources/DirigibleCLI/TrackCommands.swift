@@ -5,7 +5,10 @@ import DirigibleCore
 struct TrackCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "track", abstract: "Add, change, and remove tracks.",
-        subcommands: [Add.self, AddCall.self, Remove.self, Rename.self, SetGain.self, SetLayout.self, SetRoute.self])
+        subcommands: [
+            Add.self, AddCall.self, Remove.self, Rename.self, SetGain.self, SetLayout.self, SetRoute.self, Mute.self,
+            Solo.self,
+        ])
 
     struct Add: ParsableCommand {
         static let configuration = CommandConfiguration(abstract: "Add a track and write its ID.")
@@ -89,6 +92,38 @@ struct TrackCommand: ParsableCommand {
 
         func run() throws {
             try editPackage(package) { session throws(SessionError) in try session.setGain(db, track: TrackID(track)) }
+        }
+    }
+
+    struct Mute: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Mute tracks: the mix, the export, and the render leave them out (decision 0039).")
+        @OptionGroup var package: PackageArgument
+        @Argument(help: "The track IDs.") var tracks: [String] = []
+        @Flag(help: "Unmute the tracks.") var off = false
+
+        func validate() throws { if tracks.isEmpty { throw ValidationError("Give one track or more.") } }
+
+        func run() throws {
+            try editPackage(package) { session throws(SessionError) in
+                try session.setMuted(!off, tracks: tracks.map { TrackID($0) })
+            }
+        }
+    }
+
+    struct Solo: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Solo tracks: while a track is soloed, only the soloed tracks that are not muted are heard.")
+        @OptionGroup var package: PackageArgument
+        @Argument(help: "The track IDs.") var tracks: [String] = []
+        @Flag(help: "Clear the solo of the tracks.") var off = false
+
+        func validate() throws { if tracks.isEmpty { throw ValidationError("Give one track or more.") } }
+
+        func run() throws {
+            try editPackage(package) { session throws(SessionError) in
+                try session.setSoloed(!off, tracks: tracks.map { TrackID($0) })
+            }
         }
     }
 

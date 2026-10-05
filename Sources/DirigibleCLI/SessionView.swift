@@ -67,6 +67,9 @@ struct SessionView: Encodable {
         let layout: String
         let route: RouteView?
         let clips: [ClipView]
+        /// Left out when false, as in `session.xml` (decision 0039).
+        let muted: Bool?
+        let soloed: Bool?
     }
 
     struct MarkerView: Encodable {
@@ -118,7 +121,7 @@ struct SessionView: Encodable {
                         length: $0.length.count, gain: $0.gain.dB, fadeIn: $0.fades.fadeIn.nonZero,
                         fadeOut: $0.fades.fadeOut.nonZero, crossfadeIn: $0.crossfades.start.nonZero,
                         crossfadeOut: $0.crossfades.end.nonZero)
-                })
+                }, muted: track.isMuted ? true : nil, soloed: track.isSoloed ? true : nil)
         }
         markers = session.sortedMarkers.map {
             MarkerView(id: $0.id.rawValue, name: $0.name, position: $0.position.count, kind: $0.kind.rawValue)
@@ -148,6 +151,8 @@ func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> 
             line += " route \(quoted(uid)) \(channels.numbers.map(String.init).joined(separator: ","))"
         case .app(let bundleID): line += " route app \(quoted(bundleID))"
         }
+        if track.isMuted { line += " muted" }
+        if track.isSoloed { line += " soloed" }
         lines.append(line)
         for clip in track.clips {
             lines.append(

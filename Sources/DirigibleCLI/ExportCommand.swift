@@ -136,6 +136,7 @@ struct Export: ParsableCommand {
                 code: packageError)
         }
         warn(read, in: session)
+        warnUnheard(session, source: source)
         if let report = result.loudness {
             let loudness = report.output.map { String(format: "%.1f LUFS", $0.value) } ?? "none"
             let peak = report.truePeak.map { String(format: "%.1f dBTP", $0) } ?? "none"

@@ -274,4 +274,38 @@ struct ExportCommandTests {
         #expect(!FileManager.default.fileExists(atPath: target.path))
         #expect(try temporaryFiles(in: package.folder) == [])
     }
+
+    /// Mute and solo C9 e: an export with an unheard track prints one warning line on stderr; the
+    /// file and stdout do not change. An export of the heard tracks alone prints nothing.
+    @Test func anExportWithAMutedTrackPrintsANote() async throws {
+        try package.edit { try $0.setMuted(true, tracks: ["t2"]) }
+        let one = "Warning: 1 track is muted or not soloed and is not in the export.\n"
+        #expect(
+            try await package.run("export", "PKG", "--out", out("a.wav").path)
+                == CLIResult(status: 0, stdout: "", stderr: one))
+        #expect(try peak(out("a.wav")) > 0.4, "t1 is in the file")
+        #expect(
+            try await package.run("export", "PKG", "--out", out("b.wav").path, "--track", "t1")
+                == CLIResult(status: 0, stdout: "", stderr: ""), "the source has no unheard track")
+
+        try package.edit { session in
+            try session.addTrack("t3", name: "Music", layout: .mono)
+            try session.setMuted(false, tracks: ["t2"])
+            try session.setSoloed(true, tracks: ["t1"])
+        }
+        let two = "Warning: 2 tracks are muted or not soloed and are not in the export.\n"
+        #expect(
+            try await package.run("export", "PKG", "--out", out("c.wav").path)
+                == CLIResult(status: 0, stdout: "", stderr: two))
+    }
+
+    /// Mute and solo C9 e: with no heard track, the warning says that the file is silent.
+    @Test func anExportWithNoHeardTrackPrintsTheSilentNote() async throws {
+        try package.edit { try $0.setMuted(true, tracks: ["t1", "t2"]) }
+        let silent = "Warning: no track is heard; the file is silent.\n"
+        #expect(
+            try await package.run("export", "PKG", "--out", out("a.wav").path)
+                == CLIResult(status: 0, stdout: "", stderr: silent))
+        #expect(try peak(out("a.wav")) == 0, "the file is silent")
+    }
 }

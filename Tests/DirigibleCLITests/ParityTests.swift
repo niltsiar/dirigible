@@ -16,6 +16,8 @@ struct ParityTests {
         "setGain": ["track gain", "clip gain"],
         "setRoute": ["track route"],
         "setLayout": ["track layout"],
+        "setMuted": ["track mute"],
+        "setSoloed": ["track solo"],
         "setMarker": ["marker set"],
         "removeMarker": ["marker remove"],
         "place": ["clip place"],

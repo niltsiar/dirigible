@@ -234,7 +234,7 @@ extension SessionWindow {
     /// Gives the focus to the lanes and commits the typed track names, in the order of a lane
     /// mouse-down: a focused field takes Esc. A header click and the header handle come here.
     func endNameEdit() {
-        if let view = timelineView { view.window?.makeFirstResponder(view.lanes) }
+        focusLanes()
         commitNames()
     }
 

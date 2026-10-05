@@ -189,8 +189,8 @@ import Testing
         editor.insertText("Host", replacementRange: editor.selectedRange())
         editor.insertNewline(nil)
         #expect(studio.session.track("t2")?.name == "Host" && model.renamingTrack == nil, "Return commits")
-
-        window.makeFirstResponder(view.lanes)
+        // Return ends the rename: a later key goes to the lanes, not to the name (code gate 1 item 1).
+        #expect(window.firstResponder === view.lanes, "Return gives the focus to the lanes")
         try click(try namePoint(1, in: view), in: window)
         #expect(!editsName(1, in: view), "after the commit a click gives no text focus")
         #expect(model.timeline.selection == .range(Marks(tracks: ["t2"])))

@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleCore
 import DirigibleTimeline
 import SwiftUI
 
@@ -8,7 +9,7 @@ import SwiftUI
 /// trailing edge sets the width (decision 0023). The ruler is opaque: the lanes under it never show
 /// (the user report L5), and a 1 pt separator line marks its trailing edge.
 final class TrackHeaderRuler: NSRulerView {
-    let host = NSHostingView(rootView: AnyView(EmptyView()))
+    let host = HeaderHost(rootView: AnyView(EmptyView()))
     let handle = HeaderHandle()
     /// Saves the width at the mouse-up, a double-click, and an AX step. Nil: no save.
     var save: ((HeaderWidth) -> Void)?
@@ -116,6 +117,66 @@ final class TrackHeaderRuler: NSRulerView {
         endTextEdit()
         width = HeaderWidth(width.points + points)
         save?(width)
+    }
+}
+
+/// The host of the header rows. It keeps each mouse-down for the window: a SwiftUI tap gives no
+/// event, so a header tap reads the modifier keys of this event. The second click of a
+/// double-click on a name starts the rename here, and SwiftUI does not get it: a SwiftUI double
+/// tap read the time between the clicks, and the SwiftUI end of a click on a row could take the
+/// text focus from the new rename. Both made a test flaky under load.
+final class HeaderHost: NSHostingView<AnyView> {
+    /// True from a mouse-down that this view took to its mouse-up.
+    private var tookDown = false
+
+    override func mouseDown(with event: NSEvent) {
+        let model = ((superview as? TrackHeaderRuler)?.scrollView as? TimelineScrollView)?.model
+        model?.headerMouseDown = event
+        if event.clickCount == 2, !event.modifierFlags.contains(.control), let model,
+            let track = nameTrack(event, model)
+        {
+            tookDown = true
+            model.startRename(track)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard !tookDown else {
+            tookDown = false
+            return
+        }
+        super.mouseUp(with: event)
+    }
+
+    /// The track of the name field under `event`. Nil when the point is not on a name field.
+    private func nameTrack(_ event: NSEvent, _ model: SessionWindow) -> TrackID? {
+        let rows = nameFields
+        let point = convert(event.locationInWindow, from: nil)
+        guard let tracks = model.studio?.session.tracks, rows.count == tracks.count,
+            let row = rows.firstIndex(where: { $0.convert($0.bounds, to: self).contains(point) })
+        else { return nil }
+        return tracks[row].id
+    }
+
+    /// The name fields in row order: row n is track n of the session.
+    private var nameFields: [NSTextField] {
+        func fields(_ view: NSView) -> [NSTextField] {
+            if let field = view as? NSTextField, field.isEditable { return [field] }
+            return view.subviews.flatMap(fields)
+        }
+        return fields(self).sorted { $0.convert($0.bounds, to: self).minY < $1.convert($1.bounds, to: self).minY }
+    }
+
+    /// Gives the text focus to the name field of `row`, once. A SwiftUI focus request could come
+    /// twice under load, and the second one ended the edit of the first: the window took the focus.
+    func focusName(row: Int) {
+        let rows = nameFields
+        guard rows.indices.contains(row), (window?.firstResponder as? NSTextView)?.delegate !== rows[row] else {
+            return
+        }
+        window?.makeFirstResponder(rows[row])
     }
 }
 

@@ -260,6 +260,9 @@ extension SessionWindow {
     func startRename(_ track: TrackID) {
         guard canEdit else { return beep() }
         renamingTrack = track
+        if let row = studio?.session.tracks.firstIndex(where: { $0.id == track }) {
+            timelineView?.headers.host.focusName(row: row)
+        }
     }
 
     /// The header menu of `track` shows: a row that is not selected becomes the selection, so the

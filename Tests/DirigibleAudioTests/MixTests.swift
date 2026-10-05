@@ -226,4 +226,29 @@ struct MixTests {
         let expected = (7_400..<12_400).map { Float(sounding.fades.gain(at: Frames($0), length: sounding.length)) }
         #expect(maxError(envelope, expected) <= 1e-6, "the envelope of the sounding clip equals Fades.gain")
     }
+
+    /// Mute and solo C2: t1 is 0.25 and t2 is 0.5 over 0 to 48,000. The mix reads only the heard
+    /// tracks of its track set.
+    @Test func muteAndSoloChooseTheTracksOfTheMix() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: [[Float](repeating: 0.25, count: 48_000)])
+        try package.addFile("f2", channels: [[Float](repeating: 0.5, count: 48_000)])
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 48_000)
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 0, offset: 0, length: 48_000)
+        func isLevel(_ value: Float, _ edit: (inout Session) throws -> Void, tracks: Set<TrackID>? = nil) throws
+            -> Bool
+        {
+            var session = package.session
+            try edit(&session)
+            let out = try package.render(MixReader(package: package.url, session: session, tracks: tracks), 0..<48_000)
+            return out.count == 2 && out.allSatisfy { $0.allSatisfy { abs($0 - value) <= 1e-6 } }
+        }
+        #expect(try isLevel(0.75) { _ in }, "no flag: both tracks")
+        #expect(try isLevel(0.5) { try $0.setMuted(true, tracks: ["t1"]) }, "t1 muted")
+        #expect(try isLevel(0.5) { try $0.setSoloed(true, tracks: ["t2"]) }, "t2 soloed")
+        #expect(try isLevel(0) { try $0.setMuted(true, tracks: ["t1", "t2"]) }, "every track muted: silence")
+        #expect(
+            try isLevel(0.25, { try $0.setMuted(true, tracks: ["t2"]) }, tracks: ["t1", "t2"]),
+            "Export Selection: the selected tracks that are heard")
+    }
 }

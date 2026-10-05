@@ -43,4 +43,19 @@ struct MediaTests {
         let gone = AudioFile(id: "gone", path: "gone.wav", layout: .mono, length: 6000)
         #expect(try openMedia(gone, in: clips, rate: 48_000).stamp == nil)
     }
+
+    /// Mute and solo C2b: an export source skips the missing file of a muted track. The check
+    /// with no source (the play and the open) still reports it.
+    @Test func aMutedTrackWithAMissingFileHasNoFault() throws {
+        let package = try MixPackage()
+        for id: FileID in ["f1", "f2"] { try package.addFile(id, channels: [ramp(frames: 6000)]) }
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 6000)
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 0, offset: 0, length: 6000)
+        try FileManager.default.removeItem(at: package.url.appending(path: "Clips/f1.wav"))
+        try package.session.setMuted(true, tracks: ["t1"])
+        let source = try #require(ExportSource(range: 0..<6000))
+
+        #expect(try checkMedia(package.session, package: package.url, source: source) == [:], "the export skips t1")
+        #expect(try checkMedia(package.session, package: package.url) == ["f1": .missing], "the play still sees it")
+    }
 }

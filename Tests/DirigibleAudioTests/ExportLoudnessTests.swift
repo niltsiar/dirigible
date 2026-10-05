@@ -225,4 +225,21 @@ struct ExportLoudnessTests {
         let values = Set(deep.channels.joined().map { Int(($0 * 8_388_608).rounded()) })
         #expect(values == [64], "the 24-bit values: \(values.sorted())")
     }
+
+    /// Mute and solo C6: the loudness pass meters the heard mix. t1 at -20 dBFS is muted, so
+    /// the pass measures t2 at -30 dBFS alone (both together measure about -17.6 LUFS).
+    @Test func theLoudnessPassMetersOnlyTheAudibleTracks() throws {
+        let package = try ExportTests.package(tone([(20, -20)]))
+        let quiet = tone([(20, -30)])
+        try package.addFile("f2", channels: quiet)
+        try package.addTrack("t2", layout: .stereo, clip: "c2", file: "f2", start: 0, offset: 0, length: 960_000)
+        try package.session.setMuted(true, tracks: ["t1"])
+
+        let url = package.folder.url.appending(path: "mix.wav")
+        let source = try #require(ExportSource(range: 0..<960_000))
+        let result = try exportMix(
+            package.session, source: source, options: Self.options(.podcast), to: url, package: { package.url })
+
+        expectLUFS(result.loudness?.measured, -30, "the measured loudness is t2 alone")
+    }
 }

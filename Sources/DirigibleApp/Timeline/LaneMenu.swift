@@ -6,8 +6,8 @@ import DirigibleTimeline
 /// The context menu of the lanes (decision 0037, `ui-panel.md` 4): three groups of the Edit and
 /// Markers commands, with no Undo item and no keys. An item that does not apply hides; only Cut,
 /// Copy, and Paste dim. During a take only the marker group shows, and a pending or split take
-/// hides the ripple items (Cut, Insert, and Delete and Close Gap). A clip set has no Cut, Copy, or
-/// Delete and Close Gap (decision 0038).
+/// hides the ripple items (Cut, Insert, and Delete and Close Gap). A clip set has no Delete and
+/// Close Gap; its Cut is no ripple, so it shows also under a pending or split take (decision 0038).
 enum LaneMenu {
     struct Item: Equatable {
         let command: TimelineCommand
@@ -23,8 +23,8 @@ enum LaneMenu {
         let range = selection && !clips
         let edits: [[Item?]] = [
             [
-                ripple && !clips ? Item(command: .cut, enabled: range) : nil,
-                clips ? nil : Item(command: .copy, enabled: range), Item(command: .paste, enabled: clipboard),
+                ripple || clips ? Item(command: .cut, enabled: selection) : nil,
+                Item(command: .copy, enabled: selection), Item(command: .paste, enabled: clipboard),
                 ripple && clipboard ? Item(command: .insert, enabled: true) : nil,
             ],
             [

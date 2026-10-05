@@ -92,6 +92,29 @@ import Testing
             ])
     }
 
+    /// Clip-set-clipboard C11: a clip set shows Cut and Copy, enabled. A pending or split take hides
+    /// Insert and Delete and Close Gap, but not Cut: Cut of a set is no ripple. Control: the groups
+    /// before this run have no Cut and no Copy for a set.
+    @Test func aClipSetShowsCutAndCopy() {
+        let set = LaneMenu.groups(
+            selection: true, clips: true, clipboard: true, split: true, canEdit: true, canRipple: true)
+        #expect(
+            set.map { $0.map(\.command) } == [
+                [.cut, .copy, .paste, .insert], [.delete, .split, .fade], [.addMarker, .addChapter],
+            ])
+        let enabled = set.joined().allSatisfy { $0.enabled }
+        #expect(enabled, "Cut and Copy are enabled")
+        let blocked = LaneMenu.groups(
+            selection: true, clips: true, clipboard: true, split: true, canEdit: true, canRipple: false)
+        #expect(
+            blocked.map { $0.map(\.command) } == [
+                [.cut, .copy, .paste], [.delete, .split, .fade], [.addMarker, .addChapter],
+            ])
+        let take = LaneMenu.groups(
+            selection: true, clips: true, clipboard: true, split: true, canEdit: false, canRipple: false)
+        #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
+    }
+
     /// U8: a right-click on a clip outside the selection selects that clip, as a click does.
     /// Control: a menu on the old Marks.
     @Test func aRightClickOnAnUnselectedClipSelectsIt() async throws {
@@ -147,9 +170,9 @@ import Testing
 }
 
 extension LaneMenuTests {
-    /// Multi-clip-selection U11: a right-click on a clip of the set keeps the set, and the menu
-    /// has Delete and Fade but no Cut, Copy, or Delete and Close Gap. Control: a right-click on a
-    /// clip outside the set selects that clip.
+    /// Multi-clip-selection U11 and clip-set-clipboard C11: a right-click on a clip of the set keeps
+    /// the set, and the menu has Cut, Copy, Delete, and Fade but no Delete and Close Gap. Control:
+    /// a right-click on a clip outside the set selects that clip.
     @Test func aRightClickInAClipSetKeepsIt() async throws {
         let (model, _, _, view) = try await lanes()
         let set = Selection.clips(try #require(ClipSet(["c1", "c2@48000"])))
@@ -158,8 +181,8 @@ extension LaneMenuTests {
         #expect(model.timeline.selection == set)
         #expect(
             shown == [
-                "menu.edit.paste (off)", "-", "menu.edit.delete", "menu.edit.fade", "-", "menu.markers.add",
-                "menu.markers.add.chapter",
+                "menu.edit.cut", "menu.edit.copy", "menu.edit.paste (off)", "-", "menu.edit.delete", "menu.edit.fade",
+                "-", "menu.markers.add", "menu.markers.add.chapter",
             ])
         _ = try menu(view, 50, 110)
         #expect(model.timeline.marks == Marks(inPoint: 0, outPoint: 48_000, tracks: ["t2"]), "c2 is not in the set")

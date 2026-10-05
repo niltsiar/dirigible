@@ -1,0 +1,38 @@
+# 0040. File import: a 24-bit WAV copy at the session rate, a blocking studio operation, one undo entry
+
+- Status: accepted
+- Date: 2026-10-05
+- Accepted: 2026-10-05, after plan gates 1 and 2 of run `2026-10-05-file-import`.
+- Amends: 0012 (`Clips/` also holds imported WAVs), 0019 (a take start and the take disk watcher also end an import), 0031 (an import and its level are one undo entry).
+
+## Context
+
+The user imports a WAV, AIFF, FLAC, MP3, or M4A file into a track (F61, part of R7). A reference to a file outside the package can go missing, so the package must hold a copy. `MixReader` opens a pool file only at the session rate and with the channel count of its layout (0016). Finalize already converts a CAF into a 24-bit WAV at the session rate (0012). Hindenburg converts an import to the session rate with no prompt and levels it. Logic and Audition put a menu import on the selected track at the playhead. The sources are in the file import research of run `2026-10-05-file-import`.
+
+## Decision
+
+- **Copy.** An import always writes a copy: `Clips/<stem>.wav`, 24-bit PCM at the session rate, through `ClipWriter`, with the A11 second pass for a peak over full scale. `ClipConversion` is the one conversion of finalize and import: one `AVAudioConverter` (quality max, algorithm Normal) when the rates differ. `AVAudioFile` decodes all five formats; no new dependency.
+- **Name.** The stem is the file name with no extension, with no "/", ":", leading ".", or character that `session.xml` cannot store; an empty stem is "Imported". The file ID and the clip ID are the stem. A stem that a file ID, a clip ID, a pool path, or a name in `Clips/` uses, in any case, gets " 2", " 3", and so on. The take-number scan of 0012 keeps take names apart.
+- **Layout.** The target track sets the layout: 2 channels into a mono track are 0.5 L + 0.5 R (vDSP), and a mono file goes to both channels of a stereo track. A new track gets the file layout. A file with more than 2 channels refuses.
+- **Target.** The app imports at the playhead, on the one selected track, else on a new last track named after the stem. `dirigible import` imports on `--track`, else on a new track, at `--at` (default 0). The clip overwrites the clips under it, as a placement does.
+- **Order.** The source checks, the target checks, the disk check (the WAV bytes and the 1 GB margin, as a placement), the conversion into `.<stem>.wav.tmp`, the flush and the read-back, the session edits on a copy, the rename, the flush of `Clips/`, then `autoLevel(.eachClip)` on the renamed file. A throw before the rename leaves no new file. After the rename, nothing deletes the WAV: a failed `session.xml` write, a cancel, or Undo keeps it as an unused file (F87 removes unused files). A delete there could remove a file that `session.xml` names.
+- **Studio.** `Studio.importAudio` is a blocking operation, as a level: the transport is `.importing(ImportRun)` until the end, so a take, an edit, Cmd-L, and a second import throw `.busy`. It also throws `.busy` during a pending take and during `settle()`. The conversion runs on a utility GCD thread. The result is one undo entry for the track, the file, the clip, and the level, then `poolChanged(from:)`, so the peaks of the new file load.
+- **Cancel.** The cancel flag of the run is read before each block of 65,536 source frames in each pass, before the read-back, and after the rename, where a cancel skips the level. `Studio` reads it again after the conversion and writes nothing when it is set. Close and Quit (`settle()`) set it before their first `await`. A take start in another window and the take disk watcher on the same volume end the import, as an export (0019, capture first); the import then throws `.importYielded`.
+- **Progress.** Pass 1 maps to 0...0.5 and pass 2 to 0.5...1; a one-pass import goes from 0.5 to 1 at its end. So progress never goes down.
+- **Interface.** File > Import Audio… (Command-T, as Hindenburg) opens the open panel for one file. The banner row shows the name, a bar, and Cancel. Record, the edit items, and the import item are off during an import. The new clip is selected after it. Each error alert quotes the file name and says how to fix the problem.
+
+## Consequences
+
+- The session format does not change: an imported file has no `capture` (0003).
+- The studio is busy for the conversion time, about 10 to 40 s for a 1 h MP3. The user can cancel.
+- An imported clip keeps 24 bits; a float source over full scale keeps its level through the A11 clip gain.
+- `AVAudioFile.length` equals the decoded frames also for a VBR MP3 with no Xing tag (probe on macOS 15.7.9), so the import reads to `length`, as finalize does.
+- A crash during an import can leave `.<stem>.wav.tmp` in `Clips/` (backlog).
+
+## Alternatives considered
+
+- A background job, as an export: edits go on during the conversion, but the end then needs a merge rule for a target track that an edit removed, and `Studio.swift` a new stored job.
+- A reference to the source file: a moved or deleted source is a missing clip.
+- `ExtAudioFile` with a client format at the session rate: one call for decode and rate, but a second converter with a different quality and no A11 pass.
+- A `Clips/Imported/` folder: no clash with take names, but the lane label then shows the folder.
+- Two undo entries, as a take (0031): the clip inspector resets a gain now, so a second entry gives nothing.

@@ -183,6 +183,24 @@ gc "$tmp/w" -F .scratchpads/commit-msg.txt || post_fail 'a commit in the worktre
 [[ ! -e "$tmp/w/.scratchpads/commit-msg.txt" ]] || post_fail 'the worktree message file is still there'
 [[ "$(cat "$tmp/r/.scratchpads/commit-msg.txt" 2>/dev/null)" == main ]] || post_fail 'a worktree commit deleted the file of the main checkout'
 
+# The shipped pre-commit hook refuses a commit when core.hooksPath is not exactly .githooks: with an
+# absolute path, each worktree runs the hooks of the main checkout. With .githooks, the hook of the
+# worktree runs make lint, which fails here because the repo has no Makefile.
+pre_fail() { echo "FAIL: pre-commit: $1"; failures=$((failures + 1)); }
+git init -q "$tmp/p"
+mkdir -p "$tmp/p/.githooks"
+cp "$(dirname "$0")/../../.githooks/pre-commit" "$tmp/p/.githooks/" || pre_fail 'no .githooks/pre-commit'
+git -C "$tmp/p" add .githooks
+gc "$tmp/p" -m hook || pre_fail 'the commit of the hook failed'
+git -C "$tmp/p" worktree add -q "$tmp/pw" 2>/dev/null || pre_fail 'git worktree add failed'
+git -C "$tmp/p" config core.hooksPath "$tmp/p/.githooks"
+gc "$tmp/pw" -m absolute 2>"$tmp/err" && pre_fail 'a commit with an absolute hooks path passed'
+grep -q 'make setup' "$tmp/err" || pre_fail 'the refusal does not name make setup'
+git -C "$tmp/p" config core.hooksPath .githooks
+gc "$tmp/pw" -m relative 2>"$tmp/err" && pre_fail 'a commit with no Makefile passed'
+grep -q lint "$tmp/err" || pre_fail 'the hook of the worktree did not run make lint'
+grep -q 'make setup' "$tmp/err" && pre_fail 'the hook names make setup with the .githooks path'
+
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }

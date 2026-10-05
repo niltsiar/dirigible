@@ -2,4 +2,6 @@
 # Refuse a commit that fails the format check. It checks the working tree, not only the staged
 # files. `make setup` enables this hook. Tests run in the tdd loop and in the push check, not here.
 set -euo pipefail
+[[ "$(git config --get core.hooksPath)" == .githooks ]] ||
+  { echo "pre-commit: core.hooksPath is not .githooks, so a worktree runs the hooks of another tree. Run make setup." >&2; exit 1; }
 make --no-print-directory lint

@@ -37,16 +37,17 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-/// The arguments and the flags of each verb. The usage text and the flag check come from this table.
+/// The arguments, the count of numbers, and the flags of each verb. The usage text and the checks
+/// come from this table.
 let modifierFlags = ["--command", "--shift", "--option", "--control"]
-let verbs: [(verb: String, arguments: String, flags: [String])] = [
-    ("drag", "<x> <y> <dx> <dy>", ["--no-up"] + modifierFlags),
-    ("up", "[<x> <y>]", ["--dry-run"]),
-    ("click", "<x> <y>", ["--right", "--double"] + modifierFlags),
-    ("move", "<x> <y>", []),
-    ("key", "<code>", modifierFlags + ["--dry-run"]),
-    ("type", "<text>", ["--dry-run"]),
-    ("scroll", "<x> <y> <dx> <dy>", ["--phases"] + modifierFlags + ["--dry-run"]),
+let verbs: [(verb: String, arguments: String, count: Int, flags: [String])] = [
+    ("drag", "<x> <y> <dx> <dy>", 4, ["--no-up"] + modifierFlags),
+    ("up", "[<x> <y>]", 2, ["--dry-run"]),
+    ("click", "<x> <y>", 2, ["--right", "--double"] + modifierFlags),
+    ("move", "<x> <y>", 2, []),
+    ("key", "<code>", 1, modifierFlags + ["--dry-run"]),
+    ("type", "<text>", 0, ["--dry-run"]),
+    ("scroll", "<x> <y> <dx> <dy>", 4, ["--phases"] + modifierFlags + ["--dry-run"]),
 ]
 let usage =
     "usage: "
@@ -69,8 +70,7 @@ if command == "type", badText { fail(usage, 2) }
 let numbers = command == "type" ? [] : words.dropFirst().map(Double.init)
 guard numbers.allSatisfy({ $0 != nil }) else { fail(usage, 2) }
 let values = numbers.compactMap { $0 }
-let counts = ["drag": 4, "up": 2, "click": 2, "move": 2, "key": 1, "type": 0, "scroll": 4]
-guard let count = counts[command], values.count == count || (command == "up" && values.isEmpty) else {
+guard values.count == verb.count || (command == "up" && values.isEmpty) else {
     fail(usage, 2)
 }
 let bundleID = ProcessInfo.processInfo.environment["DIRIGIBLE_BUNDLE_ID"] ?? "com.delineas.dirigible"

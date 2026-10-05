@@ -41,11 +41,11 @@ Write `analysis.md`:
 Write `plan.md`:
 
 - Vertical slices, each ending in a passing test and a commit. The riskiest unknown goes first. Types that reference each other share a slice.
-- For each slice (a `###` heading): the first test, the modules, the commit message, an estimate in minutes, and a `- Check:` line with `scripts/check-changed.sh --paths` on its paths. A slice that covers a criterion names the test of its negative control.
+- For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line with `scripts/check-changed.sh --paths` on its paths. A slice that covers a criterion names the test of its negative control.
 - An `Agents:` line: the agent groups (small adjacent slices of one module share an agent), which groups run at the same time (no shared file or build output), and why the others wait.
 - When the `risk:` line says `yes`, or a plan says that no control is possible, read `references/mutation-controls.md`.
 - When a criterion sets a time budget or fixes a missed budget, adds a way to move or resize something, or a rule classifies loop runs, read `references/performance-criteria.md`.
-- A bug goal commits its red repro first; that test proves the fix. A refactor or a file split pins the behavior with a test before code moves, and reverts a move that deletes no branch, copy, or layer.
+- A bug goal proves its fix with its red repro log (tdd step 7). A refactor or a file split pins the behavior with a test before code moves, and reverts a move that deletes no branch, copy, or layer.
 - A one-way decision (a file format, a module boundary, a threading model, a dependency) gets the **architect** skill and a record in `docs/decisions/`.
 - Grep `docs/decisions/` and `AGENTS.md` for each item. When an item changes a rule or a fact, grep its exact phrase and key terms in `docs/`, `Sources/` (comments too), `Tests/`, and the run files, and fix each copy in the same change. A test of the old rule is a copy: plan its old and new value. Quote each rule found and say if the plan keeps or changes it. A change amends that record. A probe in the record can refute a fix option.
 

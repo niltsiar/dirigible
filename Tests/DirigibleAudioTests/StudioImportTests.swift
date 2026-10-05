@@ -237,6 +237,65 @@ struct StudioImportTests {
         try await StudioExportTests().recordAndStop(studioA, hal, from: host)
     }
 
+    /// Code gate 1 item 7: settle() sets the import flag before it waits for the export (0040).
+    @Test func settleSignalsTheImportBeforeItWaitsForTheExport() async throws {
+        let fixture = try await ExportStudioFixture.make()
+        let (exportGate, importGate) = (Gate(), Gate())
+        let studio = try await fixture.open(seam: ChunkSeam(at: [1: { exportGate.waitOnce() }]))
+        let importSeam = ChunkSeam(at: [1: { importGate.waitOnce() }])
+        studio.environment.importStep = { importSeam.step() }
+        let source = fixture.package.folder.url.appending(path: "Voice.wav")
+        try writeSource(source, .wav16, rate: 44_100, channels: [sine(seconds: 4, rate: 44_100)])
+        let (exportSource, options, out) = (fixture.source, fixture.options, fixture.out)
+        let export = Task { try await studio.export(exportSource, options, to: out, replacing: nil) }
+        await exportGate.entered()
+        let importing = Task { try await studio.importAudio(source, to: newTrack) { _ in } }
+        await importGate.entered()
+        defer {
+            exportGate.open()
+            importGate.open()
+        }
+
+        let settle = Task { await studio.settle() }
+        await until(limit: .seconds(10), "settle did not signal the import before the export ended") {
+            studio.importRun?.flags.isCancelled == true
+        }
+        exportGate.open()
+        importGate.open()
+        await settle.value
+
+        await #expect(throws: StudioError.audioImport(.cancelled)) { try await importing.value }
+        _ = try? await export.value
+    }
+
+    /// Code gate 1 item 1: a source read can stall (an online-only file). A take in another
+    /// window sets the flag of the import and does not wait for its thread.
+    @Test func aTakeDoesNotWaitForAStalledImportThread() async throws {
+        let a = try await ExportStudioFixture.make()
+        let hal = TestHAL([a.mic])
+        let studioA = try await a.open(hal)
+        let b = try await ImportStudioFixture.make()
+        let gate = Gate()
+        let studioB = try await b.open(step: ChunkSeam(at: [2: { gate.waitOnce() }]))
+        defer { gate.open() }
+        let importing = Task { try await studioB.importAudio(b.source, to: newTrack) { _ in } }
+        await gate.entered()
+        studioA.otherStudios = { [studioB] }
+
+        let start = Task { try await studioA.startTake(armed: ["t1"], devices: [a.mic], hostTimeNanos: takeStart) }
+        await until(limit: .seconds(10), "the take start waits for the import thread") {
+            studioA.transport == .recording(take: 1)
+        }
+        gate.open()
+
+        await #expect(throws: StudioError.importYielded(file: "Voice.wav"), "B yields to the take") {
+            try await importing.value
+        }
+        #expect(b.clipsNames == ["f1.wav"], "the yielded import leaves no file")
+        _ = try await start.value
+        try await StudioExportTests().recordAndStop(studioA, hal, from: takeStart)
+    }
+
     /// The free space is low while B imports. The disk check of the take in A ends the import of
     /// B, and the take records on.
     @Test func theDiskCheckOfATakeEndsAnImportOnItsVolume() async throws {

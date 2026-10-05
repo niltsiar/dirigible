@@ -311,6 +311,7 @@ enum L10n: String, CaseIterable {
     case errorExportPackage = "error.export.package"
     case errorExportYielded = "error.export.yielded"
     case errorImportNotAudio = "error.import.not.audio"
+    case errorImportNotDownloaded = "error.import.not.downloaded"
     case errorImportChannels = "error.import.channels"
     case errorImportSpace = "error.import.space"
     case errorImportUnreadable = "error.import.unreadable"

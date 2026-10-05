@@ -29,10 +29,10 @@ struct ImportCommand: ParsableCommand {
     @Flag(help: "Keep the gain of the conversion: no auto level.") var noLevel = false
 
     func run() throws {
-        let clip = try editPackage(package, refused: failure) { session throws(ImportError) -> ClipID in
+        let clip = try editPackage(package, refused: failure) { session, lock throws(ImportError) -> ClipID in
             let imported = try importAudio(
                 URL(filePath: file), to: ImportTarget(track: track.map { TrackID($0) }, start: Frames(at)),
-                of: session, in: package.url, level: !noLevel)
+                of: session, in: package.url, level: !noLevel, freeBytes: { lock.freeBytes() })
             session = imported.session
             return imported.clip
         }
@@ -43,6 +43,7 @@ struct ImportCommand: ParsableCommand {
     func failure(_ error: ImportError) -> ExitCode {
         switch error {
         case .notAudio: fail("\(file) is not an audio file that Dirigible can read.", code: editRefused)
+        case .notDownloaded: fail("\(file) is not on this Mac. Download the file first.", code: editRefused)
         case .tooManyChannels(_, let channels):
             fail("\(file) has \(channels) channels; Dirigible imports only mono and stereo files.", code: editRefused)
         case .unreadable(_, let code):

@@ -36,13 +36,19 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
 func editPackage<Result>(
     _ package: PackageArgument, ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
-    try editPackage(package, ripple: ripple, refused: { fail($0.message, code: editRefused) }, body)
+    try editPackage(package, ripple: ripple, refused: refusedEdit) { session, _ throws(SessionError) in
+        try body(&session)
+    }
 }
 
-/// `editPackage` for a body with its own error: `refused` writes its line and gives its exit code.
+/// The error line and the exit code of an edit that the session refuses.
+private func refusedEdit(_ error: SessionError) -> ExitCode { fail(error.message, code: editRefused) }
+
+/// `editPackage` for a body with its own error that also gets the lock: `refused` writes its line
+/// and gives its exit code.
 func editPackage<Result, Failure: Error>(
     _ package: PackageArgument, ripple: Bool = false, refused: (Failure) -> ExitCode,
-    _ body: (inout Session) throws(Failure) -> Result
+    _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(ExitCode) -> Result {
     let locked = { (error: SessionFileError) in fail(error.message(package: package.path), code: packageError) }
     return try PackageLock.withLock(package.url, locked: locked) { lock throws(ExitCode) -> Result in
@@ -52,7 +58,7 @@ func editPackage<Result, Failure: Error>(
 
 private func editLocked<Result, Failure: Error>(
     _ package: PackageArgument, _ lock: PackageLock, ripple: Bool, refused: (Failure) -> ExitCode,
-    _ body: (inout Session) throws(Failure) -> Result
+    _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(ExitCode) -> Result {
     var session = try readPackage(package)
     Session.removeTemporaryFiles(in: package.url)
@@ -68,7 +74,7 @@ private func editLocked<Result, Failure: Error>(
     }
     let result: Result
     do {
-        result = try body(&session)
+        result = try body(&session, lock)
     } catch {
         throw refused(error)
     }

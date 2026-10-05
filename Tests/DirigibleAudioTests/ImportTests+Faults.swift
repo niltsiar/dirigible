@@ -18,6 +18,26 @@ struct ImportFaultTests {
         #expect(package.clipsNames == [])
     }
 
+    /// Code gate 1 item 1: an online-only item is refused before its first read.
+    @Test func anItemThatIsNotDownloadedIsRefused() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        let source = package.source("Voice.wav")
+        try writeSource(source, .wav16, rate: 48_000, channels: [ramp(frames: 4_800)])
+
+        #expect(throws: ImportError.notDownloaded(file: "Voice.wav"), "an item that is not downloaded refuses") {
+            try DirigibleAudio.importAudio(
+                source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
+                freeBytes: { .max }, isDownloaded: { _ in false })
+        }
+        #expect(package.clipsNames == [])
+        #expect(isDownloaded(ubiquitous: true, status: .notDownloaded) == false, "the cloud rule refuses it")
+        for (ubiquitous, status) in [
+            (nil, nil), (false, nil), (true, .current), (true, .downloaded), (true, nil),
+        ] as [(Bool?, URLUbiquitousItemDownloadingStatus?)] {
+            #expect(isDownloaded(ubiquitous: ubiquitous, status: status), "\(String(describing: status))")
+        }
+    }
+
     @Test func aSixChannelFileIsRefused() throws {
         let package = try ImportPackage()
         let source = package.source("Surround.wav")

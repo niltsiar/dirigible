@@ -19,6 +19,8 @@ public struct ImportTarget: Hashable, Sendable {
 public enum ImportError: Error, Hashable, Sendable {
     /// `AVAudioFile` does not open or read the file, or the file has no frames.
     case notAudio(file: String)
+    /// An iCloud or File Provider item whose data is not on this Mac.
+    case notDownloaded(file: String)
     /// The file has more than 2 channels.
     case tooManyChannels(file: String, channels: Int)
     /// A read of the file fails with an errno.
@@ -38,8 +40,8 @@ public enum ImportError: Error, Hashable, Sendable {
 /// placement does. It never writes `session.xml`, and it blocks until the end, so never call it on
 /// the main actor.
 ///
-/// The order: the source checks, the target checks, the disk check (`freeBytes`, nil: the volume
-/// of `package`), the conversion into `.<stem>.wav.tmp`, the session edits, the rename, the flush
+/// The order: the download check (`isDownloaded`, before any read), the source checks, the target checks, the disk check (`freeBytes`, the free bytes of
+/// the volume of the package lock), the conversion into `.<stem>.wav.tmp`, the session edits, the rename, the flush
 /// of `Clips/`, and the level. A throw before the rename leaves no new file. After the rename, a
 /// cancel or a flush fault throws and keeps the WAV as an unused file: the caller can have a
 /// session that names it. `isCancelled` is read before each block of 65,536 frames, before the
@@ -47,10 +49,12 @@ public enum ImportError: Error, Hashable, Sendable {
 /// its flag again after the return.
 public func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
-    freeBytes: (() -> Int64)? = nil, progress: @escaping (Double) -> Void = { _ in },
+    freeBytes: () -> Int64, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
+    progress: @escaping (Double) -> Void = { _ in },
     isCancelled: @escaping () -> Bool = { false }
 ) throws(ImportError) -> (session: Session, clip: ClipID) {
     let name = source.lastPathComponent
+    guard isDownloaded(source) else { throw .notDownloaded(file: name) }
     // Held open, so a read error with no errno can be checked on the same file.
     let descriptor = open(source.path, O_RDONLY | O_CLOEXEC)
     guard descriptor >= 0 else { throw .unreadable(file: name, errno: errno) }
@@ -79,7 +83,7 @@ public func importAudio(
     // The placement rule (decision 0021): 3 bytes for each sample of the WAV, and the margin.
     let frames = Int64((Double(input.length) * rate / sourceRate).rounded(.up))
     let needed = frames * Int64(layout.channelCount) * 3 + diskMargin
-    let free = freeBytes?() ?? volumeFreeBytes(package)
+    let free = freeBytes()
     guard free >= needed else { throw .space(file: name, needed: needed, free: free) }
 
     let clips = package.appending(path: clipsFolderName)
@@ -154,10 +158,14 @@ func importStem(of source: URL, in session: Session, package: URL) -> String {
     return stem
 }
 
-/// The free bytes of the volume of `url` for a normal process, as `PackageLock.freeBytes`. An
-/// errno gives 0.
-private func volumeFreeBytes(_ url: URL) -> Int64 {
-    var info = statfs()
-    guard statfs(url.path, &info) == 0 else { return 0 }
-    return Int64(info.f_bavail) * Int64(info.f_bsize)
+/// True unless `url` is an iCloud or File Provider item whose data is not on this Mac
+/// (decision 0040). A read of such an item can wait for the network with no end.
+public func sourceIsDownloaded(_ url: URL) -> Bool {
+    let values = try? url.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey])
+    return isDownloaded(ubiquitous: values?.isUbiquitousItem, status: values?.ubiquitousItemDownloadingStatus)
+}
+
+/// The rule of `sourceIsDownloaded`. An unknown status passes, so no local file is refused.
+func isDownloaded(ubiquitous: Bool?, status: URLUbiquitousItemDownloadingStatus?) -> Bool {
+    ubiquitous != true || status != .notDownloaded
 }

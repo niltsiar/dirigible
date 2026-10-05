@@ -53,6 +53,11 @@ struct EditBenchmark {
             ("nudge of 1,000 clips on 6 tracks", { try $0.nudge(firstHour, by: 480) }),
             ("setFades of 12,000 clips", { try $0.setFades(allFades) }),
             ("setGains of 12,000 clips", { try $0.setGains(allGains) }),
+            // Clip-set-clipboard C1b: Copy and Paste of a clip set of the first hour.
+            (
+                "excerpt and set paste of 6,000 clips",
+                { try $0.paste(try $0.excerpt(of: firstHour), at: Self.hour, on: tracks) }
+            ),
         ]
         for (name, edit) in edits { try Self.measure(name, history, edit) }
 

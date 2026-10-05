@@ -1,14 +1,23 @@
 import Foundation
 
-/// A copy of timeline material: the parts of the clips in one range on some tracks. Only
-/// `Session.excerpt` makes one, so each lane is sorted, has no overlap, and has clip starts
-/// relative to the range start. Its file IDs name pool files of one package.
+/// A copy of timeline material: the parts of the clips in one range on some tracks, or the whole
+/// clips of a clip set. Only `Session.excerpt` makes one, so each lane is sorted, has no overlap,
+/// and has clip starts relative to the excerpt start. Its file IDs name pool files of one package.
 public struct Excerpt: Hashable, Sendable {
+    /// The clear rule of a paste.
+    public enum Kind: Hashable, Sendable {
+        /// The paste clears the whole block on each target track (decision 0018).
+        case range
+        /// The paste clears only the frames under each pasted clip (decision 0038).
+        case clips
+    }
+
     public struct Lane: Hashable, Sendable {
         public let source: TrackID
         public let clips: [Clip]
     }
 
+    public let kind: Kind
     public let length: Frames
     public let lanes: [Lane]
 }
@@ -30,11 +39,38 @@ extension Session {
             }
             lanes.append(Excerpt.Lane(source: id, clips: clips))
         }
-        return Excerpt(length: range.upperBound - range.lowerBound, lanes: lanes)
+        return Excerpt(kind: .range, length: range.upperBound - range.lowerBound, lanes: lanes)
     }
 
-    /// Lane i goes to `tracks[i]`. The paste clears the whole block `start..<start + length` on
-    /// the track, also under a gap of the excerpt, then adds the lane clips. A pasted clip gets
+    /// The whole clips of a clip set (decision 0038). The starts are relative to the first start,
+    /// and the length goes to the last end. One lane for each track from the first to the last
+    /// track with a listed clip, in session order: a track between them gives an empty lane. An
+    /// unknown ID throws. An empty list gives no lane and length 0.
+    public func excerpt(of clips: [ClipID]) throws(SessionError) -> Excerpt {
+        // One pass over the lanes: a check of each ID with `clip(_:)` scans every lane per ID.
+        let wanted = Set(clips)
+        let picked = tracks.map { $0.clips.filter { wanted.contains($0.id) } }
+        let present = Set(picked.joined().map(\.id))
+        if let missing = clips.first(where: { !present.contains($0) }) { throw .unknownClip(missing) }
+        let used = picked.indices.filter { !picked[$0].isEmpty }
+        guard let first = used.first, let last = used.last, let start = picked.compactMap(\.first?.start).min(),
+            let end = picked.compactMap(\.last?.end).max()
+        else { return Excerpt(kind: .clips, length: .zero, lanes: []) }
+        let lanes = (first...last).map { index in
+            Excerpt.Lane(
+                source: tracks[index].id,
+                clips: picked[index].map { clip in
+                    var clip = clip
+                    clip.start = clip.start - start
+                    return clip
+                })
+        }
+        return Excerpt(kind: .clips, length: end - start, lanes: lanes)
+    }
+
+    /// Lane i goes to `tracks[i]`. A range excerpt clears the whole block `start..<start + length`
+    /// on the track, also under a gap of the excerpt; a clip set excerpt clears only the frames
+    /// under each pasted clip. Then the paste adds the lane clips. A pasted clip gets
     /// the first free ID of "<source id>@<start>"; the right part of a cut clip gets
     /// "<id>@<block end>". Returns the pasted IDs, lane by lane. A throw changes nothing.
     @discardableResult
@@ -64,7 +100,8 @@ extension Session {
                 try check(placed, on: self.tracks[index])
                 clips.append(placed)
             }
-            copy.tracks[index].clips.clear([block]) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
+            let cleared = excerpt.kind == .range ? [block] : clips.map(\.range)
+            copy.tracks[index].clips.clear(cleared) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
             copy.tracks[index].clips.insert(sorted: clips)
             pasted += clips.map(\.id)
         }

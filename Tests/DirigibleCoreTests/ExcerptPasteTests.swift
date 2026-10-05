@@ -143,3 +143,113 @@ func editFixture() throws -> Session {
     try session.addTrack("s", name: "S", layout: .stereo)
     return session
 }
+
+/// Clip-set-clipboard C1 to C5 (decision 0038). Tracks t1, t2 (mono, or the stereo "s"), and t3.
+/// The set clips: A on t1 at 48 000..<96 000 and C on t3 at 144 000..<192 000. B on t1 at
+/// 96 000..<144 000 is not in the set.
+extension ExcerptPasteTests {
+    static func setFixture(middle: TrackID = "t2") throws -> Session {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        try session.addTrack(middle, name: "M", layout: middle == "s" ? .stereo : .mono)
+        try session.addTrack("t3", name: "T3", layout: .mono)
+        for (id, start, track) in [("A", 48_000, "t1"), ("B", 96_000, "t1"), ("C", 144_000, "t3")] {
+            try session.place(
+                Clip(id: ClipID(id), file: "f", start: Frames(start), offset: Frames(start), length: 48_000),
+                on: TrackID(track))
+        }
+        return session
+    }
+
+    /// C1. Control: the hull range excerpt holds B.
+    @Test func aClipSetExcerptKeepsOffsetsAndEmptyLanes() throws {
+        let session = try Self.setFixture()
+        let excerpt = try session.excerpt(of: ["A", "C"])
+        #expect(excerpt.kind == .clips && excerpt.length == 144_000)
+        #expect(excerpt.lanes.map(\.source) == ["t1", "t2", "t3"])
+        #expect(
+            excerpt.lanes.map(\.clips) == [
+                [Clip(id: "A", file: "f", start: 0, offset: 48_000, length: 48_000)], [],
+                [Clip(id: "C", file: "f", start: 96_000, offset: 144_000, length: 48_000)],
+            ])
+        #expect(try session.excerpt(of: ["C", "A"]) == excerpt, "the ID order does not change the excerpt")
+        let hull = try session.excerpt(of: 48_000..<192_000, on: ["t1", "t2", "t3"])
+        #expect(hull.kind == .range && hull.lanes[0].clips.map(\.id) == ["A", "B"], "the control holds B")
+    }
+
+    /// C2. Control: a clear of the whole block removes D on t2 and all of E on t3.
+    @Test func aClipSetPasteOverwritesOnlyUnderItsClips() throws {
+        var session = try Self.setFixture()
+        let excerpt = try session.excerpt(of: ["A", "C"])
+        try session.place(Clip(id: "D", file: "f", start: 500_000, offset: 0, length: 100_000), on: "t2")
+        try session.place(Clip(id: "E", file: "f", start: 560_000, offset: 0, length: 40_000), on: "t3")
+
+        #expect(try session.paste(excerpt, at: 480_000, on: ["t1", "t2", "t3"]) == ["A@480000", "C@576000"])
+
+        func lane(_ track: TrackID) -> [Clip] { session.track(track).map { Array($0.clips) } ?? [] }
+        #expect(lane("t1").map(\.id) == ["A", "B", "A@480000"])
+        #expect(lane("t1").last == Clip(id: "A@480000", file: "f", start: 480_000, offset: 48_000, length: 48_000))
+        #expect(lane("t2") == [Clip(id: "D", file: "f", start: 500_000, offset: 0, length: 100_000)], "D stays whole")
+        #expect(
+            lane("t3") == [
+                Clip(id: "C", file: "f", start: 144_000, offset: 144_000, length: 48_000),
+                Clip(id: "E", file: "f", start: 560_000, offset: 0, length: 16_000),
+                Clip(id: "C@576000", file: "f", start: 576_000, offset: 144_000, length: 48_000),
+            ])
+    }
+
+    /// C3 and the empty list of C12c.
+    @Test func aClipSetExcerptRefusesAnUnknownClip() throws {
+        var session = try Self.setFixture()
+        #expect(throws: SessionError.unknownClip("nope")) { try session.excerpt(of: ["A", "nope"]) }
+        let empty = try session.excerpt(of: [])
+        #expect(empty.kind == .clips && empty.length == 0 && empty.lanes.isEmpty)
+        let before = session
+        #expect(try session.paste(empty, at: 0, on: []) == [])
+        #expect(session == before)
+    }
+
+    /// C3: a refused set paste changes nothing.
+    @Test func aClipSetPasteRefusesAndChangesNothing() throws {
+        var session = try Self.setFixture()
+        let excerpt = try session.excerpt(of: ["A", "C"])
+        let before = session
+        #expect(throws: SessionError.trackCount(3)) { try session.paste(excerpt, at: 0, on: ["t2", "t3"]) }
+        #expect(throws: SessionError.frameOutOfRange) {
+            try session.paste(excerpt, at: Frames.limit, on: ["t1", "t2", "t3"])
+        }
+        #expect(session == before)
+    }
+
+    /// C4 (decision 0036): P and Q join with a 20 ms crossfade, and Q joins R (not in the set) with
+    /// one. Control: a paste with no join repair keeps the crossfade of Q@448000 to no clip.
+    @Test func aClipSetPasteKeepsAJoinedCrossfadeAndDropsAnOrphan() throws {
+        var session = try Self.setFixture()
+        for (id, start, offset) in [("P", 200_000, 10_000), ("Q", 248_000, 100_000), ("R", 296_000, 300_000)] {
+            try session.place(
+                Clip(id: ClipID(id), file: "f", start: Frames(start), offset: Frames(offset), length: 48_000), on: "t2")
+        }
+        try session.setCrossfades(["P": 960, "Q": 960])
+        let excerpt = try session.excerpt(of: ["P", "Q"])
+
+        try session.paste(excerpt, at: 400_000, on: ["t2"])
+
+        #expect(session.clip("P@400000")?.clip.crossfades == Crossfades(start: 0, end: 960))
+        #expect(session.clip("Q@448000")?.clip.crossfades == Crossfades(start: 960, end: 0), "the orphan goes")
+        #expect(session.clip("Q")?.clip.crossfades == Crossfades(start: 960, end: 960), "the source keeps it")
+    }
+
+    /// C5: an empty lane passes over a track of the other layout; a set clip onto it refuses.
+    @Test func aClipSetPasteOverATrackOfTheOtherLayout() throws {
+        var session = try Self.setFixture(middle: "s")
+        let excerpt = try session.excerpt(of: ["A", "C"])
+        #expect(excerpt.lanes.map(\.source) == ["t1", "s", "t3"] && excerpt.lanes[1].clips.isEmpty)
+        #expect(try session.paste(excerpt, at: 480_000, on: ["t1", "s", "t3"]) == ["A@480000", "C@576000"])
+        let before = session
+        #expect(throws: SessionError.layoutMismatch("s", .file("f"))) {
+            try session.paste(try session.excerpt(of: ["A"]), at: 0, on: ["s"])
+        }
+        #expect(session == before)
+    }
+}

@@ -10,6 +10,7 @@
 - Amended: 2026-09-24. `DirigibleApp` depends on `DirigibleAudio`, because the window calls `Studio`. `DirigibleTests` depends on `DirigibleApp`, `DirigibleAudio`, and `DirigibleCore`, so the string test and the window tests can use `@testable import DirigibleApp` (see 0014).
 - Amended: 2026-09-24. The `Player` is an actor, not `@MainActor`, so the engine start and the file reads run off the main actor. `Render/` holds the `Player`, `MixReader`, and the media check (see 0016).
 - Amended: 2026-09-25. `DirigibleApp/Timeline/` holds the timeline view. `Render/Peaks.swift` and `Render/PeakFile.swift` compute the peaks and keep the cache file. `Studio/Studio+Peaks.swift` loads the peaks off the main actor (see 0017).
+- Amended: 2026-10-05, run `2026-10-05-file-import`. `DirigibleAudio` has the folder `Import/` for the file import, and `Finalize/ClipConversion.swift` is the one conversion of finalize and import (see 0040).
 - Amended: 2026-09-25. `Render/Export.swift`, `Render/ExportFile.swift`, and `Render/FileMove.swift` hold the export writer; `Render/RenderMix.swift` goes. `Studio/Studio+Export.swift` runs the export job (see 0019).
 - Amended: 2026-09-26. The library target `DirigibleTimeline` holds the timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, and the gesture model. It imports Foundation and depends on `DirigibleCore`. `DirigibleApp` depends on it. `DirigibleTimelineTests` tests it (see 0020).
 - Amended: 2026-10-03. The body states the map after the amendments above.

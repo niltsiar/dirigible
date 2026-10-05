@@ -39,7 +39,7 @@ The stop, Cmd-L, Option-Cmd-L, and `dirigible level` call it, so they give the s
 - To remove a take, the user presses Undo two times.
 - `concurrentPerform` blocks one thread of the cooperative pool for the stop wait.
 - The union of the blocks of one track does not span the gaps between its clips.
-- Import levels in run 13 with the same function.
+- Import levels in run 13 with the same function. An import and its level are one undo entry (0040).
 
 ## Alternatives considered
 

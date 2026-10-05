@@ -16,6 +16,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Record several input devices at the same time, one mono or stereo track for each input.
 - Record the sound of another app, for example a call, on its own track (macOS 14.2 or later).
 - Keep the recorded audio after a crash, an unplug, or a full disk.
+- Import WAV, AIFF, FLAC, MP3, and M4A files into a track. Dirigible copies each file into the session at its sample rate and levels it.
 - Edit with the keyboard or the mouse: cut, copy, paste, delete, split, nudge, move, and trim. Ripple delete, insert, and ripple trim keep all tracks and the markers in sync. Command-click clips on several tracks and drag them together. Each edit is one undo step.
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.
 - Read the loudness of the mix in the meter below the tracks while you play.

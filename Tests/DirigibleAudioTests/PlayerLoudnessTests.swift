@@ -31,6 +31,20 @@ struct PlayerLoudnessTests {
         return readings
     }
 
+    /// Mute and solo C6: with every track muted, the meter of a play reads no level.
+    @Test func aMutedMixMetersSilence() async throws {
+        let (player, package) = try loudnessPlayer([(3, -20)])
+        var muted = package.session
+        try muted.setMuted(true, tracks: ["t1"])
+        await player.update(muted, revision: 1)
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        let last = await readings(player, chunks: 20).last?.loudness
+        #expect(
+            last?.momentary == nil && last?.shortTerm == nil && last?.integrated == nil,
+            "no level: \(String(describing: last))")
+        #expect(last.map { $0.seconds > 1 } == true, "the meter ran")
+    }
+
     /// A meter fed at render time reads about -25.9 at 2.8 s: its chunks end up to 0.3 s ahead.
     /// The pulls of the test can keep the feed only 1 chunk ahead. So from 2.5 s to 3.0 s each
     /// reading waits for a refill tick, which schedules 3 chunks ahead, as the device clock does.

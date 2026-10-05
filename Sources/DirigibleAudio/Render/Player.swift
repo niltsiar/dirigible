@@ -43,12 +43,15 @@ actor Player {
         let format: AVAudioFormat
     }
 
-    /// The running play. `scheduled` counts output frames from the play start.
+    /// The running play. `scheduled` counts output frames from the play start. `fadeFrom` is the
+    /// session of the last scheduled chunk when a mute or solo changed after it: the next chunk
+    /// crossfades from that mix (decision 0039).
     struct Feed {
         let anchor: Frames
         let shuttle: Shuttle
         let mix: MixReader
         var scheduled = 0
+        var fadeFrom: Session?
     }
 
     /// The executor of the actor and the queue of the refill tick, with no target queue, as probe
@@ -85,6 +88,8 @@ actor Player {
     private var observer: Observer?
     /// The mix frames under one chunk, reused.
     private var source: AVAudioPCMBuffer?
+    /// The old mix of a crossfade chunk, reused.
+    private var fadeBuffer: AVAudioPCMBuffer?
     /// The meter of the heard mix (decision 0033).
     private(set) var loudness: PlayerLoudness
 
@@ -142,13 +147,25 @@ actor Player {
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
     }
 
-    /// The session of the next chunks. The running feed goes on. Does nothing when `revision`
-    /// is not newer than the last revision.
+    /// The session of the next chunks. The running feed goes on. A mute or solo change of a track
+    /// in both sessions crossfades the next chunk; any other change steps (decision 0039). Does
+    /// nothing when `revision` is not newer than the last revision.
     func update(_ session: Session, revision: Int) {
         guard revision > self.revision else { return }
         self.revision = revision
+        if let old = feed?.mix.session, feed?.fadeFrom == nil, Self.flagsChanged(from: old, to: session) {
+            feed?.fadeFrom = old
+        }
         self.session = session
         feed?.mix.session = session
+    }
+
+    /// A track of `new` that is in `old` too has another mute or solo flag.
+    private static func flagsChanged(from old: Session, to new: Session) -> Bool {
+        new.tracks.contains { track in
+            guard let before = old.track(track.id) else { return false }
+            return before.isMuted != track.isMuted || before.isSoloed != track.isSoloed
+        }
     }
 
     /// `ended`: the feed scheduled its last frame, and the output played it (the output latency
@@ -190,7 +207,8 @@ actor Player {
         if dry {
             loudness.restart(scheduled: scheduled)
             graph.node.stop()
-            feed = Feed(anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, mix: feed.mix)
+            feed = Feed(
+                anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, mix: feed.mix, fadeFrom: feed.fadeFrom)
             self.feed = feed
         }
         defer { if dry { graph.node.play() } }
@@ -201,6 +219,10 @@ actor Player {
             guard let buffer = AVAudioPCMBuffer(pcmFormat: graph.format, frameCapacity: AVAudioFrameCount(count)),
                 render(feed, count: count, into: buffer)
             else { return }
+            if let old = feed.fadeFrom {
+                guard crossfade(feed, from: old, count: count, into: buffer) else { return }
+                feed.fadeFrom = nil
+            }
             // The chunk plays a file that did not open as silence: stop, as the render fails.
             if let error = feed.mix.openError {
                 stop = .noFreeDescriptor(Int(error.code.rawValue))
@@ -244,6 +266,29 @@ actor Player {
             let out = buffer.floatChannelData![channel]
             vDSP_vlint(source.floatChannelData![channel], positions, 1, out, 1, vDSP_Length(count), vDSP_Length(span))
             if !forward { vDSP_vrvrs(out, 1, vDSP_Length(count)) }
+        }
+        return true
+    }
+
+    /// Renders the chunk again with the `old` session, and mixes it into `buffer` (the new mix)
+    /// with a linear ramp in output order: frame k of n is old x (1 - k/n) + new x k/n.
+    private func crossfade(_ feed: Feed, from old: Session, count: Int, into buffer: AVAudioPCMBuffer) -> Bool {
+        if fadeBuffer.map({ Int($0.frameCapacity) < count }) ?? true {
+            fadeBuffer = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: AVAudioFrameCount(chunk))
+        }
+        let new = feed.mix.session
+        feed.mix.session = old
+        defer { feed.mix.session = new }
+        guard let fadeBuffer, render(feed, count: count, into: fadeBuffer) else { return false }
+        var (zero, step) = (Float(0), 1 / Float(count))
+        var ramp = [Float](repeating: 0, count: count)
+        let frames = vDSP_Length(count)
+        vDSP_vramp(&zero, &step, &ramp, 1, frames)
+        for channel in 0..<2 {
+            let (from, to) = (fadeBuffer.floatChannelData![channel], buffer.floatChannelData![channel])
+            // to = (to - from) x ramp + from
+            vDSP_vsub(from, 1, to, 1, to, 1, frames)
+            vDSP_vma(to, 1, ramp, 1, from, 1, to, 1, frames)
         }
         return true
     }

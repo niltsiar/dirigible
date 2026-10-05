@@ -226,7 +226,8 @@ if [[ -f "$cli/Dirigible.swift" ]]; then
         commands+="${name:-$(sed -E 's/([a-z0-9])([A-Z])/\1-\2/g' <<<"$t" | tr '[:upper:]' '[:lower:]')} "
     done
     while IFS=: read -r f n text; do
-        word="${text#\`dirigible }" && word="${word%%[ \`]*}"
+        word="${text#\`dirigible }"
+        word="${word%%[ \`]*}"
         [[ "$word" == -* || "$commands" == *" $word "* ]] || err "${f#"$root"/}:$n: \`dirigible $word\` is not a command of Sources/DirigibleCLI"
     done < <(grep -rnoE --include='*.md' '`dirigible [^`]+`' "$root/AGENTS.md" "$root/README.md" "$root/docs/guide.md" "$root/.claude/skills" "$root/.claude/agents" 2>/dev/null || true)
 fi

@@ -96,7 +96,8 @@ struct SegmentFinalize {
         let rate = Double(session.sampleRate)
         let conversion = ClipConversion(
             package: package, wav: wav, blockFrames: blockFrames,
-            readFault: readFault?.stem == name.stem ? readFault : nil, unreadable: { unreadable(caf, $0) })
+            readFault: readFault?.stem == name.stem ? readFault : nil, unreadable: { unreadable(caf, $0) },
+            channels: input.processingFormat.channelCount)
         guard
             let converted = try conversion.convert(
                 input, file: descriptor, from: choice.source, to: rate, into: temporary)

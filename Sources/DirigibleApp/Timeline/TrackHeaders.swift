@@ -120,7 +120,9 @@ private struct TrackRow: View {
         TextField(L10n.trackName.key, text: name)
             .textFieldStyle(.plain)
             .focused($focused)
-            .onSubmit { model.commitName(track.id) }
+            // Return ends a rename: the lanes take the focus, so a later key is not a draft. A field
+            // that has the focus with no rename keeps it, so the field keeps the keys it uses.
+            .onSubmit { if renaming { model.endNameEdit() } else { model.commitName(track.id) } }
             .onChange(of: focused) { if !focused { model.commitName(track.id) } }
             .onChange(of: renaming, initial: true) { if renaming { focused = true } }
             .disabled(!model.canEdit)

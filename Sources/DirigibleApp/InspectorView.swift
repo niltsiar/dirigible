@@ -179,7 +179,7 @@ extension SessionWindow {
 
     /// Gives the keys to the lanes, so Space plays and Command-Z undoes the session.
     func focusLanes() {
-        window?.makeFirstResponder(timelineView?.lanes)
+        if let view = timelineView { view.window?.makeFirstResponder(view.lanes) }
     }
 
     func countInspector() { inspectorRuns += 1 }

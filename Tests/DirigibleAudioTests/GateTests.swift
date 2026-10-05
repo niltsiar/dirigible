@@ -35,11 +35,12 @@ struct GateTests {
     /// A main-actor hold over the limit of `until` does not use up the limit (run flakes-2, H1). A
     /// start that ends off the main actor 200 ms after such a hold failed "the take did not
     /// start". The hold and the timer use GCD, so a stall of the concurrency pool does not move
-    /// them.
+    /// them. The cap is 60 s: a hold of other suites before this hold (1.5 s or more in a full
+    /// suite) would reach the default cap of 3 s.
     @Test @MainActor func aMainActorHoldIsOutOfTheUntilLimit() async {
         let done = OSAllocatedUnfairLock(initialState: false)
         var held = false
-        await until(limit: .seconds(1), "the condition did not come true") {
+        await until(limit: .seconds(1), cap: .seconds(60), "the condition did not come true") {
             if !held {
                 held = true
                 DispatchQueue.main.async {
@@ -49,6 +50,29 @@ struct GateTests {
             }
             return done.withLock { $0 }
         }
+    }
+
+    /// The cap of `until` ends a wait that a hold moved: after a 3 s hold, a 1 s limit (cap 3 s)
+    /// checks twice and records the issue. With no cap, it polls for 1 s more. The count of checks
+    /// does not change with the load, a wall time does.
+    @Test @MainActor func aHoldPastTheCapEndsTheUntilWait() async {
+        let ended = OSAllocatedUnfairLock(initialState: false)
+        var held = false
+        var checksAfterTheHold = 0
+        await withKnownIssue {
+            await until(limit: .seconds(1), "the condition is never true") {
+                if !held {
+                    held = true
+                    DispatchQueue.main.async {
+                        Thread.sleep(forTimeInterval: 3)
+                        ended.withLock { $0 = true }
+                    }
+                }
+                if ended.withLock({ $0 }) { checksAfterTheHold += 1 }
+                return false
+            }
+        }
+        #expect(checksAfterTheHold <= 2, "checks after the hold: \(checksAfterTheHold)")
     }
 
     @concurrent private nonisolated static func holdOnThePool(_ gate: Gate) async { hold(gate) }

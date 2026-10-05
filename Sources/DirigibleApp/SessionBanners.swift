@@ -77,6 +77,8 @@ struct TakeBanner: View {
             BannerRow(kind: .info, text: L10n.takePlacing.format(segment.stem))
         case .leveling:
             BannerRow(kind: .info, text: L10n.takeLeveling.text)
+        case .importing:
+            EmptyView()
         case .idle:
             if let pending = studio.pendingTake {
                 HStack {

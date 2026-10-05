@@ -60,29 +60,37 @@ extension Studio {
         if exportJob?.number == job.number { exportJob = nil }
     }
 
-    /// `endExport` of this studio and of each other studio for a take start (`prepareTake`, off
-    /// the main actor): capture comes first across windows (decision 0019). Nil when no export
-    /// runs: then the start needs no main-actor turn for it. An export of another studio that
-    /// starts during the take start runs on; the disk check of the take watches it.
+    /// `endExport` of this studio, and `endExport` and `endImport` of each other studio, for a
+    /// take start (`prepareTake`, off the main actor): capture comes first across windows
+    /// (decisions 0019 and 0040). Nil when no export or import runs: then the start needs no
+    /// main-actor turn for it. An export or an import of another studio that starts during the
+    /// take start runs on; the disk check of the take watches it.
     func exportEnd() -> (@MainActor @Sendable () async -> Void)? {
-        let others = otherStudios().filter { $0.exportJob != nil }
+        let others = otherStudios().filter { $0.exportJob != nil || $0.importRun != nil }
         guard exportJob != nil || !others.isEmpty else { return nil }
         return { [weak self] in
             await self?.endExport()
-            for studio in others { await studio.endExport(yielding: true) }
+            for studio in others {
+                await studio.endExport(yielding: true)
+                await studio.endImport(yielding: true)
+            }
         }
     }
 
-    /// Ends the exports of the other studios to the volume of the package, for the disk check
-    /// of a take. True when one ran. The volume reads run off the main actor.
+    /// Ends the exports of the other studios to the volume of the package, and the imports of
+    /// the other studios whose package is on it, for the disk check of a take. True when one ran.
+    /// The volume reads run off the main actor.
     func endOtherExports(onVolumeOf lock: PackageLock) async -> Bool {
         var ended = false
         for studio in otherStudios() {
-            guard let job = studio.exportJob, await onVolume(job.url.deletingLastPathComponent(), of: lock) else {
-                continue
+            if let job = studio.exportJob, await onVolume(job.url.deletingLastPathComponent(), of: lock) {
+                await studio.endExport(yielding: true)
+                ended = true
             }
-            await studio.endExport(yielding: true)
-            ended = true
+            if studio.importRun != nil, await onVolume(studio.url, of: lock) {
+                await studio.endImport(yielding: true)
+                ended = true
+            }
         }
         return ended
     }

@@ -1,8 +1,8 @@
 import DirigibleCore
 
 public enum StudioError: Error, Hashable, Sendable {
-    /// A take records or finalizes, a new take waits for a pending take, an export runs, or
-    /// `settle()` runs.
+    /// A take records or finalizes, a new take waits for a pending take, an export or an import
+    /// runs, or `settle()` runs.
     case busy
     /// Another studio or the CLI has the package.
     case locked
@@ -33,4 +33,9 @@ public enum StudioError: Error, Hashable, Sendable {
     case export(ExportError)
     /// A take in another studio ended the export (decision 0019). No file was made.
     case exportYielded
+    /// The import failed or was cancelled (decision 0040).
+    case audioImport(ImportError)
+    /// A take in another studio ended the import of `file` (decisions 0019 and 0040). The session
+    /// did not change.
+    case importYielded(file: String)
 }

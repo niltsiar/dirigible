@@ -20,6 +20,10 @@ struct StudioIdleTests {
             (.finalizing(take: 1), false, false),
             (.placing(SegmentName(take: 1, arm: 1, segment: 1)), false, false),
             (.leveling, false, false),
+            (
+                .importing(ImportRun(name: "Voice.wav", flags: ImportFlags(), task: Task { .failure(.busy) })), false,
+                false
+            ),
         ]
         for (transport, starting, expected) in states {
             studio.transport = transport

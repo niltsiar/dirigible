@@ -69,6 +69,12 @@
 "error.export.open" = "Too many files are open. Close other apps and export again (error %lld).";
 "error.export.package" = "The session moved to another disk or was deleted. The export stopped.";
 "error.export.yielded" = "The export stopped for a take in another window. No file was made. Export again after the take.";
+"error.import.not.audio" = "Dirigible cannot import “%@”. Dirigible cannot read the audio in this file. Use a WAV, AIFF, FLAC, MP3, or M4A file.";
+"error.import.channels" = "Dirigible cannot import “%1$@”. The file has %2$lld channels. Dirigible imports only mono and stereo files. Split the file into mono or stereo files.";
+"error.import.space" = "Dirigible cannot import “%1$@”. The import needs %2$@ of free disk space, and the disk has %3$@. Free some disk space and try again.";
+"error.import.unreadable" = "Dirigible cannot import “%1$@”. The file did not read (error %2$lld). Copy the file to this Mac and try again.";
+"error.import.write" = "Dirigible cannot import “%1$@”. Dirigible cannot write to the Clips folder of the session (error %2$lld). Check the disk and try again.";
+"error.import.yielded" = "The import of “%@” stopped for a take in another window. Import again after the take.";
 
 /* Window, panels, and alerts */
 "window.opening" = "Opening the session…";

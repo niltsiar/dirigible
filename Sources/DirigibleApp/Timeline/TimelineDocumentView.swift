@@ -28,6 +28,8 @@ final class TimelineDocumentView: NSView {
     }
     /// The pixels of the lanes in view.
     let surfaces = LaneSurfaces()
+    /// The dim of the lanes that are not heard (decision 0039).
+    let dim = LaneDim()
     /// The renders, for the redraw tests (criteria 10 and 24).
     private(set) var draws = 0
     /// The rect of the last render, for the dirty-rect test of a drag event.
@@ -125,13 +127,17 @@ final class TimelineDocumentView: NSView {
 
     /// The lane colors: a drawn input, so a change renders the lanes in view in full.
     var palette = LanePalette.light {
-        didSet { needsDisplay = true }
+        didSet {
+            needsDisplay = true
+            updateDim()
+        }
     }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
         layer?.addSublayer(surfaces.layer)
+        layer?.addSublayer(dim.layer)
         playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
         playhead.actions = ["position": NSNull(), "bounds": NSNull()]
@@ -189,6 +195,12 @@ final class TimelineDocumentView: NSView {
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.bounds = CGRect(x: 0, y: 0, width: increasesContrast ? 2 : 1, height: height)
+        updateDim()
+    }
+
+    private func updateDim() {
+        guard let inputs else { return }
+        dim.update(inputs.session, laneHeight: inputs.laneHeight, width: frame.width, color: palette.lane)
     }
 
     /// Moves the playhead line to `frame`, with no redraw of the lanes.

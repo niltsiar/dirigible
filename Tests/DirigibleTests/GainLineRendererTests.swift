@@ -105,8 +105,12 @@ struct GainLineRendererTests {
             ReadoutLayer.text(readout, rate: 48_000, locale: Locale(identifier: locale)) { table[$0.rawValue] ?? "" }
         }
 
-        #expect(text(.gain(Gain(dB: -6)!), en, "en") == "Gain -6.0 dB")
-        #expect(text(.gain(Gain(dB: -6)!), es, "es") == "Ganancia -6,0 dB")
+        #expect(text(.gain(Gain(dB: -6)!, from: .zero), en, "en") == "Gain -6.0 dB (-6.0)")
+        #expect(text(.gain(Gain(dB: -6)!, from: .zero), es, "es") == "Ganancia -6,0 dB (-6,0)")
+        // C24b: the change since the mouse-down.
+        #expect(text(.gain(Gain(dB: 4)!, from: Gain(dB: 6)!), en, "en") == "Gain +4.0 dB (-2.0)")
+        #expect(text(.gain(Gain(dB: 4)!, from: Gain(dB: 6)!), es, "es") == "Ganancia +4,0 dB (-2,0)")
+        #expect(text(.gain(Gain(dB: 6)!, from: Gain(dB: 6)!), en, "en") == "Gain +6.0 dB (0.0)")
         #expect(text(.fade(.start, 22_080), en, "en") == "Fade In 460 ms")
         #expect(text(.fade(.start, 22_080), es, "es") == "Entrada 460 ms")
         #expect(text(.fade(.end, 24), en, "en") == "Fade Out 1 ms", "rounded to the nearest ms")

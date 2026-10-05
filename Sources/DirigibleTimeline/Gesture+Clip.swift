@@ -3,7 +3,8 @@ import Foundation
 
 /// What the readout of the window shows during a drag of the gain line or of a fade handle.
 public enum GestureReadout: Equatable, Sendable {
-    case gain(Gain)
+    /// The gain, and the gain at the mouse-down: the readout shows the change (ui-polish C24b).
+    case gain(Gain, from: Gain)
     /// The edge of the fade and its length.
     case fade(Fades.Edge, Frames)
     /// The length of a crossfade (decision 0036).
@@ -49,7 +50,7 @@ extension TimelineGesture {
     /// The value of a gain, fade, or crossfade drag; nil in every other state.
     public var readout: GestureReadout? {
         switch state {
-        case .gaining(_, let drag): .gain(drag.gain)
+        case .gaining(_, let drag): .gain(drag.gain, from: drag.clip.gain)
         case .fading(_, let drag): .fade(drag.edge, drag.edge == .start ? drag.fades.fadeIn : drag.fades.fadeOut)
         case .crossfading(_, let drag): .crossfade(drag.length)
         default: nil

@@ -223,7 +223,7 @@ On a clip that is 40 pt wide or more on screen, a line shows the clip gain, and 
 - Drag a fade handle to make the fade longer or shorter. The handle stops at the other fade.
 - A crossfade has a handle at each end of its X. Drag a handle away from the join to make the crossfade longer on both sides, or toward the join to make it shorter. A drag onto the join removes the crossfade. The handle stops where the audio or the clip ends.
 - Double-click the line to set the gain to 0 dB. Double-click a handle to remove that fade or crossfade.
-- During a drag, a label next to the pointer shows the gain in dB, or the fade or crossfade length in ms.
+- During a drag, a label next to the pointer shows the gain in dB, or the fade or crossfade length in ms. For the gain, the label also shows the change since you started the drag, for example **Gain +4.0 dB (-2.0)**, and a bar from -20 dB to +20 dB. A mark on the bar shows the gain, and a short line shows 0 dB. Above 0 dB the gain line stays at the top of the clip, so the mark shows the change.
 - Press Esc during a drag to cancel it.
 
 Each drag and each double-click is one step in the undo history. Where two clips touch with no fade and no crossfade, the edges have no handle: press Command-F on a selection across the join to make a crossfade.
@@ -232,7 +232,7 @@ Each drag and each double-click is one step in the undo history. Where two clips
 
 ![The inspector at the right of the window, for three clips: Gain 0.0 dB, Fade In Mixed, and Fade Out 0 ms.](images/screenshot-inspector.png)
 
-Choose **View > Show Inspector** (Option-Command-I), or click **Inspector** at the right end of the toolbar, to show the inspector at the right of the window. If you changed the toolbar before, choose **View > Customize Toolbar** to add the **Inspector** and **Go to Start** buttons. It shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
+Choose **View > Show Inspector** (Option-Command-I), or click **Inspector** at the right end of the toolbar, to show the inspector at the right of the window. If you changed the toolbar before, choose **View > Customize Toolbar** to add the **Inspector** and **Go to Start** buttons. The inspector shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
 
 - Type a value and press Return to set it on each of these clips. The keys then go back to the lanes.
 - Press Tab to set the value and go to the next field. A click outside the field also sets the value.

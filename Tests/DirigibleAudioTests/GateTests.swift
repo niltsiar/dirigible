@@ -75,6 +75,17 @@ struct GateTests {
         #expect(checksAfterTheHold <= 2, "checks after the hold: \(checksAfterTheHold)")
     }
 
+    /// A stopwatch leaves a main-actor hold of other suites out of its elapsed time, so a
+    /// wall-time assert does not fail on a hold (run flakes-2, S4).
+    @Test @MainActor func aStopwatchLeavesAMainActorHoldOut() async {
+        let watch = Stopwatch()
+        DispatchQueue.main.async { Thread.sleep(forTimeInterval: 1.5) }
+        try? await Task.sleep(for: .milliseconds(10))
+
+        #expect(watch.wall >= .seconds(1.5))
+        #expect(watch.elapsed < .seconds(1), "elapsed \(watch.elapsed)")
+    }
+
     @concurrent private nonisolated static func holdOnThePool(_ gate: Gate) async { hold(gate) }
 
     private nonisolated static func hold(_ gate: Gate) { gate.waitOnce() }

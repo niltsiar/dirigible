@@ -175,3 +175,49 @@ struct EditCommandTests {
         #expect(try await package.run("clip", "clear", "PKG", "--from", "0", "--to", "10").status == 64)
     }
 }
+
+/// Clip-set-clipboard C12: `clip paste-clips` copies whole clips with their time and track offsets.
+/// Clip "B" on "a" at 60 000..<80 000 is between "A" and "C" and is not copied.
+extension EditCommandTests {
+    func addB() throws {
+        try package.edit { try $0.place(Clip(id: "B", file: "f", start: 60_000, offset: 0, length: 20_000), on: "a") }
+    }
+
+    /// Control: a paste of the hull range 0..<150 000 also pastes B.
+    @Test func pasteClipsWritesThePastedIDsAndKeepsTheOffsets() async throws {
+        try addB()
+        #expect(
+            try await package.run(
+                "clip", "paste-clips", "PKG", "C", "A", "--at", "200000", "--onto", "b", "--onto", "a")
+                == CLIResult(status: 0, stdout: "A@200000\nC@290000\n", stderr: ""))
+        #expect(try clips("b").map(\.id) == ["C", "A@200000"])
+        #expect(try clips("b").last == Clip(id: "A@200000", file: "f", start: 200_000, offset: 0, length: 48_000))
+        #expect(try clips("a").map(\.id) == ["A", "B", "C@290000"])
+        #expect(try clips("a").last == Clip(id: "C@290000", file: "f", start: 290_000, offset: 0, length: 60_000))
+    }
+
+    @Test func pasteClipsWithNoOntoUsesTheSourceTracks() async throws {
+        try addB()
+        #expect(
+            try await package.run("clip", "paste-clips", "PKG", "A", "C", "--at", "200000")
+                == CLIResult(status: 0, stdout: "A@200000\nC@290000\n", stderr: ""))
+        #expect(try clips("a").map(\.id) == ["A", "B", "A@200000"])
+        #expect(try clips("b").map(\.id) == ["C", "C@290000"])
+    }
+
+    /// C12c: each refusal changes no byte of the package.
+    @Test func pasteClipsWithAnUnknownClipOrAWrongOntoCountFails() async throws {
+        let before = try package.xml()
+        #expect(
+            try await package.run("clip", "paste-clips", "PKG", "A", "nope", "--at", "0")
+                == CLIResult(status: 1, stdout: "", stderr: "Error: no clip \"nope\".\n"))
+        #expect(
+            try await package.run("clip", "paste-clips", "PKG", "A", "C", "--at", "0", "--onto", "a")
+                == CLIResult(
+                    status: 1, stdout: "",
+                    stderr: "Error: the excerpt has 2 tracks, so give 2 different target tracks.\n"))
+        #expect(try await package.run("clip", "paste-clips", "PKG", "A").status == 64, "no --at")
+        #expect(try await package.run("clip", "paste-clips", "PKG", "--at", "0").status == 64, "no clip")
+        #expect(try package.xml() == before)
+    }
+}

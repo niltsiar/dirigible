@@ -5,7 +5,8 @@ struct ClipCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
         subcommands: [
-            Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, Nudge.self, Remove.self, Move.self, Trim.self,
+            Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, PasteClips.self, Nudge.self, Remove.self,
+            Move.self, Trim.self,
             SetGain.self, Fade.self, Crossfade.self, RippleDelete.self, RippleInsert.self, RippleTrim.self,
         ])
 
@@ -89,6 +90,28 @@ struct ClipCommand: ParsableCommand {
             let targets = onto.isEmpty ? sources : onto.map { TrackID($0) }
             let pasted = try editPackage(package) { session throws(SessionError) in
                 try session.paste(try session.excerpt(of: range.frames, on: sources), at: Frames(at), on: targets)
+            }
+            for id in pasted { print(id) }
+        }
+    }
+
+    struct PasteClips: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract:
+                "Copy whole clips with their time and track offsets, and paste them at a frame over the clips "
+                + "under them (decision 0038). Write the pasted IDs.")
+        @OptionGroup var package: PackageArgument
+        @Argument var clips: [String]
+        @Option(parsing: .unconditional, help: "The timeline frame of the first copied clip.") var at: Int
+        @Option(
+            help: "A target track for each track from the first to the last clip. The default is the source tracks.")
+        var onto: [String] = []
+
+        func run() throws {
+            let pasted = try editPackage(package) { session throws(SessionError) in
+                let excerpt = try session.excerpt(of: clips.map { ClipID($0) })
+                let targets = onto.isEmpty ? excerpt.lanes.map(\.source) : onto.map { TrackID($0) }
+                return try session.paste(excerpt, at: Frames(at), on: targets)
             }
             for id in pasted { print(id) }
         }

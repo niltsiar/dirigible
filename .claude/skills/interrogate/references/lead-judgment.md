@@ -25,12 +25,12 @@ A good verdict is useful, not complete: the user fixes the "Act on" items and sh
 
 ## Invariant and Siblings
 
-Each "Act on" item in an open or follow-up round has two required fields. An item without both fields is incomplete.
+Each "Act on" item has two required fields.
 
 - **Invariant:** the invariant that the item breaks, named by the state, not by the operation in the finding: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
 - **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter call. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>".
 
-A new check for the same condition can hide an earlier guard, so the fixer runs the controls of those guards again before the fix commit. Pass both fields to the fixer, not only the fix line. The fix covers the finding and every sibling path in the same commit. Accept a fix only when it covers each consumer that the symptom names. When the fix relaxes a guard, also name what the guard must still refuse.
+After each fix commit, nits too, the fixer replays the logs of `replay-list.sh <controls> HEAD~1`: a fix can hide a guard or break a control. Pass both fields to the fixer, not only the fix line. The fix covers the finding and every sibling path in the same commit. Accept a fix only when it covers each consumer that the symptom names. When the fix relaxes a guard, also name what the guard must still refuse.
 
 ## Rounds
 

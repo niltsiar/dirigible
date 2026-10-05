@@ -8,6 +8,8 @@
 #   the script finds them by the header names. A bar in a cell is written as \|.
 # - plan.md has an `Agents:` line, and each ### heading in its `## Slices` section has a
 #   `- Check:` line.
+# - Each warning or critical item under `## Act on` of a review-*.md file has an `Invariant` and a
+#   `Siblings` field (lead-judgment.md). A review file older than the rule is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -55,4 +57,23 @@ else
         /^- Check:/ { checked = 1 }
         END { close_slice() }' "$run/plan.md")
 fi
+# 2026-10-05, the commit that added the field rule: an older review file has no fields.
+cutoff=1791222684
+for review in "$run"/review-*.md; do
+    [[ -f "$review" && $(stat -f %m "$review") -ge $cutoff ]] || continue
+    while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" '
+        function close_item() {
+            if (item && tolower(sev) ~ /^\((warning|critical)/)
+                for (f = 1; f <= 2; f++)
+                    if (text !~ (field[f] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:"))
+                        print file ": Act on item " item " has no " field[f] " field"
+            item = ""
+        }
+        BEGIN { field[1] = "Invariant"; field[2] = "Siblings" }
+        /^## / { close_item(); inside = ($0 ~ /^## Act on[[:space:]]*$/); next }
+        !inside { next }
+        /^[0-9]+\. / { close_item(); item = $0 + 0; match($0, /\([^)]*\)/); sev = substr($0, RSTART, RLENGTH); text = $0; next }
+        { text = text "\n" $0 }
+        END { close_item() }' "$review")
+done
 exit "$fail"

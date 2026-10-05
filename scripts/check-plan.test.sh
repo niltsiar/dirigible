@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that check-plan.sh exits 1 and names the failure for a run folder with no Unknowns table,
 # an open Unknowns row, a split row with no child row, a slice with no check line, or a plan with
-# no Agents: line, and exits 0 for a good folder and for a user row answered with a default.
+# no Agents: line, or a review file with an Act on item with no Invariant or Siblings field, and
+# exits 0 for a good folder, a user row answered with a default, and an old review file.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -107,6 +108,22 @@ pass 'a user row answered with a default'
 good
 rm "$run/plan.md"
 refuse 'no plan.md' 'no plan.md'
+
+# Each warning or critical "Act on" item of a review file has an Invariant and a Siblings field.
+review="$run/review-plan-1.md"
+good
+printf '## Act on\n\n1. (warning, premortem) A fix.\n   Invariant: x\n\n## Dismissed\n\n- Siblings: y\n' > "$review"
+refuse 'an Act on item with no Siblings field' 'review-plan-1.md: Act on item 1 has no Siblings field'
+good
+printf '## Act on\n\n1. (nit, x) A nit.\n2. (Critical, x) A fix. Siblings: none, grepped x.\n' > "$review"
+refuse 'an Act on item with no Invariant field' 'review-plan-1.md: Act on item 2 has no Invariant field'
+good
+printf '## Act on\n\n1. (nit, x) A nit.\n2. (critical, x) A fix.\n   - **Invariant (state):** x\n   - **Siblings:** y\n' > "$review"
+pass 'a nit with no field and a critical item with both fields'
+good
+printf '## Act on\n\n1. (warning, x) A fix.\n' > "$review"
+touch -t 202601010000 "$review"
+pass 'a review file older than the field rule'
 
 out="$("$script" 2>&1)"
 code=$?

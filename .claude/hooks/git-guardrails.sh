@@ -69,6 +69,12 @@ if grep -qE 'dirigible-slow-date' <<< "$NORMALIZED"; then
   block "names the slow-run date file (only a passing make test-slow writes it)"
 fi
 
+# An absolute message path can name the file of another work tree, so a commit takes the
+# message of another agent. git -C changes the directory first, so the relative path is per tree.
+if grep -qE "git commit( .*)? (-F ?|--file[= ])['\"]?/[^ ]*commit-msg\.txt" <<< "$NORMALIZED"; then
+  block "reads the commit message file by an absolute path, which can be the file of another work tree; write .scratchpads/commit-msg.txt in the work tree that commits and pass that relative path"
+fi
+
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if grep -qE -- "$pattern" <<< "$NORMALIZED"; then
     block "matches '$pattern'"

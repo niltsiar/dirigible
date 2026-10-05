@@ -198,6 +198,16 @@ struct ImportTests {
     }
 }
 
+/// `importAudio` with a free space that always passes, for the tests that do not check the disk.
+func importAudio(
+    _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
+    progress: @escaping (Double) -> Void = { _ in }, isCancelled: @escaping () -> Bool = { false }
+) throws(ImportError) -> (session: Session, clip: ClipID) {
+    try DirigibleAudio.importAudio(
+        source, to: target, of: session, in: package, level: level, freeBytes: { .max }, progress: progress,
+        isCancelled: isCancelled)
+}
+
 /// A package folder with a session and no `session.xml`: the import writes only `Clips/`.
 final class ImportPackage {
     let folder: TemporaryFolder

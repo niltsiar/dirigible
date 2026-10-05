@@ -59,13 +59,13 @@ extension Studio {
         return try result.get()
     }
 
-    /// Sets the cancel flag of the running import before its first await, then waits for its
-    /// end. `settle()` calls it after it sets `settling`. With `yielding`, a take of another
-    /// studio ends it (decision 0019), and `importAudio` throws `.importYielded`.
-    func endImport(yielding: Bool = false) async {
-        guard let run = importRun else { return }
-        run.flags.cancel(yielding: yielding)
-        _ = await run.task.value
+    /// Sets the cancel flag of the running import, with no wait: a source read can stall (an
+    /// online-only file), and a take never waits for it (code gate 1). The import ends at its
+    /// next block and writes nothing. `settle()` calls it before its first await, and then waits
+    /// for the import turn in the write chain. With `yielding`, a take of another studio ends it
+    /// (decision 0019), and `importAudio` throws `.importYielded`.
+    func endImport(yielding: Bool = false) {
+        importRun?.flags.cancel(yielding: yielding)
     }
 
     /// One turn of the write chain: the Player stops, the conversion, the save, the undo entry,

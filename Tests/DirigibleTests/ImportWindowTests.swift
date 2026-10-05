@@ -182,6 +182,11 @@ import Testing
                 "Dirigible no puede importar «Talk.m4p». Dirigible no puede leer el audio de este archivo. Use un archivo WAV, AIFF, FLAC, MP3 o M4A."
             ),
             (
+                .audioImport(.notDownloaded(file: "Talk.mp3")), .errorImportNotDownloaded, ["Talk.mp3"],
+                "Dirigible cannot import “Talk.mp3”. The file is not on this Mac. Download the file first.",
+                "Dirigible no puede importar «Talk.mp3». El archivo no está en este Mac. Descargue primero el archivo."
+            ),
+            (
                 .audioImport(.tooManyChannels(file: "Talk.wav", channels: 6)), .errorImportChannels, ["Talk.wav", 6],
                 "Dirigible cannot import “Talk.wav”. The file has 6 channels. Dirigible imports only mono and stereo files. Split the file into mono or stereo files.",
                 "Dirigible no puede importar «Talk.wav». El archivo tiene 6 canales. Dirigible solo importa archivos mono y estéreo. Divida el archivo en archivos mono o estéreo."

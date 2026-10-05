@@ -73,6 +73,7 @@ extension L10n {
     private static func message(for error: ImportError) -> String {
         switch error {
         case .notAudio(let file): errorImportNotAudio.format(file)
+        case .notDownloaded(let file): errorImportNotDownloaded.format(file)
         case .tooManyChannels(let file, let channels): errorImportChannels.format(file, channels)
         case .space(let file, let needed, let free): errorImportSpace.format(file, bytes(needed), bytes(free))
         case .unreadable(let file, let code): errorImportUnreadable.format(file, Int(code))

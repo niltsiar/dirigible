@@ -72,7 +72,7 @@ extension Studio {
             await self?.endExport()
             for studio in others {
                 await studio.endExport(yielding: true)
-                await studio.endImport(yielding: true)
+                studio.endImport(yielding: true)
             }
         }
     }
@@ -88,7 +88,7 @@ extension Studio {
                 ended = true
             }
             if studio.importRun != nil, await onVolume(studio.url, of: lock) {
-                await studio.endImport(yielding: true)
+                studio.endImport(yielding: true)
                 ended = true
             }
         }

@@ -56,6 +56,11 @@ expect block 'git status; git reset --hard'
 expect block 'env X=1 git push -f origin feat/x'
 expect block 'bash -c "git push -f origin feat/x"'
 expect block 'git commit -n -m x | cat'
+# An absolute message path can name the file of another work tree (run flakes-2).
+expect block 'git commit -F /Users/x/repo/.scratchpads/commit-msg.txt'
+expect block 'git -C /Users/x/wt commit -F /Users/x/repo/.scratchpads/commit-msg.txt'
+expect block 'git commit --file=/Users/x/repo/.scratchpads/commit-msg.txt'
+expect allow 'git -C /Users/x/wt commit -F .scratchpads/commit-msg.txt'
 
 expect allow 'git push -u origin feat/multitrack-capture'
 expect allow 'git push origin chore/refine-setup'

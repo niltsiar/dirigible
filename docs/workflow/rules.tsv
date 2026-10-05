@@ -47,7 +47,7 @@ AGT-045	AGENTS.md	merge	DLV-016	slice 11 of 2026-09-30-workflow-consolidation: o
 AGT-046	AGENTS.md	keep	AGENTS.md	home of log-decision.sh and append-only (spec item 2); C18	L66	doc	decisions.tsv append-only; log-decision.sh stamps the clock time
 AGT-047	AGENTS.md	keep	AGENTS.md	correction rule of the log; C18	10edc92		fix a wrong decisions.tsv row with a new correcting row
 AGT-048	AGENTS.md	keep	AGENTS.md	home of real voices out of git (spec item 13); C18	10edc92		real voice recordings stay in .scratchpads, never git
-AGT-049	AGENTS.md	keep	AGENTS.md	home of scripts/probe.sh (spec item 4); C18	L70	probe	probe.sh sandboxes each probe to a new .scratchpads or scratchpad folder
+AGT-049	AGENTS.md	keep	AGENTS.md	home of scripts/probe.sh (spec item 4); C18; 2026-10-05-upkeep-batch (AGT-049/hook, learnings.md:272): the probe.sh header tells agents to run a pipe or a multi-line probe from a script file in the probe folder (probe.sh <folder> bash <file>), not bash -c, which the built-in rm safety check refuses	L70	probe	probe.sh sandboxes each probe to a new .scratchpads or scratchpad folder
 AGT-050	AGENTS.md	keep	AGENTS.md	pointer to the probe.sh header; C18	L92	hook	Swift builds in a probe need the flags from the probe.sh header
 AGT-051	AGENTS.md	keep	AGENTS.md	fixed verdict: keep (spec); one-off L117 (audit s4)	L117	tool	zsh path/status/argv variables clobber PATH; rename or use bash -c
 AGT-052	AGENTS.md	keep	AGENTS.md	remote and PR tool; C18	ad21140		origin is niltsiar/dirigible on GitHub; gh CLI for PRs

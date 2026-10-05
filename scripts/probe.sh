@@ -16,7 +16,8 @@
 # accessible or not writable" come from this sandbox, not from the build.
 #
 # Only the command runs in the sandbox. A pipe or a redirect in the calling shell (`| tee x.log`)
-# runs outside it, in the folder of the caller: put it inside the probe with `bash -c '...'`.
+# runs outside it, in the folder of the caller: put it in a script file in the probe folder and
+# run `probe.sh <folder> bash <file>`.
 # A package copy with an APFS clone of .build fails with "PCH was compiled with module cache
 # path": delete *.pch and .build/*/debug/ModuleCache in the copy before you build. In a
 # command-line Swift probe, a top-level `Task {}` inherits the main actor: when the main thread

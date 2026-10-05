@@ -11,29 +11,19 @@
 // check: a held left button after a failed drag is worse than an up in another app. A bare up,
 // or an up with no target window, goes to the pointer location.
 //
-// usage: hid.swift drag <x> <y> <dx> <dy> [--no-up] [--option]
-//                                                     a left drag in 20 steps, then the up; with
-//                                                     --option the Option key is down around it
-//        hid.swift up [<x> <y>] [--dry-run]           a left mouse-up (after drag --no-up)
-//        hid.swift click <x> <y> [--right] [--double] [--control]
-//                                                     a click (a right click; a double-click; a
-//                                                     Control-click)
-//        hid.swift move <x> <y>                       a mouse move with no button
-//        Each point is from the top-left corner of the window, also for up.
-//        hid.swift key <code> [--command] [--shift] [--option] [--control] [--dry-run]
-//                                                     a key down and up (53 = Esc, 6 = Z), with the
-//                                                     modifier keys down before it and up after it
-//        hid.swift type <text> [--dry-run]            the text, one key down and up for each
-//                                                     character, with no modifier; a word that
-//                                                     starts with "--" is a flag, not text; no
-//                                                     newline or tab (use key 36 or key 48)
-//        hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
-//                                                     one mouse wheel event in lines at the point;
-//                                                     with --phases a trackpad gesture of 10 events
-//                                                     in pixels with scroll phases and 10 momentum
-//                                                     events; with --shift the Shift key is down
-//                                                     around it (macOS makes Shift with the wheel a
-//                                                     horizontal scroll only for lines)
+// usage: run it with no command. The table `verbs` gives the arguments and the flags of each verb.
+//        drag: a left drag in 20 steps, then the up (--no-up: no up)
+//        up: a left mouse-up (after drag --no-up)
+//        click: a click (--right: a right click; --double: a double-click)
+//        move: a mouse move with no button
+//        key: a key down and up (53 = Esc, 6 = Z)
+//        type: the text, one key down and up for each character, with no modifier; a word that
+//              starts with "--" is a flag, not text; no newline or tab (use key 36 or key 48)
+//        scroll: one mouse wheel event in lines at the point; with --phases a trackpad gesture of
+//                10 events in pixels with scroll phases and 10 momentum events (macOS makes Shift
+//                with the wheel a horizontal scroll only for lines)
+//        Each point is from the top-left corner of the window, also for up. A modifier flag
+//        (--command, --shift, --option, --control) holds its key down around the events.
 // A key event with a modifier flag and no modifier key left the system modifier held: every later
 // CGEvent of any process took it (run 1b Phase 7: the wheel of two tests became a Command-wheel).
 // --dry-run prints the key, text, and wheel events, and the origin of an up (`up pointer|window
@@ -47,16 +37,21 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-let usage = """
-    usage: hid.swift drag <x> <y> <dx> <dy> [--no-up] [--option]
-           hid.swift up [<x> <y>] [--dry-run]
-           hid.swift click <x> <y> [--right] [--double] [--control]
-           hid.swift move <x> <y>
-           hid.swift key <code> [--command] [--shift] [--option] [--control] [--dry-run]
-           hid.swift type <text> [--dry-run]    (no newline or tab)
-           hid.swift scroll <x> <y> <dx> <dy> [--phases] [--shift] [--dry-run]
-
-    """
+/// The arguments and the flags of each verb. The usage text and the flag check come from this table.
+let modifierFlags = ["--command", "--shift", "--option", "--control"]
+let verbs: [(verb: String, arguments: String, flags: [String])] = [
+    ("drag", "<x> <y> <dx> <dy>", ["--no-up"] + modifierFlags),
+    ("up", "[<x> <y>]", ["--dry-run"]),
+    ("click", "<x> <y>", ["--right", "--double"] + modifierFlags),
+    ("move", "<x> <y>", []),
+    ("key", "<code>", modifierFlags + ["--dry-run"]),
+    ("type", "<text>", ["--dry-run"]),
+    ("scroll", "<x> <y> <dx> <dy>", ["--phases"] + modifierFlags + ["--dry-run"]),
+]
+let usage =
+    "usage: "
+    + verbs.map { "hid.swift \($0.verb) \($0.arguments)" + $0.flags.map { " [\($0)]" }.joined() }
+    .joined(separator: "\n       ") + "\n"
 
 func fail(_ message: String, _ code: Int32) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
@@ -65,15 +60,12 @@ func fail(_ message: String, _ code: Int32) -> Never {
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 let flags = Set(arguments.filter { $0.hasPrefix("--") })
-let known: Set = [
-    "--no-up", "--right", "--double", "--command", "--shift", "--option", "--control", "--dry-run", "--phases",
-]
-guard flags.isSubset(of: known) else { fail(usage, 2) }
 let words = arguments.filter { !$0.hasPrefix("--") }
-guard let command = words.first else { fail(usage, 2) }
+guard let command = words.first, let verb = verbs.first(where: { $0.verb == command }), flags.isSubset(of: verb.flags)
+else { fail(usage, 2) }
 let text = command == "type" ? words.dropFirst().joined(separator: " ") : ""
 let badText = text.isEmpty || text.contains(where: \.isNewline) || text.contains("\t")
-if command == "type", badText || !flags.isSubset(of: ["--dry-run"]) { fail(usage, 2) }
+if command == "type", badText { fail(usage, 2) }
 let numbers = command == "type" ? [] : words.dropFirst().map(Double.init)
 guard numbers.allSatisfy({ $0 != nil }) else { fail(usage, 2) }
 let values = numbers.compactMap { $0 }
@@ -166,10 +158,14 @@ func screenPoint() -> (point: CGPoint, source: String) {
     let pointer = (CGEvent(source: nil)?.location ?? .zero, "pointer")
     if command == "up", values.isEmpty { return pointer }
     // The window of the target app, by its PID: the real app and the verify copy have the same name.
+    // A layer-0 window (a normal window) comes before a tooltip, which is at a higher layer, as in
+    // screenshot.sh.
     let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-    let window = target.flatMap { app in
-        windows.first { $0[kCGWindowOwnerPID as String] as? pid_t == app.processIdentifier }
-    }
+    let owned =
+        target.map { app in windows.filter { $0[kCGWindowOwnerPID as String] as? pid_t == app.processIdentifier } }
+        ?? []
+    let layer = { (window: [String: Any]) in window[kCGWindowLayer as String] as? Int ?? -1 }
+    let window = owned.first { layer($0) == 0 } ?? owned.first { layer($0) > 0 }
     guard let bounds = window?[kCGWindowBounds as String] as? [String: Double], let left = bounds["X"],
         let top = bounds["Y"], let width = bounds["Width"], let height = bounds["Height"]
     else {

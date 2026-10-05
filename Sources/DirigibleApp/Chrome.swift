@@ -23,16 +23,17 @@ enum ToolbarItemID: String, CaseIterable {
     case zoomIn = "view.zoom.in"
     case zoomToSession = "view.zoom.session"
     case export = "file.export"
+    case inspector = "view.inspector"
 
     static let toolbar = NSToolbar.Identifier("dirigible.session")
 
     /// The groups, leading to trailing, with a space between them (the macOS 26 glass groups). Cut,
-    /// Copy, Paste, Go to Start, and Go to End are in the customization palette only.
+    /// Copy, Paste, and Go to End are in the customization palette only.
     static let defaults: [NSToolbarItem.Identifier] =
         [addTrack.identifier, .space]
-        + [monitor, stop, play, record, time].map(\.identifier) + [.space]
+        + [monitor, start, stop, play, record, time].map(\.identifier) + [.space]
         + [split, delete].map(\.identifier) + [.flexibleSpace]
-        + [zoomOut, zoomIn, zoomToSession, export].map(\.identifier)
+        + [zoomOut, zoomIn, zoomToSession, export, inspector].map(\.identifier)
 
     var identifier: NSToolbarItem.Identifier { NSToolbarItem.Identifier(rawValue) }
 
@@ -56,14 +57,16 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomIn: "plus.magnifyingglass"
         case .zoomToSession: "arrow.up.left.and.down.right.magnifyingglass"
         case .export: "square.and.arrow.up"
+        case .inspector: "sidebar.trailing"
         }
     }
 
-    /// The transport and the time stay longest; Monitor Inputs and Export stay before the edit and
+    /// The transport, the time, and the inspector stay longest (an inspector button stays at
+    /// every window size, ui-panel 9); Monitor Inputs and Export stay before the edit and
     /// zoom items (probe P1e: the standard items overflow from the trailing end).
     var priority: NSToolbarItem.VisibilityPriority {
         switch self {
-        case .stop, .play, .record, .time: .high
+        case .stop, .play, .record, .time, .inspector: .high
         case .monitor, .export:
             NSToolbarItem.VisibilityPriority(rawValue: NSToolbarItem.VisibilityPriority.standard.rawValue + 500)
         case .addTrack, .start, .end: .standard
@@ -72,7 +75,7 @@ enum ToolbarItemID: String, CaseIterable {
     }
 
     /// A push-on-push-off button: its on state is a shape, not only a color.
-    var isToggle: Bool { self == .record || self == .monitor || self == .play }
+    var isToggle: Bool { self == .record || self == .monitor || self == .play || self == .inspector }
 
     /// The command of the item. Nil only for the time display: a new item with no command does
     /// not compile (F16).
@@ -95,6 +98,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomIn: .timeline(.zoomIn)
         case .zoomToSession: .timeline(.zoomToSession)
         case .export: .timeline(.export)
+        case .inspector: .toggleInspector
         }
     }
 
@@ -118,6 +122,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomIn: .menuViewZoomIn
         case .zoomToSession: .toolbarZoomFit
         case .export: .toolbarExport
+        case .inspector: .toolbarInspector
         }
     }
 }
@@ -127,7 +132,7 @@ enum ToolbarItemID: String, CaseIterable {
 enum WindowCommand: Hashable {
     case timeline(TimelineCommand)
     case transport(TransportCommand)
-    case addTrack, record, stop, toggleMonitor
+    case addTrack, record, stop, toggleMonitor, toggleInspector
 
     /// The title and the key of the menu item of the command: a lookup in the menu tables, the
     /// one source of the menus and of the palette label, the tooltip, and the key of the item.
@@ -144,6 +149,7 @@ enum WindowCommand: Hashable {
         case .record: return (.menuRecordStart, MenuKeys.record)
         case .stop: return (.menuTransportStop, MenuKeys.stop)
         case .toggleMonitor: return (.menuRecordMonitor, MenuKeys.monitor)
+        case .toggleInspector: return (.menuViewInspectorShow, MenuKeys.inspector)
         }
     }
 
@@ -217,7 +223,7 @@ struct ChromeState: Equatable {
         if recording || playing { enabled.insert(.stop) }
         if model.canMonitor { enabled.insert(.monitor) }
         // A zoom changes no session data, so it runs during a take, as the View menu and the gestures.
-        enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession])
+        enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession, .inspector])
         if model.canEdit {
             enabled.formUnion([.addTrack, .play, .start, .end, .split, .cut, .copy, .paste, .delete])
             if model.isOn(.export) { enabled.insert(.export) }
@@ -225,6 +231,7 @@ struct ChromeState: Equatable {
         if recording { on.insert(.record) }
         if playing { on.insert(.play) }
         if model.monitoring { on.insert(.monitor) }
+        if model.showsInspector { on.insert(.inspector) }
         // During a take the disk watch gives the time left; before it, the idle read of the
         // armed tracks with a route.
         let left = recording ? studio.recordTimeLeft : model.armedWithRoute.isEmpty ? nil : model.idleRecordTimeLeft

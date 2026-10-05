@@ -271,6 +271,7 @@
 "toolbar.time" = "Playhead";
 "toolbar.zoom.fit" = "Fit";
 "toolbar.export" = "Export";
+"toolbar.inspector" = "Inspector";
 "toolbar.tooltip" = "%1$@ (%2$@)";
 "key.space" = "Space";
 

@@ -15,7 +15,7 @@ struct ToolbarMenuTests {
     static let keys: [ToolbarItemID: String] = [
         .addTrack: "⌥⌘N", .monitor: "⇧⌘M", .stop: "⌘.", .play: "key.space", .record: "⌘R", .start: "↖",
         .end: "↘", .split: "⌘B", .cut: "⌘X", .copy: "⌘C", .paste: "⌘V", .delete: "⌫", .zoomOut: "⌘-",
-        .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E",
+        .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I",
     ]
 
     /// A5: each item but the time display has a command, and the menu tables give that command a
@@ -105,7 +105,7 @@ struct ToolbarMenuTests {
             switch command {
             case .timeline(let command): app.timeline(command, event: nil, in: window)
             case .transport(let command): app.transport(command, event: nil, in: window)
-            case .addTrack, .record, .stop, .toggleMonitor: app.key?.run(command)
+            case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector: app.key?.run(command)
             }
             let menu = model.leafCalls ?? []
             #expect(!toolbar.isEmpty, "the \(id) click reached no leaf")
@@ -226,7 +226,7 @@ struct ToolbarMenuTests {
                 == Set(ToolbarItemID.allCases.map(\.rawValue) + ["NSToolbarSpaceItem", "NSToolbarFlexibleSpaceItem"]))
         #expect(
             allowed.subtracting(defaults) == [
-                "edit.cut", "edit.copy", "edit.paste", "transport.start", "transport.end",
+                "edit.cut", "edit.copy", "edit.paste", "transport.end",
             ])
 
         let tables = (en: try stringsTable("en"), es: try stringsTable("es"))
@@ -255,5 +255,20 @@ struct ToolbarMenuTests {
 
     static func keys(_ id: ToolbarItemID) -> String? {
         ToolbarMenuTests.keys[id].map { $0 == "key.space" ? L10n.keySpace.text : $0 }
+    }
+
+    /// C21: the inspector item toggles the pane as View > Show Inspector does, and it is on while
+    /// the pane shows.
+    @Test func theInspectorItemTogglesThePane() async throws {
+        let (model, _, _, chrome) = try await open()
+        let button = try #require(try item(.inspector, chrome).view as? NSButton)
+        for shows in [true, false] {
+            try await click(.inspector, chrome)
+            #expect(model.showsInspector == shows)
+            await until(limit: .seconds(10), "the item is on while the pane shows: \(shows)") {
+                (button.state == .on) == shows
+            }
+        }
+        await model.close()
     }
 }

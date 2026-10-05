@@ -54,7 +54,7 @@ struct DirigibleApp: App {
                     // It has Command in its keys, so it can be off (probe K1 is about plain keys).
                     Button(app.loudnessItem.title.key) { app.key?.toggleLoudness() }
                         .keyboardShortcut(MenuKeys.loudnessMeter).disabled(!app.loudnessItem.enabled)
-                    Button(app.inspectorItem.title.key) { app.key?.toggleInspector() }
+                    Button(app.inspectorItem.title.key) { app.key?.run(.toggleInspector) }
                         .keyboardShortcut(MenuKeys.inspector).disabled(!app.inspectorItem.enabled)
                 }
                 // The Edit group replaces the system items, so Delete has Backspace (probe E6).

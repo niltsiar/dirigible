@@ -271,6 +271,7 @@
 "toolbar.time" = "Cursor";
 "toolbar.zoom.fit" = "Ajustar";
 "toolbar.export" = "Exportar";
+"toolbar.inspector" = "Inspector";
 "toolbar.tooltip" = "%1$@ (%2$@)";
 "key.space" = "Espacio";
 

@@ -1,29 +1,32 @@
 import Foundation
+import os
 
 /// The main-actor time that other suites hold. In a full suite, the `@MainActor` suites hold the
 /// main actor for up to 18.8 s, spread over many suites (run flakes-2, S4). A main-actor task
 /// sleeps 10 ms in a loop, and a sleep that returns more than 1 s late adds its lag. A product
 /// hold over 1 s is left out too, so the product budgets measure the wall time.
-final class MainActorHolds: @unchecked Sendable {
+final class MainActorHolds: Sendable {
     static let shared = MainActorHolds()
-    private let lock = NSLock()
-    private var held = Duration.zero
-    private var asleep = ContinuousClock.now
+    private struct State {
+        var held = Duration.zero
+        var asleep = ContinuousClock.now
+    }
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
     private init() {
         Task { @MainActor [self] in
             while true {
                 try? await Task.sleep(for: .milliseconds(10))
-                lock.withLock {
-                    held += Self.lag(since: asleep)
-                    asleep = .now
+                state.withLock {
+                    $0.held += Self.lag(since: $0.asleep)
+                    $0.asleep = .now
                 }
             }
         }
     }
 
     /// The held time so far, with a hold that runs now.
-    var total: Duration { lock.withLock { held + Self.lag(since: asleep) } }
+    var total: Duration { state.withLock { $0.held + Self.lag(since: $0.asleep) } }
 
     private static func lag(since asleep: ContinuousClock.Instant) -> Duration {
         let lag = ContinuousClock.now - asleep - .milliseconds(10)

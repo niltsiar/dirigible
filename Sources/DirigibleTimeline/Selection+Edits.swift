@@ -9,6 +9,28 @@ extension Selection {
         Set(clips.map { session.tracks[$0.lane].id })
     }
 
+    /// Copy: the range, or the live set clips whole (`Session.excerpt(of:)`). Nil when nothing is
+    /// selected.
+    public func excerpt(in session: Session) throws(SessionError) -> Excerpt? {
+        switch self {
+        case .range(let marks):
+            guard let selection = marks.selection(in: session) else { return nil }
+            return try session.excerpt(of: selection.range, on: selection.tracks)
+        case .clips:
+            let ids = selectedClips(in: session).map(\.clip.id)
+            return ids.isEmpty ? nil : try session.excerpt(of: ids)
+        }
+    }
+
+    /// The selection after a Paste or an Insert: the pasted clips for a set excerpt, because the
+    /// pasted range can hold clips that were not copied; the pasted range for a range excerpt.
+    public init(pasted ids: [ClipID], of excerpt: Excerpt, at start: Frames, on tracks: [TrackID]) {
+        switch excerpt.kind {
+        case .range: self = .range(Marks(inPoint: start, outPoint: start + excerpt.length, tracks: Set(tracks)))
+        case .clips: self = ClipSet(Set(ids)).map { .clips($0) } ?? .none
+        }
+    }
+
     /// Delete: a range clears its frames and leaves a gap; a clip set removes its clips. Nil when
     /// nothing is selected.
     public func deleted(_ session: Session) throws(SessionError) -> Session? {

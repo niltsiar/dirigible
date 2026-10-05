@@ -124,25 +124,25 @@ private struct TrackRow: View {
             // that has the focus with no rename keeps it, so the field keeps the keys it uses.
             .onSubmit { if renaming { model.endNameEdit() } else { model.commitName(track.id) } }
             .onChange(of: focused) { if !focused { model.commitName(track.id) } }
-            .onChange(of: renaming, initial: true) { if renaming { focused = true } }
             .disabled(!model.canEdit)
             .controlSize(.regular)
             .foregroundStyle(renaming ? .primary : textColor)
             .background { if renaming { Color(nsColor: .textBackgroundColor) } }
             .overlay {
                 // Over the field, so a click does not give it the text focus.
-                // A click selects at once, and the second click of a double-click renames.
-                if !renaming {
-                    Color.clear.contentShape(Rectangle())
-                        .onTapGesture(count: 2) { model.startRename(track.id) }
-                        .simultaneousGesture(TapGesture().onEnded(click))
-                }
+                if !renaming { Color.clear.contentShape(Rectangle()).onTapGesture(perform: click) }
             }
             .accessibilityAction(named: Text(L10n.headerRename.key)) { model.startRename(track.id) }
             .frame(minWidth: 60, maxWidth: .infinity)
     }
 
-    private func click() { model.clickHeader(track.id, flags: NSApp.currentEvent?.modifierFlags ?? []) }
+    /// A click selects at once. `HeaderHost` takes the second click of a double-click on the name;
+    /// on the row background that click does nothing more.
+    private func click() {
+        let event = model.headerMouseDown
+        guard (event?.clickCount ?? 1) < 2 else { return }
+        model.clickHeader(track.id, flags: event?.modifierFlags ?? [])
+    }
 
     /// The saved name comes from the session, not from `track`: the end of an edit after a commit
     /// reads the name before this row has the new track, and it wrote the old name as a draft.

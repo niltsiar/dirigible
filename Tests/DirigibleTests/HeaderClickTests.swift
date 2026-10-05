@@ -61,8 +61,11 @@ import Testing
         }
     }
 
-    /// The window point at the middle of the name field of row `row`.
+    /// The window point at the middle of the name field of row `row`. The layout runs first: the
+    /// rows of a new window can still change their height, and a point from an old frame hit the
+    /// row background.
     func namePoint(_ row: Int, in view: TimelineScrollView) throws -> NSPoint {
+        view.window?.contentView?.layoutSubtreeIfNeeded()
         let fields = nameFields(view)
         try #require(fields.count > row, "a name field in row \(row)")
         let frame = fields[row].convert(fields[row].bounds, to: nil)
@@ -154,9 +157,14 @@ import Testing
     }
 
     /// C16d: a click on the name selects the track and gives no text focus; a double-click focuses
-    /// the name field.
+    /// the name field. The two clicks come with no time between them, also when the first click
+    /// changes the selection: the header host takes the second click and gives the focus once.
     @Test func aNameClickSelectsAndADoubleClickRenames() async throws {
         let (model, _, window, view) = try await open()
+        try click(try namePoint(1, in: view), clicks: 2, in: window)
+        #expect(model.renamingTrack == "t2", "a double-click that also selects the track renames")
+        await until(limit: .seconds(5), "a double-click focuses the name field of t2") { editsName(1, in: view) }
+
         try click(try namePoint(0, in: view), in: window)
         #expect(model.timeline.selection == .range(Marks(tracks: ["t1"])))
         #expect(!editsName(0, in: view) && model.renamingTrack == nil, "a click gives no text focus")

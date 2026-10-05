@@ -60,6 +60,9 @@ struct ExportReportShown: Equatable {
     /// Track, or the Rename action sets it, and the commit of its name clears it. Else a click on
     /// the name selects the track.
     var renamingTrack: TrackID?
+    /// The last mouse-down on the track headers, from `HeaderHost`: a header tap reads its click
+    /// count and modifier keys.
+    @ObservationIgnored var headerMouseDown: NSEvent?
     /// Monitor Inputs (decision 0015): off at open, not saved. With the armed tracks, it drives
     /// `Studio.monitor(armed:)`.
     var monitoring = false

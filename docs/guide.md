@@ -274,6 +274,20 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 - To remove tracks, select them and choose **Track > Remove Track**. You can also Control-click the header of a track and choose **Remove Track**. When the header is selected, the menu removes all selected tracks. Else the header becomes the selection, and the menu removes only its track. When a track has clips, Dirigible asks first: click **Remove** (**Eliminar**) or press Return to remove the tracks, or click **Cancel** to keep them. **Edit > Undo** gives the tracks back until you close the window.
 - To change the width of the track headers, drag their right edge. Double-click the edge to go back to the standard width.
 
+### Mute and solo tracks
+
+Each track header has the buttons **M** (mute) and **S** (solo), after the **Arm** box.
+
+- Click **M** to mute a track. You do not hear a muted track, and the export does not have it. **M** is blue when it is on.
+- Click **S** to solo a track. While one or more tracks are soloed, you hear only the soloed tracks. **S** is yellow when it is on. A track that is muted and soloed stays muted.
+- Option-click **M** or **S** to give all tracks the new state.
+- To mute or solo the selected tracks, choose **Track > Mute Track** (Shift-M) or **Track > Solo Track** (Shift-S). When one selected track is off, all selected tracks go on. Else all go off. With no selected track, the Mac beeps.
+- During play, you hear the change after at most 0.3 s, with a short crossfade and no click.
+- Each change is one step of **Edit > Undo**, and the session saves it. During a take, the buttons are off.
+- On a narrow header, the buttons hide, so the input and the track state keep their room. The menu items and the keys still work.
+- A session with a muted or soloed track does not open in a version of Dirigible from before mute and solo.
+- In Terminal, `dirigible track mute <package> <track>...` and `dirigible track solo <package> <track>...` set the buttons, and `--off` clears them.
+
 ### Record a call or another app
 
 Dirigible can record the sound of another app, for example a Zoom, Teams, or Slack call, on its own track. This needs macOS 14.2 or later.
@@ -293,6 +307,7 @@ Dirigible can record the sound of another app, for example a Zoom, Teams, or Sla
 
 - **File > Export** exports all tracks, from the start to the end of the session.
 - **File > Export Selection** exports the selection only: the time from the in point to the out point, on the selected tracks.
+- The export has only the tracks that you hear: it leaves out muted tracks, and, while a track is soloed, the tracks that are not soloed.
 
 The export panel has these settings. It keeps the last settings that you used.
 
@@ -445,6 +460,8 @@ The **Track** menu (**Pista**).
 | **Add Call Tracks** | **Añadir pistas de llamada** | - |
 | **Rename Track** | **Renombrar pista** | Return |
 | **Remove Track** | **Eliminar pista** | Option-Command-Delete |
+| **Mute Track** | **Silenciar pista** | Shift-M |
+| **Solo Track** | **Solo de pista** | Shift-S |
 
 ### Record
 

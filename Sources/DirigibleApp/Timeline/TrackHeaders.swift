@@ -10,6 +10,12 @@ struct TrackHeaders: View {
     /// The tracks that `Selection.headerTracks` gives, not the selection: a range drag over the
     /// same tracks gives an equal input, so it runs no row body (ui-polish C16).
     let selected: [TrackID]
+    /// The header widths from which a row shows M and S, on one line and on two lines (decision
+    /// 0039): the narrowest widths where every view of a row with a full live state stays inside
+    /// the row (measured in slice 5 of run 2026-10-05-mute-solo). Under them the route and the
+    /// state keep their room; Shift-M and Shift-S still act.
+    static let muteSoloWidth = 316.0
+    static let muteSoloTwoLineWidth = 261.0
 
     var body: some View {
         let _ = model.countHeaderRun(row: false)
@@ -22,6 +28,8 @@ struct TrackHeaders: View {
                         model: model, studio: studio, track: track, selected: selected.contains(track.id),
                         secondLine: laneHeight >= 56,
                         showsLayout: geometry.size.width >= (laneHeight >= 56 ? 220 : 240),
+                        showsMuteSolo: geometry.size.width
+                            >= (laneHeight >= 56 ? Self.muteSoloTwoLineWidth : Self.muteSoloWidth),
                         showsCompactLoudness: geometry.size.width >= TrackRow.compactLoudnessWidth
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
@@ -50,6 +58,8 @@ private struct TrackRow: View {
     /// the width: a row whose inputs do not change is not drawn again (a width input made the
     /// one-off header events 2 to 3 times slower).
     let showsLayout: Bool
+    /// M and S, from `TrackHeaders.muteSoloWidth` or `muteSoloTwoLineWidth`. A Bool, as `showsLayout`.
+    let showsMuteSolo: Bool
     /// The short-term text in the one-line row, from 300 pt: under it the text pushes the
     /// dropped-frames symbol out of the row. A Bool, as `showsLayout`.
     let showsCompactLoudness: Bool
@@ -67,6 +77,7 @@ private struct TrackRow: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 if secondLine { arm } else { arm.labelsHidden() }
+                if showsMuteSolo { MuteSoloToggles(model: model, track: track) }
                 nameField
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the

@@ -13,6 +13,8 @@
 "menu.track.add.call.no.apps" = "No Apps Running";
 "menu.track.remove" = "Remove Track";
 "menu.track.rename" = "Rename Track";
+"menu.track.mute" = "Mute Track";
+"menu.track.solo" = "Solo Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
 "menu.record.retry" = "Retry Finalize";
@@ -94,6 +96,12 @@
 "track.name.guest" = "Guest";
 "track.name" = "Name";
 "track.arm" = "Arm";
+"track.mute.letter" = "M";
+"track.solo.letter" = "S";
+"track.mute.label" = "Mute %@";
+"track.solo.label" = "Solo %@";
+"track.mute.help" = "Mute Track (⇧M). Option-click: all tracks.";
+"track.solo.help" = "Solo Track (⇧S). Option-click: all tracks.";
 "track.layout.mono" = "Mono";
 "track.layout.stereo" = "Stereo";
 "track.route" = "%1$@, %2$@";

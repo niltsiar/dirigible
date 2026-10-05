@@ -309,6 +309,12 @@ enum L10n: String, CaseIterable {
     case errorExportOpen = "error.export.open"
     case errorExportPackage = "error.export.package"
     case errorExportYielded = "error.export.yielded"
+    case errorImportNotAudio = "error.import.not.audio"
+    case errorImportChannels = "error.import.channels"
+    case errorImportSpace = "error.import.space"
+    case errorImportUnreadable = "error.import.unreadable"
+    case errorImportWrite = "error.import.write"
+    case errorImportYielded = "error.import.yielded"
 
     /// For `Text` and `Button`: SwiftUI looks the key up in `Bundle.main`.
     var key: LocalizedStringKey { LocalizedStringKey(rawValue) }

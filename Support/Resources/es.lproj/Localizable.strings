@@ -69,6 +69,12 @@
 "error.export.open" = "Hay demasiados archivos abiertos. Cierra otras apps y exporta de nuevo (error %lld).";
 "error.export.package" = "La sesión se movió a otro disco o se eliminó. La exportación se detuvo.";
 "error.export.yielded" = "La exportación se detuvo por una toma en otra ventana. No se creó ningún archivo. Exporte de nuevo después de la toma.";
+"error.import.not.audio" = "Dirigible no puede importar «%@». Dirigible no puede leer el audio de este archivo. Use un archivo WAV, AIFF, FLAC, MP3 o M4A.";
+"error.import.channels" = "Dirigible no puede importar «%1$@». El archivo tiene %2$lld canales. Dirigible solo importa archivos mono y estéreo. Divida el archivo en archivos mono o estéreo.";
+"error.import.space" = "Dirigible no puede importar «%1$@». La importación necesita %2$@ de espacio libre, y el disco tiene %3$@. Libere espacio en el disco y vuelva a intentarlo.";
+"error.import.unreadable" = "Dirigible no puede importar «%1$@». El archivo no se pudo leer (error %2$lld). Copie el archivo a este Mac y vuelva a intentarlo.";
+"error.import.write" = "Dirigible no puede importar «%1$@». Dirigible no puede escribir en la carpeta Clips de la sesión (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
+"error.import.yielded" = "La importación de «%@» se detuvo por una toma en otra ventana. Vuelva a importar después de la toma.";
 
 /* Window, panels, and alerts */
 "window.opening" = "Abriendo la sesión…";

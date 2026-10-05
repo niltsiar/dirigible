@@ -101,6 +101,9 @@ extension StudioError {
         // No command exports through Studio; `dirigible export` calls `exportMix` (decision 0019).
         case .export(let error): "the export failed (\(error))."
         case .exportYielded: "a take in another studio stopped the export."
+        // No command imports through Studio; `dirigible import` calls `importAudio` (decision 0040).
+        case .audioImport(let error): "the import failed (\(error))."
+        case .importYielded: "a take in another studio stopped the import."
         }
     }
 }

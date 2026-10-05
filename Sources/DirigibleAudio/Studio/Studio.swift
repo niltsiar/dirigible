@@ -172,6 +172,7 @@ import Observation
         // Before the first await: from now no pass, no block, and no export starts.
         settling = true
         await endExport()
+        await endImport()
         await stopPlay()
         // The monitor order does not wait for a finalize in progress.
         monitorRequest = []

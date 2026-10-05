@@ -33,12 +33,15 @@ extension Studio {
         case placing(SegmentName)
         /// Cmd-L measures the clips and saves their gains (decision 0031).
         case leveling
+        /// An import converts a file and saves the session (decision 0040).
+        case importing(ImportRun)
     }
 
-    /// True when no take, placement, or level runs, and no take starts.
+    /// True when no take, placement, level, or import runs, and no take starts.
     public var isIdle: Bool { transport == .idle && !isStarting }
 
-    /// Edits, saves, and a new take wait during a take (0004), a placement (0021), or a level (0031).
+    /// Edits, saves, and a new take wait during a take (0004), a placement (0021), a level (0031),
+    /// or an import (0040).
     func checkIdle() throws(StudioError) {
         guard isIdle else { throw .busy }
     }

@@ -30,6 +30,9 @@ extension L10n {
             return errorFinalizeUnreadable.format(file, Int(errno))
         case .export(let error): return message(for: error)
         case .exportYielded: return errorExportYielded.text
+        case .audioImport(.session(let error)): return message(for: error, name: name)
+        case .audioImport(let error): return message(for: error)
+        case .importYielded(let file): return errorImportYielded.format(file)
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         }
@@ -61,6 +64,22 @@ extension L10n {
         case .moveFailed(let code): errorExportMove.format(Int(code))
         case .openFailed(let code): errorExportOpen.format(Int(code))
         case .packageUnavailable: errorExportPackage.text
+        case .cancelled: ""
+        }
+    }
+
+    /// The text of an import error (decision 0040): it quotes the file and says what to do. The
+    /// window shows no alert for a cancel, so `.cancelled` has no key.
+    private static func message(for error: ImportError) -> String {
+        switch error {
+        case .notAudio(let file): errorImportNotAudio.format(file)
+        case .tooManyChannels(let file, let channels): errorImportChannels.format(file, channels)
+        case .space(let file, let needed, let free): errorImportSpace.format(file, bytes(needed), bytes(free))
+        case .unreadable(let file, let code): errorImportUnreadable.format(file, Int(code))
+        case .write(let file, .writeFailed(_, let code)), .write(let file, .readFailed(_, let code)),
+            .write(let file, .segmentUnreadable(_, _, let code)):
+            errorImportWrite.format(file, Int(code))
+        case .session(let error): message(for: error, name: { $0.rawValue })
         case .cancelled: ""
         }
     }

@@ -37,10 +37,17 @@ final class ChunkSeam: @unchecked Sendable {
             return records.count
         }
         actions[call]?()
+        guard pause > 0 else { return }
+        // The probe of the unheld pause cannot run on the main thread, so the pause never ends.
+        guard !Thread.isMainThread else {
+            Issue.record("A paused export chunk ran on the main thread")
+            return
+        }
         // The pause leaves out the main-actor holds of other suites, so an export that a test
-        // cancels does not end while the test waits for the main actor (run flakes-2, S4).
+        // cancels does not end while the test waits for the main actor (run flakes-2, S4). The
+        // wall cap of 3 x the pause ends it when the holds do not end.
         let watch = Stopwatch()
-        while watch.elapsed < .seconds(pause) { Thread.sleep(forTimeInterval: 0.05) }
+        while watch.elapsed < .seconds(pause), watch.wall < .seconds(pause * 3) { Thread.sleep(forTimeInterval: 0.05) }
     }
 }
 

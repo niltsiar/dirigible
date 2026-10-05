@@ -192,28 +192,47 @@ public struct Marks: Hashable, Sendable {
     /// no fade: `crossfades(in:)` gives the join a crossfade (decision 0036). The new fade wins, and
     /// the other fade yields, also to the half of a crossfade. Nil with no selection or no change.
     public func fades(in session: Session) -> [ClipID: Fades]? {
-        guard let selection = selection(in: session), let touched = touchedClips(in: session) else { return nil }
+        fadeEdits(in: session).map { edits in
+            Dictionary(
+                uniqueKeysWithValues: edits.flatMap { track, list in
+                    list.map { (session.tracks[track].clips[$0.index].id, $0.fades) }
+                })
+        }
+    }
+
+    /// `fades(in:)` by lane: the key is the index of a track in the session, and each value lists
+    /// the clips by their index in its lane, in index order.
+    func fadeEdits(in session: Session) -> [Int: [(index: Int, fades: Fades)]]? {
+        guard let selection = selection(in: session) else { return nil }
         let (low, high) = (selection.range.lowerBound, selection.range.upperBound)
-        var result: [ClipID: Fades] = [:]
-        for (lane, index) in touched {
-            let clip = lane[index]
-            let (start, end) = (low <= clip.start, clip.end <= high)
-            let standard = min(Frames(session.sampleRate / 2), Frames(clip.length.count / 2))
-            let joins = lane.joins(at: index)
-            let fadeIn = start && !joins.before ? (end ? standard : high - clip.start) : nil
-            let fadeOut = end && !joins.after ? (start ? standard : clip.end - low) : nil
-            let fades: Fades
-            switch (fadeIn, fadeOut) {
-            case (let fadeIn?, let fadeOut?): fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut)!
-            case (let fadeIn?, nil):
-                fades = clip.fitting(Fades(fadeIn: fadeIn, fadeOut: clip.fades.fadeOut)!, keeping: .start)
-            case (nil, let fadeOut?):
-                fades = clip.fitting(Fades(fadeIn: clip.fades.fadeIn, fadeOut: fadeOut)!, keeping: .end)
-            case (nil, nil): continue
+        var result: [Int: [(index: Int, fades: Fades)]] = [:]
+        for track in selectedIndices(in: session) {
+            let lane = session.tracks[track].clips
+            for index in lane.indices where lane[index].range.overlaps(selection.range) {
+                let clip = lane[index]
+                let (start, end) = (low <= clip.start, clip.end <= high)
+                let standard = min(Frames(session.sampleRate / 2), Frames(clip.length.count / 2))
+                let joins = lane.joins(at: index)
+                let fadeIn = start && !joins.before ? (end ? standard : high - clip.start) : nil
+                let fadeOut = end && !joins.after ? (start ? standard : clip.end - low) : nil
+                let fades: Fades
+                switch (fadeIn, fadeOut) {
+                case (let fadeIn?, let fadeOut?): fades = Fades(fadeIn: fadeIn, fadeOut: fadeOut)!
+                case (let fadeIn?, nil):
+                    fades = clip.fitting(Fades(fadeIn: fadeIn, fadeOut: clip.fades.fadeOut)!, keeping: .start)
+                case (nil, let fadeOut?):
+                    fades = clip.fitting(Fades(fadeIn: clip.fades.fadeIn, fadeOut: fadeOut)!, keeping: .end)
+                case (nil, nil): continue
+                }
+                if fades != clip.fades { result[track, default: []].append((index, fades)) }
             }
-            if fades != clip.fades { result[clip.id] = fades }
         }
         return result.isEmpty ? nil : result
+    }
+
+    /// The indices of the selected tracks in the session, in session order.
+    func selectedIndices(in session: Session) -> [Int] {
+        session.tracks.indices.filter { tracks.contains(session.tracks[$0].id) }
     }
 
     /// The crossfades of Command-F (decision 0036), keyed by the left clip, at each butt join J of
@@ -223,13 +242,25 @@ public struct Marks: Hashable, Sendable {
     /// halves never pass the length of a short clip. A join that gets 0 or its present length is
     /// left out. Nil with no selection or no change.
     func crossfades(in session: Session) -> [ClipID: Frames]? {
+        crossfadeJoins(in: session).map { joins in
+            Dictionary(
+                uniqueKeysWithValues: joins.flatMap { track, list in
+                    list.map { (session.tracks[track].clips[$0.index].id, $0.length) }
+                })
+        }
+    }
+
+    /// `crossfades(in:)` by lane: the key is the index of a track in the session, and each value
+    /// lists the left clips by their index in its lane, in index order.
+    func crossfadeJoins(in session: Session) -> [Int: [(index: Int, length: Frames)]]? {
         guard let selection = selection(in: session) else { return nil }
         let (low, high) = (selection.range.lowerBound, selection.range.upperBound)
         let standard = Frames(session.sampleRate / 50 / 2 * 2)
-        let lanes = selection.tracks.compactMap(session.track).map(\.clips)
-        var result: [ClipID: Frames] = [:]
-        result.reserveCapacity(lanes.reduce(0) { $0 + $1.count })
-        for lane in lanes {
+        var result: [Int: [(index: Int, length: Frames)]] = [:]
+        for track in selectedIndices(in: session) {
+            let lane = session.tracks[track].clips
+            var joins: [(index: Int, length: Frames)] = []
+            joins.reserveCapacity(lane.count)
             // The half that this pass gave to the start of the clip at `index`.
             var given: (index: Int, half: Frames)?
             for (index, (a, b)) in zip(lane, lane.dropFirst()).enumerated()
@@ -241,8 +272,9 @@ public struct Marks: Hashable, Sendable {
                 let length = min(wanted, limit)
                 guard length > .zero else { continue }
                 given = (index + 1, Frames(length.count / 2))
-                if length != a.crossfades.end { result[a.id] = length }
+                if length != a.crossfades.end { joins.append((index, length)) }
             }
+            if !joins.isEmpty { result[track] = joins }
         }
         return result.isEmpty ? nil : result
     }
@@ -252,10 +284,10 @@ public struct Marks: Hashable, Sendable {
     /// the window makes one edit and one undo entry. Nil when nothing changes.
     public func faded(_ session: Session) throws(SessionError) -> Session? {
         var result = session
-        let crossfades = crossfades(in: session)
-        if let crossfades { try result.setCrossfades(crossfades) }
-        let fades = fades(in: result)
-        if let fades { try result.setFades(fades) }
+        let crossfades = crossfadeJoins(in: session)
+        if let crossfades { try result.setCrossfades(lanes: crossfades) }
+        let fades = fadeEdits(in: result)
+        if let fades { try result.setFades(lanes: fades) }
         return crossfades == nil && fades == nil ? nil : result
     }
 

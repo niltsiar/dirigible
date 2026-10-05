@@ -87,6 +87,24 @@ struct RecordTests {
         #expect(studio.transport == .idle)
     }
 
+    /// The take start has a budget of 2 s on an idle Mac (alone: 0.36 s). `until` leaves held
+    /// sleeps out of its limit, so this slow test is the check that fails on a slow start.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aTakeStartsWithinItsBudget() async throws {
+        let hal = TestHAL([mic])
+        let studio = try await studio(hal)
+        let start = ContinuousClock.now
+        let recorder = Task { @MainActor in
+            try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(60))
+        }
+        await until(limit: .seconds(10), "the take did not start") { studio.transport == .recording(take: 1) }
+        let elapsed = ContinuousClock.now - start
+        recorder.cancel()
+        _ = try await recorder.value
+
+        #expect(elapsed < .seconds(2), "the take started after \(elapsed)")
+    }
+
     /// A cancelled call stops its take at once, as an early end, and returns its result. Before
     /// the fix, the wait spun on the main actor until the deadline. The limit is 10 s less than
     /// the shorter duration, because a full suite can hold the main actor for 30 s. A duration

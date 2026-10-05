@@ -208,9 +208,9 @@ extension SessionWindow {
     /// clips asks first (ui-polish A1). The check runs on a copy, so a refused remove asks nothing.
     func removeTracks(_ tracks: [TrackID]) {
         guard !tracks.isEmpty, let studio = idleStudio else { return }
-        var copy = studio.session
         do throws(SessionError) {
-            for track in tracks { try copy.removeTrack(track) }
+            var copy = studio.session
+            try removing(tracks)(&copy)
         } catch {
             alert = .error(.session(error))
             return
@@ -226,8 +226,15 @@ extension SessionWindow {
     /// of the removed tracks go. The armed set stays, so an undo gives back an armed track; every
     /// reader of the set filters it by the session tracks.
     func confirmRemoveTracks(_ tracks: [TrackID]) {
-        if edit({ s throws(SessionError) -> Void in for track in tracks { try s.removeTrack(track) } }) != nil {
+        if edit(removing(tracks)) != nil {
             for track in tracks { drafts[track] = nil }
+        }
+    }
+
+    /// The Core edit of Remove Track: the check on a copy and the remove run the same edit.
+    private func removing(_ tracks: [TrackID]) -> (inout Session) throws(SessionError) -> Void {
+        { session throws(SessionError) in
+            for track in tracks { try session.removeTrack(track) }
         }
     }
 

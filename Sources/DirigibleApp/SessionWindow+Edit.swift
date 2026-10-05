@@ -204,11 +204,28 @@ extension SessionWindow {
         do throws(StudioError) { try await studio.level(clips, mode) } catch { alert = .error(error) }
     }
 
-    /// Removes the tracks in one undo entry, or none: a track of a pending take gives its alert
-    /// (decision 0012). The name drafts of the removed tracks go. The armed set stays, so an undo
-    /// gives back an armed track; every reader of the set filters it by the session tracks.
+    /// Remove Track: a track of a pending take gives its alert (decision 0012), and a track with
+    /// clips asks first (ui-polish A1). The check runs on a copy, so a refused remove asks nothing.
     func removeTracks(_ tracks: [TrackID]) {
-        guard !tracks.isEmpty else { return }
+        guard !tracks.isEmpty, let studio = idleStudio else { return }
+        var copy = studio.session
+        do throws(SessionError) {
+            for track in tracks { try copy.removeTrack(track) }
+        } catch {
+            alert = .error(.session(error))
+            return
+        }
+        if tracks.contains(where: { studio.session.track($0)?.clips.isEmpty == false }) {
+            alert = .confirmRemoveTracks(tracks)
+        } else {
+            confirmRemoveTracks(tracks)
+        }
+    }
+
+    /// Removes the tracks in one undo entry, or none: Core checks the IDs again. The name drafts
+    /// of the removed tracks go. The armed set stays, so an undo gives back an armed track; every
+    /// reader of the set filters it by the session tracks.
+    func confirmRemoveTracks(_ tracks: [TrackID]) {
         if edit({ s throws(SessionError) -> Void in for track in tracks { try s.removeTrack(track) } }) != nil {
             for track in tracks { drafts[track] = nil }
         }

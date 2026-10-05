@@ -48,6 +48,7 @@ extension EditTakeTests {
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t3", "t1"])
 
         model.run(.removeTrack)
+        model.confirmRemoveTracks(["t1", "t3"])
 
         #expect(studio.session.tracks.map(\.id) == ["t2"])
         model.undo()
@@ -66,6 +67,7 @@ extension EditTakeTests {
         model.timeline.marks = Marks(tracks: ["t1"])
 
         model.run(.removeTrack)
+        model.confirmRemoveTracks(["t1"])
 
         #expect(studio.session.tracks.map(\.id) == ["t2"])
         #expect(model.drafts == ["t2": "Guest"])
@@ -80,6 +82,7 @@ extension EditTakeTests {
         studio.environment = hal.environment
         model.timeline.marks = Marks(tracks: ["t1"])
         model.run(.removeTrack)
+        model.confirmRemoveTracks(["t1"])
         model.undo()
 
         await model.record()
@@ -99,6 +102,8 @@ extension EditTakeTests {
         model.timeline.marks = Marks(tracks: ["t1"])
 
         model.removeTracks(["t2"])
+        #expect(model.alert == .confirmRemoveTracks(["t2"]), "the header menu asks too")
+        model.confirmRemoveTracks(["t2"])
 
         #expect(studio.session.tracks.map(\.id) == ["t1"])
         await model.close()
@@ -114,13 +119,86 @@ extension EditTakeTests {
         model.showHeaderMenu("t2")
         #expect(model.timeline.marks == Marks(tracks: ["t1", "t2"]), "a selected row keeps the selection")
         model.removeFromHeader("t2")
+        #expect(model.alert == .confirmRemoveTracks(["t1", "t2"]))
+        model.confirmRemoveTracks(["t1", "t2"])
         #expect(studio.session.tracks.map(\.id) == ["t3", "t4"])
 
         model.showHeaderMenu("t4")
         #expect(model.timeline.marks == Marks(tracks: ["t4"]), "the menu selects its row first")
         model.timeline.marks = Marks(tracks: ["t3"])
         model.removeFromHeader("t4")
-        #expect(studio.session.tracks.map(\.id) == ["t3"], "a row that is not selected removes its track")
+        #expect(model.alert == .confirmRemoveTracks(["t4"]), "a row that is not selected removes its track")
         await model.close()
+    }
+
+    /// C1: Remove Track of tracks with clips asks first and changes nothing.
+    @Test func aTrackWithClipsAsksFirst() async throws {
+        let (model, studio, _, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 3, seconds: 60))
+        let before = studio.session
+        model.timeline.marks = Marks(tracks: ["t3", "t1"])
+
+        model.run(.removeTrack)
+
+        #expect(model.alert == .confirmRemoveTracks(["t1", "t3"]))
+        #expect(studio.session == before && !studio.canUndo)
+        await model.close()
+    }
+
+    /// C2b: the Remove button passes the IDs of the alert, so the confirm works after the alert
+    /// binding set the alert to nil.
+    @Test func theConfirmWorksAfterTheAlertCloses() async throws {
+        let (model, studio, _, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 3, seconds: 60))
+        model.timeline.marks = Marks(tracks: ["t1", "t3"])
+        model.run(.removeTrack)
+        try #require(model.alert == .confirmRemoveTracks(["t1", "t3"]))
+
+        model.alert = nil
+        model.confirmRemoveTracks(["t1", "t3"])
+
+        #expect(studio.session.tracks.map(\.id) == ["t2"])
+        await model.close()
+    }
+
+    /// C3: Cancel closes the alert and changes nothing.
+    @Test func aCancelKeepsTheTracks() async throws {
+        let (model, studio, _, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
+        let before = studio.session
+        model.timeline.marks = Marks(tracks: ["t1"])
+        model.run(.removeTrack)
+        try #require(model.alert == .confirmRemoveTracks(["t1"]))
+
+        model.alert = nil
+
+        #expect(studio.session == before && !studio.canUndo)
+        #expect(model.timeline.marks == Marks(tracks: ["t1"]), "the selection stays")
+        await model.close()
+    }
+
+    /// C4 and C5: tracks with no clip go with no question; one track with clips asks.
+    @Test func emptyTracksGoWithNoQuestion() async throws {
+        let (model, studio, _, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 1, seconds: 60))
+        model.run(.addTrack)
+        model.run(.addTrack)
+        let empty = studio.session.tracks.dropFirst().map(\.id)
+        try #require(empty.count == 2)
+
+        model.removeTracks([empty[0], "t1"])
+        #expect(model.alert == .confirmRemoveTracks([empty[0], "t1"]), "one track with clips asks")
+        model.alert = nil
+
+        model.removeTracks(empty)
+        #expect(model.alert == nil, "no question")
+        #expect(studio.session.tracks.map(\.id) == ["t1"])
+        await model.close()
+    }
+
+    /// C8b: Return gives Remove, which has no destructive style; Esc gives Cancel.
+    @Test func theQuestionButtons() {
+        #expect(removeQuestionButtons.map(\.title) == [.alertTrackRemoveConfirm, .alertCancel])
+        #expect(removeQuestionButtons.map(\.role) == [nil, .cancel])
     }
 }

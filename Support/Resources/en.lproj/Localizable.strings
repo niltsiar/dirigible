@@ -78,6 +78,8 @@
 "alert.close.recording.confirm" = "Stop and Close";
 "alert.close.unsaved" = "The last changes could not be saved. Close anyway?";
 "alert.close.unsaved.confirm" = "Close";
+"alert.track.remove" = "Remove the tracks and their clips?";
+"alert.track.remove.confirm" = "Remove";
 "alert.quit.recording" = "Stop the recording and quit?";
 "alert.quit.recording.confirm" = "Stop and Quit";
 "alert.quit.unsaved" = "The last changes of these sessions could not be saved: %@. Quit anyway?";

@@ -185,6 +185,25 @@ struct ImportTests {
         #expect(values.contains { $0 > 0.5 && $0 < 1 } && values.last == 1, "pass 2 maps to 0.5...1: \(values)")
     }
 
+    /// Code gate 1 item 8: the second pass (A11) on a compressed source keeps the length of the
+    /// first pass, and no sample saturates.
+    @Test(arguments: [SourceFormat.m4a, .mp3])
+    func aLoudCompressedFileConvertsInTwoPasses(format: SourceFormat) throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        let source = package.source("Loud.\(format.fileExtension)")
+        try writeSource(source, format, rate: 44_100, channels: [loudTail(frames: 3 * 65_536)])
+        let decoded = try AVAudioFile(forReading: source).length
+
+        let (session, clip) = try importAudio(
+            source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url, level: false)
+
+        #expect(try #require(session.clip(clip)?.clip.gain.dB) > 0.1, "two passes")
+        let wav = try ImportedWAV(package.clip("Loud.wav"))
+        let expected = Int((Double(decoded) * 48_000 / 44_100).rounded())
+        #expect(abs(wav.frames - expected) <= 1, "the length of pass 1")
+        #expect((wav.channels[0].map(abs).max() ?? 1) < 1, "no sample saturates")
+    }
+
     @Test func aQuietFileProgressesFromHalfToOne() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         try writeSource(package.source("Quiet.wav"), .wav16, rate: 44_100, channels: [sine(seconds: 3, rate: 44_100)])

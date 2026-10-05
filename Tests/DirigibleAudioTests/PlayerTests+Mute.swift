@@ -79,7 +79,7 @@ extension PlayerTests {
         expectEqual(slice(out, 14_400..<19_200), try package.mix(14_400..<19_200, session: louder), "e: a step")
     }
 
-    /// C5 e: a track add or remove alone steps; only a flag change of a track in both sessions
+    /// C5 e: a track add or remove alone steps; only a change of the heard set of the tracks in both sessions
     /// crossfades.
     @Test(arguments: [true, false])
     func aRemovedTrackDuringPlayDoesNotCrossfade(removed: Bool) async throws {
@@ -90,6 +90,20 @@ extension PlayerTests {
         let new = removed ? one : two
         let comment: Comment = removed ? "e: a removed track steps" : "e: an added track steps"
         expectEqual(slice(out, 14_400..<19_200), try package.mix(14_400..<19_200, session: new), comment)
+    }
+
+    /// Code gate 1 item 2: the removal of the only soloed track brings the other tracks in, so the
+    /// next chunk crossfades. The trigger is the heard set of the tracks in both sessions.
+    @Test func aRemovedSoloedTrackCrossfades() async throws {
+        var soloed = try addSecondTrack().old
+        try soloed.setSoloed(true, tracks: ["t1"])
+        var removed = soloed
+        try removed.removeTrack("t1")
+        package.session = soloed
+        let (_, out) = await playAndUpdate(to: removed)
+        let fade = crossfade(
+            try package.mix(14_400..<19_200, session: soloed), try package.mix(14_400..<19_200, session: removed))
+        expectEqual(slice(out, 14_400..<19_200), fade, "the other tracks fade in")
     }
 
     /// Two flag changes before the next refill crossfade from the mix of the scheduled chunks,

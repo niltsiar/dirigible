@@ -147,25 +147,24 @@ actor Player {
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
     }
 
-    /// The session of the next chunks. The running feed goes on. A mute or solo change of a track
-    /// in both sessions crossfades the next chunk; any other change steps (decision 0039). Does
+    /// The session of the next chunks. The running feed goes on. A change of the heard set of the
+    /// tracks in both sessions crossfades the next chunk; any other change steps (decision 0039). Does
     /// nothing when `revision` is not newer than the last revision.
     func update(_ session: Session, revision: Int) {
         guard revision > self.revision else { return }
         self.revision = revision
-        if let old = feed?.mix.session, feed?.fadeFrom == nil, Self.flagsChanged(from: old, to: session) {
+        if let old = feed?.mix.session, feed?.fadeFrom == nil, Self.heardChanged(from: old, to: session) {
             feed?.fadeFrom = old
         }
         self.session = session
         feed?.mix.session = session
     }
 
-    /// A track of `new` that is in `old` too has another mute or solo flag.
-    private static func flagsChanged(from old: Session, to new: Session) -> Bool {
-        new.tracks.contains { track in
-            guard let before = old.track(track.id) else { return false }
-            return before.isMuted != track.isMuted || before.isSoloed != track.isSoloed
-        }
+    /// The heard set of the tracks that are in both sessions changed: a mute or solo change, or
+    /// the removal of the only soloed track. A track add or remove alone keeps it.
+    private static func heardChanged(from old: Session, to new: Session) -> Bool {
+        let shared = Set(old.tracks.map(\.id)).intersection(new.tracks.map(\.id))
+        return Set(old.heardTracks(in: shared).map(\.id)) != Set(new.heardTracks(in: shared).map(\.id))
     }
 
     /// `ended`: the feed scheduled its last frame, and the output played it (the output latency
@@ -280,10 +279,12 @@ actor Player {
         feed.mix.session = old
         defer { feed.mix.session = new }
         guard let fadeBuffer, render(feed, count: count, into: fadeBuffer) else { return false }
-        var (zero, step) = (Float(0), 1 / Float(count))
+        // The whole frame index, then one scale: an added step of 1/n drifts at the chunk end.
+        var (zero, one, scale) = (Float(0), Float(1), 1 / Float(count))
         var ramp = [Float](repeating: 0, count: count)
         let frames = vDSP_Length(count)
-        vDSP_vramp(&zero, &step, &ramp, 1, frames)
+        vDSP_vramp(&zero, &one, &ramp, 1, frames)
+        vDSP_vsmul(ramp, 1, &scale, &ramp, 1, frames)
         for channel in 0..<2 {
             let (from, to) = (fadeBuffer.floatChannelData![channel], buffer.floatChannelData![channel])
             // to = (to - from) x ramp + from

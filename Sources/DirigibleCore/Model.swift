@@ -376,6 +376,9 @@ public struct Track: Identifiable, Hashable, Sendable {
     public internal(set) var layout: ChannelLayout
     public internal(set) var route: Route?
     public internal(set) var clips: ClipLane
+    /// Mute and solo (decision 0039). `Session.isAudible(_:)` owns the rule.
+    public internal(set) var isMuted = false
+    public internal(set) var isSoloed = false
 
     init(id: TrackID, name: String, layout: ChannelLayout) {
         self.id = id

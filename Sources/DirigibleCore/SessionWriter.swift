@@ -34,9 +34,9 @@ func posixCode(of error: any Error) -> Int32 {
 let sessionNamespace = "https://github.com/niltsiar/dirigible/session"
 /// The folder of the clip files in a package (decision 0003).
 package let clipsFolderName = "Clips"
-/// The newest `session.xml` version that this build reads (decision 0036). A save writes
+/// The newest `session.xml` version that this build reads (decision 0039). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 4
+package let sessionVersion = 5
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -146,6 +146,9 @@ extension Session {
             let node = element(
                 "track", ("id", track.id.rawValue), ("name", track.name), ("gain", text(track.gain.dB)),
                 ("layout", track.layout.rawValue))
+            // A flag is written only when on, so a track with none keeps its old text (0039).
+            if track.isMuted { add(("muted", "true"), to: node) }
+            if track.isSoloed { add(("soloed", "true"), to: node) }
             switch track.route {
             case nil: break
             case .device(let uid, let channels):

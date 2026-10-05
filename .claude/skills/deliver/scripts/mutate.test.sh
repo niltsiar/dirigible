@@ -157,8 +157,8 @@ ended() {
   return 1
 }
 
-# A process that ends soon after the check has ended for ended (flakes-2: the killed sleep of
-# the stop case was not reaped yet under load).
+# ended waits for a process that ends 0.5 s after the call (flakes-2: under load, the killed sleep
+# of the stop case was not reaped yet at the first check).
 sleep 0.5 &
 ended $! || { echo "FAIL: the test still runs after a late exit"; failures=$((failures + 1)); }
 # A process that lives past the bound has not ended.

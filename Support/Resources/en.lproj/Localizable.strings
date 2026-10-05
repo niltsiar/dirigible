@@ -75,6 +75,8 @@
 "error.import.unreadable" = "Dirigible cannot import “%1$@”. The file did not read (error %2$lld). Copy the file to this Mac and try again.";
 "error.import.write" = "Dirigible cannot import “%1$@”. Dirigible cannot write to the Clips folder of the session (error %2$lld). Check the disk and try again.";
 "error.import.yielded" = "The import of “%@” stopped for a take in another window. Import again after the take.";
+"import.banner" = "Importing “%@”";
+"import.cancel" = "Cancel";
 
 /* Window, panels, and alerts */
 "window.opening" = "Opening the session…";
@@ -252,6 +254,7 @@
 /* Export (decision 0019) */
 "menu.file.export" = "Export…";
 "menu.file.export.selection" = "Export Selection…";
+"menu.file.import" = "Import Audio…";
 "panel.export.format" = "Format";
 "panel.export.note.one" = "%lld track muted or not soloed: not in the export.";
 "panel.export.note.many" = "%lld tracks muted or not soloed: not in the export.";

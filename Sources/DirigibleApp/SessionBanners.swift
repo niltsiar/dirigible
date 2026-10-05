@@ -77,8 +77,12 @@ struct TakeBanner: View {
             BannerRow(kind: .info, text: L10n.takePlacing.format(segment.stem))
         case .leveling:
             BannerRow(kind: .info, text: L10n.takeLeveling.text)
-        case .importing:
-            EmptyView()
+        case .importing(let run):
+            HStack {
+                BannerRow(kind: .info, text: L10n.importBanner.format(run.name))
+                ProgressView(value: model.importJob?.progress ?? 0).frame(width: 160)
+                Button(L10n.importCancel.key) { model.cancelImport() }.padding(.trailing)
+            }
         case .idle:
             if let pending = studio.pendingTake {
                 HStack {

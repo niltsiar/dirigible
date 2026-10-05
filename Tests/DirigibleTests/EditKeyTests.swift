@@ -41,7 +41,7 @@ import Testing
                 "\($0.command) \($0.key.character) \($0.modifiers.rawValue)"
             } == [
                 "renameTrack \r 0", "removeTrack \u{8} \(EventModifiers([.command, .option]).rawValue)",
-                "muteTracks m \(shift)", "soloTracks s \(shift)",
+                "muteTracks m \(shift)", "soloTracks s \(shift)", "importAudio t \(command)",
                 "showInFinder r \(EventModifiers([.command, .shift]).rawValue)", "export e \(command)",
                 "exportSelection e \(EventModifiers([.command, .shift]).rawValue)",
             ])

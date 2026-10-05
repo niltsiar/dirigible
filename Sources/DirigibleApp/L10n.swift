@@ -16,6 +16,7 @@ enum L10n: String, CaseIterable {
     case menuFileShowClips = "menu.file.show.clips"
     case menuFileExport = "menu.file.export"
     case menuFileExportSelection = "menu.file.export.selection"
+    case menuFileImport = "menu.file.import"
     case menuTrack = "menu.track"
     case menuTrackAdd = "menu.track.add"
     case menuTrackAddCall = "menu.track.add.call"
@@ -315,6 +316,8 @@ enum L10n: String, CaseIterable {
     case errorImportUnreadable = "error.import.unreadable"
     case errorImportWrite = "error.import.write"
     case errorImportYielded = "error.import.yielded"
+    case importBanner = "import.banner"
+    case importCancel = "import.cancel"
 
     /// For `Text` and `Button`: SwiftUI looks the key up in `Bundle.main`.
     var key: LocalizedStringKey { LocalizedStringKey(rawValue) }

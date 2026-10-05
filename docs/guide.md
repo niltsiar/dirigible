@@ -13,6 +13,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 ### What Dirigible does not do yet
 
 - The export does not write the chapters into the file. The chapters stay in the session.
+- You cannot drag an audio file onto a track. Use **File > Import Audio**.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
 
 ## Record your first episode
@@ -274,6 +275,16 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 - To remove tracks, select them and choose **Track > Remove Track**. You can also Control-click the header of a track and choose **Remove Track**. When the header is selected, the menu removes all selected tracks. Else the header becomes the selection, and the menu removes only its track. When a track has clips, Dirigible asks first: click **Remove** (**Eliminar**) or press Return to remove the tracks, or click **Cancel** to keep them. **Edit > Undo** gives the tracks back until you close the window.
 - To change the width of the track headers, drag their right edge. Double-click the edge to go back to the standard width.
 
+### Import an audio file
+
+Choose **File > Import Audio** (Command-T) and select a WAV, AIFF, FLAC, MP3, or M4A file. Dirigible copies the file into the session at the session sample rate, so the session does not need the original file.
+
+- The clip starts at the playhead. When one track is selected, the clip goes on that track. Else Dirigible adds a new track with the name of the file.
+- A stereo file on a mono track becomes one channel. A mono file on a stereo track plays on both channels. Dirigible does not import a file with more than 2 channels.
+- The clip replaces the audio under it on its track.
+- Dirigible levels the clip as **Tools > Auto Level** does, and selects it. One **Edit > Undo** removes the clip, its level, and a new track.
+- A banner shows the name of the file and the progress. Click **Cancel** in the banner to stop the import: the session does not change. You cannot record or edit until the import ends.
+
 ### Mute and solo tracks
 
 Each track header has the buttons **M** (mute) and **S** (solo), after the **Arm** box.
@@ -391,6 +402,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Open** | **Abrir** | Command-O |
 | **Open Recent** | **Abrir recientes** | None |
 | **Clear Menu** (at the end of **Open Recent**) | **Vaciar menú** | None |
+| **Import Audio** | **Importar audio** | Command-T |
 | **Show Clips in Finder** | **Mostrar clips en el Finder** | Shift-Command-R |
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |

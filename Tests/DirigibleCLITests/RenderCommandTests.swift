@@ -44,6 +44,28 @@ struct RenderCommandTests {
         try FileManager.default.contentsOfDirectory(atPath: package.folder.path).filter { $0.hasSuffix(".tmp") }
     }
 
+    /// Mute and solo C3 and C9 e: `render` leaves out a muted track and says so on stderr. t2
+    /// plays the clip of t1 at the same frames, so the mix with both would be twice the samples.
+    @Test func renderLeavesOutAMutedTrack() async throws {
+        try package.edit { session in
+            try session.addTrack("t2", name: "Guest", layout: .mono)
+            try session.place(Clip(id: "c2", file: "f1", start: 1000, offset: 0, length: 20_000), on: "t2")
+            try session.setMuted(true, tracks: ["t2"])
+        }
+        let result = try await package.run("render", "PKG", "--out", out.path, "--from", "0", "--to", "9600")
+
+        let note = "Warning: 1 track is muted or not soloed and is not in the export.\n"
+        #expect(result == CLIResult(status: 0, stdout: "", stderr: note))
+        let file = try AVAudioFile(forReading: out)
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 9600))
+        try file.read(into: buffer)
+        let expected = (0..<9600).map { $0 < 1000 ? 0 : Self.sample($0 - 1000) }
+        for channel in 0..<2 {
+            let samples = UnsafeBufferPointer(start: buffer.floatChannelData![channel], count: 9600)
+            #expect(zip(samples, expected).allSatisfy { abs($0 - $1) <= 1e-6 }, "t1 alone on channel \(channel)")
+        }
+    }
+
     @Test func renderWritesTheMix() async throws {
         let result = try await package.run("render", "PKG", "--out", out.path, "--from", "0", "--to", "9600")
 

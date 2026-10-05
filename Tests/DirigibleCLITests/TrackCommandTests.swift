@@ -57,6 +57,34 @@ struct TrackCommandTests {
         #expect(try fresh.read().tracks.map(\.id) == [guest])
     }
 
+    /// Mute and solo C9 a, b (decision 0039): `track mute` and `track solo` set and clear the
+    /// flags. `info` shows a flag only when it is set.
+    @Test func muteAndSoloSetAndClearTheFlags() async throws {
+        try package.edit { try $0.addTrack("guest", name: "Guest", layout: .mono) }
+        let silent = CLIResult(status: 0, stdout: "", stderr: "")
+        #expect(try await track(["mute", "PKG", "host"]) == silent)
+        #expect(try package.read().tracks.map(\.isMuted) == [true, false])
+        #expect(try await track(["solo", "PKG", "host", "guest"]) == silent)
+        #expect(try package.read().tracks.map(\.isSoloed) == [true, true])
+        #expect(String(decoding: try package.xml(), as: UTF8.self).contains(#"version="5""#), "saved as version 5")
+
+        let text = try await package.run("info", "PKG").stdout
+        #expect(text.contains("track host \"Host\" mono 0.0 dB muted soloed\n"), "b: both flags of host")
+        #expect(text.contains("track guest \"Guest\" mono 0.0 dB soloed\n"), "b: the solo of guest")
+        let json = try await package.run("info", "PKG", "--json").stdout
+        let object = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        let tracks = try #require(object?["tracks"] as? [[String: Any]])
+        #expect(tracks[0]["muted"] as? Bool == true && tracks[1]["muted"] == nil, "b: muted only when set")
+        #expect(tracks[1]["soloed"] as? Bool == true, "b: soloed in the JSON")
+
+        #expect(try await track(["mute", "PKG", "host", "--off"]) == silent)
+        #expect(try await track(["solo", "PKG", "host", "guest", "--off"]) == silent)
+        let cleared = try package.read().tracks
+        #expect(!cleared.contains { $0.isMuted || $0.isSoloed }, "--off clears the flags")
+        #expect(String(decoding: try package.xml(), as: UTF8.self).contains(#"version="1""#), "back to version 1")
+        #expect(try await package.run("info", "PKG").stdout.contains("track host \"Host\" mono 0.0 dB\n"))
+    }
+
     /// A3: `track route --app` sets an app route, and the package saves version 2.
     @Test func routeAppSetsAnAppRoute() async throws {
         #expect(
@@ -102,6 +130,8 @@ struct TrackCommandTests {
         (["route", "PKG", "host", "--device", "D", "--channels", "0"], invalidRouteMessage),
         (["route", "PKG", "host", "--app", ""], invalidRouteMessage),
         (["route", "PKG", "host", "--app", "a\u{01}b"], "the text \"a\\u{01}b\" has a control character."),
+        (["mute", "PKG", "nope"], "no track \"nope\"."),
+        (["solo", "PKG", "host", "nope"], "no track \"nope\"."),
     ])
     func refusedEditExitsOne(arguments: [String], message: String) async throws {
         let before = try package.xml()
@@ -124,6 +154,8 @@ struct TrackCommandTests {
         ["route", "PKG", "host", "--app", "us.zoom.xos", "--none"],
         ["layout", "PKG", "host", "stereo", "--app", "us.zoom.xos", "--none"],
         ["layout", "PKG", "host", "stereo"],
+        ["mute", "PKG"],
+        ["solo", "PKG", "--off"],
     ])
     func usageErrorExits64(arguments: [String]) async throws {
         try package.edit { try $0.setRoute(Route.device(uid: "D", channels: .mono(1)), track: "host") }

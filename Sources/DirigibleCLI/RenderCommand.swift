@@ -41,6 +41,7 @@ struct Render: ParsableCommand {
             throw failure(error, out: out, noun: "render")
         }
         warn(faults, in: session)
+        warnUnheard(session, source: source)
     }
 }
 
@@ -84,6 +85,21 @@ func warn(_ faults: [FileID: MediaFault], in session: Session) {
                 "Warning: file \(id) \(path(of: id, in: session)) \(describe(fault)); its clips render as silence.\n"
                     .utf8))
     }
+}
+
+/// One warning line on stderr when a track of the source is not heard (decision 0039), or no
+/// track is: then the file is silent.
+func warnUnheard(_ session: Session, source: ExportSource) {
+    let heard = session.heardTracks(in: source.tracks).count
+    let unheard = (source.tracks?.count ?? session.tracks.count) - heard
+    guard unheard > 0 else { return }
+    let line =
+        heard == 0
+        ? "no track is heard; the file is silent."
+        : unheard == 1
+            ? "1 track is muted or not soloed and is not in the export."
+            : "\(unheard) tracks are muted or not soloed and are not in the export."
+    FileHandle.standardError.write(Data("Warning: \(line)\n".utf8))
 }
 
 /// The pool path of a file, quoted.

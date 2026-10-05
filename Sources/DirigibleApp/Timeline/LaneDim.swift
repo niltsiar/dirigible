@@ -20,8 +20,9 @@ final class LaneDim {
 
     /// Sets the layers again only when the unheard lanes, the lane geometry, or the color changed.
     func update(_ session: Session, laneHeight: Double, width: Double, color: UInt32) {
-        let heard = Set(session.heardTracks(in: nil).map(\.id))
-        let lanes = session.tracks.indices.filter { !heard.contains(session.tracks[$0].id) }
+        // An armed track of a take keeps its lane bright, so its live take does not look dead.
+        let bright = Set(session.heardTracks(in: nil).map(\.id)).union(session.recording?.armedTracks ?? [])
+        let lanes = session.tracks.indices.filter { !bright.contains(session.tracks[$0].id) }
         let next = Shown(lanes: lanes, laneHeight: laneHeight, width: width, color: color)
         guard next != shown else { return }
         shown = next

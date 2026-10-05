@@ -79,6 +79,22 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 item 4: the lane of a muted track that records in a take is not dimmed, so the
+    /// live take does not look dead. After the take the dim comes back.
+    @Test func aRecordingLaneIsNotDimmed() async throws {
+        let (model, studio, _, view) = try await open(tracks: 2)
+        model.setFlag(.muted, true, track: "t1", all: false)
+        await until("the dim of t1") { dims(view).count == 1 }
+        let take = Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 0, armedTracks: ["t1"])
+        try studio.edit { session throws(SessionError) in try session.setRecording(take) }
+        await until("no dim during the take") { dims(view).isEmpty }
+        #expect(dims(view).isEmpty, "the recording lane of t1 is not dimmed")
+        try studio.edit { session throws(SessionError) in try session.setRecording(nil) }
+        await until("the dim after the take") { dims(view).count == 1 }
+        #expect(dims(view) == [try laneRect(0, view)], "the dim comes back after the take")
+        await model.close()
+    }
+
     /// C11 g: the dim color is the lane color of the palette of the appearance.
     @Test func anAppearanceChangeSetsTheDimColorAgain() async throws {
         let (model, _, window, view) = try await open(tracks: 2)

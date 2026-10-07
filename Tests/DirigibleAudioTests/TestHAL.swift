@@ -15,6 +15,8 @@ final class TestHAL: @unchecked Sendable {
     private var tries: [String: [DeviceInput]] = [:]
     private var attached: [String: [DeviceInput]] = [:]
     private var capacities: [String: [Int]] = [:]
+    /// The inputs into which no producer sends: each clean detach, and also a detach that then
+    /// failed because a producer did not stop in 1 s.
     private var detached: Set<ObjectIdentifier> = []
     private var producers: [String: [SyntheticInput]] = [:]
     private var detachResult = true

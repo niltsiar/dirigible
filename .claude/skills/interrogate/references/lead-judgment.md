@@ -25,12 +25,12 @@ A good verdict is useful, not complete: the user fixes the "Act on" items and sh
 
 ## Invariant and Siblings
 
-Each "Act on" item that is not a nit has two required fields (`scripts/check-plan.sh` checks them).
+Each "Act on" item that is not a nit needs two fields (`scripts/check-plan.sh` checks them).
 
-- **Invariant:** the invariant that the item breaks, named by the state, not by the operation in the finding: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
+- **Invariant:** the invariant that the item breaks, named by the state, not by the operation: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
 - **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter call. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>".
 
-With `risk: yes`, after each fix commit, replay the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> HEAD~1` prints (`mutation-controls.md`). Pass both fields to the fixer, not only the fix line. The fix covers the finding and every sibling path in the same commit. Accept a fix only when it covers each consumer that the symptom names. When the fix relaxes a guard, also name what the guard must still refuse.
+With `risk: yes`, after each fix commit, replay the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> HEAD~1` prints (`mutation-controls.md`). Pass both fields to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer that the symptom names. When a fix relaxes a guard or drops a wait, name what it must still refuse and each reader of its state.
 
 ## Rounds
 

@@ -26,7 +26,7 @@ enum Arg {
     static let to = Param.required("to", "The frame after the last frame.", .integer())
 }
 
-private let sampleRate = Param.required("sample_rate", "The session sample rate in Hz.", .integer(minimum: 1))
+private let sampleRate = Param.required("sample_rate", "The session sample rate in Hz, more than 0.", .integer())
 private let infoTracks = Param<[String]?>.optional(
     "tracks", "Only these track IDs, with the files and captures that their clips use.", .strings(minItems: 1))
 private let infoFrom = Param<Int?>.optional(
@@ -37,7 +37,10 @@ private let infoTo = Param<Int?>.optional(
 let sessionTools = [
     Tool("session_create", "Make an empty session package.", [sampleRate], saves: false) { a throws(ToolError) in
         guard EditRules.isPackagePath(a.package) else { throw ToolError("The package path must end in .dirigible.") }
-        return .create(sampleRate: try a[sampleRate])
+        guard let rate = EditRules.sampleRate(try a[sampleRate]) else {
+            throw ToolError("The sample rate must be more than 0.")
+        }
+        return .create(sampleRate: rate)
     },
     Tool(
         "session_info",

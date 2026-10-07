@@ -124,45 +124,58 @@ extension DeviceEventTests {
         #expect(abs(arm1.map { nanos(from: takeStart + 2_000_000_000, to: $0.upperBound) }.max() ?? .max) <= 1000)
     }
 
-    /// One drain: arm 2 writes 0.5 s, then a forward jump of 3 s starts a new segment whose open
-    /// fails for arm 2, and arm 2 reopens 1 s of device frames later in the same drain. The span
-    /// of arm 2 ends at its last written record, so it holds no gap. Arm 1 spans the whole drain.
-    @Test func aWriteErrorEndsTheSpanInItsDrain() async throws {
+    /// Expects that the written spans of `arm` in all level reports start at `first` and end at
+    /// `last` (nil: not checked), that one span ends at the start of `gap`, and that no span holds
+    /// a time in `gap`. A slow suite can split the records into more drains, so the test asserts
+    /// the spans, not their count. The frames after a gap are in a span only when a later drain
+    /// has them, so their end is not checked. Each bound has 1 µs of tolerance.
+    func expectSpans(_ arm: Int, first: UInt64, last: UInt64?, gap: Range<UInt64>) throws {
+        let spans = log.all.compactMap { $0.arms?[arm]?.written }
+        let start = try #require(spans.map(\.lowerBound).min(), "arm \(arm) has no span")
+        #expect(abs(nanos(from: first, to: start)) <= 1000, "the spans of arm \(arm) do not start at its first record")
+        if let last, let end = spans.map(\.upperBound).max() {
+            #expect(abs(nanos(from: last, to: end)) <= 1000, "the spans of arm \(arm) do not end at its last record")
+        }
+        #expect(
+            spans.contains { abs(nanos(from: gap.lowerBound, to: $0.upperBound)) <= 1000 },
+            "no span of arm \(arm) ends at the gap")
+        #expect(
+            !spans.contains { $0.upperBound > gap.lowerBound + 1000 && $0.lowerBound + 1000 < gap.upperBound },
+            "a span of arm \(arm) holds frames that it did not write")
+    }
+
+    /// Arm 2 writes 0.5 s, then a forward jump of 3 s starts a new segment whose open fails for
+    /// arm 2, and arm 2 reopens 1 s of device frames later. No span of arm 2 holds that gap. Arm 1
+    /// spans the whole take. Split: a drain each 50 ms, so the records are in many drains.
+    @Test(arguments: [false, true])
+    func aWriteErrorEndsTheSpanInItsDrain(split: Bool) async throws {
         try FileManager.default.createDirectory(
             at: folder.url.appending(path: "take1-2-2.sidecar"), withIntermediateDirectories: true)
         let hal = TestHAL([duo])
-        let writer = duoWriter(hal, drain: .seconds(60))
+        let writer = duoWriter(hal, drain: split ? .milliseconds(50) : .seconds(60))
         let input = SyntheticInput(hal, "duo")
         var clock = DeviceClock()
         var records = run(&clock, 0.5, layout: [2])
         clock.sampleTime += 3 * 48_000
         records += run(&clock, 1.5, layout: [2])
 
-        input.play(records)
+        input.play(records, pace: split ? .realTime : .burst)
         await input.wait()
         await writer.finish()
 
         #expect(log.states(arm: 2) == [.writeFailed, .recording])
-        let levels = log.all.compactMap(\.arms)
-        #expect(levels.count == 1)
-        let arm1 = try #require(levels.first?[1]?.written, "arm 1 has no span")
-        #expect(
-            abs(nanos(from: takeStart, to: arm1.lowerBound)) <= 1000
-                && abs(nanos(from: takeStart + 2_000_000_000, to: arm1.upperBound)) <= 1000,
-            "the span of arm 1 is not the whole drain")
-        let arm2 = try #require(levels.first?[2]?.written, "arm 2 has no span")
-        #expect(
-            abs(nanos(from: takeStart, to: arm2.lowerBound)) <= 1000
-                && abs(nanos(from: takeStart + 500_000_000, to: arm2.upperBound)) <= 1000,
-            "the span of arm 2 holds frames that it did not write")
+        let end = takeStart + 2_000_000_000
+        try expectSpans(1, first: takeStart, last: end, gap: end..<end)
+        try expectSpans(2, first: takeStart, last: nil, gap: (takeStart + 500_000_000)..<(takeStart + 1_500_000_000))
     }
 
-    /// One drain: 0.5 s, then a forward jump of 3 s in the sample time and the host time, then
-    /// 0.5 s. The jump opens a new segment and no file holds the 3 s hole, so the span of each
-    /// arm ends at its last record before the hole.
-    @Test func aHostHoleEndsTheSpanInItsDrain() async throws {
+    /// 0.5 s, then a forward jump of 3 s in the sample time and the host time, then 0.5 s. The
+    /// jump opens a new segment and no file holds the 3 s hole, so no span of an arm holds the
+    /// hole. Split: a drain each 50 ms, so the records are in many drains.
+    @Test(arguments: [false, true])
+    func aHostHoleEndsTheSpanInItsDrain(split: Bool) async throws {
         let hal = TestHAL([duo])
-        let writer = duoWriter(hal, drain: .seconds(60))
+        let writer = duoWriter(hal, drain: split ? .milliseconds(50) : .seconds(60))
         let input = SyntheticInput(hal, "duo")
         var clock = DeviceClock()
         var records = run(&clock, 0.5, layout: [2])
@@ -170,18 +183,13 @@ extension DeviceEventTests {
         clock.hostNanos += 3e9
         records += run(&clock, 0.5, layout: [2])
 
-        input.play(records)
+        input.play(records, pace: split ? .realTime : .burst)
         await input.wait()
         await writer.finish()
 
-        let levels = log.all.compactMap(\.arms)
-        #expect(levels.count == 1)
         for arm in [1, 2] {
-            let span = try #require(levels.first?[arm]?.written, "arm \(arm) has no span")
-            #expect(
-                abs(nanos(from: takeStart, to: span.lowerBound)) <= 1000
-                    && abs(nanos(from: takeStart + 500_000_000, to: span.upperBound)) <= 1000,
-                "the span of arm \(arm) crosses the host hole")
+            try expectSpans(
+                arm, first: takeStart, last: nil, gap: (takeStart + 500_000_000)..<(takeStart + 3_500_000_000))
         }
     }
 

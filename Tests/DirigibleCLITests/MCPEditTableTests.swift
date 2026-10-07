@@ -120,12 +120,37 @@ struct MCPEditTableTests {
         ]
     }
 
+    static var markerAndPoolRows: [EditRow] {
+        [
+            EditRow(
+                tool: "marker_set", arguments: ["name": "Two", "at": 96_000, "kind": "chapter", "id": "m2"],
+                command: ["marker", "set", "PKG", "--name", "Two", "--at", "96000", "--kind", "chapter", "--id", "m2"]),
+            EditRow(
+                tool: "marker_set", arguments: ["name": "Two", "at": 96_000],
+                command: ["marker", "set", "PKG", "--name", "Two", "--at", "96000"], generated: true),
+            EditRow(tool: "marker_remove", arguments: ["marker": "m1"], command: ["marker", "remove", "PKG", "m1"]),
+            EditRow(tool: "capture_remove", arguments: ["capture": "k1"], command: ["capture", "remove", "PKG", "k1"]),
+            EditRow(tool: "file_remove", arguments: ["file": "u"], command: ["file", "remove", "PKG", "u"]),
+        ]
+    }
+
+    static var markerAndPoolRefusals: [EditRow] {
+        [
+            EditRow(
+                tool: "marker_set", arguments: ["name": "X", "at": -1],
+                command: ["marker", "set", "PKG", "--name", "X", "--at", "-1"]),
+            EditRow(tool: "marker_remove", arguments: ["marker": "zz"], command: ["marker", "remove", "PKG", "zz"]),
+            EditRow(tool: "capture_remove", arguments: ["capture": "zz"], command: ["capture", "remove", "PKG", "zz"]),
+            EditRow(tool: "file_remove", arguments: ["file": "f"], command: ["file", "remove", "PKG", "f"]),
+        ]
+    }
+
     @Test func eachEditToolMatchesItsCommand() async throws {
-        try await checkEdits(Self.trackRows)
+        try await checkEdits(Self.trackRows + Self.markerAndPoolRows + Self.clipRows)
     }
 
     @Test func eachEditToolRefusesAsItsCommand() async throws {
-        try await checkRefusals(Self.trackRefusals)
+        try await checkRefusals(Self.trackRefusals + Self.markerAndPoolRefusals + Self.clipRefusals)
     }
 }
 

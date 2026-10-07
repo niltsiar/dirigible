@@ -5,7 +5,7 @@ import Foundation
 /// The tools of `dirigible mcp`, in a fixed order: session, track, marker, pool, clip, ripple
 /// (decision 0041). The name of an edit tool is its command words with `_` for each space and
 /// hyphen, and its arguments have the option names of the command.
-let tools: [Tool] = sessionTools + trackTools
+let tools: [Tool] = sessionTools + trackTools + markerTools + poolTools + clipTools + rippleTools
 
 /// The parameters that more than one tool has.
 enum Arg {
@@ -179,3 +179,54 @@ private func routeArgument(_ a: Arguments) throws(ToolError) -> Route? {
     }
     return route
 }
+
+private let markerName = Param.required("name", "The marker name.", .string)
+private let markerAt = Param.required("at", "The timeline frame.", .integer())
+private let markerKind = Param.defaulted(
+    "kind", "marker or chapter.", .choice(["marker", "chapter"], Marker.Kind.init), "marker")
+private let markerID = Param<String?>.optional("id", "The marker ID. The default is a new UUID.", .string)
+private let marker = Param.required("marker", "The marker ID.", .string)
+
+let markerTools = [
+    Tool(
+        "marker_set", "Add a marker, or replace the marker with its ID, and give its ID.",
+        [markerName, markerAt, markerKind, markerID]
+    ) { a throws(ToolError) in
+        let set = Marker(
+            id: try a[markerID].map { MarkerID($0) } ?? MarkerID(), name: try a[markerName],
+            position: Frames(try a[markerAt]), kind: try a[markerKind])
+        return .edit { session throws(SessionError) in
+            try session.setMarker(set)
+            return [set.id.rawValue]
+        }
+    },
+    Tool("marker_remove", "Remove a marker.", [marker]) { a throws(ToolError) in
+        let id = MarkerID(try a[marker])
+        return .edit { session throws(SessionError) in
+            try session.removeMarker(id)
+            return []
+        }
+    },
+]
+
+private let capture = Param.required("capture", "The capture ID.", .string)
+private let file = Param.required("file", "The file ID.", .string)
+
+/// `capture add` and `file add` have no tool: they write raw clock data and a file record with no
+/// audio read (ParityTests.toolExemptions).
+let poolTools = [
+    Tool("capture_remove", "Remove a capture that no file uses.", [capture]) { a throws(ToolError) in
+        let id = CaptureID(try a[capture])
+        return .edit { session throws(SessionError) in
+            try session.removeCapture(id)
+            return []
+        }
+    },
+    Tool("file_remove", "Remove a file that no clip uses.", [file]) { a throws(ToolError) in
+        let id = FileID(try a[file])
+        return .edit { session throws(SessionError) in
+            try session.removeFile(id)
+            return []
+        }
+    },
+]

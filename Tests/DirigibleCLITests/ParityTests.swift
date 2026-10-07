@@ -1,8 +1,9 @@
 import Foundation
 import Testing
 
-/// The CLI parity rule (AGENTS.md, decision 0011): each public mutating method in DirigibleCore
-/// has a `dirigible` command, or an exemption with its reason.
+/// The CLI parity rule (AGENTS.md, decisions 0011 and 0041): each public mutating method in
+/// DirigibleCore has a `dirigible` command, or an exemption with its reason, and each command has
+/// an MCP tool, or a tool exemption with its reason.
 struct ParityTests {
     static let commands: [String: [String]] = [
         "addCapture": ["capture add"],
@@ -25,7 +26,7 @@ struct ParityTests {
         "split": ["clip split"],
         "move": ["clip move"],
         "trim": ["clip trim"],
-        "paste": ["clip paste"],
+        "paste": ["clip paste", "clip paste-clips"],
         "splitClips": ["clip split-at"],
         "nudge": ["clip nudge"],
         "removeClips": ["clip remove"],
@@ -44,6 +45,15 @@ struct ParityTests {
         "redo": "History lives in one process. Each command is one read-edit-save step.",
     ]
 
+    /// The commands with no MCP tool (decision 0041).
+    static let toolExemptions: [String: String] = [
+        "capture add": "It writes raw clock data that only a capture run measures.",
+        "file add": "It adds a file record and does not read the audio. An agent that needs it runs the CLI.",
+    ]
+
+    /// The tools that are not an edit command.
+    static let readTools: Set<String> = ["session_create", "session_info"]
+
     @Test func everyMutatingSessionMethodHasACommandOrAnExemption() throws {
         let names = try publicMutatingMethods()
         #expect(names.count >= 18, "The scan found only \(names.sorted())")
@@ -61,6 +71,22 @@ struct ParityTests {
             #expect(
                 result.stdout.contains("USAGE: dirigible \(command) <package>"), "dirigible \(command) does not exist")
         }
+    }
+
+    /// The tool name is the command words with `_` for each space and hyphen.
+    @Test func everyListedCommandHasATool() async throws {
+        let answers = try await mcp([modernRequest(1, "tools/list")])
+        let names = Set(
+            (result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String })
+        let commands = Set(Self.commands.values.joined())
+        for command in commands.sorted() where Self.toolExemptions[command] == nil {
+            let tool = command.replacing(" ", with: "_").replacing("-", with: "_")
+            #expect(names.contains(tool), "dirigible \(command) has no MCP tool \(tool) and no tool exemption")
+        }
+        let mapped = Set(commands.map { $0.replacing(" ", with: "_").replacing("-", with: "_") })
+        #expect(names.subtracting(mapped).subtracting(Self.readTools).isEmpty, "tools with no command")
+        #expect(Set(Self.toolExemptions.keys).isSubset(of: commands), "a tool exemption names no command")
+        #expect(Self.toolExemptions.values.allSatisfy { !$0.isEmpty })
     }
 
     private func publicMutatingMethods() throws -> Set<String> {

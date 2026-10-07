@@ -45,7 +45,7 @@ let sessionTools = [
     Tool(
         "session_info",
         "Read a session package as compact JSON, the JSON of dirigible info --json. For a long session, read it "
-            + "in parts with from and to (a frame range), or with tracks. An answer over 60,000 characters is an "
+            + "in parts with from and to (a frame range), or with tracks. An answer over \(sessionInfoBudget) characters is an "
             + "overview: each track with its clip count, the end frame, and the marker count.",
         [infoTracks, infoFrom, infoTo], saves: false
     ) { a throws(ToolError) in

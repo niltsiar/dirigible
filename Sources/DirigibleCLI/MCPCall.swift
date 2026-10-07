@@ -70,9 +70,10 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     return text.count <= sessionInfoBudget ? text : overview(of: view, size: text.count)
 }
 
-/// The largest `session_info` answer in characters, about 15,000 tokens: Claude Code refuses a
-/// tool result over 25,000 tokens (U9).
-let sessionInfoBudget = 60_000
+/// The largest `session_info` answer in characters. Claude Code refuses a tool result over
+/// 25,000 tokens, and a measure of session JSON with chained clip IDs gave about 2.1 characters
+/// a token (decisions.tsv, M1 measure), so 40,000 characters are about 19,000 tokens.
+let sessionInfoBudget = 40_000
 
 /// The answer when the JSON passes the budget: each track with its clip count, the end frame of
 /// the last clip, the marker count, and a note that tells how to read the session in parts. The

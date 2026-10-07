@@ -2,6 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
+@testable import DirigibleCLI
+
 /// The tools of `dirigible mcp` that are not a plain edit row: `session_info`, `session_create`,
 /// the lock, the pending take, and the argument checks (decision 0041).
 struct MCPToolTests {
@@ -72,8 +74,9 @@ struct MCPToolTests {
     }
 
     /// C9a: 6 tracks of 201 clips, each split from the right part of the split before, so the IDs
-    /// chain as the app makes them (c1@10000@20000...). An answer over 60,000 characters (about
-    /// 15,000 tokens) is the overview; a from/to range gives the full JSON of the clips in it.
+    /// chain as the app makes them (c1@10000@20000...). An answer over `sessionInfoBudget` is the
+    /// overview. The JSON of 1950001...2010000 has 56,443 characters, which Claude Code refused
+    /// (over 25,000 tokens, decisions.tsv M1 measure). A short from/to range gives the full JSON.
     @Test func sessionInfoOfALongSessionGivesAnOverview() async throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 2_010_000))
@@ -90,12 +93,17 @@ struct MCPToolTests {
             toolCall(1, "session_info", ["package": long.path]),
             toolCall(2, "session_info", ["package": long.path, "tracks": ["track-1"]]),
             toolCall(3, "session_info", ["package": long.path, "from": 0, "to": 50_000]),
+            toolCall(4, "session_info", ["package": long.path, "from": 1_950_001, "to": 2_010_000]),
         ])
         let (whole, one, range) = (
             toolResult(answer(answers, id: 1)).text, toolResult(answer(answers, id: 2)).text,
             toolResult(answer(answers, id: 3)).text
         )
-        for text in [whole, one, range] { #expect(text.count <= 60_000, "\(text.count) characters") }
+        let refused = toolResult(answer(answers, id: 4)).text
+        for text in [whole, one, range, refused] {
+            #expect(text.count <= sessionInfoBudget, "\(text.count) characters")
+        }
+        #expect(json(refused)?["note"] is String, "56,443 characters of JSON pass 25,000 tokens: \(refused.count)")
         let overview = json(whole)
         let tracks = overview?["tracks"] as? [[String: Any]] ?? []
         #expect(tracks.map { $0["id"] as? String } == (1...6).map { "track-\($0)" })

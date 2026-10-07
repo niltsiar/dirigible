@@ -266,6 +266,12 @@ git -C "$m" add a.md
 refused -m 'x: 10 before, 12 after'
 refused -m 'x: 9 before, 11 after'
 gc "$m" -m 'x: 10 before, 11 after' || msg_fail 'a true pair was refused'
+# A plain commit counts its before value at HEAD only: 10 is the count at HEAD^.
+words a.md 12
+git -C "$m" add a.md
+refused -m 'x: 10 before, 12 after'
+words a.md 11
+git -C "$m" add a.md
 gc "$m" --amend -m 'x: 10 words before, 11 after' || msg_fail 'a message-only amend with a pair from HEAD^ was refused'
 gc "$m" --amend -m $'x: 10 before,\n\n11 after' || msg_fail 'a pair split by a blank line was refused'
 printf 'r\n' > "$m/rules.tsv"

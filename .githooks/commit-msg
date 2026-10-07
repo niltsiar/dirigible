@@ -2,9 +2,10 @@
 # Refuse a commit message with a word pair that the staged files do not show. A pair is
 # "<N> before, <M> after", "<N> words before, <M> after", or "<N> before and after", also across
 # line breaks. One budgeted file (a file row of docs/workflow/budgets.tsv, not a folder row and not
-# TOTAL) changed against HEAD or HEAD^ must have wc -w N at HEAD or at HEAD^, and M in the index.
-# HEAD^ is for an amend: the hook cannot tell an amend from a commit, and in an amend HEAD is the
-# replaced commit. A copy that is not there counts 0 words (a new or a deleted file).
+# TOTAL) changed against the base must have wc -w N at the base and M in the index. The base is
+# HEAD, or HEAD^ for an amend (it replaces HEAD). Git gives the hook no amend flag, so the hook reads
+# the arguments of its git commit process; when ps gives none, both bases count. A copy that is not
+# there counts 0 words (a new or a deleted file).
 # Usage: commit-msg <message file>; commit-msg --pairs prints the pairs of a message on stdin.
 # .claude/hooks/git-guardrails.test.sh tests it.
 set -euo pipefail
@@ -25,7 +26,15 @@ empty="$(git hash-object -t tree /dev/null)"
 head="$(git rev-parse -q --verify HEAD || echo "$empty")"
 parent="$(git rev-parse -q --verify HEAD^ || echo "$empty")"
 budgeted="$(awk -F'\t' 'NR > 1 && $1 != "TOTAL" && $1 !~ /\/$/ { print $1 }' "$top/docs/workflow/budgets.tsv" 2>/dev/null || true)"
-files="$({ git diff --cached --name-only "$head"; git diff --cached --name-only "$parent"; } | sort -u |
+caller="$(ps -o args= -p "$PPID" 2>/dev/null || true)"
+if [[ -z "$caller" ]]; then
+    bases=("$head" "$parent")
+elif [[ " $caller " == *" --amend "* ]]; then
+    bases=("$parent")
+else
+    bases=("$head")
+fi
+files="$(for base in "${bases[@]}"; do git diff --cached --name-only "$base"; done | sort -u |
     { grep -Fx -f <(printf '%s\n' "$budgeted") || true; })"
 words() { { git show "$1" 2>/dev/null || true; } | wc -w | tr -d ' '; }
 
@@ -34,9 +43,13 @@ while read -r n m; do
     counts="" ok=0
     while IFS= read -r f; do
         [[ -n "$f" ]] || continue
-        at_head="$(words "$head:$f")" at_parent="$(words "$parent:$f")" staged="$(words ":$f")"
-        counts="$counts $f (HEAD $at_head, HEAD^ $at_parent, index $staged)"
-        if [[ ("$at_head" == "$n" || "$at_parent" == "$n") && "$staged" == "$m" ]]; then ok=1; fi
+        staged="$(words ":$f")" before=""
+        for base in "${bases[@]}"; do
+            count="$(words "$base:$f")"
+            before="$before${before:+ or }$count"
+            [[ "$count" == "$n" && "$staged" == "$m" ]] && ok=1
+        done
+        counts="$counts $f (before $before, index $staged)"
     done <<< "$files"
     if ((ok == 0)); then
         echo "commit-msg: no staged budgeted file goes from $n to $m words (the pair '$n before, $m after'). Counts:${counts:- no budgeted file changed}. Write the pair from wc -w of the staged file." >&2

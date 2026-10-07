@@ -66,7 +66,7 @@ struct SessionView: Encodable {
         let gain: Double
         let layout: String
         let route: RouteView?
-        let clips: [ClipView]
+        var clips: [ClipView]
         /// Left out when false, as in `session.xml` (decision 0039).
         let muted: Bool?
         let soloed: Bool?
@@ -89,10 +89,10 @@ struct SessionView: Encodable {
     /// The `session.xml` version that a save of this session writes (decision 0029).
     let version: Int
     let sampleRate: Int
-    let captures: [CaptureView]
-    let files: [FileView]
-    let tracks: [TrackView]
-    let markers: [MarkerView]
+    private(set) var captures: [CaptureView]
+    private(set) var files: [FileView]
+    private(set) var tracks: [TrackView]
+    private(set) var markers: [MarkerView]
     let recording: RecordingView?
 
     init(_ session: Session, media: [FileID: MediaFault]) {
@@ -133,10 +133,38 @@ struct SessionView: Encodable {
         }
     }
 
-    func json() throws -> String {
+    /// Pretty JSON with a newline at the end for `info --json`, or compact JSON on one line for
+    /// `session_info`.
+    func json(pretty: Bool = true) throws -> String {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        return String(decoding: try encoder.encode(self), as: UTF8.self) + "\n"
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        if pretty { encoder.outputFormatting.insert(.prettyPrinted) }
+        return String(decoding: try encoder.encode(self), as: UTF8.self) + (pretty ? "\n" : "")
+    }
+
+    /// Only the `tracks`, and only the clips and markers that touch `range`: a clip touches it when
+    /// `clip.start <= range.upperBound` and `range.lowerBound <= clip.end`, and a marker when its
+    /// position is in `range.lowerBound...range.upperBound`. With a filter, only the files of the
+    /// clips that stay and the captures of those files stay. So an agent can read a long session
+    /// in parts (U9).
+    func filtered(tracks ids: Set<String>?, range: Range<Frames>?) -> SessionView {
+        var view = self
+        if let ids { view.tracks = tracks.filter { ids.contains($0.id) } }
+        if let range {
+            let (from, to) = (range.lowerBound.count, range.upperBound.count)
+            for index in view.tracks.indices {
+                view.tracks[index].clips = view.tracks[index].clips.filter {
+                    $0.start <= to && from <= $0.start + $0.length
+                }
+            }
+            view.markers = markers.filter { (from...to).contains($0.position) }
+        }
+        guard ids != nil || range != nil else { return view }
+        let used = Set(view.tracks.flatMap { $0.clips.map(\.file) })
+        view.files = files.filter { used.contains($0.id) }
+        let captured = Set(view.files.compactMap(\.capture))
+        view.captures = captures.filter { captured.contains($0.id) }
+        return view
     }
 }
 

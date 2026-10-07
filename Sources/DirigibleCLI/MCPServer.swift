@@ -37,10 +37,21 @@ struct MCPServer {
                     "_meta": ["io.modelcontextprotocol/serverInfo": serverInfo],
                 ], cached: true)
         case "ping": return reply(id, [:])
-        case "tools/list": return reply(id, ["tools": [Any]()], cached: true)
+        case "tools/list":
+            let list = tools.map { ["name": $0.name, "description": $0.description, "inputSchema": $0.inputSchema] }
+            return reply(id, ["tools": list], cached: true)
         case "tools/call":
-            let name = params["name"] as? String
-            return reply(id, error: -32602, name.map { "no tool \($0)." } ?? "tools/call needs a tool name.")
+            guard let name = params["name"] as? String else {
+                return reply(id, error: -32602, "tools/call needs a name.")
+            }
+            guard let tool = tools.first(where: { $0.name == name }) else {
+                return reply(id, error: -32602, "no tool \(name).")
+            }
+            guard let arguments = params["arguments"].map({ $0 as? [String: Any] }) ?? [:] else {
+                return reply(id, error: -32602, "the arguments of tools/call are not an object.")
+            }
+            let (text, isError) = call(tool, arguments)
+            return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])
         default: return reply(id, error: -32601, "no method \(method).")
         }
     }

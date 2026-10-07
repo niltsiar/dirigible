@@ -8,7 +8,8 @@ import Foundation
 func call(_ tool: Tool, _ json: [String: Any]) -> (text: String, isError: Bool) {
     do throws(ToolError) {
         let arguments = try Arguments(json, params: tool.params)
-        return try (perform(try tool.make(arguments), path: arguments.path), false)
+        let text = try perform(try tool.make(arguments), path: arguments.path)
+        return (text, false)
     } catch {
         return (error.message, true)
     }
@@ -22,7 +23,8 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
             let ids = try editPackageCore(package, ripple: ripple) { session, _ throws(SessionError) -> [String] in
                 try edit(&session)
             }
-            return toolText(ids)
+            // The new IDs, one on each line, or OK.
+            return ids.isEmpty ? "OK" : ids.joined(separator: "\n")
         } catch {
             throw ToolError(error.message(package: path))
         }

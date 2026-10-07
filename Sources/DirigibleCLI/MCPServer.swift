@@ -3,10 +3,8 @@ import Foundation
 /// The JSON-RPC 2.0 side of `dirigible mcp` (decision 0041): one request line in, one answer line
 /// out. It has no stdio and no ArgumentParser, so Release 3 can move it into a library.
 struct MCPServer {
-    enum Era: Equatable, Sendable {
-        case modern
-        case legacy(version: String)
-    }
+    /// `initialize` selects the legacy era for the life of the process.
+    enum Era { case modern, legacy }
     private(set) var era = Era.modern
 
     /// The legacy versions, newest first. `initialize` gets the client version when it is here.
@@ -65,7 +63,7 @@ struct MCPServer {
         guard era == .modern else { return reply(id, error: -32600, "the server is already initialized.") }
         let asked = params["protocolVersion"] as? String ?? ""
         let version = Self.legacyVersions.contains(asked) ? asked : Self.legacyVersions[0]
-        era = .legacy(version: version)
+        era = .legacy
         return reply(id, ["protocolVersion": version, "capabilities": capabilities, "serverInfo": serverInfo])
     }
 

@@ -32,7 +32,9 @@
 #   over 5 min between its records in the window. Run windows that overlap share these counts.
 # - subagents: each agent-*.jsonl at any depth under <transcript without .jsonl>/subagents (a
 #   Workflow puts its agents in subagents/workflows/wf_*/) whose first user message names the run
-#   folder (no letter, digit, or hyphen after the name) and whose first record is in the window:
+#   folder (no letter, digit, or hyphen after the name) and whose time span overlaps the subagent
+#   window (the earlier of the open time and the window start, to the window end; the agent that
+#   opens a run starts before its first row):
 #   one line with its tool calls, wall minutes, error results (at most 5 commands, 80 characters
 #   each), the commands that ran more than once (the 3 most), and its gaps over 5 min. The other
 #   files are unattributed.
@@ -139,13 +141,16 @@ if [[ -z "$transcript" || ! -f "$transcript" ]]; then
 elif [[ ! -d "${transcript%.jsonl}/subagents" ]]; then
     echo "subagents: none"
 else
-    other=0
+    other=0 since="$(stat -f %B "$run")"
+    ((since < from)) || since="$from"
     while IFS= read -r f; do
         start="$(jq -r -s 'def text: if type == "string" then . else ([.[]? | objects | select(.type == "text") | .text] | join(" ")) end;
-            ([.[] | select(.timestamp)][0].timestamp // "" | sub("\\.[0-9]+Z$"; "Z") | (fromdateiso8601? // 0) | tostring) + " " +
+            def t: .timestamp | sub("\\.[0-9]+Z$"; "Z") | (fromdateiso8601? // 0) | tostring;
+            [.[] | select(.timestamp)] as $r | ($r[0] | t? // "x") + " " + ($r[-1] | t? // "x") + " " +
             ([.[] | select(.type == "user")][0].message.content | text | gsub("\n"; " "))' "$f" 2>/dev/null || true)"
-        t0="${start%% *}"
-        if [[ "$t0" =~ ^[0-9]+$ ]] && ((t0 >= from && t0 <= to)) && grep -qE -- "${name}([^A-Za-z0-9-]|$)" <<<"${start#* }"; then
+        t0="${start%% *}" rest="${start#* }"
+        t1="${rest%% *}"
+        if [[ "$t0" =~ ^[0-9]+$ && "$t1" =~ ^[0-9]+$ ]] && ((t0 <= to && t1 >= since)) && grep -qE -- "${name}([^A-Za-z0-9-]|$)" <<<"${rest#* }"; then
             jq -r -s --arg file "$(basename "$f" .jsonl)" '
                 ([.[] | select(.timestamp) | .timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601] | sort) as $t
                 | [.[] | .message.content[]? | objects | select(.type == "tool_use")

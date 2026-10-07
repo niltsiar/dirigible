@@ -75,7 +75,9 @@ func result(_ answer: Answer) -> [String: Any] { answer["result"] as? [String: A
 /// Starts `dirigible mcp` with a pipe on stdin, writes `line`, and waits for the first stdout
 /// line while stdin stays open. Then it closes stdin and waits for the exit. Each wait has its own
 /// limit, so a server that holds its answer until EOF fails the test and does not hang it (C16).
-func mcpOverPipe(_ line: String, limit: Duration = .seconds(10)) async throws -> (first: String?, status: Int32?) {
+/// The limit is the 30 s of each CLI child: under the load of the suite, a child can start many
+/// seconds late.
+func mcpOverPipe(_ line: String, limit: Duration = .seconds(30)) async throws -> (first: String?, status: Int32?) {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-mcp-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -135,7 +137,7 @@ func errorText(_ result: CLIResult) -> String {
 /// Starts `dirigible mcp` with the read end of its stdout closed (and of its stderr, with
 /// `closesStderr`), sends one `ping`, and waits for the exit with a limit. Gives whether a signal
 /// ended it, the exit status, and the stderr text.
-func mcpWithClosedOutput(closesStderr: Bool, limit: Duration = .seconds(10)) async throws -> (
+func mcpWithClosedOutput(closesStderr: Bool, limit: Duration = .seconds(30)) async throws -> (
     signaled: Bool, status: Int32?, stderr: String
 ) {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-mcp-\(UUID().uuidString)")

@@ -109,7 +109,14 @@ struct MCPToolTests {
         #expect(tracks.map { $0["id"] as? String } == (1...6).map { "track-\($0)" })
         #expect(tracks.allSatisfy { $0["clips"] as? Int == 201 && $0["name"] is String }, "\(tracks.first ?? [:])")
         #expect(overview?["end"] as? Int == 2_010_000 && overview?["markers"] as? Int == 1)
-        #expect((overview?["note"] as? String)?.contains("from and to") == true, "\(whole.prefix(300))")
+        #expect((overview?["note"] as? String)?.contains("from and to (a frame range), or with tracks") == true)
+        // A filtered overview gives the session values, and a note for a filter that is still too large.
+        for (name, text) in [("tracks", one), ("from/to", refused)] {
+            let filtered = json(text)
+            #expect(filtered?["end"] as? Int == 2_010_000 && filtered?["markers"] as? Int == 1, "\(name): \(text)")
+            let note = filtered?["note"] as? String ?? ""
+            #expect(note.contains("smaller parts with from and to") && !note.contains("tracks"), "\(name): \(note)")
+        }
         #expect((json(one)?["tracks"] as? [[String: Any]])?.first?["clips"] as? Int == 201, "one track: overview")
         let clips = (json(range)?["tracks"] as? [[String: Any]])?.map { ($0["clips"] as? [Any])?.count }
         #expect(clips == Array(repeating: 6, count: 6), "the range 0...50000 holds 6 clips of each track")

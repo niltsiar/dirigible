@@ -128,6 +128,7 @@ window: 2026-09-20T08:20 to 2026-09-20T11:30
 agents: 3
 workflows: 1
 idle: 12 min in 1 gaps over 5 min
+subagents: none
 pace: 2026-09-20-fixture open to merge 4.0 h
 pace: merges per day 2026-09-11 1 2026-09-12 1 2026-09-13 1 2026-09-14 1 2026-09-15 1 2026-09-16 1 2026-09-17 1 2026-09-18 1 2026-09-19 2 2026-09-20 1"
 
@@ -148,12 +149,48 @@ check() {
 check 'a run with a transcript' "$want" "$run" "$transcript"
 grep -qx 'gh pr list --state merged --limit 100 --json number,createdAt,mergedAt,title' "$tmp/gh.log" || fail "gh arguments: $(cat "$tmp/gh.log")"
 
-no_transcript="$(sed -e 's/^agents: .*/agents: no transcript/' -e 's/^workflows: .*/workflows: no transcript/' -e 's/^idle: .*/idle: no transcript/' <<<"$want")"
+no_transcript="$(sed -e 's/^agents: .*/agents: no transcript/' -e 's/^workflows: .*/workflows: no transcript/' -e 's/^idle: .*/idle: no transcript/' \
+  -e 's/^subagents: .*/subagents: no transcript/' <<<"$want")"
 check 'no transcript' "$no_transcript" "$run"
 
 no_gh="$(grep -v '^pace: ' <<<"$no_transcript")
 pace: no gh data"
 FAKE_GH=fail check 'gh fails' "$no_gh" "$run"
+
+# The subagents of the session (subagents/ next to the transcript, at any depth: a Workflow puts its
+# agents in subagents/workflows/wf_*/) get one line each when their first user message names the
+# run, with no letter, digit, or hyphen after the name, and their first record is in the run window
+# (08:20Z to 11:30Z). The others are unattributed: a run with a longer name, another run, and a file
+# that names this run and another run but starts outside the window.
+sub="$tmp/t/subagents"
+mkdir -p "$sub/workflows/wf_x"
+u() { printf '{"type":"user","timestamp":"%s","message":{"role":"user","content":%s}}\n' "$1" "$2"; }
+bash_use() { printf '{"type":"assistant","timestamp":"%s","message":{"content":[{"type":"tool_use","id":"%s","name":"Bash","input":{"command":"%s"}}]}}\n' "$1" "$2" "$3"; }
+result() { printf '{"type":"user","timestamp":"%s","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"%s","is_error":%s,"content":"x"}]}}\n' "$1" "$2" "$3"; }
+{
+  u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture, slice 1."'
+  bash_use 2026-09-20T09:01:00.000Z a1 'make test'
+  result 2026-09-20T09:02:00.000Z a1 true
+  bash_use 2026-09-20T09:03:00.000Z a2 'make test'
+  result 2026-09-20T09:04:00.000Z a2 false
+  bash_use 2026-09-20T09:20:00.000Z a3 'git status'
+  result 2026-09-20T09:21:00.000Z a3 false
+} > "$sub/agent-one.jsonl"
+{
+  u 2026-09-20T10:00:00.000Z '[{"type":"text","text":"Review the plan of 2026-09-20-fixture."}]'
+  printf '{"type":"assistant","timestamp":"2026-09-20T10:02:00.000Z","message":{"content":[{"type":"tool_use","id":"b1","name":"Read","input":{"file_path":"x"}}]}}\n'
+} > "$sub/workflows/wf_x/agent-two.jsonl"
+{ u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture-2, slice 1."'; bash_use 2026-09-20T09:01:00.000Z c1 ls; } > "$sub/agent-longer.jsonl"
+{ u 2026-09-20T09:00:00.000Z '"Run 2026-09-21-other."'; bash_use 2026-09-20T09:01:00.000Z d1 ls; } > "$sub/agent-other.jsonl"
+{ u 2026-09-20T13:00:00.000Z '"Compare 2026-09-20-fixture with 2026-09-21-other."'; bash_use 2026-09-20T13:01:00.000Z e1 ls; } > "$sub/agent-late.jsonl"
+out="$(cd "$tmp" && TZ=UTC PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$transcript" 2>&1)" || fail "subagents: exit $?: $out"
+for line in 'subagent: agent-one: 3 tool calls, 21 min, 1 errors (make test), repeated: make test x2, gaps: 1 over 5 min (16 min)' \
+  'subagent: agent-two: 1 tool calls, 2 min, 0 errors, repeated: none, gaps: 0 over 5 min (0 min)' \
+  'unattributed: 3 files'; do
+  grep -qxF -- "$line" <<<"$out" || fail "subagents: no line '$line' in: $(grep -E '^(subagent|unattributed)' <<<"$out")"
+done
+[[ "$(grep -c '^subagent: ' <<<"$out")" == 2 ]] || fail "subagents: want 2 subagent lines: $(grep '^subagent' <<<"$out")"
+rm -rf "$tmp/t"
 
 # A run folder with no logs/ and no controls/ (the early runs): no false zero for the checks and the
 # benches, zero controls, and the pace lines.

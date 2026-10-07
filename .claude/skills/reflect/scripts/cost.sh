@@ -51,14 +51,15 @@ epoch() { date -j -f %Y-%m-%dT%H:%M:%S "$1:00" +%s; }
 echo "run: $name"
 echo "open: $open"
 start="$open"
+# The awk compares the phase as text: as a number, phase 0 equals the unset p, and no block starts.
 while read -r phase first end; do
     gap=$((($(epoch "$first") - $(epoch "$start")) / 60)) late=""
     if ((gap > 30)); then late=", first row after $gap min"; fi
     echo "phase $phase: $start to $end, $((($(epoch "$end") - $(epoch "$start")) / 60)) min$late"
     start="$end"
 done < <(awk -F'\t' '$1 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$/ {
-        if (NR > 1 && $2 != p && p != "") print p, f, e
-        if ($2 != p) f = $1
+        if (NR > 1 && $2 "" != p "" && p != "") print p, f, e
+        if ($2 "" != p "") f = $1
         p = $2; e = $1
     } END { if (p != "") print p, f, e }' "$run/decisions.tsv")
 

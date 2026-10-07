@@ -23,12 +23,12 @@ Route each finding to a skill, tool, or MCP that this transcript used: a `Skill`
 
 Drop a skill that was neither invoked nor a missed trigger.
 
-Return 3-5 durable learnings as a numbered list, with no exposition. For each:
+Return 0-5 durable learnings, none when no moment cost time or gave a wrong result, as a bare numbered list. For each:
 - Principle: one sentence that states the rule that generalizes, not a label or a name.
 - Evidence: the exact moment in the transcript (turn number or short quote).
-- Routing: the `SKILL.md` path as the transcript shows it, `tune description: <skill path>`, or `new skill: <kebab-name>` if no existing skill is a real home.
-- Key: the cause key `<ID>/<class>`, in the form that step 1 of `.claude/skills/reflect/references/synthesizer.md` gives.
+- Routing: the `SKILL.md` path from the transcript, `tune description: <skill path>`, or `new skill: <kebab-name>` if no existing skill is a real home.
+- Key: the cause key `<ID>/<class>`, in the form of step 1 of `.claude/skills/reflect/references/synthesizer.md`.
 
-Skip trivial things (typos, tool retries, mechanical setup), things that the skill the parent followed already makes obvious, and details that drift: SHAs, current file paths, version numbers, exact byte counts.
+Skip trivial things (typos, tool retries, mechanical setup), things that the followed skill already makes obvious, and details that drift (SHAs, paths, versions, byte counts).
 
 <DIGEST IF FILE PATH UNAVAILABLE>

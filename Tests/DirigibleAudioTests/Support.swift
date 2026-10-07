@@ -272,12 +272,17 @@ final class AsyncGate: @unchecked Sendable {
 /// worst wait: `waitOnce` 21.8 s (run test-pool-health, loops/base-1.log), `entered` 23.8 s
 /// (loops/s3loadb-5.log).
 final class Gate: @unchecked Sendable {
-    /// The limit of `waitOnce`.
+    /// The default limit of `waitOnce`.
     static let openLimit = Duration.seconds(66)
+    /// The limit of `waitOnce`. Nil: no limit, for a hold that must last until the test opens
+    /// it in a `defer` (waits-and-limits.md). A hold with a limit ends when the test is slow.
+    private let limit: Duration?
     private let lock = NSLock()
     private let semaphore = DispatchSemaphore(value: 0)
     private var used = false
     private var inside = false
+
+    init(limit: Duration? = openLimit) { self.limit = limit }
 
     @available(*, noasync, message: "It blocks a thread of the concurrency pool. Use AsyncGate in async code.")
     func waitOnce() {
@@ -297,8 +302,9 @@ final class Gate: @unchecked Sendable {
         }
         let start = ContinuousClock.now
         defer { reportWait("Gate.waitOnce", since: start, "Gate") }
-        if semaphore.wait(timeout: .now() + Self.openLimit / .seconds(1)) == .timedOut {
-            Issue.record("The gate was not opened in \(Self.openLimit)")
+        guard let limit else { return semaphore.wait() }
+        if semaphore.wait(timeout: .now() + limit / .seconds(1)) == .timedOut {
+            Issue.record("The gate was not opened in \(limit)")
         }
     }
 

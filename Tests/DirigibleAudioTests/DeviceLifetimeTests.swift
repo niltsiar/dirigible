@@ -105,7 +105,10 @@ extension DeviceEventTests {
         let hal = TestHAL([mic])
         let writer = writer(mic, hal)
         let input = SyntheticInput(hal, "mic")
-        let gate = Gate()
+        // The hold has no limit: under load, a hold that ends by itself lets the producer end
+        // before the detach. The defer opens it on every exit.
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
         var clock = DeviceClock()
         input.play(run(&clock, 0.1), hold: held ? gate : nil)
         if held {

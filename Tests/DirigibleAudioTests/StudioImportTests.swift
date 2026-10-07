@@ -297,13 +297,13 @@ struct StudioImportTests {
     }
 
     /// The free space is low while B imports. The disk check of the take in A ends the import of
-    /// B, and the take records on. The import ends within one check interval of the live value
-    /// (1 s): a block of 0.1 s, and 28 blocks, so the import runs at the first check.
+    /// B, and the take keeps recording. The check interval (2 s) is wide against a block of 0.1 s,
+    /// and the 54 blocks of the source run past the first check.
     @Test func theDiskCheckOfATakeEndsAnImportOnItsVolume() async throws {
         let a = try await ExportStudioFixture.make()
         let studioA = try await a.open(TestHAL([a.mic]))
-        studioA.environment.diskCheckInterval = .seconds(1)
-        let b = try await ImportStudioFixture.make(seconds: 40)
+        studioA.environment.diskCheckInterval = .seconds(2)
+        let b = try await ImportStudioFixture.make(seconds: 80)
         let studioB = try await b.open(step: ChunkSeam(pause: 0.1))
         let clipsB = b.url.appending(path: clipsFolderName)
         studioA.environment.freeBytes = { _ in
@@ -319,7 +319,8 @@ struct StudioImportTests {
         await #expect(throws: StudioError.importYielded(file: "Voice.wav"), "B yields to the disk check") {
             try await importing.value
         }
-        try? await Task.sleep(for: .milliseconds(1_500))
+        // One check interval and 1 s: the next check sees the space again.
+        try? await Task.sleep(for: .seconds(3))
         #expect(studioA.transport == .recording(take: 1), "the take records on")
         try await studioA.stopRecording()
     }

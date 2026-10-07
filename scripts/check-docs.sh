@@ -246,4 +246,15 @@ else
         }')
 fi
 
+# Each scenario of the ## Scenarios table of the eval set has its own ID: evals-for.sh and the
+# grader find a scenario by its ID.
+evals="$root/docs/workflow/evals.md"
+if [[ ! -f "$evals" ]]; then
+    err "docs/workflow/evals.md is missing"
+else
+    while IFS= read -r id; do err "docs/workflow/evals.md: duplicate scenario id $id"; done < <(awk -F'|' '
+        /^## / { inside = ($0 ~ /^## Scenarios[[:space:]]*$/); next }
+        inside && /^\|/ { id = $2; gsub(/[[:space:]]/, "", id); if (id ~ /^[EH][0-9]+$/ && seen[id]++ == 1) print id }' "$evals")
+fi
+
 exit "$fail"

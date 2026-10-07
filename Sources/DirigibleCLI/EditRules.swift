@@ -6,7 +6,7 @@ import Foundation
 /// the checked value, or nil when the arguments break it.
 enum EditRules {
     /// The Host device of `track add-call`: a device with one channel, or no device.
-    enum HostDevice: Equatable {
+    enum HostDevice {
         case none
         case mono(uid: String, channel: Int)
         /// A device with no channels, or channels with no device.

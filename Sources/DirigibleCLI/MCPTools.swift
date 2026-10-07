@@ -24,9 +24,6 @@ enum Arg {
     static let to = Param.required("to", "The frame after the last frame.", .integer())
 }
 
-/// The new IDs of an edit, as text: one on each line, or OK.
-func toolText(_ ids: [String]) -> String { ids.isEmpty ? "OK" : ids.joined(separator: "\n") }
-
 private let sampleRate = Param.required("sample_rate", "The session sample rate in Hz.", .integer(minimum: 1))
 private let infoTracks = Param<[String]?>.optional(
     "tracks", "Only these track IDs, with the files and captures that their clips use.", .strings(minItems: 1))

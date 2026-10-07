@@ -93,7 +93,7 @@ extension Kind where T == Route.Channels {
         schema: ["type": "array", "items": ["type": "integer"], "minItems": 1, "maxItems": 2],
         expected: "an array of one or two channel numbers"
     ) { value in
-        (Kind<[Int]>.integers().parse(value)).flatMap(EditRules.channels)
+        Kind<[Int]>.integers().parse(value).flatMap(EditRules.channels)
     }
 }
 

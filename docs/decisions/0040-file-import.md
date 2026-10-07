@@ -27,7 +27,7 @@ The user imports a WAV, AIFF, FLAC, MP3, or M4A file into a track (F61, part of 
 - The studio is busy for the conversion time, about 10 to 40 s for a 1 h MP3. The user can cancel.
 - An imported clip keeps 24 bits; a float source over full scale keeps its level through the A11 clip gain.
 - `AVAudioFile.length` equals the decoded frames also for a VBR MP3 with no Xing tag (probe on macOS 15.7.9), so the import reads to `length`, as finalize does.
-- A crash during an import can leave `.<stem>.wav.tmp` in `Clips/` (backlog).
+- A crash during an import can leave `.<stem>.wav.tmp` in `Clips/`. The next open of the package under its lock (`Studio.open` and the CLI edits) deletes it, unless a pool file names it.
 
 ## Alternatives considered
 

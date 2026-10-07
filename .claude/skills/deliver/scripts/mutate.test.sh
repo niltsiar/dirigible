@@ -4,7 +4,8 @@
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
 # restores the file, counts a test past --timeout as a kill, replays a control from its log only
 # with a time limit, reports a run of no test as NO TESTS, applies --in=<file> pairs to a second
-# file, and restores the file on SIGINT, SIGTERM, and SIGHUP. Run by `make test-hooks`.
+# file, and restores the file on SIGINT, SIGTERM, and SIGHUP, also when killpg raises EPERM. Run by
+# `make test-hooks`.
 set -uo pipefail
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
@@ -171,8 +172,17 @@ late=$!
 # replay ran for hours, and SIGTERM skipped the restore).
 printf 'a = 1\nb = 1\n' > "$file"
 before="$(shasum -a 256 "$file")"
-for sig in TERM HUP INT; do
-  "$mutate" "$file" 'b = 1' 'b = 2' "$tmp/stop" "$build" "sleep 32 & echo \$! > $tmp/pid; wait" > "$tmp/stop.out" 2>&1 &
+# EPERM: on macOS, killpg of a group whose only member is an unreaped zombie raises EPERM (probe of
+# run 2026-10-08-upkeep-batch-4); under load that failed the SIGTERM case. The fake does the real
+# kill, then raises EPERM.
+mkdir -p "$tmp/fake"
+printf '%s\n' 'import errno, os' '_real = os.killpg' 'def killpg(pgid, sig):' '    _real(pgid, sig)' \
+  "    raise PermissionError(errno.EPERM, 'Operation not permitted')" 'os.killpg = killpg' > "$tmp/fake/sitecustomize.py"
+PYTHONPATH="$tmp/fake" check '0:killed (hang)' 'a hang when killpg raises EPERM' --timeout 1 "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" 'sleep 33 | cat'
+for sig in TERM HUP INT EPERM; do
+  fake=""
+  [[ $sig == EPERM ]] && sig=TERM fake="$tmp/fake"
+  PYTHONPATH="$fake" "$mutate" "$file" 'b = 1' 'b = 2' "$tmp/stop" "$build" "sleep 32 & echo \$! > $tmp/pid; wait" > "$tmp/stop.out" 2>&1 &
   runner=$!
   started=no
   for _ in $(seq 300); do grep -q 'b = 2' "$file" && [[ -s "$tmp/pid" ]] && started=yes && break; sleep 0.1; done

@@ -109,6 +109,19 @@ struct ParityTests {
         #expect(Self.toolExemptions.values.allSatisfy { !$0.isEmpty })
     }
 
+    /// The MCP section of the guide names each command with no tool, so a user knows the gap.
+    @Test func theGuideNamesEachCommandWithNoTool() throws {
+        let guide = try String(
+            contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
+            encoding: .utf8)
+        let section = guide.components(separatedBy: "### Connect an agent with MCP").dropFirst().first ?? ""
+        let text = section.components(separatedBy: "\n### ").first ?? ""
+        #expect(!text.isEmpty, "the guide has no MCP section")
+        for command in Self.toolExemptions.keys.sorted() where !text.contains("`\(command)`") {
+            Issue.record("the MCP section of docs/guide.md does not name \(command), a command with no tool")
+        }
+    }
+
     /// The command words of each command that has no subcommand.
     private func leafCommands(of command: any ParsableCommand.Type, _ words: [String] = []) -> Set<String> {
         let subcommands = command.configuration.subcommands

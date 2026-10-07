@@ -214,6 +214,7 @@ struct MCPToolTests {
         let guide = try String(
             contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
             encoding: .utf8)
+        #expect(guide.contains("The \(tools.count) tools"), "the guide gives another count of tools")
         for name in tools.compactMap({ $0["name"] as? String }) where !guide.contains("`\(name)`") {
             Issue.record("docs/guide.md does not name the tool \(name)")
         }

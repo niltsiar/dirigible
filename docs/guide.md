@@ -574,7 +574,7 @@ The text of the tool is English only.
 
 ### Connect an agent with MCP
 
-An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create` and `session_info`. The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
+An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create` and `session_info`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
 
 Register the server once for your user, from a clone of the repository:
 
@@ -599,7 +599,7 @@ The 31 tools, in groups:
 - The server does not edit a package that the app has open. The tool gives the error "`<path>` is open in Dirigible." Close the session in the app, then try again.
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
 - A tool call has no undo. Each call saves the package. Make a copy of the session before an agent edits it.
-- No tool records, imports, exports, renders, measures loudness, or places captured audio: that work needs progress and cancel. `capture add` and `file add` have no tool either.
+- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `devices` and `apps` read no package, and `mcp` is the server. Run these commands in the terminal.
 
 ### Make the screenshots again
 

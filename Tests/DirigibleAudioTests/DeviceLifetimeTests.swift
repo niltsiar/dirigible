@@ -97,6 +97,30 @@ extension DeviceEventTests {
         late.ring.setRate(44_100)
     }
 
+    /// A producer that a stop cannot end in 1 s can still write into the ring. So the test detach
+    /// fails, and the writer keeps the ring bytes (decision 0013). Control: a producer that
+    /// ended gives a clean detach.
+    @Test(arguments: [true, false])
+    func aProducerThatDoesNotStopFailsTheDetach(held: Bool) async throws {
+        let hal = TestHAL([mic])
+        let writer = writer(mic, hal)
+        let input = SyntheticInput(hal, "mic")
+        let gate = Gate()
+        var clock = DeviceClock()
+        input.play(run(&clock, 0.1), hold: held ? gate : nil)
+        if held {
+            await gate.entered()
+        } else {
+            await input.wait()
+        }
+        await writer.finish()
+        gate.open()
+        await input.wait()
+
+        let first = try #require(hal.inputs("mic").first)
+        #expect(hal.events("mic").contains(.detach(first)) == !held)
+    }
+
     /// (e) An attach that failed after its listeners existed (`.undone`) gives its ring to no
     /// other attach: a late listener call of that attach must not set the rate of the next
     /// appearance. Control: an attach that failed before (`.status`) gives its ring to the next.

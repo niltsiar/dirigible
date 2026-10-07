@@ -106,13 +106,18 @@ final class SyntheticInput: @unchecked Sendable {
     /// is slow to start its IO. With `package`, the host times of `records` count from
     /// `takeStart`: after the attach, they move to the take start that `package` saved, so a
     /// late start of the take does not cut them. Then a miss of the attach in 30 s is an issue.
+    /// With `hold`, the thread waits in that gate after it counts for its input and before the
+    /// first record: a producer that a stop cannot end.
     func play(
         _ records: [InputRecord], pace: Pace = .burst, flags: AudioTimeStampFlags = validTimes,
-        into input: DeviceInput? = nil, attach: Int? = nil, delay: Duration = .zero, takeStartIn package: URL? = nil
+        into input: DeviceInput? = nil, attach: Int? = nil, delay: Duration = .zero, takeStartIn package: URL? = nil,
+        hold: Gate? = nil
     ) {
         lock.withLock { sending += 1 }
         let thread = Thread { [self] in
-            send(records, pace: pace, flags: flags, into: input, attach: attach, delay: delay, takeStartIn: package)
+            send(
+                records, pace: pace, flags: flags, into: input, attach: attach, delay: delay, takeStartIn: package,
+                hold: hold)
             lock.withLock { sending -= 1 }
         }
         // A real IOProc runs on a real-time thread; a busy suite must not starve this one.
@@ -138,23 +143,26 @@ final class SyntheticInput: @unchecked Sendable {
     }
 
     /// Stops the sends into `input` and waits for them, with a limit of 1 s. The test detach
-    /// calls it, so no thread writes into a ring after the writer frees it.
-    func stop(_ input: DeviceInput) {
+    /// calls it, so no thread writes into a ring after the writer frees it. False after the
+    /// limit: a thread can still write, so the test detach fails and the writer keeps the ring.
+    /// It records no issue: it runs on the writer queue, so the issue belongs to no test.
+    func stop(_ input: DeviceInput) -> Bool {
         let id = ObjectIdentifier(input)
         lock.withLock { _ = stopped.insert(id) }
         let end = Date.now + 1
         while lock.withLock({ targets[id, default: 0] > 0 }) {
             guard Date.now < end else {
-                Issue.record("SyntheticInput \(uid) did not stop in 1 s")
-                return
+                FileHandle.standardError.write(Data("SyntheticInput \(uid) did not stop in 1 s\n".utf8))
+                return false
             }
             usleep(1000)
         }
+        return true
     }
 
     private func send(
         _ records: [InputRecord], pace: Pace, flags: AudioTimeStampFlags, into target: DeviceInput?, attach: Int?,
-        delay: Duration, takeStartIn package: URL?
+        delay: Duration, takeStartIn package: URL?, hold: Gate?
     ) {
         let end = Date.now + (package == nil ? 10 : 30)
         func find() -> DeviceInput? {
@@ -197,6 +205,7 @@ final class SyntheticInput: @unchecked Sendable {
             })
         else { return }
         defer { lock.withLock { targets[ObjectIdentifier(input), default: 1] -= 1 } }
+        hold?.waitOnce()
         let start = Date.now
         for (index, record) in records.enumerated() {
             if isStopped(input) { return }

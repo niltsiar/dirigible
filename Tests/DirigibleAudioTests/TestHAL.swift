@@ -157,8 +157,8 @@ final class TestHAL: @unchecked Sendable {
                 callLog.append("detach \(uid)")
                 return (self.producers[uid] ?? [], detachResult && failingTeardown != "detach")
             }
-            guard clean else { return false }
-            for producer in running { producer.stop(input) }
+            // Every producer stops, also after a stop that timed out.
+            guard clean, running.map({ $0.stop(input) }).allSatisfy({ $0 }) else { return false }
             lock.withLock {
                 detached.insert(ObjectIdentifier(input))
                 log[uid, default: []].append(.detach(input))

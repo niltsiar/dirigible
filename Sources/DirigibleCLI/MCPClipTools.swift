@@ -26,12 +26,14 @@ private let fadeOut = Param<Int?>.optional(
 private let crossfade = Param.required(
     "length", "The crossfade length in frames, an even number.", .integer(minimum: 0))
 
-/// `from` and `to` (V19: `EditRules.frameRange`).
-func rangeArgument(_ a: Arguments) throws(ToolError) -> Range<Frames> {
-    guard let range = EditRules.frameRange(from: try a[Arg.from], to: try a[Arg.to]) else {
-        throw ToolError("from must not be more than to.")
+extension Arguments {
+    /// `from` and `to` (V19: `EditRules.frameRange`).
+    func range() throws(ToolError) -> Range<Frames> {
+        guard let range = EditRules.frameRange(from: try self[Arg.from], to: try self[Arg.to]) else {
+            throw ToolError("from must not be more than to.")
+        }
+        return range
     }
-    return range
 }
 
 let clipTools = [
@@ -52,7 +54,7 @@ let clipTools = [
         "clip_clear", "Remove the frames in a range on each track and leave a gap. One save for all tracks.",
         [tracks, Arg.from, Arg.to]
     ) { a throws(ToolError) in
-        let (range, targets) = (try rangeArgument(a), try a[tracks].map { TrackID($0) })
+        let (range, targets) = (try a.range(), try a[tracks].map { TrackID($0) })
         return .edit { session throws(SessionError) in
             try session.clear(range, on: targets)
             return []
@@ -78,7 +80,7 @@ let clipTools = [
         "Copy a range of tracks and paste it at a frame over the clips there. Give the pasted IDs.",
         [Arg.from, Arg.to, tracks, at, onto]
     ) { a throws(ToolError) in
-        let (range, sources, frame) = (try rangeArgument(a), try a[tracks], Frames(try a[at]))
+        let (range, sources, frame) = (try a.range(), try a[tracks], Frames(try a[at]))
         guard let targets = EditRules.pasteTargets(sources: sources, onto: try a[onto]) else {
             throw ToolError("Give one onto for each track, or none.")
         }
@@ -127,7 +129,7 @@ let clipTools = [
         }
     },
     Tool("clip_trim", "Give a clip a new timeline range.", [clip, Arg.from, Arg.to]) { a throws(ToolError) in
-        let (id, range) = (ClipID(try a[clip]), try rangeArgument(a))
+        let (id, range) = (ClipID(try a[clip]), try a.range())
         return .edit { session throws(SessionError) in
             try session.trim(id, to: range)
             return []

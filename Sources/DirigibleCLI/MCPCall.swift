@@ -5,13 +5,15 @@ import Foundation
 /// Runs one tool call: checks the arguments, then does the work. Gives the text of the result and
 /// whether it is an error. A bad argument, a refused edit, a held lock, and a pending take give
 /// the English text of the CLI line (decision 0041).
-func call(_ tool: Tool, _ json: [String: Any]) -> (text: String, isError: Bool) {
-    do throws(ToolError) {
-        let arguments = try Arguments(json, params: tool.params)
-        let text = try perform(try tool.make(arguments), path: arguments.path)
-        return (text, false)
-    } catch {
-        return (error.message, true)
+extension Tool {
+    func call(_ json: [String: Any]) -> (text: String, isError: Bool) {
+        do throws(ToolError) {
+            let arguments = try Arguments(json, params: params)
+            let text = try perform(try make(arguments), path: arguments.path)
+            return (text, false)
+        } catch {
+            return (error.message, true)
+        }
     }
 }
 

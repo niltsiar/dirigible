@@ -5,7 +5,9 @@ import Foundation
 /// The tools of `dirigible mcp`, in a fixed order: session, track, marker, pool, clip, ripple
 /// (decision 0041). The name of an edit tool is its command words with `_` for each space and
 /// hyphen, and its arguments have the option names of the command.
-let tools: [Tool] = sessionTools + trackTools + markerTools + poolTools + clipTools + rippleTools
+extension Tool {
+    static let all = sessionTools + trackTools + markerTools + poolTools + clipTools + rippleTools
+}
 
 /// The parameters that more than one tool has.
 enum Arg {

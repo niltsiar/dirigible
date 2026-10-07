@@ -7,8 +7,8 @@ struct ToolError: Error, Sendable {
     init(_ message: String) { self.message = message }
 }
 
-/// An edit of one tool call. It gives the new IDs, in the order that the command prints them.
-/// `editPackage` and, in Release 3, `Studio.edit` run the same closure type.
+/// The edit of one MCP tool call. It gives the new IDs, in the order that the command prints them.
+/// `editPackageCore` runs it under the package lock.
 typealias ToolEdit = @Sendable (inout Session) throws(SessionError) -> [String]
 
 /// What a tool call does after its arguments are checked.

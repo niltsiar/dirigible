@@ -169,7 +169,7 @@ struct AppTakeTests {
         let segment = url.appending(path: "Capture/take1-1-1.caf").path
         await until(limit: .seconds(30), "no record") { FileManager.default.fileExists(atPath: segment) }
         try await Task.sleep(for: .milliseconds(500))
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         hal.holdNextDetach(in: gate)
         let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
         let stopHost = hostNanosNow()

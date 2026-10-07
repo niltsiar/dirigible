@@ -8,7 +8,7 @@ import os
 @Suite(.serialized)
 struct GateTests {
     @Test func aGateOnAPoolThreadIsAnIssue() async {
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         // Without the guard, the wait holds until this open, not for 30 s.
         let opener = Task {
             try? await Task.sleep(for: .milliseconds(200))
@@ -21,7 +21,7 @@ struct GateTests {
         }
         await opener.value
 
-        let offPool = Gate()
+        let offPool = Gate(limit: Gate.openLimit)
         let done = OSAllocatedUnfairLock(initialState: false)
         DispatchQueue.global(qos: .utility).async {
             offPool.waitOnce()

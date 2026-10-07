@@ -75,7 +75,7 @@ struct StudioImportTests {
 
     @Test func anImportIsBusyAndStopsPlay() async throws {
         let fixture = try await ImportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let studio = try await fixture.open(step: ChunkSeam(at: [1: { gate.waitOnce() }]))
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
@@ -102,7 +102,7 @@ struct StudioImportTests {
 
     @Test func aCancelOfTheTaskChangesNothing() async throws {
         let fixture = try await ImportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let seam = ChunkSeam(at: [2: { gate.waitOnce() }])
         let studio = try await fixture.open(step: seam)
         let before = (fixture.xml, studio.session)
@@ -165,7 +165,7 @@ struct StudioImportTests {
 
     @Test func aCloseDuringAnImportEndsWithinOneBlock() async throws {
         let fixture = try await ImportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let seam = ChunkSeam(at: [2: { gate.waitOnce() }])
         let studio = try await fixture.open(step: seam)
         let before = (fixture.xml, studio.session)
@@ -240,7 +240,7 @@ struct StudioImportTests {
     /// Code gate 1 item 7: settle() sets the import flag before it waits for the export (0040).
     @Test func settleSignalsTheImportBeforeItWaitsForTheExport() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let (exportGate, importGate) = (Gate(), Gate())
+        let (exportGate, importGate) = (Gate(limit: Gate.openLimit), Gate(limit: Gate.openLimit))
         let studio = try await fixture.open(seam: ChunkSeam(at: [1: { exportGate.waitOnce() }]))
         let importSeam = ChunkSeam(at: [1: { importGate.waitOnce() }])
         studio.environment.importStep = { importSeam.step() }
@@ -275,7 +275,7 @@ struct StudioImportTests {
         let hal = TestHAL([a.mic])
         let studioA = try await a.open(hal)
         let b = try await ImportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: nil)
         let studioB = try await b.open(step: ChunkSeam(at: [2: { gate.waitOnce() }]))
         defer { gate.open() }
         let importing = Task { try await studioB.importAudio(b.source, to: newTrack) { _ in } }
@@ -333,7 +333,7 @@ struct StudioImportTests {
         let free = FreeBytes()
         studioA.environment.freeBytes = { _ in free.value }
         let b = try await ImportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: nil)
         let studioB = try await b.open(step: ChunkSeam(at: [2: { gate.waitOnce() }]))
         defer { gate.open() }
         studioA.otherStudios = { [studioB] }

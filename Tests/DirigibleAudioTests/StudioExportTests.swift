@@ -196,7 +196,7 @@ struct StudioExportTests {
     @Test(arguments: StartPath.allCases)
     func aRefusedTakeStartLeavesTheExportRunning(path: StartPath) async throws {
         let fixture = try await ExportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let studio = try await fixture.open(seam: ChunkSeam(at: [2: { gate.waitOnce() }]))
         if path == .startRecording {
             studio.environment.microphoneAccess = { .denied }
@@ -253,7 +253,7 @@ struct StudioExportTests {
 
     @Test func aSecondExportIsBusy() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let studio = try await fixture.open(seam: ChunkSeam(at: [2: { gate.waitOnce() }]))
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let second = fixture.package.folder.url.appending(path: "second.wav")

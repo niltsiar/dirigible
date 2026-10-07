@@ -20,9 +20,9 @@
 ## Drive and inspect
 
 - To drive the app, run `scripts/hid.swift` (a drag, a drag with `--no-up` and then `up` (at the pointer) or `up <x> <y>` in window points, `click <x> <y>` with `--right` or `--double`, Esc, Cmd-Z with `key 6 --command`, `--shift` and `--option`, a trackpad scroll with `scroll ... --phases`).
-- Send keys and text only through `hid.swift` (`key`, `type <text>`), never `osascript` keystroke or key code. It refuses (exit 4) when the app is not frontmost, and it releases each modifier key it presses.
+- Send keys and text only through `hid.swift` (`key`, `type <text>`), never `osascript` keystroke or key code. It refuses (exit 4) when the app is not frontmost and releases each modifier key it presses.
 - Walk the accessibility tree of the built app with `scripts/ax.swift` (`dump`, `find`, `press`, `step`) down to each new control: a test that calls the accessibility methods of an element does not prove that VoiceOver reaches it.
-- Press a menu item by its menu path (`press "File > Open Recent > Clear Menu"`), never by its title alone.
+- Press a menu item by its menu path (`press "File > Open Recent > Clear Menu"`), never by its title alone; `--role AXMenuBarItem` opens a menu.
 - `swift scripts/ax.swift` compiles on each call (1 to 2 s): for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID=com.delineas.dirigible.verify` for `ax.swift` and `hid.swift`.
 - A claim that something does not happen, from a poll, states the largest gap between samples around each event. An effect shorter than that gap is not tested.
 - For a menu claim, run `scripts/ax.swift dump` once per UI language (`-AppleLanguages "(es)"`), in each state that the run adds and the state before it; compare the key and the `Enabled=` value with the claim.
@@ -30,8 +30,8 @@
 
 ## A visual report of the user
 
-- First find where it is. Diff a capture after the gesture with a capture after a full redraw, map the box of the changed pixels to view rects, and run the same probe on `main`.
-- A "does not reproduce" result counts only when the probe uses the event path of the user (HID scroll events with phases and momentum, on an unlocked screen) and the content that the user named (for example a real waveform). Else the report stays `INCONCLUSIVE` with a manual check.
+- First find where it is. Diff a capture after the gesture with one after a full redraw, map the box of the changed pixels to view rects, and run the same probe on `main`.
+- A "does not reproduce" result counts only when the probe uses the event path of the user (HID scroll events with phases and momentum, on an unlocked screen) and the content that the user named (a real waveform). Else the report stays `INCONCLUSIVE` with a manual check.
 - Another defect that the probe finds gets its own claim; it does not close the report.
 
 ## System text in docs

@@ -297,12 +297,14 @@ struct StudioImportTests {
     }
 
     /// The free space is low while B imports. The disk check of the take in A ends the import of
-    /// B, and the take records on.
+    /// B, and the take records on. The import ends within one check interval of the live value
+    /// (1 s): a block of 0.1 s, and 28 blocks, so the import runs at the first check.
     @Test func theDiskCheckOfATakeEndsAnImportOnItsVolume() async throws {
         let a = try await ExportStudioFixture.make()
         let studioA = try await a.open(TestHAL([a.mic]))
-        let b = try await ImportStudioFixture.make()
-        let studioB = try await b.open(step: ChunkSeam(pause: longChunk))
+        studioA.environment.diskCheckInterval = .seconds(1)
+        let b = try await ImportStudioFixture.make(seconds: 40)
+        let studioB = try await b.open(step: ChunkSeam(pause: 0.1))
         let clipsB = b.url.appending(path: clipsFolderName)
         studioA.environment.freeBytes = { _ in
             let temporary = (try? FileManager.default.contentsOfDirectory(atPath: clipsB.path))?
@@ -317,8 +319,37 @@ struct StudioImportTests {
         await #expect(throws: StudioError.importYielded(file: "Voice.wav"), "B yields to the disk check") {
             try await importing.value
         }
-        try? await Task.sleep(for: .milliseconds(300))
+        try? await Task.sleep(for: .milliseconds(1_500))
         #expect(studioA.transport == .recording(take: 1), "the take records on")
         try await studioA.stopRecording()
+    }
+
+    /// Code gate 2 item 1: the read of the import in B stalls, and the free space stays low. The
+    /// disk check of the take in A sets the flag of B once, and stops the take at the next check.
+    @Test func aStalledImportDoesNotKeepATakeFromItsDiskLowStop() async throws {
+        let a = try await ExportStudioFixture.make()
+        let studioA = try await a.open(TestHAL([a.mic]))
+        let free = FreeBytes()
+        studioA.environment.freeBytes = { _ in free.value }
+        let b = try await ImportStudioFixture.make()
+        let gate = Gate()
+        let studioB = try await b.open(step: ChunkSeam(at: [2: { gate.waitOnce() }]))
+        defer { gate.open() }
+        studioA.otherStudios = { [studioB] }
+        try await studioA.startRecording(armed: ["t1"])
+        let importing = Task { try await studioB.importAudio(b.source, to: newTrack) { _ in } }
+        await gate.entered()
+
+        free.value = 0
+        await until(limit: .seconds(30), "a stalled import keeps the take from its disk-low stop") {
+            studioA.lastTake?.end == .diskLow
+        }
+        #expect(studioB.importRun != nil, "the read of the import is still held")
+        gate.open()
+
+        await #expect(throws: StudioError.importYielded(file: "Voice.wav"), "B yields to the disk check") {
+            try await importing.value
+        }
+        #expect(b.clipsNames == ["f1.wav"], "the yielded import leaves no file")
     }
 }

@@ -282,8 +282,7 @@ final class Gate: @unchecked Sendable {
     private var used = false
     private var inside = false
 
-    /// No default: each hold names nil (a `defer` opens it) or a limit (run 2026-10-07-heap-corruption:
-    /// a hold took the default limit and ended under load).
+    /// No default, so each hold chooses nil or a limit.
     init(limit: Duration?) { self.limit = limit }
 
     @available(*, noasync, message: "It blocks a thread of the concurrency pool. Use AsyncGate in async code.")

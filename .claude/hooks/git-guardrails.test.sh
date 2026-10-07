@@ -174,6 +174,9 @@ expect allow $'make lint \\\n  && '"$ld"
 # Each run of tabs and spaces is one space, as in the other rules.
 expect block "git  commit -F .scratchpads/commit-msg.txt; $ld"
 expect block $'make\tcheck; git commit -m x'
+# A quoted path with a space after git -C.
+expect block "git -C '/x y/wt' commit -F .scratchpads/commit-msg.txt; $ld"
+expect block "git -C \"/x y/wt\" commit -F .scratchpads/commit-msg.txt; $ld"
 expect_message 'in its own command' "swift build; $ld"
 
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.

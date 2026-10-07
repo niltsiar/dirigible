@@ -54,7 +54,7 @@ fi
 
 # The joined text with one space for each run of tabs and spaces, the git global options removed,
 # and the new lines kept, so `git -C <path>  commit` reads as `git commit` in the two chain rules.
-chained="$(tr -s '\t ' '  ' <<< "$joined" | sed -E 's/git( +-[Cc] +[^ ]+)+/git/g')"
+chained="$(tr -s '\t ' '  ' <<< "$joined" | sed -E "s/git( +-[Cc] +('[^']*'|\"[^\"]*\"|[^ ]+))+/git/g")"
 
 # A commit in the same command as a make check must run only when the check passed, so only
 # && may join them. After `;`, `||`, a pipe, or a new line, a red check still commits.

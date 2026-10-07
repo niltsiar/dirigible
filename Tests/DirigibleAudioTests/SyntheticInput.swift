@@ -97,7 +97,6 @@ final class SyntheticInput: @unchecked Sendable {
     }
 
     private var isSending: Bool { lock.withLock { sending > 0 } }
-    private func isStopped(_ input: DeviceInput) -> Bool { hal.isDetached(input) }
 
     /// Sends `records` into `input`, or into the input of attach number `attach` of the device,
     /// or into the current input. It waits for that attach, and then for `delay`: a device that
@@ -142,9 +141,9 @@ final class SyntheticInput: @unchecked Sendable {
 
     /// Waits for the sends into `input` to stop, with a limit of 1 s. The test detach calls it
     /// after it marks `input` detached, so no thread writes into a ring after the writer frees
-    /// it. False after the
-    /// limit: a thread can still write, so the test detach fails and the writer keeps the ring.
-    /// It records no issue: it runs on the writer queue, so the issue belongs to no test.
+    /// it. False after the limit: a thread can still write, so the test detach fails and the
+    /// writer keeps the ring. It records no issue: it runs on the writer queue, so the issue
+    /// belongs to no test.
     func stop(_ input: DeviceInput) -> Bool {
         let id = ObjectIdentifier(input)
         let end = Date.now + 1
@@ -207,7 +206,7 @@ final class SyntheticInput: @unchecked Sendable {
         hold?.waitOnce()
         let start = Date.now
         for (index, record) in records.enumerated() {
-            if isStopped(input) { return }
+            if hal.isDetached(input) { return }
             if pace == .realTime {
                 let delay = start.addingTimeInterval(Double(index) / 100).timeIntervalSinceNow
                 if delay > 0 { usleep(UInt32(delay * 1e6)) }
@@ -216,10 +215,10 @@ final class SyntheticInput: @unchecked Sendable {
             withIOProcArguments(record, flags: flags) { time, list in
                 let full = Date.now
                 while pace != .ignoreRoom, !input.ring.hasRoom(for: list) {
-                    guard !isStopped(input), Date.now < full + 10 else { return }
+                    guard !hal.isDetached(input), Date.now < full + 10 else { return }
                     usleep(500)
                 }
-                guard !isStopped(input) else { return }
+                guard !hal.isDetached(input) else { return }
                 var output = AudioBufferList()
                 _ = CaptureRing.ioProc(input.id, time, list, time, &output, time, input.ring.context)
             }

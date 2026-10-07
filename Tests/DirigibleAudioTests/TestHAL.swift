@@ -6,7 +6,8 @@ import Testing
 @testable import DirigibleAudio
 
 /// The test `DeviceHAL`: a device set that a test can change, the inputs of each attach, and
-/// the inputs that a clean detach ended, into which no producer sends. Object IDs start at 1 in the order of `devices`.
+/// the inputs that a clean detach ended, into which no producer sends. Object IDs start at 1 in
+/// the order of `devices`.
 final class TestHAL: @unchecked Sendable {
     private let lock = NSLock()
     private var devices: [String: InputDevice] = [:]

@@ -110,3 +110,24 @@ func mcpOverPipe(_ line: String, limit: Duration = .seconds(10)) async throws ->
     while process.isRunning, clock.now < exitDeadline { try await Task.sleep(for: .milliseconds(20)) }
     return (first, process.isRunning ? nil : process.terminationStatus)
 }
+
+/// A modern `tools/call` request line.
+func toolCall(_ id: Int, _ name: String, _ arguments: [String: Any]) -> String {
+    modernRequest(id, "tools/call", ["name": name, "arguments": arguments])
+}
+
+/// The one text item of a tool result and its `isError`. It records an issue when the result has
+/// another shape (C9: one text item, no `structuredContent`).
+func toolResult(_ answer: Answer) -> (text: String, isError: Bool) {
+    let result = result(answer)
+    let content = result["content"] as? [[String: Any]] ?? []
+    if content.count != 1 || content.first?["type"] as? String != "text" || result["structuredContent"] != nil {
+        Issue.record("the tool result is not one text item: \(answer)")
+    }
+    return (content.first?["text"] as? String ?? "", result["isError"] as? Bool ?? true)
+}
+
+/// The text of a CLI error line, without "Error: " and the newline.
+func errorText(_ result: CLIResult) -> String {
+    String(result.stderr.dropFirst("Error: ".count).dropLast())
+}

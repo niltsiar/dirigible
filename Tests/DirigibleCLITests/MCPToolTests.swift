@@ -74,7 +74,7 @@ struct MCPToolTests {
     /// C9a: 6 tracks of 201 clips, each split from the right part of the split before, so the IDs
     /// chain as the app makes them (c1@10000@20000...). An answer over 60,000 characters (about
     /// 15,000 tokens) is the overview; a from/to range gives the full JSON of the clips in it.
-    @Test func sessionInfoOfALongSessionFitsWithAFilter() async throws {
+    @Test func sessionInfoOfALongSessionGivesAnOverview() async throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 2_010_000))
         for track in 1...6 {
@@ -105,7 +105,6 @@ struct MCPToolTests {
         #expect((json(one)?["tracks"] as? [[String: Any]])?.first?["clips"] as? Int == 201, "one track: overview")
         let clips = (json(range)?["tracks"] as? [[String: Any]])?.map { ($0["clips"] as? [Any])?.count }
         #expect(clips == Array(repeating: 6, count: 6), "the range 0...50000 holds 6 clips of each track")
-        print("C9a: the overview has \(whole.count) characters, one track \(one.count), the range \(range.count)")
     }
 
     @Test func sessionCreateMatchesCreate() async throws {

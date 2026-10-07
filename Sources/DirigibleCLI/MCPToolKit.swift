@@ -183,6 +183,9 @@ struct Arguments {
         guard let path = path as? String, !path.isEmpty else {
             throw ToolError("The argument \"package\" must be the path of a session package.")
         }
+        // A relative or ~ path resolves against the working folder of the server, which can
+        // differ from the folder of the agent, so an edit could change another package.
+        guard path.hasPrefix("/") else { throw ToolError("The argument \"package\" must be an absolute path.") }
         self.path = path
     }
 
@@ -217,7 +220,9 @@ struct Tool: Sendable {
     var inputSchema: [String: Any] {
         var properties: [String: Any] = [
             "package": [
-                "type": "string", "description": "The path of the session package, for example Show.dirigible.",
+                "type": "string",
+                "description":
+                    "The absolute path of the session package, for example /Users/me/Podcasts/Show.dirigible.",
             ]
         ]
         for param in params { properties[param.key] = param.schema }

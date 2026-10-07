@@ -574,7 +574,7 @@ The text of the tool is English only.
 
 ### Connect an agent with MCP
 
-An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create` and `session_info`. The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the path of the session package in `package`.
+An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create` and `session_info`. The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
 
 Register the server once for your user, from a clone of the repository:
 

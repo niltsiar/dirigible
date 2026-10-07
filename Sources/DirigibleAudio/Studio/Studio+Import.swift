@@ -22,8 +22,13 @@ final class ImportFlags: Sendable {
     var isCancelled: Bool { state.withLock { $0.cancelled } }
     var isYielded: Bool { state.withLock { $0.yielded } }
 
-    func cancel(yielding: Bool) {
-        state.withLock { $0 = (true, $0.yielded || yielding) }
+    /// Sets the flag. True only for the call that sets it first.
+    @discardableResult
+    func cancel(yielding: Bool) -> Bool {
+        state.withLock { state in
+            defer { state = (true, state.yielded || yielding) }
+            return !state.cancelled
+        }
     }
 }
 
@@ -63,9 +68,11 @@ extension Studio {
     /// online-only file), and a take never waits for it (code gate 1). The import ends at its
     /// next block and writes nothing. `settle()` calls it before its first await, and then waits
     /// for the import turn in the write chain. With `yielding`, a take of another studio ends it
-    /// (decision 0019), and `importAudio` throws `.importYielded`.
-    func endImport(yielding: Bool = false) {
-        importRun?.flags.cancel(yielding: yielding)
+    /// (decision 0019), and `importAudio` throws `.importYielded`. True only for the call that
+    /// sets the flag first.
+    @discardableResult
+    func endImport(yielding: Bool = false) -> Bool {
+        importRun?.flags.cancel(yielding: yielding) ?? false
     }
 
     /// One turn of the write chain: the Player stops, the conversion, the save, the undo entry,

@@ -78,8 +78,10 @@ extension Studio {
     }
 
     /// Ends the exports of the other studios to the volume of the package, and the imports of
-    /// the other studios whose package is on it, for the disk check of a take. True when one ran.
-    /// The volume reads run off the main actor.
+    /// the other studios whose package is on it, for the disk check of a take. True when an export
+    /// ran or when this call set the flag of an import: a stalled import read does not keep the
+    /// take from its disk-low stop at the next check (code gate 2). The volume reads run off the
+    /// main actor.
     func endOtherExports(onVolumeOf lock: PackageLock) async -> Bool {
         var ended = false
         for studio in otherStudios() {
@@ -88,8 +90,7 @@ extension Studio {
                 ended = true
             }
             if studio.importRun != nil, await onVolume(studio.url, of: lock) {
-                studio.endImport(yielding: true)
-                ended = true
+                if studio.endImport(yielding: true) { ended = true }
             }
         }
         return ended

@@ -20,10 +20,9 @@
 // 2 Option, 4 Control, 8 no Command; add the values), and MenuItemCmdVirtualKey (for a key with no
 // character, for example 36 Return or 123 Left Arrow). A menu title can end in the "…" character:
 // copy the title from the dump for press. A menu item with a check mark shows MenuItemMarkChar=✓.
-// Each line ends in Enabled= (1 or 0) when the element has the attribute. A dump of a closed
-// menu shows the state of the moment: a probe read Auto Level 0 during an import and 1 after it,
-// with the menu closed and open. To open a menu, press its title with --role AXMenuBarItem: in
-// English, the Record menu has a Record item, so "press Record" alone matches both and is refused.
+// Each line ends in Enabled= (1 or 0) when the element has the attribute; a closed menu shows
+// the current state too. To open a menu, press its title with --role AXMenuBarItem: in English,
+// the Record menu has a Record item, so "press Record" alone matches both and is refused.
 // A press path is titles with " > " between them, for example "File > Open Recent > Clear Menu".
 // The last title is the title of the element. The other titles come in this order among the
 // titles above it. When two elements match, press refuses and lists their paths: give a longer

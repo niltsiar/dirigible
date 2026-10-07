@@ -264,7 +264,7 @@ interrogate="$root/.claude/skills/interrogate/SKILL.md"
 act_on="$(awk '/^## /{ s = $0; next } s == "## Output format" && /^- \*\*Act on:\*\*/' "$interrogate" 2>/dev/null || true)"
 plan_fields="$(grep -oE 'field\[[12]\] = "[A-Za-z]+"' "$root/scripts/check-plan.sh" 2>/dev/null | cut -d'"' -f2 || true)"
 if [[ -z "$act_on" ]]; then err "${interrogate#"$root"/}: no Act on line in ## Output format"
-elif [[ "$(wc -l <<<"$plan_fields" | tr -d ' ')" -ne 2 || -z "$plan_fields" ]]; then err "scripts/check-plan.sh: no field[1] and field[2] names"
+elif [[ "$(wc -l <<<"$plan_fields" | tr -d ' ')" -ne 2 ]]; then err "scripts/check-plan.sh: no field[1] and field[2] names"
 else
     while IFS= read -r f; do
         grep -qw -- "$f" <<<"$act_on" || err "${interrogate#"$root"/}: the Act on line of ## Output format has no $f (a field of scripts/check-plan.sh)"

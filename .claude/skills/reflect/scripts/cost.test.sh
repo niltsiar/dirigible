@@ -220,6 +220,20 @@ for line in 'phase 1: 2026-09-20T08:00 to 2026-09-20T08:31, 31 min, first row af
   grep -qxF -- "$line" <<<"$out" || fail "a late first row: no line '$line' in: $out"
 done
 
+# A run whose first row is phase 0 (run 2026-10-07-heap-corruption): the phase compares as text, so
+# phase 0 starts a block. As a number it equals the unset phase, and cost.sh printed date errors.
+zero="$tmp/2026-09-20-zero"
+mkdir "$zero"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-09-20T08:20\t0\topen\tw\te\tdone\n2026-09-20T08:40\t1\ta\tw\te\tdone\n2026-09-20T09:00\t2\tb\tw\te\tdone\n' > "$zero/decisions.tsv"
+touch -t 202609200800 "$zero"
+out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$zero" 2>&1)" || fail "a first row of phase 0: exit $?: $out"
+for line in 'phase 0: 2026-09-20T08:00 to 2026-09-20T08:20, 20 min' \
+  'phase 1: 2026-09-20T08:20 to 2026-09-20T08:40, 20 min' \
+  'phase 2: 2026-09-20T08:40 to 2026-09-20T09:00, 20 min'; do
+  grep -qxF -- "$line" <<<"$out" || fail "a first row of phase 0: no line '$line' in: $out"
+done
+! grep -qE '^date:|syntax error' <<<"$out" || fail "a first row of phase 0: an error line in: $out"
+
 # The run window is in epoch seconds: the transcript is in UTC, the run times are local. The window
 # is 08:20 to 11:30 local: 08:20Z to 11:30Z under UTC, 06:20Z to 09:30Z under UTC+2, so the 10:00Z
 # record counts only under UTC.

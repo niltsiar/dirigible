@@ -203,5 +203,12 @@ struct MCPToolTests {
             #expect((schema["required"] as? [String])?.first == "package", "\(tool["name"] ?? "")")
         }
         #expect(NSArray(array: tools) == (result(answer(answers, id: 2))["tools"] as? NSArray), "two lists are equal")
+        // The guide lists the tools by hand, so a new tool must also go there.
+        let guide = try String(
+            contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
+            encoding: .utf8)
+        for name in tools.compactMap({ $0["name"] as? String }) where !guide.contains("`\(name)`") {
+            Issue.record("docs/guide.md does not name the tool \(name)")
+        }
     }
 }

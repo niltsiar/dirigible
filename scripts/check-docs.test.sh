@@ -59,6 +59,8 @@ good() {
   printf 'id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary\n%s\n%s\n' \
     'AGT-001	AGENTS.md	keep	AGENTS.md	scope	10edc92		product scope' \
     'AGT-002	AGENTS.md	merge	AGT-001	duplicate	L12	AGT-001/doc	scope again' > "$tmp/docs/workflow/rules.tsv"
+  printf '# Evals\n\n## Scenarios\n\n| ID | Type |\n|---|---|\n| E1 | policy |\n| H1 | retention |\n\n## Notes\n\n| E1 | another table |\n' \
+    > "$tmp/docs/workflow/evals.md"
 }
 
 # Append one row to the rule register.
@@ -157,6 +159,9 @@ good; printf 'Run `dirigible cut`.\n' >> "$tmp/README.md"; expect fail 'a subcom
 good; printf 'Run `swift run dirigible show`.\n' >> "$tmp/.claude/skills/s/SKILL.md"; expect fail 'an unknown command after swift run' '.claude/skills/s/SKILL.md:7: `dirigible show` is not a command of Sources/DirigibleCLI'
 good; printf '```\ndirigible show Demo.dirigible\n```\n' >> "$tmp/.claude/agents/x-reviewer.md"; expect fail 'an unknown command in a fenced block' '.claude/agents/x-reviewer.md:13: `dirigible show` is not a command of Sources/DirigibleCLI'
 good; rm -rf "$tmp/Sources"; expect fail 'no CLI file' 'Sources/DirigibleCLI/Dirigible.swift is missing'
+good; printf '| E1 | again |\n' >> "$tmp/docs/workflow/evals.md"; expect pass 'an eval ID again in another section'
+good; sed -i '' 's/^| H1 |/| E1 |/' "$tmp/docs/workflow/evals.md"; expect fail 'a duplicate eval scenario ID' 'docs/workflow/evals.md: duplicate scenario id E1'
+good; rm "$tmp/docs/workflow/evals.md"; expect fail 'no eval set' 'docs/workflow/evals.md is missing'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

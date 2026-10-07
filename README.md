@@ -108,6 +108,8 @@ The [user guide](docs/guide.md) shows how to record, edit, and export an episode
 
 `dirigible` is a command-line tool that makes, changes, and reads sessions. The DMG does not contain it. See [For contributors](docs/guide.md#for-contributors) in the guide.
 
+`dirigible mcp` lets an agent such as Claude Code read and edit a session through MCP. See [Connect an agent with MCP](docs/guide.md#connect-an-agent-with-mcp).
+
 ## How the project works
 
 Agents and humans follow the same rules. `AGENTS.md` has the commands, the architecture rules, the testing rules, and the git rules. Every feature goes through the `deliver` flow: analyze, plan, review, implement test-first, review, verify, land, and reflect. Decision records are in `docs/decisions/`.

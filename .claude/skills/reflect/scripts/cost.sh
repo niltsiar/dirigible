@@ -30,6 +30,12 @@
 # - agents, workflows, and idle: the Agent calls and the Workflow calls of the transcript in the
 #   window (a Workflow call starts many agents that the transcript does not show), and the gaps
 #   over 5 min between its records in the window. Run windows that overlap share these counts.
+# - subagents: each agent-*.jsonl at any depth under <transcript without .jsonl>/subagents (a
+#   Workflow puts its agents in subagents/workflows/wf_*/) whose first user message names the run
+#   folder (no letter, digit, or hyphen after the name) and whose first record is in the window:
+#   one line with its tool calls, wall minutes, error results (at most 5 commands, 80 characters
+#   each), the commands that ran more than once (the 3 most), and its gaps over 5 min. The other
+#   files are unattributed.
 # - pace: open to merge, when run.md names a pull request that gh lists as merged; the merges
 #   on each of the last 10 days with a merge (local dates).
 # cost.test.sh tests it.
@@ -125,6 +131,37 @@ else
     echo "agents: no transcript"
     echo "workflows: no transcript"
     echo "idle: no transcript"
+fi
+
+if [[ -z "$transcript" || ! -f "$transcript" ]]; then
+    echo "subagents: no transcript"
+elif [[ ! -d "${transcript%.jsonl}/subagents" ]]; then
+    echo "subagents: none"
+else
+    other=0
+    while IFS= read -r f; do
+        start="$(jq -r -s 'def text: if type == "string" then . else ([.[]? | objects | select(.type == "text") | .text] | join(" ")) end;
+            ([.[] | select(.timestamp)][0].timestamp // "" | sub("\\.[0-9]+Z$"; "Z") | (fromdateiso8601? // 0) | tostring) + " " +
+            ([.[] | select(.type == "user")][0].message.content | text | gsub("\n"; " "))' "$f" 2>/dev/null || true)"
+        t0="${start%% *}"
+        if [[ "$t0" =~ ^[0-9]+$ ]] && ((t0 >= from && t0 <= to)) && grep -qE -- "${name}([^A-Za-z0-9-]|$)" <<<"${start#* }"; then
+            jq -r -s --arg file "$(basename "$f" .jsonl)" '
+                ([.[] | select(.timestamp) | .timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601] | sort) as $t
+                | [.[] | .message.content[]? | objects | select(.type == "tool_use")
+                    | {id, c: ((.input.command // .name) | tostring | gsub("\n"; " ") | .[0:80])}] as $uses
+                | ($uses | map({(.id): .c}) | add // {}) as $by
+                | [.[] | .message.content[]? | objects | select(.type == "tool_result" and .is_error == true) | $by[.tool_use_id] // "?"] as $errs
+                | ([$uses | group_by(.c)[] | select(length > 1) | {c: .[0].c, n: length}] | sort_by(-.n) | .[0:3]) as $rep
+                | [range(1; $t | length) as $i | $t[$i] - $t[$i - 1] | select(. > 300)] as $gaps
+                | "subagent: \($file): \($uses | length) tool calls, \((($t[-1] // 0) - ($t[0] // 0)) / 60 | floor) min, \($errs | length) errors"
+                  + (if ($errs | length) > 0 then " (\($errs[0:5] | join("; ")))" else "" end)
+                  + ", repeated: \(if ($rep | length) > 0 then ($rep | map("\(.c) x\(.n)") | join(", ")) else "none" end)"
+                  + ", gaps: \($gaps | length) over 5 min (\(($gaps | add // 0) / 60 | floor) min)"' "$f"
+        else
+            other=$((other + 1))
+        fi
+    done < <(find "${transcript%.jsonl}/subagents" -name 'agent-*.jsonl' -type f | sort)
+    echo "unattributed: $other files"
 fi
 
 if prs="$(gh pr list --state merged --limit 100 --json number,createdAt,mergedAt,title 2>/dev/null)" && [[ -n "$prs" ]]; then

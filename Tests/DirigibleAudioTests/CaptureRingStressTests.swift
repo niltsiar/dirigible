@@ -13,7 +13,6 @@ struct CaptureRingStressTests {
     /// record before the compare. Returns the checked records and the errors.
     func stress(count: Int, corrupt: Int? = nil) -> (checked: Int, errors: Int) {
         let ring = CaptureRing(capacity: 65_536, rate: 48_000)
-        defer { ring.deallocate() }
         var generator = SeededGenerator(seed: 22)
         let pattern = (0..<(1 << 20) + 1_024).map { _ in Float(Int.random(in: -32_768...32_767, using: &generator)) }
         @Sendable func frames(_ index: Int) -> Int { 12 + (index &* 7_919) % 961 }
@@ -22,6 +21,7 @@ struct CaptureRingStressTests {
         let done = DispatchSemaphore(value: 0)
         let end = Date.now + 600
         Thread {
+            defer { done.signal() }
             pattern.withUnsafeBufferPointer { samples in
                 let list = AudioBufferList.allocate(maximumBuffers: 1)
                 defer { free(list.unsafeMutablePointer) }
@@ -40,7 +40,6 @@ struct CaptureRingStressTests {
                     _ = CaptureRing.ioProc(1, &time, list.unsafePointer, &time, &output, &time, ring.context)
                 }
             }
-            done.signal()
         }.start()
 
         var checked = 0
@@ -58,7 +57,10 @@ struct CaptureRingStressTests {
             if !same || record.sampleTime != Double(checked) { errors += 1 }
             checked += 1
         }
-        #expect(done.wait(timeout: .now() + 10) == .success, "the producer did not end")
+        let ended = done.wait(timeout: .now() + 10) == .success
+        #expect(ended, "the producer did not end")
+        // A producer that did not end can still use the ring, so keep it (a leak in a failed test).
+        if ended { ring.deallocate() }
         return (checked, errors)
     }
 

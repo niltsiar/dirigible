@@ -22,7 +22,7 @@ struct StudioExportJobTests {
     /// An edit at chunk 2 is saved; the file has the audio of the start (no track gain).
     @Test func anEditDuringAnExportKeepsTheSnapshot() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let studio = try await fixture.open(seam: ChunkSeam(at: [2: { gate.waitOnce() }]))
         let (source, options, out, url) = (fixture.source, fixture.options, fixture.out, fixture.package.url)
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
@@ -155,7 +155,7 @@ struct StudioExportJobTests {
     /// poll cannot miss the progress between two main-actor turns of a full suite.
     @Test func progressShowsDuringTheExport() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let studio = try await fixture.open(seam: ChunkSeam(at: [3: { gate.waitOnce() }]))
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
@@ -172,7 +172,7 @@ struct StudioExportJobTests {
     /// the close), so the gate holds the first chunk of the second export.
     @Test func aLateProgressDoesNotComeBack() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         let studio = try await fixture.open(seam: ChunkSeam(at: [12: { gate.waitOnce() }]))
         _ = try await studio.export(fixture.source, fixture.options, to: fixture.out, replacing: nil)
         try? await Task.sleep(for: .milliseconds(100))
@@ -195,7 +195,7 @@ struct StudioExportJobTests {
     /// settle still runs. After settle, no file of A or B exists.
     @Test func anExportDuringSettleIsBusy() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let (chunk, save) = (Gate(), AsyncGate())
+        let (chunk, save) = (Gate(limit: Gate.openLimit), AsyncGate())
         let studio = try await fixture.open(seam: ChunkSeam(at: [2: { chunk.waitOnce() }]))
         studio.environment.saveSession = { session, lock throws(SessionFileError) in
             await save.wait()

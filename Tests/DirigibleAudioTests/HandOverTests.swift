@@ -53,7 +53,7 @@ extension MonitorTests {
         let hal = TestHAL([duo])
         let studio = try await open(url, hal)
         _ = try await monitorT1(studio, hal)
-        let gate = Gate()
+        let gate = Gate(limit: Gate.openLimit)
         hal.holdNextDetach(in: gate)
 
         let change = Task { try await studio.monitor(armed: ["t1", "t2"]) }

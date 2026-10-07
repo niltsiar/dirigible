@@ -272,7 +272,7 @@ final class AsyncGate: @unchecked Sendable {
 /// worst wait: `waitOnce` 21.8 s (run test-pool-health, loops/base-1.log), `entered` 23.8 s
 /// (loops/s3loadb-5.log).
 final class Gate: @unchecked Sendable {
-    /// The default limit of `waitOnce`.
+    /// The limit of `waitOnce` for a hold that no `defer` opens.
     static let openLimit = Duration.seconds(66)
     /// The limit of `waitOnce`. Nil: no limit, for a hold that must last until the test opens
     /// it in a `defer` (waits-and-limits.md). A hold with a limit ends when the test is slow.
@@ -282,7 +282,9 @@ final class Gate: @unchecked Sendable {
     private var used = false
     private var inside = false
 
-    init(limit: Duration? = openLimit) { self.limit = limit }
+    /// No default: each hold names nil (a `defer` opens it) or a limit (run 2026-10-07-heap-corruption:
+    /// a hold took the default limit and ended under load).
+    init(limit: Duration?) { self.limit = limit }
 
     @available(*, noasync, message: "It blocks a thread of the concurrency pool. Use AsyncGate in async code.")
     func waitOnce() {

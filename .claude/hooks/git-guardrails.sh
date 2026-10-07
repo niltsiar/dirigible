@@ -52,10 +52,25 @@ if grep -qE 'core\.hooksPath' <<< "$COMMAND" \
   block "changes core.hooksPath"
 fi
 
+# The joined text with the git global options removed and the new lines kept, so `git -C <path>
+# commit` reads as `git commit` in the two chain rules below.
+chained="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$joined")"
+
 # A commit in the same command as a make check must run only when the check passed, so only
 # && may join them. After `;`, `||`, a pipe, or a new line, a red check still commits.
-if [[ "$joined" =~ make\ check(.*)git\ commit ]] && [[ "${BASH_REMATCH[1]}" =~ [\;\|]|$'\n' ]]; then
+if [[ "$chained" =~ make\ check(.*)git\ commit ]] && [[ "${BASH_REMATCH[1]}" =~ [\;\|]|$'\n' ]]; then
   block "runs git commit after make check without && (a red check still commits)"
+fi
+
+# A decisions.tsv row after a commit or a build must come after its status is read. After `;`, a
+# new line, or a pipe (no pipefail), the row is written before that. && and || pass the status.
+# [[:space:]] and not $: in [[ =~ ]], $ is the end of the text, not the end of a line.
+if [[ "$chained" =~ (^|[^[:alnum:]_./-])(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
+  middle="${BASH_REMATCH[3]}${BASH_REMATCH[4]}"
+  middle="${middle//||/}"
+  if [[ "$middle" =~ [\;\|]|$'\n' ]]; then
+    block "logs a decisions.tsv row after git commit, make, or swift joined by ;, a new line, or a pipe (the row can come before the status). Run log-decision.sh in its own command after you read the status"
+  fi
 fi
 
 # Only the check-changed recipe of the Makefile writes the pass stamp that land.sh reuses, so a

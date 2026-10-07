@@ -147,6 +147,10 @@ import Testing
         // uses stay on and do nothing (0018 K1), as below.
         let edits: [TimelineCommand] = [.insert, .cutSelectedTracks, .fade, .autoLevel, .autoLevelPerTrack]
         #expect(edits.filter { model.isOn($0) }.isEmpty, "the edit items are off during the import")
+        let fieldKeys: [TimelineCommand] = [
+            .cut, .copy, .paste, .delete, .selectAll, .split, .nudgeLeft, .deleteCloseGap,
+        ]
+        #expect(fieldKeys.allSatisfy { model.isOn($0) }, "the items whose key a field uses stay on (K1)")
         model.run(TimelineCommand.split)
         model.run(TimelineCommand.removeTrack)
         #expect(studio.session == before && model.alert == nil, "the edit items do nothing and show no alert")

@@ -143,6 +143,10 @@ import Testing
 
         #expect(model.importJob != nil && studio.importRun?.name == "Voice.wav", "the banner name")
         #expect(!model.canRecord && !model.isOn(.importAudio), "Record and Import Audio are off")
+        // Phase 7: the edit items with no text-field key are off. The items whose key a field
+        // uses stay on and do nothing (0018 K1), as below.
+        let edits: [TimelineCommand] = [.insert, .cutSelectedTracks, .fade, .autoLevel, .autoLevelPerTrack]
+        #expect(edits.filter { model.isOn($0) }.isEmpty, "the edit items are off during the import")
         model.run(TimelineCommand.split)
         model.run(TimelineCommand.removeTrack)
         #expect(studio.session == before && model.alert == nil, "the edit items do nothing and show no alert")
@@ -155,6 +159,7 @@ import Testing
         #expect(model.alert == nil && studio.session == before, "a cancel shows nothing and changes nothing")
         model.run(TimelineCommand.split)
         #expect(studio.session != before, "after the import, Split acts")
+        #expect(edits.allSatisfy { model.isOn($0) }, "after the import, the edit items are on")
         await model.close()
     }
 

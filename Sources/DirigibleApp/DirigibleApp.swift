@@ -26,7 +26,7 @@ struct DirigibleApp: App {
                     Divider()
                     // Export has Command in its keys, so it can be off (probe K1 is about plain keys).
                     ForEach(TimelineCommand.fileItems, id: \.command) { item in
-                        menuButton(item).disabled(app.key?.isOn(item.command) == false)
+                        menuButton(item)
                     }
                 }
                 // The timeline items (decision 0017). A plain key is never disabled (probe K1).
@@ -43,7 +43,7 @@ struct DirigibleApp: App {
                                 ).keyboardShortcut(item.key, modifiers: item.modifiers)
                             } else {
                                 // Only the history items can be off; they have Command (probe K1).
-                                menuButton(item).disabled(app.key?.isOn(item.command) == false)
+                                menuButton(item)
                             }
                         }
                         if TimelineCommand.viewGroups[group].contains(where: { $0.command == .tallerTracks }) {
@@ -137,8 +137,11 @@ struct DirigibleApp: App {
         return Button(item.title.key) { app.key?.run(command) }.keyboardShortcut(item.key)
     }
 
+    /// Each timeline item reads `isOn`, so one rule turns the items off (probe K1 keeps the items whose key a
+    /// field uses on).
     private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {
         Button(item.title.key) { app.timeline(item.command) }
             .keyboardShortcut(item.key, modifiers: item.modifiers)
+            .disabled(app.key?.isOn(item.command) == false)
     }
 }

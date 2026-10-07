@@ -11,13 +11,20 @@ struct MCPCommand: ParsableCommand {
             exits 0 when stdin closes.
             """)
 
-    func run() {
+    func run() throws {
+        // A client that closes stdout gives a write error, not a SIGPIPE that stops the process
+        // with no message.
+        signal(SIGPIPE, SIG_IGN)
         var server = MCPServer()
         // readLine splits on \n and \r\n only, and gives nil at the end of stdin.
         while let line = readLine() {
             guard let answer = server.answer(line) else { continue }
-            // One write(2) for each answer, with no stdio buffer, so the client gets it at once.
-            FileHandle.standardOutput.write(Data((answer + "\n").utf8))
+            do {
+                // One write(2) for each answer, with no stdio buffer, so the client gets it at once.
+                try FileHandle.standardOutput.write(contentsOf: Data((answer + "\n").utf8))
+            } catch {
+                throw fail("cannot write to stdout: \(error.localizedDescription)", code: ExitCode.failure.rawValue)
+            }
         }
     }
 }

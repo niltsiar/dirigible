@@ -63,13 +63,18 @@ if [[ "$chained" =~ make\ check(.*)git\ commit ]] && [[ "${BASH_REMATCH[1]}" =~ 
 fi
 
 # A decisions.tsv row after a commit or a build must come after its status is read. After `;`, a
-# new line, or a pipe (no pipefail), the row is written before that. && and || pass the status.
+# new line, a pipe (no pipefail), or a background `&`, the row is written before that. && and ||
+# pass the status, and a redirect (2>&1, &>, >&) is not a background job.
 # [[:space:]] and not $: in [[ =~ ]], $ is the end of the text, not the end of a line.
 if [[ "$chained" =~ (^|[^[:alnum:]_./-])(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
   middle="${BASH_REMATCH[3]}${BASH_REMATCH[4]}"
   middle="${middle//||/}"
-  if [[ "$middle" =~ [\;\|]|$'\n' ]]; then
-    block "logs a decisions.tsv row after git commit, make, or swift joined by ;, a new line, or a pipe (the row can come before the status). Run log-decision.sh in its own command after you read the status"
+  middle="${middle//&&/}"
+  middle="${middle//[0-9]>&[0-9]/}"
+  middle="${middle//&>/}"
+  middle="${middle//>&/}"
+  if [[ "$middle" =~ [\;\|\&]|$'\n' ]]; then
+    block "logs a decisions.tsv row after git commit, make, or swift joined by ;, a new line, a pipe, or & (the row can come before the status). Run log-decision.sh in its own command after you read the status"
   fi
 fi
 

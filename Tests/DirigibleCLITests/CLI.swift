@@ -15,10 +15,11 @@ struct CLIResult: Equatable {
 /// 30 s is stopped and fails the test, so a hang cannot stop the suite.
 func dirigible(_ arguments: String...) async throws -> CLIResult { try await dirigible(arguments) }
 
-func dirigible(_ arguments: [String]) async throws -> CLIResult {
+/// With `input`, the child reads that file on stdin.
+func dirigible(_ arguments: [String], input: URL? = nil) async throws -> CLIResult {
     try await run(
         Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(path: "dirigible"),
-        arguments)
+        arguments, input: input)
 }
 
 /// Runs `/bin/sh -c script` with `arguments` as `$0`, `$1`, and so on, for example to set a
@@ -29,7 +30,9 @@ func dirigible(shell script: String, _ arguments: String..., slots: Slots = .sha
 
 /// Runs `executable` and waits for its exit without a thread: the termination handler resumes the
 /// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite.
-private func run(_ executable: URL, _ arguments: [String], slots: Slots = .shared) async throws -> CLIResult {
+private func run(
+    _ executable: URL, _ arguments: [String], input: URL? = nil, slots: Slots = .shared
+) async throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -43,6 +46,7 @@ private func run(_ executable: URL, _ arguments: [String], slots: Slots = .share
     process.arguments = arguments
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
+    if let input { process.standardInput = try FileHandle(forReadingFrom: input) }
     let limit = Duration.seconds(30)
     // Take the slot before the limit task: the limit must not stop a child that has not started.
     await slots.started()

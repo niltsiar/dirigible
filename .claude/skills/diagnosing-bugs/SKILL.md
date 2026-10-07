@@ -23,7 +23,7 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 
 ### Ways to construct one, in roughly this order
 
-1. **Failing test** at the seam that reaches the bug.
+1. **Failing test** at the seam that reaches the bug: unit, integration, or e2e.
 2. **Offline render**: feed a generated fixture (sine, noise, silence) through the DSP or file path with no device; assert the output samples, level, or length.
 3. **Audio file facts**: run `afinfo`, `ffprobe`, or `ffmpeg -af astats`/`ebur128` on the output file; diff against a known-good value.
 4. **App run**: `make run`, drive the case, capture it with `scripts/screenshot.sh`.
@@ -79,7 +79,7 @@ Confirm:
 
 Once it's red, shrink the repro to the **smallest scenario that still goes red**. Cut inputs, callers, config, data, and steps **one at a time**, re-running the loop after each cut, and keep only what's load-bearing for the failure.
 
-Why bother: a minimal repro shrinks the hypothesis space in Phase 3 (fewer moving parts left to suspect) and becomes the clean regression test in Phase 5.
+Why bother: a minimal repro shrinks the hypothesis space in Phase 3 and becomes the clean regression test in Phase 5.
 
 Done when **every remaining element is load-bearing**: removing any one of them makes the loop go green.
 

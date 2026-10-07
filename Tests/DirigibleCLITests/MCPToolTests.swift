@@ -129,7 +129,7 @@ struct MCPToolTests {
         #expect(toolResult(answer(answers, id: 3)) == ("The package path must end in .dirigible.", true))
         #expect(!FileManager.default.fileExists(atPath: other))
         let zero = toolResult(answer(answers, id: 4))
-        #expect(zero.isError && zero.text.contains("\"sample_rate\""), "\(zero)")
+        #expect(zero == ("The sample rate must be more than 0.", true), "the text of dirigible create: \(zero)")
         #expect(!FileManager.default.fileExists(atPath: cli.folder.appending(path: "Zero.dirigible").path))
     }
 

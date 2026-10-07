@@ -17,6 +17,9 @@ enum EditRules {
 
     static func isPackagePath(_ url: URL) -> Bool { url.pathExtension == "dirigible" }
 
+    /// More than 0 Hz. `Session.init` traps on a rate that is not positive.
+    static func sampleRate(_ rate: Int) -> Int? { rate > 0 ? rate : nil }
+
     /// `from <= to`. `Range` traps when the lower bound is above the upper bound.
     static func frameRange(from: Int, to: Int) -> Range<Frames>? {
         from <= to ? Frames(from)..<Frames(to) : nil

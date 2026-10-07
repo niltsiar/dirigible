@@ -31,8 +31,9 @@ struct Create: ParsableCommand {
         guard EditRules.isPackagePath(package.url) else {
             throw ValidationError("The package path must end in .dirigible.")
         }
-        // Session.init traps on a rate that is not positive.
-        guard sampleRate > 0 else { throw ValidationError("The sample rate must be more than 0.") }
+        guard EditRules.sampleRate(sampleRate) != nil else {
+            throw ValidationError("The sample rate must be more than 0.")
+        }
     }
 
     func run() throws {

@@ -572,6 +572,35 @@ These commands change clips and the export. `info` shows the clip IDs. A length 
 
 The text of the tool is English only.
 
+### Connect an agent with MCP
+
+An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create` and `session_info`. The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the path of the session package in `package`.
+
+Register the server once for your user, from a clone of the repository:
+
+```sh
+make build
+claude mcp add --scope user dirigible -- "$PWD/.build/debug/dirigible" mcp
+```
+
+The registered binary is in `.build`. Run `make build` again after `make clean`.
+
+The 31 tools, in groups:
+
+- Session: `session_create`, `session_info`.
+- Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
+- Marker: `marker_set`, `marker_remove`.
+- Pool: `capture_remove`, `file_remove`.
+- Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`.
+- Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
+
+`session_info` gives the JSON of `dirigible info --json` on one line. The answer of a long edited session can be too large for the agent. Then read it in parts: `tracks` gives only those tracks, and `from` and `to` give only the clips and markers that touch that frame range. With a filter, the answer has only the files and captures of the clips in it.
+
+- The server does not edit a package that the app has open. The tool gives the error "`<path>` is open in Dirigible." Close the session in the app, then try again.
+- The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
+- A tool call has no undo. Each call saves the package. Make a copy of the session before an agent edits it.
+- No tool records, imports, or exports. `capture add` and `file add` have no tool.
+
 ### Make the screenshots again
 
 The screenshots of the README and of this guide come from a script. The script makes the session "Demo Episode" with `say` voices, so the images show no personal data.

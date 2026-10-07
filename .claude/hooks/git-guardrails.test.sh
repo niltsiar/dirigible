@@ -171,6 +171,9 @@ expect allow "make test >& log && $ld"
 expect allow "$ld; make lint"
 expect allow "remake; $ld"
 expect allow $'make lint \\\n  && '"$ld"
+# Each run of tabs and spaces is one space, as in the other rules.
+expect block "git  commit -F .scratchpads/commit-msg.txt; $ld"
+expect block $'make\tcheck; git commit -m x'
 expect_message 'in its own command' "swift build; $ld"
 
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.

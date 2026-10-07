@@ -3,7 +3,7 @@
 ## Give every wait a limit
 
 - Give every wait in a test (a poll loop, a yield loop, a child process) a limit and a failure message. When a bug or a mutation removes the state that the test waits for, the test must fail, not hang the suite.
-- The limit belongs to the wait of the test, not to the work that the test holds. A gate that holds product work has no limit, and a `defer` releases it on every exit of the test. A hold with its own timeout ends when the test is slow under load, and the test fails on a wrong assert, not on its limit message.
+- The limit belongs to the wait of the test, not to the work that the test holds. A gate that holds product work has no limit, and a `defer` releases it on every exit of the test. `Gate(limit:)` has no default: a hold with a limit ends when a loaded test runs slow.
 - Compute one deadline per public call and pass it down to each nested wait: limits per step add up. An expired limit never continues into the success path.
 - Prove the failure message with a mutation that forces the miss, and read the message in the output. A shorter outer limit hides the message of an inner wait.
 - Keep every limit below the time of one full suite run: a longer limit cannot find a hang.

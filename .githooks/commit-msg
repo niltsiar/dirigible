@@ -1,0 +1,46 @@
+#!/bin/bash
+# Refuse a commit message with a word pair that the staged files do not show. A pair is
+# "<N> before, <M> after", "<N> words before, <M> after", or "<N> before and after", also across
+# line breaks. One budgeted file (a file row of docs/workflow/budgets.tsv, not a folder row and not
+# TOTAL) changed against HEAD or HEAD^ must have wc -w N at HEAD or at HEAD^, and M in the index.
+# HEAD^ is for an amend: the hook cannot tell an amend from a commit, and in an amend HEAD is the
+# replaced commit. A copy that is not there counts 0 words (a new or a deleted file).
+# Usage: commit-msg <message file>; commit-msg --pairs prints the pairs of a message on stdin.
+# .claude/hooks/git-guardrails.test.sh tests it.
+set -euo pipefail
+
+pairs() {
+    tr -s '[:space:]' ' ' | { grep -oE '[0-9]+ (words )?before(, [0-9]+ after| and after)' || true; } |
+        sed -E 's/ words//; s/^([0-9]+) before and after$/\1 \1/; s/^([0-9]+) before, ([0-9]+) after$/\1 \2/'
+}
+if [[ "${1:-}" == --pairs ]]; then
+    pairs
+    exit 0
+fi
+found="$({ grep -v '^#' "$1" || true; } | pairs)"
+[[ -n "$found" ]] || exit 0
+
+top="$(git rev-parse --show-toplevel)"
+empty="$(git hash-object -t tree /dev/null)"
+head="$(git rev-parse -q --verify HEAD || echo "$empty")"
+parent="$(git rev-parse -q --verify HEAD^ || echo "$empty")"
+budgeted="$(awk -F'\t' 'NR > 1 && $1 != "TOTAL" && $1 !~ /\/$/ { print $1 }' "$top/docs/workflow/budgets.tsv" 2>/dev/null || true)"
+files="$({ git diff --cached --name-only "$head"; git diff --cached --name-only "$parent"; } | sort -u |
+    { grep -Fx -f <(printf '%s\n' "$budgeted") || true; })"
+words() { { git show "$1" 2>/dev/null || true; } | wc -w | tr -d ' '; }
+
+fail=0
+while read -r n m; do
+    counts="" ok=0
+    while IFS= read -r f; do
+        [[ -n "$f" ]] || continue
+        at_head="$(words "$head:$f")" at_parent="$(words "$parent:$f")" staged="$(words ":$f")"
+        counts="$counts $f (HEAD $at_head, HEAD^ $at_parent, index $staged)"
+        if [[ ("$at_head" == "$n" || "$at_parent" == "$n") && "$staged" == "$m" ]]; then ok=1; fi
+    done <<< "$files"
+    if ((ok == 0)); then
+        echo "commit-msg: no staged budgeted file goes from $n to $m words (the pair '$n before, $m after'). Counts:${counts:- no budgeted file changed}. Write the pair from wc -w of the staged file." >&2
+        fail=1
+    fi
+done <<< "$found"
+exit "$fail"

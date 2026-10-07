@@ -86,8 +86,6 @@ final class SyntheticInput: @unchecked Sendable {
     let hal: TestHAL
     let uid: String
     private let lock = NSLock()
-    /// The inputs that a clean detach ended: no thread sends into them again.
-    private var stopped: Set<ObjectIdentifier> = []
     /// The threads that send now, and how many send into each input.
     private var sending = 0
     private var targets: [ObjectIdentifier: Int] = [:]
@@ -99,7 +97,7 @@ final class SyntheticInput: @unchecked Sendable {
     }
 
     private var isSending: Bool { lock.withLock { sending > 0 } }
-    private func isStopped(_ input: DeviceInput) -> Bool { lock.withLock { stopped.contains(ObjectIdentifier(input)) } }
+    private func isStopped(_ input: DeviceInput) -> Bool { hal.isDetached(input) }
 
     /// Sends `records` into `input`, or into the input of attach number `attach` of the device,
     /// or into the current input. It waits for that attach, and then for `delay`: a device that
@@ -142,13 +140,13 @@ final class SyntheticInput: @unchecked Sendable {
         }
     }
 
-    /// Stops the sends into `input` and waits for them, with a limit of 1 s. The test detach
-    /// calls it, so no thread writes into a ring after the writer frees it. False after the
+    /// Waits for the sends into `input` to stop, with a limit of 1 s. The test detach calls it
+    /// after it marks `input` detached, so no thread writes into a ring after the writer frees
+    /// it. False after the
     /// limit: a thread can still write, so the test detach fails and the writer keeps the ring.
     /// It records no issue: it runs on the writer queue, so the issue belongs to no test.
     func stop(_ input: DeviceInput) -> Bool {
         let id = ObjectIdentifier(input)
-        lock.withLock { _ = stopped.insert(id) }
         let end = Date.now + 1
         while lock.withLock({ targets[id, default: 0] > 0 }) {
             guard Date.now < end else {
@@ -196,11 +194,12 @@ final class SyntheticInput: @unchecked Sendable {
         }
         if found != nil, delay > .zero { usleep(UInt32(delay / .microseconds(1))) }
         // The check and the count are one step, so a stop either sees this thread or ends it.
+        // The check reads the detached set of the HAL, so it covers each producer, also one
+        // that a detach did not list.
         guard let input = found,
             lock.withLock({ () -> Bool in
-                let id = ObjectIdentifier(input)
-                guard !stopped.contains(id) else { return false }
-                targets[id, default: 0] += 1
+                guard !hal.isDetached(input) else { return false }
+                targets[ObjectIdentifier(input), default: 0] += 1
                 return true
             })
         else { return }

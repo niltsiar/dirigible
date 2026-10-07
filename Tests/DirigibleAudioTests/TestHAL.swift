@@ -6,7 +6,7 @@ import Testing
 @testable import DirigibleAudio
 
 /// The test `DeviceHAL`: a device set that a test can change, the inputs of each attach, and
-/// the producers that a clean detach stops. Object IDs start at 1 in the order of `devices`.
+/// the inputs that a clean detach ended, into which no producer sends. Object IDs start at 1 in the order of `devices`.
 final class TestHAL: @unchecked Sendable {
     private let lock = NSLock()
     private var devices: [String: InputDevice] = [:]
@@ -153,16 +153,17 @@ final class TestHAL: @unchecked Sendable {
         }
         return { [self] in
             lock.withLock { detachGate }?.waitOnce()
+            // The mark and the producer list are one step: a producer that is not in the list
+            // sees the mark before it sends.
             let (running, clean) = lock.withLock {
                 callLog.append("detach \(uid)")
-                return (self.producers[uid] ?? [], detachResult && failingTeardown != "detach")
+                let clean = detachResult && failingTeardown != "detach"
+                if clean { detached.insert(ObjectIdentifier(input)) }
+                return (self.producers[uid] ?? [], clean)
             }
             // Every producer stops, also after a stop that timed out.
             guard clean, running.map({ $0.stop(input) }).allSatisfy({ $0 }) else { return false }
-            lock.withLock {
-                detached.insert(ObjectIdentifier(input))
-                log[uid, default: []].append(.detach(input))
-            }
+            lock.withLock { log[uid, default: []].append(.detach(input)) }
             return true
         }
     }
@@ -265,6 +266,9 @@ final class TestHAL: @unchecked Sendable {
     /// The ring capacity of each successful attach of `uid`, read at the attach: a clean detach
     /// frees the ring.
     func capacities(_ uid: String) -> [Int] { lock.withLock { capacities[uid] ?? [] } }
+
+    /// True when a clean detach ended `input`: no producer sends into it.
+    func isDetached(_ input: DeviceInput) -> Bool { lock.withLock { detached.contains(ObjectIdentifier(input)) } }
 
     /// The last successful attach of `uid` that a clean detach did not end.
     func current(_ uid: String) -> DeviceInput? {

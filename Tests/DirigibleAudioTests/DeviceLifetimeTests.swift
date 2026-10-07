@@ -121,6 +121,35 @@ extension DeviceEventTests {
         #expect(hal.events("mic").contains(.detach(first)) == !held)
     }
 
+    /// A producer made after a clean detach sends nothing into the ring of that detach: the
+    /// writer freed its bytes. The record is larger than the ring, so a send only adds its
+    /// frames to the dropped count and never writes into the bytes. Control: after a failed
+    /// detach, the same send reaches the ring.
+    @Test(arguments: [true, false])
+    func aNewProducerSendsNothingIntoADetachedInput(clean: Bool) async throws {
+        let hal = TestHAL([mic])
+        hal.detach(returns: clean)
+        let writer = writer(mic, hal)
+        await until("no first attach") { hal.inputs("mic").count == 1 }
+        writer.post(.alive(false), from: hal.current("mic"))
+        writer.post(.devicesChanged, from: nil)
+        await until("no back") { hal.inputs("mic").count == 2 }
+
+        let frames = hal.capacities("mic")[0] / 4 + 1
+        let record = try #require(
+            InputRecord(
+                sampleTime: 0, hostTimeNanos: takeStart, frameCount: frames, nominalRate: mic.nominalRate,
+                buffers: [[Float](repeating: 0.25, count: frames)]))
+        let late = SyntheticInput(hal, "mic")
+        late.play([record], pace: .ignoreRoom, attach: 1)
+        await late.wait()
+        await writer.finish()
+
+        // The atomics of a detached ring stay for the process life (decision 0013), so this
+        // read is safe also after a clean detach.
+        #expect(hal.inputs("mic")[0].ring.takeDroppedFrames() == (clean ? 0 : frames))
+    }
+
     /// (e) An attach that failed after its listeners existed (`.undone`) gives its ring to no
     /// other attach: a late listener call of that attach must not set the rate of the next
     /// appearance. Control: an attach that failed before (`.status`) gives its ring to the next.

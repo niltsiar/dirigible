@@ -28,16 +28,16 @@ Prefer no new test over a bad test: one that mostly tests mocks, encodes impleme
 ## Guardrails
 
 - Change a test or weaken an assertion only when the expected behavior changed, and say why. A wrong implementation is never the reason.
-- Compare two large values into a `Bool` with a short message: on a failure, `#expect` or `#require` prints both values and can hang the run.
-- When a test refuses or blocks a user action, also assert that the user input stays: the typed text, the open alert, the selection, the clipboard. "The model did not change" alone passes when the input is lost. If the plan expects lost input, raise a plan finding in place of the test.
-- A test that expects a refusal (a nonzero exit, a thrown error, a refused edit) also asserts its reason (the rule message or the error case): a broken fixture also fails.
-- A refusal of a path also asserts that the path does not exist afterwards. The script checks before its first side effect (a `mkdir -p`), and resolves the path again (`pwd -P`) after it makes it.
-- A test that asserts "nothing changed after X" first proves, in the same observation, that X reached the output (for example a changed control region of the capture). With only a wait or a sleep, it passes when X never happened.
-- A test that asserts unchanged files compares the full bytes or a hash of each file, not names, sizes, or dates: the likely damage is a rewrite in place with the same size. Its control changes one byte at a fixed offset.
+- Compare two large values into a `Bool` with a short message: a failed `#expect` or `#require` prints both values and can hang the run.
+- When a test refuses or blocks a user action, also assert that the user input stays (typed text, open alert, selection, clipboard). "The model did not change" alone passes when the input is lost. If the plan expects lost input, raise a plan finding in place of the test.
+- A test that expects a refusal (a nonzero exit, a throw, a refused edit) also asserts its reason (the rule message or error case): a broken fixture also fails.
+- A refusal of a path also asserts that the path does not exist afterwards. The script checks before its first side effect (`mkdir -p`) and resolves the path again (`pwd -P`) after it.
+- A test that asserts "nothing changed after X" first proves, in the same observation, that X reached the output (for example, a changed control region). A wait or sleep alone passes when X never happened.
+- A test that asserts unchanged files compares the bytes or a hash of each file, not names, sizes, or dates: the likely damage is a rewrite in place with the same size. Its control changes one byte at a fixed offset.
 - Compare processed audio with a stated tolerance, never exact float equality.
-- For a writer and reader pair, add one seeded random round-trip test beside the literal tests: build values through the public edits, write, read, and assert `==`.
-- Read `references/waits-and-limits.md` when a test waits, holds a gate or an OS resource, stops work, or asserts a thread or a priority.
-- Read `references/flake-triage.md` when a test fails only sometimes or in a cluster of wait-limit failures, or when you change a shared test helper or the suite speed.
+- Add one seeded random test beside the literal tests, with values built through the public edits and no new library: the round-trip (write, read, `==`) for a writer and reader pair; else its strongest property: inverse (edit, then undo), invariant (output under a limit), or oracle (a simpler reference).
+- Read `references/waits-and-limits.md` when a test waits, holds a gate or OS resource, stops work, or asserts a thread or priority.
+- Read `references/flake-triage.md` when a test fails only sometimes or with other wait-limit failures, or when you change a shared helper or the suite speed.
 
 ## Final response
 

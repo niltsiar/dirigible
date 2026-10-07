@@ -147,6 +147,27 @@ expect_message() {
 }
 expect_message "matches '--no-verify'" "git commit -m 'docs(agents): the hook blocks --no-verify'"
 expect_message 'without &&' $'cat > notes.md <<\'EOF\'\nRun make check; then git commit.\nEOF'
+# git -C <path> is the same commit for the make-check rule.
+expect block 'make check-changed > log 2>&1; git -C /x/wt commit -F .scratchpads/commit-msg.txt'
+
+# A decisions.tsv row joined after a commit or a build by ;, a newline, or a pipe can come before the
+# status is read (run 2026-10-07-heap-corruption: a failed commit was logged with the old HEAD).
+ld='.claude/skills/deliver/scripts/log-decision.sh r 4 a b c d'
+expect block "git commit -F .scratchpads/commit-msg.txt; $ld"
+expect block $'git commit -F .scratchpads/commit-msg.txt\n'"$ld"
+expect block $'make\n'"$ld"
+expect block "make test-filter FILTER=X > log 2>&1; $ld"
+expect block "swift test; $ld"
+expect block "git -C /x/wt commit -F .scratchpads/commit-msg.txt; $ld"
+expect block "make test-filter FILTER=X | tail -3 && log-decision.sh r 4 a b c VERIFIED"
+expect allow "git commit -F .scratchpads/commit-msg.txt && $ld"
+expect allow "make test-filter FILTER=X > log 2>&1 && $ld"
+expect allow "make test-filter FILTER=X > log 2>&1 || $ld"
+expect allow "$ld"
+expect allow "$ld; make lint"
+expect allow "remake; $ld"
+expect allow $'make lint \\\n  && '"$ld"
+expect_message 'in its own command' "swift build; $ld"
 
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
 settings="$(dirname "$0")/../settings.json"

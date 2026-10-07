@@ -138,6 +138,28 @@ printf '## Act on\n\n1. (warning, x) A fix.\n' > "$review"
 touch -t 202601010000 "$review"
 pass 'a review file older than the field rule'
 
+# The fixture item comes from the one owner of the format: the Act on line of the interrogate
+# ## Output format. A change of that line that this test cannot parse, or that check-plan.sh
+# does not read, fails here.
+format="$(dirname "$script")/../.claude/skills/interrogate/SKILL.md"
+act_on="$(awk '/^## /{ s = $0; next } s == "## Output format" && /^- \*\*Act on:\*\*/' "$format")"
+tag="$(grep -oE '`\([^`]*\)`' <<<"$act_on" | head -n 1 | tr -d '`')"
+fields=()
+while IFS= read -r f; do fields+=("$f"); done < <(sed -n 's/.*, then \(.*\)\.$/\1/p' <<<"$act_on" | grep -oE '\b[A-Z][a-z]+\b')
+if [[ "$tag" != *"<severity>"* || ${#fields[@]} -ne 2 ]]; then
+  fail "the Act on line of $format: no tag with <severity>, or not two field names: $act_on"
+else
+  item="${tag/<severity>/warning}"
+  item="${item/<lenses>/premortem}"
+  good
+  printf '## Act on\n\n1. %s A fix.\n' "$item" > "$review"
+  refuse 'an item of the Act on format with no fields' "review-plan-1.md: Act on item 1 has no ${fields[0]} field"
+  refuse 'an item of the Act on format with no fields' "review-plan-1.md: Act on item 1 has no ${fields[1]} field"
+  good
+  printf '## Act on\n\n1. %s A fix.\n   - %s: x\n   - %s: y\n' "$item" "${fields[0]}" "${fields[1]}" > "$review"
+  pass 'an item of the Act on format with both fields'
+fi
+
 out="$("$script" 2>&1)"
 code=$?
 [[ $code -eq 2 && "$out" == usage:* ]] || fail "no argument: exit $code: $out"

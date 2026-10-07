@@ -59,7 +59,8 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     } catch {
         throw ToolError(mediaCheckMessage(error))
     }
-    let view = SessionView(session, media: media).filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
+    let whole = SessionView(session, media: media)
+    let view = whole.filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
     let text: String
     do {
         text = try view.json(pretty: false)
@@ -67,7 +68,8 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
         // SessionView holds only strings and numbers, so the encode does not fail.
         throw ToolError("cannot write the session as JSON: \(error.localizedDescription)")
     }
-    return text.count <= sessionInfoBudget ? text : overview(of: view, size: text.count)
+    guard text.count > sessionInfoBudget else { return text }
+    return overview(of: view, in: whole, size: text.count, filtered: tracks != nil || range != nil)
 }
 
 /// The largest `session_info` answer in characters. Claude Code refuses a tool result over
@@ -75,16 +77,18 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
 /// a token (decisions.tsv, M1 measure), so 40,000 characters are about 19,000 tokens.
 let sessionInfoBudget = 40_000
 
-/// The answer when the JSON passes the budget: each track with its clip count, the end frame of
-/// the last clip, the marker count, and a note that tells how to read the session in parts. The
-/// size does not grow with the clip IDs, so an agent can always read it.
-private func overview(of view: SessionView, size: Int) -> String {
-    let end = view.tracks.flatMap(\.clips).map { $0.start + $0.length }.max() ?? 0
+/// The answer when the JSON passes the budget: each track of the answer with its clip count, the
+/// end frame and the marker count of the whole session, and a note that tells how to read the
+/// session in parts. Its size does not grow with the clip IDs, so an agent can always read it.
+private func overview(of view: SessionView, in whole: SessionView, size: Int, filtered: Bool) -> String {
+    let end = whole.tracks.flatMap(\.clips).map { $0.start + $0.length }.max() ?? 0
+    let how =
+        filtered
+        ? "The answer of this filter is still too large. Read it in smaller parts with from and to."
+        : "Read the session in parts: with from and to (a frame range), or with tracks."
     return MCPServer.encode([
-        "note":
-            "The session JSON has \(size) characters, more than \(sessionInfoBudget). This is an overview. Read the "
-            + "session in parts: with from and to (a frame range), or with tracks.",
-        "sampleRate": view.sampleRate, "end": end, "markers": view.markers.count,
+        "note": "The JSON has \(size) characters, more than \(sessionInfoBudget). This is an overview. " + how,
+        "sampleRate": whole.sampleRate, "end": end, "markers": whole.markers.count,
         "tracks": view.tracks.map { ["id": $0.id, "name": $0.name, "clips": $0.clips.count] },
     ])
 }

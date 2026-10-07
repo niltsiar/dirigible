@@ -38,13 +38,13 @@ Build the right feedback loop, and the bug is 90% fixed.
 
 ### Tighten the loop
 
-Treat the loop as a product. Once you have _a_ loop, **tighten** it:
+Once you have _a_ loop, **tighten** it:
 
 - Can I make it faster? (Cache setup, skip unrelated init, narrow the test scope.)
 - Can I make the signal sharper? (Assert on the specific symptom, not "didn't crash".)
 - Can I make it more deterministic? (Pin time, seed RNG, isolate filesystem, freeze network.)
 
-A 30-second flaky loop is barely better than no loop; a 2-second deterministic one is tight, a debugging superpower.
+A 30-second flaky loop is barely better than no loop; a 2-second deterministic one is tight.
 
 ### Non-deterministic bugs
 
@@ -136,4 +136,4 @@ Required before declaring done:
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next debugger learns
-- [ ] Variants searched: `rg` a pattern that matches only the fixed site, then widen one part at a time until most matches are noise. Log each real match as a new bug, or fix it through Phase 5 with its own failing test.
+- [ ] Variants searched: `grep` a pattern that matches only the fixed site, then widen one part at a time, up to 3 times or until a widening adds no real match. Add each real match to `## Next` of `.scratchpads/backlog.md`, or fix it through Phase 5 with its own failing test.

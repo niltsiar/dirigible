@@ -32,7 +32,7 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 7. **Property / fuzz loop.** For "sometimes wrong output", run 1000 random inputs and find the failure mode.
 8. **Bisection harness.** For a bug between two known states (commits, versions), script one check for `git bisect run`.
 9. **Differential loop.** Run one input through old-version vs new-version (or two configs) and diff outputs.
-10. **HITL bash script.** Last resort: a human clicks, driven by `scripts/hitl-loop.template.sh`, so the loop keeps its structure.
+10. **HITL bash script.** Last resort: a human clicks, driven by `.claude/skills/diagnosing-bugs/scripts/hitl-loop.template.sh`, so the loop keeps its structure.
 
 Build the right feedback loop, and the bug is 90% fixed.
 

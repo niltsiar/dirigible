@@ -80,14 +80,15 @@ struct ClipCommand: ParsableCommand {
 
         func validate() throws {
             guard !track.isEmpty else { throw ValidationError("Give one or more --track.") }
-            guard onto.isEmpty || onto.count == track.count else {
+            guard EditRules.pasteTargets(sources: track, onto: onto) != nil else {
                 throw ValidationError("Give one --onto for each --track, or none.")
             }
         }
 
         func run() throws {
             let sources = track.map { TrackID($0) }
-            let targets = onto.isEmpty ? sources : onto.map { TrackID($0) }
+            // `validate()` checked the targets.
+            let targets = (EditRules.pasteTargets(sources: track, onto: onto) ?? []).map { TrackID($0) }
             let pasted = try editPackage(package) { session throws(SessionError) in
                 try session.paste(try session.excerpt(of: range.frames, on: sources), at: Frames(at), on: targets)
             }
@@ -194,8 +195,7 @@ struct ClipCommand: ParsableCommand {
         @Option(parsing: .unconditional, help: "The gain in dB.", transform: parseGain) var db: Gain
 
         func validate() throws {
-            var seen: Set<String> = []
-            if let twice = clips.first(where: { !seen.insert($0).inserted }) {
+            if let twice = EditRules.firstRepeat(clips) {
                 throw ValidationError("Clip \"\(twice)\" is given twice.")
             }
         }
@@ -223,7 +223,9 @@ extension ClipCommand {
         var fadeOut: Int?
 
         func validate() throws {
-            guard fadeIn != nil || fadeOut != nil else { throw ValidationError("Give --in, --out, or both.") }
+            guard EditRules.fadeGiven(fadeIn: fadeIn, fadeOut: fadeOut) else {
+                throw ValidationError("Give --in, --out, or both.")
+            }
         }
 
         func run() throws {
@@ -260,22 +262,23 @@ extension ClipCommand {
     }
 }
 
-/// An even number of frames, 0 or more. `Session` refuses a length over the limit.
+/// `EditRules.crossfadeLength` of a number.
 func parseCrossfadeLength(_ text: String) throws -> Frames {
-    guard let count = Int(text), count >= 0, count % 2 == 0 else {
+    guard let length = Int(text).flatMap(EditRules.crossfadeLength) else {
         throw ValidationError("A crossfade length is an even number of frames, 0 or more.")
     }
-    return Frames(count)
+    return length
 }
 
-/// `--from` and `--to`. `Range` traps when the lower bound is above the upper bound, so the
-/// parser refuses that first.
+/// `--from` and `--to`, with `EditRules.frameRange`.
 struct FrameRange: ParsableArguments {
     @Option(parsing: .unconditional, help: "The first frame.") var from: Int
     @Option(parsing: .unconditional, help: "The frame after the last frame.") var to: Int
 
     func validate() throws {
-        guard from <= to else { throw ValidationError("--from must not be more than --to.") }
+        guard EditRules.frameRange(from: from, to: to) != nil else {
+            throw ValidationError("--from must not be more than --to.")
+        }
     }
 
     var frames: Range<Frames> { Frames(from)..<Frames(to) }

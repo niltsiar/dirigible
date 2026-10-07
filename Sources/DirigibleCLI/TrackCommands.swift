@@ -40,17 +40,24 @@ struct TrackCommand: ParsableCommand {
         @Option(help: "The Guest track ID. The default is a new UUID.") var guestId: String?
 
         func validate() throws {
-            guard (device == nil) == (channels == nil) else { throw ValidationError("Give --device with --channels.") }
-            if case .stereo = channels { throw ValidationError("Host takes one channel.") }
+            switch EditRules.hostDevice(device: device, channels: channels) {
+            case .unpaired: throw ValidationError("Give --device with --channels.")
+            case .stereo: throw ValidationError("Host takes one channel.")
+            case .none, .mono: break
+            }
         }
 
         func run() throws { try apply(tapsAvailable: processTapsAvailable) }
 
         func apply(tapsAvailable: Bool) throws {
-            if app != nil, !tapsAvailable { throw fail(appSourcesUnavailableMessage, code: editRefused) }
+            guard EditRules.appRouteAllowed(app, tapsAvailable: tapsAvailable) else {
+                throw fail(appSourcesUnavailableMessage, code: editRefused)
+            }
             let (host, guest) = (hostId.map { TrackID($0) } ?? TrackID(), guestId.map { TrackID($0) } ?? TrackID())
             var hostDevice: (uid: String, channel: Int)?
-            if let device, case .mono(let channel) = channels { hostDevice = (device, channel) }
+            if case .mono(let uid, let channel) = EditRules.hostDevice(device: device, channels: channels) {
+                hostDevice = (uid, channel)
+            }
             try editPackage(package) { session throws(SessionError) in
                 try session.addCallTracks(
                     host: host, guest: guest, names: (host: "Host", guest: "Guest"), hostDevice: hostDevice,
@@ -162,9 +169,6 @@ struct TrackCommand: ParsableCommand {
     }
 }
 
-/// The refusal of an app route on a macOS with no process taps (A14).
-let appSourcesUnavailableMessage = "app sources need macOS 14.2 or later."
-
 /// Exactly one route form: `--device` with `--channels`, `--app`, or `--none`. No command
 /// leaves the route unstated, so a layout change never removes a route by accident.
 struct RouteOptions: ParsableArguments {
@@ -175,25 +179,18 @@ struct RouteOptions: ParsableArguments {
     @Flag(help: "Remove the route.") var none = false
 
     func validate() throws {
-        let given = (device: device != nil, channels: channels != nil, app: app != nil, none: none)
-        let valid: Bool =
-            switch given {
-            case (true, true, false, false), (false, false, true, false), (false, false, false, true): true
-            default: false
-            }
-        guard valid else {
+        guard EditRules.route(device: device, channels: channels, app: app, none: none) != nil else {
             throw ValidationError("Give --device with --channels, --app, or --none.")
         }
     }
 
-    var route: Route? {
-        if let app { return .app(bundleID: app) }
-        guard let device, let channels else { return nil }
-        return .device(uid: device, channels: channels)
-    }
+    /// `validate()` checked that the form is one of the three.
+    var route: Route? { EditRules.route(device: device, channels: channels, app: app, none: none) ?? nil }
 
     /// Refuses an app route before the package lock when this macOS has no process taps.
     func checkAvailable(_ tapsAvailable: Bool) throws(ExitCode) {
-        if app != nil, !tapsAvailable { throw fail(appSourcesUnavailableMessage, code: editRefused) }
+        guard EditRules.appRouteAllowed(app, tapsAvailable: tapsAvailable) else {
+            throw fail(appSourcesUnavailableMessage, code: editRefused)
+        }
     }
 }

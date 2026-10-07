@@ -36,19 +36,19 @@ struct MCPServer {
                 ], cached: true)
         case "ping": return reply(id, [:])
         case "tools/list":
-            let list = tools.map { ["name": $0.name, "description": $0.description, "inputSchema": $0.inputSchema] }
+            let list = Tool.all.map { ["name": $0.name, "description": $0.description, "inputSchema": $0.inputSchema] }
             return reply(id, ["tools": list], cached: true)
         case "tools/call":
             guard let name = params["name"] as? String else {
                 return reply(id, error: -32602, "tools/call needs a name.")
             }
-            guard let tool = tools.first(where: { $0.name == name }) else {
+            guard let tool = Tool.all.first(where: { $0.name == name }) else {
                 return reply(id, error: -32602, "no tool \(name).")
             }
             guard let arguments = params["arguments"].map({ $0 as? [String: Any] }) ?? [:] else {
                 return reply(id, error: -32602, "the arguments of tools/call are not an object.")
             }
-            let (text, isError) = call(tool, arguments)
+            let (text, isError) = tool.call(arguments)
             return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])
         default: return reply(id, error: -32601, "no method \(method).")
         }
@@ -91,19 +91,22 @@ struct MCPServer {
             // The tool set does not change while the process runs (default, decisions.tsv).
             if cached { (result["ttlMs"], result["cacheScope"]) = (3_600_000, "public") }
         }
-        return encode(["jsonrpc": "2.0", "id": id, "result": result])
+        return Self.encode(["jsonrpc": "2.0", "id": id, "result": result])
     }
 
     private func reply(_ id: Any, error code: Int, _ message: String, data: [String: Any]? = nil) -> String {
         var error: [String: Any] = ["code": code, "message": message]
         if let data { error["data"] = data }
-        return encode(["jsonrpc": "2.0", "id": id, "error": error])
+        return Self.encode(["jsonrpc": "2.0", "id": id, "error": error])
     }
 }
 
-/// Compact JSON on one line: no pretty print, so a newline in a text stays `\n` (C15).
-func encode(_ object: [String: Any]) -> String {
-    // Each object holds only JSON types, so the encode cannot fail.
-    let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes])
-    return String(decoding: data ?? Data(), as: UTF8.self)
+extension MCPServer {
+    /// Compact JSON on one line: no pretty print, so a newline in a text stays `\n` (C15).
+    static func encode(_ object: [String: Any]) -> String {
+        // Each object holds only JSON types, so the encode cannot fail.
+        let data = try? JSONSerialization.data(
+            withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes])
+        return String(decoding: data ?? Data(), as: UTF8.self)
+    }
 }

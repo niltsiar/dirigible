@@ -28,7 +28,7 @@ struct Create: ParsableCommand {
     @Option(parsing: .unconditional, help: "The session sample rate in Hz.") var sampleRate: Int
 
     func validate() throws {
-        guard package.url.pathExtension == "dirigible" else {
+        guard EditRules.isPackagePath(package.url) else {
             throw ValidationError("The package path must end in .dirigible.")
         }
         // Session.init traps on a rate that is not positive.
@@ -56,7 +56,7 @@ struct Info: ParsableCommand {
         do {
             media = try checkMedia(session, package: package.url)
         } catch {
-            throw fail("cannot check the audio files: \(error.localizedDescription)", code: packageError)
+            throw fail(mediaCheckMessage(error), code: packageError)
         }
         print(
             json

@@ -15,7 +15,9 @@ extension ClipCommand {
         @Option(help: "A track. Give none for all tracks, or one or more.") var track: [String] = []
 
         func validate() throws {
-            guard range.from < range.to else { throw ValidationError("--from must be less than --to.") }
+            guard EditRules.positiveRange(from: range.from, to: range.to) != nil else {
+                throw ValidationError("--from must be less than --to.")
+            }
         }
 
         func run() throws {
@@ -71,11 +73,8 @@ extension ClipCommand {
 }
 
 private func parseEdge(_ text: String) throws -> Fades.Edge {
-    switch text {
-    case "start": .start
-    case "end": .end
-    default: throw ValidationError("An edge is start or end.")
-    }
+    guard let edge = EditRules.edge(text) else { throw ValidationError("An edge is start or end.") }
+    return edge
 }
 
 /// The tracks of `--track`, or all tracks when there is none.

@@ -90,7 +90,7 @@ public func importAudio(
     let clips = package.appending(path: clipsFolderName)
     let stem = importStem(of: source, in: session, package: package)
     let wav = "\(clipsFolderName)/\(stem).wav"
-    let temporary = clips.appending(path: ".\(stem).wav.tmp")
+    let temporary = clips.appending(path: temporaryWAV(of: stem))
     var renamed = false
     defer { if !renamed { unlink(temporary.path) } }
     let conversion = ClipConversion(

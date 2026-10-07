@@ -8,9 +8,11 @@
 //
 // usage: ax.swift dump [<depth>]              one line per element: role, title, label, value, help
 //        ax.swift find <text>                 the elements whose line has <text>
-//        ax.swift press <path> [--tree <file>] the press action of the one element that <path>
+//        ax.swift press <path> [--tree <file>] [--role <role>]
+//                                             the press action of the one element that <path>
 //                                             selects; with --tree, the match in a dump file,
-//                                             and no press
+//                                             and no press; with --role, only the elements with
+//                                             the role, for example AXMenuBarItem to open a menu
 //        ax.swift step <role> <increment|decrement>
 //                                             the action on each element with the role, for
 //                                             example AXSplitter, with its line before and after
@@ -18,6 +20,10 @@
 // 2 Option, 4 Control, 8 no Command; add the values), and MenuItemCmdVirtualKey (for a key with no
 // character, for example 36 Return or 123 Left Arrow). A menu title can end in the "…" character:
 // copy the title from the dump for press. A menu item with a check mark shows MenuItemMarkChar=✓.
+// Each line ends in Enabled= (1 or 0) when the element has the attribute. A dump of a closed
+// menu shows the state of the moment: a probe read Auto Level 0 during an import and 1 after it,
+// with the menu closed and open. To open a menu, press its title with --role AXMenuBarItem: in
+// English, the Record menu has a Record item, so "press Record" alone matches both and is refused.
 // A press path is titles with " > " between them, for example "File > Open Recent > Clear Menu".
 // The last title is the title of the element. The other titles come in this order among the
 // titles above it. When two elements match, press refuses and lists their paths: give a longer
@@ -34,7 +40,7 @@ import ApplicationServices
 let usage = """
     usage: ax.swift dump [<depth>]
            ax.swift find <text>
-           ax.swift press <path> [--tree <file>]
+           ax.swift press <path> [--tree <file>] [--role <role>]
            ax.swift step <role> <increment|decrement>
 
     """
@@ -45,12 +51,15 @@ func fail(_ message: String, _ code: Int32) -> Never {
 }
 
 var arguments = Array(CommandLine.arguments.dropFirst())
-var treeFile: String?
-if arguments.first == "press", let at = arguments.firstIndex(of: "--tree") {
+/// The value of a press option, removed from the arguments.
+func pressOption(_ name: String) -> String? {
+    guard arguments.first == "press", let at = arguments.firstIndex(of: name) else { return nil }
     guard at + 1 < arguments.count else { fail(usage, 2) }
-    treeFile = arguments[at + 1]
-    arguments.removeSubrange(at...at + 1)
+    defer { arguments.removeSubrange(at...at + 1) }
+    return arguments[at + 1]
 }
+let treeFile = pressOption("--tree")
+let roleFilter = pressOption("--role")
 let counts = ["dump": 0...1, "find": 1...1, "press": 1...1, "step": 2...2]
 guard let command = arguments.first, let count = counts[command], count.contains(arguments.count - 1) else {
     fail(usage, 2)
@@ -90,6 +99,7 @@ func line(_ element: AXUIElement) -> String {
     [
         "AXRole", "AXRoleDescription", "AXTitle", "AXDescription", "AXValue", "AXHelp",
         "AXMenuItemCmdChar", "AXMenuItemCmdModifiers", "AXMenuItemCmdVirtualKey", "AXMenuItemMarkChar",
+        "AXEnabled",
     ].compactMap { name in
         attribute(element, name).map { value in
             // The key of Return is "\r", so the key prints in quotes and does not split the line.
@@ -176,7 +186,7 @@ case "press":
     } else {
         top = node(appRoot(), 0)
     }
-    let all = matches(path, top, [])
+    let all = matches(path, top, []).filter { roleFilter == nil || $0.node.role == roleFilter }
     if all.count > 1 {
         let list = all.map { "  " + $0.titles.joined(separator: " > ") }.joined(separator: "\n")
         fail("\(all.count) elements match \"\(arguments[1])\". Give a longer path:\n\(list)", 4)

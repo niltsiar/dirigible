@@ -25,6 +25,7 @@ expect_usage "dump with a word" dump deep
 expect_usage "find with no text" find
 expect_usage "press with two titles" press a b
 expect_usage "press with --tree and no file" press a --tree
+expect_usage "press with --role and no role" press a --role
 expect_usage "step with no action" step AXSplitter
 expect_usage "step with an unknown action" step AXSplitter wiggle
 
@@ -65,15 +66,17 @@ Role=AXApplication RoleDescription=application Title=Dirigible
       Role=AXMenuItem RoleDescription=menu item Title=Clear Menu MenuItemCmdModifiers=8
     Role=AXMenuItem RoleDescription=menu item Title=File MenuItemCmdModifiers=0
     Role=AXMenuItem RoleDescription=menu item Title= MenuItemCmdModifiers=0
-    Role=AXMenuItem RoleDescription=menu item Title=Close MenuItemCmdChar="W" MenuItemCmdModifiers=0
+    Role=AXMenuItem RoleDescription=menu item Title=Close MenuItemCmdChar="W" MenuItemCmdModifiers=0 Enabled=0
 DUMP
 
-# expect_press <case> <path> <exit> <stdout> [<text that stderr must have>...]
+# expect_press <case> <path> <exit> <stdout> [<text that stderr must have>...]. With ROLE set,
+# the press has --role "$ROLE".
 expect_press() {
     local name="$1" path="$2" want_code="$3" want_out="$4"
     shift 4
-    local out err
-    out="$(swift "$ax" press "$path" --tree "$tree/dump.txt" 2>"$tree/err")"
+    local out err extra=()
+    [[ -n "${ROLE:-}" ]] && extra=(--role "$ROLE")
+    out="$(swift "$ax" press "$path" --tree "$tree/dump.txt" ${extra[@]+"${extra[@]}"} 2>"$tree/err")"
     local code=$?
     err="$(cat "$tree/err")"
     [[ $code -eq $want_code ]] || fail "$name: exit $code, not $want_code: $err"
@@ -90,6 +93,13 @@ expect_press "a path in the Apple menu with no Apple" "Recent Items > Clear Menu
 expect_press "a path from the Apple menu" "Apple > Recent Items > Clear Menu" 0 \
     "match: Dirigible > Apple > Recent Items > Clear Menu"
 expect_press "an item with the title of its menu" "File > File" 0 "match: Dirigible > File > File"
+# A menu has the title of its menu bar item, and in English the Record menu has a Record item. A
+# role keeps only the matches with that role, so the title of a menu opens the menu.
+expect_press "a menu title" "File" 4 "" "2 elements match" "Dirigible > File > File"
+ROLE=AXMenuBarItem expect_press "a menu title with the menu bar item role" "File" 0 "match: Dirigible > File"
+ROLE=AXMenuBarItem expect_press "a role that no match has" "Close" 1 "" "No element matches"
+# A dump line ends in Enabled=: the title stops at the next key.
+expect_press "an item with an Enabled field" "File > Close" 0 "match: Dirigible > File > Close"
 expect_press "an empty title at the end" "File > " 2 "" "has an empty title"
 expect_press "an empty title in the middle" "File >  > Close" 2 "" "has an empty title"
 

@@ -23,16 +23,16 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 
 ### Ways to construct one, in roughly this order
 
-1. **Failing test** at whatever seam reaches the bug: unit, integration, e2e.
-2. **Offline render**: feed a generated fixture (sine, noise, silence) through the DSP or file path with no device, and assert on the output samples, level, or length.
-3. **Audio file facts**: run `afinfo`, `ffprobe`, or `ffmpeg -af astats`/`ebur128` on the output file, and diff against a known-good value.
-4. **App run**: `make run`, drive the case, and capture evidence with `scripts/screenshot.sh`.
-5. **Replay a captured trace.** Save a real network request / payload / event log to disk; replay it through the code path in isolation.
-6. **Throwaway harness.** Spin up a minimal subset of the system (one service, mocked deps) that exercises the bug code path with a single function call.
-7. **Property / fuzz loop.** If the bug is "sometimes wrong output", run 1000 random inputs and look for the failure mode.
-8. **Bisection harness.** If the bug appeared between two known states (commit, dataset, version), automate "boot at state X, check, repeat" so you can `git bisect run` it.
-9. **Differential loop.** Run the same input through old-version vs new-version (or two configs) and diff outputs.
-10. **HITL bash script.** Last resort. If a human must click, drive _them_ with `scripts/hitl-loop.template.sh` so the loop is still structured. Captured output feeds back to you.
+1. **Failing test** at the seam that reaches the bug.
+2. **Offline render**: feed a generated fixture (sine, noise, silence) through the DSP or file path with no device; assert the output samples, level, or length.
+3. **Audio file facts**: run `afinfo`, `ffprobe`, or `ffmpeg -af astats`/`ebur128` on the output file; diff against a known-good value.
+4. **App run**: `make run`, drive the case, capture it with `scripts/screenshot.sh`.
+5. **Replay a capture.** Replay a saved device event log, session file, or `dirigible` command through the code path.
+6. **Throwaway harness.** Call the bug code path in one function call, with the rest faked.
+7. **Property / fuzz loop.** For "sometimes wrong output", run 1000 random inputs and find the failure mode.
+8. **Bisection harness.** For a bug between two known states (commits, versions), script one check for `git bisect run`.
+9. **Differential loop.** Run one input through old-version vs new-version (or two configs) and diff outputs.
+10. **HITL bash script.** Last resort: a human clicks, driven by `scripts/hitl-loop.template.sh`, so the loop keeps its structure.
 
 Build the right feedback loop, and the bug is 90% fixed.
 
@@ -136,3 +136,4 @@ Required before declaring done:
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next debugger learns
+- [ ] Variants searched: `rg` a pattern that matches only the fixed site, then widen one part at a time until most matches are noise. Log each real match as a new bug, or fix it through Phase 5 with its own failing test.

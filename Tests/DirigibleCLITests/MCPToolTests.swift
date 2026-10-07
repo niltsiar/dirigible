@@ -71,26 +71,41 @@ struct MCPToolTests {
         #expect((byRange?["captures"] as? [[String: Any]])?.map { $0["id"] as? String } == ["k1"])
     }
 
-    /// C9a: 6 tracks of 201 clips. One track is under 100,000 characters (about 25,000 tokens).
+    /// C9a: 6 tracks of 201 clips, each split from the right part of the split before, so the IDs
+    /// chain as the app makes them (c1@10000@20000...). An answer over 60,000 characters (about
+    /// 15,000 tokens) is the overview; a from/to range gives the full JSON of the clips in it.
     @Test func sessionInfoOfALongSessionFitsWithAFilter() async throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 2_010_000))
         for track in 1...6 {
             let id = TrackID("track-\(track)")
             try session.addTrack(id, name: "Track \(track)", layout: .mono)
-            try session.place(Clip(id: ClipID("c\(track)"), file: "f", start: 0, offset: 0, length: 2_010_000), on: id)
-            _ = try session.splitClips(at: (1...200).map { Frames($0 * 10_000) }, on: [id])
+            var right = ClipID("c\(track)")
+            try session.place(Clip(id: right, file: "f", start: 0, offset: 0, length: 2_010_000), on: id)
+            for split in 1...200 { right = try session.split(right, at: Frames(split * 10_000)) }
         }
+        try session.setMarker(Marker(id: "m", name: "M", position: 0, kind: .marker))
         let long = try TemporaryPackage(session)
         let answers = try await mcp([
             toolCall(1, "session_info", ["package": long.path]),
             toolCall(2, "session_info", ["package": long.path, "tracks": ["track-1"]]),
+            toolCall(3, "session_info", ["package": long.path, "from": 0, "to": 50_000]),
         ])
-        let whole = toolResult(answer(answers, id: 1)).text
-        let one = toolResult(answer(answers, id: 2)).text
-        #expect(json(one).map { (($0["tracks"] as? [[String: Any]])?.first?["clips"] as? [Any])?.count } == 201)
-        #expect(one.count < 100_000, "one track has \(one.count) characters")
-        print("C9a: the whole session has \(whole.count) characters, one track \(one.count)")
+        let (whole, one, range) = (
+            toolResult(answer(answers, id: 1)).text, toolResult(answer(answers, id: 2)).text,
+            toolResult(answer(answers, id: 3)).text
+        )
+        for text in [whole, one, range] { #expect(text.count <= 60_000, "\(text.count) characters") }
+        let overview = json(whole)
+        let tracks = overview?["tracks"] as? [[String: Any]] ?? []
+        #expect(tracks.map { $0["id"] as? String } == (1...6).map { "track-\($0)" })
+        #expect(tracks.allSatisfy { $0["clips"] as? Int == 201 && $0["name"] is String }, "\(tracks.first ?? [:])")
+        #expect(overview?["end"] as? Int == 2_010_000 && overview?["markers"] as? Int == 1)
+        #expect((overview?["note"] as? String)?.contains("from and to") == true, "\(whole.prefix(300))")
+        #expect((json(one)?["tracks"] as? [[String: Any]])?.first?["clips"] as? Int == 201, "one track: overview")
+        let clips = (json(range)?["tracks"] as? [[String: Any]])?.map { ($0["clips"] as? [Any])?.count }
+        #expect(clips == Array(repeating: 6, count: 6), "the range 0...50000 holds 6 clips of each track")
+        print("C9a: the overview has \(whole.count) characters, one track \(one.count), the range \(range.count)")
     }
 
     @Test func sessionCreateMatchesCreate() async throws {

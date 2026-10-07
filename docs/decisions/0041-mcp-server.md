@@ -25,7 +25,7 @@ R16: agents such as Claude Code read and edit Dirigible sessions through MCP (Mo
 - The lock guard needs a volume with `flock`. On a network volume (SMB), the server cannot see that the app has the package open, and an edit can race the app (0011).
 - The JSON of `session_info` is the contract of `info --json` (0011): a removed or renamed key is a breaking change.
 - We track the MCP specification ourselves. The transcript tests in `MCPProtocolTests` hold the wire format of both eras.
-- `session_info` of a long edited session passes the 25,000-token default limit of Claude Code. An agent reads it in parts with the `tracks` and `from`/`to` filters.
+- The JSON of a long edited session passes the 25,000-token default limit of Claude Code. A `session_info` answer over 60,000 characters is an overview: each track with its clip count, the end frame, and the marker count. The agent then reads the session in parts with `from`/`to` or `tracks`.
 
 ## Alternatives considered
 

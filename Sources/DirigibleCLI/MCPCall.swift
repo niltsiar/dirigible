@@ -60,10 +60,30 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
         throw ToolError(mediaCheckMessage(error))
     }
     let view = SessionView(session, media: media).filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
+    let text: String
     do {
-        return try view.json(pretty: false)
+        text = try view.json(pretty: false)
     } catch {
         // SessionView holds only strings and numbers, so the encode does not fail.
         throw ToolError("cannot write the session as JSON: \(error.localizedDescription)")
     }
+    return text.count <= sessionInfoBudget ? text : overview(of: view, size: text.count)
+}
+
+/// The largest `session_info` answer in characters, about 15,000 tokens: Claude Code refuses a
+/// tool result over 25,000 tokens (U9).
+let sessionInfoBudget = 60_000
+
+/// The answer when the JSON passes the budget: each track with its clip count, the end frame of
+/// the last clip, the marker count, and a note that tells how to read the session in parts. The
+/// size does not grow with the clip IDs, so an agent can always read it.
+private func overview(of view: SessionView, size: Int) -> String {
+    let end = view.tracks.flatMap(\.clips).map { $0.start + $0.length }.max() ?? 0
+    return MCPServer.encode([
+        "note":
+            "The session JSON has \(size) characters, more than \(sessionInfoBudget). This is an overview. Read the "
+            + "session in parts: with from and to (a frame range), or with tracks.",
+        "sampleRate": view.sampleRate, "end": end, "markers": view.markers.count,
+        "tracks": view.tracks.map { ["id": $0.id, "name": $0.name, "clips": $0.clips.count] },
+    ])
 }

@@ -61,7 +61,7 @@ private func editLocked<Result, Failure: Error>(
     _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(ExitCode) -> Result {
     var session = try readPackage(package)
-    Session.removeTemporaryFiles(in: package.url)
+    session.removeTemporaryFiles(in: package.url)
     guard session.recording == nil else {
         throw fail(
             "\(package.path) has a take that is not finalized; open it in Dirigible first.", code: packageError)

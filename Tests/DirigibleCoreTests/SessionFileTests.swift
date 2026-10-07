@@ -260,13 +260,32 @@ struct SessionFileTests {
             FileManager.default.createFile(atPath: package.appending(path: name).path, contents: Data("x".utf8))
         }
 
-        Session.removeTemporaryFiles(in: package)
+        try fullSession().removeTemporaryFiles(in: package)
 
         #expect(
             try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == [
                 ".session.xml.not-a-uuid.tmp", ".session.xml.tmp.bak", "Clips", "session.xml", "x.tmp",
             ])
         #expect(try Session(contentsOf: package) == fullSession())
+    }
+
+    /// Code gate 2: a crash during an import or a finalize leaves `Clips/.<stem>.wav.tmp`. A file
+    /// that the pool names (`dirigible file add`) stays, in any case and with "./".
+    @Test func removeTemporaryFilesDeletesTheTemporaryWAVsThatThePoolDoesNotName() throws {
+        var session = try fullSession()
+        try session.addFile(AudioFile(id: "f4", path: "./.Kept.wav.tmp", layout: .mono, length: 48_000))
+        try session.write(to: package)
+        let clips = package.appending(path: "Clips")
+        for name in [".Voice.wav.tmp", ".kept.wav.tmp", "Voice.wav.tmp", ".Voice.wav", ".peaks.tmp"] {
+            FileManager.default.createFile(atPath: clips.appending(path: name).path, contents: Data("x".utf8))
+        }
+
+        session.removeTemporaryFiles(in: package)
+
+        #expect(
+            try FileManager.default.contentsOfDirectory(atPath: clips.path).sorted() == [
+                ".Voice.wav", ".kept.wav.tmp", ".peaks.tmp", "Voice.wav.tmp",
+            ])
     }
 
     @Test func aPrefixedFileInTheSessionNamespaceReads() throws {

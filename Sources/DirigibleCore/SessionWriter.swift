@@ -101,13 +101,23 @@ extension Session {
         return data
     }
 
-    /// Deletes the leftover `.session.xml.<UUID>.tmp` files of a crashed save. Call it only under
-    /// the package lock: without the lock it can delete the file of a save in progress (that save
-    /// then throws; no loss).
-    public static func removeTemporaryFiles(in package: URL) {
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: package.path)) ?? []
-        for name in names where isTemporaryName(name) {
+    /// Deletes the leftover temporary files of a crash: the `.session.xml.<UUID>.tmp` files of a
+    /// save, and each `Clips/.<stem>.wav.tmp` of an import or a finalize that no file of the pool
+    /// names. Call it only under the package lock: without the lock it can delete the file of a
+    /// save, an import, or a finalize in progress.
+    public func removeTemporaryFiles(in package: URL) {
+        func names(_ folder: URL) -> [String] {
+            (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        }
+        for name in names(package) where isTemporaryName(name) {
             unlink(package.appending(path: name).path)
+        }
+        let pool = Set(
+            files.values.map { $0.path.split(separator: "/").filter { $0 != "." }.joined(separator: "/").lowercased() })
+        let clips = package.appending(path: clipsFolderName)
+        for name in names(clips)
+        where name.hasPrefix(".") && name.hasSuffix(".wav.tmp") && !pool.contains(name.lowercased()) {
+            unlink(clips.appending(path: name).path)
         }
     }
 

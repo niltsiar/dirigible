@@ -13,6 +13,7 @@
 - Amended: 2026-10-03, run 8a. `dirigible loudness` prints the integrated loudness of each clip with its clip gain. It writes nothing and takes no lock (see 0008).
 - Amended: 2026-10-04, run 12. `clip ripple-delete`, `clip ripple-insert`, and `clip ripple-trim` ripple all tracks, or the `--track` tracks. A split take exits 3 (see 0037).
 - Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard`. `clip paste-clips` copies whole clips with their time and track offsets and pastes them at `--at` (see 0038).
+- Amended: 2026-10-07, run 2026-10-07-mcp-cli. `dirigible mcp` serves each edit command as an MCP tool, with the English text of the command. `ParityTests` also checks that each command has its tool (see 0041).
 
 ## Context
 

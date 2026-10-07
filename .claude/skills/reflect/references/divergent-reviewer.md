@@ -24,12 +24,12 @@ Route each finding to a skill, tool, or MCP that this transcript used: a `Skill`
 
 A skill that should have been invoked but wasn't is a missed trigger. Drop a skill that was neither invoked nor a missed trigger.
 
-Return 3-5 durable learnings as a numbered list, with no exposition. For each:
+Return 0-5 durable learnings, none when no moment cost time or gave a wrong result, as a bare numbered list. For each:
 - Principle: one sentence that names the second-order observation, not the obvious learning.
 - Evidence: the exact moment in the transcript (turn number or short quote), with what was said and what was not.
-- Routing: the `SKILL.md` path as the transcript shows it, `tune description: <skill path>`, or `new skill: <kebab-name>`.
-- Key: the cause key `<ID>/<class>`, in the form that step 1 of `.claude/skills/reflect/references/synthesizer.md` gives.
+- Routing: the `SKILL.md` path from the transcript, `tune description: <skill path>`, or `new skill: <kebab-name>`.
+- Key: the cause key `<ID>/<class>`, in the form of step 1 of `.claude/skills/reflect/references/synthesizer.md`.
 
-Skip trivial things, things that the skill the parent followed already makes obvious, and details that drift: SHAs, current file paths, version numbers, exact byte counts.
+Skip trivial things, things that the followed skill already makes obvious, and details that drift (SHAs, paths, versions, byte counts).
 
 <DIGEST IF FILE PATH UNAVAILABLE>

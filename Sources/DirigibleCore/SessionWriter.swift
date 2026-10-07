@@ -34,6 +34,10 @@ func posixCode(of error: any Error) -> Int32 {
 let sessionNamespace = "https://github.com/niltsiar/dirigible/session"
 /// The folder of the clip files in a package (decision 0003).
 package let clipsFolderName = "Clips"
+/// The name in `Clips/` of the WAV of `stem` until its rename. An import and a finalize write it.
+package func temporaryWAV(of stem: String) -> String { ".\(stem).wav.tmp" }
+/// True for a name that `temporaryWAV(of:)` gives. `removeTemporaryFiles` deletes such a file.
+package func isTemporaryWAV(_ name: String) -> Bool { name.hasPrefix(".") && name.hasSuffix(".wav.tmp") }
 /// The newest `session.xml` version that this build reads (decision 0039). A save writes
 /// `Session.fileVersion`.
 package let sessionVersion = 5
@@ -116,7 +120,7 @@ extension Session {
             files.values.map { $0.path.split(separator: "/").filter { $0 != "." }.joined(separator: "/").lowercased() })
         let clips = package.appending(path: clipsFolderName)
         for name in names(clips)
-        where name.hasPrefix(".") && name.hasSuffix(".wav.tmp") && !pool.contains(name.lowercased()) {
+        where isTemporaryWAV(name) && !pool.contains(name.lowercased()) {
             unlink(clips.appending(path: name).path)
         }
     }

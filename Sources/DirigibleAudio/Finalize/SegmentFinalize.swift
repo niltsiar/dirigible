@@ -45,7 +45,7 @@ struct SegmentFinalize {
     var sidecar: String { "\(captureFolderName)/\(name.stem).sidecar" }
     /// The WAV path in `Clips/`, and the path of the WAV until its read-back ends.
     var wavName: String { "\(name.stem).wav" }
-    var temporaryWAVName: String { ".\(name.stem).wav.tmp" }
+    var temporaryWAVName: String { temporaryWAV(of: name.stem) }
     var wav: String { "\(clipsFolderName)/\(wavName)" }
 
     /// The session with the capture, the file, and the clip of the segment added, or the fault of

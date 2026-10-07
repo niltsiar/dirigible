@@ -40,13 +40,14 @@ public enum ImportError: Error, Hashable, Sendable {
 /// placement does. It never writes `session.xml`, and it blocks until the end, so never call it on
 /// the main actor.
 ///
-/// The order: the download check (`isDownloaded`, before any read), the source checks, the target checks, the disk check (`freeBytes`, the free bytes of
-/// the volume of the package lock), the conversion into `.<stem>.wav.tmp`, the session edits, the rename, the flush
-/// of `Clips/`, and the level. A throw before the rename leaves no new file. After the rename, a
-/// cancel or a flush fault throws and keeps the WAV as an unused file: the caller can have a
-/// session that names it. `isCancelled` is read before each block of 65,536 frames, before the
-/// read-back, and after the rename. A cancel during the level does not stop it: the caller reads
-/// its flag again after the return.
+/// The order: the download check (`isDownloaded`, before any read), the source checks, the target
+/// checks, the disk check (`freeBytes`, the free bytes of the volume of the package lock), the
+/// conversion into `.<stem>.wav.tmp`, the session edits, the rename, the flush of `Clips/`, and the
+/// level. A throw before the rename leaves no new file. After the rename, a cancel or a flush fault
+/// throws and keeps the WAV as an unused file: the caller can have a session that names it.
+/// `isCancelled` is read before each block of 65,536 frames, before the read-back, and after the
+/// rename. A cancel during the level does not stop it: the caller reads its flag again after the
+/// return.
 public func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
     freeBytes: () -> Int64, isDownloaded: (URL) -> Bool = sourceIsDownloaded,

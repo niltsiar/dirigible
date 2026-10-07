@@ -21,7 +21,7 @@ struct StudioIdleTests {
             (.placing(SegmentName(take: 1, arm: 1, segment: 1)), false, false),
             (.leveling, false, false),
             (
-                .importing(ImportRun(name: "Voice.wav", flags: ImportFlags(), task: Task { .failure(.busy) })), false,
+                .importing(ImportRun(name: "Voice.wav", flags: ImportFlags())), false,
                 false
             ),
         ]

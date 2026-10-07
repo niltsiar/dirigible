@@ -9,7 +9,6 @@ public struct ImportRun: Hashable, Sendable {
     /// The file name.
     public let name: String
     let flags: ImportFlags
-    let task: Task<Result<ClipID, StudioError>, Never>
 
     public static func == (a: Self, b: Self) -> Bool { a.flags === b.flags }
     public func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(flags)) }
@@ -54,7 +53,7 @@ extension Studio {
         let stopped = endPlayForTake()
         let flags = ImportFlags()
         let task = Task { await importTurn(source, target, flags, stopped, progress) }
-        transport = .importing(ImportRun(name: source.lastPathComponent, flags: flags, task: task))
+        transport = .importing(ImportRun(name: source.lastPathComponent, flags: flags))
         defer { transport = .idle }
         let result = await withTaskCancellationHandler {
             await task.value

@@ -599,7 +599,7 @@ The 31 tools, in groups:
 - The server does not edit a package that the app has open. The tool gives the error "`<path>` is open in Dirigible." Close the session in the app, then try again.
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
 - A tool call has no undo. Each call saves the package. Make a copy of the session before an agent edits it.
-- No tool records, imports, or exports. `capture add` and `file add` have no tool.
+- No tool records, imports, exports, renders, measures loudness, or places captured audio: that work needs progress and cancel. `capture add` and `file add` have no tool either.
 
 ### Make the screenshots again
 

@@ -1,5 +1,8 @@
+import ArgumentParser
 import Foundation
 import Testing
+
+@testable import DirigibleCLI
 
 /// The CLI parity rule (AGENTS.md, decisions 0011 and 0041): each public mutating method in
 /// DirigibleCore has a `dirigible` command, or an exemption with its reason, and each command has
@@ -49,10 +52,22 @@ struct ParityTests {
     static let toolExemptions: [String: String] = [
         "capture add": "It writes raw clock data that only a capture run measures.",
         "file add": "It adds a file record and does not read the audio. An agent that needs it runs the CLI.",
+        "capture place": "Long audio work that needs progress and cancel (Release 3).",
+        "take finalize": "Long audio work that needs progress and cancel (Release 3).",
+        "import": "Long audio work that needs progress and cancel (Release 3).",
+        "level": "Long audio work that needs progress and cancel (Release 3).",
+        "loudness": "Long audio work that needs progress and cancel (Release 3).",
+        "peaks": "Long audio work that needs progress and cancel (Release 3).",
+        "render": "Long audio work that needs progress and cancel (Release 3).",
+        "export": "Long audio work that needs progress and cancel (Release 3).",
+        "record": "Recording needs the consent sheet of the app (Release 3).",
+        "devices": "It lists the audio devices of this Mac, not a package.",
+        "apps": "It lists the apps of this Mac, not a package.",
+        "mcp": "It is the MCP server.",
     ]
 
-    /// The tools that are not an edit command.
-    static let readTools: Set<String> = ["session_create", "session_info"]
+    /// The commands whose tool name does not follow the name rule.
+    static let toolNames = ["create": "session_create", "info": "session_info"]
 
     @Test func everyMutatingSessionMethodHasACommandOrAnExemption() throws {
         let names = try publicMutatingMethods()
@@ -73,20 +88,32 @@ struct ParityTests {
         }
     }
 
-    /// The tool name is the command words with `_` for each space and hyphen.
-    @Test func everyListedCommandHasATool() async throws {
+    /// Each leaf command of the CLI command tree has its tool, or a tool exemption with its
+    /// reason. The tool name is the command words with `_` for each space and hyphen, or the name
+    /// in `toolNames`. Each tool maps back to a command.
+    @Test func everyCommandHasATool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list")])
         let names = Set(
             (result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String })
-        let commands = Set(Self.commands.values.joined())
+        let commands = leafCommands(of: Dirigible.self)
+        #expect(commands.count >= 40 && commands.contains("clip ripple-trim"), "the tree scan found \(commands)")
+        var mapped: Set<String> = []
         for command in commands.sorted() where Self.toolExemptions[command] == nil {
-            let tool = command.replacing(" ", with: "_").replacing("-", with: "_")
-            #expect(names.contains(tool), "dirigible \(command) has no MCP tool \(tool) and no tool exemption")
+            let tool = Self.toolNames[command] ?? command.replacing(" ", with: "_").replacing("-", with: "_")
+            mapped.insert(tool)
+            let found = names.contains(tool)
+            #expect(found, "dirigible \(command) has no MCP tool \(tool) and no tool exemption")
         }
-        let mapped = Set(commands.map { $0.replacing(" ", with: "_").replacing("-", with: "_") })
-        #expect(names.subtracting(mapped).subtracting(Self.readTools).isEmpty, "tools with no command")
+        #expect(names.subtracting(mapped).isEmpty, "tools with no command: \(names.subtracting(mapped).sorted())")
         #expect(Set(Self.toolExemptions.keys).isSubset(of: commands), "a tool exemption names no command")
         #expect(Self.toolExemptions.values.allSatisfy { !$0.isEmpty })
+    }
+
+    /// The command words of each command that has no subcommand.
+    private func leafCommands(of command: any ParsableCommand.Type, _ words: [String] = []) -> Set<String> {
+        let subcommands = command.configuration.subcommands
+        guard !subcommands.isEmpty else { return [words.joined(separator: " ")] }
+        return Set(subcommands.flatMap { leafCommands(of: $0, words + [$0._commandName]) })
     }
 
     private func publicMutatingMethods() throws -> Set<String> {

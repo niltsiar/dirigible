@@ -153,7 +153,7 @@ def run(command, out, limit=None):
 def kill_tree(process):
     tree = descendants(process.pid)
     # The group has ended: ESRCH after the wait, and on macOS EPERM while its leader is an
-    # unreaped zombie (probe of run 2026-10-08-upkeep-batch-4).
+    # unreaped zombie.
     try:
         os.killpg(process.pid, signal.SIGKILL)
     except (PermissionError, ProcessLookupError):

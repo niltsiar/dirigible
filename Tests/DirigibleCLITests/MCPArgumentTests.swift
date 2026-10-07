@@ -66,6 +66,45 @@ extension MCPToolTests {
             ),
             ("track_mute", ["package": pkg, "tracks": [String]()], "\"tracks\" must be an array of strings"),
             ("track_solo", ["package": pkg, "tracks": ["a"], "off": 1], "\"off\" must be true or false."),
+            (
+                "marker_set", ["package": pkg, "name": "M", "at": 0, "kind": "note"],
+                "\"kind\" must be marker or chapter."
+            ),
+            ("clip_gain", ["package": pkg, "clips": ["A1", "A1"], "db": 0], "Clip \"A1\" is given twice."),
+            ("clip_fade", ["package": pkg, "clip": "A1"], "Give in, out, or both."),
+            ("clip_crossfade", ["package": pkg, "clip": "A1", "length": 3], "A crossfade length is an even number"),
+            (
+                "clip_crossfade", ["package": pkg, "clip": "A1", "length": -2],
+                "\"length\" must be an integer, 0 or more."
+            ),
+            (
+                "clip_clear", ["package": pkg, "track": ["a"], "from": 96_000, "to": 48_000],
+                "from must not be more than to."
+            ),
+            ("clip_clear", ["package": pkg, "track": [String](), "from": 0, "to": 1], "\"track\" must be an array"),
+            (
+                "clip_trim", ["package": pkg, "clip": "A1", "from": 96_000, "to": 48_000],
+                "from must not be more than to."
+            ),
+            (
+                "clip_paste", ["package": pkg, "track": ["a"], "from": 96_000, "to": 48_000, "at": 0],
+                "from must not be more than to."
+            ),
+            (
+                "clip_paste", ["package": pkg, "track": ["a"], "from": 0, "to": 1, "at": 0, "onto": ["a", "b"]],
+                "Give one onto for each track, or none."
+            ),
+            ("clip_split_at", ["package": pkg, "track": ["a"], "at": [Int]()], "\"at\" must be an array of integers"),
+            ("clip_paste_clips", ["package": pkg, "clips": [String](), "at": 0], "\"clips\" must be an array"),
+            ("clip_ripple_delete", ["package": pkg, "from": 48_000, "to": 48_000], "from must be less than to."),
+            (
+                "clip_ripple_insert", ["package": pkg, "at": 0, "length": -1],
+                "\"length\" must be an integer, 0 or more."
+            ),
+            (
+                "clip_ripple_trim", ["package": pkg, "clip": "A1", "edge": "middle", "by": 1],
+                "\"edge\" must be start or end."
+            ),
         ]
         let before = try package.xml()
         var lines: [String] = []
@@ -84,7 +123,10 @@ extension MCPToolTests {
         let passed = try await mcp([
             toolCall(1, "session_info", ["package": pkg, "from": 0, "to": 1 << 40]),
             toolCall(2, "session_info", ["package": pkg, "from": 48_000, "to": 48_000]),
+            toolCall(3, "clip_crossfade", ["package": pkg, "clip": "A1", "length": 4]),
         ])
         #expect(!toolResult(answer(passed, id: 1)).isError && !toolResult(answer(passed, id: 2)).isError)
+        // The even rule passes 4; the session then refuses the crossfade, because no clip touches A1.
+        #expect(toolResult(answer(passed, id: 3)) == ("no clip touches the crossfade edge of clip \"A1\".", true))
     }
 }

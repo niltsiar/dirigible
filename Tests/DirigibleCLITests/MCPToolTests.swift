@@ -146,4 +146,47 @@ struct MCPToolTests {
                 == ("\(package.path) has a take that is not finalized; open it in Dirigible first.", true))
         #expect(try package.xml() == before)
     }
+
+    /// C12: each ripple tool refuses a split take with the exit-3 text of the CLI. Control: an
+    /// edit that is not a ripple changes the package.
+    @Test func aSplitTakeRefusesARipple() async throws {
+        let fixture = try await PlaceCommandTests()
+        let before = try fixture.package.xml()
+        let pkg = fixture.package.path
+        let answers = try await mcp([
+            toolCall(1, "clip_ripple_delete", ["package": pkg, "from": 0, "to": 48_000]),
+            toolCall(2, "clip_ripple_insert", ["package": pkg, "at": 0, "length": 48_000]),
+            toolCall(3, "clip_ripple_trim", ["package": pkg, "clip": "take1-2-1", "edge": "end", "by": -4800]),
+        ])
+        let cli = try await fixture.package.run("clip", "ripple-delete", "PKG", "--from", "0", "--to", "48000")
+        #expect(cli.status == 3)
+        for id in 1...3 { #expect(toolResult(answer(answers, id: id)) == (errorText(cli), true), "ripple \(id)") }
+        #expect(try fixture.package.xml() == before)
+
+        let control = try await mcp([toolCall(1, "marker_set", ["package": pkg, "name": "M", "at": 0, "id": "m"])])
+        #expect(toolResult(answer(control, id: 1)) == ("m", false))
+        #expect(try fixture.package.xml() != before)
+    }
+
+    /// C5: 31 tools in a fixed order, each with a description and a closed schema with `package`.
+    @Test func toolsListHasEachTool() async throws {
+        let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
+        let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
+        #expect(
+            tools.compactMap { $0["name"] as? String } == [
+                "session_create", "session_info", "track_add", "track_add_call", "track_remove", "track_rename",
+                "track_gain", "track_route", "track_layout", "track_mute", "track_solo", "marker_set", "marker_remove",
+                "capture_remove", "file_remove", "clip_place", "clip_clear", "clip_split", "clip_split_at",
+                "clip_paste",
+                "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
+                "clip_crossfade", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim",
+            ])
+        for tool in tools {
+            let schema = tool["inputSchema"] as? [String: Any] ?? [:]
+            #expect((tool["description"] as? String)?.isEmpty == false, "\(tool["name"] ?? "")")
+            #expect(schema["type"] as? String == "object" && schema["additionalProperties"] as? Bool == false)
+            #expect((schema["required"] as? [String])?.first == "package", "\(tool["name"] ?? "")")
+        }
+        #expect(NSArray(array: tools) == (result(answer(answers, id: 2))["tools"] as? NSArray), "two lists are equal")
+    }
 }

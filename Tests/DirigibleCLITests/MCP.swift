@@ -131,3 +131,38 @@ func toolResult(_ answer: Answer) -> (text: String, isError: Bool) {
 func errorText(_ result: CLIResult) -> String {
     String(result.stderr.dropFirst("Error: ".count).dropLast())
 }
+
+/// Starts `dirigible mcp` with the read end of its stdout closed (and of its stderr, with
+/// `closesStderr`), sends one `ping`, and waits for the exit with a limit. Gives whether a signal
+/// ended it, the exit status, and the stderr text.
+func mcpWithClosedOutput(closesStderr: Bool, limit: Duration = .seconds(10)) async throws -> (
+    signaled: Bool, status: Int32?, stderr: String
+) {
+    let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-mcp-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let errors = folder.appending(path: "stderr")
+    FileManager.default.createFile(atPath: errors.path, contents: nil)
+    let (stdin, stdout, stderr) = (Pipe(), Pipe(), Pipe())
+    let process = Process()
+    process.executableURL = Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent()
+        .appending(path: "dirigible")
+    process.arguments = ["mcp"]
+    process.standardInput = stdin
+    process.standardOutput = stdout
+    process.standardError = closesStderr ? stderr : try FileHandle(forWritingTo: errors)
+    await Slots.shared.started()
+    defer { Slots.shared.ended() }
+    try process.run()
+    defer { if process.isRunning { process.terminate() } }
+    try stdout.fileHandleForReading.close()
+    if closesStderr { try stderr.fileHandleForReading.close() }
+    stdin.fileHandleForWriting.write(Data((request(1, "ping") + "\n").utf8))
+    try stdin.fileHandleForWriting.close()
+    let clock = ContinuousClock()
+    let deadline = clock.now + limit
+    while process.isRunning, clock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
+    guard !process.isRunning else { return (false, nil, "no exit in \(limit)") }
+    let text = String(decoding: try Data(contentsOf: errors), as: UTF8.self)
+    return (process.terminationReason == .uncaughtSignal, process.terminationStatus, text)
+}

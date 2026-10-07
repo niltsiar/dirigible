@@ -121,4 +121,14 @@ extension MCPProtocolTests {
         #expect(answer?["id"] as? Int == 1, "no answer arrived while stdin was open: \(String(describing: first))")
         #expect(status == 0, "the server did not exit 0 after stdin closed")
     }
+
+    /// A client that closes stdout, or stdout and stderr, ends the server with exit 1, not with a
+    /// signal or a trap.
+    @Test func aClosedOutputEndsTheServerWithAnError() async throws {
+        for closesStderr in [false, true] {
+            let ended = try await mcpWithClosedOutput(closesStderr: closesStderr)
+            #expect(!ended.signaled && ended.status == 1, "stderr closed \(closesStderr): \(ended)")
+            if !closesStderr { #expect(ended.stderr.contains("Error: cannot write to stdout"), "\(ended.stderr)") }
+        }
+    }
 }

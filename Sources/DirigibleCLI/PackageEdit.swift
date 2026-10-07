@@ -13,7 +13,8 @@ let unplacedAudio: Int32 = 3
 
 /// Writes one line `Error: <message>` to stderr and returns the exit code to throw.
 func fail(_ message: String, code: Int32) -> ExitCode {
-    FileHandle.standardError.write(Data("Error: \(message)\n".utf8))
+    // The throwing write: a closed stderr gives an error here, not an exception that aborts.
+    try? FileHandle.standardError.write(contentsOf: Data("Error: \(message)\n".utf8))
     return ExitCode(code)
 }
 

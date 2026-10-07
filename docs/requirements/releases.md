@@ -54,13 +54,14 @@ Goal: record a remote guest, level the clips, and publish at the podcast loudnes
 | R12 | Audio from other apps through process taps, and a call preset (F05, F06, 0006). |
 | R13 | The language preference in Settings (F66, 0010). |
 | R14 | Part: a "Use headphones" warning when a session has an app source and the output is the built-in speakers (F43, 0004). The feature catalog put F43 in Release 1, but its trigger needs an app source. |
+| R16 | Part: `dirigible mcp`, an MCP server on package files ([0041](../decisions/0041-mcp-server.md)). |
 
 Rules for Release 2:
 
 - Each run lands through its own pull request.
 - From run 4 on, each user-facing run updates `docs/guide.md`, and the screenshots when the window changes. The check-docs rule of run 4 refuses a menu name that is not in the guide.
 - Each toolbar item is also a menu item with a key (F16). Monitor Inputs has a menu item with no key today; run 1a adds its key.
-- Each new public library feature that operates on a session package or an audio file (an edit, an import, a render, or an export) gets a `dirigible` command and a `DirigibleCLITests` test in the same run (0011, AGENTS.md).
+- Each new public library feature that operates on a session package or an audio file (an edit, an import, a render, or an export) gets a `dirigible` command and a `DirigibleCLITests` test in the same run (0011, AGENTS.md). An edit command also gets an MCP tool (0041).
 - No bench case gets worse than `main` by more than 10 % or 1 ms (0022). A run that adds a drawn element or a gesture adds a bench case for it.
 - A run that adds user data to `session.xml` raises the session version (0003). The writer writes the lowest version that holds the data of the session: a session with no app route and no fades stays version 1. Each version bump has a test that a session without the new data writes the old version. Rollback limit: an older app refuses a session that uses newer data ("unsupported version") and does not change the file. A session that uses no new data opens in the older app. The version policy is 0024.
 - Delete keeps the gap. Cut of a range closes the gap on all tracks, as Hindenburg PRO Cut (run 12 default, open for the user; decision 0037). Cut of a clip set leaves the gaps (decision 0038).
@@ -94,6 +95,7 @@ Run order. The research for this order is in `docs/research/final-cut-pro.md`, `
 14. **Autosave and backups (R10 part).** Backups of `session.xml` and a revert that is one undo entry and keeps `<recording>` (F62, 0014). One-way decision: the backup place and format, and whether macOS Versions takes part.
 15. **Language preference (R13).** A Settings window with English, Spanish, or the macOS language (F66, 0010). One-way decisions: none (0010).
 16. **Chapters export (R10 part).** File > Export Chapters writes `chapters.json` 1.2.0 from the chapter markers, and `dirigible chapters export`. The chapters use the same range as the audio export (for example a check box in the export panel, or the Marks when set). Test: Export Selection from frame N gives a chapter at N + k with `startTime` k / rate. Import and chapters inside the MP3 or M4A file stay in Release 3 with F55 and F56. One-way decisions: none. Test: the chapters export of a session after a ripple with the music track out of scope gives literal times. Research: `podcasting-2.md`.
+17. **MCP server on package files (R16 part).** `dirigible mcp` serves each `dirigible` edit command as an MCP tool over stdio, plus `session_create` and `session_info`. It refuses a package that the app has open. No tool records. Decision 0041.
 
 ## Release 3: Hindenburg-style production
 
@@ -107,6 +109,7 @@ Goal: match the Hindenburg tools that save time on each episode.
 | R10 | Part: favorites, silence removal, ducking, EQ and compressor, episode metadata and artwork, chapters inside the audio file (F56 part), export presets, templates, track roles (F23, F26, F34, F36, F55, F56, F57, F63, F72). |
 | R11 | Stem export: one file per track or per role (F73). |
 | R14 | Offline removal of the remote guest from the local microphone track (F42). |
+| R16 | The MCP server in the running app (off by default, a Settings switch, a toolbar mark, the agent name in Undo), and recording after a consent sheet (0041). |
 
 Podcast metadata inside the audio file (title, artwork, chapters as ID3 or MP4 chapters) is Release 3: the user did not ask for it, and the ranking puts it after leveling and MP3. The `chapters.json` export of Release 2 run 16 does not wait for it: it is a separate file next to the export, not metadata inside the audio file, and it uses only the chapter markers of Release 1.
 

@@ -42,6 +42,18 @@ extension MCPToolTests {
         }
         let pkg = package.path
         cases += [
+            (
+                "track_rename", ["package": "Show.dirigible", "track": "a", "name": "X"],
+                "\"package\" must be an absolute path."
+            ),
+            (
+                "track_rename", ["package": "~/Show.dirigible", "track": "a", "name": "X"],
+                "\"package\" must be an absolute path."
+            ),
+            (
+                "session_create", ["package": "New.dirigible", "sample_rate": 48_000],
+                "\"package\" must be an absolute path."
+            ),
             ("session_info", ["package": pkg, "from": 96_000, "to": 48_000], "from must not be more than to."),
             ("session_info", ["package": pkg, "from": 96_000], "Give from and to, or neither."),
             ("session_info", ["package": pkg, "tracks": ["a", "zz"]], "no track \"zz\"."),
@@ -118,6 +130,8 @@ extension MCPToolTests {
             #expect(answers.contains { $0["id"] as? Int == 100_000 + index }, "the ping after \(name) \(arguments)")
         }
         #expect(try package.xml() == before)
+        // The child has the working folder of the test, so a relative path would land there.
+        #expect(!FileManager.default.fileExists(atPath: "New.dirigible"), "a refused relative path makes nothing")
 
         // Pass values of the bounds: 2^40 is an integer, and from equal to to is a range.
         let passed = try await mcp([

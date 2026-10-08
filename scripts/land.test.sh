@@ -368,6 +368,29 @@ rows="$(tail -n +2 "$c/decisions.tsv")"
   fail "flake rows: row [$rows]"
 [[ "$(cat "$c/work/.git/dirigible-flakes")" == "$side other load 1.00" ]] || fail "flake rows: flakes [$(cat "$c/work/.git/dirigible-flakes")]"
 
+# A line that another worktree appends while land.sh writes the rows stays in the file. A copy of
+# land.sh beside the real scripts gets a fake log-decision.sh that appends such a line once.
+setup
+mkdir -p "$c/stub" "$c/.claude/skills/deliver/scripts"
+cp "$here"/*.sh "$c/stub/"
+cp "$here/../Makefile" "$c/Makefile"
+cat > "$c/.claude/skills/deliver/scripts/log-decision.sh" <<'EOF'
+#!/bin/bash
+printf 'x\t7\t%s\n' "$(sed -n 2p "$3")" >> "$1/decisions.tsv"
+[[ -e "$1/appended" ]] && exit 0
+touch "$1/appended"
+echo "$(git rev-parse HEAD) late load 3.00" >> "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"
+EOF
+chmod +x "$c/.claude/skills/deliver/scripts/log-decision.sh"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$c/decisions.tsv"
+printf '%s aFlake load 7.50\n' "$(git -C "$c/work" rev-parse HEAD)" > "$c/work/.git/dirigible-flakes"
+(cd "$c/work" && PATH="$bin:$PATH" LAND_LOG="$c/log" FAKE_OTHER="$c/other" "$c/stub/land.sh" "Add x" "$c/pr.md") > "$c/out" 2>&1
+code=$?
+[[ $code -eq 0 ]] || fail "a line appended during the rows: exit $code: $(cat "$c/out")"
+[[ "$(cut -f3 "$c/decisions.tsv" | grep -c aFlake)" == 1 ]] || fail "a line appended during the rows: rows [$(cat "$c/decisions.tsv")]"
+grep -q ' late load 3.00$' "$c/work/.git/dirigible-flakes" || fail "a line appended during the rows: lost: [$(cat "$c/work/.git/dirigible-flakes")]"
+! grep -q ' aFlake ' "$c/work/.git/dirigible-flakes" || fail "a line appended during the rows: the written line stays: [$(cat "$c/work/.git/dirigible-flakes")]"
+
 # A body with a run-internal ID refuses before any step, also before the fetch, and names the
 # writing-for-humans skill. The remote main moved after the clone, so a fetch would show.
 setup

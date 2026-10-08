@@ -83,22 +83,25 @@ else
     echo "stamp: none ($stamp)"
     make check-changed BASE=origin/main || die "the checks failed; nothing is pushed"
 fi
-# A test that passed only on a rerun of run-checks.sh gets a flake row (flake-triage.md).
+# A test that passed only on a rerun of run-checks.sh gets a flake row (flake-triage.md). The file
+# is renamed first, so a line that another worktree appends meanwhile goes to a new file and stays.
 flakes="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"
 if [[ -s "$flakes" ]]; then
-    keep="$(mktemp)" row="$(mktemp)"
+    taken="$flakes.$$" keep="$(mktemp)" row="$(mktemp)"
+    mv "$flakes" "$taken"
     while read -r commit name _ load; do
         if git merge-base --is-ancestor "$commit" "$before" 2>/dev/null || git merge-base --is-ancestor "$commit" HEAD 2>/dev/null; then
             printf '7\nflake: %s passed only on a rerun of the push check, load %s at the end of the check\n%s\n%s\nflake\n' "$name" "$load" \
                 "run-checks.sh reran the failed test, and flake-triage.md still applies to it" \
                 "dirigible-flakes line of commit $commit" > "$row"
-            "$here/../.claude/skills/deliver/scripts/log-decision.sh" "$run" --from "$row" || die "no flake row for $name; nothing is pushed"
+            "$here/../.claude/skills/deliver/scripts/log-decision.sh" "$run" --from "$row" ||
+                { cat "$taken" >> "$flakes"; rm -f "$taken"; die "no flake row for $name; nothing is pushed"; }
         else
             echo "$commit $name load $load" >> "$keep"
         fi
-    done < "$flakes"
-    mv "$keep" "$flakes"
-    rm -f "$row"
+    done < "$taken"
+    cat "$keep" >> "$flakes"
+    rm -f "$taken" "$keep" "$row"
 fi
 git push -u origin "$branch"
 url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"

@@ -340,7 +340,7 @@ import UniformTypeIdentifiers
                 failed.isEmpty
                 || confirm(
                     L10n.alertQuitUnsaved.format(failed.joined(separator: ", ")),
-                    button: L10n.alertQuitUnsavedConfirm.text)
+                    button: L10n.alertQuitUnsavedConfirm.text, unsaved: true)
             // A cancelled Quit: the settle started no peak pass (decision 0017).
             if !quit {
                 terminating = false
@@ -351,13 +351,24 @@ import UniformTypeIdentifiers
         return .terminateLater
     }
 
-    private func confirm(_ message: String, button: String) -> Bool {
-        let alert = NSAlert()
-        alert.messageText = message
-        alert.addButton(withTitle: button)
-        alert.addButton(withTitle: L10n.alertCancel.text)
-        return alert.runModal() == .alertFirstButtonReturn
+    private func confirm(_ message: String, button: String, unsaved: Bool = false) -> Bool {
+        quitQuestion(message, button: button, unsaved: unsaved).runModal() == .alertFirstButtonReturn
     }
+}
+
+/// A Quit question: the action button, then Cancel with Esc in each language (NSAlert gives Esc
+/// only to the title "Cancel"). Stop and Quit takes Return. After a failed save, Quit takes no
+/// Return: one key must not drop edits that Undo cannot give back (decision 0014).
+@MainActor func quitQuestion(_ message: String, button: String, unsaved: Bool) -> NSAlert {
+    let alert = NSAlert()
+    alert.messageText = message
+    let action = alert.addButton(withTitle: button)
+    alert.addButton(withTitle: L10n.alertCancel.text).keyEquivalent = "\u{1b}"
+    if unsaved {
+        action.keyEquivalent = ""
+        action.hasDestructiveAction = true
+    }
+    return alert
 }
 
 /// `packageIdentity` off the main actor.

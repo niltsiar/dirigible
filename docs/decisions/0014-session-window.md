@@ -9,7 +9,7 @@
 - Amended: 2026-09-30. The launch and a Dock click with no session window show the start window, not the Open panel. The close of the last session window shows it too. New Session (Command-N) shows the start window, not a save panel; its Create still calls `Studio.create` (see 0027).
 - Amended: 2026-10-03. At open, a window arms each routed track in track order, except a track that uses a channel or an app of an earlier armed track (`tracksToArm`, run 6b). Two armed tracks on one channel stop a take.
 - Amended: 2026-09-30. Open Recent and the start window read the recent sessions from the app preferences (key `recent.sessions`, absolute paths, 10 at most), not from `recentDocumentURLs`. The list of `NSDocumentController` belongs to the code signature, and each ad-hoc build has a new one. The app still calls `noteNewRecentDocumentURL` for the Dock menu (see 0027).
-- Amended: 2026-10-08, run app-bug-batch. In the Stop and Close question, Stop and Close is the default button (Return) with no destructive style, as Stop and Quit; Cancel has the cancel role (Esc). The question after a failed save keeps Close with the destructive style and no Return: one key must not drop edits that Undo cannot give back.
+- Amended: 2026-10-08, run app-bug-batch. In the Stop and Close question, Stop and Close is the default button (Return) with no destructive style, as Stop and Quit; Cancel has the cancel role (Esc). The questions after a failed save, Close and Quit, have the destructive style and no Return; Esc gives Cancel. One key must not drop edits that Undo cannot give back.
 
 ## Context
 

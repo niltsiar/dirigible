@@ -210,11 +210,12 @@ private func copyFiles(
             let context = CopyContext(isCancelled: isCancelled) { progress(Double(base + $0) / Double(total)) }
             if let code = copyFile(from, to: temporary, context: context) {
                 if code == ECANCELED { throw .cancelled }
-                throw code == ENOENT ? .sourceMissing(file: record.path) : .write(file: copy.path, errno: code)
+                throw copyFault(code, from: from, record: record, copy: copy)
             }
             if let code = fullFlush(path: temporary.path) { throw .write(file: copy.path, errno: code) }
             guard let read = try? AVAudioFile(forReading: temporary),
-                read.length == AVAudioFramePosition(copy.length.count),
+                // At least the record length, as `openMedia` reads it: a record can be shorter.
+                read.length >= AVAudioFramePosition(copy.length.count),
                 Int(read.fileFormat.channelCount) == copy.layout.channelCount
             else { throw .sourceChanged(file: record.path) }
         }
@@ -244,7 +245,7 @@ private func convert(
     do throws(ImportError) {
         let (descriptor, input) = try openAudio(source)
         defer { close(descriptor) }
-        guard Int(input.fileFormat.channelCount) == record.layout.channelCount, input.length == record.length.count
+        guard Int(input.fileFormat.channelCount) == record.layout.channelCount, input.length >= record.length.count
         else { throw .notAudio(file: record.path) }
         guard
             let (length, gain) = try convertToWAV(
@@ -268,6 +269,13 @@ private func convert(
         case .space, .session: throw .convert(file: copy.path, errno: EIO)
         }
     }
+}
+
+/// The error of a `copyfile` errno. ENOENT is a missing source only when the source file is gone:
+/// a target that went away is a fault of the copy.
+func copyFault(_ code: Int32, from source: URL, record: AudioFile, copy: AudioFile) -> PasteError {
+    code == ENOENT && access(source.path, F_OK) != 0
+        ? .sourceMissing(file: record.path) : .write(file: copy.path, errno: code)
 }
 
 /// The state that the `copyfile` callback reaches through its context pointer. `copyFile` keeps it

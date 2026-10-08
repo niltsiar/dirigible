@@ -45,7 +45,9 @@ extension L10n {
     /// session. The window shows no alert for a cancel.
     private static func message(for error: PasteError, source: String) -> String {
         switch error {
-        case .sourceMissing, .sourceChanged, .notDownloaded: errorPasteMissing.format(source)
+        case .sourceMissing: errorPasteMissing.format(source)
+        case .sourceChanged: errorPasteChanged.format(source)
+        case .notDownloaded(let file): errorImportNotDownloaded.format(file)
         case .space, .write(_, ENOSPC): errorPasteSpace.format(source)
         case .write(_, let code): errorPasteCopy.format(source, Int(code))
         case .convert(_, let code): errorPasteConvert.format(source, Int(code))

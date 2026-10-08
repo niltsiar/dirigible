@@ -277,4 +277,7 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A paste names a file whose record differs from the record of this ID in the session: the
     /// excerpt comes from another pool (decision 0042).
     case foreignFile(FileID)
+    /// A paste of an excerpt at this sample rate into a session at another rate: the excerpt needs
+    /// `Excerpt.resampled` first (decision 0042).
+    case otherSampleRate(Int)
 }

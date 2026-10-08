@@ -118,6 +118,8 @@ extension Session {
     public mutating func paste(_ excerpt: Excerpt, at start: Frames, on tracks: [TrackID]) throws(SessionError)
         -> [ClipID]
     {
+        // The frames of the excerpt are at its own rate (decision 0042).
+        guard excerpt.sampleRate == sampleRate else { throw .otherSampleRate(excerpt.sampleRate) }
         // One different track for each lane: a track given twice is a wrong count, not a used ID.
         guard tracks.count == excerpt.lanes.count, Set(tracks).count == tracks.count else {
             throw .trackCount(excerpt.lanes.count)

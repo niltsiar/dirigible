@@ -26,9 +26,7 @@ final class LaneDim {
         let next = Shown(lanes: lanes, laneHeight: laneHeight, width: width, color: color)
         guard next != shown else { return }
         shown = next
-        let fill = CGColor(
-            srgbRed: Double(color >> 16 & 0xFF) / 255, green: Double(color >> 8 & 0xFF) / 255,
-            blue: Double(color & 0xFF) / 255, alpha: 0.5)
+        let fill = cgColor(color, alpha: 0.5)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer.sublayers = lanes.map { lane in

@@ -52,7 +52,7 @@ extension SessionWindow {
     /// the files after a stop. A cancel shows the alert only for skipped files.
     func startImport(_ urls: [URL], to target: ImportTarget) {
         commitNames()
-        guard canImport, let studio = idleStudio, !urls.isEmpty else { return }
+        guard canImport, let studio = idleStudio else { return }
         importJob = ImportJob()
         importJob?.task = Task { [weak self] in
             var (clips, errors, notImported) = ([ClipID](), [StudioError](), [String]())

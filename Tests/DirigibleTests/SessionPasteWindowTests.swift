@@ -218,6 +218,12 @@ import Testing
         var heard: [String] = []
         second.chrome?.announce = { text, _ in heard.append(text) }
         second.timeline.selection = .range(Marks(tracks: ["t1"]))
+        // The banner wait ends only when the test says so, so a loaded suite cannot pass 0.5 s
+        // on the wall clock before the asserts; the slow steps stand for that load.
+        let release = LockedFlag()
+        defer { release.value = true }
+        second.bannerWait = { while !release.value { try? await Task.sleep(for: .milliseconds(10)) } }
+        studio.environment.importStep = { Thread.sleep(forTimeInterval: 0.3) }
 
         await pasteAndWait(second)
         #expect(heard.isEmpty, "a clone shows no banner and is not announced")
@@ -233,8 +239,10 @@ import Testing
         let before = studio.session
         second.run(.paste)
         await until("the paste holds") { entered.value }
-        #expect(second.importJob?.visible == false, "no banner before 0.5 s")
-        await until("the banner shows after 0.5 s") { second.importJob?.visible == true }
+        #expect(second.importJob?.visible == false, "no banner before the wait ends")
+        #expect(heard.isEmpty, "no announcement before the wait ends")
+        release.value = true
+        await until("the banner shows after the wait") { second.importJob?.visible == true }
         #expect(studio.importRun?.kind == .paste && heard == [L10n.pasteBanner.format("timeline")])
         second.cancelImport()
         hold.signal()

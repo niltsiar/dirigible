@@ -5,6 +5,7 @@
 - Accepted: 2026-10-05, after plan gates 1 and 2 of run `2026-10-05-file-import`.
 - Amends: 0012 (`Clips/` also holds imported WAVs), 0019 (a take start and the take disk watcher also end an import), 0031 (an import and its level are one undo entry).
 - Amended: 2026-10-08, run `2026-10-08-paste-across-packages` (see 0042). A paste from another package uses the stem rule, the conversion (`convertToWAV`, from `importAudio`), the blocking run of the studio (`blockingRun`, `ImportRun.kind`), and the rule that nothing deletes a renamed WAV. The import banner has Command-period on Cancel, the banner text as the label of its bar, and a VoiceOver announcement at the start.
+- Amended: 2026-10-08, run `2026-10-08-file-drop` (13c). A Finder drop on the lanes imports at the frame under the pointer, on the track of the lane under it. A drop below the last lane, in the New Track zone of min(32 pt, half a lane) at the bottom of the lanes in view, or of 2 or more files goes to new tracks; the zone is at most half a lane high, so each lane fully in view keeps at least half its height as a target. Several files import as a chain, one undo entry each. The chain skips a file that is not audio, has more than 2 channels, or is not downloaded, stops at a cancel, a full disk, or another error, and ends with one alert that gives the error text of each file that did not import and the names of the files after a stop. The import and a paste from another package commit the typed names first. The drop cue is layers over the lanes (0022).
 
 ## Context
 

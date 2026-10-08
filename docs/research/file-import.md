@@ -1,6 +1,6 @@
 # File import: placement, track, conversion, and feedback
 
-Date: 2026-10-05
+Date: 2026-10-05; sources of the drop added 2026-10-08 (run 13c)
 
 Eight questions for run 13. Grades: P (primary doc), S (secondary or summary), U (forum post). Facts already in docs/research are not repeated.
 
@@ -9,14 +9,14 @@ Eight questions for run 13. Grades: P (primary doc), S (secondary or summary), U
 - **Hindenburg, menu import.** "To import an audio file into a specific location, drag the playhead ... to the place you want your next clip to begin." [BZ] (S). This source changes the note in recovery-tools.md line 70: one source now says that an import lands at the playhead.
 - **Hindenburg, Finder drop.** The 1.21 guide says only "Drag any Audio file from Finder to Hindenburg" [HJ p. 15] (P). Transom: "drag and drop audio files from your hard drive into a track" [TR10] (S). No source gives the time of a dropped clip.
 - **Logic, menu.** "Click the Open button to add the file to the selected track, at the playhead position" [LAD] (P).
-- **Logic, drop.** No page gives the time of a drop. A moved region snaps to the grid [LMR] (P). Inference: a drop snaps too.
+- **Logic, drop.** No page gives the time of a drop. A moved region snaps to the grid [LMR] (P). One user reports that Finder drops "always snap to the bar" [LSN] (U, search excerpt only).
 - **Audition.** "Select a track, and then place the playhead at the desired time position. Choose Multitrack > Insert Files" [AUI] (P).
-- **Final Cut Pro.** "Depending on where you drag the clips in the timeline, your actions may result in an append edit, an insert edit, a connect edit, or a replace edit" [FDD] (P).
+- **Final Cut Pro.** "Depending on where you drag the clips in the timeline, your actions may result in an append edit, an insert edit, a connect edit, or a replace edit" [FDD] (P). "The first frame of the source selection is connected to the primary storyline at the point where you released the mouse" [FCC] (P): the only primary source for a clip that lands at the pointer.
 
 ## 2. Which track
 
-- **Hindenburg.** No source says which track receives a menu import, or what a drop below the last track does. Mono and stereo files "can even exist on the same track – just drag any file into any track" [TR10] (S). A handout says File > Import takes "one audio file at a time"; the clipboard imports "multiple files all at once" [WY] (S).
-- **Logic.** A drop "to the area below all existing tracks" adds a new track. For several files, "an Add Files to Tracks dialog appears ... select whether to create new tracks, use existing tracks, or place all files on one track" [LDD] (P). An older Logic book (search excerpt only) says that the one-track option places the files "end to end" [PP] (S). A compressed file dropped "into the empty workspace area below the existing tracks" makes "a new audio track" [LCA] (P).
+- **Hindenburg.** No source says which track receives a menu import, or what a drop below the last track does. Mono and stereo files "can even exist on the same track – just drag any file into any track" [TR10] (S). A handout says File > Import takes "one audio file at a time"; the clipboard imports "multiple files all at once" [WY] (S). The vendor guide [HJ] does not say it.
+- **Logic.** A drop "to the area below all existing tracks" adds a new track. For several files, "an Add Files to Tracks dialog appears ... select whether to create new tracks, use existing tracks, or place all files on one track" [LDD] (P). An older Logic book (search excerpt only) says that the one-track option places the files "end to end" [PP] (S). A compressed file dropped "into the empty workspace area below the existing tracks" makes "a new audio track" [LCA] (P). Logic 9 also had "Use existing tracks: Sequentially places the dragged files ... starting with the currently selected track" [L9D] (P).
 - **GarageBand.** "Drag the audio file ... to an audio track or to the empty area below the existing tracks ... The audio file appears on the track" [GBI] (P).
 - **Audition.** The file goes to the selected track. With several files, or no space, Audition uses the nearest empty track [AUI] (P).
 
@@ -55,7 +55,9 @@ Eight questions for run 13. Grades: P (primary doc), S (secondary or summary), U
 
 - **HIG.** "Display an insertion point or highlight a containing view only when the destination can accept a dragged item", and show no cue or a "not allowed" image when it cannot. On a failed drop, show feedback. Keep dropped content selected, allow undo, and offer a menu command too [HIG] (P).
 - **Audition.** "While you drag a clip, a white line appears in the Editor panel when snapping points meet" [AUA] (P).
-- **Hindenburg, GarageBand, Final Cut Pro, Logic.** No source describes drop feedback. No Hindenburg source describes import progress or cancel.
+- **Logic 9.** A help tag "appears just below the mouse pointer position ... as long as the mouse button is held down", with the start position, the track number, and the length [L9H] (P, only with Show Help Tags on). No source gives the default of current Logic.
+- **Final Cut Pro.** The drop zone of a connected clip is the "gray area above or below the primary storyline" [FCC] (P).
+- **Hindenburg, GarageBand.** No source describes drop feedback. No Hindenburg source describes import progress or cancel.
 
 ## 8. Failure cases
 
@@ -88,12 +90,16 @@ Eight questions for run 13. Grades: P (primary doc), S (secondary or summary), U
 - [LDD] https://support.apple.com/guide/logicpro/create-tracks-using-drag-and-drop-lgcpd1e675e5/mac (P)
 - [LCA] https://support.apple.com/guide/logicpro/import-compressed-audio-files-lgcp4f68cbe3/mac (P)
 - [LMR] https://support.apple.com/guide/logicpro/move-regions-lgcpf7c0d489/mac (P)
+- [L9D] https://help.apple.com/logicpro/mac/9.1.6/en/logicpro/usermanual/chapter_11_section_4.html (P)
+- [L9H] https://help.apple.com/logicpro/mac/9.1.6/en/logicpro/usermanual/chapter_8_section_6.html (P)
+- [LSN] Apple Community thread 255822555, search excerpt only (404): https://discussions-kr-prz.apple.com/thread/255822555 (U)
 - [LPA] https://support.apple.com/guide/logicpro/manage-project-assets-lgcpce0d70e7/mac (P)
 - [LKC] https://support.apple.com/guide/logicpro/main-window-tracks-and-various-editors-lgcpe8314fe2/mac (P)
 - [PP] Peachpit Logic book, search excerpt only (fetch failed): https://www.peachpit.com/articles/article.aspx?p=598654&seqNum=2 (S)
 - [ACT] Apple Community user thread, Logic Pro X 10.0.5: https://discussions.apple.com/thread/5681759 (U)
 - [GBI] https://support.apple.com/guide/garageband/import-audio-and-midi-files-gbndd01649ed/mac (P)
 - [FDD] https://support.apple.com/guide/final-cut-pro/drag-clips-to-the-timeline-ver4e30143/mac (P)
+- [FCC] https://support.apple.com/guide/final-cut-pro/ver7a77ef9e/mac (P)
 - [FIM] https://support.apple.com/guide/final-cut-pro/import-from-your-mac-or-storage-device-ver418155a4/mac (P)
 - [FBT] https://support.apple.com/guide/final-cut-pro/view-background-tasks-ver64e71609/mac (P)
 - [AUI] Audition, create, open, or import files, archived copy: https://web.archive.org/web/2025/https://helpx.adobe.com/audition/using/creating-opening-files.html (P)

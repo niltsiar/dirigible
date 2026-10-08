@@ -176,11 +176,13 @@ import Testing
         model.undo()
         #expect(studio.session.files["f2"] == nil)
         let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
 
         model.run(.paste)
 
         #expect(studio.session == before && !studio.canUndo)
-        #expect(model.alert == nil)
+        #expect(model.alert == nil && beeps == 1, "the paste beeps (code gate 1 nit): \(beeps)")
         await model.close()
     }
 

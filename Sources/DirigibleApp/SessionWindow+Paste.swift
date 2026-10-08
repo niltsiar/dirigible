@@ -41,7 +41,7 @@ extension SessionWindow {
         }
         importJob?.task = Task { [weak self] in
             do throws(StudioError) {
-                let pasted = try await studio.paste(clipboard, from: source, at: at, on: target, insert: insert) {
+                let pasted = try await studio.pasteAcross(clipboard, from: source, at: at, on: target, insert: insert) {
                     [weak self] in self?.importProgressed($0)
                 }
                 shown.cancel()
@@ -55,15 +55,17 @@ extension SessionWindow {
         }
     }
 
-    /// The selection after a paste: the pasted range, or the pasted clips for a set excerpt. A paste
-    /// at another rate selects the range of the scaled length.
+    /// The selection after a paste: the pasted range, or the pasted clips for a set excerpt. After a
+    /// paste at another rate, the range ends at the end of the last pasted clip.
     private func select(
         _ pasted: (clips: [ClipID], tracks: [TrackID]), of clipboard: Clipboard, at: Frames, in studio: Studio
     ) {
         guard !pasted.clips.isEmpty else { return }
-        var excerpt = clipboard.excerpt
-        if excerpt.sampleRate != studio.session.sampleRate {
-            excerpt = excerpt.resampled(to: studio.session.sampleRate, lengths: [:])
+        let excerpt = clipboard.excerpt
+        if excerpt.sampleRate != studio.session.sampleRate, excerpt.kind == .range {
+            let end = pasted.clips.compactMap { studio.session.clip($0)?.clip.end }.max() ?? at
+            timeline.selection = .range(Marks(inPoint: at, outPoint: end, tracks: Set(pasted.tracks)))
+            return
         }
         timeline.selection = Selection(pasted: pasted.clips, of: excerpt, at: at, on: pasted.tracks)
     }

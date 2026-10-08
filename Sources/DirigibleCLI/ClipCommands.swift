@@ -288,7 +288,6 @@ func parseCrossfadeLength(_ text: String) throws -> Frames {
     return length
 }
 
-/// `--from` and `--to`, with `EditRules.frameRange`.
 /// `--source` of the paste commands (decision 0042): the clips come from another package, and
 /// their files copy into this one, at the rate of this session.
 enum SourceOption {
@@ -317,6 +316,7 @@ private func refusedPaste(_ error: PasteError) -> ExitCode {
     return fail(error.message, code: packageError)
 }
 
+/// `--from` and `--to`, with `EditRules.frameRange`.
 struct FrameRange: ParsableArguments {
     @Option(parsing: .unconditional, help: "The first frame.") var from: Int
     @Option(parsing: .unconditional, help: "The frame after the last frame.") var to: Int

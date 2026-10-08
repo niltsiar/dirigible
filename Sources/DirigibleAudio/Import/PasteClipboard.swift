@@ -167,10 +167,11 @@ private func copyFiles(
     beforeRenames: ([FileID: (length: Frames, gain: Gain)]) throws(PasteError) -> Void
 ) throws(PasteError) {
     let clips = package.appending(path: clipsFolderName)
-    if mkdir(clips.path, 0o755) != 0, errno != EEXIST { throw .write(file: clipsFolderName, errno: errno) }
     var sizes: [Int64] = []
+    var clones: [Bool] = []
     var needed: Int64 = 0
     for (record, copy) in copies {
+        // A link in Clips/ of the source copies as its target: clonefile and copyfile follow it.
         let url = source.appending(path: "\(clipsFolderName)/\(record.path)")
         guard sourceIsDownloaded(url) else { throw .notDownloaded(file: record.path) }
         var info = stat()
@@ -178,9 +179,11 @@ private func copyFiles(
             throw errno == ENOENT ? .sourceMissing(file: record.path) : .write(file: record.path, errno: errno)
         }
         sizes.append(Int64(info.st_size))
+        // A clone needs no space; the copy branch then forces a clone, so the count holds.
+        clones.append(rate == nil && canClone(url, package))
         if rate != nil {
             needed += Int64(copy.length.count) * Int64(copy.layout.channelCount) * 3  // the 0040 rule
-        } else if !canClone(url, clips) {
+        } else if !clones[clones.count - 1] {
             needed += Int64(info.st_size)
         }
     }
@@ -189,13 +192,15 @@ private func copyFiles(
         let free = freeBytes()
         guard free >= needed + diskMargin else { throw .space(needed: needed + diskMargin, free: free) }
     }
+    if mkdir(clips.path, 0o755) != 0, errno != EEXIST { throw .write(file: clipsFolderName, errno: errno) }
     var temporaries: [URL] = []
     var renamed = 0
     defer { for url in temporaries.dropFirst(renamed) { unlink(url.path) } }
     let total = max(sizes.reduce(0, +), 1)
     var done: Int64 = 0
     var converted: [FileID: (length: Frames, gain: Gain)] = [:]
-    for ((record, copy), size) in zip(copies, sizes) {
+    for (index, (record, copy)) in copies.enumerated() {
+        let size = sizes[index]
         guard !isCancelled() else { throw .cancelled }
         let from = source.appending(path: "\(clipsFolderName)/\(record.path)")
         let temporary = clips.appending(path: temporaryWAV(of: (copy.path as NSString).deletingPathExtension))
@@ -208,7 +213,7 @@ private func copyFiles(
                 isCancelled: isCancelled)
         } else {
             let context = CopyContext(isCancelled: isCancelled) { progress(Double(base + $0) / Double(total)) }
-            if let code = copyFile(from, to: temporary, context: context) {
+            if let code = copyFile(from, to: temporary, clone: clones[index], context: context) {
                 if code == ECANCELED { throw .cancelled }
                 throw copyFault(code, from: from, record: record, copy: copy)
             }
@@ -283,8 +288,6 @@ func copyFault(_ code: Int32, from source: URL, record: AudioFile, copy: AudioFi
 final class CopyContext {
     let isCancelled: () -> Bool
     let copied: (Int64) -> Void
-    /// The number of callbacks, for the tests.
-    var calls = 0
 
     init(isCancelled: @escaping () -> Bool, copied: @escaping (Int64) -> Void) {
         self.isCancelled = isCancelled
@@ -292,10 +295,12 @@ final class CopyContext {
     }
 }
 
-/// `copyfile(3)` with `COPYFILE_CLONE`: a clone on one volume that can clone, else a copy of the data
-/// (probe P1). Returns nil, or the errno. The callback returns `COPYFILE_QUIT` when the flag is set
+/// With `clone`, `clonefile(2)`: a clone or an error with its errno, never a silent copy (a
+/// `COPYFILE_CLONE_FORCE` refusal gives ENOTSUP for every cause). Else `copyfile(3)` with a copy of
+/// the data that the space check counted (probe P1). Returns nil, or the errno. The callback returns `COPYFILE_QUIT` when the flag is set
 /// and at stage `COPYFILE_ERR`: with a continue there, a full disk retries with no end (P1).
-func copyFile(_ source: URL, to target: URL, context: CopyContext) -> Int32? {
+func copyFile(_ source: URL, to target: URL, clone: Bool, context: CopyContext) -> Int32? {
+    if clone { return clonefile(source.path, target.path, 0) == 0 ? nil : errno }
     guard let state = copyfile_state_alloc() else { return ENOMEM }
     defer { copyfile_state_free(state) }
     let callback: copyfile_callback_t = copyCallback
@@ -303,7 +308,7 @@ func copyFile(_ source: URL, to target: URL, context: CopyContext) -> Int32? {
     return withExtendedLifetime(context) {
         copyfile_state_set(
             state, UInt32(COPYFILE_STATE_STATUS_CTX), Unmanaged.passUnretained(context).toOpaque())
-        return copyfile(source.path, target.path, state, copyfile_flags_t(COPYFILE_CLONE | COPYFILE_DATA)) == 0
+        return copyfile(source.path, target.path, state, copyfile_flags_t(COPYFILE_DATA)) == 0
             ? nil : errno
     }
 }
@@ -313,7 +318,6 @@ func copyFile(_ source: URL, to target: URL, context: CopyContext) -> Int32? {
 private let copyCallback: copyfile_callback_t = { _, stage, state, _, _, context in
     guard let context else { return COPYFILE_QUIT }
     let copy = Unmanaged<CopyContext>.fromOpaque(context).takeUnretainedValue()
-    copy.calls += 1
     if stage == COPYFILE_ERR || copy.isCancelled() { return COPYFILE_QUIT }
     if stage == COPYFILE_PROGRESS {
         var bytes: off_t = 0

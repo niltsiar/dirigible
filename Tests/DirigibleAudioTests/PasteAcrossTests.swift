@@ -2,6 +2,7 @@ import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -210,14 +211,37 @@ struct PasteAcrossTests {
         #expect(try names(q) == ["take1-mic.wav"])
     }
 
-    /// The `copyfile` callback: no call after the return, and a quit at the flag.
+    /// The `copyfile` callback: no call after the return. The test counts the calls in its own
+    /// flag closure, which the callback reads at each call.
     @Test func theCopyCallbackStopsAtTheReturn() throws {
         let source = p.url.appending(path: "\(clipsFolderName)/take1-mic.wav")
-        let context = CopyContext(isCancelled: { false }, copied: { _ in })
-        #expect(copyFile(source, to: q.url.appending(path: "copy.wav"), context: context) == nil)
-        let calls = context.calls
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        let context = CopyContext(
+            isCancelled: {
+                calls.withLock { $0 += 1 }
+                return false
+            }, copied: { _ in })
+        #expect(copyFile(source, to: q.url.appending(path: "copy.wav"), clone: false, context: context) == nil)
+        let count = calls.withLock { $0 }
         Thread.sleep(forTimeInterval: 0.05)
-        #expect(context.calls == calls)
+        #expect(calls.withLock { $0 } == count)
+    }
+
+    /// Code gate 1 nit: a link in Clips/ of the source copies as its target, not as a link.
+    @Test func aLinkInTheSourceCopiesItsTarget() throws {
+        let wav = p.url.appending(path: "\(clipsFolderName)/take2-mic.wav")
+        let moved = p.folder.url.appending(path: "outside.wav")
+        try FileManager.default.moveItem(at: wav, to: moved)
+        try FileManager.default.createSymbolicLink(at: wav, withDestinationURL: moved)
+
+        for (index, clone) in [false, true].enumerated() {
+            _ = try paste(try clipboard, canClone: { _, _ in clone })
+            let name = index == 0 ? "take2-mic.wav" : "take2-mic 2.wav"
+            let copy = q.url.appending(path: "\(clipsFolderName)/\(name)")
+            let kind = try FileManager.default.attributesOfItem(atPath: copy.path)[.type] as? FileAttributeType
+            #expect(kind == .typeRegular, "\(name) is a file, not a link (clone \(clone))")
+            #expect(FileManager.default.contents(atPath: copy.path) == FileManager.default.contents(atPath: moved.path))
+        }
     }
 
     /// Code gate 1 item 2: a record shorter than its WAV (`dirigible file add --length`) pastes; the

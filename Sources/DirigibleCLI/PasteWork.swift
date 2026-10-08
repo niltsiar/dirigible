@@ -39,9 +39,16 @@ struct PasteWork: Sendable {
         } catch {
             throw .session(error)
         }
+        let target: URL
+        do throws(SessionFileError) {
+            target = try lock.package()
+        } catch {
+            // The target left its volume or was deleted after the lock: no file copies.
+            throw .write(file: package.lastPathComponent, errno: ENOENT)
+        }
         let pasted = try pasteClipboard(
             Clipboard(excerpt, package: source, origin: PackageID(lockFileOf: source)), from: source,
-            into: session, in: (try? lock.package()) ?? package, identity: lock.identity, at: at,
+            into: session, in: target, identity: lock.identity, at: at,
             on: .tracks(targets), freeBytes: { lock.freeBytes() })
         session = pasted.session
         return pasted.clips

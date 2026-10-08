@@ -38,6 +38,7 @@ extension SessionWindow {
         guard canImport, let studio = idleStudio else { return }
         let target = importTarget(timeline.selection, in: studio.session, playhead: studio.playhead)
         importJob = ImportJob()
+        chrome?.announce(L10n.importBanner.format(url.lastPathComponent), .high)
         importJob?.task = Task { [weak self] in
             do throws(StudioError) {
                 let clip = try await studio.importAudio(url, to: target) { [weak self] in self?.importProgressed($0) }

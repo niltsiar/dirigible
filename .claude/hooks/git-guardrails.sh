@@ -56,10 +56,22 @@ fi
 # and the new lines kept, so `git -C <path>  commit` reads as `git commit` in the two chain rules.
 chained="$(tr -s '\t ' '  ' <<< "$joined" | sed -E "s/git( +-[Cc] +('[^']*'|\"[^\"]*\"|[^ ]+))+/git/g")"
 
+# Put $1 without && and the redirects (2>&1, &>, >&), which are not background jobs, in $stripped.
+# A variable, not $(...): a command substitution drops a new line at the end.
+drop_safe_joins() {
+  stripped="${1//&&/}"
+  stripped="${stripped//[0-9]>&[0-9]/}"
+  stripped="${stripped//&>/}"
+  stripped="${stripped//>&/}"
+}
+
 # A commit in the same command as a make check must run only when the check passed, so only
-# && may join them. After `;`, `||`, a pipe, or a new line, a red check still commits.
-if [[ "$chained" =~ make\ check(.*)git\ commit ]] && [[ "${BASH_REMATCH[1]}" =~ [\;\|]|$'\n' ]]; then
-  block "runs git commit after make check without && (a red check still commits)"
+# && may join them. After `;`, `||`, a pipe, a background `&`, or a new line, a red check still commits.
+if [[ "$chained" =~ make\ check(.*)git\ commit ]]; then
+  drop_safe_joins "${BASH_REMATCH[1]}"
+  if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then
+    block "runs git commit after make check without && (a red check still commits)"
+  fi
 fi
 
 # A decisions.tsv row after a commit or a build must come after its status is read. After `;`, a
@@ -68,12 +80,8 @@ fi
 # [[:space:]] and not $: in [[ =~ ]], $ is the end of the text, not the end of a line.
 if [[ "$chained" =~ (^|[^[:alnum:]_./-])(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
   middle="${BASH_REMATCH[3]}${BASH_REMATCH[4]}"
-  middle="${middle//||/}"
-  middle="${middle//&&/}"
-  middle="${middle//[0-9]>&[0-9]/}"
-  middle="${middle//&>/}"
-  middle="${middle//>&/}"
-  if [[ "$middle" =~ [\;\|\&]|$'\n' ]]; then
+  drop_safe_joins "${middle//||/}"
+  if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then
     block "logs a decisions.tsv row after git commit, make, or swift joined by ;, a new line, a pipe, or & (the row can come before the status). Run log-decision.sh in its own command after you read the status"
   fi
 fi

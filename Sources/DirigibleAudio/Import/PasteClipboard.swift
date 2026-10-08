@@ -91,7 +91,8 @@ public func pasteClipboard(
         progress: progress, isCancelled: isCancelled
     ) { (converted: [FileID: (length: Frames, gain: Gain)]) throws(PasteError) in
         guard converts else { return }
-        // The real lengths differ from the prediction by 1 frame at most: edit again, before the renames.
+        // The real lengths differ from the prediction (the converter floors, and a record can be
+        // shorter than its file): edit again with them, before the renames.
         do throws(SessionError) {
             final = try PastePlan(
                 excerpt, same: false, into: session, in: package, at: start, on: target, insert: insert,
@@ -185,7 +186,7 @@ private func copyFiles(
         // needs the file size; a conversion reads the whole file, so its frames count (0040).
         clones.append(rate == nil && canClone(url, package))
         if let rate {
-            let frames = (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(copy.length.count)
+            let frames = (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(record.length.count)
             let converted = (frames * Int64(rate.target) + Int64(rate.source) - 1) / Int64(rate.source)
             needed += converted * Int64(copy.layout.channelCount) * 3
         } else if !clones[clones.count - 1] {

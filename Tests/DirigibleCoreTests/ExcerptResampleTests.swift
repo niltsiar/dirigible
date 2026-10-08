@@ -33,6 +33,11 @@ struct ExcerptResampleTests {
                 ids.append(id)
                 start += length
             }
+            // Code gate 2 nit: a split makes a seamless join, which must stay seamless.
+            if Bool.random(using: &random), let first = session.track("t")?.clips.first {
+                _ = try session.split(first.id, at: first.start + Frames(first.length.count / 2))
+                ids = session.track("t").map { $0.clips.map(\.id) } ?? ids
+            }
             // Gate 1 item 1: half of the joins take the longest crossfade (`crossfadeLimit`).
             for (index, id) in ids.dropLast().enumerated() where Bool.random(using: &random) {
                 let lane = try #require(session.track("t")).clips
@@ -67,7 +72,11 @@ struct ExcerptResampleTests {
                     if value > even || value > limit || (limit >= 2 && value == .zero) { live = false }
                 }
             }
-            if !(touching && joined && pasted && kept && live && scaled.sampleRate == to) { failures += 1 }
+            let sources = excerpt.lanes[0].clips
+            let seamless = zip(sources.indices.dropLast(), sources.indices.dropFirst()).allSatisfy { i, j in
+                !sources[i].isSeamless(with: sources[j]) || clips[i].isSeamless(with: clips[j])
+            }
+            if !(touching && joined && pasted && kept && live && seamless && scaled.sampleRate == to) { failures += 1 }
         }
         #expect(failures == 0, "\(failures) of 1000 lanes broke a join or a check")
     }

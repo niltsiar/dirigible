@@ -2,9 +2,9 @@
 
 ## Run the triage first
 
-If a test is flaky, run this triage first, in this order:
+In this order:
 
-1. Record in `decisions.tsv`, with the result `flake`, the load average at the failure and the heavy commands just before it (disk images, benches, builds in another worktree). When the load was high, run the loops of step 2 under that load source: start it, wait until `uptime` shows its load, and pass `--min-load <n>` to `scripts/flake-monitor/loop.sh`. A source that makes no load gives the numbers of a quiet loop.
+1. Record in `decisions.tsv`, with the result `flake`, the load average at the failure and the heavy commands just before it (disk images, benches, builds in another worktree). A land.sh flake row gives the load at the end of the check. When the load was high, run the loops of step 2 under that load source: start it, wait until `uptime` shows its load, and pass `--min-load <n>` to `scripts/flake-monitor/loop.sh`. A source that makes no load gives the numbers of a quiet loop.
 2. Run the full suite and the test alone, 15 times each.
 3. For a flake on a limit (a timeout or a hang guard), compare the duration of the test with its limit on the branch and on `main` in each loop run. A time near the limit on `main` shows a flake of `main`. A pass count alone decides nothing.
 4. Repeat the same loops on `main`. A new flake is "outside the run" only after they pass on `main`. "The diff does not touch the test" and a backlog watch line are not a triage.

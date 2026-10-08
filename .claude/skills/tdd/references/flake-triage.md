@@ -11,7 +11,7 @@ If a test is flaky, run this triage first, in this order:
 
 ## Find the cause
 
-- Make the flaky test deterministic, or delete it when the cause is in the test itself. Do not retry until green.
+- Make the flaky test deterministic, or delete it when the cause is in the test itself. Do not retry until green; a push check rerun needs this triage.
 - When only the full suite fails and the test passes alone, a rerun proves nothing. Check the test for a wall-clock dependency. Then read the diff of the slice where the flake first came, with its test helpers, hooks, and gates. New test code can hold a shared resource, also when the failing test does not touch the changed code.
 - To check for a wall-clock dependency, block the main actor once, early in the test (for example `Thread.sleep` inside a `@MainActor` call, not `Task.sleep`), starting at 1 s. Raise the time until the test fails with the same values as the full run.
 - Look for a process-wide resource in the code under test and in the test code: a file descriptor, a lock, a temporary path, an environment variable, the main actor, a serial queue, the threads of the Swift concurrency pool, a user preference of the Mac, the key window. Parallel tests share these. `test-harness.md` in this folder gives the fixes for the key window, the pool, preferences, and seams.

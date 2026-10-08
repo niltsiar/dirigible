@@ -10,10 +10,13 @@
 # a log under controls/. The third argument names the row that says why no control applies. Then
 # it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
 # delta after the load wait of check-changed.sh when the stamp has an ancestor of HEAD, else
-# `make check-changed BASE=origin/main`. It prints the stamp line. Then it pushes the branch,
-# creates the pull request, refuses the merge when origin/main moved after the checks, merges with
-# a rebase, and updates main. It stops at the first failure and never force-pushes. It prints the
-# PR URL and the commit range on main.
+# `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with the risk of
+# origin/main. It prints the stamp line. Before the push, it writes one flake row (phase 7) for
+# each dirigible-flakes line of run-checks.sh whose commit is an ancestor of HEAD before or after
+# the rebase, and removes those lines. Then it pushes the branch, creates the pull request,
+# refuses the merge when origin/main moved after the checks, merges with a rebase, and updates
+# main. It stops at the first failure and never force-pushes. It prints the PR URL and the commit
+# range on main.
 # scripts/land.test.sh tests it.
 set -euo pipefail
 
@@ -43,13 +46,15 @@ fi
 [[ -z "$(git status --porcelain)" ]] ||
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"
 git fetch origin
+before="$(git rev-parse HEAD)"
 if ! git rebase origin/main; then
     git rebase --abort
     die "the rebase on origin/main stopped on a conflict; the rebase is aborted, so the branch is as before; resolve the conflict with a rebase on a fresh branch"
 fi
 "$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
 out="$("$here/check-changed.sh" origin/main)" || die "check-changed.sh origin/main failed; nothing is pushed"
-if [[ "$(sed -n 's/^risk: //p' <<<"$out")" == yes ]]; then
+risk="$(sed -n 's/^risk: //p' <<<"$out")"
+if [[ "$risk" == yes ]]; then
     log="$run/decisions.tsv"
     [[ -f "$log" ]] || die "risk: yes and no decisions.tsv in $run"
     if [[ -n "$why" ]]; then
@@ -72,11 +77,28 @@ if stamp="$("$here/check-stamp.sh" read origin/main)"; then
         [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
         echo "stamp: delta $targets"
         "$here/check-changed.sh" --wait-load $targets || die "the load wait failed; nothing is pushed"
-        make $targets || die "the checks failed; nothing is pushed"
+        CHECK_RISK="$risk" "$here/run-checks.sh" $targets || die "the checks failed; nothing is pushed"
     fi
 else
     echo "stamp: none ($stamp)"
     make check-changed BASE=origin/main || die "the checks failed; nothing is pushed"
+fi
+# A test that passed only on a rerun of run-checks.sh gets a flake row (flake-triage.md).
+flakes="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"
+if [[ -s "$flakes" ]]; then
+    keep="$(mktemp)" row="$(mktemp)"
+    while read -r commit name _ load; do
+        if git merge-base --is-ancestor "$commit" "$before" 2>/dev/null || git merge-base --is-ancestor "$commit" HEAD 2>/dev/null; then
+            printf '7\nflake: %s passed only on a rerun of the push check, load %s at the failure\n%s\n%s\nflake\n' "$name" "$load" \
+                "run-checks.sh reran the failed test, and flake-triage.md still applies to it" \
+                "dirigible-flakes line of commit $commit" > "$row"
+            "$here/../.claude/skills/deliver/scripts/log-decision.sh" "$run" --from "$row" || die "no flake row for $name; nothing is pushed"
+        else
+            echo "$commit $name load $load" >> "$keep"
+        fi
+    done < "$flakes"
+    mv "$keep" "$flakes"
+    rm -f "$row"
 fi
 git push -u origin "$branch"
 url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"

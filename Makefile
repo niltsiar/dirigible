@@ -18,9 +18,9 @@ icon-preview:
 # The CLI tests run in their own process. The CLI helper is async and holds no pool thread.
 # But the CLI fixture I/O at the suite start adds to the main-actor stall of the other tests.
 # In one process, the stall tripped the 60 s DeviceEventTests watchdog in 3 of 40 runs.
+# Process 2 runs also when process 1 fails, so scripts/run-checks.sh sees each failed test.
 test:
-	swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests
-	swift test --filter DirigibleCLITests
+	swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests; s=$$?; swift test --filter DirigibleCLITests && exit $$s
 
 # Only the tests of FILTER (test or suite names with spaces between them), in the two processes
 # of test. It fails when no test matched.
@@ -83,6 +83,7 @@ test-hooks:
 	scripts/check-stamp.test.sh
 	scripts/evals-for.test.sh
 	scripts/test-filter.test.sh
+	scripts/run-checks.test.sh
 	scripts/check-plan.test.sh
 	.claude/skills/deliver/scripts/replay-list.test.sh
 	.claude/skills/reflect/scripts/cost.test.sh
@@ -133,6 +134,8 @@ check-fast: lint check-docs check-slow-gates check-warnings check-sizes test-hoo
 # reflect reads it). After a pass with BASE, scripts/check-stamp.sh appends the pass stamp that
 # land.sh reuses, when the tree stayed clean. This recipe is the only writer of the stamp.
 # Before Swift tests, it waits for a normal load (check-changed.sh --wait-load).
+# scripts/run-checks.sh runs the targets with -k and reruns only the failed Swift tests of a red
+# test or test-slow-push target, 1 time at most with risk: yes. A pass on a rerun writes the stamp.
 BASE ?=
 FILTER ?=
 check-changed:
@@ -146,7 +149,8 @@ check-changed:
 	printf '%s\n' "$$out"; \
 	if [ "$$targets" = none ]; then exit 0; fi; \
 	scripts/check-changed.sh --wait-load $$targets || exit 1; \
-	$(MAKE) $$targets FILTER='$(FILTER)' || exit 1; \
+	risk="$$(printf '%s\n' "$$out" | sed -n 's/^risk: //p')"; \
+	MAKE='$(MAKE)' CHECK_RISK="$$risk" scripts/run-checks.sh $$targets FILTER='$(FILTER)' || exit 1; \
 	if [ -n '$(BASE)' ]; then scripts/check-stamp.sh write "$$head" "$$tree" "$$base" $$targets; fi
 
 clean:

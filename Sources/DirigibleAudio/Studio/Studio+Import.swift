@@ -6,8 +6,13 @@ import os
 /// stores nothing for it. It is equal by the identity of its flags, so the transport stays
 /// Hashable.
 public struct ImportRun: Hashable, Sendable {
-    /// The file name.
+    /// What the run converts or copies: a file (decision 0040) or the clips of a paste from
+    /// another package (decision 0042).
+    public enum Kind: Hashable, Sendable { case file, paste }
+
+    /// The file name, or the name of the source package of a paste.
     public let name: String
+    public let kind: Kind
     let flags: ImportFlags
 
     public static func == (a: Self, b: Self) -> Bool { a.flags === b.flags }
@@ -48,12 +53,34 @@ extension Studio {
     public func importAudio(
         _ source: URL, to target: ImportTarget, progress: @escaping @MainActor @Sendable (Double) -> Void
     ) async throws(StudioError) -> ClipID {
+        let environment = environment
+        return try await blockingRun(
+            name: source.lastPathComponent, kind: .file, cancelled: .audioImport(.cancelled),
+            yielded: .importYielded(file: source.lastPathComponent)
+        ) { session, lock, flags in
+            await convertImport(
+                source, target, of: session, lock: lock, environment: environment, flags: flags,
+                progress: { fraction in Task { @MainActor in progress(fraction) } }
+            ).map { ($0.session, $0.clip) }
+        }
+    }
+
+    /// The blocking run of an import or a paste from another package (decisions 0040 and 0042):
+    /// `checkIdle`, `.busy` during a pending take and during `settle()`, the stop of play, the
+    /// transport `.importing`, and `work` in one turn of the write chain. A cancel of the calling
+    /// task sets the flag. `work` gets the session of its turn, the lock, and the flags; after it,
+    /// a set flag writes nothing and throws `cancelled`, or `yielded` for a take in another
+    /// studio. Else the run saves, records one undo entry, and loads the peaks of new files.
+    func blockingRun<Value: Sendable>(
+        name: String, kind: ImportRun.Kind, cancelled: StudioError, yielded: StudioError,
+        work: @escaping @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value), StudioError>
+    ) async throws(StudioError) -> Value {
         try checkIdle()
         guard pendingTake == nil, !settling else { throw .busy }
         let stopped = endPlayForTake()
         let flags = ImportFlags()
-        let task = Task { await importTurn(source, target, flags, stopped, progress) }
-        transport = .importing(ImportRun(name: source.lastPathComponent, flags: flags))
+        let task = Task { await blockingTurn(flags, stopped, cancelled: cancelled, yielded: yielded, work: work) }
+        transport = .importing(ImportRun(name: name, kind: kind, flags: flags))
         defer { transport = .idle }
         let result = await withTaskCancellationHandler {
             await task.value
@@ -74,35 +101,30 @@ extension Studio {
         importRun?.flags.cancel(yielding: yielding) ?? false
     }
 
-    /// One turn of the write chain: the Player stops, the conversion, the save, the undo entry,
-    /// and the peaks of the new file. A flag that is set after the conversion writes nothing.
-    private func importTurn(
-        _ source: URL, _ target: ImportTarget, _ flags: ImportFlags, _ stopped: Int?,
-        _ progress: @escaping @MainActor @Sendable (Double) -> Void
-    ) async -> Result<ClipID, StudioError> {
-        await serialized { () async -> Result<ClipID, StudioError> in
+    /// One turn of the write chain: the Player stops, the work, the save, the undo entry, and the
+    /// peaks of the new files. A flag that is set after the work writes nothing.
+    private func blockingTurn<Value: Sendable>(
+        _ flags: ImportFlags, _ stopped: Int?, cancelled: StudioError, yielded: StudioError,
+        work: @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value), StudioError>
+    ) async -> Result<Value, StudioError> {
+        await serialized { () async -> Result<Value, StudioError> in
             _ = await takePlayhead(stopped, nil)  // The Player stops.
             let before = session
-            let converted = await convertImport(
-                source, target, of: before, lock: lock, environment: environment, flags: flags,
-                progress: { fraction in Task { @MainActor in progress(fraction) } })
-            if flags.isCancelled {
-                return .failure(
-                    flags.isYielded ? .importYielded(file: source.lastPathComponent) : .audioImport(.cancelled))
-            }
-            let imported: (session: Session, clip: ClipID)
-            switch converted {
-            case .success(let value): imported = value
+            let done = await work(before, lock, flags)
+            if flags.isCancelled { return .failure(flags.isYielded ? yielded : cancelled) }
+            let (edited, value): (Session, Value)
+            switch done {
+            case .success(let result): (edited, value) = result
             case .failure(let error): return .failure(error)
             }
             switch await writeSession(
-                imported.session, lock: lock, previous: url, recordings: recordings, environment.saveSession)
+                edited, lock: lock, previous: url, recordings: recordings, environment.saveSession)
             {
             case .success(let package):
                 url = package
-                recordLevel(imported.session)
+                recordLevel(edited)
                 poolChanged(from: before.files)
-                return .success(imported.clip)
+                return .success(value)
             case .failure(let error):
                 return .failure(error)
             }

@@ -61,6 +61,28 @@ import Testing
         await second.close()
     }
 
+    /// Code gate 1 item 4: a Copy that copies nothing keeps the clipboard of the other package, so
+    /// a Paste in B still copies the file of A.
+    @Test func anEmptyCopyKeepsTheClipboardOfAnotherPackage() async throws {
+        let (a, b) = (try await package("a", noise: true), try await package("b"))
+        let (first, _, _) = try await open(a)
+        first.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
+        first.run(.copy)
+        let (second, studio, _) = try await open(b)
+        second.timeline.selection = .none
+        second.run(.copy)
+        second.timeline.selection = .range(Marks(tracks: ["t2"]))
+
+        await pasteAndWait(second)
+
+        #expect(names(b) == ["f1 2.wav", "f1.wav"], "the paste copied the file of a")
+        #expect(studio.session.clip("c1@480000")?.clip.file == "f1 2")
+        let copied = FileManager.default.contents(atPath: b.appending(path: "Clips/f1 2.wav").path)
+        #expect(copied != nil && copied == FileManager.default.contents(atPath: a.appending(path: "Clips/f1.wav").path))
+        await first.close()
+        await second.close()
+    }
+
     /// C3: a paste in the package of the copy copies nothing, also in a new window of it.
     @Test func aPasteInTheSamePackageCopiesNoFile() async throws {
         let a = try await package("a")

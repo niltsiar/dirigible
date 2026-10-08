@@ -102,6 +102,7 @@ final class TimelineScrollView: NSScrollView {
         verticalRulerView = headers
         hasVerticalRuler = true
         rulersVisible = true
+        registerForDraggedTypes([.fileURL])
         NotificationCenter.default.addObserver(
             self, selector: #selector(liveScrollStarted), name: NSScrollView.willStartLiveScrollNotification,
             object: self)

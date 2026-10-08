@@ -30,6 +30,8 @@ final class TimelineDocumentView: NSView {
     let surfaces = LaneSurfaces()
     /// The dim of the lanes that are not heard (decision 0039).
     let dim = LaneDim()
+    /// A drag of audio files from the Finder (run 13c).
+    let drop = LaneDrop()
     /// The renders, for the redraw tests (criteria 10 and 24).
     private(set) var draws = 0
     /// The rect of the last render, for the dirty-rect test of a drag event.

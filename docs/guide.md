@@ -13,7 +13,6 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 ### What Dirigible does not do yet
 
 - The export does not write the chapters into the file. The chapters stay in the session.
-- You cannot drag an audio file onto a track. Use **File > Import Audio**.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
 
 ## Record your first episode
@@ -287,6 +286,13 @@ Choose **File > Import Audio** (Command-T) and select a WAV, AIFF, FLAC, MP3, or
 - The clip replaces the audio under it on its track.
 - Dirigible levels the clip as **Tools > Auto Level** does, and selects it. One **Edit > Undo** removes the clip, its level, and a new track.
 - A banner shows the name of the file and the progress. Click **Cancel** in the banner or press Command-period to stop the import: the session does not change. VoiceOver reads the banner when it appears, and reads the progress bar with the banner text. You cannot record or edit until the import ends.
+
+You can also drag audio files from Finder onto the tracks:
+
+- Drop one file on a track to put the clip on that track. The clip starts at the pointer, not at the playhead.
+- Drop one file below the last track, or at the bottom edge of the tracks when they fill the window, to add a new track.
+- Drop two or more files to add one new track for each file. All clips start at the pointer.
+- Dirigible imports the files one after the other. One **Edit > Undo** removes the last file. Dirigible skips a file that is not audio, has more than 2 channels, or is not on this Mac. A full disk or Cancel stops the import. At the end, an alert names each file that did not import.
 
 ### Mute and solo tracks
 

@@ -69,12 +69,15 @@ import UniformTypeIdentifiers
         alert.messageText = L10n.message(for: error)
         alert.runModal()
     }
-    /// The open panel of File > Import Audio… as a sheet of a window: one WAV, AIFF, FLAC, MP3, or
-    /// M4A file (decision 0040). Tests give their own.
+    /// The files that the import takes: WAV, AIFF, FLAC, MP3, and M4A (decision 0040). The open
+    /// panel and a drop on the lanes read them.
+    static let importTypes: [UTType] =
+        [.wav, .aiff, .mp3, .mpeg4Audio] + [UTType(filenameExtension: "flac")].compactMap { $0 }
+    /// The open panel of File > Import Audio… as a sheet of a window: one file of `importTypes`.
+    /// Tests give their own.
     @ObservationIgnored var chooseImport: (NSWindow, @escaping @MainActor (URL?) -> Void) -> Void = { window, done in
         let panel = NSOpenPanel()
-        panel.allowedContentTypes =
-            [.wav, .aiff, .mp3, .mpeg4Audio] + [UTType(filenameExtension: "flac")].compactMap { $0 }
+        panel.allowedContentTypes = AppDelegate.importTypes
         panel.beginSheetModal(for: window) { done($0 == .OK ? panel.url : nil) }
     }
     /// The save panel of Export as a sheet of a window: the name, the session rate, the

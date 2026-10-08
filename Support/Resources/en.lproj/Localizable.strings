@@ -294,6 +294,8 @@
 "alert.export.confirm" = "Export";
 "alert.exported" = "The export is done. These files were missing or could not be read, and they exported as silence:\n%@";
 "alert.exported.loudness" = "Export result: %@.";
+"alert.import.chain" = "Dirigible did not import all the files:\n%@";
+"alert.import.not.imported" = "The import stopped. Dirigible did not import these files:\n%@";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Monitor";

@@ -20,35 +20,61 @@ func importTarget(_ selection: Selection, in session: Session, playhead: Frames)
     return ImportTarget(track: tracks.count == 1 ? tracks[0] : nil, start: playhead)
 }
 
+extension StudioError {
+    /// A refusal of one file that does not stop a chain of imports (run 13c): the other files
+    /// can still import.
+    var skipsFile: Bool {
+        switch self {
+        case .audioImport(.notAudio), .audioImport(.tooManyChannels), .audioImport(.notDownloaded): true
+        default: false
+        }
+    }
+}
+
 extension SessionWindow {
     /// File > Import Audio… is on: the studio is idle, no take waits, and no import runs.
     var canImport: Bool { importJob == nil && idleStudio.map { $0.pendingTake == nil } == true }
 
     /// File > Import Audio…: the open panel as a sheet of the window, then the import.
     func chooseImport() {
-        commitNames()
         guard canImport, let window, let app else { return }
         app.chooseImport(window) { [weak self] url in
-            guard let self, let url else { return }
-            startImport(url)
+            guard let self, let url, let studio = idleStudio else { return }
+            startImport([url], to: importTarget(timeline.selection, in: studio.session, playhead: studio.playhead))
         }
     }
 
-    /// Imports `url` at the target of now. The banner shows the file name, the progress, and
-    /// Cancel. After a success, the new clip is selected. A cancel shows nothing; another error
-    /// shows its alert.
-    func startImport(_ url: URL) {
-        guard canImport, let studio = idleStudio else { return }
-        let target = importTarget(timeline.selection, in: studio.session, playhead: studio.playhead)
+    /// Imports `urls` one after the other at `target`, with one undo entry each (run 13c). It first
+    /// saves the typed names and inspector value. The banner shows the name of each file, the
+    /// progress, and Cancel. The chain skips a file that is not audio, has more than 2 channels,
+    /// or is not downloaded; a cancel or another error stops it. At the end, the new clips are
+    /// selected, and one alert gives the error of each file that did not import and the names of
+    /// the files after a stop. A cancel shows the alert only for skipped files.
+    func startImport(_ urls: [URL], to target: ImportTarget) {
+        commitNames()
+        guard canImport, let studio = idleStudio, !urls.isEmpty else { return }
         importJob = ImportJob()
-        chrome?.announce(L10n.importBanner.format(url.lastPathComponent), .high)
         importJob?.task = Task { [weak self] in
-            do throws(StudioError) {
-                let clip = try await studio.importAudio(url, to: target) { [weak self] in self?.importProgressed($0) }
-                self?.timeline.selection = ClipSet([clip]).map { .clips($0) } ?? .none
-            } catch .audioImport(.cancelled) {
-            } catch {
-                self?.alert = .error(error)
+            var (clips, errors, notImported) = ([ClipID](), [StudioError](), [String]())
+            chain: for (n, url) in urls.enumerated() {
+                self?.importJob?.progress = 0
+                self?.chrome?.announce(L10n.importBanner.format(url.lastPathComponent), .high)
+                do throws(StudioError) {
+                    clips.append(
+                        try await studio.importAudio(url, to: target) { [weak self] in self?.importProgressed($0) })
+                } catch .audioImport(.cancelled) {
+                    break chain
+                } catch {
+                    errors.append(error)
+                    guard error.skipsFile else {
+                        notImported = urls[(n + 1)...].map(\.lastPathComponent)
+                        break chain
+                    }
+                }
+            }
+            if let set = ClipSet(Set(clips)) { self?.timeline.selection = .clips(set) }
+            if !errors.isEmpty {
+                self?.alert = urls.count == 1 ? .error(errors[0]) : .importChain(errors, notImported: notImported)
             }
             self?.importJob = nil
         }

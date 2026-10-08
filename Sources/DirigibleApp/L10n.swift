@@ -162,6 +162,8 @@ enum L10n: String, CaseIterable {
     case alertExportConfirm = "alert.export.confirm"
     case alertExported = "alert.exported"
     case alertExportedLoudness = "alert.exported.loudness"
+    case alertImportChain = "alert.import.chain"
+    case alertImportNotImported = "alert.import.not.imported"
 
     case emptyTitle = "empty.title"
     case emptySteps = "empty.steps"

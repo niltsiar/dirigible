@@ -78,6 +78,13 @@
 "error.import.yielded" = "La importación de «%@» se detuvo por una toma en otra ventana. Vuelva a importar después de la toma.";
 "import.banner" = "Importando «%@»";
 "import.cancel" = "Cancelar";
+"error.paste.missing" = "Dirigible no puede pegar desde «%@». La sesión se movió o se eliminó. Abra la sesión y vuelva a copiar.";
+"error.paste.space" = "Dirigible no puede pegar desde «%@». El disco de esta sesión no tiene espacio libre suficiente. Libere espacio en el disco y vuelva a intentarlo.";
+"error.paste.copy" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo copiar (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
+"error.paste.convert" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo convertir (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
+"error.paste.yielded" = "El pegado desde «%@» se detuvo por una toma en otra ventana. Vuelva a pegar después de la toma.";
+"paste.banner" = "Pegando desde «%@»";
+"paste.done" = "Pegado.";
 
 /* Window, panels, and alerts */
 "window.opening" = "Abriendo la sesión…";

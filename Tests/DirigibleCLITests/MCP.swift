@@ -84,10 +84,7 @@ func mcpOverPipe(_ line: String, limit: Duration = .seconds(30)) async throws ->
     let output = folder.appending(path: "stdout")
     FileManager.default.createFile(atPath: output.path, contents: nil)
     let stdin = Pipe()
-    let process = Process()
-    process.executableURL = Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent()
-        .appending(path: "dirigible")
-    process.arguments = ["mcp"]
+    let process = childProcess(dirigibleBinary, ["mcp"], in: folder)
     process.standardInput = stdin
     process.standardOutput = try FileHandle(forWritingTo: output)
     await Slots.shared.started()
@@ -146,10 +143,7 @@ func mcpWithClosedOutput(closesStderr: Bool, limit: Duration = .seconds(30)) asy
     let errors = folder.appending(path: "stderr")
     FileManager.default.createFile(atPath: errors.path, contents: nil)
     let (stdin, stdout, stderr) = (Pipe(), Pipe(), Pipe())
-    let process = Process()
-    process.executableURL = Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent()
-        .appending(path: "dirigible")
-    process.arguments = ["mcp"]
+    let process = childProcess(dirigibleBinary, ["mcp"], in: folder)
     process.standardInput = stdin
     process.standardOutput = stdout
     process.standardError = closesStderr ? stderr : try FileHandle(forWritingTo: errors)

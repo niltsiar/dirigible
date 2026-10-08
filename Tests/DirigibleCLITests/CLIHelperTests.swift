@@ -71,6 +71,27 @@ struct CLIHelperTests {
         }
         #expect(wrong == 0)
     }
+
+    /// A child runs in the new temporary folder of its launcher, not in the working folder of the
+    /// test process (the repo), so a red test that writes a relative path writes nothing there.
+    @Test func aChildRunsInItsOwnTemporaryFolder() async throws {
+        let result = try await dirigible(shell: "pwd -P")
+        let folder = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The launcher deletes its folder before the assert, and Foundation does not resolve a
+        // deleted path, so only the expected side goes through realpath: /var is /private/var.
+        let temporary = try realPath(FileManager.default.temporaryDirectory.path)
+        let working = try realPath(FileManager.default.currentDirectoryPath)
+        #expect(result.status == 0)
+        #expect(folder.hasPrefix(temporary + "/dirigible-run-"), "the child ran in \(folder)")
+        #expect(folder != working)
+    }
+}
+
+/// The path of `path` with each symbolic link resolved, from `realpath(3)`. The path must exist.
+private func realPath(_ path: String) throws -> String {
+    guard let resolved = realpath(path, nil) else { throw CocoaError(.fileNoSuchFile) }
+    defer { free(resolved) }
+    return String(cString: resolved)
 }
 
 /// Starts `count` children through the helper with `slots`. Each writes its marker file, then

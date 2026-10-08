@@ -112,7 +112,8 @@ extension Session {
     /// under each pasted clip. Then the paste adds the lane clips. A pasted clip gets
     /// the first free ID of "<source id>@<start>"; the right part of a cut clip gets
     /// "<id>@<end of the cleared range>": the block end, or the end of the pasted clip. Returns
-    /// the pasted IDs, lane by lane. A throw changes nothing.
+    /// the pasted IDs, lane by lane. A clip whose file record differs from the record of its ID here
+    /// throws `.foreignFile` (decision 0042). A throw changes nothing.
     @discardableResult
     public mutating func paste(_ excerpt: Excerpt, at start: Frames, on tracks: [TrackID]) throws(SessionError)
         -> [ClipID]
@@ -133,6 +134,11 @@ extension Session {
             let index = try trackIndex(id)
             var clips: [Clip] = []
             for clip in lane.clips {
+                // A record of one ID never changes in a session, so a different record is a file of
+                // another pool that only shares the ID (decision 0042).
+                if let record = excerpt.files[clip.file], let present = files[clip.file], present != record {
+                    throw .foreignFile(clip.file)
+                }
                 let placed = Clip(
                     id: Self.derivedID(of: clip.id, at: start + clip.start, taken: &taken), file: clip.file,
                     start: start + clip.start, offset: clip.offset, length: clip.length, gain: clip.gain,

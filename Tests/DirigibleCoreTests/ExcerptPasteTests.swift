@@ -131,6 +131,27 @@ struct ExcerptPasteTests {
         #expect(throws: SessionError.frameOutOfRange) { try session.paste(excerpt, at: Frames(.max), on: ["b"]) }
         #expect(session == before)
     }
+
+    /// Decision 0042, C2: the file ID "f" of another pool names other audio here, so the paste
+    /// refuses. Control: a check that the ID is in `files` pastes on the wrong audio.
+    @Test mutating func aPasteRefusesAFileRecordOfAnotherPool() throws {
+        let excerpt = try session.excerpt(of: 0..<48_000, on: ["a"])
+        var other = Session(sampleRate: 48_000)
+        try other.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 48_000))
+        try other.addTrack("a", name: "A", layout: .mono)
+        let before = other
+
+        #expect(throws: SessionError.foreignFile("f")) { try other.paste(excerpt, at: 0, on: ["a"]) }
+        #expect(other == before)
+
+        // The same pool pastes, also after an unrelated file joins it.
+        try session.addFile(AudioFile(id: "h", path: "h.wav", layout: .mono, length: 1_000))
+        #expect(try session.paste(excerpt, at: 100_000, on: ["b"]) == ["A@100000"])
+        // A file that an undo removed is unknown, as before.
+        var empty = Session(sampleRate: 48_000)
+        try empty.addTrack("a", name: "A", layout: .mono)
+        #expect(throws: SessionError.unknownFile("f")) { try empty.paste(excerpt, at: 0, on: ["a"]) }
+    }
 }
 
 /// Tracks "a" and "b" (mono) and "s" (stereo); files "f" (mono) and "g" (stereo), 480 000 frames each.

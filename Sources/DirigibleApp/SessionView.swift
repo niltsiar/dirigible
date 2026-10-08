@@ -53,7 +53,7 @@ struct SessionView: View {
                 case .microphone:
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
-                case .error, .exported:
+                case .error, .importChain, .exported:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
                 }
@@ -195,6 +195,10 @@ extension WindowAlert {
     var text: String {
         switch self {
         case .error(let error): L10n.message(for: error)
+        case .importChain(let errors, let notImported):
+            L10n.alertImportChain.format(errors.map { L10n.message(for: $0) }.joined(separator: "\n"))
+                + (notImported.isEmpty
+                    ? "" : "\n\n" + L10n.alertImportNotImported.format(notImported.joined(separator: "\n")))
         case .microphone(let access): L10n.message(for: .microphoneAccess(access))
         case .confirmStopAndClose: L10n.alertCloseRecording.text
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text

@@ -9,6 +9,9 @@ import SwiftUI
 /// A question or an error that the window shows.
 enum WindowAlert: Hashable {
     case error(StudioError)
+    /// The end of an import of several files (run 13c): the error of each file that did not
+    /// import, in the drop order, and the names of the files after a stop of the chain.
+    case importChain([StudioError], notImported: [String])
     case microphone(MicrophoneAccess)
     case confirmStopAndClose
     case confirmUnsavedClose

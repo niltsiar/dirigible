@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality, or a chosen lens list) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2 for plan, 3 for diff), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. The last round (round >= maxRounds) only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its warning and critical findings' },
@@ -12,7 +12,7 @@ const target = args && args.target === 'plan' ? 'plan' : 'diff'
 const intent = (args && args.intent) || 'No intent given. Derive it from the plan or the commit messages.'
 const scope = (args && args.scope) || (target === 'plan' ? '.scratchpads/runs (newest run)/plan.md' : 'main')
 const round = Number(args && args.round) || 1
-const maxRounds = Number(args && args.maxRounds) || (target === 'plan' ? 2 : 3)
+const maxRounds = Number(args && args.maxRounds) || 2
 const prior = (args && Array.isArray(args.prior)) ? args.prior : []
 const settled = (args && Array.isArray(args.settled)) ? args.settled : []
 const ledger = (args && args.ledger) || ''

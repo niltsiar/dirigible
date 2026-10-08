@@ -56,17 +56,17 @@ Write `plan.md`:
 | Run | Plan gate and code gate |
 |---|---|
 | Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `code-quality`). A fix check only with Act-on items. |
-| `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. Plan gate 2 rounds; code gate 3 rounds. |
+| `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
 - With `risk: yes`, each guard in a risk path gets two mutation controls, replayed once in Phase 7. With `risk: no`, the failing-before test is the control, with no replay. Decision 0028 says when a plan raises a guard to risk. A sources change also gets a screenshot or AX check per visible criterion. A tooling control is a failing case in its `.test.sh`.
-- A 1-round gate calls the workflow with `maxRounds: 2`; round 2 runs only on a critical item.
+- Each gate calls the workflow with `maxRounds: 2`; round 2 runs only on a critical item, or with `risk: yes` on a warning.
 
 ## Phase 3: Plan gate
 
 Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interrogate** skill with target `plan` and the lenses of the class table. Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Change the plan for each "Act on" item and log it. Grep each fact that a fix changes, as in Phase 2.
-- A critical item gets another round, up to the class table. After the last round and the fix check, the gate is closed: record open risks in `run.md`.
+- Round 2 runs only as the class table section says. After the last round and the fix check, the gate is closed: record open risks in `run.md`.
 
 ## Phase 4: Implement
 

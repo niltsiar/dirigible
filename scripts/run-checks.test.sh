@@ -20,7 +20,8 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # fake test-filter.sh. The fake test-filter.sh logs its arguments and DIRIGIBLE_SLOW_TESTS. Its
 # call number n counts in $tmp/tries; while n is under FAKE_PASS_AT, it prints a failed line for
 # each name and exits 1 (FAKE_AGAIN limits the failed names to that one name). Each other name
-# gets a pass line, except FAKE_SILENT, which gets no line (a test that did not run).
+# gets a pass line, except FAKE_SILENT, which gets no line (a test that did not run). While red,
+# FAKE_BOTH also gets a pass line beside its failed line (the same name in a second suite).
 w="$tmp/w"
 mkdir -p "$w/scripts" "$tmp/bin"
 git init -q "$w"
@@ -38,6 +39,7 @@ for a in "$@"; do
   [[ $a == --* || $a == "${FAKE_SILENT:-}" ]] && continue
   if ((red)) && [[ -z "${FAKE_AGAIN:-}" || $a == "$FAKE_AGAIN" ]]; then
     echo "✘ Test $a() failed after 1.0 seconds with 1 issue."
+    [[ $a != "${FAKE_BOTH:-}" ]] || echo "✔ Test $a() passed after 1.0 seconds."
   else
     echo "✔ Test $a() passed after 1.0 seconds."
   fi
@@ -114,6 +116,13 @@ FAKE_SILENT=bTest run 1 2 $'✘ Test aTest() failed after 1.0 seconds with 1 iss
 [[ "$(filters)" == $'test-filter slow= --exact aTest bTest\ntest-filter slow= --exact bTest\ntest-filter slow= --exact bTest' ]] || fail "a name with no pass line: reruns [$(filters)]"
 grep -q 'run-checks: red after 3 reruns: bTest' <<<"$out" || fail "a name with no pass line: no reason: $out"
 [[ ! -e "$flakes" ]] || fail "a name with no pass line: flakes [$(cat "$flakes")]"
+
+# A name with a failed line and a pass line in one rerun (two suites have the name) stays in the
+# rerun list, so the next try reruns it.
+FAKE_BOTH=aFlake run 2 2 "$red_test"
+[[ $code -eq 0 ]] || fail "a name in two suites: exit $code: $out"
+[[ "$(filters | wc -l | tr -d ' ')" == 2 ]] || fail "a name in two suites: reruns [$(filters)]"
+grep -qx 'run-checks: flake: aFlake passed on rerun 2 of 3' <<<"$out" || fail "a name in two suites: no flake line: $out"
 
 # Parameterized names, and a level-0 make prefix (the delta path of land.sh).
 run 1 2 $'✘ Test f(x:) with 2 test cases failed after 1.0 seconds with 1 issue.\n✘ Test g(a:b:) failed after 1.0 seconds with 1 issue.\n2:make: *** [test] Error 1'

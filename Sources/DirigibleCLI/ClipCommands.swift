@@ -111,8 +111,7 @@ struct ClipCommand: ParsableCommand {
         func run() throws {
             let pasted = try editPackage(package) { session throws(SessionError) in
                 let excerpt = try session.excerpt(of: clips.map { ClipID($0) })
-                let targets = onto.isEmpty ? excerpt.lanes.map(\.source) : onto.map { TrackID($0) }
-                return try session.paste(excerpt, at: Frames(at), on: targets)
+                return try session.paste(excerpt, at: Frames(at), on: EditRules.laneTargets(of: excerpt, onto: onto))
             }
             for id in pasted { print(id) }
         }

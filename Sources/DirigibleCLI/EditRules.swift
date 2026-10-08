@@ -82,6 +82,16 @@ enum EditRules {
 
     /// The paste target for each source track: `onto` in order, or the sources when `onto` is
     /// empty. Nil when there is no source or the counts differ.
+    /// The tracks of `--track`, or all tracks when there is none (a ripple scope).
+    static func tracks(_ ids: [String], of session: Session) -> [TrackID] {
+        ids.isEmpty ? session.tracks.map(\.id) : ids.map { TrackID($0) }
+    }
+
+    /// The targets of a clip set paste: `onto`, or the source tracks of the lanes.
+    static func laneTargets(of excerpt: Excerpt, onto: [String]) -> [TrackID] {
+        onto.isEmpty ? excerpt.lanes.map(\.source) : onto.map { TrackID($0) }
+    }
+
     static func pasteTargets(sources: [String], onto: [String]) -> [String]? {
         guard !sources.isEmpty else { return nil }
         if onto.isEmpty { return sources }

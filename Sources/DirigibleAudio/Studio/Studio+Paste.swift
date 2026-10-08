@@ -29,31 +29,48 @@ extension Studio {
                 return (pasted.clips, pasted.tracks)
             } catch {
                 // The same package copies no file, so only the session refuses.
-                guard case .session(let refusal) = error else { return ([], []) }
+                guard case .session(let refusal) = error else {
+                    preconditionFailure("a same-package paste threw \(error)")
+                }
                 throw refusal
             }
         }
     }
 
-    /// Pastes `clipboard` at `start` on `target` (decision 0042). A clipboard of this package goes
-    /// to `pasteInPlace`. Another package: a blocking run, as an import (`blockingRun`): the source
-    /// path is `lock.package()` of `source`, the open studio of the source package, else the path
-    /// at the copy; then `pasteClipboard` copies or converts the files off the main actor, and the
-    /// run saves and records one undo entry. `insert` runs a ripple insert of the excerpt length on
-    /// all tracks first. Returns the pasted IDs and the target tracks. A throw changes nothing in
-    /// memory; a renamed WAV stays as an unused file (0040).
+    /// Pastes `clipboard` at `start` on `target` (decision 0042): `pasteInPlace` for a clipboard of
+    /// this package, else `pasteAcross`.
     public func paste(
         _ clipboard: Clipboard, from source: Studio?, at start: Frames, on target: PasteTarget, insert: Bool = false,
         progress: @escaping @MainActor @Sendable (Double) -> Void
     ) async throws(StudioError) -> (clips: [ClipID], tracks: [TrackID]) {
         if let pasted = try pasteInPlace(clipboard, at: start, on: target, insert: insert) { return pasted }
+        return try await pasteAcross(clipboard, from: source, at: start, on: target, insert: insert, progress: progress)
+    }
+
+    /// The paste of a clipboard that `pasteInPlace` refused (another package): a blocking run, as an
+    /// import (`blockingRun`). The source path is `lock.package()` of `source`, the open studio of
+    /// the source package, read here so the run holds no source lock; else the path at the copy.
+    /// Then `pasteClipboard` copies or converts the files off the main actor, and the run saves and
+    /// records one undo entry. `insert` runs a ripple insert of the excerpt length on all tracks
+    /// first. Returns the pasted IDs and the target tracks. A throw changes nothing in memory; a
+    /// renamed WAV stays as an unused file (0040).
+    public func pasteAcross(
+        _ clipboard: Clipboard, from source: Studio?, at start: Frames, on target: PasteTarget, insert: Bool = false,
+        progress: @escaping @MainActor @Sendable (Double) -> Void
+    ) async throws(StudioError) -> (clips: [ClipID], tracks: [TrackID]) {
         let name = clipboard.package.deletingPathExtension().lastPathComponent
-        let (environment, sourceLock) = (environment, source?.lock)
+        let path: URL
+        do throws(SessionFileError) {
+            path = try source?.lock.package() ?? clipboard.package
+        } catch {
+            throw .paste(.sourceMissing(file: clipboard.package.lastPathComponent), source: name)
+        }
+        let environment = environment
         return try await blockingRun(
             name: name, kind: .paste, cancelled: .paste(.cancelled, source: name), yielded: .pasteYielded(source: name)
         ) { session, lock, flags in
             await pasteOffMain(
-                clipboard, sourceLock: sourceLock, into: session, lock: lock, at: start, on: target, insert: insert,
+                clipboard, from: path, into: session, lock: lock, at: start, on: target, insert: insert,
                 environment: environment, flags: flags, name: name,
                 progress: { fraction in Task { @MainActor in progress(fraction) } })
         }
@@ -63,7 +80,7 @@ extension Studio {
 /// `pasteClipboard` on a utility GCD thread, in the package that `lock` holds now, as
 /// `convertImport` runs an import.
 @concurrent nonisolated private func pasteOffMain(
-    _ clipboard: Clipboard, sourceLock: PackageLock?, into session: Session, lock: PackageLock, at start: Frames,
+    _ clipboard: Clipboard, from source: URL, into session: Session, lock: PackageLock, at start: Frames,
     on target: PasteTarget, insert: Bool, environment: CaptureEnvironment, flags: ImportFlags, name: String,
     progress: @escaping @Sendable (Double) -> Void
 ) async -> Result<(Session, (clips: [ClipID], tracks: [TrackID])), StudioError> {
@@ -71,16 +88,6 @@ extension Studio {
         dispatchPrecondition(condition: .notOnQueue(.main))
         let package: URL
         do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
-        let source: URL
-        if let sourceLock {
-            do throws(SessionFileError) {
-                source = try sourceLock.package()
-            } catch {
-                return .failure(.paste(.sourceMissing(file: clipboard.package.lastPathComponent), source: name))
-            }
-        } else {
-            source = clipboard.package
-        }
         do throws(PasteError) {
             let pasted = try pasteClipboard(
                 clipboard, from: source, into: session, in: package, identity: lock.identity, at: start, on: target,

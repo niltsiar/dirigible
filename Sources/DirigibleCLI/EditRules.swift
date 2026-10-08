@@ -80,8 +80,6 @@ enum EditRules {
         }
     }
 
-    /// The paste target for each source track: `onto` in order, or the sources when `onto` is
-    /// empty. Nil when there is no source or the counts differ.
     /// The tracks of `--track`, or all tracks when there is none (a ripple scope).
     static func tracks(_ ids: [String], of session: Session) -> [TrackID] {
         ids.isEmpty ? session.tracks.map(\.id) : ids.map { TrackID($0) }
@@ -103,6 +101,8 @@ enum EditRules {
         return !same
     }
 
+    /// The paste target for each source track: `onto` in order, or the sources when `onto` is
+    /// empty. Nil when there is no source or the counts differ.
     static func pasteTargets(sources: [String], onto: [String]) -> [String]? {
         guard !sources.isEmpty else { return nil }
         if onto.isEmpty { return sources }

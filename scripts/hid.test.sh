@@ -112,11 +112,12 @@ expect_drag() {
 }
 side="target 100 100 800 600 Finder 1000 100 400 400"
 expect_drag "a start in a Finder window and an end in the target window" "$side" 0 "drag 1050 200 to 550 200" 950 100 -500 0
-expect_drag "an end outside the target window" "$side" 5 "outside the target window" 950 100 0 0
+expect_drag "an end outside the target window" "$side" 5 "not in a target window in front" 950 100 0 0
 expect_drag "a start outside every Finder window" "$side" 5 "not in a Finder window" 1500 100 -1000 0
 over="target 100 100 800 600 Finder 500 100 400 400"
 expect_drag "a target window over a Finder window at the start" "$over" 5 "not in a Finder window" 500 100 -200 0
 behind="Finder 500 100 400 400 target 100 100 800 600"
 expect_drag "a Finder window over the target window at the start" "$behind" 0 "drag 600 200 to 400 200" 500 100 -200 0
+expect_drag "a Finder window over the target window at the end" "$behind" 5 "not in a target window in front" 500 100 100 0
 
 [[ $failures -eq 0 ]] && echo "hid tests: all passed" || { echo "hid tests: $failures failed"; exit 1; }

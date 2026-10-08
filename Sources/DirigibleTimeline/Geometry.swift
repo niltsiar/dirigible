@@ -53,6 +53,26 @@ public struct LaneGeometry: Equatable, Sendable {
     /// The lane that holds `y`. Internal: no public API gives a lane index.
     func lane(at y: Double) -> Int { Int((max(0, y) / laneHeight).rounded(.down)) }
 
+    /// The highest New Track zone (points) at the bottom of the lanes in view (run 13c).
+    public static let newTrackZone = 32.0
+
+    /// The top of the New Track zone: the end of the last lane, or, when the lanes reach the view
+    /// bottom `bottom`, min(`newTrackZone`, half a lane) above it. The zone is at most half a lane
+    /// high, so each lane fully in view keeps at least half its height as a target.
+    public func newTrackTop(lanes: Int, bottom: Double) -> Double {
+        min(Double(lanes) * laneHeight, bottom - min(Self.newTrackZone, laneHeight / 2))
+    }
+
+    /// The import target of a drop of `files` files at the lane point `x`, `y` (run 13c): the frame
+    /// under the pointer, and the track of the lane for one file. A drop of 2 or more files, or a
+    /// drop at or under `newTrackTop`, goes to new tracks (a nil track).
+    public func dropTarget(x: Double, y: Double, files: Int, bottom: Double, in session: Session) -> ImportTarget {
+        let lane = lane(at: y)
+        let newTrack =
+            files > 1 || y >= newTrackTop(lanes: session.tracks.count, bottom: bottom) || lane >= session.tracks.count
+        return ImportTarget(track: newTrack ? nil : session.tracks[lane].id, start: frame(at: x))
+    }
+
     /// The shortest clip that a trim leaves: 1 pt at this zoom, and at least 1 frame (a clip under
     /// 1 pt cannot be seen or hit again; settled Q4 of the mouse-edits run).
     var trimMinimum: Frames { Frames(max(1, Int(scale.framesPerPoint))) }

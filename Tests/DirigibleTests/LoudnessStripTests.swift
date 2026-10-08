@@ -172,6 +172,20 @@ import Testing
         #expect(strip.layerChanges > 0, "the bar moved")
         try await Task.sleep(for: .milliseconds(200))
         #expect(model.bodyRuns == bodies, "the ticks ran \(model.bodyRuns - bodies) SwiftUI bodies")
+        // `loudnessTick` on the real clock (`PlayTickBenchmark`): a new short-term text at each
+        // tick changes the texts at least once and at most 4 times a second. The wait puts the
+        // last text change more than 0.25 s back.
+        try await Task.sleep(for: .milliseconds(300))
+        let (changes, start) = (strip.textChanges, CACurrentMediaTime())
+        for tick in 0..<60 {
+            var values = Self.playing
+            values.shortTerm = LUFS(value: -20 + Double(tick) / 10)
+            studio.loudness = values
+            view.displayTick()
+        }
+        let (changed, elapsed) = (strip.textChanges - changes, CACurrentMediaTime() - start)
+        #expect(
+            changed >= 1 && changed <= Int(elapsed * 4) + 2, "the strip texts changed \(changed) times in \(elapsed) s")
 
         model.toggleLoudness()
         await until("the strip goes") { strip.window == nil }

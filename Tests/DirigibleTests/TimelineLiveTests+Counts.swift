@@ -64,4 +64,36 @@ extension TimelineLiveTests {
         take.close()
         await model.close()
     }
+
+    /// P2 of `LiveTakeBenchmark.aPageTurnInATakeFitsOneFrame` on a small session: a take with 60 s
+    /// of bins at 512 frames per point. Before each tick, the clock jumps to put the head at 96% of
+    /// the page, so each tick turns the page. Each turn draws at most once, and the new bins
+    /// change the pixels of the last column (`LiveTake.step`).
+    @Test func aTurnInATakeDrawsOnceAndShowsTheNewBins() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 2), app: app)
+        let (window, view) = standaloneLanes(model, studio)
+        let take = try LiveTake(window: window, view: view, studio: studio, tracks: ["t1", "t2"], at: .zero)
+        take.history(seconds: 60)
+        // The SwiftUI update of the take session; the first tick takes the state, the second turns
+        // the page to the head.
+        view.update(laneInputs(model, studio))
+        take.tick()
+        take.tick()
+        var failures: [String] = []
+
+        for tick in 1...5 {
+            let from = take.now
+            take.now = take.clock(atHead: view.origin + 0.96 * view.visibleFrames) - LiveTake.frame
+            take.drain(from: from)
+            let result = take.step(drains: true)
+            if !result.turned { failures.append("tick \(tick): no turn") }
+            failures += result.failures
+        }
+
+        #expect(failures.isEmpty, "\(failures.count) failures, \(failures.prefix(3))")
+        take.close()
+        window.close()
+        await model.close()
+    }
 }

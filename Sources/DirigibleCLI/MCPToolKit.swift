@@ -18,6 +18,8 @@ enum ToolWork: Sendable {
     /// `session_info`: no lock, as `dirigible info`. `range` has `from <= to` (V24).
     case info(tracks: [TrackID]?, range: Range<Frames>?)
     case create(sampleRate: Int)
+    /// A paste from another package (decision 0042): files copy or convert under the lock.
+    case paste(PasteWork)
 }
 
 /// The JSON Schema of one property, with JSON values only.

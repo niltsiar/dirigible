@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -26,6 +27,33 @@ extension EditFailure where Body == SessionError {
         case .pendingTake: pendingTakeMessage(package)
         case .splitTake: splitTakeMessage(package)
         case .body(let error): error.message
+        }
+    }
+}
+
+extension EditFailure where Body == PasteError {
+    func message(package: String) -> String {
+        switch self {
+        case .file(let error): error.message(package: package)
+        case .pendingTake: pendingTakeMessage(package)
+        case .splitTake: splitTakeMessage(package)
+        case .body(let error): error.message
+        }
+    }
+}
+
+extension PasteError {
+    /// No `default` case: a new error case does not compile until it has a message.
+    var message: String {
+        switch self {
+        case .sourceMissing(let file): "the source \"\(file)\" is not there: the source package moved or was deleted."
+        case .notDownloaded(let file): "the source file \"\(file)\" is not on this Mac. Download it first."
+        case .sourceChanged(let file): "the source file \"\(file)\" does not match its record in the source session."
+        case .space(let needed, let free): "the paste needs \(needed) free bytes, and the disk has \(free)."
+        case .write(let file, let code): "the copy of \"\(file)\" failed (errno \(code))."
+        case .convert(let file, let code): "the conversion of \"\(file)\" failed (errno \(code))."
+        case .cancelled: "the paste was cancelled."
+        case .session(let error): error.message
         }
     }
 }

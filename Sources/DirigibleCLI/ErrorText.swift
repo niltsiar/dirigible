@@ -96,6 +96,7 @@ extension SessionError {
             "clip \"\(id)\" has a crossfade at that edge, so it cannot also have a fade there."
         case .trackCount(let count): "the excerpt has \(count) tracks, so give \(count) different target tracks."
         case .laneOutOfRange(let id): "the lane offset moves clip \"\(id)\" past the first or the last track."
+        case .otherSampleRate(let rate): "the excerpt is at \(rate) Hz, another rate than this session."
         case .foreignFile(let id): "file \"\(id)\" of the excerpt is another file in this session."
         }
     }

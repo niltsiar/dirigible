@@ -132,6 +132,19 @@ struct ExcerptPasteTests {
         #expect(session == before)
     }
 
+    /// Code gate 2 nit: an excerpt at another rate needs `resampled` first, so a paste refuses it.
+    @Test mutating func aPasteRefusesAnExcerptOfAnotherRate() throws {
+        let excerpt = try session.excerpt(of: 0..<48_000, on: ["a"])
+        var other = Session(sampleRate: 44_100)
+        try other.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 480_000))
+        try other.addTrack("a", name: "A", layout: .mono)
+        let before = other
+
+        #expect(throws: SessionError.otherSampleRate(48_000)) { try other.paste(excerpt, at: 0, on: ["a"]) }
+        #expect(other == before)
+        #expect(try session.paste(excerpt, at: 100_000, on: ["b"]) == ["A@100000"], "the same rate pastes")
+    }
+
     /// Decision 0042, C2: the file ID "f" of another pool names other audio here, so the paste
     /// refuses. Control: a check that the ID is in `files` pastes on the wrong audio.
     @Test mutating func aPasteRefusesAFileRecordOfAnotherPool() throws {

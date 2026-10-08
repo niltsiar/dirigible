@@ -12,7 +12,7 @@ repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 

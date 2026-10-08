@@ -5,8 +5,10 @@
 # runs no target (not the default goal `setup`) for an empty target list. Check that FILTER
 # gives test-filter in place of test, and reaches the swift calls through make. Check that a
 # passing make check-changed with BASE writes the stamp, and a red one does not. Check that the push
-# adds test-slow only for risk, a slow test, a Makefile change, or no passed slow run today, and
-# that a passing make test-slow writes the date. Check that the recipe waits for a load under the
+# adds test-slow-push only for risk, a slow test, a Makefile change, or no passed slow run today,
+# and test-slow for a changed PUSH_SKIP file. Check that test-slow-push has no test of a PUSH_SKIP
+# file, that a passing make test-slow or test-slow-push writes the date, and that check-slow-gates
+# fails on a PUSH_SKIP name with no file. Check that the recipe waits for a load under the
 # core count before Swift tests, stops the wait at CHECK_LOAD_WAIT, and reads no load for docs
 # targets. Run by `make test-hooks`.
 set -uo pipefail
@@ -44,18 +46,18 @@ expect 'a probe script' "$(out tooling check-fast no)" <<<'scripts/probe.sh'
 expect 'a skill doc and a skill script' "$(out 'docs tooling' check-fast no)" \
   <<<$'.claude/skills/deliver/SKILL.md\n.claude/skills/deliver/scripts/new-run.sh'
 expect 'Makefile local' "$(out bundle check no)" <<<'Makefile'
-expect 'Makefile before the push' "$(out bundle 'check test-slow test-dmg' no)" --push <<<'Makefile'
+expect 'Makefile before the push' "$(out bundle 'check test-slow-push test-dmg' no)" --push <<<'Makefile'
 expect 'Package.swift local' "$(out build check no)" <<<'Package.swift'
 expect 'Package.swift before the push' "$(out build check no)" --push <<<'Package.swift'
 expect 'Tests only' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'Tests only before the push' "$(out tests check no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'app sources local' "$(out sources test no)" <<<'Sources/DirigibleApp/AppDelegate.swift'
 expect 'app sources before the push' "$(out sources check no)" --push <<<'Sources/DirigibleApp/AppDelegate.swift'
-expect 'capture sources' "$(out sources-risk 'check test-slow' yes)" --push \
+expect 'capture sources' "$(out sources-risk 'check test-slow-push' yes)" --push \
   <<<'Sources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'capture sources local' "$(out sources-risk test yes)" <<<'Sources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'session writer' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/SessionWriter.swift'
-expect 'Makefile and capture sources' "$(out 'sources-risk bundle' 'check test-slow test-dmg' yes)" --push \
+expect 'Makefile and capture sources' "$(out 'sources-risk bundle' 'check test-slow-push test-dmg' yes)" --push \
   <<<$'Makefile\nSources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'Support' "$(out bundle 'check test-dmg' no)" --push <<<'Support/Info.plist'
 expect 'bundle script before the push' "$(out bundle 'check test-dmg' no)" --push <<<'scripts/bundle.sh'
@@ -65,24 +67,26 @@ expect 'guide converter' "$(out bundle check no)" <<<'scripts/guide-html.swift'
 expect 'unknown top-level file' "$(out build check no)" <<<'unknown.txt'
 expect 'docs and sources' "$(out 'docs sources' 'check-docs test' no)" \
   <<<$'docs/guide.md\nSources/DirigibleApp/AppDelegate.swift'
-expect 'docs, tooling, and the Makefile before the push' "$(out 'docs tooling bundle' 'check test-slow test-dmg' no)" --push \
+expect 'docs, tooling, and the Makefile before the push' "$(out 'docs tooling bundle' 'check test-slow-push test-dmg' no)" --push \
   <<<$'AGENTS.md\nscripts/check-changed.sh\nMakefile'
 expect 'empty list, no base' "$(out none none no)" </dev/null
 
 # test-slow before the push: a slow test (a file with the gate) adds it; the local targets do not.
-expect 'a slow test before the push' "$(out tests 'check test-slow' no)" --push <<<'Tests/DirigibleCoreTests/LongTests.swift'
+expect 'a slow test before the push' "$(out tests 'check test-slow-push' no)" --push <<<'Tests/DirigibleCoreTests/LongTests.swift'
 expect 'a slow test local' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/LongTests.swift'
 # No passed slow run today: a push with check adds it once; a docs or tooling push does not.
 echo 2000-01-01 > "$e/.git/dirigible-slow-date"
-expect 'no slow run today, Tests' "$(out tests 'check test-slow' no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
+expect 'no slow run today, Tests' "$(out tests 'check test-slow-push' no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'no slow run today, docs' "$(out docs check-docs no)" --push <<<'docs/guide.md'
 expect 'no slow run today, tooling' "$(out tooling check-fast no)" --push <<<'scripts/probe.sh'
 rm "$e/.git/dirigible-slow-date"
-expect 'no date file' "$(out sources 'check test-slow' no)" --push <<<'Sources/DirigibleApp/AppDelegate.swift'
+expect 'no date file' "$(out sources 'check test-slow-push' no)" --push <<<'Sources/DirigibleApp/AppDelegate.swift'
 echo "$today" > "$e/.git/dirigible-slow-date"
+# A changed bench file that PUSH_SKIP of the Makefile names runs the full test-slow, so its tests run.
+expect 'a PUSH_SKIP bench before the push' "$(out tests 'check test-slow' no)" --push <<<'Tests/DirigibleAudioTests/LoudnessBenchmark.swift'
 # Outside a git repo there is no date, so the push runs the slow tests.
 got="$(cd "$tmp" && "$script" --paths --push <<<'Tests/A.swift')" || fail "outside a repo: exit $?"
-[[ "$got" == "$(out tests 'check test-slow' no)" ]] || fail "outside a repo: got [$got]"
+[[ "$got" == "$(out tests 'check test-slow-push' no)" ]] || fail "outside a repo: got [$got]"
 
 # FILTER: the tests of the slice in place of all tests. The other targets do not change.
 FILTER=ClipTests expect 'tests with FILTER' "$(out tests test-filter no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
@@ -149,7 +153,7 @@ printf 'x\n' > "$tmp/r/Sources/DirigibleApp/X.swift"
 g add -A
 g commit -q -m x
 got="$(run_in main)" || fail "a Sources branch: exit $?"
-[[ "$got" == "$(out sources 'check test-slow' no)" ]] || fail "a Sources branch with no slow run today: got [$got]"
+[[ "$got" == "$(out sources 'check test-slow-push' no)" ]] || fail "a Sources branch with no slow run today: got [$got]"
 echo "$today" > "$tmp/r/.git/dirigible-slow-date"
 got="$(run_in main)" || fail "a Sources branch: exit $?"
 [[ "$got" == "$(out sources check no)" ]] || fail "a Sources branch with a slow run today: got [$got]"
@@ -286,14 +290,35 @@ CHECK_LOAD_WAIT=20 wait_case || fail "a test of another tree that stays: exit $?
 [[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: a test of another tree runs after 20 s (pid ${other/ /: }): run the tests" ]] || fail "a test of another tree that stays: last line: $(tail -n 1 "$tmp/wait.err")"
 : > "$tmp/procs"
 
-# make test-slow writes the date of today after a pass, and nothing after a red run.
+# make test-slow and make test-slow-push write the date of today after a pass, and nothing after
+# a red run. The temporary repo has no bench file, so PUSH_SKIP is empty on the command line.
+for target in test-slow test-slow-push; do
+  make_repo
+  printf '#!/bin/bash\nexit 1\n' > "$tmp/bin/swift"
+  PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" $target PUSH_SKIP= > /dev/null 2>&1 && fail "make $target with a red swift exits 0"
+  [[ ! -e "$tmp/r/.git/dirigible-slow-date" ]] || fail "a red make $target wrote the date"
+  printf '#!/bin/bash\nexit 0\n' > "$tmp/bin/swift"
+  PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" $target PUSH_SKIP= > /dev/null 2>&1 || fail "make $target with a green swift exits nonzero"
+  [[ "$(cat "$tmp/r/.git/dirigible-slow-date" 2>/dev/null)" == "$today" ]] || fail "a passing make $target did not write the date"
+done
+
+# test-slow-push passes no func of a PUSH_SKIP file to swift; test-slow passes each slow func.
 make_repo
-printf '#!/bin/bash\nexit 1\n' > "$tmp/bin/swift"
-PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow > /dev/null 2>&1 && fail 'make test-slow with a red swift exits 0'
-[[ ! -e "$tmp/r/.git/dirigible-slow-date" ]] || fail 'a red make test-slow wrote the date'
-printf '#!/bin/bash\nexit 0\n' > "$tmp/bin/swift"
-PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow > /dev/null 2>&1 || fail 'make test-slow with a green swift exits nonzero'
-[[ "$(cat "$tmp/r/.git/dirigible-slow-date" 2>/dev/null)" == "$today" ]] || fail 'a passing make test-slow did not write the date'
+mkdir -p "$tmp/r/Tests/DirigibleAudioTests"
+gate='guard ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1" else { return }'
+printf '%s\nfunc aSkippedBench() {}\n' "$gate" > "$tmp/r/Tests/DirigibleAudioTests/LoudnessBenchmark.swift"
+printf '%s\nfunc aKeptSlowTest() {}\n' "$gate" > "$tmp/r/Tests/DirigibleAudioTests/KeptTests.swift"
+printf '#!/bin/bash\necho "swift $*" >> "%s"\n' "$tmp/swift.log" > "$tmp/bin/swift"
+: > "$tmp/swift.log"
+PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow-push PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow-push exits nonzero'
+[[ "$(cat "$tmp/swift.log")" == *"--filter aKeptSlowTest" ]] || fail "make test-slow-push: swift calls [$(cat "$tmp/swift.log")]"
+: > "$tmp/swift.log"
+PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow exits nonzero'
+[[ "$(cat "$tmp/swift.log")" == *aSkippedBench* && "$(cat "$tmp/swift.log")" == *aKeptSlowTest* ]] || fail "make test-slow: swift calls [$(cat "$tmp/swift.log")]"
+# check-slow-gates fails on a PUSH_SKIP name with no file under Tests/, with the reason.
+got="$(make -s -C "$tmp/r" check-slow-gates PUSH_SKIP='LoudnessBenchmark NoSuchBench' 2>&1)" && fail 'a PUSH_SKIP name with no file: exit 0'
+[[ "$got" == *"PUSH_SKIP names NoSuchBench, which has no file under Tests/"* ]] || fail "a PUSH_SKIP name with no file: no reason: $got"
+make -s -C "$tmp/r" check-slow-gates PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'check-slow-gates with a PUSH_SKIP file: exit nonzero'
 
 # The stamp: a passing check with BASE appends it, a red check or no BASE does not.
 # A stub script gives the targets stub-ok or stub-red of the copied Makefile.

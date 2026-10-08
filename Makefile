@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app icon-preview test test-filter test-slow check-slow-gates check-warnings check-sizes bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
+.PHONY: setup build app icon-preview test test-filter test-slow test-slow-push check-slow-gates check-warnings check-sizes bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -30,25 +30,40 @@ test-filter:
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
 # variable does not change the count. scripts/check-changed.sh repeats the expression: change both.
 SLOW_GATE = environment["DIRIGIBLE_SLOW_TESTS"]
-# The name of each slow test: the function after its gate.
-SLOW_TESTS = $(shell grep -rhF -A1 '$(SLOW_GATE)' Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)
+# The name of each slow test: the function after its gate. The argument holds more grep options.
+slow_tests = $(shell grep -rhF -A1 $(1) '$(SLOW_GATE)' Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)
+SLOW_TESTS = $(call slow_tests)
+# The bench files that the push skips: a fast test holds each of their asserts (run
+# 2026-10-08-workflow-speed-3). make test-slow still runs them. scripts/check-changed.sh reads
+# this line: a changed file of the list runs test-slow before the push.
+PUSH_SKIP = LoudnessExportBenchmark AutoLevelBenchmark LiveLoudnessBenchmark ExportBenchmark PeakComputeBenchmark LoudnessBenchmark InspectionBenchmark EditBenchmark NavigationKeyBenchmark LaneRenderBenchmark MouseEventBenchmark+CommandF
+SLOW_PUSH_TESTS = $(call slow_tests,$(foreach n,$(PUSH_SKIP),--exclude='$(n).swift'))
 
 # The slow tests only. They run in their own process: their disk and CPU load makes the timed
 # tests fail when both run in one process. Before the push, `make check-changed BASE=<ref>`
 # runs `check` first, so the other tests do not run twice. They run one at a time, so the
 # benchmarks do not measure the load of the other slow tests. A pass writes the date of today,
-# so scripts/check-changed.sh adds test-slow to a push only once a day (decision 0028).
+# so scripts/check-changed.sh adds test-slow-push to a push only once a day (decision 0028).
 test-slow: check-slow-gates
 	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
 	date +%F > "$$(git rev-parse --git-common-dir)/dirigible-slow-date"
 
+# The slow tests of the push: test-slow with no test of a PUSH_SKIP file.
+test-slow-push: check-slow-gates
+	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_PUSH_TESTS)'
+	date +%F > "$$(git rev-parse --git-common-dir)/dirigible-slow-date"
+
 # The slow tests that match FILTER in an optimized build, for a budget that holds only with -O.
+# `swift test -c release` runs the @main of the app, not the tests: scripts/bench.sh removes it.
 bench:
 	scripts/bench.sh '$(FILTER)'
 
 # Each slow-test gate has its func on the next line, so SLOW_TESTS finds every slow test.
-# make check runs this grep, because make check does not run the slow tests.
+# make check runs this grep, because make check does not run the slow tests. Each PUSH_SKIP name
+# is a file under Tests/.
 check-slow-gates:
+	@for n in $(PUSH_SKIP); do test -n "$$(find Tests -name "$$n.swift" 2>/dev/null)" \
+		|| { echo "check-slow-gates: PUSH_SKIP names $$n, which has no file under Tests/"; exit 1; }; done
 	@test "$$(echo '$(SLOW_TESTS)' | tr '|' '\n' | grep -c .)" -eq "$$(grep -rF '$(SLOW_GATE)' Tests | wc -l | tr -d ' ')" \
 		|| { echo "check-slow-gates: put the func of each slow test on the line after its gate"; exit 1; }
 

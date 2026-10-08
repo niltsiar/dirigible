@@ -56,17 +56,8 @@ public func importAudio(
 ) throws(ImportError) -> (session: Session, clip: ClipID) {
     let name = source.lastPathComponent
     guard isDownloaded(source) else { throw .notDownloaded(file: name) }
-    // Held open, so a read error with no errno can be checked on the same file.
-    let descriptor = open(source.path, O_RDONLY | O_CLOEXEC)
-    guard descriptor >= 0 else { throw .unreadable(file: name, errno: errno) }
+    let (descriptor, input) = try openAudio(source)
     defer { close(descriptor) }
-    let input: AVAudioFile
-    do {
-        input = try AVAudioFile(forReading: source)
-    } catch {
-        if let code = ioErrno(of: error, file: descriptor) { throw .unreadable(file: name, errno: code) }
-        throw .notAudio(file: name)
-    }
     let channels = Int(input.fileFormat.channelCount)
     guard channels <= 2 else { throw .tooManyChannels(file: name, channels: channels) }
     guard input.length > 0, let fileLayout = ChannelLayout(channelCount: channels) else {
@@ -93,18 +84,9 @@ public func importAudio(
     let temporary = clips.appending(path: temporaryWAV(of: stem))
     var renamed = false
     defer { if !renamed { unlink(temporary.path) } }
-    let conversion = ClipConversion(
-        package: package, wav: wav, blockFrames: 65_536, readFault: nil,
-        unreadable: { .readFailed(file: source.path, errno: $0) }, channels: AVAudioChannelCount(layout.channelCount),
-        progress: progress, isCancelled: isCancelled)
-    let converted: (length: Int, gain: Gain)?
-    do {
-        converted = try conversion.convert(input, file: descriptor, from: sourceRate, to: rate, into: temporary)
-    } catch .readFailed(let file, let code) where file == source.path {
-        throw .unreadable(file: name, errno: code)
-    } catch {
-        throw .write(file: name, error)
-    }
+    let converted = try convertToWAV(
+        input, descriptor: descriptor, source: source, package: package, wav: wav, channels: layout.channelCount,
+        rate: rate, into: temporary, progress: progress, isCancelled: isCancelled)
     guard let (length, gain) = converted else { throw isCancelled() ? .cancelled : .notAudio(file: name) }
 
     let (track, file, clip) = (target.track ?? TrackID(), FileID(stem), ClipID(stem))
@@ -129,6 +111,44 @@ public func importAudio(
     guard !isCancelled() else { throw .cancelled }
     if level { imported = autoLevel([clip], .eachClip, of: imported, in: package).session }
     return (imported, clip)
+}
+
+/// Opens `source` for a conversion: a descriptor, held open so that a read error with no errno can
+/// be checked on the same file, and the `AVAudioFile`. The caller closes the descriptor.
+func openAudio(_ source: URL) throws(ImportError) -> (descriptor: Int32, file: AVAudioFile) {
+    let name = source.lastPathComponent
+    let descriptor = open(source.path, O_RDONLY | O_CLOEXEC)
+    guard descriptor >= 0 else { throw .unreadable(file: name, errno: errno) }
+    do {
+        return (descriptor, try AVAudioFile(forReading: source))
+    } catch {
+        let code = ioErrno(of: error, file: descriptor)
+        close(descriptor)
+        if let code { throw .unreadable(file: name, errno: code) }
+        throw .notAudio(file: name)
+    }
+}
+
+/// Converts `input` into the temporary WAV at `temporary`, `channels` channels at `rate`, with
+/// `ClipConversion` (decision 0040): the one conversion of import and of a paste from a package of
+/// another rate (decision 0042). Returns the frame count and the clip gain of A11, or nil for a bad
+/// input or a cancel. `wav` is the package-relative path of the WAV, for errors.
+func convertToWAV(
+    _ input: AVAudioFile, descriptor: Int32, source: URL, package: URL, wav: String, channels: Int, rate: Double,
+    into temporary: URL, progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool
+) throws(ImportError) -> (length: Int, gain: Gain)? {
+    let conversion = ClipConversion(
+        package: package, wav: wav, blockFrames: 65_536, readFault: nil,
+        unreadable: { .readFailed(file: source.path, errno: $0) }, channels: AVAudioChannelCount(channels),
+        progress: progress, isCancelled: isCancelled)
+    do {
+        return try conversion.convert(
+            input, file: descriptor, from: input.fileFormat.sampleRate, to: rate, into: temporary)
+    } catch .readFailed(let file, let code) where file == source.path {
+        throw .unreadable(file: source.lastPathComponent, errno: code)
+    } catch {
+        throw .write(file: source.lastPathComponent, error)
+    }
 }
 
 /// The stem of the WAV and the IDs of an import of `source` (decision 0040): the file name with no

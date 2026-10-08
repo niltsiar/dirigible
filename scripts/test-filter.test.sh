@@ -1,8 +1,10 @@
 #!/bin/bash
 # Check that test-filter.sh runs the tests of FILTER as `make test` runs all tests: process 1
 # skips the CLI tests and gets one --filter for each word, process 2 runs the CLI tests of a
-# word that a CLI test file names. Check that it fails closed: no test in each process that ran,
-# a nonzero swift exit, or no word. A fake swift on PATH logs its arguments. Run by `make test-hooks`.
+# word that a CLI test file names. Check that --exact anchors each name and escapes its regex
+# characters, and that --no-parallel reaches both processes. Check that it fails closed: no test
+# in each process that ran, a nonzero swift exit, or no word. A fake swift on PATH logs its
+# arguments. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -13,7 +15,7 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # A package copy: the script and one CLI test file that names the suite CLIWordTests.
 mkdir -p "$tmp/pkg/scripts" "$tmp/pkg/Tests/DirigibleCLITests" "$tmp/bin"
 cp "$repo/scripts/test-filter.sh" "$tmp/pkg/scripts/test-filter.sh"
-printf 'struct CLIWordTests {}\n' > "$tmp/pkg/Tests/DirigibleCLITests/CLIWordTests.swift"
+printf 'struct CLIWordTests {\n    @Test func cliWordRuns() {}\n}\n' > "$tmp/pkg/Tests/DirigibleCLITests/CLIWordTests.swift"
 
 # The fake swift logs one line for each call. FAKE_P1 and FAKE_P2 set the output of process 1
 # (the call with --skip DirigibleCLITests) and process 2: none (the two no-test strings of
@@ -73,6 +75,28 @@ run fail tests ClipTests CLIWordTests
 [[ "$(grep -c '^swift ' "$tmp/log")" -eq 1 ]] || fail "a failed test in process 1: process 2 ran: $(cat "$tmp/log")"
 run tests fail CLIWordTests
 [[ $code -ne 0 ]] || fail 'a failed test in process 2: exit 0'
+
+# --exact anchors each name to the end of its test ID ('/<name>('), so a name that is a prefix
+# of another test name runs only its own test. The CLI process takes a name with 'func <name>('.
+run tests tests --exact theLanes
+[[ $code -eq 0 ]] || fail "--exact: exit $code: $out"
+[[ "$(cat "$tmp/log")" == "$p1 --filter /theLanes\\(" ]] || fail "--exact: calls differ: $(cat "$tmp/log")"
+
+run tests tests --exact 'a.b*'
+[[ "$(cat "$tmp/log")" == "$p1 --filter /a\\.b\\*\\(" ]] || fail "--exact with regex characters: calls differ: $(cat "$tmp/log")"
+
+run tests tests --exact cliWordRuns cliWord
+want="$p1 --filter /cliWordRuns\\( --filter /cliWord\\(
+swift test --filter DirigibleCLITests.*/cliWordRuns\\("
+[[ "$(cat "$tmp/log")" == "$want" ]] || fail "--exact with a CLI name and its prefix: calls differ: $(cat "$tmp/log")"
+
+run tests tests --exact --no-parallel cliWordRuns
+want="$p1 --filter /cliWordRuns\\( --no-parallel
+swift test --filter DirigibleCLITests.*/cliWordRuns\\( --no-parallel"
+[[ "$(cat "$tmp/log")" == "$want" ]] || fail "--no-parallel: calls differ: $(cat "$tmp/log")"
+
+run tests tests --exact
+[[ $code -eq 2 && ! -s "$tmp/log" ]] || fail "--exact and no word: expected exit 2 and no swift call, got $code"
 
 run tests tests
 [[ $code -eq 2 ]] || fail "no word: expected exit 2, got $code"

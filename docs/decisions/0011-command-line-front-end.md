@@ -14,6 +14,7 @@
 - Amended: 2026-10-04, run 12. `clip ripple-delete`, `clip ripple-insert`, and `clip ripple-trim` ripple all tracks, or the `--track` tracks. A split take exits 3 (see 0037).
 - Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard`. `clip paste-clips` copies whole clips with their time and track offsets and pastes them at `--at` (see 0038).
 - Amended: 2026-10-07, run 2026-10-07-mcp-cli. `dirigible mcp` serves each edit command as an MCP tool, with the English text of the command. `ParityTests` also checks that each command has its tool (see 0041).
+- Amended: 2026-10-08, run 2026-10-08-cli-bundle. The app bundle holds the tool at `Contents/Helpers/dirigible`, so a DMG user has `dirigible` and `dirigible mcp` with no developer setup.
 
 ## Context
 
@@ -60,7 +61,7 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 
 **Language.** The CLI text is English only. This is an exception to the Localized UI rule in `AGENTS.md`. The CLI is a developer and agent tool, not a part of the app UI (R13). Scripts and agents compare its output, so the text must not change with the macOS language. The usage and help text that swift-argument-parser makes is English only, so a Spanish CLI would be half translated.
 
-**Not in the app bundle.** `make app` builds only the `DirigibleApp` product (`swift build --product DirigibleApp`), and the bundle holds one executable. The users of the app are podcast producers. The CLI is for developers, agents, and scripts. A second binary in the bundle adds a universal build of swift-argument-parser to every `make app`, and no user story needs it now. A developer runs `swift run dirigible` or builds it with `swift build --product dirigible`.
+**In the app bundle.** `make app` also builds the `dirigible` product and copies it to `Contents/Helpers/dirigible`, not to `Contents/MacOS`: `dirigible` and `Dirigible` are one file on a volume that ignores case. `scripts/sign-app.sh` signs it with the identifier `com.delineas.dirigible.cli` before it signs the app. Each `make app` also builds swift-argument-parser universal, and the bundle grows by about 12 MB. The app does not call the tool.
 
 **Tests.** The test target `DirigibleCLITests` depends on `DirigibleCLI` and `DirigibleCore`. It runs the built `dirigible` binary as a `Process` on packages in a temporary folder. It checks the exit code, stdout, and stderr as literal text, and it reads the result with `Session(contentsOf:)`. The tests use no network, no microphone, and no permission prompt.
 
@@ -78,4 +79,4 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 - **A hand-written parser over `CommandLine.arguments`.** No dependency. Rejected: about 300 lines of parser, help text, and parser tests for about 20 commands, and each new command adds help text by hand. swift-argument-parser is maintained by Apple and already tested.
 - **A command library** (`DirigibleCommands`, with a `Command` enum and `run(_:package:)`) and a main file of a few lines. It allows in-process tests. Rejected: each enum case forwards to one `Session` edit with the same arguments, so the library is a pass-through with one consumer. 0002 rejected a command type for undo for the same reason.
 - **Another command name** (`dirigible-cli`, `dg`) with the app target name unchanged. Rejected: the name of the command is what scripts type, and a rename of the app target costs one commit.
-- **The CLI in the app bundle** (`Contents/Helpers/dirigible`). Rejected for now, for the reasons in the decision. Add it when a user needs scripts without a developer setup.
+- **Only in a clone** (`swift run dirigible`). Rejected 2026-10-08: a user of the DMG had no `dirigible` and no `dirigible mcp`.

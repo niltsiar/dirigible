@@ -1,5 +1,6 @@
 #!/bin/bash
-# Build the app bundle: universal release binary, Info.plist, app icon, user guide, and signature.
+# Build the app bundle: universal release binaries (the app and the dirigible tool), Info.plist,
+# app icon, user guide, and signature.
 # The first argument is the bundle path (default build/Dirigible.app). It must be
 # build/<name>.app, because the script deletes that folder first.
 # SIGN_IDENTITY defaults to "-" (ad-hoc). Set it to a local self-signed certificate
@@ -17,11 +18,14 @@ SWIFT_FLAGS=(-c release --arch arm64 --arch x86_64)
 
 scripts/icon.sh
 swift build "${SWIFT_FLAGS[@]}" --product DirigibleApp
+swift build "${SWIFT_FLAGS[@]}" --product dirigible
 BIN_DIR="$(swift build "${SWIFT_FLAGS[@]}" --product DirigibleApp --show-bin-path)"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 cp "$BIN_DIR/DirigibleApp" "$APP/Contents/MacOS/Dirigible"
+# Not Contents/MacOS: dirigible and Dirigible are one file on a volume that ignores case (decision 0011).
+cp "$BIN_DIR/dirigible" "$APP/Contents/Helpers/dirigible"
 cp Support/Info.plist "$APP/Contents/Info.plist"
 cp -R Support/Resources/. "$APP/Contents/Resources/"
 # The LGPL notice names the source of this binary: the commit, and a mark when the tree had

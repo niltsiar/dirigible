@@ -556,7 +556,16 @@ A session is a macOS package: a folder with the extension `.dirigible` that Find
 
 ### The dirigible tool
 
-`dirigible` is a command-line tool that makes, changes, and reads session packages. The DMG does not contain it. Build and run it from a clone of the repository:
+`dirigible` is a command-line tool that makes, changes, and reads session packages. The app contains it at `/Applications/Dirigible.app/Contents/Helpers/dirigible`. To type `dirigible` in Terminal, link it into `/usr/local/bin` one time (macOS asks for your password):
+
+```sh
+sudo mkdir -p /usr/local/bin
+ls /Applications/Dirigible.app/Contents/Helpers/dirigible && sudo ln -sf /Applications/Dirigible.app/Contents/Helpers/dirigible /usr/local/bin/dirigible
+```
+
+If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`.
+
+From a clone of the repository, run it with `swift run`:
 
 ```sh
 swift run dirigible --help
@@ -579,7 +588,15 @@ The text of the tool is English only.
 
 An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create` and `session_info`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
 
-Register the server once for your user, from a clone of the repository:
+Register the server once for your user:
+
+```sh
+claude mcp add --scope user dirigible -- /Applications/Dirigible.app/Contents/Helpers/dirigible mcp
+```
+
+If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`.
+
+From a clone of the repository, register the debug build in its place:
 
 ```sh
 make build

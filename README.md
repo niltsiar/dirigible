@@ -100,13 +100,22 @@ If macOS says that "Dirigible" is damaged and cannot be opened, and you use Term
 xattr -dr com.apple.quarantine /Applications/Dirigible.app
 ```
 
+This command also lets the dirigible tool run. If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`.
+
 ## User guide
 
 The [user guide](docs/guide.md) shows how to record, edit, and export an episode. It also lists each menu command with its key. In the app, choose **Help > Dirigible Guide**.
 
 ## The dirigible tool
 
-`dirigible` is a command-line tool that makes, changes, and reads sessions. The DMG does not contain it. See [For contributors](docs/guide.md#for-contributors) in the guide.
+`dirigible` is a command-line tool that makes, changes, and reads sessions. The app contains it at `/Applications/Dirigible.app/Contents/Helpers/dirigible`. To type `dirigible` in Terminal, link it into `/usr/local/bin` one time (macOS asks for your password):
+
+```sh
+sudo mkdir -p /usr/local/bin
+ls /Applications/Dirigible.app/Contents/Helpers/dirigible && sudo ln -sf /Applications/Dirigible.app/Contents/Helpers/dirigible /usr/local/bin/dirigible
+```
+
+If you have no administrator rights, add this line to `~/.zprofile` in its place: `export PATH="/Applications/Dirigible.app/Contents/Helpers:$PATH"`. If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`. The guide shows the commands in [The dirigible tool](docs/guide.md#the-dirigible-tool).
 
 `dirigible mcp` lets an agent such as Claude Code read and edit a session through MCP. See [Connect an agent with MCP](docs/guide.md#connect-an-agent-with-mcp).
 

@@ -131,7 +131,7 @@ done
 # of PUSH_SKIP (the Makefile line) runs test-slow, the full suite, in its place.
 if [[ $push == 1 ]]; then
     slow=no full=no
-    skip="$(sed -n 's/^PUSH_SKIP = //p' "$(dirname "$0")/../Makefile" 2>/dev/null || true)"
+    skip="$(sed -n 's/^PUSH_SKIP = //p' "$(dirname "$0")/../Makefile")"
     [[ $risk == yes ]] && slow=yes
     grep -qx Makefile <<<"$paths" && slow=yes
     root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

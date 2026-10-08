@@ -144,11 +144,17 @@ grep -qx 'backlog: ## Later has 1 items' "$tmp/err" || fail "no Later count with
 grep -qx 'upkeep items: 0' "$tmp/err" || fail "no upkeep count of 0: $(cat "$tmp/err")"
 grep -q 'warning' "$tmp/err" && fail "warning with no upkeep item: $(cat "$tmp/err")"
 
-# It counts the upkeep items of ## Next only, and warns at 3 or more (reflect rule 6).
-printf '# Backlog\n\n## Next\n\n- upkeep a: x\n- upkeep b: x\n- upkeep c: x\n\n## Later\n\n- upkeep d: x\n' > "$repo/.scratchpads/backlog.md"
-(cd "$repo" && "$new_run" upkeep > /dev/null 2> "$tmp/err") || fail "new-run with upkeep items exits $?"
-grep -qx 'upkeep items: 3' "$tmp/err" || fail "no upkeep count of 3: $(cat "$tmp/err")"
-grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 3 upkeep items: $(cat "$tmp/err")"
+# It counts the upkeep items of ## Next only, and warns at 8 or more (reflect rule 6): 7 items in
+# ## Next and one in ## Later give no warning; 8 items in ## Next give one.
+items() { for i in $(seq "$1"); do printf -- '- upkeep k%d: x\n' "$i"; done; }
+printf '# Backlog\n\n## Next\n\n%s\n\n## Later\n\n- upkeep d: x\n' "$(items 7)" > "$repo/.scratchpads/backlog.md"
+(cd "$repo" && "$new_run" upkeep-seven > /dev/null 2> "$tmp/err") || fail "new-run with 7 upkeep items exits $?"
+grep -qx 'upkeep items: 7' "$tmp/err" || fail "no upkeep count of 7: $(cat "$tmp/err")"
+grep -q 'warning' "$tmp/err" && fail "warning at 7 upkeep items: $(cat "$tmp/err")"
+printf '# Backlog\n\n## Next\n\n%s\n\n## Later\n\n- upkeep d: x\n' "$(items 8)" > "$repo/.scratchpads/backlog.md"
+(cd "$repo" && "$new_run" upkeep > /dev/null 2> "$tmp/err") || fail "new-run with 8 upkeep items exits $?"
+grep -qx 'upkeep items: 8' "$tmp/err" || fail "no upkeep count of 8: $(cat "$tmp/err")"
+grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 8 upkeep items: $(cat "$tmp/err")"
 
 # It reminds of an architecture audit at 5 distinct product runs after the last run whose name has
 # architecture and a done row. A run has an open and a done row. The current run, and a run whose name has

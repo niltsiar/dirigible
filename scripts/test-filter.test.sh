@@ -69,10 +69,11 @@ run none none CLIWordTests
 [[ $code -eq 1 ]] || fail "no test in both processes: expected exit 1, got $code"
 [[ "$(grep -c '^swift ' "$tmp/log")" -eq 2 ]] || fail "no test in both processes: calls: $(cat "$tmp/log")"
 
-# A failed test: the exit status stops the run, and the text check does not hide it.
+# A failed test: process 2 still runs, as in make test, so a rerun sees each CLI test. The
+# exit status is the first nonzero status, and the text check does not hide it.
 run fail tests ClipTests CLIWordTests
-[[ $code -ne 0 ]] || fail 'a failed test in process 1: exit 0'
-[[ "$(grep -c '^swift ' "$tmp/log")" -eq 1 ]] || fail "a failed test in process 1: process 2 ran: $(cat "$tmp/log")"
+[[ $code -eq 1 ]] || fail "a failed test in process 1: expected exit 1, got $code"
+[[ "$(grep -c '^swift ' "$tmp/log")" -eq 2 ]] || fail "a failed test in process 1: process 2 did not run: $(cat "$tmp/log")"
 run tests fail CLIWordTests
 [[ $code -ne 0 ]] || fail 'a failed test in process 2: exit 0'
 

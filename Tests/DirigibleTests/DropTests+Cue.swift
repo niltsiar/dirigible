@@ -82,11 +82,15 @@ extension DropTests {
         _ = view.draggingEntered(below)
         #expect(cue.text.foregroundColor == cgColor(LanePalette.light.label), "the light label color")
         #expect(cue.line.backgroundColor == cgColor(0xFF11_2233) && cue.row.strokeColor == cgColor(0xFF11_2233))
+        let lightFill = [cue.row.fillColor, cue.tint.backgroundColor].map { $0.map { Double($0.alpha) } }
+        #expect(lightFill == [0.08, 0.08], "the light fill is 8 %")
 
         view.lanes.palette = .dark(accent: 0xFF44_5566)
         _ = view.draggingUpdated(below)
         #expect(cue.text.foregroundColor == cgColor(view.lanes.palette.label), "the dark label color")
         #expect(cue.line.backgroundColor == cgColor(0xFF44_5566), "the new accent")
+        let darkFill = [cue.row.fillColor, cue.tint.backgroundColor].map { $0.map { Double($0.alpha) } }
+        #expect(darkFill == [0.12, 0.12], "the dark fill is 12 %")
         #expect(cue.line.frame.width == 1 && cue.row.lineWidth == 1, "1 pt")
         _ = view.draggingUpdated(lane)
         #expect(cue.tint.borderWidth == 1, "a 1 pt border")

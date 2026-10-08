@@ -61,8 +61,8 @@ import Testing
         #expect(!takesTransportKeys(panel))
     }
 
-    /// Run 2026-10-05-alert-return-hang C1: an alert whose buttons do not take Return (an OK
-    /// with the cancel role) is a panel where no responder uses the key. AppKit routes the key
+    /// Run 2026-10-05-alert-return-hang C1: a window with no Return button (the export progress
+    /// sheet) is a panel where no responder uses the key. AppKit routes the key
     /// from `NSWindow.keyDown` to the main menu, as the hang sample shows. The main menu has the
     /// forwarding items of Rename Track (Return) and Play (Space), as SwiftUI builds them. The
     /// item stops a loop at depth 3, so the test fails and does not hang.

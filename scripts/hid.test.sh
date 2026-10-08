@@ -96,4 +96,27 @@ up 56 flags 0"
 [[ "$(swift "$hid" scroll 100 200 0 -30 --phases --dry-run 2>&1)" == "wheel 0 -30 pixels flags 0" ]] \
     || fail "a trackpad gesture is in pixels"
 
+# drag --outside (run 13c C13): the start is in a Finder window in front, and the end is in the
+# target window. HID_TEST_WINDOWS gives the windows of a dry run, front to back, as `owner x y w h`
+# groups; the owner `target` is the target app. No app has the bundle ID, so nothing posts.
+expect_usage "click with --outside" click 1 2 --outside
+# expect_drag <case> <windows> <exit> <stdout or stderr text> <drag args...>
+expect_drag() {
+    local name="$1" windows="$2" want_code="$3" want_text="$4"
+    shift 4
+    local out code
+    out="$(DIRIGIBLE_BUNDLE_ID=com.example.no-such-app HID_TEST_WINDOWS="$windows" swift "$hid" drag "$@" --outside --dry-run 2>&1)"
+    code=$?
+    [[ $code -eq $want_code ]] || fail "$name: exit $code, not $want_code: $out"
+    [[ "$out" == *"$want_text"* ]] || fail "$name: no \"$want_text\": $out"
+}
+side="target 100 100 800 600 Finder 1000 100 400 400"
+expect_drag "a start in a Finder window and an end in the target window" "$side" 0 "drag 1050 200 to 550 200" 950 100 -500 0
+expect_drag "an end outside the target window" "$side" 5 "outside the target window" 950 100 0 0
+expect_drag "a start outside every Finder window" "$side" 5 "not in a Finder window" 1500 100 -1000 0
+over="target 100 100 800 600 Finder 500 100 400 400"
+expect_drag "a target window over a Finder window at the start" "$over" 5 "not in a Finder window" 500 100 -200 0
+behind="Finder 500 100 400 400 target 100 100 800 600"
+expect_drag "a Finder window over the target window at the start" "$behind" 0 "drag 600 200 to 400 200" 500 100 -200 0
+
 [[ $failures -eq 0 ]] && echo "hid tests: all passed" || { echo "hid tests: $failures failed"; exit 1; }

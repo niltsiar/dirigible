@@ -12,7 +12,9 @@
 // or an up with no target window, goes to the pointer location.
 //
 // usage: run it with no command. The table `verbs` gives the arguments and the flags of each verb.
-//        drag: a left drag in 20 steps, then the up (--no-up: no up)
+//        drag: a left drag in 20 steps, then the up (--no-up: no up). --outside: the start point
+//              may be outside the target window, in a Finder window in front (a drag of a file
+//              from the Finder), and the end point must be in the target window
 //        up: a left mouse-up (after drag --no-up)
 //        click: a click (--right: a right click; --double: a double-click)
 //        move: a mouse move with no button
@@ -26,12 +28,15 @@
 //        (--command, --shift, --option, --control) holds its key down around the events.
 // A key event with a modifier flag and no modifier key left the system modifier held: every later
 // CGEvent of any process took it (run 1b Phase 7: the wheel of two tests became a Command-wheel).
-// --dry-run prints the key, text, and wheel events, and the origin of an up (`up pointer|window
-// <x> <y>`). It posts nothing and needs no target app.
+// --dry-run prints the key, text, and wheel events, the origin of an up (`up pointer|window
+// <x> <y>`), and the screen start and end of a drag (`drag <x0> <y0> to <x1> <y1>`). It posts
+// nothing and needs no target app. A drag dry run reads the windows from HID_TEST_WINDOWS, front
+// to back, as `owner x y w h` groups in screen points; the owner `target` is the target app.
 // Exit: 0 posted, 1 no Dirigible window, 2 usage or an empty DIRIGIBLE_BUNDLE_ID, 3 no
 // Accessibility trust, 4 the target app is not frontmost (it does not run, more than one app has
 // the bundle ID, or it did not come to the front in 2 s), 5 the point of a click, a drag start,
-// or a scroll is outside the target window.
+// or a scroll is outside the target window; with drag --outside, the end is outside the target
+// window, or the frontmost window at layer 0 or above at the start is not a Finder window.
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -41,7 +46,7 @@ import Foundation
 /// come from this table.
 let modifierFlags = ["--command", "--shift", "--option", "--control"]
 let verbs: [(verb: String, arguments: String, count: Int, flags: [String])] = [
-    ("drag", "<x> <y> <dx> <dy>", 4, ["--no-up"] + modifierFlags),
+    ("drag", "<x> <y> <dx> <dy>", 4, ["--no-up", "--outside"] + modifierFlags + ["--dry-run"]),
     ("up", "[<x> <y>]", 2, ["--dry-run"]),
     ("click", "<x> <y>", 2, ["--right", "--double"] + modifierFlags),
     ("move", "<x> <y>", 2, []),
@@ -148,38 +153,91 @@ if command == "scroll", flags.contains("--dry-run") {
 }
 
 // The check comes before the Accessibility check, so a test with no target app posts nothing. A
-// bare up needs no target.
+// bare up and a drag dry run need no target.
+let dryDrag = command == "drag" && flags.contains("--dry-run")
 let apps = command == "up" && !values.isEmpty ? runningTargets() : []
-let target: NSRunningApplication? = command == "up" ? (apps.count == 1 ? apps.first : nil) : requireFront()
+let target: NSRunningApplication? =
+    command == "up" ? (apps.count == 1 ? apps.first : nil) : dryDrag ? nil : requireFront()
+
+/// A window on screen: its owner name, its layer, its bounds in screen points, and whether the
+/// target app owns it (by its PID: the real app and the verify copy have the same name).
+struct Window {
+    let owner: String
+    let layer: Int
+    let bounds: CGRect
+    let target: Bool
+}
+
+/// The windows on screen, front to back. A drag dry run reads HID_TEST_WINDOWS (layer 0): the
+/// owner `target` is the target app, and the other owners are names, such as Finder.
+func screenWindows() -> [Window] {
+    if dryDrag {
+        let parts = (ProcessInfo.processInfo.environment["HID_TEST_WINDOWS"] ?? "").split(separator: " ")
+        guard parts.count % 5 == 0 else { fail("HID_TEST_WINDOWS needs owner x y w h groups.", 2) }
+        return stride(from: 0, to: parts.count, by: 5).map { start in
+            let numbers = parts[(start + 1)..<(start + 5)].compactMap { Double($0) }
+            guard numbers.count == 4 else { fail("HID_TEST_WINDOWS needs owner x y w h groups.", 2) }
+            let owner = String(parts[start])
+            return Window(
+                owner: owner, layer: 0,
+                bounds: CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3]),
+                target: owner == "target")
+        }
+    }
+    let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+    return list.compactMap { window in
+        guard let bounds = window[kCGWindowBounds as String] as? [String: Double], let left = bounds["X"],
+            let top = bounds["Y"], let width = bounds["Width"], let height = bounds["Height"]
+        else { return nil }
+        return Window(
+            owner: window[kCGWindowOwnerName as String] as? String ?? "",
+            layer: window[kCGWindowLayer as String] as? Int ?? -1,
+            bounds: CGRect(x: left, y: top, width: width, height: height),
+            target: target.map { window[kCGWindowOwnerPID as String] as? pid_t == $0.processIdentifier } ?? false)
+    }
+}
 
 /// The screen point: the top-left corner of the target window plus the point. A bare up, or an up
 /// with no target window, takes the pointer location.
 func screenPoint() -> (point: CGPoint, source: String) {
     let pointer = (CGEvent(source: nil)?.location ?? .zero, "pointer")
     if command == "up", values.isEmpty { return pointer }
-    // The window of the target app, by its PID: the real app and the verify copy have the same name.
-    // A layer-0 window (a normal window) comes before a tooltip, which is at a higher layer, as in
-    // screenshot.sh.
-    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-    let owned =
-        target.map { app in windows.filter { $0[kCGWindowOwnerPID as String] as? pid_t == app.processIdentifier } }
-        ?? []
-    let layer = { (window: [String: Any]) in window[kCGWindowLayer as String] as? Int ?? -1 }
-    let window = owned.first { layer($0) == 0 } ?? owned.first { layer($0) > 0 }
-    guard let bounds = window?[kCGWindowBounds as String] as? [String: Double], let left = bounds["X"],
-        let top = bounds["Y"], let width = bounds["Width"], let height = bounds["Height"]
-    else {
+    // The window of the target app. A layer-0 window (a normal window) comes before a tooltip,
+    // which is at a higher layer, as in screenshot.sh.
+    let windows = screenWindows()
+    let owned = windows.filter(\.target)
+    guard let bounds = (owned.first { $0.layer == 0 } ?? owned.first { $0.layer > 0 })?.bounds else {
         if command == "up" { return pointer }
         fail("No Dirigible window on screen. Run make run first.", 1)
     }
-    if command != "up", !(0..<width).contains(values[0]) || !(0..<height).contains(values[1]) {
-        fail("The point \(values[0]), \(values[1]) is outside the target window (\(width) x \(height)).", 5)
+    let point = CGPoint(x: bounds.minX + values[0], y: bounds.minY + values[1])
+    if command == "drag", flags.contains("--outside") {
+        // A drag from the Finder: the mouse-down goes to the frontmost window at the start, which
+        // must be a Finder window, and the drop goes to the target window. A window above layer 0
+        // (the Dock, a panel) is in front of a normal window.
+        let end = CGPoint(x: point.x + values[2], y: point.y + values[3])
+        if !bounds.contains(end) {
+            fail("The end point \(end.x), \(end.y) is outside the target window (\(bounds)).", 5)
+        }
+        let front = windows.first { $0.layer >= 0 && $0.bounds.contains(point) }
+        if front?.owner != "Finder" {
+            let owner = front?.owner ?? "no window"
+            fail("The start point \(point.x), \(point.y) is not in a Finder window in front (\(owner)).", 5)
+        }
+    } else if command != "up", !(0..<bounds.width).contains(values[0]) || !(0..<bounds.height).contains(values[1]) {
+        let size = "\(bounds.width) x \(bounds.height)"
+        fail("The point \(values[0]), \(values[1]) is outside the target window (\(size)).", 5)
     }
-    return (CGPoint(x: left + values[0], y: top + values[1]), "window")
+    return (point, "window")
 }
 if command == "up", flags.contains("--dry-run") {
     let (point, source) = screenPoint()
     print("up \(source) \(Int(point.x)) \(Int(point.y))")
+    exit(0)
+}
+if dryDrag {
+    let start = screenPoint().point
+    print("drag \(Int(start.x)) \(Int(start.y)) to \(Int(start.x + values[2])) \(Int(start.y + values[3]))")
     exit(0)
 }
 

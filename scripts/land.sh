@@ -89,7 +89,7 @@ if [[ -s "$flakes" ]]; then
     keep="$(mktemp)" row="$(mktemp)"
     while read -r commit name _ load; do
         if git merge-base --is-ancestor "$commit" "$before" 2>/dev/null || git merge-base --is-ancestor "$commit" HEAD 2>/dev/null; then
-            printf '7\nflake: %s passed only on a rerun of the push check, load %s at the failure\n%s\n%s\nflake\n' "$name" "$load" \
+            printf '7\nflake: %s passed only on a rerun of the push check, load %s at the end of the check\n%s\n%s\nflake\n' "$name" "$load" \
                 "run-checks.sh reran the failed test, and flake-triage.md still applies to it" \
                 "dirigible-flakes line of commit $commit" > "$row"
             "$here/../.claude/skills/deliver/scripts/log-decision.sh" "$run" --from "$row" || die "no flake row for $name; nothing is pushed"

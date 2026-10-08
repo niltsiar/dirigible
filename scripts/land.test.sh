@@ -363,7 +363,8 @@ code=$?
 [[ $code -eq 0 ]] || fail "flake rows: exit $code: $(cat "$c/out")"
 rows="$(tail -n +2 "$c/decisions.tsv")"
 [[ "$(grep -c . <<<"$rows")" == 1 ]] || fail "flake rows: rows [$rows]"
-[[ "$(cut -f2 <<<"$rows")" == 7 && "$(cut -f3 <<<"$rows")" == *aFlake*7.50* && "$(cut -f6 <<<"$rows")" == flake* ]] ||
+# run-checks.sh reads the load after make -k ends, so the row names that time, not the failure.
+[[ "$(cut -f2 <<<"$rows")" == 7 && "$(cut -f3 <<<"$rows")" == *aFlake*'load 7.50 at the end of the check'* && "$(cut -f6 <<<"$rows")" == flake* ]] ||
   fail "flake rows: row [$rows]"
 [[ "$(cat "$c/work/.git/dirigible-flakes")" == "$side other load 1.00" ]] || fail "flake rows: flakes [$(cat "$c/work/.git/dirigible-flakes")]"
 

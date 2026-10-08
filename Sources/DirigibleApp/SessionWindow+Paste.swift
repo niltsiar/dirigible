@@ -55,18 +55,16 @@ extension SessionWindow {
         }
     }
 
-    /// The selection after a paste: the pasted range, or the pasted clips for a set excerpt. After a
-    /// paste at another rate, the range ends at the end of the last pasted clip.
+    /// The selection after a paste: the pasted range, or the pasted clips for a set excerpt. At
+    /// another rate the range has the scaled length, which does not depend on the file lengths.
     private func select(
         _ pasted: (clips: [ClipID], tracks: [TrackID]), of clipboard: Clipboard, at: Frames, in studio: Studio
     ) {
         guard !pasted.clips.isEmpty else { return }
-        let excerpt = clipboard.excerpt
-        if excerpt.sampleRate != studio.session.sampleRate, excerpt.kind == .range {
-            let end = pasted.clips.compactMap { studio.session.clip($0)?.clip.end }.max() ?? at
-            timeline.selection = .range(Marks(inPoint: at, outPoint: end, tracks: Set(pasted.tracks)))
-            return
-        }
+        let rate = studio.session.sampleRate
+        let excerpt =
+            clipboard.excerpt.sampleRate == rate
+            ? clipboard.excerpt : clipboard.excerpt.resampled(to: rate, lengths: [:])
         timeline.selection = Selection(pasted: pasted.clips, of: excerpt, at: at, on: pasted.tracks)
     }
 

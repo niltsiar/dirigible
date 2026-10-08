@@ -14,7 +14,7 @@
 // usage: run it with no command. The table `verbs` gives the arguments and the flags of each verb.
 //        drag: a left drag in 20 steps, then the up (--no-up: no up). --outside: the start point
 //              may be outside the target window, in a Finder window in front (a drag of a file
-//              from the Finder), and the end point must be in the target window
+//              from the Finder), and the end point must be in a target window in front
 //        up: a left mouse-up (after drag --no-up)
 //        click: a click (--right: a right click; --double: a double-click)
 //        move: a mouse move with no button
@@ -35,8 +35,8 @@
 // Exit: 0 posted, 1 no Dirigible window, 2 usage or an empty DIRIGIBLE_BUNDLE_ID, 3 no
 // Accessibility trust, 4 the target app is not frontmost (it does not run, more than one app has
 // the bundle ID, or it did not come to the front in 2 s), 5 the point of a click, a drag start,
-// or a scroll is outside the target window; with drag --outside, the end is outside the target
-// window, or the frontmost window at layer 0 or above at the start is not a Finder window.
+// or a scroll is outside the target window; with drag --outside, the frontmost window at layer 0
+// or above at the end is not a target window, or at the start is not a Finder window.
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -213,13 +213,17 @@ func screenPoint() -> (point: CGPoint, source: String) {
     let point = CGPoint(x: bounds.minX + values[0], y: bounds.minY + values[1])
     if command == "drag", flags.contains("--outside") {
         // A drag from the Finder: the mouse-down goes to the frontmost window at the start, which
-        // must be a Finder window, and the drop goes to the target window. A window above layer 0
-        // (the Dock, a panel) is in front of a normal window.
+        // must be a Finder window, and the mouse-up goes to the frontmost window at the end, which
+        // must be a target window. A window above layer 0 (the Dock, a panel) is in front of a
+        // normal window.
+        func frontWindow(at spot: CGPoint) -> Window? { windows.first { $0.layer >= 0 && $0.bounds.contains(spot) } }
         let end = CGPoint(x: point.x + values[2], y: point.y + values[3])
-        if !bounds.contains(end) {
-            fail("The end point \(end.x), \(end.y) is outside the target window (\(bounds)).", 5)
+        let drop = frontWindow(at: end)
+        if drop?.target != true {
+            let owner = drop?.owner ?? "no window"
+            fail("The end point \(end.x), \(end.y) is not in a target window in front (\(owner)).", 5)
         }
-        let front = windows.first { $0.layer >= 0 && $0.bounds.contains(point) }
+        let front = frontWindow(at: point)
         if front?.owner != "Finder" {
             let owner = front?.owner ?? "no window"
             fail("The start point \(point.x), \(point.y) is not in a Finder window in front (\(owner)).", 5)

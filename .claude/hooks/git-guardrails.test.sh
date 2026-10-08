@@ -116,6 +116,11 @@ expect block 'date +%F > .git/dirigible-slow-date'
 expect block 'echo 2026-01-01 > "$(git rev-parse --git-common-dir)/dirigible-slow-date"'
 expect allow 'make test-slow'
 expect allow 'make test-slow-push'
+# Only run-checks.sh appends to the flakes file and only land.sh removes its lines, so a flake row
+# cannot be erased between the push check and the land.
+expect block 'rm "$(git rev-parse --git-common-dir)/dirigible-flakes"'
+expect block ': > .git/dirigible-flakes'
+expect allow 'scripts/run-checks.test.sh'
 expect allow 'scripts/check-changed.test.sh'
 
 # A quoted main is the same push to main.

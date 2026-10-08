@@ -82,6 +82,9 @@ struct ExportReportShown: Equatable {
     /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
     /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0
+    /// The wait before the banner of a paste from another package shows (`ui-panel.md` item 1:
+    /// 0.5 s, so a clone shows none). Tests give a wait that they end.
+    @ObservationIgnored var bannerWait: @MainActor () async -> Void = { try? await Task.sleep(for: .milliseconds(500)) }
     /// The sound of a refused typed number. Tests count it.
     @ObservationIgnored var beep: () -> Void = { NSSound.beep() }
     /// The loudness strip while SwiftUI keeps it; the display tick draws it.

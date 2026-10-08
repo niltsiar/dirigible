@@ -32,8 +32,9 @@ extension SessionWindow {
         }
         let source = app?.studio(of: clipboard.origin)
         importJob = ImportJob(visible: false)
+        let wait = bannerWait
         let shown = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(500))
+            await wait()
             guard let self, !Task.isCancelled, importJob != nil else { return }
             importJob?.visible = true
             chrome?.announce(

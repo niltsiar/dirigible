@@ -38,4 +38,10 @@ public enum StudioError: Error, Hashable, Sendable {
     /// A take in another studio ended the import of `file` (decisions 0019 and 0040). The session
     /// did not change.
     case importYielded(file: String)
+    /// A paste from the package named `source` failed or was cancelled (decision 0042). The session
+    /// did not change.
+    case paste(PasteError, source: String)
+    /// A take in another studio ended the paste from the package named `source` (decisions 0019
+    /// and 0042). The session did not change.
+    case pasteYielded(source: String)
 }

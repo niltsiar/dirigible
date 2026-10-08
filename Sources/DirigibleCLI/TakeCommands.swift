@@ -104,6 +104,8 @@ extension StudioError {
         // No command imports through Studio; `dirigible import` calls `importAudio` (decision 0040).
         case .audioImport(let error): "the import failed (\(error))."
         case .importYielded: "a take in another studio stopped the import."
+        case .paste(let error, _): "the paste failed (\(error))."
+        case .pasteYielded: "a take in another studio stopped the paste."
         }
     }
 }

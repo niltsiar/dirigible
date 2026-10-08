@@ -78,6 +78,13 @@
 "error.import.yielded" = "The import of “%@” stopped for a take in another window. Import again after the take.";
 "import.banner" = "Importing “%@”";
 "import.cancel" = "Cancel";
+"error.paste.missing" = "Dirigible cannot paste from “%@”. The session moved or was deleted. Open the session and copy again.";
+"error.paste.space" = "Dirigible cannot paste from “%@”. The disk of this session does not have enough free space. Free some disk space and try again.";
+"error.paste.copy" = "Dirigible cannot paste from “%1$@”. The audio did not copy (error %2$lld). Check the disk and try again.";
+"error.paste.convert" = "Dirigible cannot paste from “%1$@”. The audio did not convert (error %2$lld). Check the disk and try again.";
+"error.paste.yielded" = "The paste from “%@” stopped for a take in another window. Paste again after the take.";
+"paste.banner" = "Pasting from “%@”";
+"paste.done" = "Pasted.";
 
 /* Window, panels, and alerts */
 "window.opening" = "Opening the session…";

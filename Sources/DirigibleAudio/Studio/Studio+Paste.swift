@@ -1,0 +1,91 @@
+import DirigibleCore
+import Foundation
+
+extension Studio {
+    /// The clipboard of a Copy or a Cut in this studio: the excerpt, the package path, and the
+    /// identity of the package (decision 0042). It holds no studio and no lock.
+    public func clipboard(of excerpt: Excerpt) -> Clipboard {
+        Clipboard(excerpt, package: url, origin: lock.identity)
+    }
+
+    /// Pastes `clipboard` at `start` on `target` (decision 0042). It owns the origin compare of the
+    /// app: `PackageID.same(clipboard.origin, lock.identity)`, stored values, so no system call runs
+    /// on the main actor. The same package: one `edit` on the main actor, as a paste of today.
+    /// Another package: a blocking run, as an import (`blockingRun`): the source path is
+    /// `lock.package()` of `source`, the open studio of the source package, else the path at the
+    /// copy; then `pasteClipboard` copies or converts the files off the main actor, and the run
+    /// saves and records one undo entry. `insert` runs a ripple insert of the excerpt length on all
+    /// tracks first. Returns the pasted IDs and the target tracks. A throw changes nothing in
+    /// memory; a renamed WAV stays as an unused file (0040).
+    public func paste(
+        _ clipboard: Clipboard, from source: Studio?, at start: Frames, on target: PasteTarget, insert: Bool = false,
+        progress: @escaping @MainActor @Sendable (Double) -> Void
+    ) async throws(StudioError) -> (clips: [ClipID], tracks: [TrackID]) {
+        let identity = lock.identity
+        if PackageID.same(clipboard.origin, identity) {
+            return try edit { session throws(SessionError) in
+                do throws(PasteError) {
+                    let pasted = try pasteClipboard(
+                        clipboard, from: clipboard.package, into: session, in: clipboard.package, identity: identity,
+                        at: start, on: target, insert: insert, freeBytes: { 0 })
+                    session = pasted.session
+                    return (pasted.clips, pasted.tracks)
+                } catch {
+                    // The same package copies no file, so only the session refuses.
+                    guard case .session(let refusal) = error else { return ([], []) }
+                    throw refusal
+                }
+            }
+        }
+        let name = clipboard.package.deletingPathExtension().lastPathComponent
+        let (environment, sourceLock) = (environment, source?.lock)
+        return try await blockingRun(
+            name: name, kind: .paste, cancelled: .paste(.cancelled, source: name), yielded: .pasteYielded(source: name)
+        ) { session, lock, flags in
+            await pasteOffMain(
+                clipboard, sourceLock: sourceLock, into: session, lock: lock, at: start, on: target, insert: insert,
+                environment: environment, flags: flags, name: name,
+                progress: { fraction in Task { @MainActor in progress(fraction) } })
+        }
+    }
+}
+
+/// `pasteClipboard` on a utility GCD thread, in the package that `lock` holds now, as
+/// `convertImport` runs an import.
+@concurrent nonisolated private func pasteOffMain(
+    _ clipboard: Clipboard, sourceLock: PackageLock?, into session: Session, lock: PackageLock, at start: Frames,
+    on target: PasteTarget, insert: Bool, environment: CaptureEnvironment, flags: ImportFlags, name: String,
+    progress: @escaping @Sendable (Double) -> Void
+) async -> Result<(Session, (clips: [ClipID], tracks: [TrackID])), StudioError> {
+    @Sendable func run() -> Result<(Session, (clips: [ClipID], tracks: [TrackID])), StudioError> {
+        dispatchPrecondition(condition: .notOnQueue(.main))
+        let package: URL
+        do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
+        let source: URL
+        if let sourceLock {
+            do throws(SessionFileError) {
+                source = try sourceLock.package()
+            } catch {
+                return .failure(.paste(.sourceMissing(file: clipboard.package.lastPathComponent), source: name))
+            }
+        } else {
+            source = clipboard.package
+        }
+        do throws(PasteError) {
+            let pasted = try pasteClipboard(
+                clipboard, from: source, into: session, in: package, identity: lock.identity, at: start, on: target,
+                insert: insert, freeBytes: { environment.freeBytes(lock) }, progress: progress,
+                isCancelled: {
+                    environment.importStep()
+                    return flags.isCancelled
+                })
+            return .success((pasted.session, (pasted.clips, pasted.tracks)))
+        } catch {
+            if case .session(let refusal) = error { return .failure(.session(refusal)) }
+            return .failure(.paste(error, source: name))
+        }
+    }
+    return await withCheckedContinuation { continuation in
+        DispatchQueue.global(qos: .utility).async { continuation.resume(returning: run()) }
+    }
+}

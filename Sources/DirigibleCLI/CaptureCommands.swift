@@ -149,7 +149,8 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .session,
         .segment:
         editRefused
-    case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded: packageError
+    case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded:
+        packageError
     }
 }
 

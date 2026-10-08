@@ -319,6 +319,13 @@ enum L10n: String, CaseIterable {
     case errorImportYielded = "error.import.yielded"
     case importBanner = "import.banner"
     case importCancel = "import.cancel"
+    case errorPasteMissing = "error.paste.missing"
+    case errorPasteSpace = "error.paste.space"
+    case errorPasteCopy = "error.paste.copy"
+    case errorPasteConvert = "error.paste.convert"
+    case errorPasteYielded = "error.paste.yielded"
+    case pasteBanner = "paste.banner"
+    case pasteDone = "paste.done"
 
     /// For `Text` and `Button`: SwiftUI looks the key up in `Bundle.main`.
     var key: LocalizedStringKey { LocalizedStringKey(rawValue) }

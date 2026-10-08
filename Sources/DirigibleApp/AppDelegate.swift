@@ -8,6 +8,9 @@ import UniformTypeIdentifiers
 /// (decision 0014). Finder, Open, Open Recent, and the launch reopen all come to `open`.
 @Observable @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var windows: [URL: SessionWindow] = [:]
+    /// The one Copy and Cut of the app (decision 0042): in memory, not on `NSPasteboard`. A window
+    /// close keeps it; a quit drops it.
+    @ObservationIgnored var clipboard: Clipboard?
     /// The window whose `NSWindow` is key. The commands act on it.
     var key: SessionWindow?
     /// The recent sessions, the newest first: the start window and File > Open Recent read it. The

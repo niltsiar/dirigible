@@ -8,6 +8,9 @@ import DirigibleTimeline
 struct ImportJob {
     var progress = 0.0
     var task: Task<Void, Never>?
+    /// False until the banner shows: a paste shows it only after 0.5 s, so a clone shows none
+    /// (`ui-panel.md` item 1). An import shows it at once.
+    var visible = true
 }
 
 /// The target of File > Import Audio (decision 0040): the playhead on the one track that the

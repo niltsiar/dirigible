@@ -184,8 +184,10 @@ import Testing
         await model.close()
     }
 
-    /// Criterion 19. Control: a clipboard on the general pasteboard changes its count.
-    @Test func theClipboardIsPerWindowAndLeavesThePasteboard() async throws {
+    /// Criterion 19, amended by decision 0042: one clipboard for the app, not on the general
+    /// pasteboard, so a paste in another window tries a copy of the file. Control: a clipboard on
+    /// the general pasteboard changes its count.
+    @Test func theClipboardIsOnePerAppAndLeavesThePasteboard() async throws {
         let count = NSPasteboard.general.changeCount
         let (first, _, _, _) = try await open("a")
         let (second, other, _, _) = try await open("b")
@@ -193,11 +195,15 @@ import Testing
         first.run(.copy)
         first.run(.cut)
         let before = other.session
+        second.timeline.selection = .range(Marks(tracks: ["t2"]))
 
         second.run(.paste)
+        await until("the paste ends") { second.importJob == nil }
 
-        #expect(first.clipboard != nil && second.clipboard == nil)
+        #expect(first.clipboard != nil && second.clipboard == first.clipboard)
+        // This fixture has no WAV, so the copy refuses; SessionPasteWindowTests copies a real one.
         #expect(other.session == before)
+        #expect(second.alert == .error(.paste(.sourceMissing(file: "f1.wav"), source: "timeline")))
         #expect(NSPasteboard.general.changeCount == count)
         let url = first.url
         await first.close()

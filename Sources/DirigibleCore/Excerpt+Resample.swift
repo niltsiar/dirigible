@@ -34,6 +34,15 @@ extension Excerpt {
                 if let gain = gains[clip.file], let sum = Gain(dB: clip.gain.dB + gain.dB) { result.gain = sum }
                 return result
             }
+            // A seamless source join (a split) stays seamless: the right clip goes on from the file
+            // frame where the left clip ends, and keeps its scaled end.
+            for index in clips.indices.dropLast()
+            where source[index].end == source[index + 1].start && source[index].isSeamless(with: source[index + 1]) {
+                let (a, end) = (clips[index], clips[index + 1].end)
+                let fileLength = scaled.files[a.file]?.length ?? (a.offset + a.length + clips[index + 1].length)
+                clips[index + 1].offset = a.offset + a.length
+                clips[index + 1].length = min(end - clips[index + 1].start, fileLength - clips[index + 1].offset)
+            }
             // One value for each join, so both clips keep it (0036): the least of the scaled value,
             // each media handle, and the room of each clip beside its other edge.
             for index in clips.indices.dropLast() where source[index].end == source[index + 1].start {

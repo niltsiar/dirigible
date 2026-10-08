@@ -2,8 +2,8 @@
 # Run only the tests of a slice, as `make test` runs all tests: process 1 skips the app bundle,
 # disk image, and CLI tests, with one --filter for each name. Process 2 runs the CLI tests of a
 # name that a file under Tests/DirigibleCLITests/ has, in its own process (Makefile, target test).
-# It fails closed: it exits 1 when no process ran a test, and with the status of swift when a
-# test fails. swift test exits 0 when a filter matches no test, so the script reads the two
+# Process 2 runs also when process 1 fails, as in make test. It fails closed: it exits with the
+# first nonzero swift status, and with 1 when no process ran a test. swift test exits 0 when a filter matches no test, so the script reads the two
 # no-test strings of mutate.py; one string alone means that tests ran.
 # With --exact, each name is the whole name of a Swift Testing test: the filter is '/<name>\(' with
 # the regex characters escaped, so a name that is a prefix of another test name runs only its own
@@ -22,10 +22,12 @@ cd "$(dirname "$0")/.."
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
 
-ran=0
-# run <swift test arguments>: stops with the swift status on a failure; sets ran when tests ran.
+ran=0 status=0
+# run <swift test arguments>: keeps the first nonzero swift status; sets ran when tests ran.
 run() {
-    swift test "$@" 2>&1 | tee "$out" || exit $?
+    local code=0
+    swift test "$@" 2>&1 | tee "$out" || code=$?
+    [[ $status -ne 0 ]] || status=$code
     grep -qF 'No matching test cases were run' "$out" && grep -qF 'Test run with 0 tests' "$out" || ran=1
 }
 
@@ -43,4 +45,5 @@ done
 [[ $serial -eq 0 ]] || { p1+=(--no-parallel); [[ ${#p2[@]} -eq 0 ]] || p2+=(--no-parallel); }
 run "${p1[@]}"
 [[ ${#p2[@]} -eq 0 ]] || run "${p2[@]}"
+[[ $status -eq 0 ]] || exit $status
 [[ $ran -eq 1 ]] || { echo "test-filter: no test matched $*" >&2; exit 1; }

@@ -358,7 +358,7 @@ exit 1
 EOF
 rerun_repo() {
   stamp_repo test
-  printf '#!/bin/bash\n[[ "$FAKE_FILTER" == pass ]] && exit 0\necho "✘ Test aFlake() failed after 1.0 seconds with 1 issue."\nexit 1\n' > "$tmp/r/scripts/test-filter.sh"
+  printf '#!/bin/bash\nif [[ "$FAKE_FILTER" == pass ]]; then echo "✔ Test aFlake() passed after 1.0 seconds."; exit 0; fi\necho "✘ Test aFlake() failed after 1.0 seconds with 1 issue."\nexit 1\n' > "$tmp/r/scripts/test-filter.sh"
   g commit -q -am fake-filter
   rm -f "$tmp/swift.n"
   : > "$tmp/swift.log"

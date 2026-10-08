@@ -5,7 +5,7 @@
 # backtick before the target name, and exit 2. Cases: a pass on rerun 2 (the flake line and one
 # dirigible-flakes line), red on 3 reruns, parameterized names, a level-0 make prefix, each
 # refusal with no rerun, CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
-# later try with only the names that failed again, and a real make on a stub Makefile.
+# later try with only the names that did not pass again, and a real make on a stub Makefile.
 # Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,7 +19,8 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # A repo with a copy of run-checks.sh, a fake check-changed.sh that logs the load wait, and a
 # fake test-filter.sh. The fake test-filter.sh logs its arguments and DIRIGIBLE_SLOW_TESTS. Its
 # call number n counts in $tmp/tries; while n is under FAKE_PASS_AT, it prints a failed line for
-# each name and exits 1 (FAKE_AGAIN limits the names to that one name).
+# each name and exits 1 (FAKE_AGAIN limits the failed names to that one name). Each other name
+# gets a pass line, except FAKE_SILENT, which gets no line (a test that did not run).
 w="$tmp/w"
 mkdir -p "$w/scripts" "$tmp/bin"
 git init -q "$w"
@@ -31,13 +32,17 @@ cat > "$w/scripts/test-filter.sh" <<'EOF'
 echo "test-filter slow=${DIRIGIBLE_SLOW_TESTS:-} $*" >> "$FAKE_LOG"
 n=$(($(cat "$FAKE_TRIES") + 1))
 echo "$n" > "$FAKE_TRIES"
-if ((n < FAKE_PASS_AT)); then
-  for a in "$@"; do
-    [[ $a == --* || -n "${FAKE_AGAIN:-}" && $a != "$FAKE_AGAIN" ]] || echo "✘ Test $a() failed after 1.0 seconds with 1 issue."
-  done
-  exit 1
-fi
-echo "✔ Test run with $# tests passed after 1.0 seconds."
+red=0
+((n < FAKE_PASS_AT)) && red=1
+for a in "$@"; do
+  [[ $a == --* || $a == "${FAKE_SILENT:-}" ]] && continue
+  if ((red)) && [[ -z "${FAKE_AGAIN:-}" || $a == "$FAKE_AGAIN" ]]; then
+    echo "✘ Test $a() failed after 1.0 seconds with 1 issue."
+  else
+    echo "✔ Test $a() passed after 1.0 seconds."
+  fi
+done
+exit $red
 EOF
 chmod +x "$w/scripts/"*.sh
 # The fake make logs its arguments and prints the lines of $tmp/lines in order: a line that
@@ -97,10 +102,18 @@ run 9 2 "$red_test"
 grep -q 'run-checks: red after 3 reruns: aFlake' <<<"$out" || fail "red on 3 reruns: no reason: $out"
 [[ ! -e "$flakes" ]] || fail "red on 3 reruns: flakes [$(cat "$flakes")]"
 
-# A later try reruns only the names that failed again.
+# A later try reruns only the names that did not pass again.
 FAKE_AGAIN=bTest run 2 2 $'✘ Test aTest() failed after 1.0 seconds with 1 issue.\n✘ Test bTest() failed after 1.0 seconds with 1 issue.\n2:make[1]: *** [test] Error 1'
 [[ "$(filters)" == $'test-filter slow= --exact aTest bTest\ntest-filter slow= --exact bTest' ]] || fail "a later try: reruns [$(filters)]"
 grep -qx 'run-checks: flake: aTest bTest passed on rerun 2 of 3' <<<"$out" || fail "a later try: no flake line: $out"
+
+# A name with no pass line in a rerun (its process did not run) stays in the rerun list, also
+# when the rerun exits 0.
+FAKE_SILENT=bTest run 1 2 $'✘ Test aTest() failed after 1.0 seconds with 1 issue.\n✘ Test bTest() failed after 1.0 seconds with 1 issue.\n2:make[1]: *** [test] Error 1'
+[[ $code -eq 1 ]] || fail "a name with no pass line: exit $code: $out"
+[[ "$(filters)" == $'test-filter slow= --exact aTest bTest\ntest-filter slow= --exact bTest\ntest-filter slow= --exact bTest' ]] || fail "a name with no pass line: reruns [$(filters)]"
+grep -q 'run-checks: red after 3 reruns: bTest' <<<"$out" || fail "a name with no pass line: no reason: $out"
+[[ ! -e "$flakes" ]] || fail "a name with no pass line: flakes [$(cat "$flakes")]"
 
 # Parameterized names, and a level-0 make prefix (the delta path of land.sh).
 run 1 2 $'✘ Test f(x:) with 2 test cases failed after 1.0 seconds with 1 issue.\n✘ Test g(a:b:) failed after 1.0 seconds with 1 issue.\n2:make: *** [test] Error 1'

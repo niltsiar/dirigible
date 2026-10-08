@@ -2,12 +2,12 @@
 # Run the make targets of a check with -k, so a red target does not skip the later targets. When
 # the only red targets are test and test-slow-push, rerun only their failed Swift tests with
 # test-filter.sh --exact, after the load wait of check-changed.sh: up to 3 tries, or 1 try with
-# CHECK_RISK=yes. A later try reruns only the tests that failed again. The names of test-slow-push
-# rerun with DIRIGIBLE_SLOW_TESTS=1 and --no-parallel. A pass on a rerun prints the flake line and
-# appends '<HEAD> <name> load <1-min load at the failure>' to dirigible-flakes in the git common
-# dir. land.sh writes a flake row for each line, and flake-triage.md still applies (decision 0028).
-# No rerun, and exit 1: another red target, a not-remade target other than check, a crash, an
-# issue of no test, or a red target with no failed test line.
+# CHECK_RISK=yes. A later try reruns each test with no pass line in the last try. The names of
+# test-slow-push rerun with DIRIGIBLE_SLOW_TESTS=1 and --no-parallel. A pass on a rerun prints the
+# flake line and appends '<HEAD> <name> load <1-min load at the failure>' to dirigible-flakes in
+# the git common dir. land.sh writes a flake row for each line, and flake-triage.md still applies
+# (decision 0028). No rerun, and exit 1: another red target, a not-remade target other than check,
+# a crash, an issue of no test, or a red target with no failed test line.
 # Usage: [CHECK_RISK=yes] scripts/run-checks.sh <make args>
 # The check-changed target of the Makefile and land.sh call it. scripts/run-checks.test.sh tests it.
 set -euo pipefail
@@ -30,8 +30,6 @@ blocked() {
 }
 # once: the words of stdin on one line, each once.
 once() { tr ' ' '\n' | awk 'NF && !s[$0]++' | xargs; }
-# again <log>: the names of the failed tests of a log, once each.
-again() { grep -E "$failed" "$1" | sed -E 's/.*✘ Test ([A-Za-z0-9_]+)\(.*/\1/' | once; }
 
 errors="$(grep -E "$prefix\*\*\* " "$log" || true)"
 ours="$prefix\*\*\* \[(test|test-slow-push)\] Error"
@@ -57,14 +55,20 @@ fast="$(sed -n 's/^fast//p' <<<"$split" | once)"
 slow="$(sed -n 's/^slow//p' <<<"$split" | once)"
 all="$(xargs <<<"$fast $slow")"
 
-# rerun <command>: prints the names that failed again (none on a pass). A red rerun with no
-# failed test line, a crash, or an issue of no test returns 1.
+# rerun <names> <command>: prints each name with no pass line in the output of the command, so
+# a test that did not run stays red (none: all passed). A crash, an issue of no test, or a red
+# command in which each name passed returns 1.
 rerun() {
-    if "$@" 2>&1 | tee "$log.rerun" >&2; then return 0; fi
-    local why names
-    why="$(blocked "$log.rerun")" names="$(again "$log.rerun")"
-    [[ -z "$why" && -n "$names" ]] || { echo "run-checks: the rerun stopped: ${why:-no failed test line}" >&2; return 1; }
-    echo "$names"
+    local names="$1" code=0 why left="" name
+    shift
+    "$@" 2>&1 | tee "$log.rerun" >&2 || code=$?
+    why="$(blocked "$log.rerun")"
+    for name in $names; do
+        grep -qE "(✔|✘) Test $name[(][^)]*[)]( with [0-9]+ test cases)? passed after" "$log.rerun" || left+=" $name"
+    done
+    [[ $code -eq 0 || -n "$left" ]] || why="${why:-no failed test line}"
+    [[ -z "$why" ]] || { echo "run-checks: the rerun stopped: $why" >&2; return 1; }
+    echo $left
 }
 
 tries=3
@@ -72,8 +76,8 @@ tries=3
 for ((try = 1; try <= tries; try++)); do
     echo "run-checks: rerun $try of $tries: $(xargs <<<"$fast $slow")"
     "$here/check-changed.sh" --wait-load test
-    [[ -z "$fast" ]] || fast="$(rerun env -u DIRIGIBLE_SLOW_TESTS "$here/test-filter.sh" --exact $fast)" || exit 1
-    [[ -z "$slow" ]] || slow="$(rerun env DIRIGIBLE_SLOW_TESTS=1 "$here/test-filter.sh" --exact --no-parallel $slow)" || exit 1
+    [[ -z "$fast" ]] || fast="$(rerun "$fast" env -u DIRIGIBLE_SLOW_TESTS "$here/test-filter.sh" --exact $fast)" || exit 1
+    [[ -z "$slow" ]] || slow="$(rerun "$slow" env DIRIGIBLE_SLOW_TESTS=1 "$here/test-filter.sh" --exact --no-parallel $slow)" || exit 1
     if [[ -z "$fast$slow" ]]; then
         head="$(git rev-parse HEAD)" file="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"
         for name in $all; do echo "$head $name load $load" >> "$file"; done

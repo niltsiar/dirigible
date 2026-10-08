@@ -33,9 +33,9 @@ SLOW_GATE = environment["DIRIGIBLE_SLOW_TESTS"]
 # The name of each slow test: the function after its gate. The argument holds more grep options.
 slow_tests = $(shell grep -rhF -A1 $(1) '$(SLOW_GATE)' Tests | grep -oE 'func [A-Za-z0-9_]+' | cut -c6- | paste -sd'|' -)
 SLOW_TESTS = $(call slow_tests)
-# The bench files that the push skips: a fast test holds each of their asserts. make test-slow
-# still runs them. scripts/check-changed.sh reads this line: a changed file of the list runs
-# test-slow before the push.
+# The bench files that the push skips: a fast test, or a slow test outside the list, holds each of
+# their asserts (decision 0028). make test-slow still runs them. scripts/check-changed.sh reads
+# this line: a changed file of the list runs test-slow before the push.
 PUSH_SKIP = LoudnessExportBenchmark AutoLevelBenchmark LiveLoudnessBenchmark ExportBenchmark PeakComputeBenchmark LoudnessBenchmark InspectionBenchmark EditBenchmark NavigationKeyBenchmark LaneRenderBenchmark MouseEventBenchmark+CommandF FinalizeBenchmark MouseEventBenchmark MouseEventGainBenchmark MouseEventGroupBenchmark MouseEventCrossfadeBenchmark MouseEventRippleBenchmark MouseEventRedrawBenchmark AutoscrollBenchmark FollowScrollBenchmark OverviewBenchmark HeaderDragBenchmark LiveTakeBenchmark PlayTickBenchmark
 SLOW_PUSH_TESTS = $(call slow_tests,$(foreach n,$(PUSH_SKIP),--exclude='$(n).swift'))
 

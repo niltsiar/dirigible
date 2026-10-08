@@ -60,10 +60,11 @@ bench:
 
 # Each slow-test gate has its func on the next line, so SLOW_TESTS finds every slow test.
 # make check runs this grep, because make check does not run the slow tests. Each PUSH_SKIP name
-# is a file under Tests/.
+# is a bench file under Tests/: its name has Benchmark.
 check-slow-gates:
 	@for n in $(PUSH_SKIP); do test -n "$$(find Tests -name "$$n.swift" 2>/dev/null)" \
-		|| { echo "check-slow-gates: PUSH_SKIP names $$n, which has no file under Tests/"; exit 1; }; done
+		|| { echo "check-slow-gates: PUSH_SKIP names $$n, which has no file under Tests/"; exit 1; }; \
+		case $$n in *Benchmark*) ;; *) echo "check-slow-gates: PUSH_SKIP names $$n, which is not a Benchmark file"; exit 1;; esac; done
 	@test "$$(echo '$(SLOW_TESTS)' | tr '|' '\n' | grep -c .)" -eq "$$(grep -rF '$(SLOW_GATE)' Tests | wc -l | tr -d ' ')" \
 		|| { echo "check-slow-gates: put the func of each slow test on the line after its gate"; exit 1; }
 

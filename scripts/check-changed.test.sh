@@ -8,9 +8,9 @@
 # adds test-slow-push only for risk, a slow test, a Makefile change, or no passed slow run today,
 # and test-slow for a changed PUSH_SKIP file. Check that test-slow-push has no test of a PUSH_SKIP
 # file, that a passing make test-slow or test-slow-push writes the date, and that check-slow-gates
-# fails on a PUSH_SKIP name with no file. Check that the recipe waits for a load under the
-# core count before Swift tests, stops the wait at CHECK_LOAD_WAIT, and reads no load for docs
-# targets. Run by `make test-hooks`.
+# fails on a PUSH_SKIP name with no file or with no Benchmark. Check that the recipe waits for a
+# load under the core count before Swift tests, stops the wait at CHECK_LOAD_WAIT, and reads no
+# load for docs targets. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 script="$repo/scripts/check-changed.sh"
@@ -319,6 +319,9 @@ PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow PUSH_SKIP=LoudnessBenchmark 
 got="$(make -s -C "$tmp/r" check-slow-gates PUSH_SKIP='LoudnessBenchmark NoSuchBench' 2>&1)" && fail 'a PUSH_SKIP name with no file: exit 0'
 [[ "$got" == *"PUSH_SKIP names NoSuchBench, which has no file under Tests/"* ]] || fail "a PUSH_SKIP name with no file: no reason: $got"
 make -s -C "$tmp/r" check-slow-gates PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'check-slow-gates with a PUSH_SKIP file: exit nonzero'
+# check-slow-gates fails on a PUSH_SKIP name that is not a bench file, also when the file exists.
+got="$(make -s -C "$tmp/r" check-slow-gates PUSH_SKIP='LoudnessBenchmark KeptTests' 2>&1)" && fail 'a PUSH_SKIP name with no Benchmark: exit 0'
+[[ "$got" == *"PUSH_SKIP names KeptTests, which is not a Benchmark file"* ]] || fail "a PUSH_SKIP name with no Benchmark: no reason: $got"
 
 # The stamp: a passing check with BASE appends it, a red check or no BASE does not.
 # A stub script gives the targets stub-ok or stub-red of the copied Makefile.

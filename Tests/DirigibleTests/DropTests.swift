@@ -243,6 +243,21 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 (run 13c) item 3: the chain skips only the three refusals of one file; every
+    /// other import error, and an error that is not of the import, stops it (decision 0040).
+    @Test func onlyThreeImportRefusalsSkipAFile() {
+        let skips: [ImportError] = [
+            .notAudio(file: "A"), .notDownloaded(file: "A"), .tooManyChannels(file: "A", channels: 3),
+        ]
+        let stops: [ImportError] = [
+            .unreadable(file: "A", errno: EACCES), .space(file: "A", needed: 2, free: 1), .cancelled,
+            .write(file: "A", .writeFailed(file: "A", status: ENOSPC)), .session(.unknownTrack(TrackID("t"))),
+        ]
+        for error in skips { #expect(StudioError.audioImport(error).skipsFile, "skips \(error)") }
+        for error in stops { #expect(!StudioError.audioImport(error).skipsFile, "stops \(error)") }
+        #expect(!StudioError.busy.skipsFile, "an error that is not of the import stops")
+    }
+
     /// C6: a cancel stops the chain; the alert names only the skipped files.
     @Test func aCancelShowsOnlyTheSkippedFiles() async throws {
         let (model, studio, view) = try await open()

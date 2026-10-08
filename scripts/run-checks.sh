@@ -2,12 +2,13 @@
 # Run the make targets of a check with -k, so a red target does not skip the later targets. When
 # the only red targets are test and test-slow-push, rerun only their failed Swift tests with
 # test-filter.sh --exact, after the load wait of check-changed.sh: up to 3 tries, or 1 try with
-# CHECK_RISK=yes. A later try reruns each test with no pass line in the last try. The names of
-# test-slow-push rerun with DIRIGIBLE_SLOW_TESTS=1 and --no-parallel. A pass on a rerun prints the
-# flake line and appends '<HEAD> <name> load <1-min load>' to dirigible-flakes in the git common
-# dir: the load at the end of the check, not at the failure. land.sh writes a flake row for each
-# line, and flake-triage.md still applies (decision 0028). No rerun, and exit 1: another red target, a not-remade target other than check,
-# a crash, an issue of no test, or a red target with no failed test line.
+# CHECK_RISK=yes. A later try reruns each test with a failed line or with no pass line in the last
+# try. The names of test-slow-push rerun with DIRIGIBLE_SLOW_TESTS=1 and --no-parallel. A pass on
+# a rerun prints the flake line and appends '<HEAD> <name> load <1-min load>' to dirigible-flakes
+# in the git common dir: the load at the end of the check, not at the failure. land.sh writes a
+# flake row for each line, and flake-triage.md still applies (decision 0028).
+# No rerun, and exit 1: another red target, a not-remade target other than check, a crash, an
+# issue of no test, or a red target with no failed test line.
 # Usage: [CHECK_RISK=yes] scripts/run-checks.sh <make args>
 # The check-changed target of the Makefile and land.sh call it. scripts/run-checks.test.sh tests it.
 set -euo pipefail

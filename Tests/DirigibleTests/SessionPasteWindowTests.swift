@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import DirigibleCore
 import DirigibleTimeline
@@ -79,6 +80,40 @@ import Testing
         #expect(studio.session.clip("c1@480000")?.clip.file == "f1 2")
         let copied = FileManager.default.contents(atPath: b.appending(path: "Clips/f1 2.wav").path)
         #expect(copied != nil && copied == FileManager.default.contents(atPath: a.appending(path: "Clips/f1.wav").path))
+        await first.close()
+        await second.close()
+    }
+
+    /// Code gate 2 item 2: a range paste at another rate selects the whole scaled range, also when
+    /// its clips end before the range end.
+    @Test func aRangePasteAtAnotherRateSelectsTheScaledRange() async throws {
+        let a = folder.url.appending(path: "slow/slow.dirigible")
+        try await Task.detached {
+            try FileManager.default.createDirectory(
+                at: a.appending(path: clipsFolderName), withIntermediateDirectories: true)
+            let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 44_100))
+            buffer.frameLength = 44_100
+            let writer = try ClipWriter(url: a.appending(path: "Clips/s.wav"), file: "s.wav", format: format)
+            try writer.write(buffer)
+            try writer.close()
+            var session = Session(sampleRate: 44_100)
+            try session.addFile(AudioFile(id: "s", path: "s.wav", layout: .mono, length: 44_100))
+            try session.addTrack("t1", name: "Slow", layout: .mono)
+            try session.place(Clip(id: "half", file: "s", start: 0, offset: 0, length: 22_050), on: "t1")
+            try session.write(to: a)
+        }.value
+        let (first, _, _) = try await open(a)
+        first.timeline.marks = Marks(inPoint: 0, outPoint: 44_100, tracks: ["t1"])
+        first.run(.copy)
+        let (second, studio, _) = try await open(try await package("b"))
+        await studio.perform(.seek(.frame(0)))
+        second.timeline.selection = .range(Marks(tracks: ["t2"]))
+
+        await pasteAndWait(second)
+
+        #expect(studio.session.clip("half@0")?.clip.length == 24_000, "the clip scales to 0.5 s at 48 kHz")
+        #expect(second.timeline.selection == .range(Marks(inPoint: 0, outPoint: 48_000, tracks: ["t2"])))
         await first.close()
         await second.close()
     }

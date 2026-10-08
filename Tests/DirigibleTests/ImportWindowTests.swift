@@ -231,6 +231,20 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 (run 13c) item 2: a late hop of file 1 of a chain does not fill the bar of file 2.
+    @Test func aLateHopOfAnEarlierFileChangesNothing() async throws {
+        let (model, _, _) = try await open()
+        model.importJob = ImportJob(file: 1)
+
+        model.importProgressed(1, file: 0)
+        #expect(model.importJob?.progress == 0, "a hop of file 1 during file 2")
+        model.importProgressed(0.3, file: 1)
+        #expect(model.importJob?.progress == 0.3, "a hop of file 2")
+
+        model.importJob = nil
+        await model.close()
+    }
+
     @Test func aFailedImportShowsItsAlert() async throws {
         let (model, studio, _) = try await open()
         let text = folder.url.appending(path: "notes.mp3")

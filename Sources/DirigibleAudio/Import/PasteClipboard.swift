@@ -70,9 +70,8 @@ public func pasteClipboard(
     if same, case .unselected = target, !excerpt.lanes.allSatisfy({ session.track($0.source) != nil }) {
         return (session, [], [])  // The fallback of a same-package paste today: the source tracks, or nothing.
     }
-    let predicted = excerpt.files.mapValues { file in
-        converts ? Frames((2 * file.length.count * rate + excerpt.sampleRate) / (2 * excerpt.sampleRate)) : file.length
-    }
+    // The scale rule has one owner: `Excerpt.resampled` gives the predicted converted lengths.
+    let predicted = (converts ? excerpt.resampled(to: rate, lengths: [:]) : excerpt).files.mapValues(\.length)
     let plan: PastePlan
     do throws(SessionError) {
         plan = try PastePlan(
@@ -106,7 +105,7 @@ public func pasteClipboard(
 
 /// The session half of `pasteClipboard`: the target tracks, the new file records, the scale at
 /// another rate, the map, and the paste, on a copy of the session.
-private struct PastePlan {
+struct PastePlan {
     var session: Session
     var clips: [ClipID] = []
     var tracks: [TrackID] = []

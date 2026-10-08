@@ -105,3 +105,43 @@ struct PasteConvertTests {
         #expect(try names() == ["take1-mic.wav"])
     }
 }
+
+/// Code gate 1 item 3: the session edit runs again with the real converted lengths, which can be
+/// 1 frame off the prediction; and a frame count that does not divide gives records that equal
+/// the WAV frame counts.
+struct PasteConvertLengthTests {
+    @Test(arguments: [-1, 1])
+    func aPlanWithTheRealLengthsFitsTheFiles(delta: Int) throws {
+        let fixture = try PasteConvertTests()
+        let excerpt = try fixture.p.session.excerpt(of: 0..<132_300, on: ["t1"])
+        let length = Frames(192_000 + delta)
+
+        let plan = try PastePlan(
+            excerpt, same: false, into: fixture.q.session, in: fixture.q.url, at: 480_000, on: .tracks(["u1"]),
+            insert: false, lengths: ["take1-mic": length], gains: [:], stems: ["take1-mic": "take1-mic"])
+
+        #expect(plan.session.files["take1-mic"]?.length == length, "the record has the real length")
+        let clips = plan.clips.compactMap { plan.session.clip($0)?.clip }
+        #expect(clips.count == 2 && clips.allSatisfy { $0.offset + $0.length <= length }, "each clip fits its file")
+    }
+
+    @Test func aFrameCountThatDoesNotDivideGivesTheWAVLength() throws {
+        let p = try MixPackage(sampleRate: 44_100)
+        let q = try MixPackage()
+        try p.addFile("odd", channels: [impulse(176_406, at: 22_050)])
+        try p.addTrack("t1", clip: "A", file: "odd", start: 0, offset: 0, length: 176_406)
+        try q.session.addTrack("u1", name: "u1", layout: .mono)
+        let clipboard = Clipboard(try p.session.excerpt(of: 0..<176_406, on: ["t1"]), package: p.url, origin: nil)
+
+        let (session, clips, _) = try pasteClipboard(
+            clipboard, from: p.url, into: q.session, in: q.url, identity: nil, at: 0, on: .tracks(["u1"]),
+            freeBytes: { .max })
+
+        let wav = try ImportedWAV(q.url.appending(path: "\(clipsFolderName)/odd.wav"))
+        #expect(
+            session.files["odd"]?.length == Frames(wav.frames),
+            "record \(String(describing: session.files["odd"]?.length)), WAV \(wav.frames)")
+        let clip = try #require(session.clip(clips[0])?.clip)
+        #expect(clip.offset + clip.length <= Frames(wav.frames))
+    }
+}

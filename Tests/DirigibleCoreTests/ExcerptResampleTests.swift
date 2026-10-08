@@ -21,7 +21,10 @@ struct ExcerptResampleTests {
             var ids: [ClipID] = []
             for index in 0..<Int.random(in: 2...6, using: &random) {
                 let length = Int.random(in: 3_001...50_000, using: &random)
-                let offset = Int.random(in: 100_000...15_000_000, using: &random)
+                // A small offset makes a short media handle, so a crossfade at its limit clamps.
+                let offset =
+                    Bool.random(using: &random)
+                    ? Int.random(in: 1...3_000, using: &random) : Int.random(in: 100_000...15_000_000, using: &random)
                 let id = ClipID("c\(index)")
                 try session.place(
                     Clip(
@@ -30,10 +33,15 @@ struct ExcerptResampleTests {
                 ids.append(id)
                 start += length
             }
-            let joins = ids.dropLast().filter { _ in Bool.random(using: &random) }
-            try session.setCrossfades(
-                Dictionary(
-                    uniqueKeysWithValues: joins.map { ($0, Frames(2 * Int.random(in: 1...1_000, using: &random))) }))
+            // Gate 1 item 1: half of the joins take the longest crossfade (`crossfadeLimit`).
+            for (index, id) in ids.dropLast().enumerated() where Bool.random(using: &random) {
+                let lane = try #require(session.track("t")).clips
+                let limit = session.crossfadeLimit(after: index, in: lane) ?? .zero
+                let value =
+                    Bool.random(using: &random)
+                    ? limit : min(limit, Frames(2 * Int.random(in: 1...1_000, using: &random)))
+                if value > .zero { try session.setCrossfades([id: value]) }
+            }
             let excerpt = try session.excerpt(of: 0..<Frames(start + 1_000), on: ["t"])
 
             let scaled = excerpt.resampled(to: to, lengths: ["f": converted])

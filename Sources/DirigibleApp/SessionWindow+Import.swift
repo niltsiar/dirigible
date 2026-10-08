@@ -24,11 +24,12 @@ func importTarget(_ selection: Selection, in session: Session, playhead: Frames)
 
 extension StudioError {
     /// A refusal of one file that does not stop a chain of imports (run 13c): the other files
-    /// can still import.
+    /// can still import. Each import error has its own line, so a new case needs a choice.
     var skipsFile: Bool {
-        switch self {
-        case .audioImport(.notAudio), .audioImport(.tooManyChannels), .audioImport(.notDownloaded): true
-        default: false
+        guard case .audioImport(let error) = self else { return false }
+        switch error {
+        case .notAudio, .tooManyChannels, .notDownloaded: return true
+        case .unreadable, .space, .cancelled, .write, .session: return false
         }
     }
 }

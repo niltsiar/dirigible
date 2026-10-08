@@ -14,10 +14,10 @@ Prefer an integration test: call a module through its public API with real input
 1. **Understand the behavior.** Name the intended and the current behavior, the affected path, and the smallest observable result.
 2. **Choose the check.** Prefer the integration test target of the module that owns the behavior. Generate audio fixtures in the test (a sine tone, silence, noise at a known level), not large binary files. Reuse the shared test helpers in `Tests/*/Support.swift` and other files. This command lists them: `git ls-files 'Tests/*.swift' | grep -vE '(Tests|Benchmark)(\+\w+)?\.swift$' | xargs grep -nE '^ {0,4}([@a-zA-Z]+ )*(func|class|struct|actor|enum|extension) '`.
 3. **Write the failing test first.** The test encodes intended behavior, not the current implementation. Assert a literal expected value or an observable effect: a file on disk, a sample count, a level in dBFS within a stated tolerance, a parsed XML element. Derive a value that the user reads in a sentence ("less than N min") from that sentence, not from a review fix, and test its exact boundary. Test a trigger (a command, a key) in each start state: the window closed or shown, the focus in each control. Read `references/test-harness.md` when the test drives the UI, compares a `CGFloat`, or holds the pool, a preference, or a seam.
-4. **Run the new test before the fix.** Confirm that it fails for the intended reason, or correct the test first. Save the red output to a log.
+4. **Run the new test before the fix.** Confirm a run-time failure, not a compile error, for the intended reason (stub a new API), or correct the test. Save the red output to a log.
 5. **Make the smallest production change** that satisfies the test.
-6. **Run the tests.** Run the tests of the slice: `make check-changed FILTER='<tests of the slice>' > <run>/logs/<name>.log 2>&1`. The push check before the land runs all tests.
-7. **Commit.** A failing test and its fix go in one commit (`feat:` or `fix:`), with the path of the red log in `decisions.tsv`.
+6. **Run the tests.** Run the slice tests: `make check-changed FILTER='<tests of the slice>' > <run>/logs/<name>.log 2>&1`. The push check before the land runs all tests.
+7. **Commit.** A failing test and its fix go in one commit, with the red log path in `decisions.tsv`.
 
 ## No failing test
 

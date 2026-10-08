@@ -180,6 +180,8 @@
 
 /* Timeline (decision 0017) */
 "timeline.accessibility" = "Timeline";
+"drop.new.track" = "New Track";
+"drop.new.tracks" = "%lld New Tracks";
 "timeline.header.handle" = "Track header width";
 "timeline.header.rename" = "Rename";
 

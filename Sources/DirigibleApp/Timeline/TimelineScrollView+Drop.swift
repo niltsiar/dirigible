@@ -19,7 +19,17 @@ extension TimelineScrollView {
     }
 
     override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        dropTarget(sender) == nil ? [] : .copy
+        guard let (target, x, inputs, geometry) = dropPlace(sender) else {
+            lanes.drop.hide()
+            return []
+        }
+        let tracks = inputs.session.tracks
+        lanes.drop.show(
+            lane: target.track.flatMap { id in tracks.firstIndex { $0.id == id } }, x: x, files: lanes.drop.urls.count,
+            lanes: tracks.count, laneHeight: inputs.laneHeight,
+            newTrackTop: geometry.newTrackTop(lanes: tracks.count, bottom: shown.maxY), shown: shown,
+            contrast: lanes.increasesContrast, scale: Double(window?.backingScaleFactor ?? 2))
+        return .copy
     }
 
     override func draggingExited(_ sender: (any NSDraggingInfo)?) { endDrop() }
@@ -27,24 +37,30 @@ extension TimelineScrollView {
     override func concludeDragOperation(_ sender: (any NSDraggingInfo)?) { endDrop() }
 
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        let (urls, target) = (lanes.drop.urls, dropTarget(sender))
+        let (urls, place) = (lanes.drop.urls, dropPlace(sender))
         endDrop()
-        guard let target else { return false }
-        model?.startImport(urls, to: target)
+        guard let place else { return false }
+        model?.startImport(urls, to: place.target)
         return true
     }
 
-    /// The import target at the point of the drag. Nil with no audio file, when the window cannot
-    /// import (a take, a pending take, or a running import), or outside the lanes in view (the
-    /// track headers and the time ruler).
-    private func dropTarget(_ sender: any NSDraggingInfo) -> ImportTarget? {
+    /// The import target at the point of the drag, the document x of the point, and the drawn
+    /// lanes. Nil with no audio file, when the window cannot import (a take, a pending take, or a
+    /// running import), or outside the lanes in view (the track headers and the time ruler).
+    private func dropPlace(_ sender: any NSDraggingInfo)
+        -> (target: ImportTarget, x: Double, inputs: LaneInputs, geometry: LaneGeometry)?
+    {
         let point = lanes.convert(sender.draggingLocation, from: nil)
         guard !lanes.drop.urls.isEmpty, model?.canImport == true, shown.contains(point), let inputs = lanes.inputs,
             let geometry = inputs.geometry
         else { return nil }
-        return geometry.dropTarget(
+        let target = geometry.dropTarget(
             x: point.x, y: point.y, files: lanes.drop.urls.count, bottom: shown.maxY, in: inputs.session)
+        return (target, Double(point.x), inputs, geometry)
     }
 
-    private func endDrop() { lanes.drop.urls = [] }
+    private func endDrop() {
+        lanes.drop.urls = []
+        lanes.drop.hide()
+    }
 }

@@ -61,6 +61,7 @@ import Testing
         let refused = fileDrag([text], at: point, in: view)
         #expect(view.draggingEntered(refused) == [], "the enter of a text file")
         #expect(view.draggingUpdated(refused) == [], "an update of a text file")
+        #expect(view.lanes.drop.cueHidden, "no cue for a text file")
         view.draggingExited(refused)
 
         let accepted = fileDrag([try wav("Voice.wav")], at: point, in: view)
@@ -94,9 +95,10 @@ import Testing
 
         model.importJob = ImportJob()
         #expect(view.draggingUpdated(drag) == [], "d: an import that starts after the enter")
+        #expect(view.lanes.drop.cueHidden, "d: the cue hides")
         let before = studio.session
         #expect(!view.performDragOperation(drag), "e: a drop during an import")
-        #expect(view.lanes.drop.urls.isEmpty, "e: a refused drop holds no file")
+        #expect(view.lanes.drop.urls.isEmpty && view.lanes.drop.cueHidden, "e: a refused drop holds no file")
         view.draggingEnded(drag)
         #expect(studio.session == before, "e: a refused drop imports nothing")
 
@@ -121,22 +123,22 @@ import Testing
         let headers = fileDrag([voice], at: NSPoint(x: view.shown.minX - 20, y: 30), in: view)
 
         _ = view.draggingEntered(drag)
-        #expect(!view.lanes.drop.urls.isEmpty, "the enter holds the file")
+        #expect(!view.lanes.drop.urls.isEmpty && !view.lanes.drop.cueHidden, "the enter holds the file")
         view.draggingExited(drag)
-        #expect(view.lanes.drop.urls.isEmpty, "after an exit")
+        #expect(view.lanes.drop.urls.isEmpty && view.lanes.drop.cueHidden, "after an exit")
 
         _ = view.draggingEntered(drag)
         view.draggingEnded(drag)
-        #expect(view.lanes.drop.urls.isEmpty, "after the end of the drag")
+        #expect(view.lanes.drop.urls.isEmpty && view.lanes.drop.cueHidden, "after the end of the drag")
 
         _ = view.draggingEntered(drag)
         #expect(!view.performDragOperation(headers), "a drop over the headers is refused")
-        #expect(view.lanes.drop.urls.isEmpty, "after a refused drop")
+        #expect(view.lanes.drop.urls.isEmpty && view.lanes.drop.cueHidden, "after a refused drop")
 
         _ = view.draggingEntered(drag)
         #expect(view.performDragOperation(drag))
         view.concludeDragOperation(drag)
-        #expect(view.lanes.drop.urls.isEmpty, "after a drop")
+        #expect(view.lanes.drop.urls.isEmpty && view.lanes.drop.cueHidden, "after a drop")
         await until("the import ends") { model.importJob == nil }
         #expect(studio.session.clip("Voice") != nil)
         await model.close()
@@ -327,69 +329,4 @@ extension EditTakeTests {
         view.draggingExited(drag)
         await model.close()
     }
-}
-
-/// The pasteboard of the fake drags. A test writes it and enters the drag with no await between.
-@MainActor let dropBoard = NSPasteboard.withUniqueName()
-
-/// A drag of `urls` at the lane point `point` of `view`.
-@MainActor func fileDrag(_ urls: [URL], at point: NSPoint, in view: TimelineScrollView) -> FakeDrag {
-    dropBoard.clearContents()
-    dropBoard.writeObjects(urls.map { $0 as NSURL })
-    return FakeDrag(dropBoard, at: view.lanes.convert(point, to: nil))
-}
-
-/// A drag that AppKit would give, with a pasteboard and a window point only (probe P5).
-@MainActor final class FakeDrag: NSObject, @MainActor NSDraggingInfo {
-    let draggingPasteboard: NSPasteboard
-    let draggingLocation: NSPoint
-    var numberOfValidItemsForDrop = 0
-
-    init(_ pasteboard: NSPasteboard, at point: NSPoint) { (draggingPasteboard, draggingLocation) = (pasteboard, point) }
-
-    var draggingDestinationWindow: NSWindow? { nil }
-    var draggingSourceOperationMask: NSDragOperation { .copy }
-    var draggedImageLocation: NSPoint { draggingLocation }
-    var draggedImage: NSImage? { nil }
-    var draggingSource: Any? { nil }
-    var draggingSequenceNumber: Int { 1 }
-    func slideDraggedImage(to screenPoint: NSPoint) {}
-    var draggingFormation: NSDraggingFormation {
-        get { .default }
-        set {}
-    }
-    var animatesToDestination: Bool {
-        get { false }
-        set {}
-    }
-    func enumerateDraggingItems(
-        options enumOpts: NSDraggingItemEnumerationOptions = [], for view: NSView?, classes classArray: [AnyClass],
-        searchOptions: [NSPasteboard.ReadingOptionKey: Any] = [:],
-        using block: (NSDraggingItem, Int, UnsafeMutablePointer<ObjCBool>) -> Void
-    ) {}
-    var springLoadingHighlight: NSSpringLoadingHighlight { .none }
-    func resetSpringLoading() {}
-}
-
-/// A 16-bit WAV of 1 s of silence at 48 kHz with `channels` channels.
-func writeSilentWAV(_ url: URL, channels: Int) throws {
-    var data = Data()
-    func append<T: FixedWidthInteger>(_ value: T) {
-        withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) }
-    }
-    let bytes = 48_000 * channels * 2
-    data.append(contentsOf: Array("RIFF".utf8))
-    append(UInt32(36 + bytes))
-    data.append(contentsOf: Array("WAVEfmt ".utf8))
-    append(UInt32(16))
-    append(UInt16(1))
-    append(UInt16(channels))
-    append(UInt32(48_000))
-    append(UInt32(48_000 * channels * 2))
-    append(UInt16(channels * 2))
-    append(UInt16(16))
-    data.append(contentsOf: Array("data".utf8))
-    append(UInt32(bytes))
-    data.append(Data(count: bytes))
-    try data.write(to: url)
 }

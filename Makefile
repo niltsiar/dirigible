@@ -36,7 +36,7 @@ SLOW_TESTS = $(call slow_tests)
 # The bench files that the push skips: a fast test, or a slow test outside the list, holds each of
 # their asserts (decision 0028). make test-slow still runs them. scripts/check-changed.sh reads
 # this line: a changed file of the list runs test-slow before the push.
-PUSH_SKIP = LoudnessExportBenchmark AutoLevelBenchmark LiveLoudnessBenchmark ExportBenchmark PeakComputeBenchmark LoudnessBenchmark InspectionBenchmark EditBenchmark NavigationKeyBenchmark LaneRenderBenchmark MouseEventBenchmark+CommandF FinalizeBenchmark MouseEventBenchmark MouseEventGainBenchmark MouseEventGroupBenchmark MouseEventCrossfadeBenchmark MouseEventRippleBenchmark MouseEventRedrawBenchmark AutoscrollBenchmark FollowScrollBenchmark OverviewBenchmark HeaderDragBenchmark LiveTakeBenchmark PlayTickBenchmark
+PUSH_SKIP = LoudnessExportBenchmark AutoLevelBenchmark LiveLoudnessBenchmark ExportBenchmark PeakComputeBenchmark LoudnessBenchmark InspectionBenchmark EditBenchmark NavigationKeyBenchmark LaneRenderBenchmark MouseEventBenchmark+CommandF FinalizeBenchmark MouseEventBenchmark MouseEventGainBenchmark MouseEventGroupBenchmark MouseEventCrossfadeBenchmark MouseEventRippleBenchmark MouseEventRedrawBenchmark AutoscrollBenchmark FollowScrollBenchmark OverviewBenchmark HeaderDragBenchmark LiveTakeBenchmark PlayTickBenchmark DropHighlightBenchmark
 SLOW_PUSH_TESTS = $(call slow_tests,$(foreach n,$(PUSH_SKIP),--exclude='$(n).swift'))
 
 # The slow tests only. They run in their own process: their disk and CPU load makes the timed

@@ -287,7 +287,7 @@ Choose **File > Import Audio** (Command-T) and select a WAV, AIFF, FLAC, MP3, or
 - Dirigible levels the clip as **Tools > Auto Level** does, and selects it. One **Edit > Undo** removes the clip, its level, and a new track.
 - A banner shows the name of the file and the progress. Click **Cancel** in the banner or press Command-period to stop the import: the session does not change. VoiceOver reads the banner when it appears, and reads the progress bar with the banner text. You cannot record or edit until the import ends.
 
-You can also drag audio files from Finder onto the tracks:
+You can also drag audio files from Finder onto the tracks. During the drag, a line shows where the clips start. The target track gets a colored border, or a **New Track** row shows where Dirigible adds the tracks.
 
 - Drop one file on a track to put the clip on that track. The clip starts at the pointer, not at the playhead.
 - Drop one file below the last track, or at the bottom edge of the tracks when they fill the window, to add a new track.

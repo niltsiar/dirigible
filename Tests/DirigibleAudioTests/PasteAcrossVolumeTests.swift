@@ -101,4 +101,29 @@ struct PasteAcrossVolumeTests {
         }
         #expect(try Self.names(target).isEmpty, "no WAV and no .tmp")
     }
+
+    /// Code gate 2 item 3: a file that the space check counts as a clone must clone. A source on
+    /// another volume with `canClone` true fails with EXDEV and copies nothing. Controls: a clone
+    /// flag that is always false, and a clone that falls back to a copy.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aCloneThatCannotCloneFailsWithNoCopy() async throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "clone.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try await offMainActor {
+            try FullDiskTests.hdiutil(
+                "create", "-size", "200m", "-fs", "HFS+", "-volname", "DirigibleClone", image.path)
+            try FullDiskTests.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        }
+        defer { FullDiskTests.run(["detach", volume.path, "-force"]) }
+        let (source, clipboard) = try Self.source(in: volume)
+        let (target, session) = try Self.target(in: folder.url)
+
+        #expect(throws: PasteError.write(file: "take1-mic.wav", errno: EXDEV)) {
+            try pasteClipboard(
+                clipboard, from: source, into: session, in: target, identity: nil, at: 0, on: .tracks(["u1"]),
+                freeBytes: { 0 }, canClone: { _, _ in true })
+        }
+        #expect(try Self.names(target).isEmpty, "no WAV and no .tmp")
+    }
 }

@@ -2,7 +2,9 @@ import Foundation
 
 /// A copy of timeline material: the parts of the clips in one range on some tracks, or the whole
 /// clips of a clip set. Only `Session.excerpt` makes one, so each lane is sorted, has no overlap,
-/// and has clip starts relative to the excerpt start. Its file IDs name pool files of one package.
+/// and has clip starts relative to the excerpt start. It carries the pool record of each file that
+/// its clips name and the rate of its frames, so a paste can tell a file of another pool (decision
+/// 0042).
 public struct Excerpt: Hashable, Sendable {
     /// The clear rule of a paste.
     public enum Kind: Hashable, Sendable {
@@ -14,12 +16,46 @@ public struct Excerpt: Hashable, Sendable {
 
     public struct Lane: Hashable, Sendable {
         public let source: TrackID
-        public let clips: [Clip]
+        /// The name and the layout of the source track, for a paste that makes new tracks.
+        public let name: String
+        public let layout: ChannelLayout
+        public internal(set) var clips: [Clip]
     }
 
     public let kind: Kind
     public let length: Frames
-    public let lanes: [Lane]
+    public internal(set) var lanes: [Lane]
+    /// The session rate of the frames.
+    public let sampleRate: Int
+    /// The pool record of each file that a clip names, and no other.
+    public internal(set) var files: [FileID: AudioFile]
+
+    init(kind: Kind, length: Frames, lanes: [Lane], sampleRate: Int, pool: [FileID: AudioFile]) {
+        self.kind = kind
+        self.length = length
+        self.lanes = lanes
+        self.sampleRate = sampleRate
+        let named = Set(lanes.flatMap { $0.clips.map(\.file) })
+        files = pool.filter { named.contains($0.key) }
+    }
+
+    /// The excerpt with each clip file replaced by the ID of its record in `records`, and those
+    /// records as `files` (decision 0042). Every other clip field stays. A clip file with no
+    /// record throws `.unknownFile`.
+    public func mapped(to records: [FileID: AudioFile]) throws(SessionError) -> Excerpt {
+        var mapped = self
+        var used: [FileID: AudioFile] = [:]
+        for lane in mapped.lanes.indices {
+            for index in mapped.lanes[lane].clips.indices {
+                let file = mapped.lanes[lane].clips[index].file
+                guard let record = records[file] else { throw .unknownFile(file) }
+                mapped.lanes[lane].clips[index].file = record.id
+                used[record.id] = record
+            }
+        }
+        mapped.files = used
+        return mapped
+    }
 }
 
 /// The edits of many clips (decision 0018). Each edit uses one set of taken clip IDs, so its cost
@@ -31,15 +67,18 @@ extension Session {
         guard range.lowerBound.isInRange, range.upperBound.isInRange else { throw .frameOutOfRange }
         var lanes: [Excerpt.Lane] = []
         for id in tracks {
-            let clips = self.tracks[try trackIndex(id)].clips.clips(overlapping: range).map { clip in
+            let track = self.tracks[try trackIndex(id)]
+            let clips = track.clips.clips(overlapping: range).map { clip in
                 var part = clip.cut(
                     to: max(clip.start, range.lowerBound)..<min(clip.end, range.upperBound), id: clip.id)
                 part.start = part.start - range.lowerBound
                 return part
             }
-            lanes.append(Excerpt.Lane(source: id, clips: clips))
+            lanes.append(Excerpt.Lane(source: id, name: track.name, layout: track.layout, clips: clips))
         }
-        return Excerpt(kind: .range, length: range.upperBound - range.lowerBound, lanes: lanes)
+        return Excerpt(
+            kind: .range, length: range.upperBound - range.lowerBound, lanes: lanes, sampleRate: sampleRate, pool: files
+        )
     }
 
     /// The whole clips of a clip set (decision 0038). The starts are relative to the first start,
@@ -55,17 +94,17 @@ extension Session {
         guard let first = picked.firstIndex(where: { !$0.isEmpty }),
             let last = picked.lastIndex(where: { !$0.isEmpty }),
             let start = picked.compactMap(\.first?.start).min(), let end = picked.compactMap(\.last?.end).max()
-        else { return Excerpt(kind: .clips, length: .zero, lanes: []) }
+        else { return Excerpt(kind: .clips, length: .zero, lanes: [], sampleRate: sampleRate, pool: [:]) }
         let lanes = (first...last).map { index in
             Excerpt.Lane(
-                source: tracks[index].id,
+                source: tracks[index].id, name: tracks[index].name, layout: tracks[index].layout,
                 clips: picked[index].map { clip in
                     var clip = clip
                     clip.start = clip.start - start
                     return clip
                 })
         }
-        return Excerpt(kind: .clips, length: end - start, lanes: lanes)
+        return Excerpt(kind: .clips, length: end - start, lanes: lanes, sampleRate: sampleRate, pool: files)
     }
 
     /// Lane i goes to `tracks[i]`. A range excerpt clears the whole block `start..<start + length`

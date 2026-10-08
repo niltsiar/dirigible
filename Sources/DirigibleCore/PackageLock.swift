@@ -9,6 +9,10 @@ public final class PackageLock: Sendable {
     private let descriptor: Int32
     /// The package path of the open.
     private let url: URL
+    /// The identity of the package, read once at the open (decision 0042): `fstat` of the lock
+    /// descriptor, else `stat` of the `.lock` path, else nil (a package with no lock file, which no
+    /// process of the user can write).
+    public let identity: PackageID?
 
     /// Throws `.locked` when another holder has the lock, and `.readFailed(ENOENT)` when the
     /// package does not exist. A volume without flock (ENOTSUP) gives an unlocked value
@@ -28,6 +32,7 @@ public final class PackageLock: Sendable {
             let noWriteAccess = (code == EACCES || code == EPERM) && access(package.path, W_OK) != 0
             if code == EROFS || noWriteAccess {
                 self.descriptor = -1
+                identity = PackageID(lockFileOf: package)
                 return
             }
             throw code == ENOENT ? .readFailed(errno: ENOENT) : .writeFailed(step: "lock", errno: code)
@@ -37,11 +42,14 @@ public final class PackageLock: Sendable {
             close(descriptor)
             if code == ENOTSUP {
                 self.descriptor = -1
+                identity = PackageID(lockFileOf: package)
                 return
             }
             throw code == EWOULDBLOCK ? .locked : .writeFailed(step: "flock", errno: code)
         }
         self.descriptor = descriptor
+        var info = stat()
+        identity = fstat(descriptor, &info) == 0 ? PackageID(info) : PackageID(lockFileOf: package)
     }
 
     /// Unlocks before the close. flock belongs to the open file, and a child process between
@@ -95,5 +103,31 @@ public final class PackageLock: Sendable {
             throw locked(error)
         }
         return try withExtendedLifetime(lock) { () throws(Failure) -> Result in try body(lock) }
+    }
+}
+
+/// The identity of a package: the device and the inode of its `.lock` file (decision 0042). A move
+/// or a rename on its volume keeps it; a copy of the package gets another one.
+public struct PackageID: Hashable, Sendable {
+    private let device: dev_t
+    private let inode: ino_t
+
+    init(_ info: stat) {
+        device = info.st_dev
+        inode = info.st_ino
+    }
+
+    /// The identity of the `.lock` file of `package`, or nil when `stat` finds none.
+    public init?(lockFileOf package: URL) {
+        var info = stat()
+        guard stat(package.appending(path: ".lock").path, &info) == 0 else { return nil }
+        self.init(info)
+    }
+
+    /// The one compare of two identities: true only for two equal values. A nil never matches, so a
+    /// package with no identity counts as another package, and a paste copies its files.
+    public static func same(_ a: PackageID?, _ b: PackageID?) -> Bool {
+        guard let a, let b else { return false }
+        return a == b
     }
 }

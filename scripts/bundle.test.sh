@@ -29,6 +29,21 @@ if [[ $status -ne 0 ]] || ! codesign --verify "$app" 2>/dev/null; then
     echo "FAIL: sign-app.sh did not sign a bundle with an extended attribute (exit $status): $output"
     failures=$((failures + 1))
 fi
+
+# sign-app.sh signs the dirigible tool in Contents/Helpers before the app. An unsigned helper
+# fails the app sign ("In subcomponent"). A cc binary is linker-signed only on arm64, so the case
+# removes its signature.
+tool="$app/Contents/Helpers/dirigible"
+mkdir -p "${tool%/*}"
+printf 'int main(void) { return 0; }\n' | cc -x c - -o "$tool"
+codesign --remove-signature "$tool" 2>/dev/null || true
+output="$(SIGN_IDENTITY=- "$here/sign-app.sh" "$app" 2>&1)"
+status=$?
+if [[ $status -ne 0 ]] || ! codesign --verify --strict --deep "$app" 2>/dev/null \
+    || ! grep -qx 'Identifier=com.delineas.dirigible.cli' <<<"$(codesign -dv "$tool" 2>&1)"; then
+    echo "FAIL: sign-app.sh did not sign the helper before the app (exit $status): $output"
+    failures=$((failures + 1))
+fi
 rm -rf "$tmp"
 
 [[ $failures -eq 0 ]] && echo "bundle.test.sh: all checks passed"

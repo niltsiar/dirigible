@@ -285,7 +285,7 @@ Choose **File > Import Audio** (Command-T) and select a WAV, AIFF, FLAC, MP3, or
 - A stereo file on a mono track becomes one channel. A mono file on a stereo track plays on both channels. Dirigible does not import a file with more than 2 channels.
 - The clip replaces the audio under it on its track.
 - Dirigible levels the clip as **Tools > Auto Level** does, and selects it. One **Edit > Undo** removes the clip, its level, and a new track.
-- A banner shows the name of the file and the progress. Click **Cancel** in the banner to stop the import: the session does not change. You cannot record or edit until the import ends.
+- A banner shows the name of the file and the progress. Click **Cancel** in the banner or press Command-period to stop the import: the session does not change. VoiceOver reads the banner when it appears, and reads the progress bar with the banner text. You cannot record or edit until the import ends.
 
 ### Mute and solo tracks
 

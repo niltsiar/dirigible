@@ -78,10 +78,15 @@ struct TakeBanner: View {
         case .leveling:
             BannerRow(kind: .info, text: L10n.takeLeveling.text)
         case .importing(let run):
+            let text = run.bannerText
             HStack {
-                BannerRow(kind: .info, text: L10n.importBanner.format(run.name))
+                BannerRow(kind: .info, text: text)
+                // VoiceOver reads the bar with the banner text (ui-panel.md item 7).
                 ProgressView(value: model.importJob?.progress ?? 0).frame(width: 160)
-                Button(L10n.importCancel.key) { model.cancelImport() }.padding(.trailing)
+                    .accessibilityLabel(Text(verbatim: text))
+                // Command-period is the Mac key of Cancel; a focused field does not take it.
+                Button(L10n.importCancel.key) { model.cancelImport() }.keyboardShortcut(".", modifiers: .command)
+                    .padding(.trailing)
             }
         case .idle:
             if let pending = studio.pendingTake {
@@ -166,5 +171,15 @@ struct TakeBanner: View {
         }
         if let take = studio.recoveredTake { lines.append(L10n.takeRecovered.format(take.take)) }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+}
+
+extension ImportRun {
+    /// The text of the banner of an import or of a paste from another package (decision 0042).
+    var bannerText: String {
+        switch kind {
+        case .file: L10n.importBanner.format(name)
+        case .paste: L10n.pasteBanner.format(name)
+        }
     }
 }

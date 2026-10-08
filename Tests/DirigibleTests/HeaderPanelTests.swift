@@ -186,20 +186,20 @@ import Testing
     /// Decision 0023, fallback 2 (run 1b slice 5): the rows keep their width during a drag, the
     /// ruler clips them, and they take the new width at the mouse-up; Esc gives them the start width.
     /// The handle follows the ruler width during the drag.
+    /// Each width event renders the lanes once, and the mouse-up renders none (`Paced` of
+    /// `HeaderDragBenchmark`).
     @Test func theRowsTakeTheWidthAtTheMouseUp() async throws {
         let (window, view, model) = try await standalone(width: .standard)
+        let paced = Paced(view: view, window: window, zoom: "header")
         try handle(.leftMouseDown, 337, view)
-        try handle(.leftMouseDragged, 417, view)
-        drawNow(window)
+        _ = try await paced.timed(.leftMouseDragged, 417)
         #expect(Double(view.headers.ruleThickness) == 420, "live width")
         #expect(view.headers.host.frame.width == 340, "the rows keep the start width during the drag")
-        try handle(.leftMouseDragged, 397, view)
-        drawNow(window)
+        _ = try await paced.timed(.leftMouseDragged, 397)
         let hit = window.contentView?.superview?.hitTest(
             view.headers.convert(NSPoint(x: 399.5, y: view.headers.bounds.midY), to: nil))
         #expect(hit === view.headers.handle, "handle at 399.5 during the drag")
-        try handle(.leftMouseUp, 397, view)
-        drawNow(window)
+        _ = try await paced.timed(.leftMouseUp, 397, renders: false)
         #expect(view.headers.host.frame.width == 400, "the rows take the width at the up")
         try handle(.leftMouseDown, 397, view)
         try handle(.leftMouseDragged, 297, view)

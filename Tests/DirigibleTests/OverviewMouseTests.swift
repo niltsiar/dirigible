@@ -48,12 +48,26 @@ import Testing
         await model.close()
     }
 
+    /// A strip drag event, the SwiftUI update of the pane, and the draw draw the lanes once
+    /// (`OverviewBenchmark`).
+    func dragDrawsTheLanesOnce(_ x: Double, _ model: SessionWindow, _ window: NSWindow, _ pane: TimelinePaneView)
+        throws
+    {
+        drawNow(window)
+        let draws = pane.scroll.lanes.draws
+        try send(.leftMouseDragged, x, to: pane.overview)
+        MouseEventBenchmark.swiftUIUpdate(pane.scroll, model, try #require(pane.scroll.lanes.inputs))
+        drawNow(window)
+        let drew = pane.scroll.lanes.draws - draws
+        #expect(drew == 1, "drag event 1 drew \(drew) times")
+    }
+
     @Test func aFrameDragScrollsAndEscRestores() async throws {
         let (model, _, window, pane) = try await stripPane(folder, app)
         let (view, strip) = (pane.scroll, pane.overview)
         zoom(view, 128, origin: 0)
         try send(.leftMouseDown, 100, to: strip)
-        try send(.leftMouseDragged, 110, to: strip)
+        try dragDrawsTheLanesOnce(110, model, window, pane)
         #expect(abs(view.origin - 10 * Self.stripFramesPerPoint) <= 128, "a 10 pt drag moves 10 x the strip scale")
         #expect(view.cancelOverview(), "Esc ends the drag")
         #expect(view.origin == 0, "Esc gives the origin of the mouse-down")
@@ -68,7 +82,7 @@ import Testing
         let (view, strip) = (pane.scroll, pane.overview)
         zoom(view, 128, origin: 0)
         try send(.leftMouseDown, 335, to: strip)
-        try send(.leftMouseDragged, 400, to: strip)
+        try dragDrawsTheLanesOnce(400, model, window, pane)
         try send(.leftMouseUp, 400, to: strip)
         #expect(view.origin == 0, "the leading edge stays")
         #expect(abs(view.framesPerPoint - 400 * Self.stripFramesPerPoint / 1440) < 0.01, "\(view.framesPerPoint)")

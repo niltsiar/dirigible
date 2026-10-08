@@ -60,7 +60,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 3. A change replaces or merges text in the same section, so the file stays within its budget. When it cannot, the item goes to the `## Later` section of the backlog.
 4. Each change updates `docs/workflow/rules.tsv` in the same commit.
 5. Once per upkeep run, before the merge, the review panel reviews the diff of the batch. The lenses come from the paths of the diff. A blocking finding gets a fix commit or a revert commit.
-6. When 3 or more upkeep items wait, the next run is a workflow upkeep run, which applies them all.
+6. When 8 or more upkeep items wait, the next run is a workflow upkeep run, which applies them all (amended 2026-10-08: 3 before).
 7. A reflect run or an upkeep run removes at most one rule. The reflect skill holds the full removal rule. In a branch whose only class is docs, `scripts/check-governance.sh` refuses more than one removal when the run has a reflect row.
 8. An upkeep run runs once, for the batch, the eval scenarios of `docs/workflow/evals.md` that name a changed file. A scenario that passed before the change and fails after it reverts the change. A changed file with no scenario gets one first, or the commit body says why none applies.
 

@@ -45,10 +45,10 @@ if [[ -n "$prev" ]]; then
 else
     echo "backlog: ## Later has $later items" >&2
 fi
-# Reflect rule 6: with 3 or more upkeep items in ## Next, this run is a workflow upkeep run.
+# Reflect rule 6: with 8 or more upkeep items in ## Next, this run is a workflow upkeep run.
 upkeep="$(awk '/^## /{s=$0; next} s=="## Next" && /^- upkeep /{n++} END{print n+0}' "$backlog")"
 echo "upkeep items: $upkeep" >&2
-(( upkeep < 3 )) || echo "warning: $upkeep upkeep items wait; make this run a workflow upkeep run (reflect rule 6)" >&2
+(( upkeep < 8 )) || echo "warning: $upkeep upkeep items wait; make this run a workflow upkeep run (reflect rule 6)" >&2
 # The distinct product runs after the done row of the last run whose name has architecture: an
 # open audit has not audited yet. A run has an open and a done row. The current run, and a run
 # whose name has workflow, upkeep, or docs, do not count.

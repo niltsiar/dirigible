@@ -98,8 +98,8 @@ let clipTools = [
         let (ids, frame, targets) = (try a[clips].map { ClipID($0) }, Frames(try a[at]), try a[onto])
         return .edit { session throws(SessionError) in
             let excerpt = try session.excerpt(of: ids)
-            let lanes = targets.isEmpty ? excerpt.lanes.map(\.source) : targets.map { TrackID($0) }
-            return try session.paste(excerpt, at: frame, on: lanes).map(\.rawValue)
+            return try session.paste(excerpt, at: frame, on: EditRules.laneTargets(of: excerpt, onto: targets))
+                .map(\.rawValue)
         }
     },
     Tool(

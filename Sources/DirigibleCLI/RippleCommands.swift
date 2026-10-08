@@ -22,7 +22,7 @@ extension ClipCommand {
 
         func run() throws {
             try editPackage(package, ripple: true) { session throws(SessionError) in
-                try session.rippleDelete(range.frames, on: scope(track, of: session))
+                try session.rippleDelete(range.frames, on: EditRules.tracks(track, of: session))
             }
         }
     }
@@ -42,7 +42,7 @@ extension ClipCommand {
 
         func run() throws {
             try editPackage(package, ripple: true) { session throws(SessionError) in
-                try session.rippleInsert(Frames(length), at: Frames(at), on: scope(track, of: session))
+                try session.rippleInsert(Frames(length), at: Frames(at), on: EditRules.tracks(track, of: session))
             }
         }
     }
@@ -66,7 +66,8 @@ extension ClipCommand {
 
         func run() throws {
             try editPackage(package, ripple: true) { session throws(SessionError) in
-                try session.rippleTrim(ClipID(clip), edge: edge, by: Frames(by), on: scope(track, of: session))
+                try session.rippleTrim(
+                    ClipID(clip), edge: edge, by: Frames(by), on: EditRules.tracks(track, of: session))
             }
         }
     }
@@ -75,9 +76,4 @@ extension ClipCommand {
 private func parseEdge(_ text: String) throws -> Fades.Edge {
     guard let edge = EditRules.edge(text) else { throw ValidationError("An edge is start or end.") }
     return edge
-}
-
-/// The tracks of `--track`, or all tracks when there is none.
-private func scope(_ tracks: [String], of session: Session) -> [TrackID] {
-    tracks.isEmpty ? session.tracks.map(\.id) : tracks.map { TrackID($0) }
 }

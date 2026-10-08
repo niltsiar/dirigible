@@ -12,10 +12,6 @@ private let edge = Param.required("edge", "start or end.", .choice(["start", "en
 private let by = Param.required(
     "by", "The frames to move the edge; negative moves left. At the start edge, positive removes audio.", .integer())
 
-private func tracks(_ ids: [String], of session: Session) -> [TrackID] {
-    ids.isEmpty ? session.tracks.map(\.id) : ids.map { TrackID($0) }
-}
-
 let rippleTools = [
     Tool(
         "clip_ripple_delete",
@@ -28,7 +24,7 @@ let rippleTools = [
         }
         let ids = try a[scope]
         return .edit(ripple: true) { session throws(SessionError) in
-            try session.rippleDelete(range, on: tracks(ids, of: session))
+            try session.rippleDelete(range, on: EditRules.tracks(ids, of: session))
             return []
         }
     },
@@ -39,7 +35,7 @@ let rippleTools = [
     ) { a throws(ToolError) in
         let (frame, frames, ids) = (Frames(try a[at]), Frames(try a[length]), try a[scope])
         return .edit(ripple: true) { session throws(SessionError) in
-            try session.rippleInsert(frames, at: frame, on: tracks(ids, of: session))
+            try session.rippleInsert(frames, at: frame, on: EditRules.tracks(ids, of: session))
             return []
         }
     },
@@ -51,7 +47,7 @@ let rippleTools = [
     ) { a throws(ToolError) in
         let (id, side, frames, ids) = (ClipID(try a[clip]), try a[edge], Frames(try a[by]), try a[scope])
         return .edit(ripple: true) { session throws(SessionError) in
-            try session.rippleTrim(id, edge: side, by: frames, on: tracks(ids, of: session))
+            try session.rippleTrim(id, edge: side, by: frames, on: EditRules.tracks(ids, of: session))
             return []
         }
     },

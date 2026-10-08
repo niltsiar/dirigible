@@ -274,4 +274,7 @@ public enum SessionError: Error, Hashable, Sendable {
     case trackCount(Int)
     /// A nudge with a lane offset puts this clip past the first or the last track (decision 0038).
     case laneOutOfRange(ClipID)
+    /// A paste names a file whose record differs from the record of this ID in the session: the
+    /// excerpt comes from another pool (decision 0042).
+    case foreignFile(FileID)
 }

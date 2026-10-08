@@ -30,6 +30,15 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         } catch {
             throw ToolError(error.message(package: path))
         }
+    case .paste(let work):
+        do throws(EditFailure<PasteError>) {
+            let ids = try editPackageCore(package, ripple: false) { session, lock throws(PasteError) -> [ClipID] in
+                try work.run(&session, lock: lock, package: package)
+            }
+            return ids.isEmpty ? "OK" : ids.map(\.rawValue).joined(separator: "\n")
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
     case .create(let sampleRate):
         do throws(SessionFileError) {
             try Session.create(at: package, sampleRate: sampleRate)

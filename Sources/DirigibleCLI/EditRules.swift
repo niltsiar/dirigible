@@ -92,6 +92,17 @@ enum EditRules {
         onto.isEmpty ? excerpt.lanes.map(\.source) : onto.map { TrackID($0) }
     }
 
+    /// True when a paste from `source` into `target` needs `--onto` and has none: the source track
+    /// IDs do not name tracks of another package (decision 0042). One package (one path, or one
+    /// identity) needs none.
+    static func sourceNeedsOnto(source: URL, target: URL, onto: [String]) -> Bool {
+        guard onto.isEmpty else { return false }
+        let same =
+            source.standardizedFileURL.resolvingSymlinksInPath() == target.standardizedFileURL.resolvingSymlinksInPath()
+            || PackageID.same(PackageID(lockFileOf: source), PackageID(lockFileOf: target))
+        return !same
+    }
+
     static func pasteTargets(sources: [String], onto: [String]) -> [String]? {
         guard !sources.isEmpty else { return nil }
         if onto.isEmpty { return sources }

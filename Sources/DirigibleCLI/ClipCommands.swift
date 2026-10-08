@@ -1,5 +1,7 @@
 import ArgumentParser
+import DirigibleAudio
 import DirigibleCore
+import Foundation
 
 struct ClipCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -77,16 +79,24 @@ struct ClipCommand: ParsableCommand {
         @Option(parsing: .unconditional, help: "The timeline frame of the paste.") var at: Int
         @Option(help: "A target track for each --track, in order. The default is the source tracks.")
         var onto: [String] = []
+        @Option(help: SourceOption.help) var source: String?
 
         func validate() throws {
             guard !track.isEmpty else { throw ValidationError("Give one or more --track.") }
             guard EditRules.pasteTargets(sources: track, onto: onto) != nil else {
                 throw ValidationError("Give one --onto for each --track, or none.")
             }
+            try SourceOption.validate(source, package: package, onto: onto)
         }
 
         func run() throws {
             let sources = track.map { TrackID($0) }
+            if let source {
+                let work = PasteWork(
+                    source: URL(filePath: source), selection: .range(range.frames, tracks: sources), at: Frames(at),
+                    onto: onto)
+                return try SourceOption.run(work, package: package)
+            }
             // `validate()` checked the targets.
             let targets = (EditRules.pasteTargets(sources: track, onto: onto) ?? []).map { TrackID($0) }
             let pasted = try editPackage(package) { session throws(SessionError) in
@@ -107,8 +117,17 @@ struct ClipCommand: ParsableCommand {
         @Option(
             help: "A target track for each track from the first to the last clip. The default is the source tracks.")
         var onto: [String] = []
+        @Option(help: SourceOption.help) var source: String?
+
+        func validate() throws { try SourceOption.validate(source, package: package, onto: onto) }
 
         func run() throws {
+            if let source {
+                let work = PasteWork(
+                    source: URL(filePath: source), selection: .clips(clips.map { ClipID($0) }), at: Frames(at),
+                    onto: onto)
+                return try SourceOption.run(work, package: package)
+            }
             let pasted = try editPackage(package) { session throws(SessionError) in
                 let excerpt = try session.excerpt(of: clips.map { ClipID($0) })
                 return try session.paste(excerpt, at: Frames(at), on: EditRules.laneTargets(of: excerpt, onto: onto))
@@ -270,6 +289,34 @@ func parseCrossfadeLength(_ text: String) throws -> Frames {
 }
 
 /// `--from` and `--to`, with `EditRules.frameRange`.
+/// `--source` of the paste commands (decision 0042): the clips come from another package, and
+/// their files copy into this one, at the rate of this session.
+enum SourceOption {
+    static let help = ArgumentHelp(
+        "Another session package to copy from. Its files are copied or converted into this package. Give --onto.",
+        valueName: "package")
+
+    static func validate(_ source: String?, package: PackageArgument, onto: [String]) throws {
+        guard let source else { return }
+        guard !EditRules.sourceNeedsOnto(source: URL(filePath: source), target: package.url, onto: onto) else {
+            throw ValidationError("Give --onto with --source of another package.")
+        }
+    }
+
+    static func run(_ work: PasteWork, package: PackageArgument) throws {
+        let pasted = try editPackage(package, refused: refusedPaste) { session, lock throws(PasteError) in
+            try work.run(&session, lock: lock, package: package.url)
+        }
+        for id in pasted { print(id) }
+    }
+}
+
+/// The exit code of a refused paste: 1 for a refused edit, 2 for a source or file fault.
+private func refusedPaste(_ error: PasteError) -> ExitCode {
+    if case .session(let refusal) = error { return fail(refusal.message, code: editRefused) }
+    return fail(error.message, code: packageError)
+}
+
 struct FrameRange: ParsableArguments {
     @Option(parsing: .unconditional, help: "The first frame.") var from: Int
     @Option(parsing: .unconditional, help: "The frame after the last frame.") var to: Int

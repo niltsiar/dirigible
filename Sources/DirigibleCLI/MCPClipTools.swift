@@ -15,6 +15,14 @@ private let rightID = Param<String?>.optional(
     "right_id", "The ID of the right part. The default is <clip>@<frame>.", .string)
 private let onto = Param.defaulted(
     "onto", "A target track for each source track, in order. The default is the source tracks.", .strings(), [String]())
+private let source = Param<String?>.optional(
+    "source",
+    "The absolute path of another session package to copy from. Its files are copied or converted into this "
+        + "package. Give onto.", .string)
+/// The note of a paste with `source` (decision 0042): the server answers each call in full.
+private let sourceNote =
+    " With source, the call copies or converts files; it runs to the end and saves, also when the client stops "
+    + "waiting. Read session_info before a retry."
 private let someClips = Param.defaulted("clips", "The clip IDs.", .strings(), [String]())
 private let clips = Param.required("clips", "The clip IDs: one or more.", .strings(minItems: 1))
 private let by = Param.required("by", "The frames to move; negative moves left.", .integer())
@@ -27,6 +35,20 @@ private let crossfade = Param.required(
     "length", "The crossfade length in frames, an even number.", .integer(minimum: 0))
 
 extension Arguments {
+    /// The paste from another package of `source` (decision 0042), or nil with no `source`. The
+    /// path is absolute, as `package`, and another package needs `onto`.
+    fileprivate func paste(_ selection: PasteWork.Selection, at frame: Frames, onto: [String]) throws(ToolError)
+        -> PasteWork?
+    {
+        guard let path = try self[source] else { return nil }
+        guard path.hasPrefix("/") else { throw ToolError("The argument \"source\" must be an absolute path.") }
+        let url = URL(filePath: path)
+        guard !EditRules.sourceNeedsOnto(source: url, target: URL(filePath: self.path), onto: onto) else {
+            throw ToolError("Give onto with source of another package.")
+        }
+        return PasteWork(source: url, selection: selection, at: frame, onto: onto)
+    }
+
     /// `from` and `to` (V19: `EditRules.frameRange`).
     func range() throws(ToolError) -> Range<Frames> {
         guard let range = EditRules.frameRange(from: try self[Arg.from], to: try self[Arg.to]) else {
@@ -77,12 +99,15 @@ let clipTools = [
     },
     Tool(
         "clip_paste",
-        "Copy a range of tracks and paste it at a frame over the clips there. Give the pasted IDs.",
-        [Arg.from, Arg.to, tracks, at, onto]
+        "Copy a range of tracks and paste it at a frame over the clips there. Give the pasted IDs." + sourceNote,
+        [Arg.from, Arg.to, tracks, at, onto, source]
     ) { a throws(ToolError) in
         let (range, sources, frame) = (try a.range(), try a[tracks], Frames(try a[at]))
         guard let targets = EditRules.pasteTargets(sources: sources, onto: try a[onto]) else {
             throw ToolError("Give one onto for each track, or none.")
+        }
+        if let work = try a.paste(.range(range, tracks: sources.map { TrackID($0) }), at: frame, onto: try a[onto]) {
+            return .paste(work)
         }
         return .edit { session throws(SessionError) in
             let excerpt = try session.excerpt(of: range, on: sources.map { TrackID($0) })
@@ -92,10 +117,11 @@ let clipTools = [
     Tool(
         "clip_paste_clips",
         "Copy whole clips with their time and track offsets, and paste them at a frame over the clips under "
-            + "them. Give the pasted IDs.",
-        [clips, at, onto]
+            + "them. Give the pasted IDs." + sourceNote,
+        [clips, at, onto, source]
     ) { a throws(ToolError) in
         let (ids, frame, targets) = (try a[clips].map { ClipID($0) }, Frames(try a[at]), try a[onto])
+        if let work = try a.paste(.clips(ids), at: frame, onto: targets) { return .paste(work) }
         return .edit { session throws(SessionError) in
             let excerpt = try session.excerpt(of: ids)
             return try session.paste(excerpt, at: frame, on: EditRules.laneTargets(of: excerpt, onto: targets))

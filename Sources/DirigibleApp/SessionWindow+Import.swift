@@ -7,6 +7,8 @@ import DirigibleTimeline
 /// `Studio.importRun`.
 struct ImportJob {
     var progress = 0.0
+    /// The index of the file of a chain that `progress` is for. A paste is file 0.
+    var file = 0
     var task: Task<Void, Never>?
     /// False until the banner shows: a paste shows it only after 0.5 s, so a clone shows none
     /// (`ui-panel.md` item 1). An import shows it at once.
@@ -58,10 +60,13 @@ extension SessionWindow {
             var (clips, errors, notImported) = ([ClipID](), [StudioError](), [String]())
             chain: for (n, url) in urls.enumerated() {
                 self?.importJob?.progress = 0
+                self?.importJob?.file = n
                 self?.chrome?.announce(L10n.importBanner.format(url.lastPathComponent), .high)
                 do throws(StudioError) {
                     clips.append(
-                        try await studio.importAudio(url, to: target) { [weak self] in self?.importProgressed($0) })
+                        try await studio.importAudio(url, to: target) { [weak self] in
+                            self?.importProgressed($0, file: n)
+                        })
                 } catch .audioImport(.cancelled) {
                     break chain
                 } catch {
@@ -80,10 +85,10 @@ extension SessionWindow {
         }
     }
 
-    /// A progress hop of the running import. Hops can arrive out of order, so the bar keeps the
-    /// largest fraction.
-    func importProgressed(_ fraction: Double) {
-        if let progress = importJob?.progress { importJob?.progress = max(progress, fraction) }
+    /// A progress hop of file `file` of the running import. Hops can arrive out of order, so the
+    /// bar keeps the largest fraction. A hop of another file changes nothing.
+    func importProgressed(_ fraction: Double, file: Int = 0) {
+        if let job = importJob, job.file == file { importJob?.progress = max(job.progress, fraction) }
     }
 
     /// The Cancel button of the banner. The import ends within one block.

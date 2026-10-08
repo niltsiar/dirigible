@@ -56,16 +56,18 @@ fast="$(sed -n 's/^fast//p' <<<"$split" | once)"
 slow="$(sed -n 's/^slow//p' <<<"$split" | once)"
 all="$(xargs <<<"$fast $slow")"
 
-# rerun <names> <command>: prints each name with no pass line in the output of the command, so
-# a test that did not run stays red (none: all passed). A crash, an issue of no test, or a red
-# command in which each name passed returns 1.
+# rerun <names> <command>: prints each name with a failed line or with no pass line in the output
+# of the command (none: all passed). A test that did not run stays red, and so does a name of two
+# suites with one red suite. A crash, an issue of no test, or a red command in which each name
+# passed returns 1.
 rerun() {
-    local names="$1" code=0 why left="" name
+    local names="$1" code=0 why left="" name cases='[(][^)]*[)]( with [0-9]+ test cases)?'
     shift
     "$@" 2>&1 | tee "$log.rerun" >&2 || code=$?
     why="$(blocked "$log.rerun")"
     for name in $names; do
-        grep -qE "(✔|✘) Test $name[(][^)]*[)]( with [0-9]+ test cases)? passed after" "$log.rerun" || left+=" $name"
+        if grep -qE "✘ Test $name$cases failed after" "$log.rerun" ||
+            ! grep -qE "(✔|✘) Test $name$cases passed after" "$log.rerun"; then left+=" $name"; fi
     done
     [[ $code -eq 0 || -n "$left" ]] || why="${why:-no failed test line}"
     [[ -z "$why" ]] || { echo "run-checks: the rerun stopped: $why" >&2; return 1; }

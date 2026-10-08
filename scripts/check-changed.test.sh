@@ -183,7 +183,7 @@ make_repo() {
   new_repo
   cp "$repo/Makefile" "$tmp/r/Makefile"
   cp "$script" "$tmp/r/scripts/check-changed.sh"
-  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$tmp/r/scripts/"
+  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/run-checks.sh" "$tmp/r/scripts/"
   g add -A
   g commit -q -m make
 }
@@ -318,6 +318,37 @@ make_repo
 printf '#!/bin/bash\necho "classes: none"\n' > "$tmp/r/scripts/check-changed.sh"
 g commit -q -am stub
 make_case 'make check-changed with no targets line' 'no targets line'
+
+# The rerun of run-checks.sh through the recipe. A fake swift fails its first call with a failed
+# test line, so the real test recipe is red; a fake test-filter.sh passes or fails by FAKE_FILTER.
+# A red test that passes on a rerun writes the stamp; a red rerun writes none.
+cat > "$tmp/bin/swift" <<EOF
+#!/bin/bash
+echo "swift \$*" >> "$tmp/swift.log"
+n=\$((\$(cat "$tmp/swift.n" 2>/dev/null || echo 0) + 1))
+echo "\$n" > "$tmp/swift.n"
+[[ \$n -eq 1 ]] || exit 0
+echo "✘ Test aFlake() failed after 1.0 seconds with 1 issue."
+exit 1
+EOF
+rerun_repo() {
+  stamp_repo test
+  printf '#!/bin/bash\n[[ "$FAKE_FILTER" == pass ]] && exit 0\necho "✘ Test aFlake() failed after 1.0 seconds with 1 issue."\nexit 1\n' > "$tmp/r/scripts/test-filter.sh"
+  g commit -q -am fake-filter
+  rm -f "$tmp/swift.n"
+  : > "$tmp/swift.log"
+}
+rerun_repo
+FAKE_FILTER=pass PATH="$tmp/bin:$PATH" make_case 'a red test that passes on a rerun' '' BASE=main
+[[ "$(stamp_read)" == "$(g rev-parse HEAD) test" ]] || fail "a red test that passes on a rerun: stamp [$(stamp_read)]: $output"
+[[ "$output" == *"run-checks: flake: aFlake passed on rerun 1 of 3"* ]] || fail "a red test that passes on a rerun: no flake line: $output"
+rerun_repo
+FAKE_FILTER=red PATH="$tmp/bin:$PATH" make_case 'a red rerun' 'red after 3 reruns' BASE=main
+[[ "$(stamp_read)" == 'no stamp' ]] || fail "a red rerun: stamp [$(stamp_read)]"
+# The test recipe runs the CLI process also when process 1 fails, and exits nonzero.
+rerun_repo
+PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test > /dev/null 2>&1 && fail 'make test with a red process 1 exits 0'
+[[ "$(sed -n 2p "$tmp/swift.log")" == 'swift test --filter DirigibleCLITests' ]] || fail "make test with a red process 1: calls [$(cat "$tmp/swift.log")]"
 
 [[ $failures -eq 0 ]] && echo "check-changed tests: all passed"
 exit $((failures > 0))

@@ -29,6 +29,7 @@ mkdir "$bin"
 cat > "$bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$LAND_LOG"
+[[ -z "${CHECK_RISK:-}" ]] || echo "make: risk $CHECK_RISK" >> "$LAND_LOG"
 git merge-base --is-ancestor origin/main HEAD && echo "make: rebased" >> "$LAND_LOG"
 case "${FAKE_MAKE:-ok}" in
   red) exit 1 ;;
@@ -272,14 +273,15 @@ stamp_case 'matching stamp' "stamp: reuse $head" ''
 stamp_setup
 stamp origin/main
 commit_file docs/a.md
-stamp_case 'docs delta' 'stamp: delta check-docs' 'make check-docs'
+stamp_case 'docs delta' 'stamp: delta check-docs' 'make -k check-docs'
+grep -qx 'make: risk no' "$c/log" || fail "docs delta: run-checks.sh did not get CHECK_RISK=no: $(cat "$c/log")"
 ! grep -q '^sysctl' "$c/log" || fail "docs delta: the load wait read the load: $(cat "$c/log")"
 stamp_setup
 stamp origin/main
 commit_file Sources/DirigibleApp/X.swift
-stamp_case 'sources delta' 'stamp: delta check' 'make check'
+stamp_case 'sources delta' 'stamp: delta check' 'make -k check'
 # The delta runs Swift tests, so the load wait reads the load before make.
-[[ "$(grep -E '^(sysctl -n vm.loadavg|make check)$' "$c/log")" == $'sysctl -n vm.loadavg\nmake check' ]] ||
+[[ "$(grep -E '^(sysctl -n vm.loadavg|make -k check)$' "$c/log")" == $'sysctl -n vm.loadavg\nmake -k check' ]] ||
   fail "sources delta: no load wait before make check: $(cat "$c/log")"
 grep -q 'check-changed: load 1.00, under 8' "$c/out" || fail "sources delta: no load line: $(cat "$c/out")"
 
@@ -290,7 +292,16 @@ stamp origin/main
 mkdir -p "$c/work/docs"
 git -C "$c/work" mv Support/x.plist docs/x.plist
 git -C "$c/work" commit -q -m move
-stamp_case 'renamed bundle path' 'stamp: delta check test-dmg' 'make check test-dmg'
+stamp_case 'renamed bundle path' 'stamp: delta check test-dmg' 'make -k check test-dmg'
+
+# A delta with risk: yes against origin/main gives run-checks.sh CHECK_RISK=yes (1 rerun at most).
+stamp_setup
+commit_file Sources/DirigibleAudio/A.swift
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-01T02:00\t4\tk1 killed\tw\tcontrols/k1.log\tkilled\n' > "$c/decisions.tsv"
+stamp origin/main
+commit_file docs/a.md
+stamp_case 'risk delta' 'stamp: delta check-docs' 'make -k check-docs'
+grep -qx 'make: risk yes' "$c/log" || fail "risk delta: run-checks.sh did not get CHECK_RISK=yes: $(cat "$c/log")"
 
 # No usable stamp: the full push check, with the reason.
 stamp_setup
@@ -330,12 +341,31 @@ mkdir -p "$c/work/scripts"
 cp "$here/../Makefile" "$c/work/Makefile"
 printf '\nstub-ok:\n\t@echo stub-ok ran\n' >> "$c/work/Makefile"
 printf '#!/bin/bash\nprintf "classes: docs\\ntargets: stub-ok\\nrisk: no\\n"\n' > "$c/work/scripts/check-changed.sh"
-cp "$here/check-stamp.sh" "$c/work/scripts/check-stamp.sh"
+cp "$here/check-stamp.sh" "$here/run-checks.sh" "$c/work/scripts/"
 chmod +x "$c/work/scripts/check-changed.sh"
 git -C "$c/work" add -A && git -C "$c/work" commit -q -m ratchet
 (cd "$c/work" && make -s check-changed BASE=origin/main) > "$c/make.out" 2>&1 || fail "ratchet: make check-changed failed: $(cat "$c/make.out")"
 grep -qx 'stub-ok ran' "$c/make.out" || fail "ratchet: the check ran no target: $(cat "$c/make.out")"
 stamp_case 'ratchet' "stamp: reuse $(git -C "$c/work" rev-parse HEAD)" ''
+
+# The flake rows: before the push, each dirigible-flakes line of a commit of the branch (an
+# ancestor of HEAD before or after the rebase) gives one flake row in the decisions.tsv of the run
+# and leaves the file. A line of another commit stays.
+setup
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$c/decisions.tsv"
+git -C "$c/work" switch -q -c side
+git -C "$c/work" commit -q --allow-empty -m side
+side="$(git -C "$c/work" rev-parse HEAD)"
+git -C "$c/work" switch -q feat/x
+printf '%s aFlake load 7.50\n%s other load 1.00\n' "$(git -C "$c/work" rev-parse HEAD)" "$side" > "$c/work/.git/dirigible-flakes"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "flake rows: exit $code: $(cat "$c/out")"
+rows="$(tail -n +2 "$c/decisions.tsv")"
+[[ "$(grep -c . <<<"$rows")" == 1 ]] || fail "flake rows: rows [$rows]"
+[[ "$(cut -f2 <<<"$rows")" == 7 && "$(cut -f3 <<<"$rows")" == *aFlake*7.50* && "$(cut -f6 <<<"$rows")" == flake* ]] ||
+  fail "flake rows: row [$rows]"
+[[ "$(cat "$c/work/.git/dirigible-flakes")" == "$side other load 1.00" ]] || fail "flake rows: flakes [$(cat "$c/work/.git/dirigible-flakes")]"
 
 # A body with a run-internal ID refuses before any step, also before the fetch, and names the
 # writing-for-humans skill. The remote main moved after the clone, so a fetch would show.

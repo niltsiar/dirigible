@@ -5,6 +5,7 @@
 - Accepted: 2026-09-30, after plan gate rounds 1 and 2 of run `2026-09-30-workflow-consolidation`.
 - Amended: 2026-10-01. A commit inside a slice can run only the tests of the slice. A passing push check writes a stamp that the land reuses. After a fix that follows the replay, only the affected controls replay again. Reflect rule 8 also runs the scenarios after a trim of a rule.
 - Amended: 2026-10-02 (run `2026-10-02-speed-run`, user decisions). The pre-commit hook runs only lint, and no check is required before a commit. The push adds `test-slow` only for risk, a changed slow test, a Makefile change, or the first push of the day with Swift tests. A small run gets trimmed gates. Reflect logs learnings only; an upkeep run applies the rule changes.
+- Amended: 2026-10-08 (run `2026-10-08-workflow-speed-3`, user request). `scripts/run-checks.sh` runs the targets of `make check-changed` and of the land delta with `make -k`. When only `test` or `test-slow-push` is red, it reruns only the failed Swift tests: up to 3 tries, or 1 try with `risk: yes`. A pass on a rerun writes the stamp, and `scripts/land.sh` writes a `flake` row for each test that passed only on a rerun. The flake triage still applies.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context

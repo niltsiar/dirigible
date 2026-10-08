@@ -13,14 +13,15 @@ extension Studio {
 
     /// The paste of a clipboard of this package (decision 0042): one `edit` on the main actor, as a
     /// paste of today, with no file I/O. Nil, and no change, for a clipboard of another package:
-    /// then the caller runs `paste`. It owns the origin compare of the app,
+    /// then the caller runs `pasteAcross`. It owns the origin compare of the app,
     /// `PackageID.same(clipboard.origin, identity)`, on stored values.
     public func pasteInPlace(_ clipboard: Clipboard, at start: Frames, on target: PasteTarget, insert: Bool = false)
         throws(StudioError) -> (clips: [ClipID], tracks: [TrackID])?
     {
         let identity = lock.identity
         guard PackageID.same(clipboard.origin, identity) else { return nil }
-        return try edit { session throws(SessionError) in
+        var failure: PasteError?
+        let pasted = try edit { session throws(SessionError) in
             do throws(PasteError) {
                 let pasted = try pasteClipboard(
                     clipboard, from: clipboard.package, into: session, in: clipboard.package, identity: identity,
@@ -28,23 +29,17 @@ extension Studio {
                 session = pasted.session
                 return (pasted.clips, pasted.tracks)
             } catch {
-                // The same package copies no file, so only the session refuses.
+                // The same package copies no file, so the session refuses; another fault changes
+                // nothing and goes to the alert.
                 guard case .session(let refusal) = error else {
-                    preconditionFailure("a same-package paste threw \(error)")
+                    failure = error
+                    return ([], [])
                 }
                 throw refusal
             }
         }
-    }
-
-    /// Pastes `clipboard` at `start` on `target` (decision 0042): `pasteInPlace` for a clipboard of
-    /// this package, else `pasteAcross`.
-    public func paste(
-        _ clipboard: Clipboard, from source: Studio?, at start: Frames, on target: PasteTarget, insert: Bool = false,
-        progress: @escaping @MainActor @Sendable (Double) -> Void
-    ) async throws(StudioError) -> (clips: [ClipID], tracks: [TrackID]) {
-        if let pasted = try pasteInPlace(clipboard, at: start, on: target, insert: insert) { return pasted }
-        return try await pasteAcross(clipboard, from: source, at: start, on: target, insert: insert, progress: progress)
+        if let failure { throw .paste(failure, source: clipboard.package.deletingPathExtension().lastPathComponent) }
+        return pasted
     }
 
     /// The paste of a clipboard that `pasteInPlace` refused (another package): a blocking run, as an

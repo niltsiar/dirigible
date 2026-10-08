@@ -86,7 +86,8 @@ public func pasteClipboard(
     }
     var final = plan
     try copyFiles(
-        plan.copies, from: source, to: package, rate: converts ? rate : nil, freeBytes: freeBytes, canClone: canClone,
+        plan.copies, from: source, to: package, rate: converts ? (rate, excerpt.sampleRate) : nil, freeBytes: freeBytes,
+        canClone: canClone,
         progress: progress, isCancelled: isCancelled
     ) { (converted: [FileID: (length: Frames, gain: Gain)]) throws(PasteError) in
         guard converts else { return }
@@ -161,7 +162,8 @@ public func cloneWorks(_ file: URL, into folder: URL) -> Bool {
 /// The file half of `pasteClipboard`: the checks, the copies or conversions (at `rate`), the
 /// read-back, `beforeRenames` with the frames and the gain of each converted file, and the renames.
 private func copyFiles(
-    _ copies: [(record: AudioFile, copy: AudioFile)], from source: URL, to package: URL, rate: Int?,
+    _ copies: [(record: AudioFile, copy: AudioFile)], from source: URL, to package: URL,
+    rate: (target: Int, source: Int)?,
     freeBytes: () -> Int64, canClone: (URL, URL) -> Bool, progress: @escaping (Double) -> Void,
     isCancelled: @escaping () -> Bool,
     beforeRenames: ([FileID: (length: Frames, gain: Gain)]) throws(PasteError) -> Void
@@ -179,10 +181,13 @@ private func copyFiles(
             throw errno == ENOENT ? .sourceMissing(file: record.path) : .write(file: record.path, errno: errno)
         }
         sizes.append(Int64(info.st_size))
-        // A clone needs no space; the copy branch then forces a clone, so the count holds.
+        // A clone needs no space and uses clonefile, which never falls back to a copy; a data copy
+        // needs the file size; a conversion reads the whole file, so its frames count (0040).
         clones.append(rate == nil && canClone(url, package))
-        if rate != nil {
-            needed += Int64(copy.length.count) * Int64(copy.layout.channelCount) * 3  // the 0040 rule
+        if let rate {
+            let frames = (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(copy.length.count)
+            let converted = (frames * Int64(rate.target) + Int64(rate.source) - 1) / Int64(rate.source)
+            needed += converted * Int64(copy.layout.channelCount) * 3
         } else if !clones[clones.count - 1] {
             needed += Int64(info.st_size)
         }
@@ -206,7 +211,7 @@ private func copyFiles(
         let temporary = clips.appending(path: temporaryWAV(of: (copy.path as NSString).deletingPathExtension))
         temporaries.append(temporary)
         let base = done
-        if let rate {
+        if let rate = rate?.target {
             let share = { (fraction: Double) in progress((Double(base) + fraction * Double(size)) / Double(total)) }
             converted[record.id] = try convert(
                 from, record: record, copy: copy, rate: rate, into: temporary, package: package, progress: share,
@@ -296,9 +301,10 @@ final class CopyContext {
 }
 
 /// With `clone`, `clonefile(2)`: a clone or an error with its errno, never a silent copy (a
-/// `COPYFILE_CLONE_FORCE` refusal gives ENOTSUP for every cause). Else `copyfile(3)` with a copy of
-/// the data that the space check counted (probe P1). Returns nil, or the errno. The callback returns `COPYFILE_QUIT` when the flag is set
-/// and at stage `COPYFILE_ERR`: with a continue there, a full disk retries with no end (P1).
+/// `COPYFILE_CLONE_FORCE` refusal gives ENOTSUP for every cause). Else `copyfile(3)` with a copy
+/// of the data that the space check counted (probe P1). Returns nil, or the errno. The callback
+/// returns `COPYFILE_QUIT` when the flag is set and at stage `COPYFILE_ERR`: with a continue
+/// there, a full disk retries with no end (P1).
 func copyFile(_ source: URL, to target: URL, clone: Bool, context: CopyContext) -> Int32? {
     if clone { return clonefile(source.path, target.path, 0) == 0 ? nil : errno }
     guard let state = copyfile_state_alloc() else { return ENOMEM }

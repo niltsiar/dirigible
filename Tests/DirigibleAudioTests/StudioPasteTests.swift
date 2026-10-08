@@ -50,7 +50,7 @@ struct StudioPasteTests {
         let (p, q) = (try await fixture.open(fixture.p), try await fixture.open(fixture.q))
         let clipboard = p.clipboard(of: try p.session.excerpt(of: 0..<48_000, on: ["t1"]))
 
-        let (clips, tracks) = try await q.paste(clipboard, from: p, at: 96_000, on: .tracks(["u1"])) { _ in }
+        let (clips, tracks) = try await q.pasteAcross(clipboard, from: p, at: 96_000, on: .tracks(["u1"])) { _ in }
 
         #expect(clips == ["A@96000"] && tracks == ["u1"])
         let saved = try Session(contentsOf: fixture.q.url)
@@ -73,7 +73,7 @@ struct StudioPasteTests {
         let clipboard = p.clipboard(of: try p.session.excerpt(of: 0..<48_000, on: ["t1"]))
         let before = (fixture.xml(fixture.q), q.session)
 
-        let pasting = Task { try await q.paste(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in } }
+        let pasting = Task { try await q.pasteAcross(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in } }
         await gate.entered()
         #expect(q.importRun?.kind == .paste && q.importRun?.name == "Mix", "the banner run names the source")
         pasting.cancel()
@@ -89,7 +89,7 @@ struct StudioPasteTests {
         let hold = Gate(limit: nil)
         q.environment.importStep = { hold.waitOnce() }
         defer { hold.open() }
-        let second = Task { try await q.paste(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in } }
+        let second = Task { try await q.pasteAcross(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in } }
         await hold.entered()
         studioA.otherStudios = { [q] }
         let start = Task { try await studioA.startTake(armed: ["t1"], devices: [a.mic], hostTimeNanos: takeStart) }
@@ -113,7 +113,7 @@ struct StudioPasteTests {
         let clipboard = p.clipboard(of: try p.session.excerpt(of: 0..<48_000, on: ["t1"]))
 
         await #expect(throws: StudioError.busy) {
-            try await studio.paste(clipboard, from: p, at: 0, on: .tracks(["t1"])) { _ in }
+            try await studio.pasteAcross(clipboard, from: p, at: 0, on: .tracks(["t1"])) { _ in }
         }
     }
 
@@ -125,7 +125,7 @@ struct StudioPasteTests {
         let q = try await fixture.open(fixture.q)
         let clipboard = p.clipboard(of: try p.session.excerpt(of: 0..<48_000, on: ["t1"]))
 
-        let (clips, _) = try await q.paste(clipboard, from: p, at: 0, on: .unselected, insert: true) { _ in }
+        let (clips, _) = try await q.pasteAcross(clipboard, from: p, at: 0, on: .unselected, insert: true) { _ in }
 
         #expect(q.session.clip("Z")?.clip.start == 48_000, "Z moves right by the excerpt length")
         #expect(
@@ -145,14 +145,14 @@ struct StudioPasteTests {
         let moved = fixture.p.folder.url.appending(path: "Moved.dirigible")
         try #require(rename(fixture.p.url.path, moved.path) == 0)
 
-        _ = try await q.paste(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in }
+        _ = try await q.pasteAcross(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in }
         #expect(q.session.files["take1-mic 2"] != nil, "the paste found the moved package")
         await #expect(throws: StudioError.paste(.sourceMissing(file: "Mix.dirigible"), source: "Mix")) {
-            try await q.paste(clipboard, from: nil, at: 0, on: .tracks(["u1"])) { _ in }
+            try await q.pasteAcross(clipboard, from: nil, at: 0, on: .tracks(["u1"])) { _ in }
         }
         try FileManager.default.removeItem(at: moved)
         await #expect(throws: StudioError.paste(.sourceMissing(file: "Mix.dirigible"), source: "Mix")) {
-            try await q.paste(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in }
+            try await q.pasteAcross(clipboard, from: p, at: 0, on: .tracks(["u1"])) { _ in }
         }
     }
 
@@ -162,7 +162,7 @@ struct StudioPasteTests {
         let q = try await fixture.open(fixture.q)
         let clipboard = q.clipboard(of: try q.session.excerpt(of: 0..<48_000, on: ["u2"]))
 
-        let (clips, tracks) = try await q.paste(clipboard, from: q, at: 96_000, on: .unselected) { _ in }
+        let (clips, tracks) = try #require(try q.pasteInPlace(clipboard, at: 96_000, on: .unselected))
 
         #expect(clips == ["Z@96000"] && tracks == ["u2"] && fixture.names(fixture.q) == ["take1-mic.wav"])
     }

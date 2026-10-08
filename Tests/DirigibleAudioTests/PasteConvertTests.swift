@@ -145,3 +145,28 @@ struct PasteConvertLengthTests {
         #expect(clip.offset + clip.length <= Frames(wav.frames))
     }
 }
+
+/// Code gate 2 nit: the space check of a conversion counts the frames of the file, which the
+/// conversion reads in full, not the frames of a shorter record.
+struct PasteConvertSpaceTests {
+    @Test func theSpaceCheckCountsTheFramesOfTheFile() throws {
+        let p = try MixPackage(sampleRate: 44_100)
+        let q = try MixPackage()
+        try p.addFile("long", channels: [impulse(176_400, at: 22_050)])
+        var session = Session(sampleRate: 44_100)
+        try session.addFile(AudioFile(id: "long", path: "long.wav", layout: .mono, length: 88_200))
+        try session.addTrack("t1", name: "t1", layout: .mono)
+        try session.place(Clip(id: "A", file: "long", start: 0, offset: 0, length: 88_200), on: "t1")
+        try q.session.addTrack("u1", name: "u1", layout: .mono)
+        let clipboard = Clipboard(try session.excerpt(of: 0..<88_200, on: ["t1"]), package: p.url, origin: nil)
+        let (byRecord, byFile) = (Int64(96_000 * 3) + diskMargin, Int64(192_000 * 3) + diskMargin)
+
+        #expect(throws: PasteError.space(needed: byFile, free: byRecord)) {
+            try pasteClipboard(
+                clipboard, from: p.url, into: q.session, in: q.url, identity: nil, at: 0, on: .tracks(["u1"]),
+                freeBytes: { byRecord })
+        }
+        #expect(
+            try FileManager.default.contentsOfDirectory(atPath: q.url.appending(path: clipsFolderName).path).isEmpty)
+    }
+}

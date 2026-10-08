@@ -95,7 +95,7 @@ final class UndoRoutingWindow: NSWindow {
 /// alert, a focused text field), it gives the key-down to the first responder of that window,
 /// which inserts it (probe K3), and returns true. With no key window, it returns false.
 ///
-/// When no responder uses the key (an alert whose OK has the cancel role), `NSWindow.keyDown`
+/// When no responder uses the key (the export progress sheet has no Return button), `NSWindow.keyDown`
 /// routes it back to the menu item of the key, which calls this again. That call returns true and
 /// forwards nothing, so the key ends there (run 2026-10-05-alert-return-hang).
 @MainActor func forwardTypingKey(_ event: NSEvent, in keyWindow: NSWindow?) -> Bool {

@@ -35,8 +35,11 @@ struct SessionView: View {
                 presenting: model.alert
             ) { alert in
                 switch alert {
+                // Stop and Close is the default (Return), as Stop and Quit: the user chose Close, and the
+                // finalize keeps the audio (HIG). The unsaved Close has no Return: Undo cannot give back
+                // the edits that the failed save lost.
                 case .confirmStopAndClose:
-                    Button(L10n.alertCloseRecordingConfirm.key, role: .destructive) { Task { await model.close() } }
+                    Button(L10n.alertCloseRecordingConfirm.key) { Task { await model.close() } }
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .confirmUnsavedClose:
                     Button(L10n.alertCloseUnsavedConfirm.key, role: .destructive) { model.closeAnyway() }
@@ -51,7 +54,8 @@ struct SessionView: View {
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .error, .exported:
-                    Button(L10n.alertOK.key, role: .cancel) {}
+                    // The default button: Return closes the alert (HIG: Cancel is never the default).
+                    Button(L10n.alertOK.key) {}
                 }
             }
             // Only the buttons answer: a set of the binding comes before the action of Export.

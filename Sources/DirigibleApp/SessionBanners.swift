@@ -77,6 +77,8 @@ struct TakeBanner: View {
             BannerRow(kind: .info, text: L10n.takePlacing.format(segment.stem))
         case .leveling:
             BannerRow(kind: .info, text: L10n.takeLeveling.text)
+        case .importing where model.importJob?.visible == false:
+            EmptyView()  // A paste shows its banner after 0.5 s.
         case .importing(let run):
             let text = run.bannerText
             HStack {

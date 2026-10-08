@@ -11,22 +11,7 @@ extension SessionWindow {
     /// copies the set clips whole, and Delete removes the clips (decision 0038). After a Paste, the
     /// selection is the pasted range, or the pasted clips for a set excerpt.
     func runClipboard(_ command: TimelineCommand, _ studio: Studio) {
-        if command == .paste {
-            guard let clipboard, let targets = timeline.selection.pasteTracks(for: clipboard, in: studio.session)
-            else { return }
-            // An undo can remove a pool file that the clipboard names (code gate 1).
-            let files = studio.session.files
-            guard clipboard.lanes.allSatisfy({ $0.clips.allSatisfy { files[$0.file] != nil } }) else {
-                NSSound.beep()
-                return
-            }
-            let at = studio.playhead
-            if let pasted = edit({ session throws(SessionError) in try session.paste(clipboard, at: at, on: targets) })
-            {
-                timeline.selection = Selection(pasted: pasted, of: clipboard, at: at, on: targets)
-            }
-            return
-        }
+        if command == .paste { return paste(insert: false) }
         if command == .copy {
             clipboard = (try? timeline.selection.excerpt(in: studio.session)) ?? clipboard
             return
@@ -86,19 +71,8 @@ extension SessionWindow {
 
     /// Insert: one edit, a ripple insert on all tracks and a paste of the clipboard.
     private func insert(_ studio: Studio) {
-        guard let clipboard, let targets = timeline.selection.pasteTracks(for: clipboard, in: studio.session) else {
-            return
-        }
-        let files = studio.session.files
-        guard clipboard.lanes.allSatisfy({ $0.clips.allSatisfy { files[$0.file] != nil } }),
-            !rippleBlocked(segments: studio.rippleSegments, session: studio.session)
-        else { return beep() }
-        let (at, all) = (studio.playhead, studio.session.tracks.map(\.id))
-        let inserted = edit { session throws(SessionError) -> [ClipID] in
-            try session.rippleInsert(clipboard.length, at: at, on: all)
-            return try session.paste(clipboard, at: at, on: targets)
-        }
-        if let inserted { timeline.selection = Selection(pasted: inserted, of: clipboard, at: at, on: targets) }
+        guard !rippleBlocked(segments: studio.rippleSegments, session: studio.session) else { return beep() }
+        paste(insert: true)
     }
 
     /// Split and Nudge. A split with no clip at its frames makes no undo entry. Each Nudge press is

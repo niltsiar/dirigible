@@ -86,9 +86,12 @@ struct ExportReportShown: Equatable {
     @ObservationIgnored var beep: () -> Void = { NSSound.beep() }
     /// The loudness strip while SwiftUI keeps it; the display tick draws it.
     @ObservationIgnored weak var loudnessStrip: LoudnessStrip?
-    /// The Copy and Cut excerpt of this window (decision 0018): not on the macOS pasteboard,
-    /// because a file ID names audio only inside its package. A close drops it.
-    @ObservationIgnored var clipboard: Excerpt?
+    /// The excerpt of the one clipboard of the app (decision 0042). A write keeps the package and
+    /// the identity of this studio with it.
+    var clipboard: Excerpt? {
+        get { app?.clipboard?.excerpt }
+        set { app?.clipboard = newValue.flatMap { excerpt in studio.map { $0.clipboard(of: excerpt) } } }
+    }
     /// The step of Export before the export runs (decision 0019). Nil: no step.
     var exportStep: ExportStep?
     /// The last clean export with a target, for its banner (decision 0032). The next export

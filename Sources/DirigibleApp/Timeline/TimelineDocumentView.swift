@@ -132,6 +132,7 @@ final class TimelineDocumentView: NSView {
         didSet {
             needsDisplay = true
             updateDim()
+            drop.palette = palette
         }
     }
 
@@ -140,6 +141,7 @@ final class TimelineDocumentView: NSView {
         wantsLayer = true
         layer?.addSublayer(surfaces.layer)
         layer?.addSublayer(dim.layer)
+        layer?.addSublayer(drop.layer)
         playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
         playhead.actions = ["position": NSNull(), "bounds": NSNull()]

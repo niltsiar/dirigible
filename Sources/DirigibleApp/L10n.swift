@@ -223,6 +223,8 @@ enum L10n: String, CaseIterable {
     case transportStopNoDescriptor = "transport.stop.no.descriptor"
     case mediaMissing = "media.missing"
     case timelineAccessibility = "timeline.accessibility"
+    case dropNewTrack = "drop.new.track"
+    case dropNewTracks = "drop.new.tracks"
     case timelineOverview = "timeline.overview"
     case timelineOverviewValue = "timeline.overview.value"
     case timelineOverviewFit = "timeline.overview.fit"

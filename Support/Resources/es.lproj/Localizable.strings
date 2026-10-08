@@ -180,6 +180,8 @@
 
 /* Línea de tiempo (decisión 0017) */
 "timeline.accessibility" = "Línea de tiempo";
+"drop.new.track" = "Nueva pista";
+"drop.new.tracks" = "%lld pistas nuevas";
 "timeline.header.handle" = "Ancho de las cabeceras";
 "timeline.header.rename" = "Renombrar";
 

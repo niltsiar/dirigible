@@ -112,22 +112,54 @@ struct AppBundleTests {
     }
 
     @Test func binaryRunsOnSonomaOnIntelAndAppleSilicon() throws {
-        #expect(try run("/usr/bin/lipo", "-archs", executable).split(separator: " ").sorted() == ["arm64", "x86_64"])
-
-        let minimums = try run("/usr/bin/vtool", "-show-build", executable)
-            .split(separator: "\n").filter { $0.contains("minos") }
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-        #expect(minimums == ["minos 14.0", "minos 14.0"])
+        try expectUniversalForSonoma(executable)
     }
 
-    /// The command-line tool is not in the bundle (decision 0011).
-    @Test func bundleHoldsOneExecutable() throws {
+    /// The dirigible tool is in Contents/Helpers: `dirigible` and `Dirigible` are one file on a
+    /// volume that ignores case (decision 0011).
+    @Test func macOSFolderHoldsOnlyTheApp() throws {
         let names = try FileManager.default.contentsOfDirectory(atPath: app.appending(path: "Contents/MacOS").path)
         #expect(names == ["Dirigible"])
     }
 
     @Test func bundleSignatureIsValid() throws {
-        _ = try run("/usr/bin/codesign", "--verify", "--strict", app.path)
+        _ = try run("/usr/bin/codesign", "--verify", "--strict", "--deep", app.path)
+    }
+
+    /// The dirigible tool of a DMG user (decision 0011): universal, signed with its own
+    /// identifier, with no `@rpath/` library. It runs through a symbolic link with no file next
+    /// to it, takes the package lock of an edit, and answers an MCP `initialize`.
+    @Test func helperToolIsUniversalSignedAndRuns() throws {
+        let helper = app.appending(path: "Contents/Helpers/dirigible").path
+        try expectUniversalForSonoma(helper)
+        #expect(try run("/usr/bin/codesign", "-dv", helper).contains("Identifier=com.delineas.dirigible.cli"))
+        #expect(try !run("/usr/bin/otool", "-L", helper).contains("@rpath/"))
+
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder.appending(path: "bin"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let link = folder.appending(path: "bin/dirigible").path
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: helper)
+        let session = folder.appending(path: "S.dirigible").path
+        _ = try run(link, "--help")
+        _ = try run(link, "create", session, "--sample-rate", "48000")
+        _ = try run(link, "track", "add", session, "--name", "A", "--layout", "mono")
+        _ = try run(link, "info", session)
+
+        let initialize =
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","#
+            + #""capabilities":{},"clientInfo":{"name":"t","version":"1"}}}"#
+        let answer = try run(link, "mcp", input: initialize + "\n")
+        #expect(answer.contains(#""id":1"#) && answer.contains("serverInfo"), "initialize answer: \(answer)")
+    }
+
+    private func expectUniversalForSonoma(_ binary: String) throws {
+        #expect(try run("/usr/bin/lipo", "-archs", binary).split(separator: " ").sorted() == ["arm64", "x86_64"])
+
+        let minimums = try run("/usr/bin/vtool", "-show-build", binary)
+            .split(separator: "\n").filter { $0.contains("minos") }
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        #expect(minimums == ["minos 14.0", "minos 14.0"], "\(binary)")
     }
 
     /// The app icon (decision 0026): the bundle has the asset that the Info.plist names, at
@@ -236,15 +268,20 @@ struct AppBundleTests {
     }
 }
 
-/// Runs a tool and returns its trimmed output. A nonzero exit throws `ToolFailure`.
-func run(_ tool: String, _ arguments: String...) throws -> String {
+/// Runs a tool and returns its trimmed output. A nonzero exit throws `ToolFailure`. The tool
+/// reads `input` on stdin, and then the end of stdin.
+func run(_ tool: String, _ arguments: String..., input: String = "") throws -> String {
     let process = Process()
     let output = Pipe()
+    let stdin = Pipe()
     process.executableURL = URL(filePath: tool)
     process.arguments = arguments
+    process.standardInput = stdin
     process.standardOutput = output
     process.standardError = output
     try process.run()
+    stdin.fileHandleForWriting.write(Data(input.utf8))
+    try stdin.fileHandleForWriting.close()
     let data = output.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()
     let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)

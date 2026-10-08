@@ -4,6 +4,7 @@
 - Date: 2026-10-05
 - Accepted: 2026-10-05, after plan gates 1 and 2 of run `2026-10-05-file-import`.
 - Amends: 0012 (`Clips/` also holds imported WAVs), 0019 (a take start and the take disk watcher also end an import), 0031 (an import and its level are one undo entry).
+- Amended: 2026-10-08, run `2026-10-08-paste-across-packages` (see 0042). A paste from another package uses the stem rule, the conversion (`convertToWAV`, from `importAudio`), the blocking run of the studio (`blockingRun`, `ImportRun.kind`), and the rule that nothing deletes a renamed WAV. The import banner has Command-period on Cancel, the banner text as the label of its bar, and a VoiceOver announcement at the start.
 
 ## Context
 

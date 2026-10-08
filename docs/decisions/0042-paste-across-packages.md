@@ -1,0 +1,36 @@
+# 0042. Paste across packages: one app clipboard, one copy function, and copies that stay after Undo
+
+- Status: accepted
+- Date: 2026-10-08
+- Accepted: 2026-10-08, after plan gates 1 and 2 of run `2026-10-08-paste-across-packages`.
+- Amends: 0018 (the clipboard is one per app; a window close keeps it), 0040 (a paste uses the stem rule, the conversion, the import transport, and the rule that nothing deletes a renamed WAV), 0041 (the paste tools take `source`).
+
+## Context
+
+The user copies clips in one session window and pastes them in another (Release 2 run 13b, F61). A `FileID` names audio only in its own pool, and capture makes deterministic IDs (0004), so a foreign ID often names other audio in the target. No reference app documents a paste that copies the file. Logic and REAPER paste between open projects; Audition refuses another sample rate, and Logic plays it at a wrong pitch ([research](../research/paste-across-packages.md)). The user chose a conversion at another rate, as an import does, and one clipboard per app in memory. Probe P1 (run folder): `copyfile` with `COPYFILE_CLONE` clones on one APFS volume and copies with progress to another volume; a status callback that continues at `COPYFILE_ERR` retries a full disk with no end.
+
+## Decision
+
+- **Clipboard.** One value in app memory (`AppDelegate.clipboard`), not on `NSPasteboard`. `Clipboard` holds the `Excerpt`, the source path at the copy, and the `PackageID?` of the source: the device and inode of `<package>/.lock`, read once when the lock opens (`fstat`, else `stat`, else nil for a package with no lock file). A window close keeps the clipboard; a quit drops it. It holds no studio and no lock.
+- **Origin.** `PackageID.same(a, b)` is the one compare: false when either value is nil, so a package with no identity counts as another package and the paste copies. `Studio.pasteInPlace` pastes a clipboard of the same package at once, as before. `AppDelegate.studio(of:)` finds the open studio of the source, whose `lock.package()` gives the path after a rename; else the paste uses the path at the copy.
+- **Excerpt.** An `Excerpt` carries the records of its files, its sample rate, and the name and layout of each source track. `Session.paste` refuses a clip whose file record differs from the target record of its ID (`SessionError.foreignFile`). A record of one ID never changes in a session. `Excerpt.mapped(to:)` rewrites the clip files and the records together. `Excerpt.resampled(to:lengths:gains:)` scales each clip edge to the nearest frame (a length is the scaled end minus the scaled start, so touching clips still touch), rounds a fade and fits it, rounds a crossfade to an even count with one value for a join, and stops a clip at the end of its converted file.
+- **Copy.** `pasteClipboard` (DirigibleAudio) is the one function that copies files. Its order: the new tracks for `.unselected` (named after the source tracks), the stems of 0040, the scale at another rate, the map, the session edit on a copy (a refusal moves no byte), the source checks (the identity at the path, `isDownloaded`, `stat`), one space check before the first copy (the sum of the bytes of each copy, 0 for a clone on one volume that can clone, and the converted bytes of each conversion, plus the 1 GB margin), `copyfile` with `COPYFILE_CLONE` or the conversion of import (`convertToWAV`) into `Clips/.<stem>.wav.tmp`, the flush and the read-back, the session edit again with the real converted lengths, the cancel check, `RENAME_EXCL`, the flush of `Clips/`. The callback returns `COPYFILE_QUIT` at `COPYFILE_ERR` and when the cancel flag is set. The caller saves `session.xml`.
+- **Undo.** One undo entry. Undo keeps the copied WAVs as unused files; Redo restores the snapshot and copies nothing. A repeat paste copies again under the next stem.
+- **Studio.** A paste from another package is a blocking run on the import transport (`ImportRun.kind` `.paste`) through `blockingRun`, which import also uses: `.busy` during a pending take and `settle()`, Cancel, the take yield (`.pasteYielded`), Close, and Quit as 0040. Its errors are `StudioError.paste(PasteError, source:)`.
+- **Window.** With no selected track (a range with no tracks), the paste makes new tracks; with a selection, it uses `pasteTracks`. The banner "Pasting from <session>" shows only when the run passes 0.5 s, so a clone shows none, and VoiceOver announces it then and "Pasted." at the end. The shared banner of import and paste has Command-period on Cancel and the banner text as the label of its bar. A user Cancel shows no alert. Paste stays enabled (0018 K1).
+- **CLI and MCP.** `clip paste` and `clip paste-clips` take `--source <package>` (not `--from`: `clip paste` has `--from` and `--to` for its range), and their tools take `source`. Another package needs `--onto`. Both run a typed `PasteWork` under the lock of the target. The server blocks during a copy or a conversion with no progress and no cancel; each tool description says that a call runs to the end and saves.
+
+## Consequences
+
+- F87 (Release 3) must keep a WAV that an undo or redo stack of an open window names.
+- A moved source package with its window closed refuses; the user copies again.
+- A whole-file copy to another volume blocks the target studio for the copy time; Cancel works.
+- A paste from another package with no selected track adds tracks; in the same package it uses the source tracks, as before.
+
+## Alternatives considered
+
+- **A named `NSPasteboard`.** It survives a quit and serves two processes, but adds a codec and stale payloads for no requirement.
+- **A refusal at another rate.** No rounding, but the user must import the file by hand. The user chose to convert.
+- **A copy at Copy time.** It survives a deleted source, but writes disk at each Copy and needs a clean-up rule.
+- **A reference to the source file.** A moved source is a missing clip (0040).
+- **A hidden excerpt in a Core clipboard type.** It holds only while no public path exposes the excerpt; the record check in `Session.paste` guards every caller.

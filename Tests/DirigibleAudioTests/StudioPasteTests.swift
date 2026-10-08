@@ -4,7 +4,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Two saved packages for `Studio.paste` (decision 0042). P: track t1 with clip A of take1-mic
+/// Two saved packages for `Studio.pasteAcross` and `Studio.pasteInPlace` (decision 0042). P: track t1 with clip A of take1-mic
 /// (1 s of tone). Q: tracks u1 and u2, and its own take1-mic (silence) with clip Z on u2.
 struct PasteStudioFixture {
     let p: MixPackage
@@ -40,7 +40,7 @@ struct PasteStudioFixture {
     }
 }
 
-/// `Studio.paste` (decision 0042): one undo entry, the WAV after Undo, cancel, the yield to a take,
+/// `Studio.pasteAcross` and `Studio.pasteInPlace` (decision 0042): one undo entry, the WAV after Undo, cancel, the yield to a take,
 /// a pending take, Insert, a moved source, and a conversion.
 @MainActor
 struct StudioPasteTests {

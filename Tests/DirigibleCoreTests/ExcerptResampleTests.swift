@@ -70,6 +70,13 @@ struct ExcerptResampleTests {
                     let value = lane[index].crossfades.end
                     let even = Frames(2 * ((source.count * to + from) / (2 * from)))
                     if value > even || value > limit || (limit >= 2 && value == .zero) { live = false }
+                    // Code gate 3: when the next join has no crossfade or keeps its full scaled value,
+                    // the clip on the right has its whole room, so the value is exactly the limit.
+                    let next = index + 1 < lane.count - 1 ? excerpt.lanes[0].clips[index + 1].crossfades.end : .zero
+                    let nextEven = Frames(2 * ((next.count * to + from) / (2 * from)))
+                    if next == .zero || lane[index + 1].crossfades.end == nextEven, value != min(even, limit) {
+                        live = false
+                    }
                 }
             }
             let sources = excerpt.lanes[0].clips

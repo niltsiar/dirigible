@@ -63,6 +63,8 @@ A take is one recording, from Record to Stop. After Stop, Dirigible finalizes th
 
 After Stop, Dirigible also levels the new clips: it sets the gain of each clip so that it plays at -16 LUFS on a stereo track and -19 LUFS on a mono track. The clips of the take on one track get the same change. The audio files do not change. When Dirigible leveled the take, the first Undo removes the level and keeps the take. A take with no change of gain, for example a silent take, gets no level, and the first Undo removes the take.
 
+When you close the window during a take, Dirigible asks first. Press Return to stop the take and close the window, or press Esc to go on recording.
+
 ### Play the take
 
 1. Choose **Transport > Go to Start** (Home).

@@ -1,7 +1,7 @@
 #!/bin/bash
-# Run the lens selection of review-panel.js with real args and stub agents: the default lenses of
-# each target, an explicit lens list, an unknown key, an empty selection, and a paths scope with
-# no changed file. Check that only warning and critical findings go to a skeptic, and that the
+# Run the lens selection of review-panel.js with real args and stub agents: the default lenses and
+# maxRounds of each target, an explicit lens list, an unknown key, an empty selection, and a paths
+# scope with no changed file. Check that only warning and critical findings go to a skeptic, and that the
 # result lists the nits of each lens under `nits`. Run by `make test-hooks`.
 set -euo pipefail
 PANEL="$(cd "$(dirname "$0")" && pwd)/review-panel.js" exec node - <<'JS'
@@ -31,7 +31,7 @@ async function run(args, files = ['a.sh'], found = {}, typedFails = false) {
     return r
   }))
   const result = await new AsyncFunction('args', 'log', 'agent', 'pipeline', src)(args, () => {}, agent, pipeline)
-  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts, labels, panel: result.panel }
+  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts, labels, panel: result.panel, maxRounds: result.maxRounds }
 }
 
 const finding = (severity, title) => ({ severity, title, location: 'a.sh:1', failure: 'f', evidence: 'e' })
@@ -102,6 +102,15 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
   }
   await expectThrow('a relative worktree', { target: 'diff', worktree: 'wt' }, /absolute path/)
   await expectKeys('default plan lenses', { target: 'plan' }, ['premortem', 'devils-advocate', 'architecture'])
+  // Each gate has 2 rounds at most when the caller gives no maxRounds (deliver, class table).
+  for (const target of ['plan', 'diff']) {
+    try {
+      const got = await run({ target })
+      if (got.maxRounds !== 2) fail(`a ${target} with no maxRounds: maxRounds ${got.maxRounds}, want 2`)
+    } catch (error) {
+      fail(`a ${target} with no maxRounds: threw ${error.message}`)
+    }
+  }
   await expectKeys('an unknown key', { target: 'diff', lenses: ['premortem', 'nope'] }, ['premortem'], ['nope'])
   await expectThrow('only an unknown key', { target: 'diff', lenses: ['nope'] }, /no lens/)
   await expectThrow('an empty lens list', { target: 'diff', lenses: [] }, /no lens/)

@@ -5,10 +5,19 @@
 # It fails closed: it exits 1 when no process ran a test, and with the status of swift when a
 # test fails. swift test exits 0 when a filter matches no test, so the script reads the two
 # no-test strings of mutate.py; one string alone means that tests ran.
-# Usage: scripts/test-filter.sh <name>..., or make test-filter FILTER='<name> <name>'.
+# With --exact, each name is the whole name of a Swift Testing test: the filter is '/<name>\(' with
+# the regex characters escaped, so a name that is a prefix of another test name runs only its own
+# test. The CLI process then takes a name that a CLI test file has as 'func <name>('. With
+# --no-parallel, both swift calls get --no-parallel (a rerun of slow tests, scripts/run-checks.sh).
+# Usage: scripts/test-filter.sh [--exact] [--no-parallel] <name>..., or make test-filter FILTER='<name> <name>'.
 # scripts/test-filter.test.sh tests it.
 set -euo pipefail
-[[ $# -gt 0 ]] || { echo "usage: scripts/test-filter.sh <test or suite name>..." >&2; exit 2; }
+exact=0 serial=0
+while [[ "${1:-}" == --exact || "${1:-}" == --no-parallel ]]; do
+    [[ "$1" == --exact ]] && exact=1 || serial=1
+    shift
+done
+[[ $# -gt 0 ]] || { echo "usage: scripts/test-filter.sh [--exact] [--no-parallel] <test or suite name>..." >&2; exit 2; }
 cd "$(dirname "$0")/.."
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
@@ -22,9 +31,16 @@ run() {
 
 p1=(--skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests) p2=()
 for name in "$@"; do
-    p1+=(--filter "$name")
-    grep -rqF -- "$name" Tests/DirigibleCLITests 2>/dev/null && p2+=(--filter "DirigibleCLITests.*$name")
+    if [[ $exact -eq 1 ]]; then
+        anchored="/$(sed 's/[][\.*^$+?(){}|/]/\\&/g' <<<"$name")\\("
+        p1+=(--filter "$anchored")
+        grep -rqF -- "func $name(" Tests/DirigibleCLITests 2>/dev/null && p2+=(--filter "DirigibleCLITests.*$anchored")
+    else
+        p1+=(--filter "$name")
+        grep -rqF -- "$name" Tests/DirigibleCLITests 2>/dev/null && p2+=(--filter "DirigibleCLITests.*$name")
+    fi
 done
+[[ $serial -eq 0 ]] || { p1+=(--no-parallel); [[ ${#p2[@]} -eq 0 ]] || p2+=(--no-parallel); }
 run "${p1[@]}"
 [[ ${#p2[@]} -eq 0 ]] || run "${p2[@]}"
 [[ $ran -eq 1 ]] || { echo "test-filter: no test matched $*" >&2; exit 1; }

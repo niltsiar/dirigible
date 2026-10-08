@@ -320,6 +320,7 @@ enum L10n: String, CaseIterable {
     case importBanner = "import.banner"
     case importCancel = "import.cancel"
     case errorPasteMissing = "error.paste.missing"
+    case errorPasteChanged = "error.paste.changed"
     case errorPasteSpace = "error.paste.space"
     case errorPasteCopy = "error.paste.copy"
     case errorPasteConvert = "error.paste.convert"

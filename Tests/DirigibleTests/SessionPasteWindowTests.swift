@@ -233,8 +233,8 @@ import Testing
     @Test func eachPasteErrorShowsItsKey() {
         let cases: [(PasteError, String)] = [
             (.sourceMissing(file: "f1.wav"), L10n.errorPasteMissing.format("S")),
-            (.sourceChanged(file: "f1.wav"), L10n.errorPasteMissing.format("S")),
-            (.notDownloaded(file: "f1.wav"), L10n.errorPasteMissing.format("S")),
+            (.sourceChanged(file: "f1.wav"), L10n.errorPasteChanged.format("S")),
+            (.notDownloaded(file: "f1.wav"), L10n.errorImportNotDownloaded.format("f1.wav")),
             (.space(needed: 2, free: 1), L10n.errorPasteSpace.format("S")),
             (.write(file: "f1.wav", errno: ENOSPC), L10n.errorPasteSpace.format("S")),
             (.write(file: "f1.wav", errno: EIO), L10n.errorPasteCopy.format("S", Int(EIO))),

@@ -219,4 +219,33 @@ struct PasteAcrossTests {
         Thread.sleep(forTimeInterval: 0.05)
         #expect(context.calls == calls)
     }
+
+    /// Code gate 1 item 2: a record shorter than its WAV (`dirigible file add --length`) pastes; the
+    /// read-back needs at least the record length, as `openMedia` does.
+    @Test func aRecordShorterThanItsFilePastes() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "take1-mic", path: "take1-mic.wav", layout: .mono, length: 96_000))
+        try session.addTrack("t1", name: "t1", layout: .mono)
+        try session.place(Clip(id: "A", file: "take1-mic", start: 0, offset: 0, length: 96_000), on: "t1")
+        let clipboard = Clipboard(
+            try session.excerpt(of: 0..<96_000, on: ["t1"]), package: p.url, origin: PackageID(lockFileOf: p.url))
+
+        let (pasted, clips, _) = try paste(clipboard, on: .tracks(["u1"]))
+
+        #expect(pasted.files["take1-mic 2"]?.length == 96_000 && pasted.clip(clips[0])?.clip.length == 96_000)
+    }
+
+    /// Code gate 1 item 2: an ENOENT of `copyfile` is a missing source only when the source is gone.
+    @Test func aMissingTargetIsNotAMissingSource() throws {
+        let record = try #require(p.session.files["take1-mic"])
+        let source = p.url.appending(path: "\(clipsFolderName)/take1-mic.wav")
+        let copy = AudioFile(id: "take1-mic 2", path: "take1-mic 2.wav", layout: .mono, length: 192_000)
+
+        #expect(
+            copyFault(ENOENT, from: source, record: record, copy: copy)
+                == .write(file: "take1-mic 2.wav", errno: ENOENT))
+        #expect(copyFault(EIO, from: source, record: record, copy: copy) == .write(file: "take1-mic 2.wav", errno: EIO))
+        try FileManager.default.removeItem(at: source)
+        #expect(copyFault(ENOENT, from: source, record: record, copy: copy) == .sourceMissing(file: "take1-mic.wav"))
+    }
 }

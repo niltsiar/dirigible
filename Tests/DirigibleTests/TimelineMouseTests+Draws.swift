@@ -38,8 +38,8 @@ extension TimelineMouseTests {
             }
         }
 
-        /// The press, the target of the drags, and the point of drag event `n` (document points;
-        /// for the ruler, the ruler y).
+        /// The point of the mouse-down: a document point, or on the ruler the document x and the
+        /// ruler y.
         var press: NSPoint {
             switch self {
             case .move, .group: NSPoint(x: 250, y: 10)
@@ -55,6 +55,7 @@ extension TimelineMouseTests {
             }
         }
 
+        /// The point of drag event `n`.
         func point(_ n: Int) -> NSPoint {
             let (x, y, odd) = (press.x, press.y, n % 2 == 1)
             return switch self {

@@ -13,7 +13,7 @@ extension SessionWindow {
     func runClipboard(_ command: TimelineCommand, _ studio: Studio) {
         if command == .paste { return paste(insert: false) }
         if command == .copy {
-            clipboard = (try? timeline.selection.excerpt(in: studio.session)) ?? clipboard
+            if let excerpt = try? timeline.selection.excerpt(in: studio.session) { copy(excerpt, of: studio) }
             return
         }
         guard command == .delete else { return }
@@ -49,7 +49,7 @@ extension SessionWindow {
             return excerpt
         }
         guard let done else { return }
-        if let excerpt = done { clipboard = excerpt }
+        if let excerpt = done { copy(excerpt, of: studio) }
         timeline.selection = .none
         Task { await studio.perform(.seek(.frame(scope.range.lowerBound))) }
     }
@@ -65,7 +65,7 @@ extension SessionWindow {
             return true
         }
         guard cut == true else { return }
-        clipboard = excerpt
+        copy(excerpt, of: studio)
         timeline.selection = .none
     }
 

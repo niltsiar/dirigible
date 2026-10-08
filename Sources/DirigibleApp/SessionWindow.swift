@@ -86,12 +86,13 @@ struct ExportReportShown: Equatable {
     @ObservationIgnored var beep: () -> Void = { NSSound.beep() }
     /// The loudness strip while SwiftUI keeps it; the display tick draws it.
     @ObservationIgnored weak var loudnessStrip: LoudnessStrip?
-    /// The excerpt of the one clipboard of the app (decision 0042). A write keeps the package and
-    /// the identity of this studio with it.
-    var clipboard: Excerpt? {
-        get { app?.clipboard?.excerpt }
-        set { app?.clipboard = newValue.flatMap { excerpt in studio.map { $0.clipboard(of: excerpt) } } }
-    }
+    /// The excerpt of the one clipboard of the app (decision 0042). Only `copy(_:)` writes it.
+    var clipboard: Excerpt? { app?.clipboard?.excerpt }
+
+    /// Puts `excerpt` of this studio on the one clipboard of the app, with the package and the
+    /// identity of this studio. A Copy or a Cut with no excerpt does not call it, so the clipboard
+    /// of another package stays.
+    func copy(_ excerpt: Excerpt, of studio: Studio) { app?.clipboard = studio.clipboard(of: excerpt) }
     /// The step of Export before the export runs (decision 0019). Nil: no step.
     var exportStep: ExportStep?
     /// The last clean export with a target, for its banner (decision 0032). The next export

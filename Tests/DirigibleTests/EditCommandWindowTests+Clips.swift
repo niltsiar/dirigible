@@ -118,7 +118,7 @@ extension EditCommandWindowTests {
         #expect(studio.session == before)
 
         model.timeline.selection = .clips(try #require(ClipSet(["c1", "c2", "gone"])))
-        model.clipboard = nil
+        app.clipboard = nil
         model.run(.cut)
         #expect(ids(studio) == [["c1@48000"], [], ["c3"]], "C7: gaps, c1@48000 and c3 do not move")
         #expect(studio.session.clip("c1@48000")?.clip.start == 48_000 && studio.session.clip("c3")?.clip.start == 0)

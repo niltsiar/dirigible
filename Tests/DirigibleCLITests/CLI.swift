@@ -17,9 +17,23 @@ func dirigible(_ arguments: String...) async throws -> CLIResult { try await dir
 
 /// With `input`, the child reads that file on stdin.
 func dirigible(_ arguments: [String], input: URL? = nil) async throws -> CLIResult {
-    try await run(
-        Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(path: "dirigible"),
-        arguments, input: input)
+    try await run(dirigibleBinary, arguments, input: input)
+}
+
+/// The `dirigible` binary that `swift test` builds next to the test bundle.
+var dirigibleBinary: URL {
+    Bundle(for: TemporaryPackage.self).bundleURL.deletingLastPathComponent().appending(path: "dirigible")
+}
+
+/// A child process of `executable` that runs in `folder`, the new temporary folder of its launcher,
+/// so a relative path in a test never lands in the working folder of the test process (the repo).
+/// Each launcher of a CLI child makes its process here.
+func childProcess(_ executable: URL, _ arguments: [String], in folder: URL) -> Process {
+    let process = Process()
+    process.executableURL = executable
+    process.arguments = arguments
+    process.currentDirectoryURL = folder
+    return process
 }
 
 /// Runs `/bin/sh -c script` with `arguments` as `$0`, `$1`, and so on, for example to set a
@@ -41,9 +55,7 @@ private func run(
     FileManager.default.createFile(atPath: output.path, contents: nil)
     FileManager.default.createFile(atPath: errors.path, contents: nil)
 
-    let process = Process()
-    process.executableURL = executable
-    process.arguments = arguments
+    let process = childProcess(executable, arguments, in: folder)
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
     if let input { process.standardInput = try FileHandle(forReadingFrom: input) }

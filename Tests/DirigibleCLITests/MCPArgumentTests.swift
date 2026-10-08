@@ -130,8 +130,6 @@ extension MCPToolTests {
             #expect(answers.contains { $0["id"] as? Int == 100_000 + index }, "the ping after \(name) \(arguments)")
         }
         #expect(try package.xml() == before)
-        // The child has the working folder of the test, so a relative path would land there.
-        #expect(!FileManager.default.fileExists(atPath: "New.dirigible"), "a refused relative path makes nothing")
 
         // Pass values of the bounds: 2^40 is an integer, and from equal to to is a range.
         let passed = try await mcp([

@@ -6,16 +6,14 @@ extension Excerpt {
     /// the conversion adds to a file (A11). Each edge b maps to round(b x rate / sampleRate): the
     /// start, the end, and the offset of each clip, and the excerpt length. A length is the scaled
     /// end minus the scaled start, so two touching clips still touch, and it stops at the end of
-    /// the converted file. A fade rounds and then fits the length (0035). A crossfade rounds to an
-    /// even count; both clips of a join have one value, so they keep one value, and it gets smaller
-    /// only when the media handles of the converted file are too short (0036).
+    /// the converted file. A crossfade rounds to an even count, one value for both clips of a join: the
+    /// least of that count, the two media handles, and the room of each clip (0036). A crossfade
+    /// with no join drops. A fade rounds and then fits the room beside the crossfades (0035).
     public func resampled(to rate: Int, lengths: [FileID: Frames], gains: [FileID: Gain] = [:]) -> Excerpt {
         let old = sampleRate
         func scale(_ frames: Frames) -> Frames { Frames((2 * frames.count * rate + old) / (2 * old)) }
-        func even(_ frames: Frames) -> Frames {
-            let half = (frames.count * rate + old) / (2 * old)
-            return Frames(2 * half)
-        }
+        /// An even count: 2 x the scaled half, rounded.
+        func even(_ frames: Frames) -> Frames { Frames(2 * ((frames.count * rate + old) / (2 * old))) }
         var scaled = Excerpt(
             kind: kind, length: scale(length), lanes: lanes, sampleRate: rate,
             pool: files.mapValues { file in
@@ -24,26 +22,41 @@ extension Excerpt {
                 return file
             })
         for lane in scaled.lanes.indices {
-            for index in scaled.lanes[lane].clips.indices {
-                let clip = scaled.lanes[lane].clips[index]
+            let source = lanes[lane].clips
+            var clips = source.map { clip in
                 let fileLength = scaled.files[clip.file]?.length ?? scale(clip.offset + clip.length)
                 let start = scale(clip.start)
                 let offset = min(scale(clip.offset), fileLength)
-                let length = min(scale(clip.end) - start, fileLength - offset)
-                var crossfadeStart = even(clip.crossfades.start)
-                var crossfadeEnd = even(clip.crossfades.end)
-                crossfadeStart = min(crossfadeStart, Frames(2 * offset.count))
-                crossfadeEnd = min(crossfadeEnd, Frames(2 * (fileLength - offset - length).count))
                 var result = clip
-                result.start = start
-                result.offset = offset
-                result.length = length
-                result.fades = Fades(fadeIn: scale(clip.fades.fadeIn), fadeOut: scale(clip.fades.fadeOut))!
-                    .fitted(to: length, keeping: .start)
-                result.crossfades = Crossfades(valid: crossfadeStart, end: crossfadeEnd)
+                (result.start, result.offset) = (start, offset)
+                result.length = min(scale(clip.end) - start, fileLength - offset)
+                result.crossfades = .zero
                 if let gain = gains[clip.file], let sum = Gain(dB: clip.gain.dB + gain.dB) { result.gain = sum }
-                scaled.lanes[lane].clips[index] = result
+                return result
             }
+            // One value for each join, so both clips keep it (0036): the least of the scaled value,
+            // each media handle, and the room of each clip beside its other edge.
+            for index in clips.indices.dropLast() where source[index].end == source[index + 1].start {
+                let value = source[index].crossfades.end
+                guard value > .zero, value == source[index + 1].crossfades.start else { continue }
+                let (a, b) = (clips[index], clips[index + 1])
+                let fileA = scaled.files[a.file]?.length ?? (a.offset + a.length)
+                let half = [
+                    even(value).half, fileA - (a.offset + a.length), b.offset, a.length - a.crossfades.start.half,
+                    b.length - even(source[index + 1].crossfades.end).half,
+                ].min()!
+                let length = Frames(2 * max(0, half.count))
+                clips[index].crossfades = Crossfades(valid: a.crossfades.start, end: length)
+                clips[index + 1].crossfades = Crossfades(valid: length, end: .zero)
+            }
+            for index in clips.indices {
+                let clip = clips[index]
+                let room = clip.length - clip.crossfades.start.half - clip.crossfades.end.half
+                clips[index].fades = Fades(
+                    fadeIn: scale(source[index].fades.fadeIn), fadeOut: scale(source[index].fades.fadeOut))!
+                    .fitted(to: max(.zero, room), keeping: .start)
+            }
+            scaled.lanes[lane].clips = clips
         }
         return scaled
     }

@@ -28,8 +28,10 @@ blocked() {
     elif grep -qF '✘ Test «unknown»' "$1"; then echo 'an issue of no test'
     fi
 }
+# once: the words of stdin on one line, each once.
+once() { tr ' ' '\n' | awk 'NF && !s[$0]++' | xargs; }
 # again <log>: the names of the failed tests of a log, once each.
-again() { grep -E "$failed" "$1" | sed -E 's/.*✘ Test ([A-Za-z0-9_]+)\(.*/\1/' | awk '!s[$0]++' | xargs; }
+again() { grep -E "$failed" "$1" | sed -E 's/.*✘ Test ([A-Za-z0-9_]+)\(.*/\1/' | once; }
 
 errors="$(grep -E "$prefix\*\*\* " "$log" || true)"
 ours="$prefix\*\*\* \[(test|test-slow-push)\] Error"
@@ -51,8 +53,8 @@ split="$(awk -v failed="$failed" '
 ' "$log")"
 ! grep -qxE 'fast|slow' <<<"$split" || no_rerun 'a red target with no failed test line'
 ! grep -q '^left' <<<"$split" || no_rerun 'a failed test line of no red target'
-fast="$(sed -n 's/^fast//p' <<<"$split" | tr ' ' '\n' | awk 'NF && !s[$0]++' | xargs)"
-slow="$(sed -n 's/^slow//p' <<<"$split" | tr ' ' '\n' | awk 'NF && !s[$0]++' | xargs)"
+fast="$(sed -n 's/^fast//p' <<<"$split" | once)"
+slow="$(sed -n 's/^slow//p' <<<"$split" | once)"
 all="$(xargs <<<"$fast $slow")"
 
 # rerun <command>: prints the names that failed again (none on a pass). A red rerun with no

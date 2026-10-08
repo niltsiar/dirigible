@@ -179,6 +179,23 @@ expect block "git -C '/x y/wt' commit -F .scratchpads/commit-msg.txt; $ld"
 expect block "git -C \"/x y/wt\" commit -F .scratchpads/commit-msg.txt; $ld"
 expect_message 'in its own command' "swift build; $ld"
 
+# A chain rule must hold for each join form, not only for the forms that a gate found one at a time
+# (run 2026-10-08-upkeep-batch-4). Each chain rule calls this helper: one block case for each join
+# of <first> and <second>, and one allow case for &&.
+expect_each_join() {
+  local first="$1" second="$2" join
+  for join in '; ' $'\n' ' | ' ' & ' ' > log 2>&1 & ' $'\t;\t' ';  '; do
+    expect block "$first$join$second"
+  done
+  expect allow "$first && $second"
+}
+for commit in 'git commit -m x' 'git -C /x/wt commit -m x' "git -C '/x y/wt' commit -m x" 'git -C "/x y/wt" commit -m x'; do
+  expect_each_join 'make check' "$commit"
+done
+for first in 'git commit -F .scratchpads/commit-msg.txt' 'git -C /x/wt commit -m x' 'make test-filter FILTER=X' 'swift test'; do
+  expect_each_join "$first" "$ld"
+done
+
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
 settings="$(dirname "$0")/../settings.json"
 python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }

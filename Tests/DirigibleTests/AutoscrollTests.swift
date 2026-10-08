@@ -70,6 +70,44 @@ import Testing
         await model.close()
     }
 
+    /// The frames of `MouseEventBenchmark.anAutoscrollTickFitsOneFrame`: a drag event 40 or 41 pt
+    /// past the right edge, then a tick and the draw. Each frame makes a new preview, scrolls, and
+    /// draws the lanes once, for c1 trimmed to x 100 to 200 pt and for c2 (1875 pt, wider than the
+    /// view).
+    @Test func eachAutoscrollFrameDrawsTheLanesOnce() async throws {
+        let (model, studio, window, view) = try await lanes()
+        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 51_200..<102_400) }
+        view.update(laneInputs(model, studio))
+        drawNow(window)
+        for (start, name, down) in [
+            (100.0, "clip", NSPoint(x: 130, y: 10)), (200, "wide clip", NSPoint(x: 30, y: 110)),
+        ] {
+            view.scroll(toFrame: 0)
+            drawNow(window)
+            view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
+            let drags = try [40.0, 41].map {
+                try mouse(.leftMouseDragged, NSPoint(x: Double(view.shown.maxX) + $0, y: down.y), in: view)
+            }
+            view.lanes.mouseDragged(with: drags[0])
+            drawNow(window)
+            for frame in 1...5 {
+                let (origin, draws, before) = (view.origin, view.lanes.draws, view.lanes.inputs)
+                view.lanes.mouseDragged(with: drags[frame % 2])
+                let moved = view.lanes.inputs != before
+                view.autoscrollTick(at: start + Double(frame) / 60)
+                drawNow(window)
+
+                #expect(moved, "\(name) frame \(frame) made no new preview")
+                #expect(view.origin > origin, "\(name) frame \(frame) did not scroll")
+                let drew = view.lanes.draws - draws
+                #expect(drew == 1, "\(name) frame \(frame) drew \(drew) times")
+            }
+            #expect(view.cancelGesture(), "Esc ends the drag")
+        }
+        window.close()
+        await model.close()
+    }
+
     @Test func insideTheLanesNothingScrolls() async throws {
         let (model, _, window, view) = try await lanes()
         view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 100, y: 10), in: view))

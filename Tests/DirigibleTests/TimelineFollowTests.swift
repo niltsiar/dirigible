@@ -26,14 +26,15 @@ import os
     }
 
     static let forward = Playback.playing(Shuttle(direction: .forward, rate: .one))
+    static let reverse = Playback.playing(Shuttle(direction: .reverse, rate: .one))
 
     /// Criterion 10: 1800 ticks at 60 Hz and 1x from frame 0 turn the page twice, at the first
-    /// tick past 94% of each page, and only a page turn draws.
+    /// tick past 94% of each page, and only a page turn draws. Each turn draws once, only the new
+    /// columns: at most 0.9 of the shown width (a turn moves 89% of the page).
     @Test func aTickThatDoesNotTurnThePageDrawsNothing() async throws {
         let (model, _, lanesWindow, view) = try await lanes()
         var turns: [Double] = []
         var drawsWithNoTurn = 0
-        var drawsAtTurns = 0
 
         for tick in 0...1800 {
             let (origin, draws) = (view.origin, view.lanes.draws)
@@ -41,7 +42,7 @@ import os
             drawNow(lanesWindow)
             if view.origin != origin {
                 turns.append(view.origin)
-                drawsAtTurns += view.lanes.draws - draws
+                Self.expectOneDrawOfTheNewColumns(view, draws, turn: turns.count)
             } else {
                 drawsWithNoTurn += view.lanes.draws - draws
             }
@@ -51,7 +52,35 @@ import os
         #expect(turns.first.map { abs($0 - 612_499) <= 512 } == true, "\(turns)")
         #expect(turns.last.map { abs($0 - 1_224_499) <= 512 } == true, "\(turns)")
         #expect(drawsWithNoTurn == 0)
-        #expect(drawsAtTurns >= 2, "a page turn draws the new page")
+        lanesWindow.close()
+        await model.close()
+    }
+
+    /// A page turn drew the lanes once, at most 0.9 of the shown width.
+    static func expectOneDrawOfTheNewColumns(_ view: TimelineScrollView, _ draws: Int, turn: Int) {
+        let drew = view.lanes.draws - draws
+        #expect(drew == 1, "turn \(turn) drew \(drew) times")
+        let width = view.lanes.drawnRect.width
+        #expect(width <= 0.9 * view.shown.width, "turn \(turn) drew \(width) pt, over 0.9 of the shown width")
+    }
+
+    /// The reverse turn of `FollowScrollBenchmark`: after a jump with a full redraw, the playhead
+    /// under 6% of the page turns it back. Each turn draws once, only the new columns.
+    @Test func aReverseTurnDrawsOnceAndOnlyTheNewColumns() async throws {
+        let (model, _, lanesWindow, view) = try await lanes(seconds: 200)
+        view.tick(playhead: 0, playback: Self.reverse)
+        for turn in 1...3 {
+            view.scroll(toFrame: Double(8 - turn) * view.visibleFrames)
+            view.lanes.needsDisplay = true
+            drawNow(lanesWindow)
+            let (origin, draws) = (view.origin, view.lanes.draws)
+
+            view.tick(playhead: view.origin + 0.04 * view.visibleFrames, playback: Self.reverse)
+            drawNow(lanesWindow)
+
+            #expect(view.origin < origin, "turn \(turn) did not turn back")
+            Self.expectOneDrawOfTheNewColumns(view, draws, turn: turn)
+        }
         lanesWindow.close()
         await model.close()
     }

@@ -55,7 +55,19 @@ struct ExcerptResampleTests {
             // A lane with an overlap would trap in `ClipLane`, so it counts as a failure before the paste.
             let pasted = touching && (try? target.paste(scaled, at: 0, on: ["t"])) != nil
             let kept = clips.map(\.crossfades) == target.track("t").map { $0.clips.map(\.crossfades) }
-            if !(touching && joined && pasted && kept && scaled.sampleRate == to) { failures += 1 }
+            // Code gate 2 item 1: a join with a source crossfade keeps one (at most the scaled value
+            // and the limit of the pasted lane) unless that limit is under 2 frames.
+            var live = true
+            if pasted, let lane = target.track("t")?.clips {
+                for index in 0..<max(0, lane.count - 1) {
+                    let source = excerpt.lanes[0].clips[index].crossfades.end
+                    guard source > .zero, let limit = target.crossfadeLimit(after: index, in: lane) else { continue }
+                    let value = lane[index].crossfades.end
+                    let even = Frames(2 * ((source.count * to + from) / (2 * from)))
+                    if value > even || value > limit || (limit >= 2 && value == .zero) { live = false }
+                }
+            }
+            if !(touching && joined && pasted && kept && live && scaled.sampleRate == to) { failures += 1 }
         }
         #expect(failures == 0, "\(failures) of 1000 lanes broke a join or a check")
     }

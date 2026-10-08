@@ -54,7 +54,7 @@ public struct LaneGeometry: Equatable, Sendable {
     func lane(at y: Double) -> Int { Int((max(0, y) / laneHeight).rounded(.down)) }
 
     /// The highest New Track zone (points) at the bottom of the lanes in view (run 13c).
-    public static let newTrackZone = 32.0
+    private static let newTrackZone = 32.0
 
     /// The top of the New Track zone: the end of the last lane, or, when the lanes reach the view
     /// bottom `bottom`, min(`newTrackZone`, half a lane) above it. The zone is at most half a lane

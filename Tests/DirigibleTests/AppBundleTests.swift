@@ -280,7 +280,12 @@ func run(_ tool: String, _ arguments: String..., input: String = "") throws -> S
     process.standardOutput = output
     process.standardError = output
     try process.run()
-    stdin.fileHandleForWriting.write(Data(input.utf8))
+    if !input.isEmpty {
+        // A tool that exits before it reads must fail on its exit status, not kill the test
+        // process with SIGPIPE.
+        signal(SIGPIPE, SIG_IGN)
+        try? stdin.fileHandleForWriting.write(contentsOf: Data(input.utf8))
+    }
     try stdin.fileHandleForWriting.close()
     let data = output.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()

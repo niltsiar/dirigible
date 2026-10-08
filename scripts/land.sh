@@ -85,9 +85,15 @@ else
 fi
 # A test that passed only on a rerun of run-checks.sh gets a flake row (flake-triage.md). The file
 # is renamed first, so a line that another worktree appends meanwhile goes to a new file and stays.
+# Until the loop ends, a stop (a failed row, an error, INT, or TERM) puts the renamed copy back.
+# The copy of another land.sh is not taken: it puts back its own copy.
 flakes="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"
 if [[ -s "$flakes" ]]; then
     taken="$flakes.$$" keep="$(mktemp)" row="$(mktemp)"
+    restore() { [[ ! -e "$taken" ]] || { cat "$taken" >> "$flakes"; rm -f "$taken"; }; }
+    trap restore EXIT
+    trap 'restore; exit 130' INT
+    trap 'restore; exit 143' TERM
     mv "$flakes" "$taken"
     while read -r commit name _ load; do
         if git merge-base --is-ancestor "$commit" "$before" 2>/dev/null || git merge-base --is-ancestor "$commit" HEAD 2>/dev/null; then
@@ -95,7 +101,7 @@ if [[ -s "$flakes" ]]; then
                 "run-checks.sh reran the failed test, and flake-triage.md still applies to it" \
                 "dirigible-flakes line of commit $commit" > "$row"
             "$here/../.claude/skills/deliver/scripts/log-decision.sh" "$run" --from "$row" ||
-                { cat "$taken" >> "$flakes"; rm -f "$taken"; die "no flake row for $name; nothing is pushed"; }
+                die "no flake row for $name; nothing is pushed"
         else
             echo "$commit $name load $load" >> "$keep"
         fi

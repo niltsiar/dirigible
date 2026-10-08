@@ -368,28 +368,53 @@ rows="$(tail -n +2 "$c/decisions.tsv")"
   fail "flake rows: row [$rows]"
 [[ "$(cat "$c/work/.git/dirigible-flakes")" == "$side other load 1.00" ]] || fail "flake rows: flakes [$(cat "$c/work/.git/dirigible-flakes")]"
 
-# A line that another worktree appends while land.sh writes the rows stays in the file. A copy of
-# land.sh beside the real scripts gets a fake log-decision.sh that appends such a line once.
-setup
-mkdir -p "$c/stub" "$c/.claude/skills/deliver/scripts"
-cp "$here"/*.sh "$c/stub/"
-cp "$here/../Makefile" "$c/Makefile"
-cat > "$c/.claude/skills/deliver/scripts/log-decision.sh" <<'EOF'
-#!/bin/bash
-printf 'x\t7\t%s\n' "$(sed -n 2p "$3")" >> "$1/decisions.tsv"
+# stub_land <fake log-decision.sh body>: runs a copy of land.sh beside the real scripts, with a
+# fake log-decision.sh, on a branch whose flakes file has the lines of $c/flakes; sets code.
+# flakes_now prints the sorted lines of the flakes file; copies prints the count of renamed copies.
+stub_land() {
+  setup
+  mkdir -p "$c/stub" "$c/.claude/skills/deliver/scripts"
+  cp "$here"/*.sh "$c/stub/"
+  cp "$here/../Makefile" "$c/Makefile"
+  printf '#!/bin/bash\n%s\n' "$1" > "$c/.claude/skills/deliver/scripts/log-decision.sh"
+  chmod +x "$c/.claude/skills/deliver/scripts/log-decision.sh"
+  printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$c/decisions.tsv"
+  printf '%s aFlake load 7.50\n%s bFlake load 7.50\n' "$(git -C "$c/work" rev-parse HEAD)" "$(git -C "$c/work" rev-parse HEAD)" > "$c/flakes"
+  cp "$c/flakes" "$c/work/.git/dirigible-flakes"
+  (cd "$c/work" && PATH="$bin:$PATH" LAND_LOG="$c/log" FAKE_OTHER="$c/other" "$c/stub/land.sh" "Add x" "$c/pr.md") > "$c/out" 2>&1
+  code=$?
+}
+flakes_now() { sort "$c/work/.git/dirigible-flakes" 2>/dev/null; }
+copies() { ls "$c/work/.git" | grep -c '^dirigible-flakes\.'; }
+row='printf "x\t7\t%s\n" "$(sed -n 2p "$3")" >> "$1/decisions.tsv"'
+
+# A line that another worktree appends while land.sh writes the rows stays in the file. The fake
+# log-decision.sh appends such a line once.
+stub_land "$row"'
 [[ -e "$1/appended" ]] && exit 0
 touch "$1/appended"
-echo "$(git rev-parse HEAD) late load 3.00" >> "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"
-EOF
-chmod +x "$c/.claude/skills/deliver/scripts/log-decision.sh"
-printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$c/decisions.tsv"
-printf '%s aFlake load 7.50\n' "$(git -C "$c/work" rev-parse HEAD)" > "$c/work/.git/dirigible-flakes"
-(cd "$c/work" && PATH="$bin:$PATH" LAND_LOG="$c/log" FAKE_OTHER="$c/other" "$c/stub/land.sh" "Add x" "$c/pr.md") > "$c/out" 2>&1
-code=$?
+echo "$(git rev-parse HEAD) late load 3.00" >> "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"'
 [[ $code -eq 0 ]] || fail "a line appended during the rows: exit $code: $(cat "$c/out")"
-[[ "$(cut -f3 "$c/decisions.tsv" | grep -c aFlake)" == 1 ]] || fail "a line appended during the rows: rows [$(cat "$c/decisions.tsv")]"
-grep -q ' late load 3.00$' "$c/work/.git/dirigible-flakes" || fail "a line appended during the rows: lost: [$(cat "$c/work/.git/dirigible-flakes")]"
-! grep -q ' aFlake ' "$c/work/.git/dirigible-flakes" || fail "a line appended during the rows: the written line stays: [$(cat "$c/work/.git/dirigible-flakes")]"
+[[ "$(cut -f3 "$c/decisions.tsv" | grep -c Flake)" == 2 ]] || fail "a line appended during the rows: rows [$(cat "$c/decisions.tsv")]"
+[[ "$(flakes_now)" == *' late load 3.00' ]] || fail "a line appended during the rows: lost: [$(flakes_now)]"
+[[ "$(flakes_now | grep -c Flake)" == 0 ]] || fail "a line appended during the rows: a written line stays: [$(flakes_now)]"
+
+# A failed row stops the land before the push, and the flakes file holds each original line.
+stub_land 'exit 1'
+[[ $code -eq 1 ]] || fail "a failed row: exit $code: $(cat "$c/out")"
+grep -q 'no flake row' "$c/out" || fail "a failed row: no reason: $(cat "$c/out")"
+[[ "$(flakes_now)" == "$(sort "$c/flakes")" && "$(copies)" == 0 ]] || fail "a failed row: flakes [$(flakes_now)], $(copies) copies"
+no_side_effects_push() { ! git -C "$c/origin.git" show-ref -q --verify refs/heads/feat/x || fail "$1: the branch is on origin"; }
+no_side_effects_push 'a failed row'
+
+# A TERM during the row loop: the trap of land.sh puts each original line back, and nothing is
+# pushed.
+stub_land "$row"'
+kill -TERM $PPID
+sleep 1'
+[[ $code -ne 0 ]] || fail "a TERM in the rows: exit 0"
+[[ "$(flakes_now)" == "$(sort "$c/flakes")" && "$(copies)" == 0 ]] || fail "a TERM in the rows: flakes [$(flakes_now)], $(copies) copies"
+no_side_effects_push 'a TERM in the rows'
 
 # A body with a run-internal ID refuses before any step, also before the fetch, and names the
 # writing-for-humans skill. The remote main moved after the clone, so a fetch would show.

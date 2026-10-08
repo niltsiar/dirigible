@@ -91,10 +91,10 @@ fi
 if grep -qE 'dirigible-check-stamp|check-stamp\.sh write' <<< "$NORMALIZED"; then
   block "names the pass stamp or writes it (only make check-changed writes it; read it with scripts/check-stamp.sh read origin/main)"
 fi
-# Only a passing make test-slow writes the slow-run date that scripts/check-changed.sh reads, so a
+# Only a passing make test-slow or test-slow-push writes the slow-run date that scripts/check-changed.sh reads, so a
 # direct write cannot skip the daily slow run. A command that names the date file is blocked too.
 if grep -qE 'dirigible-slow-date' <<< "$NORMALIZED"; then
-  block "names the slow-run date file (only a passing make test-slow writes it)"
+  block "names the slow-run date file (only a passing make test-slow or make test-slow-push writes it)"
 fi
 
 # A message path other than .scratchpads/commit-msg.txt (absolute, relative, ~, or $HOME) can name

@@ -125,27 +125,30 @@ for c in docs tooling tests sources sources-risk bundle build; do
     for t in $(targets_of "$c"); do wanted+="$t "; done
 done
 
-# Before the push, test-slow runs for risk, a changed slow test (a file with the gate of the
+# Before the push, test-slow-push runs for risk, a changed slow test (a file with the gate of the
 # Makefile), or a Makefile change (it owns the recipe). A push with Swift tests (check) also runs
-# it when no `make test-slow` passed today on this clone: the recipe writes the date file.
+# it when no slow run passed today on this clone: the recipe writes the date file. A changed file
+# of PUSH_SKIP (the Makefile line) runs test-slow, the full suite, in its place.
 if [[ $push == 1 ]]; then
-    slow=no
+    slow=no full=no
+    skip="$(sed -n 's/^PUSH_SKIP = //p' "$(dirname "$0")/../Makefile" 2>/dev/null || true)"
     [[ $risk == yes ]] && slow=yes
     grep -qx Makefile <<<"$paths" && slow=yes
     root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     while IFS= read -r p; do
         [[ $p == Tests/* ]] && grep -qF 'environment["DIRIGIBLE_SLOW_TESTS"]' "$root/$p" 2>/dev/null && slow=yes
+        for n in $skip; do [[ $p == Tests/*/"$n.swift" ]] && slow=yes full=yes; done
     done <<<"$paths"
     if [[ "$wanted" == *" check "* ]]; then
         date_file="$(git rev-parse --git-common-dir 2>/dev/null)/dirigible-slow-date" || date_file=/dev/null
         [[ "$(cat "$date_file" 2>/dev/null)" == "$(date +%F)" ]] || slow=yes
     fi
-    [[ $slow == yes ]] && wanted+="test-slow "
+    if [[ $full == yes ]]; then wanted+="test-slow "; elif [[ $slow == yes ]]; then wanted+="test-slow-push "; fi
 fi
 
 # check runs check-docs, check-fast, and test; check-fast runs check-docs. Drop what another target runs.
 targets=""
-for t in check-docs check-fast test check test-slow test-dmg; do
+for t in check-docs check-fast test check test-slow test-slow-push test-dmg; do
     [[ "$wanted" == *" $t "* ]] || continue
     case "$t" in check-docs | check-fast | test) [[ "$wanted" == *" check "* ]] && continue ;; esac
     [[ $t == check-docs && "$wanted" == *" check-fast "* ]] && continue

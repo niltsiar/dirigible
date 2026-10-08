@@ -61,6 +61,15 @@ import Testing
         await model.close()
     }
 
+    /// Decision 0014: Stop and Quit takes Return, as Stop and Close. After a failed save, Quit takes
+    /// no Return, as the unsaved Close. Cancel has Esc in each language: NSAlert gives Esc only to a
+    /// button titled "Cancel". The real keys are an on-screen check (`runModal` blocks a test).
+    @Test(arguments: [false, true]) func quitQuestionKeys(unsaved: Bool) {
+        let alert = quitQuestion("Quit?", button: "Quit", unsaved: unsaved)
+
+        #expect(alert.buttons.map(\.keyEquivalent) == [unsaved ? "" : "\r", "\u{1b}"])
+    }
+
     func buttons(_ view: NSView?) -> [NSButton] {
         guard let view else { return [] }
         return (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)

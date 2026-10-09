@@ -117,7 +117,7 @@ fi
 if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' |
   awk '{ gsub(/osascript|tell (app|application|process) /, "\n&"); print }' | awk '
   /set (the )?(bounds|position|size) of [^"\047]*process \\?"finder/ { found = 1 }
-  /^tell (app|application|process) (id )?\\?"(com\.apple\.)?finder\\?"/ && /set (the )?(bounds|position|size)/ { found = 1 }
+  /^tell (app|application|process) (id )?\\?"(com\.apple\.)?finder\\?"/ && /set (the )?(bounds|position|size)([^a-z0-9_]|$)/ { found = 1 }
   END { exit !found }'; then
   block "changes the bounds, position, or size of a Finder window (a new Finder window opens as a tab of the window group of the user, so the change moves the windows of the user)" \
     "Read where the Finder window is, and move only the window of the verify copy."

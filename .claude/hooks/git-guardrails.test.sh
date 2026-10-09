@@ -143,6 +143,12 @@ expect block 'osascript -e "tell application \"Finder\" to set bounds of window 
 expect block "osascript -e 'tell application id \"com.apple.finder\" to set position of window 1 to {0, 0}'"
 expect block "osascript -e 'tell app \"Finder\" to set bounds of window 1 to {0, 0, 9, 9}'"
 expect block "osascript -e 'tell application \"System Events\" to tell process \"Finder\" to set position of window 1 to {0, 0}'"
+# A set after a nested end tell is still in the Finder clause; a size change moves the group too.
+expect block $'osascript -e \'tell application "Finder"\ntell front window\nget name\nend tell\nset bounds of front window to {0, 0, 9, 9}\nend tell\''
+expect block "osascript -e 'tell application \"System Events\" to set size of window 1 of process \"Finder\" to {9, 9}'"
+expect block "osascript -e 'tell application \"Finder\" to set size of window 1 to {9, 9}'"
+# A new osascript word ends the Finder clause: read the Finder window, then move the verify copy.
+expect allow "osascript -e 'tell application \"Finder\" to get name of window 1'; osascript -e 'set position of window 1 of application process \"Dirigible\" to {0, 0}'"
 expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1'"
 expect allow "osascript -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"
 expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1' -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"

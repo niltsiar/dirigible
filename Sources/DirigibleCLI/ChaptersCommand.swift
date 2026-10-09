@@ -1,0 +1,56 @@
+import ArgumentParser
+import DirigibleAudio
+import DirigibleCore
+import Foundation
+
+struct ChaptersCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "chapters", abstract: "Export the chapter markers.", subcommands: [ChaptersExport.self])
+}
+
+struct ChaptersExport: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "export",
+        abstract: "Write the chapters of a range as a Podcasting 2.0 JSON Chapters 1.2.0 file.",
+        discussion: """
+            Each chapter marker in the range gives startTime and title. startTime is the time from \
+            --from in seconds, rounded to the millisecond. Markers that are not chapters are not in \
+            the file. Exit 1 when the range has no chapter: the command writes no empty file. Exit 2 \
+            when the package cannot be read, --out exists (unless --replace), or the write fails; a \
+            failed write leaves the old file or no file.
+            """)
+
+    @OptionGroup var package: PackageArgument
+    @Option(help: "The output file: .json.") var out: String
+    @Option(parsing: .unconditional, help: "The first frame. The default is 0.") var from = 0
+    @Option(parsing: .unconditional, help: "The frame after the last frame. The default is the session end.")
+    var to: Int?
+    @Flag(help: "Replace the output file when it exists.") var replace = false
+
+    func validate() throws {
+        guard URL(filePath: out).pathExtension.lowercased() == "json" else {
+            throw ValidationError("--out must end in .json.")
+        }
+    }
+
+    func run() throws {
+        let session = try readPackage(package)
+        let end = to ?? session.end.count
+        guard from >= 0, end > from else {
+            throw ValidationError(
+                "The range must be 0 or more, with --to more than --from; the session end is \(session.end).")
+        }
+        guard let data = session.chaptersJSON(in: Frames(from)..<Frames(end)) else {
+            throw fail("no chapter in frames \(from)..<\(end).", code: editRefused)
+        }
+        let output = URL(filePath: out)
+        // An lstat: a dangling link is an item too. `[.atomic, .withoutOverwriting]` is a fatal
+        // error of Foundation, so the check comes first, and a race with another writer is accepted.
+        guard replace || ConfirmedFile(at: output) == nil else { throw fail("\(out) exists.", code: packageError) }
+        do {
+            try data.write(to: output, options: .atomic)
+        } catch {
+            throw fail("cannot write \(out): \(error.localizedDescription)", code: packageError)
+        }
+    }
+}

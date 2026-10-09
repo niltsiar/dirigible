@@ -206,6 +206,17 @@ struct BackupTests {
         #expect(try Backup.keep(in: package) != nil, "keep copies bytes of the same size that differ")
     }
 
+    /// C5: a due backup needs twice the size of `session.xml` free, so the save after it has space.
+    @Test func aBackupNeedsTwiceTheFileSizeFree() throws {
+        let size = Int64(try Data(contentsOf: sessionXML).count)
+
+        try BackupPolicy.standard.keepIfDue(in: package, freeBytes: { _ in 2 * size - 1 })
+        #expect(Self.names(in: package).isEmpty, "no backup with less than twice the file size free")
+
+        try BackupPolicy.standard.keepIfDue(in: package, freeBytes: { _ in 2 * size })
+        #expect(Self.names(in: package) == [Self.name(Self.time)], "a backup with twice the file size free")
+    }
+
     /// C5: a regular file named `Backups`, then a folder with no write access.
     @Test func aBackupFaultDoesNotStopTheSave() throws {
         try Data("not a folder".utf8).write(to: folder)

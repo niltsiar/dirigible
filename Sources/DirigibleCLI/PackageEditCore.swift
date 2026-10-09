@@ -18,7 +18,9 @@ enum EditFailure<Body: Error>: Error {
 /// Takes the package lock (decision 0012), reads the package, removes the leftover temporary
 /// files of a crashed save (after the read, so a newer package does not change: decision 0024
 /// P4), refuses a pending take, refuses a split take when `ripple` is true, applies `body`, and
-/// saves. The lock is held until the save ends. The package does not change when a step fails.
+/// saves. The lock is held until the save ends. `session.xml` does not change when a step fails.
+/// A due save can add a backup and delete the oldest backup before the replace, and a refused
+/// revert can leave the kept copy of the current file (decision 0043).
 func editPackageCore<Result, Failure: Error>(
     _ package: URL, ripple: Bool, _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(EditFailure<Failure>) -> Result {

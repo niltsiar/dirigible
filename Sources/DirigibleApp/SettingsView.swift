@@ -61,7 +61,7 @@ struct SettingsView: View {
             Picker(L10n.settingsLanguage.key, selection: $choice) {
                 Text(L10n.settingsLanguageSystem.key).tag(LanguageChoice.system)
                 Divider()
-                // Endonyms: a user who cannot read the current language still finds the own one.
+                // Endonyms: a user who cannot read the current UI language still finds their language.
                 Text(verbatim: "English").tag(LanguageChoice.english)
                 Text(verbatim: "Español").tag(LanguageChoice.spanish)
             }

@@ -2,6 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
+@testable import DirigibleCLI
+
 /// `dirigible backup list` and `dirigible backup revert` (decision 0043, criteria C9, C13, and C16
 /// of run 14).
 struct BackupCommandTests {
@@ -108,6 +110,25 @@ struct BackupCommandTests {
             #expect(result.status == 2 && result.stderr.contains(reason), "\(name): \(result)")
             #expect(try files() == before, "\(name) changes nothing")
         }
+    }
+
+    /// A failed copy of the current file refuses the revert and names `Backups`, not the backup.
+    @Test func revertNamesAFailedCopy() async throws {
+        try #require(chmod(folder.path, 0o555) == 0)
+        defer { chmod(folder.path, 0o755) }
+        let before = try files()
+
+        let result = try await package.run("backup", "revert", "PKG", "--name", Self.old)
+
+        #expect(result.status == 2 && result.stderr.contains("cannot write \(package.path)/Backups ("), "\(result)")
+        #expect(!result.stderr.contains(Self.old), "the text does not blame the backup: \(result)")
+        #expect(try files() == before)
+    }
+
+    /// A read fault of the copy names `session.xml`.
+    @Test func aFailedReadOfTheCopyNamesTheSessionFile() {
+        let message = RevertError.currentCopy(.readFailed(errno: EIO)).message(package: "P.dirigible")
+        #expect(message.hasPrefix("cannot read P.dirigible/session.xml:"), "\(message)")
     }
 
     @Test func revertRefusesALockedPackage() async throws {

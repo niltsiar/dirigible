@@ -36,7 +36,7 @@ struct BackupCommand: ParsableCommand {
         private func refused(_ error: RevertError) -> ExitCode {
             let message = error.message(package: package.path)
             return switch error {
-            case .backup: fail(message, code: packageError)
+            case .backup, .currentCopy: fail(message, code: packageError)
             case .session: fail(message, code: editRefused)
             }
         }
@@ -47,6 +47,9 @@ struct BackupCommand: ParsableCommand {
 enum RevertError: Error {
     /// The backup cannot be read, is damaged, or is of a newer version.
     case backup(Backup, SessionFileError)
+    /// The copy of the current `session.xml` failed. The CLI and MCP have no undo, so the revert
+    /// is refused with no copy (decision 0043).
+    case currentCopy(SessionFileError)
     /// The backup removes or changes a track that the recording arms.
     case session(SessionError)
 }
@@ -54,10 +57,13 @@ enum RevertError: Error {
 /// The body of `backup revert` and of `backup_revert`.
 func revert(_ session: inout Session, to backup: Backup, under lock: PackageLock) throws(RevertError) {
     let target: Session
-    do throws(SessionFileError) {
+    do throws(RevertReadError) {
         target = try backup.readForRevert(under: lock)
     } catch {
-        throw .backup(backup, error)
+        switch error {
+        case .backup(let fault): throw .backup(backup, fault)
+        case .currentCopy(let fault): throw .currentCopy(fault)
+        }
     }
     do throws(SessionError) {
         session = try session.reverted(to: target)

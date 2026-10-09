@@ -6,7 +6,8 @@ extension Studio {
     /// 0043). In its turn of the write chain, it first throws the last save error, so the copy
     /// that it keeps of the current file is the session in memory. Throws `.busy` while a take,
     /// a finalize, a placement, a level, or an import runs, also one that starts during the read.
-    /// Throws `.file` for a newer, damaged, or missing backup, and `.session(.trackInRecording)`
+    /// Throws `.file` for a newer, damaged, or missing backup, and when the copy of the current
+    /// file fails: the revert keeps that copy first. Throws `.session(.trackInRecording)`
     /// for a backup that removes an armed track or changes its route or layout. A throw leaves the
     /// session unchanged.
     public func revert(to backup: Backup) async throws(StudioError) {
@@ -29,8 +30,16 @@ extension Studio {
     -> Result<(session: Session, backups: [Backup]), StudioError>
 {
     dispatchPrecondition(condition: .notOnQueue(.main))
+    let session: Session
+    do throws(RevertReadError) {
+        session = try backup.readForRevert(under: lock)
+    } catch {
+        // The window alert has one text for each file error, with no file name.
+        switch error {
+        case .backup(let fault), .currentCopy(let fault): return .failure(.file(fault))
+        }
+    }
     do throws(SessionFileError) {
-        let session = try backup.readForRevert(under: lock)
         return .success((session, Backup.all(in: try lock.package())))
     } catch {
         return .failure(.file(error))

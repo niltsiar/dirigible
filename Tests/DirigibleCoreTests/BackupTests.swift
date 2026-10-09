@@ -363,6 +363,27 @@ struct BackupTests {
         #expect(held.contains(replaced), "the state that the revert replaced stays after the prune")
     }
 
+    /// C4: `session.xml` has the bytes of the oldest of 20 backups (a saved revert to it). A due
+    /// save, then a due save that prunes. The replaced state stays, once (code gate 2 item 1).
+    @Test func aDueSaveKeepsAStateThatAnOldBackupHolds() throws {
+        let states = try (1...20).map(Self.state)
+        for (index, state) in states.enumerated() {
+            try Self.plant(
+                Self.time - 600 * (index + 1), String(decoding: try state.checkedData(), as: UTF8.self), in: package)
+        }
+        let replaced = try states[19].checkedData()
+        try replaced.write(to: sessionXML)
+        try Self.setTime(of: sessionXML, to: Self.time)
+
+        try Self.save(Self.state(30), in: package)
+        try Self.setTime(of: sessionXML, to: Self.time + 600)
+        try Self.save(Self.state(31), in: package)
+
+        let held = Self.names(in: package).map { try? Data(contentsOf: folder.appending(path: $0)) }
+        #expect(held.contains(replaced), "the state that the due save replaced stays after the prune")
+        #expect(held.filter { $0 == replaced }.count == 1, "Backups/ holds the state once")
+    }
+
     /// C4, the take-start branch: `.none` keeps and deletes no backup, also when one is due.
     @Test func noBackupPolicyAddsNothing() throws {
         for index in 1...20 { try Self.plant(Self.time - 600 * index, "planted \(index)", in: package) }

@@ -6,7 +6,11 @@
 // A call of an accessibility method in a test does not prove that the tree reaches the element
 // (run 1b: the header ruler was a leaf, so the handle and the track rows were not in the tree).
 //
-// usage: ax.swift dump [<depth>]              one line per element: role, title, label, value, help
+// usage: ax.swift dump [<depth>] [--tree <file>] [--witness <text>]
+//                                             one line per element: role, title, label, value, help;
+//                                             with --tree, the lines of a dump file; with
+//                                             --witness, exit 1 when no line of the dump has <text>
+//                                             (a field that holds only in the state to read)
 //        ax.swift find <text>                 the elements whose line has <text>
 //        ax.swift press <path> [--tree <file>] [--role <role>]
 //                                             the press action of the one element that <path>
@@ -30,14 +34,14 @@
 // first "Clear Menu" pressed Apple > Recent Items > Clear Menu and cleared the Recent Items list of
 // the Mac (run 2026-09-30-start-window).
 // A press path with an empty title is refused: a menu separator has an empty title.
-// Exit: 0 done, 1 no app with the bundle ID or no element, 2 usage, an empty title in the press
-// path, or an empty DIRIGIBLE_BUNDLE_ID, 3 no Accessibility trust, 4 more than one element matches
-// the press path.
+// Exit: 0 done, 1 no app with the bundle ID, no element, or no witness line, 2 usage, an empty
+// title in the press path, or an empty DIRIGIBLE_BUNDLE_ID, 3 no Accessibility trust, 4 more than
+// one element matches the press path.
 import AppKit
 import ApplicationServices
 
 let usage = """
-    usage: ax.swift dump [<depth>]
+    usage: ax.swift dump [<depth>] [--tree <file>] [--witness <text>]
            ax.swift find <text>
            ax.swift press <path> [--tree <file>] [--role <role>]
            ax.swift step <role> <increment|decrement>
@@ -50,15 +54,18 @@ func fail(_ message: String, _ code: Int32) -> Never {
 }
 
 var arguments = Array(CommandLine.arguments.dropFirst())
-/// The value of a press option, removed from the arguments.
-func pressOption(_ name: String) -> String? {
-    guard arguments.first == "press", let at = arguments.firstIndex(of: name) else { return nil }
+/// The value of an option of the commands, removed from the arguments.
+func option(_ name: String, _ commands: Set<String>) -> String? {
+    guard let first = arguments.first, commands.contains(first), let at = arguments.firstIndex(of: name) else {
+        return nil
+    }
     guard at + 1 < arguments.count else { fail(usage, 2) }
     defer { arguments.removeSubrange(at...at + 1) }
     return arguments[at + 1]
 }
-let treeFile = pressOption("--tree")
-let roleFilter = pressOption("--role")
+let treeFile = option("--tree", ["press", "dump"])
+let roleFilter = option("--role", ["press"])
+let witness = option("--witness", ["dump"])
 let counts = ["dump": 0...1, "find": 1...1, "press": 1...1, "step": 2...2]
 guard let command = arguments.first, let count = counts[command], count.contains(arguments.count - 1) else {
     fail(usage, 2)
@@ -166,7 +173,17 @@ func matches(_ path: [String], _ node: Node, _ above: [String]) -> [(node: Node,
 var found = false
 switch command {
 case "dump":
-    walk(appRoot(), 0) { element, level in print(String(repeating: " ", count: level) + line(element)) }
+    var lines: [String] = []
+    if let treeFile {
+        guard let text = try? String(contentsOfFile: treeFile, encoding: .utf8) else {
+            fail("No tree in \(treeFile).", 1)
+        }
+        lines = text.split(separator: "\n").map(String.init).filter { $0.prefix { $0 == " " }.count <= depth }
+    } else {
+        walk(appRoot(), 0) { element, level in lines.append(String(repeating: " ", count: level) + line(element)) }
+    }
+    lines.forEach { print($0) }
+    if let witness, !lines.contains(where: { $0.contains(witness) }) { fail("no witness: \(witness)", 1) }
     found = true
 case "find":
     walk(appRoot(), 0) { element, _ in

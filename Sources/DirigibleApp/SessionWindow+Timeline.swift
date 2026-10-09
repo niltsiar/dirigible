@@ -49,6 +49,7 @@ enum TimelineCommand: Hashable {
     case split, nudgeLeft, nudgeRight, fade
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
+    case exportChapters
     case autoLevel, autoLevelPerTrack
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -85,7 +86,7 @@ enum TimelineCommand: Hashable {
         case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         // A text field does nothing with Command-T (run 13a, C9).
-        case .importAudio, .export, .exportSelection: false
+        case .importAudio, .export, .exportSelection, .exportChapters: false
         case .autoLevel, .autoLevelPerTrack: false
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
         case .fade: false
@@ -185,13 +186,15 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .autoLevelPerTrack, title: .menuToolsLevelTrack, key: "l", modifiers: [.command, .option]),
     ]
 
-    /// The Import Audio, Show Clips in Finder, Export, and Export Selection items of the File menu.
+    /// The Import Audio, Show Clips in Finder, Export, Export Selection, and Export Chapters items of the
+    /// File menu.
     /// Import Audio has Command-T, as File > Import of Hindenburg (decision 0040).
     static let fileItems = [
         MenuItem(command: .importAudio, title: .menuFileImport, key: "t", modifiers: .command),
         MenuItem(command: .showInFinder, title: .menuFileShowClips, key: "r", modifiers: [.command, .shift]),
         MenuItem(command: .export, title: .menuFileExport, key: "e", modifiers: .command),
         MenuItem(command: .exportSelection, title: .menuFileExportSelection, key: "e", modifiers: [.command, .shift]),
+        MenuItem(command: .exportChapters, title: .menuFileExportChapters, key: "e", modifiers: [.command, .option]),
     ]
 }
 
@@ -286,6 +289,7 @@ extension SessionWindow {
         case .importAudio: chooseImport()
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }
+        case .exportChapters: exportChapters()
         case .autoLevel: Task { await level(.eachClip) }
         case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
         }

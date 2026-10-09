@@ -272,7 +272,9 @@
 /* Export (decision 0019) */
 "menu.file.export" = "Exportar…";
 "menu.file.export.selection" = "Exportar selección…";
+"menu.file.export.chapters" = "Exportar capítulos…";
 "menu.file.import" = "Importar audio…";
+"panel.chapters.marks" = "Los tiempos de los capítulos empiezan en el punto de entrada.";
 "panel.export.format" = "Formato";
 "panel.export.note.one" = "%lld pista silenciada o sin solo: no está en la exportación.";
 "panel.export.note.many" = "%lld pistas silenciadas o sin solo: no están en la exportación.";

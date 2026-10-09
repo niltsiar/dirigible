@@ -20,7 +20,7 @@ Dirigible shows its menus and windows in English or Spanish. By default, it uses
 
 ### What Dirigible does not do yet
 
-- The export does not write the chapters into the file. The chapters stay in the session.
+- The export does not write the chapters into the file. Choose **File > Export Chapters** to write them to a separate JSON file.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
 
 ## Record your first episode
@@ -357,6 +357,15 @@ AAC and MP3 cannot export a 96 kHz session at the session rate: set **Sample rat
 
 If an audio file of the session is missing or cannot be read, Dirigible shows its name before the export. Its clips export as silence. Click **Export** to go on, or click **Cancel**. After the export, an alert names the files, and with a **Loudness** target it also shows the result.
 
+### Export the chapters
+
+Choose **File > Export Chapters** (Option-Command-E) to write the chapters to a file for your podcast host. The file is in the Podcasting 2.0 JSON Chapters 1.2.0 format, with the time and the title of each chapter. The default name is the session name with `.chapters.json`.
+
+- The range is the range of the export. When **Export Selection** is on, it is the selection, and the save panel says that the chapter times start at the in point. Else it is the whole session.
+- The times start at 0 at the start of the range. If your host needs a first chapter at 0, put a chapter at the start of the range: the in point with **Export Selection**, else the session start.
+- The file has only the chapters, not the markers. When the range has no chapter, the item is off.
+- Upload the file to a host that reads Podcasting 2.0 chapters. Not every host does.
+
 ## Recover after a crash, an unplug, or a full disk
 
 Dirigible writes each take to disk while it records. After a crash, an unplug, or a full disk, the recorded audio stays in the session.
@@ -442,6 +451,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Show Clips in Finder** | **Mostrar clips en el Finder** | Shift-Command-R |
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |
+| **Export Chapters** | **Exportar capítulos** | Option-Command-E |
 | **Revert To** | **Volver a** | None |
 | **No Backups** (in **Revert To**, when the session has no backup) | **No hay copias de seguridad** | None |
 

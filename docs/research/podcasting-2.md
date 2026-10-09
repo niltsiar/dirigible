@@ -153,6 +153,15 @@ Who reads transcripts:
 - [AV1] Apple, AVAssetTrack.AssociationType.chapterList: https://developer.apple.com/documentation/avfoundation/avassettrack/associationtype/chapterlist
 - [AV2] Apple, AVAsset chapter metadata groups: https://developer.apple.com/documentation/avfoundation/avasset/loadchaptermetadatagroups(withtitlelocale:containingitemswithcommonkeys:)
 - [AF1] Apple Developer Forums, writing chapter data with AVAssetWriter (2019): https://developer.apple.com/forums/thread/115722
+- [JCH] Commit history of the JSON Chapters spec file (2026-10-09): https://github.com/Podcastindex-org/podcast-namespace/commits/main/docs/examples/chapters/jsonChapters.md
+- [JT] Podcast Namespace repo tree, no JSON Schema for chapters (2026-10-09): https://api.github.com/repos/Podcastindex-org/podcast-namespace/git/trees/main?recursive=1
+- [SS] SchemaStore catalog, no chapters schema (2026-10-09): https://www.schemastore.org/api/json/catalog.json
+- [H5] Hindenburg PRO 2.05 build 2716, PSC export for chapters: https://hindenburg.com/release-notes-hindenburg-pro_version-2/pro-v2_05-build-2716/
+- [UV] Hindenburg feedback, "Export chapters in JSON 2.0 format": https://hindenburg.uservoice.com/forums/224350-general/suggestions/47499599-export-chapters-in-json-2-0-format
+- [LP] Logic Pro, use marker information from audio files: https://support.apple.com/guide/logicpro/use-marker-information-lgcpadb63ff8/mac
+- [GB] Apple, GarageBand for Mac enhanced podcasts: https://support.apple.com/en-us/101746
+- [AF] Audacity 3.7.8 FileMenus.cpp, Export Labels: https://github.com/audacity/audacity/blob/Audacity-3.7.8/src/menus/FileMenus.cpp
+- [TM] Transistor, add MP3 chapters: https://support.transistor.fm/en/article/how-do-i-add-mp3-chapters-to-my-podcast-episode-1ts9azc/
 - [AF2] Apple Developer Forums, writing chapters to audio asset (2020): https://developer.apple.com/forums/thread/134008
 - [AF3] Apple Developer Forums, chapter marks in M4A (2023): https://developer.apple.com/forums/thread/735028
 - [SF] Swift Forums, writing chapters to an audio asset in AVFoundation: https://forums.swift.org/t/writing-chapters-to-an-audio-asset-in-avfoundation/37441

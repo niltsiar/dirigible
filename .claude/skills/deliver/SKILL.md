@@ -12,7 +12,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 - For reversible work (AGENTS.md, Git), choose a default, log it in `decisions.tsv`, and continue. Its row result starts with `default`; its why and the PR body name what reverses it (`Reverse:`). `scripts/land.sh` needs no question. A privacy prompt of the verify copy: `driving-the-app.md`.
 - A row result starts with its token when one applies: `failed` or `fail` (a check failed, not a planned red), `flake`, `survived` (a mutant), `NOT VERIFIED`, or `missed unknown`. A token wins over `default`; then start the decision with `default`. A changed criterion starts the decision with `criterion change` (`log-decision.sh` checks it).
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
-- Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool (AGENTS.md, Git). If the tool refuses, edit an empty file that the lead made, or use a `.tsv` or `.txt` name. Never return a run file only as text.
+- Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Write run files with the Write tool (AGENTS.md, Git). If the tool refuses, write `<name>.txt`, then `mv` it to `<name>.md`. Never return a run file only as text.
 - A subagent runs a repeat loop in the foreground, 10 min or less per Bash call; split a longer loop into more calls. A background loop floods the caller with notifications.
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
@@ -55,7 +55,7 @@ Write `plan.md`:
 
 | Run | Plan gate and code gate |
 |---|---|
-| Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `code-quality`). A fix check only with Act-on items. |
+| Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `code-quality` (plan gate: `devils-advocate`)). A fix check only with Act-on items. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
 - With `risk: yes`, each guard in a risk path gets two mutation controls, replayed once in Phase 7. With `risk: no`, the failing-before test is the control, with no replay. Decision 0028 says when a plan raises a guard to risk. A sources change also gets a screenshot or AX check per visible criterion. A tooling control is a failing case in its `.test.sh`.

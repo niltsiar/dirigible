@@ -116,6 +116,9 @@ enum L10n: String, CaseIterable {
     case menuMarkersNext = "menu.markers.next"
     case menuHelpGuide = "menu.help.guide"
     case menuAppAbout = "menu.app.about"
+    case settingsLanguage = "settings.language"
+    case settingsLanguageSystem = "settings.language.system"
+    case settingsLanguageRestart = "settings.language.restart"
 
     case panelExportFormat = "panel.export.format"
     case panelExportNoteOne = "panel.export.note.one"

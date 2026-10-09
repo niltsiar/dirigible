@@ -261,6 +261,9 @@
 "menu.markers.next" = "Next Marker";
 "menu.help.guide" = "Dirigible Guide";
 "menu.app.about" = "About Dirigible";
+"settings.language" = "Language";
+"settings.language.system" = "System Language";
+"settings.language.restart" = "Restart Dirigible to apply the language.";
 "alert.marker.rename" = "Rename Marker";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Chapter %lld";

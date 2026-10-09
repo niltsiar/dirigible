@@ -8,7 +8,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 <img src="docs/images/screenshot-edit.png" width="800" alt="The Dirigible window with the Demo Episode session: the Host and Guest tracks, the marker Intro, the chapter Interview, a clip at -6 dB, and the loudness meter below the tracks.">
 
 - macOS 14 Sonoma or later, on Apple silicon or Intel
-- English and Spanish
+- English and Spanish (Dirigible > Settings)
 - Apache License 2.0
 
 ## Features

@@ -10,6 +10,14 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 - Only one window can open a session at a time.
 - Choose **Dirigible > About Dirigible** to see the version. The text in parentheses is the commit that the app was built from, with `-dirty` when the build had changes that no commit holds. Give both in a bug report.
 
+### Change the language
+
+Dirigible shows its menus and windows in English or Spanish. By default, it uses the language of macOS.
+
+1. Choose **Dirigible > Settings** (Command-Comma). In Spanish, the menu item is **Ajustes**.
+2. In **Language** (**Idioma**), choose **System Language** (**Idioma del sistema**), **English**, or **Español**.
+3. Quit Dirigible and open it again. The new language shows only after the restart.
+
 ### What Dirigible does not do yet
 
 - The export does not write the chapters into the file. The chapters stay in the session.
@@ -411,7 +419,7 @@ During a take, an import, or Auto Level, the backups are off. A revert deletes n
 
 ## Menu commands and keys
 
-Each table lists the commands of one menu, in the order of the menu. The Spanish name is the name in the app when macOS is in Spanish.
+Each table lists the commands of one menu, in the order of the menu. The Spanish name is the name in the app when the app language is Spanish.
 
 On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-Up Arrow, Page Down is Fn-Down Arrow, Home is Fn-Left Arrow, and End is Fn-Right Arrow.
 
@@ -420,6 +428,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | Command | Spanish name | Key |
 |---|---|---|
 | **About Dirigible** | **Acerca de Dirigible** | None |
+| **Settings…** | **Ajustes…** | Command-Comma |
 
 ### File
 

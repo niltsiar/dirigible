@@ -43,7 +43,7 @@ struct BackupCommand: ParsableCommand {
     }
 }
 
-/// Why a revert to a backup changed nothing.
+/// Why a revert to a backup did not change `session.xml`.
 enum RevertError: Error {
     /// The backup cannot be read, is damaged, or is of a newer version.
     case backup(Backup, SessionFileError)

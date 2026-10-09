@@ -87,10 +87,11 @@ public struct Backup: Hashable, Comparable, Sendable {
 
     /// Copies `session.xml` of `package` to `Backups/<name of its mtime>` with the durable write
     /// of a save. When a backup has that name, the name gets 1 ms more until it is free. When one
-    /// of the 19 newest backups (the ones that the next prune keeps) has the same bytes, it copies
-    /// nothing. When an older backup has them, it moves that backup to the new name, so the next
-    /// prune keeps the state and `Backups/` holds it once. Returns the new copy, or nil when no
-    /// file is added, so the caller prunes only after a new copy. Only a lock holder calls it.
+    /// of the 19 newest backups has the same bytes, it copies nothing (a revert copy or a move
+    /// before the next prune can still push that backup out). When an older backup has them, it
+    /// moves that backup to the new name, so the next prune keeps the state and `Backups/` holds
+    /// it once. Returns the new copy, or nil when no file is added, so the caller prunes only
+    /// after a new copy. Only a lock holder calls it.
     static func keep(in package: URL) throws(SessionFileError) -> Backup? {
         let source = package.appending(path: "session.xml")
         var info = stat()
@@ -172,7 +173,8 @@ public struct Backup: Hashable, Comparable, Sendable {
     }
 }
 
-/// Why `Backup.readForRevert(under:)` refused a revert. Nothing changed.
+/// Why `Backup.readForRevert(under:)` refused a revert. `session.xml` did not change; a keep
+/// can have moved an old backup to a new name.
 public enum RevertReadError: Error, Hashable, Sendable {
     /// The backup cannot be read, is damaged, or is of a newer version, or the package moved.
     case backup(SessionFileError)

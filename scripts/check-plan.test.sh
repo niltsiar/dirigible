@@ -1,8 +1,9 @@
 #!/bin/bash
 # Check that check-plan.sh exits 1 and names the failure for a run folder with no Unknowns table,
 # an open Unknowns row, a split row with no child row, a slice with no check line, or a plan with
-# no Agents: line, or a review file with an Act on item with no Invariant or Siblings field, and
-# exits 0 for a good folder, a user row answered with a default, and an old review file.
+# no Agents: line, or a review file with an Act on item or a taken Consider nit with no Invariant
+# or Siblings field, and exits 0 for a good folder, a user row answered with a default, a nit
+# tagged no behavior change, a nit that is not taken, and an old review file.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -119,8 +120,32 @@ good
 printf '## Act on\n\n1. (nit, x) A nit.\n2. (Critical, x) A fix. Siblings: none, grepped x.\n' > "$review"
 refuse 'an Act on item with no Invariant field' 'review-plan-1.md: Act on item 2 has no Invariant field'
 good
-printf '## Act on\n\n1. (nit, x) A nit.\n2. (critical, x) A fix.\n   - **Invariant (state):** x\n   - **Siblings:** y\n' > "$review"
-pass 'a nit with no field and a critical item with both fields'
+printf '## Act on\n\n1. (nit, x; no behavior change) A nit.\n2. (critical, x) A fix.\n   - **Invariant (state):** x\n   - **Siblings:** y\n' > "$review"
+pass 'a no behavior change nit with no field and a critical item with both fields'
+# A taken nit needs both fields too, unless its tag has `no behavior change` (INT-042). A review
+# file from before the nit rule keeps the old rule.
+good
+printf '## Act on\n\n1. (nit, x) A nit.\n' > "$review"
+refuse 'an Act on nit with no field' 'review-plan-1.md: Act on item 1 has no Invariant field'
+good
+printf '## Consider\n\n- (nit, x; taken) A note.\n- (nit, y) Another note.\n' > "$review"
+refuse 'a taken Consider nit with no field' 'review-plan-1.md: Consider item 1 has no Siblings field'
+good
+printf '## Consider\n\n- (nit, x; taken) A note.\n  - Invariant: x\n  - Siblings: y\n' > "$review"
+pass 'a taken Consider nit with both fields'
+good
+printf '## Consider\n\n- (nit, x; taken, no behavior change) A note.\n' > "$review"
+pass 'a taken no behavior change Consider nit with no field'
+good
+printf '## Consider\n\n- (nit, x) A note.\n' > "$review"
+pass 'a Consider nit that is not taken'
+good
+printf '## Consider\n\n- (nit, x; not taken) A note.\n' > "$review"
+pass 'a Consider nit tagged not taken'
+good
+printf '## Act on\n\n1. (nit, x) A nit.\n\n## Consider\n\n- (nit, x; taken) A note.\n' > "$review"
+touch -t 202610080000 "$review"
+pass 'a review file from before the nit rule'
 good
 printf '## Act on\n\n1. A fix with no tag.\n   Invariant: x\n' > "$review"
 refuse 'an untagged Act on item with no Siblings field' 'review-plan-1.md: Act on item 1 has no Siblings field'

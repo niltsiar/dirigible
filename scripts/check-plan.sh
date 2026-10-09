@@ -10,7 +10,7 @@
 #   `- Check:` line.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
-#   bullet whose first parenthesis has `nit` and `taken` (not `not taken`). A nit tagged
+#   bullet whose text has `nit` and `taken` (not `not taken`). A nit tagged
 #   `no behavior change` needs no field. A review file older than the rule is not checked; one
 #   older than the nit rule needs no field for a nit.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
@@ -80,14 +80,15 @@ for review in "$run"/review-*.md; do
         # exempt: the first parenthesis is a nit tag that needs no field. With the nit rule, only a
         # nit tagged `no behavior change` is exempt.
         function exempt(  t) { t = paren(); return t ~ /^\(nit/ && (!nitrule || t ~ /no behavior change/) }
-        # taken: the first parenthesis has nit and taken (not "not taken").
+        # taken: the text of the whole bullet has nit and taken (not "not taken"), in or outside a
+        # parenthesis, for example "(nit, x) ... Taken: a test case.".
         function taken(  t) {
-            t = paren(); gsub(/not taken/, "", t)
+            t = tolower(text); gsub(/not taken/, "", t)
             return t ~ /(^|[^a-z])nit([^a-z]|$)/ && t ~ /(^|[^a-z])taken([^a-z]|$)/
         }
         function close_item() {
             if (item && !skip) missing("Act on item " item)
-            if (note && !skip) missing("Consider item " note)
+            if (note && !skip && taken()) missing("Consider item " note)
             item = note = ""
         }
         function close_section() {
@@ -110,7 +111,7 @@ for review in "$run"/review-*.md; do
         }
         inside == "consider" && /^[-*] / {
             close_item(); note = ++notes; text = $0
-            skip = !taken() || exempt()
+            skip = exempt()
             next
         }
         inside == "act" && /^([-*] |### )/ { other = 1 }

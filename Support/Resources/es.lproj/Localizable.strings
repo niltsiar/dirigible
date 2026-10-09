@@ -5,6 +5,8 @@
 "menu.file.open" = "Abrir…";
 "menu.file.open.recent" = "Abrir recientes";
 "menu.file.clear.recent" = "Vaciar menú";
+"menu.file.revert.to" = "Volver a";
+"menu.file.revert.to.none" = "No hay copias de seguridad";
 "menu.file.show.clips" = "Mostrar clips en el Finder";
 "menu.track" = "Pista";
 "menu.track.add" = "Añadir pista";
@@ -86,6 +88,7 @@
 "error.paste.yielded" = "El pegado desde «%@» se detuvo por una toma en otra ventana. Vuelva a pegar después de la toma.";
 "paste.banner" = "Pegando desde «%@»";
 "paste.done" = "Pegado.";
+"reverted.to" = "Se restauró la copia de seguridad de %@";
 
 /* Window, panels, and alerts */
 "window.opening" = "Abriendo la sesión…";

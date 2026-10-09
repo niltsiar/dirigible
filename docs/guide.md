@@ -27,7 +27,7 @@ In this tutorial, you record an interview with two microphones, remove a mistake
 
 Dirigible saves the session in the Music folder, in the Dirigible folder. To use another folder, click **Change…** and choose the folder. Dirigible uses that folder for the next sessions too. To show the start window again, choose **File > New Session** (Command-N) or **Window > Start Window** (Shift-Command-1).
 
-There is no Save command. Dirigible saves each change to the session.
+There is no Save command. Dirigible saves each change to the session. It also keeps backups of the session: see [Go back to an earlier state of the session](#go-back-to-an-earlier-state-of-the-session).
 
 ### Open a session
 
@@ -391,6 +391,24 @@ Choose **File > Show Clips in Finder** to show the audio files of the clips in F
 
 If an audio file is missing or damaged, its clips play as silence, and the window names the file. Connect the disk that has the file. Dirigible checks again when you come back to the window.
 
+### Go back to an earlier state of the session
+
+Dirigible keeps backups of the session in the session package. A backup has the tracks, the clips, and the markers, not the audio.
+
+- Before a save, Dirigible keeps a backup when a backup is due: the newest backup is 10 minutes old or older.
+- When you close the window, Dirigible keeps a backup of the session.
+- Dirigible keeps the 20 newest backups and deletes the older backups.
+- A take does not start with a backup. When the take ends, Dirigible keeps a backup of the session before the take only when a backup is due.
+
+To go back to a backup:
+
+1. Choose **File > Revert To**. The menu shows the date and time of each backup, newest first. With no backup, it shows **No Backups**.
+2. Choose a backup. The session changes to the state of the backup.
+
+Before the revert, Dirigible keeps a backup of the session that the revert replaces. To go back to the session before the revert, choose **Edit > Undo** (Command-Z).
+
+During a take, an import, or Auto Level, the backups are off. A revert deletes no audio. If you recorded a take after the backup, the audio of the take shows as unplaced audio. Edit > Undo puts the take back on its tracks.
+
 ## Menu commands and keys
 
 Each table lists the commands of one menu, in the order of the menu. The Spanish name is the name in the app when macOS is in Spanish.
@@ -415,6 +433,8 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Show Clips in Finder** | **Mostrar clips en el Finder** | Shift-Command-R |
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |
+| **Revert To** | **Volver a** | None |
+| **No Backups** (in **Revert To**, when the session has no backup) | **No hay copias de seguridad** | None |
 
 ### Edit
 
@@ -559,6 +579,7 @@ A session is a macOS package: a folder with the extension `.dirigible` that Find
 - `session.xml` holds the tracks, the clips, the markers, and the chapters.
 - `Clips/` holds the audio of the clips as WAV files.
 - `Capture/` holds the audio of a take while it records, in files that survive a crash.
+- `Backups/` holds backups of `session.xml`. The name of a backup has the UTC date and time of the copied file, for example `session-20261009T081530.250Z.xml`.
 
 ### The dirigible tool
 

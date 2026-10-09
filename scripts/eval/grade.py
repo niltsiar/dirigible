@@ -160,8 +160,9 @@ def verdict(old, new):
         print(f"void {s}")
     old_sum = sum(passes.get((s, old), 0) for s in live if typ[s] == "retention")
     new_sum = sum(passes.get((s, new), 0) for s in live if typ[s] == "retention")
+    word = {True: "PASS", False: "FAIL"}
     ok &= new_sum >= old_sum
-    print(f"retention: old {old_sum}, new {new_sum}: {'PASS' if new_sum >= old_sum else 'FAIL'}")
+    print(f"retention: old {old_sum}, new {new_sum}: {word[new_sum >= old_sum]}")
     for s in live:
         po, ro, pn, rn = passes.get((s, old), 0), runs.get((s, old), 0), passes.get((s, new), 0), runs.get((s, new), 0)
         result = "not due" if min(ro, rn) < 6 else "PASS" if pn > po - 2 else "FAIL"
@@ -169,8 +170,8 @@ def verdict(old, new):
         print(f"below {s}: old {po}/{ro}, new {pn}/{rn}: {result}")
         if typ[s] == "policy":
             ok &= 3 * pn >= 2 * rn
-            print(f"policy {s}: new {pn}/{rn}: {'PASS' if 3 * pn >= 2 * rn else 'FAIL'}")
-    print(f"verdict: {'PASS' if ok else 'FAIL'}")
+            print(f"policy {s}: new {pn}/{rn}: {word[3 * pn >= 2 * rn]}")
+    print(f"verdict: {word[ok]}")
     sys.exit(0 if ok else 1)
 
 

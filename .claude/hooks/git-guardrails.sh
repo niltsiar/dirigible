@@ -112,7 +112,7 @@ fi
 # or (b) a set of bounds or position "of ... process "Finder"" with no quote in the gap.
 # A text rule does not see a script file (osascript <file>), JXA, or a window name with quotes
 # before 'of process "Finder"' in rule (b).
-if [[ "$COMMAND" == *[oO][sS][aA][sS][cC][rR][iI][pP][tT]* ]] && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
+if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
   { if ($0 ~ /set (the )?(bounds|position) of [^"\047]*process \\?"finder/) found = 1
     gsub(/tell (app|application|process) /, "\n&"); print }
   END { if (found) print "rule-b" }' | awk '

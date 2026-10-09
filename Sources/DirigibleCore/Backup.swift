@@ -111,7 +111,8 @@ public struct Backup: Hashable, Comparable, Sendable {
         if held.contains(where: { holds(folder.appending(path: $0.fileName), data) }) { return nil }
         var backup = Backup(info.st_mtimespec)
         // A coarse mtime (HFS+ 1 s, exFAT 10 ms) gives two states one name. A file with the name
-        // has other bytes here, so the copy takes the next free millisecond and never replaces it.
+        // has other bytes, cannot be read, or (for a revert) is past the 19 newest, so the copy
+        // takes the next free millisecond and never replaces it.
         while access(folder.appending(path: backup.fileName).path, F_OK) == 0 { backup.milliseconds += 1 }
         try replaceDurably(folder.appending(path: backup.fileName), with: data)
         return backup
@@ -200,9 +201,10 @@ package enum BackupPolicy: Sendable {
     }
 }
 
-/// The bytes that a write can use now on the volume of `url`, or 0 for an error.
+/// The bytes that a write can use now on the volume of `url`. An error gives `Int64.max`, so a
+/// volume that `statfs` cannot read still gets backups: the save catches a failed copy.
 func volumeFreeBytes(_ url: URL) -> Int64 {
     var info = statfs()
-    guard statfs(url.path, &info) == 0 else { return 0 }
+    guard statfs(url.path, &info) == 0 else { return .max }
     return Int64(info.f_bavail) * Int64(info.f_bsize)
 }

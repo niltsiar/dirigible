@@ -10,11 +10,12 @@ extension Session {
     /// The Podcasting 2.0 JSON Chapters 1.2.0 file of the chapters in `range`
     /// (https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/examples/chapters/jsonChapters.md).
     /// Each chapter has `startTime` and `title` only. `startTime` is the offset from the start of
-    /// `range` in seconds, rounded half up to the millisecond with integer math. Nil when `range`
-    /// has no chapter: an empty file removes the chapters at the host.
-    public func chaptersJSON(in range: Range<Frames>) -> Data? {
+    /// `range` in seconds, rounded half up to the millisecond with integer math. The caller checks
+    /// first that `chapters(in: range)` is not empty: an empty file removes the chapters at the
+    /// host. It throws the error of `JSONEncoder`, so a failed encode is not "no chapter".
+    public func chaptersJSON(in range: Range<Frames>) throws -> Data {
         let chapters = chapters(in: range)
-        guard !chapters.isEmpty else { return nil }
+        precondition(!chapters.isEmpty, "The range has no chapter")
         let rate = sampleRate
         let file = ChaptersFile(
             chapters: chapters.map {
@@ -24,7 +25,7 @@ extension Session {
             })
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        return try? encoder.encode(file)
+        return try encoder.encode(file)
     }
 }
 

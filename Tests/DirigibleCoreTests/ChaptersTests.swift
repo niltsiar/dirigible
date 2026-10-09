@@ -7,13 +7,12 @@ import Testing
 /// 2026-10-09-chapters-export, criteria C1 to C8).
 struct ChaptersTests {
     /// The chapters of the JSON as plain objects, through `JSONSerialization`.
-    static func chapters(_ data: Data?) throws -> [[String: Any]] {
-        let data = try #require(data, "the range has a chapter")
+    static func chapters(_ data: Data) throws -> [[String: Any]] {
         let file = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         return try #require(file["chapters"] as? [[String: Any]])
     }
 
-    static func startTimes(_ data: Data?) throws -> [Double] {
+    static func startTimes(_ data: Data) throws -> [Double] {
         try chapters(data).map { try #require($0["startTime"] as? Double) }
     }
 
@@ -57,7 +56,7 @@ struct ChaptersTests {
     /// Control: a `startTime` written as a string fails.
     @Test func fieldsAndTypesFollowSpec120() throws {
         let session = try Self.session([("one", 0, .chapter), ("two", 48_000, .chapter), ("three", 100_001, .chapter)])
-        let data = try #require(session.chaptersJSON(in: 0..<480_000))
+        let data = try session.chaptersJSON(in: 0..<480_000)
         let file = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         #expect(Set(file.keys) == ["version", "chapters"])
         #expect(file["version"] as? String == "1.2.0")
@@ -77,12 +76,12 @@ struct ChaptersTests {
         #expect(chapters.count == 3)
     }
 
-    /// C6.
-    @Test func noChapterInRangeGivesNil() throws {
-        #expect(Session(sampleRate: 48_000).chaptersJSON(in: 0..<480_000) == nil, "no marker")
-        #expect(try Self.session([("m", 48_000, .marker)]).chaptersJSON(in: 0..<480_000) == nil, "only a marker")
+    /// C6. The callers check `chapters(in:)` before they make the JSON (code gate item 2).
+    @Test func noChapterInRangeGivesNoChapter() throws {
+        #expect(Session(sampleRate: 48_000).chapters(in: 0..<480_000).isEmpty, "no marker")
+        #expect(try Self.session([("m", 48_000, .marker)]).chapters(in: 0..<480_000).isEmpty, "only a marker")
         let outside = try Self.session([("a", 47_999, .chapter), ("b", 96_000, .chapter)])
-        #expect(outside.chaptersJSON(in: 48_000..<96_000) == nil, "only chapters outside the range")
+        #expect(outside.chapters(in: 48_000..<96_000).isEmpty, "only chapters outside the range")
     }
 
     /// C7.

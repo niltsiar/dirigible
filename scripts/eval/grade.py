@@ -18,6 +18,12 @@ score:   grade.py score <eval> <tag> <result.json> ...
   rows to scores.tsv: tag, scenario, type, set, run, result, missing. A tag that
   scores.tsv already holds exits 2. The type is the Type
   cell of the Scenarios table of docs/workflow/evals.md in the tree of this script.
+verdict: grade.py verdict <eval> <old set> <new set>
+  Reads scores.tsv of all tags and counts passes and runs per scenario and set. A tag
+  whose two sets hold different scenarios exits 2; other tags pool. Prints a line per
+  clause of the pass rule of evals.md: void <H> (a holdout with no pass in both sets,
+  in no other line), the retention sum, below <id> (not due under 6 runs in a set),
+  and policy <id>. The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
 """
 import json
 import os
@@ -132,12 +138,50 @@ def score(tag, results):
         print("\t".join(r))
 
 
+def verdict(old, new):
+    rows = [line.rstrip("\n").split("\t") for line in open(os.path.join(EVAL, "scores.tsv"), encoding="utf-8")][1:]
+    by_tag = {}
+    for tag, sid, _, set_name, _, _, _ in rows:
+        by_tag.setdefault(tag, {}).setdefault(set_name, set()).add(sid)
+    for tag, sets in by_tag.items():
+        if sets.get(old, set()) != sets.get(new, set()):
+            print(f"grade.py: tag {tag} holds other scenarios in set {old} than in set {new}", file=sys.stderr)
+            sys.exit(2)
+    passes, runs, typ = {}, {}, {}
+    for _, sid, t, set_name, _, result, _ in rows:
+        if set_name in (old, new):
+            typ[sid] = t
+            runs[(sid, set_name)] = runs.get((sid, set_name), 0) + 1
+            passes[(sid, set_name)] = passes.get((sid, set_name), 0) + (result == "PASS")
+    ok = True
+    void = [s for s in typ if s.startswith("H") and not passes.get((s, old)) and not passes.get((s, new))]
+    live = [s for s in typ if s not in void]
+    for s in void:
+        print(f"void {s}")
+    old_sum = sum(passes.get((s, old), 0) for s in live if typ[s] == "retention")
+    new_sum = sum(passes.get((s, new), 0) for s in live if typ[s] == "retention")
+    ok &= new_sum >= old_sum
+    print(f"retention: old {old_sum}, new {new_sum}: {'PASS' if new_sum >= old_sum else 'FAIL'}")
+    for s in live:
+        po, ro, pn, rn = passes.get((s, old), 0), runs.get((s, old), 0), passes.get((s, new), 0), runs.get((s, new), 0)
+        result = "not due" if min(ro, rn) < 6 else "PASS" if pn > po - 2 else "FAIL"
+        ok &= result != "FAIL"
+        print(f"below {s}: old {po}/{ro}, new {pn}/{rn}: {result}")
+        if typ[s] == "policy":
+            ok &= 3 * pn >= 2 * rn
+            print(f"policy {s}: new {pn}/{rn}: {'PASS' if 3 * pn >= 2 * rn else 'FAIL'}")
+    print(f"verdict: {'PASS' if ok else 'FAIL'}")
+    sys.exit(0 if ok else 1)
+
+
 if __name__ == "__main__":
     command, EVAL = sys.argv[1:3] if len(sys.argv) > 3 else ("", "")
     if command == "packets":
         packets(sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), sys.argv[6:])
     elif command == "score":
         score(sys.argv[3], sys.argv[4:])
+    elif command == "verdict" and len(sys.argv) == 5:
+        verdict(sys.argv[3], sys.argv[4])
     else:
         print(__doc__, file=sys.stderr)
         sys.exit(2)

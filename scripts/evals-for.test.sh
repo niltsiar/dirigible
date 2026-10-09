@@ -224,5 +224,44 @@ packets_case unknown-id '{"kept": {"H1": [{"quote": "q1"}], "E99": [{"quote": "q
 [[ $code -eq 0 && "$rows" == $'H1\tnew\t1' ]] || fail "packets with a kept E99: exit $code, rows [$rows]"
 grep -q 'E99' <<<"$err" || fail "packets with a kept E99: no warning names E99: [$err]"
 
+# grade.py verdict <eval> <old set> <new set> prints one line per pass-rule clause of evals.md and
+# a last verdict line, and exits 0 on PASS, 1 on FAIL, and 2 for a tag whose old and new sets hold
+# different scenarios. sc <tag> <scenario> <type> <set> <passes> <runs> prints scores.tsv rows, and
+# verdict_case reads them from $tmp/rows (no pipe: a subshell would lose the failure count).
+sc() {
+  local i
+  for ((i = 1; i <= $6; i++)); do
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t\n' "$1" "$2" "$3" "$4" "$i" "$( ((i <= $5)) && echo PASS || echo FAIL)"
+  done
+}
+verdict_case() {
+  local name="$1" want="$2"
+  shift 2
+  mkdir -p "$tmp/v/$name"
+  { printf 'tag\tscenario\ttype\tset\trun\tresult\tmissing\n'; cat "$tmp/rows"; } > "$tmp/v/$name/scores.tsv"
+  out="$(python3 "$tmp/g/scripts/eval/grade.py" verdict "$tmp/v/$name" old new 2>&1)"
+  code=$?
+  [[ $code -eq $want ]] || fail "verdict $name: exit $code, want $want: [$out]"
+  local line
+  for line in "$@"; do grep -qxF -- "$line" <<<"$out" || fail "verdict $name: no line [$line]: [$out]"; done
+}
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; } > "$tmp/rows"; verdict_case retention-pass 0 'retention: old 6, new 6: PASS' 'verdict: PASS'
+{ sc t E1 retention old 6 6; sc t E1 retention new 5 6; } > "$tmp/rows"; verdict_case retention-fail 1 'retention: old 6, new 5: FAIL' 'verdict: FAIL'
+{ sc t E1 retention old 4 6; sc t E1 retention new 3 6; sc t E5 retention old 0 6; sc t E5 retention new 1 6; } > "$tmp/rows"
+verdict_case below-pass 0 'retention: old 4, new 4: PASS' 'below E1: old 4/6, new 3/6: PASS' 'verdict: PASS'
+{ sc t E1 retention old 4 6; sc t E1 retention new 2 6; sc t E5 retention old 0 6; sc t E5 retention new 2 6; } > "$tmp/rows"
+verdict_case below-fail 1 'retention: old 4, new 4: PASS' 'below E1: old 4/6, new 2/6: FAIL' 'verdict: FAIL'
+# Tags pool: two tags of 3 runs give 6 runs, so the below clause is due.
+{ sc t E1 retention old 2 3; sc t E1 retention new 2 3; } > "$tmp/rows"; verdict_case below-not-due 0 'below E1: old 2/3, new 2/3: not due'
+{ sc t E1 retention old 2 3; sc t E1 retention new 2 3; sc u E1 retention old 2 3; sc u E1 retention new 2 3; } > "$tmp/rows"
+verdict_case below-pooled 0 'below E1: old 4/6, new 4/6: PASS'
+{ sc t E23 policy old 0 3; sc t E23 policy new 2 3; } > "$tmp/rows"; verdict_case policy-pass 0 'policy E23: new 2/3: PASS' 'verdict: PASS'
+{ sc t E23 policy old 0 3; sc t E23 policy new 1 3; } > "$tmp/rows"; verdict_case policy-fail 1 'policy E23: new 1/3: FAIL' 'verdict: FAIL'
+{ sc t E1 retention old 3 3; sc t E1 retention new 3 3; sc t H1 retention old 0 3; sc t H1 retention new 0 3; } > "$tmp/rows"
+verdict_case void 0 'void H1' 'retention: old 3, new 3: PASS' 'verdict: PASS'
+grep -q 'H1:' <<<"$out" && fail "verdict void: a clause line names the void H1: [$out]"
+{ sc t E1 retention old 3 3; sc t E1 retention new 3 3; sc t E5 retention new 3 3; } > "$tmp/rows"; verdict_case refused 2
+[[ "$out" == *'tag t'* ]] || fail "verdict refused: the message names no tag: [$out]"
+
 [[ $failures -eq 0 ]] && echo "evals-for tests: all passed"
 exit $((failures > 0))

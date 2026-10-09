@@ -5,8 +5,9 @@
 # rule is still a rule, so the message tells the agent how to write text that is only data.
 # Exit 2 blocks the command and shows the message to the agent.
 
+# block <reason> [<way>]: with no way, the message names the deliver flow.
 block() {
-  echo "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1. This command can discard work or bypass the checks. Use the deliver flow: push the run branch and merge through a pull request." >&2
+  echo "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' $1. ${2:-This command can discard work or bypass the checks. Use the deliver flow: push the run branch and merge through a pull request.}" >&2
   echo "If the matched text is only data, write it with the Write tool, a decisions.tsv row with log-decision.sh --from <file>, or a commit message with git commit -F <file>." >&2
   exit 2
 }
@@ -101,6 +102,27 @@ fi
 # lines after it writes their flake rows, so a direct change cannot erase a flake row.
 if grep -qE 'dirigible-flakes' <<< "$NORMALIZED"; then
   block "names the flakes file (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
+fi
+
+# A new Finder window opens as a tab of the window group of the user, so a bounds or position
+# change of a Finder window moves the windows of the user. The rule reads the whole command with
+# each new line as a space and in lower case, so a heredoc, a multi-line -e, and the three -e form
+# match too. It blocks (a) a set of bounds or position in a tell clause of app "Finder" (or id
+# "com.apple.finder", quotes plain or escaped) before the next tell app, tell process, or end tell;
+# or (b) a set of bounds or position "of ... process "Finder"" with no quote in the gap.
+# A text rule does not see a script file (osascript <file>), JXA, or a window name with quotes
+# before 'of process "Finder"' in rule (b).
+if [[ "$COMMAND" == *[oO][sS][aA][sS][cC][rR][iI][pP][tT]* ]] && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
+  { if ($0 ~ /set (the )?(bounds|position) of [^"\047]*process \\?"finder/) found = 1
+    gsub(/tell (app|application|process) /, "\n&"); print }
+  END { if (found) print "rule-b" }' | awk '
+  /^rule-b$/ { found = 1 }
+  /^tell (app|application|process) (id )?\\?"(com\.apple\.)?finder\\?"/ {
+    clause = $0; end = index(clause, "end tell"); if (end) clause = substr(clause, 1, end - 1)
+    if (clause ~ /set (the )?(bounds|position)/) found = 1 }
+  END { exit !found }'; then
+  block "changes the bounds or position of a Finder window (a new Finder window opens as a tab of the window group of the user, so the change moves the windows of the user)" \
+    "Read where the Finder window is, and move only the window of the verify copy."
 fi
 
 # A message path other than .scratchpads/commit-msg.txt (absolute, relative, ~, or $HOME) can name

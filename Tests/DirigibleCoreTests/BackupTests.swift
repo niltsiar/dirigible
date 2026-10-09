@@ -102,8 +102,8 @@ struct BackupTests {
         #expect(try added(planted: [60]) == 1, "a name after the mtime does not count")
         let replaced = Backup(saved: Date(timeIntervalSince1970: TimeInterval(Self.time)))
         let newest = { (offset: Int) in Backup(saved: Date(timeIntervalSince1970: TimeInterval(Self.time + offset))) }
-        #expect(!BackupPolicy.standard.isDue(newest: newest(-599), replacing: replaced), "isDue at 599 s")
-        #expect(BackupPolicy.standard.isDue(newest: newest(-600), replacing: replaced), "isDue at 600 s")
+        #expect(!BackupPolicy.isDue(newest: newest(-599), replacing: replaced), "isDue at 599 s")
+        #expect(BackupPolicy.isDue(newest: newest(-600), replacing: replaced), "isDue at 600 s")
     }
 
     /// C3: a newest name 15 min behind the mtime, then 30 saves 1 s apart. Failing value: 30.
@@ -224,12 +224,12 @@ struct BackupTests {
         #expect(try Session(contentsOf: package) == Self.state(2))
     }
 
-    /// C6: 30 saves that each keep a backup. Each backup is an older state.
+    /// C6: 30 saves 600 s apart, so each keeps a backup. Each backup is an older state.
     @Test func backupsNeverReplaceTheSession() throws {
         let states = try (0...30).map(Self.state)
         for index in 1...30 {
-            try Self.save(states[index], in: package, BackupPolicy(interval: 0, count: 20))
-            try Self.setTime(of: sessionXML, to: Self.time + index)
+            try Self.save(states[index], in: package)
+            try Self.setTime(of: sessionXML, to: Self.time + 600 * index)
         }
         #expect(try Session(contentsOf: package) == states[30])
         let kept = try Self.names(in: package).map { try Session(xml: Data(contentsOf: folder.appending(path: $0))) }

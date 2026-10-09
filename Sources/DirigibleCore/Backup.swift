@@ -121,7 +121,7 @@ public struct Backup: Hashable, Comparable, Sendable {
     /// The backup at the close of a session window (decision 0043): `keep(in:)` with no due
     /// check, then the prune after a new copy. A fault keeps nothing and never throws.
     package static func keepAtClose(in package: URL) {
-        if let kept = try? keep(in: package) { prune(in: package, keeping: BackupPolicy.standard.count, after: kept) }
+        if let kept = try? keep(in: package) { prune(in: package, keeping: BackupPolicy.count, after: kept) }
     }
 
     /// True when the file at `url` has the bytes of `data`. It reads only a file of the same
@@ -144,20 +144,22 @@ public struct Backup: Hashable, Comparable, Sendable {
 }
 
 /// When a lock-holder save keeps a backup, and how many stay (decision 0043).
-package struct BackupPolicy: Equatable, Sendable {
-    /// Seconds from the newest backup to the replaced file.
-    var interval: TimeInterval
-    /// The backups that a prune keeps.
-    var count: Int
-    static let standard = BackupPolicy(interval: 600, count: 20)
+package enum BackupPolicy: Sendable {
+    /// A backup when one is due, then the prune.
+    case standard
     /// No backup step: the take-start save, between Record and the device attach (decision 0043).
-    package static let none = BackupPolicy(interval: 0, count: 0)
+    case none
+
+    /// Milliseconds from the newest backup to the replaced file (600 s).
+    static let interval: Int64 = 600_000
+    /// The backups that a prune keeps.
+    static let count = 20
 
     /// True when no backup is given, or when `replacing` is `interval` or more after `newest`.
     /// Both are file times, so one clock decides.
-    func isDue(newest: Backup?, replacing: Backup) -> Bool {
+    static func isDue(newest: Backup?, replacing: Backup) -> Bool {
         guard let newest else { return true }
-        return replacing.milliseconds - newest.milliseconds >= Int64(interval * 1000)
+        return replacing.milliseconds - newest.milliseconds >= interval
     }
 
     /// Keeps a backup of `session.xml` when one is due, then prunes. The newest backup is the
@@ -168,7 +170,9 @@ package struct BackupPolicy: Equatable, Sendable {
         var info = stat()
         guard stat(package.appending(path: "session.xml").path, &info) == 0 else { return }
         let replacing = Backup(info.st_mtimespec)
-        guard isDue(newest: Backup.all(in: package).first { $0 <= replacing }, replacing: replacing) else { return }
-        if let kept = try Backup.keep(in: package) { Backup.prune(in: package, keeping: count, after: kept) }
+        guard Self.isDue(newest: Backup.all(in: package).first { $0 <= replacing }, replacing: replacing) else {
+            return
+        }
+        if let kept = try Backup.keep(in: package) { Backup.prune(in: package, keeping: Self.count, after: kept) }
     }
 }

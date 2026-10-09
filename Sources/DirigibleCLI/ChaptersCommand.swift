@@ -40,8 +40,15 @@ struct ChaptersExport: ParsableCommand {
             throw ValidationError(
                 "The range must be 0 or more, with --to more than --from; the session end is \(session.end).")
         }
-        guard let data = session.chaptersJSON(in: Frames(from)..<Frames(end)) else {
+        let range = Frames(from)..<Frames(end)
+        guard !session.chapters(in: range).isEmpty else {
             throw fail("no chapter in frames \(from)..<\(end).", code: editRefused)
+        }
+        let data: Data
+        do {
+            data = try session.chaptersJSON(in: range)
+        } catch {
+            throw fail("cannot make the chapters file: \(error.localizedDescription)", code: packageError)
         }
         let output = URL(filePath: out)
         // An lstat: a dangling link is an item too. `[.atomic, .withoutOverwriting]` is a fatal

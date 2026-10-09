@@ -148,7 +148,15 @@ extension SessionWindow {
     func exportChapters() {
         guard let studio = exportStudio, let window, let app else { return }
         let (range, marks) = chaptersRange(in: studio)
-        guard let data = studio.session.chaptersJSON(in: range) else { return }
+        guard !studio.session.chapters(in: range).isEmpty else { return }
+        let data: Data
+        do {
+            data = try studio.session.chaptersJSON(in: range)
+        } catch {
+            // An encode error has no POSIX cause: the alert shows error 5 (EIO).
+            alert = .error(.export(ExportError(writing: error)))
+            return
+        }
         exportStep = .choosing
         let name = url.deletingPathExtension().lastPathComponent + ".chapters.json"
         app.chooseChaptersExport(window, name, marks ? L10n.panelChaptersMarks.text : nil) { [weak self] target in

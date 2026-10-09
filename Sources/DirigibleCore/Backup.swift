@@ -188,7 +188,7 @@ package enum BackupPolicy: Sendable {
     /// newest name that is not after the mtime of the file, so a name of a clock fault does not
     /// count. No `session.xml` keeps nothing. With less than twice the size of `session.xml`
     /// free, it keeps nothing: the copy must not take the space that the save needs.
-    func keepIfDue(in package: URL, freeBytes: (URL) -> Int64 = volumeFreeBytes) throws(SessionFileError) {
+    func keepIfDue(in package: URL, freeBytes: (URL) -> Int64 = backupFreeBytes) throws(SessionFileError) {
         guard self != .none else { return }
         var info = stat()
         guard stat(package.appending(path: "session.xml").path, &info) == 0 else { return }
@@ -201,10 +201,6 @@ package enum BackupPolicy: Sendable {
     }
 }
 
-/// The bytes that a write can use now on the volume of `url`. An error gives `Int64.max`, so a
-/// volume that `statfs` cannot read still gets backups: the save catches a failed copy.
-func volumeFreeBytes(_ url: URL) -> Int64 {
-    var info = statfs()
-    guard statfs(url.path, &info) == 0 else { return .max }
-    return Int64(info.f_bavail) * Int64(info.f_bsize)
-}
+/// The free bytes for the space check of a backup. An error gives `Int64.max`, so a volume that
+/// `statfs` cannot read still gets backups: the save catches a failed copy.
+func backupFreeBytes(_ url: URL) -> Int64 { volumeFreeBytes(descriptor: -1, path: url.path) ?? .max }

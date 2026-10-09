@@ -184,6 +184,16 @@ struct BackupTests {
         #expect((try? Data(contentsOf: folder.appending(path: bumped))) == second)
     }
 
+    /// C9 core: a backup of the same size with one other byte is not the same file.
+    @Test func keepCopiesOtherBytesOfTheSameSize() throws {
+        var current = try Data(contentsOf: sessionXML)
+        current[current.count - 2] ^= 1
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try current.write(to: folder.appending(path: Self.name(Self.time - 600)))
+
+        #expect(try Backup.keep(in: package) != nil, "keep copies bytes of the same size that differ")
+    }
+
     /// C5: a regular file named `Backups`, then a folder with no write access.
     @Test func aBackupFaultDoesNotStopTheSave() throws {
         try Data("not a folder".utf8).write(to: folder)

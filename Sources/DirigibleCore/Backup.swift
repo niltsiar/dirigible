@@ -96,9 +96,7 @@ public struct Backup: Hashable, Comparable, Sendable {
         } else if errno != EEXIST {
             throw .writeFailed(step: "mkdir", errno: errno)
         }
-        if all(in: package).contains(where: { (try? Data(contentsOf: folder.appending(path: $0.fileName))) == data }) {
-            return nil
-        }
+        if all(in: package).contains(where: { holds(folder.appending(path: $0.fileName), data) }) { return nil }
         var backup = Backup(info.st_mtimespec)
         // A coarse mtime (HFS+ 1 s, exFAT 10 ms) gives two states one name. A file with the name
         // has other bytes here, so the copy takes the next free millisecond and never replaces it.
@@ -123,6 +121,13 @@ public struct Backup: Hashable, Comparable, Sendable {
     /// check, then the prune after a new copy. A fault keeps nothing and never throws.
     package static func keepAtClose(in package: URL) {
         if let kept = try? keep(in: package) { prune(in: package, keeping: BackupPolicy.standard.count, after: kept) }
+    }
+
+    /// True when the file at `url` has the bytes of `data`. It reads only a file of the same
+    /// size, so the byte check reads few backups in full.
+    private static func holds(_ url: URL, _ data: Data) -> Bool {
+        var info = stat()
+        return stat(url.path, &info) == 0 && info.st_size == off_t(data.count) && (try? Data(contentsOf: url)) == data
     }
 
     private static func isNewer(_ data: Data) -> Bool {

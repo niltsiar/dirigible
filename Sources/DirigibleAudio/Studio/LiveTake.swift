@@ -251,8 +251,8 @@ func saveTakeStart(
     // A crash before the save leaves no <recording>, so a stale marker must not skip the
     // recovery of this take.
     unlink(marker(in: package).path)
-    // No backup step here: it made the start 43 ms slower (run 14). The finalize save keeps the
-    // state before the take when a backup is due (decision 0043).
+    // No backup step here: it made the start 43 ms slower (run 14). The finalize save keeps
+    // this file (the state before the take, with <recording>) only when a backup is due (0043).
     do { try started.write(under: lock, backups: .none) } catch { throw .file(error) }
     return StartedTake(session: started, take: take, routes: routes, package: packageIdentity(package))
 }

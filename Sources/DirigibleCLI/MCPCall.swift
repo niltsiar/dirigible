@@ -48,6 +48,19 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         }
     case .info(let tracks, let range):
         return try info(package, path: path, tracks: tracks, range: range)
+    case .backups:
+        if let message = missingSessionFile(package, path: path) { throw ToolError(message) }
+        let names = Backup.all(in: package).map(\.fileName)
+        return names.isEmpty ? "No backups." : names.joined(separator: "\n")
+    case .revert(let backup):
+        do throws(EditFailure<RevertError>) {
+            try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in
+                try revert(&session, to: backup, under: lock)
+            }
+            return "OK"
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
     }
 }
 

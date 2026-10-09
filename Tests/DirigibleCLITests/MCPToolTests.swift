@@ -197,7 +197,40 @@ struct MCPToolTests {
         #expect(try fixture.package.xml() != before)
     }
 
-    /// C5: 31 tools in a fixed order, each with a description and a closed schema with `package`.
+    /// C17 of run 14: `backup_list` gives the names, newest first. `backup_revert` reverts and
+    /// saves, and keeps a backup of the replaced session. A bad name changes nothing. The backup
+    /// is from 2001, so the kept copy of the current file is newer on any test clock.
+    @Test func backupToolsListAndRevert() async throws {
+        let (pkg, name) = (package.path, "session-20011009T081530.250Z.xml")
+        let none = try await mcp([toolCall(1, "backup_list", ["package": pkg])])
+        #expect(toolResult(answer(none, id: 1)) == ("No backups.", false))
+        let folder = package.url.appending(path: "Backups")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try TemporaryPackage(Session(sampleRate: 48_000)).xml().write(to: folder.appending(path: name))
+        let before = try package.xml()
+
+        let refused = try await mcp([
+            toolCall(1, "backup_list", ["package": pkg]),
+            toolCall(2, "backup_revert", ["package": pkg, "name": "notes.xml"]),
+        ])
+        #expect(toolResult(answer(refused, id: 1)) == (name, false))
+        let bad = toolResult(answer(refused, id: 2))
+        #expect(bad.isError && bad.text.contains("backup file name"), "\(bad)")
+        #expect(try package.xml() == before && FileManager.default.subpaths(atPath: folder.path) == [name])
+
+        let answers = try await mcp([
+            toolCall(1, "backup_revert", ["package": pkg, "name": name]),
+            toolCall(2, "backup_list", ["package": pkg]),
+        ])
+        #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
+        #expect(try package.read() == Session(sampleRate: 48_000))
+        let names = toolResult(answer(answers, id: 2)).text.split(separator: "\n").map(String.init)
+        #expect(names.count == 2 && names.last == name, "\(names)")
+        let kept = try names.first.map { try Data(contentsOf: folder.appending(path: $0)) }
+        #expect(kept == before, "the new backup holds the replaced session")
+    }
+
+    /// C5: 33 tools in a fixed order, each with a description and a closed schema with `package`.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
         let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
@@ -208,7 +241,8 @@ struct MCPToolTests {
                 "capture_remove", "file_remove", "clip_place", "clip_clear", "clip_split", "clip_split_at",
                 "clip_paste",
                 "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
-                "clip_crossfade", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim",
+                "clip_crossfade", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim", "backup_list",
+                "backup_revert",
             ])
         for tool in tools {
             let schema = tool["inputSchema"] as? [String: Any] ?? [:]

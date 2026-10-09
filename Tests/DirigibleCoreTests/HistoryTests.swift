@@ -133,4 +133,40 @@ struct HistoryTests {
         try history.redo()
         #expect(history == before)
     }
+
+    /// Run 14 C7: a revert to a backup keeps the current recording, as an undo does.
+    @Test func revertKeepsTheRecording() throws {
+        var current = Session(sampleRate: 48_000)
+        try current.addTrack("t1", name: "Host", layout: .mono)
+        var backup = current
+        try backup.renameTrack("t1", to: "Old")
+        let take = Recording(take: 2, playheadFrame: 0, takeStartHostTimeNanos: 9, armedTracks: ["t1"])
+        try current.setRecording(take)
+
+        let reverted = try? current.reverted(to: backup)
+
+        #expect(reverted?.recording == take, "the revert keeps the recording")
+        #expect(reverted?.track("t1")?.name == "Old")
+    }
+
+    /// Run 14 C7: a backup that removes an armed track, or changes its route or layout, throws.
+    @Test func revertRefusesToRemoveAnArmedTrack() throws {
+        var current = Session(sampleRate: 48_000)
+        try current.addTrack("t1", name: "Host", layout: .mono)
+        try current.setRoute(Route.device(uid: "usb-1", channels: .mono(1)), track: "t1")
+        var removed = current
+        try removed.removeTrack("t1")
+        var routed = current
+        try routed.setRoute(Route.device(uid: "usb-1", channels: .mono(2)), track: "t1")
+        var stereo = current
+        try stereo.setLayout(.stereo, route: Route.device(uid: "usb-1", channels: .stereo(1, 2)), track: "t1")
+        try current.setRecording(
+            Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 9, armedTracks: ["t1"]))
+
+        for backup in [removed, routed, stereo] {
+            #expect(throws: SessionError.trackInRecording("t1"), "the revert refuses a change to an armed track") {
+                try current.reverted(to: backup)
+            }
+        }
+    }
 }

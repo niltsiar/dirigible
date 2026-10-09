@@ -2,8 +2,9 @@ import Foundation
 
 /// Snapshot undo (decision 0002): each entry is a whole `Session` value.
 ///
-/// Undo and redo keep the current `recording`. The `<recording>` element records a take on the
-/// disk, not an edit, so an undo must not bring back a take that finalize already placed.
+/// Undo and redo keep the current `recording` through `Session.reverted(to:)`, as a revert to a
+/// backup does (decision 0043). The `<recording>` element records a take on the disk, not an
+/// edit, so an undo must not bring back a take that finalize already placed.
 public struct History: Hashable, Sendable {
     public private(set) var session: Session
     private var undoStack: [Session] = []
@@ -42,7 +43,7 @@ public struct History: Hashable, Sendable {
     /// current recording arms, or changes its route or layout (decision 0012).
     public mutating func undo() throws(SessionError) {
         guard let entry = undoStack.last else { return }
-        let restored = try keepingRecording(entry)
+        let restored = try session.reverted(to: entry)
         undoStack.removeLast()
         redoStack.append(session)
         session = restored
@@ -51,22 +52,27 @@ public struct History: Hashable, Sendable {
 
     public mutating func redo() throws(SessionError) {
         guard let entry = redoStack.last else { return }
-        let restored = try keepingRecording(entry)
+        let restored = try session.reverted(to: entry)
         redoStack.removeLast()
         undoStack.append(session)
         session = restored
         revision += 1
     }
+}
 
-    private func keepingRecording(_ entry: Session) throws(SessionError) -> Session {
-        let changed = session.recording?.armedTracks.first { id in
-            let old = session.track(id)
+extension Session {
+    /// `entry` with the `recording` of this session. Undo, redo, and a revert to a backup use it.
+    /// Throws `.trackInRecording` if `entry` removes a track that the current recording arms, or
+    /// changes its route or layout (decision 0012).
+    public func reverted(to entry: Session) throws(SessionError) -> Session {
+        let changed = recording?.armedTracks.first { id in
+            let old = track(id)
             let new = entry.track(id)
             return new == nil || new?.route != old?.route || new?.layout != old?.layout
         }
         if let changed { throw .trackInRecording(changed) }
         var restored = entry
-        restored.recording = session.recording
+        restored.recording = recording
         return restored
     }
 }

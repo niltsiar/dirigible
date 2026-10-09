@@ -55,6 +55,24 @@ public struct Backup: Hashable, Comparable, Sendable {
         return names.compactMap(Backup.init(fileName:)).sorted(by: >)
     }
 
+    /// The revert source: reads this backup in the package that `lock` holds, and refuses it as
+    /// `Session(contentsOf:)` refuses a `session.xml` (a newer version, a damaged file, a missing
+    /// file). Then it keeps a copy of the current `session.xml`, with no due check and no prune,
+    /// so the state that the revert replaces stays on the disk. Apply the result with
+    /// `Session.reverted(to:)`.
+    public func readForRevert(under lock: PackageLock) throws(SessionFileError) -> Session {
+        let package = try lock.package()
+        let data: Data
+        do {
+            data = try Data(contentsOf: Backup.folder(of: package).appending(path: fileName))
+        } catch {
+            throw .readFailed(errno: posixCode(of: error))
+        }
+        let target = try Session(xml: data)
+        _ = try Backup.keep(in: package)
+        return target
+    }
+
     static func folder(of package: URL) -> URL { package.appending(path: backupsFolderName) }
 
     /// Copies `session.xml` of `package` to `Backups/<name of its mtime>` with the durable write

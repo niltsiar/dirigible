@@ -217,4 +217,51 @@ struct BackupTests {
 
         #expect(Self.names(in: package) == [backup, "notes.tmp"])
     }
+
+    /// C13: a newer, a damaged, and a deleted backup throw. `session.xml` and `Backups/` do not
+    /// change.
+    @Test func aRefusedBackupChangesNothing() throws {
+        let xml = String(decoding: try Data(contentsOf: sessionXML), as: UTF8.self)
+        try #require(xml.contains(" version=\"1\""))
+        let newer = try Self.plant(
+            Self.time - 600, xml.replacingOccurrences(of: " version=\"1\"", with: " version=\"99\""), in: package)
+        let damaged = try Self.plant(Self.time - 1200, "xx", in: package)
+        let deleted = Backup(saved: Date(timeIntervalSince1970: TimeInterval(Self.time - 1800)))
+        let old = try Data(contentsOf: sessionXML)
+        let before = Self.names(in: package)
+        let cases: [(Backup?, SessionFileError)] = [
+            (Backup(fileName: newer), .unsupportedVersion(99)), (Backup(fileName: damaged), .malformedXML),
+            (deleted, .readFailed(errno: ENOENT)),
+        ]
+
+        let lock = try PackageLock(package)
+        for (backup, error) in cases {
+            let backup = try #require(backup)
+            #expect(throws: error, "the revert refuses \(backup.fileName)") { try backup.readForRevert(under: lock) }
+        }
+        withExtendedLifetime(lock) {}
+
+        #expect(Self.names(in: package) == before, "a refused backup adds no file")
+        #expect(try Data(contentsOf: sessionXML) == old)
+    }
+
+    /// C9 core: the read keeps the current file, also when the newest backup is 1 s old. A second
+    /// read of the same file adds no file, and no read prunes.
+    @Test func readForRevertKeepsTheCurrentFileOnce() throws {
+        for index in 1...20 { try Self.plant(Self.time - index, "planted \(index)", in: package) }
+        let target = try Self.state(2)
+        let backup = Backup(saved: Date(timeIntervalSince1970: TimeInterval(Self.time - 30_000)))
+        try target.checkedData().write(to: folder.appending(path: backup.fileName))
+        let current = try Data(contentsOf: sessionXML)
+
+        let lock = try PackageLock(package)
+        #expect(try backup.readForRevert(under: lock) == target)
+        let kept = try? Data(contentsOf: folder.appending(path: Self.name(Self.time)))
+        #expect(kept == current, "the read keeps the current file")
+        #expect(Self.names(in: package).count == 22, "the read prunes nothing")
+
+        #expect(try backup.readForRevert(under: lock) == target)
+        withExtendedLifetime(lock) {}
+        #expect(Self.names(in: package).count == 22, "a second read adds no file")
+    }
 }

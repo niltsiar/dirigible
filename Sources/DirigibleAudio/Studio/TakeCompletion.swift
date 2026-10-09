@@ -15,6 +15,8 @@ struct OpenedPackage: Sendable {
     var recoveredTake: Recording? = nil
     /// The pool files that are not whole (decision 0016).
     var missingMedia: [FileID: MediaFault] = [:]
+    /// The backups of the package, newest first (decision 0043).
+    var backups: [Backup] = []
 }
 
 /// The result of `completeTake`. On a thrown finalize or save, `session` is the input (it keeps
@@ -33,6 +35,8 @@ struct TakeOutcome: Sendable {
     /// The session of the first write of a stop that leveled, before the level (decision 0031).
     /// Nil on every other path.
     var beforeLevel: Session? = nil
+    /// The backups after the writes (decision 0043). Nil when the package left its volume.
+    var backups: [Backup]? = nil
 }
 
 /// The recovery marker of decision 0004, in the package root.
@@ -66,7 +70,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         return OpenedPackage(
             lock: lock, package: identity, session: session, takeError: error,
             segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
-            missingMedia: (try? checkMedia(session, package: package)) ?? [:])
+            missingMedia: (try? checkMedia(session, package: package)) ?? [:], backups: Backup.all(in: package))
     }
 
     guard session.recording != nil else {
@@ -85,7 +89,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
         segmentsWithAudio: outcome.segmentsWithAudio, notAudioSegments: outcome.notAudioSegments,
         recoveredTake: outcome.error == nil ? session.recording : nil,
-        missingMedia: outcome.missingMedia ?? [:])
+        missingMedia: outcome.missingMedia ?? [:], backups: outcome.backups ?? Backup.all(in: package))
 }
 
 /// The one step that open, stop, and retry share, in the package that `lock` holds now (decision
@@ -124,7 +128,8 @@ nonisolated func completeTake(
         return TakeOutcome(
             session: session, error: error, segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
             package: identity,
-            missingMedia: try? checkMedia(session, package: package), beforeLevel: beforeLevel)
+            missingMedia: try? checkMedia(session, package: package), beforeLevel: beforeLevel,
+            backups: Backup.all(in: package))
     }
     let finalized: Session
     do {
@@ -182,7 +187,7 @@ func takeClips(of finalized: Session, before: Session) -> [Clip] {
         return TakeOutcome(
             session: session, error: error, segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
             package: identity,
-            missingMedia: try? checkMedia(session, package: package))
+            missingMedia: try? checkMedia(session, package: package), backups: Backup.all(in: package))
     }
     // The disk rule of a finalize, for one segment.
     let (needed, free) = (wavBytes(of: [name], in: package) + diskMargin, environment.freeBytes(lock))

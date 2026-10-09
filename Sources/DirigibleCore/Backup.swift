@@ -115,6 +115,12 @@ public struct Backup: Hashable, Comparable, Sendable {
         }
     }
 
+    /// The backup at the close of a session window (decision 0043): `keep(in:)` with no due
+    /// check, then the prune after a new copy. A fault keeps nothing and never throws.
+    package static func keepAtClose(in package: URL) {
+        if let kept = try? keep(in: package) { prune(in: package, keeping: BackupPolicy.standard.count, after: kept) }
+    }
+
     private static func isNewer(_ data: Data) -> Bool {
         do {
             _ = try Session(xml: data)
@@ -128,12 +134,14 @@ public struct Backup: Hashable, Comparable, Sendable {
 }
 
 /// When a lock-holder save keeps a backup, and how many stay (decision 0043).
-struct BackupPolicy: Sendable {
+package struct BackupPolicy: Equatable, Sendable {
     /// Seconds from the newest backup to the replaced file.
     var interval: TimeInterval
     /// The backups that a prune keeps.
     var count: Int
     static let standard = BackupPolicy(interval: 600, count: 20)
+    /// No backup step: the take-start save, between Record and the device attach (decision 0043).
+    package static let none = BackupPolicy(interval: 0, count: 0)
 
     /// True when no backup is given, or when `replacing` is `interval` or more after `newest`.
     /// Both are file times, so one clock decides.
@@ -146,6 +154,7 @@ struct BackupPolicy: Sendable {
     /// newest name that is not after the mtime of the file, so a name of a clock fault does not
     /// count. No `session.xml` keeps nothing.
     func keepIfDue(in package: URL) throws(SessionFileError) {
+        guard self != .none else { return }
         var info = stat()
         guard stat(package.appending(path: "session.xml").path, &info) == 0 else { return }
         let replacing = Backup(info.st_mtimespec)

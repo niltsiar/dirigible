@@ -24,6 +24,8 @@ import Observation
     /// but is not audio can never place, so it does not.
     public var rippleSegments: [SegmentName] { unplacedSegments.filter { !notAudioSegments.contains($0) } }
     public var canUndo: Bool { history.canUndo }
+    /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
+    public internal(set) var backups: [Backup]
     public var canRedo: Bool { history.canRedo }
 
     private var history: History
@@ -120,6 +122,7 @@ import Observation
         self.recoveredTake = opened.recoveredTake
         self.play = PlayState(at: opened.session.end)
         self.missingMedia = opened.missingMedia
+        self.backups = opened.backups
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
@@ -188,6 +191,8 @@ import Observation
             scheduleSave()
             await serialized {}
         }
+        // After the last write: the state that the user hands to the CLI or an agent (0043).
+        await serialized { if let list = await keepBackupAtClose(lock) { backups = list } }
         await stopPeaks()
         settling = false
     }
@@ -363,6 +368,7 @@ import Observation
         segmentsWithAudio = outcome.segmentsWithAudio
         notAudioSegments = outcome.notAudioSegments
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
+        if let backups = outcome.backups { self.backups = backups }
         if let error = outcome.error { throw error }
         let before = session.files
         if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }
@@ -396,8 +402,9 @@ import Observation
             await writes.wait(for: ticket)
             saveWaits = false
             switch await writeSession(session, lock: lock, previous: url, recordings: recordings, save) {
-            case .success(let package):
-                url = package
+            case .success(let written):
+                url = written.package
+                backups = written.backups
                 saveError = nil
             case .failure(let error):
                 saveError = error

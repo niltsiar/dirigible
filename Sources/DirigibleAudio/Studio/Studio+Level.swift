@@ -24,8 +24,9 @@ extension Studio {
             switch await writeSession(
                 leveled, lock: lock, previous: url, recordings: recordings, environment.saveSession)
             {
-            case .success(let package):
-                url = package
+            case .success(let written):
+                url = written.package
+                backups = written.backups
                 recordLevel(leveled)
                 return nil
             case .failure(let error):

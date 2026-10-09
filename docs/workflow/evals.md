@@ -12,7 +12,7 @@ This file is the regression set of the workflow docs (`AGENTS.md`, `.claude/skil
 - The pass rule (run `2026-09-30-workflow-consolidation`, criterion C6): the sum of retention passes of the new set is at least the sum of the old set; after six runs, no scenario of the new set is two or more passes below the old set; each policy scenario passes in at least two of three runs (four of six). A holdout that both sets fail in each run is void.
 - E1 key point (c) scores as policy, not retention (decision row of the code gate, D12). The E1 scores below leave out (c). The new set passes E1 (c) in 6 of 6 runs, and the old set in 0 of 6.
 - Stall rule: after two fix cycles in which a scenario stays below its pass rule, the next cycle edits no doc for it. It sorts each failed answer by cause (the rule is not in the docs, the answer does not quote it, the key point is out of reach, or the scenario or the grader is wrong) and reports the result.
-- The runner is in `scripts/eval/`: `build-copy.sh` makes a doc set, `quote-check.py` checks the quotes of an answer, and `grade.py` makes the grading packets and the scores. The answers, `keys.md`, `labels.tsv`, `scores.tsv`, `grade/`, and the logs stay in the eval folder of the run, which is not in git.
+- The runner is in `scripts/eval/`: `build-copy.sh` makes a doc set, `quote-check.py` checks the quotes of an answer, `grade.py` makes the packets and scores, and `grade.py verdict` applies the pass rule. The answers, `keys.md`, `labels.tsv`, `scores.tsv`, `grade/`, and the logs stay in the run eval folder, not in git.
 
 ## Result of the first run
 

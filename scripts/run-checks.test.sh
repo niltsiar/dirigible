@@ -5,8 +5,8 @@
 # backtick before the target name, and exit 2. Cases: a pass on rerun 2 (the flake line and one
 # dirigible-flakes line), red on 3 reruns, parameterized names, a level-0 make prefix, each
 # refusal with no rerun, CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
-# later try with only the names that did not pass again, and a real make on a stub Makefile.
-# Run by `make test-hooks`.
+# later try with only the names that did not pass again, a real make on a stub Makefile, and
+# --flakes (the read route of the flakes file). Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -172,6 +172,18 @@ code=$?
 [[ $code -eq 0 ]] || fail "a real make: exit $code: $out"
 grep -qx 'run-checks: flake: aFlake passed on rerun 1 of 3' <<<"$out" || fail "a real make: no flake line: $out"
 rm "$w/Makefile"
+
+# --flakes prints the lines of the flakes file and runs no make; with no file, it prints nothing.
+printf 'abc aFlake load 1.0\ndef bFlake load 2.0\n' > "$flakes"
+: > "$tmp/log"
+out="$(cd "$w" && MAKE="$tmp/no-make" FAKE_LOG="$tmp/log" scripts/run-checks.sh --flakes 2>&1)"
+code=$?
+[[ $code -eq 0 && "$out" == $'abc aFlake load 1.0\ndef bFlake load 2.0' ]] || fail "--flakes with two lines: exit $code: [$out]"
+rm -f "$flakes"
+out="$(cd "$w" && MAKE="$tmp/no-make" FAKE_LOG="$tmp/log" scripts/run-checks.sh --flakes 2>&1)"
+code=$?
+[[ $code -eq 0 && -z "$out" ]] || fail "--flakes with no file: exit $code: [$out]"
+[[ ! -s "$tmp/log" ]] || fail "--flakes ran a check: $(cat "$tmp/log")"
 
 [[ $failures -eq 0 ]] && echo "run-checks tests: all passed"
 exit $((failures > 0))

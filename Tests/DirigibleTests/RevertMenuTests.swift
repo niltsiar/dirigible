@@ -154,7 +154,8 @@ import Testing
         model.chrome?.announce = { text, _ in heard.append(text) }
 
         model.revert(to: planted[0])
-        await until("the revert ends") { studio.session.tracks.isEmpty }
+        // The window announces after the media check of the revert, so wait for the words too.
+        await until("the revert ends") { studio.session.tracks.isEmpty && !heard.isEmpty }
 
         #expect(heard == [L10n.revertedTo.format(backupTitle(planted[0].saved))])
         #expect(model.alert == nil && model.canUndo)

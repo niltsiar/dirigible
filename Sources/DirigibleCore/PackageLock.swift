@@ -84,12 +84,7 @@ public final class PackageLock: Sendable {
     /// descriptor, which follows a rename (probe P14). An unlocked value runs `statfs` on the path
     /// of the open. `volumeAvailableCapacityForImportantUsage` also counts purgeable space, which a
     /// write cannot use now. An errno gives 0, so a take stops cleanly.
-    public func freeBytes() -> Int64 {
-        var info = statfs()
-        let status = descriptor >= 0 ? fstatfs(descriptor, &info) : statfs(url.path, &info)
-        guard status == 0 else { return 0 }
-        return Int64(info.f_bavail) * Int64(info.f_bsize)
-    }
+    public func freeBytes() -> Int64 { volumeFreeBytes(descriptor: descriptor, path: url.path) ?? 0 }
 
     /// Takes the lock, runs `body`, and releases the lock after `body` returns or throws. A lock
     /// error goes through `locked`, and then `body` does not run.
@@ -130,4 +125,13 @@ public struct PackageID: Hashable, Sendable {
         guard let a, let b else { return false }
         return a == b
     }
+}
+
+/// The free bytes of a volume for a normal process: `fstatfs` on `descriptor` when it is 0 or
+/// more, else `statfs` on `path`. Nil for an errno, so each caller names its own error value.
+func volumeFreeBytes(descriptor: Int32, path: String) -> Int64? {
+    var info = statfs()
+    let status = descriptor >= 0 ? fstatfs(descriptor, &info) : statfs(path, &info)
+    guard status == 0 else { return nil }
+    return Int64(info.f_bavail) * Int64(info.f_bsize)
 }

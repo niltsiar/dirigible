@@ -219,7 +219,7 @@ struct BackupTests {
 
     /// C5: a `statfs` error does not stop the backups: the save already catches a failed copy.
     @Test func aFreeSpaceErrorDoesNotStopTheBackups() {
-        #expect(volumeFreeBytes(package.appending(path: "Gone")) == .max, "an error gives no limit")
+        #expect(backupFreeBytes(package.appending(path: "Gone")) == .max, "an error gives no limit")
     }
 
     /// C5: a regular file named `Backups`, then a folder with no write access.

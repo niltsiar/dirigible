@@ -261,6 +261,9 @@
 "menu.markers.next" = "Marcador siguiente";
 "menu.help.guide" = "Guía de Dirigible";
 "menu.app.about" = "Acerca de Dirigible";
+"settings.language" = "Idioma";
+"settings.language.system" = "Idioma del sistema";
+"settings.language.restart" = "Reinicia Dirigible para aplicar el idioma.";
 "alert.marker.rename" = "Renombrar marcador";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";

@@ -39,6 +39,8 @@ struct ToolbarMenuTests {
     @Test func theNewKeysAreFree() {
         #expect(MenuKeys.monitor == KeyboardShortcut("m", modifiers: [.command, .shift]))
         #expect(MenuKeys.system.contains(KeyboardShortcut("t", modifiers: [.command, .option])))
+        // The system Settings… item (C5), so no app item takes Command-comma.
+        #expect(MenuKeys.system.contains(KeyboardShortcut(",")))
         #expect(MenuKeys.all.contains(MenuKeys.monitor))
         let items = TransportMenu.groups.flatMap { $0 }
         #expect(

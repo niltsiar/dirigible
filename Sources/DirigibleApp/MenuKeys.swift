@@ -32,7 +32,7 @@ enum MenuKeys {
     static let inspector = KeyboardShortcut("i", modifiers: [.command, .option])
 
     /// The keys of the items that macOS and SwiftUI add: Undo, Redo, Close, Quit, Hide, Hide
-    /// Others, Minimize, Enter Full Screen, and Show/Hide Toolbar (`ToolbarCommands`). Then the
+    /// Others, Minimize, Enter Full Screen, Show/Hide Toolbar (`ToolbarCommands`), and Settings. Then the
     /// keys that macOS takes before the app (U6): Accessibility Zoom (Option-Command-=, -minus,
     /// -8), the emoji viewer, Lock Screen, Look Up, the Control-Command copy and paste of the
     /// screenshot tools, and Mission Control and the Spaces (Control with the arrows).
@@ -41,7 +41,7 @@ enum MenuKeys {
             KeyboardShortcut("z"), KeyboardShortcut("z", modifiers: [.command, .shift]), KeyboardShortcut("w"),
             KeyboardShortcut("q"), KeyboardShortcut("h"), KeyboardShortcut("h", modifiers: [.command, .option]),
             KeyboardShortcut("m"), KeyboardShortcut("f", modifiers: [.command, .control]),
-            KeyboardShortcut("t", modifiers: [.command, .option]),
+            KeyboardShortcut("t", modifiers: [.command, .option]), KeyboardShortcut(","),
             KeyboardShortcut("=", modifiers: [.command, .option]),
             KeyboardShortcut("-", modifiers: [.command, .option]),
             KeyboardShortcut("8", modifiers: [.command, .option]),

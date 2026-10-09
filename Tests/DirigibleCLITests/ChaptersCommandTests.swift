@@ -72,11 +72,13 @@ struct ChaptersCommandTests {
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }
 
-    /// C12. Each refusal names its rule and makes no file.
+    /// C12. Each refusal names its rule and makes no file. `export` accepts the same ranges.
     @Test(arguments: [
         (["--out", "x.txt"], "--out must end in .json."),
         (["--out", "x.json", "--from", "-1"], "The range must be 0 or more"),
         (["--out", "x.json", "--from", "480000", "--to", "480000"], "The range must be 0 or more"),
+        // Code gate item 3: the bound of ExportSource, 2^40 frames, as `export`.
+        (["--out", "x.json", "--to", "1099511627777"], "The range must be 0 or more"),
     ])
     func badArgumentsExit64(arguments: [String], reason: String) async throws {
         let result = try await package.run(

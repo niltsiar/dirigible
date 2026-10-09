@@ -262,6 +262,16 @@ verdict_case void 0 'void H1' 'retention: old 3, new 3: PASS' 'verdict: PASS'
 grep -q 'H1:' <<<"$out" && fail "verdict void: a clause line names the void H1: [$out]"
 { sc t E1 retention old 3 3; sc t E1 retention new 3 3; sc t E5 retention new 3 3; } > "$tmp/rows"; verdict_case refused 2
 [[ "$out" == *'tag t'* ]] || fail "verdict refused: the message names no tag: [$out]"
+# A set with no row (a typo of a set name, an empty scores.tsv) exits 2: else the clauses check
+# nothing and print PASS. A policy scenario with no new-set run exits 2 too: its tag holds it only
+# in the old set.
+{ sc t E1 retention old 3 3; sc t E1 retention neu 3 3; } > "$tmp/rows"; verdict_case no-new-set 2
+[[ "$out" == *'set new'* && "$out" != *'verdict: PASS'* ]] || fail "verdict no-new-set: [$out]"
+: > "$tmp/rows"; verdict_case empty 2
+[[ "$out" == *'set old'* && "$out" != *'verdict: PASS'* ]] || fail "verdict empty: [$out]"
+{ sc t E23 policy old 0 3; sc t E1 retention old 3 3; sc t E1 retention new 3 3; } > "$tmp/rows"
+verdict_case policy-no-new-run 2
+[[ "$out" != *'verdict: PASS'* ]] || fail "verdict policy-no-new-run: [$out]"
 
 [[ $failures -eq 0 ]] && echo "evals-for tests: all passed"
 exit $((failures > 0))

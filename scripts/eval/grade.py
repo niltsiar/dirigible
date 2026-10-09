@@ -19,8 +19,9 @@ score:   grade.py score <eval> <tag> <result.json> ...
   scores.tsv already holds exits 2. The type is the Type
   cell of the Scenarios table of docs/workflow/evals.md in the tree of this script.
 verdict: grade.py verdict <eval> <old set> <new set>
-  Reads scores.tsv of all tags and counts passes and runs per scenario and set. A tag
-  whose two sets hold different scenarios exits 2; other tags pool. Prints a line per
+  Reads scores.tsv of all tags and counts passes and runs per scenario and set. A set
+  with no row exits 2. A tag whose two sets hold different scenarios exits 2 (so each
+  policy scenario has a new-set run); other tags pool. Prints a line per
   clause of the pass rule of evals.md: void <H> (a holdout with no pass in both sets,
   in no other line), the retention sum, below <id> (not due under 6 runs in a set),
   and policy <id>. The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
@@ -140,6 +141,11 @@ def score(tag, results):
 
 def verdict(old, new):
     rows = [line.rstrip("\n").split("\t") for line in open(os.path.join(EVAL, "scores.tsv"), encoding="utf-8")][1:]
+    # A set with no row (a typo, an empty file) leaves each clause empty, and the verdict would pass.
+    for set_name in (old, new):
+        if not any(r[3] == set_name for r in rows):
+            print(f"grade.py: scores.tsv has no row of set {set_name}", file=sys.stderr)
+            sys.exit(2)
     by_tag = {}
     for tag, sid, _, set_name, _, _, _ in rows:
         by_tag.setdefault(tag, {}).setdefault(set_name, set()).add(sid)

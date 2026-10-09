@@ -115,6 +115,22 @@ import Testing
         await model.close()
     }
 
+    /// A backup whose pool names a missing file: after the revert, the window shows the file
+    /// as missing (code gate 2 item 5).
+    @Test func aRevertShowsAMissingFileOfTheBackup() async throws {
+        let (model, studio, _) = try await window()
+        var missing = studio.session
+        try missing.addFile(AudioFile(id: "f9", path: "Clips/Gone.wav", layout: .mono, length: 48_000))
+        let backup = try plant(missing, at: 1_000_001_800, in: studio.url)
+
+        model.revert(to: backup)
+        await until("the revert ends") { studio.session.files["f9"] != nil }
+
+        await until("the missing file shows") { studio.missingMedia["f9"] != nil }
+        #expect(studio.missingMedia["f9"] != nil, "the missing file of the backup shows")
+        await model.close()
+    }
+
     /// C18: a click reverts the key window as one undo entry, and VoiceOver hears the backup.
     @Test func aClickReverts() async throws {
         let (model, studio, planted) = try await window()

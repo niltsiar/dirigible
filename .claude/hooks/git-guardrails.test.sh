@@ -132,6 +132,33 @@ message="$("$hook" < "$input" 2>&1 >/dev/null)"
   { echo "FAIL: the flakes block message names no read route: $message"; failures=$((failures + 1)); }
 expect allow 'scripts/check-changed.test.sh'
 
+# A new Finder window opens as a tab of the window group of the user, so a bounds or position
+# change of a Finder window moves the windows of the user. A read, and a move of another app, pass.
+expect block "osascript -e 'tell application \"Finder\" to set bounds of window 1 to {0, 0, 800, 600}'"
+expect block "osascript -e 'tell application \"System Events\" to set position of window 1 of process \"Finder\" to {0, 0}'"
+expect block $'osascript -e \'tell application "Finder"\nset bounds of front window to {0, 0, 9, 9}\nend tell\''
+expect block "osascript -e 'tell application \"Finder\"' -e 'set bounds of window 1 to {0, 0, 9, 9}' -e 'end tell'"
+expect block $'osascript <<EOF\ntell application "Finder"\nset bounds of front window to {0, 0, 9, 9}\nend tell\nEOF'
+expect block 'osascript -e "tell application \"Finder\" to set bounds of window 1 to {0, 0, 9, 9}"'
+expect block "osascript -e 'tell application id \"com.apple.finder\" to set position of window 1 to {0, 0}'"
+expect block "osascript -e 'tell app \"Finder\" to set bounds of window 1 to {0, 0, 9, 9}'"
+expect block "osascript -e 'tell application \"System Events\" to tell process \"Finder\" to set position of window 1 to {0, 0}'"
+expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1'"
+expect allow "osascript -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"
+expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1' -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"
+expect allow 'osascript -e "tell application \"Finder\" to get bounds of window 1" -e "tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}"'
+expect allow $'osascript -e \'tell application "System Events"\nset position of window 1 of process "Dirigible" to {900, 100}\nget position of window 1 of process "Finder"\nend tell\''
+# The Finder block message gives the reason and the way, keeps the data hint, and has no git sentence.
+plutil -create xml1 "$input"
+plutil -insert tool_input -dictionary "$input"
+plutil -insert tool_input.command -string "osascript -e 'tell app \"Finder\" to set bounds of window 1 to {0, 0, 9, 9}'" "$input"
+plutil -convert json "$input"
+message="$("$hook" < "$input" 2>&1 >/dev/null)"
+[[ "$message" == 'BLOCKED by .claude/hooks/git-guardrails.sh: '* && "$message" == *'opens as a tab'* &&
+  "$message" == *'move only the window of the verify copy'* && "$message" == *'If the matched text is only data'* &&
+  "$message" != *'deliver flow'* ]] ||
+  { echo "FAIL: the Finder block message: $message"; failures=$((failures + 1)); }
+
 # A quoted main is the same push to main.
 expect block "git push origin 'main'"
 expect block 'git push origin "main"'

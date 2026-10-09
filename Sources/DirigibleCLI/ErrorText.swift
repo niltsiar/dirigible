@@ -57,7 +57,8 @@ extension RevertError {
     /// The file error names the backup file, not `session.xml`.
     func message(package: String) -> String {
         switch self {
-        case .backup(let backup, let error): error.message(package: package, file: "Backups/\(backup.fileName)")
+        case .backup(let backup, let error):
+            error.message(package: package, file: "\(backupsFolderName)/\(backup.fileName)")
         case .session(let error): error.message
         }
     }

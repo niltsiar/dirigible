@@ -150,6 +150,7 @@ expect block "osascript -e 'tell application \"Finder\" to set size of window 1 
 # A new osascript word ends the Finder clause: read the Finder window, then move the verify copy.
 expect allow "osascript -e 'tell application \"Finder\" to get name of window 1'; osascript -e 'set position of window 1 of application process \"Dirigible\" to {0, 0}'"
 expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1'"
+expect allow "osascript -e 'tell application \"Finder\" to set sizeKB to size of (POSIX file \"/tmp/x\" as alias)'"
 expect allow "osascript -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"
 expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1' -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"
 expect allow 'osascript -e "tell application \"Finder\" to get bounds of window 1" -e "tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}"'

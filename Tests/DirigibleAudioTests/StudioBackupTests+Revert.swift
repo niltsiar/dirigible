@@ -210,6 +210,39 @@ extension StudioBackupTests {
         await studio.settle()
     }
 
+    /// An Undo before the turn of the revert is on the disk, and a Redo during the turn sets
+    /// the session back to its value at the call. The kept copy has the undone state, so the
+    /// revert stops (fix check of code gate 1, item 3).
+    @Test func anUndoAndRedoDuringTheWaitStopTheRevert() async throws {
+        let (first, second, steps) = (AsyncGate(), AsyncGate(), StepCounter())
+        let studio = try await studio(save: { session, lock throws(SessionFileError) in
+            _ = steps.next()
+            let call = steps.calls
+            if call == 1 { await first.wait() }
+            let url = try session.write(under: lock)
+            if call == 2 { await second.wait() }
+            return url
+        })
+        let backup = try plant(Self.named("A"), at: try sessionTime() - 1)
+        try setName(studio, to: "B")
+        await first.entered()
+        try setName(studio, to: "C")
+
+        let revert = Task { try await studio.revert(to: backup) }
+        await until(limit: .seconds(20), "the save and the revert wait") { studio.writesWaiting == 2 }
+        try studio.undo()
+        first.open()
+        await second.entered()
+        try studio.redo()
+        second.open()
+
+        await #expect(throws: StudioError.busy, "an undo and a redo during the wait stop the revert") {
+            try await revert.value
+        }
+        #expect(studio.session.track("t1")?.name == "C", "the redo stays")
+        await studio.settle()
+    }
+
     /// C24: revert to the oldest of 20 backups, Undo, revert to the next oldest, Undo, close.
     /// With `due`, the last Undo replaces a file 700 s after the kept name, so its save is due.
     func tryBackups(due: Bool) async throws {

@@ -139,8 +139,11 @@ extension SessionWindow {
         source(of: .selection, in: studio).map { ($0.range, true) } ?? (.zero..<studio.session.end, false)
     }
 
+    /// A scan with no sort: the menu reads it on each session change.
     var canExportChapters: Bool {
-        exportStudio.map { !$0.session.chapters(in: chaptersRange(in: $0).range).isEmpty } ?? false
+        guard let studio = exportStudio else { return false }
+        let range = chaptersRange(in: studio).range
+        return studio.session.markers.values.contains { $0.kind == .chapter && range.contains($0.position) }
     }
 
     /// Option-Command-E: the save panel, then an atomic write of the JSON off the main actor. The

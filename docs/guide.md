@@ -617,6 +617,7 @@ These commands change clips and the export. `info` shows the clip IDs. A length 
 - `dirigible clip fade Demo.dirigible --clip <clip> --in 24000 --out 24000` sets the fades of a clip. 0 removes a fade.
 - `dirigible clip crossfade Demo.dirigible --clip <clip> --length 4800` crossfades a clip into the clip that starts where it ends. The length is an even number of frames, and 0 removes the crossfade. Both clips need audio in their files past the join, for half the length. Play and export use the crossfade, and `info` shows it. Two parts of a split clip that continue the same audio get no crossfade. An edit that breaks the join, for example a move or a delete of one clip, removes the crossfade. A session with a crossfade does not open in a version of Dirigible from before the crossfades.
 - `dirigible export Demo.dirigible --out Episode.mp3 --loudness podcast` exports with a loudness target: `podcast`, `speech`, `ebu`, or `atsc`, as the **Loudness** setting of the export panel.
+- `dirigible chapters export Demo.dirigible --out Episode.chapters.json` writes the chapters as a Podcasting 2.0 JSON Chapters file, as **File > Export Chapters**. With `--from` and `--to`, it writes the chapters of that range, and the times start at 0 at `--from`. A range with no chapter gives exit 1 and no file.
 
 These commands use the backups of the session in `Backups/`:
 
@@ -662,7 +663,7 @@ The 33 tools, in groups:
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
 - A tool call has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
 - `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another session package, with `onto`. In the terminal, `dirigible clip paste` and `dirigible clip paste-clips` take `--source` and `--onto`. The call copies the audio files of the clips into the package, or converts them at another sample rate. A long copy or conversion runs to the end and saves, also when the agent stops waiting, so the agent reads `session_info` before a retry.
-- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `devices` and `apps` read no package, and `mcp` is the server. Run these commands in the terminal.
+- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `devices` and `apps` read no package, and `mcp` is the server. Run these commands in the terminal.
 
 ### Make the screenshots again
 

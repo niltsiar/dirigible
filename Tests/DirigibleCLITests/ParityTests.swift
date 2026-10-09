@@ -60,6 +60,7 @@ struct ParityTests {
         "peaks": "Long audio work that needs progress and cancel (Release 3).",
         "render": "Long audio work that needs progress and cancel (Release 3).",
         "export": "Long audio work that needs progress and cancel (Release 3).",
+        "chapters export": "It writes a file outside the package and edits nothing; session_info gives the markers.",
         "record": "Recording needs the consent sheet of the app (Release 3).",
         "devices": "It lists the audio devices of this Mac, not a package.",
         "apps": "It lists the apps of this Mac, not a package.",

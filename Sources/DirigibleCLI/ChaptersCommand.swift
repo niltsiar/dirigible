@@ -36,11 +36,11 @@ struct ChaptersExport: ParsableCommand {
     func run() throws {
         let session = try readPackage(package)
         let end = to ?? session.end.count
-        guard from >= 0, end > from else {
+        // The range rule of `export`, so both commands take the same ranges.
+        guard end > from, let range = ExportSource(range: Frames(from)..<Frames(end))?.range else {
             throw ValidationError(
                 "The range must be 0 or more, with --to more than --from; the session end is \(session.end).")
         }
-        let range = Frames(from)..<Frames(end)
         guard !session.chapters(in: range).isEmpty else {
             throw fail("no chapter in frames \(from)..<\(end).", code: editRefused)
         }

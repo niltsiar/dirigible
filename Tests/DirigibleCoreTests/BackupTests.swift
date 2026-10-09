@@ -219,6 +219,18 @@ struct BackupTests {
         #expect(Self.names(in: package) == [Self.name(Self.time)], "a backup with the old and the new size free")
     }
 
+    /// C5: the close backup needs twice the size of `session.xml` free: the next lock holder saves
+    /// next, and its file is about as large.
+    @Test func aCloseBackupNeedsTwiceTheFileSizeFree() throws {
+        let size = Int64(try Data(contentsOf: sessionXML).count)
+
+        Backup.keepAtClose(in: package, freeBytes: { _ in 2 * size - 1 })
+        #expect(Self.names(in: package).isEmpty, "no close backup with less than twice the file size free")
+
+        Backup.keepAtClose(in: package, freeBytes: { _ in 2 * size })
+        #expect(Self.names(in: package) == [Self.name(Self.time)], "a close backup with twice the file size free")
+    }
+
     /// C5: a `statfs` error does not stop the backups: the save already catches a failed copy.
     @Test func aFreeSpaceErrorDoesNotStopTheBackups() {
         #expect(backupFreeBytes(package.appending(path: "Gone")) == .max, "an error gives no limit")

@@ -132,8 +132,14 @@ public struct Backup: Hashable, Comparable, Sendable {
     }
 
     /// The backup at the close of a session window (decision 0043): `keep(in:)` with no due
-    /// check, then the prune after a new copy. A fault keeps nothing and never throws.
-    package static func keepAtClose(in package: URL) {
+    /// check, then the prune after a new copy. A fault keeps nothing and never throws. With less
+    /// than twice the size of `session.xml` free, it keeps nothing: the next lock holder saves
+    /// next, and its file is about as large.
+    package static func keepAtClose(in package: URL, freeBytes: (URL) -> Int64 = backupFreeBytes) {
+        var info = stat()
+        guard stat(package.appending(path: "session.xml").path, &info) == 0,
+            freeBytes(package) >= 2 * Int64(info.st_size)
+        else { return }
         if let kept = try? keep(in: package) { prune(in: package, keeping: BackupPolicy.count, after: kept) }
     }
 

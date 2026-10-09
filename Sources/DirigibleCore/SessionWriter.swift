@@ -94,7 +94,7 @@ extension Session {
         let clips = package.appending(path: clipsFolderName)
         guard mkdir(clips.path, 0o755) == 0 || errno == EEXIST else { throw posixError("createDirectory") }
         // A backup fault never fails the save.
-        try? backups.keepIfDue(in: package)
+        try? backups.keepIfDue(in: package, newSize: Int64(data.count))
         try replaceDurably(package.appending(path: "session.xml"), with: data)
         return package
     }

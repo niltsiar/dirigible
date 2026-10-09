@@ -186,9 +186,13 @@ package enum BackupPolicy: Sendable {
 
     /// Keeps a backup of `session.xml` when one is due, then prunes. The newest backup is the
     /// newest name that is not after the mtime of the file, so a name of a clock fault does not
-    /// count. No `session.xml` keeps nothing. With less than twice the size of `session.xml`
-    /// free, it keeps nothing: the copy must not take the space that the save needs.
-    func keepIfDue(in package: URL, freeBytes: (URL) -> Int64 = backupFreeBytes) throws(SessionFileError) {
+    /// count. No `session.xml` keeps nothing. With less free space than the old file and the new
+    /// data of the save (`newSize`), it keeps nothing: the copy must not take the space that the
+    /// save needs. Byte sizes, not whole blocks: a volume within one block of the limit can still
+    /// fail the save.
+    func keepIfDue(
+        in package: URL, newSize: Int64, freeBytes: (URL) -> Int64 = backupFreeBytes
+    ) throws(SessionFileError) {
         guard self != .none else { return }
         var info = stat()
         guard stat(package.appending(path: "session.xml").path, &info) == 0 else { return }
@@ -196,7 +200,7 @@ package enum BackupPolicy: Sendable {
         guard Self.isDue(newest: Backup.all(in: package).first { $0 <= replacing }, replacing: replacing) else {
             return
         }
-        guard freeBytes(package) >= 2 * Int64(info.st_size) else { return }
+        guard freeBytes(package) >= Int64(info.st_size) + newSize else { return }
         if let kept = try Backup.keep(in: package) { Backup.prune(in: package, keeping: Self.count, after: kept) }
     }
 }

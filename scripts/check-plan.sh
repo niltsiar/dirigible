@@ -10,7 +10,7 @@
 #   `- Check:` line.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
-#   bullet whose text has `nit` and `taken` (not `not taken`). A nit tagged
+#   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
 #   `no behavior change` needs no field. A review file older than the rule is not checked; one
 #   older than the nit rule needs no field for a nit.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
@@ -80,11 +80,12 @@ for review in "$run"/review-*.md; do
         # exempt: the first parenthesis is a nit tag that needs no field. With the nit rule, only a
         # nit tagged `no behavior change` is exempt.
         function exempt(  t) { t = paren(); return t ~ /^\(nit/ && (!nitrule || t ~ /no behavior change/) }
-        # taken: the text of the whole bullet has nit and taken (not "not taken"), in or outside a
-        # parenthesis, for example "(nit, x) ... Taken: a test case.".
+        # taken: the text of the whole bullet has a nit tag and taken (not "not taken"), in or
+        # outside the tag, for example "(nit, x) ... Taken: a test case.". "nit" outside a tag does
+        # not count: a warning can name the taken-nit rule.
         function taken(  t) {
             t = tolower(text); gsub(/not taken/, "", t)
-            return t ~ /(^|[^a-z])nit([^a-z]|$)/ && t ~ /(^|[^a-z])taken([^a-z]|$)/
+            return t ~ /\(nit[^a-z]/ && t ~ /(^|[^a-z])taken([^a-z]|$)/
         }
         function close_item() {
             if (item && !skip) missing("Act on item " item)

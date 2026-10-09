@@ -137,6 +137,9 @@ good
 printf '## Consider\n\n- S3 (bash 3.2) is slow. (nit, x; taken) A note.\n' > "$review"
 refuse 'a Consider nit whose tag is not the first parenthesis' 'review-plan-1.md: Consider item 1 has no Invariant field'
 good
+printf '## Consider\n\n- (warning, x) The taken-nit rule names no tag.\n' > "$review"
+pass 'a Consider warning that names the taken-nit rule'
+good
 printf '## Consider\n\n- (nit, x; not taken) A note. Not taken: no case.\n' > "$review"
 pass 'a Consider nit with not taken in and outside the parenthesis'
 good

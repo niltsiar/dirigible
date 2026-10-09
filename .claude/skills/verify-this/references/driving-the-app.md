@@ -25,7 +25,7 @@
 - Press a menu item by its menu path (`press "File > Open Recent > Clear Menu"`), never by its title alone; `--role AXMenuBarItem` opens a menu.
 - `swift scripts/ax.swift` compiles on each call (1 to 2 s): for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID=com.delineas.dirigible.verify` for `ax.swift` and `hid.swift`.
 - A claim that something does not happen, from a poll, states the largest gap between samples around each event. An effect shorter than that gap is not tested.
-- For a menu claim, run `scripts/ax.swift dump` once per UI language (`-AppleLanguages "(es)"`), in each state that the run adds and the state before it; compare the key and the `Enabled=` value with the claim.
+- For a menu claim, run `scripts/ax.swift dump` per UI language (`-AppleLanguages "(es)"`) before and in each new state; compare the key and `Enabled=`. In a transient state, add `--witness <text>` (progress under 1).
 - A locked screen blocks menus, popovers, HID CGEvents, and the AX window tree; the window capture still works. When `screenshot.sh` warns about the lock, make every interaction check manual, with no HID or AX probe.
 
 ## A visual report of the user

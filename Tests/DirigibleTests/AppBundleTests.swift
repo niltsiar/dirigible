@@ -93,7 +93,7 @@ struct AppBundleTests {
                 "No hay sonido de %1$@. Si %1$@ reproduce sonido, permite Dirigible en Privacidad y seguridad > Grabación "
                     + "de audio del sistema."
             ),
-            ("track.no.sound.settings", "Open Settings", "Abrir Ajustes"),
+            ("track.no.sound.settings", "Open Privacy Settings", "Abrir los ajustes de privacidad"),
             ("track.route.apps", "Apps", "Apps"),
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.

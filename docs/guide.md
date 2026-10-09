@@ -14,7 +14,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 Dirigible shows its menus and windows in English or Spanish. By default, it uses the language of macOS.
 
-1. Choose **Dirigible > Settings** (Command-Comma). In Spanish, the menu item is **Ajustes**.
+1. Choose **Dirigible > Settings…** (Command-Comma). In Spanish, the menu item is **Ajustes…**.
 2. In **Language** (**Idioma**), choose **System Language** (**Idioma del sistema**), **English**, or **Español**.
 3. Quit Dirigible and open it again. The new language shows only after the restart.
 
@@ -328,7 +328,7 @@ Dirigible can record the sound of another app, for example a Zoom, Teams, or Sla
 
 - One app can feed one track only. Record your own microphone on another track.
 - When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
-- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Open Settings**. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
+- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Open Privacy Settings**. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
 - On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
 - In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input. `dirigible track add-call <package> --device <UID> --channels 1 --app <bundle ID>` adds the **Host** and **Guest** tracks.
 

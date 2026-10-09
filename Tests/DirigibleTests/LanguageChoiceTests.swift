@@ -48,8 +48,8 @@ struct LanguageChoiceTests {
         #expect(LanguageChoice(defaults, domain: domain) == .system)
     }
 
-    /// C13: a list that no item names reads as a language, so a System Language pick is a change
-    /// and removes the key.
+    /// C13: a stored list whose first language Dirigible does not have reads as a language, so a
+    /// System Language pick is a change and removes the key.
     @Test func systemPickAfterAStoredListRemovesTheKey() throws {
         let domain = "DirigibleTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: domain))

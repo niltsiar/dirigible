@@ -1,8 +1,8 @@
 import DirigibleAudio
 import SwiftUI
 
-/// Only a Settings scene (the language, decision 0010): the app delegate makes one AppKit window per package (decision 0014,
-/// probe P5d). The commands act on the key session window.
+/// Only a Settings scene (the language, decision 0010): the app delegate makes one AppKit window
+/// per package (decision 0014, probe P5d). The commands act on the key session window.
 @main
 struct DirigibleApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var app

@@ -7,10 +7,13 @@ import Foundation
 /// shows one item No Backups that is off.
 struct RevertMenu {
     let backups: [Backup]
+    /// The title of each backup, in the order of `backups`.
+    let titles: [String]
     let enabled: Bool
 
     @MainActor init(_ window: SessionWindow?) {
         backups = window?.studio?.backups ?? []
+        titles = backupTitles(backups)
         enabled = window?.canEdit == true
     }
 }
@@ -33,8 +36,21 @@ extension SessionWindow {
 
 /// The title of a backup in File > Revert To: its date and time with seconds, in the locale and
 /// the time zone of the Mac. No relative "Today": it would be wrong after midnight.
-func backupTitle(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+func backupTitle(
+    _ date: Date, milliseconds: Bool = false, locale: Locale = .current, timeZone: TimeZone = .current
+) -> String {
     var style = Date.FormatStyle(date: .abbreviated, time: .standard, locale: locale)
+    if milliseconds { style = style.secondFraction(.fractional(3)) }
     style.timeZone = timeZone
     return date.formatted(style)
+}
+
+/// The titles of `backups`, in their order. A title that two backups share gets milliseconds, so
+/// two items of the menu never have one title.
+func backupTitles(_ backups: [Backup], locale: Locale = .current, timeZone: TimeZone = .current) -> [String] {
+    let titles = backups.map { backupTitle($0.saved, locale: locale, timeZone: timeZone) }
+    return zip(backups, titles).map { backup, title in
+        titles.filter { $0 == title }.count > 1
+            ? backupTitle(backup.saved, milliseconds: true, locale: locale, timeZone: timeZone) : title
+    }
 }

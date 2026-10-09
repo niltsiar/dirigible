@@ -63,6 +63,19 @@ import Testing
         #expect(backupTitle(date, locale: Locale(identifier: "es_ES"), timeZone: utc) == "9 oct 2026, 5:41:12")
     }
 
+    /// Two backups in one second get milliseconds, so no two items have one title.
+    @Test func twoBackupsInOneSecondShowMilliseconds() throws {
+        let utc = try #require(TimeZone(identifier: "UTC"))
+        let en = Locale(identifier: "en_US")
+        let dates = [1_791_524_472.25, 1_791_524_472, 1_791_524_400].map { Date(timeIntervalSince1970: $0) }
+
+        let titles = backupTitles(dates.map(Backup.init(saved:)), locale: en, timeZone: utc)
+
+        #expect(titles.count == 3 && Set(titles).count == 3, "\(titles)")
+        #expect(titles[0].contains("12.250"), "\(titles)")
+        #expect(titles[2] == backupTitle(dates[2], locale: en, timeZone: utc), "a single title has no milliseconds")
+    }
+
     /// C18: newest first; no window gives no backup.
     @Test func theMenuListsTheBackupsNewestFirst() async throws {
         #expect(RevertMenu(app.key).backups.isEmpty, "no window")

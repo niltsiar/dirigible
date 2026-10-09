@@ -33,8 +33,8 @@ struct DirigibleApp: App {
                     Menu(L10n.menuFileRevertTo.key) {
                         let menu = RevertMenu(app.key)
                         if menu.backups.isEmpty { Button(L10n.menuFileRevertToNone.key) {}.disabled(true) }
-                        ForEach(menu.backups, id: \.self) { backup in
-                            Button(backupTitle(backup.saved)) { app.key?.revert(to: backup) }.disabled(!menu.enabled)
+                        ForEach(Array(zip(menu.backups, menu.titles)), id: \.0) { backup, title in
+                            Button(title) { app.key?.revert(to: backup) }.disabled(!menu.enabled)
                         }
                     }
                 }

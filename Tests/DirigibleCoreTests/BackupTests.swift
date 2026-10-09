@@ -206,15 +206,17 @@ struct BackupTests {
         #expect(try Backup.keep(in: package) != nil, "keep copies bytes of the same size that differ")
     }
 
-    /// C5: a due backup needs twice the size of `session.xml` free, so the save after it has space.
-    @Test func aBackupNeedsTwiceTheFileSizeFree() throws {
-        let size = Int64(try Data(contentsOf: sessionXML).count)
+    /// C5: a due backup needs the old and the new size of `session.xml` free, so the save after it
+    /// has space. The new file is larger here, so twice the old size is not enough.
+    @Test func aBackupNeedsTheOldAndTheNewSizeFree() throws {
+        let old = Int64(try Data(contentsOf: sessionXML).count)
+        let new = old + 100
 
-        try BackupPolicy.standard.keepIfDue(in: package, freeBytes: { _ in 2 * size - 1 })
-        #expect(Self.names(in: package).isEmpty, "no backup with less than twice the file size free")
+        try BackupPolicy.standard.keepIfDue(in: package, newSize: new, freeBytes: { _ in old + new - 1 })
+        #expect(Self.names(in: package).isEmpty, "no backup with less than the old and the new size free")
 
-        try BackupPolicy.standard.keepIfDue(in: package, freeBytes: { _ in 2 * size })
-        #expect(Self.names(in: package) == [Self.name(Self.time)], "a backup with twice the file size free")
+        try BackupPolicy.standard.keepIfDue(in: package, newSize: new, freeBytes: { _ in old + new })
+        #expect(Self.names(in: package) == [Self.name(Self.time)], "a backup with the old and the new size free")
     }
 
     /// C5: a `statfs` error does not stop the backups: the save already catches a failed copy.

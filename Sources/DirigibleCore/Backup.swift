@@ -76,7 +76,7 @@ public struct Backup: Hashable, Comparable, Sendable {
             throw .backup(error)
         }
         do throws(SessionFileError) {
-            _ = try Backup.keep(in: package, forRevert: true)
+            _ = try Backup.keep(in: package)
         } catch {
             throw .currentCopy(error)
         }
@@ -86,11 +86,12 @@ public struct Backup: Hashable, Comparable, Sendable {
     static func folder(of package: URL) -> URL { package.appending(path: backupsFolderName) }
 
     /// Copies `session.xml` of `package` to `Backups/<name of its mtime>` with the durable write
-    /// of a save. When a backup has that name, the name gets 1 ms more until it is free. Returns
-    /// nil and copies nothing when a backup has the same bytes, so the caller prunes only after a
-    /// new copy. With `forRevert`, only the backups that the next prune keeps count, so the state
-    /// that a revert replaces stays at least past that prune. Only a lock holder calls it.
-    static func keep(in package: URL, forRevert: Bool = false) throws(SessionFileError) -> Backup? {
+    /// of a save. When a backup has that name, the name gets 1 ms more until it is free. When one
+    /// of the 19 newest backups (the ones that the next prune keeps) has the same bytes, it copies
+    /// nothing. When an older backup has them, it moves that backup to the new name, so the next
+    /// prune keeps the state and `Backups/` holds it once. Returns the new copy, or nil when no
+    /// file is added, so the caller prunes only after a new copy. Only a lock holder calls it.
+    static func keep(in package: URL) throws(SessionFileError) -> Backup? {
         let source = package.appending(path: "session.xml")
         var info = stat()
         guard stat(source.path, &info) == 0 else { throw .readFailed(errno: errno) }
@@ -107,14 +108,23 @@ public struct Backup: Hashable, Comparable, Sendable {
         } else if errno != EEXIST {
             throw .writeFailed(step: "mkdir", errno: errno)
         }
-        let held = all(in: package).prefix(forRevert ? BackupPolicy.count - 1 : Int.max)
-        if held.contains(where: { holds(folder.appending(path: $0.fileName), data) }) { return nil }
+        let backups = all(in: package)
+        let window = BackupPolicy.count - 1
+        if backups.prefix(window).contains(where: { holds(folder.appending(path: $0.fileName), data) }) { return nil }
         var backup = Backup(info.st_mtimespec)
         // A coarse mtime (HFS+ 1 s, exFAT 10 ms) gives two states one name. A file with the name
-        // has other bytes, cannot be read, or (for a revert) is past the 19 newest, so the copy
-        // takes the next free millisecond and never replaces it.
+        // is not a match in the window, so the copy takes the next free millisecond and never
+        // replaces it.
         while access(folder.appending(path: backup.fileName).path, F_OK) == 0 { backup.milliseconds += 1 }
-        try replaceDurably(folder.appending(path: backup.fileName), with: data)
+        let target = folder.appending(path: backup.fileName)
+        if let old = backups.dropFirst(window).first(where: { holds(folder.appending(path: $0.fileName), data) }) {
+            guard rename(folder.appending(path: old.fileName).path, target.path) == 0 else {
+                throw .writeFailed(step: "rename", errno: errno)
+            }
+            if let code = fullFlush(path: folder.path) { throw .writeFailed(step: "fsync", errno: code) }
+            return nil
+        }
+        try replaceDurably(target, with: data)
         return backup
     }
 

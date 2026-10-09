@@ -245,6 +245,7 @@ extension StudioBackupTests {
 
     /// C24: revert to the oldest of 20 backups, Undo, revert to the next oldest, Undo, close.
     /// With `due`, the last Undo replaces a file 700 s after the kept name, so its save is due.
+    /// The contents count, not the names: a due save can move an old backup to a new name.
     func tryBackups(due: Bool) async throws {
         let studio = try await studio()
         let time = try sessionTime()
@@ -265,7 +266,9 @@ extension StudioBackupTests {
         await studio.settle()
 
         let names = names()
-        #expect(names.isSuperset(of: planted.map(\.fileName)), "trying backups keeps all 20")
+        let held = Set(names.compactMap { try? Data(contentsOf: url.appending(path: "Backups/\($0)")) })
+        let tried = try Set((1...20).map { try bytes(of: Self.named("v\($0)")) })
+        #expect(tried.isSubset(of: held), "trying backups keeps all 20")
         #expect(names.count <= 21, "trying backups adds at most one file")
     }
 

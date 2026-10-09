@@ -321,6 +321,11 @@ PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow-push PUSH_SKIP=LoudnessBench
 : > "$tmp/swift.log"
 PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow-push PUSH_SKIP=LoudnessBenchmark PUSH_RUN=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow-push with PUSH_RUN exits nonzero'
 [[ "$(cat "$tmp/swift.log")" == *aSkippedBench* && "$(cat "$tmp/swift.log")" == *aKeptSlowTest* ]] || fail "make test-slow-push with PUSH_RUN: swift calls [$(cat "$tmp/swift.log")]"
+# PUSH_RUN with two names, joined with a comma as check-changed.sh prints it, brings back both files.
+printf '%s\nfunc aSecondBench() {}\n' "$gate" > "$tmp/r/Tests/DirigibleAudioTests/EditBenchmark.swift"
+: > "$tmp/swift.log"
+PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow-push PUSH_SKIP='LoudnessBenchmark EditBenchmark' PUSH_RUN=EditBenchmark,LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow-push with two PUSH_RUN names exits nonzero'
+[[ "$(cat "$tmp/swift.log")" == *aSkippedBench* && "$(cat "$tmp/swift.log")" == *aSecondBench* ]] || fail "make test-slow-push with two PUSH_RUN names: swift calls [$(cat "$tmp/swift.log")]"
 : > "$tmp/swift.log"
 PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow exits nonzero'
 [[ "$(cat "$tmp/swift.log")" == *aSkippedBench* && "$(cat "$tmp/swift.log")" == *aKeptSlowTest* ]] || fail "make test-slow: swift calls [$(cat "$tmp/swift.log")]"

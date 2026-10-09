@@ -9,10 +9,10 @@ extension Studio {
     /// Throws `.file` for a newer, damaged, or missing backup, and when the copy of the current
     /// file fails: the revert keeps that copy first. Throws `.session(.trackInRecording)`
     /// for a backup that removes an armed track or changes its route or layout. A throw leaves the
-    /// session unchanged. Throws `.busy` also when the session changed during the wait or the
-    /// read: the kept copy does not have that change.
+    /// session unchanged. Throws `.busy` also when an edit, an undo, or a redo came after the
+    /// call: the kept copy can miss that change.
     public func revert(to backup: Backup) async throws(StudioError) {
-        let before = session
+        let revision = sessionRevision
         try checkIdle()
         let read = await serialized { () async -> Result<Void, StudioError> in
             if let saveError { return .failure(saveError) }
@@ -21,9 +21,10 @@ extension Studio {
             case .success(let read): (target, backups) = (read.session, read.backups)
             case .failure(let error): return .failure(error)
             }
-            // An edit, an undo, or a take start during the await is not in the kept copy (AGENTS.md,
-            // Actors). The edit runs in this turn, so no other job runs between the check and it.
-            guard session == before else { return .failure(.busy) }
+            // An edit, an undo, or a redo after the call can be missing from the kept copy, also
+            // when a later change sets the value back, so the revision decides (AGENTS.md, Actors).
+            // The edit runs in this turn, so no other job runs between the check and it.
+            guard sessionRevision == revision else { return .failure(.busy) }
             do throws(StudioError) {
                 try edit { session throws(SessionError) in session = try session.reverted(to: target) }
             } catch {

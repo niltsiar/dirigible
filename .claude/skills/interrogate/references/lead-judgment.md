@@ -25,7 +25,7 @@ A good verdict is useful, not complete: the user fixes the "Act on" items and sh
 
 ## Invariant and Siblings
 
-Each "Act on" item that is not a nit needs two fields (`scripts/check-plan.sh` checks them).
+Each "Act on" item and taken nit, except a `no behavior change` nit, needs two fields (`scripts/check-plan.sh` checks them).
 
 - **Invariant:** the invariant that the item breaks, named by the state, not by the operation: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
 - **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter call. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>".

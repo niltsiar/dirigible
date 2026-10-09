@@ -22,13 +22,21 @@ struct LanguageChoiceTests {
         #expect(LanguageChoice(stored: stored) == choice)
     }
 
-    /// C3: no key in the app domain reads as System Language, although the global domain has a
-    /// language list.
+    /// C3: no key in the app domain reads as System Language, although the search list of
+    /// `defaults` has a language list. The test adds that list, so it does not depend on the global
+    /// domain of the account.
     @Test func noKeyReadsAsSystem() throws {
         let domain = "DirigibleTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: domain))
         defer { defaults.removePersistentDomain(forName: domain) }
-        #expect(defaults.stringArray(forKey: LanguageChoice.key) != nil, "the global domain has a list")
+        // An added suite comes before the global domain in the search list of this instance only.
+        // `register(defaults:)` is no control: it is for the whole process, and the global domain wins.
+        let list = domain + "-list"
+        let listDefaults = try #require(UserDefaults(suiteName: list))
+        defer { listDefaults.removePersistentDomain(forName: list) }
+        listDefaults.set(["es"], forKey: LanguageChoice.key)
+        defaults.addSuite(named: list)
+        #expect(defaults.stringArray(forKey: LanguageChoice.key) == ["es"], "the search list has a list")
         #expect(LanguageChoice(defaults, domain: domain) == .system)
     }
 

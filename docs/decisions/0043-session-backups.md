@@ -13,7 +13,7 @@ Probes P1 to P5 (2026-10-09, macOS 15.7.9, APFS): `NSFileVersion.addOfItem` work
 
 ## Decision
 
-- **Place and name.** A backup is a byte copy of an old `session.xml` in `Backups/` of the package, named `session-<UTC time of its mtime, yyyyMMdd'T'HHmmss.SSS>Z.xml`. The name has no colon, so exFAT and SMB accept it. The `version` attribute of the copy is its version marker. A name that does not parse is not a backup.
+- **Place and name.** A backup is a byte copy of an old `session.xml` in `Backups/` of the package, named `session-<UTC time of its mtime, yyyyMMdd'T'HHmmss.SSS>Z.xml`. The name has no colon, so exFAT and SMB accept it. On a volume with a coarse mtime (HFS+ 1 s, exFAT 10 ms), two states can have one mtime: when a file has the name, the name gets 1 ms more until it is free, so no copy replaces a backup. The `version` attribute of the copy is its version marker. A name that does not parse is not a backup.
 - **Due save.** Before a lock holder (the app, the CLI, the MCP server) replaces `session.xml`, it copies the old file when a backup is due: the mtime of that file minus the newest backup name that is not after it is 600 s or more, or no name is at or before it. Both values are file times, so one clock decides, also on a server with a skewed clock.
 - **Close.** The close of a session window copies `session.xml` with no due check, so the state that the user hands to the CLI or an agent is in a backup.
 - **Take start.** The take-start save keeps no backup (`BackupPolicy.none`): a due backup made the start 43 ms slower on the median. The finalize save of the take keeps the state before the take only when a backup is due.

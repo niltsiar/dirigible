@@ -166,6 +166,24 @@ struct BackupTests {
         #expect(Self.names(in: package) == before, "a due save of held bytes adds and deletes no file")
     }
 
+    /// U21: on a volume with a coarse `mtime`, two states can have one `mtime`. Failing value: the
+    /// second copy writes over the first.
+    @Test func twoStatesWithOneMtimeKeepTwoBackups() throws {
+        let first = try Data(contentsOf: sessionXML)
+        try #require(try Backup.keep(in: package) != nil)
+        let second = try Self.state(1).checkedData()
+        try second.write(to: sessionXML)
+        try Self.setTime(of: sessionXML, to: Self.time)
+
+        let kept = try Backup.keep(in: package)
+
+        let bumped = Self.name(Self.time).replacingOccurrences(of: ".000Z", with: ".001Z")
+        #expect(kept?.fileName == bumped, "the second copy gets the next millisecond")
+        #expect(Self.names(in: package) == [Self.name(Self.time), bumped], "both backups stay")
+        #expect((try? Data(contentsOf: folder.appending(path: Self.name(Self.time)))) == first, "both backups stay")
+        #expect((try? Data(contentsOf: folder.appending(path: bumped))) == second)
+    }
+
     /// C5: a regular file named `Backups`, then a folder with no write access.
     @Test func aBackupFaultDoesNotStopTheSave() throws {
         try Data("not a folder".utf8).write(to: folder)

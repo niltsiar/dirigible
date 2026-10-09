@@ -9,6 +9,7 @@
 - Amended: 2026-10-03, run 11a. `session.xml` is version 3 with a fade (see 0035).
 - Amended: 2026-10-04, run 11c-1. `session.xml` is version 4 with a crossfade (see 0036).
 - Amended: 2026-10-05, run `2026-10-05-mute-solo`. `session.xml` is version 5 with a muted or soloed track (see 0039).
+- Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The formats table has the backup files `Backups/session-<time>.xml`.
 
 ## Context
 
@@ -56,6 +57,7 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 | `session.xml` | `version` attribute | 5 with a muted or soloed track (0039), else 4 with a crossfade (0036), else 3 with a fade (0035), else 2 with an app route (0029), else 1 | Refused (P3). No change to the package (P4). |
 | `Capture/<stem>.sidecar` | magic `DRGSIDE` + digit | 1 | A per-segment "newer version" fault, not "missing or damaged". The take ends and the segment stays unplaced; "leave unreadable" does not treat it as unreadable. The sidecar and the CAF are never written, moved, or deleted. The anchor keeps the recorded time, so a newer build places the segment with `capture place`. A placement in the older build is refused. |
 | `Capture/take<n>.anchor` | magic `DRGANCH` + digit | 1 | A placement that needs the anchor gives a per-segment "newer version" fault. A placement with a track and a start does not read the anchor. A finalize of that take keeps the anchor bytes, writes no anchor, places the segments from `<recording>`, and ends the take. No newer file keeps a take pending. An anchor that the finalize cannot read (an errno other than ENOENT) keeps the take pending with a read error that names the file, before any WAV is written: the build does not write over a file that it cannot identify (P4). |
+| `Backups/session-<time>.xml` | `version` attribute of the copy | The version of the copied `session.xml` | A revert refuses it (P3). A prune never deletes it (P4). A name that does not parse stays (P10). |
 | Peak cache `*.peaks` | magic `DIRPEAKS` + UInt32 version | 1 | A miss (P5). |
 | `.lock`, `recovery-attempt` | none (frozen, P8) | - | - |
 | Package layout, CAF and WAV names | none (P10) | - | - |

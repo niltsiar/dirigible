@@ -11,6 +11,7 @@
 - Amended: 2026-10-02. A track route can be `<route app="BUNDLEID"/>`. A session with an app route writes `version="2"`; a session with none writes `version="1"` (see 0029).
 - Amended: 2026-10-03, run 11a. A clip has `fadeIn` and `fadeOut` from version 3. A fade of 0 is not written, unlike gain, so a clip with no fade keeps its text (see 0035).
 - Amended: 2026-10-04, run 11c-1. A clip has `crossfadeIn` and `crossfadeOut` from version 4. A crossfade of 0 is not written (see 0036).
+- Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The package has a `Backups/` folder with copies of `session.xml`, named for the UTC time of the copied file. A backup copy uses the same durable write as a save.
 
 ## Context
 
@@ -20,7 +21,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 
 ## Decision
 
-**Layout.** A session is a document package, `<Name>.dirigible/` (`LSTypeIsPackage`), with `session.xml` and a `Clips/` folder inside. Finder moves and copies the XML and its clips as one item. A clip refers to its file by a path relative to `Clips/`.
+**Layout.** A session is a document package, `<Name>.dirigible/` (`LSTypeIsPackage`), with `session.xml` and a `Clips/` folder inside. Finder moves and copies the XML and its clips as one item. A clip refers to its file by a path relative to `Clips/`. (Amended by 0043: `Backups/` holds copies of `session.xml`.)
 
 **Clip files.** 24-bit WAV at the session sample rate. Capture writes CAF first and converts at stop (0004). FLAC is a later preference, because it seeks slowly.
 

@@ -5,6 +5,7 @@
 - Accepted: 2026-10-07, after plan gates 1 and 2 of run `2026-10-07-mcp-cli`.
 - Amends: 0002 (`DirigibleCLI` also holds the MCP server), 0011 (each edit command also has an MCP tool).
 - Amended: 2026-10-08, run `2026-10-08-paste-across-packages` (see 0042). `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another package, with `onto`. They return a typed `ToolWork.paste` with data, not an edit closure, because a paste needs the lock and throws `PasteError`. They copy and convert with no progress and no cancel: each call runs to the end and saves, and the descriptions say so.
+- Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The tools `backup_list` and `backup_revert` follow the name rule. `backup_list` reads with no lock, as `session_info`. `backup_revert` is a typed `ToolWork.revert`, because it needs the lock to read the backup.
 
 ## Context
 

@@ -122,14 +122,16 @@ struct AppTakeTests {
     @Test func aWaitingAppAttachDelaysNoDeviceTrack() async throws {
         let hal = hal()
         hal.holdTaps()
+        defer { hal.releaseTaps() }
         let studio = try await studio(hal)
         let started = Done()
         let start = Task { @MainActor in
             try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
             started.value = true
         }
-        // The held tap waits up to 30 s; a start that waits for it ends after this limit.
+        // A start that waits for the held tap fails this wait; the release then lets it end.
         await until(limit: .seconds(20), "the start waits for the app") { started.value }
+        if !started.value { hal.releaseTaps() }
         try await start.value
         let micInput = SyntheticInput(hal, "mic")
         var micClock = DeviceClock()
@@ -143,6 +145,7 @@ struct AppTakeTests {
         await until(limit: .seconds(10), "the mic did not detach while the app waits") {
             hal.calls.contains("detach mic")
         }
+        #expect(!hal.calls.contains("makeTap \(Self.zoomUID)"), "the tap was held until the release")
         hal.releaseTaps()
         try await stop.value
         await micInput.wait()

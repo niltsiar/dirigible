@@ -188,12 +188,15 @@ extension MonitorTests {
         let studio = try await open(url, hal)
         _ = try await monitorT1(studio, hal)
         hal.holdAttaches()
+        defer { hal.releaseAttaches() }
+        let held = hal.inputs("duo").count
 
         let start = Task { try await studio.startRecording(armed: ["t1"], playhead: 0) }
         await until(limit: busy, "the take did not begin") { studio.transport == .recording(take: 1) }
         #expect(!studio.isStarting)
         let stop = Task { try await studio.stopRecording() }
         await until(limit: busy, "the stop did not begin") { studio.transport == .finalizing(take: 1) }
+        #expect(hal.inputs("duo").count == held, "the attach was held until the release")
         hal.releaseAttaches()
 
         try await start.value

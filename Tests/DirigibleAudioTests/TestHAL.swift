@@ -81,9 +81,8 @@ final class TestHAL: @unchecked Sendable {
     /// its two steps. With `failTeardown("aggregate")` they return an error; every step runs.
     private func makeTap(_ found: AppFound) -> (id: AudioObjectID, device: InputDevice, teardown: Detach) {
         // A held tap waits as an attach waits while the System Audio Recording prompt shows.
-        if let gate = lock.withLock({ tapGate }), gate.wait(timeout: .now() + 30) == .timedOut {
-            Issue.record("A held tap was not released in 30 s")
-        }
+        // No limit: the writer queue has no test, so an issue there names no test (waits-and-limits.md).
+        lock.withLock { tapGate }?.wait()
         let uid = found.device.uid
         let (id, layout) = lock.withLock {
             nextAggregate += 1
@@ -134,9 +133,7 @@ final class TestHAL: @unchecked Sendable {
     }
 
     private func attach(_ input: DeviceInput) throws(HALError) -> Detach {
-        if let gate = lock.withLock({ attachGate }), gate.wait(timeout: .now() + 30) == .timedOut {
-            Issue.record("A held attach was not released in 30 s")
-        }
+        lock.withLock { attachGate }?.wait()
         let delay = lock.withLock {
             attachDelays[present.first { $0.value.id == input.id }?.key ?? aggregates[input.id] ?? ""] ?? .zero
         }
@@ -190,7 +187,8 @@ final class TestHAL: @unchecked Sendable {
     /// Takes the output device `uid` out of the device list.
     func removeOutput(_ uid: String) { lock.withLock { _ = goneDevices.insert(uid) } }
 
-    /// The next taps wait until `releaseTaps`, with a limit of 30 s: the prompt of a first take.
+    /// The next taps wait until `releaseTaps`, with no limit: the prompt of a first take. The test
+    /// releases them in a `defer`.
     func holdTaps() { lock.withLock { tapGate = DispatchSemaphore(value: 0) } }
 
     /// Lets the held taps go on, and stops holding new ones.
@@ -227,7 +225,8 @@ final class TestHAL: @unchecked Sendable {
     /// Lets the held starts go on, and stops holding new ones.
     func releaseLookUps() { lock.withLock { holding = false } }
 
-    /// The next attaches wait until `releaseAttaches`, with a limit of 30 s.
+    /// The next attaches wait until `releaseAttaches`, with no limit. The test releases them in a
+    /// `defer`.
     func holdAttaches() { lock.withLock { attachGate = DispatchSemaphore(value: 0) } }
 
     /// Lets the held attaches go on, and stops holding new ones.

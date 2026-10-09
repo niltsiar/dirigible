@@ -132,7 +132,7 @@
 "track.route.missing" = "Device not connected";
 "track.route.apps" = "Apps";
 "track.route.apps.unavailable" = "Needs macOS 14.2 or later";
-"track.no.sound.settings" = "Open Settings";
+"track.no.sound.settings" = "Open Privacy Settings";
 "track.state.device.lost" = "Device lost";
 "track.state.write.failed" = "Write error";
 "track.state.retry.stopped" = "Stopped retrying. Turn Monitor Inputs off and on.";

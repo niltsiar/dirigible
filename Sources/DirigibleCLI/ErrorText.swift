@@ -54,15 +54,22 @@ extension EditFailure where Body == RevertError {
 }
 
 extension RevertError {
-    /// The file error names the backup file, not `session.xml`.
+    /// Each file error names the file that failed: the backup, `session.xml`, or `Backups`.
     func message(package: String) -> String {
         switch self {
         case .backup(let backup, let error):
             error.message(package: package, file: "\(backupsFolderName)/\(backup.fileName)")
+        case .currentCopy(let error):
+            error.message(
+                package: package, file: { if case .readFailed = error { "session.xml" } else { backupsFolderName } }())
+                + copyFirst
         case .session(let error): error.message
         }
     }
 }
+
+/// The end of the text of a failed copy before a revert.
+private let copyFirst = " The revert keeps a backup of session.xml first, so session.xml did not change."
 
 extension PasteError {
     /// No `default` case: a new error case does not compile until it has a message.

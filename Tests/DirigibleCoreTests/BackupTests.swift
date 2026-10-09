@@ -277,7 +277,9 @@ struct BackupTests {
         let lock = try PackageLock(package)
         for (backup, error) in cases {
             let backup = try #require(backup)
-            #expect(throws: error, "the revert refuses \(backup.fileName)") { try backup.readForRevert(under: lock) }
+            #expect(throws: RevertReadError.backup(error), "the revert refuses \(backup.fileName)") {
+                try backup.readForRevert(under: lock)
+            }
         }
         withExtendedLifetime(lock) {}
 

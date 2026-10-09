@@ -58,18 +58,28 @@ public struct Backup: Hashable, Comparable, Sendable {
     /// The revert source: reads this backup in the package that `lock` holds, and refuses it as
     /// `Session(contentsOf:)` refuses a `session.xml` (a newer version, a damaged file, a missing
     /// file). Then it keeps a copy of the current `session.xml`, with no due check and no prune,
-    /// so the state that the revert replaces stays on the disk. Apply the result with
-    /// `Session.reverted(to:)`.
-    public func readForRevert(under lock: PackageLock) throws(SessionFileError) -> Session {
-        let package = try lock.package()
-        let data: Data
-        do {
-            data = try Data(contentsOf: Backup.folder(of: package).appending(path: fileName))
+    /// so the state that the revert replaces stays on the disk. A failed copy refuses the revert
+    /// (decision 0043). Apply the result with `Session.reverted(to:)`.
+    public func readForRevert(under lock: PackageLock) throws(RevertReadError) -> Session {
+        let package: URL
+        let target: Session
+        do throws(SessionFileError) {
+            package = try lock.package()
+            let data: Data
+            do {
+                data = try Data(contentsOf: Backup.folder(of: package).appending(path: fileName))
+            } catch {
+                throw .readFailed(errno: posixCode(of: error))
+            }
+            target = try Session(xml: data)
         } catch {
-            throw .readFailed(errno: posixCode(of: error))
+            throw .backup(error)
         }
-        let target = try Session(xml: data)
-        _ = try Backup.keep(in: package)
+        do throws(SessionFileError) {
+            _ = try Backup.keep(in: package)
+        } catch {
+            throw .currentCopy(error)
+        }
         return target
     }
 
@@ -141,6 +151,15 @@ public struct Backup: Hashable, Comparable, Sendable {
         }
         return false
     }
+}
+
+/// Why `Backup.readForRevert(under:)` refused a revert. Nothing changed.
+public enum RevertReadError: Error, Hashable, Sendable {
+    /// The backup cannot be read, is damaged, or is of a newer version, or the package moved.
+    case backup(SessionFileError)
+    /// The copy of the current `session.xml` failed: `.readFailed` is a read of `session.xml`,
+    /// another case is a write in `Backups/`.
+    case currentCopy(SessionFileError)
 }
 
 /// When a lock-holder save keeps a backup, and how many stay (decision 0043).

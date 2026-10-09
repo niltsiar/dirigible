@@ -195,5 +195,34 @@ code=$?
 [[ $code -eq 2 && "$err" == *"tag t"* ]] || fail "grade.py packets with a used tag: exit $code: $err"
 [[ "$(shasum -a 256 "$tmp/g/run/scores.tsv" "$tmp/g/run/labels.tsv")" == "$before" ]] || fail 'grade.py with a used tag changed a file'
 
+# grade.py packets labels only the scenarios that the reports of the tag hold (the union of their
+# kept maps), one label for each run. A run with no answer to an asked scenario gets a label with
+# no quotes. stderr names each kept ID that keys.md does not have (then dropped), and each
+# scenario of keys.md that no report has.
+packets_case() {
+  local dir="$tmp/p/$1"
+  shift
+  mkdir -p "$dir"
+  printf '## E1\n(a) k\n\n## H1\n(a) k\n' > "$dir/keys.md"
+  local specs=() n=0 report
+  for report in "$@"; do
+    n=$((n + 1))
+    printf '%s\n' "$report" > "$dir/r$n.json"
+    specs+=("new:$n:$dir/r$n.json")
+  done
+  err="$(python3 "$tmp/g/scripts/eval/grade.py" packets "$dir" t 1 1 "${specs[@]}" 2>&1 >/dev/null)"
+  code=$?
+  rows="$(cut -f4,5,6 "$dir/labels.tsv" 2>/dev/null | sort | paste -sd' ' -)"
+}
+packets_case only-h1 '{"kept": {"H1": [{"quote": "q1"}]}}' '{"kept": {"H1": [{"quote": "q2"}]}}'
+[[ $code -eq 0 && "$rows" == $'H1\tnew\t1 H1\tnew\t2' ]] || fail "packets of two H1 reports: exit $code, rows [$rows]"
+[[ "$err" == *E1* ]] || fail "packets of two H1 reports: no warning names E1: [$err]"
+packets_case one-empty '{"kept": {"H1": [{"quote": "q1"}]}}' '{"kept": {}}'
+[[ $code -eq 0 && "$rows" == $'H1\tnew\t1 H1\tnew\t2' ]] || fail "packets with an empty report: exit $code, rows [$rows]"
+grep -qF -- '- (no quotes)' "$tmp/p/one-empty/grade/packet-t-1.md" 2>/dev/null || fail 'packets with an empty report: no answer with no quotes'
+packets_case unknown-id '{"kept": {"H1": [{"quote": "q1"}], "E99": [{"quote": "q9"}]}}'
+[[ $code -eq 0 && "$rows" == $'H1\tnew\t1' ]] || fail "packets with a kept E99: exit $code, rows [$rows]"
+grep -q 'E99' <<<"$err" || fail "packets with a kept E99: no warning names E99: [$err]"
+
 [[ $failures -eq 0 ]] && echo "evals-for tests: all passed"
 exit $((failures > 0))

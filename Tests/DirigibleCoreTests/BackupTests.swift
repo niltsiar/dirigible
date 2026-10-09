@@ -217,6 +217,11 @@ struct BackupTests {
         #expect(Self.names(in: package) == [Self.name(Self.time)], "a backup with twice the file size free")
     }
 
+    /// C5: a `statfs` error does not stop the backups: the save already catches a failed copy.
+    @Test func aFreeSpaceErrorDoesNotStopTheBackups() {
+        #expect(volumeFreeBytes(package.appending(path: "Gone")) == .max, "an error gives no limit")
+    }
+
     /// C5: a regular file named `Backups`, then a folder with no write access.
     @Test func aBackupFaultDoesNotStopTheSave() throws {
         try Data("not a folder".utf8).write(to: folder)

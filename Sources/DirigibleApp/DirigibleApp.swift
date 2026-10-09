@@ -28,6 +28,15 @@ struct DirigibleApp: App {
                     ForEach(TimelineCommand.fileItems, id: \.command) { item in
                         menuButton(item)
                     }
+                    Divider()
+                    // The submenu stays on; each item is off while the window is busy (decision 0043).
+                    Menu(L10n.menuFileRevertTo.key) {
+                        let menu = RevertMenu(app.key)
+                        if menu.backups.isEmpty { Button(L10n.menuFileRevertToNone.key) {}.disabled(true) }
+                        ForEach(menu.backups, id: \.self) { backup in
+                            Button(backupTitle(backup.saved)) { app.key?.revert(to: backup) }.disabled(!menu.enabled)
+                        }
+                    }
                 }
                 // The timeline items (decision 0017). A plain key is never disabled (probe K1).
                 CommandGroup(after: .toolbar) {

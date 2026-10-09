@@ -5,6 +5,8 @@
 "menu.file.open" = "Open…";
 "menu.file.open.recent" = "Open Recent";
 "menu.file.clear.recent" = "Clear Menu";
+"menu.file.revert.to" = "Revert To";
+"menu.file.revert.to.none" = "No Backups";
 "menu.file.show.clips" = "Show Clips in Finder";
 "menu.track" = "Track";
 "menu.track.add" = "Add Track";
@@ -86,6 +88,7 @@
 "error.paste.yielded" = "The paste from “%@” stopped for a take in another window. Paste again after the take.";
 "paste.banner" = "Pasting from “%@”";
 "paste.done" = "Pasted.";
+"reverted.to" = "Reverted to the backup of %@";
 
 /* Window, panels, and alerts */
 "window.opening" = "Opening the session…";

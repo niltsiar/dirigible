@@ -4,8 +4,11 @@
 <eval> is the eval folder of the run: it holds keys.md, labels.tsv, scores.tsv, and grade/.
 
 packets: grade.py packets <eval> <tag> <seed> <packets> <set>:<run>:<kept.json> ...
-  Reads keys.md and each quote-check report (--out of quote-check.py). Gives each
-  answer (set, run, scenario) a random neutral label, shuffles the answers of each
+  Reads keys.md and each quote-check report (--out of quote-check.py). The asked
+  scenarios are the union of the kept maps of the reports. stderr names each kept ID
+  that keys.md does not have (it is dropped) and each scenario of keys.md that no
+  report holds. Gives each answer (set, run, asked scenario) a random neutral label (a
+  report with no answer to it gets one with no quotes), shuffles the answers of each
   scenario, splits the scenarios into <packets> files <eval>/grade/packet-<tag>-<n>.md, and
   appends the label map to labels.tsv (the grader never reads labels.tsv).
   A tag that labels.tsv already holds exits 2.
@@ -60,14 +63,19 @@ def packets(tag, seed, n, specs):
     refuse_used(tag, "labels.tsv", 1)
     rnd = random.Random(seed)
     k = keys()
-    answers = {}
+    reports = []
     for spec in specs:
         set_name, run, path = spec.split(":", 2)
-        report = json.load(open(path, encoding="utf-8"))
-        for sid in k:
-            answers.setdefault(sid, []).append((set_name, run, report["kept"].get(sid, [])))
+        reports.append((set_name, run, json.load(open(path, encoding="utf-8"))["kept"]))
+    # The asked scenarios: the union of the kept maps, in the order of keys.md.
+    held = set().union(*(kept for _, _, kept in reports))
+    for sid in sorted(held - set(k)):
+        print(f"grade.py: a report holds {sid}, which keys.md does not have; it is dropped", file=sys.stderr)
+    for sid in [s for s in k if s not in held]:
+        print(f"grade.py: no report of tag {tag} holds {sid} of keys.md", file=sys.stderr)
+    scen = [s for s in k if s in held]
+    answers = {sid: [(set_name, run, kept.get(sid, [])) for set_name, run, kept in reports] for sid in scen}
     used = set()
-    scen = list(k)
     rnd.shuffle(scen)
     os.makedirs(os.path.join(EVAL, "grade"), exist_ok=True)
     with open(os.path.join(EVAL, "labels.tsv"), "a", encoding="utf-8") as lab:

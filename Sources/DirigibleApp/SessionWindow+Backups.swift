@@ -19,10 +19,11 @@ struct RevertMenu {
 }
 
 extension SessionWindow {
-    /// Reverts the session to `backup` as one undo entry. VoiceOver hears the backup date. An
-    /// error shows the window alert of a refused edit.
+    /// Reverts the session to `backup` as one undo entry, after it saves each typed name. VoiceOver
+    /// hears the backup date. An error shows the window alert of a refused edit.
     func revert(to backup: Backup) {
         guard let studio = idleStudio else { return }
+        commitNames()
         Task {
             do throws(StudioError) {
                 try await studio.revert(to: backup)

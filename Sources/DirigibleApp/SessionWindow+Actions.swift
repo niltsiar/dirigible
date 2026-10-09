@@ -93,7 +93,7 @@ extension SessionWindow {
     }
 
     /// Record, Close, Quit, Auto Level, Place, Retry, an import (the menu or a drop), a paste from
-    /// another package, and a mouse-down on the lanes save each typed name and the typed inspector
+    /// another package, a revert to a backup, and a mouse-down on the lanes save each typed name and the typed inspector
     /// value first, also with the focus still in its field. The generic menu entry run(_:) and the
     /// Transport menu commit only the inspector value; Remove Track drops the name drafts of its
     /// tracks.

@@ -131,6 +131,21 @@ import Testing
         await model.close()
     }
 
+    /// The revert saves the name typed in a header first, as Record and a drop do (code gate 2
+    /// item 4). One Undo gives the typed name back.
+    @Test func aRevertCommitsTheTypedNameFirst() async throws {
+        let (model, studio, planted) = try await window()
+        model.drafts["t1"] = "Typed"
+
+        model.revert(to: planted[2])
+        await until("the revert ends") { studio.session.track("t9") != nil }
+
+        #expect(model.drafts.isEmpty, "the revert ends the draft")
+        model.undo()
+        #expect(studio.session.track("t1")?.name == "Typed", "the typed name is saved before the revert")
+        await model.close()
+    }
+
     /// C18: a click reverts the key window as one undo entry, and VoiceOver hears the backup.
     @Test func aClickReverts() async throws {
         let (model, studio, planted) = try await window()

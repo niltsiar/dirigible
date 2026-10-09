@@ -1,6 +1,7 @@
 #!/bin/bash
-# Check the argument parsing of ax.swift, and the choice of the element to press in a tree from a
-# dump file (press --tree). It reads no live tree: each case ends before the Accessibility check.
+# Check the argument parsing of ax.swift, the choice of the element to press in a tree from a
+# dump file (press --tree), and the witness check of dump --tree. It reads no live tree: each case
+# ends before the Accessibility check.
 # Run by `make test-hooks`.
 set -uo pipefail
 ax="$(cd "$(dirname "$0")" && pwd -P)/ax.swift"
@@ -102,5 +103,19 @@ ROLE=AXMenuBarItem expect_press "a role that no match has" "Close" 1 "" "No elem
 expect_press "an item with an Enabled field" "File > Close" 0 "match: Dirigible > File > Close"
 expect_press "an empty title at the end" "File > " 2 "" "has an empty title"
 expect_press "an empty title in the middle" "File >  > Close" 2 "" "has an empty title"
+
+# dump --tree prints the lines of a dump file. --witness <text> exits 1 when no line of the same
+# dump has the text, so a read in a transient state that already ended is void, not a pass.
+out="$(swift "$ax" dump --tree "$tree/dump.txt" 2>&1)"
+code=$?
+[[ $code -eq 0 && "$out" == "$(cat "$tree/dump.txt")" ]] || fail "dump --tree: exit $code: $out"
+out="$(swift "$ax" dump --tree "$tree/dump.txt" --witness "Title=Close" 2>&1)"
+code=$?
+[[ $code -eq 0 && "$out" == "$(cat "$tree/dump.txt")" ]] || fail "dump --witness with a match: exit $code: $out"
+err="$(swift "$ax" dump --tree "$tree/dump.txt" --witness "Title=Absent" 2>&1 >/dev/null)"
+code=$?
+[[ $code -eq 1 && "$err" == *"no witness: Title=Absent"* ]] || fail "dump --witness with no match: exit $code: $err"
+expect_usage "dump with --witness and no text" dump --tree "$tree/dump.txt" --witness
+expect_usage "dump with --tree and no file" dump --tree
 
 [[ $failures -eq 0 ]] && echo "ax tests: all passed" || { echo "ax tests: $failures failed"; exit 1; }

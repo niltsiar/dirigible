@@ -307,6 +307,32 @@ struct BackupTests {
         #expect(Self.names(in: package).count == 22, "a second read adds no file")
     }
 
+    /// C9 core: 20 backups, and `session.xml` has the bytes of the oldest (a saved revert to it).
+    /// A revert to the newest, an edit, and a due save that prunes. The replaced state stays.
+    @Test func aRevertKeepsTheStateItReplacesPastThePrune() throws {
+        let states = try (1...20).map(Self.state)
+        for (index, state) in states.enumerated() {
+            try Self.plant(
+                Self.time - 600 * (index + 1), String(decoding: try state.checkedData(), as: UTF8.self), in: package)
+        }
+        let replaced = try states[19].checkedData()
+        try replaced.write(to: sessionXML)
+        try Self.setTime(of: sessionXML, to: Self.time)
+        do {
+            let lock = try PackageLock(package)
+            let newest = try #require(Backup(fileName: Self.name(Self.time - 600)))
+            #expect(try newest.readForRevert(under: lock) == states[0])
+            withExtendedLifetime(lock) {}
+        }
+
+        try Self.save(Self.state(30), in: package)
+        try Self.setTime(of: sessionXML, to: Self.time + 600)
+        try Self.save(Self.state(31), in: package)
+
+        let held = Self.names(in: package).map { try? Data(contentsOf: folder.appending(path: $0)) }
+        #expect(held.contains(replaced), "the state that the revert replaced stays after the prune")
+    }
+
     /// C4, the take-start branch: `.none` keeps and deletes no backup, also when one is due.
     @Test func noBackupPolicyAddsNothing() throws {
         for index in 1...20 { try Self.plant(Self.time - 600 * index, "planted \(index)", in: package) }

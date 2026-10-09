@@ -41,17 +41,20 @@ enum LanguageChoice: Hashable {
 
 /// Dirigible > Settings: one pane with the language pop-up (run 15 UI panel).
 struct SettingsView: View {
-    /// Nil: no read and no write (tests). `defaults` and `domain` of `init` name the same domain.
+    /// Nil: no read and no write (tests, or no bundle ID under `swift run`). `defaults` and
+    /// `domain` of `init` name the same domain.
     let defaults: UserDefaults?
     /// The first value comes from `init`, not from `onAppear`: a set there runs `onChange`, which
     /// writes over a stored list such as `["fr", "es"]`.
     @State private var choice: LanguageChoice
 
     init(defaults: UserDefaults?, domain: String?) {
-        self.defaults = defaults
+        // One guard for the read and the write, so the pop-up always shows what a pick stores.
         if let defaults, let domain {
+            self.defaults = defaults
             _choice = State(initialValue: LanguageChoice(defaults, domain: domain))
         } else {
+            self.defaults = nil
             _choice = State(initialValue: .system)
         }
     }

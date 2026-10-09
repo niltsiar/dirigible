@@ -59,4 +59,14 @@ struct LanguageChoiceTests {
         LanguageChoice.system.write(to: defaults)
         #expect(defaults.persistentDomain(forName: domain)?[LanguageChoice.key] == nil)
     }
+
+    /// With no domain, the view neither reads nor writes: a write through `defaults` alone would
+    /// store a choice that the pop-up then does not show (code gate item 1).
+    @MainActor @Test func noDomainNeitherReadsNorWrites() throws {
+        let domain = "DirigibleTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        #expect(SettingsView(defaults: defaults, domain: nil).defaults == nil)
+        #expect(SettingsView(defaults: defaults, domain: domain).defaults === defaults)
+    }
 }

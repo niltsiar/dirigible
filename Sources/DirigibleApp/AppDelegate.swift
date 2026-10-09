@@ -26,6 +26,8 @@ import UniformTypeIdentifiers
     /// The peak cache folder of every studio (decision 0017). Nil: no peaks (tests).
     @ObservationIgnored let peakCache: URL?
     /// The app preferences that a session window reads at open and writes (the header width).
+    /// The Settings language pick writes `AppleLanguages` here too, so the app passes `.standard`:
+    /// the runtime reads the language from the app domain at launch, never from a suite.
     /// Nil: the defaults of each value and no writes (tests, learning 4475c89).
     @ObservationIgnored let defaults: UserDefaults?
     /// The packages of the list at launch that exist, read once off the main actor (decision

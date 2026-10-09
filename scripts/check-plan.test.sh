@@ -131,6 +131,15 @@ good
 printf '## Consider\n\n- (nit, x; taken) A note.\n- (nit, y) Another note.\n' > "$review"
 refuse 'a taken Consider nit with no field' 'review-plan-1.md: Consider item 1 has no Siblings field'
 good
+printf '## Consider\n\n- (nit, x) A note. Taken: a test case.\n' > "$review"
+refuse 'a Consider nit with Taken outside the first parenthesis' 'review-plan-1.md: Consider item 1 has no Invariant field'
+good
+printf '## Consider\n\n- S3 (bash 3.2) is slow. (nit, x; taken) A note.\n' > "$review"
+refuse 'a Consider nit whose tag is not the first parenthesis' 'review-plan-1.md: Consider item 1 has no Invariant field'
+good
+printf '## Consider\n\n- (nit, x; not taken) A note. Not taken: no case.\n' > "$review"
+pass 'a Consider nit with not taken in and outside the parenthesis'
+good
 printf '## Consider\n\n- (nit, x; taken) A note.\n  - Invariant: x\n  - Siblings: y\n' > "$review"
 pass 'a taken Consider nit with both fields'
 good

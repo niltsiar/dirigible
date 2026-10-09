@@ -10,7 +10,7 @@ extension Studio {
     /// file fails: the revert keeps that copy first. Throws `.session(.trackInRecording)`
     /// for a backup that removes an armed track or changes its route or layout. A throw leaves the
     /// session unchanged. Throws `.busy` also when an edit, an undo, or a redo came after the
-    /// call: the kept copy can miss that change.
+    /// call: the kept copy can miss that change. After a revert, it checks the pool files again.
     public func revert(to backup: Backup) async throws(StudioError) {
         let revision = sessionRevision
         try checkIdle()
@@ -33,6 +33,8 @@ extension Studio {
             return .success(())
         }
         try read.get()
+        // The backup can name pool files that are not on the disk, as at open (decision 0016).
+        await checkMedia()
     }
 }
 

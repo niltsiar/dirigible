@@ -10,6 +10,7 @@
 - Amended: 2026-10-03. At open, a window arms each routed track in track order, except a track that uses a channel or an app of an earlier armed track (`tracksToArm`, run 6b). Two armed tracks on one channel stop a take.
 - Amended: 2026-09-30. Open Recent and the start window read the recent sessions from the app preferences (key `recent.sessions`, absolute paths, 10 at most), not from `recentDocumentURLs`. The list of `NSDocumentController` belongs to the code signature, and each ad-hoc build has a new one. The app still calls `noteNewRecentDocumentURL` for the Dock menu (see 0027).
 - Amended: 2026-10-08, run app-bug-batch. In the Stop and Close question, Stop and Close is the default button (Return) with no destructive style, as Stop and Quit; Cancel has the cancel role (Esc). The questions after a failed save, Close and Quit, have the destructive style and no Return; Esc gives Cancel. One key must not drop edits that Undo cannot give back.
+- Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). Versions is decided: it takes no part. Backups are copies of `session.xml` in `Backups/` of the package, and File > Revert To restores one as one undo entry that keeps `<recording>`.
 
 ## Context
 
@@ -42,7 +43,7 @@ Probes on 2026-09-24 (macOS 15.7.9, x86_64, APFS, Swift 6.2.4; `.scratchpads/run
 
 **New session.** `Session.create(at:sampleRate:)` makes the package folder with `mkdir`, so it never replaces a path that exists (`.exists`). It writes `session.xml`, then flushes the parent folder. A failure after `mkdir` removes the new folder. The rate is 48,000 Hz. The CLI `create` uses the same call. The app New Session calls `Studio.create`, which makes the package with `Session.create` and opens it; the window takes that open studio.
 
-**No Versions and no undo journal in Release 1.** A Versions restore deletes newer takes (P2), and the `NSDocument` path that offers Versions swaps the package (P1). The Release 2 autosave design (F62) decides again, with these rules: a revert restores `session.xml` only, as one undo entry that keeps `<recording>` (0003, 0004); no `NSDocument` save path writes the package.
+**No Versions and no undo journal in Release 1.** A Versions restore deletes newer takes (P2), and the `NSDocument` path that offers Versions swaps the package (P1). The Release 2 autosave design (F62) decides again, with these rules: a revert restores `session.xml` only, as one undo entry that keeps `<recording>` (0003, 0004); no `NSDocument` save path writes the package. (Amended by 0043: Versions takes no part; backups are copies of `session.xml` in the package.)
 
 **Active recordings.** `ActiveRecordings` in `DirigibleAudio` is the 0004 hint: a plist array of package paths. `Studio` adds the package after the start save and before the attach, and removes it after the save that removes `<recording>`. `Studio.open` sets it from `session.recording` after its save. The app gives the file `~/Library/Application Support/com.delineas.dirigible/active-recordings.plist`; a write makes the folder when it is missing, and a failed write is logged. The CLI and the tests give none. At launch, the app reads the list once, off the main actor, opens each listed package that exists, and shows the Open panel when no window opened.
 

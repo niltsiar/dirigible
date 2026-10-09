@@ -2,11 +2,11 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
-/// The tools of `dirigible mcp`, in a fixed order: session, track, marker, pool, clip, ripple
-/// (decision 0041). The name of an edit tool is its command words with `_` for each space and
+/// The tools of `dirigible mcp`, in a fixed order: session, track, marker, pool, clip, ripple,
+/// backup (decisions 0041 and 0043). The name of an edit tool is its command words with `_` for each space and
 /// hyphen, and its arguments have the option names of the command.
 extension Tool {
-    static let all = sessionTools + trackTools + markerTools + poolTools + clipTools + rippleTools
+    static let all = sessionTools + trackTools + markerTools + poolTools + clipTools + rippleTools + backupTools
 }
 
 /// The parameters that more than one tool has.
@@ -232,4 +232,18 @@ let poolTools = [
             return []
         }
     },
+]
+
+private let backupName = Param.required(
+    "name", "The backup file name, as backup_list gives it.",
+    Kind(schema: ["type": "string"], expected: backupNameExpected) { ($0 as? String).flatMap(Backup.init(fileName:)) })
+
+let backupTools = [
+    Tool("backup_list", "Give the backup file names of the session, newest first.", [], saves: false) { _ in
+        .backups
+    },
+    Tool(
+        "backup_revert", "Revert the session to a backup. It keeps a backup of the replaced session first.",
+        [backupName]
+    ) { a throws(ToolError) in .revert(try a[backupName]) },
 ]

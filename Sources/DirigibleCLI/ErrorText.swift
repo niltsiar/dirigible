@@ -42,6 +42,27 @@ extension EditFailure where Body == PasteError {
     }
 }
 
+extension EditFailure where Body == RevertError {
+    func message(package: String) -> String {
+        switch self {
+        case .file(let error): error.message(package: package)
+        case .pendingTake: pendingTakeMessage(package)
+        case .splitTake: splitTakeMessage(package)
+        case .body(let error): error.message(package: package)
+        }
+    }
+}
+
+extension RevertError {
+    /// The file error names the backup file, not `session.xml`.
+    func message(package: String) -> String {
+        switch self {
+        case .backup(let backup, let error): error.message(package: package, file: "Backups/\(backup.fileName)")
+        case .session(let error): error.message
+        }
+    }
+}
+
 extension PasteError {
     /// No `default` case: a new error case does not compile until it has a message.
     var message: String {
@@ -104,8 +125,8 @@ extension SessionError {
 
 extension SessionFileError {
     /// No `default` case: a new error case does not compile until it has a message.
-    func message(package: String) -> String {
-        let file = "\(package)/session.xml"
+    func message(package: String, file name: String = "session.xml") -> String {
+        let file = "\(package)/\(name)"
         return switch self {
         case .malformedXML: "\(file) is not a Dirigible session file."
         case .unsupportedVersion(let version):

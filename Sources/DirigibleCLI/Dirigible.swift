@@ -11,7 +11,8 @@ struct Dirigible: AsyncParsableCommand {
         subcommands: [
             Create.self, Info.self, TrackCommand.self, FileCommand.self, CaptureCommand.self, ClipCommand.self,
             MarkerCommand.self, TakeCommand.self, Devices.self, Apps.self, Record.self, Render.self, Export.self,
-            PeaksCommand.self, LoudnessCommand.self, LevelCommand.self, ImportCommand.self, MCPCommand.self,
+            PeaksCommand.self, LoudnessCommand.self, LevelCommand.self, ImportCommand.self, BackupCommand.self,
+            MCPCommand.self,
         ])
 }
 

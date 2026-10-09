@@ -588,11 +588,16 @@ These commands change clips and the export. `info` shows the clip IDs. A length 
 - `dirigible clip crossfade Demo.dirigible --clip <clip> --length 4800` crossfades a clip into the clip that starts where it ends. The length is an even number of frames, and 0 removes the crossfade. Both clips need audio in their files past the join, for half the length. Play and export use the crossfade, and `info` shows it. Two parts of a split clip that continue the same audio get no crossfade. An edit that breaks the join, for example a move or a delete of one clip, removes the crossfade. A session with a crossfade does not open in a version of Dirigible from before the crossfades.
 - `dirigible export Demo.dirigible --out Episode.mp3 --loudness podcast` exports with a loudness target: `podcast`, `speech`, `ebu`, or `atsc`, as the **Loudness** setting of the export panel.
 
+These commands use the backups of the session in `Backups/`:
+
+- `dirigible backup list Demo.dirigible` writes the backup file names, newest first.
+- `dirigible backup revert Demo.dirigible --name <file name>` reverts the session to a backup. First it keeps a backup of the session that it replaces.
+
 The text of the tool is English only.
 
 ### Connect an agent with MCP
 
-An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create` and `session_info`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
+An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create`, `session_info`, and `backup_list`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
 
 Register the server once for your user:
 
@@ -611,7 +616,7 @@ claude mcp add --scope user dirigible -- "$PWD/.build/debug/dirigible" mcp
 
 The registered binary is in `.build`. Run `make build` again after `make clean`.
 
-The 31 tools, in groups:
+The 33 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
@@ -619,12 +624,13 @@ The 31 tools, in groups:
 - Pool: `capture_remove`, `file_remove`.
 - Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`.
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
+- Backup: `backup_list`, `backup_revert`.
 
 `session_info` gives the JSON of `dirigible info --json` on one line. The JSON of a long edited session is too large for the agent, so a `session_info` answer over a size limit is an overview: each track with its clip count, the end frame, and the marker count. Then the agent reads the session in parts: `from` and `to` give only the clips and markers that touch that frame range, and `tracks` gives only those tracks. With a filter, the answer has only the files and captures of the clips in it.
 
 - The server does not edit a package that the app has open. The tool gives the error "`<path>` is open in Dirigible." Close the session in the app, then try again.
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
-- A tool call has no undo. Each call saves the package. Make a copy of the session before an agent edits it.
+- A tool call has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
 - `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another session package, with `onto`. In the terminal, `dirigible clip paste` and `dirigible clip paste-clips` take `--source` and `--onto`. The call copies the audio files of the clips into the package, or converts them at another sample rate. A long copy or conversion runs to the end and saves, also when the agent stops waiting, so the agent reads `session_info` before a retry.
 - These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `devices` and `apps` read no package, and `mcp` is the server. Run these commands in the terminal.
 

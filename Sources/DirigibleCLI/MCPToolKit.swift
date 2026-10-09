@@ -20,6 +20,10 @@ enum ToolWork: Sendable {
     case create(sampleRate: Int)
     /// A paste from another package (decision 0042): files copy or convert under the lock.
     case paste(PasteWork)
+    /// `backup_list`: no lock, as `session_info` (decision 0043).
+    case backups
+    /// `backup_revert`: an edit under the lock that reads the backup.
+    case revert(Backup)
 }
 
 /// The JSON Schema of one property, with JSON values only.

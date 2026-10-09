@@ -8,7 +8,7 @@ package let backupsFolderName = "Backups"
 public struct Backup: Hashable, Comparable, Sendable {
     /// The time of the copied `session.xml`, in milliseconds since 1970. An integer, so a name
     /// and a compare never round.
-    let milliseconds: Int64
+    var milliseconds: Int64
 
     /// The modification time of the copied `session.xml`, to the millisecond.
     public var saved: Date { Date(timeIntervalSince1970: TimeInterval(milliseconds) / 1000) }
@@ -76,8 +76,9 @@ public struct Backup: Hashable, Comparable, Sendable {
     static func folder(of package: URL) -> URL { package.appending(path: backupsFolderName) }
 
     /// Copies `session.xml` of `package` to `Backups/<name of its mtime>` with the durable write
-    /// of a save. Returns nil and copies nothing when a backup has the same bytes, so the caller
-    /// prunes only after a new copy. Only a lock holder calls it.
+    /// of a save. When a backup has that name, the name gets 1 ms more until it is free. Returns
+    /// nil and copies nothing when a backup has the same bytes, so the caller prunes only after a
+    /// new copy. Only a lock holder calls it.
     static func keep(in package: URL) throws(SessionFileError) -> Backup? {
         let source = package.appending(path: "session.xml")
         var info = stat()
@@ -98,7 +99,10 @@ public struct Backup: Hashable, Comparable, Sendable {
         if all(in: package).contains(where: { (try? Data(contentsOf: folder.appending(path: $0.fileName))) == data }) {
             return nil
         }
-        let backup = Backup(info.st_mtimespec)
+        var backup = Backup(info.st_mtimespec)
+        // A coarse mtime (HFS+ 1 s, exFAT 10 ms) gives two states one name. A file with the name
+        // has other bytes here, so the copy takes the next free millisecond and never replaces it.
+        while access(folder.appending(path: backup.fileName).path, F_OK) == 0 { backup.milliseconds += 1 }
         try replaceDurably(folder.appending(path: backup.fileName), with: data)
         return backup
     }

@@ -24,9 +24,9 @@ import Observation
     /// but is not audio can never place, so it does not.
     public var rippleSegments: [SegmentName] { unplacedSegments.filter { !notAudioSegments.contains($0) } }
     public var canUndo: Bool { history.canUndo }
+    public var canRedo: Bool { history.canRedo }
     /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
     public internal(set) var backups: [Backup]
-    public var canRedo: Bool { history.canRedo }
 
     private var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.

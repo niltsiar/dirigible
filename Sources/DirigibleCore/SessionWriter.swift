@@ -114,9 +114,9 @@ extension Session {
     }
 
     /// Deletes the leftover temporary files of a crash: the `.session.xml.<UUID>.tmp` files of a
-    /// save and of a backup, and each `Clips/.<stem>.wav.tmp` of an import or a finalize that no file of the pool
-    /// names. Call it only under the package lock: without the lock it can delete the file of a
-    /// save, an import, or a finalize in progress.
+    /// save and of a backup, and each `Clips/.<stem>.wav.tmp` of an import or a finalize that no
+    /// file of the pool names. Call it only under the package lock: without the lock it can delete
+    /// the file of a save, an import, or a finalize in progress.
     public func removeTemporaryFiles(in package: URL) {
         func names(_ folder: URL) -> [String] {
             (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []

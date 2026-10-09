@@ -3,8 +3,8 @@ import DirigibleCore
 import Foundation
 
 /// The tools of `dirigible mcp`, in a fixed order: session, track, marker, pool, clip, ripple,
-/// backup (decisions 0041 and 0043). The name of an edit tool is its command words with `_` for each space and
-/// hyphen, and its arguments have the option names of the command.
+/// backup (decisions 0041 and 0043). The name of an edit tool is its command words with `_` for
+/// each space and hyphen, and its arguments have the option names of the command.
 extension Tool {
     static let all = sessionTools + trackTools + markerTools + poolTools + clipTools + rippleTools + backupTools
 }

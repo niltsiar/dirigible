@@ -29,13 +29,14 @@ extension SessionWindow {
     var canExport: Bool { exportStudio.flatMap { source(of: .session, in: $0) } != nil }
     var canExportSelection: Bool { exportStudio.flatMap { source(of: .selection, in: $0) } != nil }
 
-    /// Import Audio, Export, and Export Selection are off when they cannot run. Their keys have Command, so the
+    /// Import Audio, Export, Export Selection, and Export Chapters are off when they cannot run. Their keys have Command, so the
     /// plain-key rule (probe K1) does not apply. During an import, the edit items whose key no text field uses
     /// are off (run 13a, C6). The other items are never off: a field uses their keys (0018 K1).
     func isOn(_ command: TimelineCommand) -> Bool {
         switch command {
         case .export: canExport
         case .exportSelection: canExportSelection
+        case .exportChapters: canExportChapters
         case .importAudio: canImport
         case .insert, .cutSelectedTracks, .fade, .autoLevel, .autoLevelPerTrack: importJob == nil
         case .zoomBack: timeline.canGoBack
@@ -132,11 +133,59 @@ extension SessionWindow {
         }
     }
 
+    /// The range of Export Chapters: the Marks when Export Selection is on, else the whole session.
+    /// `marks` is true for the Marks.
+    private func chaptersRange(in studio: Studio) -> (range: Range<Frames>, marks: Bool) {
+        source(of: .selection, in: studio).map { ($0.range, true) } ?? (.zero..<studio.session.end, false)
+    }
+
+    var canExportChapters: Bool {
+        exportStudio.map { !$0.session.chapters(in: chaptersRange(in: $0).range).isEmpty } ?? false
+    }
+
+    /// Option-Command-E: the save panel, then an atomic write of the JSON off the main actor. The
+    /// file has the session of the command. A failed write shows the export alert of its errno.
+    func exportChapters() {
+        guard let studio = exportStudio, let window, let app else { return }
+        let (range, marks) = chaptersRange(in: studio)
+        guard let data = studio.session.chaptersJSON(in: range) else { return }
+        exportStep = .choosing
+        let name = url.deletingPathExtension().lastPathComponent + ".chapters.json"
+        app.chooseChaptersExport(window, name, marks ? L10n.panelChaptersMarks.text : nil) { [weak self] target in
+            guard let self, exportStep == .choosing else { return }
+            exportStep = nil
+            guard let target else { return }
+            Task {
+                do {
+                    try await Task.detached { try data.write(to: target, options: .atomic) }.value
+                } catch {
+                    alert = .error(.export(ExportError(writing: error)))
+                }
+            }
+        }
+    }
+
     /// The Cancel button of the progress sheet.
     func cancelExport() { studio?.cancelExport() }
 
     /// The pool path of each file, sorted.
     private func paths(of faults: [FileID: MediaFault], in session: Session) -> [String] {
         faults.keys.map { session.files[$0]?.path ?? $0.rawValue }.sorted()
+    }
+}
+
+extension ExportError {
+    /// The error of a failed atomic write of a small file. Foundation gives the POSIX errno under
+    /// the CocoaError (probe-errno of run 2026-10-09-chapters-export). ENOSPC is a full disk.
+    /// Another errno came from the temporary file or the rename, so it is `.moveFailed`. An error
+    /// with no POSIX cause gives EIO. No errno goes into `.writeFailed`, which holds an OSStatus.
+    init(writing error: any Error) {
+        guard let cause = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError,
+            cause.domain == NSPOSIXErrorDomain
+        else {
+            self = .moveFailed(EIO)
+            return
+        }
+        self = cause.code == Int(ENOSPC) ? .diskFull : .moveFailed(Int32(cause.code))
     }
 }

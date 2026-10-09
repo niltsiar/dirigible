@@ -272,7 +272,9 @@
 /* Export (decision 0019) */
 "menu.file.export" = "Export…";
 "menu.file.export.selection" = "Export Selection…";
+"menu.file.export.chapters" = "Export Chapters…";
 "menu.file.import" = "Import Audio…";
+"panel.chapters.marks" = "The chapter times start at the in point.";
 "panel.export.format" = "Format";
 "panel.export.note.one" = "%lld track muted or not soloed: not in the export.";
 "panel.export.note.many" = "%lld tracks muted or not soloed: not in the export.";

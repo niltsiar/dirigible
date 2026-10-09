@@ -44,6 +44,7 @@ import Testing
                 "muteTracks m \(shift)", "soloTracks s \(shift)", "importAudio t \(command)",
                 "showInFinder r \(EventModifiers([.command, .shift]).rawValue)", "export e \(command)",
                 "exportSelection e \(EventModifiers([.command, .shift]).rawValue)",
+                "exportChapters e \(EventModifiers([.command, .option]).rawValue)",
             ])
         #expect(
             TimelineCommand.toolItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [

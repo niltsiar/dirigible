@@ -16,6 +16,7 @@ enum L10n: String, CaseIterable {
     case menuFileShowClips = "menu.file.show.clips"
     case menuFileExport = "menu.file.export"
     case menuFileExportSelection = "menu.file.export.selection"
+    case menuFileExportChapters = "menu.file.export.chapters"
     case menuFileImport = "menu.file.import"
     case menuFileRevertTo = "menu.file.revert.to"
     case menuFileRevertToNone = "menu.file.revert.to.none"
@@ -121,6 +122,7 @@ enum L10n: String, CaseIterable {
     case settingsLanguageRestart = "settings.language.restart"
 
     case panelExportFormat = "panel.export.format"
+    case panelChaptersMarks = "panel.chapters.marks"
     case panelExportNoteOne = "panel.export.note.one"
     case panelExportNoteMany = "panel.export.note.many"
     case panelExportNoteSilent = "panel.export.note.silent"

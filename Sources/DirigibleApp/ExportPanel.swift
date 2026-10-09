@@ -129,6 +129,22 @@ enum ExportPanel {
     }
 }
 
+extension ExportPanel {
+    /// The save panel of Export Chapters: a JSON file, with `message` when the times start at the
+    /// in point. The panel asks before it replaces a file.
+    @MainActor static func beginChapters(
+        for window: NSWindow, name: String, message: String?, done: @escaping @MainActor (URL?) -> Void
+    ) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.allowedContentTypes = [.json]
+        if let message { panel.message = message }
+        panel.beginSheetModal(for: window) { response in
+            MainActor.assumeIsolated { done(response == .OK ? panel.url : nil) }
+        }
+    }
+}
+
 private struct ExportAccessory: View {
     @Bindable var settings: ExportSettings
     let sessionRate: Int

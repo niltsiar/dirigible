@@ -26,7 +26,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Add markers and chapters in the time ruler.
 - Export WAV, AAC (.m4a), MP3, or FLAC, in mono or stereo, at 44.1 kHz or 48 kHz, at a loudness target such as -16 LUFS for a podcast, with the true peak at or under -1 dBTP.
 
-Dirigible does not yet write chapters into the export. Delete leaves silence. See [What Dirigible does not do yet](docs/guide.md#what-dirigible-does-not-do-yet).
+Dirigible does not yet write chapters into the export. File > Export Chapters writes a chapters.json file for your podcast host. Delete leaves silence. See [What Dirigible does not do yet](docs/guide.md#what-dirigible-does-not-do-yet).
 
 ## Install
 

@@ -9,18 +9,29 @@ extension Studio {
     /// Throws `.file` for a newer, damaged, or missing backup, and when the copy of the current
     /// file fails: the revert keeps that copy first. Throws `.session(.trackInRecording)`
     /// for a backup that removes an armed track or changes its route or layout. A throw leaves the
-    /// session unchanged.
+    /// session unchanged. Throws `.busy` also when the session changed during the wait or the
+    /// read: the kept copy does not have that change.
     public func revert(to backup: Backup) async throws(StudioError) {
+        let before = session
         try checkIdle()
-        let read = await serialized { () async -> Result<Session, StudioError> in
+        let read = await serialized { () async -> Result<Void, StudioError> in
             if let saveError { return .failure(saveError) }
-            let result = await readBackup(backup, lock: lock)
-            if case .success(let read) = result { backups = read.backups }
-            return result.map(\.session)
+            let target: Session
+            switch await readBackup(backup, lock: lock) {
+            case .success(let read): (target, backups) = (read.session, read.backups)
+            case .failure(let error): return .failure(error)
+            }
+            // An edit, an undo, or a take start during the await is not in the kept copy (AGENTS.md,
+            // Actors). The edit runs in this turn, so no other job runs between the check and it.
+            guard session == before else { return .failure(.busy) }
+            do throws(StudioError) {
+                try edit { session throws(SessionError) in session = try session.reverted(to: target) }
+            } catch {
+                return .failure(error)
+            }
+            return .success(())
         }
-        let target = try read.get()
-        // `edit` runs `checkIdle` again: a take can start during the read (AGENTS.md, Actors).
-        try edit { session throws(SessionError) in session = try session.reverted(to: target) }
+        try read.get()
     }
 }
 

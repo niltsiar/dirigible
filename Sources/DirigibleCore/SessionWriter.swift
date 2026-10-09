@@ -80,13 +80,21 @@ extension Session {
     /// The write of a lock holder (decision 0014): writes `session.xml` in the package that `lock`
     /// holds now, which a rename can have moved, and returns that package path. It never makes the
     /// package folder, so a stale path gets no new package. Throws `.packageMoved` when the package
-    /// left its volume.
+    /// left its volume. Before the replace, it keeps a backup of the old file in `Backups/` when
+    /// one is due (decision 0043).
     @discardableResult
     public func write(under lock: PackageLock) throws(SessionFileError) -> URL {
+        try write(under: lock, backups: .standard)
+    }
+
+    @discardableResult
+    func write(under lock: PackageLock, backups: BackupPolicy) throws(SessionFileError) -> URL {
         let data = try checkedData()
         let package = try lock.package()
         let clips = package.appending(path: clipsFolderName)
         guard mkdir(clips.path, 0o755) == 0 || errno == EEXIST else { throw posixError("createDirectory") }
+        // A backup fault never fails the save.
+        try? backups.keepIfDue(in: package)
         try replaceDurably(package.appending(path: "session.xml"), with: data)
         return package
     }
@@ -106,15 +114,15 @@ extension Session {
     }
 
     /// Deletes the leftover temporary files of a crash: the `.session.xml.<UUID>.tmp` files of a
-    /// save, and each `Clips/.<stem>.wav.tmp` of an import or a finalize that no file of the pool
+    /// save and of a backup, and each `Clips/.<stem>.wav.tmp` of an import or a finalize that no file of the pool
     /// names. Call it only under the package lock: without the lock it can delete the file of a
     /// save, an import, or a finalize in progress.
     public func removeTemporaryFiles(in package: URL) {
         func names(_ folder: URL) -> [String] {
             (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
         }
-        for name in names(package) where isTemporaryName(name) {
-            unlink(package.appending(path: name).path)
+        for folder in [package, Backup.folder(of: package)] {
+            for name in names(folder) where isTemporaryName(name) { unlink(folder.appending(path: name).path) }
         }
         let pool = Set(
             files.values.map { $0.path.split(separator: "/").filter { $0 != "." }.joined(separator: "/").lowercased() })
@@ -237,7 +245,7 @@ private func text(_ value: Double) -> String {
 
 /// Replaces `target` so that a crash or a power loss leaves the old file or the new file, never
 /// a part: write a temporary file, flush it to the disk, rename it, then flush the folder.
-private func replaceDurably(_ target: URL, with data: Data) throws(SessionFileError) {
+func replaceDurably(_ target: URL, with data: Data) throws(SessionFileError) {
     let folder = target.deletingLastPathComponent()
     // One name per save, so two saves that overlap never write into the same file.
     let temporary = folder.appending(path: temporaryName(UUID()))

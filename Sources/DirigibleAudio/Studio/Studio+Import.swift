@@ -120,8 +120,9 @@ extension Studio {
             switch await writeSession(
                 edited, lock: lock, previous: url, recordings: recordings, environment.saveSession)
             {
-            case .success(let package):
-                url = package
+            case .success(let written):
+                url = written.package
+                backups = written.backups
                 recordLevel(edited)
                 poolChanged(from: before.files)
                 return .success(value)

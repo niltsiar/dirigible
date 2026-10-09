@@ -88,7 +88,7 @@ extension Session {
     }
 
     @discardableResult
-    func write(under lock: PackageLock, backups: BackupPolicy) throws(SessionFileError) -> URL {
+    package func write(under lock: PackageLock, backups: BackupPolicy) throws(SessionFileError) -> URL {
         let data = try checkedData()
         let package = try lock.package()
         let clips = package.appending(path: clipsFolderName)

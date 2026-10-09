@@ -215,19 +215,20 @@ public func remainingRecordTime(free: Int64, wav: Int64, channels: Int, rate: In
 }
 
 /// The autosave step, off the main actor. Returns the package path that it wrote, in
-/// `packageIdentity` form, or the error of the write.
-/// A write into a package that moved from `previous` moves its list entry.
+/// `packageIdentity` form, and the backups after the write (decision 0043), or the error of the
+/// write. A write into a package that moved from `previous` moves its list entry.
 @concurrent nonisolated func writeSession(
     _ session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
     _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL
-) async -> Result<URL, StudioError> {
+) async -> Result<(package: URL, backups: [Backup]), StudioError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
-    let package: URL
+    let written: URL
     do throws(SessionFileError) {
-        package = packageIdentity(try await save(session, lock))
+        written = try await save(session, lock)
     } catch {
         return .failure(.file(error))
     }
+    let package = packageIdentity(written)
     if package != previous { recordings?.set(package, active: session.recording != nil, previous: previous) }
-    return .success(package)
+    return .success((package, Backup.all(in: written)))
 }

@@ -264,4 +264,15 @@ struct BackupTests {
         withExtendedLifetime(lock) {}
         #expect(Self.names(in: package).count == 22, "a second read adds no file")
     }
+
+    /// C4, the take-start branch: `.none` keeps and deletes no backup, also when one is due.
+    @Test func noBackupPolicyAddsNothing() throws {
+        for index in 1...20 { try Self.plant(Self.time - 600 * index, "planted \(index)", in: package) }
+        let before = Self.names(in: package)
+
+        try Self.save(Self.state(1), in: package, .none)
+
+        #expect(Self.names(in: package) == before, "a save with no backup policy adds and deletes no file")
+        #expect(try Session(contentsOf: package) == Self.state(1))
+    }
 }

@@ -10,7 +10,9 @@
 //                                             one line per element: role, title, label, value, help;
 //                                             with --tree, the lines of a dump file; with
 //                                             --witness, exit 1 when no line of the dump has <text>
-//                                             (a field that holds only in the state to read)
+//                                             (a text of only the state to read, for example a
+//                                             progress Value=0.): that dump is void, so read again
+//                                             in the state
 //        ax.swift find <text>                 the elements whose line has <text>
 //        ax.swift press <path> [--tree <file>] [--role <role>]
 //                                             the press action of the one element that <path>

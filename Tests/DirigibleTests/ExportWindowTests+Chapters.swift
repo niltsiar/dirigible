@@ -47,6 +47,18 @@ extension ExportWindowTests {
         await model.close()
     }
 
+    /// Code gate item 1. A chapter at or after the session end is past the audio: the item is off,
+    /// also when the session has no clip.
+    @Test func aChapterPastTheAudioLeavesTheItemOff() async throws {
+        let (model, studio, _) = try await window()
+        try addChapter(at: 480_000, studio)
+        #expect(!model.isOn(.exportChapters), "a chapter at the session end")
+        try studio.edit { session throws(SessionError) in try session.removeClips(["c1"]) }
+        #expect(studio.session.end == .zero)
+        #expect(!model.isOn(.exportChapters), "no clip")
+        await model.close()
+    }
+
     /// C15, the release-line test. Control: the range 0..<end gives 4, not 2.
     @Test func exportSelectionRangeGivesTheOffset() async throws {
         let file = folder.url.appending(path: "chosen.json")

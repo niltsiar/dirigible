@@ -72,6 +72,49 @@ struct ChaptersCommandTests {
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }
 
+    /// Code gate item 1. A chapter at or after the session end is past the audio: the file leaves
+    /// it out, and stderr names it. With --to past it, it is in the range and in the file.
+    @Test func chaptersPastTheEndGetAWarning() async throws {
+        try package.edit { session in
+            try session.setMarker(Marker(id: "c", name: "Credits", position: 960_000, kind: .chapter))
+            try session.setMarker(Marker(id: "d", name: "Bonus", position: 1_000_000, kind: .chapter))
+        }
+        let file = out("past.json")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", file.path)
+                == CLIResult(
+                    status: 0, stdout: "",
+                    stderr: """
+                        Warning: chapter "Credits" at 960000 is at or after the session end 960000; the file leaves it out.
+                        Warning: chapter "Bonus" at 1000000 is at or after the session end 960000; the file leaves it out.
+
+                        """))
+        #expect(try startTimes(file) == [10, 12])
+        let wide = out("wide.json")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", wide.path, "--to", "1100000")
+                == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(try startTimes(wide) == [10, 12, 20, 20.833])
+    }
+
+    /// Code gate item 1. A session with chapters and no clip has no range: exit 1, not 64.
+    @Test func aSessionWithNoAudioExitsOne() async throws {
+        var session = Session(sampleRate: 48_000)
+        try session.setMarker(Marker(id: "a", name: "Intro", position: 48_000, kind: .chapter))
+        let empty = try TemporaryPackage(session)
+        let file = empty.folder.appending(path: "none.json")
+        #expect(
+            try await empty.run("chapters", "export", "PKG", "--out", file.path)
+                == CLIResult(
+                    status: 1, stdout: "",
+                    stderr: """
+                        Warning: chapter "Intro" at 48000 is at or after the session end 0; the file leaves it out.
+                        Error: the session has no audio, so it has no range. Give --to.
+
+                        """))
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
     /// C12. Each refusal names its rule and makes no file. `export` accepts the same ranges.
     @Test(arguments: [
         (["--out", "x.txt"], "--out must end in .json."),

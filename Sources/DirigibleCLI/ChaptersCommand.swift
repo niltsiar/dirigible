@@ -15,7 +15,9 @@ struct ChaptersExport: ParsableCommand {
         discussion: """
             Each chapter marker in the range gives startTime and title. startTime is the time from \
             --from in seconds, rounded to the millisecond. Markers that are not chapters are not in \
-            the file. Exit 1 when the range has no chapter: the command writes no empty file. Exit 2 \
+            the file. A chapter at or after the session end is past the audio: a warning names it, and \
+            the file has it only when --to is after it. Exit 1 when the range has no chapter, or when \
+            the session has no audio and no --to: the command writes no empty file. Exit 2 \
             when the package cannot be read, --out exists (unless --replace), or the write fails; a \
             failed write leaves the old file or no file.
             """)
@@ -35,12 +37,27 @@ struct ChaptersExport: ParsableCommand {
 
     func run() throws {
         let session = try readPackage(package)
+        // A chapter at or after the session end is past the audio: the file leaves it out, and the
+        // warning names it, so the user knows that it is not in the file (code gate item 1).
+        func warnPast(outside range: Range<Frames>?) {
+            for chapter in session.chapters(in: session.end..<Frames.limit)
+            where range?.contains(chapter.position) != true {
+                let line =
+                    "Warning: chapter \"\(chapter.name)\" at \(chapter.position) is at or after the session end \(session.end); the file leaves it out.\n"
+                try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
+            }
+        }
+        guard to != nil || session.end > .zero else {
+            warnPast(outside: nil)
+            throw fail("the session has no audio, so it has no range. Give --to.", code: editRefused)
+        }
         let end = to ?? session.end.count
         // The range rule of `export`, so both commands take the same ranges.
         guard end > from, let range = ExportSource(range: Frames(from)..<Frames(end))?.range else {
             throw ValidationError(
                 "The range must be 0 or more, with --to more than --from; the session end is \(session.end).")
         }
+        warnPast(outside: range)
         guard !session.chapters(in: range).isEmpty else {
             throw fail("no chapter in frames \(from)..<\(end).", code: editRefused)
         }

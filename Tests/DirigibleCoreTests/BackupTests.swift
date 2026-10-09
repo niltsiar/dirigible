@@ -144,6 +144,18 @@ struct BackupTests {
         #expect(Self.names(in: package) == expected, "the prune keeps a newer version and deletes a damaged file")
     }
 
+    /// C4: an old backup that the prune cannot read stays: it can be of a newer version.
+    @Test func aPruneKeepsABackupThatItCannotRead() throws {
+        for index in 1...20 { try Self.plant(Self.time - 600 * index, "planted \(index)", in: package) }
+        let unreadable = try Self.plant(Self.time - 30_000, "unreadable", in: package)
+        try #require(chmod(folder.appending(path: unreadable).path, 0o000) == 0)
+        defer { chmod(folder.appending(path: unreadable).path, 0o644) }
+
+        try Self.save(Self.state(1), in: package)
+
+        #expect(Self.names(in: package).contains(unreadable), "the prune keeps a backup that it cannot read")
+    }
+
     /// C4: 20 names after the new name do not push it out.
     @Test func futureNamesDoNotFillTheWindow() throws {
         let planted = try (1...20).map { try Self.plant(Self.time + 60 * $0, "future \($0)", in: package) }

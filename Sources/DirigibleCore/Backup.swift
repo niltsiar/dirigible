@@ -107,12 +107,13 @@ public struct Backup: Hashable, Comparable, Sendable {
 
     /// Deletes each backup after the `count` newest. It counts only the names that are not after
     /// `newest`, so names of a clock fault never push the new backup out. It never deletes a name
-    /// that does not parse (decision 0024 P10) or a backup of a newer version (0024 P4).
+    /// that does not parse (decision 0024 P10), a backup of a newer version (0024 P4), or a
+    /// backup that it cannot read, which can be of a newer version.
     static func prune(in package: URL, keeping count: Int, after newest: Backup) {
         let folder = folder(of: package)
         for old in all(in: package).filter({ $0 <= newest }).dropFirst(count) {
             let url = folder.appending(path: old.fileName)
-            if let data = try? Data(contentsOf: url), isNewer(data) { continue }
+            guard let data = try? Data(contentsOf: url), !isNewer(data) else { continue }
             unlink(url.path)
         }
     }

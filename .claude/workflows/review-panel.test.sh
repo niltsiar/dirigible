@@ -1,8 +1,9 @@
 #!/bin/bash
 # Run the lens selection of review-panel.js with real args and stub agents: the default lenses and
-# maxRounds of each target, an explicit lens list, an unknown key, an empty selection, and a paths
-# scope with no changed file. Check that only warning and critical findings go to a skeptic, and that the
-# result lists the nits of each lens under `nits`. Run by `make test-hooks`.
+# maxRounds of each target, an explicit lens list, a named lens outside its gates, an unknown key,
+# an empty selection, and a paths scope with no changed file. Check that only warning and critical
+# findings go to a skeptic, and that the result lists the nits of each lens under `nits`. Run by
+# `make test-hooks`.
 set -euo pipefail
 PANEL="$(cd "$(dirname "$0")" && pwd)/review-panel.js" exec node - <<'JS'
 const src = require('fs').readFileSync(process.env.PANEL, 'utf8').replace(/^export const meta/m, 'const meta')
@@ -111,6 +112,10 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
       fail(`a ${target} with no maxRounds: threw ${error.message}`)
     }
   }
+  // A named lens runs only at its gates; an empty gates list holds each target.
+  await expectKeys('a diff-only lens at the plan gate', { target: 'plan', lenses: ['code-quality', 'premortem'] }, ['premortem'])
+  await expectThrow('only a diff-only lens at the plan gate', { target: 'plan', lenses: ['code-quality'] }, /no lens/)
+  await expectKeys('a doc lens at the plan gate', { target: 'plan', lenses: ['harness-engineering'] }, ['harness-engineering'])
   await expectKeys('an unknown key', { target: 'diff', lenses: ['premortem', 'nope'] }, ['premortem'], ['nope'])
   await expectThrow('only an unknown key', { target: 'diff', lenses: ['nope'] }, /no lens/)
   await expectThrow('an empty lens list', { target: 'diff', lenses: [] }, /no lens/)

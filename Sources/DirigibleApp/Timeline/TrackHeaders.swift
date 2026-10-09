@@ -328,7 +328,11 @@ private struct LiveState: View {
         case .waitingForApp: Text(verbatim: L10n.trackStateWaitingForApp.format(source)).foregroundStyle(.secondary)
         case .noSound:
             Text(verbatim: L10n.trackStateNoSound.format(source)).foregroundStyle(.orange)
-            Button(L10n.trackNoSoundSettings.key, action: openSettings)
+            // A short title fits the default header width (340 pt); the full name is the help
+            // and the VoiceOver name.
+            Button(L10n.trackNoSoundPrivacy.key, action: openSettings)
+                .help(L10n.trackNoSoundSettings.key)
+                .accessibilityLabel(L10n.trackNoSoundSettings.key)
         }
         if live.droppedFrames > 0 {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)

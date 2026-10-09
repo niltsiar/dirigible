@@ -94,6 +94,8 @@ struct AppBundleTests {
                     + "de audio del sistema."
             ),
             ("track.no.sound.settings", "Open Privacy Settings", "Abrir los ajustes de privacidad"),
+            // The short title of the header button; the full name above is its help and AX label.
+            ("track.no.sound.privacy", "Privacy…", "Privacidad…"),
             ("track.route.apps", "Apps", "Apps"),
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.

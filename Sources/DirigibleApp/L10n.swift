@@ -196,6 +196,7 @@ enum L10n: String, CaseIterable {
     case trackRouteApps = "track.route.apps"
     case trackRouteAppsUnavailable = "track.route.apps.unavailable"
     case trackNoSoundSettings = "track.no.sound.settings"
+    case trackNoSoundPrivacy = "track.no.sound.privacy"
     case trackStateDeviceLost = "track.state.device.lost"
     case trackStateWriteFailed = "track.state.write.failed"
     case trackStateRetryStopped = "track.state.retry.stopped"

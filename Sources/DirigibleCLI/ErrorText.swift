@@ -142,7 +142,8 @@ extension SessionFileError {
         case .writeFailed(let step, let code): "cannot write \(file) (\(step)): \(String(cString: strerror(code)))."
         case .wouldNotReadBack: "the new session would not read back, so \(file) did not change. This is a bug."
         case .locked: "\(package) is open in Dirigible."
-        case .packageMoved: "\(package) moved to another volume or was deleted, so \(file) did not change."
+        case .packageMoved:
+            "\(package) moved to another volume or was deleted, so \(package)/session.xml did not change."
         case .exists: "\(package) exists."
         }
     }

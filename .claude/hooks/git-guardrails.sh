@@ -100,7 +100,7 @@ fi
 # Only scripts/run-checks.sh appends to dirigible-flakes, and only scripts/land.sh removes its
 # lines after it writes their flake rows, so a direct change cannot erase a flake row.
 if grep -qE 'dirigible-flakes' <<< "$NORMALIZED"; then
-  block "names the flakes file (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line)"
+  block "names the flakes file (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
 fi
 
 # A message path other than .scratchpads/commit-msg.txt (absolute, relative, ~, or $HOME) can name

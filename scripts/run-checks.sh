@@ -10,8 +10,14 @@
 # No rerun, and exit 1: another red target, a not-remade target other than check, a crash, an
 # issue of no test, or a red target with no failed test line.
 # Usage: [CHECK_RISK=yes] scripts/run-checks.sh <make args>
+#        scripts/run-checks.sh --flakes   print the lines of dirigible-flakes (nothing with no file)
+#          and run no make. The guardrail hook blocks each other command that names the file.
 # The check-changed target of the Makefile and land.sh call it. scripts/run-checks.test.sh tests it.
 set -euo pipefail
+if [[ "${1:-}" == --flakes ]]; then
+    cat "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes" 2>/dev/null || true
+    exit 0
+fi
 here="$(cd "$(dirname "$0")" && pwd)"
 log="$(mktemp)"
 trap 'rm -f "$log" "$log".*' EXIT

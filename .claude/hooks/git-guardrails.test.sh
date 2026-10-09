@@ -121,6 +121,15 @@ expect allow 'make test-slow-push'
 expect block 'rm "$(git rev-parse --git-common-dir)/dirigible-flakes"'
 expect block ': > .git/dirigible-flakes'
 expect allow 'scripts/run-checks.test.sh'
+expect allow 'scripts/run-checks.sh --flakes'
+# The block message of the flakes file names its read route.
+plutil -create xml1 "$input"
+plutil -insert tool_input -dictionary "$input"
+plutil -insert tool_input.command -string 'cat .git/dirigible-flakes' "$input"
+plutil -convert json "$input"
+message="$("$hook" < "$input" 2>&1 >/dev/null)"
+[[ "$message" == *'read it with scripts/run-checks.sh --flakes'* ]] ||
+  { echo "FAIL: the flakes block message names no read route: $message"; failures=$((failures + 1)); }
 expect allow 'scripts/check-changed.test.sh'
 
 # A quoted main is the same push to main.

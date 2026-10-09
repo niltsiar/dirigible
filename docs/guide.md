@@ -328,7 +328,7 @@ Dirigible can record the sound of another app, for example a Zoom, Teams, or Sla
 
 - One app can feed one track only. Record your own microphone on another track.
 - When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
-- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Open Privacy Settings**. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
+- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). The button opens Privacy & Security in System Settings. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
 - On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
 - In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input. `dirigible track add-call <package> --device <UID> --channels 1 --app <bundle ID>` adds the **Host** and **Guest** tracks.
 

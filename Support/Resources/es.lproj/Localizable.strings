@@ -133,6 +133,7 @@
 "track.route.apps" = "Apps";
 "track.route.apps.unavailable" = "Necesita macOS 14.2 o posterior";
 "track.no.sound.settings" = "Abrir los ajustes de privacidad";
+"track.no.sound.privacy" = "Privacidad…";
 "track.state.device.lost" = "Dispositivo perdido";
 "track.state.write.failed" = "Error de escritura";
 "track.state.retry.stopped" = "Se dejó de reintentar. Desactiva y activa Monitorizar entradas.";

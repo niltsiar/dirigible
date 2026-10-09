@@ -6,11 +6,11 @@
 # gives test-filter in place of test, and reaches the swift calls through make. Check that a
 # passing make check-changed with BASE writes the stamp, and a red one does not. Check that the push
 # adds test-slow-push only for risk, a slow test, a Makefile change, or no passed slow run today,
-# and test-slow for a changed PUSH_SKIP file. Check that test-slow-push has no test of a PUSH_SKIP
-# file, that a passing make test-slow or test-slow-push writes the date, and that check-slow-gates
-# fails on a PUSH_SKIP name with no file or with no Benchmark. Check that the recipe waits for a
-# load under the core count before Swift tests, stops the wait at CHECK_LOAD_WAIT, and reads no
-# load for docs targets. Run by `make test-hooks`.
+# and PUSH_RUN=<names> for a changed PUSH_SKIP file. Check that test-slow-push has no test of a
+# PUSH_SKIP file outside PUSH_RUN, that a passing make test-slow or test-slow-push writes the
+# date, and that check-slow-gates fails on a PUSH_SKIP name with no file or with no Benchmark.
+# Check that the recipe waits for a load under the core count before Swift tests, stops the wait
+# at CHECK_LOAD_WAIT, and reads no load for docs targets. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 script="$repo/scripts/check-changed.sh"
@@ -82,8 +82,13 @@ expect 'no slow run today, tooling' "$(out tooling check-fast no)" --push <<<'sc
 rm "$e/.git/dirigible-slow-date"
 expect 'no date file' "$(out sources 'check test-slow-push' no)" --push <<<'Sources/DirigibleApp/AppDelegate.swift'
 echo "$today" > "$e/.git/dirigible-slow-date"
-# A changed bench file that PUSH_SKIP of the Makefile names runs the full test-slow, so its tests run.
-expect 'a PUSH_SKIP bench before the push' "$(out tests 'check test-slow' no)" --push <<<'Tests/DirigibleAudioTests/LoudnessBenchmark.swift'
+# A changed bench file that PUSH_SKIP of the Makefile names runs test-slow-push with PUSH_RUN, so
+# its tests run and the tests of the other PUSH_SKIP files do not. Two files give one sorted word.
+expect 'a PUSH_SKIP bench before the push' "$(out tests 'check test-slow-push PUSH_RUN=LoudnessBenchmark' no)" --push <<<'Tests/DirigibleAudioTests/LoudnessBenchmark.swift'
+expect 'two PUSH_SKIP benches before the push' "$(out tests 'check test-slow-push PUSH_RUN=EditBenchmark,LoudnessBenchmark' no)" --push \
+  <<<$'Tests/DirigibleAudioTests/LoudnessBenchmark.swift\nTests/DirigibleCoreTests/EditBenchmark.swift'
+expect 'the Makefile and a PUSH_SKIP bench before the push' "$(out 'tests bundle' 'check test-slow-push test-dmg PUSH_RUN=LoudnessBenchmark' no)" --push \
+  <<<$'Makefile\nTests/DirigibleAudioTests/LoudnessBenchmark.swift'
 # Outside a git repo there is no date, so the push runs the slow tests.
 got="$(cd "$tmp" && "$script" --paths --push <<<'Tests/A.swift')" || fail "outside a repo: exit $?"
 [[ "$got" == "$(out tests 'check test-slow-push' no)" ]] || fail "outside a repo: got [$got]"
@@ -312,6 +317,10 @@ printf '#!/bin/bash\necho "swift $*" >> "%s"\n' "$tmp/swift.log" > "$tmp/bin/swi
 : > "$tmp/swift.log"
 PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow-push PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow-push exits nonzero'
 [[ "$(cat "$tmp/swift.log")" == *"--filter aKeptSlowTest" ]] || fail "make test-slow-push: swift calls [$(cat "$tmp/swift.log")]"
+# PUSH_RUN names a PUSH_SKIP file whose slow tests run in test-slow-push.
+: > "$tmp/swift.log"
+PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow-push PUSH_SKIP=LoudnessBenchmark PUSH_RUN=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow-push with PUSH_RUN exits nonzero'
+[[ "$(cat "$tmp/swift.log")" == *aSkippedBench* && "$(cat "$tmp/swift.log")" == *aKeptSlowTest* ]] || fail "make test-slow-push with PUSH_RUN: swift calls [$(cat "$tmp/swift.log")]"
 : > "$tmp/swift.log"
 PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow exits nonzero'
 [[ "$(cat "$tmp/swift.log")" == *aSkippedBench* && "$(cat "$tmp/swift.log")" == *aKeptSlowTest* ]] || fail "make test-slow: swift calls [$(cat "$tmp/swift.log")]"

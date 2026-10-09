@@ -35,9 +35,12 @@ slow_tests = $(shell grep -rhF -A1 $(1) '$(SLOW_GATE)' Tests | grep -oE 'func [A
 SLOW_TESTS = $(call slow_tests)
 # The bench files that the push skips: a fast test, or a slow test outside the list, holds each of
 # their asserts (decision 0028). make test-slow still runs them. scripts/check-changed.sh reads
-# this line: a changed file of the list runs test-slow before the push.
+# this line: a changed file of the list adds PUSH_RUN=<names>, joined with commas, so
+# test-slow-push also runs the slow tests of those files.
 PUSH_SKIP = LoudnessExportBenchmark AutoLevelBenchmark LiveLoudnessBenchmark ExportBenchmark PeakComputeBenchmark LoudnessBenchmark InspectionBenchmark EditBenchmark NavigationKeyBenchmark LaneRenderBenchmark MouseEventBenchmark+CommandF FinalizeBenchmark MouseEventBenchmark MouseEventGainBenchmark MouseEventGroupBenchmark MouseEventCrossfadeBenchmark MouseEventRippleBenchmark MouseEventRedrawBenchmark AutoscrollBenchmark FollowScrollBenchmark OverviewBenchmark HeaderDragBenchmark LiveTakeBenchmark PlayTickBenchmark DropHighlightBenchmark
-SLOW_PUSH_TESTS = $(call slow_tests,$(foreach n,$(PUSH_SKIP),--exclude='$(n).swift'))
+PUSH_RUN ?=
+comma := ,
+SLOW_PUSH_TESTS = $(call slow_tests,$(foreach n,$(filter-out $(subst $(comma), ,$(PUSH_RUN)),$(PUSH_SKIP)),--exclude='$(n).swift'))
 
 # The slow tests only. They run in their own process: their disk and CPU load makes the timed
 # tests fail when both run in one process. Before the push, `make check-changed BASE=<ref>`
@@ -48,7 +51,7 @@ test-slow: check-slow-gates
 	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
 	date +%F > "$$(git rev-parse --git-common-dir)/dirigible-slow-date"
 
-# The slow tests of the push: test-slow with no test of a PUSH_SKIP file.
+# The slow tests of the push: test-slow with no test of a PUSH_SKIP file outside PUSH_RUN.
 test-slow-push: check-slow-gates
 	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_PUSH_TESTS)'
 	date +%F > "$$(git rev-parse --git-common-dir)/dirigible-slow-date"
@@ -152,6 +155,7 @@ check-fast: lint check-docs check-slow-gates check-warnings check-sizes test-hoo
 # Before Swift tests, it waits for a normal load (check-changed.sh --wait-load).
 # scripts/run-checks.sh runs the targets with -k and reruns only the failed Swift tests of a red
 # test or test-slow-push target, 1 time at most with risk: yes. A pass on a rerun writes the stamp.
+# A PUSH_RUN=<names> word of the targets line goes to make as a variable of test-slow-push.
 BASE ?=
 FILTER ?=
 check-changed:

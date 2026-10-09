@@ -186,6 +186,30 @@ extension StudioBackupTests {
         #expect(studio.session.track("t1")?.name == "B")
     }
 
+    /// An edit while the revert waits for its turn is not in the copy that the revert keeps, so
+    /// the revert stops and the edit stays (code gate 1 item 3).
+    @Test func anEditDuringTheWaitStopsTheRevert() async throws {
+        let gate = AsyncGate()
+        let studio = try await studio(save: { session, lock throws(SessionFileError) in
+            await gate.wait()
+            return try session.write(under: lock)
+        })
+        let backup = try plant(Self.named("A"), at: try sessionTime() - 1)
+        try setName(studio, to: "B")
+        await gate.entered()
+
+        let revert = Task { try await studio.revert(to: backup) }
+        await until(limit: .seconds(20), "the revert waits for the save") { studio.writesWaiting == 1 }
+        try setName(studio, to: "C")
+        gate.open()
+
+        await #expect(throws: StudioError.busy, "an edit during the wait stops the revert") {
+            try await revert.value
+        }
+        #expect(studio.session.track("t1")?.name == "C", "the edit stays")
+        await studio.settle()
+    }
+
     /// C24: revert to the oldest of 20 backups, Undo, revert to the next oldest, Undo, close.
     /// With `due`, the last Undo replaces a file 700 s after the kept name, so its save is due.
     func tryBackups(due: Bool) async throws {

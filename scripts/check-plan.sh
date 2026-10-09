@@ -8,9 +8,11 @@
 #   the script finds them by the header names. A bar in a cell is written as \|.
 # - plan.md has an `Agents:` line, and each ### heading in its `## Slices` section has a
 #   `- Check:` line.
-# - Each numbered item under `## Act on` of a review-*.md file that is not a nit has an `Invariant`
-#   and a `Siblings` field (lead-judgment.md), and the section has no item in another form. A
-#   review file older than the rule is not checked.
+# - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
+#   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
+#   bullet whose first parenthesis has `nit` and `taken` (not `not taken`). A nit tagged
+#   `no behavior change` needs no field. A review file older than the rule is not checked; one
+#   older than the nit rule needs no field for a nit.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -60,29 +62,64 @@ else
 fi
 # 2026-10-05, the commit that added the field rule: an older review file has no fields.
 cutoff=1791222684
+# 2026-10-09, the commit that added the nit rule (INT-042): an older review file keeps the nit exempt.
+nit_cutoff=1791510511
 for review in "$run"/review-*.md; do
-    [[ -f "$review" && $(stat -f %m "$review") -ge $cutoff ]] || continue
-    while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" '
+    [[ -f "$review" ]] || continue
+    mtime=$(stat -f %m "$review")
+    ((mtime >= cutoff)) || continue
+    while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) '
+        # missing <what>: print each field that text does not have.
+        function missing(what) {
+            for (f = 1; f <= 2; f++)
+                if (text !~ (field[f] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:"))
+                    print file ": " what " has no " field[f] " field (a review file from before the rule: add the fields, or do not edit it)"
+        }
+        # exempt: the first parenthesis of $0 is a nit tag that needs no field. With the nit rule,
+        # only a nit tagged `no behavior change` is exempt.
+        function exempt(  tag) {
+            tag = tolower($0)
+            if (!match(tag, /\([^)]*\)/)) return 0
+            tag = substr(tag, RSTART, RLENGTH)
+            return tag ~ /^\(nit/ && (!nitrule || tag ~ /no behavior change/)
+        }
+        # taken: the first parenthesis of $0 has nit and taken (not "not taken").
+        function taken(  tag) {
+            tag = tolower($0)
+            if (!match(tag, /\([^)]*\)/)) return 0
+            tag = substr(tag, RSTART, RLENGTH)
+            gsub(/not taken/, "", tag)
+            return tag ~ /(^|[^a-z])nit([^a-z]|$)/ && tag ~ /(^|[^a-z])taken([^a-z]|$)/
+        }
         function close_item() {
-            if (item && !nit)
-                for (f = 1; f <= 2; f++)
-                    if (text !~ (field[f] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:"))
-                        print file ": Act on item " item " has no " field[f] " field (a review file from before the rule: add the fields, or do not edit it)"
-            item = ""
+            if (item && !skip) missing("Act on item " item)
+            if (note && !skip) missing("Consider item " note)
+            item = note = ""
         }
         function close_section() {
-            if (inside && other && !numbered) print file ": ## Act on has no numbered item"
+            if (inside == "act" && other && !numbered) print file ": ## Act on has no numbered item"
             inside = numbered = other = 0
         }
         BEGIN { field[1] = "Invariant"; field[2] = "Siblings" }
-        /^## / { close_item(); close_section(); inside = ($0 ~ /^## Act on/); next }
-        !inside { next }
-        /^[0-9]+\. / {
-            close_item(); item = $0 + 0; numbered = 1; text = $0
-            tag = tolower($0); sub(/^[0-9]+\.[[:space:]]*\**/, "", tag); nit = (tag ~ /^\(nit/)
+        /^## / {
+            close_item(); close_section(); notes = 0
+            inside = $0 ~ /^## Act on/ ? "act" : nitrule && $0 ~ /^## Consider/ ? "consider" : ""
             next
         }
-        /^([-*] |### )/ { other = 1 }
+        !inside { next }
+        inside == "act" && /^[0-9]+\. / {
+            close_item(); item = $0 + 0; numbered = 1; text = $0
+            # The tag starts the item: a nit tag in the middle of the text does not count.
+            tag = $0; sub(/^[0-9]+\.[[:space:]]*\**/, "", tag)
+            skip = tag ~ /^\([Nn][Ii][Tt]/ && exempt()
+            next
+        }
+        inside == "consider" && /^[-*] / {
+            close_item(); note = ++notes; text = $0
+            skip = !taken() || exempt()
+            next
+        }
+        inside == "act" && /^([-*] |### )/ { other = 1 }
         { text = text "\n" $0 }
         END { close_item(); close_section() }' "$review")
 done

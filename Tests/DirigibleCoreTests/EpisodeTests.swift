@@ -109,3 +109,37 @@ struct ArtworkNameTests {
         }
     }
 }
+
+/// The one text rule of the pane, the CLI, and the MCP tool (code gate item 3).
+struct EpisodeFieldTextTests {
+    @Test func eachFieldSetsAndShowsItsText() throws {
+        var episode = Episode()
+        let cases: [(EpisodeField, String, String)] = [
+            (.title, "Café", "Café"), (.show, "Show", "Show"), (.author, "Ana", "Ana"), (.season, " 3 ", "3"),
+            (.number, "12", "12"), (.date, "2026-10-09", "2026-10-09"), (.language, "fre", "fra"),
+            (.copyright, "© Ana", "© Ana"), (.summary, "a\r\nb", "a\nb"), (.notes, "x\ty", "x\ty"),
+            (.episodeURL, "https://a.example/1", "https://a.example/1"),
+            (.feedURL, "https://a.example/feed", "https://a.example/feed"), (.guid, "urn:1", "urn:1"),
+        ]
+        for (field, text, shown) in cases {
+            try episode.set(field, text: text)
+            #expect(episode.text(of: field) == shown, "\(field)")
+        }
+        for (field, _, _) in cases {
+            try episode.set(field, text: "  ")
+            #expect(episode.text(of: field) == "", "a blank text clears \(field)")
+        }
+        #expect(episode.isEmpty)
+    }
+
+    @Test func aBadTextThrowsAndChangesNothing() {
+        var episode = Episode()
+        #expect(throws: EpisodeFieldError(message: "An episode or season number is 1 or more, not 0.")) {
+            try episode.set(.number, text: "0")
+        }
+        #expect(throws: EpisodeFieldError(message: "\"x\" is not an http or https URL.")) {
+            try episode.set(.feedURL, text: "x")
+        }
+        #expect(episode.isEmpty)
+    }
+}

@@ -9,11 +9,6 @@ enum InspectorTab: Hashable {
     case clip, episode
 }
 
-/// A text field of the Episode pane.
-enum EpisodeField: Hashable {
-    case title, show, author, season, number, date, language, copyright, summary, notes, episodeURL, feedURL, guid
-}
-
 /// The typed text of an episode field that no commit has saved yet, and the text that the field
 /// showed before the typing.
 struct EpisodeDraft: Equatable {
@@ -138,50 +133,10 @@ struct EpisodeInspector: View {
     }
 
     private func text(_ name: EpisodeField, _ episode: Episode) -> Binding<String> {
-        let shown = Self.text(name, episode)
+        let shown = episode.text(of: name)
         return Binding(
             get: { model.episodeDraft?.field == name ? model.episodeDraft?.text ?? shown : shown },
             set: { model.typeEpisode($0, in: name) })
-    }
-
-    /// The text of a field: the stored value, or empty for no value.
-    static func text(_ field: EpisodeField, _ episode: Episode) -> String {
-        switch field {
-        case .title: episode.title?.text ?? ""
-        case .show: episode.show?.text ?? ""
-        case .author: episode.author?.text ?? ""
-        case .season: episode.season?.description ?? ""
-        case .number: episode.number?.description ?? ""
-        case .date: episode.date?.description ?? ""
-        case .language: episode.language?.code ?? ""
-        case .copyright: episode.copyright?.text ?? ""
-        case .summary: episode.summary?.text ?? ""
-        case .notes: episode.notes?.text ?? ""
-        case .episodeURL: episode.episodeURL?.text ?? ""
-        case .feedURL: episode.feedURL?.text ?? ""
-        case .guid: episode.guid?.text ?? ""
-        }
-    }
-
-    /// Sets `text` on `field` of `episode` through the field type. A blank text clears the field.
-    static func set(_ field: EpisodeField, _ text: String, in episode: inout Episode) throws(EpisodeFieldError) {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
-        let blank = trimmed.isEmpty
-        switch field {
-        case .title: episode.title = try EpisodeLine(text)
-        case .show: episode.show = try EpisodeLine(text)
-        case .author: episode.author = try EpisodeLine(text)
-        case .season: episode.season = blank ? nil : try EpisodeNumber(text: trimmed)
-        case .number: episode.number = blank ? nil : try EpisodeNumber(text: trimmed)
-        case .date: episode.date = blank ? nil : try CalendarDate(trimmed)
-        case .language: episode.language = blank ? nil : try LanguageCode(trimmed)
-        case .copyright: episode.copyright = try EpisodeLine(text)
-        case .summary: episode.summary = try EpisodeNotes(text)
-        case .notes: episode.notes = try EpisodeNotes(text)
-        case .episodeURL: episode.episodeURL = blank ? nil : try WebURL(trimmed)
-        case .feedURL: episode.feedURL = blank ? nil : try WebURL(trimmed)
-        case .guid: episode.guid = try EpisodeLine(text)
-        }
     }
 }
 
@@ -244,7 +199,7 @@ extension SessionWindow {
             return
         }
         guard let studio = idleStudio else { return }
-        let shown = EpisodeInspector.text(field, studio.session.episode)
+        let shown = studio.session.episode.text(of: field)
         guard text != shown else { return }
         commitEpisode()
         episodeDraft = EpisodeDraft(field: field, shown: shown, text: text)
@@ -258,7 +213,7 @@ extension SessionWindow {
         guard draft.text != draft.shown else { return }
         var episode = session.episode
         do throws(EpisodeFieldError) {
-            try EpisodeInspector.set(draft.field, draft.text, in: &episode)
+            try episode.set(draft.field, text: draft.text)
         } catch {
             return beep()
         }

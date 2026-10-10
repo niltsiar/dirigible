@@ -94,41 +94,22 @@ struct EpisodeFields: Sendable {
     var explicit: Bool?
     var summary, notes, episodeURL, feedURL, guid, artwork: String?
 
-    /// Parses each given field into its type, so a bad value refuses the whole change before the
-    /// package lock.
+    /// Checks each given field with the rule of the Episode pane (`Episode.set`), so a bad value
+    /// refuses the whole change before the package lock.
     func work() throws(EpisodeFieldError) -> EpisodeWork {
-        func parse<T>(_ text: String?, _ make: (String) throws(EpisodeFieldError) -> T?) throws(EpisodeFieldError)
-            -> T??
-        {
-            guard let text else { return .none }
-            return .some(text.isEmpty ? nil : try make(text))
-        }
-        let number = { (text: String) throws(EpisodeFieldError) in try EpisodeNumber(text: text) }
-        let parsed = (
-            title: try parse(title, EpisodeLine.init), show: try parse(show, EpisodeLine.init),
-            author: try parse(author, EpisodeLine.init), episode: try parse(episode, number),
-            season: try parse(season, number), date: try parse(date, CalendarDate.init),
-            language: try parse(language, LanguageCode.init), copyright: try parse(copyright, EpisodeLine.init),
-            summary: try parse(summary, EpisodeNotes.init), notes: try parse(notes, EpisodeNotes.init),
-            episodeURL: try parse(episodeURL, WebURL.init), feedURL: try parse(feedURL, WebURL.init),
-            guid: try parse(guid, EpisodeLine.init)
-        )
+        let given: [(EpisodeField, String?)] = [
+            (.title, title), (.show, show), (.author, author), (.number, episode), (.season, season), (.date, date),
+            (.language, language), (.copyright, copyright), (.summary, summary), (.notes, notes),
+            (.episodeURL, episodeURL), (.feedURL, feedURL), (.guid, guid),
+        ]
+        let texts = given.compactMap { field, text in text.map { (field, $0) } }
+        var checked = Episode()
+        for (field, text) in texts { try checked.set(field, text: text) }
         let explicit = explicit
         return EpisodeWork(artwork: artwork) { episode in
-            if let value = parsed.title { episode.title = value }
-            if let value = parsed.show { episode.show = value }
-            if let value = parsed.author { episode.author = value }
-            if let value = parsed.episode { episode.number = value }
-            if let value = parsed.season { episode.season = value }
-            if let value = parsed.date { episode.date = value }
-            if let value = parsed.language { episode.language = value }
-            if let value = parsed.copyright { episode.copyright = value }
+            // The check above accepted each text, and `set` does not read the other fields.
+            for (field, text) in texts { try? episode.set(field, text: text) }
             if let explicit { episode.explicit = explicit }
-            if let value = parsed.summary { episode.summary = value }
-            if let value = parsed.notes { episode.notes = value }
-            if let value = parsed.episodeURL { episode.episodeURL = value }
-            if let value = parsed.feedURL { episode.feedURL = value }
-            if let value = parsed.guid { episode.guid = value }
         }
     }
 }

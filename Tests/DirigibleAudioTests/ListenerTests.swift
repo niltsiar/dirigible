@@ -20,21 +20,24 @@ final class TestOutput: @unchecked Sendable {
     private var startFails = false
     private var watchFails = false
     private var stopGate: Gate?
+    private var outputID = ListenOutput.offlineOutput
 
     var starts: [Start] { lock.withLock { startList } }
     func stop(returns result: Bool) { lock.withLock { stopResult = result } }
     func failStarts(_ fails: Bool) { lock.withLock { startFails = fails } }
     /// Each device listener add fails, in the refresh of `SpeakerGuard`.
     func failWatch(_ fails: Bool) { lock.withLock { watchFails = fails } }
+    /// The default output is the device with `id`.
+    func setOutput(_ id: AudioObjectID) { lock.withLock { outputID = id } }
     /// The next stop waits in `gate` before it returns.
     func holdNextStop(in gate: Gate) { lock.withLock { stopGate = gate } }
 
     var output: ListenOutput {
         ListenOutput(
             watch: { [self] ring in
-                let fails = lock.withLock { watchFails }
+                let (fails, id) = lock.withLock { (watchFails, outputID) }
                 return SpeakerGuard.refresh(
-                    ring, output: { ListenOutput.offlineOutput }, subdevices: { _ in [] }, speakers: { _ in false },
+                    ring, output: { id }, subdevices: { _ in [] }, speakers: { _ in false },
                     add: { _, _, _ in !fails })
             },
             unwatch: { SpeakerGuard.close($0, remove: { _ in }) },
@@ -98,7 +101,6 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         let listener = listener()
         listener.start()
         let input = try #require(await input(after: [.playing]))
-        #expect(input.ring.device == input.id, "the ring knows its input device (the loopback check)")
         let signal = DeviceSignal.sines(seconds: 1, layout: [1])
         var played = Played()
         for start in stride(from: 0, to: 47_616, by: 512) {
@@ -193,6 +195,38 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         output.failWatch(false)
         await until(limit: .seconds(10), "the retry plays") { reports.all == [.quiet, .playing] }
         await listener.off()
+    }
+
+    /// A duplex hardware device (a USB interface with a headphone out) plays its input in its
+    /// own output (code gate round 2, item 1).
+    @Test func aDuplexHardwareDevicePlaysInItsOwnOutput() async throws {
+        output.setOutput(1)
+        let listener = listener()
+        listener.start()
+        let input = try #require(await input(after: [.playing]))
+        #expect(input.id == 1 && !input.ring.speakers, "a duplex hardware device plays in its own output")
+        await listener.off()
+    }
+
+    /// A virtual device (a loopback device) that is also the output plays zeros, because the
+    /// monitor would feed its own input (code gate round 2, item 1).
+    @Test func aVirtualDeviceInItsOwnOutputIsALoopback() async throws {
+        hal.setVirtual("mic")
+        output.setOutput(1)
+        let listener = listener()
+        listener.start()
+        let input = try #require(await input(after: [.playing]))
+        #expect(input.ring.speakers, "a virtual device in its own output plays zeros")
+        output.setOutput(5)
+        _ = output.output.watch(input.ring)
+        #expect(!input.ring.speakers, "a virtual device plays in another output")
+        await listener.off()
+    }
+
+    /// A failed transport read counts as virtual (fail closed). The read is a HAL property read
+    /// of an object that does not exist, with no IO.
+    @Test func aFailedTransportReadIsVirtual() {
+        #expect(DeviceHAL.live.isVirtual(AudioObjectID(kAudioObjectUnknown)), "a failed read is not virtual")
     }
 
     /// The rate of the attach, read after its listener adds, wins over the rate of the lookup: a

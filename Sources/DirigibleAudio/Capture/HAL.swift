@@ -46,6 +46,9 @@ struct DeviceHAL: Sendable {
     var appName: @Sendable (_ bundleID: String) -> String = { $0 }
     /// True when a device with `uid` is in the device list (an output device too).
     var deviceExists: @Sendable (_ uid: String) -> Bool = { _ in true }
+    /// True when the transport type of the device is virtual (a loopback device), or when the read
+    /// fails: then the loopback rule of the speaker guard applies (fail closed).
+    var isVirtual: @Sendable (_ id: AudioObjectID) -> Bool = { _ in false }
 }
 
 /// Stops the device, destroys the IOProc, and removes the listeners. True when every call
@@ -214,7 +217,11 @@ extension DeviceHAL {
             guard #available(macOS 14.2, *) else { throw .status(kAudioHardwareUnsupportedOperationError) }
             return try DirigibleAudio.makeTap(found)
         },
-        appName: { DirigibleAudio.appName($0) }, deviceExists: { InputDevice.objectID(uid: $0) != nil })
+        appName: { DirigibleAudio.appName($0) }, deviceExists: { InputDevice.objectID(uid: $0) != nil },
+        isVirtual: { device in
+            (try? readValue(device, kAudioDevicePropertyTransportType, as: UInt32.self))
+                .map { $0 == kAudioDeviceTransportTypeVirtual } ?? true
+        })
 }
 
 /// A raw pointer that a `@Sendable` detach captures. The HAL owns what it points to.

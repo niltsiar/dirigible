@@ -113,11 +113,11 @@ struct SpeakerGuardTests {
         #expect(!ring.speakers, "an aggregate with no speaker subdevice plays")
     }
 
-    /// A loopback: the default output, or one of its active subdevices, is the listened device
-    /// itself, so the monitor would feed its own input (code gate round 1, item 2). Control in
+    /// A loopback: the default output, or one of its active subdevices, is the listened virtual
+    /// device, so the monitor would feed its own input (code gate round 1, item 2). Control in
     /// the same test: another output plays.
     @Test func aLoopbackOutputSilences() {
-        let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512, device: 9)
+        let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512, loopback: 9)
         defer { ring.deallocate() }
         let subdevices: (AudioObjectID) -> [AudioObjectID] = { $0 == 7 ? [9] : [] }
         SpeakerGuard.refresh(ring, output: { 9 }, watch: { _ in }, speakers: { _ in false })

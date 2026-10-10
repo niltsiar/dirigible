@@ -38,13 +38,13 @@ import Observation
     /// the reports of the drain. Empty while no take records and no monitor runs.
     public internal(set) var liveTracks: [TrackID: LiveTrack] = [:]
     /// The start of the take that records. The view computes the elapsed time.
-    public private(set) var recordingSince: ContinuousClock.Instant?
+    public internal(set) var recordingSince: ContinuousClock.Instant?
     /// The record time left on the disk of the take that records, at each disk check. Nil before.
     public internal(set) var recordTimeLeft: Duration?
 
     /// The result of the last take, set when its writers finish, before its finalize. So a
     /// finalize error keeps it. Nil from the start of the next take.
-    public private(set) var lastTake: TakeResult?
+    public internal(set) var lastTake: TakeResult?
     /// The pending take that the recovery of `open` finalized. Nil when the open finalized
     /// nothing, and after a new take starts. `take finalize` reads its armed tracks.
     public private(set) var recoveredTake: Recording?
@@ -62,16 +62,16 @@ import Observation
     /// 0003). Not in `play`, so the playhead poll does not update a view that reads it (0017).
     public internal(set) var missingMedia: [FileID: MediaFault]
     /// Held from the start of a take until its finalize ends.
-    @ObservationIgnored private(set) var sleepAssertion: SleepAssertion?
+    @ObservationIgnored var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
     public internal(set) var isStarting = false
     /// The last autosave error. Nil after a good save.
     public private(set) var saveError: StudioError?
-    @ObservationIgnored private var diskWatcher: Task<Void, Never>?
+    @ObservationIgnored var diskWatcher: Task<Void, Never>?
     /// The device writers of the take that records, by device UID.
-    @ObservationIgnored private(set) var writers: [String: DeviceWriter] = [:]
+    @ObservationIgnored var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.
-    @ObservationIgnored private(set) var armed: [(id: TrackID, writer: DeviceWriter)] = []
+    @ObservationIgnored var armed: [(id: TrackID, writer: DeviceWriter)] = []
     /// The live peaks and the head of the take (live take view), in `Studio+Live.swift`.
     @ObservationIgnored var live = LiveStore()
     /// One more for each take that begins. Two takes can have the same number.
@@ -203,116 +203,6 @@ import Observation
         settling = false
     }
 
-    /// Runs finalize again for the pending take (decision 0004). With no pending take, it does
-    /// nothing. A success records one undo entry. A failure keeps the take pending and throws.
-    /// With `leavingUnreadable`, a segment that throws `.segmentUnreadable` stays unplaced and
-    /// the take ends without it (decision 0021). Only a choice of the user sets it.
-    public func retryFinalize(leavingUnreadable: Bool = false) async throws(StudioError) {
-        try checkIdle()
-        guard let take = pendingTake?.take else { return }
-        transport = .finalizing(take: take)
-        let error = await serialized { () async -> StudioError? in
-            do throws(StudioError) {
-                try await complete(take, leavingUnreadable: leavingUnreadable)
-            } catch {
-                return error
-            }
-            return nil
-        }
-        if let error { throw error }
-    }
-
-    /// Starts a take on the armed tracks (decision 0013). The device lookup, the microphone
-    /// access read, the disk check, and the save run off the main actor; meanwhile every other
-    /// entry point throws `.busy`. A throw changes nothing. A device that does not attach after
-    /// the save is lost, and the take goes on. The take attaches before a running monitor
-    /// releases its devices (decision 0015).
-    public func startRecording(armed: [TrackID], playhead: Frames? = nil) async throws(StudioError) {
-        _ = try await beginRecording(armed: armed, playhead: playhead)
-    }
-
-    /// `startRecording`, which also returns the take and the generation that it started. A stop
-    /// can end that take before this call returns. With `length` (nanoseconds), each writer
-    /// writes no record at or after the take start + `length`. The end is set before the
-    /// hand-over waits, so no drain writes past it.
-    func beginRecording(armed: [TrackID], playhead: Frames?, length: UInt64? = nil) async throws(StudioError) -> (
-        take: Int, generation: Int
-    ) {
-        try checkIdle()
-        guard pendingTake == nil else { throw .busy }
-        isStarting = true
-        let stopped = endPlayForTake()
-        // The whole start is one step of the chain, so a stop or a settle never sees half of it.
-        let result = await serialized { () async -> Result<(take: Int, generation: Int), StudioError> in
-            defer { isStarting = false }
-            let playhead = await takePlayhead(stopped, playhead)
-            let started: StartedTake
-            do throws(StudioError) {
-                started = try await prepareTake(
-                    of: session, lock: lock, armed: armed, playhead: playhead, environment: environment,
-                    recordings: recordings, endExport: exportEnd())
-            } catch {
-                return .failure(error)
-            }
-            begin(started)
-            if let length {
-                let (end, overflow) = (started.session.recording?.takeStartHostTimeNanos ?? 0)
-                    .addingReportingOverflow(length)
-                for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
-            }
-            sleepAssertion = SleepAssertion()
-            diskWatcher = watchDisk()
-            // A stop from now on waits for this step and does not throw `.busy`.
-            isStarting = false
-            await startApps()
-            await handOver()
-            return .success((started.take, generation))
-        }
-        return try result.get()
-    }
-
-    /// Stops the take: drains and closes each device writer, starts the monitor of the request
-    /// again, then finalizes and saves (0004), then levels the take clips and saves again (0031).
-    /// With no take, it does nothing. A success records one undo entry, and one more when the
-    /// level changes a gain. A failure keeps the take pending and throws.
-    public func stopRecording() async throws(StudioError) {
-        try await stop(.requested)
-    }
-
-    func stop(_ end: TakeEnd) async throws(StudioError) {
-        if case .finalizing = transport { throw .busy }
-        guard !isStarting else { throw .busy }
-        guard case .recording(let take) = transport else { return }
-        transport = .finalizing(take: take)
-        stopLive()
-        diskWatcher?.cancel()
-        diskWatcher = nil
-        // E1: the take ends now on every track, also while an app attach waits for the prompt.
-        let now = hostNanosNow()
-        for writer in writers.values { writer.end(atHostNanos: now) }
-        let error = await serialized { () async -> StudioError? in
-            let gaps = await finishWriters()
-            let silent = await silentTracks()
-            let dropped = armed.compactMap { track in
-                track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil
-            }
-            lastTake = TakeResult(
-                take: take, end: end, gaps: gaps, droppedFrames: Dictionary(uniqueKeysWithValues: dropped),
-                silent: silent)
-            writers = [:]
-            armed = []
-            liveTracks = [:]
-            recordingSince = nil
-            recordTimeLeft = nil
-            // The come back returns its monitor turn before the finalize (decision 0015).
-            await monitorTurns.run { await applyMonitor() }
-            defer { sleepAssertion = nil }
-            do throws(StudioError) { try await complete(take, level: true) } catch { return error }
-            return nil
-        }
-        if let error { throw error }
-    }
-
     /// Step 6 of the start order, on the main actor with no throw: the history entry, the
     /// results of earlier takes cleared, the writers, and the transport; then each writer
     /// attaches on its queue.
@@ -355,7 +245,7 @@ import Observation
     }
 
     /// Finalize, the marker, the save, and the level of a stop off the main actor, then the outcome.
-    private func complete(_ take: Int, leavingUnreadable: Bool = false, level: Bool = false) async throws(StudioError) {
+    func complete(_ take: Int, leavingUnreadable: Bool = false, level: Bool = false) async throws(StudioError) {
         transport = .finalizing(take: take)
         await environment.beforeFinalize()
         let outcome = await completeTake(

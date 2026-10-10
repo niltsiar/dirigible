@@ -55,6 +55,34 @@ struct PendingTakeTests {
         #expect(!studio.canUndo)
     }
 
+    /// Decision 0037: Studio refuses a declared ripple under a pending take, and only a ripple.
+    /// Controls m1, m3, and m4.
+    @Test func aRippleEditThrowsUnderAPendingTake() async throws {
+        let studio = try await openPending()
+        let before = studio.session
+
+        #expect(throws: StudioError.rippleBlocked) {
+            try studio.edit(ripple: true) { session throws(SessionError) in try session.renameTrack("t3", to: "J") }
+        }
+        #expect(
+            studio.session == before && !studio.canUndo,
+            "RIPPLE-S1 a ripple edit under a pending take changed the session")
+        let renamed: Void? = try? studio.edit { session throws(SessionError) in try session.renameTrack("t3", to: "J") }
+        #expect(renamed != nil, "RIPPLE-S5 a non-ripple edit under a pending take works")
+    }
+
+    /// Control m2: a ripple check that refuses with no take.
+    @Test func aRippleEditWithNoTakeRuns() async throws {
+        var session = try package.read()
+        try session.setRecording(nil)
+        try session.write(to: package.url)
+        let studio = try await Studio.open(package.url)
+
+        try? studio.edit(ripple: true) { session throws(SessionError) in try session.renameTrack("t3", to: "J") }
+
+        #expect(studio.canUndo, "RIPPLE-S2 a ripple edit with no take runs")
+    }
+
     @Test func aRetryWithWritableClipsPlacesTheTake() async throws {
         let studio = try await openPending()
 

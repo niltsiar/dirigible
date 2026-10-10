@@ -45,6 +45,11 @@ extension Studio {
     func checkIdle() throws(StudioError) {
         guard isIdle else { throw .busy }
     }
+
+    /// A ripple waits for a pending or split take (decision 0037).
+    func checkRipple() throws(StudioError) {
+        guard canRipple else { throw .rippleBlocked }
+    }
 }
 
 /// The playback state of a studio (decision 0016). `Studio` stores one value of it.

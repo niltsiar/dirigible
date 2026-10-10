@@ -1,7 +1,8 @@
-import DirigibleAudio
 import DirigibleCore
 import Foundation
 import Testing
+
+@testable import DirigibleAudio
 
 /// `rippleBlocked` (decision 0037, criterion C20): a ripple must not move the timeline under a
 /// pending take or a split take. Take 1 has segments `take1-1-1` and `take1-2-1`. No file I/O.

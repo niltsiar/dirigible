@@ -117,6 +117,34 @@ struct StudioPasteTests {
         }
     }
 
+    /// Decision 0037: an Insert under a pending take is a ripple refusal; a paste across stays
+    /// busy. Controls m5, m6, and m7.
+    @Test func anInsertUnderAPendingTakeIsARippleRefusal() async throws {
+        let fixture = try await PasteStudioFixture.make()
+        let package = try TakePackage()
+        FileManager.default.createFile(atPath: package.url.appending(path: "recovery-attempt").path, contents: nil)
+        let p = try await fixture.open(fixture.p)
+        let studio = try await Studio.open(package.url)
+        try #require(studio.pendingTake != nil)
+        let clipboard = p.clipboard(of: try p.session.excerpt(of: 0..<48_000, on: ["t1"]))
+        var refusals: [StudioError?] = [nil, nil, nil]
+
+        do throws(StudioError) {
+            _ = try await studio.pasteAcross(clipboard, from: p, at: 0, on: .tracks(["t1"]), insert: true) { _ in }
+        } catch { refusals[0] = error }
+        do throws(StudioError) {
+            _ = try await studio.pasteAcross(clipboard, from: p, at: 0, on: .tracks(["t1"])) { _ in }
+        } catch { refusals[1] = error }
+        let own = studio.clipboard(of: try studio.session.excerpt(of: 0..<48_000, on: ["t1"]))
+        do throws(StudioError) {
+            _ = try studio.pasteInPlace(own, at: 0, on: .tracks(["t1"]), insert: true)
+        } catch { refusals[2] = error }
+
+        #expect(refusals[0] == .rippleBlocked, "RIPPLE-S3 an Insert across under a pending take is no ripple refusal")
+        #expect(refusals[1] == .busy, "RIPPLE-S4 a paste across under a pending take is not busy")
+        #expect(refusals[2] == .rippleBlocked, "RIPPLE-S7 an Insert in place under a pending take is no ripple refusal")
+    }
+
     /// C13 at the studio: Insert moves all tracks right and pastes, in one undo entry; also with
     /// new tracks for no selected track.
     @Test func insertMovesAllTracksAndPastes() async throws {

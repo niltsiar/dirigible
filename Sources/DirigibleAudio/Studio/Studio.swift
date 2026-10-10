@@ -20,9 +20,11 @@ import Observation
     /// The segments of CAFs with audio that no pool file points to (decision 0012). Derived from
     /// the session on each read, so an edit, an undo, or a redo changes it.
     public var unplacedSegments: [SegmentName] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
-    /// The unplaced segments that can block a ripple (decision 0037): a segment whose CAF opens
-    /// but is not audio can never place, so it does not.
-    public var rippleSegments: [SegmentName] { unplacedSegments.filter { !notAudioSegments.contains($0) } }
+    /// False under a pending or split take (decision 0037): then a ripple must not move the
+    /// timeline. A segment whose CAF opens but is not audio can never place, so it does not block.
+    public var canRipple: Bool {
+        !rippleBlocked(segments: unplacedSegments.filter { !notAudioSegments.contains($0) }, session: session)
+    }
     public var canUndo: Bool { history.canUndo }
     public var canRedo: Bool { history.canRedo }
     /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
@@ -139,9 +141,13 @@ import Observation
     }
 
     /// Runs `body` on a copy of the session and records one undo entry if it changed. A change
-    /// schedules one autosave of the new session; `edit` does not wait for it.
-    public func edit<Result>(_ body: (inout Session) throws(SessionError) -> Result) throws(StudioError) -> Result {
+    /// schedules one autosave of the new session; `edit` does not wait for it. A caller declares a
+    /// ripple with `ripple`: under a pending or split take, it throws `.rippleBlocked` (decision 0037).
+    public func edit<Result>(ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result)
+        throws(StudioError) -> Result
+    {
         try checkIdle()
+        if ripple { try checkRipple() }
         let before = session
         let result: Result
         do { result = try history.edit(body) } catch { throw .session(error) }

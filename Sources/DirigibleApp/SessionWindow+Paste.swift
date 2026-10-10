@@ -71,10 +71,11 @@ extension SessionWindow {
         timeline.selection = Selection(pasted: pasted.clips, of: excerpt, at: at, on: pasted.tracks)
     }
 
-    /// A refused paste: a beep for a file that an undo removed, nothing for a cancel, else the alert.
+    /// A refused paste: a beep for a file that an undo removed or a ripple under a pending or split
+    /// take, nothing for a cancel, else the alert.
     private func refused(_ error: StudioError) {
         switch error {
-        case .session(.unknownFile): beep()
+        case .session(.unknownFile), .rippleBlocked: beep()
         case .paste(.cancelled, _): break
         default: alert = .error(error)
         }

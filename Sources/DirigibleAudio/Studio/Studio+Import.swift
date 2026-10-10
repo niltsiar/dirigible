@@ -66,16 +66,18 @@ extension Studio {
     }
 
     /// The blocking run of an import or a paste from another package (decisions 0040 and 0042):
-    /// `checkIdle`, `.busy` during a pending take and during `settle()`, the stop of play, the
+    /// `checkIdle`, `.rippleBlocked` for a `ripple` under a pending or split take (decision 0037),
+    /// `.busy` during a pending take and during `settle()`, the stop of play, the
     /// transport `.importing`, and `work` in one turn of the write chain. A cancel of the calling
     /// task sets the flag. `work` gets the session of its turn, the lock, and the flags; after it,
     /// a set flag writes nothing and throws `cancelled`, or `yielded` for a take in another
     /// studio. Else the run saves, records one undo entry, and loads the peaks of new files.
     func blockingRun<Value: Sendable>(
-        name: String, kind: ImportRun.Kind, cancelled: StudioError, yielded: StudioError,
+        name: String, kind: ImportRun.Kind, cancelled: StudioError, yielded: StudioError, ripple: Bool = false,
         work: @escaping @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value), StudioError>
     ) async throws(StudioError) -> Value {
         try checkIdle()
+        if ripple { try checkRipple() }
         guard pendingTake == nil, !settling else { throw .busy }
         let stopped = endPlayForTake()
         let flags = ImportFlags()

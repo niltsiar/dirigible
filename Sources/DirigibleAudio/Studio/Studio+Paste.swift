@@ -21,7 +21,7 @@ extension Studio {
         let identity = lock.identity
         guard PackageID.same(clipboard.origin, identity) else { return nil }
         var failure: PasteError?
-        let pasted = try edit { session throws(SessionError) in
+        let pasted = try edit(ripple: insert) { session throws(SessionError) in
             do throws(PasteError) {
                 let pasted = try pasteClipboard(
                     clipboard, from: clipboard.package, into: session, in: clipboard.package, identity: identity,
@@ -62,7 +62,8 @@ extension Studio {
         }
         let environment = environment
         return try await blockingRun(
-            name: name, kind: .paste, cancelled: .paste(.cancelled, source: name), yielded: .pasteYielded(source: name)
+            name: name, kind: .paste, cancelled: .paste(.cancelled, source: name), yielded: .pasteYielded(source: name),
+            ripple: insert
         ) { session, lock, flags in
             await pasteOffMain(
                 clipboard, from: path, into: session, lock: lock, at: start, on: target, insert: insert,

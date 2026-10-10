@@ -31,8 +31,8 @@ extension SessionWindow {
     /// a twin; the Marks clear and the playhead goes to the start of the range. Cut puts the
     /// selected tracks on the clipboard. Insert moves all tracks right by the clipboard length at
     /// the playhead and pastes there, as Paste does. With no selection or no clipboard, nothing.
-    /// During a take, nothing. Under a pending or split take (`rippleBlocked`), a beep. Cut of a
-    /// clip set is no ripple (`cutClips`).
+    /// During a take, nothing. Under a pending or split take, Studio refuses the ripple
+    /// (`.rippleBlocked`), and the window beeps. Cut of a clip set is no ripple (`cutClips`).
     func runRipple(_ command: TimelineCommand, _ studio: Studio) {
         guard canEdit else { return }
         if command == .insert { return insert(studio) }
@@ -41,9 +41,8 @@ extension SessionWindow {
         // A ripple needs a range scope (decision 0037), so a clip set beeps (decision 0038).
         guard let marks = timeline.selection.marks else { return beep() }
         guard let scope = marks.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
-        guard !rippleBlocked(segments: studio.rippleSegments, session: studio.session) else { return beep() }
         let cuts = command == .cut || command == .cutSelectedTracks
-        let done = edit { session throws(SessionError) -> Excerpt? in
+        let done = edit(ripple: true) { session throws(SessionError) -> Excerpt? in
             let excerpt = cuts ? try session.excerpt(of: scope.range, on: scope.selected) : nil
             try session.rippleDelete(scope.range, on: scope.tracks)
             return excerpt
@@ -69,9 +68,10 @@ extension SessionWindow {
         timeline.selection = .none
     }
 
-    /// Insert: one edit, a ripple insert on all tracks and a paste of the clipboard.
+    /// Insert: one edit, a ripple insert on all tracks and a paste of the clipboard. Under a pending
+    /// or split take, a beep before the paste, so the typed track names stay drafts.
     private func insert(_ studio: Studio) {
-        guard !rippleBlocked(segments: studio.rippleSegments, session: studio.session) else { return beep() }
+        guard studio.canRipple else { return beep() }
         paste(insert: true)
     }
 

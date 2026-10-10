@@ -92,6 +92,30 @@ import Testing
             ])
     }
 
+    /// C20 in the window: the menu reads `Studio.canRipple`. A `<recording>` and the marker of a
+    /// recovery attempt make a pending take with no finalize at the open. Control m10.
+    @Test func aPendingTakeHidesTheRippleItemsOfTheMenu() async throws {
+        let url = try await timelinePackage(in: folder.url, tracks: 2, seconds: 20)
+        var session = try Session(contentsOf: url)
+        try session.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"]))
+        try session.write(to: url)
+        FileManager.default.createFile(atPath: url.appending(path: "recovery-attempt").path, contents: nil)
+        let (model, studio) = try await timelineModel(url, app: app)
+        let (_, view) = standaloneLanes(model, studio)
+        try #require(studio.pendingTake != nil)
+        model.timeline.marks = Marks(inPoint: 40_000, outPoint: 100_000, tracks: ["t1"])
+        model.run(.copy)
+        try #require(model.clipboard != nil)
+
+        let shown = titles(try menu(view, 120, 10))
+
+        let ripple = [TimelineCommand.insert, .deleteCloseGap].compactMap { TimelineCommand.menuItems[$0]?.title.text }
+        #expect(
+            ripple.count == 2 && !shown.contains { title in ripple.contains { title.hasPrefix($0) } },
+            "RIPPLE-W6 the menu shows a ripple item under a pending take")
+        await model.close()
+    }
+
     /// Clip-set-clipboard C11: a clip set shows Cut and Copy, enabled. A pending or split take hides
     /// Insert and Delete and Close Gap, but not Cut: Cut of a set is no ripple. Control: the groups
     /// before this run have no Cut and no Copy for a set.

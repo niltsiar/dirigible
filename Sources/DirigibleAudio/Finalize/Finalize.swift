@@ -172,7 +172,7 @@ func unplacedSegments(_ segments: [SegmentName], session: Session) -> [SegmentNa
 /// the session refers to another segment of that take. A pending take places at its take anchor,
 /// and a split take places its rest at its old frames, so a ripple breaks their sync. A wholly
 /// unplaced take moves as one unit, so it does not block. No file I/O.
-public func rippleBlocked(segments: [SegmentName], session: Session) -> Bool {
+func rippleBlocked(segments: [SegmentName], session: Session) -> Bool {
     if session.recording != nil { return true }
     let placedTakes = Set(
         session.files.values.compactMap { $0.capture.flatMap { SegmentName(stem: $0.rawValue)?.take } })

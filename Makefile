@@ -110,6 +110,7 @@ test-hooks:
 	scripts/check-plan.test.sh
 	scripts/check-waits.test.sh
 	.claude/skills/deliver/scripts/replay-list.test.sh
+	.claude/skills/deliver/scripts/replay-batch.test.sh
 	.claude/skills/reflect/scripts/cost.test.sh
 	scripts/check-governance.test.sh
 	scripts/pr-terms.test.sh

@@ -42,5 +42,5 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 
 ## Replay once in Phase 7
 
-- Replay each killed control once, on the tree that lands, with `mutate.py --timeout <seconds> --replay <old log> <new log>`; after a return from Phase 7 to Phase 4, only the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> <commit of the full replay>` prints. Replay all of them otherwise: a change in a caller in a third file can make the mutated code unreachable. A replay that survives gets a `decisions.tsv` row with the result `survived`.
+- Replay each killed control once, on the tree that lands: `.claude/skills/deliver/scripts/replay-batch.sh <worktree> <controls folder> 480` (Bash `timeout` 600000; its TOO LONG command: `run_in_background`). After a return from Phase 7 to Phase 4, pass only the logs that `replay-list.sh <controls folder> <commit of the full replay>` prints; else replay all: a caller change in a third file can make the mutated code unreachable. A surviving replay gets a `decisions.tsv` row with the result `survived`.
 - A replay runs the logged test command again, with every side effect. After the last replay, build the product again from the clean tree.

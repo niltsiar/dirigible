@@ -57,7 +57,7 @@ public struct OverviewInputs: Equatable, Sendable {
 
     public init(session: Session, selection: Range<Frames>?, selectedLanes: [Int], extent: Double) {
         lanes = session.tracks.map(\.clips)
-        markers = session.markers.values.sorted { ($0.position, $0.id) < ($1.position, $1.id) }
+        markers = session.sortedMarkers
         (self.selection, self.selectedLanes, self.extent) = (selection, selectedLanes, extent)
     }
 }

@@ -200,7 +200,7 @@ extension Session {
         root.addChild(trackList)
 
         let markerList = element("markers")
-        for marker in markers.values.sorted(by: { ($0.position, $0.id) < ($1.position, $1.id) }) {
+        for marker in sortedMarkers {
             markerList.addChild(
                 element(
                     "marker", ("id", marker.id.rawValue), ("name", marker.name),

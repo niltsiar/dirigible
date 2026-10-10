@@ -200,6 +200,9 @@ public struct Session: Hashable, Sendable {
 
     // MARK: Markers and recording
 
+    /// The markers by position, then by ID: the order of the session file, the overview, and the chapters.
+    public var sortedMarkers: [Marker] { markers.values.sorted { ($0.position, $0.id) < ($1.position, $1.id) } }
+
     /// Adds the marker, or replaces the marker with its ID.
     public mutating func setMarker(_ marker: Marker) throws(SessionError) {
         try Self.checkText(marker.id.rawValue, marker.name)

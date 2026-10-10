@@ -3,8 +3,7 @@ import Foundation
 extension Session {
     /// The chapter markers in `range`, by position, then by ID (as the session file).
     public func chapters(in range: Range<Frames>) -> [Marker] {
-        markers.values.filter { $0.kind == .chapter && range.contains($0.position) }
-            .sorted { ($0.position, $0.id) < ($1.position, $1.id) }
+        sortedMarkers.filter { $0.kind == .chapter && range.contains($0.position) }
     }
 
     /// The Podcasting 2.0 JSON Chapters 1.2.0 file of the chapters in `range`

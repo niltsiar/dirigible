@@ -243,5 +243,4 @@ extension Frames {
 extension Session {
     fileprivate var sortedCaptures: [Capture] { captures.values.sorted { $0.id < $1.id } }
     fileprivate var sortedFiles: [AudioFile] { files.values.sorted { $0.id < $1.id } }
-    fileprivate var sortedMarkers: [Marker] { markers.values.sorted { ($0.position, $0.id) < ($1.position, $1.id) } }
 }

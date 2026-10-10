@@ -80,6 +80,17 @@ struct ParityTests {
         #expect(stale.isEmpty, "ParityTests lists methods that do not exist: \(stale.sorted())")
     }
 
+    /// A comment that holds the words gives no name: a comment-only change runs no Swift test
+    /// before the push (check-changed.sh).
+    @Test func theScanSkipsCommentLines() {
+        let text = """
+            /// Call `public mutating func ghost()` for a ghost.
+              // public mutating func shadow() {}
+            public mutating func real() {}
+            """
+        #expect(publicMutatingNames(in: text) == ["real"])
+    }
+
     @Test func everyListedCommandExists() async throws {
         for command in Self.commands.values.joined().sorted() {
             let result = try await dirigible(command.split(separator: " ").map(String.init) + ["--help"])
@@ -137,9 +148,15 @@ struct ParityTests {
             .filter { $0.pathExtension == "swift" }
         var names: Set<String> = []
         for file in files {
-            let text = try String(contentsOf: file, encoding: .utf8)
-            for match in text.matches(of: /public\s+mutating\s+func\s+(\w+)/) { names.insert(String(match.1)) }
+            names.formUnion(publicMutatingNames(in: try String(contentsOf: file, encoding: .utf8)))
         }
         return names
+    }
+
+    /// The names after `public mutating func` in the lines that are not `//` comments.
+    private func publicMutatingNames(in text: String) -> Set<String> {
+        let code = text.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingPrefix(while: \.isWhitespace).hasPrefix("//") }.joined(separator: "\n")
+        return Set(code.matches(of: /public\s+mutating\s+func\s+(\w+)/).map { String($0.1) })
     }
 }

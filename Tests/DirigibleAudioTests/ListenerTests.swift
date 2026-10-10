@@ -152,7 +152,7 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await until(limit: .seconds(10), "a failed stop waits") { reports.all == [.playing, .quiet] }
         #expect(input.ring.available == 2048, "G18: a failed stop does not flush")
         #expect(output.starts.count == 1, "G18: no unit starts after a failed stop")
-        #expect(await listener.counts() == Listener.Counts(kept: 1, freed: 0), "G18: the ring is kept")
+        #expect(await listener.counts() == Listener.Counts(kept: 1, freed: 0, retries: 1), "G18: the ring is kept")
         await listener.off()
     }
 
@@ -196,9 +196,12 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         let listener = listener(retry: .milliseconds(1))
         listener.start()
         await until(limit: .seconds(10), "64 kept appearances") { hal.listenTries("mic").count >= 64 }
-        try await Task.sleep(for: .milliseconds(200))
+        // The counts run on the queue after the 64th try. Each try after the first needs a
+        // scheduled retry, so 63 retries prove that no 65th try can come.
+        #expect(
+            await listener.counts() == Listener.Counts(kept: 64, freed: 64, retries: 63),
+            "G9: 64 kept appearances, and no retry after the 64th")
         #expect(hal.listenTries("mic").count == 64, "G9: no try after 64 kept appearances")
-        #expect(await listener.counts().kept == 64, "G9: 64 kept appearances")
         #expect(reports.all == [.quiet], "G9: the Listener is quiet")
         await listener.off()
     }
@@ -254,7 +257,7 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         let second = try #require(await input(after: [.playing, .quiet, .playing]))
         #expect(second.ring.context != first.ring.context, "G21: the retry has a new ring")
         #expect(output.starts.last?.ring.context == second.ring.context, "G21: the new unit reads the new ring")
-        #expect(await listener.counts() == Listener.Counts(kept: 1, freed: 0), "G21: the old ring is kept")
+        #expect(await listener.counts() == Listener.Counts(kept: 1, freed: 0, retries: 1), "G21: the old ring is kept")
         output.stop(returns: true)
         hal.listenDetach(returns: true)
         await listener.off()

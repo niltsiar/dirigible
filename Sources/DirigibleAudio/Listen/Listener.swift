@@ -15,11 +15,12 @@ final class Listener: @unchecked Sendable {
         case alive(Bool)
     }
 
-    /// The appearances that the Listener gave up (kept for the process life), and the rings of
-    /// them whose bytes it freed.
+    /// The appearances that the Listener gave up (kept for the process life), the rings of them
+    /// whose bytes it freed, and the retries that it scheduled.
     struct Counts: Equatable, Sendable {
         var kept = 0
         var freed = 0
+        var retries = 0
     }
 
     /// The kept appearances of one Listener: about 200 bytes each, as a monitor (decision 0015).
@@ -207,6 +208,9 @@ final class Listener: @unchecked Sendable {
     private func wait() {
         phase = .waiting
         send(.quiet)
+        // At the keep limit, no retry: the next on makes a new Listener.
+        guard counts.kept < keepLimit else { return }
+        counts.retries += 1
         queue.asyncAfter(deadline: .now() + retryInterval / .seconds(1)) { [weak self] in self?.tryStart() }
     }
 

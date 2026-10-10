@@ -167,6 +167,14 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
   await expectThrow('a relative plan scope with a worktree', { target: 'plan', worktree: '/abs/wt', scope: 'rel/plan.md' }, /absolute path/)
   await expectKeys('a relative ledger with no worktree', { target: 'diff', ledger: 'rel.tsv' }, ['premortem', 'devils-advocate', 'architecture'])
   await expectKeys('absolute paths with a worktree', { target: 'plan', worktree: '/abs/wt', scope: '/abs/plan.md', ledger: '/abs/d.tsv' }, ['premortem', 'devils-advocate', 'architecture'])
+  // A plan with a worktree and no scope does not throw: the default plan names the main checkout,
+  // which holds .scratchpads (code gate item D).
+  try {
+    const got = await run({ target: 'plan', worktree: '/abs/wt', ledger: '/abs/d.tsv' })
+    if (!got.prompts.some(p => p.includes('git -C /abs/wt rev-parse --path-format=absolute --git-common-dir'))) fail('a plan with a worktree and no scope: no prompt names the main checkout of the default plan')
+  } catch (error) {
+    fail(`a plan with a worktree and no scope: threw ${error.message}`)
+  }
   if (failures) { console.log(`${failures} failure(s)`); process.exit(1) }
   console.log('review-panel.test.sh: all cases pass')
 })()

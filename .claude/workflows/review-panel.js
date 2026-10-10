@@ -10,7 +10,6 @@ export const meta = {
 
 const target = args && args.target === 'plan' ? 'plan' : 'diff'
 const intent = (args && args.intent) || 'No intent given. Derive it from the plan or the commit messages.'
-const scope = (args && args.scope) || (target === 'plan' ? '.scratchpads/runs (newest run)/plan.md' : 'main')
 const round = Number(args && args.round) || 1
 const maxRounds = Number(args && args.maxRounds) || 2
 const prior = (args && Array.isArray(args.prior)) ? args.prior : []
@@ -31,8 +30,13 @@ const worktree = (args && args.worktree) || ''
 if (worktree && !worktree.startsWith('/')) throw new Error('args.worktree must be an absolute path')
 // A worktree has no .scratchpads, so a relative run file (the ledger, a prior verdict, the plan)
 // resolves to no file there, and a skeptic that cannot read the ledger cannot uphold a failure.
-const runFiles = [ledger, ...prior, ...(target === 'plan' ? [scope] : [])].filter(Boolean)
+const runFiles = [ledger, ...prior, ...(target === 'plan' && args && args.scope ? [args.scope] : [])].filter(Boolean)
 if (worktree && runFiles.some(f => !String(f).startsWith('/'))) throw new Error('args.ledger, args.prior, and a plan scope must be absolute paths with args.worktree')
+// The default plan is the newest run plan. With a worktree, it is in the main checkout.
+const newestPlan = worktree
+  ? `.scratchpads/runs (newest run)/plan.md in the main checkout (the parent folder of \`git -C ${worktree} rev-parse --path-format=absolute --git-common-dir\`)`
+  : '.scratchpads/runs (newest run)/plan.md'
+const scope = (args && args.scope) || (target === 'plan' ? newestPlan : 'main')
 const git = worktree ? `git -C ${worktree}` : 'git'
 const treeText = worktree ? ` The branch is checked out in ${worktree}: read each tracked file there, not in the main checkout.` : ''
 

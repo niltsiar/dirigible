@@ -33,7 +33,7 @@ Order the findings: structural regressions and missed simplifications first, the
 
 ## Approval bar
 
-Correct behavior alone does not approve a change. These block it, unless the author justifies them: incidental complexity that a code-judo move deletes; ad hoc branches that tangle an existing flow; feature checks scattered across shared code; an unnecessary abstraction, wrapper, or cast-heavy contract; a duplicate of an existing helper, or logic in the wrong layer when a canonical home exists. For each one, give explicit, actionable feedback, and push for a cleaner decomposition.
+Correct behavior alone does not approve a change. These block it, unless the author justifies them: incidental complexity that a code-judo move deletes; a Swift file over 400 lines with no reason in `scripts/check-sizes.allow`; ad hoc branches that tangle an existing flow; feature checks scattered across shared code; an unnecessary abstraction, wrapper, or cast-heavy contract; a duplicate of an existing helper, or logic in the wrong layer when a canonical home exists. For each one, give explicit, actionable feedback, and push for a cleaner decomposition.
 
 ## Tone
 

@@ -206,8 +206,11 @@ import Testing
         #expect(String(format: es[L10n.trackMonitorLabel.rawValue] ?? "", "Host") == "Monitorizar Host")
         for table in [en, es] {
             let help = table[L10n.trackMonitorHelp.rawValue] ?? ""
-            #expect(help.contains("(⌃⌘M)") && help.contains("Op"), "the key and the Option-click: \(help)")
+            // Code gate round 1, item 6: the key comes from `MenuKeys`, not from a copy in the table.
+            #expect(help.contains("(%@)") && help.contains("Op"), "the key and the Option-click: \(help)")
         }
+        let help = String(format: en[L10n.trackMonitorHelp.rawValue] ?? "", keyText(MenuKeys.monitorTrack))
+        #expect(help.hasPrefix("Monitor Track (⌃⌘M):"), "the help with the key: \(help)")
     }
 
     // MARK: Code gate round 1, item 1

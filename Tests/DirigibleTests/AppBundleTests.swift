@@ -114,8 +114,8 @@ struct AppBundleTests {
             ("track.monitor.label", "Monitor %@", "Monitorizar %@"),
             (
                 "track.monitor.help",
-                "Monitor Track (⌃⌘M): hear the input in your headphones. Option-click: all device tracks.",
-                "Monitorizar pista (⌃⌘M): oye la entrada en los auriculares. Opción-clic: todas las pistas de dispositivo."
+                "Monitor Track (%@): hear the input in your headphones. Option-click: all device tracks.",
+                "Monitorizar pista (%@): oye la entrada en los auriculares. Opción-clic: todas las pistas de dispositivo."
             ),
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.

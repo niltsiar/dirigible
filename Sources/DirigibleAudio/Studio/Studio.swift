@@ -192,8 +192,8 @@ import Observation
     public func settle() async {
         // Before the first await: from now no pass, no block, and no export starts.
         settling = true
-        await endListen()
         endImport()
+        await endListen()
         await endExport()
         await stopPlay()
         // The monitor order does not wait for a finalize in progress.

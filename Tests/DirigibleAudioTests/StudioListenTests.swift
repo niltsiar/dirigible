@@ -142,6 +142,49 @@ struct StudioListenTests {
         _ = folder
     }
 
+    /// Code gate 1 item 8: the listen stop holds the settle. The settle signals the import
+    /// first, and a listen call during the settle returns at once and attaches nothing.
+    @Test func settleSignalsTheImportAndRefusesAListen() async throws {
+        let (folder, url) = try await package()
+        let hal = TestHAL([duo, usb])
+        let output = TestOutput()
+        let studio = try await open(url, hal, output: output.output)
+        let source = folder.url.appending(path: "Voice.wav")
+        try writeSource(source, .wav16, rate: 44_100, channels: [sine(seconds: 4, rate: 44_100)])
+        let importGate = Gate(limit: nil)
+        let importSeam = ChunkSeam(at: [1: { importGate.waitOnce() }])
+        studio.environment.importStep = { importSeam.step() }
+        try await studio.listen(to: ["t1"])
+        let importing = Task { try await studio.importAudio(source, to: ImportTarget(track: nil, start: 0)) { _ in } }
+        await importGate.entered()
+        let stopGate = Gate(limit: nil)
+        defer {
+            stopGate.open()
+            importGate.open()
+        }
+        output.holdNextStop(in: stopGate)
+
+        let settle = Task { await studio.settle() }
+        await stopGate.entered()
+        await until(limit: .seconds(10), "settle did not signal the import before the listen stop") {
+            studio.importRun?.flags.isCancelled == true
+        }
+        let returned = Flag()
+        let late = Task {
+            try await studio.listen(to: ["t3"])
+            returned.set()
+        }
+        await until(limit: .seconds(10), "a listen during the settle did not return at once") { returned.value }
+        stopGate.open()
+        importGate.open()
+        await settle.value
+        try await late.value
+        _ = try? await importing.value
+
+        #expect(studio.listeners.isEmpty && hal.listenTries("usb").isEmpty, "a listen during the settle attached")
+        _ = folder
+    }
+
     @Test func anotherDeviceKeepsPlaying() async throws {
         let (folder, url) = try await package()
         let hal = TestHAL([duo, usb])

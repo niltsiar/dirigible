@@ -116,11 +116,15 @@ final class Listener: @unchecked Sendable {
     }
 
     /// A device listener passes its own input. An event of an input that is not the current one
-    /// does nothing. A subdevice change mutes the ring at once (fail closed): the loopback set of
-    /// the ring can be out of date.
+    /// does nothing. A subdevice change with a new loopback set mutes the ring at once (fail
+    /// closed). The read runs on the thread of the HAL notification, not a real-time thread.
     func post(_ event: Event, from sender: ListenInput) {
-        if case .subdevices = event { sender.ring.mute() }
-        queue.async { [self] in
+        var stale = false
+        if case .subdevices = event, hal.loopback(sender.id) != sender.ring.loopback {
+            stale = true
+            sender.ring.mute()
+        }
+        queue.async { [self, stale] in
             guard phase == .playing, let current, current.input === sender else { return }
             switch event {
             case .rate(let rate): restart(rate: rate)
@@ -131,6 +135,7 @@ final class Listener: @unchecked Sendable {
             case .subdevices:
                 // A new appearance reads the loopback set again. Each one keeps a ring, so a list
                 // that changes again and again ends at the keep limit.
+                guard stale else { return }
                 end(stopped: current.stop())
                 phase = .waiting
                 tryStart()

@@ -309,6 +309,20 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await listener.off()
     }
 
+    /// A subdevice event with the same loopback set keeps the appearance and its sound (code
+    /// gate round 2, item 5). Probe P11: an IO start or stop on an aggregate sends no event.
+    @Test func aSubdeviceEventWithTheSameSetKeepsPlaying() async throws {
+        hal.setAggregate("mic", subdevices: [40, 41], virtual: [41])
+        output.setOutput(40)
+        let listener = listener()
+        listener.start()
+        let first = try #require(await input(after: [.playing]))
+        listener.post(.subdevices, from: first)
+        #expect(await listener.counts().kept == 0, "no restart")
+        #expect(hal.listenTries("mic").count == 1 && !first.ring.speakers, "the appearance plays")
+        await listener.off()
+    }
+
     /// A failed transport read is unknown, so every output counts as a loopback (fail closed).
     /// The read is a HAL property read of an object that does not exist, with no IO.
     @Test func aFailedTransportReadIsUnknown() {

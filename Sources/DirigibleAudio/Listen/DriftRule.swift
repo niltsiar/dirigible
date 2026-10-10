@@ -61,6 +61,8 @@ struct DriftRule {
     /// the last push. A push or a pull over the sizes of the rule makes a new rule with the
     /// larger size, which primes again.
     mutating func pull(frames: Int, available: Int, pushed: Int) -> Pull {
+        // A render of no frames: with a repeat pending, the read would be -1 frames.
+        guard frames > 0 else { return .play(skip: 0, read: 0) }
         if pushed > inputBlock || frames > pullBlock {
             let counts = counts
             self = DriftRule(inputBlock: max(inputBlock, pushed), pull: max(pullBlock, frames), rate: rate)

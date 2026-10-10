@@ -184,6 +184,24 @@ struct DriftRuleTests {
         #expect(ring.reads.allSatisfy { abs($0) <= 1 }, "small excess: one frame per render")
     }
 
+    /// A render of 0 frames reads nothing, also with a repeat pending. A read of -1 frames wrote
+    /// one frame before the buffer (code gate round 1, item 9).
+    @Test func aRenderOfNoFramesReadsNothing() {
+        var ring = RuleDriver(DriftRule(inputBlock: 512, pull: 512, rate: 48_000))
+        ring.cycles(300)
+        ring.fill -= 100
+        var reads: [Int] = []
+        for _ in 0..<400 {
+            if case .play(let skip, let read) = ring.rule.pull(frames: 0, available: ring.fill, pushed: 512) {
+                reads.append(read)
+                ring.fill -= skip + read
+            }
+            ring.cycles(1)
+        }
+        #expect(ring.rule.counts.repeats > 0, "the deficit makes repeats")
+        #expect(reads.allSatisfy { $0 == 0 }, "a render of no frames reads nothing")
+    }
+
     /// A pull of 1024 after 512 (a default output with a larger buffer) makes a new rule with a
     /// larger target, which primes again and then plays with no underrun.
     @Test func aLargerPullRaisesTheTarget() {

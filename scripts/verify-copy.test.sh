@@ -14,7 +14,7 @@ started=()
 # Kill each process that the test or a fake open started, then remove the temp folders.
 trap 'for p in "${started[@]}" $(cat "$tmp"/case-*/state/pids 2>/dev/null); do kill -9 "$p" 2>/dev/null; done; rm -rf "$tmp"' EXIT
 failures=0
-copy_id=com.delineas.dirigible.verify
+# Each case repo has its own copy ID (verify-copy.sh id); new_case sets copy_id.
 real_id=com.delineas.dirigible
 
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
@@ -149,6 +149,7 @@ PLIST
     export PATH="$tmp/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     script="$repo/scripts/verify-copy.sh"
     saved="$HOME/Library/Saved Application State"
+    copy_id="$("$script" id 2>/dev/null)"
 }
 
 # run <args...>: run the script; set out, err, and code.
@@ -275,6 +276,23 @@ run start
 kill -0 "$other" 2>/dev/null || fail "second Dirigible: start stopped the other Dirigible"
 run stop
 kill -0 "$other" 2>/dev/null || fail "second Dirigible: stop stopped the other Dirigible"
+
+# Each worktree root gets its own copy ID, so the copies of two worktrees can run at the same
+# time, and a stop in one tree does not reset the grants of the copy of another tree.
+new_case
+first="$copy_id"
+[[ "$first" =~ ^com\.delineas\.dirigible\.verify-[0-9a-f]{8}$ ]] || fail "id: not the copy ID form: '$first'"
+run id
+[[ $code -eq 0 && "$out" == "$first" ]] || fail "id: a second call in one root gives '$out' (exit $code), not '$first'"
+new_case
+[[ -n "$copy_id" && "$copy_id" != "$first" ]] || fail "id: two roots give one ID: '$copy_id'"
+run start
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$copy/Contents/Info.plist" 2>&1)" == "$copy_id" ]] ||
+    fail "id: start does not set the ID of its root"
+mkdir -p "$saved/$first.savedState"
+run stop
+[[ -d "$saved/$first.savedState" ]] || fail "id: stop removed the saved state of the ID of another root"
+! grep -qF "$first" "$state/tccutil.log" "$state/defaults.log" 2>/dev/null || fail "id: stop reset the ID of another root"
 
 # C15 stop
 new_case

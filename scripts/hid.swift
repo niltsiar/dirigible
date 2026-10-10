@@ -3,7 +3,7 @@
 // The terminal app needs the Accessibility permission, and the screen must be unlocked.
 // Points are from the top-left corner of the window. Each event waits 20 ms.
 // The target app has the bundle ID in DIRIGIBLE_BUNDLE_ID (default com.delineas.dirigible; the
-// verify copy is com.delineas.dirigible.verify). Before each burst of events (a key with its
+// verify copy has the ID of scripts/verify-copy.sh id). Before each burst of events (a key with its
 // modifier keys, a typed character, a click, a drag, a scroll), the script activates the target
 // app and waits up to 2 s until its PID is frontmost. Else it posts nothing more and exits 4. A
 // HID event goes to the frontmost app: the verify copy once opened behind the terminal, and the

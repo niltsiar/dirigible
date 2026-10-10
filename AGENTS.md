@@ -53,7 +53,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Read first
 
-- **Coding standards.** Before a review, or when you design a type or a module, read `CODING_STANDARDS.md`.
+- **Coding standards.** Before a review, read `CODING_STANDARDS.md`. Also read it before you write a new type, actor code or an `await` in an actor, a parse at a boundary, or a test.
 - **Module map.** Before you look for a type or a file in `Sources/`, read the Decision table and **Folders** in `docs/decisions/0002-module-map.md`.
 - **Audio callbacks.** Before you write an audio callback (render block, tap, input proc, listener), read **Callbacks** in `docs/decisions/0013-live-capture.md`. Before code branches on an `OSStatus`, read **Status codes** there.
 - **Device clocks.** Before you store or align capture times, read **Timing** in `docs/decisions/0004-capture-pipeline.md`.

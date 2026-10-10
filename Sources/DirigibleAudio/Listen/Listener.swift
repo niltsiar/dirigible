@@ -140,7 +140,7 @@ final class Listener: @unchecked Sendable {
             $0.ring = ring
         }
         let input = ListenInput(id: found.id, ring: ring, listener: self)
-        let attached: (inputBlock: Int, detach: Detach)
+        let attached: (inputBlock: Int, rate: Double, detach: Detach)
         do throws(HALError) {
             attached = try hal.attachListen(input)
         } catch .undone {
@@ -158,7 +158,7 @@ final class Listener: @unchecked Sendable {
         do throws(HALError) {
             // A failed speaker listener add takes the path of a failed start: quiet, then a retry.
             guard output.watch(ring) else { throw .status(kAudioHardwareUnspecifiedError) }
-            let stop = try output.start(ring, rate, attached.inputBlock)
+            let stop = try output.start(ring, attached.rate, attached.inputBlock)
             current = Appearance(input: input, detach: attached.detach, stop: stop, inputBlock: attached.inputBlock)
             phase = .playing
             send(.playing)

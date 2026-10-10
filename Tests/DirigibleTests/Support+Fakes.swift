@@ -34,7 +34,7 @@ final class CountingHAL: Sendable {
                     return true
                 }
             }, watchDevices: { _ in { true } },
-            attachListen: { _ in (512, { true }) })
+            attachListen: { _ in (512, 48_000, { true }) })
         environment.microphoneAccess = { nil }
         environment.listenOutput = .offline()
         environment.silenceLimit = noWatchdog

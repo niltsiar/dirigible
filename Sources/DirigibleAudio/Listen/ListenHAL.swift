@@ -49,8 +49,9 @@ private struct ListenClient: @unchecked Sendable {
 
 /// The live listen attach (decision 0044): it checks the virtual format (packed float32), reads
 /// the IO buffer size, creates the listen IOProc with the ring context, adds the rate and IsAlive
-/// listeners with `input` as client data, and starts. The errors are those of `DeviceHAL.attach`.
-func attachListenLive(_ input: ListenInput) throws(HALError) -> (inputBlock: Int, detach: Detach) {
+/// listeners with `input` as client data, reads the nominal rate, and starts. The errors are those
+/// of `DeviceHAL.attach`.
+func attachListenLive(_ input: ListenInput) throws(HALError) -> (inputBlock: Int, rate: Double, detach: Detach) {
     let id = input.id
     for stream in try readArray(
         id, kAudioDevicePropertyStreams, scope: kAudioObjectPropertyScopeInput, as: AudioStreamID.self)
@@ -78,6 +79,15 @@ func attachListenLive(_ input: ListenInput) throws(HALError) -> (inputBlock: Int
             Unmanaged<ListenInput>.fromOpaque(client.pointer).release()
         }
     }
+    // After the listener adds: a rate change from now on calls the rate listener.
+    var rate = 0.0
+    if status == noErr {
+        if let read = try? readValue(id, kAudioDevicePropertyNominalSampleRate, as: Float64.self) {
+            rate = read
+        } else {
+            status = kAudioHardwareUnspecifiedError
+        }
+    }
     if status == noErr { status = AudioDeviceStart(id, procID) }
     let added = listening
     let detach: Detach = {
@@ -94,5 +104,5 @@ func attachListenLive(_ input: ListenInput) throws(HALError) -> (inputBlock: Int
         return clean
     }
     guard status == noErr else { throw detach() ? .undone(status) : .undoFailed }
-    return (inputBlock, detach)
+    return (inputBlock, rate, detach)
 }

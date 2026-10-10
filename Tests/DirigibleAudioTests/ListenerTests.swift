@@ -198,6 +198,17 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await listener.off()
     }
 
+    /// The rate of the attach, read after its listener adds, wins over the rate of the lookup: a
+    /// change between the two has no listener call (code gate round 1, item 7).
+    @Test func theOutputStartsAtTheRateOfTheAttach() async throws {
+        hal.listenRate("mic", 44_100)
+        let listener = listener()
+        listener.start()
+        _ = try #require(await input(after: [.playing]))
+        #expect(output.starts.last?.rate == 44_100, "the unit starts at the rate that the attach read")
+        await listener.off()
+    }
+
     @Test func aFailedDetachKeepsTheRing() async throws {
         hal.listenDetach(returns: false)
         let listener = listener()

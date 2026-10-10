@@ -230,7 +230,7 @@ import os
         studio.environment = CaptureEnvironment(
             hal: DeviceHAL(
                 lookUp: { $0 == mic.uid ? (1, mic) : nil }, attach: { _ in { true } }, watchDevices: { _ in { true } },
-                attachListen: { _ in (512, { true }) }),
+                attachListen: { _ in (512, 48_000, { true }) }),
             silenceLimit: noWatchdog, firstRecordLimit: noWatchdog,
             microphoneAccess: { granted.withLock { $0 } ? nil : .notDetermined }, freeBytes: { _ in .max },
             diskCheckInterval: .seconds(60), saveSession: CaptureEnvironment.live.saveSession,

@@ -10,7 +10,8 @@ private let lameTables: Void = { _ = lame_close(lame_init()) }()
 /// Writes an MP3 file through LAME (decision 0034): CBR at `bitRate`, `rate` Hz, and the channels
 /// of `client`. LAME sets mono for one channel and joint stereo for two. It runs `body` with a
 /// function that encodes one buffer of `client` frames, then flushes LAME and writes the LAME tag
-/// frame at offset 0, so a decoder reads the exact length (probe U3; Core Audio reads one frame
+/// frame after `tag`, the ID3 tag at offset 0 (decision 0045; no bytes for no episode), so a
+/// decoder reads the exact length (probe U3; Core Audio reads one frame
 /// more at 44.1 kHz with 96 or 160 kbit/s, probe len96). LAME changes the rate. It throws
 /// `.rateNotSupported` when LAME does not keep the rate or the bit rate (probes U3 and U7), and
 /// `.writeFailed(kAudio_ParamError)` when LAME refuses the setup.
@@ -19,7 +20,7 @@ private let lameTables: Void = { _ = lame_close(lame_init()) }()
 /// infinite sample to 0: LAME aborts on an assert for a non-finite or very large sample (U8).
 /// A write loops until all bytes are written; only a -1 return is a fault.
 func writeMP3(
-    _ url: URL, bitRate: BitRate, rate: Int, client: AVAudioFormat,
+    _ url: URL, bitRate: BitRate, rate: Int, client: AVAudioFormat, tag: [UInt8] = [],
     _ body: ((AVAudioPCMBuffer) throws(ExportError) -> Void) throws(ExportError) -> Void
 ) throws(ExportError) {
     _ = lameTables
@@ -48,6 +49,7 @@ func writeMP3(
     guard descriptor >= 0 else { throw writeFault(status: -40, errno: errno) }
     var isOpen = true
     defer { if isOpen { close(descriptor) } }
+    try writeAll(descriptor, tag, count: tag.count, at: nil)
     // The LAME bound is 1.25 x the frames + 7200 bytes, after its rate change.
     let ratio = max(1, Double(rate) / client.sampleRate)
     var bytes = [UInt8](repeating: 0, count: 7200)
@@ -73,9 +75,9 @@ func writeMP3(
     let size = Int32(bytes.count)
     try emit(lame_encode_flush(lame, &bytes, size))
     // LAME gives the size that it needs, and writes nothing, when the buffer is too small.
-    let tag = lame_get_lametag_frame(lame, &bytes, bytes.count)
-    guard tag >= 0, tag <= bytes.count else { throw .writeFailed(kAudio_ParamError) }
-    try writeAll(descriptor, bytes, count: tag, at: 0)
+    let lameTag = lame_get_lametag_frame(lame, &bytes, bytes.count)
+    guard lameTag >= 0, lameTag <= bytes.count else { throw .writeFailed(kAudio_ParamError) }
+    try writeAll(descriptor, bytes, count: lameTag, at: off_t(tag.count))
     isOpen = false
     guard close(descriptor) == 0 else { throw writeFault(status: -40, errno: errno) }
 }

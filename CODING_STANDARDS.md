@@ -1,6 +1,6 @@
 # Coding standards
 
-A review applies these rules, the **Safety rules** of `AGENTS.md`, and the decisions that its **Read first** section names.
+A review applies these rules, the **Safety rules** of `AGENTS.md`, and the decisions that the **Read first** section of `AGENTS.md` names.
 
 ## Design
 

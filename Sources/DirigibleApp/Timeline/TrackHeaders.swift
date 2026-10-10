@@ -19,6 +19,9 @@ struct TrackHeaders: View {
     static let muteSoloTwoLineWidth = 208.0
     /// The header width from which a one-line row shows the layout text (`TrackRow.showsLayout`).
     static let layoutWidth = 235.0
+    /// The header width from which a one-line row shows the short-term text: under it the text
+    /// pushes the dropped-frames symbol out of the row. The guide and `loudness.take.tip` give it.
+    static let compactLoudnessWidth = 262.0
 
     var body: some View {
         let _ = model.countHeaderRun(row: false)
@@ -33,7 +36,7 @@ struct TrackHeaders: View {
                         showsLayout: laneHeight >= 56 || geometry.size.width >= Self.layoutWidth,
                         showsMuteSolo: geometry.size.width
                             >= (laneHeight >= 56 ? Self.muteSoloTwoLineWidth : Self.muteSoloWidth),
-                        showsCompactLoudness: geometry.size.width >= TrackRow.compactLoudnessWidth
+                        showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
                     // At the lane edge, as the lanes have no line: the rows read as rows (D8).
@@ -62,10 +65,9 @@ private struct TrackRow: View {
     let showsLayout: Bool
     /// M and S, from `TrackHeaders.muteSoloWidth` or `muteSoloTwoLineWidth`. A Bool, as `showsLayout`.
     let showsMuteSolo: Bool
-    /// The short-term text in the one-line row, from 300 pt: under it the text pushes the
-    /// dropped-frames symbol out of the row. A Bool, as `showsLayout`.
+    /// The short-term text in the one-line row, from `TrackHeaders.compactLoudnessWidth`. A Bool,
+    /// as `showsLayout`.
     let showsCompactLoudness: Bool
-    static let compactLoudnessWidth = 300.0
     @FocusState private var focused: Bool
     /// Key: the window is key, so a selected row shows the emphasized fill.
     @Environment(\.controlActiveState) private var activeState

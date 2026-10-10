@@ -103,9 +103,10 @@ import Testing
             state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
         // Every row is armed: the red arm boxes are left of the counted columns.
         model.armed = Set(studio.session.tracks.map(\.id))
-        // The layout gate is the tightest one-line row: the layout text and a full live state.
-        let layout = TrackHeaders.layoutWidth
-        for width in [180.0, layout - 1, layout, 340] {
+        // The layout gate and the loudness gate are the tightest one-line rows with a full live
+        // state: the layout text, and then the short-term text too.
+        let (layout, loudness) = (TrackHeaders.layoutWidth, TrackHeaders.compactLoudnessWidth)
+        for width in [180.0, layout - 1, layout, loudness - 1, loudness, 340] {
             let (window, host) = rows(model, studio, laneHeight: 50, width: width)
             let found = controls(host, in: host)
             #expect(found.filter { $0.kind == "route" }.count == 3, "a route control in each row at \(width)")
@@ -153,9 +154,9 @@ import Testing
         await model.close()
     }
 
-    /// The one-line row shows the short-term text from 300 pt: the text after the meter moves the
-    /// meter to the left. At 240 pt the meter stays (code gate 2).
-    @Test func theOneLineRowShowsTheLoudnessFrom300Points() async throws {
+    /// The one-line row shows the short-term text from 262 pt, the width that the guide and the
+    /// tooltip give: the text after the meter moves the meter to the left. At 261 pt the meter stays.
+    @Test func theOneLineRowShowsTheLoudnessFrom262Points() async throws {
         let (model, studio) = try await model()
         func meterX(_ width: Double, _ shortTerm: LUFS?) throws -> Double {
             studio.liveTracks["t2"] = LiveTrack(state: .recording, droppedFrames: 0, peak: 0.1, shortTerm: shortTerm)
@@ -165,7 +166,7 @@ import Testing
             try #require(meters.count == 1, "one meter at \(width)")
             return meters[0].frame.minX
         }
-        for (width, shows) in [(240.0, false), (340.0, true)] {
+        for (width, shows) in [(261.0, false), (262, true), (340, true)] {
             let moved = try meterX(width, nil) - meterX(width, LUFS(value: -17.4))
             #expect(shows ? moved > 10 : moved == 0, "the text moved the meter \(moved) pt at \(width)")
         }

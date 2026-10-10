@@ -23,7 +23,7 @@ if [[ -f "$allow" ]]; then
     entries+="$file"$'\n'
     if [[ -z "${reason//[[:space:]]/}" ]]; then
       problems+="$file: an allow entry with no reason"$'\n'
-    elif ! grep -q "^$file:" <<<"$hits"; then
+    elif ! grep -qxF "$file" <(cut -d: -f1 <<<"$hits"); then
       problems+="$file: an allow entry for a file with no raw wait"$'\n'
     fi
   done <"$allow"
@@ -32,7 +32,7 @@ fi
 while IFS= read -r hit; do
   [[ -n "$hit" ]] || continue
   file="${hit%%:*}"
-  grep -qxF "$file" <<<"$entries" || problems+="${hit%%:*}:$(cut -d: -f2 <<<"$hit"): a raw .wait(timeout: with no allow entry; hold product work with Gate"$'\n'
+  grep -qxF "$file" <<<"$entries" || problems+="$file:$(cut -d: -f2 <<<"$hit"): a raw .wait(timeout: with no allow entry; hold product work with Gate"$'\n'
 done <<<"$hits"
 
 problems="$(sed '/^$/d' <<<"$problems")"

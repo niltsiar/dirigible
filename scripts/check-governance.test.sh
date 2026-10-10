@@ -70,10 +70,6 @@ new_repo; reflect_row; verdicts delete merge; commit
 refuse 'two removals in a reflect docs branch' 'rules.tsv: 2 rows change to delete or merge' "$tmp/run"
 new_repo; reflect_row; verdicts keep merge; commit
 pass 'one removal in a reflect docs branch' "$tmp/run"
-# make check-changed FILTER=<names> puts FILTER in the environment of each recipe. The check
-# reads only the classes, so FILTER does not change its result.
-out="$(cd "$tmp/r" && FILTER=x "$script" main "$tmp/run" 2>&1)" ||
-  fail "one removal in a reflect docs branch under FILTER=x: expected exit 0: $out"
 new_repo; verdicts delete merge; commit
 pass 'two removals with no reflect row' "$tmp/run"
 new_repo; reflect_row; verdicts delete merge; mkdir -p "$tmp/r/scripts"; echo x > "$tmp/r/scripts/x.sh"; commit

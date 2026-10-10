@@ -5,8 +5,9 @@
 # A log is listed when `git diff --name-only --no-renames <base> HEAD` has its mutated file
 # (`# mutation of`, `# in`) or a killing test file: a .swift file under Tests/ that declares a
 # type or defines a func whose name contains a name of the `# test:` line. The names come from
-# `--filter <arg>` (a suite, a func, or a regex: split on | and /, parentheses removed) and from
-# `scripts/bench.sh <name>`. Each line is the log, then the changed files that it matched.
+# `--filter <arg>` (a suite, a func, or a regex: split on | and /, parentheses removed), from
+# `scripts/bench.sh <name>`, and from a `FILTER=<value>` of make (names split by spaces, quoted or
+# not). Each line is the log, then the changed files that it matched.
 # The script fails open: a log with a name that resolves to no file is listed with `unresolved`.
 # A `killed (hang)` result counts as killed. Only the logs at the top of the folder count, not the
 # *.orig copies or the logs under replay*/. replay-list.test.sh tests it.
@@ -24,7 +25,8 @@ names_of() {
     {
         grep -oE -- "--filter[= ]+('[^']*'|\"[^\"]*\"|[^ ]+)" <<<"$1" | sed -E 's/^--filter[= ]+//' || true
         grep -oE "scripts/bench\.sh +('[^']*'|\"[^\"]*\"|[^ ]+)" <<<"$1" | sed -E 's|^scripts/bench\.sh +||' || true
-    } | tr -d "'\"()" | tr '|/' '\n\n' | grep -v '^$' || true
+        grep -oE "FILTER=('[^']*'|\"[^\"]*\"|[^ ]+)" <<<"$1" | sed -E 's/^FILTER=//' || true
+    } | tr -d "'\"()" | tr '|/ ' '\n\n\n' | grep -v '^$' || true
 }
 
 for log in "$abs"/*.log; do

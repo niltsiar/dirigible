@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that replay-list.sh lists a killed control log when the diff has its mutated file, its
 # `# in` file, or a test file that its `# test:` line names: a func name, a suite name in single
-# quotes, a regex with bars and a slash, or a `scripts/bench.sh <name>` argument, or another file
+# quotes, a regex with bars and a slash, a `scripts/bench.sh <name>` argument, or a `FILTER=` value
+# of make (names split by spaces, quoted or not), or another file
 # of the suite of such a test. Check that it
 # lists a log whose test line resolves to no file with `unresolved`, and that it does not list a
 # log for an unrelated change, a survived log, a .orig copy, or a log under replay/. With no
@@ -50,6 +51,9 @@ control "$ctl/k-func.log" killed 'swift test --skip-build --filter aliveTickCoun
 control "$ctl/k-suite.log" killed "swift test --skip-build --filter 'BarTests'" Sources/C.swift
 control "$ctl/k-regex.log" killed "swift test --skip-build --filter 'OtherTests|QuxTests/(cTwo|dOne)'" Sources/C.swift
 control "$ctl/k-bench.log" 'killed (hang)' 'scripts/bench.sh aTakeTickFits' Sources/C.swift
+control "$ctl/k-make.log" killed "make test-filter FILTER='BarTests QuxTests'" Sources/C.swift
+control "$ctl/k-make-one.log" killed 'make test-filter FILTER=BarTests' Sources/C.swift
+control "$ctl/k-make-bench.log" killed 'make bench FILTER=aTakeTickFits' Sources/C.swift
 control "$ctl/k-unres.log" killed 'swift test --skip-build --filter NoSuchThing' Sources/C.swift
 control "$ctl/k-unrelated.log" killed 'swift test --skip-build --filter OtherTests' Sources/Z.swift
 control "$ctl/k-surv.log" survived 'swift test --skip-build --filter OtherTests' Sources/A.swift
@@ -88,16 +92,20 @@ listed 'another file of the suite of a filter func changed' "$ctl/k-func.log Tes
 
 change Tests/X/BarTests.swift
 listed 'the file of a quoted suite name changed' "$ctl/k-suite.log Tests/X/BarTests.swift"
+listed 'the file of a quoted FILTER= name with a space changed' "$ctl/k-make.log Tests/X/BarTests.swift"
+listed 'the file of a FILTER= name changed' "$ctl/k-make-one.log Tests/X/BarTests.swift"
 
 change Tests/X/DTests.swift
 listed 'the func d file of a regex A|B/(c|d) changed' "$ctl/k-regex.log Tests/X/DTests.swift"
+listed 'another file of the second suite of a FILTER= value changed' "$ctl/k-make.log Tests/X/DTests.swift"
 not_listed 'a regex part in another file' k-suite.log
 
 change Tests/X/BenchTests.swift
 listed 'the func file of a bench.sh name changed' "$ctl/k-bench.log Tests/X/BenchTests.swift"
+listed 'the func file of a make bench FILTER= name changed' "$ctl/k-make-bench.log Tests/X/BenchTests.swift"
 
 change README.md
-for name in k-mut k-in k-func k-suite k-regex k-bench k-unrelated k-surv; do
+for name in k-mut k-in k-func k-suite k-regex k-bench k-make k-make-one k-make-bench k-unrelated k-surv; do
   not_listed 'only an unrelated file changed' "$name.log"
 done
 [[ "$out" == "$ctl/k-unres.log unresolved" ]] || fail "only an unrelated file changed: not only the unresolved line: $out"

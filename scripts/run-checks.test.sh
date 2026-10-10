@@ -164,6 +164,9 @@ no_rerun 'a red test-app' 'a target other than test and test-slow-push failed' "
 no_rerun 'a target other than check not remade' 'a target other than check is not remade' "$red_test"$'\n2:make[1]: Target `test-dmg\' not remade because of errors.'
 no_rerun 'a crash' 'a test process crashed' "error: Exited with unexpected signal code 11"$'\n'"$red_test"
 no_rerun 'an issue of no test' 'an issue of no test' "✘ Test «unknown» recorded an issue at A.swift:1:1: Issue recorded"$'\n'"$red_test"
+# A failed test and then an early end with no report: a rerun of the failed test would hide the
+# tests that never ran.
+no_rerun 'a test process with no report' 'a test process ended before its report' "swift-test: the test process ended before its report (swift test --skip X)"$'\n'"$red_test"
 no_rerun 'a red test with no test line' 'a red target with no failed test line' $'2:make[1]: *** [test] Error 1'
 no_rerun 'a failed test line after the last Error line' 'a failed test line of no red target' "$red_test"$'\n✘ Test late() failed after 1.0 seconds with 1 issue.'
 

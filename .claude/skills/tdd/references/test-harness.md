@@ -18,7 +18,7 @@ A result that depends on a difference between the test process and the app prove
 - A synthetic `NSEvent` to `scrollWheel(with:)` does not act as an HID scroll does.
 - A test process has no key window, so `NSApp.sendEvent` can give a synthetic key event to the window of another suite. Send it with `NSWindow.sendEvent` to the window of the test.
 - A mouse-down that `NSWindow.sendEvent` gets is a first click: the window takes it to become key, and no view gets it. Send the mouse-down and the mouse-up to the view that `window.contentView?.superview?.hitTest(event.locationInWindow)` gives. First-click behavior stays a manual check.
-- Prove a click on an `NSTableView` on the built app. In the test process, a mouse-down to the table with a posted mouse-up ended the process with exit 0 and no report.
+- Give a seam to each AppKit call that can end or block the app (a terminate reply, a posted mouse-up in a tracking loop): in the test process it ends the process with exit 0, and `scripts/swift-test.sh` fails the run.
 - All windows of the test process share one SwiftUI field editor, and a text field of a parallel suite can take it between a poll and a key. Get the name field editor with `focusedNameEditor(in:)`.
 
 ## The pool, preferences, and seams

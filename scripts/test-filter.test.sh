@@ -3,8 +3,9 @@
 # skips the CLI tests and gets one --filter for each word, process 2 runs the CLI tests of a
 # word that a CLI test file names. Check that --exact anchors each name and escapes its regex
 # characters, and that --no-parallel reaches both processes. Check that it fails closed: no test
-# in each process that ran, a nonzero swift exit, or no word. A fake swift on PATH logs its
-# arguments. Run by `make test-hooks`.
+# in each process that ran, a nonzero swift exit, no word, or a swift exit 0 with no report line
+# (scripts/swift-test.sh), also in make test. A fake swift on PATH logs its arguments. Run by
+# `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -14,12 +15,14 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 # A package copy: the script and one CLI test file that names the suite CLIWordTests.
 mkdir -p "$tmp/pkg/scripts" "$tmp/pkg/Tests/DirigibleCLITests" "$tmp/bin"
-cp "$repo/scripts/test-filter.sh" "$tmp/pkg/scripts/test-filter.sh"
+cp "$repo/scripts/test-filter.sh" "$repo/scripts/swift-test.sh" "$tmp/pkg/scripts/"
 printf 'struct CLIWordTests {\n    @Test func cliWordRuns() {}\n}\n' > "$tmp/pkg/Tests/DirigibleCLITests/CLIWordTests.swift"
 
 # The fake swift logs one line for each call. FAKE_P1 and FAKE_P2 set the output of process 1
 # (the call with --skip DirigibleCLITests) and process 2: none (the two no-test strings of
 # mutate.py), xctest (only the XCTest string, and tests ran), tests, or fail (tests, exit 1).
+# Swift Testing writes its summary to stderr: real (the summary of a real run, on stderr) and
+# noreport (exit 0 and no summary line, on stderr, as when an AppKit call ends the process).
 cat > "$tmp/bin/swift" <<'EOF'
 #!/bin/bash
 echo "swift $*" >> "$FAKE_LOG"
@@ -30,6 +33,8 @@ case "$mode" in
   xctest) echo 'No matching test cases were run'; echo 'Test run with 3 tests passed after 0.1 seconds.' ;;
   tests) echo 'Test run with 3 tests passed after 0.1 seconds.' ;;
   fail) echo 'Test run with 3 tests failed after 0.1 seconds with 1 issue.'; exit 1 ;;
+  real) echo '✘ Test run with 1980 tests in 247 suites passed after 431.790 seconds with 4 known issues.' >&2 ;;
+  noreport) echo '	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds' >&2 ;;
 esac
 exit 0
 EOF
@@ -103,6 +108,29 @@ run tests tests
 [[ $code -eq 2 ]] || fail "no word: expected exit 2, got $code"
 [[ "$out" == *"usage: "* ]] || fail "no word: no usage: $out"
 [[ ! -s "$tmp/log" ]] || fail "no word: swift ran: $(cat "$tmp/log")"
+
+# A test process that ends with exit 0 and no report line fails, with the reason. The summary of
+# a real run, on stderr, passes.
+run noreport tests ClipTests
+[[ $code -eq 1 ]] || fail "process 1 with no report: expected exit 1, got $code: $out"
+[[ "$out" == *"the test process ended before its report"* ]] || fail "no report: no reason: $out"
+run tests noreport CLIWordTests
+[[ $code -eq 1 ]] || fail "process 2 with no report: expected exit 1, got $code: $out"
+run real real ClipTests
+[[ $code -eq 0 ]] || fail "a real summary on stderr: exit $code: $out"
+
+# make test runs both processes through swift-test.sh, so a process with no report fails it.
+make_test() {
+  out="$(PATH="$tmp/bin:$PATH" FAKE_LOG="$tmp/log" FAKE_P1="$1" FAKE_P2="$2" make -s -f "$repo/Makefile" -C "$tmp/pkg" test 2>&1)"
+  code=$?
+}
+make_test noreport tests
+[[ $code -ne 0 ]] || fail "make test with no report in process 1: exit 0: $out"
+[[ "$out" == *"the test process ended before its report"* ]] || fail "make test: no reason: $out"
+make_test tests noreport
+[[ $code -ne 0 ]] || fail "make test with no report in process 2: exit 0: $out"
+make_test real tests
+[[ $code -eq 0 ]] || fail "make test with reports: exit $code: $out"
 
 [[ $failures -eq 0 ]] && echo "test-filter tests: all passed"
 exit $((failures > 0))

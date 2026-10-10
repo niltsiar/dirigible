@@ -90,18 +90,34 @@ extension InspectorTests {
         await model.close()
     }
 
-    /// C9: a bad number or URL beeps and keeps the old value; Esc puts back the shown text.
-    @Test func aBadEpisodeValueBeepsAndEscPutsBackTheText() async throws {
+    /// C9, code gate 1 item 2: a bad value beeps, keeps the draft, and shows the rule of the
+    /// field. A corrected text saves. Esc puts back the shown text.
+    @Test func aBadEpisodeValueKeepsTheDraftAndEscPutsBackTheText() async throws {
         let (model, studio, window, view) = try await open(try await package())
         var beeps = 0
         model.beep = { beeps += 1 }
         model.showEpisodeInfo()
         let fields = try await episodeFields(window)
-        for (field, text) in [(EpisodeField.number, "0"), (.feedURL, "ftp://a.b"), (.date, "2026-02-30")] {
+        let refused: [(EpisodeField, String, L10n)] = [
+            (.number, "0", .errorEpisodeNumber), (.feedURL, "ftp://a.b", .errorEpisodeURL),
+            (.date, "2026-02-30", .errorEpisodeDate),
+        ]
+        for (field, text, message) in refused {
             model.typeEpisode(text, in: field)
             model.commitEpisode()
+            #expect(model.episodeDraft == EpisodeDraft(field: field, shown: "", text: text, refused: true))
+            #expect(EpisodeInspector.refusal(field) == message)
+            model.episodeDraft = nil
         }
         #expect(beeps == 3 && studio.session.episode.isEmpty && !studio.canUndo, "beeps: \(beeps)")
+        model.typeEpisode("0", in: .number)
+        model.commitEpisode()
+        model.typeEpisode("7", in: .number)
+        #expect(model.episodeDraft?.refused == false, "a new key removes the message")
+        model.commitEpisode()
+        #expect(studio.session.episode.number?.value == 7 && model.episodeDraft == nil)
+        model.undo()
+        await until("the undo ends") { !studio.canUndo }
 
         try await waitForTitleFocus(model, window)
         let editor = try #require(window.firstResponder as? NSTextView)

@@ -15,6 +15,8 @@ struct EpisodeDraft: Equatable {
     let field: EpisodeField
     let shown: String
     var text: String
+    /// True after a commit that the field type refused. The pane shows the rule of the field.
+    var refused = false
 }
 
 /// The Episode pane of the inspector (decision 0045): the artwork, the fields, the description,
@@ -102,34 +104,62 @@ struct EpisodeInspector: View {
     private func field(
         _ name: EpisodeField, label: L10n, _ episode: Episode, prompt: L10n? = nil, axis: Axis = .horizontal
     ) -> some View {
-        TextField(text: text(name, episode), prompt: prompt.map { Text($0.key) }, axis: axis) { Text(label.key) }
-            .labelsHidden()
-            .focused($focus, equals: name)
-            .onSubmit {
-                model.commitEpisode()
-                model.focusLanes()
-            }
-            .onExitCommand {
-                model.episodeDraft = nil
-                model.focusLanes()
-            }
-            .accessibilityIdentifier("episode.\(name)")
+        VStack(alignment: .leading, spacing: 2) {
+            TextField(text: text(name, episode), prompt: prompt.map { Text($0.key) }, axis: axis) { Text(label.key) }
+                .labelsHidden()
+                .focused($focus, equals: name)
+                .onSubmit {
+                    model.commitEpisode()
+                    model.focusLanes()
+                }
+                .onExitCommand {
+                    model.episodeDraft = nil
+                    model.focusLanes()
+                }
+                .accessibilityIdentifier("episode.\(name)")
+            refusalText(name)
+        }
+    }
+
+    /// The rule of the field after a refused commit (code gate 1 item 2). Library code has no UI
+    /// text (decision 0010), so the pane maps the field to a key.
+    @ViewBuilder private func refusalText(_ name: EpisodeField) -> some View {
+        if let draft = model.episodeDraft, draft.field == name, draft.refused {
+            Text(Self.refusal(name).key).font(.system(size: 11)).foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("episode.refusal")
+        }
+    }
+
+    /// The key of the rule of a field.
+    static func refusal(_ field: EpisodeField) -> L10n {
+        switch field {
+        case .title, .show, .author, .copyright, .guid: .errorEpisodeLine
+        case .season, .number: .errorEpisodeNumber
+        case .date: .errorEpisodeDate
+        case .language: .errorEpisodeLanguage
+        case .episodeURL, .feedURL: .errorEpisodeURL
+        case .summary, .notes: .errorEpisodeNotes
+        }
     }
 
     private func notesEditor(_ episode: Episode) -> some View {
-        TextEditor(text: text(.notes, episode))
-            .font(.system(size: 11))
-            .frame(height: notesExpanded ? 320 : 96)
-            .overlay(RoundedRectangle(cornerRadius: 4).stroke(.separator))
-            .focused($focus, equals: .notes)
-            .onKeyPress(.return, phases: .down) { press in
-                guard press.modifiers.contains(.command) else { return .ignored }
-                model.commitEpisode()
-                model.focusLanes()
-                return .handled
-            }
-            .accessibilityLabel(Text(L10n.episodeNotes.key))
-            .accessibilityIdentifier("episode.notes")
+        VStack(alignment: .leading, spacing: 2) {
+            TextEditor(text: text(.notes, episode))
+                .font(.system(size: 11))
+                .frame(height: notesExpanded ? 320 : 96)
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(.separator))
+                .focused($focus, equals: .notes)
+                .onKeyPress(.return, phases: .down) { press in
+                    guard press.modifiers.contains(.command) else { return .ignored }
+                    model.commitEpisode()
+                    model.focusLanes()
+                    return .handled
+                }
+                .accessibilityLabel(Text(L10n.episodeNotes.key))
+                .accessibilityIdentifier("episode.notes")
+            refusalText(.notes)
+        }
     }
 
     private func text(_ name: EpisodeField, _ episode: Episode) -> Binding<String> {
@@ -196,6 +226,7 @@ extension SessionWindow {
         guard showsInspector else { return }
         if episodeDraft?.field == field {
             episodeDraft?.text = text
+            episodeDraft?.refused = false
             return
         }
         guard let studio = idleStudio else { return }
@@ -205,18 +236,18 @@ extension SessionWindow {
         episodeDraft = EpisodeDraft(field: field, shown: shown, text: text)
     }
 
-    /// Sets the typed text of the draft as one edit. A text that its type refuses beeps. The
-    /// draft goes in each case, so the field shows the value again. A busy studio keeps the draft.
+    /// Sets the typed text of the draft as one edit. A text that its type refuses beeps and keeps
+    /// the draft, and the pane shows the rule of the field. A busy studio keeps the draft.
     func commitEpisode() {
         guard let draft = episodeDraft, let session = idleStudio?.session else { return }
-        episodeDraft = nil
-        guard draft.text != draft.shown else { return }
         var episode = session.episode
         do throws(EpisodeFieldError) {
             try episode.set(draft.field, text: draft.text)
         } catch {
+            episodeDraft?.refused = true
             return beep()
         }
+        episodeDraft = nil
         guard episode != session.episode else { return }
         edit { s in s.setEpisode(episode) }
     }

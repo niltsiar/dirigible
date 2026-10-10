@@ -182,7 +182,7 @@ public struct EpisodeLine: Hashable, Sendable {
     }
 }
 
-/// A text that keeps its line breaks and tabs. CR LF and CR become LF.
+/// A text that keeps its line breaks and tabs. CR LF, CR, a vertical tab, and a form feed become LF.
 public struct EpisodeNotes: Hashable, Sendable {
     public let text: String
 
@@ -190,6 +190,7 @@ public struct EpisodeNotes: Hashable, Sendable {
     public init?(_ text: String) throws(EpisodeFieldError) {
         guard !text.allSatisfy(\.isWhitespace) else { return nil }
         let lines = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: "\u{0B}", with: "\n").replacingOccurrences(of: "\u{0C}", with: "\n")
         try checkCharacters(lines, allowing: ["\n", "\t"])
         self.text = lines
     }

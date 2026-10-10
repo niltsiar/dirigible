@@ -282,6 +282,16 @@ struct ListenRingTests {
             silent.left.allSatisfy { $0 == 0 } && silent.right.allSatisfy { $0 == 0 }, "A10: the speakers get zeros")
     }
 
+    /// A mute keeps the loopback flag, so a wake after the mute reports no play (code gate
+    /// round 2, item 6).
+    @Test func aMuteKeepsTheLoopbackFlag() {
+        let ring = listenRing([.mono(1)])
+        defer { ring.deallocate() }
+        ring.storeSpeakers(true, loopback: true, ticket: 2)
+        ring.mute()
+        #expect(ring.speakers && ring.feedsItself, "the mute keeps the loopback flag")
+    }
+
     /// While the flag is true the render still pulls, so the delay stays at the target.
     @Test func silenceKeepsTheDelay() {
         let ring = listenRing([.mono(1)])

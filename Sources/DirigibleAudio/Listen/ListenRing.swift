@@ -110,8 +110,9 @@ struct ListenRing: @unchecked Sendable {
         storage.pointee.tail.store(storage.pointee.head.load(ordering: .acquiring), ordering: .releasing)
     }
 
-    /// Zeros for good: a ticket that no refresh reaches.
-    func mute() { storeSpeakers(true, ticket: UInt64.max >> 2) }
+    /// Zeros for good: a ticket that no refresh reaches. It keeps the loopback flag, so a wake
+    /// after it does not report a play.
+    func mute() { storeSpeakers(true, loopback: feedsItself, ticket: UInt64.max >> 2) }
 
     /// True while the render must play zeros: the default output is the built-in speakers.
     var speakers: Bool { storage.pointee.speakers.load(ordering: .relaxed) & 1 == 1 }

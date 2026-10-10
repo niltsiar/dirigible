@@ -4,8 +4,9 @@ import CoreAudio
 import os
 
 /// The stereo frame ring of one listened device (decision 0044). The input IOProc of the device
-/// pushes, and the render of its output unit pulls. It holds pointers and `UnsafeAtomic` values
-/// only, as `CaptureRing`, so a copy is the same ring and nothing in it uses ARC.
+/// pushes, and the render of its output unit pulls. A copy is the same ring. `Storage` holds
+/// pointers and `UnsafeAtomic` values, as `CaptureRing`, and two ARC values for the speaker guard:
+/// `loopback` and `wake`. So no IO path copies `storage.pointee` whole: it reads one field.
 ///
 /// `head` and `tail` are monotonic frame counts. The push loads `tail` acquiring and stores `head`
 /// releasing. The pull loads `head` acquiring and stores `tail` releasing.

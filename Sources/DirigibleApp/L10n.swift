@@ -395,7 +395,4 @@ enum L10n: String, CaseIterable {
     func format(_ arguments: any CVarArg...) -> String {
         String(format: text, locale: .current, arguments: arguments)
     }
-
-    /// A byte count in the units of the Finder.
-    static func bytes(_ count: Int64) -> String { ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
 }

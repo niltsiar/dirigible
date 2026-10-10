@@ -73,7 +73,8 @@ extension CaptureEnvironment {
         CaptureEnvironment(
             hal: hal.hal, silenceLimit: silenceLimit, firstRecordLimit: silenceLimit, microphoneAccess: { access },
             freeBytes: { _ in free.value }, diskCheckInterval: .milliseconds(50), saveSession: saveSession,
-            beforeFinalize: beforeFinalize, playerOutput: .offline, beforeLookUp: { await hal.beforeLookUp() })
+            listenOutput: .offline(), beforeFinalize: beforeFinalize, playerOutput: .offline,
+            beforeLookUp: { await hal.beforeLookUp() })
     }
 }
 

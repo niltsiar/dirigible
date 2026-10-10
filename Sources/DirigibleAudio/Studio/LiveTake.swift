@@ -98,6 +98,9 @@ struct CaptureEnvironment: Sendable {
     /// path that it wrote. Called off the main actor. It is async, so a test holds a write with an
     /// async wait and blocks no thread of the concurrency pool.
     var saveSession: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL
+    /// The output of each Listener (decision 0044). No default, so each direct init names it;
+    /// tests give `.offline()`.
+    var listenOutput: ListenOutput
     /// A step before each finalize and each placement (decision 0021). Tests hold a finalize or a
     /// placement with it and suspend, so no thread of the concurrency pool waits; `live` does
     /// nothing.
@@ -141,7 +144,8 @@ struct CaptureEnvironment: Sendable {
             }
         },
         freeBytes: { $0.freeBytes() }, diskCheckInterval: .seconds(1),
-        saveSession: { session, lock throws(SessionFileError) in try session.write(under: lock) })
+        saveSession: { session, lock throws(SessionFileError) in try session.write(under: lock) },
+        listenOutput: .live)
 }
 
 /// A latency-critical `ProcessInfo` activity for the life of the value, so App Nap does not slow

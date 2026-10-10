@@ -37,9 +37,10 @@ class_of() {
 # can end in a // line.
 swift_code() { awk '{ t = $0; sub(/^[ \t]+/, "", t) } t == "" { next } t ~ /^\/\// && t !~ /\/\*|\*\// { next } { print }'; }
 
-# The Makefile text with no comment line that make skips: a line that starts with # after spaces
-# (a tab makes a recipe line), with no $, no \ at the end, and no \ at the end of the line before.
-make_code() { awk '{ c = prev; prev = /\\$/ } !c && /^ *#/ && !/\$/ && !/\\$/ { next } { print }'; }
+# The Makefile text with no blank line and no comment line that make skips: a line that starts
+# with # after spaces (a tab makes a recipe line), with no $ and no \ at the end. A line after a
+# line that ends in \ stays.
+make_code() { awk '{ c = prev; prev = /\\$/ } !c && /^ *$/ { next } !c && /^ *#/ && !/\$/ && !/\\$/ { next } { print }'; }
 
 # A change of only comment lines: the text at $from and the file on disk are equal after the
 # filter of the file. A new, deleted, or untracked file is not. A file with a line that matches

@@ -242,6 +242,8 @@ mk=$'X = a \\\n  b\nall:\n\t@true\n'
 content_case 'a Makefile comment before the push' Makefile "$mk" "# note"$'\n'"$mk" "$(out docs check-docs no)" main
 content_case 'a Makefile recipe line before the push' Makefile "$mk" "$mk"$'\t@true\n' "$(out bundle 'check test-slow-push test-dmg' no)" main
 content_case 'a Makefile comment' Makefile "$mk" "$mk"$'  # note\n' "$(out docs check-docs no)"
+content_case 'a Makefile comment paragraph' Makefile "$mk" $'# a\n\n# b\n'"$mk" "$(out docs check-docs no)"
+content_case 'a blank line after a continued line' Makefile "$mk" $'X = a \\\n\n  b\nall:\n\t@true\n' "$(out bundle check no)"
 content_case 'a recipe # line' Makefile "$mk" "$mk"$'\t# c\n' "$(out bundle check no)"
 content_case 'a # line with a $ reference' Makefile "$mk" '# $(X)'$'\n'"$mk" "$(out bundle check no)"
 content_case 'a # line that continues' Makefile "$mk" $'# a \\\n'"$mk" "$(out bundle check no)"

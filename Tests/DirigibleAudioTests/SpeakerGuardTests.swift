@@ -111,6 +111,9 @@ struct SpeakerGuardTests {
         SpeakerGuard.refresh(
             ring, output: { 7 }, subdevices: subdevices, watch: hal.watch(ring), speakers: { $0 == 5 })
         #expect(!ring.speakers, "an aggregate with no speaker subdevice plays")
+        let quiet = AudioDefaults.read(
+            output: 7, inputUID: nil, subdevices: subdevices, watch: { _ in }, speakers: { $0 == 5 })
+        #expect(!quiet.speakers, "the banner of an aggregate with no speaker subdevice is off")
     }
 
     /// A loopback: the default output, or one of its active subdevices, is the listened virtual

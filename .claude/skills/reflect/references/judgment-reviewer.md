@@ -29,6 +29,6 @@ Return 0-5 durable learnings, none when no moment cost time or gave a wrong resu
 - Routing: the `SKILL.md` path from the transcript, `tune description: <skill path>`, or `new skill: <kebab-name>` if no existing skill is a real home.
 - Key: the cause key `<ID>/<class>`, in the form of step 1 of `.claude/skills/reflect/references/synthesizer.md`.
 
-Skip trivial things (typos, tool retries, mechanical setup), things that the followed skill already makes obvious, and details that drift (SHAs, paths, versions, byte counts).
+Skip trivial things (typos, one retry, mechanical setup), things that the followed skill already makes obvious, and details that drift (SHAs, paths, versions, byte counts).
 
 <DIGEST IF FILE PATH UNAVAILABLE>

@@ -8,7 +8,8 @@
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes.
 # - With a run folder, ## Next of the main-checkout .scratchpads/backlog.md has no taken item of
-#   that run: a line with `(taken: run <run folder name>`.
+#   that run: a line with `(taken: run <run folder name>` and then a space, a comma, or `)`. A
+#   backlog with no line that starts with `## Next` fails.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -66,9 +67,16 @@ backlog="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.
 if [[ -n "$run" && -f "$backlog" ]]; then
     name="$(basename "${run%/}")"
     while IFS= read -r hit; do
-        echo "check-governance: backlog.md:${hit%%:*}: ## Next has a taken item of $name; move it to ledger.md or ## Later" >&2
+        if [[ $hit == none ]]; then
+            echo "check-governance: backlog.md has no line that starts with ## Next; restore the heading" >&2
+        else
+            echo "check-governance: backlog.md:${hit%%:*}: ## Next has a taken item of $name; move it to ledger.md or ## Later" >&2
+        fi
         fail=1
-    done < <(awk -v key="(taken: run $name" '/^## /{ s = $0; next } s == "## Next" && index($0, key) { print FNR ":" }' "$backlog")
+    done < <(awk -v key="[(]taken: run $name[ ,)]" '
+        /^## / { s = $0; if (index(s, "## Next") == 1) seen = 1; next }
+        index(s, "## Next") == 1 && $0 ~ key { print FNR ":" }
+        END { if (!seen) print "none" }' "$backlog")
 fi
 if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
     echo "check-governance: check-plan.sh $run failed" >&2

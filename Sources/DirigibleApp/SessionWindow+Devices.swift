@@ -14,11 +14,13 @@ extension SessionWindow {
         // The one owner of the listened rule: a route edit, a removed track, or an Undo can leave
         // a listened track with no device route. The write starts one more round, which finds no
         // difference and writes nothing.
-        let listening = listenedDeviceTracks(studio)
-        if Set(listening) != listened { listened = Set(listening) }
+        let listening = Set(listenedDeviceTracks(studio))
+        if listening != listened { listened = listening }
         do throws(StudioError) {
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
-                try await studio.listen(to: listening)
+                // Read again: the body runs again after the access prompt, and a later round can
+                // change the listened tracks while the prompt shows.
+                try await studio.listen(to: listenedDeviceTracks(studio))
                 let request = studio.session.tracks.map(\.id).filter { monitoring && armed.contains($0) }
                 try await studio.monitor(armed: request)
             }

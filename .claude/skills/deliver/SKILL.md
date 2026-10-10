@@ -33,7 +33,7 @@ Write `analysis.md`:
 - The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO behaves, with sources.
 - Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value.
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
-- An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions (a probe for a test runs in the test runner), and log the probe.
+- An untried limit is a guess. Probe a limit in its original conditions (a test probe runs in the test runner) before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Replay a new check on real past inputs. Log both.
 - What is out of scope, in the backlog.
 
 ## Phase 2: Plan

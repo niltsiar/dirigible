@@ -50,7 +50,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - `decisions.tsv` is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh`, also in a subagent. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder. For a Swift build in a probe, read the header of `scripts/probe.sh` first.
-- The Bash tool shell is zsh. A variable named `path`, `status`, or `argv` breaks every later command with "command not found". Use another name, or `bash -c '...'`.
+- The Bash tool shell is zsh. It fails an unquoted glob or a word that starts with `=`: write `--include='*.md'` and `echo ---`, or use `bash -c '...'`.
 
 ## Git
 
@@ -58,7 +58,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change. No test runs before a commit: tests run in the **tdd** loop and in the push check before the land. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
 - The pre-commit hook runs `make lint` on the working tree, so stage whole changes. The commit-msg hook checks each `N before, M after` word count.
-- `.claude/hooks/git-guardrails.sh` allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
+- `.claude/hooks/git-guardrails.sh` matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F <file>`. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
   - If the path has changes that you did not make, or that no commit or copy holds, commit them or copy them first.
   - Never discard uncommitted work of the user or of another agent.

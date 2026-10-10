@@ -40,7 +40,7 @@ package func temporaryWAV(of stem: String) -> String { ".\(stem).wav.tmp" }
 package func isTemporaryWAV(_ name: String) -> Bool { name.hasPrefix(".") && name.hasSuffix(".wav.tmp") }
 /// The newest `session.xml` version that this build reads (decision 0039). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 5
+package let sessionVersion = 6
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -207,6 +207,7 @@ extension Session {
                     ("position", marker.position.description), ("kind", marker.kind.rawValue)))
         }
         root.addChild(markerList)
+        if !episode.isEmpty { root.addChild(episodeElement(episode)) }
 
         if let recording {
             let node = element(
@@ -221,6 +222,24 @@ extension Session {
         document.version = "1.0"
         return document
     }
+}
+
+/// `<episode>` (decision 0045): each set field as an attribute, and `summary` and `notes` as
+/// element text, which keeps line breaks and tabs.
+private func episodeElement(_ episode: Episode) -> XMLElement {
+    let node = element("episode")
+    let attributes: [(String, String?)] = [
+        ("title", episode.title?.text), ("show", episode.show?.text), ("author", episode.author?.text),
+        ("number", episode.number?.description), ("season", episode.season?.description),
+        ("date", episode.date?.description), ("language", episode.language?.code),
+        ("copyright", episode.copyright?.text), ("explicit", episode.explicit ? "true" : nil),
+        ("episodeURL", episode.episodeURL?.text), ("feedURL", episode.feedURL?.text), ("guid", episode.guid?.text),
+    ]
+    for case (let name, let value?) in attributes { add((name, value), to: node) }
+    for (name, value) in [("summary", episode.summary?.text), ("notes", episode.notes?.text)] {
+        if let value { node.addChild(XMLElement(name: name, stringValue: value)) }
+    }
+    return node
 }
 
 private func element(_ name: String, _ attributes: (String, String)...) -> XMLElement {

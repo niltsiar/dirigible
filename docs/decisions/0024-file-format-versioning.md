@@ -9,6 +9,7 @@
 - Amended: 2026-10-03, run 11a. `session.xml` is version 3 with a fade (see 0035).
 - Amended: 2026-10-04, run 11c-1. `session.xml` is version 4 with a crossfade (see 0036).
 - Amended: 2026-10-05, run `2026-10-05-mute-solo`. `session.xml` is version 5 with a muted or soloed track (see 0039).
+- Amended: 2026-10-10, run `2026-10-10-episode-metadata`. `session.xml` is version 6 with episode data (see 0045).
 - Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The formats table has the backup files `Backups/session-<time>.xml`.
 
 ## Context

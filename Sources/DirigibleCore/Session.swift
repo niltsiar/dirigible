@@ -11,6 +11,8 @@ public struct Session: Hashable, Sendable {
     public private(set) var markers: [MarkerID: Marker] = [:]
     /// Present while a take runs or waits for finalize (decision 0004).
     public internal(set) var recording: Recording?
+    /// The episode metadata of the exports (decision 0045). Empty by default.
+    public private(set) var episode = Episode()
 
     public init(sampleRate: Int) {
         precondition(sampleRate > 0, "A sample rate is positive")
@@ -175,10 +177,11 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 5 with a muted or
-    /// soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
+    /// The `session.xml` version that holds this session (decision 0024 P6): 6 with episode data
+    /// (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
     /// (decision 0035), else 2 with an app route (decision 0029), else 1.
     public var fileVersion: Int {
+        if !episode.isEmpty { return 6 }
         if tracks.contains(where: { $0.isMuted || $0.isSoloed }) { return 5 }
         if tracks.contains(where: { $0.clips.contains { $0.crossfades != .zero } }) { return 4 }
         if tracks.contains(where: { $0.clips.contains { $0.fades != .zero } }) { return 3 }
@@ -208,6 +211,11 @@ public struct Session: Hashable, Sendable {
         try Self.checkText(marker.id.rawValue, marker.name)
         guard marker.position.isInRange else { throw .frameOutOfRange }
         markers[marker.id] = marker
+    }
+
+    /// The fields validate at their types, so this edit cannot fail.
+    public mutating func setEpisode(_ episode: Episode) {
+        self.episode = episode
     }
 
     public mutating func removeMarker(_ id: MarkerID) throws(SessionError) {

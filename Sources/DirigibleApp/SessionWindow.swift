@@ -85,6 +85,14 @@ struct ExportReportShown: Equatable {
     var inspectorDraft: InspectorDraft?
     /// The inspector field with the focus, from the pane.
     @ObservationIgnored var inspectorFocus: InspectorField?
+    /// The tab of the inspector. Not saved.
+    var inspectorTab = InspectorTab.clip
+    /// The typed text of the episode field that no commit has saved yet.
+    var episodeDraft: EpisodeDraft?
+    /// The episode field with the focus, from the pane.
+    @ObservationIgnored var episodeFocus: EpisodeField?
+    /// True until the Episode pane gives the focus to Title (File > Episode Info…).
+    var focusesEpisodeTitle = false
     /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
     /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0

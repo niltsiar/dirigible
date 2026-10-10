@@ -105,6 +105,12 @@
 "error.artwork.square" = "La ilustración debe ser cuadrada. Esta imagen mide %1$lld x %2$lld píxeles.";
 "error.artwork.large" = "La ilustración puede medir como máximo %1$lld x %1$lld píxeles. Esta imagen mide %2$lld x %2$lld píxeles.";
 "error.artwork.write" = "Dirigible no puede copiar la ilustración en la sesión (error %lld). Compruebe el disco y vuelva a intentarlo.";
+"error.episode.line" = "Escriba una línea, sin tabulador ni carácter de control.";
+"error.episode.number" = "Escriba un número entero de 1 o más.";
+"error.episode.date" = "Escriba una fecha con la forma AAAA-MM-DD.";
+"error.episode.language" = "Escriba un código de idioma ISO 639-2 de tres letras minúsculas, por ejemplo eng o spa.";
+"error.episode.url" = "Escriba una URL http o https.";
+"error.episode.notes" = "Quite los caracteres de control del texto.";
 "error.import.not.audio" = "Dirigible no puede importar «%@». Dirigible no puede leer el audio de este archivo. Use un archivo WAV, AIFF, FLAC, MP3 o M4A.";
 "error.import.not.downloaded" = "Dirigible no puede importar «%@». El archivo no está en este Mac. Descargue primero el archivo.";
 "error.import.channels" = "Dirigible no puede importar «%1$@». El archivo tiene %2$lld canales. Dirigible solo importa archivos mono y estéreo. Divida el archivo en archivos mono o estéreo.";

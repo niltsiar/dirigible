@@ -143,3 +143,8 @@ struct EpisodeFieldTextTests {
         #expect(episode.isEmpty)
     }
 }
+
+/// Code gate 1 item 2: a vertical tab or a form feed in pasted notes is a line break.
+@Test func notesTakeAVerticalTabOrAFormFeedAsALineBreak() throws {
+    #expect(try EpisodeNotes("a\u{0B}b\u{0C}c")?.text == "a\nb\nc")
+}

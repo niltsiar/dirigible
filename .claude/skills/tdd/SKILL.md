@@ -27,7 +27,7 @@ Prefer no new test over a bad test: one that mostly tests mocks, encodes impleme
 
 ## Guardrails
 
-- Tests do not use the network, the real microphone, or a permission prompt. Use a fixture file or an offline render in place of them.
+- Tests do not use the network, the real microphone, or a permission prompt. Use a fixture file or an offline render in place of the microphone. Inject the network or permission state through a seam.
 - Change a test or weaken an assertion only when the expected behavior changed, and say why. A wrong implementation is never the reason.
 - Compare two large values into a `Bool` with a short message: a failed `#expect` or `#require` prints both values and can hang the run.
 - When a test refuses or blocks a user action, also assert that the user input stays (typed text, open alert, selection, clipboard). "The model did not change" alone passes when the input is lost. If the plan expects lost input, raise a plan finding in place of the test.

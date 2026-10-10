@@ -1,6 +1,6 @@
 # Code-quality review
 
-Each reviewer applies this lens at the code gate, on top of the rubric. It is a strict standard for implementation quality, maintainability, abstraction quality, and codebase health.
+A reviewer that reads this file applies this lens to a diff, on top of the rubric. It is a strict standard for implementation quality, maintainability, abstraction quality, and codebase health.
 
 Above all, be ambitious about code structure. Look past local cleanup for "code judo" moves: restructurings that keep the behavior and make the implementation much simpler, smaller, and more direct.
 

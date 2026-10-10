@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 
 /// The texts of library errors and reports.
 extension L10n {
+    /// A byte count in the units of the Finder.
+    static func bytes(_ count: Int64) -> String { ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
+
     /// The text of a library error. The switches have no `default`, so a new error case does not
     /// compile until it has a key. `session` gives the track names; without it, the text shows
     /// the track ID.

@@ -69,14 +69,20 @@ struct EpisodeTests {
     }
 
     @Test func notesKeepLineBreaksAndTabs() throws {
-        #expect(try EpisodeNotes("  a\n\n\tb  ")?.text == "  a\n\n\tb  ")
-        #expect(try EpisodeNotes("a\r\nb\rc")?.text == "a\nb\nc")
-        expectRefused("control character") { _ = try EpisodeNotes("a\u{1}b") }
+        #expect(EpisodeNotes("  a\n\n\tb  ")?.text == "  a\n\n\tb  ")
+        #expect(EpisodeNotes("a\r\nb\rc")?.text == "a\nb\nc")
+    }
+
+    /// Code gate 2 item 6: a paste from a PDF can hold control characters that nobody sees. Notes
+    /// drop them in place of a refusal; LF and tab stay.
+    @Test func notesDropTheInvisibleControlCharacters() {
+        #expect(EpisodeNotes("a\u{1}b\u{7F}c\u{1B}d\n\te")?.text == "abcd\n\te")
+        #expect(EpisodeNotes("\u{1}\u{2}") == nil, "only control characters is no value")
     }
 
     @Test func aWhitespaceOnlyTextIsNoValue() throws {
         for blank in ["", "   ", "\t", " \t\n", "\u{A0}"] {
-            #expect(try EpisodeNotes(blank) == nil, "notes \(blank.debugDescription)")
+            #expect(EpisodeNotes(blank) == nil, "notes \(blank.debugDescription)")
             #expect(try EpisodeLine(blank) == nil, "line \(blank.debugDescription)")
         }
     }
@@ -87,7 +93,7 @@ struct EpisodeTests {
         episode.explicit = true
         #expect(!episode.isEmpty)
         episode = Episode()
-        episode.notes = try EpisodeNotes(" \t\n")
+        episode.notes = EpisodeNotes(" \t\n")
         #expect(episode.isEmpty)
     }
 }
@@ -149,5 +155,5 @@ struct EpisodeFieldTextTests {
 
 /// Code gate 1 item 2: a vertical tab or a form feed in pasted notes is a line break.
 @Test func notesTakeAVerticalTabOrAFormFeedAsALineBreak() throws {
-    #expect(try EpisodeNotes("a\u{0B}b\u{0C}c")?.text == "a\nb\nc")
+    #expect(EpisodeNotes("a\u{0B}b\u{0C}c")?.text == "a\nb\nc")
 }

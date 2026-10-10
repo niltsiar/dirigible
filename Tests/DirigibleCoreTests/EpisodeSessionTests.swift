@@ -19,8 +19,8 @@ struct EpisodeSessionTests {
         episode.language = try LanguageCode("spa")
         episode.copyright = try EpisodeLine("© 2026 Ana")
         episode.explicit = true
-        episode.summary = try EpisodeNotes("Short\ndescription")
-        episode.notes = try EpisodeNotes("  a\n\n\tb  ")
+        episode.summary = EpisodeNotes("Short\ndescription")
+        episode.notes = EpisodeNotes("  a\n\n\tb  ")
         episode.episodeURL = try WebURL("https://example.com/ep12")
         episode.feedURL = try WebURL("https://example.com/feed.xml")
         episode.guid = try EpisodeLine("urn:uuid:1234")

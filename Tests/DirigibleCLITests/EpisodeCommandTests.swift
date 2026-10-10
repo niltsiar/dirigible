@@ -32,8 +32,8 @@ struct EpisodeCommandTests {
         episode.language = try LanguageCode("fra")
         episode.copyright = try EpisodeLine("© 2026 Ana")
         episode.explicit = true
-        episode.summary = try EpisodeNotes("Short")
-        episode.notes = try EpisodeNotes("Line 1\n\tLine 2")
+        episode.summary = EpisodeNotes("Short")
+        episode.notes = EpisodeNotes("Line 1\n\tLine 2")
         episode.episodeURL = try WebURL("https://example.com/ep12")
         episode.feedURL = try WebURL("https://example.com/feed.xml")
         episode.guid = try EpisodeLine("urn:uuid:1234")

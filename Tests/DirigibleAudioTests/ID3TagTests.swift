@@ -22,8 +22,8 @@ struct ID3TagTests {
         episode.language = try LanguageCode("spa")
         episode.copyright = try EpisodeLine("© 2026 Ana")
         episode.explicit = true
-        episode.summary = try EpisodeNotes("Short description")
-        episode.notes = try EpisodeNotes("Line 1\n\tLine 2\n" + String(repeating: "más notas ", count: 20))
+        episode.summary = EpisodeNotes("Short description")
+        episode.notes = EpisodeNotes("Line 1\n\tLine 2\n" + String(repeating: "más notas ", count: 20))
         episode.episodeURL = try WebURL("https://example.com/ep12")
         episode.feedURL = try WebURL("https://example.com/feed.xml")
         episode.guid = try EpisodeLine("urn:uuid:1234")
@@ -89,8 +89,8 @@ struct ID3TagTests {
     @Test func anEmptyEpisodeWritesNoTag() throws {
         var episode = Episode()
         #expect(id3Tag(episode).isEmpty)
-        episode.summary = try EpisodeNotes("\t")
-        episode.notes = try EpisodeNotes(" \t\n")
+        episode.summary = EpisodeNotes("\t")
+        episode.notes = EpisodeNotes(" \t\n")
         #expect(id3Tag(episode).isEmpty, "a whitespace-only text is no value")
 
         let url = try writeSine("plain.mp3", tag: id3Tag(episode))

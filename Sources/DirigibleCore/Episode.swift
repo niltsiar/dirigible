@@ -66,8 +66,8 @@ public struct Episode: Hashable, Sendable {
         case .date: date = blank ? nil : try CalendarDate(trimmed)
         case .language: language = blank ? nil : try LanguageCode(trimmed)
         case .copyright: copyright = try EpisodeLine(text)
-        case .summary: summary = try EpisodeNotes(text)
-        case .notes: notes = try EpisodeNotes(text)
+        case .summary: summary = EpisodeNotes(text)
+        case .notes: notes = EpisodeNotes(text)
         case .episodeURL: episodeURL = blank ? nil : try WebURL(trimmed)
         case .feedURL: feedURL = blank ? nil : try WebURL(trimmed)
         case .guid: guid = try EpisodeLine(text)
@@ -185,17 +185,22 @@ public struct EpisodeLine: Hashable, Sendable {
     }
 }
 
-/// A text that keeps its line breaks and tabs. CR LF, CR, a vertical tab, and a form feed become LF.
+/// A text that keeps its line breaks and tabs. CR LF, CR, a vertical tab, and a form feed become
+/// LF. The other control characters (Unicode category Cc) and U+FFFE and U+FFFF go: a paste from a
+/// PDF can hold them, and nobody sees them, so a refusal would not tell the user what to change.
 public struct EpisodeNotes: Hashable, Sendable {
     public let text: String
 
-    /// Nil for a text of only whitespace.
-    public init?(_ text: String) throws(EpisodeFieldError) {
-        guard !text.allSatisfy(\.isWhitespace) else { return nil }
+    /// Nil for a text of only whitespace after the drop.
+    public init?(_ text: String) {
         let lines = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
             .replacingOccurrences(of: "\u{0B}", with: "\n").replacingOccurrences(of: "\u{0C}", with: "\n")
-        try checkCharacters(lines, allowing: ["\n", "\t"])
-        self.text = lines
+        let kept = lines.unicodeScalars.filter {
+            $0 == "\n" || $0 == "\t" || ($0.isStorableInSession && $0.properties.generalCategory != .control)
+        }
+        let result = String(String.UnicodeScalarView(kept))
+        guard !result.allSatisfy(\.isWhitespace) else { return nil }
+        self.text = result
     }
 }
 
@@ -221,8 +226,8 @@ public struct ArtworkName: Hashable, Sendable {
 }
 
 /// XML 1.0 cannot hold the other control characters (`Session.checkText`).
-private func checkCharacters(_ text: String, allowing allowed: Set<Unicode.Scalar> = []) throws(EpisodeFieldError) {
-    guard text.unicodeScalars.allSatisfy({ $0.isStorableInSession || allowed.contains($0) }) else {
+private func checkCharacters(_ text: String) throws(EpisodeFieldError) {
+    guard text.unicodeScalars.allSatisfy(\.isStorableInSession) else {
         throw EpisodeFieldError(message: "The text has a control character.")
     }
 }

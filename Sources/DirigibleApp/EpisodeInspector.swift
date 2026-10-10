@@ -129,8 +129,7 @@ struct EpisodeInspector: View {
     /// The rule of the field after a refused commit (code gate 1 item 2). Library code has no UI
     /// text (decision 0010), so the pane maps the field to a key.
     @ViewBuilder private func refusalText(_ name: EpisodeField) -> some View {
-        if let draft = model.episodeDraft, draft.field == name, draft.refused {
-            let key = Self.refusal(name)
+        if let draft = model.episodeDraft, draft.field == name, draft.refused, let key = Self.refusal(name) {
             Text(key == .errorEpisodeNumber ? key.format(EpisodeNumber.maximum) : key.text)
                 .font(.system(size: 11)).foregroundStyle(.red)
                 .fixedSize(horizontal: false, vertical: true)
@@ -138,34 +137,31 @@ struct EpisodeInspector: View {
         }
     }
 
-    /// The key of the rule of a field.
-    static func refusal(_ field: EpisodeField) -> L10n {
+    /// The key of the rule of a field. Nil for Summary and Notes: they refuse no text.
+    static func refusal(_ field: EpisodeField) -> L10n? {
         switch field {
         case .title, .show, .author, .copyright, .guid: .errorEpisodeLine
         case .season, .number: .errorEpisodeNumber
         case .date: .errorEpisodeDate
         case .language: .errorEpisodeLanguage
         case .episodeURL, .feedURL: .errorEpisodeURL
-        case .summary, .notes: .errorEpisodeNotes
+        case .summary, .notes: nil
         }
     }
 
     private func notesEditor(_ episode: Episode) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            TextEditor(text: text(.notes, episode))
-                .font(.system(size: 11))
-                .frame(height: notesExpanded ? 320 : 96)
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(.separator))
-                .focused($focus, equals: .notes)
-                .onKeyPress(.return, phases: .down) { press in
-                    guard press.modifiers.contains(.command) else { return .ignored }
-                    if !model.holdsRefusedEpisode() { model.focusLanes() }
-                    return .handled
-                }
-                .accessibilityLabel(Text(L10n.episodeNotes.key))
-                .accessibilityIdentifier("episode.notes")
-            refusalText(.notes)
-        }
+        TextEditor(text: text(.notes, episode))
+            .font(.system(size: 11))
+            .frame(height: notesExpanded ? 320 : 96)
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(.separator))
+            .focused($focus, equals: .notes)
+            .onKeyPress(.return, phases: .down) { press in
+                guard press.modifiers.contains(.command) else { return .ignored }
+                if !model.holdsRefusedEpisode() { model.focusLanes() }
+                return .handled
+            }
+            .accessibilityLabel(Text(L10n.episodeNotes.key))
+            .accessibilityIdentifier("episode.notes")
     }
 
     private func text(_ name: EpisodeField, _ episode: Episode) -> Binding<String> {

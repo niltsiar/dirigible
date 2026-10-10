@@ -18,6 +18,14 @@ if [[ "${1:-}" == --flakes ]]; then
     cat "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes" 2>/dev/null || true
     exit 0
 fi
+# Mark the tree with the pid of the caller (the make recipe shell, or land.sh) while the check
+# runs: .githooks/pre-commit refuses a commit while a mark names a live pid, because a commit makes
+# the pass stamp useless. One file per pid, so a test run does not clear the mark of a real run.
+# check-changed.sh --wait-load writes the same mark.
+marks="$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running"
+mkdir -p "$marks"
+for f in "$marks"/*; do [[ -e $f ]] && ! kill -0 "${f##*/}" 2>/dev/null && rm -f "$f"; done
+: > "$marks/$PPID"
 here="$(cd "$(dirname "$0")" && pwd)"
 log="$(mktemp)"
 trap 'rm -f "$log" "$log".*' EXIT

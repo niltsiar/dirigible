@@ -78,6 +78,18 @@ targets_of() {
 # hold <root>/.build/). Read both each 10 s. After CHECK_LOAD_WAIT seconds (default 300, so the
 # wait and the tests of a slice fit in one 600 s Bash call), run the tests anyway. The lines go
 # to stderr.
+# mark: mark the tree with the pid of the caller (the make recipe shell) for the whole check.
+# .githooks/pre-commit refuses a commit while a mark names a live pid, because a commit makes the
+# pass stamp useless. One file per pid, so a test run does not clear the mark of a real run.
+# scripts/run-checks.sh writes the same mark.
+mark() {
+    local marks f
+    marks="$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running"
+    mkdir -p "$marks"
+    for f in "$marks"/*; do [[ -e $f ]] && ! kill -0 "${f##*/}" 2>/dev/null && rm -f "$f"; done
+    : > "$marks/$PPID"
+}
+
 wait_load() {
     local rest=" $* " t max load other why stop root waited=0 limit="${CHECK_LOAD_WAIT:-300}"
     for t in check-docs check-fast none; do rest="${rest// $t / }"; done
@@ -111,7 +123,7 @@ wait_load() {
 push=0 mode=git base="" from=""
 case "${1:-}" in
     --floor) printf '%s\n' $floor; exit 0 ;;
-    --wait-load) shift; wait_load "$@"; exit 0 ;;
+    --wait-load) shift; mark; wait_load "$@"; exit 0 ;;
     --paths)
         mode=stdin
         [[ "${2:-}" == --push ]] && push=1

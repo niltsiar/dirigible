@@ -372,6 +372,10 @@ wait_case || fail "a test of another tree: exit $?"
 grep -qx -- "-lf /swiftpm-testing-helper " "$tmp/pgrep.log" || fail "a test of another tree: pgrep arguments [$(head -n 1 "$tmp/pgrep.log")]"
 printf '102 %s/.build/debug/swiftpm-testing-helper --test-bundle-path %s/.build/debug/T.xctest\n' "$root" "$root" > "$tmp/procs"
 wait_case || fail "a test of this tree: exit $?"
+# The wait marks the tree with the pid of its caller (the recipe shell), and the pre-commit hook
+# refuses a commit while that pid lives.
+ls "$(git -C "$tmp/r" rev-parse --path-format=absolute --git-dir)/dirigible-check-running" 2>/dev/null | grep -q '^[0-9][0-9]*$' ||
+  fail 'the load wait wrote no run mark'
 [[ ! -s "$tmp/sleep.log" ]] && ! grep -q 'wait 10 s' "$tmp/wait.err" || fail "a test of this tree: it waited: $(cat "$tmp/wait.err")"
 : > "$tmp/procs"
 wait_case || fail "no test and a low load: exit $?"

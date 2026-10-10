@@ -52,6 +52,9 @@ chmod +x "$w/scripts/"*.sh
 cat > "$tmp/bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$FAKE_LOG"
+for f in "$(git rev-parse --path-format=absolute --git-dir)"/dirigible-check-running/*; do
+  [[ -e $f ]] && kill -0 "${f##*/}" 2>/dev/null && echo "live mark ${f##*/}" >> "$FAKE_LOG.marks"
+done
 while IFS= read -r l; do
   case "$l" in 2:*) echo "${l#2:}" >&2 ;; *) echo "$l" ;; esac
 done < "$FAKE_LINES"
@@ -184,6 +187,11 @@ out="$(cd "$w" && MAKE="$tmp/no-make" FAKE_LOG="$tmp/log" scripts/run-checks.sh 
 code=$?
 [[ $code -eq 0 && -z "$out" ]] || fail "--flakes with no file: exit $code: [$out]"
 [[ ! -s "$tmp/log" ]] || fail "--flakes ran a check: $(cat "$tmp/log")"
+
+# While make runs, the tree has a mark with the live pid of the caller of run-checks.sh, so the
+# pre-commit hook refuses a commit that would make the pass stamp useless.
+run 1 0 'ok' check
+grep -q '^live mark [0-9]' "$tmp/log.marks" || fail "no live run mark while make ran"
 
 [[ $failures -eq 0 ]] && echo "run-checks tests: all passed"
 exit $((failures > 0))

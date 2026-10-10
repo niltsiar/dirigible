@@ -122,6 +122,9 @@ expect block 'rm "$(git rev-parse --git-common-dir)/dirigible-flakes"'
 expect block ': > .git/dirigible-flakes'
 expect allow 'scripts/run-checks.test.sh'
 expect allow 'scripts/run-checks.sh --flakes'
+# Only check-changed.sh --wait-load and run-checks.sh write the run marks that the pre-commit hook
+# reads, so an agent cannot clear a mark to commit during a check.
+expect block 'rm -r .git/dirigible-check-running'
 # The block message of the flakes file names its read route.
 plutil -create xml1 "$input"
 plutil -insert tool_input -dictionary "$input"
@@ -344,6 +347,20 @@ git -C "$tmp/p" config core.hooksPath .githooks
 gc "$tmp/pw" -m relative 2>"$tmp/err" && pre_fail 'a commit with no Makefile passed'
 grep -q lint "$tmp/err" || pre_fail 'the hook of the worktree did not run make lint'
 grep -q 'make setup' "$tmp/err" && pre_fail 'the hook names make setup with the .githooks path'
+# A make check-changed run marks its tree with the pid of its recipe shell, and a commit during the
+# run makes its pass stamp useless. A live pid refuses the commit and names the pid; a dead pid
+# (a run that ended) and a mark of another tree do not. $$ of this shell is the live pid.
+marks="$(git -C "$tmp/pw" rev-parse --path-format=absolute --git-dir)/dirigible-check-running"
+mkdir -p "$marks" && : > "$marks/$$"
+gc "$tmp/pw" -m marked 2>"$tmp/err" && pre_fail 'a commit during a check-changed run passed'
+grep -q "make check-changed run (pid $$)" "$tmp/err" || pre_fail "the refusal does not name the run and its pid: $(cat "$tmp/err")"
+gc "$tmp/p" -m other 2>"$tmp/err"
+grep -q 'check-changed run' "$tmp/err" && pre_fail 'a mark of the worktree refused a commit in the main tree'
+rm "$marks/$$"
+dead="$(bash -c 'echo $$')"
+: > "$marks/$dead"
+gc "$tmp/pw" -m dead 2>"$tmp/err"
+grep -q lint "$tmp/err" || pre_fail "a dead pid did not reach make lint: $(cat "$tmp/err")"
 
 # The shipped commit-msg hook refuses a word pair ("10 before, 11 after") that no staged budgeted
 # file shows: wc -w at HEAD or HEAD^ (an amend) before, in the index after; a missing copy counts 0.

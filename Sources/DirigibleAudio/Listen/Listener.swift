@@ -18,6 +18,8 @@ final class Listener: @unchecked Sendable {
     enum Event: Sendable {
         case rate(Double)
         case alive(Bool)
+        /// The active subdevices of an aggregate input changed.
+        case subdevices
     }
 
     /// The appearances that the Listener gave up (kept for the process life), the rings of them
@@ -113,8 +115,10 @@ final class Listener: @unchecked Sendable {
     }
 
     /// A device listener passes its own input. An event of an input that is not the current one
-    /// does nothing.
+    /// does nothing. A subdevice change mutes the ring at once (fail closed): the loopback set of
+    /// the ring can be out of date.
     func post(_ event: Event, from sender: ListenInput) {
+        if case .subdevices = event { sender.ring.mute() }
         queue.async { [self] in
             guard phase == .playing, let current, current.input === sender else { return }
             switch event {
@@ -123,6 +127,12 @@ final class Listener: @unchecked Sendable {
                 end(stopped: current.stop())
                 wait()
             case .alive(true): break
+            case .subdevices:
+                // A new appearance reads the loopback set again. Each one keeps a ring, so a list
+                // that changes again and again ends at the keep limit.
+                end(stopped: current.stop())
+                phase = .waiting
+                tryStart()
             }
         }
     }

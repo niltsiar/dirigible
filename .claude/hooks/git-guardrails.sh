@@ -104,14 +104,26 @@ fi
 if grep -qE 'dirigible-slow-date' <<< "$NORMALIZED"; then
   block "names the slow-run date file (only a passing make test-slow or make test-slow-push writes it)"
 fi
+# writes_to <name>: the command writes, moves, or removes a file whose path ends in <name>. It
+# matches a command word (rm, mv, cp, tee, truncate, touch, ln) before the name, or a redirect
+# whose path runs up to the name: quotes and a $(...) part are part of the path, so
+# `"$(git rev-parse --git-common-dir)/<name>"` and `"$d"/<name>` match. The path stops at `*` and
+# `[`, so a grep whose quoted pattern holds `>` is a read. A text rule: `sed -i` and a write from a
+# script pass.
+writes_to() {
+  local word="(^|[;&|[:space:]])(rm|mv|cp|tee|truncate|touch|ln)[[:space:]][^;&|]*$1"
+  local redirect=">>?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
+  grep -qE "$word|$redirect" <<< "$NORMALIZED"
+}
 # Only scripts/run-checks.sh appends to dirigible-flakes, and only scripts/land.sh removes its
-# lines after it writes their flake rows, so a direct change cannot erase a flake row.
-if grep -qE 'dirigible-flakes' <<< "$NORMALIZED"; then
-  block "names the flakes file (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
+# lines after it writes their flake rows, so a direct change cannot erase a flake row. A read is
+# allowed.
+if writes_to dirigible-flakes; then
+  block "writes, moves, or removes the flakes file (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
 fi
 # Only scripts/run-checks.sh writes and removes the run marks that .githooks/pre-commit reads, so
 # a direct write, move, or remove cannot clear a mark to commit during a check. A read is allowed.
-if grep -qE '(^|[;&|[:space:]])(rm|mv|cp|tee|truncate|touch|ln)[[:space:]][^;&|]*dirigible-check-running|>[[:space:]]*[^;&|[:space:]]*dirigible-check-running' <<< "$NORMALIZED"; then
+if writes_to dirigible-check-running; then
   block "writes, moves, or removes the run marks of make check-changed (only scripts/run-checks.sh writes them; the pre-commit hook skips a stale mark; read them with ls or cat)"
 fi
 

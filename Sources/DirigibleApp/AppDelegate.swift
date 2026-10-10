@@ -40,15 +40,13 @@ import UniformTypeIdentifiers
     @ObservationIgnored private(set) var start: StartWindow?
     /// True from the Quit decision until a cancel: no start window shows (decision 0027).
     @ObservationIgnored private(set) var terminating = false
-    /// A Quit question: the message, the action button, and true after a failed save. It gives
-    /// true for the action button. Tests answer with no modal alert.
-    /// The answer to `applicationShouldTerminate` after `.terminateLater`. Tests take it, so the
-    /// test process does not quit.
-    @ObservationIgnored var replyToTerminate: @MainActor (Bool) -> Void = {
-        NSApp.reply(toApplicationShouldTerminate: $0)
-    }
+    /// Tests replace the Quit question (message, button, true after a failed save; true for the button)
+    /// and the answer to `.terminateLater`, so no alert shows and the test process does not quit.
     @ObservationIgnored var confirmQuit: @MainActor (String, String, Bool) -> Bool = { message, button, unsaved in
         quitQuestion(message, button: button, unsaved: unsaved).runModal() == .alertFirstButtonReturn
+    }
+    @ObservationIgnored var replyToTerminate: @MainActor (Bool) -> Void = {
+        NSApp.reply(toApplicationShouldTerminate: $0)
     }
     /// The open events whose windows are not in the registry yet. The launch shows the start
     /// window only when none waits.
@@ -343,8 +341,8 @@ import UniformTypeIdentifiers
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
-    /// During a take, one question. Then every window settles; a window whose last save still
-    /// failed gives one more question.
+    /// During a take, one question. A refused episode draft stops Quit, as it stops Close. Then every
+    /// window settles; a window whose last save still failed gives one more question.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         terminating = true
         guard !windows.isEmpty else { return .terminateNow }
@@ -354,7 +352,6 @@ import UniformTypeIdentifiers
             terminating = false
             return .terminateCancel
         }
-        // A refused episode draft stops Quit, as it stops Close: its window shows the field.
         if let held = windows.values.first(where: { $0.holdsRefusedEpisode() }) {
             terminating = false
             held.window?.makeKeyAndOrderFront(nil)
@@ -366,11 +363,10 @@ import UniformTypeIdentifiers
             let failed = open.filter { $0.studio?.saveError != nil }.map {
                 $0.url.deletingPathExtension().lastPathComponent
             }
+            let names = failed.joined(separator: ", ")
             let quit =
                 failed.isEmpty
-                || confirmQuit(
-                    L10n.alertQuitUnsaved.format(failed.joined(separator: ", ")), L10n.alertQuitUnsavedConfirm.text,
-                    true)
+                || confirmQuit(L10n.alertQuitUnsaved.format(names), L10n.alertQuitUnsavedConfirm.text, true)
             // A cancelled Quit: the settle started no peak pass (decision 0017).
             if !quit {
                 terminating = false

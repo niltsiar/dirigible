@@ -19,7 +19,7 @@ Start from this task:
 Each dimension appears once. Apply the relevant ones.
 
 0. **Structural simplification.** Do not stop at "this could be a bit cleaner". Look for a new frame that removes whole branches, helpers, modes, conditionals, or layers. Assume that a code-judo move often exists: it uses the existing architecture better and makes the change much simpler. Delete complexity in place of moving it.
-1. **File size.** A change that pushes a Swift file over 400 lines needs a strong reason (**File size** in `CODING_STANDARDS.md`). Prefer to extract helpers, subcomponents, or modules first. Waive it only for a structural reason, when the file stays clearly organized.
+1. **File size.** Apply **File size** in `CODING_STANDARDS.md`.
 2. **No spaghetti growth.** A new ad hoc conditional, a scattered special case, or a one-off branch in an unrelated flow is a design problem, not a style nit. Move the logic into a helper, a state machine, or a module. Do not tangle an existing path.
 3. **Clean the design.** When the behavior can stay the same and the structure becomes clearly cleaner, ask for the cleaner version. Prefer a simplification that removes moving parts over a refactor that spreads the same complexity.
 4. **Direct, boring code.** Brittle, ad hoc, or "magic" behavior is a problem. Distrust a generic mechanism that hides a simple data-shape assumption. Flag thin abstractions, identity wrappers, and pass-through helpers that add indirection and no clarity.
@@ -33,7 +33,7 @@ Order the findings: structural regressions and missed simplifications first, the
 
 ## Approval bar
 
-Correct behavior alone does not approve a change. These block it, unless the author justifies them: incidental complexity that a code-judo move deletes; a Swift file over 400 lines with no reason in `scripts/check-sizes.allow`; ad hoc branches that tangle an existing flow; feature checks scattered across shared code; an unnecessary abstraction, wrapper, or cast-heavy contract; a duplicate of an existing helper, or logic in the wrong layer when a canonical home exists. For each one, give explicit, actionable feedback, and push for a cleaner decomposition.
+Correct behavior alone does not approve a change. These block it, unless the author justifies them: incidental complexity that a code-judo move deletes; a Swift file under `Sources/` or `Tests/` over 400 lines with no reason in `scripts/check-sizes.allow` (**File size** in `CODING_STANDARDS.md`); ad hoc branches that tangle an existing flow; feature checks scattered across shared code; an unnecessary abstraction, wrapper, or cast-heavy contract; a duplicate of an existing helper, or logic in the wrong layer when a canonical home exists. For each one, give explicit, actionable feedback, and push for a cleaner decomposition.
 
 ## Tone
 

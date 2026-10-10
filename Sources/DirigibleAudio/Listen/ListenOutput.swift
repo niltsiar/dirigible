@@ -13,10 +13,14 @@ struct ListenOutput: Sendable {
     /// the unit stopped (a barrier, probe P9) and is disposed. False: a render can still come, so
     /// the caller keeps the ring for the process life.
     var start: @Sendable (_ ring: ListenRing, _ rate: Double, _ inputBlock: Int) throws(HALError) -> Detach
+    /// True only for `live`. Closures have no equality, so a test checks this flag: no test
+    /// support environment plays to the real speakers.
+    var isLive = false
 
     static let live = ListenOutput(
         watch: { _ = SpeakerGuard.open($0) }, unwatch: { SpeakerGuard.close($0) },
-        start: { ring, rate, inputBlock throws(HALError) in try startLive(ring, rate: rate, inputBlock: inputBlock) })
+        start: { ring, rate, inputBlock throws(HALError) in try startLive(ring, rate: rate, inputBlock: inputBlock) },
+        isLive: true)
 
     /// For tests: no unit and no HAL call. The flag is `speakers`, stored through the same
     /// refresh, and the pull is 512 frames. With `startFails`, each start throws. A test renders

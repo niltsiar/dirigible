@@ -71,10 +71,12 @@ final class TemporaryFolder {
 }
 
 extension SessionWindow {
-    /// Waits until the open of the package ends with a studio.
+    /// Waits until the open of the package ends with a studio. The studio gets the offline
+    /// listen output, so no test plays to the real speakers (`ListenSafetyTests`).
     func opened() async -> Bool {
         await until("the window opens its package") { studio != nil }
         if studio == nil { Issue.record("The phase is \(phase)") }
+        studio?.environment.listenOutput = .offline()
         return studio != nil
     }
 }

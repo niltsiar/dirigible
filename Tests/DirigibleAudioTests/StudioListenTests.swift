@@ -67,6 +67,16 @@ struct StudioListenTests {
         await until(limit: busy, message) { sounds(input, width: width) }
     }
 
+    // MARK: Test safety
+
+    /// No test plays to the real speakers by a forgotten argument: the shared test environment
+    /// has the offline listen output. Only `ListenOutput.live` is live.
+    @Test func theTestEnvironmentHasNoLiveListenOutput() {
+        #expect(!CaptureEnvironment.test(TestHAL([])).listenOutput.isLive)
+        #expect(!ListenOutput.offline().isLive)
+        #expect(ListenOutput.live.isLive)
+    }
+
     // MARK: A16 and A20
 
     @Test func aDeviceTrackListens() async throws {

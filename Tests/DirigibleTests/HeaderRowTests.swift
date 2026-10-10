@@ -42,14 +42,16 @@ import Testing
         return (window, host)
     }
 
+    /// The first header x right of the arm box: the row padding of 8 pt, the box of 18 pt, and 1 pt.
+    /// A count of state colors starts here, so a red arm box does not count as a fault.
+    static let rightOfArm = 27.0
+
     /// The SwiftUI hosts of the AppKit controls under `view`, in the coordinates of `root`.
     func controls(_ view: NSView, in root: NSView) -> [(kind: String, frame: NSRect, view: NSView)] {
         let name = String(describing: type(of: view))
         var found: [(String, NSRect, NSView)] = []
         if name.hasPrefix("PlatformViewHost") {
-            let kind =
-                name.contains("Checkbox")
-                ? "arm" : name.contains("TextField") ? "name" : name.contains("Progress") ? "meter" : "route"
+            let kind = name.contains("TextField") ? "name" : name.contains("Progress") ? "meter" : "route"
             found.append((kind, view.convert(view.bounds, to: root), view))
         }
         return found + view.subviews.flatMap { controls($0, in: root) }
@@ -102,6 +104,8 @@ import Testing
         // The short-term text of run 9b takes room too (code gate 1, K2).
         studio.liveTracks["t2"] = LiveTrack(
             state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
+        // Every row is armed: the red arm boxes are left of the counted columns.
+        model.armed = Set(studio.session.tracks.map(\.id))
         // 240 pt is the tightest one-line row: the layout text and a full live state.
         for width in [180.0, 239, 240, 340] {
             let (window, host) = rows(model, studio, laneHeight: 50, width: width)
@@ -127,7 +131,7 @@ import Testing
             func count(_ lane: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32, UInt32, UInt32) -> Bool) throws
                 -> Int
             {
-                let columns = x ?? 0...width
+                let columns = x ?? Self.rightOfArm...width
                 let rect = host.convert(
                     NSRect(
                         x: columns.lowerBound, y: Double(lane) * 50, width: columns.upperBound - columns.lowerBound,
@@ -187,7 +191,7 @@ import Testing
         for width in [180.0, 340, 480] {
             let (window, host) = rows(model, studio, laneHeight: 100, width: width)
             let found = controls(host, in: host)
-            #expect(found.count == 6, "\(width): arm, name, and route in each row")
+            #expect(found.count == 4, "\(width): name and route in each row, and no check box")
             for control in found {
                 #expect(
                     control.frame.minX >= 8 && control.frame.maxX <= width - 8,

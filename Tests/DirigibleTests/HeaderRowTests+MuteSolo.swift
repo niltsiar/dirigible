@@ -9,7 +9,7 @@ import Testing
 /// Mute and solo C7 g (decision 0039): each row form shows M and S only from its measured width,
 /// so the route, the lost-device symbol, and the dropped-frames symbol keep their room.
 extension HeaderRowTests {
-    /// The M and S boxes under `host`: SwiftUI shapes with hit views of 18 x 16 pt.
+    /// The arm, M, and S boxes under `host`: SwiftUI shapes with hit views of 18 x 16 pt.
     func flagBoxes(_ view: NSView, in host: NSView) -> [NSRect] {
         let frame = view.convert(view.bounds, to: host)
         let box =
@@ -23,6 +23,8 @@ extension HeaderRowTests {
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
         studio.liveTracks["t2"] = LiveTrack(
             state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
+        // Every row is armed: the red arm boxes are left of the counted columns.
+        model.armed = Set(studio.session.tracks.map(\.id))
         #expect((180...480).contains(TrackHeaders.muteSoloWidth), "one line: \(TrackHeaders.muteSoloWidth)")
         #expect(
             (180...480).contains(TrackHeaders.muteSoloTwoLineWidth), "two lines: \(TrackHeaders.muteSoloTwoLineWidth)")
@@ -32,7 +34,8 @@ extension HeaderRowTests {
                 let (window, host) = rows(model, studio, laneHeight: lane, width: width)
                 let label = "\(lane) pt lanes at \(width) pt"
                 #expect(
-                    flagBoxes(host, in: host).count == (width >= threshold ? 6 : 0), "M and S in each row: \(label)")
+                    flagBoxes(host, in: host).count == (width >= threshold ? 9 : 3),
+                    "arm in each row, M and S only from the gate: \(label)")
                 func leaves(_ view: NSView) -> [NSView] {
                     view.subviews.isEmpty ? [view] : view.subviews.flatMap(leaves)
                 }
@@ -50,7 +53,7 @@ extension HeaderRowTests {
                 func count(_ row: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32, UInt32, UInt32) -> Bool) throws
                     -> Int
                 {
-                    let columns = x ?? 0...width
+                    let columns = x ?? Self.rightOfArm...width
                     let rect = host.convert(
                         NSRect(
                             x: columns.lowerBound, y: Double(row) * lane,
@@ -69,6 +72,35 @@ extension HeaderRowTests {
                 window.close()
             }
         }
+        await model.close()
+    }
+
+    /// True for the red of a fault symbol or of an armed box, over a light row.
+    static func isRed(_ pixel: UInt32) -> Bool {
+        let (r, g, b) = (pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)
+        return r > 180 && g < 90 && b < 90
+    }
+
+    /// The red pixels in the arm box of each row, top row first, in one-line rows at 340 pt.
+    func armRed(_ model: SessionWindow, _ studio: Studio) async throws -> [Int] {
+        let (window, host) = rows(model, studio, laneHeight: 50, width: 340)
+        defer { window.close() }
+        window.orderFront(nil)
+        drawNow(window)
+        try await Task.sleep(for: .milliseconds(200))
+        let capture = try await TimelineColorTests.capture(window)
+        let arms = flagBoxes(host, in: host).filter { $0.maxX < Self.rightOfArm }.sorted { $0.minY < $1.minY }
+        return try arms.map { box in
+            try TimelineRulerTests.pixels(of: host.convert(box, to: nil), capture, window).filter(Self.isRed).count
+        }
+    }
+
+    /// The arm box is the first box of each row: red with t2 armed, and with no red with t1 not armed.
+    @Test func theArmButtonIsRedOnlyWhenOn() async throws {
+        let (model, studio) = try await model()
+        model.armed = ["t2"]
+        let red = try await armRed(model, studio)
+        #expect(red.count == 2 && red[0] == 0 && red[1] > 20, "red pixels in the arm box of each row: \(red)")
         await model.close()
     }
 }

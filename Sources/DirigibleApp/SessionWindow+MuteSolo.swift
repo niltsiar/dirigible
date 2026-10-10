@@ -39,19 +39,38 @@ extension SessionWindow {
     }
 }
 
-/// The M and S buttons of a header row (ui-panel.md 1, 2, 9): mute on is a fixed systemBlue fill
-/// with a white letter, solo on a systemYellow fill with a black letter, never the accent color.
-/// Off is a plain bordered button, so the state is the fill, not the hue only.
-struct MuteSoloToggles: View {
+/// The R, M, and S buttons of a header row (ui-panel.md 1, 2, 9; run 2026-10-10-arm-toggle-button):
+/// arm on is a fixed systemRed fill with a white dot, mute on a systemBlue fill with a white letter,
+/// solo on a systemYellow fill with a black letter, never the accent color. Off is a plain bordered
+/// button, so the state is the fill, not the hue only. Arm shows at every header width; M and S
+/// only with `showsMuteSolo`.
+struct TrackToggles: View {
     let model: SessionWindow
     let track: Track
+    let showsMuteSolo: Bool
 
     var body: some View {
         HStack(spacing: 4) {
-            toggle(.muted, letter: .trackMuteLetter, help: .trackMuteHelp, fill: .systemBlue, text: .white)
-            toggle(.soloed, letter: .trackSoloLetter, help: .trackSoloHelp, fill: .systemYellow, text: .black)
+            arm
+            if showsMuteSolo {
+                toggle(.muted, letter: .trackMuteLetter, help: .trackMuteHelp, fill: .systemBlue, text: .white)
+                toggle(.soloed, letter: .trackSoloLetter, help: .trackSoloHelp, fill: .systemYellow, text: .black)
+            }
         }
         .disabled(!model.canEdit)
+    }
+
+    /// Arm is window state, not a session edit, so a click adds no undo entry. The symbol has no
+    /// language, so English and Spanish show the same dot.
+    private var arm: some View {
+        Toggle(
+            isOn: Binding(
+                get: { model.armed.contains(track.id) },
+                set: { if $0 { model.armed.insert(track.id) } else { model.armed.remove(track.id) } })
+        ) { Image(systemName: "circle.fill").imageScale(.small) }
+        .toggleStyle(FlagToggleStyle(fill: Color(nsColor: .systemRed), letter: .white))
+        .accessibilityLabel(Text(verbatim: L10n.trackArmLabel.format(track.name)))
+        .help(Text(L10n.trackArmHelp.key))
     }
 
     /// True for a mouse click with Option. A key press or an AX press of the button sets only its
@@ -77,7 +96,7 @@ struct MuteSoloToggles: View {
     }
 }
 
-/// A letter in a small box: filled when on, bordered when off. VoiceOver reads a toggle with its
+/// A letter or a symbol in a small box: filled when on, bordered when off. VoiceOver reads a toggle with its
 /// on and off value.
 private struct FlagToggleStyle: ToggleStyle {
     let fill: Color

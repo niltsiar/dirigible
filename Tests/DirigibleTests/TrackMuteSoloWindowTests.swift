@@ -23,9 +23,9 @@ import Testing
         try await openLanes(app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
     }
 
-    /// The window point of the M or S box of header row `row`. The boxes are SwiftUI shapes: the
-    /// hit views of 18 x 16 pt in the header, top row first, M left of S.
-    func flagPoint(_ flag: TrackFlag, row: Int, in view: TimelineScrollView) throws -> NSPoint {
+    /// The window point of box `index` of header row `row`: 0 arm, 1 M, 2 S. The boxes are SwiftUI
+    /// shapes: the hit views of 18 x 16 pt in the header, top row first, left to right.
+    func boxPoint(_ index: Int, row: Int, in view: TimelineScrollView) throws -> NSPoint {
         let window = try #require(view.window)
         window.contentView?.layoutSubtreeIfNeeded()
         drawNow(window)
@@ -37,9 +37,14 @@ import Testing
             return (box ? [frame] : []) + view.subviews.flatMap(boxes)
         }
         let frames = boxes(view.headers.host).sorted { ($0.midY, -$0.minX) > ($1.midY, -$1.minX) }
-        try #require(frames.count > 2 * row + 1, "M and S in row \(row): \(frames)")
-        let frame = frames[2 * row + (flag == .muted ? 0 : 1)]
+        try #require(frames.count > 3 * row + 2, "arm, M, and S in row \(row): \(frames)")
+        let frame = frames[3 * row + index]
         return NSPoint(x: frame.midX, y: frame.midY)
+    }
+
+    /// The window point of the M or S box of header row `row`.
+    func flagPoint(_ flag: TrackFlag, row: Int, in view: TimelineScrollView) throws -> NSPoint {
+        try boxPoint(flag == .muted ? 1 : 2, row: row, in: view)
     }
 
     func click(_ point: NSPoint, in window: NSWindow) throws {
@@ -72,6 +77,21 @@ import Testing
         await until("the session saves") { (try? Session(contentsOf: model.url))?.track("t1")?.isMuted == true }
         model.undo()
         #expect(flags(studio) == ["--", "--"] && !studio.canUndo, "one undo entry")
+        await model.close()
+    }
+
+    /// The arm button: a click on the box of t2 arms t2, and a click on the on box of t1 disarms
+    /// t1. Arm is window state: no mute, no solo, and no undo entry.
+    @Test func aClickOnTheArmButtonArms() async throws {
+        let (model, studio, window, view) = try await open()
+        try #require(model.armed == ["t1"], "t1 arms at open; t2 has the same channel: \(model.armed)")
+
+        try click(try boxPoint(0, row: 1, in: view), in: window)
+        #expect(model.armed == ["t1", "t2"], "a click arms t2: \(model.armed)")
+        try click(try boxPoint(0, row: 0, in: view), in: window)
+        #expect(model.armed == ["t2"], "a click on an on button disarms t1: \(model.armed)")
+
+        #expect(flags(studio) == ["--", "--"] && !studio.canUndo, "no mute, no solo, and no undo entry")
         await model.close()
     }
 
@@ -113,11 +133,11 @@ import Testing
             NSEvent.keyEvent(
                 with: .keyDown, location: .zero, modifierFlags: .option, timestamp: 0, windowNumber: 0, context: nil,
                 characters: " ", charactersIgnoringModifiers: " ", isARepeat: false, keyCode: 49))
-        #expect(MuteSoloToggles.isOptionClick(try mouse(.leftMouseUp, .option)), "an Option-click")
-        #expect(MuteSoloToggles.isOptionClick(try mouse(.leftMouseDown, .option)), "an Option mouse-down")
-        #expect(!MuteSoloToggles.isOptionClick(try mouse(.leftMouseUp, [])), "a plain click")
-        #expect(!MuteSoloToggles.isOptionClick(space), "Option-Space on a focused button")
-        #expect(!MuteSoloToggles.isOptionClick(nil), "an AX press with no event")
+        #expect(TrackToggles.isOptionClick(try mouse(.leftMouseUp, .option)), "an Option-click")
+        #expect(TrackToggles.isOptionClick(try mouse(.leftMouseDown, .option)), "an Option mouse-down")
+        #expect(!TrackToggles.isOptionClick(try mouse(.leftMouseUp, [])), "a plain click")
+        #expect(!TrackToggles.isOptionClick(space), "Option-Space on a focused button")
+        #expect(!TrackToggles.isOptionClick(nil), "an AX press with no event")
     }
 
     /// C7 e: with the name field focused, a click on M still acts.
@@ -148,6 +168,12 @@ import Testing
         #expect(
             format(es, .trackMuteLabel, "Host") == "Silenciar Host"
                 && format(es, .trackSoloLabel, "Host") == "Solo Host")
+        #expect(
+            String(format: en["track.arm.label"] ?? "", "Host") == "Arm Host"
+                && String(format: es["track.arm.label"] ?? "", "Host") == "Armar Host", "the arm label")
+        #expect(
+            en["track.arm.help"] == "Arm Track for Recording." && es["track.arm.help"] == "Armar pista para grabar.",
+            "the arm help")
         #expect(TrackFlag.muted.label("Host") == L10n.trackMuteLabel.format("Host"), "the mute label key")
         #expect(TrackFlag.soloed.label("Host") == L10n.trackSoloLabel.format("Host"), "the solo label key")
         for table in [en, es] {

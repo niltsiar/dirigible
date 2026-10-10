@@ -122,7 +122,7 @@ extension BannerTests {
 
     /// The labels are the ones that `BannerRow` gives SwiftUI. The accessibility tree of the
     /// SwiftUI host is empty in some host states of a test process, so the rows in that tree are
-    /// manual check M10. The check boxes are AppKit buttons in every state.
+    /// manual check M10. A check box is an AppKit button in every state.
     @Test func theTransportWarningsAreBanners() async throws {
         let (model, studio, window, _) = try await open()
         studio.play.playbackStop = .outputChanged
@@ -134,9 +134,9 @@ extension BannerTests {
                 "\(L10n.bannerKindWarning.text): \(L10n.transportStopOutputChanged.text)",
                 "\(L10n.bannerKindError.text): \(L10n.mediaMissing.text)",
             ])
-        // The arm box of the one track is the only check box: no Monitor Inputs box.
+        // No check box: no Monitor Inputs box, and arm is a button (run 2026-10-10-arm-toggle-button).
         let content = try #require(window.contentView)
-        #expect(checkBoxes(under: content).count == 1, "a check box that is not the arm box")
+        #expect(checkBoxes(under: content).isEmpty, "a check box in the window")
         await model.close()
     }
 

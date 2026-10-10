@@ -192,7 +192,7 @@ make_repo() {
   new_repo
   cp "$repo/Makefile" "$tmp/r/Makefile"
   cp "$script" "$tmp/r/scripts/check-changed.sh"
-  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/run-checks.sh" "$tmp/r/scripts/"
+  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/run-checks.sh" "$repo/scripts/check-waits.sh" "$tmp/r/scripts/"
   g add -A
   g commit -q -m make
 }

@@ -14,7 +14,7 @@ Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a dif
 
 ## Step 2: State the intent and the settled list
 
-Write one paragraph that states the intent, from the plan, the commit messages, and the task in the run ledger. Reviewers judge the execution against it. If you are unsure about the intent, stop and resolve it first. Pass the `## Unknowns` table of `analysis.md` with it. An Act-on finding that shows a missing unknown gets a new row in that table and a `decisions.tsv` row with the result `missed unknown`.
+Write one intent paragraph from the plan, the commit messages, and the task in the run ledger. Reviewers judge the execution against it. If the intent is unclear, stop and resolve it first. Pass the `## Unknowns` table of `analysis.md` with it. An Act-on finding that shows a missing unknown gets a new row in that table and a `decisions.tsv` row with the result `missed unknown`.
 
 Then list the settled choices, one line each: the scope, the run order, the choices that the user asked for, and the tradeoffs that `decisions.tsv` accepted with a reason. A line about behavior or scope ("no vertical scroll this run") is also a claim about the code: name its holder (a test or a file:line), or pass it as a claim to check. A tradeoff is settled only in the form "we accept X in exchange for Y". A tradeoff that loses user input, or departs from the reference product (Hindenburg), is settled only when the user approved it. Else pass it as a claim to check. When a skeptic refutes a finding against such a line, put the finding in `## Next` of `.scratchpads/backlog.md` as a user decision, not in Dismissed.
 
@@ -32,7 +32,12 @@ The workflow runs the reviewer agents in parallel. Skeptics try to refute each w
 - `AGENTS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "prompt-engineering", "harness-engineering", "eval-engineering", "compound-engineering"]`, with those four paths in `paths`.
 - other docs paths: no panel.
 
-A code gate with a class other than docs also calls the `code-review` skill in the tree of the branch, with an empty `git status --porcelain`, no `mutate.py` run: `high` on `origin/main...<branch>` (round 1), and `medium` on `<first fix>^..<branch>` as round 2, not the workflow. A result with no changed file did not run. The fixer checks each finding first (no skeptic).
+A code gate with a non-docs class also calls the `code-review` skill, while `git status --porcelain` of the branch tree is empty and no `mutate.py` control is active:
+
+- Round 1: `high` on `origin/main...<branch>`.
+- Round 2: `medium` on `<first fix>^..<branch>`, not the workflow.
+- A result that names no range file did not run: rerun it on `origin/main...<branch>`.
+- No skeptic: the fixer checks each finding.
 
 Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or for a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 

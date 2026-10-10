@@ -24,7 +24,8 @@ struct ListenRing: @unchecked Sendable {
         let lastPush: UnsafeAtomic<Int>
         /// The pushes that found no room.
         let dropped: UnsafeAtomic<Int>
-        /// The speaker flag in bit 0, and the ticket of its store above it.
+        /// The speaker flag in bit 0, the loopback flag in bit 1, and the ticket of their store
+        /// above them.
         let speakers: UnsafeAtomic<UInt64>
         /// The last ticket that a refresh took (fetch-and-add).
         let tickets: UnsafeAtomic<UInt64>
@@ -34,6 +35,8 @@ struct ListenRing: @unchecked Sendable {
         /// The loopback devices of the listened input. An output that contains one feeds the
         /// monitor into its own input.
         let loopback: Loopback
+        /// Called after each refresh of the speaker guard, on the thread of the refresh.
+        let wake: @Sendable () -> Void
         /// Only the render reads or writes it.
         var rule: DriftRule
     }
@@ -42,7 +45,10 @@ struct ListenRing: @unchecked Sendable {
 
     /// Writes zeros to every frame, so the IO threads never touch a new page first. The speaker
     /// flag starts true: the render plays zeros until the first read of the default output.
-    init(rate: Double, inputBlock: Int, pull: Int, loopback: Loopback = .devices([])) {
+    init(
+        rate: Double, inputBlock: Int, pull: Int, loopback: Loopback = .devices([]),
+        wake: @escaping @Sendable () -> Void = {}
+    ) {
         let left = UnsafeMutablePointer<Float>.allocate(capacity: Self.capacity)
         let right = UnsafeMutablePointer<Float>.allocate(capacity: Self.capacity)
         left.initialize(repeating: 0, count: Self.capacity)
@@ -54,7 +60,7 @@ struct ListenRing: @unchecked Sendable {
             to: Storage(
                 left: left, right: right, head: .create(0), tail: .create(0), leftMask: .create(0),
                 rightMask: .create(0), lastPush: .create(0), dropped: .create(0), speakers: .create(1),
-                tickets: .create(0), watchState: watchState, loopback: loopback,
+                tickets: .create(0), watchState: watchState, loopback: loopback, wake: wake,
                 rule: DriftRule(inputBlock: inputBlock, pull: pull, rate: rate)))
     }
 
@@ -104,19 +110,22 @@ struct ListenRing: @unchecked Sendable {
     }
 
     /// Zeros for good: a ticket that no refresh reaches.
-    func mute() { storeSpeakers(true, ticket: UInt64.max >> 1) }
+    func mute() { storeSpeakers(true, ticket: UInt64.max >> 2) }
 
     /// True while the render must play zeros: the default output is the built-in speakers.
     var speakers: Bool { storage.pointee.speakers.load(ordering: .relaxed) & 1 == 1 }
 
+    /// True when the last refresh found a loopback device of the input in the output.
+    var feedsItself: Bool { storage.pointee.speakers.load(ordering: .relaxed) & 2 == 2 }
+
     /// A new ticket, larger than each ticket before it, also on another thread.
     func nextTicket() -> UInt64 { storage.pointee.tickets.wrappingIncrementThenLoad(ordering: .relaxed) }
 
-    /// Stores the flag only when no newer ticket stored first.
-    func storeSpeakers(_ speakers: Bool, ticket: UInt64) {
-        let word = ticket << 1 | (speakers ? 1 : 0)
+    /// Stores the flags only when no newer ticket stored first.
+    func storeSpeakers(_ speakers: Bool, loopback: Bool = false, ticket: UInt64) {
+        let word = ticket << 2 | (loopback ? 2 : 0) | (speakers ? 1 : 0)
         var stored = storage.pointee.speakers.load(ordering: .relaxed)
-        while stored >> 1 < ticket {
+        while stored >> 2 < ticket {
             let (exchanged, original) = storage.pointee.speakers.compareExchange(
                 expected: stored, desired: word, ordering: .relaxed)
             if exchanged { return }
@@ -127,6 +136,9 @@ struct ListenRing: @unchecked Sendable {
     var watchState: OSAllocatedUnfairLock<WatchState> { storage.pointee.watchState.pointee }
 
     var loopback: Loopback { storage.pointee.loopback }
+
+    /// Tells the owner that a refresh stored the flags.
+    func woke() { storage.pointee.wake() }
 
     /// The IOProc side.
     func push(_ input: UnsafePointer<AudioBufferList>) { Self.push(storage, input) }

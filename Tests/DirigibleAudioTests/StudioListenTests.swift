@@ -261,6 +261,11 @@ struct StudioListenTests {
         #expect(studio.quietListens.isEmpty, "G20: a late report of a released Listener changes nothing")
         studio.applyListen(.quiet, number: new, uid: "duo")
         #expect(studio.quietListens == ["t1"], "G20: a report of the current Listener applies")
+        // Code gate round 1, item 1: a loopback is its own state, and a play clears it.
+        studio.applyListen(.loopback, number: new, uid: "duo")
+        #expect(studio.loopbackListens == ["t1"] && studio.quietListens.isEmpty, "a loopback replaces the quiet")
+        studio.applyListen(.playing, number: new, uid: "duo")
+        #expect(studio.loopbackListens.isEmpty && studio.quietListens.isEmpty, "a play clears both")
         await studio.settle()
         _ = folder
     }

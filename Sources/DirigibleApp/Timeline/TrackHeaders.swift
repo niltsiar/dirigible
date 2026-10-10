@@ -232,7 +232,9 @@ private struct TrackRow: View {
 
     /// The text of a listened track that plays no monitor sound (decision 0044).
     private var quietText: String? {
-        listenQuietText(live: studio.liveTracks[track.id], quiet: studio.quietListens.contains(track.id))
+        listenQuietText(
+            live: studio.liveTracks[track.id], quiet: studio.quietListens.contains(track.id),
+            loopback: studio.loopbackListens.contains(track.id))
     }
 
     /// The source of the route: a device name or an app name; empty with no route.

@@ -4,11 +4,16 @@ extension Studio {
     /// The listened tracks whose device plays no monitor sound (decision 0044): the device is
     /// absent, the output failed, or the Listener stopped retrying. Computed from the request, so
     /// a track that leaves the request is never quiet.
-    public var quietListens: Set<TrackID> {
+    public var quietListens: Set<TrackID> { listens(reporting: .quiet) }
+
+    /// The listened tracks whose device plays zeros because the output feeds its own input.
+    public var loopbackListens: Set<TrackID> { listens(reporting: .loopback) }
+
+    private func listens(reporting report: ListenReport) -> Set<TrackID> {
         Set(
             listenRequest.filter { id in
                 guard case .device(let uid, _) = session.track(id)?.route else { return false }
-                return quietDevices.contains(uid)
+                return deviceReports[uid] == report
             })
     }
 
@@ -57,7 +62,7 @@ extension Studio {
         for (uid, entry) in listeners where plan[uid] == nil {
             entry.listener.mute()
             listeners[uid] = nil
-            quietDevices.remove(uid)
+            deviceReports[uid] = nil
             released.append(entry.listener)
         }
         return released
@@ -90,6 +95,6 @@ extension Studio {
     /// A report of a Listener that is not the current one of `uid` changes nothing.
     func applyListen(_ report: ListenReport, number: Int, uid: String) {
         guard listeners[uid]?.number == number else { return }
-        if report == .quiet { quietDevices.insert(uid) } else { quietDevices.remove(uid) }
+        deviceReports[uid] = report == .playing ? nil : report
     }
 }

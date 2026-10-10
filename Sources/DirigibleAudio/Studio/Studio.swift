@@ -100,8 +100,8 @@ import Observation
     /// The listen order (decision 0044): each change of the Listeners runs in one turn. It is not
     /// the monitor order, where the hand-over can wait for a prompt.
     @ObservationIgnored let listenTurns = TurnQueue()
-    /// The device UIDs whose current Listener reported `.quiet`.
-    var quietDevices: Set<String> = []
+    /// The last report of the current Listener of each device UID, when it is not `.playing`.
+    var deviceReports: [String: ListenReport] = [:]
     /// Held while a monitor writer exists, so App Nap does not slow the drain of its 1 s ring.
     @ObservationIgnored private(set) var monitorActivity: LatencyActivity?
     /// One more for each monitor writer, so a late report of a finished one changes nothing.

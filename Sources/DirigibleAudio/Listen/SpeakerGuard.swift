@@ -43,6 +43,8 @@ enum SpeakerGuard {
         }
         guard inserted else { return true }
         guard add(device) else {
+            // A partial add (the first listener added) leaves a listener that close never removes.
+            remove(device)
             _ = ring.watchState.withLock { $0.watched.remove(device) }
             ring.mute()
             return false

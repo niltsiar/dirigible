@@ -8,8 +8,8 @@
 #   the script finds them by the header names. A bar in a cell is written as \|.
 # - plan.md has an `Agents:` line, and each ### heading in its `## Slices` section has a
 #   `- Check:` line. Each research-<name>.md of the run folder has docs/research/<name>.md in
-#   plan.md, and a bare research.md has at least one docs/research/ path in plan.md, so the plan
-#   routes the findings before the build (check-governance.sh checks the copy at the land).
+#   plan.md, so the plan routes the findings before the build (check-governance.sh checks the copy
+#   at the land). A bare research.md is refused: the land check reads only research-<name>.md.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -65,7 +65,7 @@ else
         [[ -f "$research" ]] || continue
         name="${research##*/}"
         if [[ "$name" == research.md ]]; then
-            grep -q 'docs/research/[^ ]' "$run/plan.md" || say "$name: plan.md names no docs/research/ path; research findings go to docs/research"
+            say "$name: name it research-<name>.md, so check-governance.sh checks its docs/research/<name>.md copy at the land"
         else
             copy="docs/research/${name#research-}"
             grep -qF "$copy" "$run/plan.md" || say "$name: plan.md does not name $copy; research findings go to docs/research"

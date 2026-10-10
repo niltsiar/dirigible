@@ -55,7 +55,7 @@ Steve Troughton-Smith publishes mostly Mac Catalyst samples (search only, not ve
 | Timur Doumler, "Using locks in real-time audio processing, safely" (ADC20) | Why a lock is dangerous and which lock-free patterns replace it (atomics for one value, immutable copies for a struct). He shows some lock patterns that can be safe. AGENTS.md keeps "no locks"; cite him for the why, not to relax the rule. Not verified: timur.audio returned HTTP 500. | https://www.youtube.com/watch?v=zrWYJ6FdOFQ, https://timur.audio/using-locks-in-real-time-audio-processing-safely | Free. |
 | Rogue Amoeba; Chris Liscio (SuperMegaUltraGroovy, Capo) | Product benchmarks for Mac audio. Rogue Amoeba posts list macOS audio bugs per release (for example VoIP capture in macOS 27). Liscio is the solo audio developer of Capo and FuzzMeasure; his blog has few deep DSP posts (author from search, not verified). | https://weblog.rogueamoeba.com/, https://supermegaultragroovy.com/ | Blogs free. Apps paid. |
 
-AudioKit (MIT, 11.5k stars, on AVAudioEngine) is a good code reference for DSP. It is not a dependency candidate: AGENTS.md puts Apple frameworks first.
+AudioKit (MIT, 11.5k stars, on AVAudioEngine) is a good code reference for DSP. It is not a dependency candidate: CODING_STANDARDS.md puts Apple frameworks first.
 
 ## 5. Performance and Instruments on macOS
 

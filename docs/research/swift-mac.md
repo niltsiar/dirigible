@@ -4,7 +4,7 @@ Date: 2026-10-01
 
 Scope: skills and rule sets that could help the Dirigible loop (Swift 6.2, Swift Testing, SwiftUI and AppKit, Core Audio, SwiftPM with no Xcode project, zero warnings). I read each page with WebFetch, which summarizes the page. I did not read raw SKILL.md files except where marked "read". Anything marked "unverified" came only from a search snippet.
 
-Repo today: skills are process skills only (deliver, tdd, architect, interrogate, deslop, verify-this, and so on) in `.claude/skills/`. No Swift-API skill exists. The Swift rules live in AGENTS.md "Architecture rules" and "Testing rules".
+Repo today: skills are process skills only (deliver, tdd, architect, interrogate, deslop, verify-this, and so on) in `.claude/skills/`. No Swift-API skill exists. The Swift rules live in CODING_STANDARDS.md and in AGENTS.md "Safety rules" and "Testing rules".
 
 ## The user's two references
 
@@ -46,7 +46,7 @@ Repo today: skills are process skills only (deliver, tdd, architect, interrogate
 ### 4. Point-Free: "The Point-Free Way"
 - Where: https://www.pointfree.co/the-way
 - Covers four skills: Composable Architecture, Dependencies, Swift Navigation, SQLiteData. Installed with `brew install pointfreeco/tap/pfw`. Needs a paid membership. The page gave no license for the skills.
-- Fit: poor. The skills assume their libraries. AGENTS.md requires a decision record for a third-party dependency, and "Simple first" rules out TCA. Skip. The idea "testable by design" is already in our TDD rules.
+- Fit: poor. The skills assume their libraries. CODING_STANDARDS.md requires a decision record for a third-party dependency, and "Simple first" rules out TCA. Skip. The idea "testable by design" is already in our TDD rules.
 
 ### 5. Apple: Xcode 26.3 agentic coding
 - Where: https://9to5mac.com/2026/02/26/apple-releases-xcode-26-3-with-support-for-agentic-coding/ (secondary press, not an Apple page).

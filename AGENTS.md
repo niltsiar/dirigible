@@ -53,29 +53,21 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Read first
 
+- **Coding standards.** Before a review, or when you design a type or a module, read `CODING_STANDARDS.md`.
 - **Module map.** Before you look for a type or a file in `Sources/`, read the Decision table and **Folders** in `docs/decisions/0002-module-map.md`.
 - **Audio callbacks.** Before you write an audio callback (render block, tap, input proc, listener), read **Callbacks** in `docs/decisions/0013-live-capture.md`. Before code branches on an `OSStatus`, read **Status codes** there.
 - **Device clocks.** Before you store or align capture times, read **Timing** in `docs/decisions/0004-capture-pipeline.md`.
 - **Localized UI.** Before you add or change a user-facing string, read `docs/decisions/0010-ui-strings.md`.
 - **CLI parity.** Before you add a public library feature, read **CLI parity** in `docs/decisions/0011-command-line-front-end.md`. `swift run dirigible --help` lists the commands that make, change, and read session packages.
 
-## Architecture rules
+## Safety rules
 
-- **Simple first.** Choose the simplest design that meets the requirement. No protocol with one conformer, no factory for one product, no configuration for a value that never changes.
-- **Modules are SwiftPM targets.** The compiler enforces the dependency direction: UI depends on domain, never the reverse. The domain module (session, tracks, clips, edits) imports only Foundation.
-- **Thin app target.** The `DirigibleApp` executable target holds only the SwiftUI shell and wiring. Logic lives in library targets that integration tests can drive.
-- **Validate at boundaries.** Parse files, audio devices, and user input into domain types at the boundary. Inside, trust the types.
-- **Concurrency.** UI state is `@MainActor`. File I/O and DSP run off the main actor. Each capture device has its own writer. Nothing on a real-time audio thread allocates, locks, logs, does file I/O, or awaits.
-- **Actors.** Each `await` lets another call run. Make the whole state change before the first `await`, or check the guard again after each `await`.
 - **No data loss.** Captured audio stays on disk and readable after a crash, a device unplug, or a full disk. Session saves are atomic. A WAV header gets its data size only when the file closes, so write captured audio in a format that survives a crash (for example CAF) or repair the header at launch.
-- **Apple frameworks first.** Core Audio, AVFoundation, AudioToolbox, Accelerate. A third-party dependency needs a decision record in `docs/decisions/`.
-- **No warnings.** Fix a warning at its cause, never with a flag or an exception that hides it.
-- **File size.** Split a Swift file over 400 lines by responsibility, not by execution order. A fix run adds an entry to `scripts/check-sizes.allow`; a refactor run splits.
+- **Real-time thread.** Nothing on a real-time audio thread allocates, locks, logs, does file I/O, or awaits.
 
 ## Testing rules
 
-- Write the failing test first (the **tdd** skill). Every behavior change comes with a test that fails without it. The tdd skill has the rules for test kinds, fixtures, slow tests, and asserts.
-- Tests do not use the network, the real microphone, or a permission prompt.
+- Write the failing test first: every behavior change comes with a test that fails without it. The **tdd** skill has the rules for test kinds, fixtures, slow tests, and asserts.
 
 ## Keep this file true
 

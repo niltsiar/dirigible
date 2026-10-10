@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Scope
 
-This document answers the export and DSP questions in `docs/requirements/brief.md`: export formats and the MP3 encoder (R11), the default clip format (R6), loudness measurement, the export loudness target, auto-leveling per clip (R9), and noise reduction (R8). The limits come from `AGENTS.md` (Apple frameworks first, a decision record for each third-party dependency) and `docs/decisions/0001-native-swift-stack.md`.
+This document answers the export and DSP questions in `docs/requirements/brief.md`: export formats and the MP3 encoder (R11), the default clip format (R6), loudness measurement, the export loudness target, auto-leveling per clip (R9), and noise reduction (R8). The limits come from `CODING_STANDARDS.md` (Apple frameworks first, a decision record for each third-party dependency) and `docs/decisions/0001-native-swift-stack.md`.
 
 Sources are the macOS 26 SDK headers on the development Mac (`xcrun --show-sdk-path`), Apple documentation, the standards, and the library repositories. The mark "(unconfirmed)" means that this research did not confirm the claim in a primary source. The mark "(tested)" means a local test on macOS 15.7.9, Intel x86_64, Xcode 26, on 2026-09-23. The test scripts are in the session scratchpad and are not in git. This document is not legal advice.
 

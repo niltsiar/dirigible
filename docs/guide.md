@@ -332,6 +332,7 @@ The Monitor button (the headphones, after the arm button) in the track header do
 - Only a track with an input device can monitor. For an app track or a track with no input, the item is dimmed.
 - When the output is the built-in speakers, the monitor plays no sound, so the microphone does not pick up the monitor. The window shows the banner "Use headphones to hear the monitor." Plug in headphones, and the sound comes back. Dirigible does not detect external speakers. With speakers, turn the monitor off.
 - When the monitor cannot play, the track shows "No monitor sound. Turn Monitor Track off and on."
+- When the output contains the virtual device of the input, for example a loopback device in an aggregate device, the monitor plays no sound, so it does not feed its own input. The header says why: "No monitor sound: the output can feed this input. Choose another output."
 - You hear your voice a short time late: about 100 ms from the built-in microphone. Bluetooth headphones add more.
 - The monitor is off when a session opens. Dirigible does not save it.
 

@@ -22,12 +22,12 @@ enum SpeakerGuard {
         watch: (AudioObjectID) -> Void, speakers: (AudioObjectID) -> Bool
     ) {
         let ticket = ring.nextTicket()
-        let flag = output().map { output in
-            let devices = AudioDefaults.outputDevices(output, subdevices: subdevices, watch: watch)
-            // A loopback: the monitor would feed its own input.
-            return ring.loopback.feeds(devices) || devices.contains(where: speakers)
-        }
-        ring.storeSpeakers(flag ?? true, ticket: ticket)
+        let devices = output().map { AudioDefaults.outputDevices($0, subdevices: subdevices, watch: watch) }
+        // A loopback: the monitor would feed its own input.
+        let feeds = devices.map(ring.loopback.feeds) ?? false
+        let flag = devices.map { feeds || $0.contains(where: speakers) } ?? true
+        ring.storeSpeakers(flag, loopback: feeds, ticket: ticket)
+        ring.woke()
     }
 
     /// Adds the device listeners of `ring` to `device` once, and never after `close`. When

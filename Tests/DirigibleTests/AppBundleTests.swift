@@ -104,6 +104,12 @@ struct AppBundleTests {
                 "track.state.retry.stopped", "Stopped retrying. Turn Input Levels off and on.",
                 "Se dejó de reintentar. Desactiva y activa Niveles de entrada."
             ),
+            // Code gate round 1, item 1: the loopback text of a header row.
+            (
+                "track.listen.loopback",
+                "No monitor sound: the output can feed this input. Choose another output.",
+                "Sin sonido de monitor: la salida puede llegar a esta entrada. Elige otra salida."
+            ),
             // B9: the Monitor button of a header row.
             ("track.monitor.label", "Monitor %@", "Monitorizar %@"),
             (

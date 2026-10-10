@@ -137,10 +137,11 @@ import Testing
         select("t1", in: window, studio)
         window.toggleListen()
         await until("the failed output start is quiet") { studio.quietListens == ["t1"] }
-        #expect(listenQuietText(live: studio.liveTracks["t1"], quiet: true) == L10n.trackListenQuiet.text)
+        #expect(
+            listenQuietText(live: studio.liveTracks["t1"], quiet: true, loopback: false) == L10n.trackListenQuiet.text)
         let lost = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
-        #expect(listenQuietText(live: lost, quiet: true) == nil, "a meter fault shows first")
-        #expect(listenQuietText(live: nil, quiet: false) == nil, "a track that plays has no text")
+        #expect(listenQuietText(live: lost, quiet: true, loopback: false) == nil, "a meter fault shows first")
+        #expect(listenQuietText(live: nil, quiet: false, loopback: false) == nil, "a track that plays has no text")
         await window.close()
     }
 }

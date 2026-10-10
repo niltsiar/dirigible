@@ -215,11 +215,12 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         output.setOutput(1)
         let listener = listener()
         listener.start()
-        let input = try #require(await input(after: [.playing]))
+        let input = try #require(await input(after: [.loopback]))
         #expect(input.ring.speakers, "a virtual device in its own output plays zeros")
         output.setOutput(5)
         _ = output.output.watch(input.ring)
         #expect(!input.ring.speakers, "a virtual device plays in another output")
+        await until(limit: .seconds(10), "the refresh reports the play") { reports.all == [.loopback, .playing] }
         await listener.off()
     }
 
@@ -231,11 +232,17 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         output.setOutput(41)
         let listener = listener()
         listener.start()
-        let input = try #require(await input(after: [.playing]))
+        let input = try #require(await input(after: [.loopback]), "the Listener reports the loopback")
         #expect(input.ring.speakers, "the virtual subdevice as the output plays zeros")
         output.setOutput(40)
         _ = output.output.watch(input.ring)
         #expect(!input.ring.speakers, "the USB subdevice as the output plays")
+        await until(limit: .seconds(10), "the refresh reports the play") { reports.all == [.loopback, .playing] }
+        output.setOutput(41)
+        _ = output.output.watch(input.ring)
+        await until(limit: .seconds(10), "a refresh reports the loopback again") {
+            reports.all == [.loopback, .playing, .loopback]
+        }
         await listener.off()
     }
 

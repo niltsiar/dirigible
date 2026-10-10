@@ -4,7 +4,11 @@ import os
 
 /// What a Listener tells its owner (decision 0044): it plays, or it plays no sound (the device is
 /// absent, the output failed, a stop or a detach failed, or the keep limit).
-enum ListenReport: Sendable, Equatable { case playing, quiet }
+enum ListenReport: Sendable, Equatable {
+    case playing, quiet
+    /// Playing zeros: the output holds a loopback device of the input, or a transport read failed.
+    case loopback
+}
 
 /// The record monitor of one device (decision 0044). It attaches a listen IOProc to the device
 /// and starts an output unit that plays the ring of that appearance. While the device is absent
@@ -134,7 +138,12 @@ final class Listener: @unchecked Sendable {
         guard let found = hal.lookUp(uid) else { return wait() }
         let rate = found.device.nominalRate
         // The transports are read once here, so a refresh does no extra HAL read.
-        let ring = ListenRing(rate: rate, inputBlock: 512, pull: 512, loopback: hal.loopback(found.id))
+        // Weak: a kept ring lives for the process life.
+        let ring = ListenRing(rate: rate, inputBlock: 512, pull: 512, loopback: hal.loopback(found.id)) {
+            [weak self] in
+            guard let self else { return }
+            queue.async { self.reportLoopback() }
+        }
         shared.withLock {
             ring.setMap($0.map)
             if $0.muted { ring.mute() }
@@ -162,7 +171,7 @@ final class Listener: @unchecked Sendable {
             let stop = try output.start(ring, attached.rate, attached.inputBlock)
             current = Appearance(input: input, detach: attached.detach, stop: stop, inputBlock: attached.inputBlock)
             phase = .playing
-            send(.playing)
+            reportLoopback()
         } catch {
             output.unwatch(ring)
             keep(input, clean: attached.detach())
@@ -217,6 +226,12 @@ final class Listener: @unchecked Sendable {
         guard counts.kept < keepLimit else { return }
         counts.retries += 1
         queue.asyncAfter(deadline: .now() + retryInterval / .seconds(1)) { [weak self] in self?.tryStart() }
+    }
+
+    /// After a refresh of the speaker guard: the loopback flag of the current ring.
+    private func reportLoopback() {
+        guard phase == .playing, let current else { return }
+        send(current.input.ring.feedsItself ? .loopback : .playing)
     }
 
     private func send(_ value: ListenReport) {

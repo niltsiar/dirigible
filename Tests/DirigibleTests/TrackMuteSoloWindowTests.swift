@@ -207,7 +207,8 @@ import Testing
             String(format: en["track.arm.label"] ?? "", "Host") == "Arm Host"
                 && String(format: es["track.arm.label"] ?? "", "Host") == "Armar Host", "the arm label")
         #expect(
-            en["track.arm.help"] == "Arm Track for Recording." && es["track.arm.help"] == "Armar pista para grabar.",
+            en["track.arm.help"] == "Arm the track for recording."
+                && es["track.arm.help"] == "Armar la pista para grabar.",
             "the arm help")
         #expect(TrackFlag.muted.label("Host") == L10n.trackMuteLabel.format("Host"), "the mute label key")
         #expect(TrackFlag.soloed.label("Host") == L10n.trackSoloLabel.format("Host"), "the solo label key")

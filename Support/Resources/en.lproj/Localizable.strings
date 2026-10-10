@@ -116,7 +116,7 @@
 "track.name.guest" = "Guest";
 "track.name" = "Name";
 "track.arm.label" = "Arm %@";
-"track.arm.help" = "Arm Track for Recording.";
+"track.arm.help" = "Arm the track for recording.";
 "track.mute.letter" = "M";
 "track.solo.letter" = "S";
 "track.mute.label" = "Mute %@";

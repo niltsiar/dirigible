@@ -93,7 +93,8 @@ import Testing
     /// Code gate 1 item 4 and code gate 2 items 3 to 5: a lane under 56 pt still shows a route
     /// control and the live state of a take on its one line: a red symbol for a lost device, an
     /// orange one for dropped frames, none with no state, and nothing in the handle strip. The layout
-    /// text shows from 235 pt. The symbols are SwiftUI drawing, so the test reads a window capture.
+    /// text shows from `TrackHeaders.layoutWidth`. The symbols are SwiftUI drawing, so the test
+    /// reads a window capture.
     @Test func aOneLineRowShowsTheRouteAndTheState() async throws {
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
@@ -102,8 +103,9 @@ import Testing
             state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
         // Every row is armed: the red arm boxes are left of the counted columns.
         model.armed = Set(studio.session.tracks.map(\.id))
-        // 235 pt is the tightest one-line row: the layout text and a full live state.
-        for width in [180.0, 234, 235, 340] {
+        // The layout gate is the tightest one-line row: the layout text and a full live state.
+        let layout = TrackHeaders.layoutWidth
+        for width in [180.0, layout - 1, layout, 340] {
             let (window, host) = rows(model, studio, laneHeight: 50, width: width)
             let found = controls(host, in: host)
             #expect(found.filter { $0.kind == "route" }.count == 3, "a route control in each row at \(width)")
@@ -115,10 +117,10 @@ import Testing
             // Every view stays inside the row, also at 180 pt, where the name field gives way.
             let out = outside(host, width: width)
             #expect(out.isEmpty, "inside the one-line row at \(width): \(out)")
-            // The layout text is between the name field and the route symbol, from 235 pt.
+            // The layout text is between the name field and the route symbol, from the layout gate.
             let name = try #require(found.first { $0.kind == "name" }?.frame)
             let route = try #require(found.first { $0.kind == "route" }?.frame)
-            if width >= 235 {
+            if width >= layout {
                 #expect(route.minX - name.maxX > 20, "the layout text shows on one line at \(width)")
             } else {
                 #expect(route.minX - name.maxX < 20, "no layout text on one line at \(width)")

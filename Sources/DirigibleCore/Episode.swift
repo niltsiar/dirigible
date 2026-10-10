@@ -52,11 +52,12 @@ public struct Episode: Hashable, Sendable {
         }
     }
 
-    /// Sets `text` on `field` through the field type. A blank text clears the field. The one text
-    /// rule of the Episode pane, the CLI, and the MCP tools.
+    /// Sets `text` on `field` through the field type. An empty text clears the field. A text of only
+    /// whitespace clears a text field, and a number, date, language, or URL field refuses it, as
+    /// the CLI did before. The one text rule of the Episode pane, the CLI, and the MCP tools.
     public mutating func set(_ field: EpisodeField, text: String) throws(EpisodeFieldError) {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        let blank = trimmed.isEmpty
+        let blank = text.isEmpty
         switch field {
         case .title: title = try EpisodeLine(text)
         case .show: show = try EpisodeLine(text)

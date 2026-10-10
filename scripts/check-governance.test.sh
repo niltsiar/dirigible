@@ -84,12 +84,13 @@ sed -i '' 's/| a | 2026-10-01T01:00 |/|  | 2026-10-01T01:00 |/' "$tmp/run/analys
 refuse 'an open Unknowns row' 'open unknown: | U1 |' "$tmp/run"
 
 # A research file of the run folder has its copy in docs/research.
-new_repo; echo x > "$tmp/run/research-topic.md"
+new_repo; echo x > "$tmp/run/research-topic.md"; echo '- S1 copies it to docs/research/topic.md.' >> "$tmp/run/plan.md"
 refuse 'a run research file with no docs/research copy' 'research-topic.md has no docs/research/topic.md' "$tmp/run"
 mkdir -p "$tmp/r/docs/research"; echo x > "$tmp/r/docs/research/topic.md"; commit
 pass 'a run research file with its docs/research copy' "$tmp/run"
 new_repo; mkdir -p "$tmp/r/docs/research"; echo x > "$tmp/r/docs/research/topic.md"; g add -A; g commit -q -m old
 g switch -q main; g merge -q --ff-only feat/x; g switch -q feat/x; echo x > "$tmp/run/research-topic.md"
+echo '- S1 copies it to docs/research/topic.md.' >> "$tmp/run/plan.md"
 refuse 'a run research file whose copy the branch does not change' 'research-topic.md has no docs/research/topic.md that this branch adds or changes' "$tmp/run"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"

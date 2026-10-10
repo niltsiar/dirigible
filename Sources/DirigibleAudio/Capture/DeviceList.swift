@@ -82,23 +82,26 @@ public struct AudioDefaults: Equatable, Sendable {
 
     /// The read of the system, with the data source listener on the default output.
     static func live() -> AudioDefaults {
-        let system = AudioObjectID(kAudioObjectSystemObject)
-        func device(_ selector: AudioObjectPropertySelector) -> AudioObjectID? {
-            let id = try? readValue(system, selector, as: AudioObjectID.self)
-            return id == AudioObjectID(kAudioObjectUnknown) ? nil : id
-        }
-        return read(
-            output: device(kAudioHardwarePropertyDefaultOutputDevice),
-            inputUID: device(kAudioHardwarePropertyDefaultInputDevice).flatMap {
+        read(
+            output: liveDefault(kAudioHardwarePropertyDefaultOutputDevice),
+            inputUID: liveDefault(kAudioHardwarePropertyDefaultInputDevice).flatMap {
                 readString($0, kAudioDevicePropertyDeviceUID)
             },
-            watch: DeviceListListener.watchDataSource,
-            speakers: { id in
-                isBuiltInSpeakers(
-                    transport: try? readValue(id, kAudioDevicePropertyTransportType, as: UInt32.self),
-                    dataSource: try? readValue(
-                        id, kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput, as: UInt32.self))
-            })
+            watch: DeviceListListener.watchDataSource, speakers: liveSpeakers)
+    }
+
+    /// The default device of `selector`, or nil when the read fails or there is none.
+    static func liveDefault(_ selector: AudioObjectPropertySelector) -> AudioObjectID? {
+        let id = try? readValue(AudioObjectID(kAudioObjectSystemObject), selector, as: AudioObjectID.self)
+        return id == AudioObjectID(kAudioObjectUnknown) ? nil : id
+    }
+
+    /// The live speaker read of `output`. The banner and the speaker flag of a listen ring use it.
+    static func liveSpeakers(_ output: AudioObjectID) -> Bool {
+        isBuiltInSpeakers(
+            transport: try? readValue(output, kAudioDevicePropertyTransportType, as: UInt32.self),
+            dataSource: try? readValue(
+                output, kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput, as: UInt32.self))
     }
 
     /// Calls `watch` on the output device before it reads the flag, so a change after the read

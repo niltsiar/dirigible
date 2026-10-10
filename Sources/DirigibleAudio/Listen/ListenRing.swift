@@ -1,5 +1,6 @@
 import Atomics
 import CoreAudio
+import os
 
 /// The stereo frame ring of one listened device (decision 0044). The input IOProc of the device
 /// pushes, and the render of its output unit pulls. It holds pointers and `UnsafeAtomic` values
@@ -24,6 +25,11 @@ struct ListenRing: @unchecked Sendable {
         let dropped: UnsafeAtomic<Int>
         /// The speaker flag in bit 0, and the ticket of its store above it.
         let speakers: UnsafeAtomic<UInt64>
+        /// The last ticket that a refresh took (fetch-and-add).
+        let tickets: UnsafeAtomic<UInt64>
+        /// The control state of the speaker guard. A pointer, so a copy of the storage on an IO
+        /// thread does no retain. No IO callback takes the lock.
+        let watchState: UnsafeMutablePointer<OSAllocatedUnfairLock<WatchState>>
         /// Only the render reads or writes it.
         var rule: DriftRule
     }
@@ -37,11 +43,14 @@ struct ListenRing: @unchecked Sendable {
         let right = UnsafeMutablePointer<Float>.allocate(capacity: Self.capacity)
         left.initialize(repeating: 0, count: Self.capacity)
         right.initialize(repeating: 0, count: Self.capacity)
+        let watchState = UnsafeMutablePointer<OSAllocatedUnfairLock<WatchState>>.allocate(capacity: 1)
+        watchState.initialize(to: OSAllocatedUnfairLock(initialState: WatchState()))
         storage = .allocate(capacity: 1)
         storage.initialize(
             to: Storage(
                 left: left, right: right, head: .create(0), tail: .create(0), leftMask: .create(0),
                 rightMask: .create(0), lastPush: .create(0), dropped: .create(0), speakers: .create(1),
+                tickets: .create(0), watchState: watchState,
                 rule: DriftRule(inputBlock: inputBlock, pull: pull, rate: rate)))
     }
 
@@ -56,13 +65,18 @@ struct ListenRing: @unchecked Sendable {
         deallocateBytes()
         let ring = storage.pointee
         for atomic in [ring.head, ring.tail, ring.lastPush, ring.dropped] { atomic.destroy() }
-        for atomic in [ring.leftMask, ring.rightMask, ring.speakers] { atomic.destroy() }
+        for atomic in [ring.leftMask, ring.rightMask, ring.speakers, ring.tickets] { atomic.destroy() }
+        ring.watchState.deinitialize(count: 1)
+        ring.watchState.deallocate()
         storage.deinitialize(count: 1)
         storage.deallocate()
     }
 
-    /// The client data of the IOProc and the render.
+    /// The client data of the IOProc, the render, and the speaker listeners.
     var context: UnsafeMutableRawPointer { UnsafeMutableRawPointer(storage) }
+
+    /// The ring of a client data pointer.
+    init(context: UnsafeMutableRawPointer) { storage = context.assumingMemoryBound(to: Storage.self) }
 
     /// The next push uses `map`. The frames in the ring keep the map of their push.
     func setMap(_ map: ChannelMap) {
@@ -75,9 +89,22 @@ struct ListenRing: @unchecked Sendable {
     /// True while the render must play zeros: the default output is the built-in speakers.
     var speakers: Bool { storage.pointee.speakers.load(ordering: .relaxed) & 1 == 1 }
 
+    /// A new ticket, larger than each ticket before it, also on another thread.
+    func nextTicket() -> UInt64 { storage.pointee.tickets.wrappingIncrementThenLoad(ordering: .relaxed) }
+
+    /// Stores the flag only when no newer ticket stored first.
     func storeSpeakers(_ speakers: Bool, ticket: UInt64) {
-        storage.pointee.speakers.store(ticket << 1 | (speakers ? 1 : 0), ordering: .relaxed)
+        let word = ticket << 1 | (speakers ? 1 : 0)
+        var stored = storage.pointee.speakers.load(ordering: .relaxed)
+        while stored >> 1 < ticket {
+            let (exchanged, original) = storage.pointee.speakers.compareExchange(
+                expected: stored, desired: word, ordering: .relaxed)
+            if exchanged { return }
+            stored = original
+        }
     }
+
+    var watchState: OSAllocatedUnfairLock<WatchState> { storage.pointee.watchState.pointee }
 
     /// The IOProc side.
     func push(_ input: UnsafePointer<AudioBufferList>) { Self.push(storage, input) }

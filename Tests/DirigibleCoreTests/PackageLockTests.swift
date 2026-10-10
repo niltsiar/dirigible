@@ -1,6 +1,7 @@
-import DirigibleCore
 import Foundation
 import Testing
+
+@testable import DirigibleCore
 
 /// The package lock of decision 0012 (criterion 25). flock refuses a second descriptor in the
 /// same process, so only the child-process test needs a second process.
@@ -180,6 +181,40 @@ struct PackageLockTests {
         try #require(rename(package.path, folder.appending(path: "Moved.dirigible").path) == 0)
 
         #expect(lock.freeBytes() > 0)
+    }
+
+    /// A huge `f_bavail` (some network volumes) saturates at `Int64.max` and does not trap. The
+    /// first case runs first: the old code trapped there with a message.
+    @Test func freeBytesSaturatesAtInt64Max() {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        #expect(
+            saturatedFreeBytes(available: .max, blockSize: 4096) == .max, "an f_bavail over Int64.max saturates")
+        #expect(
+            saturatedFreeBytes(available: 10_050_958, blockSize: 4096) == 41_168_723_968,
+            "a free value in range is exact")
+        #expect(
+            saturatedFreeBytes(available: 2_251_799_813_685_247, blockSize: 4096) == 9_223_372_036_854_771_712,
+            "the largest product in range is exact")
+        #expect(
+            saturatedFreeBytes(available: 2_251_799_813_685_248, blockSize: 4096) == .max,
+            "a product over Int64.max saturates")
+        #expect(saturatedFreeBytes(available: .max, blockSize: 0) == 0, "a block size of 0 gives 0")
+    }
+
+    /// Seeded oracle: the saturated value is the full-width product, or `Int64.max` when that
+    /// product does not fit.
+    @Test func freeBytesMatchTheFullWidthProduct() {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var random = SplitMix(seed: 41)
+        var misses = 0
+        for _ in 0..<10_000 {
+            let available = random.next() >> UInt64.random(in: 0...63, using: &random)
+            let blockSize = UInt32(truncatingIfNeeded: random.next() >> UInt64.random(in: 32...63, using: &random))
+            let (high, low) = available.multipliedFullWidth(by: UInt64(blockSize))
+            let expected = high == 0 && low <= UInt64(Int64.max) ? Int64(low) : .max
+            if saturatedFreeBytes(available: available, blockSize: blockSize) != expected { misses += 1 }
+        }
+        #expect(misses == 0, "the saturated value matches the full-width product")
     }
 
     @Test func aPackageThatDoesNotExistCannotBeRead() {

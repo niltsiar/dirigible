@@ -10,15 +10,21 @@ failures=0
 
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
-# The fake swift fails when the program has not exactly one window list line, or has another line
-# that names CGWindowList, so a changed screenshot.sh cannot make a case read the real screen.
+# The fake swift replaces the one window list line of the program with FAKE_WINDOWS.
+# It exits 3 when the program has no such line or more than one.
+# It also exits 3 when another line names CGWindowList.
+# ponytail: the guard sees only CGWindowList lines. It does not catch another window source, for
+# example ScreenCaptureKit or CGDisplayCreateImage. Upgrade to an injected window-list seam in
+# screenshot.sh when the query changes.
+real_swift="$(command -v swift)"
+[[ -n "$real_swift" ]] || { echo "FAIL: swift not on PATH"; exit 1; }
 mkdir "$tmp/bin"
 cat >"$tmp/bin/swift" <<FAKE
 #!/bin/bash
 program="\$(awk '/^let windows = CGWindowListCopyWindowInfo/ { print ENVIRON["FAKE_WINDOWS"]; n++; next }
     /CGWindowList/ { other++ } { print } END { exit n != 1 || other }')" ||
     { echo "fake swift: not one window list line, or another CGWindowList line" >&2; exit 3; }
-exec $(command -v swift) - <<<"\$program"
+exec "$real_swift" - <<<"\$program"
 FAKE
 cat >"$tmp/bin/screencapture" <<FAKE
 #!/bin/bash

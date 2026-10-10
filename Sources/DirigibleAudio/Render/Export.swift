@@ -153,16 +153,21 @@ public enum ExportError: Error, Hashable, Sendable {
 /// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
 /// percent changes: pass 1 maps to 0...0.25 and pass 2 to 0.25...1. The call of 1.0
 /// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
-/// folder of `url`, closes and flushes it, then moves it: over `replacing` when the target
-/// still is that item, else with `moveNew`, which never replaces an item. Then it flushes the
-/// folder. Every exit removes the temporary file. It holds an flock on the temporary file while
-/// it runs. At the start it removes the leftovers of an export to `url` that died.
+/// folder of `url` and closes it. An AAC export of a session with episode fields then copies it
+/// to `.<name>.<UUID>.tag.tmp` with the iTunes atoms (decision 0045): the encode maps to
+/// 0...0.95, the call of 1.0 comes after the copy, and the copy reads `isCancelled()` too. It
+/// flushes the file of the last step through `flush`, then moves it: over `replacing` when the
+/// target still is that item, else with `moveNew`, which never replaces an item. Then it flushes
+/// the folder. Every exit removes the temporary files. It holds an flock on the `.tmp` file while
+/// it runs. At the start it removes the leftovers of an export to `url` that died. A test passes
+/// `flush` to see the order of the flushes; nil is `fullFlush`.
 public func exportMix(
     _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
     replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
-    chunk: Int = 48_000
+    chunk: Int = 48_000, flush: ((String) -> Int32?)? = nil
 ) throws(ExportError) -> ExportResult {
+    let flush = flush ?? { fullFlush(path: $0) }
     let rate = options.rate.hertz(session: session.sampleRate)
     if case .aac = options.format, rate > 48_000 { throw .rateNotSupported(rate) }
     // The MPEG-1 rates, where LAME keeps each bit rate of `BitRate` (probes U3 and U7).
@@ -179,10 +184,11 @@ public func exportMix(
     let total = source.range.upperBound.count - first.count
     let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks)
     var percent = 0
+    let tags = if case .aac = options.format, !session.episode.isEmpty { true } else { false }
     func report(_ whole: Int, _ fraction: Double) {
         if whole > percent {
             percent = whole
-            progress(fraction)
+            progress(tags ? 0.95 * fraction : fraction)
         }
     }
     /// Renders the source chunk by chunk and gives each chunk and the frames done to `body`.
@@ -216,7 +222,8 @@ public func exportMix(
 
     removeExportLeftovers(of: url)
     let folder = url.deletingLastPathComponent()
-    let temporary = folder.appending(path: "\(leftoverPrefix(url))\(UUID().uuidString).tmp")
+    let name = "\(leftoverPrefix(url))\(UUID().uuidString)"
+    let temporary = folder.appending(path: "\(name).tmp")
     // The flock tells the sweep of another export to this target that the file is live. It holds
     // on APFS, exFAT, and FAT (probe g1-flock). A volume with no locks gets the file with no lock.
     var held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_EXLOCK | O_CLOEXEC, 0o644)
@@ -230,6 +237,9 @@ public func exportMix(
     // The unlink runs before the close, so no sweep sees the file with no lock.
     defer { close(held) }
     defer { unlink(temporary.path) }
+    let tagged = tags ? folder.appending(path: "\(name).tag.tmp") : nil
+    // This unlink runs before the unlink of the `.tmp` file, so no sweep removes a live file.
+    defer { if let tagged { unlink(tagged.path) } }
     try writeFile(
         temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3Tag(session.episode)
     ) {
@@ -260,14 +270,20 @@ public func exportMix(
     // A cancel after the last chunk skips the flush and the move, so a take start does not
     // wait for them (code gate 1).
     if isCancelled() { throw .cancelled }
-    if let code = fullFlush(path: temporary.path) { throw writeFault(status: -40, errno: code) }
+    if let tagged {
+        try tagM4A(temporary, episode: session.episode, to: tagged, isCancelled: isCancelled)
+        progress(1)
+        if isCancelled() { throw .cancelled }
+    }
+    let last = tagged ?? temporary
+    if let code = flush(last.path) { throw writeFault(status: -40, errno: code) }
     if let replacing {
-        try moveOver(temporary, to: url, confirmed: replacing)
+        try moveOver(last, to: url, confirmed: replacing)
     } else {
-        try moveNew(temporary, to: url)
+        try moveNew(last, to: url)
     }
     // The file is at the target now. A volume that refuses both flushes does not undo the move.
-    _ = fullFlush(path: folder.path)
+    _ = flush(folder.path)
     return ExportResult(faults: mix.faults, loudness: stage?.report())
 }
 
@@ -326,21 +342,33 @@ private func fold(_ stereo: AVAudioPCMBuffer, into mono: AVAudioPCMBuffer) {
     vDSP_vasm(channels[0], 1, channels[1], 1, &half, mono.floatChannelData![0], 1, vDSP_Length(stereo.frameLength))
 }
 
-/// Removes the temporary files of the exports to `url` that died (a kill, a crash):
-/// `.<name>.<UUID>.tmp` in the folder of `url` that no export holds an flock on. A live export
-/// holds one, so its file stays. A name with no UUID stays: the export did not make it.
+/// Removes the temporary files of the exports to `url` that died (a kill, a crash). First it
+/// removes each `.<name>.<UUID>.tmp` in the folder of `url` that no export holds an flock on. A
+/// live export holds one, so its file stays. Then it removes each `.<name>.<UUID>.tag.tmp` with no
+/// `.tmp` file of the same UUID: a live export makes its `.tag.tmp` file after its `.tmp` file
+/// and removes it first. A name with no UUID stays: the export did not make it.
 private func removeExportLeftovers(of url: URL) {
     let folder = url.deletingLastPathComponent()
     let prefix = leftoverPrefix(url)
-    for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-    where name.hasPrefix(prefix) && name.hasSuffix(".tmp")
-        && UUID(uuidString: String(name.dropFirst(prefix.count).dropLast(4))) != nil
-    {
+    func names(_ suffix: String) -> [String] {
+        let all = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        return all.filter {
+            $0.hasPrefix(prefix) && $0.hasSuffix(suffix)
+                && UUID(uuidString: String($0.dropFirst(prefix.count).dropLast(suffix.count))) != nil
+        }
+    }
+    for name in names(".tmp") {
         let path = folder.appending(path: name).path
         let dead = open(path, O_RDONLY | O_EXLOCK | O_NONBLOCK | O_CLOEXEC)
         guard dead >= 0 else { continue }
         unlink(path)
         close(dead)
+    }
+    for name in names(".tag.tmp")
+    where !FileManager.default.fileExists(
+        atPath: folder.appending(path: "\(name.dropLast(8)).tmp").path)
+    {
+        unlink(folder.appending(path: name).path)
     }
 }
 

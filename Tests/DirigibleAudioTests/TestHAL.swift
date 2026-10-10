@@ -48,6 +48,8 @@ final class TestHAL: @unchecked Sendable {
     /// The nominal rate that a listen attach reads after its listener adds, by UID.
     private var listenRates: [String: Double] = [:]
     private var virtualDevices: Set<String> = []
+    /// The aggregate inputs: the active subdevices of each, and which of them are virtual.
+    private var aggregateInputs: [String: (subdevices: [AudioObjectID], virtual: Set<AudioObjectID>)] = [:]
     private var listenDetaches: [String: Int] = [:]
 
     /// A successful attach or a clean detach of one input.
@@ -85,8 +87,19 @@ final class TestHAL: @unchecked Sendable {
             makeTap: { [self] found in makeTap(found) },
             appName: { [self] bundleID in lock.withLock { names[bundleID] ?? bundleID } },
             deviceExists: { [self] uid in lock.withLock { !goneDevices.contains(uid) } },
-            isVirtual: { [self] id in
-                lock.withLock { present.contains { $0.value.id == id && virtualDevices.contains($0.key) } }
+            loopback: { [self] id in
+                lock.withLock {
+                    guard let uid = present.first(where: { $0.value.id == id })?.key else { return .devices([]) }
+                    if virtualDevices.contains(uid) { return .devices([id]) }
+                    guard let (subdevices, virtual) = aggregateInputs[uid] else { return .devices([]) }
+                    return loopbackDevices(
+                        id,
+                        transport: {
+                            $0 == id
+                                ? kAudioDeviceTransportTypeAggregate
+                                : virtual.contains($0) ? kAudioDeviceTransportTypeVirtual : kAudioDeviceTransportTypeUSB
+                        }, subdevices: { $0 == id ? subdevices : nil })
+                }
             })
     }
 
@@ -223,6 +236,10 @@ final class TestHAL: @unchecked Sendable {
     func listenRate(_ uid: String, _ rate: Double) { lock.withLock { listenRates[uid] = rate } }
     /// The transport type of `uid` is virtual (a loopback device).
     func setVirtual(_ uid: String) { lock.withLock { _ = virtualDevices.insert(uid) } }
+    /// `uid` is an aggregate of `subdevices`; the ones in `virtual` have a virtual transport.
+    func setAggregate(_ uid: String, subdevices: [AudioObjectID], virtual: Set<AudioObjectID>) {
+        lock.withLock { aggregateInputs[uid] = (subdevices, virtual) }
+    }
 
     /// The app that `lookUpApp` finds for `bundleID` (nil: no output device), and its name.
     func setApp(_ bundleID: String, _ found: AppFound?, name: String? = nil) {

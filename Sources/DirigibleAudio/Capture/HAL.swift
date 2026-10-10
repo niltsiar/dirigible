@@ -46,9 +46,8 @@ struct DeviceHAL: Sendable {
     var appName: @Sendable (_ bundleID: String) -> String = { $0 }
     /// True when a device with `uid` is in the device list (an output device too).
     var deviceExists: @Sendable (_ uid: String) -> Bool = { _ in true }
-    /// True when the transport type of the device is virtual (a loopback device), or when the read
-    /// fails: then the loopback rule of the speaker guard applies (fail closed).
-    var isVirtual: @Sendable (_ id: AudioObjectID) -> Bool = { _ in false }
+    /// The loopback devices of a listened input: the speaker guard plays zeros to them.
+    var loopback: @Sendable (_ id: AudioObjectID) -> Loopback = { _ in .devices([]) }
 }
 
 /// Stops the device, destroys the IOProc, and removes the listeners. True when every call
@@ -218,27 +217,13 @@ extension DeviceHAL {
             return try DirigibleAudio.makeTap(found)
         },
         appName: { DirigibleAudio.appName($0) }, deviceExists: { InputDevice.objectID(uid: $0) != nil },
-        isVirtual: { device in
-            isVirtualTransport(
+        loopback: { device in
+            loopbackDevices(
                 device, transport: { try? readValue($0, kAudioDevicePropertyTransportType, as: UInt32.self) },
                 subdevices: {
                     try? readArray($0, kAudioAggregateDevicePropertyActiveSubDeviceList, as: AudioObjectID.self)
                 })
         })
-}
-
-/// True when the transport of `device` is virtual, or when it is an aggregate or an
-/// auto-aggregate with a virtual active subdevice. A failed read counts as virtual (fail closed).
-func isVirtualTransport(
-    _ device: AudioObjectID, transport: (AudioObjectID) -> UInt32?, subdevices: (AudioObjectID) -> [AudioObjectID]?
-) -> Bool {
-    switch transport(device) {
-    case kAudioDeviceTransportTypeVirtual, nil: true
-    case kAudioDeviceTransportTypeAggregate, kAudioDeviceTransportTypeAutoAggregate:
-        subdevices(device).map { $0.contains { isVirtualTransport($0, transport: transport, subdevices: subdevices) } }
-            ?? true
-    default: false
-    }
 }
 
 /// A raw pointer that a `@Sendable` detach captures. The HAL owns what it points to.

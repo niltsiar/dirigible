@@ -223,32 +223,65 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await listener.off()
     }
 
-    /// A failed transport read counts as virtual (fail closed). The read is a HAL property read
-    /// of an object that does not exist, with no IO.
-    @Test func aFailedTransportReadIsVirtual() {
-        #expect(DeviceHAL.live.isVirtual(AudioObjectID(kAudioObjectUnknown)), "a failed read is virtual")
+    /// An aggregate input with a virtual subdevice plays zeros when the output is that subdevice:
+    /// the monitor would feed its own input (code review of a28d7ab9, item 1). Device 40 is USB,
+    /// 41 is virtual. Control in the same test: the USB subdevice as the output plays.
+    @Test func anAggregateInputMutesOnItsVirtualSubdevice() async throws {
+        hal.setAggregate("mic", subdevices: [40, 41], virtual: [41])
+        output.setOutput(41)
+        let listener = listener()
+        listener.start()
+        let input = try #require(await input(after: [.playing]))
+        #expect(input.ring.speakers, "the virtual subdevice as the output plays zeros")
+        output.setOutput(40)
+        _ = output.output.watch(input.ring)
+        #expect(!input.ring.speakers, "the USB subdevice as the output plays")
+        await listener.off()
     }
 
-    /// An aggregate (transport 'grup', or 'fgrp' for an auto-aggregate) is virtual when an active
-    /// subdevice is virtual, or when the subdevice read fails (fail closed). Device 2 is virtual,
-    /// 3 is USB, 4 is an aggregate of 2 and 3, 5 is an aggregate of 3, 6 is an aggregate with
-    /// no read, 7 is an auto-aggregate of 2, and 8 is an auto-aggregate with no read.
-    @Test func anAggregateWithAVirtualSubdeviceIsVirtual() {
+    /// A failed transport read is unknown, so every output counts as a loopback (fail closed).
+    /// The read is a HAL property read of an object that does not exist, with no IO.
+    @Test func aFailedTransportReadIsUnknown() {
+        #expect(DeviceHAL.live.loopback(AudioObjectID(kAudioObjectUnknown)) == .unknown, "a failed read is unknown")
+        #expect(Loopback.unknown.feeds([5]), "an unknown loopback feeds every output")
+    }
+
+    /// An aggregate under itself, directly or in a cycle, is unknown, with no endless recursion
+    /// (code review of a28d7ab9, item 2). Device 10 lists itself; 11 and 12 list each other.
+    @Test func aCycleOfAggregatesIsUnknown() {
+        let subdevices: [AudioObjectID: [AudioObjectID]] = [10: [10], 11: [12], 12: [11]]
+        let loopback = { (device: AudioObjectID) in
+            loopbackDevices(
+                device, transport: { _ in kAudioDeviceTransportTypeAggregate }, subdevices: { subdevices[$0] })
+        }
+        #expect(loopback(10) == .unknown, "an aggregate in its own list is unknown")
+        #expect(loopback(11) == .unknown, "a cycle of two aggregates is unknown")
+    }
+
+    /// The loopback devices of an aggregate (transport 'grup', or 'fgrp' for an auto-aggregate):
+    /// the virtual devices under it and the aggregate itself; unknown when a read fails (fail
+    /// closed). Device 2 is virtual, 3 is USB, 4 is an aggregate of 3 and 2, 5 is an aggregate
+    /// of 3, 6 is an aggregate with no read, 7 is an auto-aggregate of 2, 8 is an
+    /// auto-aggregate with no read, and 9 is an aggregate of 4 and 3.
+    @Test func anAggregateGivesItsVirtualLeaves() {
         let transports: [AudioObjectID: UInt32] = [
             2: kAudioDeviceTransportTypeVirtual, 3: kAudioDeviceTransportTypeUSB,
             4: kAudioDeviceTransportTypeAggregate, 5: kAudioDeviceTransportTypeAggregate,
             6: kAudioDeviceTransportTypeAggregate, 7: kAudioDeviceTransportTypeAutoAggregate,
-            8: kAudioDeviceTransportTypeAutoAggregate,
+            8: kAudioDeviceTransportTypeAutoAggregate, 9: kAudioDeviceTransportTypeAggregate,
         ]
-        let subdevices: [AudioObjectID: [AudioObjectID]] = [4: [3, 2], 5: [3], 7: [2]]
-        let virtual = { (device: AudioObjectID) in
-            isVirtualTransport(device, transport: { transports[$0] }, subdevices: { subdevices[$0] })
+        let subdevices: [AudioObjectID: [AudioObjectID]] = [4: [3, 2], 5: [3], 7: [2], 9: [4, 3]]
+        let loopback = { (device: AudioObjectID) in
+            loopbackDevices(device, transport: { transports[$0] }, subdevices: { subdevices[$0] })
         }
-        #expect(virtual(4), "an aggregate with a virtual subdevice is virtual")
-        #expect(!virtual(5), "an aggregate of hardware devices is not virtual")
-        #expect(virtual(6), "an aggregate with a failed subdevice read is virtual")
-        #expect(virtual(7), "an auto-aggregate with a virtual subdevice is virtual")
-        #expect(virtual(8), "an auto-aggregate with a failed subdevice read is virtual")
+        #expect(loopback(2) == .devices([2]), "a virtual device is its own loopback")
+        #expect(loopback(3) == .devices([]), "a USB device is no loopback")
+        #expect(loopback(4) == .devices([4, 2]), "an aggregate gives its virtual subdevice")
+        #expect(loopback(5) == .devices([]), "an aggregate of hardware devices is no loopback")
+        #expect(loopback(6) == .unknown, "an aggregate with a failed subdevice read is unknown")
+        #expect(loopback(7) == .devices([7, 2]), "an auto-aggregate gives its virtual subdevice")
+        #expect(loopback(8) == .unknown, "an auto-aggregate with a failed subdevice read is unknown")
+        #expect(loopback(9) == .devices([9, 4, 2]), "a nested aggregate gives its virtual leaf")
     }
 
     /// The rate of the attach, read after its listener adds, wins over the rate of the lookup: a

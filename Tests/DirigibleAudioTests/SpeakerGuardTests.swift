@@ -173,7 +173,6 @@ struct SpeakerGuardTests {
         #expect(ring.speakers, "G17: the flag follows the new default output")
     }
 
-    /// A refresh inside the read of another refresh is newer: its value stays.
     /// A failed data source listener add fails closed: the ring plays zeros for good, because no
     /// listener tells it of a later headphone unplug (code gate round 1, item 3).
     @Test func aFailedListenerAddSilencesForGood() {
@@ -213,6 +212,7 @@ struct SpeakerGuardTests {
         #expect(device.speakers, "a failed data source add on a subdevice silences for good")
     }
 
+    /// A refresh inside the read of another refresh is newer: its value stays.
     @Test func aStaleRefreshDoesNotWin() {
         let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
         defer { ring.deallocate() }

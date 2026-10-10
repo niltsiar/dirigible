@@ -33,7 +33,8 @@ enum SpeakerGuard {
     /// Adds the device listeners of `ring` to `device` once, and never after `close`. When
     /// `close` runs during the add, this call removes its own add. A failed add fails closed: no
     /// listener tells the ring of a later change, so it plays zeros for good, and this returns
-    /// false.
+    /// false. In a refresh after the start (a listener call), nothing reads the result: the ring
+    /// mutes with no report, and the Listener stays `.playing`.
     @discardableResult static func watch(
         _ ring: ListenRing, _ device: AudioObjectID, add: (AudioObjectID) -> Bool, remove: (AudioObjectID) -> Void
     ) -> Bool {

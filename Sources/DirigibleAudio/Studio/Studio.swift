@@ -183,11 +183,10 @@ import Observation
         poolChanged(from: before)
     }
 
-    /// Ends a running import and export (decisions 0040 and 0019), releases every monitor device,
-    /// stops a take that records, then waits for a start, a finalize, an import, and every write
-    /// in progress. When `saveError`
-    /// is set, it writes the session once more; `saveError` stays set only when that write also
-    /// fails. Then it ends the peak pass (decision 0017). After it returns, no device is held, no
+    /// Ends a running import and export (decisions 0040 and 0019), turns off every Listener,
+    /// releases every monitor device, stops a take that records, then waits for a start, a
+    /// finalize, an import, and every write in progress. When `saveError` is set, it writes the
+    /// session once more; `saveError` stays set only when that write also fails. Then it ends the peak pass (decision 0017). After it returns, no device is held, no
     /// take records, and no export, write, or pass runs.
     public func settle() async {
         // Before the first await: from now no pass, no block, and no export starts.

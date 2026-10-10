@@ -11,8 +11,9 @@ import os
 @testable import DirigibleAudio
 
 /// Polls `condition` every 10 ms. At the limit, it records `message` as an issue and returns.
-/// It checks the condition before the clock, so a main-actor stall that ends with the condition
-/// true records no issue. The default limit stays 60 s. The worst wait of this copy was 70.4 s at
+/// It checks once more after a sleep past the limit, so a main-queue job that a stall queued
+/// behind the poll (for example the retry of a refused draw) runs before the last check, as in
+/// the copy of `DirigibleAudioTests`. The default limit stays 60 s. The worst wait of this copy was 70.4 s at
 /// the suite start ("the launch prunes the peak cache", run test-pool-health, loops/s3q-20.log;
 /// 58.5 s in two processes under load, loops/s3loadb-1.log). The hang guards are 3 times the
 /// worst wait, but 3 times 70.4 s is longer than one suite run (about 200 s).
@@ -20,11 +21,13 @@ import os
     let start = ContinuousClock.now
     defer { reportWait("until", since: start, message) }
     let end = start + limit
+    var expired = false
     while !condition() {
-        guard ContinuousClock.now < end else {
+        guard !expired else {
             Issue.record("\(message) (limit \(limit))")
             return
         }
+        expired = ContinuousClock.now >= end
         try? await Task.sleep(for: .milliseconds(10))
     }
 }

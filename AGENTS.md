@@ -34,10 +34,10 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 - `.scratchpads/` is gitignored. It keeps the working memory of the agents between sessions.
 - At the start of a session, read the files that step 1 of deliver Phase 0 names.
-- `decisions.tsv` is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh`, also in a subagent. A wrong row gets a new row that corrects it.
+- The `decisions.tsv` of a run is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>`, also in a subagent. With `<run folder> --from <file>`, the file has the five fields on five lines. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder. Read its header first: it gives the folders that the sandbox allows and the flags for a Swift build.
-- The Bash tool shell is zsh. It fails an unquoted glob or a word that starts with `=`: write `--include='*.md'` and `echo ---`, or use `bash -c '...'`.
+- The Bash tool shell is zsh. It fails an unquoted glob or a word that starts with `=`: write `--include='*.md'` and `echo ---`, or use `bash -c '...'`. macOS has no `timeout` command: use the timeout parameter of the Bash tool, or `run_in_background`.
 
 ## Git
 

@@ -104,6 +104,15 @@ FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 't
 got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fail 'FILTER with --push exits 0'
 [[ "$got" == *"FILTER is for the tdd loop of a slice"* ]] || fail "FILTER with --push: no reason: $got"
 
+# --paths reads the paths from stdin only. A path argument exits 2 with the usage on stderr and
+# nothing on stdout, so a caller that passes paths does not get a silent `risk: no`.
+for args in 'scripts/a.sh' '--push scripts/a.sh'; do
+  got="$(cd "$e" && "$script" --paths $args 2> "$tmp/paths.err" </dev/null)"
+  code=$?
+  [[ $code -eq 2 && -z "$got" ]] || fail "--paths $args: exit $code, stdout [$got]"
+  grep -q 'usage:' "$tmp/paths.err" || fail "--paths $args: no usage line: $(cat "$tmp/paths.err")"
+done
+
 # Floor case: each risk floor path exists, so a rename cannot drop a file out of the floor.
 floor="$("$script" --floor)" || fail "--floor exits $?"
 [[ -n "$floor" ]] || fail '--floor prints no path'

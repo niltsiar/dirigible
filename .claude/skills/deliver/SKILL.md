@@ -41,7 +41,7 @@ Write `analysis.md`:
 Write `plan.md`:
 
 - Vertical slices, each ending in a passing test and a commit. The riskiest unknown goes first. Types that reference each other share a slice.
-- For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line with `scripts/check-changed.sh --paths` on its paths. A slice that covers a criterion names the test of its negative control.
+- For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line that gives its paths on stdin: `scripts/check-changed.sh --paths <<<$'<path>\n<path>'`. A slice that covers a criterion names the test of its negative control.
 - An `Agents:` line: the agent groups (small adjacent slices of one module share an agent), which groups run at the same time (no shared file or build output), and why the others wait.
 - When the `risk:` line says `yes`, or a plan says that no control is possible, read `references/mutation-controls.md`.
 - When a criterion sets a time budget or fixes a missed budget, adds a way to move or resize something, or a rule classifies loop runs, read `references/performance-criteria.md`.

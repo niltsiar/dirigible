@@ -3,7 +3,7 @@
 # This script owns the path table and the risk floor (decision 0028). Docs name it, not the table.
 # Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push
-#        scripts/check-changed.sh --paths [--push]   the paths from stdin
+#        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
@@ -83,7 +83,14 @@ push=0 mode=git base=""
 case "${1:-}" in
     --floor) printf '%s\n' $floor; exit 0 ;;
     --wait-load) shift; wait_load "$@"; exit 0 ;;
-    --paths) mode=stdin; [[ "${2:-}" == --push ]] && push=1 ;;
+    --paths)
+        mode=stdin
+        [[ "${2:-}" == --push ]] && push=1
+        if (($# > push + 1)); then
+            echo "usage: scripts/check-changed.sh --paths [--push] <<<\$'<path>\\n<path>' (the paths come from stdin)" >&2
+            exit 2
+        fi
+        ;;
     "") ;;
     *) base="$1" push=1 ;;
 esac

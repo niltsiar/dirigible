@@ -71,7 +71,7 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 ## Consequences
 
 - `Package.swift` gets its first remote dependency. The first `swift build` needs the network or a filled `.build` cache (0005 accepted the same for swift-atomics). A clean debug build of the prototype took about 15 s, plus about 15 s for the first fetch.
-- Each new public library feature that operates on a session package or an audio file, an edit, an import, a render, or an export, gets a `dirigible` command in the same run, with a test in `DirigibleCLITests`. A `DirigibleCLITests` test lists the public mutating methods of `Session` and fails when one has no command and no exemption entry. Another public feature gets one line in its run that says why it has no command. **CLI parity** states the rule.
+- Each new edit, import, render, or export makes the CLI larger. A `DirigibleCLITests` test lists the public mutating methods of `Session` and fails when one has no command and no exemption entry. **CLI parity** states the rule.
 - Two `dirigible` commands that change one package at the same time can lose one of the two edits. The save is atomic, so the file stays readable. The CLI takes no lock.
 - The pending-take check comes before the write, with no lock. If Studio saves `<recording>` at take start after the CLI read the package, the CLI save removes `<recording>`, and a crash then leaves the take with no clips. Studio does not exist yet. The capture run adds a package lock that Studio and `editPackage` both take, before Studio writes `<recording>`.
 - The JSON view is a contract with scripts and agents. A change that removes or renames a key is a breaking change and needs a note in the pull request.

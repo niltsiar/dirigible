@@ -183,8 +183,8 @@ struct PackageLockTests {
         #expect(lock.freeBytes() > 0)
     }
 
-    /// A huge `f_bavail` (some network volumes) saturates at `Int64.max` and does not trap. The
-    /// first case runs first: the old code trapped there with a message.
+    /// A huge `f_bavail` (some network volumes) saturates at `Int64.max` and does not trap. Keep
+    /// the first case first: a trap stops the test, and only this trap prints a message.
     @Test func freeBytesSaturatesAtInt64Max() {
         defer { try? FileManager.default.removeItem(at: folder) }
         #expect(

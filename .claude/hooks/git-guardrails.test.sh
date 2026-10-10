@@ -146,6 +146,27 @@ expect block 'rm "$(git rev-parse --git-common-dir)/dirigible-flakes"'
 expect block ': > .git/dirigible-flakes'
 expect allow 'scripts/run-checks.test.sh'
 expect allow 'scripts/run-checks.sh --flakes'
+# Only a write, move, or remove of the flakes file blocks: a command word before the name, or a
+# redirect whose path runs up to the name (quotes and a $(...) path too). A read is allowed, also
+# a grep whose quoted pattern holds a > (the path of a redirect stops at * and [).
+expect block 'echo x >> .git/dirigible-flakes'
+expect block 'echo x>>.git/dirigible-flakes'
+expect block 'echo x 2>> .git/dirigible-flakes'
+expect block 'echo x | tee -a .git/dirigible-flakes'
+expect block 'printf x >".git/dirigible-flakes"'
+expect block "printf x > '.git/dirigible-flakes'"
+expect block ': > "$(git rev-parse --git-common-dir)/dirigible-flakes"'
+expect block 'echo x >> "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"'
+expect block 'echo x >> "$d"/dirigible-flakes'
+expect block 'printf x "$a">"$d/dirigible-flakes"'
+expect allow 'grep -n dirigible-flakes .claude/hooks/git-guardrails.sh'
+expect allow 'cat .git/dirigible-flakes'
+expect allow 'grep -c x .git/dirigible-flakes > /tmp/count.txt'
+expect allow "grep -n '>.*dirigible-flakes' .claude/hooks/git-guardrails.sh"
+expect allow 'grep -n ">.*dirigible-flakes" .claude/hooks/git-guardrails.sh'
+expect allow "grep -n ' >.*dirigible-flakes' .claude/hooks/git-guardrails.sh"
+expect allow "grep -nE 'x >[[:space:]]*[^;&|]*dirigible-flakes' .claude/hooks/git-guardrails.sh"
+expect allow $'cat >> scripts/run-checks.test.sh <<\'EOF\'\nflakes="$tmp/dirigible-flakes"\nEOF'
 # Only run-checks.sh writes and removes the run marks that the pre-commit hook reads, so an agent
 # cannot clear a mark to commit during a check. A read of the marks is allowed.
 expect block 'rm -r .git/dirigible-check-running'
@@ -153,13 +174,18 @@ expect block 'echo 1 > .git/dirigible-check-running/5'
 expect block 'mv .git/dirigible-check-running /tmp/x'
 expect block 'truncate -s 0 .git/dirigible-check-running/5'
 expect block 'echo x | tee .git/dirigible-check-running/5'
+expect block ': > "$(git rev-parse --git-dir)/dirigible-check-running/5"'
+expect block 'echo 1 >> "$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running/5"'
+expect block 'echo 1 >> "$d"/dirigible-check-running/5'
+expect block 'printf 1 "$a">"$d/dirigible-check-running/5"'
+expect allow "grep -n '>.*dirigible-check-running' .claude/hooks/git-guardrails.sh"
 expect allow 'ls .git/dirigible-check-running'
 expect allow 'cat .git/dirigible-check-running/5'
 expect allow 'grep -r x .git/dirigible-check-running'
 # The block message of the flakes file names its read route.
 plutil -create xml1 "$input"
 plutil -insert tool_input -dictionary "$input"
-plutil -insert tool_input.command -string 'cat .git/dirigible-flakes' "$input"
+plutil -insert tool_input.command -string 'echo x >> .git/dirigible-flakes' "$input"
 plutil -convert json "$input"
 message="$("$hook" < "$input" 2>&1 >/dev/null)"
 [[ "$message" == *'read it with scripts/run-checks.sh --flakes'* ]] ||

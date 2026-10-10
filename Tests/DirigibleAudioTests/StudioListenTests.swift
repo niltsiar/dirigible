@@ -307,16 +307,20 @@ struct StudioListenTests {
         producer.play(clock.run(seconds: 3, using: &generator), takeStartIn: url)
         let toggle = Task { @MainActor in
             guard listen else { return }
-            await until(limit: busy, "the take records") { studio.transport == .recording(take: 1) }
+            await until(limit: busy, "the take writer attaches") { hal.calls.contains("attach usb") }
             try? await studio.listen(to: ["t3"])
             _ = await input(hal, "usb")
-            #expect(studio.transport == .recording(take: 1), "A17: the on comes during the take")
             try? await studio.listen(to: [])
-            #expect(hal.listenDetaches("usb") == 1, "A17: the off comes during the take")
         }
         _ = try await studio.record(armed: ["t3"], playhead: 0, for: .seconds(2))
         await toggle.value
         await producer.wait()
+        if listen {
+            // The order of the HAL calls proves that the on and the off came during the take.
+            let calls = hal.calls
+            let order = ["attach usb", "listen usb", "unlisten usb", "detach usb"].map { calls.firstIndex(of: $0) }
+            #expect(order.allSatisfy { $0 != nil } && order == order.sorted { ($0 ?? 0) < ($1 ?? 0) }, "A17: \(calls)")
+        }
         let clip = try #require(studio.session.track("t3")?.clips.first)
         let path = try #require(studio.session.files[clip.file]?.path)
         let data = try Data(contentsOf: url.appending(path: "Clips").appending(path: path))

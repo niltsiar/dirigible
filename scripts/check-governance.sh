@@ -4,7 +4,8 @@
 # - A row of docs/workflow/budgets.tsv whose words go up names a decisions.tsv row in its
 #   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`.
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
-#   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
+#   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7), unless
+#   a decisions.tsv row starts with USER DECISION and names "delete or merge".
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes.
 # scripts/check-governance.test.sh tests it.
@@ -41,7 +42,8 @@ if [[ -n "$run" && -f "$run/decisions.tsv" && -f "$rules" ]] &&
             NR == FNR { if (FNR > 1) old[$1] = $3; next }
             FNR > 1 && $3 ~ /^(delete|merge)$/ && old[$1] !~ /^(delete|merge)$/ { n++ }
             END { print n + 0 }' - "$rules")"
-        if [[ "$removed" -gt 1 ]]; then
+        # A user may approve more removals for one run (a USER DECISION row that names them).
+        if [[ "$removed" -gt 1 ]] && ! awk -F'\t' '$3 ~ /^USER DECISION/ && $3 ~ /delete or merge/ { found = 1 } END { exit !found }' "$run/decisions.tsv"; then
             echo "check-governance: rules.tsv: $removed rows change to delete or merge; a reflect run removes at most one rule" >&2
             fail=1
         fi

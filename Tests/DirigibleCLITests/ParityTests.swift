@@ -24,6 +24,7 @@ struct ParityTests {
         "setSoloed": ["track solo"],
         "setMarker": ["marker set"],
         "removeMarker": ["marker remove"],
+        "setEpisode": ["episode set"],
         "place": ["clip place"],
         "clear": ["clip clear"],
         "split": ["clip split"],
@@ -68,7 +69,7 @@ struct ParityTests {
     ]
 
     /// The commands whose tool name does not follow the name rule.
-    static let toolNames = ["create": "session_create", "info": "session_info"]
+    static let toolNames = ["create": "session_create", "info": "session_info", "episode show": "session_info"]
 
     @Test func everyMutatingSessionMethodHasACommandOrAnExemption() throws {
         let names = try publicMutatingMethods()
@@ -94,9 +95,10 @@ struct ParityTests {
     @Test func everyListedCommandExists() async throws {
         for command in Self.commands.values.joined().sorted() {
             let result = try await dirigible(command.split(separator: " ").map(String.init) + ["--help"])
-            // --help exits 0 for any words, so the usage line proves that the command exists.
-            #expect(
-                result.stdout.contains("USAGE: dirigible \(command) <package>"), "dirigible \(command) does not exist")
+            // --help exits 0 for any words, so the usage line proves that the command exists. A
+            // command with many options shows them as [<options>] before the package.
+            let usage = ["", "[<options>] "].map { "USAGE: dirigible \(command) \($0)<package>" }
+            #expect(usage.contains { result.stdout.contains($0) }, "dirigible \(command) does not exist")
         }
     }
 

@@ -42,14 +42,14 @@ func fileDescription(_ format: ExportFormat, rate: Int, channels: UInt32) -> (
 
 /// Makes the file of `format` at `rate` Hz with the channels of `client`, runs `body` with a
 /// function that writes one buffer of `client` frames, and closes the file. MP3 goes through
-/// `writeMP3`. Each other format goes through `ExtAudioFile`, with `client` as the client format
+/// `writeMP3`, with `tag` (the ID3 tag, decision 0045) at the file start. Each other format goes through `ExtAudioFile`, with `client` as the client format
 /// (the converter changes the rate, probe P4) and the AAC bit rate (P5).
 func writeFile(
-    _ url: URL, format: ExportFormat, rate: Int, client: AVAudioFormat,
+    _ url: URL, format: ExportFormat, rate: Int, client: AVAudioFormat, tag: [UInt8] = [],
     _ body: ((AVAudioPCMBuffer) throws(ExportError) -> Void) throws(ExportError) -> Void
 ) throws(ExportError) {
     if case .mp3(let bitRate) = format {
-        return try writeMP3(url, bitRate: bitRate, rate: rate, client: client, body)
+        return try writeMP3(url, bitRate: bitRate, rate: rate, client: client, tag: tag, body)
     }
     var (type, description) = fileDescription(format, rate: rate, channels: client.channelCount)
     var created: ExtAudioFileRef?

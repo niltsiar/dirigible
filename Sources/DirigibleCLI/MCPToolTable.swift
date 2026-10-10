@@ -6,7 +6,8 @@ import Foundation
 /// backup (decisions 0041 and 0043). The name of an edit tool is its command words with `_` for
 /// each space and hyphen, and its arguments have the option names of the command.
 extension Tool {
-    static let all = sessionTools + trackTools + markerTools + poolTools + clipTools + rippleTools + backupTools
+    static let all =
+        sessionTools + trackTools + markerTools + episodeTools + poolTools + clipTools + rippleTools + backupTools
 }
 
 /// The parameters that more than one tool has.
@@ -246,4 +247,49 @@ let backupTools = [
         "backup_revert", "Revert the session to a backup. It keeps a backup of the replaced session first.",
         [backupName]
     ) { a throws(ToolError) in .revert(try a[backupName]) },
+]
+
+private func episodeText(_ key: String, _ doc: String) -> Param<String?> {
+    .optional(key, doc + " An empty string clears the field.", .string)
+}
+
+private let episodeParams = (
+    title: episodeText("title", "The title."), show: episodeText("show", "The show name (the album)."),
+    author: episodeText("author", "The host or author (the artist)."),
+    episode: episodeText("episode", "The episode number, 1 or more, as text."),
+    season: episodeText("season", "The season number, 1 or more, as text."),
+    date: episodeText("date", "The date, YYYY-MM-DD."),
+    language: episodeText("language", "An ISO 639-2 code, for example eng or spa."),
+    copyright: episodeText("copyright", "The copyright."),
+    explicit: Param<Bool?>.optional("explicit", "The explicit flag.", .boolean),
+    summary: episodeText("summary", "The short description."), notes: episodeText("notes", "The episode notes."),
+    episodeURL: episodeText("episode_url", "An http or https URL."),
+    feedURL: episodeText("feed_url", "An http or https URL."), guid: episodeText("guid", "The episode GUID.")
+)
+
+let episodeTools = [
+    Tool(
+        "episode_set", "Set episode fields of the MP3 and M4A exports. The other fields do not change.",
+        [
+            episodeParams.title, episodeParams.show, episodeParams.author, episodeParams.episode, episodeParams.season,
+            episodeParams.date, episodeParams.language, episodeParams.copyright, episodeParams.explicit,
+            episodeParams.summary, episodeParams.notes, episodeParams.episodeURL, episodeParams.feedURL,
+            episodeParams.guid,
+        ]
+    ) { a throws(ToolError) in
+        let p = episodeParams
+        let fields = EpisodeFields(
+            title: try a[p.title], show: try a[p.show], author: try a[p.author], episode: try a[p.episode],
+            season: try a[p.season], date: try a[p.date], language: try a[p.language], copyright: try a[p.copyright],
+            explicit: try a[p.explicit], summary: try a[p.summary], notes: try a[p.notes],
+            episodeURL: try a[p.episodeURL], feedURL: try a[p.feedURL], guid: try a[p.guid])
+        let change: @Sendable (inout Episode) -> Void
+        do throws(EpisodeFieldError) { change = try fields.change() } catch { throw ToolError(error.message) }
+        return .edit { session throws(SessionError) in
+            var episode = session.episode
+            change(&episode)
+            session.setEpisode(episode)
+            return []
+        }
+    }
 ]

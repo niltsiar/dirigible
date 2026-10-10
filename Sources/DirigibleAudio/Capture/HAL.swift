@@ -227,14 +227,14 @@ extension DeviceHAL {
         })
 }
 
-/// True when the transport of `device` is virtual, or when it is an aggregate with a virtual
-/// active subdevice. A failed read counts as virtual (fail closed).
+/// True when the transport of `device` is virtual, or when it is an aggregate or an
+/// auto-aggregate with a virtual active subdevice. A failed read counts as virtual (fail closed).
 func isVirtualTransport(
     _ device: AudioObjectID, transport: (AudioObjectID) -> UInt32?, subdevices: (AudioObjectID) -> [AudioObjectID]?
 ) -> Bool {
     switch transport(device) {
     case kAudioDeviceTransportTypeVirtual, nil: true
-    case kAudioDeviceTransportTypeAggregate:
+    case kAudioDeviceTransportTypeAggregate, kAudioDeviceTransportTypeAutoAggregate:
         subdevices(device).map { $0.contains { isVirtualTransport($0, transport: transport, subdevices: subdevices) } }
             ?? true
     default: false

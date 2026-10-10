@@ -80,9 +80,6 @@ struct DeviceListListenerTests {
 
     // MARK: B2b
 
-    /// The system listener watches the device list and both default devices. The read of the
-    /// defaults installs the data source listener on the default output before it reads the
-    /// flag, so no change falls between them. A seam: no assert reads the output of this Mac.
     /// The first of the two device listeners adds and the second fails: the watch removes both,
     /// so the next read adds each once again (code gate round 2, item 2). The device is fake.
     @Test func aPartialDataSourceAddIsRemoved() {
@@ -98,6 +95,9 @@ struct DeviceListListenerTests {
         #expect(added.count == 2 && removed == added, "a partial add removes the listener that it added")
     }
 
+    /// The system listener watches the device list and both default devices. The read of the
+    /// defaults installs the data source listener on the default output before it reads the
+    /// flag, so no change falls between them. A seam: no assert reads the output of this Mac.
     @Test func theListenerWatchesTheDefaultDevices() {
         #expect(
             DeviceListListener.systemProperties.map(\.mSelector) == [

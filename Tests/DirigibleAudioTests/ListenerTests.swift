@@ -226,25 +226,29 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
     /// A failed transport read counts as virtual (fail closed). The read is a HAL property read
     /// of an object that does not exist, with no IO.
     @Test func aFailedTransportReadIsVirtual() {
-        #expect(DeviceHAL.live.isVirtual(AudioObjectID(kAudioObjectUnknown)), "a failed read is not virtual")
+        #expect(DeviceHAL.live.isVirtual(AudioObjectID(kAudioObjectUnknown)), "a failed read is virtual")
     }
 
-    /// An aggregate (transport 'grup') is virtual when an active subdevice is virtual, or when
-    /// the subdevice read fails (fail closed). Device 2 is virtual, 3 is USB, 4 is an
-    /// aggregate of 2 and 3, 5 is an aggregate of 3, and 6 is an aggregate with no read.
+    /// An aggregate (transport 'grup', or 'fgrp' for an auto-aggregate) is virtual when an active
+    /// subdevice is virtual, or when the subdevice read fails (fail closed). Device 2 is virtual,
+    /// 3 is USB, 4 is an aggregate of 2 and 3, 5 is an aggregate of 3, 6 is an aggregate with
+    /// no read, 7 is an auto-aggregate of 2, and 8 is an auto-aggregate with no read.
     @Test func anAggregateWithAVirtualSubdeviceIsVirtual() {
         let transports: [AudioObjectID: UInt32] = [
             2: kAudioDeviceTransportTypeVirtual, 3: kAudioDeviceTransportTypeUSB,
             4: kAudioDeviceTransportTypeAggregate, 5: kAudioDeviceTransportTypeAggregate,
-            6: kAudioDeviceTransportTypeAggregate,
+            6: kAudioDeviceTransportTypeAggregate, 7: kAudioDeviceTransportTypeAutoAggregate,
+            8: kAudioDeviceTransportTypeAutoAggregate,
         ]
-        let subdevices: [AudioObjectID: [AudioObjectID]] = [4: [3, 2], 5: [3]]
+        let subdevices: [AudioObjectID: [AudioObjectID]] = [4: [3, 2], 5: [3], 7: [2]]
         let virtual = { (device: AudioObjectID) in
             isVirtualTransport(device, transport: { transports[$0] }, subdevices: { subdevices[$0] })
         }
-        #expect(virtual(4), "an aggregate with a virtual subdevice is not virtual")
-        #expect(!virtual(5), "an aggregate of hardware devices is virtual")
-        #expect(virtual(6), "an aggregate with a failed subdevice read is not virtual")
+        #expect(virtual(4), "an aggregate with a virtual subdevice is virtual")
+        #expect(!virtual(5), "an aggregate of hardware devices is not virtual")
+        #expect(virtual(6), "an aggregate with a failed subdevice read is virtual")
+        #expect(virtual(7), "an auto-aggregate with a virtual subdevice is virtual")
+        #expect(virtual(8), "an auto-aggregate with a failed subdevice read is virtual")
     }
 
     /// The rate of the attach, read after its listener adds, wins over the rate of the lookup: a

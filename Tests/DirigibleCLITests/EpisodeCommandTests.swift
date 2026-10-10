@@ -113,6 +113,13 @@ struct EpisodeCommandTests {
         let result = try await dirigible(["episode", "set", package.path, "--notes-file", "-"], input: file)
         #expect(result.status == 0 && result.stderr == "", "stderr: \(result.stderr)")
         #expect(try package.read().episode.notes?.text == "From stdin")
+
+        // Code gate 1 item 8: a file that is not UTF-8 is refused, not read with U+FFFD.
+        try Data([0x41, 0xFF, 0x42]).write(to: file)
+        let before = try package.xml()
+        let refused = try await package.run("episode", "set", "PKG", "--notes-file", file.path)
+        #expect(refused.status == 64 && refused.stderr.hasPrefix("Error: --notes-file is not UTF-8 text.\n"))
+        #expect(try package.xml() == before)
     }
 
     @Test func aBadValueExits64AndChangesNothing() async throws {
@@ -245,9 +252,11 @@ struct EpisodeCommandTests {
         let answers = try await mcp([
             toolCall(1, "episode_set", ["package": package.path, "artwork": image.path, "title": "T"]),
             toolCall(2, "episode_set", ["package": package.path, "artwork": wide.path]),
+            toolCall(3, "episode_set", ["package": package.path, "artwork": "cover.jpg"]),
         ])
         #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
         #expect(toolResult(answer(answers, id: 2)) == ("the artwork is 300 x 200 pixels; it must be square.", true))
+        #expect(toolResult(answer(answers, id: 3)) == ("The argument \"artwork\" must be an absolute path.", true))
         let episode = try package.read().episode
         #expect(episode.title?.text == "T" && episode.artwork != nil)
     }

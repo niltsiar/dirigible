@@ -268,7 +268,8 @@ private let episodeParams = (
     feedURL: episodeText("feed_url", "An http or https URL."), guid: episodeText("guid", "The episode GUID."),
     artwork: episodeText(
         "artwork",
-        "The path of a square JPEG or PNG file, at most 3000 x 3000 pixels. The tool copies it into the package.")
+        "The absolute path of a square JPEG or PNG file, at most \(maximumArtworkSide) x \(maximumArtworkSide) "
+            + "pixels. The tool copies it into the package.")
 )
 
 let episodeTools = [
@@ -288,6 +289,9 @@ let episodeTools = [
             explicit: try a[p.explicit], summary: try a[p.summary], notes: try a[p.notes],
             episodeURL: try a[p.episodeURL], feedURL: try a[p.feedURL], guid: try a[p.guid],
             artwork: try a[p.artwork])
+        if let artwork = fields.artwork, !artwork.isEmpty, !artwork.hasPrefix("/") {
+            throw ToolError("The argument \"artwork\" must be an absolute path.")
+        }
         do throws(EpisodeFieldError) { return .episode(try fields.work()) } catch { throw ToolError(error.message) }
     },
     Tool(

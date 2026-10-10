@@ -38,7 +38,7 @@ struct InspectorView: View {
                 content: {
                     Text(L10n.inspectorTabClip.key).tag(InspectorTab.clip)
                     Text(L10n.inspectorTabEpisode.key).tag(InspectorTab.episode)
-                }, label: { Text(L10n.inspectorTabEpisode.key) }
+                }, label: { Text(L10n.inspectorTabs.key) }
             )
             .pickerStyle(.segmented).labelsHidden()
             Divider()

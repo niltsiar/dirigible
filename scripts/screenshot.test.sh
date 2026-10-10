@@ -10,13 +10,14 @@ failures=0
 
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
-# The fake swift fails when the program has not exactly one window list line, so a changed
-# screenshot.sh cannot make a case read the real screen.
+# The fake swift fails when the program has not exactly one window list line, or has another line
+# that names CGWindowList, so a changed screenshot.sh cannot make a case read the real screen.
 mkdir "$tmp/bin"
 cat >"$tmp/bin/swift" <<FAKE
 #!/bin/bash
 program="\$(awk '/^let windows = CGWindowListCopyWindowInfo/ { print ENVIRON["FAKE_WINDOWS"]; n++; next }
-    { print } END { exit n != 1 }')" || { echo "fake swift: no single window list line" >&2; exit 3; }
+    /CGWindowList/ { other++ } { print } END { exit n != 1 || other }')" ||
+    { echo "fake swift: not one window list line, or another CGWindowList line" >&2; exit 3; }
 exec $(command -v swift) - <<<"\$program"
 FAKE
 cat >"$tmp/bin/screencapture" <<FAKE
@@ -28,6 +29,17 @@ chmod +x "$tmp/bin/swift" "$tmp/bin/screencapture"
 export PATH="$tmp/bin:$PATH"
 export FAKE_WINDOWS='let windows: [[String: Any]] = []'
 desktop='"kCGWindowOwnerName": "Dock", "kCGWindowLayer": -2147483623, "kCGWindowNumber": 41'
+
+# Control: the fake refuses a second window query in another form. The query is in a comment, so
+# a fake that passes it to the real swift does not read the screen.
+err="$("$tmp/bin/swift" 2>&1 >/dev/null <<'PROGRAM'
+let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
+// let all = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
+PROGRAM
+)"
+code=$?
+[[ $code -eq 3 ]] || fail "second window query: fake swift exit $code, not 3"
+[[ "$err" == *"fake swift:"* ]] || fail "second window query: no fake swift message: $err"
 
 err="$("$shot" 2>&1 >/dev/null)" && fail "no argument: exit 0"
 [[ "$err" == *"usage: screenshot.sh"* ]] || fail "no argument: no usage text: $err"

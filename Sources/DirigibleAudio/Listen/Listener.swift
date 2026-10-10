@@ -133,7 +133,9 @@ final class Listener: @unchecked Sendable {
         guard phase == .waiting, counts.kept < keepLimit else { return }
         guard let found = hal.lookUp(uid) else { return wait() }
         let rate = found.device.nominalRate
-        let ring = ListenRing(rate: rate, inputBlock: 512, pull: 512, device: found.id)
+        // The transport is read once here, so a refresh does no extra HAL read.
+        let loopback = hal.isVirtual(found.id) ? found.id : AudioObjectID(kAudioObjectUnknown)
+        let ring = ListenRing(rate: rate, inputBlock: 512, pull: 512, loopback: loopback)
         shared.withLock {
             ring.setMap($0.map)
             if $0.muted { ring.mute() }

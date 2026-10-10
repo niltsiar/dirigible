@@ -47,6 +47,7 @@ final class TestHAL: @unchecked Sendable {
     private var listenDetachResult = true
     /// The nominal rate that a listen attach reads after its listener adds, by UID.
     private var listenRates: [String: Double] = [:]
+    private var virtualDevices: Set<String> = []
     private var listenDetaches: [String: Int] = [:]
 
     /// A successful attach or a clean detach of one input.
@@ -83,7 +84,10 @@ final class TestHAL: @unchecked Sendable {
             },
             makeTap: { [self] found in makeTap(found) },
             appName: { [self] bundleID in lock.withLock { names[bundleID] ?? bundleID } },
-            deviceExists: { [self] uid in lock.withLock { !goneDevices.contains(uid) } })
+            deviceExists: { [self] uid in lock.withLock { !goneDevices.contains(uid) } },
+            isVirtual: { [self] id in
+                lock.withLock { present.contains { $0.value.id == id && virtualDevices.contains($0.key) } }
+            })
     }
 
     /// A tap aggregate with the facts of `found`, or of its tap layout, and a teardown that logs
@@ -217,6 +221,8 @@ final class TestHAL: @unchecked Sendable {
     func listenDetach(returns result: Bool) { lock.withLock { listenDetachResult = result } }
     /// The rate that the next listen attaches of `uid` read: a change after the lookup.
     func listenRate(_ uid: String, _ rate: Double) { lock.withLock { listenRates[uid] = rate } }
+    /// The transport type of `uid` is virtual (a loopback device).
+    func setVirtual(_ uid: String) { lock.withLock { _ = virtualDevices.insert(uid) } }
 
     /// The app that `lookUpApp` finds for `bundleID` (nil: no output device), and its name.
     func setApp(_ bundleID: String, _ found: AppFound?, name: String? = nil) {

@@ -108,6 +108,14 @@ out="$(cd "$tmp/wt" && "$script" main "$run2" 2>&1)" && fail 'a taken item of th
 [[ "$out" == *'## Next has a taken item of 2026-01-01-x'* ]] || fail "a taken item of the run in a worktree: $out"
 printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-z) an item\n\n## Later\n\n- (taken: run 2026-01-01-x) b\n' > "$tmp/r/.scratchpads/backlog.md"
 pass 'a taken item of another run, and one in ## Later' "$run2"
+# The run name ends at a space, a comma, or a parenthesis, so a run x-2 is another run. A backlog
+# with no ## Next heading fails closed (code gate item C).
+printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-x-2) an item\n' > "$tmp/r/.scratchpads/backlog.md"
+pass 'a taken item of a run whose name starts with the run name' "$run2"
+printf '# Backlog\n\n## Next (short)\n\n- (taken: run 2026-01-01-x, S3) an item\n' > "$tmp/r/.scratchpads/backlog.md"
+refuse 'a taken item of the run with a slice' '## Next has a taken item of 2026-01-01-x' "$run2"
+printf '# Backlog\n\n## Now\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
+refuse 'a backlog with no ## Next heading' 'backlog.md has no line that starts with ## Next' "$run2"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

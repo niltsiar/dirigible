@@ -17,6 +17,7 @@
 "menu.track.rename" = "Renombrar pista";
 "menu.track.mute" = "Silenciar pista";
 "menu.track.solo" = "Solo de pista";
+"menu.track.monitor" = "Monitorizar pista";
 "menu.record" = "Grabación";
 "menu.record.start" = "Grabar";
 "menu.record.retry" = "Reintentar la finalización";
@@ -140,6 +141,7 @@
 "track.state.retry.stopped" = "Se dejó de reintentar. Desactiva y activa Monitorizar entradas.";
 "track.state.waiting.app" = "Esperando a %@";
 "track.state.no.sound" = "No hay sonido de %1$@. Si %1$@ reproduce sonido, permite Dirigible en Privacidad y seguridad > Grabación de audio del sistema.";
+"track.listen.quiet" = "Sin sonido de monitor. Desactiva y activa Monitorizar pista.";
 "track.dropped" = "Tramas perdidas: %lld";
 "take.recording" = "Grabando la toma %lld";
 "take.finishing" = "Terminando la toma %lld…";
@@ -323,6 +325,7 @@
 "subtitle.record.time" = "Grabación:";
 "banner.low.record.time" = "Quedan menos de %lld min de grabación en este disco. Libera espacio antes de grabar.";
 "banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
+"banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "La exportación de %1$@ terminó: %2$@.";
 "report.loudness" = "sonoridad %.1f LUFS";
 "report.loudness.none" = "sonoridad sin medir";

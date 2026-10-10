@@ -96,6 +96,10 @@ private struct TrackRow: View {
                     if let live = studio.liveTracks[track.id] {
                         CompactLiveState(live: live, source: sourceLabel, showsLoudness: showsCompactLoudness)
                     }
+                    if let quiet = quietText {
+                        Image(systemName: "speaker.slash.fill").foregroundStyle(.orange)
+                            .accessibilityLabel(Text(verbatim: quiet)).help(Text(verbatim: quiet))
+                    }
                 }
             }
             if secondLine {
@@ -104,6 +108,7 @@ private struct TrackRow: View {
                     if let live = studio.liveTracks[track.id] {
                         LiveState(live: live, source: sourceLabel, openSettings: model.openAudioCaptureSettings)
                     }
+                    if let quiet = quietText { Text(verbatim: quiet).foregroundStyle(.orange) }
                 }
             }
         }
@@ -212,6 +217,11 @@ private struct TrackRow: View {
             }
         }
         .onAppear { model.refreshApps() }
+    }
+
+    /// The text of a listened track that plays no monitor sound (decision 0044).
+    private var quietText: String? {
+        listenQuietText(live: studio.liveTracks[track.id], quiet: studio.quietListens.contains(track.id))
     }
 
     /// The source of the route: a device name or an app name; empty with no route.

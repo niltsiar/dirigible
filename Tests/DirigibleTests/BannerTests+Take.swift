@@ -1,5 +1,6 @@
 import AppKit
 import DirigibleCore
+import DirigibleTimeline
 import Foundation
 import Testing
 import os
@@ -193,6 +194,40 @@ extension BannerTests {
         speakers.withLock { $0 = true }
         list.changed()
         await until(limit: .seconds(5), "the banner shows again") { headphones(model) }
+        await model.close()
+    }
+
+    func monitorHeadphones(_ model: SessionWindow) -> Bool {
+        model.shown.banners.contains { $0 == .monitorHeadphones }
+    }
+
+    /// A10 and A12: Monitor Track on a device track with the speakers shows the monitor banner,
+    /// with no app track. Controls in the same test: the speaker flag false hides it, and the
+    /// monitor off hides it.
+    @Test func aMonitorOnTheSpeakersShowsTheBanner() async throws {
+        let (model, studio, _, _) = try await open()
+        let speakers = OSAllocatedUnfairLock(initialState: true)
+        let list = await speakerList(speakers)
+        model.deviceList = list
+        let track = studio.session.tracks[0].id
+        model.timeline.selection = Selection.none.clickingHeader(
+            track, command: false, shift: false, in: studio.session)
+        model.toggleListen()
+        await until(limit: .seconds(5), "the monitor banner shows") { monitorHeadphones(model) }
+        let banner = try #require(model.shown.banners.first { $0 == .monitorHeadphones })
+        #expect(banner.kind == .warning && banner.announcement == .high)
+        #expect(banner.text == L10n.bannerMonitorHeadphones.text)
+        #expect(!headphones(model), "A12: the F43 banner of the guest does not show")
+        #expect(model.listensSelection, "A10: the item keeps its on state")
+
+        speakers.withLock { $0 = false }
+        list.changed()
+        await until(limit: .seconds(5), "headphones hide the banner") { !monitorHeadphones(model) }
+        speakers.withLock { $0 = true }
+        list.changed()
+        await until(limit: .seconds(5), "the banner shows again") { monitorHeadphones(model) }
+        model.toggleListen()
+        await until(limit: .seconds(5), "the monitor off hides the banner") { !monitorHeadphones(model) }
         await model.close()
     }
 

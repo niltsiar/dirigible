@@ -219,9 +219,26 @@ extension DeviceHAL {
         },
         appName: { DirigibleAudio.appName($0) }, deviceExists: { InputDevice.objectID(uid: $0) != nil },
         isVirtual: { device in
-            (try? readValue(device, kAudioDevicePropertyTransportType, as: UInt32.self))
-                .map { $0 == kAudioDeviceTransportTypeVirtual } ?? true
+            isVirtualTransport(
+                device, transport: { try? readValue($0, kAudioDevicePropertyTransportType, as: UInt32.self) },
+                subdevices: {
+                    try? readArray($0, kAudioAggregateDevicePropertyActiveSubDeviceList, as: AudioObjectID.self)
+                })
         })
+}
+
+/// True when the transport of `device` is virtual, or when it is an aggregate with a virtual
+/// active subdevice. A failed read counts as virtual (fail closed).
+func isVirtualTransport(
+    _ device: AudioObjectID, transport: (AudioObjectID) -> UInt32?, subdevices: (AudioObjectID) -> [AudioObjectID]?
+) -> Bool {
+    switch transport(device) {
+    case kAudioDeviceTransportTypeVirtual, nil: true
+    case kAudioDeviceTransportTypeAggregate:
+        subdevices(device).map { $0.contains { isVirtualTransport($0, transport: transport, subdevices: subdevices) } }
+            ?? true
+    default: false
+    }
 }
 
 /// A raw pointer that a `@Sendable` detach captures. The HAL owns what it points to.

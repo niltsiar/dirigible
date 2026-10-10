@@ -132,21 +132,38 @@ message="$("$hook" < "$input" 2>&1 >/dev/null)"
   { echo "FAIL: the flakes block message names no read route: $message"; failures=$((failures + 1)); }
 expect allow 'scripts/check-changed.test.sh'
 
+# A text rule of osascript must hold for each shell form, not only for the forms that a gate found
+# one at a time (run 2026-10-08-upkeep-batch-6). expect_each_form <want> <line>... runs one
+# AppleScript body (one argument for each line) as: one -e for each line, all lines in one -e, a
+# heredoc, one -e with escaped double quotes, the first form in upper case, and the first form
+# with a tab and doubled spaces. A line must not hold a single quote.
+expect_each_form() {
+  local want="$1" line parts="" body=""
+  shift
+  for line in "$@"; do parts+=" -e '$line'"; body+="$line"$'\n'; done
+  body="${body%$'\n'}"
+  expect "$want" "osascript$parts"
+  expect "$want" "osascript -e '$body'"
+  expect "$want" "osascript <<EOF"$'\n'"$body"$'\n'"EOF"
+  expect "$want" "osascript -e \"${body//\"/\\\"}\""
+  expect "$want" "$(tr '[:lower:]' '[:upper:]' <<<"osascript$parts")"
+  expect "$want" "osascript"$'\t'"$(sed 's/ /  /g' <<<"${parts# }")"
+}
+
 # A new Finder window opens as a tab of the window group of the user, so a bounds or position
 # change of a Finder window moves the windows of the user. A read, and a move of another app, pass.
-expect block "osascript -e 'tell application \"Finder\" to set bounds of window 1 to {0, 0, 800, 600}'"
-expect block "osascript -e 'tell application \"System Events\" to set position of window 1 of process \"Finder\" to {0, 0}'"
-expect block $'osascript -e \'tell application "Finder"\nset bounds of front window to {0, 0, 9, 9}\nend tell\''
-expect block "osascript -e 'tell application \"Finder\"' -e 'set bounds of window 1 to {0, 0, 9, 9}' -e 'end tell'"
-expect block $'osascript <<EOF\ntell application "Finder"\nset bounds of front window to {0, 0, 9, 9}\nend tell\nEOF'
-expect block 'osascript -e "tell application \"Finder\" to set bounds of window 1 to {0, 0, 9, 9}"'
-expect block "osascript -e 'tell application id \"com.apple.finder\" to set position of window 1 to {0, 0}'"
-expect block "osascript -e 'tell app \"Finder\" to set bounds of window 1 to {0, 0, 9, 9}'"
-expect block "osascript -e 'tell application \"System Events\" to tell process \"Finder\" to set position of window 1 to {0, 0}'"
+expect_each_form block 'tell application "Finder" to set bounds of window 1 to {0, 0, 800, 600}'
+expect_each_form block 'tell application "System Events" to set position of window 1 of process "Finder" to {0, 0}'
+expect_each_form block 'tell application "Finder"' 'set bounds of front window to {0, 0, 9, 9}' 'end tell'
+expect_each_form block 'tell application id "com.apple.finder" to set position of window 1 to {0, 0}'
+expect_each_form block 'tell app "Finder" to set bounds of window 1 to {0, 0, 9, 9}'
+expect_each_form block 'tell application "System Events" to tell process "Finder" to set position of window 1 to {0, 0}'
+# The System Events form of a process tell: through the Finder rule (a).
+expect_each_form block 'tell application "System Events"' 'tell application process "Finder"' 'set position of window 1 to {0, 0}' 'end tell' 'end tell'
 # A set after a nested end tell is still in the Finder clause; a size change moves the group too.
-expect block $'osascript -e \'tell application "Finder"\ntell front window\nget name\nend tell\nset bounds of front window to {0, 0, 9, 9}\nend tell\''
-expect block "osascript -e 'tell application \"System Events\" to set size of window 1 of process \"Finder\" to {9, 9}'"
-expect block "osascript -e 'tell application \"Finder\" to set size of window 1 to {9, 9}'"
+expect_each_form block 'tell application "Finder"' 'tell front window' 'get name' 'end tell' 'set bounds of front window to {0, 0, 9, 9}' 'end tell'
+expect_each_form block 'tell application "System Events" to set size of window 1 of process "Finder" to {9, 9}'
+expect_each_form block 'tell application "Finder" to set size of window 1 to {9, 9}'
 # A new osascript word ends the Finder clause: read the Finder window, then move the verify copy.
 expect allow "osascript -e 'tell application \"Finder\" to get name of window 1'; osascript -e 'set position of window 1 of application process \"Dirigible\" to {0, 0}'"
 expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1'"

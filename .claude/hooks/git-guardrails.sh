@@ -110,14 +110,15 @@ fi
 # form match too. A clause starts at each tell app, tell application, tell process, or osascript
 # word, and runs to the next one (not to an end tell, which can close a nested tell). It blocks a
 # clause with (a) a set of bounds, position, or size in a tell of app "Finder" (or id
-# "com.apple.finder", quotes plain or escaped); or (b) a set of bounds, position, or size
+# "com.apple.finder", or process or application process "Finder" in System Events, quotes plain
+# or escaped); or (b) a set of bounds, position, or size
 # "of ... process "Finder"" with no quote in the gap. A set after the end tell of a Finder tell
 # also blocks: the safe side. A text rule does not see a script file (osascript <file>), JXA, or
 # a window name with quotes before 'of process "Finder"' in rule (b).
 if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' |
   awk '{ gsub(/osascript|tell (app|application|process) /, "\n&"); print }' | awk '
   /set (the )?(bounds|position|size) of [^"\047]*process \\?"finder/ { found = 1 }
-  /^tell (app|application|process) (id )?\\?"(com\.apple\.)?finder\\?"/ && /set (the )?(bounds|position|size)([^a-z0-9_]|$)/ { found = 1 }
+  /^tell (app|application|(application )?process) (id )?\\?"(com\.apple\.)?finder\\?"/ && /set (the )?(bounds|position|size)([^a-z0-9_]|$)/ { found = 1 }
   END { exit !found }'; then
   block "changes the bounds, position, or size of a Finder window (a new Finder window opens as a tab of the window group of the user, so the change moves the windows of the user)" \
     "Read where the Finder window is, and move only the window of the verify copy."

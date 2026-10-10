@@ -165,20 +165,21 @@ struct ListenRing: @unchecked Sendable {
             frames = min(frames, Int(buffers[index].mDataByteSize) / (4 * Int(buffers[index].mNumberChannels)))
         }
         guard frames != .max, frames > 0 else { return }
-        let ring = storage.pointee
-        ring.lastPush.store(frames, ordering: .relaxed)
-        let head = ring.head.load(ordering: .relaxed)
-        guard frames <= capacity - (head - ring.tail.load(ordering: .acquiring)) else {
-            ring.dropped.wrappingIncrement(ordering: .relaxed)
+        // One field at a time: a copy of `storage.pointee` reads `rule`, which the render writes.
+        storage.pointee.lastPush.store(frames, ordering: .relaxed)
+        let head = storage.pointee.head.load(ordering: .relaxed)
+        guard frames <= capacity - (head - storage.pointee.tail.load(ordering: .acquiring)) else {
+            storage.pointee.dropped.wrappingIncrement(ordering: .relaxed)
             return
         }
+        let (left, right) = (storage.pointee.left, storage.pointee.right)
         let mask = capacity - 1
         for frame in 0..<frames {
-            ring.left[(head + frame) & mask] = 0
-            ring.right[(head + frame) & mask] = 0
+            left[(head + frame) & mask] = 0
+            right[(head + frame) & mask] = 0
         }
-        let leftMask = ring.leftMask.load(ordering: .relaxed)
-        let rightMask = ring.rightMask.load(ordering: .relaxed)
+        let leftMask = storage.pointee.leftMask.load(ordering: .relaxed)
+        let rightMask = storage.pointee.rightMask.load(ordering: .relaxed)
         var channel = 0
         for index in 0..<count {
             let buffer = buffers[index]
@@ -192,12 +193,12 @@ struct ListenRing: @unchecked Sendable {
                 guard toLeft || toRight else { continue }
                 for frame in 0..<frames {
                     let sample = data[frame * width + offset]
-                    if toLeft { ring.left[(head + frame) & mask] += sample }
-                    if toRight { ring.right[(head + frame) & mask] += sample }
+                    if toLeft { left[(head + frame) & mask] += sample }
+                    if toRight { right[(head + frame) & mask] += sample }
                 }
             }
         }
-        ring.head.store(head + frames, ordering: .releasing)
+        storage.pointee.head.store(head + frames, ordering: .releasing)
     }
 
     /// Asks the rule what to do, copies the frames, and moves `tail`. A drop reads one frame more

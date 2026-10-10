@@ -135,8 +135,9 @@ public enum ExportError: Error, Hashable, Sendable {
     case openFailed(Int32)
     /// The package source threw: the lock lost the package.
     case packageUnavailable
-    /// The artwork file of the episode is not in the package (decision 0045). No file was made.
-    case artworkMissing
+    /// The artwork file of the episode (this path in the package) is not in the package, or it
+    /// is not downloaded (decision 0045). No file was made.
+    case artworkMissing(String)
     /// The cancel check was true at a chunk.
     case cancelled
 }
@@ -304,7 +305,9 @@ private func readArtwork(
     guard let name = episode.artwork else { return nil }
     let root: URL
     do { root = try package() } catch { throw .packageUnavailable }
-    guard let data = try? Data(contentsOf: root.appending(path: name.path)) else { throw .artworkMissing }
+    guard let data = try? Data(contentsOf: root.appending(path: name.path)) else {
+        throw .artworkMissing(name.path)
+    }
     return data
 }
 

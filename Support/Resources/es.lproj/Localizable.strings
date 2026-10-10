@@ -72,7 +72,7 @@
 "error.export.open" = "Hay demasiados archivos abiertos. Cierra otras apps y exporta de nuevo (error %lld).";
 "error.export.package" = "La sesión se movió a otro disco o se eliminó. La exportación se detuvo.";
 "error.export.yielded" = "La exportación se detuvo por una toma en otra ventana. No se creó ningún archivo. Exporte de nuevo después de la toma.";
-"error.export.artwork" = "El archivo de la ilustración del episodio no está en la sesión. Elija la ilustración de nuevo o quítela, y exporte de nuevo.";
+"error.export.artwork" = "El archivo de ilustración %@ no está en la sesión, o no está descargado de iCloud. En Archivo > Información del episodio, elija la ilustración de nuevo o quítela. Después exporte de nuevo.";
 "menu.file.episode.info" = "Información del episodio…";
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episodio";

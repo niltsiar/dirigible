@@ -323,7 +323,7 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the arm b
 
 1. Put on headphones.
 2. Click the header of the track to select it.
-3. Choose **Track > Monitor Track**. A check mark shows next to the item. The header shows the meter of the track.
+3. Choose **Track > Monitor Track** (Control-Command-M). A check mark shows next to the item. The header shows the meter of the track.
 4. To stop, choose **Track > Monitor Track** again.
 
 The Monitor button (the headphones, after the arm button) in the track header does the same for its track. The button is green when it is on, and it works during a take. Option-click it to give all device tracks the new state. An app track has no Monitor button. For a track with no input, the button is dimmed. On a narrow header, the button hides after **M** and **S**, and the menu item still works.
@@ -556,7 +556,7 @@ The **Track** menu (**Pista**).
 | **Remove Track** | **Eliminar pista** | Option-Command-Delete |
 | **Mute Track** | **Silenciar pista** | Shift-M |
 | **Solo Track** | **Solo de pista** | Shift-S |
-| **Monitor Track** | **Monitorizar pista** | - |
+| **Monitor Track** | **Monitorizar pista** | Control-Command-M |
 
 ### Record
 

@@ -2,6 +2,7 @@ import DirigibleCore
 import DirigibleTimeline
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
@@ -113,6 +114,37 @@ import Testing
         await until("A20: the access alert shows") { window.alert == .microphone(.denied) }
         #expect(window.listened.isEmpty && !window.listensSelection, "A20: the item turns off")
         #expect(studio.listeners.isEmpty && hal.isFree, "A20: no device is held")
+        await window.close()
+    }
+
+    /// A round that waits for the access prompt reads the listened tracks again after the grant.
+    /// So a round with no listened track, while the prompt shows, wins (code gate round 2, item 1).
+    /// The window rounds come from the observation of `listened`. The meter request is the last
+    /// write of a round, so a marker in it shows when the listen step of a round ended.
+    @Test func aGrantReadsTheListenedTracksAgain() async throws {
+        let (window, studio) = try await window(try await package())
+        let granted = OSAllocatedUnfairLock(initialState: false)
+        studio.environment.microphoneAccess = { granted.withLock { $0 } ? nil : .notDetermined }
+        var asks = 0
+        var answered = false
+        window.requestMicrophoneAccess = {
+            asks += 1
+            while !answered { try? await Task.sleep(for: .milliseconds(5)) }
+            return true
+        }
+        window.listened = ["t1"]
+        await until("the round shows the prompt") { asks == 1 }
+
+        granted.withLock { $0 = true }
+        studio.monitorRequest = ["marker"]
+        window.listened = []
+        await until("the round with no track ends") { studio.monitorRequest.isEmpty }
+        studio.monitorRequest = ["marker"]
+        answered = true
+        await until("the round after the grant ends") { studio.monitorRequest.isEmpty }
+
+        #expect(asks == 1, "one round showed the prompt")
+        #expect(studio.listeners.isEmpty, "the round after the grant listens to no track")
         await window.close()
     }
 

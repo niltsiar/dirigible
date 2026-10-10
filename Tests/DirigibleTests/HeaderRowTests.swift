@@ -112,12 +112,9 @@ import Testing
                     control.frame.minX >= 8 && control.frame.maxX <= width - 8,
                     "inside the one-line row at \(width): \(control.kind) \(control.frame)")
             }
-            // Every view stays inside the row; at 180 pt the name field gives way, and the captures
-            // check that width.
-            if width > 180 {
-                let out = outside(host, width: width)
-                #expect(out.isEmpty, "inside the one-line row at \(width): \(out)")
-            }
+            // Every view stays inside the row, also at 180 pt, where the name field gives way.
+            let out = outside(host, width: width)
+            #expect(out.isEmpty, "inside the one-line row at \(width): \(out)")
             // The layout text is between the name field and the route symbol, from 235 pt.
             let name = try #require(found.first { $0.kind == "name" }?.frame)
             let route = try #require(found.first { $0.kind == "route" }?.frame)

@@ -3,10 +3,11 @@ import Foundation
 import os
 
 /// What a Listener tells its owner (decision 0044): it plays, or it plays no sound (the device is
-/// absent, the output failed, a stop or a detach failed, or the keep limit).
+/// absent, the output failed, a stop or a detach failed, the keep limit, or a failed transport
+/// read).
 enum ListenReport: Sendable, Equatable {
     case playing, quiet
-    /// Playing zeros: the output holds a loopback device of the input, or a transport read failed.
+    /// Playing zeros: the output holds a loopback device of the input.
     case loopback
 }
 
@@ -243,10 +244,12 @@ final class Listener: @unchecked Sendable {
         queue.asyncAfter(deadline: .now() + retryInterval / .seconds(1)) { [weak self] in self?.tryStart() }
     }
 
-    /// After a refresh of the speaker guard: the loopback flag of the current ring.
+    /// After a refresh of the speaker guard: the loopback flag of the current ring. An unknown set
+    /// reports quiet, because a toggle reads the set again.
     private func reportLoopback() {
         guard phase == .playing, let current else { return }
-        send(current.input.ring.feedsItself ? .loopback : .playing)
+        let ring = current.input.ring
+        send(!ring.feedsItself ? .playing : ring.loopback == .unknown ? .quiet : .loopback)
     }
 
     private func send(_ value: ListenReport) {

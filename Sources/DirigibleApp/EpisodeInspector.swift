@@ -91,6 +91,11 @@ struct EpisodeInspector: View {
         }
         .task(id: model.episodeFocusRequest) {
             guard let field = model.episodeFocusRequest else { return }
+            // A field under Links shows only when Links is open, so a hold there opens it.
+            if [.episodeURL, .feedURL, .guid].contains(field), !linksShown {
+                linksShown = true
+                await Task.yield()
+            }
             focus = field
             model.episodeFocusRequest = nil
         }

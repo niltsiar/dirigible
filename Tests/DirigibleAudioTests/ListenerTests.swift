@@ -265,6 +265,21 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await listener.off()
     }
 
+    /// A subdevice change at the keep limit starts no new appearance and reports quiet, so the
+    /// header does not show a monitor that plays (code gate round 2, item 2).
+    @Test func aSubdeviceChangeAtTheKeepLimitIsQuiet() async throws {
+        hal.setAggregate("mic", subdevices: [40, 41], virtual: [])
+        output.setOutput(41)
+        let listener = listener(keepLimit: 1)
+        listener.start()
+        let first = try #require(await input(after: [.playing]))
+        hal.setAggregate("mic", subdevices: [40, 41], virtual: [41])
+        listener.post(.subdevices, from: first)
+        await until(limit: .seconds(10), "the Listener reports quiet") { reports.all == [.playing, .quiet] }
+        #expect(hal.listenTries("mic").count == 1, "no appearance after the keep limit")
+        await listener.off()
+    }
+
     /// A failed transport read is unknown, so every output counts as a loopback (fail closed).
     /// The read is a HAL property read of an object that does not exist, with no IO.
     @Test func aFailedTransportReadIsUnknown() {

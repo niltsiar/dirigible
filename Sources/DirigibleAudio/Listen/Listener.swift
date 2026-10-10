@@ -141,10 +141,11 @@ final class Listener: @unchecked Sendable {
         await withCheckedContinuation { done in queue.async { [self] in done.resume(returning: counts) } }
     }
 
-    /// A new appearance with a new ring: attach, then the output. At the keep limit, it tries no
-    /// more until the next on.
+    /// A new appearance with a new ring: attach, then the output. At the keep limit, it reports
+    /// quiet and tries no more until the next on.
     private func tryStart() {
-        guard phase == .waiting, counts.kept < keepLimit else { return }
+        guard phase == .waiting else { return }
+        guard counts.kept < keepLimit else { return send(.quiet) }
         guard let found = hal.lookUp(uid) else { return wait() }
         let rate = found.device.nominalRate
         // The transports are read once here, so a refresh does no extra HAL read.

@@ -81,7 +81,7 @@ import Testing
         try #require(!model.canEdit, "the take disables the buttons")
 
         model.timeline.selection = .none
-        for box in 0...2 {
+        for box in [0, 2, 3] {
             try clickPoint(try headerBoxPoint(box, row: 1, in: view), in: window)
             try clickPoint(try headerBoxPoint(box, row: 1, in: view), in: window, flags: .shift)
         }

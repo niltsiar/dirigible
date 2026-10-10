@@ -31,13 +31,17 @@ extension SessionWindow {
         if tracks.isSubset(of: listened) { listened.subtract(tracks) } else { listened.formUnion(tracks) }
     }
 
-    /// The Monitor box of a header row: its own track only.
-    func setListen(_ on: Bool, track: TrackID) {
-        if on { listened.insert(track) } else { listened.remove(track) }
+    /// The Monitor box of a header row: its own track, or with `all` (an Option-click) every
+    /// device track.
+    func setListen(_ on: Bool, track: TrackID, all: Bool = false) {
+        let tracks =
+            all ? studio.map { s in s.session.tracks.map(\.id).filter { isDeviceTrack($0, in: s) } } ?? [] : [track]
+        if on { listened.formUnion(tracks) } else { listened.subtract(tracks) }
     }
 
     /// The listened tracks with a device route, in session order. A route edit can make a
-    /// listened track an app track: it does not listen and does not meter.
+    /// listened track an app track or a track with no route: `updateMonitor` removes it from
+    /// `listened`.
     func listenedDeviceTracks(_ studio: Studio) -> [TrackID] {
         studio.session.tracks.map(\.id).filter { listened.contains($0) && isDeviceTrack($0, in: studio) }
     }

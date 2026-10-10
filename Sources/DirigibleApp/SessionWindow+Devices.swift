@@ -11,6 +11,10 @@ extension SessionWindow {
     /// Track off.
     func updateMonitor() async {
         guard case .open(let studio) = phase else { return }
+        // The one owner of the listened rule: a route edit, a removed track, or an Undo can leave
+        // a listened track with no device route. A write only on a change wakes no new round.
+        let devices = Set(listenedDeviceTracks(studio))
+        if devices != listened { listened = devices }
         do throws(StudioError) {
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
                 let listening = listenedDeviceTracks(studio)

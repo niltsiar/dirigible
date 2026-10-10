@@ -326,7 +326,7 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the arm b
 3. Choose **Track > Monitor Track**. A check mark shows next to the item. The header shows the meter of the track.
 4. To stop, choose **Track > Monitor Track** again.
 
-The Monitor button (the headphones, after the arm button) in the track header does the same for its track. The button is green when it is on. On a narrow header, the button hides after **M** and **S**, and the menu item still works.
+The Monitor button (the headphones, after the arm button) in the track header does the same for its track. The button is green when it is on, and it works during a take. Option-click it to give all device tracks the new state. An app track has no Monitor button. For a track with no input, the button is dimmed. On a narrow header, the button hides after **M** and **S**, and the menu item still works.
 
 - The track does not need to be armed. The monitor works before, during, and after a take, and during play.
 - Only a track with an input device can monitor. For an app track or a track with no input, the item is dimmed.

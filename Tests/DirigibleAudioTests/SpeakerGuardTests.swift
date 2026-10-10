@@ -88,6 +88,31 @@ struct SpeakerGuardTests {
         #expect(ring.speakers == item.speakers, "G7: the flag is the speaker value of the case")
     }
 
+    /// A Multi-Output or aggregate default output with the built-in speakers as an active
+    /// subdevice silences, and the banner shows, with one read. Each device gets a watch, so a
+    /// data source change of a subdevice refreshes (code gate round 1, item 1). Control in the
+    /// same test: an aggregate with no speaker subdevice plays.
+    @MainActor @Test func anAggregateWithTheSpeakersSilences() {
+        let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
+        let hal = FakeListeners()
+        defer {
+            SpeakerGuard.close(ring, remove: hal.remove)
+            ring.deallocate()
+        }
+        let subdevices: (AudioObjectID) -> [AudioObjectID] = { $0 == 7 ? [3, 4] : [] }
+        SpeakerGuard.refresh(
+            ring, output: { 7 }, subdevices: subdevices, watch: hal.watch(ring), speakers: { $0 == 4 })
+        #expect(ring.speakers, "an active subdevice on the speakers silences")
+        #expect(hal.listening == [3, 4, 7], "the aggregate and each subdevice get a watch")
+        let banner = AudioDefaults.read(
+            output: 7, inputUID: nil, subdevices: subdevices, watch: { _ in }, speakers: { $0 == 4 })
+        #expect(banner.speakers, "the banner uses the same read")
+
+        SpeakerGuard.refresh(
+            ring, output: { 7 }, subdevices: subdevices, watch: hal.watch(ring), speakers: { $0 == 5 })
+        #expect(!ring.speakers, "an aggregate with no speaker subdevice plays")
+    }
+
     /// No default output ID: the flag is true (the safe side), and the banner stays off.
     @Test func aFailedOutputReadSilences() {
         let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)

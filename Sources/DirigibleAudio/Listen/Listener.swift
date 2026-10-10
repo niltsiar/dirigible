@@ -194,8 +194,9 @@ final class Listener: @unchecked Sendable {
 
     /// Keeps `input` and its ring context for the process life (decision 0013 Detach): a listener
     /// call can still be in progress. Only with no IOProc call and no render left are the ring
-    /// bytes freed.
+    /// bytes freed. The ring plays zeros for good, so a unit that did not stop plays no sound.
     private func keep(_ input: ListenInput, clean: Bool) {
+        input.ring.mute()
         _ = Unmanaged.passRetained(input)
         counts.kept += 1
         if clean {

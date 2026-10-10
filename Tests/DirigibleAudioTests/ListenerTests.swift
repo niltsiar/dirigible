@@ -153,6 +153,7 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         #expect(input.ring.available == 2048, "G18: a failed stop does not flush")
         #expect(output.starts.count == 1, "G18: no unit starts after a failed stop")
         #expect(await listener.counts() == Listener.Counts(kept: 1, freed: 0, retries: 1), "G18: the ring is kept")
+        #expect(input.ring.speakers, "a unit that did not stop plays zeros from its kept ring")
         await listener.off()
     }
 

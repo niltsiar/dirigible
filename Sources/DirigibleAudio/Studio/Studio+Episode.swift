@@ -7,7 +7,7 @@ extension Studio {
     /// a copied file stays as an unused file (decision 0040).
     public func setArtwork(from source: URL) async throws(StudioError) {
         let name = source.lastPathComponent
-        _ = try await blockingRun(
+        try await blockingRun(
             name: name, kind: .file, cancelled: .audioImport(.cancelled), yielded: .importYielded(file: name)
         ) { session, lock, _ in
             await artworkOffMain(source, into: session, lock: lock)
@@ -18,8 +18,8 @@ extension Studio {
 /// `importArtwork` on a utility GCD thread, in the package that `lock` holds now.
 @concurrent nonisolated private func artworkOffMain(
     _ source: URL, into session: Session, lock: PackageLock
-) async -> Result<(Session, Bool), StudioError> {
-    @Sendable func run() -> Result<(Session, Bool), StudioError> {
+) async -> Result<(Session, Void), StudioError> {
+    @Sendable func run() -> Result<(Session, Void), StudioError> {
         let package: URL
         do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
         do throws(ArtworkError) {
@@ -27,7 +27,7 @@ extension Studio {
             episode.artwork = try importArtwork(source, into: package)
             var session = session
             session.setEpisode(episode)
-            return .success((session, true))
+            return .success((session, ()))
         } catch {
             return .failure(.artwork(error))
         }

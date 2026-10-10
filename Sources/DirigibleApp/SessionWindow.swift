@@ -91,8 +91,9 @@ struct ExportReportShown: Equatable {
     var episodeDraft: EpisodeDraft?
     /// The episode field with the focus, from the pane.
     @ObservationIgnored var episodeFocus: EpisodeField?
-    /// True until the Episode pane gives the focus to Title (File > Episode Info…).
-    var focusesEpisodeTitle = false
+    /// The episode field that gets the focus at the next pane update: Title for File > Episode
+    /// Info…, or the field of a refused draft.
+    var episodeFocusRequest: EpisodeField?
     /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
     /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0
@@ -260,6 +261,7 @@ struct ExportReportShown: Equatable {
     /// Waits for the open, stops a take, and waits for every write. When the last save failed,
     /// it asks before it closes.
     func close() async {
+        if holdsRefusedEpisode() { return }
         commitDrafts()
         alert = nil
         switch phase {

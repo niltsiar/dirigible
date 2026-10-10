@@ -2,7 +2,7 @@
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
 # its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), and a run research
-# file with no docs/research copy. Each case uses
+# file with no docs/research copy, and a taken item of the run in ## Next of the backlog. Each case uses
 # a temporary repo with a base commit on main and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -95,6 +95,19 @@ new_repo; mkdir -p "$tmp/r/docs/research"; echo x > "$tmp/r/docs/research/topic.
 g switch -q main; g merge -q --ff-only feat/x; g switch -q feat/x; echo x > "$tmp/run/research-topic.md"
 echo '- S1 copies it to docs/research/topic.md.' >> "$tmp/run/plan.md"
 refuse 'a run research file whose copy the branch does not change' 'research-topic.md has no docs/research/topic.md that this branch adds or changes' "$tmp/run"
+
+# A run moves its own taken items out of ## Next of the main-checkout backlog before the land, so
+# ## Next stays short (each run reads it at Phase 0). A taken item of another run, a taken item in
+# ## Later, and no backlog file pass. In a worktree, the backlog of the main checkout counts.
+new_repo; run2="$tmp/2026-01-01-x"; rm -rf "$run2"; cp -R "$tmp/run" "$run2"; mkdir -p "$tmp/r/.scratchpads"
+pass 'no backlog file' "$run2"
+printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-x) an item\n\n## Later\n\n- b\n' > "$tmp/r/.scratchpads/backlog.md"
+refuse 'a taken item of the run in ## Next' '## Next has a taken item of 2026-01-01-x' "$run2"
+g worktree add -q "$tmp/wt" -b feat/wt 2>/dev/null
+out="$(cd "$tmp/wt" && "$script" main "$run2" 2>&1)" && fail 'a taken item of the run in a worktree: expected a nonzero exit'
+[[ "$out" == *'## Next has a taken item of 2026-01-01-x'* ]] || fail "a taken item of the run in a worktree: $out"
+printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-z) an item\n\n## Later\n\n- (taken: run 2026-01-01-x) b\n' > "$tmp/r/.scratchpads/backlog.md"
+pass 'a taken item of another run, and one in ## Later' "$run2"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

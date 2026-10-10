@@ -242,7 +242,7 @@ func isVirtualTransport(
 }
 
 /// A raw pointer that a `@Sendable` detach captures. The HAL owns what it points to.
-private struct ClientData: @unchecked Sendable {
+struct ClientData: @unchecked Sendable {
     let pointer: UnsafeMutableRawPointer
 }
 
@@ -292,49 +292,11 @@ private let deviceListListener: AudioObjectPropertyListenerProc = { _, _, _, cli
 
 private func attachLive(_ input: DeviceInput) throws(HALError) -> Detach {
     let id = input.id
-    for stream in try readArray(
-        id, kAudioDevicePropertyStreams, scope: kAudioObjectPropertyScopeInput, as: AudioStreamID.self)
-    {
-        let format = try readValue(stream, kAudioStreamPropertyVirtualFormat, as: AudioStreamBasicDescription.self)
-        guard format.mFormatID == kAudioFormatLinearPCM, format.mBitsPerChannel == 32,
-            format.mFormatFlags & kAudioFormatFlagIsFloat != 0, format.mFormatFlags & kAudioFormatFlagIsPacked != 0
-        else { throw .unsupportedFormat }
-    }
+    try checkFloatInput(id)
     input.ring.setRate(try readValue(id, kAudioDevicePropertyNominalSampleRate, as: Float64.self))
-    var procID: AudioDeviceIOProcID?
-    var status = AudioDeviceCreateIOProcID(id, CaptureRing.ioProc, input.ring.context, &procID)
-    guard status == noErr, let procID else { throw .status(status) }
-
-    // Each listener holds one retain of the input, released only after its removal returns noErr.
-    let client = ClientData(pointer: Unmanaged.passUnretained(input).toOpaque())
-    var listening: [AudioObjectPropertyAddress] = []
-    for property in inputProperties where status == noErr {
-        var address = property
-        _ = Unmanaged.passRetained(input)
-        status = AudioObjectAddPropertyListener(id, &address, inputListener, client.pointer)
-        if status == noErr {
-            listening.append(property)
-        } else {
-            Unmanaged<DeviceInput>.fromOpaque(client.pointer).release()
-        }
-    }
-    if status == noErr { status = AudioDeviceStart(id, procID) }
-    let added = listening
-    let detach: Detach = {
-        var clean = AudioDeviceStop(id, procID) == noErr
-        clean = AudioDeviceDestroyIOProcID(id, procID) == noErr && clean
-        for property in added {
-            var address = property
-            if AudioObjectRemovePropertyListener(id, &address, inputListener, client.pointer) == noErr {
-                Unmanaged<DeviceInput>.fromOpaque(client.pointer).release()
-            } else {
-                clean = false
-            }
-        }
-        return clean
-    }
-    guard status == noErr else { throw detach() ? .undone(status) : .undoFailed }
-    return detach
+    return try attachIOProc(
+        id, ioProc: CaptureRing.ioProc, context: input.ring.context, client: input, properties: inputProperties,
+        listener: inputListener)
 }
 
 /// The system properties that a writer listens to: the device list, and for an app writer also

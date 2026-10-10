@@ -42,67 +42,25 @@ private let listenListener: AudioObjectPropertyListenerProc = { id, count, addre
     return noErr
 }
 
-/// A raw pointer that a `@Sendable` detach captures. The HAL owns what it points to.
-private struct ListenClient: @unchecked Sendable {
-    let pointer: UnsafeMutableRawPointer
-}
-
 /// The live listen attach (decision 0044): it checks the virtual format (packed float32), reads
 /// the IO buffer size, creates the listen IOProc with the ring context, adds the rate and IsAlive
 /// listeners with `input` as client data, reads the nominal rate, and starts. The errors are those
 /// of `DeviceHAL.attach`.
 func attachListenLive(_ input: ListenInput) throws(HALError) -> (inputBlock: Int, rate: Double, detach: Detach) {
     let id = input.id
-    for stream in try readArray(
-        id, kAudioDevicePropertyStreams, scope: kAudioObjectPropertyScopeInput, as: AudioStreamID.self)
-    {
-        let format = try readValue(stream, kAudioStreamPropertyVirtualFormat, as: AudioStreamBasicDescription.self)
-        guard format.mFormatID == kAudioFormatLinearPCM, format.mBitsPerChannel == 32,
-            format.mFormatFlags & kAudioFormatFlagIsFloat != 0, format.mFormatFlags & kAudioFormatFlagIsPacked != 0
-        else { throw .unsupportedFormat }
-    }
+    try checkFloatInput(id)
     let inputBlock = Int(try readValue(id, kAudioDevicePropertyBufferFrameSize, as: UInt32.self))
-    var procID: AudioDeviceIOProcID?
-    var status = AudioDeviceCreateIOProcID(id, ListenRing.ioProc, input.ring.context, &procID)
-    guard status == noErr, let procID else { throw .status(status) }
-
-    // Each listener holds one retain of the input, released only after its removal returns noErr.
-    let client = ListenClient(pointer: Unmanaged.passUnretained(input).toOpaque())
-    var listening: [AudioObjectPropertyAddress] = []
-    for property in listenProperties where status == noErr {
-        var address = property
-        _ = Unmanaged.passRetained(input)
-        status = AudioObjectAddPropertyListener(id, &address, listenListener, client.pointer)
-        if status == noErr {
-            listening.append(property)
-        } else {
-            Unmanaged<ListenInput>.fromOpaque(client.pointer).release()
-        }
-    }
-    // After the listener adds: a rate change from now on calls the rate listener.
     var rate = 0.0
-    if status == noErr {
-        if let read = try? readValue(id, kAudioDevicePropertyNominalSampleRate, as: Float64.self) {
-            rate = read
-        } else {
-            status = kAudioHardwareUnspecifiedError
+    let detach = try attachIOProc(
+        id, ioProc: ListenRing.ioProc, context: input.ring.context, client: input, properties: listenProperties,
+        listener: listenListener
+    ) {
+        // After the listener adds: a rate change from now on calls the rate listener.
+        guard let read = try? readValue(id, kAudioDevicePropertyNominalSampleRate, as: Float64.self) else {
+            return kAudioHardwareUnspecifiedError
         }
+        rate = read
+        return noErr
     }
-    if status == noErr { status = AudioDeviceStart(id, procID) }
-    let added = listening
-    let detach: Detach = {
-        var clean = AudioDeviceStop(id, procID) == noErr
-        clean = AudioDeviceDestroyIOProcID(id, procID) == noErr && clean
-        for property in added {
-            var address = property
-            if AudioObjectRemovePropertyListener(id, &address, listenListener, client.pointer) == noErr {
-                Unmanaged<ListenInput>.fromOpaque(client.pointer).release()
-            } else {
-                clean = false
-            }
-        }
-        return clean
-    }
-    guard status == noErr else { throw detach() ? .undone(status) : .undoFailed }
     return (inputBlock, rate, detach)
 }

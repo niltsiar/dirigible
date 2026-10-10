@@ -344,6 +344,12 @@ import UniformTypeIdentifiers
             terminating = false
             return .terminateCancel
         }
+        // A refused episode draft stops Quit, as it stops Close: its window shows the field.
+        if let held = windows.values.first(where: { $0.holdsRefusedEpisode() }) {
+            terminating = false
+            held.window?.makeKeyAndOrderFront(nil)
+            return .terminateCancel
+        }
         let open = Array(windows.values)
         Task {
             for window in open { await window.settle() }

@@ -81,12 +81,18 @@ struct EpisodeInspector: View {
         .disabled(!model.canEdit)
         .onChange(of: focus) { old, new in
             model.episodeFocus = new
-            if old != nil { model.commitEpisode() }
+            guard old != nil else { return }
+            // A move to another field keeps a refused draft; a move out of the pane only commits.
+            if let new, new != model.episodeDraft?.field {
+                _ = model.holdsRefusedEpisode()
+            } else {
+                model.commitEpisode()
+            }
         }
-        .task(id: model.focusesEpisodeTitle) {
-            guard model.focusesEpisodeTitle else { return }
-            focus = .title
-            model.focusesEpisodeTitle = false
+        .task(id: model.episodeFocusRequest) {
+            guard let field = model.episodeFocusRequest else { return }
+            focus = field
+            model.episodeFocusRequest = nil
         }
     }
 
@@ -109,8 +115,7 @@ struct EpisodeInspector: View {
                 .labelsHidden()
                 .focused($focus, equals: name)
                 .onSubmit {
-                    model.commitEpisode()
-                    model.focusLanes()
+                    if !model.holdsRefusedEpisode() { model.focusLanes() }
                 }
                 .onExitCommand {
                     model.episodeDraft = nil
@@ -154,8 +159,7 @@ struct EpisodeInspector: View {
                 .focused($focus, equals: .notes)
                 .onKeyPress(.return, phases: .down) { press in
                     guard press.modifiers.contains(.command) else { return .ignored }
-                    model.commitEpisode()
-                    model.focusLanes()
+                    if !model.holdsRefusedEpisode() { model.focusLanes() }
                     return .handled
                 }
                 .accessibilityLabel(Text(L10n.episodeNotes.key))
@@ -216,17 +220,36 @@ extension SessionWindow {
     func showEpisodeInfo() {
         if !showsInspector { toggleInspector() }
         inspectorTab = .episode
-        focusesEpisodeTitle = true
+        episodeFocusRequest = .title
     }
 
-    /// The Clip or Episode tab of the inspector. The typed text of both panes is saved first.
+    /// The Clip or Episode tab of the inspector. The typed text of both panes is saved first. A
+    /// refused episode draft keeps the Episode tab.
     func selectInspectorTab(_ tab: InspectorTab) {
+        if tab != .episode, holdsRefusedEpisode() { return }
         commitInspector()
         inspectorTab = tab
     }
 
+    /// The end rule of a refused draft, as an AppKit formatter that keeps the focus. The draft
+    /// commits; a refused draft holds until the user corrects it or presses Esc. Then the pane
+    /// shows the Episode tab, the focus goes back to the field, and a draft that was refused
+    /// before beeps (`commitEpisode` beeps for a new refusal). Another field, the Clip tab, Hide
+    /// Inspector, Close, and Quit call it, and stop when it gives true.
+    func holdsRefusedEpisode() -> Bool {
+        let wasRefused = episodeDraft?.refused == true
+        commitEpisode()
+        guard let draft = episodeDraft, draft.refused else { return false }
+        if wasRefused { beep() }
+        if !showsInspector { toggleInspector() }
+        inspectorTab = .episode
+        episodeFocusRequest = draft.field
+        return true
+    }
+
     /// A typed key in an episode field, as `type(_:in:)` of the clip pane: the first key of a
-    /// field commits the draft of another field and starts a draft.
+    /// field commits the draft of another field and starts a draft. A refused draft of another
+    /// field holds, and the key goes.
     func typeEpisode(_ text: String, in field: EpisodeField) {
         guard showsInspector else { return }
         if episodeDraft?.field == field {
@@ -236,15 +259,15 @@ extension SessionWindow {
         }
         guard let studio = idleStudio else { return }
         let shown = studio.session.episode.text(of: field)
-        guard text != shown else { return }
-        commitEpisode()
+        guard text != shown, !holdsRefusedEpisode() else { return }
         episodeDraft = EpisodeDraft(field: field, shown: shown, text: text)
     }
 
-    /// Sets the typed text of the draft as one edit. A text that its type refuses beeps and keeps
-    /// the draft, and the pane shows the rule of the field. A busy studio keeps the draft.
+    /// Sets the typed text of the draft as one edit. A text that its type refuses beeps once and
+    /// keeps the draft, and the pane shows the rule of the field. A later commit of the refused
+    /// draft does nothing: play, zoom, and a lane click do not beep. A busy studio keeps the draft.
     func commitEpisode() {
-        guard let draft = episodeDraft, let session = idleStudio?.session else { return }
+        guard let draft = episodeDraft, !draft.refused, let session = idleStudio?.session else { return }
         var episode = session.episode
         do throws(EpisodeFieldError) {
             try episode.set(draft.field, text: draft.text)

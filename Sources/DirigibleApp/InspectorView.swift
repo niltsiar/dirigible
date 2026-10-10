@@ -141,6 +141,7 @@ extension SessionWindow {
     /// text first, and moves a focus in the pane to the lanes. A show widens a window that is
     /// narrower than the minimum, with no animation.
     func toggleInspector() {
+        if showsInspector, holdsRefusedEpisode() { return }
         showsInspector.toggle()
         app?.defaults?.set(showsInspector, forKey: Self.inspectorKey)
         if showsInspector {
@@ -149,7 +150,6 @@ extension SessionWindow {
         }
         // After the flag: the focus move makes the field send its old text, which `type` ignores.
         commitInspector()
-        commitEpisode()
         if inspectorFocus != nil || episodeFocus != nil {
             (inspectorFocus, episodeFocus) = (nil, nil)
             focusLanes()

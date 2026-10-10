@@ -96,7 +96,8 @@ extension SessionWindow {
     /// another package, a revert to a backup, and a mouse-down on the lanes save each typed name
     /// and the typed inspector values first, also with the focus still in its field. The generic menu entry run(_:) and the
     /// Transport menu commit only the inspector values; Remove Track drops the name drafts of its
-    /// tracks.
+    /// tracks. A refused episode draft stays: Close and Quit stop on it (`holdsRefusedEpisode`),
+    /// and the other actions go on without it.
     func commitDrafts() {
         for track in drafts.keys { commitName(track) }
         commitInspector()

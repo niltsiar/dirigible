@@ -22,8 +22,7 @@ extension Studio {
             case .failure(let error): return .failure(error)
             }
             // An edit, an undo, or a redo after the call can be missing from the kept copy, also
-            // when a later change sets the value back, so the revision decides
-            // (CODING_STANDARDS.md, Actors).
+            // when a later change sets the value back, so the revision decides (AGENTS.md, Actors).
             // The edit runs in this turn, so no other job runs between the check and it.
             guard sessionRevision == revision else { return .failure(.busy) }
             do throws(StudioError) {

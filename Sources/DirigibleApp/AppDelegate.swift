@@ -42,6 +42,11 @@ import UniformTypeIdentifiers
     @ObservationIgnored private(set) var terminating = false
     /// A Quit question: the message, the action button, and true after a failed save. It gives
     /// true for the action button. Tests answer with no modal alert.
+    /// The answer to `applicationShouldTerminate` after `.terminateLater`. Tests take it, so the
+    /// test process does not quit.
+    @ObservationIgnored var replyToTerminate: @MainActor (Bool) -> Void = {
+        NSApp.reply(toApplicationShouldTerminate: $0)
+    }
     @ObservationIgnored var confirmQuit: @MainActor (String, String, Bool) -> Bool = { message, button, unsaved in
         quitQuestion(message, button: button, unsaved: unsaved).runModal() == .alertFirstButtonReturn
     }
@@ -371,7 +376,7 @@ import UniformTypeIdentifiers
                 terminating = false
                 for window in open { window.studio?.loadPeaks() }
             }
-            sender.reply(toApplicationShouldTerminate: quit)
+            replyToTerminate(quit)
         }
         return .terminateLater
     }

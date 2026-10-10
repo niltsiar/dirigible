@@ -183,10 +183,12 @@ final class TestHAL: @unchecked Sendable {
             return (uid, listenFailure(uid, listenTries[uid]!.count))
         }
         if let error { throw error }
+        lock.withLock { callLog.append("listen \(uid)") }
         return (
             512,
             { [self] in
                 lock.withLock {
+                    callLog.append("unlisten \(uid)")
                     listenDetaches[uid, default: 0] += 1
                     return listenDetachResult
                 }
@@ -243,8 +245,8 @@ final class TestHAL: @unchecked Sendable {
     /// Each attach of `uid` waits `delay` first: a device that is slow to start.
     func delayAttach(_ uid: String, by delay: Duration) { lock.withLock { attachDelays[uid] = delay } }
 
-    /// The app lookups, the taps, the successful attaches, the detaches, and the teardown steps,
-    /// in order.
+    /// The app lookups, the taps, the successful attaches, the detaches, the teardown steps, and
+    /// the listen attaches and detaches, in order.
     var calls: [String] { lock.withLock { callLog } }
 
     /// Puts `device` in the set with object `id`, or takes the UID out with nil.

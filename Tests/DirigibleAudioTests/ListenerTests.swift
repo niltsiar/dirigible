@@ -24,7 +24,7 @@ final class TestOutput: @unchecked Sendable {
     var starts: [Start] { lock.withLock { startList } }
     func stop(returns result: Bool) { lock.withLock { stopResult = result } }
     func failStarts(_ fails: Bool) { lock.withLock { startFails = fails } }
-    /// Each data source listener add fails.
+    /// Each device listener add fails, in the refresh of `SpeakerGuard`.
     func failWatch(_ fails: Bool) { lock.withLock { watchFails = fails } }
     /// The next stop waits in `gate` before it returns.
     func holdNextStop(in gate: Gate) { lock.withLock { stopGate = gate } }
@@ -33,12 +33,9 @@ final class TestOutput: @unchecked Sendable {
         ListenOutput(
             watch: { [self] ring in
                 let fails = lock.withLock { watchFails }
-                var added = true
-                SpeakerGuard.refresh(
-                    ring, output: { ListenOutput.offlineOutput },
-                    watch: { added = SpeakerGuard.watch(ring, $0, add: { _ in !fails }, remove: { _ in }) && added },
-                    speakers: { _ in false })
-                return added
+                return SpeakerGuard.refresh(
+                    ring, output: { ListenOutput.offlineOutput }, subdevices: { _ in [] }, speakers: { _ in false },
+                    add: { _, _, _ in !fails })
             },
             unwatch: { SpeakerGuard.close($0, remove: { _ in }) },
             start: { [self] ring, rate, inputBlock throws(HALError) in

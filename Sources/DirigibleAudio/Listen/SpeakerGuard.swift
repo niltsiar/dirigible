@@ -74,14 +74,21 @@ enum SpeakerGuard {
 
     /// Adds the default-output listener of `ring`, then reads the flag. The ring context is the
     /// client data, so it stays for the process life (0013 Detach). A failed add fails closed, as
-    /// in `watch`: the ring plays zeros for good, and this returns false.
-    static func open(_ ring: ListenRing) -> Bool {
-        var address = defaultOutput
-        let added =
-            AudioObjectAddPropertyListener(AudioObjectID(kAudioObjectSystemObject), &address, proc, ring.context)
-            == noErr
+    /// in `watch`: the ring plays zeros for good, and this returns false. Tests give `add`.
+    static func open(
+        _ ring: ListenRing, add: (AudioObjectID, AudioObjectPropertyAddress, ListenRing) -> Bool = addListener
+    ) -> Bool {
+        let added = add(AudioObjectID(kAudioObjectSystemObject), defaultOutput, ring)
         if !added { ring.mute() }
-        return refresh(ring) && added
+        return refresh(ring, add: add) && added
+    }
+
+    /// Adds `proc` for `address` of `object`, with the context of `ring`. True on `noErr`.
+    static func addListener(_ object: AudioObjectID, _ address: AudioObjectPropertyAddress, _ ring: ListenRing)
+        -> Bool
+    {
+        var address = address
+        return AudioObjectAddPropertyListener(object, &address, proc, ring.context) == noErr
     }
 
     /// Removes the device listeners of `ring`, then its default-output listener.
@@ -91,24 +98,24 @@ enum SpeakerGuard {
         _ = AudioObjectRemovePropertyListener(AudioObjectID(kAudioObjectSystemObject), &address, proc, ring.context)
     }
 
-    /// The live refresh. False when a device listener add failed.
-    @discardableResult static func refresh(_ ring: ListenRing) -> Bool {
+    /// The live refresh: the device listeners of each device. False when an add failed. Tests
+    /// give the reads and `add`.
+    @discardableResult static func refresh(
+        _ ring: ListenRing,
+        output: () -> AudioObjectID? = { AudioDefaults.liveDefault(kAudioHardwarePropertyDefaultOutputDevice) },
+        subdevices: (AudioObjectID) -> [AudioObjectID] = AudioDefaults.liveSubdevices,
+        speakers: (AudioObjectID) -> Bool = AudioDefaults.liveSpeakers,
+        add: (AudioObjectID, AudioObjectPropertyAddress, ListenRing) -> Bool = addListener
+    ) -> Bool {
         var added = true
         refresh(
-            ring, output: { AudioDefaults.liveDefault(kAudioHardwarePropertyDefaultOutputDevice) },
-            subdevices: AudioDefaults.liveSubdevices,
+            ring, output: output, subdevices: subdevices,
             watch: { device in
                 added =
                     watch(
-                        ring, device,
-                        add: { device in
-                            deviceProperties.allSatisfy { property in
-                                var address = property
-                                return AudioObjectAddPropertyListener(device, &address, proc, ring.context) == noErr
-                            }
-                        },
+                        ring, device, add: { device in deviceProperties.allSatisfy { add(device, $0, ring) } },
                         remove: { removeListeners($0, of: ring) }) && added
-            }, speakers: AudioDefaults.liveSpeakers)
+            }, speakers: speakers)
         return added
     }
 

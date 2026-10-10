@@ -187,6 +187,27 @@ struct SpeakerGuardTests {
         #expect(ring.speakers, "a later refresh does not play again")
     }
 
+    /// The live open and refresh with a fake add: a failed default-output add, and a failed
+    /// add of a device listener on a subdevice, each fail closed for good (code gate round 1,
+    /// item 3). The open reads the default output from the HAL, with no IO; each add is fake.
+    @Test func aFailedLiveAddSilencesForGood() {
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        let open = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
+        defer { open.deallocate() }
+        #expect(!SpeakerGuard.open(open, add: { object, _, _ in object != system }), "the open reports the failure")
+        refreshOn(open, dataSource: headphones)
+        #expect(open.speakers, "a failed default-output add silences for good")
+
+        let device = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
+        defer { device.deallocate() }
+        let added = SpeakerGuard.refresh(
+            device, output: { 7 }, subdevices: { _ in [8] }, speakers: { _ in false },
+            add: { object, address, _ in object != 8 || address.mSelector != kAudioDevicePropertyDataSource })
+        #expect(!added, "the refresh reports the failure")
+        refreshOn(device, dataSource: headphones)
+        #expect(device.speakers, "a failed data source add on a subdevice silences for good")
+    }
+
     @Test func aStaleRefreshDoesNotWin() {
         let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
         defer { ring.deallocate() }

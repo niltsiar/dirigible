@@ -13,6 +13,22 @@ struct SessionFileTests {
 
     var sessionXML: URL { package.appending(path: "session.xml") }
 
+    /// The file order of the markers. Control m11 and m12.
+    @Test func markersAreWrittenByPositionThenID() throws {
+        var session = Session(sampleRate: 48_000)
+        for (id, position) in [("m3", 0), ("m2", 48_000), ("m1", 48_000)] {
+            try session.setMarker(Marker(id: MarkerID(id), name: id, position: Frames(position), kind: .marker))
+        }
+
+        try session.write(to: package)
+
+        let text = try String(contentsOf: sessionXML, encoding: .utf8)
+        let index = { (id: String) in text.range(of: "id=\"\(id)\"")?.lowerBound ?? text.endIndex }
+        #expect(
+            index("m3") < index("m1") && index("m1") < index("m2"),
+            "MARKERS-3 the file lists markers by position, then ID")
+    }
+
     @Test func writesTheExpectedDocument() throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f1", path: "a.wav", layout: .mono, length: 480_000))

@@ -2,6 +2,18 @@ import DirigibleCore
 import Testing
 
 struct SessionTests {
+    /// One marker order for the file, the overview, the chapters, and `dirigible info`. Controls
+    /// m11 and m12.
+    @Test func sortedMarkersOrderByPositionThenID() throws {
+        var session = Session(sampleRate: 48_000)
+        for (id, position) in [("m3", 0), ("m2", 48_000), ("m1", 48_000)] {
+            try session.setMarker(Marker(id: MarkerID(id), name: id, position: Frames(position), kind: .marker))
+        }
+
+        #expect(session.sortedMarkers.map(\.id).suffix(2) == ["m1", "m2"], "MARKERS-1 the tie-break is the ID")
+        #expect(session.sortedMarkers.first?.id == "m3", "MARKERS-2 the position comes first")
+    }
+
     let capture = Capture(
         id: "cap1", deviceUID: "usb-1", deviceName: "USB Mic", hostTimeNanos: 1_000, sampleTime: 512,
         nominalSampleRate: 48_000, measuredSampleRate: 48_000.4, latency: 64)

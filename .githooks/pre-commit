@@ -4,11 +4,12 @@
 set -euo pipefail
 [[ "$(git config --get core.hooksPath)" == .githooks ]] ||
   { echo "pre-commit: core.hooksPath is not .githooks, so a worktree runs the hooks of another tree. Run make setup." >&2; exit 1; }
-# A make check-changed run marks its tree with the pid of its recipe shell (scripts/run-checks.sh,
-# check-changed.sh --wait-load). A commit during the run makes its pass stamp useless.
+# A stamped make check-changed run marks its tree with the pid of run-checks.sh and its start time
+# (scripts/run-checks.sh). A commit during the run makes its pass stamp useless. A mark whose pid
+# does not run with that start time is stale.
 for f in "$(git rev-parse --path-format=absolute --git-dir)"/dirigible-check-running/*; do
   pid="${f##*/}"
-  [[ $pid =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null &&
-    { echo "pre-commit: a make check-changed run (pid $pid) checks this tree. Commit after it ends: a commit makes its pass stamp useless." >&2; exit 1; }
+  [[ $pid =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && [[ "$(cat "$f")" == "$(ps -o lstart= -p "$pid")" ]] &&
+    { echo "pre-commit: a make check-changed run (pid $pid: $(ps -p "$pid" -o command=)) checks this tree. Commit after it ends: a commit makes its pass stamp useless." >&2; exit 1; }
 done
 make --no-print-directory lint

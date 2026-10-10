@@ -132,9 +132,16 @@ expect block 'rm "$(git rev-parse --git-common-dir)/dirigible-flakes"'
 expect block ': > .git/dirigible-flakes'
 expect allow 'scripts/run-checks.test.sh'
 expect allow 'scripts/run-checks.sh --flakes'
-# Only check-changed.sh --wait-load and run-checks.sh write the run marks that the pre-commit hook
-# reads, so an agent cannot clear a mark to commit during a check.
+# Only run-checks.sh writes and removes the run marks that the pre-commit hook reads, so an agent
+# cannot clear a mark to commit during a check. A read of the marks is allowed.
 expect block 'rm -r .git/dirigible-check-running'
+expect block 'echo 1 > .git/dirigible-check-running/5'
+expect block 'mv .git/dirigible-check-running /tmp/x'
+expect block 'truncate -s 0 .git/dirigible-check-running/5'
+expect block 'echo x | tee .git/dirigible-check-running/5'
+expect allow 'ls .git/dirigible-check-running'
+expect allow 'cat .git/dirigible-check-running/5'
+expect allow 'grep -r x .git/dirigible-check-running'
 # The block message of the flakes file names its read route.
 plutil -create xml1 "$input"
 plutil -insert tool_input -dictionary "$input"
@@ -357,18 +364,22 @@ git -C "$tmp/p" config core.hooksPath .githooks
 gc "$tmp/pw" -m relative 2>"$tmp/err" && pre_fail 'a commit with no Makefile passed'
 grep -q lint "$tmp/err" || pre_fail 'the hook of the worktree did not run make lint'
 grep -q 'make setup' "$tmp/err" && pre_fail 'the hook names make setup with the .githooks path'
-# A make check-changed run marks its tree with the pid of its recipe shell, and a commit during the
-# run makes its pass stamp useless. A live pid refuses the commit and names the pid; a dead pid
-# (a run that ended) and a mark of another tree do not. $$ of this shell is the live pid.
+# A stamped make check-changed run marks its tree with the pid of run-checks.sh and its start time,
+# and a commit during the run makes its pass stamp useless. A live mark refuses the commit and names
+# the pid and its command. A pid whose start time differs (a reused pid), a dead pid, and a mark of
+# another tree do not refuse. $$ of this shell is the live pid.
 marks="$(git -C "$tmp/pw" rev-parse --path-format=absolute --git-dir)/dirigible-check-running"
-mkdir -p "$marks" && : > "$marks/$$"
+mkdir -p "$marks" && ps -o lstart= -p $$ > "$marks/$$"
 gc "$tmp/pw" -m marked 2>"$tmp/err" && pre_fail 'a commit during a check-changed run passed'
-grep -q "make check-changed run (pid $$)" "$tmp/err" || pre_fail "the refusal does not name the run and its pid: $(cat "$tmp/err")"
+grep -q "make check-changed run (pid $$: .*bash" "$tmp/err" || pre_fail "the refusal does not name the pid and its command: $(cat "$tmp/err")"
 gc "$tmp/p" -m other 2>"$tmp/err"
 grep -q 'check-changed run' "$tmp/err" && pre_fail 'a mark of the worktree refused a commit in the main tree'
+echo 'Mon Jan  1 00:00:00 2001' > "$marks/$$"
+gc "$tmp/pw" -m reused 2>"$tmp/err"
+grep -q lint "$tmp/err" || pre_fail "a reused pid did not reach make lint: $(cat "$tmp/err")"
 rm "$marks/$$"
 dead="$(bash -c 'echo $$')"
-: > "$marks/$dead"
+echo 'Mon Jan  1 00:00:00 2001' > "$marks/$dead"
 gc "$tmp/pw" -m dead 2>"$tmp/err"
 grep -q lint "$tmp/err" || pre_fail "a dead pid did not reach make lint: $(cat "$tmp/err")"
 

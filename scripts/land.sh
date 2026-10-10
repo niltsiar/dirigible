@@ -77,7 +77,7 @@ if stamp="$("$here/check-stamp.sh" read origin/main)"; then
         [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
         echo "stamp: delta $targets"
         "$here/check-changed.sh" --wait-load $targets || die "the load wait failed; nothing is pushed"
-        CHECK_RISK="$risk" "$here/run-checks.sh" $targets || die "the checks failed; nothing is pushed"
+        BASE=origin/main CHECK_RISK="$risk" "$here/run-checks.sh" $targets || die "the checks failed; nothing is pushed"
     fi
 else
     echo "stamp: none ($stamp)"

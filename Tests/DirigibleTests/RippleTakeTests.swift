@@ -1,10 +1,10 @@
 import DirigibleCore
-import DirigibleTimeline
 import Foundation
 import Testing
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
+@testable import DirigibleTimeline
 
 /// The commands that ripple the timeline (decision 0037).
 let rippleCommands: [TimelineCommand] = [
@@ -94,6 +94,33 @@ extension UnplacedBannerTests {
             beeps == 1 && model.alert == nil && model.importJob == nil && studio.session == before
                 && model.drafts["t1"] == "Guest",
             "RIPPLE-W8 a cross-package Insert under a split take beeps and changes nothing")
+        await model.close()
+    }
+
+    /// Code gate 1 item 1: the commit of a ripple trim declares its ripple, so Studio refuses it
+    /// under a split take also past the press check. A plain gesture commit still applies.
+    /// Controls m17 and m18.
+    @Test func aRippleTrimCommitUnderASplitTakeBeeps() async throws {
+        let (model, studio) = try await open()
+        _ = try await unplacedTake(model, studio)
+        await model.place(Self.first, atPlayhead: false)
+        try #require(studio.unplacedSegments == [Self.second])
+        let base = studio.session
+        var rippled = base
+        try rippled.rippleDelete(0..<4_800, on: base.tracks.map(\.id))
+        var renamed = base
+        try renamed.renameTrack("t2", to: "Guest")
+        var beeps = 0
+        model.beep = { beeps += 1 }
+
+        model.apply([.commit(GestureCommit(base: base, result: rippled, selection: nil, marker: nil, ripple: true))])
+
+        #expect(
+            beeps == 1 && model.alert == nil && studio.session == base,
+            "RIPPLE-W9 a ripple trim commit under a split take changed the session")
+        model.apply([.commit(GestureCommit(base: base, result: renamed, selection: nil, marker: nil))])
+        #expect(
+            studio.session == renamed && beeps == 1, "RIPPLE-W10 a plain gesture commit under a split take was refused")
         await model.close()
     }
 

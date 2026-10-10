@@ -54,7 +54,9 @@ struct RippleGestureTests {
     @Test mutating func aPlainPressStopsAtTheNeighbor() {
         down(198, option: false)
         drag(398)
-        let result = committed(up(398))
+        let effects = up(398)
+        let result = committed(effects)
+        #expect(commits(effects).first?.ripple == false, "RIPPLE-G1 a plain trim commit declares a ripple")
         #expect(result?.clip("A")?.clip.range == 48_000..<144_000, "the plain trim stops at B")
         #expect(result?.clip("B")?.clip.start == 144_000, "no other clip moves")
     }
@@ -71,6 +73,7 @@ struct RippleGestureTests {
         #expect(gesture.cursor(at: .lanes(x: 600, y: 150), context()) == .rippleTrim(.end))
         let effects = up(498)
         #expect(commits(effects).count == 1, "one commit, one undo entry")
+        #expect(commits(effects).first?.ripple == true, "RIPPLE-G2 an Option trim commit does not declare its ripple")
         #expect(committed(effects) == expected)
         #expect(commits(effects).first?.selection == .range(Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"])))
     }

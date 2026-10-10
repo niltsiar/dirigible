@@ -85,7 +85,7 @@ import Testing
         host.layoutSubtreeIfNeeded()
         drawNow(window)
         #expect(model.headerRuns.rows == 0, "no row body at a width change: \(model.headerRuns.rows)")
-        // 200 pt is under the 220 pt of the layout text, so the rows change.
+        // 200 pt is under the 208 pt of M and S on two lines, so the rows change.
         host.frame.size.width = 200
         host.layoutSubtreeIfNeeded()
         drawNow(window)
@@ -97,7 +97,7 @@ import Testing
     /// Code gate 1 item 4 and code gate 2 items 3 to 5: a lane under 56 pt still shows a route
     /// control and the live state of a take on its one line: a red symbol for a lost device, an
     /// orange one for dropped frames, none with no state, and nothing in the handle strip. The layout
-    /// text shows from 240 pt. The symbols are SwiftUI drawing, so the test reads a window capture.
+    /// text shows from 235 pt. The symbols are SwiftUI drawing, so the test reads a window capture.
     @Test func aOneLineRowShowsTheRouteAndTheState() async throws {
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
@@ -106,8 +106,8 @@ import Testing
             state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
         // Every row is armed: the red arm boxes are left of the counted columns.
         model.armed = Set(studio.session.tracks.map(\.id))
-        // 240 pt is the tightest one-line row: the layout text and a full live state.
-        for width in [180.0, 239, 240, 340] {
+        // 235 pt is the tightest one-line row: the layout text and a full live state.
+        for width in [180.0, 234, 235, 340] {
             let (window, host) = rows(model, studio, laneHeight: 50, width: width)
             let found = controls(host, in: host)
             #expect(found.filter { $0.kind == "route" }.count == 3, "a route control in each row at \(width)")
@@ -116,10 +116,18 @@ import Testing
                     control.frame.minX >= 8 && control.frame.maxX <= width - 8,
                     "inside the one-line row at \(width): \(control.kind) \(control.frame)")
             }
-            // The layout text is between the name field and the route symbol, from 240 pt.
+            // Every view stays inside the row; at 180 pt the name field gives way, and the captures
+            // check that width.
+            func leaves(_ view: NSView) -> [NSView] { view.subviews.isEmpty ? [view] : view.subviews.flatMap(leaves) }
+            for leaf in leaves(host) where width > 180 {
+                let frame = leaf.convert(leaf.bounds, to: host)
+                guard frame.width < width - 20 else { continue }
+                #expect(frame.maxX <= width - 8, "inside the one-line row at \(width): \(type(of: leaf)) \(frame)")
+            }
+            // The layout text is between the name field and the route symbol, from 235 pt.
             let name = try #require(found.first { $0.kind == "name" }?.frame)
             let route = try #require(found.first { $0.kind == "route" }?.frame)
-            if width >= 240 {
+            if width >= 235 {
                 #expect(route.minX - name.maxX > 20, "the layout text shows on one line at \(width)")
             } else {
                 #expect(route.minX - name.maxX < 20, "no layout text on one line at \(width)")
@@ -200,6 +208,9 @@ import Testing
             // The route label of a long device name is not in this process: `L10n` gives the key
             // of the route text, not the name. Phase 7 checks the cut on a screenshot (M3h).
             names[width] = found.first { $0.kind == "name" }.map { Double($0.frame.width) }
+            // A two-line row shows the layout text right of the name at every width.
+            let nameEnd = found.first { $0.kind == "name" }.map { Double($0.frame.maxX) } ?? width
+            #expect(nameEnd < width - 20, "the layout text shows at \(width): the name ends at \(nameEnd)")
             window.close()
         }
         let (n180, n340, n480) = (names[180] ?? 0, names[340] ?? 0, names[480] ?? 0)

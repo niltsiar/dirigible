@@ -12,10 +12,11 @@ struct TrackHeaders: View {
     let selected: [TrackID]
     /// The header widths from which a row shows M and S, on one line and on two lines (decision
     /// 0039): the narrowest widths where every view of a row with a full live state stays inside
-    /// the row (`HeaderRowTests.muteAndSoloShowOnlyWhereTheyFit`). Under them the route and the
-    /// state keep their room; Shift-M and Shift-S still act.
-    static let muteSoloWidth = 316.0
-    static let muteSoloTwoLineWidth = 261.0
+    /// the row (`HeaderRowTests.muteAndSoloShowOnlyWhereTheyFit`), measured with a width sweep
+    /// after the arm button (run 2026-10-10-arm-toggle-button). Under them the route and the state
+    /// keep their room; Shift-M and Shift-S still act.
+    static let muteSoloWidth = 306.0
+    static let muteSoloTwoLineWidth = 208.0
 
     var body: some View {
         let _ = model.countHeaderRun(row: false)
@@ -27,7 +28,7 @@ struct TrackHeaders: View {
                     TrackRow(
                         model: model, studio: studio, track: track, selected: selected.contains(track.id),
                         secondLine: laneHeight >= 56,
-                        showsLayout: geometry.size.width >= (laneHeight >= 56 ? 220 : 240),
+                        showsLayout: laneHeight >= 56 || geometry.size.width >= 235,
                         showsMuteSolo: geometry.size.width
                             >= (laneHeight >= 56 ? Self.muteSoloTwoLineWidth : Self.muteSoloWidth),
                         showsCompactLoudness: geometry.size.width >= TrackRow.compactLoudnessWidth
@@ -52,11 +53,10 @@ private struct TrackRow: View {
     let selected: Bool
     /// True in a lane of 56 pt or more: the row has two lines (H7).
     let secondLine: Bool
-    /// The layout text, when the header width has room for it: from 220 pt on two lines, from 240 pt
-    /// on one line. "Armar", a name of 60 pt, and "Estéreo" are wider than a row of 180 pt, and no
-    /// control goes under the handle. The width alone picks it, never the typed name. A Bool, not
-    /// the width: a row whose inputs do not change is not drawn again (a width input made the
-    /// one-off header events 2 to 3 times slower).
+    /// The layout text, when the header width has room for it: at every width on two lines, from
+    /// 235 pt on one line (the sweep of `muteSoloWidth`), so no control goes under the handle. The
+    /// width alone picks it, never the typed name. A Bool, not the width: a row whose inputs do not
+    /// change is not drawn again (a width input made the one-off header events 2 to 3 times slower).
     let showsLayout: Bool
     /// M and S, from `TrackHeaders.muteSoloWidth` or `muteSoloTwoLineWidth`. A Bool, as `showsLayout`.
     let showsMuteSolo: Bool

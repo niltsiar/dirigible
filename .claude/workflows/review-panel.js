@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality, or a chosen lens list) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; a lens outside its gates is dropped; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. Round 1 with no prior is open; each other round only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; a lens outside its gates is dropped; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering, and code-quality run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. Round 1 with no prior is open; each other round only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its warning and critical findings' },
@@ -33,12 +33,14 @@ const git = worktree ? `git -C ${worktree}` : 'git'
 const treeText = worktree ? ` The branch is checked out in ${worktree}: read each tracked file there, not in the main checkout.` : ''
 
 // A lens with no gate runs only when args.lenses names it, at each target. A named lens with gates
-// runs only at its gates: code-quality at a plan gate would read an empty diff.
+// runs only at its gates: code-quality at a plan gate would read an empty diff. A lens with
+// `named` is not a default lens: the code gate runs the code-review skill in place of code-quality
+// (interrogate Step 3).
 const ALL_LENSES = [
   { key: 'premortem', agentType: 'premortem', model: 'opus', gates: ['plan', 'diff'] },
   { key: 'devils-advocate', agentType: 'devils-advocate', model: 'sonnet', gates: ['plan', 'diff'] },
   { key: 'architecture', agentType: 'architecture-reviewer', model: 'opus', gates: ['plan', 'diff'] },
-  { key: 'code-quality', agentType: 'code-quality-reviewer', model: 'sonnet', gates: ['diff'] },
+  { key: 'code-quality', agentType: 'code-quality-reviewer', model: 'sonnet', gates: ['diff'], named: true },
   { key: 'context-engineering', agentType: 'context-engineering-reviewer', model: 'opus', gates: [] },
   { key: 'prompt-engineering', agentType: 'prompt-engineering-reviewer', model: 'sonnet', gates: [] },
   { key: 'harness-engineering', agentType: 'harness-engineering-reviewer', model: 'opus', gates: [] },
@@ -46,7 +48,7 @@ const ALL_LENSES = [
   { key: 'compound-engineering', agentType: 'compound-engineering-reviewer', model: 'sonnet', gates: [] },
 ]
 const atGate = l => !l.gates.length || l.gates.includes(target)
-const LENSES = ALL_LENSES.filter(l => lenses ? lenses.includes(l.key) && atGate(l) : l.gates.includes(target))
+const LENSES = ALL_LENSES.filter(l => lenses ? lenses.includes(l.key) && atGate(l) : l.gates.includes(target) && !l.named)
 const dropped = lenses ? ALL_LENSES.filter(l => lenses.includes(l.key) && !atGate(l)).map(l => l.key) : []
 if (dropped.length) log(`Lenses with no ${target} gate, dropped: ${dropped.join(', ')}.`)
 const unknown = lenses ? lenses.filter(k => !ALL_LENSES.some(l => l.key === k)) : []

@@ -79,7 +79,10 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
 ;(async () => {
   const scoped = await expectKeys('five lenses on a skills diff', { target: 'diff', lenses: FIVE, paths: PATHS }, FIVE, [], ['AGENTS.md'])
   if (scoped && !scoped.prompts.some(p => p.includes(`git diff main...HEAD -- ${PATHS.join(' ')}`))) fail('five lenses on a skills diff: no reviewer prompt has the paths scope')
-  await expectKeys('default diff lenses', { target: 'diff' }, ['premortem', 'devils-advocate', 'architecture', 'code-quality'])
+  // The code gate runs the code-review skill in place of the code-quality lens (interrogate Step
+  // 3), so code-quality runs only by name.
+  await expectKeys('default diff lenses', { target: 'diff' }, ['premortem', 'devils-advocate', 'architecture'])
+  await expectKeys('code-quality by name at the diff gate', { target: 'diff', lenses: ['code-quality'] }, ['code-quality'])
   // A worktree arg: each git command of the scope, reviewer, and skeptic prompts runs with -C, and
   // each prompt names the tree for file reads. The main checkout has an empty diff for a branch
   // that lives in a worktree.

@@ -2,7 +2,8 @@
 # Check that check-plan.sh exits 1 and names the failure for a run folder with no Unknowns table,
 # an open Unknowns row, a split row with no child row, a slice with no check line, or a plan with
 # no Agents: line, or a review file with an Act on item or a taken Consider nit with no Invariant
-# or Siblings field, and exits 0 for a good folder, a user row answered with a default, a nit
+# or Siblings field, or a run research file with no docs/research route in plan.md, and exits 0
+# for a good folder, a routed research file, a user row answered with a default, a nit
 # tagged no behavior change, a nit that is not taken, and an old review file.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -109,6 +110,18 @@ pass 'a user row answered with a default'
 good
 rm "$run/plan.md"
 refuse 'no plan.md' 'no plan.md'
+
+# A run research file needs its docs/research route in plan.md (deliver Phase 2, research skill).
+good
+echo '# Research: x' > "$run/research-x.md"
+refuse 'a research file with no route' 'research-x.md: plan.md does not name docs/research/x.md'
+echo '- Slice 1 copies it to docs/research/x.md.' >> "$run/plan.md"
+pass 'a research file with its route'
+good
+echo '# Research' > "$run/research.md"
+refuse 'a bare research.md with no route' 'research.md: plan.md names no docs/research/ path'
+echo '- Slice 1 adds docs/research/y.md.' >> "$run/plan.md"
+pass 'a bare research.md with a route'
 
 # Each warning or critical "Act on" item of a review file has an Invariant and a Siblings field.
 review="$run/review-plan-1.md"

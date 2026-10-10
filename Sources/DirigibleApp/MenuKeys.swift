@@ -12,6 +12,9 @@ enum MenuKeys {
     static let record = KeyboardShortcut("r")
     static let stop = KeyboardShortcut(".")
     static let monitor = KeyboardShortcut("m", modifiers: [.command, .shift])
+    /// Track > Monitor Track (record monitor run 1b). A text field has no Control-Command-M, so the
+    /// track name field keeps its keys.
+    static let monitorTrack = KeyboardShortcut("m", modifiers: [.command, .control])
     static let retry = KeyboardShortcut("r", modifiers: [.command, .option])
     static let play = KeyboardShortcut(.space, modifiers: [])
     static let stopAndReturn = KeyboardShortcut(.space, modifiers: .shift)
@@ -55,7 +58,8 @@ enum MenuKeys {
 
     static let all =
         [
-            newSession, open, startWindow, addTrack, record, stop, monitor, retry, play, stopAndReturn, reverse, pause,
+            newSession, open, startWindow, addTrack, record, stop, monitor, monitorTrack, retry, play, stopAndReturn,
+            reverse, pause,
             forward, slowReverse, slowForward, start, end, previousClip, nextClip, zoomInEquals, loudnessMeter,
             inspector,
         ] + system

@@ -4,6 +4,7 @@
 - Date: 2026-10-10
 - Accepted: 2026-10-10, after plan gates 1 and 2 of run `2026-10-10-record-monitor`.
 - Amended: 2026-10-10. The speaker guard plays zeros when the output, or one of its active subdevices, is a loopback device of the listened input: the input when it is virtual, and each virtual device under an aggregate input. A failed transport or subdevice read, or an aggregate under itself, makes every output a loopback (fail closed).
+- Amended: 2026-10-10. Track > Monitor Track has the key Control-Command-M. A text field has no Control-Command-M, so the track name field keeps its keys. Each device track header has a Monitor button with the same state.
 - Amends: 0013 (a second owner of an input IOProc), 0015 (the meter request includes the listened tracks), 0039 (playback during a take goes to Release 3 run 9).
 
 ## Context

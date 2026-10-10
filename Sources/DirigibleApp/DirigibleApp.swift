@@ -91,11 +91,11 @@ struct DirigibleApp: App {
                     }
                     // Its key is one that a text field uses: never disabled (probe K1).
                     ForEach(TimelineCommand.trackItems, id: \.command) { item in menuButton(item) }
-                    // No key in run 1a, so the track name field keeps its keys (A22).
                     Toggle(
                         L10n.menuTrackMonitor.key,
                         isOn: Binding(get: { app.key?.listensSelection == true }, set: { _ in app.key?.toggleListen() })
-                    ).disabled(app.key?.canListen != true)
+                    )
+                    .keyboardShortcut(MenuKeys.monitorTrack).disabled(app.key?.canListen != true)
                 }
                 CommandMenu(L10n.menuRecord.key) {
                     windowButton(.record).disabled(app.key?.canRecord != true)

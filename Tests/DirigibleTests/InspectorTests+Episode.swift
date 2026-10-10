@@ -17,11 +17,13 @@ extension InspectorTests {
         return shownFields(window)
     }
 
-    /// Waits until Title of the pane has the focus: the field editor edits the first field.
+    /// Waits until Title of the pane has the focus: the field editor edits the first field. A field
+    /// of a parallel suite can take the shared field editor; the window is then its own first
+    /// responder (`focusedNameEditor(in:)`), as in `theItemTogglesThePaneAndKeepsThePreference`.
     func waitForTitleFocus(_ model: SessionWindow, _ window: NSWindow) async throws {
         let title = try await episodeFields(window)[0]
         await until(limit: .seconds(10), "the focus goes to Title") {
-            model.episodeFocus == .title && focusedField(window) === title
+            model.episodeFocus == .title && (focusedField(window) === title || window.firstResponder === window)
         }
     }
 
@@ -154,6 +156,33 @@ extension InspectorTests {
         #expect(studio.session.episode.artwork == nil)
         #expect(FileManager.default.fileExists(atPath: studio.url.appending(path: name.path).path), "the file stays")
         #expect(undoAll(model, studio) == 2, "one entry each")
+        await model.close()
+    }
+
+    /// Code gate item 1: a close saves a typed episode field.
+    @Test func aTypedTitleIsSavedAtClose() async throws {
+        let url = try await package()
+        let (model, _, _, _) = try await open(url)
+        model.showEpisodeInfo()
+        model.typeEpisode("Typed title", in: .title)
+        await model.close()
+        #expect(try Session(contentsOf: url).episode.title?.text == "Typed title")
+    }
+
+    /// Code gate item 1: a tab change commits the typed text of both panes.
+    @Test func aTabChangeKeepsTheTypedText() async throws {
+        let (model, studio, window, _) = try await open(try await package())
+        model.showEpisodeInfo()
+        _ = try await episodeFields(window)
+        model.typeEpisode("Typed title", in: .title)
+        model.selectInspectorTab(.clip)
+        #expect(studio.session.episode.title?.text == "Typed title" && model.inspectorTab == .clip)
+
+        model.timeline.marks = overA
+        _ = try await paneFields(window)
+        model.type("-3", in: .gain)
+        model.selectInspectorTab(.episode)
+        #expect(gain(studio, "A") == -3 && model.inspectorTab == .episode)
         await model.close()
     }
 }

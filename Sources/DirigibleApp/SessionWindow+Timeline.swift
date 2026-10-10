@@ -203,7 +203,7 @@ extension SessionWindow {
     /// The toolbar entry (decision 0023): each command goes to the place that its menu item
     /// reaches. The generic menu entry run(_:) and the Transport menu commit only the inspector
     /// value; Remove Track drops the name drafts of its tracks. An import and a paste from another
-    /// package commit the names too, before their blocking run (`commitNames`).
+    /// package commit the names too, before their blocking run (`commitDrafts`).
     func run(_ command: WindowCommand) {
         switch command {
         case .timeline(let command): run(command)

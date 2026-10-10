@@ -32,7 +32,7 @@ extension SessionWindow {
         }
         let source = app?.studio(of: clipboard.origin)
         // A blocking run: a typed name that waits for it is lost (run 13c, plan gate 2 item 1).
-        commitNames()
+        commitDrafts()
         importJob = ImportJob(visible: false)
         let wait = bannerWait
         let shown = Task { [weak self] in

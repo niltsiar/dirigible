@@ -43,7 +43,7 @@ extension SessionWindow {
     /// takes, so Record does not fail with `channelInUse`; the route stays.
     func addCallTracks(app: String?) {
         guard canEdit, let session = idleStudio?.session else { return }
-        commitNames()
+        commitDrafts()
         let input = deviceList.defaults.inputUID.flatMap { uid in devices.contains { $0.uid == uid } ? uid : nil }
         let taken = session.tracks.filter { armed.contains($0.id) }.reduce(into: Set<Route>()) {
             $0.formUnion(takenChannels($1.route))

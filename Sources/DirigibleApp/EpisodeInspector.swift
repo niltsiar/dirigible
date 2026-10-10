@@ -229,6 +229,12 @@ extension SessionWindow {
         focusesEpisodeTitle = true
     }
 
+    /// The Clip or Episode tab of the inspector. The typed text of both panes is saved first.
+    func selectInspectorTab(_ tab: InspectorTab) {
+        commitInspector()
+        inspectorTab = tab
+    }
+
     /// A typed key in an episode field, as `type(_:in:)` of the clip pane: the first key of a
     /// field commits the draft of another field and starts a draft.
     func typeEpisode(_ text: String, in field: EpisodeField) {

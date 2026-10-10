@@ -260,7 +260,7 @@ struct ExportReportShown: Equatable {
     /// Waits for the open, stops a take, and waits for every write. When the last save failed,
     /// it asks before it closes.
     func close() async {
-        commitNames()
+        commitDrafts()
         alert = nil
         switch phase {
         case .closing, .closed: return
@@ -304,7 +304,7 @@ struct ExportReportShown: Equatable {
     /// write.
     func settle() async {
         await opening?.value
-        commitNames()
+        commitDrafts()
         monitoring = false
         listened = []
         await studio?.settle()

@@ -124,6 +124,25 @@ if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' 
     "Read where the Finder window is, and move only the window of the verify copy."
 fi
 
+# An Apple Event to an app other than System Events makes macOS show an Automation prompt for the
+# terminal app: the call waits until it times out (-1712), and an agent that answers the prompt
+# changes a privacy setting of the user. The rule reads the command as the Finder rule does, and
+# blocks each tell, quit, activate, or launch of app or application "<name>" (or id "<id>") that
+# is not System Events. A tell of application process "<name>" in System Events does not match. A
+# text rule does not see a script file (osascript <file>), JXA, or an app name that is not a string.
+if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
+  { s = $0
+    while (match(s, /(tell|quit|activate|launch) (app|application) (id )?\\?"[^"\\]*/)) {
+      name = substr(s, RSTART, RLENGTH)
+      sub(/^[^"]*"/, "", name)
+      if (name != "system events" && name != "com.apple.systemevents") found = 1
+      s = substr(s, RSTART + RLENGTH)
+    } }
+  END { exit !found }'; then
+  block "sends an Apple Event to an app other than System Events (macOS shows an Automation prompt for the terminal app, and the call waits until it times out)" \
+    "Drive another app through System Events (tell process). An Automation prompt is the user's: leave it, and name it in the report."
+fi
+
 # A message path other than .scratchpads/commit-msg.txt (absolute, relative, ~, or $HOME) can name
 # the file of another work tree, so a commit takes the message of another agent. git -C changes
 # the directory first, so the relative path is per tree.

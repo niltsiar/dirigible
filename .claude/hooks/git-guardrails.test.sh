@@ -164,14 +164,38 @@ expect_each_form block 'tell application "System Events"' 'tell application proc
 expect_each_form block 'tell application "Finder"' 'tell front window' 'get name' 'end tell' 'set bounds of front window to {0, 0, 9, 9}' 'end tell'
 expect_each_form block 'tell application "System Events" to set size of window 1 of process "Finder" to {9, 9}'
 expect_each_form block 'tell application "Finder" to set size of window 1 to {9, 9}'
-# A new osascript word ends the Finder clause: read the Finder window, then move the verify copy.
-expect allow "osascript -e 'tell application \"Finder\" to get name of window 1'; osascript -e 'set position of window 1 of application process \"Dirigible\" to {0, 0}'"
-expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1'"
-expect allow "osascript -e 'tell application \"Finder\" to set sizeKB to size of (POSIX file \"/tmp/x\" as alias)'"
-expect allow "osascript -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"
-expect allow "osascript -e 'tell application \"Finder\" to get bounds of window 1' -e 'tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}'"
-expect allow 'osascript -e "tell application \"Finder\" to get bounds of window 1" -e "tell application \"System Events\" to set position of window 1 of process \"Dirigible\" to {900, 100}"'
-expect allow $'osascript -e \'tell application "System Events"\nset position of window 1 of process "Dirigible" to {900, 100}\nget position of window 1 of process "Finder"\nend tell\''
+# A read of the Finder window through System Events, then a move of the verify copy, passes.
+expect allow "osascript -e 'tell application \"System Events\" to get name of window 1 of process \"Finder\"'; osascript -e 'tell application \"System Events\" to set position of window 1 of application process \"Dirigible\" to {0, 0}'"
+expect_each_form allow 'tell application "System Events" to get position of window 1 of process "Finder"'
+expect_each_form allow 'tell application "System Events" to set position of window 1 of process "Dirigible" to {900, 100}'
+expect_each_form allow 'tell application "System Events"' 'set position of window 1 of process "Dirigible" to {900, 100}' 'get position of window 1 of process "Finder"' 'end tell'
+expect_each_form allow 'tell application id "com.apple.systemevents" to get name of every process'
+expect_each_form allow 'tell app "System Events"' 'tell application process "Dirigible"' 'get position of window 1' 'end tell' 'end tell'
+expect_each_form allow 'display notification "done"'
+expect allow "grep -n 'quit app \"QuickTime Player\"' notes.txt"
+
+# An Apple Event to an app other than System Events (a tell, quit, activate, or launch) makes
+# macOS show an Automation prompt for the terminal app, and the call waits until it times out.
+expect_each_form block 'tell application "QuickTime Player" to get name of document 1'
+expect_each_form block 'tell app "Google Chrome" to get URL of active tab of window 1'
+expect_each_form block 'tell application id "com.google.Chrome" to get name of window 1'
+expect_each_form block 'tell application "Finder" to get bounds of window 1'
+expect_each_form block 'tell application "Finder" to set sizeKB to size of (POSIX file "/tmp/x" as alias)'
+expect_each_form block 'quit app "QuickTime Player"'
+expect_each_form block 'activate application "Google Chrome"'
+expect_each_form block 'launch application id "com.google.Chrome"'
+expect_each_form block 'tell application "System Events" to quit application "QuickTime Player"'
+# The two Finder gaps that end a Finder clause early: a System Events line, and an osascript word.
+expect_each_form block 'tell application "Finder"' 'tell application "System Events" to get name of every process' 'set bounds of front window to {0, 0, 9, 9}' 'end tell'
+expect_each_form block 'tell application "Finder"' 'get name of file "osascript.txt" of desktop' 'set bounds of front window to {0, 0, 9, 9}' 'end tell'
+# The block message names System Events and leaves the prompt to the user.
+plutil -create xml1 "$input"
+plutil -insert tool_input -dictionary "$input"
+plutil -insert tool_input.command -string "osascript -e 'tell application \"QuickTime Player\" to get name of document 1'" "$input"
+plutil -convert json "$input"
+message="$("$hook" < "$input" 2>&1 >/dev/null)"
+[[ "$message" == *'Automation prompt'* && "$message" == *'through System Events'* && "$message" == *'leave it'* ]] ||
+  { echo "FAIL: the Apple Event block message: $message"; failures=$((failures + 1)); }
 # The Finder block message gives the reason and the way, keeps the data hint, and has no git sentence.
 plutil -create xml1 "$input"
 plutil -insert tool_input -dictionary "$input"

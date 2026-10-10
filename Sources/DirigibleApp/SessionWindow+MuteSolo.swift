@@ -39,7 +39,7 @@ extension SessionWindow {
     }
 }
 
-/// The R, M, and S buttons of a header row (ui-panel.md 1, 2, 9; run 2026-10-10-arm-toggle-button):
+/// The R, M, and S buttons of a header row (ui-panel.md 1, 2, 9):
 /// arm on is a fixed systemRed fill with a white dot, mute on a systemBlue fill with a white letter,
 /// solo on a systemYellow fill with a black letter, never the accent color. Off is a plain bordered
 /// button, so the state is the fill, not the hue only. Arm shows at every header width; M and S

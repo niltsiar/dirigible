@@ -134,7 +134,7 @@ extension BannerTests {
                 "\(L10n.bannerKindWarning.text): \(L10n.transportStopOutputChanged.text)",
                 "\(L10n.bannerKindError.text): \(L10n.mediaMissing.text)",
             ])
-        // No check box: no Monitor Inputs box, and arm is a button (run 2026-10-10-arm-toggle-button).
+        // No check box: no Monitor Inputs box, and arm is a button.
         let content = try #require(window.contentView)
         #expect(checkBoxes(under: content).isEmpty, "a check box in the window")
         await model.close()

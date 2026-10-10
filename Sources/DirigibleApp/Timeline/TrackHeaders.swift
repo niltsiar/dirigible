@@ -57,10 +57,10 @@ struct TrackHeaders: View {
     }
 }
 
-/// The header of one lane. In a lane of 56 pt or more: the R, Monitor, M, and S buttons, the name, and the
-/// layout on the first line; the route menu, and during a take or a monitor the meter and the
-/// state, on the second. In a lower lane, one line: the buttons, the name, the layout, a route
-/// symbol menu, and the compact meter and state.
+/// The header of one lane. In a lane of 56 pt or more: the R, Monitor, M, and S buttons, the
+/// name, and the layout on the first line; the route menu, and during a take or a monitor the
+/// meter and the state, on the second. In a lower lane, one line: the buttons, the name, the
+/// layout, a route symbol menu, and the compact meter and state.
 private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio

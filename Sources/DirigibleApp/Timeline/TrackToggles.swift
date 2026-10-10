@@ -2,20 +2,27 @@ import AppKit
 import DirigibleCore
 import SwiftUI
 
-/// The R, M, and S buttons of a header row (ui-panel.md 1, 2, 9):
-/// arm on is a fixed systemRed fill with a white dot, mute on a systemBlue fill with a white letter,
-/// solo on a systemYellow fill with a black letter, never the accent color. Off is a plain bordered
-/// button, so the state is the fill, not the hue only. Arm shows at every header width; M and S
-/// only with `showsMuteSolo`.
+/// The boxes of a header row at its width (decision 0039): R at every width, then Monitor, then M
+/// and S. M and S hide first, so no row shows M and S without Monitor.
+enum HeaderBoxes: Equatable {
+    case arm, armMonitor, all
+}
+
+/// The R, Monitor, M, and S buttons of a header row (ui-panel.md 1, 2, 9; record monitor panel):
+/// arm on is a fixed systemRed fill with a white dot, Monitor on a systemGreen fill with black
+/// headphones, mute on a systemBlue fill with a white letter, solo on a systemYellow fill with a
+/// black letter, never the accent color. Off is a plain bordered button, so the state is the fill,
+/// not the hue only.
 struct TrackToggles: View {
     let model: SessionWindow
     let track: Track
-    let showsMuteSolo: Bool
+    let boxes: HeaderBoxes
 
     var body: some View {
         HStack(spacing: 4) {
             arm
-            if showsMuteSolo {
+            if boxes != .arm { monitor }
+            if boxes == .all {
                 toggle(.muted, letter: .trackMuteLetter, help: .trackMuteHelp, fill: .systemBlue, text: .white)
                 toggle(.soloed, letter: .trackSoloLetter, help: .trackSoloHelp, fill: .systemYellow, text: .black)
             }
@@ -37,6 +44,19 @@ struct TrackToggles: View {
         .toggleStyle(FlagToggleStyle(fill: Color(nsColor: .systemRed), letter: .white))
         .accessibilityLabel(Text(verbatim: L10n.trackArmLabel.format(track.name)))
         .help(Text(L10n.trackArmHelp.key))
+    }
+
+    /// Monitor is window state, as Arm (decision 0044): the box and Track > Monitor Track show one
+    /// state, and a click adds no undo entry.
+    private var monitor: some View {
+        Toggle(
+            isOn: Binding(
+                get: { model.listened.contains(track.id) },
+                set: { model.setListen($0, track: track.id) })
+        ) { Image(systemName: "headphones").imageScale(.small) }
+        .toggleStyle(FlagToggleStyle(fill: Color(nsColor: .systemGreen), letter: .black))
+        .accessibilityLabel(Text(verbatim: L10n.trackMonitorLabel.format(track.name)))
+        .help(Text(L10n.trackMonitorHelp.key))
     }
 
     /// True for a mouse click with Option. A key press or an AX press of the button sets only its

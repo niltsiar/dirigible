@@ -15,13 +15,24 @@ struct TrackHeaders: View {
     /// the row (`HeaderRowTests.muteAndSoloShowOnlyWhereTheyFit`). Measure them again with a width
     /// sweep when a control of the row changes. Under them the route and the state keep their
     /// room; Shift-M and Shift-S still act.
-    static let muteSoloWidth = 306.0
-    static let muteSoloTwoLineWidth = 208.0
+    static let muteSoloWidth = 328.0
+    static let muteSoloTwoLineWidth = 230.0
+    /// The header widths from which a row shows the Monitor box, on one line and on two lines:
+    /// measured as the M and S widths, with M and S hidden. Under them a row shows R only, and
+    /// Track > Monitor Track still acts.
+    static let monitorWidth = 284.0
+    static let monitorTwoLineWidth = 186.0
     /// The header width from which a one-line row shows the layout text (`TrackRow.showsLayout`).
     static let layoutWidth = 235.0
     /// The header width from which a one-line row shows the short-term text: under it the text
     /// pushes the dropped-frames symbol out of the row. The guide and `loudness.take.tip` give it.
     static let compactLoudnessWidth = 262.0
+
+    /// The boxes of a row of `width`: M and S from their gate, Monitor from its gate.
+    static func boxes(width: Double, twoLines: Bool) -> HeaderBoxes {
+        if width >= (twoLines ? muteSoloTwoLineWidth : muteSoloWidth) { return .all }
+        return width >= (twoLines ? monitorTwoLineWidth : monitorWidth) ? .armMonitor : .arm
+    }
 
     var body: some View {
         let _ = model.countHeaderRun(row: false)
@@ -34,8 +45,7 @@ struct TrackHeaders: View {
                         model: model, studio: studio, track: track, selected: selected.contains(track.id),
                         secondLine: laneHeight >= 56,
                         showsLayout: laneHeight >= 56 || geometry.size.width >= Self.layoutWidth,
-                        showsMuteSolo: geometry.size.width
-                            >= (laneHeight >= 56 ? Self.muteSoloTwoLineWidth : Self.muteSoloWidth),
+                        boxes: Self.boxes(width: geometry.size.width, twoLines: laneHeight >= 56),
                         showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
@@ -47,7 +57,7 @@ struct TrackHeaders: View {
     }
 }
 
-/// The header of one lane. In a lane of 56 pt or more: the R, M, and S buttons, the name, and the
+/// The header of one lane. In a lane of 56 pt or more: the R, Monitor, M, and S buttons, the name, and the
 /// layout on the first line; the route menu, and during a take or a monitor the meter and the
 /// state, on the second. In a lower lane, one line: the buttons, the name, the layout, a route
 /// symbol menu, and the compact meter and state.
@@ -63,8 +73,9 @@ private struct TrackRow: View {
     /// alone picks it, never the typed name. A Bool, not the width: a row whose inputs do not
     /// change is not drawn again (a width input made the one-off header events 2 to 3 times slower).
     let showsLayout: Bool
-    /// M and S, from `TrackHeaders.muteSoloWidth` or `muteSoloTwoLineWidth`. A Bool, as `showsLayout`.
-    let showsMuteSolo: Bool
+    /// The boxes from the width gates of `TrackHeaders`. An enum of three values, not the width,
+    /// as `showsLayout`.
+    let boxes: HeaderBoxes
     /// The short-term text in the one-line row, from `TrackHeaders.compactLoudnessWidth`. A Bool,
     /// as `showsLayout`.
     let showsCompactLoudness: Bool
@@ -80,7 +91,7 @@ private struct TrackRow: View {
         let _ = model.countHeaderRun(row: true)
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
-                TrackToggles(model: model, track: track, showsMuteSolo: showsMuteSolo)
+                TrackToggles(model: model, track: track, boxes: boxes)
                 nameField
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the

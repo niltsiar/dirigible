@@ -181,6 +181,8 @@ enum L10n: String, CaseIterable {
     case trackName = "track.name"
     case trackArmLabel = "track.arm.label"
     case trackArmHelp = "track.arm.help"
+    case trackMonitorLabel = "track.monitor.label"
+    case trackMonitorHelp = "track.monitor.help"
     case trackMuteLetter = "track.mute.letter"
     case trackSoloLetter = "track.solo.letter"
     case trackMuteLabel = "track.mute.label"

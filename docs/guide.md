@@ -304,7 +304,7 @@ You can also drag audio files from Finder onto the tracks. During the drag, a li
 
 ### Mute and solo tracks
 
-Each track header has the buttons **M** (mute) and **S** (solo), after the arm button. During a take, a button that is on keeps its color, and a button that is off is dim.
+Each track header has the buttons **M** (mute) and **S** (solo), after the arm button and the Monitor button. During a take, a button that is on keeps its color, and a button that is off is dim.
 
 - Click **M** to mute a track. You do not hear a muted track, and the export does not have it. **M** is blue when it is on.
 - Click **S** to solo a track. While one or more tracks are soloed, you hear only the soloed tracks. **S** is yellow when it is on. A track that is muted and soloed stays muted.
@@ -325,6 +325,8 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the arm b
 2. Click the header of the track to select it.
 3. Choose **Track > Monitor Track**. A check mark shows next to the item. The header shows the meter of the track.
 4. To stop, choose **Track > Monitor Track** again.
+
+The Monitor button (the headphones, after the arm button) in the track header does the same for its track. The button is green when it is on. On a narrow header, the button hides after **M** and **S**, and the menu item still works.
 
 - The track does not need to be armed. The monitor works before, during, and after a take, and during play.
 - Only a track with an input device can monitor. For an app track or a track with no input, the item is dimmed.

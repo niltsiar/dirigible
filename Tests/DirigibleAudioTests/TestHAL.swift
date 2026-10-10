@@ -40,6 +40,12 @@ final class TestHAL: @unchecked Sendable {
     private var tapGate: DispatchSemaphore?
     /// The output devices that left the device list (`deviceExists` is false for them).
     private var goneDevices: Set<String> = []
+    // Listen appearances (decision 0044): the inputs of each attach call, the error of each call,
+    // the detach result, and the detach calls.
+    private var listenTries: [String: [ListenInput]] = [:]
+    private var listenFailure: @Sendable (_ uid: String, _ try: Int) -> HALError? = { _, _ in nil }
+    private var listenDetachResult = true
+    private var listenDetaches: [String: Int] = [:]
 
     /// A successful attach or a clean detach of one input.
     enum Event: Equatable {
@@ -66,6 +72,7 @@ final class TestHAL: @unchecked Sendable {
             lookUp: { [self] uid in lookUp(uid) },
             attach: { [self] input throws(HALError) in try attach(input) },
             watchDevices: { _ in { true } },
+            attachListen: { [self] input throws(HALError) in try attachListen(input) },
             lookUpApp: { [self] bundleID, _ in
                 lock.withLock {
                     callLog.append("lookUpApp \(bundleID)")
@@ -167,6 +174,39 @@ final class TestHAL: @unchecked Sendable {
             return true
         }
     }
+
+    /// A listen attach of 512-frame blocks. Its detach returns the result of `listenDetach`.
+    private func attachListen(_ input: ListenInput) throws(HALError) -> (inputBlock: Int, detach: Detach) {
+        let (uid, error) = lock.withLock {
+            let uid = present.first { $0.value.id == input.id }?.key ?? "id \(input.id)"
+            listenTries[uid, default: []].append(input)
+            return (uid, listenFailure(uid, listenTries[uid]!.count))
+        }
+        if let error { throw error }
+        return (
+            512,
+            { [self] in
+                lock.withLock {
+                    listenDetaches[uid, default: 0] += 1
+                    return listenDetachResult
+                }
+            }
+        )
+    }
+
+    /// The inputs of each listen attach call of `uid`, also the calls that threw.
+    func listenTries(_ uid: String) -> [ListenInput] { lock.withLock { listenTries[uid] ?? [] } }
+
+    /// The listen detach calls of `uid`.
+    func listenDetaches(_ uid: String) -> Int { lock.withLock { listenDetaches[uid] ?? 0 } }
+
+    /// The error of each listen attach call, from the UID and the 1-based count of its calls.
+    func failListen(_ rule: @escaping @Sendable (_ uid: String, _ try: Int) -> HALError?) {
+        lock.withLock { listenFailure = rule }
+    }
+
+    /// The result of the listen detaches from now on.
+    func listenDetach(returns result: Bool) { lock.withLock { listenDetachResult = result } }
 
     /// The app that `lookUpApp` finds for `bundleID` (nil: no output device), and its name.
     func setApp(_ bundleID: String, _ found: AppFound?, name: String? = nil) {

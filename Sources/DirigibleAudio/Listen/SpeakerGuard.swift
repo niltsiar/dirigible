@@ -97,7 +97,7 @@ enum SpeakerGuard {
     }
 
     /// The default-output listener and the data source listeners of one ring: a refresh.
-    private static let proc: AudioObjectPropertyListenerProc = { _, _, _, context in
+    static let proc: AudioObjectPropertyListenerProc = { _, _, _, context in
         guard let context else { return noErr }
         SpeakerGuard.refresh(ListenRing(context: context))
         return noErr

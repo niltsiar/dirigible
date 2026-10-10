@@ -205,6 +205,25 @@ struct SpeakerGuardTests {
         second.deallocate()
     }
 
+    /// The live guard with no IO: `open` adds the default-output listener and refreshes, a call
+    /// of the listener proc refreshes, and after `close` a call adds no watch. It counts tickets
+    /// and never reads the flag of this Mac. The ring is never freed: a listener call can come
+    /// after its removal (0013 Detach).
+    @Test func theLiveGuardRefreshesOnAListenerCall() {
+        let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
+        #expect(SpeakerGuard.open(ring), "open adds the default-output listener")
+        let afterOpen = ring.nextTicket()
+        #expect(afterOpen >= 2, "open refreshes")
+        var address = propertyAddress(kAudioHardwarePropertyDefaultOutputDevice)
+        _ = SpeakerGuard.proc(AudioObjectID(kAudioObjectSystemObject), 1, &address, ring.context)
+        #expect(ring.nextTicket() >= afterOpen + 2, "a listener call refreshes")
+        SpeakerGuard.close(ring)
+        #expect(ring.watchState.withLock { $0.closed }, "close sets closed")
+        let watched = ring.watchState.withLock { $0.watched }
+        _ = SpeakerGuard.proc(AudioObjectID(kAudioObjectSystemObject), 1, &address, ring.context)
+        #expect(ring.watchState.withLock { $0.watched } == watched, "a listener call after close adds no watch")
+    }
+
     /// A11: a refresh from the headphones to the speakers silences the next buffer. Before it,
     /// a refresh that stays on the headphones keeps the sound.
     @Test func anUnplugSilencesAtTheNextBuffer() {

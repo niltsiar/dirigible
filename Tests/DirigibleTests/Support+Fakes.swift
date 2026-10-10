@@ -33,7 +33,8 @@ final class CountingHAL: Sendable {
                     counts.withLock { $0.cleanDetaches += 1 }
                     return true
                 }
-            }, watchDevices: { _ in { true } })
+            }, watchDevices: { _ in { true } },
+            attachListen: { _ in (512, { true }) })
         environment.microphoneAccess = { nil }
         environment.silenceLimit = noWatchdog
         environment.firstRecordLimit = noWatchdog

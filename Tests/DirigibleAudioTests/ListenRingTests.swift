@@ -106,7 +106,7 @@ func playsDelayed(_ output: [Float], _ input: [Float], pull: Int = 512) -> Bool 
 func listenRing(_ routes: [Route.Channels], speakers: Bool = false) -> ListenRing {
     let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
     ring.setMap(ChannelMap(routes: routes))
-    ring.storeSpeakers(speakers, ticket: 1)
+    SpeakerGuard.refresh(ring, output: { 1 }, watch: { _ in }, speakers: { _ in speakers })
     return ring
 }
 

@@ -18,7 +18,7 @@ extension SessionWindow {
 extension SessionWindow {
     /// The effects of a timeline gesture (decision 0020). A commit makes one undo entry when the
     /// session is still the session of the mouse-down. Else, or during a take, it changes nothing
-    /// and shows no alert.
+    /// and shows no alert. Studio refuses a ripple trim under a pending or split take, with a beep.
     func apply(_ effects: [GestureEffect]) {
         guard let studio else { return }
         for effect in effects {
@@ -28,7 +28,7 @@ extension SessionWindow {
             case .currentMarker(let id): timeline.marker = id
             case .beep: beep()
             case .commit(let commit):
-                guard edit({ session in commit.apply(to: &session) }) == true else { continue }
+                guard edit(ripple: commit.ripple, { session in commit.apply(to: &session) }) == true else { continue }
                 if let selection = commit.selection { timeline.selection = selection }
                 if let marker = commit.marker { timeline.marker = marker }
             }

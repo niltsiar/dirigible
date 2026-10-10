@@ -55,6 +55,8 @@ public struct GestureCommit: Equatable, Sendable {
     let result: Session
     public let selection: Selection?
     public let marker: MarkerID?
+    /// True for a ripple trim (decision 0037): the window passes it to `Studio.edit(ripple:)`.
+    public internal(set) var ripple = false
 
     /// Sets `session` to the result when it is still `base` and returns true; else changes nothing
     /// and returns false. So an undo, a redo, or another edit during a drag drops the gesture with
@@ -352,6 +354,10 @@ public struct TimelineGesture: Sendable {
         guard trim.range != trim.clip.range else { return click(press, context) }
         let marks = Marks(
             inPoint: trim.range.lowerBound, outPoint: trim.range.upperBound, tracks: [press.base.tracks[trim.lane].id])
-        return [.commit(GestureCommit(base: press.base, result: trim.preview, selection: .range(marks), marker: nil))]
+        return [
+            .commit(
+                GestureCommit(
+                    base: press.base, result: trim.preview, selection: .range(marks), marker: nil, ripple: trim.ripple))
+        ]
     }
 }

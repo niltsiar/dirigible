@@ -176,7 +176,7 @@
 "transport.record" = "Record";
 "transport.stop" = "Stop";
 "transport.play" = "Play";
-"transport.record.over" = "Record replaces audio out of view on an armed track, from the playhead on. Choose Go to End or turn off Arm to keep it.";
+"transport.record.over" = "Record replaces audio out of view on an armed track, from the playhead on. To keep it, choose Go to End or turn off the red record button in the track header.";
 "transport.stop.output.changed" = "Playback stopped: the output device changed. Press Space to play on the new device.";
 "transport.stop.output.unavailable" = "Playback cannot start: the output device is not available (error %lld).";
 "transport.stop.package.unavailable" = "Playback stopped: the session package is not available. Check that its disk is connected.";

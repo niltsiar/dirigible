@@ -266,9 +266,9 @@ struct RecordOverTests {
     @Test func theWarningNamesTheRangeThatRecordReplaces() {
         let texts = [
             "en": "Record replaces audio out of view on an armed track, from the playhead on. "
-                + "Choose Go to End or turn off Arm to keep it.",
+                + "To keep it, choose Go to End or turn off the red record button in the track header.",
             "es": "Grabar sustituye audio fuera de la vista en una pista armada, desde el cursor. "
-                + "Elige Ir al final o desactiva Armar para conservarlo.",
+                + "Para conservarlo, elige Ir al final o desactiva el botón rojo de grabar en la cabecera de la pista.",
         ]
         for (language, text) in texts {
             let table = (try? stringsTable(language)) ?? [:]

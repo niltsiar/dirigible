@@ -103,4 +103,17 @@ extension HeaderRowTests {
         #expect(red.count == 2 && red[0] == 0 && red[1] > 20, "red pixels in the arm box of each row: \(red)")
         await model.close()
     }
+
+    /// During a take the buttons are disabled: the armed box of t2 keeps its full red, and the box
+    /// of t1, not armed, stays with no red. A dimmed red (about 255, 177, 173) is not red.
+    @Test func anOnButtonKeepsFullOpacityDuringATake() async throws {
+        let (model, studio) = try await model()
+        model.armed = ["t2"]
+        studio.transport = .recording(take: 1)
+        try #require(!model.canEdit, "the take disables the buttons")
+        let red = try await armRed(model, studio)
+        #expect(red.count == 2 && red[0] == 0 && red[1] > 20, "red pixels in the arm box of each row: \(red)")
+        studio.transport = .idle
+        await model.close()
+    }
 }

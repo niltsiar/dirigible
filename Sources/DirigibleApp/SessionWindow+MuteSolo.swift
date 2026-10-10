@@ -117,6 +117,7 @@ private struct FlagBox: View {
     var body: some View {
         let on = configuration.isOn
         Button {
+            guard isEnabled else { return }
             configuration.isOn.toggle()
         } label: {
             configuration.label
@@ -128,6 +129,11 @@ private struct FlagBox: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .opacity(isEnabled ? 1 : 0.4)
+        // A disabled plain button dims its label, also an on box. So the button stays enabled and
+        // takes no click; the AX toggle of the style keeps the disabled state.
+        .environment(\.isEnabled, true)
+        .allowsHitTesting(isEnabled)
+        // During a take an on button keeps its full color, so the state of each track reads.
+        .opacity(isEnabled || on ? 1 : 0.4)
     }
 }

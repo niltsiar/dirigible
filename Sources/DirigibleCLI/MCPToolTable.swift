@@ -256,8 +256,8 @@ private func episodeText(_ key: String, _ doc: String) -> Param<String?> {
 private let episodeParams = (
     title: episodeText("title", "The title."), show: episodeText("show", "The show name (the album)."),
     author: episodeText("author", "The host or author (the artist)."),
-    episode: episodeText("episode", "The episode number, 1 or more, as text."),
-    season: episodeText("season", "The season number, 1 or more, as text."),
+    episode: episodeText("episode", "The episode number, from 1 to \(EpisodeNumber.maximum), as text."),
+    season: episodeText("season", "The season number, from 1 to \(EpisodeNumber.maximum), as text."),
     date: episodeText("date", "The date, YYYY-MM-DD."),
     language: episodeText("language", "An ISO 639-2 code, for example eng or spa."),
     copyright: episodeText("copyright", "The copyright."),

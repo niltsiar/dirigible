@@ -106,7 +106,7 @@
 "error.artwork.large" = "The artwork can be at most %1$lld x %1$lld pixels. This image is %2$lld x %2$lld pixels.";
 "error.artwork.write" = "Dirigible cannot copy the artwork into the session (error %lld). Check the disk and try again.";
 "error.episode.line" = "Type one line, with no tab and no control character.";
-"error.episode.number" = "Type a whole number of 1 or more.";
+"error.episode.number" = "Type a whole number from 1 to %lld.";
 "error.episode.date" = "Type a date in the form YYYY-MM-DD.";
 "error.episode.language" = "Type an ISO 639-2 language code of three lowercase letters, for example eng or spa.";
 "error.episode.url" = "Type an http or https URL.";

@@ -85,6 +85,32 @@ struct M4ATagTests {
         #expect(try temporaryFiles() == [])
     }
 
+    /// The size and the type of the `data` atom in the atom `name`, from the file bytes.
+    static func dataAtom(_ name: String, in file: Data) -> (size: Int, type: Int)? {
+        let bytes = [UInt8](file)
+        let int = { (at: Int) -> Int in bytes[at..<(at + 4)].reduce(0) { $0 << 8 | Int($1) } }
+        var from = bytes.startIndex
+        while let found = file.range(of: Data(name.utf8), in: from..<file.endIndex) {
+            let start = found.lowerBound
+            if start + 16 <= bytes.count, Data(bytes[(start + 8)..<(start + 12)]) == Data("data".utf8) {
+                return (int(start + 4), int(start + 12))
+            }
+            from = found.upperBound
+        }
+        return nil
+    }
+
+    /// Code gate 1 item 5: the iTunes atom spec gives tves and tvsn 4 bytes, rtng and pcst 1 byte,
+    /// each a signed integer (type 21). A `data` atom has 16 bytes before the value.
+    @Test func theIntegerAtomsHaveTheirSpecWidths() throws {
+        try export(try ID3TagTests.fullEpisode())
+        let file = try Data(contentsOf: url)
+        for (name, width) in [("tves", 4), ("tvsn", 4), ("rtng", 1), ("pcst", 1)] {
+            let atom = Self.dataAtom(name, in: file)
+            #expect(atom?.size == 16 + width && atom?.type == 21, "\(name): \(String(describing: atom))")
+        }
+    }
+
     @Test func anEmptyEpisodeSkipsTheTagPass() async throws {
         let flushes = Flushes()
         try export(Episode(), flushes: flushes)

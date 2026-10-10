@@ -20,11 +20,14 @@ struct EpisodeTests {
         }
     }
 
-    @Test func anEpisodeNumberIsOneOrMore() throws {
+    /// Code gate 1 item 5: an upper bound, so the CLI, the MCP tool, and the pane refuse the same values.
+    @Test func anEpisodeNumberIsFrom1To99999() throws {
         #expect(try EpisodeNumber(1).value == 1)
         #expect(try EpisodeNumber(text: "12").value == 12)
-        expectRefused("1 or more") { _ = try EpisodeNumber(0) }
-        expectRefused("1 or more") { _ = try EpisodeNumber(-1) }
+        #expect(try EpisodeNumber(99_999).value == 99_999)
+        expectRefused("from 1 to 99999, not 0") { _ = try EpisodeNumber(0) }
+        expectRefused("from 1 to 99999, not -1") { _ = try EpisodeNumber(-1) }
+        expectRefused("from 1 to 99999, not 100000") { _ = try EpisodeNumber(100_000) }
         expectRefused("whole number") { _ = try EpisodeNumber(text: "1.5") }
     }
 
@@ -134,7 +137,7 @@ struct EpisodeFieldTextTests {
 
     @Test func aBadTextThrowsAndChangesNothing() {
         var episode = Episode()
-        #expect(throws: EpisodeFieldError(message: "An episode or season number is 1 or more, not 0.")) {
+        #expect(throws: EpisodeFieldError(message: "An episode or season number is from 1 to 99999, not 0.")) {
             try episode.set(.number, text: "0")
         }
         #expect(throws: EpisodeFieldError(message: "\"x\" is not an http or https URL.")) {

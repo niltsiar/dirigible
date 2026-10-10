@@ -80,13 +80,16 @@ public enum EpisodeField: CaseIterable, Sendable {
     case title, show, author, season, number, date, language, copyright, summary, notes, episodeURL, feedURL, guid
 }
 
-/// An episode or season number: a whole number of 1 or more.
+/// An episode or season number: a whole number from 1 to `maximum`.
 public struct EpisodeNumber: Hashable, Sendable, CustomStringConvertible {
+    /// Five digits: more than a daily show makes in 200 years, and far in the 4-byte M4A atom.
+    public static let maximum = 99_999
     public let value: Int
 
     public init(_ value: Int) throws(EpisodeFieldError) {
-        guard value >= 1 else {
-            throw EpisodeFieldError(message: "An episode or season number is 1 or more, not \(value).")
+        guard (1...Self.maximum).contains(value) else {
+            throw EpisodeFieldError(
+                message: "An episode or season number is from 1 to \(Self.maximum), not \(value).")
         }
         self.value = value
     }

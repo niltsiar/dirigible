@@ -45,6 +45,8 @@ final class TestHAL: @unchecked Sendable {
     private var listenTries: [String: [ListenInput]] = [:]
     private var listenFailure: @Sendable (_ uid: String, _ try: Int) -> HALError? = { _, _ in nil }
     private var listenDetachResult = true
+    /// The nominal rate that a listen attach reads after its listener adds, by UID.
+    private var listenRates: [String: Double] = [:]
     private var listenDetaches: [String: Int] = [:]
 
     /// A successful attach or a clean detach of one input.
@@ -175,17 +177,21 @@ final class TestHAL: @unchecked Sendable {
         }
     }
 
-    /// A listen attach of 512-frame blocks. Its detach returns the result of `listenDetach`.
-    private func attachListen(_ input: ListenInput) throws(HALError) -> (inputBlock: Int, detach: Detach) {
-        let (uid, error) = lock.withLock {
-            let uid = present.first { $0.value.id == input.id }?.key ?? "id \(input.id)"
+    /// A listen attach of 512-frame blocks at the rate of `listenRate`, else the nominal rate.
+    /// Its detach returns the result of `listenDetach`.
+    private func attachListen(_ input: ListenInput) throws(HALError) -> (inputBlock: Int, rate: Double, detach: Detach)
+    {
+        let (uid, rate, error) = lock.withLock {
+            let entry = present.first { $0.value.id == input.id }
+            let uid = entry?.key ?? "id \(input.id)"
             listenTries[uid, default: []].append(input)
-            return (uid, listenFailure(uid, listenTries[uid]!.count))
+            let rate = listenRates[uid] ?? entry?.value.device.nominalRate ?? 48_000
+            return (uid, rate, listenFailure(uid, listenTries[uid]!.count))
         }
         if let error { throw error }
         lock.withLock { callLog.append("listen \(uid)") }
         return (
-            512,
+            512, rate,
             { [self] in
                 lock.withLock {
                     callLog.append("unlisten \(uid)")
@@ -209,6 +215,8 @@ final class TestHAL: @unchecked Sendable {
 
     /// The result of the listen detaches from now on.
     func listenDetach(returns result: Bool) { lock.withLock { listenDetachResult = result } }
+    /// The rate that the next listen attaches of `uid` read: a change after the lookup.
+    func listenRate(_ uid: String, _ rate: Double) { lock.withLock { listenRates[uid] = rate } }
 
     /// The app that `lookUpApp` finds for `bundleID` (nil: no output device), and its name.
     func setApp(_ bundleID: String, _ found: AppFound?, name: String? = nil) {

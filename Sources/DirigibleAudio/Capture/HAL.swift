@@ -31,8 +31,10 @@ struct DeviceHAL: Sendable {
     /// weakly, so a failed removal never keeps the writer alive.
     var watchDevices: @Sendable (_ writer: DeviceWriter) -> Detach
     /// The listen IOProc of a Listener (decision 0044): as `attach`, with the rate and IsAlive
-    /// listeners, and the IO buffer size of the device. No default, so each fake names it.
-    var attachListen: @Sendable (_ input: ListenInput) throws(HALError) -> (inputBlock: Int, detach: Detach)
+    /// listeners, the IO buffer size of the device, and its nominal rate, read after the listener
+    /// adds. No default, so each fake names it.
+    var attachListen:
+        @Sendable (_ input: ListenInput) throws(HALError) -> (inputBlock: Int, rate: Double, detach: Detach)
     /// The app source of `bundleID` as the system shows it now, with reads only (decision 0030).
     var lookUpApp: @Sendable (_ bundleID: String, _ layout: ChannelLayout) -> AppFound? = { _, _ in nil }
     /// A tap of the processes of `found` and its private aggregate: the aggregate object ID, its

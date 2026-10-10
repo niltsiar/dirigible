@@ -95,6 +95,31 @@ import Testing
         await model.close()
     }
 
+    /// During a take a click on R, M, or S changes nothing: the on boxes keep full opacity, but
+    /// the buttons take no click.
+    @Test func aClickDuringATakeChangesNothing() async throws {
+        let (model, studio, window, view) = try await open()
+        // The rows take a transport change at a later run-loop turn: each row reads `canEdit`.
+        func setTransport(_ transport: Studio.Transport) async {
+            let runs = model.headerRuns.rows
+            studio.transport = transport
+            await until("the rows take the transport") {
+                drawNow(window)
+                return model.headerRuns.rows > runs
+            }
+        }
+        await setTransport(.recording(take: 1))
+        try #require(!model.canEdit, "the take disables the buttons")
+
+        for box in 0...2 { try click(try boxPoint(box, row: 1, in: view), in: window) }
+
+        #expect(model.armed == ["t1"] && flags(studio) == ["--", "--"], "no change: \(model.armed) \(flags(studio))")
+        await setTransport(.idle)
+        try click(try boxPoint(0, row: 1, in: view), in: window)
+        #expect(model.armed == ["t1", "t2"], "control: the same click arms t2 when idle")
+        await model.close()
+    }
+
     /// C7 b: a click on S adds a solo; solos add.
     @Test func aClickOnSAddsASolo() async throws {
         let (model, studio, window, view) = try await open()

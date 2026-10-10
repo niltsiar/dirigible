@@ -304,7 +304,7 @@ You can also drag audio files from Finder onto the tracks. During the drag, a li
 
 ### Mute and solo tracks
 
-Each track header has the buttons **M** (mute) and **S** (solo), after the arm button.
+Each track header has the buttons **M** (mute) and **S** (solo), after the arm button. During a take, a button that is on keeps its color, and a button that is off is dim.
 
 - Click **M** to mute a track. You do not hear a muted track, and the export does not have it. **M** is blue when it is on.
 - Click **S** to solo a track. While one or more tracks are soloed, you hear only the soloed tracks. **S** is yellow when it is on. A track that is muted and soloed stays muted.

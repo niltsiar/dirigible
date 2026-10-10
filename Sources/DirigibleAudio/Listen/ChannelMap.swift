@@ -21,10 +21,5 @@ struct ChannelMap: Equatable, Sendable {
         }
     }
 
-    init(left: UInt64, right: UInt64) {
-        self.left = left
-        self.right = right
-    }
-
     private static func bit(_ channel: Int) -> UInt64 { 1 << UInt64(channel - 1) }
 }

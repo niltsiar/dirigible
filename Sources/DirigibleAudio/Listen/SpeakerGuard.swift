@@ -71,10 +71,7 @@ enum SpeakerGuard {
 
     /// Removes the data source listeners of `ring`, then its default-output listener.
     static func close(_ ring: ListenRing) {
-        close(ring) { device in
-            var address = dataSource
-            _ = AudioObjectRemovePropertyListener(device, &address, proc, ring.context)
-        }
+        close(ring) { removeDataSource($0, of: ring) }
         var address = defaultOutput
         _ = AudioObjectRemovePropertyListener(AudioObjectID(kAudioObjectSystemObject), &address, proc, ring.context)
     }
@@ -89,11 +86,13 @@ enum SpeakerGuard {
                         var address = dataSource
                         return AudioObjectAddPropertyListener(device, &address, proc, ring.context) == noErr
                     },
-                    remove: { device in
-                        var address = dataSource
-                        _ = AudioObjectRemovePropertyListener(device, &address, proc, ring.context)
-                    })
+                    remove: { removeDataSource($0, of: ring) })
             }, speakers: AudioDefaults.liveSpeakers)
+    }
+
+    private static func removeDataSource(_ device: AudioObjectID, of ring: ListenRing) {
+        var address = dataSource
+        _ = AudioObjectRemovePropertyListener(device, &address, proc, ring.context)
     }
 
     /// The default-output listener and the data source listeners of one ring: a refresh.

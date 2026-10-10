@@ -87,7 +87,13 @@ public struct AudioDefaults: Equatable, Sendable {
             inputUID: liveDefault(kAudioHardwarePropertyDefaultInputDevice).flatMap {
                 readString($0, kAudioDevicePropertyDeviceUID)
             },
-            watch: DeviceListListener.watchDataSource, speakers: liveSpeakers)
+            subdevices: liveSubdevices, watch: DeviceListListener.watchDataSource, speakers: liveSpeakers)
+    }
+
+    /// The active subdevices of an aggregate or a Multi-Output device (probe P10: the real device
+    /// IDs). Empty for another device, which has no such property.
+    static func liveSubdevices(_ device: AudioObjectID) -> [AudioObjectID] {
+        (try? readArray(device, kAudioAggregateDevicePropertyActiveSubDeviceList, as: AudioObjectID.self)) ?? []
     }
 
     /// The default device of `selector`, or nil when the read fails or there is none.
@@ -104,14 +110,26 @@ public struct AudioDefaults: Equatable, Sendable {
                 output, kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput, as: UInt32.self))
     }
 
-    /// Calls `watch` on the output device before it reads the flag, so a change after the read
-    /// always calls the listener.
+    /// The default output and its active subdevices. Each one gets `watch` before its read, so
+    /// a change after the read always calls the listener.
+    static func outputDevices(
+        _ output: AudioObjectID, subdevices: (AudioObjectID) -> [AudioObjectID], watch: (AudioObjectID) -> Void
+    ) -> [AudioObjectID] {
+        watch(output)
+        let devices = subdevices(output)
+        devices.forEach(watch)
+        return [output] + devices
+    }
+
+    /// The speaker flag is true when the output or one of its active subdevices is the built-in
+    /// speakers: a Multi-Output device can play to them too.
     static func read(
-        output: AudioObjectID?, inputUID: String?, watch: (AudioObjectID) -> Void, speakers: (AudioObjectID) -> Bool
+        output: AudioObjectID?, inputUID: String?, subdevices: (AudioObjectID) -> [AudioObjectID] = { _ in [] },
+        watch: (AudioObjectID) -> Void, speakers: (AudioObjectID) -> Bool
     ) -> AudioDefaults {
         guard let output else { return AudioDefaults(inputUID: inputUID) }
-        watch(output)
-        return AudioDefaults(inputUID: inputUID, speakers: speakers(output))
+        let devices = outputDevices(output, subdevices: subdevices, watch: watch)
+        return AudioDefaults(inputUID: inputUID, speakers: devices.contains(where: speakers))
     }
 }
 
@@ -153,11 +171,15 @@ enum DeviceListListener {
     /// The output devices with a data source listener.
     private static let watched = OSAllocatedUnfairLock(initialState: Set<AudioObjectID>())
 
-    /// Adds the data source listener to `device` once. A failed add lets the next read try again.
+    /// Adds the data source listener and the active subdevice listener to `device` once. A failed
+    /// add lets the next read try again. A device with no such property takes the add too (P10).
     static func watchDataSource(_ device: AudioObjectID) {
         guard watched.withLock({ $0.insert(device).inserted }) else { return }
-        var address = propertyAddress(kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput)
-        if AudioObjectAddPropertyListener(device, &address, proc, nil) != noErr {
+        var source = propertyAddress(kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput)
+        var subdevices = propertyAddress(kAudioAggregateDevicePropertyActiveSubDeviceList)
+        if AudioObjectAddPropertyListener(device, &source, proc, nil) != noErr
+            || AudioObjectAddPropertyListener(device, &subdevices, proc, nil) != noErr
+        {
             _ = watched.withLock { $0.remove(device) }
         }
     }

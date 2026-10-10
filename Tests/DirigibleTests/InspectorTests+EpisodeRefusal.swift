@@ -153,8 +153,12 @@ extension InspectorTests {
         let hal = CountingHAL()
         let (model, studio) = try await refusedNumberInATake(hal)
         app.confirmQuit = { _, _, _ in true }
+        // The reply goes to the test, not to AppKit, so the test process does not quit.
+        var reply: Bool?
+        app.replyToTerminate = { reply = $0 }
         #expect(app.applicationShouldTerminate(NSApp) == .terminateLater)
-        await until("Quit stops the take") { studio.transport == .idle }
+        await until("Quit replies") { reply != nil }
+        #expect(reply == true && studio.transport == .idle, "Quit stops the take and quits")
         #expect(model.episodeDraft == nil)
         await model.close()
         await until("the device is free") { hal.isFree }

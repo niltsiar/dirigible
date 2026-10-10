@@ -76,6 +76,7 @@
 "menu.file.episode.info" = "Información del episodio…";
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episodio";
+"inspector.tabs" = "Panel del inspector";
 "episode.artwork" = "Ilustración";
 "episode.artwork.none" = "Sin ilustración";
 "episode.artwork.choose" = "Elegir…";

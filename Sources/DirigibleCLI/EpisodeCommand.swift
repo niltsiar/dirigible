@@ -55,7 +55,10 @@ struct EpisodeCommand: ParsableCommand {
                     notesFile == "-"
                     ? FileHandle.standardInput.readDataToEndOfFile()
                     : try Data(contentsOf: URL(filePath: notesFile))
-                fields.notes = String(decoding: data, as: UTF8.self)
+                guard let text = String(data: data, encoding: .utf8) else {
+                    throw ValidationError("--notes-file is not UTF-8 text.")
+                }
+                fields.notes = text
             }
             let work: EpisodeWork
             do throws(EpisodeFieldError) { work = try fields.work() } catch {

@@ -330,6 +330,7 @@ enum L10n: String, CaseIterable {
     case menuFileEpisodeInfo = "menu.file.episode.info"
     case inspectorTabClip = "inspector.tab.clip"
     case inspectorTabEpisode = "inspector.tab.episode"
+    case inspectorTabs = "inspector.tabs"
     case episodeArtwork = "episode.artwork"
     case episodeArtworkNone = "episode.artwork.none"
     case episodeArtworkChoose = "episode.artwork.choose"

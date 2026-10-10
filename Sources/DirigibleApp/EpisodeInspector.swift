@@ -177,11 +177,13 @@ struct EpisodeInspector: View {
 private struct ArtworkWell: View {
     let url: URL?
     let model: SessionWindow
+    /// The image of `url`, read once for each path and not at each body pass.
+    @State private var image: NSImage?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Group {
-                if let url, let image = NSImage(contentsOf: url) {
+                if url != nil, let image {
                     Image(nsImage: image).resizable()
                 } else {
                     Image(systemName: "photo").font(.system(size: 28)).foregroundStyle(.tertiary)
@@ -192,6 +194,7 @@ private struct ArtworkWell: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(.separator))
             .accessibilityLabel(Text(url == nil ? L10n.episodeArtworkNone.key : L10n.episodeArtwork.key))
+            .task(id: url) { image = url.flatMap { NSImage(contentsOf: $0) } }
             .dropDestination(for: URL.self) { urls, _ in
                 guard let first = urls.first else { return false }
                 model.setArtwork(first)

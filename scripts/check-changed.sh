@@ -1,6 +1,8 @@
 #!/bin/bash
 # Print the change classes of the changed paths, the make targets that they need, and the risk.
 # This script owns the path table and the risk floor (decision 0028). Docs name it, not the table.
+# In the git modes, the content of a change can also give the class: a change of only comment
+# lines is class comments (comment_only).
 # Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
@@ -11,8 +13,8 @@
 # test-filter. FILTER before the push exits 1: the push runs the full targets.
 set -euo pipefail
 
-# The risk floor. A change to one of these paths always prints `risk: yes`. A path that ends
-# in / is a folder. check-changed.test.sh fails when a floor path does not exist.
+# The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
+# comment-only. A path that ends in / is a folder. check-changed.test.sh fails when a floor path does not exist.
 floor="Sources/DirigibleAudio/ Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift Sources/DirigibleCore/PackageLock.swift"
 
 class_of() {
@@ -31,11 +33,27 @@ class_of() {
     esac
 }
 
+# The Swift text with no blank line and no // line. A line with /* or */ stays: a block comment
+# can end in a // line.
+swift_code() { awk '{ t = $0; sub(/^[ \t]+/, "", t) } t == "" { next } t ~ /^\/\// && t !~ /\/\*|\*\// { next } { print }'; }
+
+# A change of only comment lines and blank lines in a Sources or Tests Swift file: the text at
+# $from and the file on disk are equal after swift_code. A new, deleted, or untracked file is not.
+comment_only() {
+    local old
+    [[ -n "$from" && -f "$1" ]] || return 1
+    case "$1" in Sources/*.swift | Tests/*.swift) ;; *) return 1 ;; esac
+    old="$(git show "$from:$1" 2>/dev/null)" || return 1
+    # ponytail: a // line in a multi-line string is text, so a file with """ keeps its path class.
+    [[ "$old" != *'"""'* ]] && ! grep -qF '"""' "$1" || return 1
+    [[ "$(swift_code <<<"$old")" == "$(swift_code <"$1")" ]]
+}
+
 # The targets of a class: the local column (push=0) or the before-the-push column (push=1).
 targets_of() {
     case "$1:$push" in
         docs:*) echo check-docs ;;
-        tooling:*) echo check-fast ;;
+        comments:* | tooling:*) echo check-fast ;;
         tests:0 | sources:0 | sources-risk:0) echo test ;;
         bundle:0 | build:0) echo check ;;
         tests:1 | sources:1 | sources-risk:1 | build:1) echo check ;;
@@ -79,7 +97,7 @@ wait_load() {
     done
 }
 
-push=0 mode=git base=""
+push=0 mode=git base="" from=""
 case "${1:-}" in
     --floor) printf '%s\n' $floor; exit 0 ;;
     --wait-load) shift; wait_load "$@"; exit 0 ;;
@@ -110,6 +128,9 @@ else
     worktree="$(git diff --name-only --no-renames HEAD)"
     untracked="$(git ls-files --others --exclude-standard)"
     paths="$committed"$'\n'"$worktree"$'\n'"$untracked"
+    # The old side of the content check: the fork point of the branch, or HEAD.
+    from=HEAD
+    [[ -n "$base" ]] && from="$(git merge-base "$base" HEAD)"
 fi
 paths="$(grep -v '^$' <<<"$paths" | sort -u || true)"
 if [[ -z "$paths" && $push == 1 ]]; then
@@ -117,15 +138,20 @@ if [[ -z "$paths" && $push == 1 ]]; then
     exit 1
 fi
 
-found=" "
+# kept: the paths that keep their path class. The push rule for test-slow-push reads only them.
+found=" " kept=""
 while IFS= read -r p; do
     [[ -n "$p" ]] || continue
-    c="$(class_of "$p")"
+    if comment_only "$p"; then
+        c=comments
+    else
+        c="$(class_of "$p")" kept+="$p"$'\n'
+    fi
     [[ "$found" == *" $c "* ]] || found+="$c "
 done <<<"$paths"
 
 classes="" wanted=" " risk=no
-for c in docs tooling tests sources sources-risk bundle build; do
+for c in docs comments tooling tests sources sources-risk bundle build; do
     [[ "$found" == *" $c "* ]] || continue
     classes+=" $c"
     [[ $c == sources-risk ]] && risk=yes
@@ -142,12 +168,12 @@ if [[ $push == 1 ]]; then
     slow=no
     skip="$(sed -n 's/^PUSH_SKIP = //p' "$(dirname "$0")/../Makefile")"
     [[ $risk == yes ]] && slow=yes
-    grep -qx Makefile <<<"$paths" && slow=yes
+    grep -qx Makefile <<<"$kept" && slow=yes
     root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     while IFS= read -r p; do
         [[ $p == Tests/* ]] && grep -qF 'environment["DIRIGIBLE_SLOW_TESTS"]' "$root/$p" 2>/dev/null && slow=yes
         for n in $skip; do [[ $p == Tests/*/"$n.swift" ]] && slow=yes run+="$n"$'\n'; done
-    done <<<"$paths"
+    done <<<"$kept"
     if [[ "$wanted" == *" check "* ]]; then
         date_file="$(git rev-parse --git-common-dir 2>/dev/null)/dirigible-slow-date" || date_file=/dev/null
         [[ "$(cat "$date_file" 2>/dev/null)" == "$(date +%F)" ]] || slow=yes

@@ -47,7 +47,8 @@ let sessionTools = [
         "session_info",
         "Read a session package as compact JSON, the JSON of dirigible info --json. For a long session, read it "
             + "in parts with from and to (a frame range), or with tracks. An answer over \(sessionInfoBudget) characters is an "
-            + "overview: each track with its clip count, the end frame, and the marker count.",
+            + "overview: each track with its clip count, the end frame, and the marker count. episode_get reads the "
+            + "episode of any session.",
         [infoTracks, infoFrom, infoTo], saves: false
     ) { a throws(ToolError) in
         let (from, to) = (try a[infoFrom], try a[infoTo])
@@ -288,5 +289,11 @@ let episodeTools = [
             episodeURL: try a[p.episodeURL], feedURL: try a[p.feedURL], guid: try a[p.guid],
             artwork: try a[p.artwork])
         do throws(EpisodeFieldError) { return .episode(try fields.work()) } catch { throw ToolError(error.message) }
-    }
+    },
+    Tool(
+        "episode_get",
+        "Read the episode fields as compact JSON, the JSON of dirigible episode show. The keys are the argument "
+            + "names of episode_set, and only the set fields are in it. artwork is the path in the package.",
+        [], saves: false
+    ) { _ throws(ToolError) in .episodeInfo },
 ]

@@ -72,10 +72,7 @@ struct EpisodeCommand: ParsableCommand {
         @OptionGroup var package: PackageArgument
 
         func run() throws {
-            let session = try readPackage(package)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes, .prettyPrinted]
-            print(String(decoding: try encoder.encode(EpisodeView(session.episode)), as: UTF8.self))
+            print(try EpisodeView(try readPackage(package).episode).json(pretty: true))
         }
     }
 }
@@ -131,8 +128,15 @@ struct EpisodeWork: Sendable {
     }
 }
 
-/// The JSON of an episode: the `session.xml` names, and only the set fields.
+/// The JSON of an episode: the argument names of `episode_set`, and only the set fields.
 struct EpisodeView: Encodable {
+    enum CodingKeys: String, CodingKey {
+        case title, show, author, season, date, language, copyright, explicit, summary, notes, guid, artwork
+        case number = "episode"
+        case episodeURL = "episode_url"
+        case feedURL = "feed_url"
+    }
+
     let title, show, author: String?
     let number, season: Int?
     let date, language, copyright: String?
@@ -149,5 +153,12 @@ struct EpisodeView: Encodable {
         (summary, notes) = (episode.summary?.text, episode.notes?.text)
         (episodeURL, feedURL, guid) = (episode.episodeURL?.text, episode.feedURL?.text, episode.guid?.text)
         artwork = episode.artwork?.path
+    }
+
+    func json(pretty: Bool) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        if pretty { encoder.outputFormatting.insert(.prettyPrinted) }
+        return String(decoding: try encoder.encode(self), as: UTF8.self)
     }
 }

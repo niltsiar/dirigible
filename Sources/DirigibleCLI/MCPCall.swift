@@ -52,6 +52,13 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         if let message = missingSessionFile(package, path: path) { throw ToolError(message) }
         let names = Backup.all(in: package).map(\.fileName)
         return names.isEmpty ? "No backups." : names.joined(separator: "\n")
+    case .episodeInfo:
+        let session: Session
+        do throws(SessionFileError) { session = try Session(contentsOf: package) } catch {
+            throw ToolError(error.message(package: path))
+        }
+        // EpisodeView holds only strings, numbers, and a flag, so the encode does not fail.
+        return (try? EpisodeView(session.episode).json(pretty: false)) ?? "{}"
     case .episode(let work):
         do throws(EditFailure<ArtworkError>) {
             try editPackageCore(package, ripple: false) { session, _ throws(ArtworkError) in

@@ -337,6 +337,7 @@ enum L10n: String, CaseIterable {
     case errorPasteCopy = "error.paste.copy"
     case errorPasteConvert = "error.paste.convert"
     case errorPasteYielded = "error.paste.yielded"
+    case errorRippleBlocked = "error.ripple.blocked"
     case pasteBanner = "paste.banner"
     case pasteDone = "paste.done"
     case revertedTo = "reverted.to"

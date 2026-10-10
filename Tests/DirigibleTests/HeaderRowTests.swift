@@ -42,10 +42,6 @@ import Testing
         return (window, host)
     }
 
-    /// The first header x right of the arm box: the row padding of 8 pt, the box of 18 pt, and 1 pt.
-    /// A count of state colors starts here, so a red arm box does not count as a fault.
-    static let rightOfArm = 27.0
-
     /// The SwiftUI hosts of the AppKit controls under `view`, in the coordinates of `root`.
     func controls(_ view: NSView, in root: NSView) -> [(kind: String, frame: NSRect, view: NSView)] {
         let name = String(describing: type(of: view))
@@ -118,11 +114,9 @@ import Testing
             }
             // Every view stays inside the row; at 180 pt the name field gives way, and the captures
             // check that width.
-            func leaves(_ view: NSView) -> [NSView] { view.subviews.isEmpty ? [view] : view.subviews.flatMap(leaves) }
-            for leaf in leaves(host) where width > 180 {
-                let frame = leaf.convert(leaf.bounds, to: host)
-                guard frame.width < width - 20 else { continue }
-                #expect(frame.maxX <= width - 8, "inside the one-line row at \(width): \(type(of: leaf)) \(frame)")
+            if width > 180 {
+                let out = outside(host, width: width)
+                #expect(out.isEmpty, "inside the one-line row at \(width): \(out)")
             }
             // The layout text is between the name field and the route symbol, from 235 pt.
             let name = try #require(found.first { $0.kind == "name" }?.frame)
@@ -136,21 +130,17 @@ import Testing
             drawNow(window)
             try await Task.sleep(for: .milliseconds(200))
             let capture = try await TimelineColorTests.capture(window)
-            func count(_ lane: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32, UInt32, UInt32) -> Bool) throws
-                -> Int
-            {
-                let columns = x ?? Self.rightOfArm...width
+            let rightOfArm = try rightOfArm(host)
+            func count(_ lane: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32) -> Bool) throws -> Int {
+                let columns = x ?? rightOfArm...width
                 let rect = host.convert(
                     NSRect(
                         x: columns.lowerBound, y: Double(lane) * 50, width: columns.upperBound - columns.lowerBound,
                         height: 50),
                     to: nil)
-                return try TimelineRulerTests.pixels(of: rect, capture, window).filter { pixel in
-                    color(pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)
-                }.count
+                return try TimelineRulerTests.pixels(of: rect, capture, window).filter(color).count
             }
-            let red = { (r: UInt32, g: UInt32, b: UInt32) in r > 180 && g < 90 && b < 90 }
-            let orange = { (r: UInt32, g: UInt32, b: UInt32) in r > 200 && g > 90 && g < 190 && b < 80 }
+            let (red, orange) = (Self.isRed, Self.isOrange)
             #expect(try count(0, red) > 10, "the state symbol shows in the row of the lost device at \(width)")
             #expect(try count(0, x: (width - 6)...width, red) == 0, "no state symbol in the handle strip at \(width)")
             #expect(try count(1, orange) > 10, "the dropped-frames symbol shows at \(width)")

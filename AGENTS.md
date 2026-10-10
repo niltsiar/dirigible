@@ -19,7 +19,7 @@ The Makefile comments give the reasons. The toolchain is Xcode 26 with Swift 6.2
 | `make test` | All tests except `AppBundleTests` and `DiskImageTests`, for the red-green loop. A bare `swift test` fails these two on purpose. `DirigibleCLITests` runs in its own process. |
 | `make test-slow` | The slow tests only. |
 | `make test-slow-push` | `make test-slow` with no `PUSH_SKIP` bench. |
-| `make check-slow-gates` | Checks that each slow-test gate has its `func` on the next line. |
+| `make check-slow-gates` | Checks the slow-test gates and the raw test waits (`scripts/check-waits.sh`). |
 | `make bench FILTER=<test>` | The slow tests that match `FILTER`, optimized. |
 | `make app` | Release build of `build/Dirigible.app` (universal, ad-hoc signed). |
 | `make icon-preview` | Renders the icon to `build/icon-preview/` for review, with no Swift build (decision 0026). |

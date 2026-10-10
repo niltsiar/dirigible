@@ -41,6 +41,12 @@ code=$?
 [[ $code -eq 3 ]] || fail "second window query: fake swift exit $code, not 3"
 [[ "$err" == *"fake swift:"* ]] || fail "second window query: no fake swift message: $err"
 
+# Control: the fake refuses a program with no window list line. The program reads no window.
+err="$("$tmp/bin/swift" 2>&1 >/dev/null <<<'print("no window list")')"
+code=$?
+[[ $code -eq 3 ]] || fail "no window list line: fake swift exit $code, not 3"
+[[ "$err" == *"fake swift:"* ]] || fail "no window list line: no fake swift message: $err"
+
 err="$("$shot" 2>&1 >/dev/null)" && fail "no argument: exit 0"
 [[ "$err" == *"usage: screenshot.sh"* ]] || fail "no argument: no usage text: $err"
 

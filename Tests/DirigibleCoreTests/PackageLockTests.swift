@@ -183,10 +183,21 @@ struct PackageLockTests {
         #expect(lock.freeBytes() > 0)
     }
 
+    @Test func aPackageThatDoesNotExistCannotBeRead() {
+        #expect(throws: SessionFileError.readFailed(errno: ENOENT)) {
+            try PackageLock(folder.appending(path: "Missing.dirigible"))
+        }
+        try? FileManager.default.removeItem(at: folder)
+    }
+}
+
+/// The free bytes of a volume from its `statfs` values. A pure function, so the suite makes no
+/// folder.
+struct SaturatedFreeBytesTests {
     /// A huge `f_bavail` (some network volumes) saturates at `Int64.max` and does not trap. Keep
-    /// the first case first: a trap stops the test, and only this trap prints a message.
+    /// the first case first: a trap ends the whole test process, and only the trap of this case
+    /// prints a message (a multiply overflow prints none).
     @Test func freeBytesSaturatesAtInt64Max() {
-        defer { try? FileManager.default.removeItem(at: folder) }
         #expect(
             saturatedFreeBytes(available: .max, blockSize: 4096) == .max, "an f_bavail over Int64.max saturates")
         #expect(
@@ -202,25 +213,22 @@ struct PackageLockTests {
     }
 
     /// Seeded oracle: the saturated value is the full-width product, or `Int64.max` when that
-    /// product does not fit.
+    /// product does not fit. The cases reach both results.
     @Test func freeBytesMatchTheFullWidthProduct() {
-        defer { try? FileManager.default.removeItem(at: folder) }
         var random = SplitMix(seed: 41)
-        var misses = 0
+        var (saturated, exact) = (0, 0)
+        var firstMiss = ""
         for _ in 0..<10_000 {
             let available = random.next() >> UInt64.random(in: 0...63, using: &random)
             let blockSize = UInt32(truncatingIfNeeded: random.next() >> UInt64.random(in: 32...63, using: &random))
             let (high, low) = available.multipliedFullWidth(by: UInt64(blockSize))
             let expected = high == 0 && low <= UInt64(Int64.max) ? Int64(low) : .max
-            if saturatedFreeBytes(available: available, blockSize: blockSize) != expected { misses += 1 }
+            if expected == .max { saturated += 1 } else { exact += 1 }
+            if firstMiss.isEmpty, saturatedFreeBytes(available: available, blockSize: blockSize) != expected {
+                firstMiss = "\(available) x \(blockSize)"
+            }
         }
-        #expect(misses == 0, "the saturated value matches the full-width product")
-    }
-
-    @Test func aPackageThatDoesNotExistCannotBeRead() {
-        #expect(throws: SessionFileError.readFailed(errno: ENOENT)) {
-            try PackageLock(folder.appending(path: "Missing.dirigible"))
-        }
-        try? FileManager.default.removeItem(at: folder)
+        #expect(firstMiss.isEmpty, "the saturated value matches the full-width product; first miss: \(firstMiss)")
+        #expect(saturated > 0 && exact > 0, "the cases reach both results: \(saturated) saturated, \(exact) exact")
     }
 }

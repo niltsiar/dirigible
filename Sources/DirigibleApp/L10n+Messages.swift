@@ -36,8 +36,8 @@ extension L10n {
         case .paste(.session(let error), _): return message(for: error, name: name)
         case .paste(let error, let source): return message(for: error, source: source)
         case .pasteYielded(let source): return errorPasteYielded.format(source)
-        // The window beeps for it; the text is for a refusal that no beep catches.
-        case .rippleBlocked: return errorRippleBlocked.text
+        // The window beeps for it and shows no alert.
+        case .rippleBlocked: return errorSessionOther.text
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         }

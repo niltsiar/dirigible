@@ -86,7 +86,6 @@
 "error.paste.copy" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo copiar (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
 "error.paste.convert" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo convertir (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
 "error.paste.yielded" = "El pegado desde «%@» se detuvo por una toma en otra ventana. Vuelva a pegar después de la toma.";
-"error.ripple.blocked" = "La línea de tiempo no se puede mover mientras una toma espera a terminar o tiene audio que no está en la línea de tiempo.";
 "paste.banner" = "Pegando desde «%@»";
 "paste.done" = "Pegado.";
 "reverted.to" = "Se restauró la copia de seguridad de %@";

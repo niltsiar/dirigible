@@ -86,7 +86,6 @@
 "error.paste.copy" = "Dirigible cannot paste from “%1$@”. The audio did not copy (error %2$lld). Check the disk and try again.";
 "error.paste.convert" = "Dirigible cannot paste from “%1$@”. The audio did not convert (error %2$lld). Check the disk and try again.";
 "error.paste.yielded" = "The paste from “%@” stopped for a take in another window. Paste again after the take.";
-"error.ripple.blocked" = "The timeline cannot move while a take waits to finish or a take has audio that is not on the timeline.";
 "paste.banner" = "Pasting from “%@”";
 "paste.done" = "Pasted.";
 "reverted.to" = "Reverted to the backup of %@";

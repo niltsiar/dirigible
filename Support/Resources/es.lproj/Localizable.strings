@@ -72,6 +72,13 @@
 "error.export.open" = "Hay demasiados archivos abiertos. Cierra otras apps y exporta de nuevo (error %lld).";
 "error.export.package" = "La sesión se movió a otro disco o se eliminó. La exportación se detuvo.";
 "error.export.yielded" = "La exportación se detuvo por una toma en otra ventana. No se creó ningún archivo. Exporte de nuevo después de la toma.";
+"error.export.artwork" = "El archivo de la ilustración del episodio no está en la sesión. Elija la ilustración de nuevo o quítela, y exporte de nuevo.";
+"error.artwork.not.downloaded" = "Dirigible no puede usar «%@» como ilustración. El archivo no está en este Mac. Descargue primero el archivo.";
+"error.artwork.unreadable" = "Dirigible no puede usar «%@» como ilustración. Dirigible no puede leer la imagen de este archivo.";
+"error.artwork.type" = "La ilustración debe ser una imagen JPEG o PNG. Este archivo es: %@.";
+"error.artwork.square" = "La ilustración debe ser cuadrada. Esta imagen mide %1$lld x %2$lld píxeles.";
+"error.artwork.large" = "La ilustración puede medir como máximo %1$lld x %1$lld píxeles. Esta imagen mide %2$lld x %2$lld píxeles.";
+"error.artwork.write" = "Dirigible no puede copiar la ilustración en la sesión (error %lld). Compruebe el disco y vuelva a intentarlo.";
 "error.import.not.audio" = "Dirigible no puede importar «%@». Dirigible no puede leer el audio de este archivo. Use un archivo WAV, AIFF, FLAC, MP3 o M4A.";
 "error.import.not.downloaded" = "Dirigible no puede importar «%@». El archivo no está en este Mac. Descargue primero el archivo.";
 "error.import.channels" = "Dirigible no puede importar «%1$@». El archivo tiene %2$lld canales. Dirigible solo importa archivos mono y estéreo. Divida el archivo en archivos mono o estéreo.";

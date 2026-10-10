@@ -201,6 +201,7 @@ extension Episode {
         episodeURL = try parse("episodeURL", WebURL.init)
         feedURL = try parse("feedURL", WebURL.init)
         guid = try parse("guid", EpisodeLine.init)
+        artwork = try parse("artwork", ArtworkName.init)
     }
 }
 

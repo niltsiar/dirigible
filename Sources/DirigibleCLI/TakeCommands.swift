@@ -107,6 +107,8 @@ extension StudioError {
         case .paste(let error, _): "the paste failed (\(error))."
         case .pasteYielded: "a take in another studio stopped the paste."
         case .rippleBlocked: "a ripple cannot move the timeline under a pending or split take."
+        // No command sets the artwork through Studio; `episode set --artwork` calls `importArtwork`.
+        case .artwork(let error): error.message
         }
     }
 }

@@ -1,10 +1,10 @@
 import DirigibleCore
 import Foundation
 
-/// The ID3v2.3 tag of `episode` (decision 0045), or no bytes for an empty episode. Text frames
-/// are UTF-16 with a BOM; URL frames are ISO-8859-1, and `WebURL` is ASCII. The frame list is
-/// the place where run 5 adds CHAP and CTOC.
-func id3Tag(_ episode: Episode) -> [UInt8] {
+/// The ID3v2.3 tag of `episode` (decision 0045), with `artwork` as the front cover, or no bytes
+/// for an empty episode. Text frames are UTF-16 with a BOM; URL frames are ISO-8859-1, and
+/// `WebURL` is ASCII. The frame list is the place where run 5 adds CHAP and CTOC.
+func id3Tag(_ episode: Episode, artwork: Data? = nil) -> [UInt8] {
     guard !episode.isEmpty else { return [] }
     let language = episode.language?.code ?? "XXX"
     var frames: [[UInt8]] = []
@@ -38,6 +38,11 @@ func id3Tag(_ episode: Episode) -> [UInt8] {
     if let url = episode.feedURL { frames.append(frame("WFED", Array(url.text.utf8))) }
     frames.append(frame("PCST", [0, 0, 0, 1]))
     text("TGID", episode.guid?.text)
+    if let artwork, let name = episode.artwork {
+        // ISO-8859-1, the MIME type, picture type 3 (front cover), and an empty description.
+        let mime = name.isPNG ? "image/png" : "image/jpeg"
+        frames.append(frame("APIC", [0] + Array(mime.utf8) + [0, 3, 0] + artwork))
+    }
     let body = frames.flatMap { $0 }
     return Array("ID3".utf8) + [3, 0, 0] + syncsafe(body.count) + body
 }

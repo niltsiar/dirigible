@@ -46,4 +46,6 @@ public enum StudioError: Error, Hashable, Sendable {
     case pasteYielded(source: String)
     /// A ripple under a pending or split take (decision 0037). Nothing changed.
     case rippleBlocked
+    /// The artwork import refused the image or failed (decision 0045). The session did not change.
+    case artwork(ArtworkError)
 }

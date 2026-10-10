@@ -38,6 +38,10 @@ package let clipsFolderName = "Clips"
 package func temporaryWAV(of stem: String) -> String { ".\(stem).wav.tmp" }
 /// True for a name that `temporaryWAV(of:)` gives. `removeTemporaryFiles` deletes such a file.
 package func isTemporaryWAV(_ name: String) -> Bool { name.hasPrefix(".") && name.hasSuffix(".wav.tmp") }
+/// The folder of the episode artwork in a package (decision 0045).
+package let artworkFolderName = "Artwork"
+/// The name in `Artwork/` of the image of `name` until its rename.
+package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
 /// The newest `session.xml` version that this build reads (decision 0039). A save writes
 /// `Session.fileVersion`.
 package let sessionVersion = 6
@@ -114,9 +118,10 @@ extension Session {
     }
 
     /// Deletes the leftover temporary files of a crash: the `.session.xml.<UUID>.tmp` files of a
-    /// save and of a backup, and each `Clips/.<stem>.wav.tmp` of an import or a finalize that no
-    /// file of the pool names. Call it only under the package lock: without the lock it can delete
-    /// the file of a save, an import, or a finalize in progress.
+    /// save and of a backup, each `Clips/.<stem>.wav.tmp` of an import or a finalize that no
+    /// file of the pool names, and each `Artwork/.<name>.tmp` of an artwork import. Call it only
+    /// under the package lock: without the lock it can delete the file of a save, an import, or a
+    /// finalize in progress.
     public func removeTemporaryFiles(in package: URL) {
         func names(_ folder: URL) -> [String] {
             (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
@@ -130,6 +135,10 @@ extension Session {
         for name in names(clips)
         where isTemporaryWAV(name) && !pool.contains(name.lowercased()) {
             unlink(clips.appending(path: name).path)
+        }
+        let artwork = package.appending(path: artworkFolderName)
+        for name in names(artwork) where name.hasPrefix(".") && name.hasSuffix(".tmp") {
+            unlink(artwork.appending(path: name).path)
         }
     }
 
@@ -234,6 +243,7 @@ private func episodeElement(_ episode: Episode) -> XMLElement {
         ("date", episode.date?.description), ("language", episode.language?.code),
         ("copyright", episode.copyright?.text), ("explicit", episode.explicit ? "true" : nil),
         ("episodeURL", episode.episodeURL?.text), ("feedURL", episode.feedURL?.text), ("guid", episode.guid?.text),
+        ("artwork", episode.artwork?.name),
     ]
     for case (let name, let value?) in attributes { add((name, value), to: node) }
     for (name, value) in [("summary", episode.summary?.text), ("notes", episode.notes?.text)] {

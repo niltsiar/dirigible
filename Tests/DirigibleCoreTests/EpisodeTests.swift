@@ -88,3 +88,24 @@ struct EpisodeTests {
         #expect(episode.isEmpty)
     }
 }
+
+/// The name of an artwork file in `Artwork/` (decision 0045, criterion C4).
+struct ArtworkNameTests {
+    @Test func aUUIDWithJPGOrPNGIsAName() throws {
+        let name = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        #expect(name.path == "Artwork/0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg" && !name.isPNG)
+        #expect(try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.png").isPNG)
+        #expect(ArtworkName(png: true).isPNG && !ArtworkName(png: false).isPNG)
+    }
+
+    @Test func anotherNameIsRefused() {
+        for text in [
+            "../0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg", "0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.gif", "cover.jpg",
+            "0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg.tmp", "",
+        ] {
+            #expect(throws: EpisodeFieldError(message: "\"\(text)\" is not an artwork file name.")) {
+                try ArtworkName(text)
+            }
+        }
+    }
+}

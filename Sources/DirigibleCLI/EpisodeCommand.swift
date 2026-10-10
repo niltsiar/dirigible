@@ -1,4 +1,5 @@
 import ArgumentParser
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -27,6 +28,12 @@ struct EpisodeCommand: ParsableCommand {
         @Option(help: "An http or https URL.") var episodeURL: String?
         @Option(help: "An http or https URL.") var feedURL: String?
         @Option(help: "The episode GUID.") var guid: String?
+        @Option(
+            help: ArgumentHelp(
+                "A square JPEG or PNG file, at most \(maximumArtworkSide) x \(maximumArtworkSide) pixels.",
+                discussion: "The command copies it into Artwork/. An empty value removes the artwork from the "
+                    + "episode; the file stays."))
+        var artwork: String?
 
         func validate() throws {
             if notes != nil && notesFile != nil { throw ValidationError("Give --notes or --notes-file, not both.") }
@@ -36,7 +43,7 @@ struct EpisodeCommand: ParsableCommand {
             var fields = EpisodeFields(
                 title: title, show: show, author: author, episode: episode, season: season, date: date,
                 language: language, copyright: copyright, explicit: nil, summary: summary, notes: notes,
-                episodeURL: episodeURL, feedURL: feedURL, guid: guid)
+                episodeURL: episodeURL, feedURL: feedURL, guid: guid, artwork: artwork)
             switch explicit {
             case nil: break
             case "true": fields.explicit = true
@@ -50,14 +57,12 @@ struct EpisodeCommand: ParsableCommand {
                     : try Data(contentsOf: URL(filePath: notesFile))
                 fields.notes = String(decoding: data, as: UTF8.self)
             }
-            let change: (inout Episode) -> Void
-            do throws(EpisodeFieldError) { change = try fields.change() } catch {
+            let work: EpisodeWork
+            do throws(EpisodeFieldError) { work = try fields.work() } catch {
                 throw ValidationError(error.message)
             }
-            try editPackage(package) { session throws(SessionError) in
-                var episode = session.episode
-                change(&episode)
-                session.setEpisode(episode)
+            try editPackage(package, refused: refusedArtwork) { session, _ throws(ArtworkError) in
+                try work.run(&session, package: package.url)
             }
         }
     }
@@ -75,16 +80,23 @@ struct EpisodeCommand: ParsableCommand {
     }
 }
 
+/// The exit of a refused image (1, as `dirigible import` of a file that is not audio) or a failed
+/// copy (2).
+private func refusedArtwork(_ error: ArtworkError) -> ExitCode {
+    if case .writeFailed = error { return fail(error.message, code: packageError) }
+    return fail(error.message, code: editRefused)
+}
+
 /// The given episode fields as text, from the CLI or an MCP tool. Nil leaves a field unchanged;
-/// an empty text clears it.
+/// an empty text clears it. `artwork` is the path of an image file.
 struct EpisodeFields: Sendable {
     var title, show, author, episode, season, date, language, copyright: String?
     var explicit: Bool?
-    var summary, notes, episodeURL, feedURL, guid: String?
+    var summary, notes, episodeURL, feedURL, guid, artwork: String?
 
     /// Parses each given field into its type, so a bad value refuses the whole change before the
     /// package lock.
-    func change() throws(EpisodeFieldError) -> @Sendable (inout Episode) -> Void {
+    func work() throws(EpisodeFieldError) -> EpisodeWork {
         func parse<T>(_ text: String?, _ make: (String) throws(EpisodeFieldError) -> T?) throws(EpisodeFieldError)
             -> T??
         {
@@ -102,7 +114,7 @@ struct EpisodeFields: Sendable {
             guid: try parse(guid, EpisodeLine.init)
         )
         let explicit = explicit
-        return { episode in
+        return EpisodeWork(artwork: artwork) { episode in
             if let value = parsed.title { episode.title = value }
             if let value = parsed.show { episode.show = value }
             if let value = parsed.author { episode.author = value }
@@ -121,6 +133,23 @@ struct EpisodeFields: Sendable {
     }
 }
 
+/// An episode edit of the CLI or an MCP tool: the parsed fields, and an image file that the edit
+/// copies into the package under the lock.
+struct EpisodeWork: Sendable {
+    /// Nil: no change. Empty: no artwork.
+    let artwork: String?
+    let change: @Sendable (inout Episode) -> Void
+
+    func run(_ session: inout Session, package: URL) throws(ArtworkError) {
+        var episode = session.episode
+        change(&episode)
+        if let artwork {
+            episode.artwork = artwork.isEmpty ? nil : try importArtwork(URL(filePath: artwork), into: package)
+        }
+        session.setEpisode(episode)
+    }
+}
+
 /// The JSON of an episode: the `session.xml` names, and only the set fields.
 struct EpisodeView: Encodable {
     let title, show, author: String?
@@ -128,6 +157,8 @@ struct EpisodeView: Encodable {
     let date, language, copyright: String?
     let explicit: Bool?
     let summary, notes, episodeURL, feedURL, guid: String?
+    /// The path in the package.
+    let artwork: String?
 
     init(_ episode: Episode) {
         (title, show, author) = (episode.title?.text, episode.show?.text, episode.author?.text)
@@ -136,5 +167,6 @@ struct EpisodeView: Encodable {
         explicit = episode.explicit ? true : nil
         (summary, notes) = (episode.summary?.text, episode.notes?.text)
         (episodeURL, feedURL, guid) = (episode.episodeURL?.text, episode.feedURL?.text, episode.guid?.text)
+        artwork = episode.artwork?.path
     }
 }

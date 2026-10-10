@@ -52,6 +52,15 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         if let message = missingSessionFile(package, path: path) { throw ToolError(message) }
         let names = Backup.all(in: package).map(\.fileName)
         return names.isEmpty ? "No backups." : names.joined(separator: "\n")
+    case .episode(let work):
+        do throws(EditFailure<ArtworkError>) {
+            try editPackageCore(package, ripple: false) { session, _ throws(ArtworkError) in
+                try work.run(&session, package: package)
+            }
+            return "OK"
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in

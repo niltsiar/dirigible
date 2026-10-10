@@ -24,6 +24,8 @@ enum ToolWork: Sendable {
     case backups
     /// `backup_revert`: an edit under the lock that reads the backup.
     case revert(Backup)
+    /// `episode_set`: an edit under the lock that can copy an image into the package.
+    case episode(EpisodeWork)
 }
 
 /// The JSON Schema of one property, with JSON values only.

@@ -264,7 +264,10 @@ private let episodeParams = (
     explicit: Param<Bool?>.optional("explicit", "The explicit flag.", .boolean),
     summary: episodeText("summary", "The short description."), notes: episodeText("notes", "The episode notes."),
     episodeURL: episodeText("episode_url", "An http or https URL."),
-    feedURL: episodeText("feed_url", "An http or https URL."), guid: episodeText("guid", "The episode GUID.")
+    feedURL: episodeText("feed_url", "An http or https URL."), guid: episodeText("guid", "The episode GUID."),
+    artwork: episodeText(
+        "artwork",
+        "The path of a square JPEG or PNG file, at most 3000 x 3000 pixels. The tool copies it into the package.")
 )
 
 let episodeTools = [
@@ -274,7 +277,7 @@ let episodeTools = [
             episodeParams.title, episodeParams.show, episodeParams.author, episodeParams.episode, episodeParams.season,
             episodeParams.date, episodeParams.language, episodeParams.copyright, episodeParams.explicit,
             episodeParams.summary, episodeParams.notes, episodeParams.episodeURL, episodeParams.feedURL,
-            episodeParams.guid,
+            episodeParams.guid, episodeParams.artwork,
         ]
     ) { a throws(ToolError) in
         let p = episodeParams
@@ -282,14 +285,8 @@ let episodeTools = [
             title: try a[p.title], show: try a[p.show], author: try a[p.author], episode: try a[p.episode],
             season: try a[p.season], date: try a[p.date], language: try a[p.language], copyright: try a[p.copyright],
             explicit: try a[p.explicit], summary: try a[p.summary], notes: try a[p.notes],
-            episodeURL: try a[p.episodeURL], feedURL: try a[p.feedURL], guid: try a[p.guid])
-        let change: @Sendable (inout Episode) -> Void
-        do throws(EpisodeFieldError) { change = try fields.change() } catch { throw ToolError(error.message) }
-        return .edit { session throws(SessionError) in
-            var episode = session.episode
-            change(&episode)
-            session.setEpisode(episode)
-            return []
-        }
+            episodeURL: try a[p.episodeURL], feedURL: try a[p.feedURL], guid: try a[p.guid],
+            artwork: try a[p.artwork])
+        do throws(EpisodeFieldError) { return .episode(try fields.work()) } catch { throw ToolError(error.message) }
     }
 ]

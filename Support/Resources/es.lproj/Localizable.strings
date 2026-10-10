@@ -116,7 +116,7 @@
 "track.name.guest" = "Invitado";
 "track.name" = "Nombre";
 "track.arm.label" = "Armar %@";
-"track.arm.help" = "Armar pista para grabar.";
+"track.arm.help" = "Armar la pista para grabar.";
 "track.mute.letter" = "M";
 "track.solo.letter" = "S";
 "track.mute.label" = "Silenciar %@";

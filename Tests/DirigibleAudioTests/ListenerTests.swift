@@ -18,17 +18,28 @@ final class TestOutput: @unchecked Sendable {
     private var startList: [Start] = []
     private var stopResult = true
     private var startFails = false
+    private var watchFails = false
     private var stopGate: Gate?
 
     var starts: [Start] { lock.withLock { startList } }
     func stop(returns result: Bool) { lock.withLock { stopResult = result } }
     func failStarts(_ fails: Bool) { lock.withLock { startFails = fails } }
+    /// Each data source listener add fails.
+    func failWatch(_ fails: Bool) { lock.withLock { watchFails = fails } }
     /// The next stop waits in `gate` before it returns.
     func holdNextStop(in gate: Gate) { lock.withLock { stopGate = gate } }
 
     var output: ListenOutput {
         ListenOutput(
-            watch: { SpeakerGuard.refresh($0, output: { 1 }, watch: { _ in }, speakers: { _ in false }) },
+            watch: { [self] ring in
+                let fails = lock.withLock { watchFails }
+                var added = true
+                SpeakerGuard.refresh(
+                    ring, output: { 1 },
+                    watch: { added = SpeakerGuard.watch(ring, $0, add: { _ in !fails }, remove: { _ in }) && added },
+                    speakers: { _ in false })
+                return added
+            },
             unwatch: { SpeakerGuard.close($0, remove: { _ in }) },
             start: { [self] ring, rate, inputBlock throws(HALError) in
                 guard !lock.withLock({ startFails }) else { throw .status(kAudioHardwareUnspecifiedError) }
@@ -167,6 +178,21 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         #expect(reports.all == [.quiet], "a failed output start is quiet")
         #expect(hal.listenDetaches("mic") >= 1, "a failed output start detaches the IOProc")
         output.failStarts(false)
+        await until(limit: .seconds(10), "the retry plays") { reports.all == [.quiet, .playing] }
+        await listener.off()
+    }
+
+    /// A failed speaker listener add is quiet: the Listener detaches and tries again, and the
+    /// retry plays (code gate round 1, item 3).
+    @Test func aFailedSpeakerWatchWaits() async throws {
+        output.failWatch(true)
+        let listener = listener(keepLimit: .max)
+        listener.start()
+        await until(limit: .seconds(10), "a failed watch retries") { hal.listenTries("mic").count >= 2 }
+        #expect(reports.all == [.quiet], "a failed watch is quiet")
+        #expect(output.starts.isEmpty, "no unit starts after a failed watch")
+        #expect(hal.listenDetaches("mic") >= 1, "a failed watch detaches the IOProc")
+        output.failWatch(false)
         await until(limit: .seconds(10), "the retry plays") { reports.all == [.quiet, .playing] }
         await listener.off()
     }

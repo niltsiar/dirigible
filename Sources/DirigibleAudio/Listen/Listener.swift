@@ -1,3 +1,4 @@
+import CoreAudio
 import Foundation
 import os
 
@@ -154,8 +155,9 @@ final class Listener: @unchecked Sendable {
             ring.deallocate()
             return wait()
         }
-        output.watch(ring)
         do throws(HALError) {
+            // A failed speaker listener add takes the path of a failed start: quiet, then a retry.
+            guard output.watch(ring) else { throw .status(kAudioHardwareUnspecifiedError) }
             let stop = try output.start(ring, rate, attached.inputBlock)
             current = Appearance(input: input, detach: attached.detach, stop: stop, inputBlock: attached.inputBlock)
             phase = .playing

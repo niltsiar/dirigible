@@ -4,8 +4,9 @@ import CoreAudio
 /// The output side of a Listener (decision 0044), as closures: the live value makes an AUHAL
 /// default output unit, and tests give closures. Not a protocol: two values, one type.
 struct ListenOutput: Sendable {
-    /// Installs the speaker guard of `ring` and reads the flag once.
-    var watch: @Sendable (_ ring: ListenRing) -> Void
+    /// Installs the speaker guard of `ring` and reads the flag once. False when a listener add
+    /// failed: the ring then plays zeros for good.
+    var watch: @Sendable (_ ring: ListenRing) -> Bool
     /// Removes the speaker listeners of `ring`. The ring adds no listener after it.
     var unwatch: @Sendable (_ ring: ListenRing) -> Void
     /// Makes and starts an output unit that pulls `ring` at the input `rate`. It calls
@@ -18,7 +19,7 @@ struct ListenOutput: Sendable {
     var isLive = false
 
     static let live = ListenOutput(
-        watch: { _ = SpeakerGuard.open($0) }, unwatch: { SpeakerGuard.close($0) },
+        watch: { SpeakerGuard.open($0) }, unwatch: { SpeakerGuard.close($0) },
         start: { ring, rate, inputBlock throws(HALError) in try startLive(ring, rate: rate, inputBlock: inputBlock) },
         isLive: true)
 
@@ -27,7 +28,10 @@ struct ListenOutput: Sendable {
     /// with `ring.pull`.
     static func offline(speakers: Bool = false, startFails: Bool = false) -> ListenOutput {
         ListenOutput(
-            watch: { SpeakerGuard.refresh($0, output: { 1 }, watch: { _ in }, speakers: { _ in speakers }) },
+            watch: {
+                SpeakerGuard.refresh($0, output: { 1 }, watch: { _ in }, speakers: { _ in speakers })
+                return true
+            },
             unwatch: { SpeakerGuard.close($0, remove: { _ in }) },
             start: { ring, rate, inputBlock throws(HALError) in
                 if startFails { throw .status(kAudioHardwareUnspecifiedError) }

@@ -27,20 +27,24 @@ enum SpeakerGuard {
     }
 
     /// Adds the data source listener of `ring` to `device` once, and never after `close`. When
-    /// `close` runs during the add, this call removes its own add.
-    static func watch(
+    /// `close` runs during the add, this call removes its own add. A failed add fails closed: no
+    /// listener tells the ring of a later change, so it plays zeros for good, and this returns
+    /// false.
+    @discardableResult static func watch(
         _ ring: ListenRing, _ device: AudioObjectID, add: (AudioObjectID) -> Bool, remove: (AudioObjectID) -> Void
-    ) {
+    ) -> Bool {
         let inserted = ring.watchState.withLock { state in
             guard !state.closed else { return false }
             return state.watched.insert(device).inserted
         }
-        guard inserted else { return }
+        guard inserted else { return true }
         guard add(device) else {
             _ = ring.watchState.withLock { $0.watched.remove(device) }
-            return
+            ring.mute()
+            return false
         }
         if ring.watchState.withLock({ $0.closed }) { remove(device) }
+        return true
     }
 
     /// Sets `closed`, then removes each data source listener. A second removal of one listener
@@ -60,13 +64,15 @@ enum SpeakerGuard {
         kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput)
 
     /// Adds the default-output listener of `ring`, then reads the flag. The ring context is the
-    /// client data, so it stays for the process life (0013 Detach). False when the add fails.
+    /// client data, so it stays for the process life (0013 Detach). A failed add fails closed, as
+    /// in `watch`: the ring plays zeros for good, and this returns false.
     static func open(_ ring: ListenRing) -> Bool {
         var address = defaultOutput
-        let added = AudioObjectAddPropertyListener(
-            AudioObjectID(kAudioObjectSystemObject), &address, proc, ring.context)
-        refresh(ring)
-        return added == noErr
+        let added =
+            AudioObjectAddPropertyListener(AudioObjectID(kAudioObjectSystemObject), &address, proc, ring.context)
+            == noErr
+        if !added { ring.mute() }
+        return refresh(ring) && added
     }
 
     /// Removes the data source listeners of `ring`, then its default-output listener.
@@ -76,18 +82,22 @@ enum SpeakerGuard {
         _ = AudioObjectRemovePropertyListener(AudioObjectID(kAudioObjectSystemObject), &address, proc, ring.context)
     }
 
-    static func refresh(_ ring: ListenRing) {
+    /// The live refresh. False when a data source listener add failed.
+    @discardableResult static func refresh(_ ring: ListenRing) -> Bool {
+        var added = true
         refresh(
             ring, output: { AudioDefaults.liveDefault(kAudioHardwarePropertyDefaultOutputDevice) },
             watch: { device in
-                watch(
-                    ring, device,
-                    add: { device in
-                        var address = dataSource
-                        return AudioObjectAddPropertyListener(device, &address, proc, ring.context) == noErr
-                    },
-                    remove: { removeDataSource($0, of: ring) })
+                added =
+                    watch(
+                        ring, device,
+                        add: { device in
+                            var address = dataSource
+                            return AudioObjectAddPropertyListener(device, &address, proc, ring.context) == noErr
+                        },
+                        remove: { removeDataSource($0, of: ring) }) && added
             }, speakers: AudioDefaults.liveSpeakers)
+        return added
     }
 
     private static func removeDataSource(_ device: AudioObjectID, of ring: ListenRing) {

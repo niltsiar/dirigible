@@ -105,10 +105,10 @@ fi
 if grep -qE 'dirigible-flakes' <<< "$NORMALIZED"; then
   block "names the flakes file (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
 fi
-# Only check-changed.sh --wait-load and run-checks.sh write the run marks that .githooks/pre-commit
-# reads, so a direct change cannot clear a mark to commit during a check.
-if grep -qE 'dirigible-check-running' <<< "$NORMALIZED"; then
-  block "names the run marks of make check-changed (only check-changed.sh --wait-load and scripts/run-checks.sh write them; the pre-commit hook skips the mark of a dead pid)"
+# Only scripts/run-checks.sh writes and removes the run marks that .githooks/pre-commit reads, so
+# a direct write, move, or remove cannot clear a mark to commit during a check. A read is allowed.
+if grep -qE '(^|[;&|[:space:]])(rm|mv|cp|tee|truncate|touch|ln)[[:space:]][^;&|]*dirigible-check-running|>[[:space:]]*[^;&|[:space:]]*dirigible-check-running' <<< "$NORMALIZED"; then
+  block "writes, moves, or removes the run marks of make check-changed (only scripts/run-checks.sh writes them; the pre-commit hook skips a stale mark; read them with ls or cat)"
 fi
 
 # A new Finder window opens as a tab of the window group of the user, so a bounds, position, or

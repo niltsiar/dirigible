@@ -30,6 +30,7 @@ cat > "$bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$LAND_LOG"
 [[ -z "${CHECK_RISK:-}" ]] || echo "make: risk $CHECK_RISK" >> "$LAND_LOG"
+[[ -z "${BASE:-}" ]] || echo "make: base $BASE" >> "$LAND_LOG"
 git merge-base --is-ancestor origin/main HEAD && echo "make: rebased" >> "$LAND_LOG"
 case "${FAKE_MAKE:-ok}" in
   red) exit 1 ;;
@@ -275,6 +276,7 @@ stamp origin/main
 commit_file docs/a.md
 stamp_case 'docs delta' 'stamp: delta check-docs' 'make -k check-docs'
 grep -qx 'make: risk no' "$c/log" || fail "docs delta: run-checks.sh did not get CHECK_RISK=no: $(cat "$c/log")"
+grep -qx 'make: base origin/main' "$c/log" || fail "docs delta: run-checks.sh did not get BASE, so it does not mark the tree: $(cat "$c/log")"
 ! grep -q '^sysctl' "$c/log" || fail "docs delta: the load wait read the load: $(cat "$c/log")"
 stamp_setup
 stamp origin/main

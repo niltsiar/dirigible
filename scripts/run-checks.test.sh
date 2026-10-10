@@ -12,7 +12,7 @@ repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS BASE
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
@@ -53,7 +53,9 @@ cat > "$tmp/bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$FAKE_LOG"
 for f in "$(git rev-parse --path-format=absolute --git-dir)"/dirigible-check-running/*; do
-  [[ -e $f ]] && kill -0 "${f##*/}" 2>/dev/null && echo "live mark ${f##*/}" >> "$FAKE_LOG.marks"
+  p="${f##*/}"
+  [[ -e $f ]] && kill -0 "$p" 2>/dev/null && [[ "$(cat "$f")" == "$(ps -o lstart= -p "$p")" ]] &&
+    echo "live mark $p" >> "$FAKE_LOG.marks"
 done
 while IFS= read -r l; do
   case "$l" in 2:*) echo "${l#2:}" >&2 ;; *) echo "$l" ;; esac
@@ -188,10 +190,19 @@ code=$?
 [[ $code -eq 0 && -z "$out" ]] || fail "--flakes with no file: exit $code: [$out]"
 [[ ! -s "$tmp/log" ]] || fail "--flakes ran a check: $(cat "$tmp/log")"
 
-# While make runs, the tree has a mark with the live pid of the caller of run-checks.sh, so the
-# pre-commit hook refuses a commit that would make the pass stamp useless.
+# A stamped run (BASE set by make check-changed BASE=<ref> or by the land.sh delta) marks the tree
+# while make runs: the pid of run-checks.sh and its start time. The mark is gone after a pass and
+# after a fail. A run with no BASE does not mark the tree.
+marks="$w/.git/dirigible-check-running"
+: > "$tmp/log.marks"
+BASE=origin/main run 1 0 'ok' check
+grep -q '^live mark [0-9]' "$tmp/log.marks" || fail "a stamped run: no live mark while make ran"
+[[ -z "$(ls "$marks" 2>/dev/null)" ]] || fail "a stamped run: the mark stays after a pass: $(ls "$marks")"
+BASE=origin/main run 1 2 '2:make: *** [check] Error 2' check
+[[ -z "$(ls "$marks" 2>/dev/null)" ]] || fail "a stamped run: the mark stays after a fail: $(ls "$marks")"
+: > "$tmp/log.marks"
 run 1 0 'ok' check
-grep -q '^live mark [0-9]' "$tmp/log.marks" || fail "no live run mark while make ran"
+[[ ! -s "$tmp/log.marks" ]] || fail "a run with no BASE marked the tree"
 
 [[ $failures -eq 0 ]] && echo "run-checks tests: all passed"
 exit $((failures > 0))

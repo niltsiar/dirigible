@@ -18,17 +18,26 @@ if [[ "${1:-}" == --flakes ]]; then
     cat "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes" 2>/dev/null || true
     exit 0
 fi
-# Mark the tree with the pid of the caller (the make recipe shell, or land.sh) while the check
-# runs: .githooks/pre-commit refuses a commit while a mark names a live pid, because a commit makes
-# the pass stamp useless. One file per pid, so a test run does not clear the mark of a real run.
-# check-changed.sh --wait-load writes the same mark.
-marks="$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running"
-mkdir -p "$marks"
-for f in "$marks"/*; do [[ -e $f ]] && ! kill -0 "${f##*/}" 2>/dev/null && rm -f "$f"; done
-: > "$marks/$PPID"
+# A stamped run (BASE set by make check-changed BASE=<ref>, which exports it, or by the land.sh
+# delta) marks the tree while it runs: .githooks/pre-commit refuses a commit while the mark is
+# live, because a commit makes the pass stamp useless. The mark is a file of the run pid in
+# dirigible-check-running of the git dir. It holds the start time of the pid, so a reused pid is
+# not live. The EXIT trap removes the mark, and the loop removes a stale mark.
+mark=""
+if [[ -n "${BASE:-}" ]]; then
+    marks="$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running"
+    mkdir -p "$marks"
+    for f in "$marks"/*; do
+        [[ -e $f ]] || continue
+        p="${f##*/}"
+        { kill -0 "$p" 2>/dev/null && [[ "$(cat "$f")" == "$(ps -o lstart= -p "$p")" ]]; } || rm -f "$f"
+    done
+    mark="$marks/$$"
+    ps -o lstart= -p $$ > "$mark"
+fi
 here="$(cd "$(dirname "$0")" && pwd)"
 log="$(mktemp)"
-trap 'rm -f "$log" "$log".*' EXIT
+trap 'rm -f "$log" "$log".* ${mark:+"$mark"}' EXIT
 
 # GNU Make 3.81 writes the Error and not-remade lines to stderr: 2>&1 keeps them in order.
 if "${MAKE:-make}" -k "$@" 2>&1 | tee "$log"; then exit 0; fi

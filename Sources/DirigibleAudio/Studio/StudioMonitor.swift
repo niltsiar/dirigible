@@ -19,9 +19,9 @@ struct MonitoredTrack: Hashable, Sendable {
 }
 
 extension Studio {
-    /// Meters `armed` while no take writer exists (decision 0015). Each armed track with a route
-    /// gets an entry in `liveTracks`: `.monitoring`, `.deviceLost` while its device is gone, or
-    /// `.retryStopped` at the keep limit.
+    /// Meters `armed` and the listened tracks while no take writer exists (decision 0015). Each
+    /// of these tracks with a route gets an entry in `liveTracks`: `.monitoring`, `.deviceLost`
+    /// while its device is gone, or `.retryStopped` at the keep limit.
     /// It writes no file. An empty request (or no routed track) releases every monitor device
     /// before it returns. It runs in the monitor order, not in the package write chain, so it
     /// never waits for an autosave, a start save, or a finalize. While take writers exist, it
@@ -58,10 +58,12 @@ extension Studio {
     /// The monitor writer of `uid`. For tests.
     func monitorWriter(_ uid: String) -> DeviceWriter? { monitors[uid]?.writer }
 
-    /// The armed tracks of the request with a route, by device UID, in request order.
+    /// The tracks with a device route of the monitor request and then of the listen request
+    /// (decision 0044), by device UID, in request order. It reads both requests at the turn, so
+    /// the last call of each wins.
     private func monitorPlan() -> [String: [MonitoredTrack]] {
         var plan: [String: [MonitoredTrack]] = [:]
-        for id in monitorRequest {
+        for id in monitorRequest + listenRequest.filter({ !monitorRequest.contains($0) }) {
             // An app route has no monitor: no tap and no prompt at arm time (decision 0029).
             guard case .device(let uid, let channels) = session.track(id)?.route else { continue }
             plan[uid, default: []].append(MonitoredTrack(id: id, channels: channels))

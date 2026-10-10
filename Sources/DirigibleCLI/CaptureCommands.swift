@@ -141,15 +141,16 @@ private func recordTake(
 }
 
 /// Exit 1 for a take start or a placement that the studio refused before it changed the package;
+/// 3 for a ripple under a pending or split take, as a split take of `editPackage` (decision 0037);
 /// else 2.
-private func refusedCode(_ error: StudioError) -> Int32 {
+func refusedCode(_ error: StudioError) -> Int32 {
     switch error {
     case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .placementSpace,
         .appSourcesUnavailable,
         .session,
-        .segment,
-        .rippleBlocked:
+        .segment:
         editRefused
+    case .rippleBlocked: unplacedAudio
     case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded:
         packageError
     }

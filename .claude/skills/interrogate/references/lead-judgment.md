@@ -37,8 +37,7 @@ With `risk: yes`, after each fix commit, replay the logs that `.claude/skills/de
 The workflow gives the reviewers the rule of each mode:
 
 - Round 1, open: review the whole target.
-- A middle round, follow-up: read `prior`. Do not re-raise a fixed item, unless the fix is wrong.
-- The last round (`round` = `maxRounds`), convergence: check only that each earlier "Act on" item is fixed correctly and consistently, and that no fix added a defect in what it changed. Report a critical defect anywhere. Nothing else.
+- Each round after round 1, convergence: check only that each earlier "Act on" item is fixed correctly and consistently, and that no fix added a defect in what it changed. Report a critical defect anywhere. Nothing else.
 
 In the convergence round:
 

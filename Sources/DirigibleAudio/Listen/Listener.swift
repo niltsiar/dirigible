@@ -23,7 +23,8 @@ final class Listener: @unchecked Sendable {
         var retries = 0
     }
 
-    /// The kept appearances of one Listener: about 200 bytes each, as a monitor (decision 0015).
+    /// The kept appearances of one Listener (decision 0015): about 200 bytes each after a clean
+    /// stop and detach, and about 256 KB each after a failed one, which keeps the ring bytes.
     static let keepLimit = 64
 
     /// The state that `mute` and `setMap` change from any thread: the map, the mute, and the ring

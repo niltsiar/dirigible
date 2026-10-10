@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality, or a chosen lens list) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records), lenses?: string[] (lens keys that replace the default lenses of the target; a lens outside its gates is dropped; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering, and code-quality run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. Round 1 with no prior is open; each other round only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records; with worktree, ledger, prior, and a plan scope are absolute), lenses?: string[] (lens keys that replace the default lenses of the target; a lens outside its gates is dropped; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering, and code-quality run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. Round 1 with no prior is open; each other round only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its warning and critical findings' },
@@ -29,6 +29,10 @@ if (paths && (!Array.isArray(paths) || !paths.length || target !== 'diff')) thro
 // read goes to the tree that args.worktree names.
 const worktree = (args && args.worktree) || ''
 if (worktree && !worktree.startsWith('/')) throw new Error('args.worktree must be an absolute path')
+// A worktree has no .scratchpads, so a relative run file (the ledger, a prior verdict, the plan)
+// resolves to no file there, and a skeptic that cannot read the ledger cannot uphold a failure.
+const runFiles = [ledger, ...prior, ...(target === 'plan' ? [scope] : [])].filter(Boolean)
+if (worktree && runFiles.some(f => !String(f).startsWith('/'))) throw new Error('args.ledger, args.prior, and a plan scope must be absolute paths with args.worktree')
 const git = worktree ? `git -C ${worktree}` : 'git'
 const treeText = worktree ? ` The branch is checked out in ${worktree}: read each tracked file there, not in the main checkout.` : ''
 
@@ -104,9 +108,14 @@ const VERDICTS = {
 }
 
 const pathArgs = paths ? ` -- ${paths.join(' ')}` : ''
+// A whole diff or a whole ledger in one read fills the context: a lens reads the stat first and
+// one file per call, and a skeptic reads only the files that its findings name.
 const targetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read it and every file it references.${treeText}`
-  : `The target is the diff of the current branch against ${scope}: run \`${git} diff ${scope}...HEAD${pathArgs}\` and \`${git} diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.${treeText}`
+  : `The target is the diff of the current branch against ${scope}: run \`${git} diff --stat ${scope}...HEAD${pathArgs}\` first, then read the diff of one file per call (\`${git} diff ${scope}...HEAD -- <file>\`), and \`${git} diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.${treeText}`
+const skepticTargetText = target === 'plan'
+  ? `The target is the plan at ${scope}. Read the plan, and only the files that a finding names.${treeText}`
+  : `The target is the diff of the current branch against ${scope}: read \`${git} diff ${scope}...HEAD -- <file>\` and \`${git} diff -- <file>\` only for the files that a finding names. Read the surrounding code, not only the hunks.${treeText}`
 
 // The script has no shell, so one agent lists the changed files of the diff. A diff with no
 // changed file (the main checkout of a branch in a worktree, or a paths scope that matches
@@ -170,7 +179,7 @@ const results = await pipeline(
     if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope, nits }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
     return agent(
-      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${targetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. A finding that attacks a settled choice without new evidence is not upheld.${ledger ? ` Read ${ledger} first: a finding whose failure already happened in this run is upheld, even if it looks hypothetical.` : ''} Do not modify files.${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
+      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${skepticTargetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. A finding that attacks a settled choice without new evidence is not upheld.${ledger ? ` Grep ${ledger} for the result tokens (failed, fail, flake, survived, NOT VERIFIED, missed unknown) and the words of each finding: a finding whose failure already happened in this run is upheld, even if it looks hypothetical.` : ''} Do not modify files.${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
       { label: `verify:${lens.key}`, phase: 'Verify', schema: VERDICTS, effort: 'medium' },
     ).then(v => {
       const upheld = new Map(((v && v.verdicts) || []).map(x => [x.index, x]))

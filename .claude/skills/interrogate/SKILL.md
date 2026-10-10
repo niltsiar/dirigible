@@ -9,7 +9,7 @@ Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a dif
 
 ## Step 1: Determine the target
 
-- **Plan gate:** the plan file, usually `.scratchpads/runs/<run>/plan.md`, plus any design sketch.
+- **Plan gate:** the plan file, usually `<main-checkout>/.scratchpads/runs/<run>/plan.md`, plus any design sketch.
 - **Code gate:** `git diff main...HEAD` plus the working tree, or the files or commit range that the user names.
 
 ## Step 2: State the intent and the settled list
@@ -23,7 +23,7 @@ Then list the settled choices, one line each: the scope, the run order, the choi
 Run the saved workflow `review-panel` with the Workflow tool:
 
 ```
-Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: ".scratchpads/runs/<run>/decisions.tsv", lenses?, paths?, worktree: "<absolute worktree path>" } })
+Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: "<main-checkout>/.scratchpads/runs/<run>/decisions.tsv", lenses?, paths?, worktree: "<absolute worktree path>" } })
 ```
 
 The workflow runs the reviewer agents in parallel. Skeptics try to refute each warning and critical finding. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, each gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate makes one call per item below that the classes from `scripts/check-changed.sh` match:

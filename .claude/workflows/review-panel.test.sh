@@ -2,7 +2,8 @@
 # Run the lens selection of review-panel.js with real args and stub agents: the default lenses and
 # maxRounds of each target, the convergence prompt of each round after round 1, an explicit lens
 # list, a named lens outside its gates, an unknown key,
-# an empty selection, and a paths scope with no changed file. Check that only warning and critical
+# an empty selection, a paths scope with no changed file, the read limits of the lens and skeptic
+# prompts, and the absolute run paths of a worktree call. Check that only warning and critical
 # findings go to a skeptic, and that the result lists the nits of each lens under `nits`. Run by
 # `make test-hooks`.
 set -euo pipefail
@@ -78,7 +79,7 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
 
 ;(async () => {
   const scoped = await expectKeys('five lenses on a skills diff', { target: 'diff', lenses: FIVE, paths: PATHS }, FIVE, [], ['AGENTS.md'])
-  if (scoped && !scoped.prompts.some(p => p.includes(`git diff main...HEAD -- ${PATHS.join(' ')}`))) fail('five lenses on a skills diff: no reviewer prompt has the paths scope')
+  if (scoped && !scoped.prompts.some(p => p.includes(`git diff --stat main...HEAD -- ${PATHS.join(' ')}`))) fail('five lenses on a skills diff: no reviewer prompt has the paths scope')
   // The code gate runs the code-review skill in place of the code-quality lens (interrogate Step
   // 3), so code-quality runs only by name.
   await expectKeys('default diff lenses', { target: 'diff' }, ['premortem', 'devils-advocate', 'architecture'])
@@ -137,6 +138,35 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
   await expectNits('a lens with only nits', [finding('nit', 'nit one'), finding('nit', 'nit two')], { verify: false, nits: ['nit one', 'nit two'] })
   await expectNits('a nit and a warning', [finding('nit', 'nit one'), finding('warning', 'warn one')], { verify: true, sent: ['warn one'], nits: ['nit one'] })
   await expectNits('a critical finding', [finding('critical', 'crit one')], { verify: true, sent: ['crit one'], nits: [] })
+  // Smaller reads: a diff lens reads the stat first and one file per call; a skeptic reads only
+  // the files that a finding names and greps the ledger; a plan lens still reads every file that
+  // the plan references.
+  try {
+    const got = await run({ target: 'diff', lenses: ['premortem'] })
+    const prompt = got.prompts[got.labels.indexOf('review:premortem')] || ''
+    if (!prompt.includes('diff --stat') || !prompt.includes('one file per call')) fail('diff lens: no stat-first, one-file-per-call read')
+  } catch (error) {
+    fail(`diff lens reads: threw ${error.message}`)
+  }
+  try {
+    const got = await run({ target: 'plan', lenses: ['premortem'], scope: '/abs/plan.md', ledger: '/abs/d.tsv' }, ['a.sh'], { premortem: [finding('warning', 'warn one')] })
+    const lens = got.prompts[got.labels.indexOf('review:premortem')] || ''
+    const skeptic = got.prompts[got.labels.indexOf('verify:premortem')] || ''
+    if (!lens.includes('every file it references')) fail('plan lens: it no longer reads every file that the plan references')
+    if (!skeptic.includes('only the files that a finding names')) fail('plan skeptic: no read limit to the files that a finding names')
+    if (skeptic.includes('every file it references')) fail('plan skeptic: it reads every file that the plan references')
+    if (!/Grep \/abs\/d\.tsv for the result tokens .*NOT VERIFIED.* and the words of each finding: a finding whose failure already happened in this run is upheld/.test(skeptic)) fail('plan skeptic: no grep of the ledger with the upheld-failure clause in one sentence')
+    if (skeptic.includes('Read /abs/d.tsv first')) fail('plan skeptic: it reads the whole ledger')
+  } catch (error) {
+    fail(`plan skeptic reads: threw ${error.message}`)
+  }
+  // With a worktree, a relative ledger, prior file, or plan scope resolves in the worktree, which
+  // has no .scratchpads: each throws. With no worktree, a relative ledger still works.
+  await expectThrow('a relative ledger with a worktree', { target: 'diff', worktree: '/abs/wt', ledger: 'rel.tsv' }, /absolute path/)
+  await expectThrow('a relative prior file with a worktree', { target: 'diff', worktree: '/abs/wt', round: 2, prior: ['rel.md'] }, /absolute path/)
+  await expectThrow('a relative plan scope with a worktree', { target: 'plan', worktree: '/abs/wt', scope: 'rel/plan.md' }, /absolute path/)
+  await expectKeys('a relative ledger with no worktree', { target: 'diff', ledger: 'rel.tsv' }, ['premortem', 'devils-advocate', 'architecture'])
+  await expectKeys('absolute paths with a worktree', { target: 'plan', worktree: '/abs/wt', scope: '/abs/plan.md', ledger: '/abs/d.tsv' }, ['premortem', 'devils-advocate', 'architecture'])
   if (failures) { console.log(`${failures} failure(s)`); process.exit(1) }
   console.log('review-panel.test.sh: all cases pass')
 })()

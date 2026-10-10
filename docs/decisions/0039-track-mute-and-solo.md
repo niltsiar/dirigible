@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-05
 - Accepted: 2026-10-05, after plan gates 1 and 2 of run `2026-10-05-mute-solo`.
+- Amended: 2026-10-10. No playback runs during a take, and M and S stay off during a take. Release 3 run 9 (pre-roll) decides playback, M, and S during a take (see 0044).
 - Amends: 0003 (version 5 adds mute and solo), 0016 (an update during play crossfades a mute or solo change), 0019 (the track filter of `MixReader`), 0024 (the `session.xml` version table).
 
 ## Context

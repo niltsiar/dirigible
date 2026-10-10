@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-10-10. The window meters the listened tracks of the record monitor, and the armed tracks while Monitor Inputs is on. A listen needs no arm. `Studio.monitor(armed:)`, the hand-over, and the device list do not change (see 0044).
 - Amended: 2026-10-03. The device list also watches the default devices and the output data source (run 6b).
 - Amended: 2026-09-27. Monitor Inputs is a toolbar toggle and a Record menu item with Shift-Command-M. The check box in the window goes (see 0023).
 

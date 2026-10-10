@@ -6,6 +6,7 @@
 - Amended: 2026-09-27. A take with no segment leaves its anchor file, so the next take has the next number (see 0024 P10). The generation rule does not change.
 - Amended: 2026-10-02. The writer slot of an app appearance owns its tap and aggregate; the detach also destroys both, and it is clean only when each step returns noErr. IsAlive false on an app aggregate rebuilds in place of a loss. The start reads the microphone status only when an armed track has a device route, and starts the app writers after each device writer attached (see 0030).
 - Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **Callbacks** and **Status codes** hold the rules for every audio callback and framework status. `AGENTS.md` points here.
+- Amended: 2026-10-10. A `Listener` also owns an input IOProc on a device, for the record monitor. Its callback is a `static let` C function, and it keeps the detach and keep rules of this decision. Its ring is a `ListenRing`, not a `CaptureRing` (see 0044).
 
 ## Context
 

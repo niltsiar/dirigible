@@ -50,7 +50,7 @@ A deliver run with the goal "apply the upkeep items". If the user asked for a ch
 
 - Follow the **writing-for-agents** skill for an edit of a skill, an agent, or `AGENTS.md`.
 - Edit repo files only (`.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `docs/`, `Makefile`, `scripts/`), never user-level files under `~/.claude/`.
-- Edit `.claude/hooks/` only when `make test-hooks` covers the change (a chain rule through `expect_each_join`) and keeps each block case.
+- Edit `.claude/hooks/` only when `make test-hooks` covers it (a chain rule through `expect_each_join`, an AppleScript rule through `expect_each_form`) and keeps each block case.
 - Make one commit per changed doc file, with its `rules.tsv` rows and the check that replaces its prose.
 - Append a `learnings.md` line with the date, the key, and the commit hash, and remove the item from `## Next`.
 

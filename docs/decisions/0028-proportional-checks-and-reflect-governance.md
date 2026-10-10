@@ -42,7 +42,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 | Run | Review panel |
 |---|---|
-| Small: `risk: no` | Amended 2026-10-10. Plan gate and code gate: 1 round of at most two lenses that match the classes, and `code-review` at a code gate with a class other than docs or comments. Round 2 only on a critical item. A fix check only with Act-on items. One subagent runs Phases 1-2 and 4; the lead runs the gates. |
+| Small: `risk: no` | Amended 2026-10-10. Plan gate and code gate: 1 round of at most two lenses that match the classes, and `code-review` at a code gate with a class other than docs or comments. Round 2 only on a critical item. Each Act-on item gets the fix check, critical or not. One subagent runs Phases 1-2 and 4; the lead runs the gates. |
 | `risk: yes` | Amended 2026-10-10. Plan gate and code gate: 2 rounds at most, with the lenses of each class. Round 2 runs only on a critical item or a warning, and it is the convergence round only. At the code gate, `code-review` replaces the code-quality lens, and round 2 is `code-review` `medium` on the fix range. |
 
 ### Word budgets

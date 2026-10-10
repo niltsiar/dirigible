@@ -61,5 +61,5 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
-AGENTS.md	1659	2026-10-10-agents-md-restructure level 1 (user request: the no-op lines go): AGENTS.md goes from 1782 to 1659 words, so the row goes to the new count
-TOTAL	31539	2026-10-10-agents-md-restructure level 1: AGENTS.md is 123 words shorter, so TOTAL goes down by 123
+AGENTS.md	1340	2026-10-10-agents-md-restructure level 2 (user request: progressive disclosure): AGENTS.md goes from 1659 to 1271 words; the row keeps room for the module map and tool lines of the next commits, which lower it to the final count
+TOTAL	31220	2026-10-10-agents-md-restructure level 2: the AGENTS.md row goes down by 319, so TOTAL goes down by 319

@@ -16,7 +16,7 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 
 ## Run a control
 
-- Run a source mutation before the slice commit with `.claude/skills/deliver/scripts/mutate.py <file> <old> <new> <log> <build> <test>`. It saves the raw output to the log, restores the file, and checks its hash.
+- Run a source mutation before the slice commit with `.claude/skills/deliver/scripts/mutate.py <file> <old> <new> <log> <build> <test>`. It saves the raw output to the log and restores the file from a hash-checked copy, never from git.
 - A control with two edits (a guard mutant and the fault that trips it) is one call with two old/new pairs. Put `--in=<file>` before the pairs of a second file. Never apply an edit with a script in the build or test command, which a replay cannot see.
 - Do not nest mutate.py in its test command: the outer result line then gives the verdict of the inner call. After `NO TESTS` (the filter matched no test) or `BUILD FAILED` (proves nothing), correct the filter or the mutant and run it again.
 - Warnings are errors, so mutate the source of a value, not the place that uses it: a mutant that leaves a binding unused does not build.

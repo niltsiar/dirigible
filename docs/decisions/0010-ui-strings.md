@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-09-24. The key of a UI string is a dotted name (`menu.record.start`), not the English text. `en.lproj` holds the English values. A typed `L10n` enum in the app target is the only way code names a key, and a test checks both tables against it. `InfoPlist.strings` keeps the Apple rule (see 0014).
+- Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **Rule** holds the localized UI rule. `AGENTS.md` points here.
 
 ## Context
 
@@ -15,6 +16,7 @@ R13 asks for an English and a Spanish UI. English is the default. The app follow
 
 ## Decision
 
+- **Rule.** Every user-facing string has an English and a Spanish text. UI strings go in `Support/Resources/<lang>.lproj/Localizable.strings`. Views look them up in `Bundle.main`, never `Bundle.module`. Permission texts go in `Support/Info.plist` and `es.lproj/InfoPlist.strings`. The CLI and MCP text is English only, because scripts and agents compare it (0011).
 - **Files.** `Support/Resources/en.lproj/Localizable.strings` and `Support/Resources/es.lproj/Localizable.strings`. `Localizable.stringsdict` in each `.lproj` for plurals, only when a text cannot avoid a plural.
 - **Keys.** A key is a dotted name in lower case: `<area>.<element>[.<detail>]`, for example `menu.record.start`, `track.route.none`, `take.banner.pending`, `error.studio.locked`. The area is the place in the UI (`menu`, `track`, `take`, `alert`, `error`, `panel`). `en.lproj` holds the English value of every key, so a missing table shows the dotted key, never text in another language. A key names one meaning; two places with the same meaning use one key.
 - **Accessor.** `enum L10n: String, CaseIterable` in `Sources/DirigibleApp/L10n.swift`, one case per key, `rawValue` = the key. `L10n.x.key` gives a `LocalizedStringKey` for `Text` and `Button`; `L10n.x.text` gives a `String` from `Bundle.main`; `L10n.x.format(...)` fills the format specifiers. Code never writes a key as a string literal. `L10n.message(for:)` maps each library error case to a key with a switch that has no `default`.

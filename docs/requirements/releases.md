@@ -61,7 +61,7 @@ Rules for Release 2:
 - Each run lands through its own pull request.
 - From run 4 on, each user-facing run updates `docs/guide.md`, and the screenshots when the window changes. The check-docs rule of run 4 refuses a menu name that is not in the guide.
 - Each toolbar item is also a menu item with a key (F16). Monitor Inputs has a menu item with no key today; run 1a adds its key.
-- Each new public library feature that operates on a session package or an audio file (an edit, an import, a render, or an export) gets a `dirigible` command and a `DirigibleCLITests` test in the same run (0011, AGENTS.md). An edit command also gets an MCP tool (0041).
+- Each new public library feature that operates on a session package or an audio file (an edit, an import, a render, or an export) gets a `dirigible` command and a `DirigibleCLITests` test in the same run (0011, CLI parity). An edit command also gets an MCP tool (0041).
 - No bench case gets worse than `main` by more than 10 % or 1 ms (0022). A run that adds a drawn element or a gesture adds a bench case for it.
 - A run that adds user data to `session.xml` raises the session version (0003). The writer writes the lowest version that holds the data of the session: a session with no app route and no fades stays version 1. Each version bump has a test that a session without the new data writes the old version. Rollback limit: an older app refuses a session that uses newer data ("unsupported version") and does not change the file. A session that uses no new data opens in the older app. The version policy is 0024.
 - Delete keeps the gap. Cut of a range closes the gap on all tracks, as Hindenburg PRO Cut (run 12 default, open for the user; decision 0037). Cut of a clip set leaves the gaps (decision 0038).

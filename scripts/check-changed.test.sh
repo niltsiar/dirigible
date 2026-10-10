@@ -65,6 +65,7 @@ expect 'bundle script' "$(out bundle check no)" <<<'scripts/bundle.sh'
 expect 'app bundle test' "$(out bundle check no)" <<<'Tests/DirigibleTests/AppBundleTests.swift'
 expect 'guide converter' "$(out bundle check no)" <<<'scripts/guide-html.swift'
 expect 'unknown top-level file' "$(out build check no)" <<<'unknown.txt'
+expect 'coding standards' "$(out docs check-docs no)" --push <<<'CODING_STANDARDS.md'
 expect 'docs and sources' "$(out 'docs sources' 'check-docs test' no)" \
   <<<$'docs/guide.md\nSources/DirigibleApp/AppDelegate.swift'
 expect 'docs, tooling, and the Makefile before the push' "$(out 'docs tooling bundle' 'check test-slow-push test-dmg' no)" --push \

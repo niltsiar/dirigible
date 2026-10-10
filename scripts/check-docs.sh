@@ -124,7 +124,7 @@ fi
 budgets="$root/docs/workflow/budgets.tsv"
 [[ -f "$budgets" ]] || { err "docs/workflow/budgets.tsv is missing"; budgets=/dev/null; }
 counts=""
-for f in "$root"/AGENTS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
+for f in "$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
     [[ -f "$f" ]] || continue
     counts+="${f#"$root"/}	$(wc -w <"$f" | tr -d ' ')"$'\n'
 done
@@ -151,7 +151,7 @@ while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$count
 
 # A loaded workflow doc holds no date: the story of a rule (the date, the run) stays in
 # decisions.tsv, learnings.md, and the commit body. A `Source:` line can give its fetch date.
-for f in "$root"/AGENTS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
+for f in "$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
     [[ -f "$f" ]] || continue
     while IFS= read -r hit; do err "${f#"$root"/}:${hit%%:*}: a date in a loaded doc; put the story in the commit body"; done \
         < <(grep -nE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$f" | grep -vE '^[0-9]+:Source: ' || true)

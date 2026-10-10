@@ -21,6 +21,7 @@
 - Amended: 2026-10-03, run 9b. `DirigibleAudio/DSP/LiveLoudness.swift` holds the live meter, `Render/PlayerLoudness.swift` its Player queue, and `Render/Player+Offline.swift` the offline test pulls. `DirigibleApp/LoudnessStrip.swift` holds the strip (see 0033).
 - Amended: 2026-10-03, MP3 run. `CLame` holds the libmp3lame encoder of LAME 4.0, with C warnings as errors. `DirigibleAudio` depends on it (see 0034).
 - Amended: 2026-10-07, run 2026-10-07-mcp-cli. `DirigibleCLI` also holds the MCP server and its tool table, in files with no ArgumentParser import. Release 3 moves them into a library target that the app imports (see 0041).
+- Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **Folders** lists every folder with its purpose, and says how to find a type with no file of its own. `AGENTS.md` points here.
 
 ## Context
 
@@ -50,7 +51,7 @@ Rules that come with the map:
 - **Snapshot undo.** `History` keeps `Session` values. `edit { }` records one entry; an edit that changes nothing records none. There is no command protocol with inverse commands.
 - **Actors.** `Studio` and the views are `@MainActor`. The `Player` is an actor on its own serial dispatch queue, with its own refill tick (0016). Each device writer has its own serial dispatch queue. Each IOProc and listener is a static C function that captures nothing and gets a client-data pointer (0013). Finalize, export, and peak calculation run off the main actor.
 - **Library code has no UI text.** Errors are enums. The app maps each case to a `.lproj` key.
-- **Folders inside `DirigibleAudio`.** `Capture/`, `Finalize/`, `Render/`, and `Studio/`. The 400-line file rule applies.
+- **Folders.** Inside `DirigibleAudio`: `Capture/` (the device list, the HAL calls, the device inputs and writers, the ring, the segments and sidecars, the app taps), `DSP/` (the loudness meters, the true peak, auto-level, the limiter, the dither), `Finalize/` (segments to clip files, the clip conversion, the rate choice, the take anchor), `Import/` (the file import and the clipboard paste), `Render/` (the `Player`, the mix reader, the export writer, the MP3 file, the peaks and their cache), and `Studio/` (the `@MainActor` facade that the app calls, with a `Studio+<job>.swift` file for most jobs). `DirigibleApp/Timeline/` holds the timeline view: the lanes, the ruler, and the track headers. The other Swift targets have no subfolders. A type with no file of its own name is in the file of its owner (for example `DeviceInput` in `Capture/HAL.swift`): find it with grep. The 400-line file rule applies.
 
 ## Consequences
 

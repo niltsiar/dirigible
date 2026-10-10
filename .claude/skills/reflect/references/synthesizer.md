@@ -37,7 +37,7 @@ Apply each criterion to every finding:
 - Convergence: findings echoed by 2+ reviewers carry higher confidence. Singletons must clear a higher bar on the other criteria.
 - Decision-changing: a future agent acts differently because of the edit, not just reads more text.
 - Structural mechanism: when a lint rule, script, metadata flag, or runtime check already enforces the rule, reject the finding as `structural`. When one could enforce it cheaply, route it `enforce`. Skill prose is for what a mechanism cannot enforce.
-- Skill-was-used: accept only findings that route to a skill, tool, or MCP that the parent invoked, or to `tune description: <skill path>` for a skill that should have triggered. Else reject as `skill-not-used`.
+- Skill-was-used: accept only findings that route to a skill, tool, MCP, `AGENTS.md`, or a doc that the parent invoked, or to `tune description: <skill path>` for a skill that should have triggered. Else reject as `skill-not-used`.
 - Already-covered: read the target skill before you accept a body edit. Reject a duplicate of clear, well-placed guidance as `already-covered`: the issue is execution. When the guidance is buried, weak, or easy to skip, accept it as a wording or placement change, not an addition.
 
 Drop details that drift, for example: "linter at SHA `bd91aa7` uses chars/4 heuristic"; "`<specific-skill-name>` has 175 tokens at limit 80"; "Bugbot flagged regex backtracking on May 2"; "we renamed `gpt-4` to `gpt-4o` in `encodingForModel`".

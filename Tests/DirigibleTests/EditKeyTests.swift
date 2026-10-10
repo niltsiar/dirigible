@@ -45,6 +45,7 @@ import Testing
                 "showInFinder r \(EventModifiers([.command, .shift]).rawValue)", "export e \(command)",
                 "exportSelection e \(EventModifiers([.command, .shift]).rawValue)",
                 "exportChapters e \(EventModifiers([.command, .option]).rawValue)",
+                "episodeInfo i \(EventModifiers([.command, .shift]).rawValue)",
             ])
         #expect(
             TimelineCommand.toolItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [

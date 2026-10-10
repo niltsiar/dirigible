@@ -32,6 +32,27 @@ struct InspectorView: View {
     @FocusState private var focus: InspectorField?
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker(
+                selection: Binding(get: { model.inspectorTab }, set: { model.inspectorTab = $0 }),
+                content: {
+                    Text(L10n.inspectorTabClip.key).tag(InspectorTab.clip)
+                    Text(L10n.inspectorTabEpisode.key).tag(InspectorTab.episode)
+                }, label: { Text(L10n.inspectorTabEpisode.key) }
+            )
+            .pickerStyle(.segmented).labelsHidden()
+            Divider()
+            if model.inspectorTab == .episode {
+                EpisodeInspector(model: model, studio: studio)
+            } else {
+                clipPane
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder private var clipPane: some View {
         let _ = model.countInspector()
         let inspection = ClipInspection(selection: model.timeline.selection, session: studio.session)
         VStack(alignment: .leading, spacing: 10) {
@@ -51,8 +72,6 @@ struct InspectorView: View {
                 Spacer()
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onChange(of: focus) { old, new in
             model.inspectorFocus = new
             if old != nil { model.commitInspector() }
@@ -130,8 +149,9 @@ extension SessionWindow {
         }
         // After the flag: the focus move makes the field send its old text, which `type` ignores.
         commitInspector()
-        if inspectorFocus != nil {
-            inspectorFocus = nil
+        commitEpisode()
+        if inspectorFocus != nil || episodeFocus != nil {
+            (inspectorFocus, episodeFocus) = (nil, nil)
             focusLanes()
         }
     }

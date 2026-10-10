@@ -167,7 +167,11 @@ struct EpisodeInspector: View {
     private func text(_ name: EpisodeField, _ episode: Episode) -> Binding<String> {
         let shown = episode.text(of: name)
         return Binding(
-            get: { model.episodeDraft?.field == name ? model.episodeDraft?.text ?? shown : shown },
+            get: {
+                guard let draft = model.episodeDraft, draft.field == name, draft.refused || draft.shown == shown
+                else { return shown }
+                return draft.text
+            },
             set: { model.typeEpisode($0, in: name) })
     }
 }
@@ -248,7 +252,10 @@ extension SessionWindow {
     /// field holds, and the key goes.
     func typeEpisode(_ text: String, in field: EpisodeField) {
         guard showsInspector else { return }
-        if episodeDraft?.field == field {
+        // A draft whose stored value changed (an undo, an MCP edit) gives way, unless refused.
+        if let draft = episodeDraft, draft.field == field,
+            draft.refused || studio?.session.episode.text(of: field) == draft.shown
+        {
             episodeDraft?.text = text
             episodeDraft?.refused = false
             return
@@ -262,8 +269,13 @@ extension SessionWindow {
     /// Sets the typed text of the draft as one edit. A text that its type refuses beeps once and
     /// keeps the draft, and the pane shows the rule of the field. A later commit of the refused
     /// draft does nothing: play, zoom, and a lane click do not beep. A busy studio keeps the draft.
+    /// A draft whose stored value changed after its first key (an undo, an MCP edit) goes.
     func commitEpisode() {
         guard let draft = episodeDraft, !draft.refused, let session = idleStudio?.session else { return }
+        guard session.episode.text(of: draft.field) == draft.shown else {
+            episodeDraft = nil
+            return
+        }
         var episode = session.episode
         do throws(EpisodeFieldError) {
             try episode.set(draft.field, text: draft.text)

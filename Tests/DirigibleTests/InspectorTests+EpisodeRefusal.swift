@@ -85,4 +85,23 @@ extension InspectorTests {
         await model.close()
         #expect(model.studio == nil, "after Esc the window closes")
     }
+
+    /// Item 7: after an undo or an MCP edit, a draft that is not refused gives way to the new
+    /// stored value, so a later commit does not undo the change.
+    @Test func aStaleDraftGivesWayToTheStoredValue() async throws {
+        let (model, studio, window, _) = try await open(try await package())
+        model.showEpisodeInfo()
+        _ = try await episodeFields(window)
+        model.typeEpisode("A", in: .title)
+        model.commitEpisode()
+        model.typeEpisode("AB", in: .title)
+        model.undo()
+        #expect(studio.session.episode.title == nil, "the undo removed A")
+        model.typeEpisode("ABC", in: .title)
+        #expect(model.episodeDraft == EpisodeDraft(field: .title, shown: "", text: "ABC"), "a new draft")
+        model.episodeDraft = EpisodeDraft(field: .title, shown: "A", text: "AB")
+        model.commitEpisode()
+        #expect(studio.session.episode.title == nil && model.episodeDraft == nil, "the stale draft went")
+        await model.close()
+    }
 }

@@ -22,4 +22,4 @@ A review applies these rules, the **Safety rules** of `AGENTS.md`, and the decis
 
 ## Tests
 
-- Tests do not use the network, the real microphone, or a permission prompt.
+- Apply the **Guardrails** of `.claude/skills/tdd/SKILL.md`.

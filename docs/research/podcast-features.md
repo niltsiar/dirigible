@@ -101,6 +101,7 @@ The Release 2 planning run added these features from Final Cut Pro, Logic Pro, a
 | F91 | Take folders and comps for punch-in | record | Logic | 2 | L | R7 | Later | [LG](logic-garageband-update.md) |
 | F92 | Time display format and a large time window | edit | Logic | 2 | S | R7 | Later | [LG](logic-garageband-update.md) |
 | F93 | Customizable toolbar | project | Logic | 2 | S | R1 | 2 | [LG](logic-garageband-update.md) |
+| F94 | A track volume fader in the track header | process | Hindenburg PRO | 4 | S | R7 | 3 | [HM] |
 
 ## Hindenburg default shortcuts
 

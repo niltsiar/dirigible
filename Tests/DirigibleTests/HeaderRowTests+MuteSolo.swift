@@ -49,9 +49,12 @@ extension HeaderRowTests {
             for width in [threshold, threshold - 1, 180] {
                 let (window, host) = rows(model, studio, laneHeight: lane, width: width)
                 let label = "\(lane) pt lanes at \(width) pt"
+                let boxes = flagBoxes(host, in: host)
                 #expect(
-                    flagBoxes(host, in: host).count == (width >= threshold ? 9 : 3),
-                    "arm in each row, M and S only from the gate: \(label)")
+                    boxes.count == (width >= threshold ? 9 : 3), "arm in each row, M and S only from the gate: \(label)"
+                )
+                #expect(
+                    boxes.allSatisfy { $0.minX >= 8 && $0.maxX <= width - 8 }, "the boxes are inside the row: \(label)")
                 // At 180 pt a two-line row cuts its state text with no M and S too; the captures
                 // check that width.
                 if width > 180 {

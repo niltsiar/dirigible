@@ -95,14 +95,7 @@ import Testing
     /// C20 in the window: the menu reads `Studio.canRipple`. A `<recording>` and the marker of a
     /// recovery attempt make a pending take with no finalize at the open. Control m10.
     @Test func aPendingTakeHidesTheRippleItemsOfTheMenu() async throws {
-        let url = try await timelinePackage(in: folder.url, tracks: 2, seconds: 20)
-        var session = try Session(contentsOf: url)
-        try session.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"]))
-        try session.write(to: url)
-        FileManager.default.createFile(atPath: url.appending(path: "recovery-attempt").path, contents: nil)
-        let (model, studio) = try await timelineModel(url, app: app)
-        let (_, view) = standaloneLanes(model, studio)
-        try #require(studio.pendingTake != nil)
+        let (model, _, view) = try await pendingLanes()
         model.timeline.marks = Marks(inPoint: 40_000, outPoint: 100_000, tracks: ["t1"])
         model.run(.copy)
         try #require(model.clipboard != nil)
@@ -113,6 +106,39 @@ import Testing
         #expect(
             ripple.count == 2 && !shown.contains { title in ripple.contains { title.hasPrefix($0) } },
             "RIPPLE-W6 the menu shows a ripple item under a pending take")
+        await model.close()
+    }
+
+    /// The lanes of `lanes()` under a pending take: a `<recording>` (take 1, armed t1) and the marker
+    /// of a recovery attempt, so the open does not finalize.
+    func pendingLanes() async throws -> (SessionWindow, Studio, TimelineScrollView) {
+        let url = try await timelinePackage(in: folder.url, tracks: 2, seconds: 20)
+        var session = try Session(contentsOf: url)
+        _ = try session.splitClips(at: [48_000, 96_000], on: session.tracks.map(\.id))
+        try session.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"]))
+        try session.write(to: url)
+        FileManager.default.createFile(atPath: url.appending(path: "recovery-attempt").path, contents: nil)
+        let (model, studio) = try await timelineModel(url, app: app)
+        let (_, view) = standaloneLanes(model, studio)
+        try #require(studio.pendingTake != nil)
+        return (model, studio, view)
+    }
+
+    /// C20 in the window: an Option press on a trim zone under a pending take beeps and starts no
+    /// drag. The gesture reads `Studio.canRipple` at the first drag event.
+    @Test func anOptionPressUnderAPendingTakeBeeps() async throws {
+        let (model, studio, view) = try await pendingLanes()
+        let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        let box = try #require(view.lanes.clipFrame("c1"))
+        let edge = NSPoint(x: box.maxX - 2, y: box.minY + 10)
+
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, edge, in: view, flags: .option))
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: edge.x - 20, y: edge.y), in: view))
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: edge.x - 20, y: edge.y), in: view))
+
+        #expect(beeps == 1 && studio.session == before, "RIPPLE-W11 an Option press under a pending take did not beep")
         await model.close()
     }
 

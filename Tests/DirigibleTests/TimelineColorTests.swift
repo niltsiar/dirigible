@@ -42,6 +42,8 @@ struct WindowCaptureError: Error, CustomStringConvertible {
     /// shows the window at its frame. `shot` gives an image and the window server bounds of the
     /// window. The capture API is deprecated in macOS 14 and has no replacement without a
     /// permission prompt, so the test calls it through its symbol, with no deprecation warning.
+    /// It takes one more shot, 50 ms after the first shot past the limit. A stall can queue a
+    /// main-queue job behind the poll, and that job runs before the last shot.
     static func capture(
         _ window: NSWindow, limit: Duration = .seconds(30),
         shot: @MainActor (NSWindow) throws -> (CGImage?, CGRect?) = shot
@@ -52,15 +54,17 @@ struct WindowCaptureError: Error, CustomStringConvertible {
             Int((frame.width * window.backingScaleFactor).rounded()),
             Int((frame.height * window.backingScaleFactor).rounded())
         )
+        var expired = false
         while true {
             let (image, bounds) = try shot(window)
             if let image, bounds == frame, (image.width, image.height) == size { return image }
-            guard ContinuousClock.now < end else {
+            guard !expired else {
                 let pixels = image.map { "\($0.width) x \($0.height) px" } ?? "no image"
                 throw WindowCaptureError(
                     description: "the window server did not show the window at \(frame) (\(size.0) x \(size.1) px) "
                         + "within \(limit): last \(pixels) at \(String(describing: bounds))")
             }
+            expired = ContinuousClock.now >= end
             try await Task.sleep(for: .milliseconds(50))
         }
     }
@@ -165,5 +169,14 @@ struct WindowCaptureError: Error, CustomStringConvertible {
         await #expect(throws: WindowCaptureError.self) {
             _ = try await Self.capture(window, limit: .milliseconds(200)) { _ in shots[0] }
         }
+
+        // A stall past the limit can queue a main-queue job behind the poll. The capture polls once
+        // more, so the job runs first. The poll sleeps 50 ms. The job is due at 70 ms. The hold
+        // takes the main thread for 120 ms, past the 30 ms limit.
+        var shows = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(70)) { shows = true }
+        DispatchQueue.main.async { Thread.sleep(forTimeInterval: 0.12) }
+        let late = try await Self.capture(window, limit: .milliseconds(30)) { _ in shows ? (full, frame) : shots[0] }
+        #expect(late === full)
     }
 }

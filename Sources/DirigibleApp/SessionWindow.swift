@@ -69,6 +69,9 @@ struct ExportReportShown: Equatable {
     /// Monitor Inputs (decision 0015): off at open, not saved. With the armed tracks, it drives
     /// `Studio.monitor(armed:)`.
     var monitoring = false
+    /// Track > Monitor Track (decision 0044): the tracks whose input plays in the default output.
+    /// Off at open, not saved.
+    var listened: Set<TrackID> = []
     /// The input devices of the menus, from the process device list.
     var devices: [InputDevice] { deviceList.devices }
     /// The marks, the zoom, Automatic Scroll, and the view of the timeline (decision 0017). Not
@@ -261,8 +264,9 @@ struct ExportReportShown: Equatable {
         await opening?.value
         guard case .closing(let studio) = phase else { return }
         if let studio {
-            // `settle` empties the monitor request, so the toggle goes off too.
+            // `settle` empties the monitor and listen requests, so the toggles go off too.
             monitoring = false
+            listened = []
             await studio.settle()
             if studio.saveError != nil {
                 alert = .confirmUnsavedClose
@@ -294,6 +298,7 @@ struct ExportReportShown: Equatable {
         await opening?.value
         commitNames()
         monitoring = false
+        listened = []
         await studio?.settle()
     }
 

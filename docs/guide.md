@@ -58,7 +58,7 @@ A track records only when its arm button is on. Click the button to turn it on o
 2. If macOS asks for access to the microphone, click **Allow**.
 3. Speak into each microphone. The meter in the header of its track moves. After 3 s, the header also shows the loudness of the last 3 s, in LUFS (for example **-17**), when the header is 262 pt or wider, or the lane is tall enough for two lines.
 
-**Monitor Inputs** shows the level of each armed track. It does not send the sound to your headphones.
+**Monitor Inputs** shows the level of each armed track. It does not send the sound to your headphones. To hear a microphone in your headphones, use **Track > Monitor Track** ([Hear a track while you record](#hear-a-track-while-you-record)).
 
 ### Record a take
 
@@ -317,6 +317,22 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the arm b
 - A session with a muted or soloed track does not open in a version of Dirigible from before mute and solo.
 - In Terminal, `dirigible track mute <package> <track>...` and `dirigible track solo <package> <track>...` set the buttons, and `--off` clears them.
 
+### Hear a track while you record
+
+**Track > Monitor Track** (**Monitorizar pista**) plays the input of the selected tracks in your headphones.
+
+1. Put on headphones.
+2. Click the header of the track to select it.
+3. Choose **Track > Monitor Track**. A check mark shows next to the item. The header shows the meter of the track.
+4. To stop, choose **Track > Monitor Track** again.
+
+- The track does not need to be armed. The monitor works before, during, and after a take, and during play.
+- Only a track with an input device can monitor. For an app track or a track with no input, the item is dimmed.
+- When the output is the built-in speakers, the monitor plays no sound, so the microphone does not pick up the monitor. The window shows the banner "Use headphones to hear the monitor." Plug in headphones, and the sound comes back. Dirigible does not detect external speakers. With speakers, turn the monitor off.
+- When the monitor cannot play, the track shows "No monitor sound. Turn Monitor Track off and on."
+- You hear your voice a short time late: about 100 ms from the built-in microphone. Bluetooth headphones add more.
+- The monitor is off when a session opens. Dirigible does not save it.
+
 ### Record a call or another app
 
 Dirigible can record the sound of another app, for example a Zoom, Teams, or Slack call, on its own track. This needs macOS 14.2 or later.
@@ -523,6 +539,7 @@ The **Track** menu (**Pista**).
 | **Remove Track** | **Eliminar pista** | Option-Command-Delete |
 | **Mute Track** | **Silenciar pista** | Shift-M |
 | **Solo Track** | **Solo de pista** | Shift-S |
+| **Monitor Track** | **Monitorizar pista** | - |
 
 ### Record
 

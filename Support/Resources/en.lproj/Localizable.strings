@@ -17,6 +17,7 @@
 "menu.track.rename" = "Rename Track";
 "menu.track.mute" = "Mute Track";
 "menu.track.solo" = "Solo Track";
+"menu.track.monitor" = "Monitor Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
 "menu.record.retry" = "Retry Finalize";
@@ -140,6 +141,7 @@
 "track.state.retry.stopped" = "Stopped retrying. Turn Monitor Inputs off and on.";
 "track.state.waiting.app" = "Waiting for %@";
 "track.state.no.sound" = "No sound from %1$@. If %1$@ plays sound, allow Dirigible in Privacy & Security > System Audio Recording.";
+"track.listen.quiet" = "No monitor sound. Turn Monitor Track off and on.";
 "track.dropped" = "Dropped frames: %lld";
 "take.recording" = "Recording take %lld";
 "take.finishing" = "Finishing take %lld…";
@@ -323,6 +325,7 @@
 "subtitle.record.time" = "Record time:";
 "banner.low.record.time" = "Less than %lld min of record time left on this disk. Free up disk space before you record.";
 "banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
+"banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "The export of %1$@ is done: %2$@.";
 "report.loudness" = "loudness %.1f LUFS";
 "report.loudness.none" = "loudness not measured";

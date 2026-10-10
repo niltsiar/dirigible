@@ -115,7 +115,7 @@ import Testing
         // the old name as a draft, and the next commit gave the old name back.
         try await Task.sleep(for: .milliseconds(100))
         drawNow(window)
-        model.commitNames()
+        model.commitDrafts()
         #expect(studio.session.track("t1")?.name == "Guest", "a later commit keeps the name")
         await model.close()
     }

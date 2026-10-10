@@ -34,7 +34,7 @@ struct InspectorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Picker(
-                selection: Binding(get: { model.inspectorTab }, set: { model.inspectorTab = $0 }),
+                selection: Binding(get: { model.inspectorTab }, set: { model.selectInspectorTab($0) }),
                 content: {
                     Text(L10n.inspectorTabClip.key).tag(InspectorTab.clip)
                     Text(L10n.inspectorTabEpisode.key).tag(InspectorTab.episode)
@@ -176,10 +176,16 @@ extension SessionWindow {
         inspectorDraft = InspectorDraft(field: field, shown: shown, text: text, clips: inspection.clips)
     }
 
+    /// Saves the typed text of the Clip and the Episode pane (code gate 1 of the episode run).
+    func commitInspector() {
+        commitEpisode()
+        commitClipDraft()
+    }
+
     /// Sets the typed value on the clips of the draft as one edit. A text equal to the shown text,
     /// or empty, makes no edit. A text that does not parse beeps. The draft goes in each case, so
     /// the field shows the value again. A busy studio keeps the draft for a later commit.
-    func commitInspector() {
+    private func commitClipDraft() {
         guard let draft = inspectorDraft, let session = idleStudio?.session else { return }
         inspectorDraft = nil
         let text = draft.text.trimmingCharacters(in: .whitespaces)

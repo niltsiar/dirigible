@@ -175,7 +175,7 @@ extension SessionWindow {
     /// the name field read-only. With no selection or a busy studio, it does nothing and shows no
     /// alert. An error shows the alert.
     func level(_ mode: LevelMode) async {
-        commitNames()
+        commitDrafts()
         guard let studio = idleStudio, let clips = timeline.selection.clipsToLevel(in: studio.session) else { return }
         do throws(StudioError) { try await studio.level(clips, mode) } catch { alert = .error(error) }
     }
@@ -218,7 +218,7 @@ extension SessionWindow {
     /// mouse-down: a focused field takes Esc. A header click and the header handle come here.
     func endNameEdit() {
         focusLanes()
-        commitNames()
+        commitDrafts()
     }
 
     /// A click on a track header: the rule of `Selection.clickingHeader`. A Control-click shows

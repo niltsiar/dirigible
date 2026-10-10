@@ -41,7 +41,7 @@ extension SessionWindow {
 
     /// Command-R. The library reads the microphone access; the app requests it (decision 0013).
     func record() async {
-        commitNames()
+        commitDrafts()
         guard canRecord, let studio = idleStudio else { return }
         let armed = studio.session.tracks.map(\.id).filter(armed.contains)
         do throws(StudioError) {
@@ -67,7 +67,7 @@ extension SessionWindow {
     }
 
     func retry() async {
-        commitNames()
+        commitDrafts()
         guard canRetry else { return }
         try? await idleStudio?.retryFinalize()
         await refreshPendingSpace()
@@ -94,10 +94,10 @@ extension SessionWindow {
 
     /// Record, Close, Quit, Auto Level, Place, Retry, an import (the menu or a drop), a paste from
     /// another package, a revert to a backup, and a mouse-down on the lanes save each typed name
-    /// and the typed inspector value first, also with the focus still in its field. The generic menu entry run(_:) and the
-    /// Transport menu commit only the inspector value; Remove Track drops the name drafts of its
+    /// and the typed inspector values first, also with the focus still in its field. The generic menu entry run(_:) and the
+    /// Transport menu commit only the inspector values; Remove Track drops the name drafts of its
     /// tracks.
-    func commitNames() {
+    func commitDrafts() {
         for track in drafts.keys { commitName(track) }
         commitInspector()
     }

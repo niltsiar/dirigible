@@ -23,7 +23,7 @@ extension SessionWindow {
     /// hears the backup date. An error shows the window alert of a refused edit.
     func revert(to backup: Backup) {
         guard let studio = idleStudio else { return }
-        commitNames()
+        commitDrafts()
         Task {
             do throws(StudioError) {
                 try await studio.revert(to: backup)

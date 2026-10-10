@@ -142,7 +142,7 @@ import Testing
         await model.close()
     }
 
-    /// W5: a lane mouse-down commits the draft first (`commitNames`), so a gain drag on B after a
+    /// W5: a lane mouse-down commits the draft first (`commitDrafts`), so a gain drag on B after a
     /// typed gain for A gives two undo entries.
     @Test func aLaneGestureCommitsTheDraftFirst() async throws {
         let (model, studio, window, view) = try await open(try await package())

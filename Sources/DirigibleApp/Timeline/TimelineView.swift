@@ -155,7 +155,7 @@ final class TimelineScrollView: NSScrollView {
         if case .drag = event {} else { dragPointer = nil }
         guard var source, let model, let studio else { return }
         if case .down = event {
-            model.commitNames()
+            model.commitDrafts()
             source.session = studio.session
         }
         guard let context = context(source) else { return }

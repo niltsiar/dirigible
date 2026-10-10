@@ -48,9 +48,9 @@ The start window and **File > Open Recent** list the 10 sessions that you opened
 3. Double-click the name of **Track 2**, type `Guest`, and press Return.
 4. On the **Host** track, click **Choose Input** (**Elegir entrada** in Spanish). Under the name of the built-in microphone, choose **Channel 1**.
 5. On the **Guest** track, click **Choose Input**. Under the name of the USB microphone, choose **Channel 1**.
-6. Make sure that the **Arm** check box (**Armar** in Spanish) is on for each track.
+6. Make sure that the arm button of each track is on. The arm button is the first button of the track header. When it is on, it is red with a white dot.
 
-A track records only when its **Arm** check box is on. Dirigible turns on **Arm** when you choose an input. On a short track, the input menu is a microphone symbol. One channel gives a mono track. A pair of channels, for example **Channels 1 and 2**, gives a stereo track. Two tracks cannot use the same input channel.
+A track records only when its arm button is on. Click the button to turn it on or off. Dirigible turns it on when you choose an input. On a short track, the input menu is a microphone symbol. One channel gives a mono track. A pair of channels, for example **Channels 1 and 2**, gives a stereo track. Two tracks cannot use the same input channel.
 
 ### Check the levels
 
@@ -92,7 +92,7 @@ When you play again from the frame where you stopped, **Average** and **Peak** g
 
 Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 
-> **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off **Arm** on the tracks that you want to keep.
+> **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off the arm button of the tracks that you want to keep.
 >
 > If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z) until the old audio comes back. When Dirigible leveled the take, the first Undo removes the level. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 >
@@ -304,7 +304,7 @@ You can also drag audio files from Finder onto the tracks. During the drag, a li
 
 ### Mute and solo tracks
 
-Each track header has the buttons **M** (mute) and **S** (solo), after the **Arm** box.
+Each track header has the buttons **M** (mute) and **S** (solo), after the arm button.
 
 - Click **M** to mute a track. You do not hear a muted track, and the export does not have it. **M** is blue when it is on.
 - Click **S** to solo a track. While one or more tracks are soloed, you hear only the soloed tracks. **S** is yellow when it is on. A track that is muted and soloed stays muted.
@@ -376,7 +376,7 @@ Open the session again. The window shows **Recovering the last take**, then **Ta
 
 ### After an unplug
 
-If a device goes away during a take, its tracks show **Device lost**. The other tracks continue to record. Connect the device again to the same port. A few seconds later, its tracks record again. If a track still shows **Device lost**, do not stop the take: **Transport > Stop** ends the take on every track. After Stop, the window names each track that has a gap. Before the next take, choose the device again in the input menu of the track. If the device does not come back, turn off **Arm** on its track, then choose **Record > Record**. The other tracks then record. **Write error** on a track means that Dirigible could not write its audio to the disk.
+If a device goes away during a take, its tracks show **Device lost**. The other tracks continue to record. Connect the device again to the same port. A few seconds later, its tracks record again. If a track still shows **Device lost**, do not stop the take: **Transport > Stop** ends the take on every track. After Stop, the window names each track that has a gap. Before the next take, choose the device again in the input menu of the track. If the device does not come back, turn off the arm button of its track, then choose **Record > Record**. The other tracks then record. **Write error** on a track means that Dirigible could not write its audio to the disk.
 
 ### When the disk is almost full
 

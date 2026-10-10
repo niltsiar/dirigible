@@ -41,10 +41,10 @@ struct TrackHeaders: View {
     }
 }
 
-/// The header of one lane. In a lane of 56 pt or more: arm, name, and layout on the first line;
-/// the route menu, and during a take or a monitor the meter and the state, on the second. In a
-/// lower lane, one line: the arm check box, the name, the layout, a route symbol menu, and the
-/// compact meter and state (code gate 1 item 4).
+/// The header of one lane. In a lane of 56 pt or more: the R, M, and S buttons, the name, and the
+/// layout on the first line; the route menu, and during a take or a monitor the meter and the
+/// state, on the second. In a lower lane, one line: the buttons, the name, the layout, a route
+/// symbol menu, and the compact meter and state (code gate 1 item 4).
 private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
@@ -76,8 +76,7 @@ private struct TrackRow: View {
         let _ = model.countHeaderRun(row: true)
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
-                if secondLine { arm } else { arm.labelsHidden() }
-                if showsMuteSolo { MuteSoloToggles(model: model, track: track) }
+                TrackToggles(model: model, track: track, showsMuteSolo: showsMuteSolo)
                 nameField
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the
@@ -120,10 +119,6 @@ private struct TrackRow: View {
         }
     }
 
-    private var arm: some View {
-        Toggle(L10n.trackArm.key, isOn: armed).toggleStyle(.checkbox).disabled(!model.canEdit).fixedSize()
-    }
-
     /// The name is the main text of the row: 13 pt, and it takes the free width. It reads as a
     /// label: a click on it selects the track, and a double-click starts the rename (ui-panel 5).
     /// The field stays in the row, so a rename keeps the layout.
@@ -144,7 +139,8 @@ private struct TrackRow: View {
                 if !renaming { Color.clear.contentShape(Rectangle()).onTapGesture(perform: click) }
             }
             .accessibilityAction(named: Text(L10n.headerRename.key)) { model.startRename(track.id) }
-            .frame(minWidth: 60, maxWidth: .infinity)
+            // A one-line row has the arm box of 18 pt at every width, so its name gives up 6 pt.
+            .frame(minWidth: secondLine ? 60 : 54, maxWidth: .infinity)
     }
 
     /// A click selects at once. `HeaderHost` takes the second click of a double-click on the name;
@@ -161,12 +157,6 @@ private struct TrackRow: View {
         Binding(
             get: { model.drafts[track.id] ?? studio.session.track(track.id)?.name ?? track.name },
             set: { model.drafts[track.id] = $0 })
-    }
-
-    private var armed: Binding<Bool> {
-        Binding(
-            get: { model.armed.contains(track.id) },
-            set: { if $0 { model.armed.insert(track.id) } else { model.armed.remove(track.id) } })
     }
 
     /// The route as a symbol menu, with the route text for VoiceOver and as its tooltip.

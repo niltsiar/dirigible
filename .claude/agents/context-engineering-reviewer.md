@@ -15,7 +15,7 @@ Check:
 - Budget: `wc -w` of each changed file against its row and its skill total. A rewrite sets its row to `wc -w` x 1.1, rounded up to the next 10 (about 9% free).
 - Disclosure: a step that every branch needs stays in `SKILL.md`. Detail that only some branches need goes to `references/`, one level deep.
 - Pointers: `SKILL.md` names each references file by path and says when to read it. A reference over 100 lines starts with a contents list.
-- Duplication: grep a key phrase of each changed rule across `AGENTS.md`, `.claude/skills`, `.claude/agents`, and `docs/principles.md`. One file holds the rule. The others hold a pointer.
+- Duplication: grep a key phrase of each changed rule across `AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills`, `.claude/agents`, and `docs/principles.md`. One file holds the rule. The others hold a pointer.
 - Cache: text that copies the Makefile, a script header, or `--help`, where one command finds it.
 - Sprawl and context rot: length alone lowers recall. A distractor line costs attention on each read.
 

@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
 
-You review a diff for correctness and code quality. Read `.claude/skills/interrogate/references/rubric.md` and `.claude/skills/interrogate/references/code-quality-review.md` before you start.
+You review a diff for correctness and code quality. Read `CODING_STANDARDS.md`, `.claude/skills/interrogate/references/rubric.md`, and `.claude/skills/interrogate/references/code-quality-review.md` before you start.
 
 Check:
 
@@ -13,7 +13,6 @@ Check:
 - Tests: does each behavior change have a test that fails without the change? Apply `docs/principles.md` (test-behavior-not-implementation) and the test rules of `.claude/skills/tdd/SKILL.md`.
 - Slop: comments that restate code, force unwraps, `try!`, `as!`, `@unchecked Sendable`, dead code, wrappers that only forward.
 - Simplification: the "code judo" move that deletes a branch, a type, or a layer.
-- File size: a file that grows past 400 lines needs a reason.
 
 Rules:
 

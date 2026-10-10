@@ -61,5 +61,6 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
-AGENTS.md	1333	2026-10-10-agents-md-restructure level 2 (user request: progressive disclosure): AGENTS.md goes from 1659 to 1333 words, so the row goes to the new count
-TOTAL	31228	2026-10-10-agents-md-restructure level 2: AGENTS.md is 326 words shorter and tdd/SKILL.md and mutation-controls.md are 15 longer, so TOTAL goes down by 311
+AGENTS.md	1121	2026-10-10-agents-md-restructure level 3 (user request: move instructions to CODING_STANDARDS.md): the review rules go to CODING_STANDARDS.md, so AGENTS.md goes from 1333 to 1121 words and the row goes to the new count
+CODING_STANDARDS.md	259	2026-10-10-agents-md-restructure level 3: the review rules of AGENTS.md, at the new count with no 1.1 margin, because TOTAL has no free words
+TOTAL	31226	2026-10-10-agents-md-restructure level 3: AGENTS.md is 212 words shorter, CODING_STANDARDS.md adds 259, and the reviewer files are 49 shorter, so TOTAL goes down by 2

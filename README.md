@@ -122,7 +122,7 @@ If you have no administrator rights, add this line to `~/.zprofile` in its place
 
 ## How the project works
 
-Agents and humans follow the same rules. `AGENTS.md` has the commands, the architecture rules, the testing rules, and the git rules. Every feature goes through the `deliver` flow: analyze, plan, review, implement test-first, review, verify, land, and reflect. Decision records are in `docs/decisions/`.
+Agents and humans follow the same rules. `AGENTS.md` has the commands, the safety rules, the testing rules, and the git rules. `CODING_STANDARDS.md` has the design rules that a review checks. Every feature goes through the `deliver` flow: analyze, plan, review, implement test-first, review, verify, land, and reflect. Decision records are in `docs/decisions/`.
 
 ## License
 

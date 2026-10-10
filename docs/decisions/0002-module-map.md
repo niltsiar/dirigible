@@ -25,7 +25,7 @@
 
 ## Context
 
-Decision 0001 makes layers SwiftPM targets, so the compiler enforces the dependency direction, and leaves the target names to the first planning run. The rules in `AGENTS.md`: the domain imports only Foundation, UI depends on the domain, the app target is thin, and nothing on a real-time audio thread allocates, locks, logs, or awaits. The research fixes the mechanisms: one IOProc per device (0004), an SPSC ring with swift-atomics (0005), our own XML file (0003), export through AVAudioFile (0007), our own loudness meter with Accelerate (0008).
+Decision 0001 makes layers SwiftPM targets, so the compiler enforces the dependency direction, and leaves the target names to the first planning run. The rules in `CODING_STANDARDS.md`: the domain imports only Foundation, UI depends on the domain, and the app target is thin. The rule in `AGENTS.md`: nothing on a real-time audio thread allocates, locks, logs, or awaits. The research fixes the mechanisms: one IOProc per device (0004), an SPSC ring with swift-atomics (0005), our own XML file (0003), export through AVAudioFile (0007), our own loudness meter with Accelerate (0008).
 
 Two designs were compared: few targets, and one target for each capability (capture, session I/O, render, playback, DSP, and a facade).
 
@@ -64,5 +64,5 @@ Rules that come with the map:
 
 - **One target for each capability** (nine targets). Rejected. Each seam becomes a public API with one consumer. Every audio target imports the same frameworks, so the compiler enforces nothing more than the two-library map does.
 - **A separate session I/O target.** Rejected. It has one consumer, and the format changes together with the model. `XMLDocument` is in Foundation, so the Foundation-only rule holds without it.
-- **The observable document model in the app target.** Rejected. The record-stop-save flow is logic, and the thin-app rule in `AGENTS.md` puts logic in a library that integration tests drive.
+- **The observable document model in the app target.** Rejected. The record-stop-save flow is logic, and the thin-app rule in `CODING_STANDARDS.md` puts logic in a library that integration tests drive.
 - **A `DirigibleUI` library for views.** Deferred. Add it when a view needs tests or previews.

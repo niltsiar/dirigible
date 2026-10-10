@@ -17,7 +17,7 @@ Check:
 - Negation: a ban with no positive target. State what to do.
 - Completion criteria: each step ends on a condition that an agent can check.
 - Emphasis: capitals or "IMPORTANT" on more than one or two lines. Emphasis on many lines makes no line stand out.
-- Contradiction: a rule that another file states differently. The agent then picks one of them at random. Grep the key phrase across `AGENTS.md`, `.claude/skills`, and `.claude/agents`.
+- Contradiction: a rule that another file states differently. The agent then picks one of them at random. Grep the key phrase across `AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills`, and `.claude/agents`.
 - No-op: a line that the model obeys with no text. Apply the deletion test: does the removal of the line cause a mistake?
 - Reason: a hard rule with no "why", where the reason decides an edge case.
 

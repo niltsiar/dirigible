@@ -20,7 +20,7 @@ Constraints:
 
 - `TimelineScrollView.update(_:)` sets the lane inputs at each SwiftUI update (peaks, the media check, the Marks). A preview in those inputs is lost in the middle of a drag.
 - `SessionWindow.edit` shows an alert on each throw. A `move` replayed after an undo throws `.unknownClip`.
-- `Marks` and `TimelineScale` are pure, but they are in the executable target `DirigibleApp`. AGENTS.md asks for a thin app target and logic in library targets.
+- `Marks` and `TimelineScale` are pure, but they are in the executable target `DirigibleApp`. CODING_STANDARDS.md asks for a thin app target and logic in library targets.
 - At 2 h, 6 tracks, and 2,000 clips per track, a `move` on a copy takes 3.6 ms p95 and a lane draw of 2880 x 1200 px 4.6 ms p95 (optimized, 0018 probe P4, 0017).
 
 Probes on 2026-09-26 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/runs/2026-09-26-mouse-edits/probe/`):
@@ -59,4 +59,4 @@ Probes on 2026-09-26 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 - **The gesture in the app target, the preview in the document view.** Rejected: the gesture tests need a window and a studio, and the app target grows.
 - **The preview as observable window state.** Rejected: each drag event would update SwiftUI, and the drawn session would have two owners.
 - **Replay the edit at the mouse-up and catch the throw.** Rejected: it covers only the listed errors; an edit that does not throw on a changed session would commit onto the wrong state.
-- **One type per gesture behind a protocol.** Rejected: one conformer each (AGENTS.md).
+- **One type per gesture behind a protocol.** Rejected: one conformer each (CODING_STANDARDS.md).

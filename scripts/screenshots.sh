@@ -4,8 +4,8 @@
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in English (US number format) and light mode, and writes
-# docs/images/screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png, and
-# screenshot-crossfade.png. The app also
+# docs/images/screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png,
+# screenshot-episode.png, and screenshot-crossfade.png. The app also
 # writes its preferences (the recent list, the inspector) for the real bundle ID, so do not run
 # this script as a check.
 # The terminal app needs the Screen Recording and Accessibility permissions, and the screen must be
@@ -73,6 +73,12 @@ for line in "${lines[@]}"; do
 done
 ' screenshots "$cli"
 session="$(cd "$folder" && pwd -P)/Demo Episode.dirigible"
+# The episode details, with the app icon as the artwork.
+sips -s format png -Z 1024 "$app/Contents/Resources/AppIcon.icns" --out "$folder/cover.png" >/dev/null
+"$cli" episode set "$session" --title "Demo Episode 1: How podcasts get made" --show "The Demo Show" \
+    --author "Samantha and Daniel" --season 1 --episode 1 --date 2026-10-10 --language eng \
+    --copyright "© 2026 The Demo Show" --summary "Two microphones, one take, and a clean edit." \
+    --notes "In this episode, Daniel tells how he records and edits a conversation." --artwork "$folder/cover.png"
 
 refuse_running
 pid=""
@@ -143,11 +149,16 @@ shot screenshot-edit.png
 for code in 121 34 121 31 4; do key "$code"; done
 sleep 1
 shot screenshot-zoom.png
-# Option-Command-I: show the inspector of the selection. Then hide it again, because the app
-# stores the choice for new windows.
+# Option-Command-I: show the inspector of the selection.
 key 34 --command --option
 sleep 1
 shot screenshot-inspector.png
+# Shift-Command-I: File > Episode Info. Esc gives the focus back to the lanes. Then hide the
+# inspector again, because the app stores the choice for new windows.
+key 34 --command --shift
+sleep 1
+shot screenshot-episode.png
+key 53
 key 34 --command --option
 # Esc clears the selection. Home, then Shift-Right two times: the playhead goes to the join in
 # Host 1. View > Zoom In six times (the menu, so the key layout does not matter): zoom in at the
@@ -160,7 +171,7 @@ for _ in 1 2 3 4 5 6; do swift "$repo/scripts/ax.swift" press "View > Zoom In" >
 sleep 1
 shot screenshot-crossfade.png
 
-for png in "$images"/screenshot-{edit,zoom,inspector,crossfade}.png; do
+for png in "$images"/screenshot-{edit,zoom,inspector,episode,crossfade}.png; do
     [[ "$(stat -f %z "$png")" -le 1000000 ]] || sips --resampleWidth 1600 "$png" >/dev/null
     echo "$png"
 done

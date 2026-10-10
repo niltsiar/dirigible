@@ -61,6 +61,6 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
-AGENTS.md	1240	code gate 1 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:02): wc -w x 1.1, up to the next 10, of the level 3 count 1121
-CODING_STANDARDS.md	290	code gate 1 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:02): wc -w x 1.1, up to the next 10, of the level 3 count 259
+AGENTS.md	1310	code gate 2 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:53): wc -w x 1.1, up to the next 10, of the final count 1188
+CODING_STANDARDS.md	290	code gate 2 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:53): wc -w x 1.1, up to the next 10, of the final count 261
 TOTAL	31662	code gate 1 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:02): back to the origin/main value, so the branch adds no TOTAL words and the next runs have about 400 free words

@@ -382,6 +382,18 @@ Choose **File > Export Chapters** (Option-Command-E) to write the chapters to a 
 - The file has only the chapters, not the markers. A chapter at or after the end of the audio is not in the file. When the range has no chapter, the item is off.
 - Upload the file to a host that reads Podcasting 2.0 chapters. Not every host does.
 
+### Add the episode details
+
+Choose **File > Episode Info** (Shift-Command-I) to show the **Episode** tab of the inspector, with the text cursor in **Title**. Click **Clip** at the top of the inspector to go back to the clip fields.
+
+- Type the title, the show, the author, the season and episode numbers, the date (YYYY-MM-DD), the language (a code of three letters, for example `eng` or `spa`), and the copyright. Select **Explicit** for an explicit episode.
+- Type a short description in **Description** and the show notes in **Notes**. Command-Return saves the notes.
+- Click **Links** to type the episode URL, the feed URL, and the GUID.
+- Press Return or Tab, or click in another place, to save a field. Each save is one step for **Undo**. Esc puts back the saved text. A value that Dirigible cannot use, for example episode 0 or a date that does not exist, makes a beep, and the field keeps its old value.
+- For the artwork, click **Choose** or drag an image to the well. The image must be a square JPEG or PNG file, at most 3000 x 3000 pixels. Dirigible copies it into the session. **Remove** removes the artwork from the episode.
+
+The MP3 and AAC (.m4a) exports contain these details and the artwork, so a player shows them. WAV and FLAC exports do not contain them. A session with episode details does not open in a version of Dirigible from before the episode details.
+
 ## Recover after a crash, an unplug, or a full disk
 
 Dirigible writes each take to disk while it records. After a crash, an unplug, or a full disk, the recorded audio stays in the session.
@@ -468,6 +480,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |
 | **Export Chapters** | **Exportar capítulos** | Option-Command-E |
+| **Episode Info** | **Información del episodio** | Shift-Command-I |
 | **Revert To** | **Volver a** | None |
 | **No Backups** (in **Revert To**, when the session has no backup) | **No hay copias de seguridad** | None |
 
@@ -645,6 +658,11 @@ These commands change clips and the export. `info` shows the clip IDs. A length 
 - `dirigible clip crossfade Demo.dirigible --clip <clip> --length 4800` crossfades a clip into the clip that starts where it ends. The length is an even number of frames, and 0 removes the crossfade. Both clips need audio in their files past the join, for half the length. Play and export use the crossfade, and `info` shows it. Two parts of a split clip that continue the same audio get no crossfade. An edit that breaks the join, for example a move or a delete of one clip, removes the crossfade. A session with a crossfade does not open in a version of Dirigible from before the crossfades.
 - `dirigible export Demo.dirigible --out Episode.mp3 --loudness podcast` exports with a loudness target: `podcast`, `speech`, `ebu`, or `atsc`, as the **Loudness** setting of the export panel.
 - `dirigible chapters export Demo.dirigible --out Episode.chapters.json` writes the chapters as a Podcasting 2.0 JSON Chapters file, as **File > Export Chapters**. With `--from` and `--to`, it writes the chapters of that range, and the times start at 0 at `--from`. A range with no chapter gives exit 1 and no file. A chapter at or after the end of the audio is not in the file, and a warning names it.
+
+These commands set and show the episode details of the MP3 and AAC exports:
+
+- `dirigible episode set Demo.dirigible --title "Episode 12" --episode 12 --date 2026-10-10 --artwork cover.jpg` sets the given fields, as the **Episode** tab. The other fields do not change. An empty value clears a field. `--notes-file <file>` reads the notes from a file, or from stdin with `-`. A bad value gives exit 64, and a refused image gives exit 1.
+- `dirigible episode show Demo.dirigible` writes the episode fields as JSON.
 
 These commands use the backups of the session in `Backups/`:
 

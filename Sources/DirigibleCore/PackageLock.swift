@@ -83,7 +83,8 @@ public final class PackageLock: Sendable {
     /// The free bytes of the volume of the package for a normal process: `fstatfs` on the lock
     /// descriptor, which follows a rename (probe P14). An unlocked value runs `statfs` on the path
     /// of the open. `volumeAvailableCapacityForImportantUsage` also counts purgeable space, which a
-    /// write cannot use now. An errno gives 0, so a take stops cleanly.
+    /// write cannot use now. The value saturates at `Int64.max` (some network volumes report more),
+    /// so a caller never adds to it or multiplies it. An errno gives 0, so a take stops cleanly.
     public func freeBytes() -> Int64 { volumeFreeBytes(descriptor: descriptor, path: url.path) ?? 0 }
 
     /// Takes the lock, runs `body`, and releases the lock after `body` returns or throws. A lock

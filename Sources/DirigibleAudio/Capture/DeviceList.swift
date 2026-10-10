@@ -87,7 +87,7 @@ public struct AudioDefaults: Equatable, Sendable {
             inputUID: liveDefault(kAudioHardwarePropertyDefaultInputDevice).flatMap {
                 readString($0, kAudioDevicePropertyDeviceUID)
             },
-            subdevices: liveSubdevices, watch: DeviceListListener.watchDataSource, speakers: liveSpeakers)
+            subdevices: liveSubdevices, watch: { DeviceListListener.watchDataSource($0) }, speakers: liveSpeakers)
     }
 
     /// The active subdevices of an aggregate or a Multi-Output device (probe P10: the real device
@@ -172,16 +172,31 @@ enum DeviceListListener {
     private static let watched = OSAllocatedUnfairLock(initialState: Set<AudioObjectID>())
 
     /// Adds the data source listener and the active subdevice listener to `device` once. A failed
-    /// add lets the next read try again. A device with no such property takes the add too (P10).
-    static func watchDataSource(_ device: AudioObjectID) {
+    /// add removes both listeners (a remove of a listener that was not added fails with no effect)
+    /// and lets the next read try again. A device with no such property takes the add too (P10).
+    /// Tests give `add` and `remove`.
+    static func watchDataSource(
+        _ device: AudioObjectID, add: (AudioObjectID, AudioObjectPropertyAddress) -> Bool = addListener,
+        remove: (AudioObjectID, AudioObjectPropertyAddress) -> Void = removeListener
+    ) {
         guard watched.withLock({ $0.insert(device).inserted }) else { return }
-        var source = propertyAddress(kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput)
-        var subdevices = propertyAddress(kAudioAggregateDevicePropertyActiveSubDeviceList)
-        if AudioObjectAddPropertyListener(device, &source, proc, nil) != noErr
-            || AudioObjectAddPropertyListener(device, &subdevices, proc, nil) != noErr
-        {
-            _ = watched.withLock { $0.remove(device) }
-        }
+        let properties = [
+            propertyAddress(kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput),
+            propertyAddress(kAudioAggregateDevicePropertyActiveSubDeviceList),
+        ]
+        guard !properties.allSatisfy({ add(device, $0) }) else { return }
+        for property in properties { remove(device, property) }
+        _ = watched.withLock { $0.remove(device) }
+    }
+
+    static func addListener(_ device: AudioObjectID, _ address: AudioObjectPropertyAddress) -> Bool {
+        var address = address
+        return AudioObjectAddPropertyListener(device, &address, proc, nil) == noErr
+    }
+
+    static func removeListener(_ device: AudioObjectID, _ address: AudioObjectPropertyAddress) {
+        var address = address
+        _ = AudioObjectRemovePropertyListener(device, &address, proc, nil)
     }
 
     private static let proc: AudioObjectPropertyListenerProc = { _, _, _, _ in

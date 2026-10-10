@@ -181,8 +181,13 @@ struct SpeakerGuardTests {
         defer { ring.deallocate() }
         refreshOn(ring, dataSource: headphones)
         #expect(!ring.speakers, "headphones play")
-        #expect(!SpeakerGuard.watch(ring, 7, add: { _ in false }, remove: { _ in }), "the watch reports the failure")
+        var removed: [AudioObjectID] = []
+        #expect(
+            !SpeakerGuard.watch(ring, 7, add: { _ in false }, remove: { removed.append($0) }),
+            "the watch reports the failure")
         #expect(ring.speakers, "a failed add silences")
+        // Round 2, item 2: the first of two adds can succeed, and close never removes it.
+        #expect(removed == [7], "a failed add removes the listeners that it added")
         refreshOn(ring, dataSource: headphones)
         #expect(ring.speakers, "a later refresh does not play again")
     }

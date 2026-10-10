@@ -37,6 +37,10 @@ extension Session {
         let recording = try root.sessionElements("recording").first.map { node throws(SessionFileError) in
             try Recording(node)
         }
+        let episode = try root.sessionElements("episode").first.map { node throws(SessionFileError) in
+            guard version >= 6 else { throw .invalidValue(element: "episode", attribute: "version") }
+            return try Episode(node)
+        }
 
         self.init(sampleRate: sampleRate)
         do throws(SessionError) {
@@ -57,6 +61,7 @@ extension Session {
                 try setMarker(marker)
             }
             try setRecording(recording)
+            if let episode { setEpisode(episode) }
         } catch {
             throw .invalidSession(error)
         }
@@ -159,6 +164,43 @@ extension Marker {
         self.init(
             id: MarkerID(try node.string("id")), name: try node.string("name"), position: try node.frames("position"),
             kind: kind)
+    }
+}
+
+extension Episode {
+    /// Each field parses through its type, so the reader and the edits keep one rule.
+    fileprivate init(_ node: XMLElement) throws(SessionFileError) {
+        self.init()
+        func parse<T>(_ name: String, _ make: (String) throws(EpisodeFieldError) -> T?) throws(SessionFileError) -> T? {
+            guard let text = node.optionalString(name) else { return nil }
+            do throws(EpisodeFieldError) { return try make(text) } catch {
+                throw .invalidValue(element: "episode", attribute: name)
+            }
+        }
+        func element(_ name: String) throws(SessionFileError) -> EpisodeNotes? {
+            guard let text = node.sessionElements(name).first?.stringValue else { return nil }
+            do throws(EpisodeFieldError) { return try EpisodeNotes(text) } catch {
+                throw .invalidValue(element: "episode", attribute: name)
+            }
+        }
+        title = try parse("title", EpisodeLine.init)
+        show = try parse("show", EpisodeLine.init)
+        author = try parse("author", EpisodeLine.init)
+        number = try parse("number") { text throws(EpisodeFieldError) in try EpisodeNumber(text: text) }
+        season = try parse("season") { text throws(EpisodeFieldError) in try EpisodeNumber(text: text) }
+        date = try parse("date", CalendarDate.init)
+        language = try parse("language", LanguageCode.init)
+        copyright = try parse("copyright", EpisodeLine.init)
+        switch node.optionalString("explicit") {
+        case nil, "false": explicit = false
+        case "true": explicit = true
+        default: throw .invalidValue(element: "episode", attribute: "explicit")
+        }
+        summary = try element("summary")
+        notes = try element("notes")
+        episodeURL = try parse("episodeURL", WebURL.init)
+        feedURL = try parse("feedURL", WebURL.init)
+        guid = try parse("guid", EpisodeLine.init)
     }
 }
 

@@ -32,4 +32,4 @@ cleanup() {
 trap cleanup EXIT
 hdiutil attach -quiet -readonly -nobrowse -noautoopen -mountpoint "$mnt" "$dmg"
 
-DIRIGIBLE_DMG="$dmg" DIRIGIBLE_APP="$mnt/Dirigible.app" swift test --filter 'AppBundleTests|DiskImageTests'
+DIRIGIBLE_DMG="$dmg" DIRIGIBLE_APP="$mnt/Dirigible.app" scripts/swift-test.sh --filter 'AppBundleTests|DiskImageTests'

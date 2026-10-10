@@ -8,7 +8,8 @@
 # in the git common dir: the load at the end of the check, not at the failure. land.sh writes a
 # flake row for each line, and flake-triage.md still applies (decision 0028).
 # No rerun, and exit 1: another red target, a not-remade target other than check, a crash, an
-# issue of no test, or a red target with no failed test line.
+# issue of no test, a test process that ended before its report (scripts/swift-test.sh: the tests
+# after the end did not run), or a red target with no failed test line.
 # Usage: [CHECK_RISK=yes] scripts/run-checks.sh <make args>
 #        scripts/run-checks.sh --flakes   print the lines of dirigible-flakes (nothing with no file)
 #          and run no make. The guardrail hook blocks each other command that names the file.
@@ -51,6 +52,7 @@ failed='✘ Test [A-Za-z_][A-Za-z0-9_]*[(][^)]*[)]( with [0-9]+ test cases)? fai
 blocked() {
     if grep -qF 'Exited with unexpected signal' "$1"; then echo 'a test process crashed'
     elif grep -qF '✘ Test «unknown»' "$1"; then echo 'an issue of no test'
+    elif grep -qF 'the test process ended before its report' "$1"; then echo 'a test process ended before its report'
     fi
 }
 # once: the words of stdin on one line, each once.

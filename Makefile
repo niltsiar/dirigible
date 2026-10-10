@@ -19,8 +19,10 @@ icon-preview:
 # But the CLI fixture I/O at the suite start adds to the main-actor stall of the other tests.
 # In one process, the stall tripped the 60 s DeviceEventTests watchdog in 3 of 40 runs.
 # Process 2 runs also when process 1 fails, so scripts/run-checks.sh sees each failed test.
+# Each swift test call goes through scripts/swift-test.sh: a process that ends with exit 0 and no
+# report line fails.
 test:
-	swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests; s=$$?; swift test --filter DirigibleCLITests && exit $$s
+	scripts/swift-test.sh --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests; s=$$?; scripts/swift-test.sh --filter DirigibleCLITests && exit $$s
 
 # Only the tests of FILTER (test or suite names with spaces between them), in the two processes
 # of test. It fails when no test matched.
@@ -48,12 +50,12 @@ SLOW_PUSH_TESTS = $(call slow_tests,$(foreach n,$(filter-out $(subst $(comma), ,
 # benchmarks do not measure the load of the other slow tests. A pass writes the date of today,
 # so scripts/check-changed.sh adds test-slow-push to a push only once a day (decision 0028).
 test-slow: check-slow-gates
-	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
+	DIRIGIBLE_SLOW_TESTS=1 scripts/swift-test.sh --no-parallel --skip AppBundleTests --filter '$(SLOW_TESTS)'
 	date +%F > "$$(git rev-parse --git-common-dir)/dirigible-slow-date"
 
 # The slow tests of the push: test-slow with no test of a PUSH_SKIP file outside PUSH_RUN.
 test-slow-push: check-slow-gates
-	DIRIGIBLE_SLOW_TESTS=1 swift test --no-parallel --skip AppBundleTests --filter '$(SLOW_PUSH_TESTS)'
+	DIRIGIBLE_SLOW_TESTS=1 scripts/swift-test.sh --no-parallel --skip AppBundleTests --filter '$(SLOW_PUSH_TESTS)'
 	date +%F > "$$(git rev-parse --git-common-dir)/dirigible-slow-date"
 
 # The slow tests that match FILTER in an optimized build, for a budget that holds only with -O.
@@ -74,7 +76,7 @@ check-slow-gates:
 		|| { echo "check-slow-gates: put the func of each slow test on the line after its gate"; exit 1; }
 
 test-app: app
-	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" swift test --filter AppBundleTests
+	DIRIGIBLE_APP="$(CURDIR)/build/Dirigible.app" scripts/swift-test.sh --filter AppBundleTests
 
 # The DMG app is a second bundle with the ad-hoc signature, so build/Dirigible.app keeps
 # the signature of SIGN_IDENTITY.

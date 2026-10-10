@@ -279,7 +279,7 @@ make_repo() {
   new_repo
   cp "$repo/Makefile" "$tmp/r/Makefile"
   cp "$script" "$tmp/r/scripts/check-changed.sh"
-  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/run-checks.sh" "$repo/scripts/check-waits.sh" "$tmp/r/scripts/"
+  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/run-checks.sh" "$repo/scripts/check-waits.sh" "$tmp/r/scripts/"
   g add -A
   g commit -q -m make
 }
@@ -389,7 +389,7 @@ for target in test-slow test-slow-push; do
   printf '#!/bin/bash\nexit 1\n' > "$tmp/bin/swift"
   PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" $target PUSH_SKIP= > /dev/null 2>&1 && fail "make $target with a red swift exits 0"
   [[ ! -e "$tmp/r/.git/dirigible-slow-date" ]] || fail "a red make $target wrote the date"
-  printf '#!/bin/bash\nexit 0\n' > "$tmp/bin/swift"
+  printf '#!/bin/bash\necho "Test run with 0 tests passed after 0.1 seconds." >&2\nexit 0\n' > "$tmp/bin/swift"
   PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" $target PUSH_SKIP= > /dev/null 2>&1 || fail "make $target with a green swift exits nonzero"
   [[ "$(cat "$tmp/r/.git/dirigible-slow-date" 2>/dev/null)" == "$today" ]] || fail "a passing make $target did not write the date"
 done
@@ -400,7 +400,7 @@ mkdir -p "$tmp/r/Tests/DirigibleAudioTests"
 gate='guard ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1" else { return }'
 printf '%s\nfunc aSkippedBench() {}\n' "$gate" > "$tmp/r/Tests/DirigibleAudioTests/LoudnessBenchmark.swift"
 printf '%s\nfunc aKeptSlowTest() {}\n' "$gate" > "$tmp/r/Tests/DirigibleAudioTests/KeptTests.swift"
-printf '#!/bin/bash\necho "swift $*" >> "%s"\n' "$tmp/swift.log" > "$tmp/bin/swift"
+printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "Test run with 1 test passed after 0.1 seconds."\n' "$tmp/swift.log" > "$tmp/bin/swift"
 : > "$tmp/swift.log"
 PATH="$tmp/bin:$PATH" make -s -C "$tmp/r" test-slow-push PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&1 || fail 'make test-slow-push exits nonzero'
 [[ "$(cat "$tmp/swift.log")" == *"--filter aKeptSlowTest" ]] || fail "make test-slow-push: swift calls [$(cat "$tmp/swift.log")]"
@@ -456,7 +456,7 @@ cat > "$tmp/bin/swift" <<EOF
 echo "swift \$*" >> "$tmp/swift.log"
 n=\$((\$(cat "$tmp/swift.n" 2>/dev/null || echo 0) + 1))
 echo "\$n" > "$tmp/swift.n"
-[[ \$n -eq 1 ]] || exit 0
+[[ \$n -eq 1 ]] || { echo "Test run with 1 test passed after 0.1 seconds."; exit 0; }
 echo "✘ Test aFlake() failed after 1.0 seconds with 1 issue."
 exit 1
 EOF

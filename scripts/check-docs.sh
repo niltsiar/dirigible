@@ -118,13 +118,16 @@ if [[ -f "$panel" ]]; then
     done
 fi
 
+# The workflow docs: the budget check and the date check read the same list.
+workflow_docs=("$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md)
+
 # Each workflow doc stays within its row of docs/workflow/budgets.tsv (path, words, decision), in
 # words of `wc -w`. A row that ends in / limits the sum of the budgeted files of that folder, and
 # the TOTAL row limits the sum of all of them. Each row names the reason of its value (decision 0028).
 budgets="$root/docs/workflow/budgets.tsv"
 [[ -f "$budgets" ]] || { err "docs/workflow/budgets.tsv is missing"; budgets=/dev/null; }
 counts=""
-for f in "$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
+for f in "${workflow_docs[@]}"; do
     [[ -f "$f" ]] || continue
     counts+="${f#"$root"/}	$(wc -w <"$f" | tr -d ' ')"$'\n'
 done
@@ -151,7 +154,7 @@ while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$count
 
 # A loaded workflow doc holds no date: the story of a rule (the date, the run) stays in
 # decisions.tsv, learnings.md, and the commit body. A `Source:` line can give its fetch date.
-for f in "$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md; do
+for f in "${workflow_docs[@]}"; do
     [[ -f "$f" ]] || continue
     while IFS= read -r hit; do err "${f#"$root"/}:${hit%%:*}: a date in a loaded doc; put the story in the commit body"; done \
         < <(grep -nE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$f" | grep -vE '^[0-9]+:Source: ' || true)

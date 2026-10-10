@@ -16,8 +16,8 @@ struct EpisodeCommand: ParsableCommand {
         @Option var title: String?
         @Option(help: "The show name (the album).") var show: String?
         @Option(help: "The host or author (the artist).") var author: String?
-        @Option(help: "The episode number, 1 or more.") var episode: String?
-        @Option(help: "The season number, 1 or more.") var season: String?
+        @Option(help: "The episode number, from 1 to \(EpisodeNumber.maximum).") var episode: String?
+        @Option(help: "The season number, from 1 to \(EpisodeNumber.maximum).") var season: String?
         @Option(help: "The date, YYYY-MM-DD.") var date: String?
         @Option(help: "An ISO 639-2 code, for example eng or spa.") var language: String?
         @Option var copyright: String?

@@ -100,7 +100,8 @@ struct EpisodeCommandTests {
     @Test func aBadValueExits64AndChangesNothing() async throws {
         let before = try package.xml()
         let cases: [([String], String)] = [
-            (["--episode", "0"], "An episode or season number is 1 or more, not 0."),
+            (["--episode", "0"], "An episode or season number is from 1 to 99999, not 0."),
+            (["--season", "100000"], "An episode or season number is from 1 to 99999, not 100000."),
             (["--feed-url", "ftp://a.b"], "\"ftp://a.b\" is not an http or https URL."),
             (["--date", "2026-02-30"], "\"2026-02-30\" is not a date in the form YYYY-MM-DD."),
             (["--language", "es"], "\"es\" is not an ISO 639-2 language code of three lowercase letters."),
@@ -123,7 +124,7 @@ struct EpisodeCommandTests {
             toolCall(2, "episode_set", ["package": pkg, "season": "0"]),
         ])
         #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
-        #expect(toolResult(answer(answers, id: 2)) == ("An episode or season number is 1 or more, not 0.", true))
+        #expect(toolResult(answer(answers, id: 2)) == ("An episode or season number is from 1 to 99999, not 0.", true))
         var expected = Episode()
         expected.title = try EpisodeLine("Episodio 12: Café")
         expected.number = try EpisodeNumber(12)

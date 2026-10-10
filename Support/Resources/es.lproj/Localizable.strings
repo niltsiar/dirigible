@@ -106,7 +106,7 @@
 "error.artwork.large" = "La ilustración puede medir como máximo %1$lld x %1$lld píxeles. Esta imagen mide %2$lld x %2$lld píxeles.";
 "error.artwork.write" = "Dirigible no puede copiar la ilustración en la sesión (error %lld). Compruebe el disco y vuelva a intentarlo.";
 "error.episode.line" = "Escriba una línea, sin tabulador ni carácter de control.";
-"error.episode.number" = "Escriba un número entero de 1 o más.";
+"error.episode.number" = "Escriba un número entero de 1 a %lld.";
 "error.episode.date" = "Escriba una fecha con la forma AAAA-MM-DD.";
 "error.episode.language" = "Escriba un código de idioma ISO 639-2 de tres letras minúsculas, por ejemplo eng o spa.";
 "error.episode.url" = "Escriba una URL http o https.";

@@ -125,7 +125,9 @@ struct EpisodeInspector: View {
     /// text (decision 0010), so the pane maps the field to a key.
     @ViewBuilder private func refusalText(_ name: EpisodeField) -> some View {
         if let draft = model.episodeDraft, draft.field == name, draft.refused {
-            Text(Self.refusal(name).key).font(.system(size: 11)).foregroundStyle(.red)
+            let key = Self.refusal(name)
+            Text(key == .errorEpisodeNumber ? key.format(EpisodeNumber.maximum) : key.text)
+                .font(.system(size: 11)).foregroundStyle(.red)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("episode.refusal")
         }

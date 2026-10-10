@@ -25,6 +25,7 @@ struct ParityTests {
         "setMarker": ["marker set"],
         "removeMarker": ["marker remove"],
         "setEpisode": ["episode set"],
+        "set": ["episode set"],
         "place": ["clip place"],
         "clear": ["clip clear"],
         "split": ["clip split"],

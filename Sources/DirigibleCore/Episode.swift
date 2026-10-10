@@ -32,6 +32,52 @@ public struct Episode: Hashable, Sendable {
 
     /// True when no field has a value. An empty episode raises no file version and writes no tag.
     public var isEmpty: Bool { self == Episode() }
+
+    /// The text of a field: the stored value, or empty for no value.
+    public func text(of field: EpisodeField) -> String {
+        switch field {
+        case .title: title?.text ?? ""
+        case .show: show?.text ?? ""
+        case .author: author?.text ?? ""
+        case .season: season?.description ?? ""
+        case .number: number?.description ?? ""
+        case .date: date?.description ?? ""
+        case .language: language?.code ?? ""
+        case .copyright: copyright?.text ?? ""
+        case .summary: summary?.text ?? ""
+        case .notes: notes?.text ?? ""
+        case .episodeURL: episodeURL?.text ?? ""
+        case .feedURL: feedURL?.text ?? ""
+        case .guid: guid?.text ?? ""
+        }
+    }
+
+    /// Sets `text` on `field` through the field type. A blank text clears the field. The one text
+    /// rule of the Episode pane, the CLI, and the MCP tools.
+    public mutating func set(_ field: EpisodeField, text: String) throws(EpisodeFieldError) {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        let blank = trimmed.isEmpty
+        switch field {
+        case .title: title = try EpisodeLine(text)
+        case .show: show = try EpisodeLine(text)
+        case .author: author = try EpisodeLine(text)
+        case .season: season = blank ? nil : try EpisodeNumber(text: trimmed)
+        case .number: number = blank ? nil : try EpisodeNumber(text: trimmed)
+        case .date: date = blank ? nil : try CalendarDate(trimmed)
+        case .language: language = blank ? nil : try LanguageCode(trimmed)
+        case .copyright: copyright = try EpisodeLine(text)
+        case .summary: summary = try EpisodeNotes(text)
+        case .notes: notes = try EpisodeNotes(text)
+        case .episodeURL: episodeURL = blank ? nil : try WebURL(trimmed)
+        case .feedURL: feedURL = blank ? nil : try WebURL(trimmed)
+        case .guid: guid = try EpisodeLine(text)
+        }
+    }
+}
+
+/// A text field of an episode: all fields except explicit and the artwork.
+public enum EpisodeField: CaseIterable, Sendable {
+    case title, show, author, season, number, date, language, copyright, summary, notes, episodeURL, feedURL, guid
 }
 
 /// An episode or season number: a whole number of 1 or more.

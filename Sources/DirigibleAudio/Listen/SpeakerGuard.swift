@@ -14,16 +14,18 @@ struct WatchState: Sendable {
 /// No HAL call runs while the lock is held.
 enum SpeakerGuard {
     /// Takes a ticket, reads the default output and its active subdevices, watches each, reads
-    /// the flag with the banner rule, and stores it when no newer ticket stored first. With no
-    /// default output, the flag is true: the safe side.
+    /// the flag with the banner rule, and stores it when no newer ticket stored first. The flag is
+    /// also true when one of them is the listened device. With no default output, the flag is
+    /// true: the safe side.
     static func refresh(
         _ ring: ListenRing, output: () -> AudioObjectID?, subdevices: (AudioObjectID) -> [AudioObjectID] = { _ in [] },
         watch: (AudioObjectID) -> Void, speakers: (AudioObjectID) -> Bool
     ) {
         let ticket = ring.nextTicket()
-        let flag = output().map {
-            AudioDefaults.read(output: $0, inputUID: nil, subdevices: subdevices, watch: watch, speakers: speakers)
-                .speakers
+        let flag = output().map { output in
+            let devices = AudioDefaults.outputDevices(output, subdevices: subdevices, watch: watch)
+            // A loopback: the monitor would feed its own input.
+            return devices.contains(ring.device) || devices.contains(where: speakers)
         }
         ring.storeSpeakers(flag ?? true, ticket: ticket)
     }

@@ -14,9 +14,9 @@ For each such moment:
 - Routing: the skill that owns the workflow. Extend it to call the MCP tool or sibling skill, so the next agent fetches the context itself.
 
 Examples:
-- User pastes a ticket title: the triage skill queries the ticket-tracker MCP first.
-- User describes a flaky test that an observability MCP can show: the debugging skill names that MCP.
-- User links a chat thread: the skill that owns the workflow names the chat MCP.
+- Several agents hit one error: route the fix to `AGENTS.md` or a check.
+- Several agents guess one path: route a pointer to `AGENTS.md`.
+- Several agents read one large file whole: route a grep step to its skill.
 
 Read the active transcript at <ABSOLUTE_PATH> (or use the digest below if no path is given).
 
@@ -42,6 +42,6 @@ Return 0-5 durable learnings, none when no moment cost time or gave a wrong resu
 - Routing: the `SKILL.md` path from the transcript, `tune description: <skill path>`, or `new skill: <kebab-name>`.
 - Key: the cause key `<ID>/<class>`, in the form of step 1 of `.claude/skills/reflect/references/synthesizer.md`.
 
-Skip trivial things (typos, retries), things that the followed skill already makes obvious, and details that drift (SHAs, paths, versions, byte counts). A convention generalizes. A pinned detail does not.
+Skip trivial things (typos, one retry), things that the followed skill already makes obvious, and details that drift (SHAs, paths, versions, byte counts). A convention generalizes. A pinned detail does not.
 
 <DIGEST IF FILE PATH UNAVAILABLE>

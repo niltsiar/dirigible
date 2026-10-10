@@ -1,4 +1,5 @@
 import Atomics
+import AudioToolbox
 import CoreAudio
 import os
 
@@ -86,6 +87,22 @@ struct ListenRing: @unchecked Sendable {
 
     var droppedPushes: Int { storage.pointee.dropped.load(ordering: .relaxed) }
 
+    /// The frames in the ring. For tests.
+    var available: Int {
+        storage.pointee.head.load(ordering: .acquiring) - storage.pointee.tail.load(ordering: .relaxed)
+    }
+
+    /// Empties the ring and makes a new drift rule. Call it only while no render runs: before
+    /// the first unit start, or after a clean unit stop (probe P9: no render after the stop
+    /// returns). The IOProc can still push.
+    func prepare(rate: Double, inputBlock: Int, pull: Int) {
+        storage.pointee.rule = DriftRule(inputBlock: inputBlock, pull: pull, rate: rate)
+        storage.pointee.tail.store(storage.pointee.head.load(ordering: .acquiring), ordering: .releasing)
+    }
+
+    /// Zeros for good: a ticket that no refresh reaches.
+    func mute() { storeSpeakers(true, ticket: UInt64.max >> 1) }
+
     /// True while the render must play zeros: the default output is the built-in speakers.
     var speakers: Bool { storage.pointee.speakers.load(ordering: .relaxed) & 1 == 1 }
 
@@ -108,6 +125,24 @@ struct ListenRing: @unchecked Sendable {
 
     /// The IOProc side.
     func push(_ input: UnsafePointer<AudioBufferList>) { Self.push(storage, input) }
+
+    /// The listen IOProc (decision 0013 Callbacks): its client data is the ring context.
+    static let ioProc: AudioDeviceIOProc = { _, _, input, _, _, _, context in
+        guard let context else { return noErr }
+        push(context.assumingMemoryBound(to: Storage.self), input)
+        return noErr
+    }
+
+    /// The render of the output unit: 2 non-interleaved Float32 channels at the input rate.
+    static let render: AURenderCallback = { context, _, _, _, frames, data in
+        guard let data, data.pointee.mNumberBuffers >= 2 else { return noErr }
+        let buffers = UnsafeMutableAudioBufferListPointer(data)
+        guard let left = buffers[0].mData, let right = buffers[1].mData else { return noErr }
+        pull(
+            context.assumingMemoryBound(to: Storage.self), frames: Int(frames),
+            left: left.assumingMemoryBound(to: Float.self), right: right.assumingMemoryBound(to: Float.self))
+        return noErr
+    }
 
     /// The render side: `frames` frames into `left` and `right`.
     func pull(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {

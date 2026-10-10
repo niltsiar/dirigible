@@ -12,6 +12,7 @@
 - Amended: 2026-10-03, run 11a. A clip has `fadeIn` and `fadeOut` from version 3. A fade of 0 is not written, unlike gain, so a clip with no fade keeps its text (see 0035).
 - Amended: 2026-10-04, run 11c-1. A clip has `crossfadeIn` and `crossfadeOut` from version 4. A crossfade of 0 is not written (see 0036).
 - Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The package has a `Backups/` folder with copies of `session.xml`, named for the UTC time of the copied file. A backup copy uses the same durable write as a save.
+- Amended: 2026-10-10, run `2026-10-10-episode-metadata` (see 0045). Version 6 has an `<episode>` element after `<markers>`. The package has an `Artwork/` folder with the episode image, named `<UUID>.jpg` or `<UUID>.png`. An import writes a new file and never replaces one, so undo and the backups keep their image.
 
 ## Context
 

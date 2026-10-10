@@ -42,6 +42,32 @@ extension EditFailure where Body == PasteError {
     }
 }
 
+extension EditFailure where Body == ArtworkError {
+    func message(package: String) -> String {
+        switch self {
+        case .file(let error): error.message(package: package)
+        case .pendingTake: pendingTakeMessage(package)
+        case .splitTake: splitTakeMessage(package)
+        case .body(let error): error.message
+        }
+    }
+}
+
+extension ArtworkError {
+    /// No `default` case: a new error case does not compile until it has a message.
+    var message: String {
+        switch self {
+        case .notDownloaded(let file): "the artwork file \"\(file)\" is not on this Mac. Download it first."
+        case .unreadable(let file): "the artwork file \"\(file)\" does not open as an image."
+        case .notJPEGOrPNG(let type): "the artwork is \(type), not JPEG or PNG."
+        case .notSquare(let width, let height): "the artwork is \(width) x \(height) pixels; it must be square."
+        case .tooLarge(let side):
+            "the artwork is \(side) x \(side) pixels; the largest is \(maximumArtworkSide) x \(maximumArtworkSide)."
+        case .writeFailed(let code): "the copy of the artwork into Artwork/ failed: \(String(cString: strerror(code)))."
+        }
+    }
+}
+
 extension EditFailure where Body == RevertError {
     func message(package: String) -> String {
         switch self {

@@ -1,6 +1,8 @@
 import DirigibleCore
 import Foundation
+import ImageIO
 import Testing
+import UniformTypeIdentifiers
 
 /// `dirigible episode set` and `show`, the MCP tool `episode_set`, and the MP3 tag of `dirigible
 /// export` (decision 0045, criteria C5 and C8).
@@ -147,5 +149,63 @@ struct EpisodeCommandTests {
         #expect(plainBytes.prefix(3) != Data("ID3".utf8), "no episode, no tag")
         #expect(
             taggedBytes.prefix(5) == Data("ID3".utf8) + Data([3, 0]), "the tagged export starts with an ID3v2.3 header")
+    }
+
+    /// Writes a one-color JPEG of `width` x `height` pixels.
+    static func writeImage(_ url: URL, width: Int, height: Int) throws {
+        let context = try #require(
+            CGContext(
+                data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        context.setFillColor(red: 0.8, green: 0.4, blue: 0.2, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        let destination = try #require(
+            CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try #require(context.makeImage()), nil)
+        try #require(CGImageDestinationFinalize(destination))
+    }
+
+    @Test func artworkCopiesTheImageAndAnEmptyValueClearsIt() async throws {
+        let image = package.folder.appending(path: "cover.jpg")
+        try Self.writeImage(image, width: 300, height: 300)
+        #expect(
+            try await package.run("episode", "set", "PKG", "--artwork", image.path)
+                == CLIResult(status: 0, stdout: "", stderr: ""))
+        let name = try #require(try package.read().episode.artwork)
+        #expect(try Data(contentsOf: package.url.appending(path: name.path)) == Data(contentsOf: image))
+        let shown = try await package.run("episode", "show", "PKG").stdout
+        #expect(shown.contains("\"artwork\" : \"\(name.path)\""), "show printed: \(shown)")
+
+        #expect(try await package.run("episode", "set", "PKG", "--artwork", "").status == 0)
+        #expect(try package.read().episode.artwork == nil)
+        #expect(FileManager.default.fileExists(atPath: package.url.appending(path: name.path).path), "the file stays")
+    }
+
+    /// An image refusal exits 1, as `dirigible import` of a file that is not audio.
+    @Test func aRefusedImageExits1AndChangesNothing() async throws {
+        let image = package.folder.appending(path: "wide.jpg")
+        try Self.writeImage(image, width: 300, height: 200)
+        let before = try package.xml()
+        let result = try await package.run("episode", "set", "PKG", "--title", "T", "--artwork", image.path)
+        #expect(
+            result
+                == CLIResult(
+                    status: 1, stdout: "", stderr: "Error: the artwork is 300 x 200 pixels; it must be square.\n"))
+        #expect(try package.xml() == before)
+    }
+
+    @Test func theMCPToolSetsTheArtwork() async throws {
+        let image = package.folder.appending(path: "cover.jpg")
+        let wide = package.folder.appending(path: "wide.jpg")
+        try Self.writeImage(image, width: 300, height: 300)
+        try Self.writeImage(wide, width: 300, height: 200)
+        let answers = try await mcp([
+            toolCall(1, "episode_set", ["package": package.path, "artwork": image.path, "title": "T"]),
+            toolCall(2, "episode_set", ["package": package.path, "artwork": wide.path]),
+        ])
+        #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
+        #expect(toolResult(answer(answers, id: 2)) == ("the artwork is 300 x 200 pixels; it must be square.", true))
+        let episode = try package.read().episode
+        #expect(episode.title?.text == "T" && episode.artwork != nil)
     }
 }

@@ -24,6 +24,7 @@ struct EpisodeSessionTests {
         episode.episodeURL = try WebURL("https://example.com/ep12")
         episode.feedURL = try WebURL("https://example.com/feed.xml")
         episode.guid = try EpisodeLine("urn:uuid:1234")
+        episode.artwork = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.png")
         return episode
     }
 
@@ -85,6 +86,7 @@ struct EpisodeSessionTests {
             ("number=\"12\"", "number=\"0\"", "number"), ("date=\"2026-10-09\"", "date=\"2026-02-30\"", "date"),
             ("language=\"spa\"", "language=\"es\"", "language"), ("explicit=\"true\"", "explicit=\"yes\"", "explicit"),
             ("feedURL=\"https://example.com/feed.xml\"", "feedURL=\"ftp://a.b\"", "feedURL"),
+            ("artwork=\"0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.png\"", "artwork=\"../x.png\"", "artwork"),
         ]
         for (old, new, attribute) in cases {
             #expect(text.contains(old), "the fixture has \(old)")

@@ -150,7 +150,8 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .segment,
         .rippleBlocked:
         editRefused
-    case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded:
+    case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded,
+        .artwork:
         packageError
     }
 }

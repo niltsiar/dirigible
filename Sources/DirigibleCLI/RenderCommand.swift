@@ -73,6 +73,7 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
     case .rateNotSupported(let rate): message = "cannot write \(out) at \(rate) Hz."
     case .diskFull: message = "cannot write \(out): the disk is full."
     case .packageUnavailable: message = "cannot read the package."
+    case .artworkMissing: message = "the artwork file of the episode is not in the package."
     }
     return fail(message, code: packageError)
 }

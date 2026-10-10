@@ -6,13 +6,15 @@ import Foundation
 /// The passthrough copy keeps each packet and the `iTunSMPB` gapless data. It reads
 /// `isCancelled()` before the first wait and every 50 ms, and a cancel waits at most 10 s for
 /// the pass to stop. This pass is the hook that run 5 replaces with a copy that adds chapters.
-func tagM4A(_ source: URL, episode: Episode, to output: URL, isCancelled: () -> Bool) throws(ExportError) {
+func tagM4A(
+    _ source: URL, episode: Episode, artwork: Data?, to output: URL, isCancelled: () -> Bool
+) throws(ExportError) {
     // A `.tmp` name gives -11800 with no MIME type (probe U17).
     let asset = AVURLAsset(url: source, options: [AVURLAssetOverrideMIMETypeKey: "audio/mp4"])
     guard let pass = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else {
         throw .writeFailed(kAudio_ParamError)
     }
-    pass.metadata = m4aItems(episode)
+    pass.metadata = m4aItems(episode, artwork: artwork)
     pass.outputURL = output
     pass.outputFileType = .m4a
     let done = DispatchSemaphore(value: 0)
@@ -31,8 +33,8 @@ func tagM4A(_ source: URL, episode: Episode, to output: URL, isCancelled: () -> 
     }
 }
 
-/// The iTunes atoms of `episode`. M4A has no language atom (backlog).
-private func m4aItems(_ episode: Episode) -> [AVMetadataItem] {
+/// The iTunes atoms of `episode`, with `artwork` as `covr`. M4A has no language atom (backlog).
+private func m4aItems(_ episode: Episode, artwork: Data?) -> [AVMetadataItem] {
     var items: [AVMetadataItem] = []
     func add(_ key: String, _ value: (any NSCopying & NSObjectProtocol)?) {
         guard let value else { return }
@@ -57,5 +59,12 @@ private func m4aItems(_ episode: Episode) -> [AVMetadataItem] {
     add("purl", episode.feedURL?.text as NSString?)
     add("pcst", NSNumber(value: 1))
     add("egid", episode.guid?.text as NSString?)
+    if let artwork, let name = episode.artwork {
+        let item = AVMutableMetadataItem()
+        item.identifier = .iTunesMetadataCoverArt
+        item.value = artwork as NSData
+        item.dataType = (name.isPNG ? kCMMetadataBaseDataType_PNG : kCMMetadataBaseDataType_JPEG) as String
+        items.append(item)
+    }
     return items
 }

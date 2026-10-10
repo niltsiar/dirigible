@@ -25,6 +25,8 @@ public struct Episode: Hashable, Sendable {
     public var episodeURL: WebURL?
     public var feedURL: WebURL?
     public var guid: EpisodeLine?
+    /// The image file in `Artwork/`.
+    public var artwork: ArtworkName?
 
     public init() {}
 
@@ -145,6 +147,27 @@ public struct EpisodeNotes: Hashable, Sendable {
         try checkCharacters(lines, allowing: ["\n", "\t"])
         self.text = lines
     }
+}
+
+/// The name of an artwork file in `Artwork/`: a UUID with `.jpg` or `.png`, so it has no slash.
+/// An import always makes a new name, so undo and the backups keep their image.
+public struct ArtworkName: Hashable, Sendable {
+    public let name: String
+
+    public init(_ name: String) throws(EpisodeFieldError) {
+        let parts = name.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 2, UUID(uuidString: String(parts[0])) != nil, ["jpg", "png"].contains(parts[1]) else {
+            throw EpisodeFieldError(message: "\"\(name)\" is not an artwork file name.")
+        }
+        self.name = name
+    }
+
+    /// A new name for an import.
+    package init(png: Bool) { name = "\(UUID().uuidString).\(png ? "png" : "jpg")" }
+
+    public var isPNG: Bool { name.hasSuffix(".png") }
+    /// The path in the package.
+    public var path: String { "\(artworkFolderName)/\(name)" }
 }
 
 /// XML 1.0 cannot hold the other control characters (`Session.checkText`).

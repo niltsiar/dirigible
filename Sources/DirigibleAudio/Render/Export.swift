@@ -135,6 +135,8 @@ public enum ExportError: Error, Hashable, Sendable {
     case openFailed(Int32)
     /// The package source threw: the lock lost the package.
     case packageUnavailable
+    /// The artwork file of the episode is not in the package (decision 0045). No file was made.
+    case artworkMissing
     /// The cancel check was true at a chunk.
     case cancelled
 }
@@ -172,6 +174,7 @@ public func exportMix(
     if case .aac = options.format, rate > 48_000 { throw .rateNotSupported(rate) }
     // The MPEG-1 rates, where LAME keeps each bit rate of `BitRate` (probes U3 and U7).
     if case .mp3 = options.format, ![32_000, 44_100, 48_000].contains(rate) { throw .rateNotSupported(rate) }
+    let artwork = try readArtwork(of: session.episode, format: options.format, package: package)
     let sessionRate = Double(session.sampleRate)
     let capacity = AVAudioFrameCount(chunk)
     guard let stereo = AVAudioFormat(standardFormatWithSampleRate: sessionRate, channels: 2),
@@ -241,7 +244,8 @@ public func exportMix(
     // This unlink runs before the unlink of the `.tmp` file, so no sweep removes a live file.
     defer { if let tagged { unlink(tagged.path) } }
     try writeFile(
-        temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3Tag(session.episode)
+        temporary, format: options.format, rate: rate, client: folded?.format ?? stereo,
+        tag: id3Tag(session.episode, artwork: artwork)
     ) {
         sink throws(ExportError) in
         var written = 0
@@ -271,7 +275,7 @@ public func exportMix(
     // wait for them (code gate 1).
     if isCancelled() { throw .cancelled }
     if let tagged {
-        try tagM4A(temporary, episode: session.episode, to: tagged, isCancelled: isCancelled)
+        try tagM4A(temporary, episode: session.episode, artwork: artwork, to: tagged, isCancelled: isCancelled)
         progress(1)
         if isCancelled() { throw .cancelled }
     }
@@ -285,6 +289,22 @@ public func exportMix(
     // The file is at the target now. A volume that refuses both flushes does not undo the move.
     _ = flush(folder.path)
     return ExportResult(faults: mix.faults, loudness: stage?.report())
+}
+
+/// The bytes of the episode artwork for an MP3 or an AAC export, read once before any file
+/// exists. Nil for another format and for no artwork.
+private func readArtwork(
+    of episode: Episode, format: ExportFormat, package: () throws(SessionFileError) -> URL
+) throws(ExportError) -> Data? {
+    switch format {
+    case .mp3, .aac: break
+    case .wav, .flac, .floatCAF: return nil
+    }
+    guard let name = episode.artwork else { return nil }
+    let root: URL
+    do { root = try package() } catch { throw .packageUnavailable }
+    guard let data = try? Data(contentsOf: root.appending(path: name.path)) else { throw .artworkMissing }
+    return data
 }
 
 /// Pass 2 of an export with a loudness target: the gain, the limiter, and the meters of the

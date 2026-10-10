@@ -1,6 +1,7 @@
 import DirigibleAudio
 import DirigibleCore
 import Foundation
+import UniformTypeIdentifiers
 
 /// The texts of library errors and reports.
 extension L10n {
@@ -40,6 +41,19 @@ extension L10n {
         case .rippleBlocked: return errorSessionOther.text
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
+        case .artwork(let error): return message(for: error)
+        }
+    }
+
+    /// The text of an artwork import error (decision 0045): it gives the found type or size.
+    private static func message(for error: ArtworkError) -> String {
+        switch error {
+        case .notDownloaded(let file): errorArtworkNotDownloaded.format(file)
+        case .unreadable(let file): errorArtworkUnreadable.format(file)
+        case .notJPEGOrPNG(let type): errorArtworkType.format(UTType(type)?.localizedDescription ?? type)
+        case .notSquare(let width, let height): errorArtworkSquare.format(width, height)
+        case .tooLarge(let side): errorArtworkLarge.format(maximumArtworkSide, side)
+        case .writeFailed(let code): errorArtworkWrite.format(Int(code))
         }
     }
 
@@ -83,6 +97,7 @@ extension L10n {
         case .moveFailed(let code): errorExportMove.format(Int(code))
         case .openFailed(let code): errorExportOpen.format(Int(code))
         case .packageUnavailable: errorExportPackage.text
+        case .artworkMissing: errorExportArtwork.text
         case .cancelled: ""
         }
     }

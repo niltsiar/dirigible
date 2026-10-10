@@ -10,6 +10,14 @@
 #   `- Check:` line. Each research-<name>.md of the run folder has docs/research/<name>.md in
 #   plan.md, so the plan routes the findings before the build (check-governance.sh checks the copy
 #   at the land). A bare research.md is refused: the land check reads only research-<name>.md.
+# - Each item (a line that starts with `- ` or `<n>. `) of a plan.md section whose heading starts
+#   with `## Plan gate changes` has a `Criteria:` field: the criterion IDs that the change moves,
+#   separated by commas (an ID is capitals, digits, and an optional lower-case suffix: C3b), or
+#   `none`. From the start of Phase 4 (a phase 4 row in decisions.tsv, or CHECK_PLAN_AT_PHASE4=1,
+#   which log-decision.sh sets before the first phase 4 row), each ID needs a decisions.tsv row
+#   before the first phase 4 row whose decision starts with `criterion change` and names the ID as
+#   a whole word. A plan gate change that moves a criterion gets its row while a fix is still
+#   possible: decisions.tsv is append-only, and a row after Phase 4 starts is late.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -61,6 +69,38 @@ else
         /^### / { close_slice(); slice = $0; checked = 0; next }
         /^- Check:/ { checked = 1 }
         END { close_slice() }' "$run/plan.md")
+    while IFS= read -r msg; do say "$msg"; done < <(awk -v rows="$run/decisions.tsv" -v run="$run" \
+        -v at4="${CHECK_PLAN_AT_PHASE4:-}" '
+        function close_item(  v) {
+            if (!item) return
+            if (text !~ /Criteria[*]*:/)
+                print "plan.md: Plan gate changes item " item " has no Criteria: field; write Criteria: <IDs separated by commas> or Criteria: none"
+            else {
+                v = text; sub(/.*Criteria[*]*:/, "", v); sub(/\n.*/, "", v)
+                while (match(v, /[A-Z]+[0-9]+[a-z]*/)) { ids[substr(v, RSTART, RLENGTH)] = 1; v = substr(v, RSTART + RLENGTH) }
+            }
+            item = 0
+        }
+        /^## / { close_item(); inside = ($0 ~ /^## Plan gate changes/); next }
+        !inside { next }
+        /^(- |[0-9]+\. )/ { close_item(); item = ++n; text = $0; next }
+        item { text = text "\n" $0 }
+        END {
+            close_item()
+            # The criterion change decisions before the first phase 4 row.
+            while ((getline line < rows) > 0) {
+                split(line, c, "\t")
+                if (c[2] == "4") { at4 = 1; break }
+                if (tolower(c[3]) ~ /^criterion change/) changes[++m] = c[3]
+            }
+            if (!at4) exit
+            for (id in ids) {
+                found = 0
+                for (k = 1; k <= m; k++) if (changes[k] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) found = 1
+                if (!found)
+                    print "plan.md: criterion " id " of a plan gate change has no criterion change row before the first phase 4 row; log it first: .claude/skills/deliver/scripts/log-decision.sh " run " 3 \"criterion change " id ": old ..., new ...\" <why> <evidence> <result>"
+            }
+        }' "$run/plan.md")
     for research in "$run"/research*.md; do
         [[ -f "$research" ]] || continue
         name="${research##*/}"

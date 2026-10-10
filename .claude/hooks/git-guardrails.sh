@@ -130,7 +130,9 @@ fi
 # blocks each app or application "<name>" (or id "<id>") that is not System Events, with a verb
 # (tell, quit, activate, run) or as a reference (window 1 of application "Finder"). An
 # application process "<name>" in System Events does not match. A text rule does not see a script
-# file (osascript <file>), JXA, or an app name that is not a string.
+# file (osascript <file>), JXA, or an app name that is not a string. A data string with "app" and
+# then a space and a quote (display dialog "Quit the app " & x) also blocks: the safe side; such a
+# script goes in a file.
 if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
   { s = $0
     while (match(s, /(^|[^a-z0-9_.-])(app|application) (id )?\\?"[^"\\]*/)) {

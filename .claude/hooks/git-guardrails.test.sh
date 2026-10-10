@@ -185,6 +185,11 @@ expect_each_form block 'quit app "QuickTime Player"'
 expect_each_form block 'activate application "Google Chrome"'
 expect_each_form block 'launch application id "com.google.Chrome"'
 expect_each_form block 'tell application "System Events" to quit application "QuickTime Player"'
+# A reference to another app with no tell verb sends the same Apple Event.
+expect_each_form block 'set bounds of window 1 of application "Finder" to {0, 0, 9, 9}'
+expect_each_form block 'run application "QuickTime Player"'
+expect_each_form block 'get name of application id "com.google.Chrome"'
+expect_each_form allow 'tell application "System Events" to get name of window 1 of application process "Finder"'
 # The two Finder gaps that end a Finder clause early: a System Events line, and an osascript word.
 expect_each_form block 'tell application "Finder"' 'tell application "System Events" to get name of every process' 'set bounds of front window to {0, 0, 9, 9}' 'end tell'
 expect_each_form block 'tell application "Finder"' 'get name of file "osascript.txt" of desktop' 'set bounds of front window to {0, 0, 9, 9}' 'end tell'
@@ -203,7 +208,8 @@ plutil -insert tool_input.command -string "osascript -e 'tell app \"Finder\" to 
 plutil -convert json "$input"
 message="$("$hook" < "$input" 2>&1 >/dev/null)"
 [[ "$message" == 'BLOCKED by .claude/hooks/git-guardrails.sh: '* && "$message" == *'opens as a tab'* &&
-  "$message" == *'move only the window of the verify copy'* && "$message" == *'If the matched text is only data'* &&
+  "$message" == *'move only the window of the verify copy'* && "$message" == *'through System Events'* &&
+  "$message" == *'If the matched text is only data'* &&
   "$message" != *'deliver flow'* ]] ||
   { echo "FAIL: the Finder block message: $message"; failures=$((failures + 1)); }
 

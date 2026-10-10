@@ -121,18 +121,19 @@ if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' 
   /^tell (app|application|(application )?process) (id )?\\?"(com\.apple\.)?finder\\?"/ && /set (the )?(bounds|position|size)([^a-z0-9_]|$)/ { found = 1 }
   END { exit !found }'; then
   block "changes the bounds, position, or size of a Finder window (a new Finder window opens as a tab of the window group of the user, so the change moves the windows of the user)" \
-    "Read where the Finder window is, and move only the window of the verify copy."
+    "Read where the Finder window is through System Events (get position of window 1 of process \"Finder\"), and move only the window of the verify copy."
 fi
 
 # An Apple Event to an app other than System Events makes macOS show an Automation prompt for the
 # terminal app: the call waits until it times out (-1712), and an agent that answers the prompt
 # changes a privacy setting of the user. The rule reads the command as the Finder rule does, and
-# blocks each tell, quit, activate, or launch of app or application "<name>" (or id "<id>") that
-# is not System Events. A tell of application process "<name>" in System Events does not match. A
-# text rule does not see a script file (osascript <file>), JXA, or an app name that is not a string.
+# blocks each app or application "<name>" (or id "<id>") that is not System Events, with a verb
+# (tell, quit, activate, run) or as a reference (window 1 of application "Finder"). An
+# application process "<name>" in System Events does not match. A text rule does not see a script
+# file (osascript <file>), JXA, or an app name that is not a string.
 if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
   { s = $0
-    while (match(s, /(tell|quit|activate|launch) (app|application) (id )?\\?"[^"\\]*/)) {
+    while (match(s, /(^|[^a-z0-9_.-])(app|application) (id )?\\?"[^"\\]*/)) {
       name = substr(s, RSTART, RLENGTH)
       sub(/^[^"]*"/, "", name)
       if (name != "system events" && name != "com.apple.systemevents") found = 1

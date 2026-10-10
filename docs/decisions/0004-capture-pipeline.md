@@ -5,6 +5,7 @@
 - Amended: 2026-09-24. The file names, the sidecar bytes, the take number rule, the package lock, and the armed-track rules are in 0012. A fault of one segment leaves that segment unplaced and ends the take; only a fault that can go away keeps the take pending (0012). A clip over 4 GiB is RF64 (0012).
 - Amended: 2026-09-24. The IOProc and the listeners use the C APIs (`AudioDeviceCreateIOProcID`, `AudioObjectAddPropertyListener`), not the block APIs. The library reads the microphone status in `Studio.startRecording`, and the front ends request access. A write error on one track reopens that track after 1 s (see 0013).
 - Amended: 2026-09-24. The active-recordings list is a plist array of package paths that `Studio` keeps in the order of this record. The app gives the path of the file; the CLI and the tests give none (see 0014).
+- Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **Timing** holds the clock rules for every device. `AGENTS.md` points here.
 
 ## Context
 
@@ -32,6 +33,8 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 
 **Timing.**
 
+- Every device has its own clock. Store the host time and sample time needed to align tracks from different devices.
+- Rebase a `UInt64` host time with wrapping operators (`time &- base &+ saved`): a record can come before the base, and host time is small after a boot.
 - Each segment has a sidecar file next to it. The first record holds the capture header: device UID, device name, nominal rate, the available nominal rates of the device (`kAudioDevicePropertyAvailableNominalSampleRates`), channel count, input latency, and the host time and sample time of the first frame. After that, the writer appends a checkpoint about once per second, and one at the last record of each segment: the file frame index, the sample time, and the host time. A segment shorter than 0.5 s, or with a zero host-time span, has no usable fit and takes the "no usable checkpoint" path of finalize.
 - The take anchor: timeline start = playhead at record start + (first-frame host time - take start host time) - latency. Host time never crosses a take, because host time is valid for one boot only.
 

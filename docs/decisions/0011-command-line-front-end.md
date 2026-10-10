@@ -15,6 +15,7 @@
 - Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard`. `clip paste-clips` copies whole clips with their time and track offsets and pastes them at `--at` (see 0038).
 - Amended: 2026-10-07, run 2026-10-07-mcp-cli. `dirigible mcp` serves each edit command as an MCP tool, with the English text of the command. `ParityTests` also checks that each command has its tool (see 0041).
 - Amended: 2026-10-08, run 2026-10-08-cli-bundle. The app bundle holds the tool at `Contents/Helpers/dirigible`, so a DMG user has `dirigible` and `dirigible mcp` with no developer setup.
+- Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **CLI parity** holds the parity rule. `AGENTS.md` points here.
 
 ## Context
 
@@ -57,9 +58,11 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 | 3 | The command succeeded, but captured audio is not on the timeline (take finalize). |
 | 64 | Usage error: the arguments do not parse, or a value cannot become a domain type. The package does not change. |
 
+**CLI parity.** Each new public library feature that operates on a session package or an audio file (an edit, an import, a render, or an export) gets a `dirigible` command, an MCP tool for an edit (0041), and a `DirigibleCLITests` test in the same run. Another public feature gets one line in its run that says why it has no command. The CLI only parses, calls the library, and prints.
+
 **Errors.** Library errors stay enums (0002). The CLI maps each case of `SessionError` and `SessionFileError` to one English line, `Error: <message>`, on stderr. The switch has no `default`, so a new error case does not compile until it has a message.
 
-**Language.** The CLI text is English only. This is an exception to the Localized UI rule in `AGENTS.md`. The CLI is a developer and agent tool, not a part of the app UI (R13). Scripts and agents compare its output, so the text must not change with the macOS language. The usage and help text that swift-argument-parser makes is English only, so a Spanish CLI would be half translated.
+**Language.** The CLI text is English only. This is an exception to the localized UI rule of 0010. The CLI is a developer and agent tool, not a part of the app UI (R13). Scripts and agents compare its output, so the text must not change with the macOS language. The usage and help text that swift-argument-parser makes is English only, so a Spanish CLI would be half translated.
 
 **In the app bundle.** `make app` also builds the `dirigible` product and copies it to `Contents/Helpers/dirigible`, not to `Contents/MacOS`: `dirigible` and `Dirigible` are one file on a volume that ignores case. `scripts/sign-app.sh` signs it with the identifier `com.delineas.dirigible.cli` before it signs the app. Each `make app` also builds swift-argument-parser universal, and the bundle grows by about 12 MB. The app does not call the tool.
 
@@ -68,7 +71,7 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 ## Consequences
 
 - `Package.swift` gets its first remote dependency. The first `swift build` needs the network or a filled `.build` cache (0005 accepted the same for swift-atomics). A clean debug build of the prototype took about 15 s, plus about 15 s for the first fetch.
-- Each new public library feature that operates on a session package or an audio file, an edit, an import, a render, or an export, gets a `dirigible` command in the same run, with a test in `DirigibleCLITests`. A `DirigibleCLITests` test lists the public mutating methods of `Session` and fails when one has no command and no exemption entry. Another public feature gets one line in its run that says why it has no command. `AGENTS.md` states the rule.
+- Each new public library feature that operates on a session package or an audio file, an edit, an import, a render, or an export, gets a `dirigible` command in the same run, with a test in `DirigibleCLITests`. A `DirigibleCLITests` test lists the public mutating methods of `Session` and fails when one has no command and no exemption entry. Another public feature gets one line in its run that says why it has no command. **CLI parity** states the rule.
 - Two `dirigible` commands that change one package at the same time can lose one of the two edits. The save is atomic, so the file stays readable. The CLI takes no lock.
 - The pending-take check comes before the write, with no lock. If Studio saves `<recording>` at take start after the CLI read the package, the CLI save removes `<recording>`, and a crash then leaves the take with no clips. Studio does not exist yet. The capture run adds a package lock that Studio and `editPackage` both take, before Studio writes `<recording>`.
 - The JSON view is a contract with scripts and agents. A change that removes or renames a key is a breaking change and needs a note in the pull request.

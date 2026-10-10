@@ -5,7 +5,7 @@ description: "Use for \"interrogate\", \"review panel\", \"adversarial review\",
 
 # Interrogate
 
-Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a different lens: the adversarial signal comes from lens diversity and model diversity. The deliverable is a judged verdict. The caller (usually the deliver skill) acts on it. This skill applies no fix.
+Run a panel of reviewer subagents over a plan or a diff. Each reviewer has a different lens. The deliverable is a judged verdict. The caller (usually the deliver skill) acts on it. This skill applies no fix.
 
 ## Step 1: Determine the target
 
@@ -26,16 +26,17 @@ Run the saved workflow `review-panel` with the Workflow tool:
 Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: ".scratchpads/runs/<run>/decisions.tsv", lenses?, paths?, worktree: "<absolute worktree path>" } })
 ```
 
-The workflow runs reviewer agents from `.claude/agents/` in parallel. Skeptics try to refute each warning and critical finding. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, the plan gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate adds `code-quality-reviewer` and makes one call per item below that the classes from `scripts/check-changed.sh` match:
+The workflow runs the reviewer agents in parallel. Skeptics try to refute each warning and critical finding. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, each gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate makes one call per item below that the classes from `scripts/check-changed.sh` match:
 
 - sources, sources-risk: the default lenses.
 - `AGENTS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "prompt-engineering", "harness-engineering", "eval-engineering", "compound-engineering"]`, with those four paths in `paths`.
-- tooling, tests, bundle, build: `lenses: ["code-quality"]`, with their changed paths in `paths`. Skip this call when the default lenses run.
 - other docs paths: no panel.
+
+A code gate with a class other than docs also calls the `code-review` skill in the tree of the branch, with an empty `git status --porcelain`, no `mutate.py` run: `high` on `origin/main...<branch>` (round 1), and `medium` on `<first fix>^..<branch>` as round 2, not the workflow. A result with no changed file did not run. The fixer checks each finding first (no skeptic).
 
 Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or for a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 
-Pass `round`, and the earlier verdict files in `prior`. The workflow picks the mode: open (round 1), follow-up, or convergence (`round` = `maxRounds`). An open last round never closes the gate; the convergence round closes it.
+Pass `round`, and the earlier verdict files in `prior`. Round 1 is open. Each later round converges.
 
 The Workflow tool caches saved workflows at session start: after a change to `.claude/workflows/review-panel.js` in this session, pass `scriptPath: ".claude/workflows/review-panel.js"` instead of `name`.
 

@@ -184,4 +184,20 @@ extension InspectorTests {
         await a.close()
         await b.close()
     }
+
+    /// Fix check: a hold on a field under Links opens Links, so the field and its rule show.
+    @Test func aHoldOnALinkFieldOpensLinks() async throws {
+        let (model, _, window, _) = try await open(try await package())
+        model.showEpisodeInfo()
+        let closed = try await episodeFields(window).count
+        model.typeEpisode("ftp://a.b", in: .feedURL)
+        model.commitEpisode()
+        #expect(model.holdsRefusedEpisode())
+        await until(limit: .seconds(10), "Links opens with its 3 fields") { shownFields(window).count == closed + 3 }
+        await until(limit: .seconds(10), "the focus goes to the feed URL") {
+            model.episodeFocus == .feedURL || !window.isKeyWindow
+        }
+        model.episodeDraft = nil
+        await model.close()
+    }
 }

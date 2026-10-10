@@ -19,6 +19,8 @@ final class ListenInput: @unchecked Sendable {
 private let listenProperties = [
     propertyAddress(kAudioDevicePropertyNominalSampleRate),
     propertyAddress(kAudioDevicePropertyDeviceIsAlive),
+    // The loopback set of an aggregate input (probe P10: a device with no such property takes the add).
+    propertyAddress(kAudioAggregateDevicePropertyActiveSubDeviceList),
 ]
 
 /// The listener of one listen appearance. Its client data is the `ListenInput`.
@@ -35,6 +37,8 @@ private let listenListener: AudioObjectPropertyListenerProc = { id, count, addre
         case kAudioDevicePropertyDeviceIsAlive:
             let alive = (try? readValue(id, kAudioDevicePropertyDeviceIsAlive, as: UInt32.self)) == 1
             input.listener?.post(.alive(alive), from: input)
+        case kAudioAggregateDevicePropertyActiveSubDeviceList:
+            input.listener?.post(.subdevices, from: input)
         default:
             continue
         }

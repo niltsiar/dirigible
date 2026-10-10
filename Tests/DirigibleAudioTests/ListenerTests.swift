@@ -246,6 +246,25 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await listener.off()
     }
 
+    /// A change of the active subdevices of an aggregate input mutes the ring at once and starts
+    /// again, so the new appearance reads the loopback set again (code gate round 1, item 2).
+    @Test func aSubdeviceChangeReadsTheLoopbackAgain() async throws {
+        hal.setAggregate("mic", subdevices: [40, 41], virtual: [])
+        output.setOutput(41)
+        let listener = listener()
+        listener.start()
+        let first = try #require(await input(after: [.playing]))
+        #expect(!first.ring.speakers, "no virtual subdevice: the monitor plays")
+        hal.setAggregate("mic", subdevices: [40, 41], virtual: [41])
+        listener.post(.subdevices, from: first)
+        #expect(first.ring.speakers, "the ring plays zeros at once")
+        await until(limit: .seconds(10), "a second appearance reports the loopback") {
+            hal.listenTries("mic").count == 2 && reports.all == [.playing, .loopback]
+        }
+        #expect(hal.listenTries("mic").last?.ring.speakers == true, "the new ring plays zeros")
+        await listener.off()
+    }
+
     /// A failed transport read is unknown, so every output counts as a loopback (fail closed).
     /// The read is a HAL property read of an object that does not exist, with no IO.
     @Test func aFailedTransportReadIsUnknown() {

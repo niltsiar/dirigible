@@ -17,6 +17,8 @@ struct TrackHeaders: View {
     /// keep their room; Shift-M and Shift-S still act.
     static let muteSoloWidth = 306.0
     static let muteSoloTwoLineWidth = 208.0
+    /// The header width from which a one-line row shows the layout text (`TrackRow.showsLayout`).
+    static let layoutWidth = 235.0
 
     var body: some View {
         let _ = model.countHeaderRun(row: false)
@@ -28,7 +30,7 @@ struct TrackHeaders: View {
                     TrackRow(
                         model: model, studio: studio, track: track, selected: selected.contains(track.id),
                         secondLine: laneHeight >= 56,
-                        showsLayout: laneHeight >= 56 || geometry.size.width >= 235,
+                        showsLayout: laneHeight >= 56 || geometry.size.width >= Self.layoutWidth,
                         showsMuteSolo: geometry.size.width
                             >= (laneHeight >= 56 ? Self.muteSoloTwoLineWidth : Self.muteSoloWidth),
                         showsCompactLoudness: geometry.size.width >= TrackRow.compactLoudnessWidth
@@ -54,8 +56,8 @@ private struct TrackRow: View {
     /// True in a lane of 56 pt or more: the row has two lines (H7).
     let secondLine: Bool
     /// The layout text, when the header width has room for it: at every width on two lines, from
-    /// 235 pt on one line (the sweep of `muteSoloWidth`), so no control goes under the handle. The
-    /// width alone picks it, never the typed name. A Bool, not the width: a row whose inputs do not
+    /// `TrackHeaders.layoutWidth` on one line, so no control goes under the handle. The width
+    /// alone picks it, never the typed name. A Bool, not the width: a row whose inputs do not
     /// change is not drawn again (a width input made the one-off header events 2 to 3 times slower).
     let showsLayout: Bool
     /// M and S, from `TrackHeaders.muteSoloWidth` or `muteSoloTwoLineWidth`. A Bool, as `showsLayout`.

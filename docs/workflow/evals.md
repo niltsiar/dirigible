@@ -1,6 +1,6 @@
 # Eval set of the workflow docs
 
-This file is the regression set of the workflow docs (`AGENTS.md`, `.claude/skills/`, `.claude/agents/`, `docs/principles.md`, and `scripts/`). Each scenario is a question from a real incident or from a sampled rule of the rule register. Reflect rule 8 and the eval-engineering lens run the scenarios that `scripts/evals-for.sh --quoted <base>` prints: a new scenario, a holdout, or a scenario whose key points quote the changed words of a hunk of a file of its `Files` column.
+This file is the regression set of the workflow docs (`AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills/`, `.claude/agents/`, `docs/principles.md`, and `scripts/`). Each scenario is a question from a real incident or from a sampled rule of the rule register. Reflect rule 8 and the eval-engineering lens run the scenarios that `scripts/evals-for.sh --quoted <base>` prints: a new scenario, a holdout, or a scenario whose key points quote the changed words of a hunk of a file of its `Files` column.
 
 ## How the eval runs
 

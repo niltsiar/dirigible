@@ -76,6 +76,9 @@ new_repo; reflect_row; verdicts delete merge; mkdir -p "$tmp/r/scripts"; echo x 
 pass 'two removals in a branch with a script change' "$tmp/run"
 new_repo; reflect_row; verdicts delete merge; commit
 pass 'two removals with no run folder'
+three() { printf '%s\nA-1\ta.md\tdelete\t\tr\ts\t\tx\nA-2\ta.md\tmerge\tA-1\tr\ts\t\tx\nA-3\ta.md\tdelete\t\tr\ts\t\tx\n' "$head_rules" > "$rules"; }
+new_repo; reflect_row; three; commit
+refuse 'three removals with no user decision row' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
 
 # The plan check of the run folder (check-plan.sh) runs with the other checks.
 new_repo

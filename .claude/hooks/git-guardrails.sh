@@ -46,10 +46,12 @@ DANGEROUS_PATTERNS=(
   'gh pr merge .*--admin'
 )
 
-# The only allowed change to the hooks path is the one `make setup` makes.
-if grep -qE 'core\.hooksPath' <<< "$COMMAND" \
-  && ! grep -qE -- '--get' <<< "$COMMAND" \
-  && ! grep -qE 'core\.hooksPath \.githooks( |;|&|$)' <<< "$COMMAND"; then
+# The only allowed change to the hooks path is the one `make setup` makes. A read with no value
+# (`git config [--local] [--get] core.hooksPath`) is allowed too. Both forms are removed from the
+# text first, so any hooks path text that is left is a change.
+hooks_rest="$(sed -E -e 's/git +config( +--local)?( +--get)? +core\.hooksPath *([;&|)]|$)/\3/g' \
+  -e 's/core\.hooksPath \.githooks( |;|&|$)/\1/g' <<< "$COMMAND")"
+if grep -qE 'core\.hooksPath' <<< "$hooks_rest"; then
   block "changes core.hooksPath"
 fi
 

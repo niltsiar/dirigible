@@ -36,6 +36,14 @@ struct LocalizationTests {
         }
     }
 
+    /// Code gate 1 item 4: the window beeps for a ripple refusal, but a missed catch shows its own
+    /// text, not the text of another refusal.
+    @Test func aRippleRefusalHasItsOwnText() {
+        #expect(
+            L10n.message(for: .rippleBlocked) == L10n.errorRippleBlocked.rawValue,
+            "RIPPLE-L1 a ripple refusal shows another text")
+    }
+
     @Test func checkerFindsAnEmptyValue() {
         #expect(tableProblems(en: ["a": "A"], es: ["a": ""], keys: ["a"]) == ["es: no value for a"])
     }

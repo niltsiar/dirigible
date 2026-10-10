@@ -111,7 +111,6 @@
 "error.episode.date" = "Escriba una fecha con la forma AAAA-MM-DD.";
 "error.episode.language" = "Escriba un código de idioma ISO 639-2 de tres letras minúsculas, por ejemplo eng o spa.";
 "error.episode.url" = "Escriba una URL http o https.";
-"error.episode.notes" = "Quite los caracteres de control del texto.";
 "error.import.not.audio" = "Dirigible no puede importar «%@». Dirigible no puede leer el audio de este archivo. Use un archivo WAV, AIFF, FLAC, MP3 o M4A.";
 "error.import.not.downloaded" = "Dirigible no puede importar «%@». El archivo no está en este Mac. Descargue primero el archivo.";
 "error.import.channels" = "Dirigible no puede importar «%1$@». El archivo tiene %2$lld canales. Dirigible solo importa archivos mono y estéreo. Divida el archivo en archivos mono o estéreo.";

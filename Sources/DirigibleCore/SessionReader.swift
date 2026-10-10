@@ -177,11 +177,8 @@ extension Episode {
                 throw .invalidValue(element: "episode", attribute: name)
             }
         }
-        func element(_ name: String) throws(SessionFileError) -> EpisodeNotes? {
-            guard let text = node.sessionElements(name).first?.stringValue else { return nil }
-            do throws(EpisodeFieldError) { return try EpisodeNotes(text) } catch {
-                throw .invalidValue(element: "episode", attribute: name)
-            }
+        func element(_ name: String) -> EpisodeNotes? {
+            node.sessionElements(name).first?.stringValue.flatMap(EpisodeNotes.init)
         }
         title = try parse("title", EpisodeLine.init)
         show = try parse("show", EpisodeLine.init)
@@ -196,8 +193,8 @@ extension Episode {
         case "true": explicit = true
         default: throw .invalidValue(element: "episode", attribute: "explicit")
         }
-        summary = try element("summary")
-        notes = try element("notes")
+        summary = element("summary")
+        notes = element("notes")
         episodeURL = try parse("episodeURL", WebURL.init)
         feedURL = try parse("feedURL", WebURL.init)
         guid = try parse("guid", EpisodeLine.init)

@@ -365,7 +365,6 @@ enum L10n: String, CaseIterable {
     case errorEpisodeDate = "error.episode.date"
     case errorEpisodeLanguage = "error.episode.language"
     case errorEpisodeURL = "error.episode.url"
-    case errorEpisodeNotes = "error.episode.notes"
     case errorImportNotAudio = "error.import.not.audio"
     case errorImportNotDownloaded = "error.import.not.downloaded"
     case errorImportChannels = "error.import.channels"

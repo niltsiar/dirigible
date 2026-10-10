@@ -1,0 +1,10 @@
+# The Swift files under Tests/ that make check-slow-gates lets call .wait(timeout:): <path><TAB><reason>.
+Tests/DirigibleAudioTests/Support.swift	the Gate type holds the one raw wait that each hold of product work shares
+Tests/DirigibleAudioTests/CaptureRingStressTests.swift	the wait of the test for its own threads (10 s), not a hold of product work
+Tests/DirigibleTests/DropTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
+Tests/DirigibleTests/ExportReportWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
+Tests/DirigibleTests/ExportWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
+Tests/DirigibleTests/ImportWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
+Tests/DirigibleTests/RevertMenuTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
+Tests/DirigibleTests/SessionBannerAccessibilityTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
+Tests/DirigibleTests/SessionPasteWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)

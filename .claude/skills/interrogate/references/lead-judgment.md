@@ -4,15 +4,15 @@ You are the lead reviewer. Do not aggregate the findings: filter them, put them 
 
 ## Why the lead filters
 
-Aggressive reviewers are useful, but aggression without context makes noise. The reviewers saw a slice of the code and the intent paragraph. They do not know what the run tried and rejected, the constraints outside the code (timeline, dependencies, migrations), which code is temporary scaffolding, or what the next pull request will address. You have the full conversation context. Use it.
+Aggressive reviewers are useful, but aggression without context makes noise. The reviewers saw a slice of the code and the intent paragraph. They do not know what the run tried and rejected, the constraints outside the code, which code is temporary scaffolding, or what the next pull request will address. You have the full conversation context. Use it.
 
 ## Filters
 
 - **Nitpick gravity.** With no critical issue, a reviewer inflates nits. When all findings of a reviewer are nits, the code is probably fine. Say so.
-- **Hypothetical or actual.** "What if someone passes null here?" is a finding only if a caller can pass null. Trace the call site. Dismiss the finding when an upstream check or the type system prevents it: a reviewer that reads a diff cannot always see the call chain.
+- **Hypothetical or actual.** A finding, a plan slice, or a fixer prompt needs a real caller that reaches the path. Fix a failure that only a test reaches in the test. Dismiss the finding when an upstream check or the type system prevents it: a reviewer that reads a diff cannot always see the call chain.
 - **A failure of this run is actual.** Before you dismiss a finding as hypothetical, search the `decisions.tsv` of the run for the same failure. A failure that already happened in this run is actual.
 - **Premature abstraction.** For a request to extract a function or to add an abstraction, ask: does this code need to change in a second way? If not, the abstraction is premature.
-- **"I would have done it differently."** This is the most common false positive. A finding that only prefers another approach is not actionable, unless it shows a concrete problem with the current approach. Dismiss it, and say why.
+- **"I would have done it differently."** A finding that only prefers another approach is not actionable, unless it shows a concrete problem with the current approach. Dismiss it, and say why.
 - **Missing context.** A finding on code that the author did not change, on a pattern that the rest of the codebase also uses, or against a constraint that you know, shows missing context. Dismiss it.
 
 ## When reviewers are right
@@ -28,7 +28,7 @@ A good verdict is useful, not complete: the user fixes the "Act on" items and sh
 Each "Act on" item and taken nit, except a `no behavior change` nit, needs two fields (`scripts/check-plan.sh` checks them).
 
 - **Invariant:** the broken invariant, named by the state, not by the operation: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
-- **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter call. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>".
+- **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter call. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>". Prove each sibling that the fix leaves unchanged with a test, log, or control.
 
 With `risk: yes`, after each fix commit, replay the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> HEAD~1` prints (`mutation-controls.md`). Pass both fields to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer that the symptom names. When a fix relaxes a guard or drops a wait, name what the guard or wait must still keep out, and list each reader of its state under Siblings.
 

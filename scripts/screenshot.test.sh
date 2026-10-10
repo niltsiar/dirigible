@@ -68,16 +68,24 @@ err="$("$shot" --owner Dock "$tmp/dock.png" 2>&1 >/dev/null)"
 code=$?
 [[ $code -eq 0 ]] || fail "owner with a normal window: exit $code, not 0: $err"
 [[ "$(cat "$tmp/screencapture.args" 2>/dev/null)" == *"-l 4242 "* ]] || fail "owner with a normal window: screencapture did not get -l 4242"
-export FAKE_WINDOWS='let windows: [[String: Any]] = []'
 
 err="$("$shot" --window 2>&1 >/dev/null)" && fail "--window with no ID: exit 0"
 [[ "$err" == *"usage: screenshot.sh"* ]] || fail "--window with no ID: no usage text: $err"
 
-# No window has the number 0.
+# The --window cases use the same two windows (41 and 4242). No window has the number 0, so the
+# script matches the number, not the position in the list.
 err="$("$shot" --window 0 "$tmp/x.png" 2>&1 >/dev/null)"
 code=$?
 [[ $code -eq 1 ]] || fail "unknown window: exit $code, not 1"
 [[ "$err" == *"No window 0 on screen"* ]] || fail "unknown window: wrong message: $err"
 [[ ! -e "$tmp/x.png" ]] || fail "unknown window: a file was written"
+
+# --window takes the window with that number.
+rm -f "$tmp/screencapture.args"
+err="$("$shot" --window 4242 "$tmp/w.png" 2>&1 >/dev/null)"
+code=$?
+[[ $code -eq 0 ]] || fail "window by number: exit $code, not 0: $err"
+[[ "$(cat "$tmp/screencapture.args" 2>/dev/null)" == *"-l 4242 "* ]] || fail "window by number: screencapture did not get -l 4242"
+export FAKE_WINDOWS='let windows: [[String: Any]] = []'
 
 [[ $failures -eq 0 ]] && echo "screenshot tests: all passed" || { echo "screenshot tests: $failures failed"; exit 1; }

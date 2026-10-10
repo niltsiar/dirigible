@@ -157,6 +157,22 @@ import Testing
         await model.close()
     }
 
+    /// The box follows the rule of the menu item (code gate round 1, item 4): only in the open
+    /// phase, and only for a device track.
+    @Test func theBoxActsOnlyInAnOpenWindow() async throws {
+        let (model, _, _, _) = try await open()
+        model.setListen(true, track: "t3")
+        #expect(model.listened.isEmpty, "an app track does not listen: \(model.listened)")
+        let closing = Task { await model.close() }
+        await until("the window is closing") {
+            if case .closing = model.phase { true } else { false }
+        }
+        model.setListen(true, track: "t1")
+        model.setListen(true, track: "t1", all: true)
+        #expect(model.listened.isEmpty, "a closing window does not listen: \(model.listened)")
+        await closing.value
+    }
+
     // MARK: B8
 
     /// Option-click sets every device track to the new state; the app track and the track with no

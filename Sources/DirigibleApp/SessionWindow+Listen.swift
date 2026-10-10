@@ -32,10 +32,10 @@ extension SessionWindow {
     }
 
     /// The Monitor box of a header row: its own track, or with `all` (an Option-click) every
-    /// device track.
+    /// device track. The rule of the menu item: the open phase, device tracks only.
     func setListen(_ on: Bool, track: TrackID, all: Bool = false) {
-        let tracks =
-            all ? studio.map { s in s.session.tracks.map(\.id).filter { isDeviceTrack($0, in: s) } } ?? [] : [track]
+        guard case .open(let studio) = phase else { return }
+        let tracks = (all ? studio.session.tracks.map(\.id) : [track]).filter { isDeviceTrack($0, in: studio) }
         if on { listened.formUnion(tracks) } else { listened.subtract(tracks) }
     }
 

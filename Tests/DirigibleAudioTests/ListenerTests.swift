@@ -295,6 +295,20 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await listener.off()
     }
 
+    /// An unknown loopback set plays zeros and reports quiet, so the header shows the text that
+    /// asks for a toggle, which reads the set again. A known loopback device keeps `.loopback`
+    /// (code gate round 2, item 4). The aggregate lists itself (the mic has ID 1), so its set
+    /// is unknown.
+    @Test func anUnknownLoopbackIsQuiet() async throws {
+        hal.setAggregate("mic", subdevices: [1], virtual: [])
+        output.setOutput(5)
+        let listener = listener()
+        listener.start()
+        let input = try #require(await input(after: [.quiet]), "an unknown set reports quiet")
+        #expect(input.ring.speakers, "an unknown set plays zeros")
+        await listener.off()
+    }
+
     /// A failed transport read is unknown, so every output counts as a loopback (fail closed).
     /// The read is a HAL property read of an object that does not exist, with no IO.
     @Test func aFailedTransportReadIsUnknown() {

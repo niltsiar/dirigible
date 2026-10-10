@@ -18,6 +18,22 @@ extension HeaderRowTests {
         return (box ? [frame] : []) + view.subviews.flatMap { flagBoxes($0, in: host) }
     }
 
+    /// The first header x right of the arm boxes under `host`: the smallest right edge of a box,
+    /// plus 1 pt. A count of state colors starts here, so a red arm box does not count as a fault.
+    func rightOfArm(_ host: NSView) throws -> Double {
+        try #require(flagBoxes(host, in: host).map { Double($0.maxX) }.min(), "no arm box") + 1
+    }
+
+    /// The leaf views under `host` that go past the right padding of a row of `width`. A view of
+    /// almost the row width is a row background, not a control.
+    func outside(_ host: NSView, width: Double) -> [String] {
+        func leaves(_ view: NSView) -> [NSView] { view.subviews.isEmpty ? [view] : view.subviews.flatMap(leaves) }
+        return leaves(host).compactMap { leaf in
+            let frame = leaf.convert(leaf.bounds, to: host)
+            return frame.width < width - 20 && frame.maxX > width - 8 ? "\(type(of: leaf)) \(frame)" : nil
+        }
+    }
+
     @Test func muteAndSoloShowOnlyWhereTheyFit() async throws {
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
@@ -36,35 +52,27 @@ extension HeaderRowTests {
                 #expect(
                     flagBoxes(host, in: host).count == (width >= threshold ? 9 : 3),
                     "arm in each row, M and S only from the gate: \(label)")
-                func leaves(_ view: NSView) -> [NSView] {
-                    view.subviews.isEmpty ? [view] : view.subviews.flatMap(leaves)
-                }
                 // At 180 pt a two-line row cuts its state text with no M and S too; the captures
                 // check that width.
-                for leaf in leaves(host) where width > 180 {
-                    let frame = leaf.convert(leaf.bounds, to: host)
-                    guard frame.width < width - 20 else { continue }
-                    #expect(frame.maxX <= width - 8, "inside the row: \(label): \(type(of: leaf)) \(frame)")
+                if width > 180 {
+                    let out = outside(host, width: width)
+                    #expect(out.isEmpty, "inside the row: \(label): \(out)")
                 }
                 window.orderFront(nil)
                 drawNow(window)
                 try await Task.sleep(for: .milliseconds(200))
                 let capture = try await TimelineColorTests.capture(window)
-                func count(_ row: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32, UInt32, UInt32) -> Bool) throws
-                    -> Int
-                {
-                    let columns = x ?? Self.rightOfArm...width
+                let rightOfArm = try rightOfArm(host)
+                func count(_ row: Int, x: ClosedRange<Double>? = nil, _ color: (UInt32) -> Bool) throws -> Int {
+                    let columns = x ?? rightOfArm...width
                     let rect = host.convert(
                         NSRect(
                             x: columns.lowerBound, y: Double(row) * lane,
                             width: columns.upperBound - columns.lowerBound, height: lane),
                         to: nil)
-                    return try TimelineRulerTests.pixels(of: rect, capture, window).filter { pixel in
-                        color(pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)
-                    }.count
+                    return try TimelineRulerTests.pixels(of: rect, capture, window).filter(color).count
                 }
-                let red = { (r: UInt32, g: UInt32, b: UInt32) in r > 180 && g < 90 && b < 90 }
-                let orange = { (r: UInt32, g: UInt32, b: UInt32) in r > 200 && g > 90 && g < 190 && b < 80 }
+                let (red, orange) = (Self.isRed, Self.isOrange)
                 #expect(try count(0, red) > 10, "the lost-device state shows: \(label)")
                 #expect(try count(0, x: (width - 6)...width, red) == 0, "no state in the handle strip: \(label)")
                 #expect(try count(1, orange) > 10, "the dropped-frames state shows: \(label)")
@@ -81,6 +89,12 @@ extension HeaderRowTests {
         return r > 180 && g < 90 && b < 90
     }
 
+    /// True for the orange of the dropped-frames symbol, over a light row.
+    static func isOrange(_ pixel: UInt32) -> Bool {
+        let (r, g, b) = (pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)
+        return r > 200 && g > 90 && g < 190 && b < 80
+    }
+
     /// The red pixels in the arm box of each row, top row first, in one-line rows at 340 pt.
     func armRed(_ model: SessionWindow, _ studio: Studio) async throws -> [Int] {
         let (window, host) = rows(model, studio, laneHeight: 50, width: 340)
@@ -89,7 +103,8 @@ extension HeaderRowTests {
         drawNow(window)
         try await Task.sleep(for: .milliseconds(200))
         let capture = try await TimelineColorTests.capture(window)
-        let arms = flagBoxes(host, in: host).filter { $0.maxX < Self.rightOfArm }.sorted { $0.minY < $1.minY }
+        let rightOfArm = try rightOfArm(host)
+        let arms = flagBoxes(host, in: host).filter { $0.maxX < rightOfArm }.sorted { $0.minY < $1.minY }
         return try arms.map { box in
             try TimelineRulerTests.pixels(of: host.convert(box, to: nil), capture, window).filter(Self.isRed).count
         }

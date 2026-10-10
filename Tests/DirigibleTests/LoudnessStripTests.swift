@@ -239,7 +239,7 @@ import Testing
         await model.close()
     }
 
-    /// Monitor Inputs is a meter only (decision 0015): during a play the output is the play mix,
+    /// Input Levels is a meter only (decision 0015): during a play the output is the play mix,
     /// so the strip shows the play values (code gate 2, J1).
     @Test func aPlayDuringAMonitorShowsThePlayValues() async throws {
         defer { UserDefaults().removePersistentDomain(forName: suite) }

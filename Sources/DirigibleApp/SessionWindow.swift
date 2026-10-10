@@ -66,7 +66,7 @@ struct ExportReportShown: Equatable {
     /// The last mouse-down on the track headers, from `HeaderHost`: a header tap reads its click
     /// count and modifier keys.
     @ObservationIgnored var headerMouseDown: NSEvent?
-    /// Monitor Inputs (decision 0015): off at open, not saved. With the armed tracks, it drives
+    /// Input Levels (decision 0015): off at open, not saved. With the armed tracks, it drives
     /// `Studio.monitor(armed:)`.
     var monitoring = false
     /// Track > Monitor Track (decision 0044): the tracks whose input plays in the default output.

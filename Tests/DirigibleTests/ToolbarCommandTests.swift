@@ -34,7 +34,7 @@ struct ToolbarMenuTests {
         #expect(WindowCommand.stop.menuItem.title == .menuTransportStop)
     }
 
-    /// A6: Monitor Inputs has Shift-Command-M, Show/Hide Toolbar has Option-Command-T, and no key
+    /// A6: Input Levels has Shift-Command-M, Show/Hide Toolbar has Option-Command-T, and no key
     /// is on two items.
     @Test func theNewKeysAreFree() {
         #expect(MenuKeys.monitor == KeyboardShortcut("m", modifiers: [.command, .shift]))
@@ -118,7 +118,7 @@ struct ToolbarMenuTests {
         await model.close()
     }
 
-    /// A5: Add Track adds a track, Zoom In halves the frames per point, Monitor Inputs sets the
+    /// A5: Add Track adds a track, Zoom In halves the frames per point, Input Levels sets the
     /// toggle, and Cut from the palette removes the selected range, or the selected text of a
     /// focused name field (the responder chain, 0018 E3).
     @Test func aToolbarClickRunsItsMenuCommand() async throws {

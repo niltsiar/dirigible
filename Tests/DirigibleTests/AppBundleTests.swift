@@ -97,6 +97,13 @@ struct AppBundleTests {
             // The short title of the header button; the full name above is its help and AX label.
             ("track.no.sound.privacy", "Privacy…", "Privacidad…"),
             ("track.route.apps", "Apps", "Apps"),
+            // Run 1b of the record monitor (A27): the meter item does not say "monitor".
+            ("menu.record.monitor", "Input Levels", "Niveles de entrada"),
+            ("toolbar.monitor", "Levels", "Niveles"),
+            (
+                "track.state.retry.stopped", "Stopped retrying. Turn Input Levels off and on.",
+                "Se dejó de reintentar. Desactiva y activa Niveles de entrada."
+            ),
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.
             ("panel.export.format.mp3", "MP3", "MP3"),

@@ -50,7 +50,7 @@ import Testing
 
     @Test func aClickMonitorsAnArmedTrack() async throws {
         let (window, studio) = try await window(try await package())
-        #expect(window.armed.contains("t1") && !window.monitoring, "t1 is armed, Monitor Inputs is off")
+        #expect(window.armed.contains("t1") && !window.monitoring, "t1 is armed, Input Levels is off")
         select("t1", in: window, studio)
         #expect(window.canListen && !window.listensSelection)
 

@@ -24,7 +24,7 @@
 "menu.record.leave.unreadable" = "Finish Without Unreadable Audio";
 "menu.unplaced.place" = "Place";
 "menu.unplaced.place.playhead" = "Place at Playhead on Selected Track";
-"menu.record.monitor" = "Monitor Inputs";
+"menu.record.monitor" = "Input Levels";
 "menu.tools" = "Tools";
 "menu.tools.level" = "Auto Level";
 "menu.tools.level.track" = "Auto Level per Track";
@@ -177,7 +177,7 @@
 "track.no.sound.privacy" = "Privacy…";
 "track.state.device.lost" = "Device lost";
 "track.state.write.failed" = "Write error";
-"track.state.retry.stopped" = "Stopped retrying. Turn Monitor Inputs off and on.";
+"track.state.retry.stopped" = "Stopped retrying. Turn Input Levels off and on.";
 "track.state.waiting.app" = "Waiting for %@";
 "track.state.no.sound" = "No sound from %1$@. If %1$@ plays sound, allow Dirigible in Privacy & Security > System Audio Recording.";
 "track.listen.quiet" = "No monitor sound. Turn Monitor Track off and on.";
@@ -351,7 +351,7 @@
 "alert.import.not.imported" = "The import stopped. Dirigible did not import these files:\n%@";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
-"toolbar.monitor" = "Monitor";
+"toolbar.monitor" = "Levels";
 "toolbar.time" = "Playhead";
 "toolbar.zoom.fit" = "Fit";
 "toolbar.export" = "Export";

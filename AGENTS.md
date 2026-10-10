@@ -54,7 +54,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 ## Read first
 
 - **Module map.** Before you look for a type or a file in `Sources/`, read the Decision table and **Folders** in `docs/decisions/0002-module-map.md`.
-- **Audio callbacks.** Before you write an audio callback (render block, tap, input proc, listener) or code that branches on an `OSStatus`, read **Callbacks** and **Status codes** in `docs/decisions/0013-live-capture.md`.
+- **Audio callbacks.** Before you write an audio callback (render block, tap, input proc, listener), read **Callbacks** in `docs/decisions/0013-live-capture.md`. Before code branches on an `OSStatus`, read **Status codes** there.
 - **Device clocks.** Before you store or align capture times, read **Timing** in `docs/decisions/0004-capture-pipeline.md`.
 - **Localized UI.** Before you add or change a user-facing string, read `docs/decisions/0010-ui-strings.md`.
 - **CLI parity.** Before you add a public library feature, read **CLI parity** in `docs/decisions/0011-command-line-front-end.md`. `swift run dirigible --help` lists the commands that make, change, and read session packages.

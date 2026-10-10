@@ -62,7 +62,7 @@ enum ToolbarItemID: String, CaseIterable {
     }
 
     /// The transport, the time, and the inspector stay longest (an inspector button stays at
-    /// every window size, ui-panel 9); Monitor Inputs and Export stay before the edit and
+    /// every window size, ui-panel 9); Input Levels and Export stay before the edit and
     /// zoom items (probe P1e: the standard items overflow from the trailing end).
     var priority: NSToolbarItem.VisibilityPriority {
         switch self {
@@ -206,7 +206,7 @@ struct ShownChrome: Equatable {
 /// observation loop (decision 0023).
 struct ChromeState: Equatable {
     var enabled: Set<ToolbarItemID> = []
-    /// The push-on items that are on: Record during a take, Play during a play, Monitor Inputs.
+    /// The push-on items that are on: Record during a take, Play during a play, Input Levels.
     var on: Set<ToolbarItemID> = []
     var playing = false
     var time = timeDisplayText(0, rate: 48_000, playing: false)

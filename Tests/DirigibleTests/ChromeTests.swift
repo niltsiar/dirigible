@@ -156,16 +156,16 @@ struct TimeTextTests {
         let (model, _, chrome) = try await open()
         let monitor = try #require(try item(.monitor, chrome).menuFormRepresentation)
         let record = try #require(try item(.record, chrome).menuFormRepresentation)
-        await until("Monitor Inputs is off in the menu") { monitor.state == .off }
+        await until("Input Levels is off in the menu") { monitor.state == .off }
 
         model.monitoring = true
 
-        await until(limit: .seconds(5), "Monitor Inputs is on in the menu") { monitor.state == .on }
-        #expect(monitor.state == .on, "the overflow item of Monitor Inputs has no on state")
+        await until(limit: .seconds(5), "Input Levels is on in the menu") { monitor.state == .on }
+        #expect(monitor.state == .on, "the overflow item of Input Levels has no on state")
         #expect(record.state == .off)
         #expect(chrome.validateMenuItem(record), "Record is off in the menu")
         model.monitoring = false
-        await until(limit: .seconds(5), "Monitor Inputs is off in the menu again") { monitor.state == .off }
+        await until(limit: .seconds(5), "Input Levels is off in the menu again") { monitor.state == .off }
         #expect(monitor.state == .off)
         let recordButton = try button(.record, chrome)
         model.armed = []

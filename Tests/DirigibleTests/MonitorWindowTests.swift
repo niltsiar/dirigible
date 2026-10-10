@@ -7,7 +7,7 @@ import os
 @testable import DirigibleAudio
 
 /// The window side of the input monitor (decision 0015): the device list, the route state, and
-/// the Monitor Inputs toggle with real windows and real packages.
+/// the Input Levels toggle with real windows and real packages.
 @MainActor struct MonitorWindowTests {
     let folder: TemporaryFolder
     let app = AppDelegate(recordings: nil)

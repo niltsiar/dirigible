@@ -54,11 +54,11 @@ A track records only when its arm button is on. Click the button to turn it on o
 
 ### Check the levels
 
-1. Choose **Record > Monitor Inputs** (Shift-Command-M).
+1. Choose **Record > Input Levels** (Shift-Command-M). The toolbar button is **Levels**.
 2. If macOS asks for access to the microphone, click **Allow**.
 3. Speak into each microphone. The meter in the header of its track moves. After 3 s, the header also shows the loudness of the last 3 s, in LUFS (for example **-17**), when the header is 262 pt or wider, or the lane is tall enough for two lines.
 
-**Monitor Inputs** shows the level of each armed track. It does not send the sound to your headphones. To hear a microphone in your headphones, use **Track > Monitor Track** ([Hear a track while you record](#hear-a-track-while-you-record)).
+**Input Levels** shows the level of each armed track. It does not send the sound to your headphones. To hear a microphone in your headphones, use **Track > Monitor Track** ([Hear a track while you record](#hear-a-track-while-you-record)).
 
 ### Record a take
 
@@ -88,7 +88,7 @@ The loudness meter is the strip below the tracks. It measures the mix that you h
 - **Peak** is the highest true peak, in dBTP. It is red over -1 dBTP.
 - **Target** is the loudness target of the export: -16 LUFS for the podcast target or Off, -23 LUFS for EBU R128.
 
-When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. Play in reverse, at half speed, at 2x, or at 4x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, or during **Monitor Inputs** with no play, the strip shows dashes. Then each armed track shows its loudness in its header when the header is 262 pt or wider, or the lane is tall enough for two lines.
+When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. Play in reverse, at half speed, at 2x, or at 4x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, or during **Input Levels** with no play, the strip shows dashes. Then each armed track shows its loudness in its header when the header is 262 pt or wider, or the lane is tall enough for two lines.
 
 Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 
@@ -564,7 +564,7 @@ The **Record** menu (**Grabación**).
 |---|---|---|
 | **Record** | **Grabar** | Command-R |
 | **Retry Finalize** | **Reintentar la finalización** | Option-Command-R |
-| **Monitor Inputs** | **Monitorizar entradas** | Shift-Command-M |
+| **Input Levels** | **Niveles de entrada** | Shift-Command-M |
 
 ### Tools
 

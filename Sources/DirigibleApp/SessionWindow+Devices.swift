@@ -6,8 +6,8 @@ import Observation
 /// The monitor and device side of the session window (decision 0015).
 extension SessionWindow {
     /// Sends the listened tracks and the meter request to the studio, which diffs them (decisions
-    /// 0015 and 0044). The meter request is the armed tracks while Monitor Inputs is on. The
-    /// studio meters the listened tracks too. A refused access turns Monitor Inputs and Monitor
+    /// 0015 and 0044). The meter request is the armed tracks while Input Levels is on. The
+    /// studio meters the listened tracks too. A refused access turns Input Levels and Monitor
     /// Track off.
     func updateMonitor() async {
         guard case .open(let studio) = phase else { return }

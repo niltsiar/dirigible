@@ -28,7 +28,7 @@ extension SessionWindow {
         return true
     }
 
-    /// Monitor Inputs: only in the open phase, like the other Record items.
+    /// Input Levels: only in the open phase, like the other Record items.
     var canMonitor: Bool {
         if case .open = phase { return true }
         return false

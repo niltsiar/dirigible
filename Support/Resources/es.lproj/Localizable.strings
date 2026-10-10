@@ -24,7 +24,7 @@
 "menu.record.leave.unreadable" = "Terminar sin el audio ilegible";
 "menu.unplaced.place" = "Colocar";
 "menu.unplaced.place.playhead" = "Colocar en el cursor en la pista seleccionada";
-"menu.record.monitor" = "Monitorizar entradas";
+"menu.record.monitor" = "Niveles de entrada";
 "menu.tools" = "Herramientas";
 "menu.tools.level" = "Nivelar automáticamente";
 "menu.tools.level.track" = "Nivelar automáticamente por pista";
@@ -177,7 +177,7 @@
 "track.no.sound.privacy" = "Privacidad…";
 "track.state.device.lost" = "Dispositivo perdido";
 "track.state.write.failed" = "Error de escritura";
-"track.state.retry.stopped" = "Se dejó de reintentar. Desactiva y activa Monitorizar entradas.";
+"track.state.retry.stopped" = "Se dejó de reintentar. Desactiva y activa Niveles de entrada.";
 "track.state.waiting.app" = "Esperando a %@";
 "track.state.no.sound" = "No hay sonido de %1$@. Si %1$@ reproduce sonido, permite Dirigible en Privacidad y seguridad > Grabación de audio del sistema.";
 "track.listen.quiet" = "Sin sonido de monitor. Desactiva y activa Monitorizar pista.";
@@ -351,7 +351,7 @@
 "alert.import.not.imported" = "La importación se detuvo. Dirigible no importó estos archivos:\n%@";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
-"toolbar.monitor" = "Monitorizar";
+"toolbar.monitor" = "Niveles";
 "toolbar.time" = "Cursor";
 "toolbar.zoom.fit" = "Ajustar";
 "toolbar.export" = "Exportar";

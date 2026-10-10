@@ -49,7 +49,7 @@ struct ToolbarValueTests {
         }
     }
 
-    /// A10: the transport and the time stay longest; Monitor Inputs and Export stay before Add
+    /// A10: the transport and the time stay longest; Input Levels and Export stay before Add
     /// Track and the edit and zoom items.
     @Test func eachItemHasItsPriority() {
         let boost = NSToolbarItem.VisibilityPriority(rawValue: NSToolbarItem.VisibilityPriority.standard.rawValue + 500)
@@ -171,7 +171,7 @@ struct ToolbarValueTests {
     }
 
     /// A10: at the minimum width, with a long title, the transport and the time stay in the
-    /// toolbar; at 900 pt, Monitor Inputs and Export too (probe P1c). English and Spanish labels.
+    /// toolbar; at 900 pt, Input Levels and Export too (probe P1c). English and Spanish labels.
     @Test func theTransportStaysVisibleAtTheMinimumWidth() async throws {
         let (model, window, chrome) = try await open(String(repeating: "Interview ", count: 12))
         try #require(window.title.count == 120)
@@ -193,7 +193,7 @@ struct ToolbarValueTests {
             #expect(visible(chrome).isSuperset(of: transport), "\(language): \(visible(chrome).sorted())")
 
             window.setContentSize(NSSize(width: 900, height: 600))
-            await until(limit: .seconds(10), "\(language): Monitor Inputs and Export show at 900 pt") {
+            await until(limit: .seconds(10), "\(language): Input Levels and Export show at 900 pt") {
                 window.layoutIfNeeded()
                 return visible(chrome).isSuperset(of: wide)
             }

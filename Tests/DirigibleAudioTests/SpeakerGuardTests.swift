@@ -143,6 +143,20 @@ struct SpeakerGuardTests {
         #expect(!banner.speakers, "a failed output read shows no banner")
     }
 
+    /// The output side walks nested aggregates to their leaves, and a cycle ends (code gate round
+    /// 1, review 3). Device 7 holds 8, and 8 holds the virtual device 9.
+    @Test func theOutputWalkReachesANestedLeaf() {
+        let nested: [AudioObjectID: [AudioObjectID]] = [7: [8], 8: [9]]
+        let cycle: [AudioObjectID: [AudioObjectID]] = [7: [8], 8: [7]]
+        #expect(AudioDefaults.outputDevices(7, subdevices: { nested[$0] ?? [] }, watch: { _ in }) == [7, 8, 9])
+        #expect(AudioDefaults.outputDevices(7, subdevices: { cycle[$0] ?? [] }, watch: { _ in }) == [7, 8])
+        let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512, loopback: .devices([9]))
+        defer { ring.deallocate() }
+        SpeakerGuard.refresh(
+            ring, output: { 7 }, subdevices: { nested[$0] ?? [] }, watch: { _ in }, speakers: { _ in false })
+        #expect(ring.speakers, "a virtual device two levels under the output silences")
+    }
+
     @Test func theWatchComesBeforeTheRead() {
         let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)
         defer { ring.deallocate() }

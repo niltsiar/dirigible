@@ -110,15 +110,20 @@ public struct AudioDefaults: Equatable, Sendable {
                 output, kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput, as: UInt32.self))
     }
 
-    /// The default output and its active subdevices. Each one gets `watch` before its read, so
-    /// a change after the read always calls the listener.
+    /// The default output and its active subdevices, at each depth, each once, so a cycle ends.
+    /// Each one gets `watch` before its read, so a change after the read always calls the listener.
     static func outputDevices(
         _ output: AudioObjectID, subdevices: (AudioObjectID) -> [AudioObjectID], watch: (AudioObjectID) -> Void
     ) -> [AudioObjectID] {
-        watch(output)
-        let devices = subdevices(output)
-        devices.forEach(watch)
-        return [output] + devices
+        var devices: [AudioObjectID] = []
+        func walk(_ device: AudioObjectID) {
+            guard !devices.contains(device) else { return }
+            devices.append(device)
+            watch(device)
+            subdevices(device).forEach(walk)
+        }
+        walk(output)
+        return devices
     }
 
     /// The speaker flag is true when the output or one of its active subdevices is the built-in

@@ -31,10 +31,9 @@ struct ListenRing: @unchecked Sendable {
         /// The control state of the speaker guard. A pointer, so a copy of the storage on an IO
         /// thread does no retain. No IO callback takes the lock.
         let watchState: UnsafeMutablePointer<OSAllocatedUnfairLock<WatchState>>
-        /// The listened input device when its transport is virtual (a loopback device), else
-        /// unknown. An output that contains it feeds the monitor into its own input. A duplex
-        /// hardware device (a USB interface with a headphone out) is not a loopback.
-        let loopback: AudioObjectID
+        /// The loopback devices of the listened input. An output that contains one feeds the
+        /// monitor into its own input.
+        let loopback: Loopback
         /// Only the render reads or writes it.
         var rule: DriftRule
     }
@@ -43,7 +42,7 @@ struct ListenRing: @unchecked Sendable {
 
     /// Writes zeros to every frame, so the IO threads never touch a new page first. The speaker
     /// flag starts true: the render plays zeros until the first read of the default output.
-    init(rate: Double, inputBlock: Int, pull: Int, loopback: AudioObjectID = AudioObjectID(kAudioObjectUnknown)) {
+    init(rate: Double, inputBlock: Int, pull: Int, loopback: Loopback = .devices([])) {
         let left = UnsafeMutablePointer<Float>.allocate(capacity: Self.capacity)
         let right = UnsafeMutablePointer<Float>.allocate(capacity: Self.capacity)
         left.initialize(repeating: 0, count: Self.capacity)
@@ -127,7 +126,7 @@ struct ListenRing: @unchecked Sendable {
 
     var watchState: OSAllocatedUnfairLock<WatchState> { storage.pointee.watchState.pointee }
 
-    var loopback: AudioObjectID { storage.pointee.loopback }
+    var loopback: Loopback { storage.pointee.loopback }
 
     /// The IOProc side.
     func push(_ input: UnsafePointer<AudioBufferList>) { Self.push(storage, input) }

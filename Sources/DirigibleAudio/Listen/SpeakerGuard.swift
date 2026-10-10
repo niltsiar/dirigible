@@ -15,8 +15,8 @@ struct WatchState: Sendable {
 enum SpeakerGuard {
     /// Takes a ticket, reads the default output and its active subdevices, watches each, reads
     /// the flag with the banner rule, and stores it when no newer ticket stored first. The flag is
-    /// also true when one of them is the listened virtual device. With no default output, the
-    /// flag is true: the safe side.
+    /// also true when one of them is a loopback device of the listened input. With no default
+    /// output, the flag is true: the safe side.
     static func refresh(
         _ ring: ListenRing, output: () -> AudioObjectID?, subdevices: (AudioObjectID) -> [AudioObjectID] = { _ in [] },
         watch: (AudioObjectID) -> Void, speakers: (AudioObjectID) -> Bool
@@ -25,7 +25,7 @@ enum SpeakerGuard {
         let flag = output().map { output in
             let devices = AudioDefaults.outputDevices(output, subdevices: subdevices, watch: watch)
             // A loopback: the monitor would feed its own input.
-            return devices.contains(ring.loopback) || devices.contains(where: speakers)
+            return ring.loopback.feeds(devices) || devices.contains(where: speakers)
         }
         ring.storeSpeakers(flag ?? true, ticket: ticket)
     }

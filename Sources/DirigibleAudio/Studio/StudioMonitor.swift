@@ -26,7 +26,8 @@ extension Studio {
     /// before it returns. It runs in the monitor order, not in the package write chain, so it
     /// never waits for an autosave, a start save, or a finalize. While take writers exist, it
     /// only stores the request. The last call wins. Throws `.microphoneAccess` when the access
-    /// is not granted; then it holds no device.
+    /// is not granted; then it holds no device. A listened track keeps its meter until
+    /// `listen(to:)` releases it and the next call of this function runs.
     public func monitor(armed: [TrackID]) async throws(StudioError) {
         monitorRequest = armed
         if !monitorPlan().isEmpty {

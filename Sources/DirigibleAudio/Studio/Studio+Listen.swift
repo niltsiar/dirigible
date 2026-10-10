@@ -17,7 +17,8 @@ extension Studio {
     /// finalize changes it, and it runs in the listen order, so it never waits for them. The last
     /// call wins. A device that leaves the request plays zeros before the first await and is
     /// released before the return. Throws `.microphoneAccess` when the access is not granted;
-    /// then it holds no device. During a settle it does nothing.
+    /// then it holds no device. During a settle it does nothing. The meter of a listened track
+    /// follows at the next `monitor(armed:)` call.
     public func listen(to tracks: [TrackID]) async throws(StudioError) {
         guard !settling else { return }
         listenRequest = tracks

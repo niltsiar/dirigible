@@ -1,6 +1,7 @@
 #!/bin/bash
 # Run the lens selection of review-panel.js with real args and stub agents: the default lenses and
-# maxRounds of each target, an explicit lens list, a named lens outside its gates, an unknown key,
+# maxRounds of each target, the convergence prompt of each round after round 1, an explicit lens
+# list, a named lens outside its gates, an unknown key,
 # an empty selection, and a paths scope with no changed file. Check that only warning and critical
 # findings go to a skeptic, and that the result lists the nits of each lens under `nits`. Run by
 # `make test-hooks`.
@@ -111,6 +112,14 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
     } catch (error) {
       fail(`a ${target} with no maxRounds: threw ${error.message}`)
     }
+  }
+  // Each round after round 1 is a convergence round: no middle round reviews openly.
+  try {
+    const got = await run({ target: 'plan', round: 2, maxRounds: 3, prior: ['x'] })
+    const prompt = got.prompts[got.labels.indexOf('review:premortem')] || ''
+    if (!prompt.includes('the convergence round')) fail('round 2 of 3: the reviewer prompt is not the convergence prompt')
+  } catch (error) {
+    fail(`round 2 of 3: threw ${error.message}`)
   }
   // A named lens runs only at its gates; an empty gates list holds each target.
   await expectKeys('a diff-only lens at the plan gate', { target: 'plan', lenses: ['code-quality', 'premortem'] }, ['premortem'])

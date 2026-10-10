@@ -44,4 +44,6 @@ public enum StudioError: Error, Hashable, Sendable {
     /// A take in another studio ended the paste from the package named `source` (decisions 0019
     /// and 0042). The session did not change.
     case pasteYielded(source: String)
+    /// A ripple under a pending or split take (decision 0037). Nothing changed.
+    case rippleBlocked
 }

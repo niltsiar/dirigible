@@ -68,6 +68,35 @@ extension UnplacedBannerTests {
         await reopened.close()
     }
 
+    /// Plan gate 1: an Insert from another package beeps before the paste commits the typed names.
+    @Test func aCrossPackageInsertUnderASplitTakeBeeps() async throws {
+        let source = folder.url.appending(path: "source")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        let (other, _) = try await timelineModel(
+            try await timelinePackage(in: source, tracks: 1, seconds: 1, audio: true), app: app)
+        other.timeline.marks = Marks(inPoint: 0, outPoint: 4_800, tracks: ["t1"])
+        other.run(.copy)
+        await other.close()
+        try #require(app.clipboard != nil)
+        let (model, studio) = try await open()
+        _ = try await unplacedTake(model, studio)
+        await model.place(Self.first, atPlayhead: false)
+        try #require(studio.unplacedSegments == [Self.second])
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 4_800, tracks: ["t1"])
+        model.drafts["t1"] = "Guest"
+        let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
+
+        model.run(.insert)
+
+        #expect(
+            beeps == 1 && model.alert == nil && model.importJob == nil && studio.session == before
+                && model.drafts["t1"] == "Guest",
+            "RIPPLE-W8 a cross-package Insert under a split take beeps and changes nothing")
+        await model.close()
+    }
+
     /// A split take in a closed package: take1-1-1 placed, take1-2-1 not. The studio goes at the
     /// return, so its package lock goes too.
     func splitTake() async throws -> URL {
@@ -109,9 +138,32 @@ extension EditTakeTests {
         try await pendingTake(model, studio)
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1", "t2"])
         let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
         for command in rippleCommands { model.run(command) }
         #expect(studio.session == before, "RIPPLE-W3 a ripple ran with a pending take")
+        #expect(beeps == rippleCommands.count, "RIPPLE-W3b each refused ripple beeps")
         #expect(model.alert == nil)
+        model.run(.paste)
+        #expect(studio.session != before, "RIPPLE-W3c a paste under a pending take pastes")
+        await model.close()
+    }
+
+    /// Plan gate 1 item 3: Insert with no clipboard under a pending take beeps, as a ripple.
+    @Test func anInsertWithNoClipboardUnderAPendingTakeBeeps() async throws {
+        let model = await app.open(try await package())
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        try await pendingTake(model, studio)
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
+        let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
+
+        model.run(.insert)
+
+        #expect(
+            beeps == 1 && studio.session == before && model.alert == nil,
+            "RIPPLE-W7 Insert with no clipboard under a pending take beeps")
         await model.close()
     }
 

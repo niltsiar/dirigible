@@ -115,11 +115,16 @@ extension SessionWindow {
     }
 
     /// Runs the edit on an idle studio. Nil when the studio is not idle (no alert), or after a
-    /// throw (with its alert).
-    @discardableResult func edit<Result>(_ body: (inout Session) throws(SessionError) -> Result) -> Result? {
+    /// throw (with its alert). A `ripple` that Studio refuses under a pending or split take beeps.
+    @discardableResult func edit<Result>(
+        ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result
+    ) -> Result? {
         guard let studio = idleStudio else { return nil }
         do throws(StudioError) {
-            return try studio.edit(body)
+            return try studio.edit(ripple: ripple, body)
+        } catch .rippleBlocked {
+            beep()
+            return nil
         } catch {
             alert = .error(error)
             return nil

@@ -147,7 +147,8 @@ private func refusedCode(_ error: StudioError) -> Int32 {
     case .noRoute, .deviceMissing, .channelOutOfRange, .channelInUse, .microphoneAccess, .diskLow, .placementSpace,
         .appSourcesUnavailable,
         .session,
-        .segment:
+        .segment,
+        .rippleBlocked:
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded:
         packageError

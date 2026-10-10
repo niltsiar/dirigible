@@ -184,7 +184,7 @@ final class TimelineScrollView: NSScrollView {
         var context = GestureContext(
             session: inputs.session, selection: model.timeline.selection, playhead: studio.playhead, geometry: geometry,
             canEdit: model.canEdit,
-            canRipple: !rippleBlocked(segments: studio.rippleSegments, session: studio.session))
+            canRipple: studio.canRipple)
         context.columnsPerPoint = Double(window?.backingScaleFactor ?? 2)
         return context
     }

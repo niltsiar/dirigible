@@ -94,6 +94,8 @@ struct SessionView: Encodable {
     private(set) var tracks: [TrackView]
     private(set) var markers: [MarkerView]
     let recording: RecordingView?
+    /// Left out when empty (decision 0045).
+    let episode: EpisodeView?
 
     init(_ session: Session, media: [FileID: MediaFault]) {
         version = session.fileVersion
@@ -126,6 +128,7 @@ struct SessionView: Encodable {
         markers = session.sortedMarkers.map {
             MarkerView(id: $0.id.rawValue, name: $0.name, position: $0.position.count, kind: $0.kind.rawValue)
         }
+        episode = session.episode.isEmpty ? nil : EpisodeView(session.episode)
         recording = session.recording.map {
             RecordingView(
                 take: $0.take, playheadFrame: $0.playheadFrame.count, takeStartHostTimeNanos: $0.takeStartHostTimeNanos,

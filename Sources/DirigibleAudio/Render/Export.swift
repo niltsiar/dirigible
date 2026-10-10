@@ -230,7 +230,9 @@ public func exportMix(
     // The unlink runs before the close, so no sweep sees the file with no lock.
     defer { close(held) }
     defer { unlink(temporary.path) }
-    try writeFile(temporary, format: options.format, rate: rate, client: folded?.format ?? stereo) {
+    try writeFile(
+        temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3Tag(session.episode)
+    ) {
         sink throws(ExportError) in
         var written = 0
         var dither: TPDFDither?

@@ -238,6 +238,7 @@ struct MCPToolTests {
             tools.compactMap { $0["name"] as? String } == [
                 "session_create", "session_info", "track_add", "track_add_call", "track_remove", "track_rename",
                 "track_gain", "track_route", "track_layout", "track_mute", "track_solo", "marker_set", "marker_remove",
+                "episode_set",
                 "capture_remove", "file_remove", "clip_place", "clip_clear", "clip_split", "clip_split_at",
                 "clip_paste",
                 "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",

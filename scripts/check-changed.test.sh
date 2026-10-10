@@ -236,6 +236,26 @@ g commit -q -am comment
 g rm -q "$sw"
 got="$(run_in)" || fail "a deleted comment file: exit $?"
 [[ "$got" == "$(out sources-risk test yes)" ]] || fail "a deleted comment file: got [$got]"
+# A Makefile change of only column-0 # lines is class docs and adds no push target. A # line that
+# make reads stays code: a recipe line, a $ reference, a \ continuation, or a define body.
+mk=$'X = a \\\n  b\nall:\n\t@true\n'
+content_case 'a Makefile comment before the push' Makefile "$mk" "# note"$'\n'"$mk" "$(out docs check-docs no)" main
+content_case 'a Makefile recipe line before the push' Makefile "$mk" "$mk"$'\t@true\n' "$(out bundle 'check test-slow-push test-dmg' no)" main
+content_case 'a Makefile comment' Makefile "$mk" "$mk"$'  # note\n' "$(out docs check-docs no)"
+content_case 'a recipe # line' Makefile "$mk" "$mk"$'\t# c\n' "$(out bundle check no)"
+content_case 'a # line with a $ reference' Makefile "$mk" '# $(X)'$'\n'"$mk" "$(out bundle check no)"
+content_case 'a # line that continues' Makefile "$mk" $'# a \\\n'"$mk" "$(out bundle check no)"
+content_case 'a # line after a continued line' Makefile "$mk" $'X = a \\\n# c\n  b\nall:\n\t@true\n' "$(out bundle check no)"
+content_case 'a # line in a Makefile with define' Makefile $'define X\n# a\nendef\n' $'# note\ndefine X\n# a\nendef\n' "$(out bundle check no)"
+# The branch shape of the user complaint: a doc, a comment in a floor file, and a Makefile comment.
+content_case 'a doc and two comments' Makefile "$mk" "# note"$'\n'"$mk" "$(out docs check-docs no)" main
+printf 'a2\n' >> "$tmp/r/docs/a.md"
+printf '// note\n' >> "$tmp/r/$sw"
+got="$(run_in main)" || fail "a doc and two comments: exit $?"
+[[ "$got" == "$(out 'docs comments' check-fast no)" ]] || fail "a doc and two comments: got [$got]"
+printf 'let y = 1\n' >> "$tmp/r/$sw"
+got="$(run_in main)" || fail "a doc, a comment, and code in a floor file: exit $?"
+[[ "$got" == "$(out 'docs sources-risk' 'check test-slow-push' yes)" ]] || fail "a doc, a comment, and code in a floor file: got [$got]"
 
 # make check-changed with the real Makefile and script. A wrong recipe runs the default goal
 # `setup`, which sets core.hooksPath, so each case also checks that the value stays unset.

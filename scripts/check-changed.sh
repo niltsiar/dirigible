@@ -2,7 +2,7 @@
 # Print the change classes of the changed paths, the make targets that they need, and the risk.
 # This script owns the path table and the risk floor (decision 0028). Docs name it, not the table.
 # In the git modes, the content of a change can also give the class: a change of only comment
-# lines is class comments (comment_only).
+# lines is class comments, and a Makefile change of only comment lines is class docs (comment_only).
 # Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
@@ -37,16 +37,26 @@ class_of() {
 # can end in a // line.
 swift_code() { awk '{ t = $0; sub(/^[ \t]+/, "", t) } t == "" { next } t ~ /^\/\// && t !~ /\/\*|\*\// { next } { print }'; }
 
-# A change of only comment lines and blank lines in a Sources or Tests Swift file: the text at
-# $from and the file on disk are equal after swift_code. A new, deleted, or untracked file is not.
+# The Makefile text with no comment line that make skips: a line that starts with # after spaces
+# (a tab makes a recipe line), with no $, no \ at the end, and no \ at the end of the line before.
+make_code() { awk '{ c = prev; prev = /\\$/ } !c && /^ *#/ && !/\$/ && !/\\$/ { next } { print }'; }
+
+# A change of only comment lines: the text at $from and the file on disk are equal after the
+# filter of the file. A new, deleted, or untracked file is not. A file with a line that matches
+# the guard keeps its path class.
 comment_only() {
-    local old
+    local old filter guard
     [[ -n "$from" && -f "$1" ]] || return 1
-    case "$1" in Sources/*.swift | Tests/*.swift) ;; *) return 1 ;; esac
+    case "$1" in
+        # ponytail: a // line in a multi-line string is text, so a file with """ keeps its path class.
+        Sources/*.swift | Tests/*.swift) filter=swift_code guard='"""' ;;
+        # A # line in a define body is value text.
+        Makefile) filter=make_code guard='(^|[[:space:]])define([[:space:]]|$)' ;;
+        *) return 1 ;;
+    esac
     old="$(git show "$from:$1" 2>/dev/null)" || return 1
-    # ponytail: a // line in a multi-line string is text, so a file with """ keeps its path class.
-    [[ "$old" != *'"""'* ]] && ! grep -qF '"""' "$1" || return 1
-    [[ "$(swift_code <<<"$old")" == "$(swift_code <"$1")" ]]
+    ! grep -qE "$guard" <<<"$old" && ! grep -qE "$guard" "$1" || return 1
+    [[ "$($filter <<<"$old")" == "$($filter <"$1")" ]]
 }
 
 # The targets of a class: the local column (push=0) or the before-the-push column (push=1).
@@ -144,6 +154,7 @@ while IFS= read -r p; do
     [[ -n "$p" ]] || continue
     if comment_only "$p"; then
         c=comments
+        [[ $p == Makefile ]] && c=docs
     else
         c="$(class_of "$p")" kept+="$p"$'\n'
     fi

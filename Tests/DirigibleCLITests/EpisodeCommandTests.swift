@@ -54,13 +54,13 @@ struct EpisodeCommandTests {
                   "author" : "Ana Pérez",
                   "copyright" : "© 2026 Ana",
                   "date" : "2026-10-09",
-                  "episodeURL" : "https://example.com/ep12",
+                  "episode" : 12,
+                  "episode_url" : "https://example.com/ep12",
                   "explicit" : true,
-                  "feedURL" : "https://example.com/feed.xml",
+                  "feed_url" : "https://example.com/feed.xml",
                   "guid" : "urn:uuid:1234",
                   "language" : "fra",
                   "notes" : "Line 1\\n\\tLine 2",
-                  "number" : 12,
                   "season" : 3,
                   "show" : "The Show",
                   "summary" : "Short",
@@ -71,6 +71,24 @@ struct EpisodeCommandTests {
         let info = try await package.run("info", "PKG", "--json")
         #expect(
             info.stdout.contains("\"episode\" : {") && info.stdout.contains("\"version\" : 6"), "info: \(info.stdout)")
+    }
+
+    /// Code gate 1 item 4: `episode_get` gives the JSON of `episode show`, with the argument names
+    /// of `episode_set`, so an agent can read the episode also when `session_info` is an overview.
+    @Test func theMCPToolGetsTheEpisodeWithTheSetNames() async throws {
+        _ = try await package.run(["episode", "set", "PKG"] + Self.allOptions)
+        let answers = try await mcp([toolCall(1, "episode_get", ["package": package.path])])
+        let (text, isError) = toolResult(answer(answers, id: 1))
+        #expect(!isError, "\(text)")
+        let got = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? NSDictionary
+        let shown = try await package.run("episode", "show", "PKG").stdout
+        #expect(got == (try JSONSerialization.jsonObject(with: Data(shown.utf8)) as? NSDictionary))
+        let setNames = Set([
+            "title", "show", "author", "episode", "season", "date", "language", "copyright",
+            "explicit", "summary", "notes", "episode_url", "feed_url", "guid", "artwork",
+        ])
+        let keys = Set((got?.allKeys as? [String]) ?? [])
+        #expect(keys.isSubset(of: setNames), "keys that episode_set does not take: \(keys.subtracting(setNames))")
     }
 
     @Test func anEmptyValueClearsOnlyItsField() async throws {

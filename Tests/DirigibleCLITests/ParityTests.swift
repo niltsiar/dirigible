@@ -70,7 +70,7 @@ struct ParityTests {
     ]
 
     /// The commands whose tool name does not follow the name rule.
-    static let toolNames = ["create": "session_create", "info": "session_info", "episode show": "session_info"]
+    static let toolNames = ["create": "session_create", "info": "session_info", "episode show": "episode_get"]
 
     @Test func everyMutatingSessionMethodHasACommandOrAnExemption() throws {
         let names = try publicMutatingMethods()

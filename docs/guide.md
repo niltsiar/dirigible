@@ -694,12 +694,12 @@ claude mcp add --scope user dirigible -- "$PWD/.build/debug/dirigible" mcp
 
 The registered binary is in `.build`. Run `make build` again after `make clean`.
 
-The 34 tools, in groups:
+The 35 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
 - Marker: `marker_set`, `marker_remove`.
-- Episode: `episode_set`. `session_info` gives the episode fields.
+- Episode: `episode_set`, `episode_get`. The keys of `episode_get` are the argument names of `episode_set`.
 - Pool: `capture_remove`, `file_remove`.
 - Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`.
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.

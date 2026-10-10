@@ -33,7 +33,7 @@ Write `analysis.md`:
 - The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO behaves, with sources.
 - Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value.
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
-- An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions (a probe for a test runs in the test runner), and log the probe.
+- An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions (a probe for a test runs in the test runner), and log the probe. Replay a new check on past inputs, and log the replay.
 - What is out of scope, in the backlog.
 
 ## Phase 2: Plan
@@ -55,7 +55,7 @@ Write `plan.md`:
 
 | Run | Plan gate and code gate |
 |---|---|
-| Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). A fix check only with Act-on items. |
+| Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
 - With `risk: yes`, each guard in a risk path gets two mutation controls, replayed once in Phase 7. With `risk: no`, the failing-before test is the control, with no replay. Decision 0028 says when a plan raises a guard to risk. A sources change also gets a screenshot or AX check per visible criterion. A tooling control is a failing case in its `.test.sh`.
@@ -89,7 +89,7 @@ Run the **interrogate** skill with target `diff` and the lenses and rounds of th
 - Fix each "Act on" item in its own commit, a bug fix with its regression test.
 - Put each "Consider" item that you skip in `## Later`, with the reason.
 - When a user decision reverts a fix, write its symptom in the manual checks and in `pr.md`.
-- Run the rounds as in Phase 3. Out-of-scope findings go to `## Later`.
+- Run the rounds as in Phase 3.
 
 ## Phase 7: Verify
 

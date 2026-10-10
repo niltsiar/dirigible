@@ -81,11 +81,11 @@ struct EpisodeInspector: View {
         .disabled(!model.canEdit)
         .onChange(of: focus) { old, new in
             model.episodeFocus = new
-            guard old != nil else { return }
-            // A move to another field keeps a refused draft; a move out of the pane only commits.
+            // A move into another field (also from the lanes) keeps a refused draft; a move out of
+            // the pane only commits.
             if let new, new != model.episodeDraft?.field {
                 _ = model.holdsRefusedEpisode()
-            } else {
+            } else if old != nil {
                 model.commitEpisode()
             }
         }
@@ -238,11 +238,17 @@ extension SessionWindow {
     /// commits; a refused draft holds until the user corrects it or presses Esc. Then the pane
     /// shows the Episode tab, the focus goes back to the field, and a draft that was refused
     /// before beeps (`commitEpisode` beeps for a new refusal). Another field, the Clip tab, Hide
-    /// Inspector, Close, and Quit call it, and stop when it gives true.
+    /// Inspector, Close, and Quit call it, and stop when it gives true. A disabled pane (a take
+    /// or a blocking run) cannot take a correction, so there the refused draft goes and nothing
+    /// stops: Stop and Close and Stop and Quit always go on.
     func holdsRefusedEpisode() -> Bool {
         let wasRefused = episodeDraft?.refused == true
         commitEpisode()
         guard let draft = episodeDraft, draft.refused else { return false }
+        guard canEdit else {
+            episodeDraft = nil
+            return false
+        }
         if wasRefused { beep() }
         if !showsInspector { toggleInspector() }
         inspectorTab = .episode
@@ -259,6 +265,8 @@ extension SessionWindow {
         if let draft = episodeDraft, draft.field == field,
             draft.refused || studio?.session.episode.text(of: field) == draft.shown
         {
+            // A field that gets the focus sends its text again: only a changed text ends a refusal.
+            guard text != draft.text else { return }
             episodeDraft?.text = text
             episodeDraft?.refused = false
             return

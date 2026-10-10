@@ -11,12 +11,12 @@ import os
 @testable import DirigibleAudio
 
 /// Polls `condition` every 10 ms. At the limit, it records `message` as an issue and returns.
-/// It checks once more after a sleep past the limit, so a main-queue job that a stall queued
-/// behind the poll (for example the retry of a refused draw) runs before the last check, as in
-/// the copy of `DirigibleAudioTests`. The default limit stays 60 s. The worst wait of this copy
-/// was 70.4 s at the suite start ("the launch prunes the peak cache", run test-pool-health,
-/// loops/s3q-20.log; 58.5 s in two processes under load, loops/s3loadb-1.log). The hang guards
-/// are 3 times the worst wait, but 3 times 70.4 s is longer than one suite run (about 200 s).
+/// It polls once more, 10 ms after the first poll past the limit. A stall can queue a main-queue
+/// job behind the poll, for example the retry of a refused draw. That job runs before the last
+/// poll. The default limit stays 60 s. The worst wait of this copy was 70.4 s at the suite start
+/// ("the launch prunes the peak cache", run test-pool-health, loops/s3q-20.log; 58.5 s in two
+/// processes under load, loops/s3loadb-1.log). The hang guards are 3 times the worst wait, but
+/// 3 times 70.4 s is longer than one suite run (about 200 s).
 @MainActor func until(limit: Duration = .seconds(60), _ message: String, _ condition: () -> Bool) async {
     let start = ContinuousClock.now
     defer { reportWait("until", since: start, message) }

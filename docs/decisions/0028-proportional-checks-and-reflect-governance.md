@@ -8,6 +8,7 @@
 - Amended: 2026-10-08 (run `2026-10-08-workflow-speed-3`, user request). `scripts/run-checks.sh` runs the targets of `make check-changed` and of the land delta with `make -k`. When only `test` or `test-slow-push` is red, it reruns only the failed Swift tests: up to 3 tries, or 1 try with `risk: yes`. A pass on a rerun writes the stamp, and `scripts/land.sh` writes a `flake` row for each test that passed only on a rerun. The flake triage still applies. The push runs `make test-slow-push`: the slow tests with no bench file of `PUSH_SKIP` in the Makefile, because a fast test holds each assert of those files. A changed `PUSH_SKIP` file runs `make test-slow`, the full slow suite, which also stays a target to run by hand.
 - Amended: 2026-10-08 (run `2026-10-08-bench-asserts`). Fast tests and one slow test that is not a bench hold the unique asserts of 13 more bench files, so `PUSH_SKIP` lists them too.
 - Amended: 2026-10-09 (run `2026-10-08-upkeep-batch-6`, upkeep DLV-131). A changed `PUSH_SKIP` file runs its own slow tests with `make test-slow-push PUSH_RUN=<names>`, not `make test-slow`. The other bench files of `PUSH_SKIP` stay skipped.
+- Amended: 2026-10-10 (run `2026-10-10-upkeep-batch-7`, user decision on the code-review trial). At a code gate with a class other than docs, the `code-review` skill replaces the code-quality lens: `high` on the branch in round 1, and `medium` on the fix range as round 2, in place of the convergence panel. It runs on a clean committed tree with no `mutate.py` run, and the fixer checks each finding. The plan gate lenses do not change.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context
@@ -40,8 +41,8 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 | Run | Review panel |
 |---|---|
-| Small: `risk: no` | Amended 2026-10-02. Plan gate and code gate: 1 round of at most two lenses that match the classes. Round 2 only on a critical item. A fix check only with Act-on items. One subagent runs Phases 1-2 and 4; the lead runs the gates. |
-| `risk: yes` | Amended 2026-10-08. Plan gate and code gate: 2 rounds at most, with the lenses of each class. Round 2 runs only on a critical item or a warning, and it is the convergence round only. |
+| Small: `risk: no` | Amended 2026-10-10. Plan gate and code gate: 1 round of at most two lenses that match the classes, and `code-review` at a code gate with a class other than docs. Round 2 only on a critical item. A fix check only with Act-on items. One subagent runs Phases 1-2 and 4; the lead runs the gates. |
+| `risk: yes` | Amended 2026-10-10. Plan gate and code gate: 2 rounds at most, with the lenses of each class. Round 2 runs only on a critical item or a warning, and it is the convergence round only. At the code gate, `code-review` replaces the code-quality lens, and round 2 is `code-review` `medium` on the fix range. |
 
 ### Word budgets
 

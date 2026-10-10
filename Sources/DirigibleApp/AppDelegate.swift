@@ -40,6 +40,11 @@ import UniformTypeIdentifiers
     @ObservationIgnored private(set) var start: StartWindow?
     /// True from the Quit decision until a cancel: no start window shows (decision 0027).
     @ObservationIgnored private(set) var terminating = false
+    /// A Quit question: the message, the action button, and true after a failed save. It gives
+    /// true for the action button. Tests answer with no modal alert.
+    @ObservationIgnored var confirmQuit: @MainActor (String, String, Bool) -> Bool = { message, button, unsaved in
+        quitQuestion(message, button: button, unsaved: unsaved).runModal() == .alertFirstButtonReturn
+    }
     /// The open events whose windows are not in the registry yet. The launch shows the start
     /// window only when none waits.
     @ObservationIgnored private var openEvents = 0
@@ -339,7 +344,7 @@ import UniformTypeIdentifiers
         terminating = true
         guard !windows.isEmpty else { return .terminateNow }
         if windows.values.contains(where: \.isTakeRunning),
-            !confirm(L10n.alertQuitRecording.text, button: L10n.alertQuitRecordingConfirm.text)
+            !confirmQuit(L10n.alertQuitRecording.text, L10n.alertQuitRecordingConfirm.text, false)
         {
             terminating = false
             return .terminateCancel
@@ -358,9 +363,9 @@ import UniformTypeIdentifiers
             }
             let quit =
                 failed.isEmpty
-                || confirm(
-                    L10n.alertQuitUnsaved.format(failed.joined(separator: ", ")),
-                    button: L10n.alertQuitUnsavedConfirm.text, unsaved: true)
+                || confirmQuit(
+                    L10n.alertQuitUnsaved.format(failed.joined(separator: ", ")), L10n.alertQuitUnsavedConfirm.text,
+                    true)
             // A cancelled Quit: the settle started no peak pass (decision 0017).
             if !quit {
                 terminating = false
@@ -369,10 +374,6 @@ import UniformTypeIdentifiers
             sender.reply(toApplicationShouldTerminate: quit)
         }
         return .terminateLater
-    }
-
-    private func confirm(_ message: String, button: String, unsaved: Bool = false) -> Bool {
-        quitQuestion(message, button: button, unsaved: unsaved).runModal() == .alertFirstButtonReturn
     }
 }
 

@@ -25,6 +25,8 @@ extension InspectorTests {
     /// Item 1: a later commit of a refused draft beeps no more and keeps the draft.
     @Test func aRefusedDraftBeepsOnce() async throws {
         let (model, _, _, beeps) = try await refusedNumber()
+        model.typeEpisode("0", in: .number)
+        #expect(model.episodeDraft?.refused == true, "a field that gets the focus sends its text again")
         model.commitEpisode()
         model.commitDrafts()
         model.run(TimelineCommand.zoomIn)
@@ -104,5 +106,78 @@ extension InspectorTests {
         model.commitEpisode()
         #expect(studio.session.episode.title == nil && model.episodeDraft == nil, "the stale draft went")
         await model.close()
+    }
+
+    /// Fix check: a focus move from the lanes into another field holds at once.
+    @Test func aFocusMoveFromTheLanesHolds() async throws {
+        let (model, _, window, beeps) = try await refusedNumber()
+        model.focusLanes()
+        await until("the lanes have the focus") { model.episodeFocus == nil }
+        let title = try await episodeFields(window)[0]
+        #expect(window.makeFirstResponder(title))
+        await until(limit: .seconds(10), "the move into Title holds") { beeps() == 2 }
+        // A window of a parallel suite can take the key focus, as in `waitForTitleFocus`.
+        await until(limit: .seconds(10), "the focus goes back to Number") {
+            model.episodeFocus == .number || !window.isKeyWindow
+        }
+        #expect(beeps() == 2 && model.episodeDraft?.refused == true, "beeps: \(beeps())")
+        model.episodeDraft = nil
+        await model.close()
+    }
+
+    /// Opens a window whose track records from `duo`, refuses "0" in Number, and starts a take:
+    /// the take disables the pane.
+    func refusedNumberInATake(_ hal: CountingHAL) async throws -> (SessionWindow, Studio) {
+        let (model, studio, window, _) = try await open(try await package(device: "duo"))
+        studio.environment = hal.environment
+        model.showEpisodeInfo()
+        _ = try await episodeFields(window)
+        model.typeEpisode("0", in: .number)
+        model.commitEpisode()
+        await model.record()
+        #expect(studio.transport == .recording(take: 1) && !model.canEdit)
+        return (model, studio)
+    }
+
+    /// Fix check: Stop and Close during a take closes the window; the refused draft goes.
+    @Test func closeDuringATakeDropsTheRefusedDraft() async throws {
+        let hal = CountingHAL()
+        let (model, studio) = try await refusedNumberInATake(hal)
+        await model.close()
+        #expect(model.studio == nil && studio.transport == .idle, "the window closed and the take stopped")
+        await until("the device is free") { hal.isFree }
+    }
+
+    /// Fix check: Stop and Quit during a take stops the take; the refused draft goes.
+    @Test func quitDuringATakeDropsTheRefusedDraft() async throws {
+        let hal = CountingHAL()
+        let (model, studio) = try await refusedNumberInATake(hal)
+        app.confirmQuit = { _, _, _ in true }
+        #expect(app.applicationShouldTerminate(NSApp) == .terminateLater)
+        await until("Quit stops the take") { studio.transport == .idle }
+        #expect(model.episodeDraft == nil)
+        await model.close()
+        await until("the device is free") { hal.isFree }
+    }
+
+    /// Fix check: Quit with two windows stops at the window with the refused draft and keeps the
+    /// typed text of the other window.
+    @Test func quitStopsAtTheWindowWithTheRefusedDraft() async throws {
+        let (a, studioA, windowA, _) = try await open(try await package("a"))
+        let (b, _, windowB, _) = try await open(try await package("b"))
+        for (model, window) in [(a, windowA), (b, windowB)] {
+            model.showEpisodeInfo()
+            _ = try await episodeFields(window)
+        }
+        a.typeEpisode("Title A", in: .title)
+        b.typeEpisode("0", in: .number)
+        b.commitEpisode()
+        #expect(app.applicationShouldTerminate(NSApp) == .terminateCancel && !app.terminating)
+        #expect(b.episodeDraft?.refused == true && b.inspectorTab == .episode)
+        let saved = studioA.session.episode.title?.text == "Title A" && a.episodeDraft == nil
+        #expect(saved || a.episodeDraft?.text == "Title A", "the text of window a stays")
+        b.episodeDraft = nil
+        await a.close()
+        await b.close()
     }
 }

@@ -134,11 +134,22 @@ struct EpisodeFieldTextTests {
             try episode.set(field, text: text)
             #expect(episode.text(of: field) == shown, "\(field)")
         }
+        var lines = episode
         for (field, _, _) in cases {
-            try episode.set(field, text: "  ")
-            #expect(episode.text(of: field) == "", "a blank text clears \(field)")
+            try episode.set(field, text: "")
+            #expect(episode.text(of: field) == "", "an empty text clears \(field)")
         }
         #expect(episode.isEmpty)
+        // Code gate 2: a text of only spaces clears a text field, and a parsed field refuses it.
+        let parsed: Set<EpisodeField> = [.season, .number, .date, .language, .episodeURL, .feedURL]
+        for field in EpisodeField.allCases {
+            if parsed.contains(field) {
+                #expect(throws: EpisodeFieldError.self, "\(field)") { try lines.set(field, text: "  ") }
+            } else {
+                try lines.set(field, text: "  ")
+                #expect(lines.text(of: field) == "", "spaces clear \(field)")
+            }
+        }
     }
 
     @Test func aBadTextThrowsAndChangesNothing() {

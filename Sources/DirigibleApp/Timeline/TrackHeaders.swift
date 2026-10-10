@@ -12,9 +12,9 @@ struct TrackHeaders: View {
     let selected: [TrackID]
     /// The header widths from which a row shows M and S, on one line and on two lines (decision
     /// 0039): the narrowest widths where every view of a row with a full live state stays inside
-    /// the row (`HeaderRowTests.muteAndSoloShowOnlyWhereTheyFit`), measured with a width sweep
-    /// after the arm button (run 2026-10-10-arm-toggle-button). Under them the route and the state
-    /// keep their room; Shift-M and Shift-S still act.
+    /// the row (`HeaderRowTests.muteAndSoloShowOnlyWhereTheyFit`). Measure them again with a width
+    /// sweep when a control of the row changes. Under them the route and the state keep their
+    /// room; Shift-M and Shift-S still act.
     static let muteSoloWidth = 306.0
     static let muteSoloTwoLineWidth = 208.0
     /// The header width from which a one-line row shows the layout text (`TrackRow.showsLayout`).
@@ -50,7 +50,7 @@ struct TrackHeaders: View {
 /// The header of one lane. In a lane of 56 pt or more: the R, M, and S buttons, the name, and the
 /// layout on the first line; the route menu, and during a take or a monitor the meter and the
 /// state, on the second. In a lower lane, one line: the buttons, the name, the layout, a route
-/// symbol menu, and the compact meter and state (code gate 1 item 4).
+/// symbol menu, and the compact meter and state.
 private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio

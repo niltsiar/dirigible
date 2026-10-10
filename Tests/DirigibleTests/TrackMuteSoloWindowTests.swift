@@ -97,7 +97,7 @@ import Testing
 
     /// During a take a click on R, M, or S changes nothing: the on boxes keep full opacity, but
     /// the buttons take no click. The click also does not go to the row, so the track selection
-    /// stays (code gate 1 item A).
+    /// stays.
     @Test func aClickDuringATakeChangesNothing() async throws {
         let (model, studio, window, view) = try await open()
         // The rows take a transport change at a later run-loop turn: each row reads `canEdit`.

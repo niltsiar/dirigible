@@ -23,13 +23,16 @@ struct ListenOutput: Sendable {
         start: { ring, rate, inputBlock throws(HALError) in try startLive(ring, rate: rate, inputBlock: inputBlock) },
         isLive: true)
 
+    /// The default output of `offline`: no test device has this ID, so it is never a loopback.
+    static let offlineOutput: AudioObjectID = 999
+
     /// For tests: no unit and no HAL call. The flag is `speakers`, stored through the same
     /// refresh, and the pull is 512 frames. With `startFails`, each start throws. A test renders
     /// with `ring.pull`.
     static func offline(speakers: Bool = false, startFails: Bool = false) -> ListenOutput {
         ListenOutput(
             watch: {
-                SpeakerGuard.refresh($0, output: { 1 }, watch: { _ in }, speakers: { _ in speakers })
+                SpeakerGuard.refresh($0, output: { offlineOutput }, watch: { _ in }, speakers: { _ in speakers })
                 return true
             },
             unwatch: { SpeakerGuard.close($0, remove: { _ in }) },

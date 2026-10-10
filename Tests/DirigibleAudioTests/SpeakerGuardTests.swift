@@ -113,6 +113,21 @@ struct SpeakerGuardTests {
         #expect(!ring.speakers, "an aggregate with no speaker subdevice plays")
     }
 
+    /// A loopback: the default output, or one of its active subdevices, is the listened device
+    /// itself, so the monitor would feed its own input (code gate round 1, item 2). Control in
+    /// the same test: another output plays.
+    @Test func aLoopbackOutputSilences() {
+        let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512, device: 9)
+        defer { ring.deallocate() }
+        let subdevices: (AudioObjectID) -> [AudioObjectID] = { $0 == 7 ? [9] : [] }
+        SpeakerGuard.refresh(ring, output: { 9 }, watch: { _ in }, speakers: { _ in false })
+        #expect(ring.speakers, "the listened device as the output silences")
+        SpeakerGuard.refresh(ring, output: { 7 }, subdevices: subdevices, watch: { _ in }, speakers: { _ in false })
+        #expect(ring.speakers, "the listened device as a subdevice silences")
+        SpeakerGuard.refresh(ring, output: { 5 }, subdevices: subdevices, watch: { _ in }, speakers: { _ in false })
+        #expect(!ring.speakers, "another output plays")
+    }
+
     /// No default output ID: the flag is true (the safe side), and the banner stays off.
     @Test func aFailedOutputReadSilences() {
         let ring = ListenRing(rate: 48_000, inputBlock: 512, pull: 512)

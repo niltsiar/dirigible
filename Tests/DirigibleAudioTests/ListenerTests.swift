@@ -35,7 +35,7 @@ final class TestOutput: @unchecked Sendable {
                 let fails = lock.withLock { watchFails }
                 var added = true
                 SpeakerGuard.refresh(
-                    ring, output: { 1 },
+                    ring, output: { ListenOutput.offlineOutput },
                     watch: { added = SpeakerGuard.watch(ring, $0, add: { _ in !fails }, remove: { _ in }) && added },
                     speakers: { _ in false })
                 return added
@@ -101,6 +101,7 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         let listener = listener()
         listener.start()
         let input = try #require(await input(after: [.playing]))
+        #expect(input.ring.device == input.id, "the ring knows its input device (the loopback check)")
         let signal = DeviceSignal.sines(seconds: 1, layout: [1])
         var played = Played()
         for start in stride(from: 0, to: 47_616, by: 512) {

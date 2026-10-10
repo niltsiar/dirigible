@@ -133,7 +133,7 @@ final class Listener: @unchecked Sendable {
         guard phase == .waiting, counts.kept < keepLimit else { return }
         guard let found = hal.lookUp(uid) else { return wait() }
         let rate = found.device.nominalRate
-        let ring = ListenRing(rate: rate, inputBlock: 512, pull: 512)
+        let ring = ListenRing(rate: rate, inputBlock: 512, pull: 512, device: found.id)
         shared.withLock {
             ring.setMap($0.map)
             if $0.muted { ring.mute() }

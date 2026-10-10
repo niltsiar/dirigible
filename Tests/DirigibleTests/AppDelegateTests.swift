@@ -233,7 +233,8 @@ import os
                 attachListen: { _ in (512, { true }) }),
             silenceLimit: noWatchdog, firstRecordLimit: noWatchdog,
             microphoneAccess: { granted.withLock { $0 } ? nil : .notDetermined }, freeBytes: { _ in .max },
-            diskCheckInterval: .seconds(60), saveSession: CaptureEnvironment.live.saveSession)
+            diskCheckInterval: .seconds(60), saveSession: CaptureEnvironment.live.saveSession,
+            listenOutput: .offline())
         let (answer, give) = AsyncStream<Void>.makeStream()
         var asked = false
         window.requestMicrophoneAccess = {

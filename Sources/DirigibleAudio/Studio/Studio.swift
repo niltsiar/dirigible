@@ -91,6 +91,17 @@ import Observation
     @ObservationIgnored var monitors: [String: Monitor] = [:] {
         didSet { monitorActivity = monitors.isEmpty ? nil : monitorActivity ?? LatencyActivity(reason: monitorReason) }
     }
+    /// The tracks whose device input plays in the default output (decision 0044).
+    var listenRequest: [TrackID] = []
+    /// The Listener of each listened device UID, and the number of its reports.
+    @ObservationIgnored var listeners: [String: (listener: Listener, number: Int)] = [:]
+    /// One more for each Listener, so a late report of a released one changes nothing.
+    @ObservationIgnored var listenNumber = 0
+    /// The listen order (decision 0044): each change of the Listeners runs in one turn. It is not
+    /// the monitor order, where the hand-over can wait for a prompt.
+    @ObservationIgnored let listenTurns = TurnQueue()
+    /// The device UIDs whose current Listener reported `.quiet`.
+    var quietDevices: Set<String> = []
     /// Held while a monitor writer exists, so App Nap does not slow the drain of its 1 s ring.
     @ObservationIgnored private(set) var monitorActivity: LatencyActivity?
     /// One more for each monitor writer, so a late report of a finished one changes nothing.
@@ -181,6 +192,7 @@ import Observation
     public func settle() async {
         // Before the first await: from now no pass, no block, and no export starts.
         settling = true
+        await endListen()
         endImport()
         await endExport()
         await stopPlay()

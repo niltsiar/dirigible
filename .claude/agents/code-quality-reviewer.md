@@ -1,6 +1,6 @@
 ---
 name: code-quality-reviewer
-description: Correctness and code-quality reviewer for a diff. Finds bugs, weak tests, and missed simplifications. Use at the code gate of the deliver skill, or when asked to review a diff.
+description: Correctness and code-quality reviewer for a diff. Finds bugs, weak tests, and missed simplifications. Use only when a caller names the code-quality lens, or when asked to review a diff.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

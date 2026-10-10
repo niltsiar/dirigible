@@ -178,7 +178,11 @@ final class Listener: @unchecked Sendable {
         }
         do throws(HALError) {
             // A failed speaker listener add takes the path of a failed start: quiet, then a retry.
-            guard output.watch(ring) else { throw .status(kAudioHardwareUnspecifiedError) }
+            // So does a loopback set that changed before the subdevice listener add, which no
+            // listener call reports: the retry reads the new set.
+            guard hal.loopback(found.id) == ring.loopback, output.watch(ring) else {
+                throw .status(kAudioHardwareUnspecifiedError)
+            }
             let stop = try output.start(ring, attached.rate, attached.inputBlock)
             current = Appearance(input: input, detach: attached.detach, stop: stop, inputBlock: attached.inputBlock)
             phase = .playing

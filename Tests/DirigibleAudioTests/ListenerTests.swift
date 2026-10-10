@@ -280,6 +280,21 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
         await listener.off()
     }
 
+    /// A subdevice change between the loopback read and the listener add has no listener call.
+    /// The Listener reads the set again after the attach, so it never plays with the old set: the
+    /// first appearance fails, and the retry reads the new set (code gate round 2, item 3).
+    @Test func aSubdeviceChangeBeforeTheAddReadsTheLoopbackAgain() async throws {
+        hal.setAggregate("mic", subdevices: [40, 41], virtual: [])
+        hal.setAggregateAtAttach("mic", subdevices: [40, 41], virtual: [41])
+        output.setOutput(41)
+        let listener = listener()
+        listener.start()
+        await until(limit: .seconds(10), "the retry reports the loopback") { reports.all == [.quiet, .loopback] }
+        #expect(hal.listenTries("mic").count == 2, "the first appearance fails, and the retry plays zeros")
+        #expect(output.starts.count == 1, "only the appearance with the new set starts the unit")
+        await listener.off()
+    }
+
     /// A failed transport read is unknown, so every output counts as a loopback (fail closed).
     /// The read is a HAL property read of an object that does not exist, with no IO.
     @Test func aFailedTransportReadIsUnknown() {

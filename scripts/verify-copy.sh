@@ -1,12 +1,16 @@
 #!/bin/bash
 # Make, drive, and stop the verify copy of the app: build/verify/Dirigible-verify.app with the
-# bundle ID com.delineas.dirigible.verify. A check that writes preferences or a recent list, or
-# answers a privacy prompt, runs on this copy, so the real app keeps its state.
+# bundle ID com.delineas.dirigible.verify-<8 hex>, from a hash of the worktree root. A check that
+# writes preferences or a recent list, or answers a privacy prompt, runs on this copy, so the real
+# app keeps its state. Each worktree gets its own ID: with one shared ID, hid.swift finds the
+# copies of two trees and refuses, and a stop in one tree resets the grants of the other copy.
 # The script does not build the app: run `make app` first.
 #
 # usage: verify-copy.sh start [<package>] [-- <open arguments>]
 #                                  stop a running copy, clean up, copy build/Dirigible.app, set
 #                                  the bundle ID, sign it, open it, and print its PID
+#        verify-copy.sh id         print the bundle ID of the copy of this worktree (no build);
+#                                  call it by the absolute path of the tree that runs the copy
 #        verify-copy.sh ax <ax.swift arguments>
 #                                  run scripts/ax.swift on the copy (DIRIGIBLE_BUNDLE_ID)
 #        verify-copy.sh prompt <button>
@@ -27,6 +31,7 @@
 set -euo pipefail
 
 usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
+       verify-copy.sh id
        verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh prompt <button>
        verify-copy.sh doctor
@@ -36,7 +41,7 @@ usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 real_app="$root/build/Dirigible.app"
 copy="$root/build/verify/Dirigible-verify.app"
-copy_id=com.delineas.dirigible.verify
+copy_id="com.delineas.dirigible.verify-$(printf '%s' "$root" | shasum | cut -c1-8)"
 exe="$copy/Contents/MacOS/Dirigible"
 # The pattern matches the executable path at the start of the command line, then a space or the
 # end. Escape each regex character of the path (a temp folder name can have a dot).
@@ -248,6 +253,7 @@ stop() {
 
 case "${1:-}" in
     start) shift; start "$@" ;;
+    id) [[ $# -eq 1 ]] || { echo "$usage" >&2 && exit 2; }; echo "$copy_id" ;;
     ax) shift; DIRIGIBLE_BUNDLE_ID="$copy_id" swift "$root/scripts/ax.swift" "$@" ;;
     prompt) [[ $# -eq 2 && -n "$2" ]] || { echo "$usage" >&2 && exit 2; }; prompt "$2" ;;
     doctor) [[ $# -eq 1 ]] || { echo "$usage" >&2 && exit 2; }; doctor ;;

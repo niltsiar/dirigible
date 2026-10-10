@@ -23,7 +23,7 @@
 - Send keys and text only through `hid.swift` (`key`, `type <text>`), never `osascript` keystroke or key code. It refuses (exit 4) when the app is not frontmost and releases each modifier key it presses.
 - Walk the accessibility tree of the built app with `scripts/ax.swift` down to each new control: a test that calls the accessibility methods of an element does not prove that VoiceOver reaches it.
 - Press a menu item by its menu path (`press "File > Open Recent > Clear Menu"`), never by its title alone; `--role AXMenuBarItem` opens a menu.
-- `swift scripts/ax.swift` compiles on each call: for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID=com.delineas.dirigible.verify` for `ax.swift` and `hid.swift`.
+- `swift scripts/ax.swift` compiles on each call: for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID="$(<worktree>/scripts/verify-copy.sh id)"` (an absolute path) for `ax.swift` and `hid.swift`.
 - A claim that something does not happen, from a poll, states the largest gap between samples around each event. An effect shorter than that gap is not tested.
 - For a menu claim, run `scripts/ax.swift dump` per UI language (`-AppleLanguages "(es)"`) before and in each new state; compare the key and `Enabled=`. In a transient state, add `--witness <text>`, a text of only that state (progress `Value=0.`); exit 1 (no witness line) voids the dump: read again.
 - A locked screen blocks menus, popovers, HID CGEvents, and the AX window tree; the window capture still works. When `screenshot.sh` warns about the lock, make every interaction check manual, with no HID or AX probe.

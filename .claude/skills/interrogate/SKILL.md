@@ -36,7 +36,7 @@ A code gate with a non-docs class also calls the `code-review` skill, while `git
 
 - Round 1: `high` on `origin/main...<branch>`.
 - Round 2: `medium` on `<first fix>^..<branch>`, not the workflow.
-- A result that names no range file did not run: rerun it on `origin/main...<branch>`.
+- A result that names no range file did not run: rerun it once on `origin/main...<branch>`.
 - No skeptic: the fixer checks each finding.
 
 Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or for a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).

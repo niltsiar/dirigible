@@ -159,7 +159,8 @@ func sendListen(_ signal: DeviceSignal, _ range: Range<Int>, to input: ListenInp
     /// The output start throws: the IOProc is detached, the Listener waits, and it tries again.
     @Test func anOutputStartFailureWaits() async throws {
         output.failStarts(true)
-        let listener = listener()
+        // No keep limit: a held main actor must not let 64 failed starts end the retry.
+        let listener = listener(keepLimit: .max)
         listener.start()
         await until(limit: .seconds(10), "a failed output start retries") { hal.listenTries("mic").count >= 2 }
         #expect(reports.all == [.quiet], "a failed output start is quiet")

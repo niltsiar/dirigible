@@ -233,6 +233,8 @@ import Testing
         model.timeline.scale = TimelineScale(framesPerPoint: 256)
         await until("the lanes take 256 frames per point") { view.framesPerPoint == 256 }
         view.lanes.palette = Self.sentinel
+        // An armed track has a red arm box in its header, in the color class of the playhead.
+        model.armed = []
         view.tick(playhead: 0, playback: .stopped)
         // The playhead is under the headers at each width step, and never at their edge.
         view.scroll(toFrame: 120 * view.framesPerPoint)

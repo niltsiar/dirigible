@@ -56,7 +56,11 @@ public struct GestureCommit: Equatable, Sendable {
     public let selection: Selection?
     public let marker: MarkerID?
     /// True for a ripple trim (decision 0037): the window passes it to `Studio.edit(ripple:)`.
-    public internal(set) var ripple = false
+    public let ripple: Bool
+
+    init(base: Session, result: Session, selection: Selection?, marker: MarkerID?, ripple: Bool = false) {
+        (self.base, self.result, self.selection, self.marker, self.ripple) = (base, result, selection, marker, ripple)
+    }
 
     /// Sets `session` to the result when it is still `base` and returns true; else changes nothing
     /// and returns false. So an undo, a redo, or another edit during a drag drops the gesture with

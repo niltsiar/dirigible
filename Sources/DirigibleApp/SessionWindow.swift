@@ -94,6 +94,10 @@ struct ExportReportShown: Equatable {
     /// The episode field that gets the focus at the next pane update: Title for File > Episode
     /// Info…, or the field of a refused draft.
     var episodeFocusRequest: EpisodeField?
+    /// The count of tab changes that a refused episode draft stopped. The tab picker takes it as
+    /// its identity: the segmented control shows the segment of the click until SwiftUI makes it
+    /// again (on-screen check, code gate 2).
+    var heldTabChanges = 0
     /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
     /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0

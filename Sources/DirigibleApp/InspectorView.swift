@@ -41,6 +41,7 @@ struct InspectorView: View {
                 }, label: { Text(L10n.inspectorTabs.key) }
             )
             .pickerStyle(.segmented).labelsHidden()
+            .id(model.heldTabChanges)
             Divider()
             if model.inspectorTab == .episode {
                 EpisodeInspector(model: model, studio: studio)

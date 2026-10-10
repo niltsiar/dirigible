@@ -51,6 +51,7 @@ extension InspectorTests {
         model.selectInspectorTab(.clip)
         model.run(TimelineCommand.zoomIn)
         #expect(model.inspectorTab == .episode && beeps() == 2, "beeps: \(beeps())")
+        #expect(model.heldTabChanges == 1, "the picker is made again, so it shows Episode")
         model.toggleInspector()
         #expect(model.showsInspector && model.inspectorTab == .episode && beeps() == 3, "beeps: \(beeps())")
         model.episodeDraft = nil

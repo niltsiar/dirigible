@@ -101,7 +101,7 @@ struct EpisodeInspector: View {
     }
 
     private func row(_ name: EpisodeField, _ label: L10n, _ episode: Episode, prompt: L10n? = nil) -> some View {
-        GridRow {
+        GridRow(alignment: .firstTextBaseline) {
             Text(label.key).foregroundStyle(.secondary).lineLimit(1).frame(width: 64, alignment: .trailing)
             field(name, label: label, episode, prompt: prompt)
         }
@@ -226,7 +226,10 @@ extension SessionWindow {
     /// The Clip or Episode tab of the inspector. The typed text of both panes is saved first. A
     /// refused episode draft keeps the Episode tab.
     func selectInspectorTab(_ tab: InspectorTab) {
-        if tab != .episode, holdsRefusedEpisode() { return }
+        if tab != .episode, holdsRefusedEpisode() {
+            heldTabChanges += 1
+            return
+        }
         commitInspector()
         inspectorTab = tab
     }

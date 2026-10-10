@@ -386,6 +386,8 @@ Choose **File > Export Chapters** (Option-Command-E) to write the chapters to a 
 
 Choose **File > Episode Info** (Shift-Command-I) to show the **Episode** tab of the inspector, with the text cursor in **Title**. Click **Clip** at the top of the inspector to go back to the clip fields.
 
+![The Episode tab of the inspector: the artwork, the title, the show, the author, the season and episode numbers, the date, the language, the copyright, the description, and the notes.](images/screenshot-episode.png)
+
 - Type the title, the show, the author, the season and episode numbers, the date (YYYY-MM-DD), the language (a code of three letters, for example `eng` or `spa`), and the copyright. Select **Explicit** for an explicit episode.
 - Type a short description in **Description** and the show notes in **Notes**. Command-Return saves the notes.
 - Click **Links** to type the episode URL, the feed URL, and the GUID.
@@ -720,7 +722,7 @@ The screenshots of the README and of this guide come from a script. The script m
 3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`. The script builds the app first.
 4. Do not move the pointer or other windows over the Dirigible window until the script stops.
 
-The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, and `docs/images/screenshot-inspector.png`. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, and when the display scale is not 2x (Retina). The images are 2360 x 1544 pixels.
+The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, and `docs/images/screenshot-crossfade.png`. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, and when the display scale is not 2x (Retina). The images are 2360 x 1544 pixels.
 
 ### Make the banner again
 

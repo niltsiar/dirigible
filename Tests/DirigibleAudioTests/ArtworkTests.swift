@@ -127,9 +127,10 @@ struct ArtworkTests {
 
     @Test func aMissingArtworkFileThrowsBeforeAnyFile() throws {
         var episode = Episode()
-        episode.artwork = ArtworkName(png: false)
+        let name = ArtworkName(png: false)
+        episode.artwork = name
         let url = package.folder.url.appending(path: "art.mp3")
-        #expect(throws: ExportError.artworkMissing) { try export(episode, .mp3(.k128), to: url) }
+        #expect(throws: ExportError.artworkMissing(name.path)) { try export(episode, .mp3(.k128), to: url) }
         let names = try FileManager.default.contentsOfDirectory(atPath: package.folder.url.path)
         #expect(!names.contains { $0.hasPrefix(".art.mp3") || $0 == "art.mp3" }, "files: \(names)")
     }

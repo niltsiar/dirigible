@@ -182,6 +182,30 @@ struct EpisodeCommandTests {
         #expect(FileManager.default.fileExists(atPath: package.url.appending(path: name.path).path), "the file stays")
     }
 
+    /// Code gate 1 item 6: a missing artwork file stops the export. The message names the file
+    /// and the commands that fix it.
+    @Test func aMissingArtworkFileNamesTheFileAndTheFix() async throws {
+        try package.edit { session in
+            try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 20_000))
+            try session.addTrack("t1", name: "Host", layout: .mono)
+            try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 20_000), on: "t1")
+        }
+        try RenderCommandTests.writeWAV(package.url.appending(path: "Clips/f1.wav"), frames: 20_000)
+        let image = package.folder.appending(path: "cover.jpg")
+        try Self.writeImage(image, width: 300, height: 300)
+        #expect(try await package.run("episode", "set", "PKG", "--artwork", image.path).status == 0)
+        let name = try #require(try package.read().episode.artwork)
+        try FileManager.default.removeItem(at: package.url.appending(path: name.path))
+        let out = package.folder.appending(path: "ep.mp3")
+        let result = try await package.run("export", "PKG", "--out", out.path)
+        let message =
+            "Error: the artwork file \(name.path) is not in the package, or it is not downloaded. Set the "
+            + "artwork again with `dirigible episode set --artwork <image> <package>`, or remove it with "
+            + "`--artwork \"\"`.\n"
+        #expect(result == CLIResult(status: 2, stdout: "", stderr: message))
+        #expect(!FileManager.default.fileExists(atPath: out.path))
+    }
+
     /// An image refusal exits 1, as `dirigible import` of a file that is not audio.
     @Test func aRefusedImageExits1AndChangesNothing() async throws {
         let image = package.folder.appending(path: "wide.jpg")

@@ -97,7 +97,7 @@ extension L10n {
         case .moveFailed(let code): errorExportMove.format(Int(code))
         case .openFailed(let code): errorExportOpen.format(Int(code))
         case .packageUnavailable: errorExportPackage.text
-        case .artworkMissing: errorExportArtwork.text
+        case .artworkMissing(let file): errorExportArtwork.format(file)
         case .cancelled: ""
         }
     }

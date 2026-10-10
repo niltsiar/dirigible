@@ -182,6 +182,61 @@ g commit -q -m move
 got="$(run_in main)" || fail "a moved floor file: exit $?"
 [[ "$got" == *$'\nrisk: yes' ]] || fail "a moved floor file: got [$got]"
 
+# The content of the change (the git modes only). content_case <name> <file> <old> <new> <want>
+# [main]: commit <old> on main, then write <new> to the working tree. With main, commit <new> on a
+# branch with a slow run today, and run against main.
+content_case() {
+  local name="$1" file="$2" old="$3" new="$4" want="$5"
+  shift 5
+  new_repo
+  mkdir -p "$(dirname "$tmp/r/$file")"
+  printf '%s' "$old" > "$tmp/r/$file"
+  g add -A
+  g commit -q -m old
+  printf '%s' "$new" > "$tmp/r/$file"
+  if [[ $# -gt 0 ]]; then
+    g switch -q -c feat/c
+    g commit -q -am new
+    echo "$today" > "$tmp/r/.git/dirigible-slow-date"
+  fi
+  got="$(run_in "$@")" || { fail "$name: exit $?"; return; }
+  [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
+}
+sw=Sources/DirigibleCore/SessionWriter.swift app=Sources/DirigibleApp/A.swift
+# A Swift change of only // lines and blank lines is class comments, also in a risk floor file.
+content_case 'a comment in a floor file' $sw $'let a = 1\n' $'let a = 1\n// note\n' "$(out comments check-fast no)"
+content_case 'code in a floor file' $sw $'let a = 1\n' $'let a = 1\nlet y = 1\n' "$(out sources-risk test yes)"
+content_case 'a comment and a blank line' $app $'let a = 1\n' $'let a = 1\n\n  // note\n' "$(out comments check-fast no)"
+content_case 'a comment and a code line' $app $'let a = 1\n' $'let a = 1\n// note\nlet x = 1\n' "$(out sources test no)"
+content_case 'a doc comment' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc f() {}\n' "$(out comments check-fast no)"
+content_case 'a doc comment and a name' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc g() {}\n' "$(out sources test no)"
+# A code line with a comment, a // in a string, #if, and a block comment stay code.
+content_case 'a code line with a comment' $app $'let x = 1 // a\n' $'let x = 2 // a\n' "$(out sources test no)"
+content_case 'a // in a string' $app $'let u = "http://a"\n' $'let u = "http://b"\n' "$(out sources test no)"
+content_case 'a // line in a multi-line string' $app $'let s = """\n// a\n"""\n' $'let s = """\n// b\n"""\n' "$(out sources test no)"
+content_case '#if' $app $'let a = 1\n' $'#if DEBUG\nlet a = 1\n#endif\n' "$(out sources test no)"
+content_case 'a block comment' $app $'let a = 1\n' $'let a = 1\n/* x */\n' "$(out sources test no)"
+content_case 'a // line that ends a block comment' $app $'/*\n// a\n*/\n' $'/*\n// b */ let a = 1\n*/\n' "$(out sources test no)"
+# Package.swift keeps its path class: its swift-tools-version comment is semantic.
+content_case 'a Package.swift comment' Package.swift $'// swift-tools-version:6.0\n' $'// swift-tools-version:6.2\n' "$(out build check no)"
+# A comment in a slow test or a PUSH_SKIP bench adds no test-slow-push before the push.
+slow=$'guard ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1" else { return }\nfunc a() {}\n'
+content_case 'a comment in a slow test' Tests/DirigibleCoreTests/LongTests.swift "$slow" "$slow// note"$'\n' "$(out comments check-fast no)" main
+content_case 'code in a slow test' Tests/DirigibleCoreTests/LongTests.swift "$slow" "$slow"$'func b() {}\n' "$(out tests 'check test-slow-push' no)" main
+content_case 'a comment in a PUSH_SKIP bench' Tests/DirigibleAudioTests/LoudnessBenchmark.swift "$slow" "$slow// note"$'\n' "$(out comments check-fast no)" main
+# A new or deleted file keeps its path class: it has no old or no new side.
+new_repo
+mkdir -p "$tmp/r/Tests"
+printf '// t\n' > "$tmp/r/Tests/T.swift"
+got="$(run_in)" || fail "an untracked comment file: exit $?"
+[[ "$got" == "$(out tests test no)" ]] || fail "an untracked comment file: got [$got]"
+rm "$tmp/r/Tests/T.swift"
+printf '// only\n' > "$tmp/r/$sw"
+g commit -q -am comment
+g rm -q "$sw"
+got="$(run_in)" || fail "a deleted comment file: exit $?"
+[[ "$got" == "$(out sources-risk test yes)" ]] || fail "a deleted comment file: got [$got]"
+
 # make check-changed with the real Makefile and script. A wrong recipe runs the default goal
 # `setup`, which sets core.hooksPath, so each case also checks that the value stays unset.
 # make exits 2 when a recipe fails, so a refused case asserts a nonzero exit and its reason.

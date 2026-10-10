@@ -4,8 +4,9 @@ import Foundation
 
 /// Copies the AAC file `source` to `output` with the iTunes atoms of `episode` (decision 0045).
 /// The passthrough copy keeps each packet and the `iTunSMPB` gapless data. It reads
-/// `isCancelled()` before the first wait and every 50 ms, and a cancel waits at most 10 s for
-/// the pass to stop. This pass is the hook that run 5 replaces with a copy that adds chapters.
+/// `isCancelled()` before the first wait and every 50 ms. After `cancelExport()` the pass stops
+/// within one chunk, so the wait of at most 10 s is only a limit. This pass is the hook that run 5
+/// replaces with a copy that adds chapters.
 func tagM4A(
     _ source: URL, episode: Episode, artwork: Data?, to output: URL, isCancelled: () -> Bool
 ) throws(ExportError) {

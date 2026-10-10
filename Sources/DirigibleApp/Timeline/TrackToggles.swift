@@ -68,7 +68,7 @@ struct TrackToggles: View {
         ) { Image(systemName: "headphones").imageScale(.small) }
         .toggleStyle(FlagToggleStyle(fill: Color(nsColor: .systemGreen), letter: .black))
         .accessibilityLabel(Text(verbatim: L10n.trackMonitorLabel.format(track.name)))
-        .help(Text(L10n.trackMonitorHelp.key))
+        .help(Text(verbatim: L10n.trackMonitorHelp.format(keyText(MenuKeys.monitorTrack))))
     }
 
     /// True for a mouse click with Option. A key press or an AX press of the button sets only its

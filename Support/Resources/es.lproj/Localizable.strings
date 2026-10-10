@@ -158,7 +158,7 @@
 "track.arm.label" = "Armar %@";
 "track.arm.help" = "Armar la pista para grabar.";
 "track.monitor.label" = "Monitorizar %@";
-"track.monitor.help" = "Monitorizar pista (⌃⌘M): oye la entrada en los auriculares. Opción-clic: todas las pistas de dispositivo.";
+"track.monitor.help" = "Monitorizar pista (%@): oye la entrada en los auriculares. Opción-clic: todas las pistas de dispositivo.";
 "track.mute.letter" = "M";
 "track.solo.letter" = "S";
 "track.mute.label" = "Silenciar %@";

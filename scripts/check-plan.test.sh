@@ -5,6 +5,8 @@
 # or Siblings field, a run research file with no docs/research route in plan.md, or a bare
 # research.md, and exits 0 for a good folder, a routed research file, a user row answered with a
 # default, a nit tagged no behavior change, a nit that is not taken, and an old review file.
+# Check the ## Plan gate changes section of plan.md: each item has a Criteria: field, and each
+# criterion ID of a field has a criterion change row before the first phase 4 row.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -208,6 +210,49 @@ else
   printf '## Act on\n\n1. %s A fix.\n   - %s: x\n   - %s: y\n' "$item" "${fields[0]}" "${fields[1]}" > "$review"
   pass 'an item of the Act on format with both fields'
 fi
+
+# gate <items>: a good folder whose plan.md ends with a ## Plan gate changes section.
+gate() {
+  good
+  printf '\n## Plan gate changes (review-plan-1.md)\n\n%s\n\n## After\n\n- not an item\n' "$1" >> "$run/plan.md"
+}
+# row <phase> <decision>: append a decisions.tsv row.
+row() { printf '2026-10-01T10:00\t%s\t%s\twhy\tevidence\tdone\n' "$1" "$2" >> "$run/decisions.tsv"; }
+gate $'1. S2: a new case.\n   Criteria: none'
+pass 'a plan gate change with Criteria: none'
+gate $'1. S2: a new case.'
+refuse 'a numbered plan gate change with no Criteria field' 'Plan gate changes item 1 has no Criteria: field'
+refuse 'the refusal names the format' 'Criteria: <IDs separated by commas> or Criteria: none'
+gate $'- Slice 1: a new case.\n  - a nested bullet of the item'
+refuse 'a bullet plan gate change with no Criteria field' 'Plan gate changes item 1 has no Criteria: field'
+gate $'- Slice 1: a new case.\n  - Criteria: none\n- Slice 2: another case.'
+refuse 'the second item with no Criteria field' 'Plan gate changes item 2 has no Criteria: field'
+# Before Phase 4 a missing row can still come, so only a phase 4 row, or CHECK_PLAN_AT_PHASE4=1
+# (log-decision.sh before the first phase 4 row), makes a missing row a failure.
+gate $'1. S2: a new case. Criteria: C8, C3b'
+pass 'a Criteria field with no decisions.tsv yet'
+row 3 'criterion change C8: old 3 s, new 5 s'
+pass 'a missing criterion change row before Phase 4'
+export CHECK_PLAN_AT_PHASE4=1
+refuse 'a criterion with no criterion change row' 'criterion C3b of a plan gate change has no criterion change row'
+row 3 'Criterion change C3: old a, new b'
+refuse 'a row for C3 does not count for C3b' 'criterion C3b of a plan gate change has no criterion change row'
+row 3 'criterion change C3b: old a, new b'
+pass 'each criterion has a row at the start of Phase 4'
+unset CHECK_PLAN_AT_PHASE4
+row 4 'Slice S1 committed'
+pass 'each criterion has a row before the first phase 4 row'
+gate $'1. S2: a new case. Criteria: C1'
+row 4 'Slice S1 committed'
+row 3 'criterion change C1: old a, new b'
+refuse 'a criterion change row after the first phase 4 row' 'criterion C1 of a plan gate change has no criterion change row before the first phase 4 row'
+gate $'1. S2: a new case. Criteria: C1'
+row 3 'criterion change C12: old a, new b'
+row 4 'Slice S1 committed'
+refuse 'a row for C12 does not count for C1' 'criterion C1 of a plan gate change'
+good
+printf '\n## Not the section\n\n1. An item with no field.\n' >> "$run/plan.md"
+pass 'a numbered item outside the Plan gate changes section'
 
 out="$("$script" 2>&1)"
 code=$?

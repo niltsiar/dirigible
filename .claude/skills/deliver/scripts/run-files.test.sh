@@ -3,7 +3,9 @@
 # (--from), changes a tab in a field to a space, refuses a file with four lines and appends
 # nothing, keeps the six-argument form, and refuses a row whose decision or result starts with
 # default and whose why has no `Reverse:` (any case), and refuses a phase that is not one digit.
-# Check that a criterion change row needs a newer analysis.md and the words old and new.
+# Check that a criterion change row needs a newer analysis.md and the words old and new. Check
+# that the first phase 4 row of a run folder with a plan.md needs a passing scripts/check-plan.sh
+# (a Criteria: field for each plan gate change, and a criterion change row for each ID).
 # Check that new-run.sh reports the backlog sections, the upkeep items, and a due architecture
 # audit.
 # Run by `make test-hooks`.
@@ -114,6 +116,31 @@ refused 'a criterion change with no old and new' 'old and new' 4 'criterion chan
 check_row 'a criterion change after an analysis.md edit' $'4\tCriterion change C1: old 3 s, new 5 s\tthe probe gives 4 s\tevidence\tdone'
 refused 'a second criterion change with no new analysis.md edit' analysis.md "${change[@]}"
 "$log" "$run" 7 'criterion 4 verified' 'the test passes' evidence done || fail "a criterion verification row exits $?"
+
+# The first phase 4 row of a run with a plan.md runs scripts/check-plan.sh on the run folder: a
+# plan gate change with no Criteria: field, or a criterion with no criterion change row, refuses
+# the row, while a fix can still come before Phase 4. A run with no plan.md is not checked.
+gated="$tmp/gated"
+mkdir "$gated"
+printf '# A\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$gated/analysis.md"
+printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case.\n' > "$gated/plan.md"
+: > "$gated/decisions.tsv"
+"$log" "$gated" 3 'plan gate item 1' why evidence done || fail "a phase 3 row with a plan item with no field exits $?"
+before="$(shasum -a 256 "$gated/decisions.tsv")"
+err="$("$log" "$gated" 4 'Slice S1 committed' why evidence done 2>&1)"
+[[ $? -eq 2 ]] || fail "the first phase 4 row with a plan item with no Criteria field was not refused"
+[[ "$err" == *'Criteria: <IDs separated by commas> or Criteria: none'* ]] || fail "the refusal names no format: $err"
+[[ "$(shasum -a 256 "$gated/decisions.tsv")" == "$before" ]] || fail "a refused phase 4 row changed decisions.tsv"
+printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case. Criteria: C8\n' > "$gated/plan.md"
+err="$("$log" "$gated" 4 'Slice S1 committed' why evidence done 2>&1)"
+[[ $? -eq 2 ]] || fail "the first phase 4 row with no criterion change row for C8 was not refused"
+[[ "$err" == *'log-decision.sh'*'criterion change C8: old'* ]] || fail "the refusal gives no fixing command: $err"
+touch "$gated/analysis.md"
+touch -t 200001010000 "$gated/decisions.tsv"
+"$log" "$gated" 3 'criterion change C8: old 3 s, new 5 s' why evidence done || fail "the criterion change row for C8 exits $?"
+"$log" "$gated" 4 'Slice S1 committed' why evidence done || fail "the first phase 4 row after the C8 row exits $?"
+printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case.\n' > "$gated/plan.md"
+"$log" "$gated" 4 'Slice S2 committed' why evidence done || fail "a second phase 4 row was checked again: exit $?"
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

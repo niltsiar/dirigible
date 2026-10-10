@@ -9,7 +9,10 @@
 # its why: the word or line that reverses the default (deliver autonomy rules). The phase is one
 # digit (0-9), so land.sh finds the control rows of phase 2 and 4. A decision that starts with
 # `criterion change` (any case) needs an analysis.md in the run folder that changed after the last
-# row, and the words old and new. Else the script appends nothing and exits 2.
+# row, and the words old and new. The first phase 4 row of a run folder with a plan.md needs a
+# passing scripts/check-plan.sh (CHECK_PLAN_AT_PHASE4=1): a Criteria: field for each plan gate
+# change, and a criterion change row for each of its IDs, while such a row can still come before
+# Phase 4. Else the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
@@ -40,6 +43,15 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
     word='(^|[^a-z])old([^a-z]|$)'
     text="$(lower "$2 $3")"
     [[ "$text" =~ $word && "$text" =~ ${word/old/new} ]] || { echo "a criterion change row names the old and new value (the words old and new)" >&2; exit 2; }
+fi
+
+# The first phase 4 row: the plan gate is closed, so plan.md must pass check-plan.sh now.
+if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]] && ! awk -F'\t' '$2 == "4" { found = 1 } END { exit !found }' "$file"; then
+    plan_check="$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/check-plan.sh"
+    if ! out="$(CHECK_PLAN_AT_PHASE4=1 "$plan_check" "${file%/*}" 2>&1)"; then
+        printf '%s\nthe first phase 4 row needs a passing check-plan.sh: fix plan.md or log the rows above, then log this row\n' "$out" >&2
+        exit 2
+    fi
 fi
 
 # A tab or a line break in a field would break the TSV columns. Change each one to a space.

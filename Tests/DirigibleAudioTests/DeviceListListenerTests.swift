@@ -5,8 +5,10 @@ import os
 
 @testable import DirigibleAudio
 
-/// The device list of decision 0015: one process listener and coalesced reads. Serialized:
-/// the first test is the only test that makes a device.
+/// The device list of decision 0015: one process listener and coalesced reads. Serialized: the
+/// tests that make a private aggregate device wake the listener, so no other test of the suite
+/// runs at that time. A test of another suite can still wake it: an engine start fires a
+/// device-list call (probe P2 of run 2026-10-10-record-monitor-button).
 @MainActor
 @Suite(.serialized)
 struct DeviceListListenerTests {
@@ -23,15 +25,21 @@ struct DeviceListListenerTests {
 
     // MARK: Criterion 12
 
-    /// Control in the same test: with no change, the call count stays the same for 0.5 s.
+    /// Control in the same test: with no change, the call count stays the same for 0.5 s. A
+    /// test of another suite can change the devices, so the control waits for one window of
+    /// 0.5 s with no call; a listener that calls with no change never gives one.
     @Test func aPrivateAggregateDeviceWakesTheListener() async throws {
         let list = DeviceList.shared
         await until(limit: .seconds(20), "no first read of the shared list") { list.reads >= 1 }
         #expect(DeviceListListener.install.load(ordering: .relaxed) == DeviceListListener.offMain)
 
-        let quiet = DeviceListListener.calls.load(ordering: .relaxed)
-        try await Task.sleep(for: .milliseconds(500))
-        #expect(DeviceListListener.calls.load(ordering: .relaxed) == quiet)
+        var quiet = false
+        for _ in 0..<40 where !quiet {
+            let before = DeviceListListener.calls.load(ordering: .relaxed)
+            try await Task.sleep(for: .milliseconds(500))
+            quiet = DeviceListListener.calls.load(ordering: .relaxed) == before
+        }
+        #expect(quiet, "no window of 0.5 s with no device-list call in 20 s")
 
         let (calls, reads) = (DeviceListListener.calls.load(ordering: .relaxed), list.reads)
         let made = LockedBox<AudioObjectID>()

@@ -35,7 +35,8 @@ fi
 rules=docs/workflow/rules.tsv
 if [[ -n "$run" && -f "$run/decisions.tsv" && -f "$rules" ]] &&
     awk -F'\t' '$2 == "8" { found = 1 } END { exit !found }' "$run/decisions.tsv"; then
-    out="$("$here/check-changed.sh" "$base")" || die "check-changed.sh $base failed"
+    # FILTER changes only the targets line, and this check reads only the classes line.
+    out="$(FILTER= "$here/check-changed.sh" "$base")" || die "check-changed.sh $base failed"
     if [[ "$(sed -n 's/^classes: //p' <<<"$out")" == docs ]]; then
         removed="$(at_base "$rules" | awk -F'\t' '
             NR == FNR { if (FNR > 1) old[$1] = $3; next }

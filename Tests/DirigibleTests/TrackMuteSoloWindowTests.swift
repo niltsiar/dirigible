@@ -23,41 +23,9 @@ import Testing
         try await openLanes(app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
     }
 
-    /// The window point of box `index` of header row `row`: 0 arm, 1 M, 2 S. The boxes are SwiftUI
-    /// shapes: the hit views of 18 x 16 pt in the header, top row first, left to right.
-    func boxPoint(_ index: Int, row: Int, in view: TimelineScrollView) throws -> NSPoint {
-        let window = try #require(view.window)
-        window.contentView?.layoutSubtreeIfNeeded()
-        drawNow(window)
-        func boxes(_ view: NSView) -> [NSRect] {
-            let frame = view.convert(view.bounds, to: nil)
-            let box =
-                String(describing: type(of: view)).contains("ShapeHitTesting")
-                && frame.size == NSSize(width: 18, height: 16)
-            return (box ? [frame] : []) + view.subviews.flatMap(boxes)
-        }
-        let frames = boxes(view.headers.host).sorted { ($0.midY, -$0.minX) > ($1.midY, -$1.minX) }
-        try #require(frames.count > 3 * row + 2, "arm, M, and S in row \(row): \(frames)")
-        let frame = frames[3 * row + index]
-        return NSPoint(x: frame.midX, y: frame.midY)
-    }
-
     /// The window point of the M or S box of header row `row`.
     func flagPoint(_ flag: TrackFlag, row: Int, in view: TimelineScrollView) throws -> NSPoint {
-        try boxPoint(flag == .muted ? 1 : 2, row: row, in: view)
-    }
-
-    func click(_ point: NSPoint, in window: NSWindow, flags: NSEvent.ModifierFlags = []) throws {
-        drawNow(window)
-        let hit = try #require(window.contentView?.superview?.hitTest(point))
-        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            let event = try #require(
-                NSEvent.mouseEvent(
-                    with: type, location: point, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
-                    context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
-            if type == .leftMouseDown { hit.mouseDown(with: event) } else { hit.mouseUp(with: event) }
-        }
-        drawNow(window)
+        try headerBoxPoint(flag == .muted ? 2 : 3, row: row, in: view)
     }
 
     func flags(_ studio: Studio) -> [String] {
@@ -71,7 +39,7 @@ import Testing
         #expect(window.makeFirstResponder(view.lanes))
         try #require(!studio.canUndo)
 
-        try click(try flagPoint(.muted, row: 0, in: view), in: window)
+        try clickPoint(try flagPoint(.muted, row: 0, in: view), in: window)
 
         #expect(flags(studio) == ["M-", "--"], "t1 is muted")
         await until("the session saves") { (try? Session(contentsOf: model.url))?.track("t1")?.isMuted == true }
@@ -86,9 +54,9 @@ import Testing
         let (model, studio, window, view) = try await open()
         try #require(model.armed == ["t1"], "t1 arms at open; t2 has the same channel: \(model.armed)")
 
-        try click(try boxPoint(0, row: 1, in: view), in: window)
+        try clickPoint(try headerBoxPoint(0, row: 1, in: view), in: window)
         #expect(model.armed == ["t1", "t2"], "a click arms t2: \(model.armed)")
-        try click(try boxPoint(0, row: 0, in: view), in: window)
+        try clickPoint(try headerBoxPoint(0, row: 0, in: view), in: window)
         #expect(model.armed == ["t2"], "a click on an on button disarms t1: \(model.armed)")
 
         #expect(flags(studio) == ["--", "--"] && !studio.canUndo, "no mute, no solo, and no undo entry")
@@ -114,18 +82,18 @@ import Testing
 
         model.timeline.selection = .none
         for box in 0...2 {
-            try click(try boxPoint(box, row: 1, in: view), in: window)
-            try click(try boxPoint(box, row: 1, in: view), in: window, flags: .shift)
+            try clickPoint(try headerBoxPoint(box, row: 1, in: view), in: window)
+            try clickPoint(try headerBoxPoint(box, row: 1, in: view), in: window, flags: .shift)
         }
 
         #expect(model.armed == ["t1"] && flags(studio) == ["--", "--"], "no change: \(model.armed) \(flags(studio))")
         #expect(model.timeline.selection == .none, "the row did not get the click: \(model.timeline.selection)")
         // Control: a click on the row padding, left of the arm box, selects the track during a take.
-        let arm = try boxPoint(0, row: 1, in: view)
-        try click(NSPoint(x: arm.x - 13, y: arm.y), in: window)
+        let arm = try headerBoxPoint(0, row: 1, in: view)
+        try clickPoint(NSPoint(x: arm.x - 13, y: arm.y), in: window)
         #expect(model.timeline.selection != .none, "control: a click on the row selects")
         await setTransport(.idle)
-        try click(try boxPoint(0, row: 1, in: view), in: window)
+        try clickPoint(try headerBoxPoint(0, row: 1, in: view), in: window)
         #expect(model.armed == ["t1", "t2"], "control: the same click arms t2 when idle")
         await model.close()
     }
@@ -133,11 +101,11 @@ import Testing
     /// C7 b: a click on S adds a solo; solos add.
     @Test func aClickOnSAddsASolo() async throws {
         let (model, studio, window, view) = try await open()
-        try click(try flagPoint(.soloed, row: 1, in: view), in: window)
+        try clickPoint(try flagPoint(.soloed, row: 1, in: view), in: window)
         #expect(flags(studio) == ["--", "-S"])
-        try click(try flagPoint(.soloed, row: 0, in: view), in: window)
+        try clickPoint(try flagPoint(.soloed, row: 0, in: view), in: window)
         #expect(flags(studio) == ["-S", "-S"], "a second solo adds")
-        try click(try flagPoint(.soloed, row: 1, in: view), in: window)
+        try clickPoint(try flagPoint(.soloed, row: 1, in: view), in: window)
         #expect(flags(studio) == ["-S", "--"], "a click on an on button turns it off")
         await model.close()
     }
@@ -182,7 +150,7 @@ import Testing
         editor.insertText("x", replacementRange: NSRange(location: 2, length: 0))
         try #require(model.drafts["t1"] == "T1x", "the typed name is a draft")
 
-        try click(try flagPoint(.muted, row: 0, in: view), in: window)
+        try clickPoint(try flagPoint(.muted, row: 0, in: view), in: window)
 
         #expect(flags(studio) == ["M-", "--"], "the click acts with the name focused")
         #expect(

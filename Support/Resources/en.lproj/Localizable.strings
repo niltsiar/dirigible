@@ -157,6 +157,8 @@
 "track.name" = "Name";
 "track.arm.label" = "Arm %@";
 "track.arm.help" = "Arm the track for recording.";
+"track.monitor.label" = "Monitor %@";
+"track.monitor.help" = "Monitor Track (⌃⌘M): hear the input in your headphones. Option-click: all device tracks.";
 "track.mute.letter" = "M";
 "track.solo.letter" = "S";
 "track.mute.label" = "Mute %@";

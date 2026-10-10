@@ -7,9 +7,10 @@ import Testing
 @testable import DirigibleAudio
 
 /// Mute and solo C7 g (decision 0039): each row form shows M and S only from its measured width,
-/// so the route, the lost-device symbol, and the dropped-frames symbol keep their room.
+/// and the Monitor box only from its own (record monitor run 1b, B11), so the route, the
+/// lost-device symbol, and the dropped-frames symbol keep their room.
 extension HeaderRowTests {
-    /// The arm, M, and S boxes under `host`: SwiftUI shapes with hit views of 18 x 16 pt.
+    /// The arm, Monitor, M, and S boxes under `host`: SwiftUI shapes with hit views of 18 x 16 pt.
     func flagBoxes(_ view: NSView, in host: NSView) -> [NSRect] {
         let frame = view.convert(view.bounds, to: host)
         let box =
@@ -41,18 +42,22 @@ extension HeaderRowTests {
             state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
         // Every row is armed: the red arm boxes are left of the counted columns.
         model.armed = Set(studio.session.tracks.map(\.id))
-        #expect((180...480).contains(TrackHeaders.muteSoloWidth), "one line: \(TrackHeaders.muteSoloWidth)")
+        #expect((180...340).contains(TrackHeaders.muteSoloWidth), "B12, one line: \(TrackHeaders.muteSoloWidth)")
         #expect(
             (180...480).contains(TrackHeaders.muteSoloTwoLineWidth), "two lines: \(TrackHeaders.muteSoloTwoLineWidth)")
-        let forms = [(50.0, TrackHeaders.muteSoloWidth), (100.0, TrackHeaders.muteSoloTwoLineWidth)]
-        for (lane, threshold) in forms {
-            for width in [threshold, threshold - 1, 180] {
+        let forms = [
+            (50.0, TrackHeaders.muteSoloWidth, TrackHeaders.monitorWidth),
+            (100.0, TrackHeaders.muteSoloTwoLineWidth, TrackHeaders.monitorTwoLineWidth),
+        ]
+        for (lane, threshold, monitor) in forms {
+            #expect(monitor < threshold, "Monitor hides after M and S: \(lane) pt lanes")
+            // Three rows: 4 boxes each from the M and S gate, 2 from the Monitor gate, else R only.
+            let counts = [(threshold, 12), (threshold - 1, 6), (monitor, 6), (monitor - 1, 3), (180, 3)]
+            for (width, expected) in counts where width >= 180 {
                 let (window, host) = rows(model, studio, laneHeight: lane, width: width)
                 let label = "\(lane) pt lanes at \(width) pt"
                 let boxes = flagBoxes(host, in: host)
-                #expect(
-                    boxes.count == (width >= threshold ? 9 : 3), "arm in each row, M and S only from the gate: \(label)"
-                )
+                #expect(boxes.count == expected, "R in each row, Monitor and M and S from their gates: \(label)")
                 #expect(
                     boxes.allSatisfy { $0.minX >= 8 && $0.maxX <= width - 8 }, "the boxes are inside the row: \(label)")
                 // At 180 pt a two-line row cuts its state text with no M and S too; the captures

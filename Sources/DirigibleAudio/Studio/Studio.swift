@@ -245,6 +245,7 @@ import Observation
     }
 
     /// Finalize, the marker, the save, and the level of a stop off the main actor, then the outcome.
+    /// Call it only in a `serialized` turn, so its save does not race another package write.
     func complete(_ take: Int, leavingUnreadable: Bool = false, level: Bool = false) async throws(StudioError) {
         transport = .finalizing(take: take)
         await environment.beforeFinalize()

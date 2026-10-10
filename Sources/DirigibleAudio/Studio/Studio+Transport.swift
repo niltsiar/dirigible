@@ -46,7 +46,7 @@ extension Studio {
         guard isIdle else { throw .busy }
     }
 
-    /// A ripple waits for a pending or split take (decision 0037).
+    /// Refuses a ripple under a pending or split take (decision 0037).
     func checkRipple() throws(StudioError) {
         guard canRipple else { throw .rippleBlocked }
     }

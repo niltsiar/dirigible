@@ -126,7 +126,7 @@ check-warnings:
 	scripts/check-warnings.sh
 
 # No Swift file under Sources/ or Tests/ is over 400 lines without an entry in
-# scripts/check-sizes.allow (CODING_STANDARDS.md, File size).
+# scripts/check-sizes.allow (AGENTS.md, File size).
 check-sizes:
 	scripts/check-sizes.test.sh
 	scripts/check-sizes.sh

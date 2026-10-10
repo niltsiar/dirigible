@@ -50,6 +50,8 @@ final class TestHAL: @unchecked Sendable {
     private var virtualDevices: Set<String> = []
     /// The aggregate inputs: the active subdevices of each, and which of them are virtual.
     private var aggregateInputs: [String: (subdevices: [AudioObjectID], virtual: Set<AudioObjectID>)] = [:]
+    /// The aggregate that the next listen attach of a UID makes current: a change before its adds.
+    private var attachAggregates: [String: (subdevices: [AudioObjectID], virtual: Set<AudioObjectID>)] = [:]
     private var listenDetaches: [String: Int] = [:]
 
     /// A successful attach or a clean detach of one input.
@@ -202,6 +204,7 @@ final class TestHAL: @unchecked Sendable {
             let entry = present.first { $0.value.id == input.id }
             let uid = entry?.key ?? "id \(input.id)"
             listenTries[uid, default: []].append(input)
+            if let aggregate = attachAggregates.removeValue(forKey: uid) { aggregateInputs[uid] = aggregate }
             let rate = listenRates[uid] ?? entry?.value.device.nominalRate ?? 48_000
             return (uid, rate, listenFailure(uid, listenTries[uid]!.count))
         }
@@ -239,6 +242,11 @@ final class TestHAL: @unchecked Sendable {
     /// `uid` is an aggregate of `subdevices`; the ones in `virtual` have a virtual transport.
     func setAggregate(_ uid: String, subdevices: [AudioObjectID], virtual: Set<AudioObjectID>) {
         lock.withLock { aggregateInputs[uid] = (subdevices, virtual) }
+    }
+    /// The next listen attach of `uid` makes it this aggregate before its listener adds: a change
+    /// after the loopback read of the Listener, with no listener call.
+    func setAggregateAtAttach(_ uid: String, subdevices: [AudioObjectID], virtual: Set<AudioObjectID>) {
+        lock.withLock { attachAggregates[uid] = (subdevices, virtual) }
     }
 
     /// The app that `lookUpApp` finds for `bundleID` (nil: no output device), and its name.

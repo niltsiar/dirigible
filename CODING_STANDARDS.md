@@ -18,7 +18,7 @@ A review applies these rules, the **Safety rules** of `AGENTS.md`, and the decis
 ## Files
 
 - **No warnings.** Fix a warning at its cause, never with a flag or an exception that hides it.
-- **File size.** Split a Swift file over 400 lines by responsibility, not by execution order. A fix run adds an entry to `scripts/check-sizes.allow`; a refactor run splits.
+- **File size.** A Swift file under `Sources/` or `Tests/` over 400 lines needs a reason in `scripts/check-sizes.allow`. A fix run adds the entry. A refactor run splits the file by responsibility, not by execution order.
 
 ## Tests
 

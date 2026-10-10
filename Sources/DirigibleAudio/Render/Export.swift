@@ -243,9 +243,10 @@ public func exportMix(
     let tagged = tags ? folder.appending(path: "\(name).tag.tmp") : nil
     // This unlink runs before the unlink of the `.tmp` file, so no sweep removes a live file.
     defer { if let tagged { unlink(tagged.path) } }
+    // Only an MP3 file takes the ID3 tag, so no other export builds it.
+    let id3: [UInt8] = if case .mp3 = options.format { id3Tag(session.episode, artwork: artwork) } else { [] }
     try writeFile(
-        temporary, format: options.format, rate: rate, client: folded?.format ?? stereo,
-        tag: id3Tag(session.episode, artwork: artwork)
+        temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3
     ) {
         sink throws(ExportError) in
         var written = 0

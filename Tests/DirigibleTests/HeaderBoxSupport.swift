@@ -4,10 +4,17 @@ import Testing
 
 @testable import DirigibleApp
 
-/// The window point of box `index` of header row `row`: 0 arm, 1 Monitor, 2 M, 3 S. The boxes
-/// are SwiftUI shapes: the hit views of 18 x 16 pt in the header, grouped by row, top row
-/// first, left to right.
+/// The window point of box `index` of header row `row`: 0 arm, 1 Monitor, 2 M, 3 S.
 @MainActor func headerBoxPoint(_ index: Int, row: Int, in view: TimelineScrollView) throws -> NSPoint {
+    let rows = try headerBoxRows(in: view)
+    try #require(rows.count > row && rows[row].count > index, "box \(index) in row \(row): \(rows)")
+    let frame = rows[row][index]
+    return NSPoint(x: frame.midX, y: frame.midY)
+}
+
+/// The window frames of the header boxes. The boxes are SwiftUI shapes: the hit views of 18 x 16
+/// pt in the header, grouped by row, top row first, left to right.
+@MainActor func headerBoxRows(in view: TimelineScrollView) throws -> [[NSRect]] {
     let window = try #require(view.window)
     window.contentView?.layoutSubtreeIfNeeded()
     drawNow(window)
@@ -18,11 +25,8 @@ import Testing
             && frame.size == NSSize(width: 18, height: 16)
         return (box ? [frame] : []) + view.subviews.flatMap(boxes)
     }
-    let rows = Dictionary(grouping: boxes(view.headers.host)) { $0.midY.rounded() }
+    return Dictionary(grouping: boxes(view.headers.host)) { $0.midY.rounded() }
         .sorted { $0.key > $1.key }.map { $0.value.sorted { $0.minX < $1.minX } }
-    try #require(rows.count > row && rows[row].count > index, "box \(index) in row \(row): \(rows)")
-    let frame = rows[row][index]
-    return NSPoint(x: frame.midX, y: frame.midY)
 }
 
 /// A click at `point` of `window`: the down and the up go to the hit view of the frame view, as

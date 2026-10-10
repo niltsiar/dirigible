@@ -20,14 +20,16 @@ struct TrackToggles: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            arm
-            if boxes != .arm { monitor }
+            arm.disabled(!model.canEdit)
+            if boxes != .arm { monitorSlot }
             if boxes == .all {
-                toggle(.muted, letter: .trackMuteLetter, help: .trackMuteHelp, fill: .systemBlue, text: .white)
-                toggle(.soloed, letter: .trackSoloLetter, help: .trackSoloHelp, fill: .systemYellow, text: .black)
+                Group {
+                    toggle(.muted, letter: .trackMuteLetter, help: .trackMuteHelp, fill: .systemBlue, text: .white)
+                    toggle(.soloed, letter: .trackSoloLetter, help: .trackSoloHelp, fill: .systemYellow, text: .black)
+                }
+                .disabled(!model.canEdit)
             }
         }
-        .disabled(!model.canEdit)
         // A disabled button gives its click to the row, which selects the track. An enabled button
         // takes its own click before this tap.
         .onTapGesture {}
@@ -46,13 +48,23 @@ struct TrackToggles: View {
         .help(Text(L10n.trackArmHelp.key))
     }
 
+    /// An app track has no input to monitor: a clear slot keeps M and S in their columns. A track
+    /// with no route shows the box disabled.
+    @ViewBuilder private var monitorSlot: some View {
+        if case .app = track.route {
+            Color.clear.frame(width: 18, height: 16).accessibilityHidden(true)
+        } else {
+            monitor.disabled(track.route == nil)
+        }
+    }
+
     /// Monitor is window state, as Arm (decision 0044): the box and Track > Monitor Track show one
-    /// state, and a click adds no undo entry.
+    /// state, and a click adds no undo entry. It works during a take, as the menu item does.
     private var monitor: some View {
         Toggle(
             isOn: Binding(
                 get: { model.listened.contains(track.id) },
-                set: { model.setListen($0, track: track.id) })
+                set: { model.setListen($0, track: track.id, all: Self.isOptionClick(NSApp.currentEvent)) })
         ) { Image(systemName: "headphones").imageScale(.small) }
         .toggleStyle(FlagToggleStyle(fill: Color(nsColor: .systemGreen), letter: .black))
         .accessibilityLabel(Text(verbatim: L10n.trackMonitorLabel.format(track.name)))

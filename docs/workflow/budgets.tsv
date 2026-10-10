@@ -61,5 +61,5 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
-AGENTS.md	1882	2026-10-05-upkeep-batch slice 9 (decisions.tsv 2026-10-05T09:12): AGENTS.md goes from 1814 to 1776 words, so the row goes down by 38
-TOTAL	31662	2026-10-05-upkeep-batch slice 9 (decisions.tsv 2026-10-05T09:12): AGENTS.md is 38 words shorter, so TOTAL goes down by 38
+AGENTS.md	1636	2026-10-10-agents-md-restructure level 1 (user request: the no-op lines go): AGENTS.md goes from 1782 to 1636 words, so the row goes to the new count
+TOTAL	31516	2026-10-10-agents-md-restructure level 1: AGENTS.md is 146 words shorter, so TOTAL goes down by 146

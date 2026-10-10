@@ -1,11 +1,19 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 import Testing
+
+@testable import DirigibleCLI
 
 /// `dirigible clip ripple-delete`, `clip ripple-insert`, and `clip ripple-trim` (decision 0037,
 /// criteria C3, C11, C17, and C20). Tracks host, guest, and music (mono) on file f1 of 480 000 frames.
 struct RippleCommandTests {
     let package: TemporaryPackage
+
+    /// Code gate 1 item 2: a ripple that Studio refuses exits 3, as a split take of a package edit.
+    @Test func aStudioRippleRefusalExitsAsASplitTake() {
+        #expect(refusedCode(.rippleBlocked) == unplacedAudio, "RIPPLE-C1 a Studio ripple refusal exits other than 3")
+    }
 
     init() throws {
         var session = Session(sampleRate: 48_000)

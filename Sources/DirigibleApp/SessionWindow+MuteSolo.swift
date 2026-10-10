@@ -58,6 +58,9 @@ struct TrackToggles: View {
             }
         }
         .disabled(!model.canEdit)
+        // A disabled button gives its click to the row, which selects the track. An enabled button
+        // takes its own click before this tap.
+        .onTapGesture {}
     }
 
     /// Arm is window state, not a session edit, so a click adds no undo entry. The symbol has no
@@ -117,7 +120,6 @@ private struct FlagBox: View {
     var body: some View {
         let on = configuration.isOn
         Button {
-            guard isEnabled else { return }
             configuration.isOn.toggle()
         } label: {
             configuration.label
@@ -128,12 +130,16 @@ private struct FlagBox: View {
                 .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(on ? Color.clear : Color.secondary))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        // A disabled plain button dims its label, also an on box. So the button stays enabled and
-        // takes no click; the AX toggle of the style keeps the disabled state.
-        .environment(\.isEnabled, true)
-        .allowsHitTesting(isEnabled)
+        .buttonStyle(FlagButtonStyle())
         // During a take an on button keeps its full color, so the state of each track reads.
         .opacity(isEnabled || on ? 1 : 0.4)
+    }
+}
+
+/// A button that draws its label with no dimming when disabled, unlike `.plain`: `FlagBox` dims
+/// only an off box. A pressed button dims its label.
+private struct FlagButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.opacity(configuration.isPressed ? 0.6 : 1)
     }
 }

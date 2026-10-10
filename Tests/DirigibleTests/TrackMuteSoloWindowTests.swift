@@ -47,13 +47,13 @@ import Testing
         try boxPoint(flag == .muted ? 1 : 2, row: row, in: view)
     }
 
-    func click(_ point: NSPoint, in window: NSWindow) throws {
+    func click(_ point: NSPoint, in window: NSWindow, flags: NSEvent.ModifierFlags = []) throws {
         drawNow(window)
         let hit = try #require(window.contentView?.superview?.hitTest(point))
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
             let event = try #require(
                 NSEvent.mouseEvent(
-                    with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                    with: type, location: point, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
                     context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
             if type == .leftMouseDown { hit.mouseDown(with: event) } else { hit.mouseUp(with: event) }
         }
@@ -96,7 +96,8 @@ import Testing
     }
 
     /// During a take a click on R, M, or S changes nothing: the on boxes keep full opacity, but
-    /// the buttons take no click.
+    /// the buttons take no click. The click also does not go to the row, so the track selection
+    /// stays (code gate 1 item A).
     @Test func aClickDuringATakeChangesNothing() async throws {
         let (model, studio, window, view) = try await open()
         // The rows take a transport change at a later run-loop turn: each row reads `canEdit`.
@@ -111,9 +112,18 @@ import Testing
         await setTransport(.recording(take: 1))
         try #require(!model.canEdit, "the take disables the buttons")
 
-        for box in 0...2 { try click(try boxPoint(box, row: 1, in: view), in: window) }
+        model.timeline.selection = .none
+        for box in 0...2 {
+            try click(try boxPoint(box, row: 1, in: view), in: window)
+            try click(try boxPoint(box, row: 1, in: view), in: window, flags: .shift)
+        }
 
         #expect(model.armed == ["t1"] && flags(studio) == ["--", "--"], "no change: \(model.armed) \(flags(studio))")
+        #expect(model.timeline.selection == .none, "the row did not get the click: \(model.timeline.selection)")
+        // Control: a click on the row padding, left of the arm box, selects the track during a take.
+        let arm = try boxPoint(0, row: 1, in: view)
+        try click(NSPoint(x: arm.x - 13, y: arm.y), in: window)
+        #expect(model.timeline.selection != .none, "control: a click on the row selects")
         await setTransport(.idle)
         try click(try boxPoint(0, row: 1, in: view), in: window)
         #expect(model.armed == ["t1", "t2"], "control: the same click arms t2 when idle")

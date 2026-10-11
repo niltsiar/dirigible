@@ -138,6 +138,15 @@ extension TimelineLiveTests {
     /// handles (run 11b-1), and the live take has none.
     func takePixels(_ lanes: Lanes, seconds: Double) throws -> [[UInt32]] {
         let window = try #require(lanes.view.lanes.surfaces.shown)
+        // Each label chip of lane 0 ends before 110 pt: a chip starts 2 pt after its box at 0 pt,
+        // and it is 6 pt wider than its text.
+        let session = laneInputs(lanes.model, lanes.studio, selection: lanes.model.timeline.selection).session
+        let clips = session.tracks[0].clips.map {
+            TimelineDocumentView.labelText(ClipInspection.name(of: $0, in: session), gain: $0.gain, locale: .current)
+        }
+        let texts = clips + [L10n.takeRecording.format(1), L10n.takeFinishing.format(1)]
+        let chipEnd = texts.map { 8 + ClipLabel.width(of: $0) }.max() ?? 0
+        #expect(chipEnd < 110, "a label chip ends at \(chipEnd) pt: \(texts)")
         let first = Int(110 * window.scale) - window.pixels.columns.lowerBound
         let end = try lanes.column(seconds) - 1 - window.pixels.columns.lowerBound
         return try window.rows(of: 0..<1).dropFirst(Int(LaneGeometry.handleSize * window.scale)).map {

@@ -47,19 +47,20 @@ extension HeaderRowTests {
     }
 
     /// C20: a level report of a take runs no more row bodies than on main, and no header body. The
-    /// take form reads the transport, which changes only at the take start and stop. The live
+    /// take form reads the transport, which a level report does not change. The live
     /// store version is not observed, so a row that reads it runs no more bodies (premortem 5).
     @Test func aTakeTickRunsNoMoreRowBodies() async throws {
         let (model, studio) = try await model()
         studio.transport = .recording(take: 1)
         studio.liveTracks["t1"] = LiveTrack(state: .recording, droppedFrames: 0, peak: 0.1)
         let (window, host) = rows(model, studio, laneHeight: 100, width: 340)
-        try await Task.sleep(for: .milliseconds(100))
+        await until("the rows ran their first bodies") { model.headerRuns.rows > 0 }
+        await runLoopPass()
         drawNow(window)
         model.headerRuns = (0, 0)
         for tick in 0..<60 {
             studio.liveTracks["t1"]?.peak = Float(tick % 10) / 10
-            try await Task.sleep(for: .milliseconds(5))
+            await runLoopPass()
             host.layoutSubtreeIfNeeded()
             drawNow(window)
         }

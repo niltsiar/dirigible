@@ -11,7 +11,8 @@
 #   replay is skipped, also for a named log, unless --again is given.
 # - Time: the budget is at most 480 s. Before each log, the time left is the budget minus the time
 #   used minus the build allowance (mutate.py gives the build no limit): twice the build time of
-#   the last replay log (its `Build complete! (<n>s)` line), and 30 s or more. One incremental
+#   the last replay log (its first `Build complete! (<n>s)` line: the build command; the test
+#   command builds later), and 30 s or more. The first log of a call takes it from its source log. One incremental
 #   build after a one-line Sources/ mutation took 13 s. A log whose header timeout plus the
 #   allowance fits the budget runs only with its full header timeout; when that is over the
 #   time left, the script prints BUDGET and stops, and a fresh call runs it. A log that cannot fit
@@ -54,6 +55,12 @@ lock="$(git -C "$top" rev-parse --absolute-git-dir)/dirigible-mutate.lock"
     { echo "replay-batch: a mutate.py run holds $lock; wait for it to end" >&2; exit 2; }
 cd "$top" || exit 2
 allowance=30
+# build_allowance <log>: set the allowance from the first build line of the log, if it has one.
+build_allowance() {
+    local b
+    b="$(grep -m1 'Build complete! (' "$1" 2>/dev/null | sed 's/.*Build complete! (\([0-9]*\).*/\1/')"
+    [[ -n "$b" ]] && allowance=$(( 2 * b > 30 ? 2 * b : 30 ))
+}
 mkdir -p "$controls/replay"
 
 logs=("$@")
@@ -75,10 +82,12 @@ count() {
 }
 
 start="$(date +%s)"
+seeded=""
 for log in ${logs[@]+"${logs[@]}"}; do
     name="$(basename "$log")"
     out="$controls/replay/$name"
     [[ -z "$again" ]] && done_log "$out" && continue
+    [[ -n "$seeded" ]] || { build_allowance "$log"; seeded=1; }
     full="$(sed -n 's/^# timeout: //p' "$log" | head -1)"
     full="${full%.*}"
     left=$(( budget - ($(date +%s) - start) - allowance ))
@@ -97,8 +106,7 @@ for log in ${logs[@]+"${logs[@]}"}; do
         t=$left capped=1
     fi
     result="$(python3 -I "$mutate" --timeout "$t" $allow --replay "$log" "$out" 2>&1)"
-    b="$(sed -n 's/.*Build complete! (\([0-9]*\).*/\1/p' "$out" 2>/dev/null | tail -1)"
-    [[ -n "$b" ]] && allowance=$(( 2 * b > 30 ? 2 * b : 30 ))
+    build_allowance "$out"
     line="$(grep -m1 -E '^(killed|survived|BUILD FAILED|WRONG FAILURE|NO TESTS|stopped|mutate:)' <<<"$result" || tail -1 <<<"$result")"
     [[ "$line" == mutate:* ]] && refused=$((refused + 1))
     if [[ $capped -eq 1 && "$line" =~ ^(killed\ \(hang\)|WRONG\ FAILURE) ]]; then

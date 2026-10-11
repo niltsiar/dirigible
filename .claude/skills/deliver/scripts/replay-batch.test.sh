@@ -46,7 +46,7 @@ echo \$(( \$(cat "$tmp/clock") + \${s:-10} )) > "$tmp/clock"
 r="\$(sed -n 's/^# fake: //p' "\$log")"
 if [[ "\$r" == exit2 ]]; then echo "mutate: \$log has side effects; pass --allow-side-effects" >&2; exit 2; fi
 b="\$(sed -n 's/^# fake-build: //p' "\$log")"
-{ echo '# mutation of x'; [[ -n "\$b" ]] && echo "Build complete! (\${b}s)"; echo "# result: \${r:-killed}"; } > "\$out"
+{ echo '# mutation of x'; [[ -n "\$b" ]] && printf 'Build complete! (%ss)\nBuild complete! (1.00s)\n' "\$b"; echo "# result: \${r:-killed}"; } > "\$out"
 echo "\${r:-killed}"
 EOF
 chmod +x "$tmp/bin/date" "$tmp/bin/python3"
@@ -171,13 +171,20 @@ run 480
 [[ "$(calls | cut -d' ' -f1)" == a1.log ]] || fail "low time: calls [$(calls)]"
 grep -qx 'BUDGET' <<<"$out" || fail "low time: no BUDGET: $out"
 
-# The build allowance is twice the build time of the last replay log, and 30 s or more. A 100 s
-# build and 10 s of use leave 480 - 10 - 200 = 270 s for a capped log.
+# The build allowance is twice the first build time of the last replay log (the build command;
+# the test command builds later, and faster), and 30 s or more. A 100 s build and 10 s of use
+# leave 480 - 10 - 200 = 270 s for a capped log.
 fresh
 control b1 killed 100.0 killed 10 100
 control big killed 900.0
 run 480
 [[ "$(calls | sed -n 2p)" == "big.log 270 $tmp/tree" ]] || fail "build time: calls [$(calls)]"
+# The first log of a call takes its allowance from the build line of its source log: 480 - 400.
+fresh
+control big killed 900.0
+echo 'Build complete! (200.00s)' >> "$c/big.log"
+run 480
+[[ "$(calls)" == "big.log 80 $tmp/tree" ]] || fail "source build time: calls [$(calls)]"
 
 # A mutate.py exit 2 prints its message, and the next log runs.
 fresh

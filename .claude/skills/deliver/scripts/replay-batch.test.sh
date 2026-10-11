@@ -45,16 +45,19 @@ s="\$(sed -n 's/^# fake-seconds: //p' "\$log")"
 echo \$(( \$(cat "$tmp/clock") + \${s:-10} )) > "$tmp/clock"
 r="\$(sed -n 's/^# fake: //p' "\$log")"
 if [[ "\$r" == exit2 ]]; then echo "mutate: \$log has side effects; pass --allow-side-effects" >&2; exit 2; fi
-printf '# mutation of x\n# result: %s\n' "\${r:-killed}" > "\$out"
+b="\$(sed -n 's/^# fake-build: //p' "\$log")"
+{ echo '# mutation of x'; [[ -n "\$b" ]] && echo "Build complete! (\${b}s)"; echo "# result: \${r:-killed}"; } > "\$out"
 echo "\${r:-killed}"
 EOF
 chmod +x "$tmp/bin/date" "$tmp/bin/python3"
 
 c="$tmp/controls"
-# control <name> <source result> [<timeout>] [<fake result>] [<fake seconds>]: a source log.
+# control <name> <source result> [<timeout>] [<fake result>] [<fake seconds>] [<fake build seconds>]:
+# a source log.
 control() {
   { echo "# mutation of Sources/x.swift"; [[ -n "${3:-}" ]] && echo "# timeout: $3"
-    echo "# result: $2"; [[ -n "${4:-}" ]] && echo "# fake: $4"; [[ -n "${5:-}" ]] && echo "# fake-seconds: $5"; } > "$c/$1.log"
+    echo "# result: $2"; [[ -n "${4:-}" ]] && echo "# fake: $4"; [[ -n "${5:-}" ]] && echo "# fake-seconds: $5"
+    [[ -n "${6:-}" ]] && echo "# fake-build: $6"; } > "$c/$1.log"
 }
 fresh() { rm -rf "$c" "$tmp/calls"; mkdir -p "$c"; echo 1000 > "$tmp/clock"; : > "$tmp/calls"; }
 run() { out="$(PATH="$tmp/bin:$PATH" "$script" "$tmp/tree" "$c" "$@" 2>&1)"; code=$?; }
@@ -101,12 +104,12 @@ for r in 'BUILD FAILED' 'NO TESTS' 'WRONG FAILURE'; do
   [[ "$(calls | cut -d' ' -f1)" == b.log ]] || fail "$r: not replayed: calls [$(calls)]"
 done
 
-# A log that cannot fit a full budget (900 + 120 > 480) runs once, capped at the time left.
+# A log that cannot fit a full budget (900 + 30 > 480) runs once, capped at the time left.
 fresh
 control big killed 900.0
 run 480
-[[ "$(calls)" == "big.log 360 $tmp/tree" ]] || fail "capped: calls [$(calls)]"
-grep -qx 'big.log: killed (capped 360 s)' <<<"$out" || fail "capped: result line: $out"
+[[ "$(calls)" == "big.log 450 $tmp/tree" ]] || fail "capped: calls [$(calls)]"
+grep -qx 'big.log: killed (capped 450 s)' <<<"$out" || fail "capped: result line: $out"
 grep -qx 'ALL DONE' <<<"$out" || fail "capped kill: no ALL DONE: $out"
 
 # A capped hang is not done: its replay log moves aside, and the next call gives it only its full
@@ -114,7 +117,7 @@ grep -qx 'ALL DONE' <<<"$out" || fail "capped kill: no ALL DONE: $out"
 fresh
 control big killed 900.0 'killed (hang)'
 run 480
-grep -qx 'big.log: CAPPED HANG (capped 360 s)' <<<"$out" || fail "capped hang: result line: $out"
+grep -qx 'big.log: CAPPED HANG (capped 450 s)' <<<"$out" || fail "capped hang: result line: $out"
 [[ -f "$c/replay/big.log.capped" && ! -e "$c/replay/big.log" ]] || fail 'capped hang: replay log not moved aside'
 grep -qx 'replayed 0 of 1; left 1; too long 0; refused 0' <<<"$out" || fail "capped hang: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" && fail "capped hang: ALL DONE with a log left"
@@ -144,16 +147,16 @@ run 480
 fresh
 control none killed '' 'killed (hang)'
 run 480
-[[ "$(calls)" == "none.log 360 $tmp/tree" ]] || fail "no header: calls [$(calls)]"
-grep -qx 'none.log: CAPPED HANG (capped 360 s)' <<<"$out" || fail "no header: result line: $out"
+[[ "$(calls)" == "none.log 450 $tmp/tree" ]] || fail "no header: calls [$(calls)]"
+grep -qx 'none.log: CAPPED HANG (capped 450 s)' <<<"$out" || fail "no header: result line: $out"
 run 480
 grep -q '^none.log: TOO LONG' <<<"$out" || fail "no header after a capped hang: $out"
 
 # A log that fits a full budget but not the time left waits for a fresh call: BUDGET and the
-# count line. The first log uses 100 s, so 260 s are left for a 300 s log.
+# count line. The first log uses 100 s, so 350 s are left for a 400 s log.
 fresh
 control a1 killed 100.0 killed 100
-control a2 killed 300.0
+control a2 killed 400.0
 run 480
 [[ "$(calls | cut -d' ' -f1)" == a1.log ]] || fail "budget: calls [$(calls)]"
 grep -qx 'BUDGET' <<<"$out" || fail "budget: no BUDGET: $out"
@@ -161,11 +164,19 @@ grep -qx 'replayed 1 of 2; left 1; too long 0; refused 0' <<<"$out" || fail "bud
 grep -qx 'ALL DONE' <<<"$out" && fail 'budget: ALL DONE with a log left'
 # Under 60 s left, a capped log does not start: BUDGET.
 fresh
-control a1 killed 100.0 killed 310
+control a1 killed 100.0 killed 400
 control big killed 900.0
 run 480
 [[ "$(calls | cut -d' ' -f1)" == a1.log ]] || fail "low time: calls [$(calls)]"
 grep -qx 'BUDGET' <<<"$out" || fail "low time: no BUDGET: $out"
+
+# The build allowance is twice the build time of the last replay log, and 30 s or more. A 100 s
+# build and 10 s of use leave 480 - 10 - 200 = 270 s for a capped log.
+fresh
+control b1 killed 100.0 killed 10 100
+control big killed 900.0
+run 480
+[[ "$(calls | sed -n 2p)" == "big.log 270 $tmp/tree" ]] || fail "build time: calls [$(calls)]"
 
 # A mutate.py exit 2 prints its message, and the next log runs.
 fresh

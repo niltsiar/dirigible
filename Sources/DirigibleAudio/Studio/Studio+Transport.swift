@@ -229,13 +229,20 @@ extension Studio {
     }
 
     /// Sends the session to the Player with a new revision and no feed number: the running feed
-    /// goes on with the new session (plan gate 1 item 2). Each autosave calls it.
+    /// goes on with the new session (plan gate 1 item 2). Each autosave calls it. A newer
+    /// revision replaces the session of the Player.
     func sendSession() {
-        send(session)
+        guard let player = play.player else { return }
+        var session = session
+        // An edit during a drag sends the session again: the Player keeps the dragged gain.
+        if let preview = play.preview { try? session.setGain(preview.gain, track: preview.track) }
+        play.revision += 1
+        let revision = play.revision
+        Task { await player.update(session, revision: revision) }
     }
 
     /// Plays `gain` on `track` during play, with no edit and no autosave: the drag of the track
-    /// fader (F94). The mouse-up makes the one edit, or `endPreview` restores the session. Stopped,
+    /// fader (F94). The mouse-up makes the one edit, then `endPreview` ends the preview. Stopped,
     /// it sends nothing, so the next play starts from the session.
     public func previewGain(_ gain: Gain, track: TrackID) throws(StudioError) {
         try checkIdle()
@@ -252,17 +259,6 @@ extension Studio {
         guard let preview = play.preview else { return }
         play.preview = nil
         if session.track(preview.track)?.gain != preview.gain { sendSession() }
-    }
-
-    /// The one owner of the play revision: a newer revision replaces the session of the Player.
-    private func send(_ session: Session) {
-        guard let player = play.player else { return }
-        var session = session
-        // An edit during a drag sends the session again: the Player keeps the dragged gain.
-        if let preview = play.preview { try? session.setGain(preview.gain, track: preview.track) }
-        play.revision += 1
-        let revision = play.revision
-        Task { await player.update(session, revision: revision) }
     }
 
     private func startPlay(_ shuttle: Shuttle, from: Frames, number: Int) async {

@@ -47,8 +47,8 @@ struct EpisodeInspector: View {
                     row(.language, .episodeLanguage, episode, prompt: .episodeLanguagePrompt)
                     row(.copyright, .episodeCopyright, episode)
                     GridRow {
-                        // A 0 x 0 pt cell: a cell with no size on an axis stops the fill of the
-                        // fields (ui-polish-chrome U14).
+                        // An empty cell of 0 x 0 pt, because a cell with no fixed size stops the
+                        // fields from filling the width.
                         Color.clear.frame(width: 0, height: 0)
                         Toggle(
                             L10n.episodeExplicit.key,

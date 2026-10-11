@@ -317,6 +317,17 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the arm b
 - A session with a muted or soloed track does not open in a version of Dirigible from before mute and solo.
 - In Terminal, `dirigible track mute <package> <track>...` and `dirigible track solo <package> <track>...` set the buttons, and `--off` clears them.
 
+### Set the volume of a track
+
+A track header with two lines has a volume slider and its value in dB at the end of the second line. The volume is the level of the track in the mix: it does not change the recording level. The slider goes from -60 dB to +20 dB, and 0 dB is three quarters of the way.
+
+- Drag the slider to change the volume. During play, you hear the new volume while you drag. The change is one step of **Edit > Undo** when you release the mouse button.
+- Double-click or Option-click the slider to set 0 dB.
+- To change the volume of the selected tracks, choose **Track > Raise Track Volume** (Control-=) or **Track > Lower Track Volume** (Control-minus). Each track moves 1 dB from its own value, so the balance between the tracks stays. **Track > Reset Track Volume** (Control-0) sets 0 dB. With no selected track, the Mac beeps. On a Spanish keyboard, press Control-Shift-0 for Control-=.
+- During a take, the slider and the menu items are off. While a track records or you monitor it, its meter shows in place of the slider.
+- A lane under 56 pt and a header under 252 pt wide show no slider. The menu items still work.
+- In Terminal, `dirigible track gain <package> <track> --db <dB>` sets the volume, from -96 dB to +96 dB.
+
 ### Hear a track while you record
 
 **Track > Monitor Track** (**Monitorizar pista**) plays the input of the selected tracks in your headphones.
@@ -557,6 +568,9 @@ The **Track** menu (**Pista**).
 | **Remove Track** | **Eliminar pista** | Option-Command-Delete |
 | **Mute Track** | **Silenciar pista** | Shift-M |
 | **Solo Track** | **Solo de pista** | Shift-S |
+| **Raise Track Volume** | **Subir volumen de pista** | Control-= |
+| **Lower Track Volume** | **Bajar volumen de pista** | Control-minus |
+| **Reset Track Volume** | **Restablecer volumen de pista** | Control-0 |
 | **Monitor Track** | **Monitorizar pista** | Control-Command-M |
 
 ### Record

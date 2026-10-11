@@ -59,6 +59,54 @@ struct LaneRenderBenchmark {
     }
 }
 
+/// Run 2026-10-11-ui-polish-header C17 (premortem 4): an edited episode, 6 lanes of clips of 60 to
+/// 200 pt with gains that are not 0, about 17 labeled clips per lane in view. The full draw of the
+/// view (the labels once, the lane pixels with their chips, the label texts) at 2880 x 1200 px
+/// takes 16 ms p95 or less in an optimized build (the 0020 budget of a full draw).
+@MainActor struct ManyLabelsBenchmark {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func manyLabels() throws {
+        let framesPerPoint = 512.0
+        let peaks = randomPeaks(frames: 345_600_000)
+        var session = Session(sampleRate: 48_000)
+        var states: [FileID: PeakState] = [:]
+        for n in 1...6 {
+            let file = FileID("f\(n)")
+            try session.addFile(AudioFile(id: file, path: "take\(n).wav", layout: .mono, length: 345_600_000))
+            try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
+            states[file] = .ready(peaks)
+            var start = 0
+            for index in 0..<200 {
+                let points = [60, 60, 60, 70, 200][index % 5]
+                let length = Int(Double(points) * framesPerPoint)
+                let gain = try #require(Gain(dB: -3.5))
+                try session.place(
+                    Clip(
+                        id: ClipID("c\(n)x\(index)"), file: file, start: Frames(start), offset: Frames(start),
+                        length: Frames(length), gain: gain), on: TrackID("t\(n)"))
+                start += length
+            }
+        }
+        let inputs = LaneInputs(
+            session: session, peaks: states, missingMedia: [:], selection: .none,
+            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+        let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
+        let pixels = windows.map { OwnedPixels($0) }
+        let renderer = LaneRenderer()
+        var labels = 0
+        pixels[0].draw { labels = ClipLabel.labels(inputs, live: nil, in: $0).count }
+        #expect(labels >= 6 * 16, "labeled clips in view: \(labels)")
+        var times: [Duration] = []
+        for draw in 0..<120 {
+            let start = ContinuousClock.now
+            pixels[draw % 7].draw { TimelineDocumentView.drawLanes(renderer, inputs, .light, into: $0) }
+            times.append(ContinuousClock.now - start)
+        }
+        let p95 = times.sorted()[113]
+        expectWithinBudget(p95, .milliseconds(16), "p95 \(p95)")
+    }
+}
+
 /// Code gate 1 item 3: a draw of 10 pt of 6 lanes of 1000 clips each labels only the clips in the
 /// dirty rect. Unoptimized, on the MacBook Pro 2018 of the probes: a median of 10.5 s when the
 /// labels looked up every clip of the session by its ID, 8.5 ms after the fix. The labels draw
@@ -85,7 +133,9 @@ struct LaneRenderBenchmark {
         var times: [Duration] = []
         for _ in 0..<20 {
             let start = ContinuousClock.now
-            pixels.draw { TimelineDocumentView.drawLabels(inputs, .light, into: $0) }
+            pixels.draw { region in
+                TimelineDocumentView.drawLabels(ClipLabel.labels(inputs, live: nil, in: region), .light, into: region)
+            }
             times.append(ContinuousClock.now - start)
         }
         let median = times.sorted()[10]

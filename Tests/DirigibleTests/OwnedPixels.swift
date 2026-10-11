@@ -42,8 +42,7 @@ final class OwnedPixels {
     ) -> OwnedPixels {
         let pixels = OwnedPixels(window)
         pixels.draw { region in
-            LaneRenderer().draw(inputs, palette, live: live, into: region)
-            TimelineDocumentView.drawLabels(inputs, palette, live: live.take, into: region)
+            TimelineDocumentView.drawLanes(LaneRenderer(), inputs, palette, live: live, into: region)
         }
         return pixels
     }

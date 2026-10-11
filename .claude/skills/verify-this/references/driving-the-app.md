@@ -6,7 +6,7 @@
 - A check that writes preferences or a recent list, or answers a privacy prompt, runs on the verify copy. Run `make app`, then `scripts/verify-copy.sh start` and `doctor`, then `ax` and `prompt Allow`, then `stop`. Press the prompt by name, never with `hid.swift`.
 - `scripts/screenshots.sh` writes `docs/images` and the preferences of the real app, so it is not a check.
 - For a light or a Spanish capture on a Mac in Dark Mode or in English, pass launch arguments (`open -a "$PWD/build/Dirigible.app" <package> --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(es)"`); do not write user defaults.
-- The speakers are real. Right before each play, Option-click the Mute of an unmuted track, then check with `ax.swift dump` that each Mute is on. An import adds an unmuted track and Cmd-Z can revert the mute, so check again after either.
+- The speakers are real. For a play-only check, mute each track before the launch with the CLI on a copy of the fixture (`dirigible track mute <package> <track>`: no HID, no undo entry), and again after an import. For a check that needs signal (export, loudness, meter), set a low gain with `dirigible track gain` and do not mute.
 
 ## Capture
 

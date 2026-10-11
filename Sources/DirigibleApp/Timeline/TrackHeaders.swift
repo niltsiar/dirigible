@@ -79,7 +79,8 @@ private struct TrackRow: View {
     /// True in a lane of 80 pt or more: the state text has a line 3. A Bool, as `showsLayout`.
     let tall: Bool
     /// True while a take is live: the route and the name show as text, not as dimmed controls
-    /// (run 2026-10-11-ui-polish-header C18). The transport changes only at the take start and end.
+    /// (run 2026-10-11-ui-polish-header C18). The transport changes at a take start and end, and also
+    /// at a placement, a level, or an import; a level report of a take does not change it.
     let taking: Bool
     /// The layout text, when the header width has room for it: at every width on two lines, from
     /// `TrackHeaders.layoutWidth` on one line, so no control goes under the handle. The width

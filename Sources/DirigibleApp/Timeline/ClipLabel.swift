@@ -26,8 +26,21 @@ struct ClipLabel {
         return (font.ascender - font.descender + font.leading).rounded(.up) + 1
     }()
 
-    init(clip: ClipID?, lane: Int, text: String, box: NSRect, shown: [NSRect]) {
-        let width = (text as NSString).size(withAttributes: [.font: Self.font]).width.rounded(.up)
+    /// The text widths of the earlier draws. A measure at each draw made a Command-F event at
+    /// 60 pt boxes 3 to 4 ms slower than main (decisions.tsv of the run, S5 row).
+    @MainActor private static var widths: [String: Double] = [:]
+
+    @MainActor static func width(of text: String) -> Double {
+        if let width = widths[text] { return width }
+        // A bound: the names of a long session do not stay in memory.
+        if widths.count >= 4096 { widths.removeAll(keepingCapacity: true) }
+        let width = (text as NSString).size(withAttributes: [.font: font]).width.rounded(.up)
+        widths[text] = width
+        return width
+    }
+
+    @MainActor init(clip: ClipID?, lane: Int, text: String, box: NSRect, shown: [NSRect]) {
+        let width = Self.width(of: text)
         let chip = NSRect(x: box.minX + 2, y: box.maxY - Self.height, width: width + 6, height: Self.height)
         (self.clip, self.lane, self.text, self.shown) = (clip, lane, text, shown)
         self.chip = chip.intersection(box)
@@ -40,7 +53,9 @@ struct ClipLabel {
     /// at the box end, and an old clip label shows only outside it. So a column of the take label
     /// does not change when the box grows, and the partial draw of a tick gives the pixels of a
     /// full draw.
-    static func labels(_ inputs: LaneInputs, live: LiveLanes.Take?, in region: borrowing PixelRegion) -> [ClipLabel] {
+    @MainActor static func labels(_ inputs: LaneInputs, live: LiveLanes.Take?, in region: borrowing PixelRegion)
+        -> [ClipLabel]
+    {
         guard inputs.laneHeight > 14, let geometry = inputs.geometry, !region.rect.isEmpty else { return [] }
         let rect = region.window.points(of: region.rect)
         let frames = geometry.frame(at: rect.minX)..<geometry.frame(at: rect.maxX) + Frames(2)

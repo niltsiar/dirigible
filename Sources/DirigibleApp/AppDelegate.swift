@@ -205,36 +205,6 @@ import UniformTypeIdentifiers
         if windows.isEmpty { showStart() }
     }
 
-    // MARK: Transport
-
-    /// The action of each plain-key Transport item: a key that belongs to text or to a panel
-    /// goes there (probes K1, K3); else the key session window performs the command.
-    func transport(_ command: TransportCommand) {
-        transport(command, event: NSApp.currentEvent, in: NSApp.keyWindow)
-    }
-
-    func transport(_ command: TransportCommand, event: NSEvent?, in keyWindow: NSWindow?) {
-        if let event, forwardTypingKey(event, in: keyWindow) { return }
-        key?.transport(command)
-    }
-
-    /// The action of each timeline menu item. A key that a text field uses (H, I, O, Backspace,
-    /// Command-B, Command-arrows) goes to text or to a panel first, as the transport keys do (probes
-    /// K1, K3, E4b, E5). An item of the Edit group sends its selector from the first responder of
-    /// the key window (probes E2, E3).
-    func timeline(_ command: TimelineCommand) {
-        timeline(command, event: NSApp.currentEvent, in: NSApp.keyWindow)
-    }
-
-    func timeline(_ command: TimelineCommand, event: NSEvent?, in keyWindow: NSWindow?) {
-        if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
-        if let selector = command.selector {
-            if let keyWindow { _ = (keyWindow.firstResponder ?? keyWindow).tryToPerform(selector, with: nil) }
-            return
-        }
-        key?.run(command)
-    }
-
     /// Drops the auto-repeat of J, L, and Space, and pauses at the key-up of a hold (probe H1). The
     /// release calls the pause directly, with no key forward (plan gate 2 item 6), on the Studio
     /// of the key-down, also when the key window changed during the hold.

@@ -71,6 +71,7 @@ enum L10n: String, CaseIterable {
     case menuViewTracksShorter = "menu.view.tracks.shorter"
     case menuViewTracksFit = "menu.view.tracks.fit"
     case menuViewFollow = "menu.view.follow"
+    case menuViewSnap = "menu.view.snap"
     case menuViewLoudnessShow = "menu.view.loudness.show"
     case menuViewLoudnessHide = "menu.view.loudness.hide"
     case menuViewInspectorShow = "menu.view.inspector.show"

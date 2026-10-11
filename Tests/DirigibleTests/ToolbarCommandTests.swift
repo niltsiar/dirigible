@@ -15,7 +15,7 @@ struct ToolbarMenuTests {
     static let keys: [ToolbarItemID: String] = [
         .addTrack: "⌥⌘N", .monitor: "⇧⌘M", .stop: "⌘.", .play: "key.space", .record: "⌘R", .start: "↖",
         .end: "↘", .split: "⌘B", .cut: "⌘X", .copy: "⌘C", .paste: "⌘V", .delete: "⌫", .zoomOut: "⌘-",
-        .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I",
+        .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I", .snap: "N",
     ]
 
     /// A5: each item but the time display has a command, and the menu tables give that command a
@@ -107,7 +107,7 @@ struct ToolbarMenuTests {
             switch command {
             case .timeline(let command): app.timeline(command, event: nil, in: window)
             case .transport(let command): app.transport(command, event: nil, in: window)
-            case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector: app.key?.run(command)
+            case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector, .toggleSnap: app.key?.run(command)
             }
             let menu = model.leafCalls ?? []
             #expect(!toolbar.isEmpty, "the \(id) click reached no leaf")

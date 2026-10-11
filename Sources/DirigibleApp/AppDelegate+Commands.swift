@@ -1,0 +1,48 @@
+import AppKit
+import DirigibleAudio
+
+/// The menu and key actions that reach the key session window (decisions 0016, 0017).
+extension AppDelegate {
+    // MARK: Transport
+
+    /// The action of each plain-key Transport item: a key that belongs to text or to a panel
+    /// goes there (probes K1, K3); else the key session window performs the command.
+    func transport(_ command: TransportCommand) {
+        transport(command, event: NSApp.currentEvent, in: NSApp.keyWindow)
+    }
+
+    func transport(_ command: TransportCommand, event: NSEvent?, in keyWindow: NSWindow?) {
+        if let event, forwardTypingKey(event, in: keyWindow) { return }
+        key?.transport(command)
+    }
+
+    /// The one writer of the snap preference: View > Snap, its N key, and the toolbar item. N goes
+    /// to text or to a panel first, as the transport keys do.
+    func toggleSnap() {
+        toggleSnap(event: NSApp.currentEvent, in: NSApp.keyWindow)
+    }
+
+    func toggleSnap(event: NSEvent?, in keyWindow: NSWindow?) {
+        if let event, forwardTypingKey(event, in: keyWindow) { return }
+        snaps.toggle()
+        // A drag takes the new state at once, with no mouse move, as at a Command change.
+        key?.timelineView?.resendDrag()
+    }
+
+    /// The action of each timeline menu item. A key that a text field uses (H, I, O, Backspace,
+    /// Command-B, Command-arrows) goes to text or to a panel first, as the transport keys do (probes
+    /// K1, K3, E4b, E5). An item of the Edit group sends its selector from the first responder of
+    /// the key window (probes E2, E3).
+    func timeline(_ command: TimelineCommand) {
+        timeline(command, event: NSApp.currentEvent, in: NSApp.keyWindow)
+    }
+
+    func timeline(_ command: TimelineCommand, event: NSEvent?, in keyWindow: NSWindow?) {
+        if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
+        if let selector = command.selector {
+            if let keyWindow { _ = (keyWindow.firstResponder ?? keyWindow).tryToPerform(selector, with: nil) }
+            return
+        }
+        key?.run(command)
+    }
+}

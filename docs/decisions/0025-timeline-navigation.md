@@ -4,6 +4,7 @@
 - Date: 2026-09-28
 - Accepted: 2026-09-28, after plan gate 1 of the timeline-navigation run. The gate added the view of the first click for the strip double-click, the Shift rule of the key test only for printable symbol and digit keys, the accessibility value 0 at the fit and clamped to 0...1, the frame-drag budget at the closest zoom with one lane draw per event, a publish of `visible` at `record()` with the drag hold, the map from a momentum event to a stroke, and the row rule of the strip for many tracks.
 - Amended: 2026-10-11, run ui-polish-header: the automatic track height is 40 to 200 pt (was 40 to 120 pt), so a few tracks fill a tall window. The fixed steps do not change.
+- Amended: 2026-10-11, run ui-polish-header: a frame of 16 pt or more shows a grip of 3 x 12 pt in the accent color at each edge, inside the edge zone. The grips are layers that move with the frame and render no strip pixel.
 - Amends: 0017 (the keys, H with no selection, the view state, the lane height), 0020 (autoscroll during a gesture).
 
 ## Context

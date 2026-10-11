@@ -229,7 +229,7 @@ struct ChromeState: Equatable {
         guard let studio = model.studio else { return }
         let recording = model.canStop
         playing = studio.playback != .stopped
-        // During a take and its finalize, the time shows the record head with tenths.
+        // During a take, the time shows the record head with tenths.
         let head = studio.liveHead()
         time = timeDisplayText(
             head ?? studio.playhead, rate: studio.session.sampleRate, playing: playing || head != nil)

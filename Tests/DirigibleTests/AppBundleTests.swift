@@ -167,6 +167,9 @@ struct AppBundleTests {
         _ = try run(link, "create", session, "--sample-rate", "48000")
         _ = try run(link, "track", "add", session, "--name", "A", "--layout", "mono")
         _ = try run(link, "info", session)
+        let plist = try propertyList(at: "Contents/Info.plist")
+        let version = plist["CFBundleShortVersionString"] as? String
+        #expect(try run(link, "--version") == version, "the tool has the app version")
 
         let initialize =
             #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","#

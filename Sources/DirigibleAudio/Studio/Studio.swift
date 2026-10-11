@@ -167,6 +167,16 @@ import Observation
         return result
     }
 
+    /// Runs `body` as a part of the last recorded edit (`History.amend`), with the autosave of
+    /// `edit`.
+    public func amend(_ body: (inout Session) throws(SessionError) -> Void) throws(StudioError) {
+        try checkIdle()
+        let before = session
+        do { try history.amend(body) } catch { throw .session(error) }
+        if session != before { scheduleSave() }
+        poolChanged(from: before.files)
+    }
+
     public func undo() throws(StudioError) {
         try checkIdle()
         let before = session.files

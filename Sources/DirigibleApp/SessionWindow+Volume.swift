@@ -36,6 +36,20 @@ extension SessionWindow {
         }
     }
 
+    /// The reset of a double-click whose first click made the edit of session revision
+    /// `revision`: the reset joins that edit, so the double-click is one undo step. After another
+    /// edit, it is an edit of its own.
+    func resetVolume(_ track: TrackID, joining revision: Int) {
+        guard let studio = idleStudio, studio.sessionRevision == revision else {
+            return setVolume(.zero, tracks: [track])
+        }
+        do throws(StudioError) {
+            try studio.amend { session throws(SessionError) in try session.setGain(.zero, track: track) }
+        } catch {
+            alert = .error(error)
+        }
+    }
+
     /// Sets each of `tracks` to `gain` in one edit: the fader reset and a VoiceOver set value.
     func setVolume(_ gain: Gain, tracks: [TrackID]) {
         edit { session throws(SessionError) in

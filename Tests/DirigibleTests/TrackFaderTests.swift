@@ -164,27 +164,77 @@ import os
     /// C8 (on-screen check): the first click of a real double-click off the thumb moves the thumb
     /// there and makes an edit. The reset takes its place: one undo gives the value before the
     /// double-click.
-    @Test func aDoubleClickOffTheThumbMakesOneEdit() async throws {
-        let (model, studio) = try await model()
-        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: -6)!, track: "t1") }
-        let (window, view) = fader(model, studio)
-        // The first click: `mouseDown` runs the drag path, and the thumb jumps to the click point.
+    /// The double-click off the thumb: the first click runs the drag path, and the thumb jumps to
+    /// `jump`; the second click comes `delay` s after the first mouse-up.
+    func doubleClick(
+        _ view: TrackFaderView, _ window: NSWindow, from start: Double, jump: Double, delay: TimeInterval = 0,
+        between: () throws -> Void = {}
+    ) throws {
         view.slider.beginDrag()
-        move(view.slider, to: -36, start: -6)
+        move(view.slider, to: jump, start: start)
         view.slider.endDrag()
-        try #require(studio.session.track("t1")?.gain.dB == -36, "the first click makes an edit")
-        view.update(model: model, track: "t1", name: "T1", dB: -36, enabled: true)
+        try between()
         let point = view.slider.convert(NSPoint(x: 10, y: view.slider.bounds.midY), to: nil)
         let second = try #require(
             NSEvent.mouseEvent(
-                with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0,
-                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
-
+                with: .leftMouseDown, location: point, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime + delay, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
         view.slider.mouseDown(with: second)
+    }
+
+    func setGain(_ studio: Studio, _ dB: Double, track: TrackID = "t1") throws {
+        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: dB)!, track: track) }
+    }
+
+    @Test func aDoubleClickOffTheThumbMakesOneEdit() async throws {
+        let (model, studio) = try await model()
+        try setGain(studio, -6)
+        let (window, view) = fader(model, studio)
+
+        try doubleClick(view, window, from: -6, jump: -36)
 
         #expect(studio.session.track("t1")?.gain == .zero, "C8: the double-click sets 0 dB")
         try studio.undo()
         #expect(studio.session.track("t1")?.gain.dB == -6, "C8: one undo gives the value before the double-click")
+        window.close()
+        await model.close()
+    }
+
+    /// Code gate 1 item 1: from 0 dB the double-click leaves no undo step and no redo step.
+    @Test func aDoubleClickAtZeroLeavesNoStep() async throws {
+        let (model, studio) = try await model()
+        let (window, view) = fader(model, studio)
+
+        try doubleClick(view, window, from: 0, jump: -36)
+
+        #expect(studio.session.track("t1")?.gain == .zero, "C8: the double-click keeps 0 dB")
+        #expect(!studio.canRedo, "C8: no redo step")
+        #expect(!studio.canUndo, "C8: no undo step")
+        window.close()
+        await model.close()
+    }
+
+    /// Code gate 1 item 1: the reset joins the first click only when no other edit came between
+    /// the clicks, and only within the double-click interval.
+    @Test func aResetJoinsOnlyTheEditOfTheFirstClick() async throws {
+        let (model, studio) = try await model()
+        try setGain(studio, -6)
+        let (window, view) = fader(model, studio)
+
+        try doubleClick(view, window, from: -6, jump: -36) {
+            try studio.edit { session throws(SessionError) in try session.setMuted(true, tracks: ["t2"]) }
+        }
+        #expect(studio.session.track("t2")?.isMuted == true, "code gate 1: the edit between the clicks stays")
+        try studio.undo()
+        #expect(studio.session.track("t1")?.gain.dB == -36, "code gate 1: the reset is an edit of its own")
+        #expect(studio.session.track("t2")?.isMuted == true, "code gate 1: the undo keeps the edit between")
+
+        try setGain(studio, -6)
+        view.update(model: model, track: "t1", name: "T1", dB: -6, enabled: true)
+        try doubleClick(view, window, from: -6, jump: -36, delay: NSEvent.doubleClickInterval + 1)
+        try studio.undo()
+        #expect(studio.session.track("t1")?.gain.dB == -36, "code gate 1: a late second click does not join")
         window.close()
         await model.close()
     }

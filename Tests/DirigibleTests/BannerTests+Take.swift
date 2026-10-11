@@ -238,3 +238,46 @@ extension BannerTests {
         return (own.map { [$0] } ?? []) + view.subviews.flatMap { checkBoxes(under: $0) }
     }
 }
+
+/// The banner buttons on the tint (run ui-polish-chrome C24).
+extension BannerTests {
+    // MARK: C24 (run ui-polish-chrome)
+
+    /// C24: the buttons of the pending-take banner sit on its tint. At the height of the top
+    /// button, a pixel 4 pt from the trailing edge has the color of a pixel 4 pt from the leading
+    /// edge, inside the banner padding. Control: the buttons beside the row put the window
+    /// background at the trailing edge.
+    @Test func theBannerButtonsSitOnTheTint() async throws {
+        let url = try await timelinePackage(in: folder.url, tracks: 1, seconds: 2)
+        var session = try Session(contentsOf: url)
+        try session.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"]))
+        try session.write(to: url)
+        // The marker of a recovery attempt: the open does not finalize.
+        FileManager.default.createFile(atPath: url.appending(path: "recovery-attempt").path, contents: nil)
+        let (model, studio, window, _) = try await openLanes(app, url)
+        try #require(studio.pendingTake != nil)
+        window.appearance = NSAppearance(named: .aqua)
+        // The banner spans the lanes column: the trailing pixel is in the banner only with no inspector.
+        if model.showsInspector { model.toggleInspector() }
+        var top: NSRect?
+        await until(limit: .seconds(10), "the pending banner shows its buttons") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            top = window.contentView.map { checkBoxes(under: $0) }?.map { $0.convert($0.bounds, to: nil) }
+                .max { $0.maxY < $1.maxY }
+            return top != nil
+        }
+        let row = try #require(top)
+        drawNow(window)
+        try await Task.sleep(for: .milliseconds(200))
+        let image = try await TimelineColorTests.capture(window)
+        let width = window.contentLayoutRect.width
+        func color(_ x: Double) throws -> [Int] {
+            let pixel = try #require(
+                try TimelineRulerTests.pixels(of: NSRect(x: x, y: row.midY, width: 1, height: 1), image, window).first)
+            return [16, 8, 0].map { Int((pixel >> $0) & 0xFF) }
+        }
+        let (leading, trailing) = (try color(4), try color(width - 4))
+        #expect(zip(leading, trailing).allSatisfy { abs($0 - $1) <= 3 }, "leading \(leading), trailing \(trailing)")
+        await model.close()
+    }
+}

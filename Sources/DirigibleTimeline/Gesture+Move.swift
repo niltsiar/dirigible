@@ -12,6 +12,9 @@ extension TimelineGesture {
         var track: TrackID
         var start: Frames
         var preview: Session
+        /// The snap targets: every clip but this one.
+        let snap: Snap
+        var guide: Frames? = nil
     }
 
     /// A group move: the selected clips at the down with their lanes, one frame offset and one lane
@@ -21,17 +24,25 @@ extension TimelineGesture {
         var offset = Frames.zero
         var lanes = 0
         var preview: Session
+        /// The clip under the pointer: only its edges snap.
+        let anchor: Clip
+        /// The snap targets: every clip that is not in the group.
+        let snap: Snap
+        var guide: Frames? = nil
     }
 
     /// The drag of the clip at the down: a group move when the selection holds the clip and 2 or
     /// more clips, else a single move.
-    func moveState(_ press: Press, _ clip: Clip, _ lane: Int) -> State {
+    func moveState(_ press: Press, _ clip: Clip, _ lane: Int, _ geometry: LaneGeometry) -> State {
         let held = press.selection.selectedClips(in: press.base)
         guard held.count >= 2, held.contains(where: { $0.clip.id == clip.id }) else {
             let track = press.base.tracks[lane].id
-            return .moving(press, Move(clip: clip, lane: lane, track: track, start: clip.start, preview: press.base))
+            let snap = Snap(press.base, excluding: [clip.id], geometry: geometry)
+            return .moving(
+                press, Move(clip: clip, lane: lane, track: track, start: clip.start, preview: press.base, snap: snap))
         }
-        return .grouping(press, GroupMove(clips: held, preview: press.base))
+        let snap = Snap(press.base, excluding: Set(held.map(\.clip.id)), geometry: geometry)
+        return .grouping(press, GroupMove(clips: held, preview: press.base, anchor: clip, snap: snap))
     }
 
     /// A group drag event. The offset stops when the first clip reaches frame 0 or the last end
@@ -49,18 +60,25 @@ extension TimelineGesture {
         let ends = group.clips.map(\.clip.end)
         let lanes = group.clips.map(\.lane)
         let (first, last) = (starts.min() ?? .zero, ends.max() ?? .zero)
-        let offset = min(max(press.delta(to: x, context.geometry), .zero - first), .limit - last)
+        let anchor = group.anchor
+        let (raw, target) = Snap.snapped(
+            group.snap, press.delta(to: x, context.geometry), [anchor.start, anchor.end], context)
+        let offset = min(max(raw, .zero - first), .limit - last)
+        var group = group
+        group.guide = Snap.guide(target, on: [anchor.start + offset, anchor.end + offset])
         let wanted = Int(((y - press.y) / context.geometry.laneHeight).rounded())
         var delta = min(max(wanted, -(lanes.min() ?? 0)), base.tracks.count - 1 - (lanes.max() ?? 0))
         if group.clips.contains(where: { base.tracks[$0.lane + delta].layout != base.tracks[$0.lane].layout }) {
             delta = 0
         }
-        guard (offset, delta) != (group.offset, group.lanes) else { return [] }
+        guard (offset, delta) != (group.offset, group.lanes) else {
+            state = .grouping(press, group)
+            return []
+        }
         var preview = base
         // The clamps and the layout check run first, so no gesture input reaches a throw. A throw
         // keeps the last preview (decision 0020).
         guard (try? preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta)) != nil else { return [] }
-        var group = group
         (group.offset, group.lanes, group.preview) = (offset, delta, preview)
         state = .grouping(press, group)
         return []
@@ -87,14 +105,19 @@ extension TimelineGesture {
         var move = move
         let geometry = context.geometry
         let base = press.base
-        let delta = press.delta(to: x, geometry)
+        let (delta, target) = Snap.snapped(
+            move.snap, press.delta(to: x, geometry), [move.clip.start, move.clip.end], context)
         let start = min(max(.zero, move.clip.start + delta), .limit - move.clip.length)
+        move.guide = Snap.guide(target, on: [start, start + move.clip.length])
         // Half a lane of vertical movement changes the lane; a lane of another layout keeps it.
         let lane = min(
             max(0, move.lane + Int(((y - press.y) / geometry.laneHeight).rounded())), base.tracks.count - 1)
         let source = base.tracks[move.lane]
         let track = base.tracks[lane].layout == source.layout ? base.tracks[lane].id : source.id
-        guard (track, start) != (move.track, move.start) else { return [] }
+        guard (track, start) != (move.track, move.start) else {
+            state = .moving(press, move)
+            return []
+        }
         var preview = base
         // No gesture input reaches a throw (the clamp and the layout check run first). A throw
         // keeps the last preview (decision 0020).

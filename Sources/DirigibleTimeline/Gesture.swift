@@ -13,6 +13,9 @@ public struct GestureContext: Sendable {
     /// The device columns of one point (the backing scale): a ripple drag moves by whole columns,
     /// so the lanes can draw it by a shift (decision 0037).
     public var columnsPerPoint = 1.0
+    /// True when a move, a trim, or a range drag snaps (decision 0020): the app preference is on and
+    /// Command is not held at this event.
+    public var snaps = false
 
     public init(
         session: Session, selection: Selection, playhead: Frames, geometry: LaneGeometry, canEdit: Bool,
@@ -122,6 +125,9 @@ public struct TimelineGesture: Sendable {
         let limits: ClosedRange<Frames>
         var range: Range<Frames>
         var preview: Session
+        /// The snap targets of the drag; nil for a ripple trim, which moves by whole device columns.
+        let snap: Snap?
+        var guide: Frames? = nil
     }
 
     enum State: Sendable {
@@ -137,7 +143,8 @@ public struct TimelineGesture: Sendable {
         case gaining(Press, GainDrag)
         case fading(Press, FadeDrag)
         case crossfading(Press, CrossfadeDrag)
-        case ranging(Press)
+        /// A range drag, with its snap targets and the target that the pointer end is on.
+        case ranging(Press, Snap, guide: Frames?)
         /// A flag drag: the marker at the down, and the session with the marker moved.
         case markerDrag(Press, Marker, preview: Session)
         /// A drag of the in or the out triangle: it changes the Marks only.
@@ -216,7 +223,7 @@ public struct TimelineGesture: Sendable {
             case .moving, .grouping, .trimming, .gaining, .fading, .crossfading, .markerDrag:
                 state = .dropped
                 return []
-            case .ranging(let press), .pointDrag(let press, _):
+            case .ranging(let press, _, _), .pointDrag(let press, _):
                 state = .dropped
                 return [.selection(press.selection)]
             }
@@ -275,7 +282,7 @@ public struct TimelineGesture: Sendable {
             guard hypot(x - press.x, y - press.y) >= Self.threshold else { return [] }
             // A Command-drag from a clip stays a range drag (decision 0020).
             if press.command, case .lane = press.target {
-                state = .ranging(press)
+                state = rangeState(press, context)
                 return drag(place, context)
             }
             switch press.target {
@@ -288,7 +295,7 @@ public struct TimelineGesture: Sendable {
                 return drag(place, context)
             case .lane(.move(let clip, let lane)):
                 guard context.canEdit else { return [] }
-                state = moveState(press, clip, lane)
+                state = moveState(press, clip, lane, context.geometry)
                 return drag(place, context)
             case .lane(.trim(let clip, let edge, let lane)):
                 guard context.canEdit else { return [] }
@@ -309,7 +316,7 @@ public struct TimelineGesture: Sendable {
                 state = handleState(press, clip, edge, lane)
                 return drag(place, context)
             case .lane(.range):
-                state = .ranging(press)
+                state = rangeState(press, context)
                 return drag(place, context)
             }
         case .moving(let press, let move):
@@ -322,11 +329,15 @@ public struct TimelineGesture: Sendable {
                 return []
             }
             if trim.ripple { return rippleDrag(press, trim, x, context) }
-            let delta = press.delta(to: x, geometry)
             let edge = trim.edge == .start ? trim.clip.start : trim.clip.end
+            let (delta, target) = Snap.snapped(trim.snap, press.delta(to: x, geometry), [edge], context)
             let frame = min(max(edge + delta, trim.limits.lowerBound), trim.limits.upperBound)
             let range = trim.edge == .start ? frame..<trim.clip.end : trim.clip.start..<frame
-            guard range != trim.range else { return [] }
+            trim.guide = Snap.guide(target, on: [frame])
+            guard range != trim.range else {
+                state = .trimming(press, trim)
+                return []
+            }
             var preview = press.base
             // `trimLimits` keeps every range inside the neighbors and the file, so no input reaches a
             // throw. A throw keeps the last preview (decision 0020).
@@ -340,11 +351,8 @@ public struct TimelineGesture: Sendable {
             return fadeDrag(press, fade, x, context)
         case .crossfading(let press, let crossfade):
             return crossfadeDrag(press, crossfade, x, context)
-        case .ranging(let press):
-            let drag = Marks.drag(
-                from: press.frame, to: geometry.frame(at: x), lanes: (geometry.lane(at: press.y), geometry.lane(at: y)),
-                in: context.session)
-            return [.selection(.range(press.shift ? press.marks.extended(by: drag) : drag))]
+        case .ranging(let press, let snap, _):
+            return rangeDrag(press, snap, x, y, context)
         case .markerDrag(let press, let original, _):
             return markerDrag(press, original, x, context)
         case .pointDrag(let press, let point):

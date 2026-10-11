@@ -57,6 +57,8 @@ control() {
 }
 fresh() { rm -rf "$c" "$tmp/calls"; mkdir -p "$c"; echo 1000 > "$tmp/clock"; : > "$tmp/calls"; }
 run() { out="$(PATH="$tmp/bin:$PATH" "$script" "$tmp/tree" "$c" "$@" 2>&1)"; code=$?; }
+# runf <flag> <value> <budget> [<log>...]: a run with one flag and its value before the tree.
+runf() { out="$(PATH="$tmp/bin:$PATH" "$script" "$1" "$2" "$tmp/tree" "$c" "${@:3}" 2>&1)"; code=$?; }
 calls() { cat "$tmp/calls"; }
 
 # A killed log replays into controls/replay/ in the tree, with its full header timeout.
@@ -107,9 +109,17 @@ grep -qx 'ALL DONE' <<<"$out" && fail "capped hang: ALL DONE with a log left"
 : > "$tmp/calls"
 run 480
 [[ -z "$(calls)" ]] || fail "TOO LONG: replayed [$(calls)]"
-grep -q '^big.log: TOO LONG; replay it alone: .*mutate.py --timeout 900 --replay ' <<<"$out" || fail "TOO LONG: line: $out"
+# The printed command holds the tree, so it never replays in the main checkout.
+grep -qx "big.log: TOO LONG; run it with run_in_background: $script --timeout 900 $tmp/tree $c 480 $c/big.log" <<<"$out" ||
+  fail "TOO LONG: line: $out"
 grep -qx 'replayed 0 of 1; left 0; too long 1' <<<"$out" || fail "TOO LONG: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" || fail "TOO LONG: no ALL DONE: $out"
+# --timeout gives a named log that limit, with no budget and no cap.
+: > "$tmp/calls"
+runf --timeout 900 480 "$c/big.log"
+[[ "$(calls)" == "big.log 900 $tmp/tree" ]] || fail "--timeout: calls [$(calls)]: $out"
+grep -qx 'big.log: killed (hang)' <<<"$out" || fail "--timeout: result line: $out"
+grep -qx 'replayed 1 of 1; left 0; too long 0' <<<"$out" || fail "--timeout: count line: $out"
 # A capped hang whose full limit fits replays with that limit.
 fresh
 control mid killed 300.0

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Replay the killed controls of a run once, in one Bash call of 10 min or less (mutation-controls.md,
 # Replay once in Phase 7).
-# Usage: replay-batch.sh <tree> <controls folder> <budget seconds> [<log>...]
+# Usage: replay-batch.sh [--timeout <seconds>] <tree> <controls folder> <budget seconds> [<log>...]
 # - <tree> is the absolute root of the worktree to replay. The script runs there, because a replay
 #   mutates, builds, and tests the tree that it runs in; it refuses the main checkout.
 # - With no <log>, it takes each top-level log of the folder with `# result: killed` (a hang too).
@@ -16,17 +16,21 @@
 #   A capped `killed (hang)` or `WRONG FAILURE` can come from the cap, so it is not done: its log
 #   moves to <name>.capped and the script prints CAPPED HANG. Later the log gets only its full
 #   limit; when that cannot fit, the script prints TOO LONG and the command that replays it alone
-#   (run it with run_in_background).
+#   (run it with run_in_background): this script with --timeout and the same tree.
+# - --timeout <seconds> gives each log that limit, with no budget, no cap, and no BUDGET stop.
 # - A mutate.py exit 2 (side effects, a changed old text) prints its message, and the next log runs.
 # - Each call ends with `replayed N of M; left K; too long J`, and ALL DONE when K is 0.
 # replay-batch.test.sh tests it.
 set -uo pipefail
-usage="usage: replay-batch.sh <tree> <controls folder> <budget seconds, 480 or less> [<log>...]"
+usage="usage: replay-batch.sh [--timeout <seconds>] <tree> <controls folder> <budget seconds, 480 or less> [<log>...]"
+limit=""
+[[ "${1:-}" == --timeout && "${2:-}" =~ ^[0-9]+$ ]] && { limit="$2"; shift 2; }
 [[ $# -ge 3 && "$3" =~ ^[0-9]+$ && "$3" -ge 1 && "$3" -le 480 ]] || { echo "$usage" >&2; exit 2; }
 tree="$1" budget="$3"
 controls="$(cd "$2" 2>/dev/null && pwd)" || { echo "replay-batch: no folder $2" >&2; exit 2; }
 shift 3
-mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
+here="$(cd "$(dirname "$0")" && pwd)"
+mutate="$here/mutate.py"
 top="$(git -C "$tree" rev-parse --show-toplevel 2>/dev/null)" && [[ "$top" == "$(cd "$tree" && pwd -P)" ]] ||
     { echo "replay-batch: $tree is not the root of a worktree" >&2; exit 2; }
 common="$(git -C "$tree" rev-parse --path-format=absolute --git-common-dir)"
@@ -61,11 +65,13 @@ for log in ${logs[@]+"${logs[@]}"}; do
     full="${full%.*}"
     left=$(( budget - ($(date +%s) - start) - allowance ))
     capped=0
-    if [[ -n "$full" ]] && (( full + allowance <= budget )); then
+    if [[ -n "$limit" ]]; then
+        t=$limit
+    elif [[ -n "$full" ]] && (( full + allowance <= budget )); then
         (( full <= left )) || { echo BUDGET; count; exit 0; }
         t=$full
     elif [[ -e "$out.capped" ]]; then
-        echo "$name: TOO LONG; replay it alone: python3 -I $mutate --timeout ${full:-<seconds>} --replay $log $out"
+        echo "$name: TOO LONG; run it with run_in_background: $here/replay-batch.sh --timeout ${full:-<seconds>} $top $controls $budget $log"
         too_long=$((too_long + 1))
         continue
     else

@@ -49,6 +49,9 @@ extension SessionWindow {
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
                 try await studio.startRecording(armed: armed)
             }
+            // The take form removes the name field, so its focus change cannot end a rename with no
+            // typed text (run 2026-10-11-ui-polish-header code gate 1).
+            renamingTrack = nil
             exportReport = nil
         } catch let error where studio.exportProgress != nil {
             // A refused start keeps the export, and its sheet hides a window alert until the end.

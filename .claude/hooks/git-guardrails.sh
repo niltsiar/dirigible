@@ -145,6 +145,11 @@ fi
 if ! reads_only dirigible-check-running; then
   block "names the run marks of make check-changed in a command that is not a read (only scripts/run-checks.sh writes them; the pre-commit hook skips a stale mark; read them with ls or cat)"
 fi
+# Only scripts/with-lock.sh takes and removes the build lock, and only after its own take, so a
+# hand-written mkdir and rmdir chain cannot remove the lock of another agent. A read is allowed.
+if ! reads_only dirigible-build.lock; then
+  block "names the build lock in a command that is not a read (run the build or test through scripts/with-lock.sh, which takes the lock and removes only a lock that it took; read the lock with ls or cat)"
+fi
 
 # A new Finder window opens as a tab of the window group of the user, so a bounds, position, or
 # size change of a Finder window moves the windows of the user. The rule reads the whole command

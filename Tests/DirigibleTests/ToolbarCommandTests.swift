@@ -247,9 +247,12 @@ struct ToolbarMenuTests {
             // The test process has no app tables, so the format comes from each table.
             for table in [tables.en, tables.es] {
                 let format = try #require(table[tooltipKey(command).rawValue])
-                #expect(
-                    toolbarTooltip(command, format: format).hasPrefix("\(command.menuItem.title.text) (\(key))"),
-                    "tooltip of \(id)")
+                let (tooltip, short) = (
+                    toolbarTooltip(command, format: format), "\(command.menuItem.title.text) (\(key))"
+                )
+                // Only the zoom items add a sentence (`theZoomTooltipsNameTheGestures`).
+                let zoom = tooltipKey(command) == .toolbarTooltipZoom
+                #expect(zoom ? tooltip.hasPrefix(short + ". ") : tooltip == short, "tooltip of \(id): \(tooltip)")
             }
         }
         await model.close()

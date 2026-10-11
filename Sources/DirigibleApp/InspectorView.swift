@@ -20,13 +20,11 @@ struct InspectorDraft: Equatable {
 }
 
 /// The clip inspector (run 11b-2): Gain, Fade In, and Fade Out of the clips that the selection
-/// touches, with Mixed for different values. A fixed width at the trailing edge of the window.
+/// touches, with Mixed for different values. At the trailing edge of the window; its handle sets
+/// the width (`InspectorHandle`).
 /// Return commits and gives the focus to the lanes, Tab commits and goes to the next field, a
 /// focus loss commits, and Esc puts back the shown text.
 struct InspectorView: View {
-    /// The width of the pane with its divider.
-    static let width = 270.0
-
     let model: SessionWindow
     let studio: Studio
     @FocusState private var focus: InspectorField?
@@ -214,7 +212,8 @@ extension SessionWindow {
     /// Widens the window to the minimum with the pane, inside the visible screen.
     private func widenForInspector() {
         guard let window else { return }
-        let missing = SessionView.minWidth + InspectorView.width - window.contentRect(forFrameRect: window.frame).width
+        let missing =
+            SessionView.minWidth + inspectorWidth.points - window.contentRect(forFrameRect: window.frame).width
         guard missing > 0 else { return }
         var frame = window.frame
         frame.size.width += missing

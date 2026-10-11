@@ -28,7 +28,7 @@ struct SessionView: View {
             }
             // 720 pt keeps the transport and the time display in the toolbar (probe P1c). The
             // inspector adds its width (run 11b-2).
-            .frame(minWidth: Self.minWidth + (model.showsInspector ? InspectorView.width : 0), minHeight: 360)
+            .frame(minWidth: Self.minWidth + (model.showsInspector ? model.inspectorWidth.points : 0), minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),
                 isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),
@@ -83,10 +83,13 @@ struct SessionView: View {
                 // Not in the tree when hidden, so a hidden pane runs no body (run 11b-2).
                 if model.showsInspector {
                     HStack(spacing: 0) {
-                        Divider()
+                        // The handle is centered on the 1 pt divider, above the lanes (0023).
+                        Divider().overlay { InspectorHandle(model: model).frame(width: 6) }
                         InspectorView(model: model, studio: studio)
                     }
-                    .frame(width: InspectorView.width)
+                    // Leading: a pane wider than the column overflows at the window edge, and the
+                    // divider stays on the lanes edge.
+                    .frame(width: model.inspectorWidth.points, alignment: .leading)
                 }
             }
             // An AppKit sheet: the close button is off while it shows (probe S1).

@@ -60,7 +60,7 @@ import Testing
     /// The editable text fields of the pane, top first: Gain, Fade In, Fade Out.
     func shownFields(_ window: NSWindow) -> [NSTextField] {
         window.contentView?.layoutSubtreeIfNeeded()
-        let edge = window.contentLayoutRect.width - InspectorView.width
+        let edge = window.contentLayoutRect.width - InspectorWidth.standard.points
         return textFields(in: window.contentView)
             .filter { $0.convert($0.bounds, to: nil).minX >= edge }
             .sorted { $0.convert($0.bounds, to: nil).minY > $1.convert($1.bounds, to: nil).minY }

@@ -85,6 +85,7 @@ enum L10n: String, CaseIterable {
     case inspectorMixed = "inspector.mixed"
     case inspectorDecibels = "inspector.decibels"
     case inspectorMilliseconds = "inspector.milliseconds"
+    case inspectorHandle = "inspector.handle"
     case loudnessMeter = "loudness.meter"
     case loudnessShort = "loudness.short"
     case loudnessAverage = "loudness.average"

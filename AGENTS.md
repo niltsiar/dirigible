@@ -26,6 +26,8 @@ The toolchain is Xcode 26 with Swift 6.2, with no Xcode project (decision 0001).
 
 More targets (the app, the DMG, the icon, slow tests, benches, hook tests) are in the `Makefile`: read the comment above the recipe, or the header of the script that it runs.
 
+Run each `swift` command, bench, `scripts/land.sh`, and `make` target other than `check-docs`, `lint`, and `format` as `scripts/with-lock.sh <command>`, outside `scripts/probe.sh`. It waits for the one build lock of all worktrees, and it removes only a lock that it took. When a wait stops, run the same command again. Never take or remove the build lock by hand.
+
 ## How to work
 
 Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `writing-for-humans`, `research`, `pr`, `diagnosing-bugs`, and `domain-modeling`. Reviewer agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.

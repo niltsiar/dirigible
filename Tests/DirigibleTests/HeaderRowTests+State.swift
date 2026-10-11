@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleCore
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -46,5 +47,62 @@ extension HeaderRowTests {
             }
         }
         await model.close()
+    }
+
+    /// C6: from 80 pt, line 1 stays at the row top, as in Hindenburg, Logic, and Final Cut Pro.
+    /// Under 80 pt the row stays centered.
+    @Test func aTallRowPinsLineOneToTheTop() async throws {
+        let (model, studio) = try await model()
+        func nameTop(_ lane: Double) throws -> Double {
+            let (window, host) = rows(model, studio, laneHeight: lane, width: 340)
+            defer { window.close() }
+            return try #require(controls(host, in: host).first { $0.kind == "name" }).frame.minY
+        }
+        let tops = try [80.0, 100, 200].map(nameTop)
+        #expect(tops.allSatisfy { $0 < 20 && $0 == tops[0] }, "line 1 at the top from 80 pt: \(tops)")
+        let (low, mid) = (try nameTop(56), try nameTop(79))
+        #expect(mid > low, "centered under 80 pt: \(low) at 56, \(mid) at 79")
+        await model.close()
+    }
+
+    /// A height change in one form runs no row body: the rows get the form as a Bool.
+    @Test func aLaneHeightChangeInOneFormRunsNoRowBody() async throws {
+        let (model, studio) = try await model()
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 340, height: 400), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        let height = HeightBox(value: 100)
+        let host = NSHostingView(rootView: HeightHeaders(model: model, studio: studio, box: height))
+        host.frame = NSRect(x: 0, y: 0, width: 340, height: 400)
+        window.contentView?.addSubview(host)
+        host.layoutSubtreeIfNeeded()
+        drawNow(window)
+        model.headerRuns = (0, 0)
+        height.value = 120
+        // SwiftUI reads the change on a run loop pass.
+        try await Task.sleep(for: .milliseconds(100))
+        host.layoutSubtreeIfNeeded()
+        drawNow(window)
+        #expect(model.headerRuns.headers > 0, "the headers took the new height")
+        #expect(model.headerRuns.rows == 0, "no row body from 100 to 120 pt: \(model.headerRuns.rows)")
+        window.close()
+        await model.close()
+    }
+}
+
+@Observable @MainActor final class HeightBox {
+    var value: Double
+    init(value: Double) { self.value = value }
+}
+
+/// The headers with a lane height that a test changes.
+struct HeightHeaders: View {
+    let model: SessionWindow
+    let studio: Studio
+    let box: HeightBox
+
+    var body: some View {
+        TrackHeaders(model: model, studio: studio, laneHeight: box.value, selected: [])
     }
 }

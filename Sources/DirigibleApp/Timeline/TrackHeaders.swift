@@ -147,7 +147,10 @@ private struct TrackRow: View {
         }
         .controlSize(.small)
         .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        // From 80 pt, line 1 stays at the top, as in Hindenburg, Logic, and Final Cut Pro: a tall
+        // row does not move its controls to the middle (run 2026-10-11-ui-polish-header C6).
+        .padding(.top, tall ? 8 : 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: tall ? .topLeading : .leading)
         .foregroundStyle(textColor)
         .background { if let fill = style.fill { Color(nsColor: fill) } }
         .contentShape(Rectangle())

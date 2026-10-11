@@ -23,10 +23,14 @@
 #   limit; when that cannot fit, the script prints TOO LONG and the command that replays it alone
 #   (run it with run_in_background): this script with --timeout and the same tree.
 # - --timeout <seconds> gives each log that limit, with no budget, no cap, and no BUDGET stop.
+# - A replay with BUILD FAILED, NO TESTS, or WRONG FAILURE on this HEAD needs a decision
+#   (mutation-controls.md:21): it is not left, and only --again replays it.
 # - A mutate.py refusal (side effects, a changed old text) prints its message, counts as refused,
-#   and the next log runs. --allow-side-effects goes to mutate.py.
-# - Each call ends with `replayed N of M; left K; too long J; refused R`. ALL DONE follows when K
-#   and J are 0; with K 0 and J over 0, TOO LONG PENDING follows.
+#   and the next log runs. --allow-side-effects goes to mutate.py. A failed restore (exit 3) stops
+#   the batch at once with RESTORE FAILED and exit 3: a mutant can be in the tree.
+# - Each call ends with `replayed N of M; left K; too long J; refused R; needs a decision D`. With
+#   K 0: TOO LONG PENDING when J is over 0, REFUSED when R is over 0, and ALL DONE when J, R, and
+#   D are 0.
 # replay-batch.test.sh tests it.
 set -uo pipefail
 usage="usage: replay-batch.sh [--timeout <seconds>] [--again] [--allow-side-effects] <tree> <controls folder> <budget seconds, 480 or less> [<log>...]"
@@ -71,16 +75,29 @@ if [[ ${#logs[@]} -eq 0 ]]; then
     done
 fi
 head="$(git rev-parse HEAD)"
-done_log() { [[ -f "$1" ]] && grep -qE '^# result: (killed|survived)' "$1" && grep -qx "# head: $head" "$1"; }
-# count: print the count line, and ALL DONE when no log is left.
-too_long=0 refused=0
+# result_on_head <replay log> <result pattern>: the log has that result on the HEAD of the tree.
+result_on_head() { [[ -f "$1" ]] && grep -qE "^# result: ($2)" "$1" && grep -qx "# head: $head" "$1"; }
+done_log() { result_on_head "$1" 'killed|survived'; }
+decision_log() { result_on_head "$1" 'BUILD FAILED|NO TESTS|WRONG FAILURE'; }
+# The names of the logs that this call refused or found too long, between spaces.
+too_long_names=" " refused_names=" "
+# count: print the count line and the end line.
 count() {
-    local n=0 log
-    for log in ${logs[@]+"${logs[@]}"}; do done_log "$controls/replay/$(basename "$log")" && n=$((n + 1)); done
-    local left=$(( ${#logs[@]} - n - too_long - refused ))
-    echo "replayed $n of ${#logs[@]}; left $left; too long $too_long; refused $refused"
+    local n=0 d=0 j=0 r=0 left=0 log name
+    for log in ${logs[@]+"${logs[@]}"}; do
+        name="$(basename "$log")"
+        if [[ "$refused_names" == *" $name "* ]]; then r=$((r + 1))
+        elif [[ "$too_long_names" == *" $name "* ]]; then j=$((j + 1))
+        elif done_log "$controls/replay/$name"; then n=$((n + 1))
+        elif decision_log "$controls/replay/$name"; then d=$((d + 1))
+        else left=$((left + 1)); fi
+    done
+    echo "replayed $n of ${#logs[@]}; left $left; too long $j; refused $r; needs a decision $d"
+    [[ $d -gt 0 ]] && echo "needs a decision: BUILD FAILED, NO TESTS, or WRONG FAILURE; see .claude/skills/deliver/references/mutation-controls.md:21"
     [[ $left -gt 0 ]] && return
-    if [[ $too_long -eq 0 ]]; then echo "ALL DONE"; else echo "TOO LONG PENDING: do not build or commit until it ends"; fi
+    [[ $j -gt 0 ]] && echo "TOO LONG PENDING: do not build or commit until it ends"
+    [[ $r -gt 0 ]] && echo "REFUSED: replay each refused log, or log why not"
+    [[ $j -gt 0 || $r -gt 0 || $d -gt 0 ]] || echo "ALL DONE"
 }
 
 start="$(date +%s)"
@@ -88,7 +105,7 @@ seeded=""
 for log in ${logs[@]+"${logs[@]}"}; do
     name="$(basename "$log")"
     out="$controls/replay/$name"
-    [[ -z "$again" ]] && done_log "$out" && continue
+    [[ -z "$again" ]] && { done_log "$out" || decision_log "$out"; } && continue
     [[ -n "$seeded" ]] || { build_allowance "$log"; seeded=1; }
     full="$(sed -n 's/^# timeout: //p' "$log" | head -1)"
     full="${full%.*}"
@@ -101,17 +118,23 @@ for log in ${logs[@]+"${logs[@]}"}; do
         t=$full
     elif [[ -e "$out.capped" ]]; then
         echo "$name: TOO LONG; run it with run_in_background: $here/replay-batch.sh --timeout ${full:-<seconds>} $top $controls $budget $log"
-        too_long=$((too_long + 1))
+        too_long_names+="$name "
         continue
     else
         (( left >= 60 )) || { echo BUDGET; count; exit 0; }
         t=$left capped=1
     fi
     result="$(python3 -I "$mutate" --timeout "$t" $allow --replay "$log" "$out" 2>&1)"
+    if [[ $? -eq 3 ]]; then
+        echo "$name: $result"
+        echo "RESTORE FAILED: check git status; a mutant can be in the tree"
+        count
+        exit 3
+    fi
     grep -q '^# result: ' "$out" 2>/dev/null && echo "# head: $head" >> "$out"
     build_allowance "$out"
     line="$(grep -m1 -E '^(killed|survived|BUILD FAILED|WRONG FAILURE|NO TESTS|stopped|mutate:)' <<<"$result" || tail -1 <<<"$result")"
-    [[ "$line" == mutate:* ]] && refused=$((refused + 1))
+    [[ "$line" == mutate:* ]] && refused_names+="$name "
     if [[ $capped -eq 1 && "$line" =~ ^(killed\ \(hang\)|WRONG\ FAILURE) ]]; then
         mv "$out" "$out.capped"
         echo "$name: CAPPED HANG (capped $t s)"

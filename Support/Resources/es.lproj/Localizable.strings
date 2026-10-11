@@ -384,6 +384,7 @@
 "banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "La exportación de %1$@ terminó: %2$@.";
+"banner.export.chapter.images.omitted" = "%@ no tiene imágenes de capítulo: un capítulo no tiene imagen y el episodio no tiene ilustración. Defina la ilustración del episodio o una imagen para cada capítulo.";
 "banner.export.chapter.dropped" = "%1$@ no incluye estos capítulos, porque cada uno empieza en el tiempo de otro capítulo: %2$@. Muévalos y exporte de nuevo.";
 "report.loudness" = "sonoridad %.1f LUFS";
 "report.loudness.none" = "sonoridad sin medir";

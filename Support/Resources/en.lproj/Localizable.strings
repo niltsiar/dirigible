@@ -384,6 +384,7 @@
 "banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "The export of %1$@ is done: %2$@.";
+"banner.export.chapter.images.omitted" = "%@ has no chapter images: a chapter has no image, and the episode has no artwork. Set the episode artwork, or an image for each chapter.";
 "banner.export.chapter.dropped" = "%1$@ leaves out these chapters, because each starts at the time of another chapter: %2$@. Move them, then export again.";
 "report.loudness" = "loudness %.1f LUFS";
 "report.loudness.none" = "loudness not measured";

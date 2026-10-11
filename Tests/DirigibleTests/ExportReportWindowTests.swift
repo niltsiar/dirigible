@@ -1,7 +1,9 @@
 import AppKit
 import DirigibleCore
 import Foundation
+import ImageIO
 import Testing
+import UniformTypeIdentifiers
 import os
 
 @testable import DirigibleApp
@@ -163,6 +165,42 @@ extension ExportWindowTests {
         for language in ["en", "es"] {
             let text = (try? stringsTable(language))?["banner.export.chapter.dropped"] ?? ""
             #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")
+        }
+        await model.close()
+    }
+
+    /// Run 2026-10-11-chapters-in-file, C5b, C10: an M4A export with a chapter image, a chapter with
+    /// none, and no episode artwork shows a warning banner.
+    @Test func omittedChapterImagesShowAWarningBanner() async throws {
+        let (model, studio, _) = try await window()
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        let file = model.url.appending(path: image.path)
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let context = try #require(
+            CGContext(
+                data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        let destination = try #require(
+            CGImageDestinationCreateWithURL(file as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try #require(context.makeImage()), nil)
+        try #require(CGImageDestinationFinalize(destination))
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "a", name: "A", position: 0, kind: .chapter, image: image))
+            try session.setMarker(Marker(id: "b", name: "B", position: 192_000, kind: .chapter))
+        }
+        let source = try #require(model.source(of: .session, in: studio))
+        let m4a = ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session)
+        let target = ExportTarget(url: folder.url.appending(path: "mix.m4a"), options: m4a, confirmed: nil)
+
+        await model.run(source, target, studio)
+
+        #expect(model.alert == nil, "\(String(describing: model.alert))")
+        let banner = WindowBanner.chapterImagesOmitted(file: "mix.m4a")
+        await until("the banner shows") { model.shown.banners.contains(banner) }
+        #expect(banner.kind == .warning)
+        for language in ["en", "es"] {
+            let text = (try? stringsTable(language))?["banner.export.chapter.images.omitted"] ?? ""
+            #expect(text.contains("%@"), "\(language): \(text)")
         }
         await model.close()
     }

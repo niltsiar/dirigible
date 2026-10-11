@@ -38,7 +38,7 @@ struct M4AChapterTests {
     }
 
     /// Exports the markers and the episode with the package as AAC of the whole session. `images`
-    /// is the seam for the chapter images until the markers have them. The export runs on a GCD
+    /// gives the marker of each ID its image. The export runs on a GCD
     /// thread, as `Studio` runs it: the writer of the chapter copy does not finish while each
     /// thread of the Swift concurrency pool waits (tests in parallel).
     @discardableResult
@@ -50,7 +50,8 @@ struct M4AChapterTests {
     ) async throws(ExportError) -> ExportResult {
         let folder = (package ?? self.package).url
         var session = (package ?? self.package).session
-        for marker in markers {
+        for var marker in markers {
+            marker.image = images[marker.id] ?? marker.image
             do { try session.setMarker(marker) } catch { Issue.record("setMarker: \(error)") }
         }
         session.setEpisode(episode)
@@ -62,8 +63,7 @@ struct M4AChapterTests {
                         try exportMix(
                             sessionCopy, source: ExportSource(range: start..<sessionCopy.end)!, options: options,
                             to: target,
-                            replacing: replacing, package: { folder }, progress: progress, isCancelled: isCancelled,
-                            chapterImages: images)
+                            replacing: replacing, package: { folder }, progress: progress, isCancelled: isCancelled)
                     })
             }
         }

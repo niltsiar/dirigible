@@ -17,6 +17,9 @@ enum WindowBanner: Equatable {
     /// The names of the chapters that the exported file leaves out, because each starts at the
     /// time of another chapter (run 2026-10-11-chapters-in-file, C5f).
     case chaptersDropped([String], file: String)
+    /// The exported M4A has no chapter images: a chapter has no image, and the episode has no
+    /// artwork (run 2026-10-11-chapters-in-file, C5b).
+    case chapterImagesOmitted(file: String)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -53,12 +56,15 @@ enum WindowBanner: Equatable {
         case .monitorHeadphones: "monitorHeadphones"
         case .exportReport: "exportReport"
         case .chaptersDropped: "chaptersDropped"
+        case .chapterImagesOmitted: "chapterImagesOmitted"
         }
     }
 
     var kind: Kind {
         switch self {
-        case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped: .warning
+        case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
+            .chapterImagesOmitted:
+            .warning
         case .missingMedia: .error
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
@@ -75,6 +81,7 @@ enum WindowBanner: Equatable {
             L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
         case .chaptersDropped(let names, let file):
             L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
+        case .chapterImagesOmitted(let file): L10n.bannerExportChapterImagesOmitted.format(file)
         }
     }
 
@@ -82,7 +89,7 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
-        case .missingMedia, .exportReport, .chaptersDropped: .medium
+        case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted: .medium
         }
     }
 }

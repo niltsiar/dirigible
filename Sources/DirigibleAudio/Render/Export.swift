@@ -123,18 +123,6 @@ public func exportMix(
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
     chunk: Int = 48_000, flush: ((String) -> Int32?)? = nil
 ) throws(ExportError) -> ExportResult {
-    try exportMix(
-        session, source: source, options: options, to: url, replacing: replacing, package: package, progress: progress,
-        isCancelled: isCancelled, chunk: chunk, flush: flush, chapterImages: [:])
-}
-
-/// `exportMix` with the chapter image of each marker in `chapterImages`.
-func exportMix(
-    _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
-    replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
-    progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
-    chunk: Int = 48_000, flush: ((String) -> Int32?)? = nil, chapterImages: [MarkerID: ArtworkName]
-) throws(ExportError) -> ExportResult {
     let flush = flush ?? { fullFlush(path: $0) }
     let rate = options.rate.hertz(session: session.sampleRate)
     if case .aac = options.format, rate > 48_000 { throw .rateNotSupported(rate) }
@@ -142,22 +130,28 @@ func exportMix(
     if case .mp3 = options.format, ![32_000, 44_100, 48_000].contains(rate) { throw .rateNotSupported(rate) }
     let artwork = try readArtwork(of: session.episode, format: options.format, package: package)
     let aac = if case .aac = options.format { true } else { false }
+    let mp3 = if case .mp3 = options.format { true } else { false }
     let list = session.chapterList(in: source.range)
-    // Only an M4A has chapter tracks. Its images are JPEG, read before any file exists.
+    // Only an M4A has chapter tracks. The chapter images are read before any file exists.
     let chapters = aac ? list.chapters : []
-    let jpegs = try readChapterImages(
-        chapterImages.filter { id, _ in chapters.contains { $0.id == id } }, package: package)
+    let images = try readChapterImages(aac || mp3 ? list.chapters : [], package: package)
+    // The writer of the M4A image track takes only JPEG (probe P1).
+    var jpegs: [MarkerID: Data] = [:]
+    for marker in chapters {
+        guard let name = marker.image, let data = images[marker.id] else { continue }
+        jpegs[marker.id] = try m4aJPEG(data, of: name)
+    }
     var chapterArtwork: Data?
     if !jpegs.isEmpty, let artwork, let name = session.episode.artwork {
         chapterArtwork = try m4aJPEG(artwork, of: name)
     }
     // Only an MP3 file takes the ID3 tag. It is built before any file exists, so a refused tag
-    // leaves no file.
-    let mp3 = if case .mp3 = options.format { true } else { false }
+    // leaves no file. Its chapter images keep their bytes and their type.
     let id3 =
         mp3
         ? try id3Tag(
-            session.episode, artwork: artwork, chapters: id3Chapters(list.chapters, in: session, range: source.range))
+            session.episode, artwork: artwork,
+            chapters: id3Chapters(list.chapters, in: session, range: source.range, images: images))
         : []
     let sessionRate = Double(session.sampleRate)
     let capacity = AVAudioFrameCount(chunk)

@@ -1,19 +1,30 @@
 import DirigibleCore
 import Foundation
 
-/// A chapter of the MP3 tag: its title, and its start and end in ms from the range start.
+/// A chapter of the MP3 tag: its title, its start and end in ms from the range start, its link,
+/// and its image with the MIME type.
 struct ID3Chapter: Hashable, Sendable {
     var title: String
     var start: Int
     var end: Int
+    var url: String?
+    var image: Data?
+    var mime = "image/jpeg"
 }
 
 /// The ID3 chapters of `chapters`, a list of `Session.chapterList(in: range)`: each chapter ends at
 /// the start of the next one, and the last one at the range end. An MP3 has no added chapter at 0.
-func id3Chapters(_ chapters: [Marker], in session: Session, range: Range<Frames>) -> [ID3Chapter] {
+/// `images` has the bytes of the image of each chapter that has one.
+func id3Chapters(
+    _ chapters: [Marker], in session: Session, range: Range<Frames>, images: [MarkerID: Data] = [:]
+) -> [ID3Chapter] {
     let starts = chapters.map { session.milliseconds($0.position - range.lowerBound) }
     let ends = starts.dropFirst() + [session.milliseconds(range.upperBound - range.lowerBound)]
-    return zip(chapters, zip(starts, ends)).map { ID3Chapter(title: $0.name, start: $1.0, end: $1.1) }
+    return zip(chapters, zip(starts, ends)).map {
+        ID3Chapter(
+            title: $0.name, start: $1.0, end: $1.1, url: $0.url?.text, image: images[$0.id],
+            mime: $0.image?.isPNG == true ? "image/png" : "image/jpeg")
+    }
 }
 
 /// The ID3v2.3 tag of `episode` (decision 0045), with `artwork` as the front cover, and of
@@ -34,10 +45,12 @@ func id3Tag(_ episode: Episode, artwork: Data? = nil, chapters: [ID3Chapter] = [
         for (id, chapter) in zip(ids, chapters) {
             // 0xFFFFFFFF byte offsets: a player uses the times.
             let times = bigEndian(UInt32(chapter.start)) + bigEndian(UInt32(chapter.end))
-            frames.append(
-                frame(
-                    "CHAP", id + times + [UInt8](repeating: 0xFF, count: 8) + frame("TIT2", [1] + utf16(chapter.title)))
-            )
+            var body = id + times + [UInt8](repeating: 0xFF, count: 8) + frame("TIT2", [1] + utf16(chapter.title))
+            // WXXX: ISO-8859-1, an empty description, then the URL.
+            if let url = chapter.url { body += frame("WXXX", [0, 0] + Array(url.utf8)) }
+            // APIC: ISO-8859-1, the MIME type, picture type 0 (other), an empty description.
+            if let image = chapter.image { body += frame("APIC", [0] + Array(chapter.mime.utf8) + [0, 0, 0] + image) }
+            frames.append(frame("CHAP", body))
         }
     }
     let body = frames.flatMap { $0 }
@@ -91,7 +104,8 @@ private func frame(_ id: String, _ body: [UInt8]) -> [UInt8] {
     Array(id.utf8) + bigEndian(UInt32(body.count)) + [0, 0] + body
 }
 
-private func bigEndian(_ value: UInt32) -> [UInt8] { [24, 16, 8, 0].map { UInt8(truncatingIfNeeded: value >> $0) } }
+/// The 4 bytes of `value`, the most significant byte first.
+func bigEndian(_ value: UInt32) -> [UInt8] { [24, 16, 8, 0].map { UInt8(truncatingIfNeeded: value >> $0) } }
 
 /// The tag size of the header: 7 bits in each byte.
 private func syncsafe(_ size: Int) -> [UInt8] {

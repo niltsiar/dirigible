@@ -164,4 +164,45 @@ extension M4AChapterTests {
         #expect(try Data(contentsOf: url) == Data("old".utf8), "the old target changed")
         #expect(try temporaryFiles() == [], "temporary files stay")
     }
+
+    /// Run 2026-10-11-chapters-in-file slice 4, C5b: the image of the marker in the session goes
+    /// into the image track.
+    @Test func aChapterImageFromTheMarkerIsInTheImageTrack() async throws {
+        let image = try artwork(300)
+        try await export([Marker(id: "one", name: "One", position: 0, kind: .chapter, image: image)])
+        let groups = try await Self.groups(url)
+        let same = groups.first?.artwork == (try bytes(image))
+        #expect(groups.count == 1 && same, "the group artwork is not the marker image")
+    }
+
+    /// C5c. The URL of a chapter reads back as the HREF attribute of its title item.
+    @Test func aChapterURLReadsBackAsHREF() async throws {
+        try await export([
+            Marker(
+                id: "one", name: "One", position: 0, kind: .chapter, url: try WebURL("https://example.com/one")),
+            Self.chapter("Two", at: 66_150),
+        ])
+        var links: [String?] = []
+        for group in try await AVURLAsset(url: url).loadChapterMetadataGroups(
+            withTitleLocale: Locale(identifier: "en"), containingItemsWithCommonKeys: [])
+        {
+            let title = group.items.first { $0.commonKey == .commonKeyTitle }
+            let attributes = try await title?.load(.extraAttributes)
+            links.append(attributes?[AVMetadataExtraAttributeKey(rawValue: "HREF")] as? String)
+        }
+        #expect(links == ["https://example.com/one", nil], "links \(links)")
+    }
+
+    /// C5c. A URL of 255 bytes gets its `href` box; one of 256 bytes gets none, and the writer does
+    /// not trap. `setMarker` refuses such a URL, so the test calls the sample function.
+    @Test func aURLOver255BytesGetsNoHrefBox() throws {
+        let head = "https://example.com/"
+        let url255 = head + String(repeating: "a", count: 255 - head.utf8.count)
+        let url256 = url255 + "a"
+        let title = Data([0, 1]) + Data("T".utf8)
+        let box = Data([0, 0, 1, 13]) + Data("href".utf8) + Data([0, 0, 0, 1, 255]) + Data(url255.utf8) + Data([0])
+        let with255 = textSample("T", url: url255) == title + box
+        #expect(with255, "the 255-byte URL has no href box of the 3GPP layout")
+        #expect(textSample("T", url: url256) == title, "a 256-byte URL has an href box")
+    }
 }

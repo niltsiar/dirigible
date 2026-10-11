@@ -273,6 +273,7 @@ enum L10n: String, CaseIterable {
     case bannerMonitorHeadphones = "banner.monitor.headphones"
     case bannerExportReport = "banner.export.report"
     case bannerExportChapterDropped = "banner.export.chapter.dropped"
+    case bannerExportChapterImagesOmitted = "banner.export.chapter.images.omitted"
     case reportLoudness = "report.loudness"
     case reportLoudnessNone = "report.loudness.none"
     case reportPeak = "report.peak"

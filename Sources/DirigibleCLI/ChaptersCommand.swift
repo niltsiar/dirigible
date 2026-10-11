@@ -16,7 +16,8 @@ struct ChaptersExport: ParsableCommand {
             Each chapter marker in the range gives startTime and title. startTime is the time from \
             --from in seconds, rounded to the millisecond. Markers that are not chapters are not in \
             the file. A chapter at or after the session end is past the audio: a warning names it, and \
-            the file has it only when --to is after it. Exit 1 when the range has no chapter, or when \
+            the file has it only when --to is after it. A chapter that starts at the millisecond of the \
+            chapter before it is not in the file, and a warning names it. Exit 1 when the range has no chapter, or when \
             the session has no audio and no --to: the command writes no empty file. Exit 2 \
             when the package cannot be read, --out exists (unless --replace), or the write fails; a \
             failed write leaves the old file or no file.
@@ -60,6 +61,11 @@ struct ChaptersExport: ParsableCommand {
         warnPast(outside: range)
         guard !session.chapters(in: range).isEmpty else {
             throw fail("no chapter in frames \(from)..<\(end).", code: editRefused)
+        }
+        for chapter in session.chapterList(in: range).dropped {
+            let line =
+                "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the millisecond of another chapter; the file leaves it out.\n"
+            try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
         }
         let data: Data
         do {

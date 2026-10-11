@@ -43,13 +43,28 @@ struct ChaptersTests {
         #expect(try Self.startTimes(session.chaptersJSON(in: 0..<Frames(rate))) == [seconds])
     }
 
-    /// C4.
+    /// C4, C3 of run 2026-10-11-chapters-in-file: "b" starts at the millisecond of "a", so the
+    /// file drops it.
     @Test func orderIsPositionThenID() throws {
         let session = try Self.session([
             ("b", 96_000, .chapter), ("a", 96_000, .chapter), ("earlier", 48_000, .chapter),
         ])
         let titles = try Self.chapters(session.chaptersJSON(in: 0..<480_000)).map { $0["title"] as? String }
-        #expect(titles == ["earlier", "a", "b"])
+        #expect(titles == ["earlier", "a"], "titles \(titles)")
+    }
+
+    /// C5f. "C" starts at the millisecond of "B", so the list drops it. A file with two chapters at
+    /// one start stops the M4A writer (probe P1).
+    @Test func aSecondChapterAtOneStartIsDropped() throws {
+        var session = Session(sampleRate: 44_100)
+        try session.setMarker(Marker(id: "a", name: "A", position: 0, kind: .chapter))
+        try session.setMarker(Marker(id: "b", name: "B", position: 66_150, kind: .chapter))
+        try session.setMarker(Marker(id: "c", name: "C", position: 66_150, kind: .chapter))
+        let list = session.chapterList(in: 0..<132_300)
+        #expect(list.chapters.map(\.name) == ["A", "B"], "kept \(list.chapters.map(\.name))")
+        #expect(list.dropped.map(\.id) == ["c"], "dropped \(list.dropped.map(\.id))")
+        let close = try Self.session(rate: 48_000, [("d", 23, .chapter), ("e", 24, .chapter), ("f", 0, .chapter)])
+        #expect(close.chapterList(in: 0..<48_000).dropped.map(\.id) == ["d"], "23 frames round to 0 ms")
     }
 
     /// C5. The fields and types of JSON Chapters 1.2.0; the spec has no official JSON Schema (U11).

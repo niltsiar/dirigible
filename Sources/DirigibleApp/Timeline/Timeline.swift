@@ -43,12 +43,6 @@ func recordOverHidden(session: Session, armed: Set<TrackID>, playhead: Frames, v
     }
 }
 
-/// The marker of the rename alert and the name that the user types.
-struct MarkerRename: Hashable {
-    let id: MarkerID
-    var name: String
-}
-
 /// The timeline state of one window (decision 0017). None of it is saved.
 struct TimelineState {
     var selection = Selection.none
@@ -71,11 +65,9 @@ struct TimelineState {
     /// The zoom history has a step back or forward: Zoom Back and Zoom Forward are on (U5).
     var canGoBack = false
     var canGoForward = false
-    /// The current marker (decision 0018): Rename, Move, and Delete act on it. An undo can remove
-    /// it from the session; then they beep.
+    /// The current marker (decision 0018): Marker Info…, Move, and Delete act on it. An undo can
+    /// remove it from the session; then they beep.
     var marker: MarkerID?
-    /// The rename alert: open while not nil.
-    var renaming: MarkerRename?
 
     /// A display tick during play or a take, or a seek: the new origin, or nil.
     mutating func follow(playhead: Frames, origin: Double, frames: Double, direction: Shuttle.Direction) -> Double? {

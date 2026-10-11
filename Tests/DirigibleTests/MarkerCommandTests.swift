@@ -128,19 +128,20 @@ import Testing
         await model.close()
     }
 
-    /// Control: a rename of the first marker of the session (c2 by ID) renames another marker.
-    @Test func renameActsOnTheCurrentMarker() async throws {
+    /// Marker Info… shows the Marker pane of the current marker, and a Name commit renames it.
+    /// Control: a pane of the first marker of the session (c2 by ID) renames another marker.
+    @Test func markerInfoActsOnTheCurrentMarker() async throws {
         let (model, studio, _) = try await open()
         try threeMarkers(studio)
         model.timeline.marker = "m3"
 
-        model.run(.renameMarker)
-        #expect(model.timeline.renaming == MarkerRename(id: "m3", name: "Three"))
-        model.timeline.renaming?.name = "Intro"
-        model.commitRename()
+        model.run(.markerInfo)
+        #expect(model.inspectorTab == .marker && model.markerFocusRequest == .name)
+        model.typeMarker("Intro", in: .name, of: try #require(model.timeline.marker))
+        model.commitMarker()
 
         #expect(studio.session.markers.values.map(\.name).sorted() == ["Intro", "One", "Two"])
-        #expect(studio.session.markers["m3"]?.name == "Intro" && model.timeline.renaming == nil)
+        #expect(studio.session.markers["m3"]?.name == "Intro" && model.markerDraft == nil)
         model.undo()
         #expect(studio.session.markers["m3"]?.name == "Three")
         await model.close()
@@ -152,12 +153,12 @@ import Testing
         model.timeline.marker = "m1"
         let before = studio.session
 
-        model.run(.renameMarker)
-        model.timeline.renaming?.name = "A\nB"
-        model.commitRename()
+        model.run(.markerInfo)
+        model.typeMarker("A\nB", in: .name, of: "m1")
+        model.commitMarker()
 
-        #expect(studio.session == before)
-        #expect(model.alert == .error(.session(.invalidText("A\nB"))))
+        #expect(studio.session == before && model.alert == nil)
+        #expect(model.markerDraft?.refused == true, "the pane shows the rule")
         await model.close()
     }
 
@@ -210,10 +211,10 @@ import Testing
         await seek(studio, 200_000)
         let before = studio.session
 
-        for command in [TimelineCommand.renameMarker, .moveMarker, .deleteMarker] { model.run(command) }
+        for command in [TimelineCommand.markerInfo, .moveMarker, .deleteMarker] { model.run(command) }
 
         #expect(beeps == 3)
-        #expect(studio.session == before && model.alert == nil && model.timeline.renaming == nil)
+        #expect(studio.session == before && model.alert == nil && model.markerFocusRequest == nil)
         await model.close()
     }
 
@@ -234,8 +235,8 @@ import Testing
         await model.close()
     }
 
-    /// Controls: an act on the gone ID shows an alert; a Rename that never acts fails
-    /// `renameActsOnTheCurrentMarker`.
+    /// Controls: an act on the gone ID shows an alert; a Marker Info… that never acts fails
+    /// `markerInfoActsOnTheCurrentMarker`.
     @Test func anUndoneMarkerIsNotActedOn() async throws {
         let (model, studio, _) = try await open()
         var beeps = 0
@@ -245,9 +246,9 @@ import Testing
         model.undo()
         let before = studio.session
 
-        for command in [TimelineCommand.renameMarker, .moveMarker, .deleteMarker] { model.run(command) }
+        for command in [TimelineCommand.markerInfo, .moveMarker, .deleteMarker] { model.run(command) }
 
-        #expect(studio.session == before && model.alert == nil && model.timeline.renaming == nil)
+        #expect(studio.session == before && model.alert == nil && model.markerFocusRequest == nil)
         #expect(beeps == 3, "criterion M5")
         await model.close()
     }

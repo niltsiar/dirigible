@@ -2,11 +2,10 @@ import AppKit
 import DirigibleAudio
 import DirigibleCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// The tab of the inspector.
 enum InspectorTab: Hashable {
-    case clip, episode
+    case clip, episode, marker
 }
 
 /// The typed text of an episode field that no commit has saved yet, and the text that the field
@@ -35,7 +34,10 @@ struct EpisodeInspector: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 header(.episodeArtwork)
-                ArtworkWell(url: episode.artwork.map { studio.url.appending(path: $0.path) }, model: model)
+                ArtworkWell(
+                    url: episode.artwork.map { studio.url.appending(path: $0.path) }, identifier: "episode.artwork",
+                    label: .episodeArtwork, noneLabel: .episodeArtworkNone, set: model.setArtwork,
+                    choose: model.chooseArtwork, remove: model.removeArtwork)
                 header(.episodeDetails)
                 Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 6) {
                     row(.title, .episodeTitle, episode)
@@ -185,55 +187,6 @@ struct EpisodeInspector: View {
     }
 }
 
-/// The artwork image with Choose… and Remove. It takes a dropped JPEG or PNG file. A separate
-/// view, so a key in a field does not read the image again.
-private struct ArtworkWell: View {
-    let url: URL?
-    let model: SessionWindow
-    /// The image of `url`, read once for each path and not at each body pass.
-    @State private var image: NSImage?
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Group {
-                if url != nil, let image {
-                    Image(nsImage: image).resizable()
-                } else {
-                    Image(systemName: "photo").font(.system(size: 28)).foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .frame(width: 96, height: 96)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(.separator))
-            .accessibilityLabel(Text(url == nil ? L10n.episodeArtworkNone.key : L10n.episodeArtwork.key))
-            .task(id: url) { image = url.flatMap { NSImage(contentsOf: $0) } }
-            .dropDestination(for: URL.self) { urls, _ in
-                guard let first = urls.first else { return false }
-                model.setArtwork(first)
-                return true
-            }
-            // One width for both buttons: the width of the longer label (C23).
-            VStack(alignment: .leading, spacing: 6) {
-                Button {
-                    model.chooseArtwork()
-                } label: {
-                    Text(L10n.episodeArtworkChoose.key).frame(maxWidth: .infinity)
-                }
-                .accessibilityIdentifier("episode.artwork.choose")
-                Button {
-                    model.removeArtwork()
-                } label: {
-                    Text(L10n.episodeArtworkRemove.key).frame(maxWidth: .infinity)
-                }
-                .disabled(url == nil)
-                .accessibilityIdentifier("episode.artwork.remove")
-            }
-            .fixedSize()
-        }
-    }
-}
-
 extension SessionWindow {
     /// File > Episode Info…: shows the inspector on the Episode tab with the focus in Title.
     func showEpisodeInfo() {
@@ -242,14 +195,15 @@ extension SessionWindow {
         episodeFocusRequest = .title
     }
 
-    /// The Clip or Episode tab of the inspector. The typed text of both panes is saved first. A
-    /// refused episode draft keeps the Episode tab.
+    /// The Clip, Episode, or Marker tab of the inspector. The typed text of the panes is saved
+    /// first. A refused episode draft keeps the Episode tab; a refused marker draft goes.
     func selectInspectorTab(_ tab: InspectorTab) {
         if tab != .episode, holdsRefusedEpisode() {
             heldTabChanges += 1
             return
         }
         commitInspector()
+        if markerDraft?.refused == true { markerDraft = nil }
         inspectorTab = tab
     }
 
@@ -324,30 +278,12 @@ extension SessionWindow {
         edit { s in s.setEpisode(episode) }
     }
 
-    /// Choose… of the artwork: the open panel as a sheet of the window, then the import.
-    func chooseArtwork() {
-        guard canImport, let window else { return }
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.jpeg, .png]
-        panel.beginSheetModal(for: window) { [weak self] answer in
-            if answer == .OK, let url = panel.url { self?.setArtwork(url) }
-        }
-    }
+    /// Choose… of the artwork.
+    func chooseArtwork() { chooseImage(setArtwork) }
 
-    /// Copies the image into the package and sets it, as an import: the banner shows the file
-    /// name and Cancel. A refusal shows an alert.
+    /// Copies the image into the package and sets it as the episode artwork (`importImage`).
     func setArtwork(_ url: URL) {
-        guard canImport, let studio = idleStudio else { return beep() }
-        importJob = ImportJob()
-        importJob?.task = Task { [weak self] in
-            do throws(StudioError) {
-                try await studio.setArtwork(from: url)
-            } catch .audioImport(.cancelled) {
-            } catch {
-                self?.alert = .error(error)
-            }
-            self?.importJob = nil
-        }
+        importImage { studio throws(StudioError) in try await studio.setArtwork(from: url) }
     }
 
     /// Remove of the artwork: one edit. The file stays in `Artwork/` for undo and the backups.

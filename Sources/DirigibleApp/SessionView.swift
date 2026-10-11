@@ -14,18 +14,6 @@ struct SessionView: View {
     var body: some View {
         let _ = model.countBody()
         content
-            // Only the buttons end the rename: OK during a take keeps the typed name (code gate 1).
-            .alert(
-                L10n.alertMarkerRename.key,
-                isPresented: Binding(get: { model.timeline.renaming != nil }, set: { _ in })
-            ) {
-                TextField(
-                    L10n.trackName.key,
-                    text: Binding(
-                        get: { model.timeline.renaming?.name ?? "" }, set: { model.timeline.renaming?.name = $0 }))
-                Button(L10n.alertOK.key) { model.commitRename() }
-                Button(L10n.alertCancel.key, role: .cancel) { model.timeline.renaming = nil }
-            }
             // 720 pt keeps the transport and the time display in the toolbar (probe P1c). The
             // inspector adds its width (run 11b-2).
             .frame(minWidth: Self.minWidth + (model.showsInspector ? model.inspectorWidth.points : 0), minHeight: 360)

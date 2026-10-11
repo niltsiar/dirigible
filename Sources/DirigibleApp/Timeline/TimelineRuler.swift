@@ -170,13 +170,23 @@ final class TimelineRuler: NSRulerView {
     }
 
     /// The lanes become the first responder, so Esc reaches the gesture also when a track name
-    /// field had the focus (plan gate 2 item 1).
+    /// field had the focus (plan gate 2 item 1). The typed text saves first, as at a lane
+    /// mouse-down, so a marker draft keeps its marker. A double-click on a flag shows the Marker
+    /// pane; the press still goes to the gesture, so a drag after it moves the flag (C9).
     override func mouseDown(with event: NSEvent) {
         guard let timeline, let place = place(event), overLanes(place) else { return }
         window?.makeFirstResponder(timeline.lanes)
+        model?.commitDrafts()
+        // Before the press: the target is nil during a gesture.
+        var flag: MarkerID?
+        if event.clickCount == 2, case .ruler(let x, _) = place { flag = timeline.menuTarget(at: x)?.marker }
         let flags = event.modifierFlags
         timeline.mouse(.down(place, shift: flags.contains(.shift), command: flags.contains(.command)))
         showCursor(event)
+        if let flag, let model {
+            model.timeline.marker = flag
+            model.showMarkerInfo()
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {

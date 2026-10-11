@@ -114,8 +114,8 @@ extension SessionWindow {
 
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers
     /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
-    /// marker. Rename, Move, and Delete act on the current marker when the session has it, else
-    /// they beep; Move with the marker at the playhead beeps too. During a take they do nothing
+    /// marker. Move and Delete act on the current marker when the session has it, else they beep;
+    /// Move with the marker at the playhead beeps too. Marker Info… shows the Marker pane. During a take they do nothing
     /// and do not beep, as no edit command acts then (decision 0018).
     func runMarker(_ command: TimelineCommand, _ studio: Studio) {
         let (session, playhead) = (studio.session, studio.playhead)
@@ -131,11 +131,11 @@ extension SessionWindow {
                 session.markers.values.filter { $0.position == frame }
                 .min { ($0.kind == .chapter ? 1 : 0, $0.id) < ($1.kind == .chapter ? 1 : 0, $1.id) }?.id
             Task { await studio.perform(.seek(.frame(frame))) }
-        case .renameMarker, .moveMarker, .deleteMarker:
+        case .markerInfo: showMarkerInfo()
+        case .moveMarker, .deleteMarker:
             guard canEdit else { return }
             guard var marker = timeline.marker.flatMap({ session.markers[$0] }) else { return beep() }
             switch command {
-            case .renameMarker: timeline.renaming = MarkerRename(id: marker.id, name: marker.name)
             case .moveMarker:
                 guard marker.position != playhead else { return beep() }
                 marker.position = playhead
@@ -155,17 +155,6 @@ extension SessionWindow {
         let name = newMarkerName(kind, in: studio.session)
         let marker = Marker(id: MarkerID(), name: name.key.format(name.number), position: frame, kind: kind)
         if edit({ s throws(SessionError) in try s.setMarker(marker) }) != nil { timeline.marker = marker.id }
-    }
-
-    /// OK of the rename alert: saves the name of its marker, when the session still has it. When a
-    /// take started while the alert was open, OK saves nothing and the typed name stays in the
-    /// alert state, so the alert shows it again until the user presses OK after the take or Cancel.
-    func commitRename() {
-        guard let renaming = timeline.renaming, canEdit else { return }
-        timeline.renaming = nil
-        guard var marker = studio?.session.markers[renaming.id] else { return }
-        marker.name = renaming.name
-        edit { s throws(SessionError) in try s.setMarker(marker) }
     }
 }
 

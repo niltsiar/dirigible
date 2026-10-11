@@ -81,6 +81,13 @@
 "menu.file.episode.info" = "Episode Info…";
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episode";
+"inspector.tab.marker" = "Marker";
+"marker.none" = "No Marker";
+"marker.name" = "Name";
+"marker.url" = "Link";
+"marker.image" = "Image";
+"marker.image.none" = "No image";
+"marker.chapter.only" = "Only a chapter has a link and an image.";
 "inspector.handle" = "Inspector width";
 "inspector.tabs" = "Inspector Pane";
 "episode.artwork" = "Artwork";
@@ -117,6 +124,7 @@
 "error.episode.date" = "Type a date in the form YYYY-MM-DD.";
 "error.episode.language" = "Type an ISO 639-2 language code of three lowercase letters, for example eng or spa.";
 "error.episode.url" = "Type an http or https URL.";
+"error.marker.url" = "Type an http or https URL of at most %lld bytes.";
 "error.import.not.audio" = "Dirigible cannot import “%@”. Dirigible cannot read the audio in this file. Use a WAV, AIFF, FLAC, MP3, or M4A file.";
 "error.import.not.downloaded" = "Dirigible cannot import “%@”. The file is not on this Mac. Download the file first.";
 "error.import.channels" = "Dirigible cannot import “%1$@”. The file has %2$lld channels. Dirigible imports only mono and stereo files. Split the file into mono or stereo files.";
@@ -313,7 +321,7 @@
 "menu.markers" = "Markers";
 "menu.markers.add" = "Add Marker";
 "menu.markers.add.chapter" = "Add Chapter";
-"menu.markers.rename" = "Rename Marker…";
+"menu.markers.info" = "Marker Info…";
 "menu.markers.move" = "Move Marker to Playhead";
 "menu.markers.delete" = "Delete Marker";
 "menu.markers.previous" = "Previous Marker";
@@ -323,7 +331,6 @@
 "settings.language" = "Language";
 "settings.language.system" = "System Language";
 "settings.language.restart" = "Restart Dirigible to apply the language.";
-"alert.marker.rename" = "Rename Marker";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Chapter %lld";
 

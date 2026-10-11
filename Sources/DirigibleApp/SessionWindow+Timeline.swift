@@ -47,7 +47,7 @@ enum TimelineCommand: Hashable {
     /// ripple only the selected tracks. Cut closes the gap too.
     case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
     case split, nudgeLeft, nudgeRight, fade
-    case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
+    case addMarker, addChapter, markerInfo, moveMarker, deleteMarker, previousMarker, nextMarker
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, episodeInfo
@@ -79,7 +79,7 @@ enum TimelineCommand: Hashable {
         // A text field moves the caret to its start or end with Command-Up and Command-Down.
         case .tallerTracks, .shorterTracks: true
         case .fitTracks: false
-        case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
+        case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         // A focused text field ends its edit with Return.
         case .renameTrack, .removeTrack, .showInFinder: true
         // A focused text field types the capital letter of Shift-M and Shift-S.
@@ -177,7 +177,7 @@ enum TimelineCommand: Hashable {
     static let markerItems = [
         MenuItem(command: .addMarker, title: .menuMarkersAdd, key: .return, modifiers: .command),
         MenuItem(command: .addChapter, title: .menuMarkersAddChapter, key: .return, modifiers: [.command, .shift]),
-        MenuItem(command: .renameMarker, title: .menuMarkersRename, key: .return, modifiers: .shift),
+        MenuItem(command: .markerInfo, title: .menuMarkersInfo, key: .return, modifiers: .shift),
         MenuItem(command: .moveMarker, title: .menuMarkersMove, key: .return, modifiers: [.command, .option]),
         MenuItem(command: .deleteMarker, title: .menuMarkersDelete, key: .delete, modifiers: .command),
         MenuItem(command: .previousMarker, title: .menuMarkersPrevious, key: .pageUp, modifiers: []),
@@ -296,7 +296,7 @@ extension SessionWindow {
             runRipple(command, studio)
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
         case .fade: runFade(studio)
-        case .addMarker, .addChapter, .renameMarker, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
+        case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
         case .renameTrack:
             // The first track that the headers show as selected; a clip set picks no track.

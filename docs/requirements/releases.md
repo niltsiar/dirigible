@@ -157,7 +157,7 @@ The app version is `0.<release>.<run>`, from the release and the run number of t
 - The commands:
   1. `git fetch origin`
   2. `git tag -a v<version> <commit> -m '<run>'`
-  3. Compare `git rev-parse 'v<version>^{}'` with `<commit>`. If they differ, run `git tag -d v<version>` and stop.
+  3. Check the tag. `git merge-base --is-ancestor <commit> origin/main` must succeed, and `git describe --match 'v[0-9]*' --exact-match <commit>` must print `v<version>`. If not, run `git tag -d v<version>` and stop. The check fails for a commit that is not on `main` and for a lightweight tag.
   4. `git push origin v<version>`
 - `scripts/version.sh` prints the version of a work tree: the nearest tag without its `v`, plus `-<n>-g<commit>` for a commit after the tag. `scripts/bundle.sh` writes it to `CFBundleShortVersionString`, with `-dirty` for a tree with uncommitted changes. With no tag, the version is `0.0.0`. `CFBundleVersion` stays 1.
 - The version shows in **Dirigible > About Dirigible**, in the start window, in the DMG name, and in the output of `dirigible --version`.

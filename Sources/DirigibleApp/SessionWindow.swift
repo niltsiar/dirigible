@@ -107,6 +107,11 @@ struct ExportReportShown: Equatable {
     /// its identity: the segmented control shows the segment of the click until SwiftUI makes it
     /// again (on-screen check, code gate 2).
     var heldTabChanges = 0
+    /// The typed text of the Marker pane, the field with the focus, and the field that gets the
+    /// focus at the next pane update (Name for Marker Info…).
+    var markerDraft: MarkerDraft?
+    @ObservationIgnored var markerFocus: MarkerField?
+    var markerFocusRequest: MarkerField?
     /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
     /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0

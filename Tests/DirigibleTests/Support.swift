@@ -240,14 +240,15 @@ func timelinePackage(
 /// A mouse event on the time ruler of `view`: at the document x `x` and the ruler y `y` (the ruler
 /// is flipped: y 0 is its top).
 @MainActor func rulerMouse(
-    _ type: NSEvent.EventType, _ x: Double, _ y: Double, in view: TimelineScrollView
+    _ type: NSEvent.EventType, _ x: Double, _ y: Double, in view: TimelineScrollView, clicks: Int = 1
 ) throws -> NSEvent {
     let location = NSPoint(
         x: view.lanes.convert(NSPoint(x: x, y: 0), to: nil).x, y: view.ruler.convert(NSPoint(x: 0, y: y), to: nil).y)
     return try #require(
         NSEvent.mouseEvent(
             with: type, location: location, modifierFlags: [], timestamp: 0,
-            windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+            windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: clicks,
+            pressure: 1))
 }
 
 /// Draws what needs a draw now: a layer-backed view draws at the commit of the Core Animation

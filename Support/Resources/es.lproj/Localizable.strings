@@ -81,6 +81,13 @@
 "menu.file.episode.info" = "Información del episodio…";
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episodio";
+"inspector.tab.marker" = "Marcador";
+"marker.none" = "Ningún marcador";
+"marker.name" = "Nombre";
+"marker.url" = "Enlace";
+"marker.image" = "Imagen";
+"marker.image.none" = "Sin imagen";
+"marker.chapter.only" = "Solo un capítulo tiene enlace e imagen.";
 "inspector.handle" = "Ancho del inspector";
 "inspector.tabs" = "Panel del inspector";
 "episode.artwork" = "Ilustración";
@@ -117,6 +124,7 @@
 "error.episode.date" = "Escriba una fecha con la forma AAAA-MM-DD.";
 "error.episode.language" = "Escriba un código de idioma ISO 639-2 de tres letras minúsculas, por ejemplo eng o spa.";
 "error.episode.url" = "Escriba una URL http o https.";
+"error.marker.url" = "Escriba una URL http o https de %lld bytes como máximo.";
 "error.import.not.audio" = "Dirigible no puede importar «%@». Dirigible no puede leer el audio de este archivo. Use un archivo WAV, AIFF, FLAC, MP3 o M4A.";
 "error.import.not.downloaded" = "Dirigible no puede importar «%@». El archivo no está en este Mac. Descargue primero el archivo.";
 "error.import.channels" = "Dirigible no puede importar «%1$@». El archivo tiene %2$lld canales. Dirigible solo importa archivos mono y estéreo. Divida el archivo en archivos mono o estéreo.";
@@ -313,7 +321,7 @@
 "menu.markers" = "Marcadores";
 "menu.markers.add" = "Añadir marcador";
 "menu.markers.add.chapter" = "Añadir capítulo";
-"menu.markers.rename" = "Renombrar marcador…";
+"menu.markers.info" = "Información del marcador…";
 "menu.markers.move" = "Mover marcador al cursor";
 "menu.markers.delete" = "Eliminar marcador";
 "menu.markers.previous" = "Marcador anterior";
@@ -323,7 +331,6 @@
 "settings.language" = "Idioma";
 "settings.language.system" = "Idioma del sistema";
 "settings.language.restart" = "Reinicia Dirigible para aplicar el idioma.";
-"alert.marker.rename" = "Renombrar marcador";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";
 

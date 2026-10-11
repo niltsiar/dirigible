@@ -34,7 +34,7 @@ import Testing
         #expect(
             TimelineCommand.markerItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
                 "addMarker \r \(command)", "addChapter \r \(EventModifiers([.command, .shift]).rawValue)",
-                "renameMarker \r \(shift)", "moveMarker \r \(EventModifiers([.command, .option]).rawValue)",
+                "markerInfo \r \(shift)", "moveMarker \r \(EventModifiers([.command, .option]).rawValue)",
                 "deleteMarker \u{8} \(command)", "previousMarker \u{F72C} 0", "nextMarker \u{F72D} 0",
             ])
         #expect(
@@ -160,7 +160,7 @@ import Testing
             (.nextMarker, key(.keyDown, "\u{F72D}", code: 121, in: window)),
             (.previousMarker, key(.keyDown, "\u{F72C}", code: 116, in: window)),
             (.addMarker, returnKey(.command)), (.addChapter, returnKey([.command, .shift])),
-            (.renameMarker, returnKey(.shift)), (.moveMarker, returnKey([.command, .option])),
+            (.markerInfo, returnKey(.shift)), (.moveMarker, returnKey([.command, .option])),
             (.deleteMarker, commandKey("\u{7F}", code: 51, in: window)),
         ]
 
@@ -170,7 +170,7 @@ import Testing
             #expect(
                 model.timeline.marker == (command == .nextMarker || command == .previousMarker ? nil : "m1"),
                 "\(command)")
-            #expect(model.timeline.renaming == nil, "\(command)")
+            #expect(model.inspectorTab != .marker, "\(command)")
         }
 
         #expect(studio.session == session && studio.playhead == playhead)

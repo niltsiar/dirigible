@@ -36,15 +36,16 @@ struct InspectorView: View {
                 content: {
                     Text(L10n.inspectorTabClip.key).tag(InspectorTab.clip)
                     Text(L10n.inspectorTabEpisode.key).tag(InspectorTab.episode)
+                    Text(L10n.inspectorTabMarker.key).tag(InspectorTab.marker)
                 }, label: { Text(L10n.inspectorTabs.key) }
             )
             .pickerStyle(.segmented).labelsHidden()
             .id(model.heldTabChanges)
             Divider()
-            if model.inspectorTab == .episode {
-                EpisodeInspector(model: model, studio: studio)
-            } else {
-                clipPane
+            switch model.inspectorTab {
+            case .clip: clipPane
+            case .episode: EpisodeInspector(model: model, studio: studio)
+            case .marker: MarkerInspector(model: model, studio: studio)
             }
         }
         .padding(12)
@@ -155,8 +156,9 @@ extension SessionWindow {
         }
         // After the flag: the focus move makes the field send its old text, which `type` ignores.
         commitInspector()
-        if inspectorFocus != nil || episodeFocus != nil {
-            (inspectorFocus, episodeFocus) = (nil, nil)
+        if markerDraft?.refused == true { markerDraft = nil }
+        if inspectorFocus != nil || episodeFocus != nil || markerFocus != nil {
+            (inspectorFocus, episodeFocus, markerFocus) = (nil, nil, nil)
             focusLanes()
         }
     }
@@ -181,9 +183,10 @@ extension SessionWindow {
         inspectorDraft = InspectorDraft(field: field, shown: shown, text: text, clips: inspection.clips)
     }
 
-    /// Saves the typed text of the Clip and the Episode pane (code gate 1 of the episode run).
+    /// Saves the typed text of the Clip, Episode, and Marker panes (code gate 1 of the episode run).
     func commitInspector() {
         commitEpisode()
+        commitMarker()
         commitClipDraft()
     }
 

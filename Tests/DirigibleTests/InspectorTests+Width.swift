@@ -252,4 +252,25 @@ extension InspectorTests {
         #expect(model.inspectorGuide.superlayer == nil, "Esc removes the guide")
         await model.close()
     }
+
+    /// Code gate 1 item 2: a drag with no mouse-up (a hide, an alert) leaves no drag. A hide ends
+    /// it; the next mouse-down starts from the shown width, not from the old target.
+    @Test func aLostMouseUpLeavesNoDrag() async throws {
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let (model, _, window, _) = try await open(try await package())
+        window.setContentSize(NSSize(width: 1180, height: 600))
+        await until("the lanes give the pane its width") {
+            window.contentLayoutRect.width == 1180 && layout(window) == 910
+        }
+        try drag(window, by: -100, up: false)
+        model.toggleInspector()
+        #expect(!model.inspectorDrag.isActive && model.inspectorPreview == nil, "a hide ends the drag")
+        #expect(model.inspectorGuide.superlayer == nil, "a hide removes the guide")
+        model.toggleInspector()
+        await until("the pane shows at 270 pt") { layout(window) == 910 }
+        try drag(window, by: -100, up: false)
+        try drag(window, by: -30)
+        #expect(model.inspectorWidth.points == 300, "the down starts from 270 pt: \(model.inspectorWidth.points)")
+        await model.close()
+    }
 }

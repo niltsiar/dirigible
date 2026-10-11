@@ -246,8 +246,10 @@ extension InspectorTests {
         try drag(window, by: -100, up: false)
         #expect(gain(studio, "A") == -6, "the down commits the typed gain")
         #expect(focusedField(window) == nil, "the down ends the text focus")
-        // The hosting view takes cancelOperation(_:) until SwiftUI ends its focus in a run loop pass.
-        await runLoopPass()
+        // The hosting view takes cancelOperation(_:) until SwiftUI ends its focus in a later pass.
+        await until("SwiftUI ends its field focus") {
+            window.contentView?.responds(to: #selector(NSResponder.cancelOperation(_:))) == false
+        }
         press("\u{1b}", 53, window)
         #expect(model.inspectorWidth == .standard && !model.inspectorDrag.isActive, "Esc ends the drag")
         #expect(model.inspectorGuide.superlayer == nil, "Esc removes the guide")

@@ -195,6 +195,16 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 
 Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the last edit.
 
+### Snap clips into place
+
+When you drag a clip, the edge of a clip, or a selection, its edge snaps to a clip edge on any track, to the playhead, or to a marker or chapter. Snap acts when the edge comes within 6 points of a target on the screen. A yellow line shows where the edge snapped. On a Force Touch trackpad, you also feel a tick.
+
+- Choose **View > Snap** (N), or click **Snap** in the toolbar, to turn snap off or on for all windows. Snap is on at the first start.
+- Hold Command during a drag to stop snap for that drag. You can press or release Command while you drag. A drag that starts with Command held is a range selection, as before.
+- A clip that is narrower than 12 points on the screen is not a target. At the zoom of the whole session, zoom in to snap to the clip edges.
+- A ripple trim (Option-drag of an edge) does not snap.
+- If you changed the toolbar before, choose **View > Customize Toolbar** and drag **Snap** to the toolbar.
+
 ### Remove a mistake and close the gap
 
 To remove a part and move the audio after it to the left on all tracks, use a ripple delete:
@@ -539,6 +549,7 @@ macOS adds **Undo** (Command-Z) and **Redo** (Shift-Command-Z) at the top of the
 | **Shorter Tracks** | **Pistas más bajas** | Command-Up Arrow |
 | **Fit Tracks to Window** | **Ajustar pistas a la ventana** | None |
 | **Automatic Scroll** | **Desplazamiento automático** | Option-Command-F |
+| **Snap** | **Ajuste** | N |
 | **Show Loudness Meter** / **Hide Loudness Meter** | **Mostrar medidor de sonoridad** / **Ocultar medidor de sonoridad** | Shift-Command-8 |
 | **Show Inspector** / **Hide Inspector** | **Mostrar inspector** / **Ocultar inspector** | Option-Command-I |
 

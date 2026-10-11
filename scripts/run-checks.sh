@@ -12,7 +12,7 @@
 # after the end did not run), or a red target with no failed test line.
 # Usage: [CHECK_RISK=yes] scripts/run-checks.sh <make args>
 #        scripts/run-checks.sh --flakes   print the lines of dirigible-flakes (nothing with no file)
-#          and run no make. The guardrail hook blocks each other write to the file.
+#          and run no make. The guardrail hook blocks each other command that names the file, except a read.
 # The check-changed target of the Makefile and land.sh call it. scripts/run-checks.test.sh tests it.
 set -euo pipefail
 if [[ "${1:-}" == --flakes ]]; then

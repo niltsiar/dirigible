@@ -27,10 +27,10 @@ A good verdict is useful, not complete: the user fixes the "Act on" items and sh
 
 Each "Act on" item and taken nit, except a `no behavior change` nit, needs two fields (`scripts/check-plan.sh` checks them).
 
-- **Invariant:** the broken invariant, named by the state, not by the operation: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
+- **Invariant:** the broken invariant, named by the state, not the operation: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
 - **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter call. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>". Prove each sibling that the fix leaves unchanged with a test, log, or control.
 
-With `risk: yes`, after each fix commit, replay the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> HEAD~1` prints (`mutation-controls.md`). Pass both fields to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer that the symptom names. When a fix relaxes a guard or drops a wait, name what the guard or wait must still keep out, and list each reader of its state under Siblings.
+With `risk: yes`, after each fix commit, replay the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> HEAD~1` prints (`mutation-controls.md`). Pass both fields and the replay command to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer the symptom names. When a fix relaxes a guard, drops a wait, or moves a read across an `await`, name what the old code must still keep out, and list each reader of its state under Siblings.
 
 ## Rounds
 

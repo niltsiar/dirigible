@@ -40,7 +40,9 @@ struct ClipConversion {
         else { return nil }
         var gain = Gain.zero
         // An infinite peak gives no finite gain, so it keeps the one pass. A finite peak always gets
-        // the second pass; its clip gain stops at the end of `Gain.range`.
+        // the second pass at the full scale, because a capped scale saturates the file. Its clip
+        // gain stops at +96 dB, so a clip with a peak over +96 dB plays (peak dB - 96) dB quieter
+        // than its source.
         let scale = Float(ceiling / Double(result.peak))
         if result.peak > 1, let scaled = Gain(clamping: -20 * log10(Double(scale))) {
             input.framePosition = 0

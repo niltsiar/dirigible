@@ -10,6 +10,7 @@
 - Amended: 2026-10-04, run 11b-2. The inspector is a SwiftUI column of `SessionView` at the trailing edge, 270 pt with its divider, not in the view tree when hidden. The content stays one `NSHostingController`, as for the loudness strip. While the inspector shows, the minimum content width is 990 pt, and Show Inspector widens a narrower window with no animation. See 0035.
 - Amended: 2026-10-05, ui-polish run: Go to Start joins the default set before Stop, and a new Inspector item (`view.inspector`, `sidebar.trailing`, priority high, a push-on button) joins it at the trailing end after Export. The item and View > Show Inspector both call `run(.toggleInspector)`. Cut, Copy, Paste, and Go to End stay in the palette only.
 - Amended: 2026-10-11, snap run: a Snap item (`view.snap`, `arrow.right.and.line.vertical.and.arrow.left`, priority low, a push-on button) joins the default set after Zoom to Session. The item and View > Snap (N) both call `AppDelegate.toggleSnap`, the one writer of the app preference, so the item of each window shows one value. A window with a saved toolbar layout gets the item only through Customize Toolbar.
+- Amended: 2026-10-11, run ui-polish-header: the tooltips of Zoom In and Zoom Out also name the gestures that zoom at the pointer (Command-scroll and pinch), from the key `toolbar.tooltip.zoom`.
 - Amends: 0014 (the window shell and the keys), 0015 (the Monitor Inputs toggle), 0016 (the transport bar), 0017 (the track headers), 0022 (the surface capacity, if the header drag needs it).
 
 ## Context

@@ -63,7 +63,7 @@ A track records only when its arm button is on. Click the button to turn it on o
 ### Record a take
 
 1. Choose **Record > Record** (Command-R). The window shows **Recording take 1** and the time.
-2. Record the interview. The armed tracks show the audio as it records. A red line shows the record head. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
+2. Record the interview. The armed tracks show the audio in red as it records. A red line shows the record head. The header of each armed track shows its input and its name as text until the take is finished. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
 3. Choose **Transport > Stop** (Command-Period). The window shows **Finishing take 1**, then **Take 1 is finished.**
 
 A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. After a take, the playhead is at the end of the take.
@@ -135,7 +135,7 @@ The in point is the start of the selection, and the out point is the end. With n
 ### Zoom
 
 - Choose **View > Zoom In**, **View > Zoom Out**, or **View > Zoom to Session**.
-- On a trackpad, pinch to zoom. With a mouse, hold Command and turn the scroll wheel.
+- On a trackpad, pinch to zoom. With a mouse, hold Command and turn the scroll wheel. The zoom keeps the part under the pointer in place. The tooltips of the **Zoom In** and **Zoom Out** toolbar buttons tell you this.
 - Choose **View > Zoom to Selection or Session** to show the selection. With no selection, it shows the whole session. Choose it again to go back to the view before.
 - Choose **View > Zoom Back** and **View > Zoom Forward** to go through the zoom history of the window.
 - Double-tap with two fingers on a trackpad for smart zoom. When the whole session is in view, smart zoom zooms in at the pointer. In other views, it shows the whole session.
@@ -146,7 +146,7 @@ The **Session overview** is the strip above the time ruler. It shows the whole s
 
 - Click the Session overview to show that part of the session.
 - Drag the frame to scroll.
-- Drag an edge of the frame to zoom. Press Esc during the drag to go back to the view before.
+- Drag an edge of the frame to zoom. When the frame is 16 pt or wider, a grip shows at each edge. Press Esc during the drag to go back to the view before.
 - Double-click the Session overview to show the whole session. Double-click again to go back.
 
 ### Scroll by page and change the track height
@@ -167,7 +167,7 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - Shift-click a track to select from the playhead to the click. Shift-drag to make the selection larger.
 - Command-click the upper part of a clip to add it to the set of clips or remove it from the set. When a range is selected, the set starts with the clips that the range holds fully.
 - Command-click the lower part of a clip, or an empty part of a track, to add the track to the range or remove it from the range.
-- Click the header of a track, or its name, to select that track. The header shows the selection color. The in point and the out point stay. Command-click a header to add its track or remove it. Shift-click a header to select all tracks from the selected tracks to that track.
+- Click the header of a track, or its name, to select that track. The header shows the selection color, and the track shows a light tint of it. The in point and the out point stay. Command-click a header to add its track or remove it. Shift-click a header to select all tracks from the selected tracks to that track.
 - Drag a triangle in the time ruler to move the in point or the out point.
 - Choose **Edit > Select All** to select the whole session. Choose **Edit > Deselect All**, or press Esc, to clear the selection.
 - **Set In Point**, **Set Out Point**, **Select All**, and a drag that selects a range replace a set of clips with a range.
@@ -352,8 +352,8 @@ The Monitor button (the headphones, after the arm button) in the track header do
 - The track does not need to be armed. The monitor works before, during, and after a take, and during play.
 - Only a track with an input device can monitor. For an app track or a track with no input, the item is dimmed.
 - When the output is the built-in speakers, the monitor plays no sound, so the microphone does not pick up the monitor. The window shows the banner "Use headphones to hear the monitor." Plug in headphones, and the sound comes back. Dirigible does not detect external speakers. With speakers, turn the monitor off.
-- When the monitor cannot play, the track shows "No monitor sound. Turn Monitor Track off and on."
-- When the output contains the virtual device of the input, for example a loopback device in an aggregate device, the monitor plays no sound, so it does not feed its own input. The header says why: "No monitor sound: the output can feed this input. Choose another output."
+- When the monitor cannot play, the track header shows "No monitor sound". Hold the pointer over it to see the full text: "No monitor sound. Turn Monitor Track off and on." A header that is lower than 80 pt shows a speaker symbol with a slash.
+- When the output contains the virtual device of the input, for example a loopback device in an aggregate device, the monitor plays no sound, so it does not feed its own input. The full text says why: "No monitor sound: the output can feed this input. Choose another output."
 - You hear your voice a short time late: about 100 ms from the built-in microphone. Bluetooth headphones add more.
 - The monitor is off when a session opens. Dirigible does not save it.
 
@@ -368,7 +368,7 @@ Dirigible can record the sound of another app, for example a Zoom, Teams, or Sla
 
 - One app can feed one track only. Record your own microphone on another track.
 - When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
-- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). The button opens Privacy & Security in System Settings. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
+- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). A header that is lower than 80 pt shows an orange warning symbol: hold the pointer over it to see the text, and click it to open the settings. The button opens Privacy & Security in System Settings. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
 - On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
 - In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input. `dirigible track add-call <package> --device <UID> --channels 1 --app <bundle ID>` adds the **Host** and **Guest** tracks.
 

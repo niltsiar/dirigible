@@ -17,6 +17,9 @@
 "menu.track.rename" = "Rename Track";
 "menu.track.mute" = "Mute Track";
 "menu.track.solo" = "Solo Track";
+"menu.track.volume.up" = "Raise Track Volume";
+"menu.track.volume.down" = "Lower Track Volume";
+"menu.track.volume.reset" = "Reset Track Volume";
 "menu.track.monitor" = "Monitor Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
@@ -166,7 +169,7 @@
 "track.mute.help" = "Mute Track (⇧M). Option-click: all tracks.";
 "track.solo.help" = "Solo Track (⇧S). Option-click: all tracks.";
 "track.volume.label" = "Volume of %@";
-"track.volume.help" = "Track volume in the mix. It does not change the recording level. Double-click or Option-click: 0 dB.";
+"track.volume.help" = "Track volume in the mix (⌃= and ⌃-). It does not change the recording level. Double-click or Option-click: 0 dB.";
 "track.volume.value" = "%@ dB";
 "track.layout.mono" = "Mono";
 "track.layout.stereo" = "Stereo";

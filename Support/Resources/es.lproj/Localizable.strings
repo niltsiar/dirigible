@@ -17,6 +17,9 @@
 "menu.track.rename" = "Renombrar pista";
 "menu.track.mute" = "Silenciar pista";
 "menu.track.solo" = "Solo de pista";
+"menu.track.volume.up" = "Subir volumen de pista";
+"menu.track.volume.down" = "Bajar volumen de pista";
+"menu.track.volume.reset" = "Restablecer volumen de pista";
 "menu.track.monitor" = "Monitorizar pista";
 "menu.record" = "Grabación";
 "menu.record.start" = "Grabar";
@@ -166,7 +169,7 @@
 "track.mute.help" = "Silenciar pista (⇧M). Opción-clic: todas las pistas.";
 "track.solo.help" = "Solo de pista (⇧S). Opción-clic: todas las pistas.";
 "track.volume.label" = "Volumen de %@";
-"track.volume.help" = "Volumen de la pista en la mezcla. No cambia el nivel de grabación. Doble clic u Opción-clic: 0 dB.";
+"track.volume.help" = "Volumen de la pista en la mezcla (⌃= y ⌃-). No cambia el nivel de grabación. Doble clic u Opción-clic: 0 dB.";
 "track.volume.value" = "%@ dB";
 "track.layout.mono" = "Mono";
 "track.layout.stereo" = "Estéreo";

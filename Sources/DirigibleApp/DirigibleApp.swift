@@ -155,7 +155,7 @@ struct DirigibleApp: App {
     /// field uses on).
     private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {
         Button(item.title.key) { app.timeline(item.command) }
-            .keyboardShortcut(item.key, modifiers: item.modifiers)
+            .keyboardShortcut(item.key, modifiers: item.modifiers, localization: item.command.keyLocalization)
             .disabled(app.key?.isOn(item.command) == false)
     }
 }

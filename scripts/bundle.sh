@@ -30,13 +30,17 @@ cp Support/Info.plist "$APP/Contents/Info.plist"
 cp -R Support/Resources/. "$APP/Contents/Resources/"
 # The LGPL notice names the source of this binary: the commit, and a mark when the tree had
 # changes that no commit holds (decision 0034). DirigibleCommit gives the About panel the same
-# facts. CFBundleVersion stays 1: Launch Services opens a session package in the registered copy
-# with the highest CFBundleVersion, so a value that changes lets a branch build win.
+# facts. CFBundleShortVersionString is the version of the tags (releases.md, Versions), with the
+# same mark. CFBundleVersion stays 1: Launch Services opens a session package in the registered
+# copy with the highest CFBundleVersion, so a value that changes lets a branch build win. A higher
+# CFBundleShortVersionString does not break that tie (a probe on macOS 15).
 dirty=""
 [[ -z "$(git status --porcelain)" ]] || dirty=yes
 commit="$(git rev-parse HEAD)"
+version="$(scripts/version.sh)"
 printf '\nSource commit: %s%s\n' "$commit" "${dirty:+, with uncommitted changes}" \
     >> "$APP/Contents/Resources/LAME-NOTICE.txt"
+plutil -replace CFBundleShortVersionString -string "$version${dirty:+-dirty}" "$APP/Contents/Info.plist"
 plutil -replace DirigibleCommit -string "$(git rev-parse --short HEAD)${dirty:+-dirty}" "$APP/Contents/Info.plist"
 cp build/icon/Assets.car build/icon/AppIcon.icns "$APP/Contents/Resources/"
 # The user guide as an HTML page, with only the images that it shows. Help > Dirigible Guide

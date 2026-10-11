@@ -47,6 +47,10 @@ import Testing
         }
         #expect(buttons().count == 1)
         #expect(views(NSPopUpButton.self, under: window.contentView).count == 1, "no Add Call Tracks menu")
+        // C6 (ui-polish-chrome): Add Track is the one prominent control, and no control takes Return.
+        #expect(try #require(button).bezelColor != nil, "Add Track is not prominent")
+        #expect(views(NSPopUpButton.self, under: window.contentView).allSatisfy { $0.bezelColor == nil })
+        #expect(views(NSButton.self, under: window.contentView).allSatisfy { $0.keyEquivalent != "\r" })
         model.leafCalls = []
         try #require(button).performClick(nil)
 

@@ -49,22 +49,30 @@ struct StartView: View {
             if let message = model.refusal?.message {
                 Text(message.key).font(.callout).foregroundStyle(.red)
             }
-            HStack {
-                Label(L10n.startFolder.format(model.folderText), systemImage: "folder").font(.callout)
-                    .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                Spacer(minLength: 8)
-                Button(L10n.startChange.key) { model.changeFolder() }.disabled(model.creating)
-            }
+            // Change… and Create are one stack of one width, beside the folder and the hint (P5).
             HStack(alignment: .top, spacing: 16) {
-                Text(L10n.startHint.key).font(.footnote).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-                Button {
-                    model.create()
-                } label: {
-                    Text(L10n.startCreate.key).frame(minWidth: 64)
+                VStack(alignment: .leading, spacing: 10) {
+                    Label(L10n.startFolder.format(model.folderText), systemImage: "folder").font(.callout)
+                        .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                    Text(L10n.startHint.key).font(.footnote).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .buttonStyle(.borderedProminent).disabled(model.creating || model.refusal != nil)
+                Spacer(minLength: 0)
+                VStack(spacing: 10) {
+                    Button {
+                        model.changeFolder()
+                    } label: {
+                        Text(L10n.startChange.key).frame(maxWidth: .infinity)
+                    }
+                    .disabled(model.creating)
+                    Button {
+                        model.create()
+                    } label: {
+                        Text(L10n.startCreate.key).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent).disabled(model.creating || model.refusal != nil)
+                }
+                .fixedSize()
             }
         }
         .padding(16)

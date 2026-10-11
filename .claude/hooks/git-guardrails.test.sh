@@ -140,22 +140,32 @@ expect block 'date +%F > .git/dirigible-slow-date'
 expect block 'echo 2026-01-01 > "$(git rev-parse --git-common-dir)/dirigible-slow-date"'
 expect allow 'make test-slow'
 expect allow 'make test-slow-push'
+# expect_each_write <path>: each form of one shared list of writes blocks on <path>. A rule that
+# guards a file allows a list of read forms and blocks all other forms (a list of write forms
+# missed sed -i, dd of=, and a variable), so a new write form goes in this list once and runs for
+# each guarded file. @P@ is the path.
+write_forms=(
+  'rm @P@' 'rm -r @P@' 'mv @P@ /tmp/x' 'cp x @P@' 'truncate -s 0 @P@' 'touch @P@' 'ln -sf x @P@'
+  ': > @P@' 'echo x > @P@' 'echo x >> @P@' 'echo x>>@P@' 'echo x 2>> @P@' 'echo x >| @P@'
+  'echo x | tee @P@' 'echo x | tee -a @P@' 'printf x >"@P@"' "printf x > '@P@'" 'cat x > @P@'
+  "sed -i '' 1d @P@" 'sed 1d @P@' "sed -n -i '' 1d @P@" "perl -i -pe 's/1/2/' @P@"
+  'dd if=/dev/null of=@P@' 'sort -o @P@ x' "awk '{ print > \"@P@\" }' x" 'f=@P@; : > "$f"'
+  "python3 -c 'open(\"@P@\", \"w\")'"
+)
+expect_each_write() {
+  local form
+  for form in "${write_forms[@]}"; do expect block "${form//@P@/$1}"; done
+}
+
 # Only run-checks.sh appends to the flakes file and only land.sh removes its lines, so a flake row
 # cannot be erased between the push check and the land.
 expect block 'rm "$(git rev-parse --git-common-dir)/dirigible-flakes"'
-expect block ': > .git/dirigible-flakes'
 expect allow 'scripts/run-checks.test.sh'
 expect allow 'scripts/run-checks.sh --flakes'
 # Each simple command that names the flakes file must be a read: a read tool first, no -i, and no
 # redirect into the name (quotes and a $(...) path too). A grep whose quoted pattern holds a > is
 # a read (the path of a redirect stops at * and [). All else blocks.
-expect block "sed -i '' 1d .git/dirigible-flakes"
-expect block "perl -i -ne 'print if 0' .git/dirigible-flakes"
-expect block 'echo x >| .git/dirigible-flakes'
-expect block 'dd if=/dev/null of=.git/dirigible-flakes'
-expect block 'f=.git/dirigible-flakes; : > "$f"'
-expect block "python3 -c 'open(\".git/dirigible-flakes\", \"w\")'"
-expect block 'cat x > .git/dirigible-flakes'
+expect_each_write .git/dirigible-flakes
 # More read tools: git grep, rg, sort (no -o), grep -i, sed -n (no -i), awk (no redirect). A \|
 # in a quoted grep pattern does not split the command.
 expect allow 'git grep -n dirigible-flakes'
@@ -165,10 +175,6 @@ expect allow 'grep -i x .git/dirigible-flakes'
 expect allow 'sed -n 1p .git/dirigible-flakes'
 expect allow "awk '{ print \$1 }' .git/dirigible-flakes"
 expect allow "grep -n 'land\\|dirigible-flakes' scripts/run-checks.sh"
-expect block 'sed 1d .git/dirigible-flakes'
-expect block "sed -n -i '' 1d .git/dirigible-flakes"
-expect block 'sort -o .git/dirigible-flakes x'
-expect block "awk '{ print > \".git/dirigible-flakes\" }' x"
 # A folder path with no .git in it (a worktree named dirigible-flakes) is not the file: the past
 # commands of probe-u1/commands.txt stay allowed.
 expect allow 'git worktree add -b fix/flakes-and-upkeep ../dirigible-flakes main 2>&1 | tail -1'
@@ -177,12 +183,6 @@ expect allow 'git -C ../dirigible-flakes status --porcelain && git worktree remo
 expect allow "R=.scratchpads/runs/2026-10-05-flakes-2/run.md && sed -i '' 's/a/b/' \$R"
 expect allow 'cd /Users/x/projects/dirigible-flakes2 && git status --porcelain'
 expect allow 'git -C ../dirigible-flakes2 status --porcelain && git worktree remove ../dirigible-flakes2'
-expect block 'echo x >> .git/dirigible-flakes'
-expect block 'echo x>>.git/dirigible-flakes'
-expect block 'echo x 2>> .git/dirigible-flakes'
-expect block 'echo x | tee -a .git/dirigible-flakes'
-expect block 'printf x >".git/dirigible-flakes"'
-expect block "printf x > '.git/dirigible-flakes'"
 expect block ': > "$(git rev-parse --git-common-dir)/dirigible-flakes"'
 expect block 'echo x >> "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes"'
 expect block 'echo x >> "$d"/dirigible-flakes'
@@ -199,11 +199,9 @@ expect block "grep -nE 'x >[[:space:]]*[^;&|]*dirigible-flakes' .claude/hooks/gi
 expect block $'cat >> scripts/run-checks.test.sh <<\'EOF\'\nflakes="$tmp/dirigible-flakes"\nEOF'
 # Only run-checks.sh writes and removes the run marks that the pre-commit hook reads, so an agent
 # cannot clear a mark to commit during a check. A read of the marks is allowed.
+expect_each_write .git/dirigible-check-running/5
 expect block 'rm -r .git/dirigible-check-running'
-expect block 'echo 1 > .git/dirigible-check-running/5'
 expect block 'mv .git/dirigible-check-running /tmp/x'
-expect block 'truncate -s 0 .git/dirigible-check-running/5'
-expect block 'echo x | tee .git/dirigible-check-running/5'
 expect block ': > "$(git rev-parse --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$d"/dirigible-check-running/5'
@@ -212,10 +210,6 @@ expect allow "grep -n '>.*dirigible-check-running' .claude/hooks/git-guardrails.
 expect allow 'ls .git/dirigible-check-running'
 expect allow 'cat .git/dirigible-check-running/5'
 expect allow 'grep -r x .git/dirigible-check-running'
-expect block "sed -i '' 1d .git/dirigible-check-running/5"
-expect block "perl -i -pe 's/1/2/' .git/dirigible-check-running/5"
-expect block 'echo 1 >| .git/dirigible-check-running/5'
-expect block 'dd if=/dev/null of=.git/dirigible-check-running/5'
 # The block message of the flakes file names its read route.
 plutil -create xml1 "$input"
 plutil -insert tool_input -dictionary "$input"

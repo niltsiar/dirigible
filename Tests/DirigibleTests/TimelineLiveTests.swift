@@ -79,13 +79,19 @@ import Testing
             return runs
         }
 
+        /// The palette of the live region: red while the take records (run 2026-10-11-ui-polish-header
+        /// C19), the normal palette in the finalize.
+        var palette: LanePalette {
+            if case .recording = studio.transport { view.lanes.palette.live } else { view.lanes.palette }
+        }
+
         /// The runs of a waveform column with `peak` and `rms` on the -60 dB scale, over the clip color.
         func waveform(peak: Float = 0.5, rms: Float = 0.25) throws -> [Run] {
             let rows = try #require(view.lanes.surfaces.shown).laneRows
             func height(_ value: Float) -> Int {
                 Int(((20 * log10(Double(value)) + 60) / 60 * Double(rows)).rounded())
             }
-            let palette = view.lanes.palette
+            let palette = self.palette
             let (p, r) = (height(peak), height(rms))
             return [Run(palette.clip, rows - p), Run(palette.peak, p - r), Run(palette.rms, r)]
         }
@@ -165,7 +171,7 @@ import Testing
         lanes.tick(1.05)
 
         let waveform = try lanes.waveform()
-        let palette = view.lanes.palette
+        let palette = lanes.palette
         let lane = try #require(view.lanes.surfaces.shown).laneRows
         let runs = try lanes.runs(at: 0.5, lane: 0)
         #expect(Self.near(runs, waveform), "\(runs)")
@@ -248,7 +254,7 @@ import Testing
         lanes.report(0, 1)
         lanes.tick(1.5)
         let rows = try #require(lanes.view.lanes.surfaces.shown).laneRows
-        #expect(try lanes.runs(at: 1.35, lane: 0) == [Run(lanes.view.lanes.palette.clip, rows)], "the box, no waveform")
+        #expect(try lanes.runs(at: 1.35, lane: 0) == [Run(lanes.palette.clip, rows)], "the box, no waveform")
 
         lanes.report(1.3, 1.4)
         lanes.tick(1.55)
@@ -262,7 +268,7 @@ import Testing
 
     @Test func aLostDeviceLeavesAGap() async throws {
         let lanes = try await take(armed: ["t1", "t2"])
-        let (studio, palette) = (lanes.studio, lanes.view.lanes.palette)
+        let (studio, palette) = (lanes.studio, lanes.palette)
         let rows = try #require(lanes.view.lanes.surfaces.shown).laneRows
         lanes.report(0, 1, track: "t1")
         lanes.report(0, 1, track: "t2")
@@ -280,14 +286,14 @@ import Testing
         lanes.stop(at: 2.5)
         lanes.tick(2.5)
         #expect(try lanes.runs(at: 2.05, lane: 0) == [Run(palette.lane, rows)], "the finalize: the covered frames only")
-        #expect(Self.near(try lanes.runs(at: 1.5, lane: 0), waveform))
+        #expect(Self.near(try lanes.runs(at: 1.5, lane: 0), try lanes.waveform()), "the finalize: the normal palette")
         await lanes.close()
     }
 
     /// Arm 2 fails at 1 s and opens again: its first span after the reopen starts at 2.5 s.
     @Test func aWriteFailureLeavesAGap() async throws {
         let lanes = try await take(armed: ["t1", "t2"])
-        let (studio, palette) = (lanes.studio, lanes.view.lanes.palette)
+        let (studio, palette) = (lanes.studio, lanes.palette)
         let rows = try #require(lanes.view.lanes.surfaces.shown).laneRows
         lanes.report(0, 1, track: "t1")
         lanes.report(0, 1, track: "t2")

@@ -58,7 +58,8 @@ extension SessionWindow {
         }
         guard let step = inspectorDrag.handle(event, width: inspectorPreview ?? inspectorWidth) else { return }
         if inspectorDrag.isActive {
-            inspectorPreview = fitted(step.width)
+            // The guide shows from the first drag, so a click shows no line.
+            if case .drag = event { inspectorPreview = fitted(step.width) }
         } else {
             inspectorPreview = nil
             setInspectorWidth(step.width, save: step.save)
@@ -106,10 +107,12 @@ extension SessionWindow {
             inspectorGuide.removeFromSuperlayer()
             return
         }
-        if inspectorGuide.superlayer !== layer { layer.addSublayer(inspectorGuide) }
-        inspectorGuide.zPosition = 100
-        content.effectiveAppearance.performAsCurrentDrawingAppearance {
-            inspectorGuide.backgroundColor = NSColor.controlAccentColor.cgColor
+        if inspectorGuide.superlayer !== layer {
+            layer.addSublayer(inspectorGuide)
+            inspectorGuide.zPosition = 100
+            content.effectiveAppearance.performAsCurrentDrawingAppearance {
+                inspectorGuide.backgroundColor = NSColor.controlAccentColor.cgColor
+            }
         }
         inspectorGuide.frame = CGRect(
             x: content.bounds.width - preview.points, y: 0, width: 1, height: content.bounds.height)

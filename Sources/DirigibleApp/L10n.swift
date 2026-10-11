@@ -392,15 +392,4 @@ enum L10n: String, CaseIterable {
     case pasteBanner = "paste.banner"
     case pasteDone = "paste.done"
     case revertedTo = "reverted.to"
-
-    /// For `Text` and `Button`: SwiftUI looks the key up in `Bundle.main`.
-    var key: LocalizedStringKey { LocalizedStringKey(rawValue) }
-
-    /// The value from the table of the app language in `Bundle.main`.
-    var text: String { Bundle.main.localizedString(forKey: rawValue, value: nil, table: nil) }
-
-    /// The value with its format specifiers filled.
-    func format(_ arguments: any CVarArg...) -> String {
-        String(format: text, locale: .current, arguments: arguments)
-    }
 }

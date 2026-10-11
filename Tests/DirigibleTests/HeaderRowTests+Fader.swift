@@ -36,8 +36,8 @@ extension HeaderRowTests {
             if expected > 0 {
                 let routes = controls(host, in: host).filter { $0.kind == "route" }.map(\.frame.width)
                 #expect(
-                    routes.count == 3 && routes.allSatisfy { $0 >= TrackHeaders.faderRouteWidth },
-                    "the route menu keeps its width: \(label): \(routes)")
+                    routes.count == 3 && routes.allSatisfy { $0 == TrackHeaders.faderRouteWidth },
+                    "the gate is the narrowest width where the route menu keeps its width: \(label): \(routes)")
             }
             window.close()
         }

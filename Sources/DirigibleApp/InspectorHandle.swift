@@ -77,7 +77,7 @@ extension SessionWindow {
     /// first, so the later mouse-up does not undo the step.
     func stepInspector(by points: Double) {
         _ = cancelInspectorDrag()
-        setInspectorWidth(InspectorWidth(inspectorWidth.points + points), save: true)
+        setInspectorWidth(fitted(InspectorWidth(inspectorWidth.points + points)), save: true)
     }
 
     /// The width inside the room of the window, its content width minus the lanes minimum: the
@@ -87,11 +87,13 @@ extension SessionWindow {
         return InspectorWidth(min(width.points, room))
     }
 
-    private func setInspectorWidth(_ width: InspectorWidth, save: Bool) {
+    /// Shows the request fitted to the room, and saves the request: a double-click in a narrow
+    /// window saves the standard width (0023). A drag and a step request a fitted width.
+    private func setInspectorWidth(_ request: InspectorWidth, save: Bool) {
         // The same width writes nothing: an Observation write runs the bodies also for an equal value.
-        let width = fitted(width)
+        let width = fitted(request)
         if width != inspectorWidth { inspectorWidth = width }
-        if save { app?.defaults?.set(inspectorWidth.points, forKey: InspectorWidth.defaultsKey) }
+        if save { app?.defaults?.set(request.points, forKey: InspectorWidth.defaultsKey) }
     }
 
     /// The 1 pt accent line at the target edge, over the window content; nil removes it. A Core

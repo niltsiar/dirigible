@@ -292,4 +292,23 @@ extension InspectorTests {
         #expect(model.inspectorWidth.points == 290, "the up keeps the step: \(model.inspectorWidth.points)")
         await model.close()
     }
+
+    /// Code gate 1 item 4 (lead decision): a double-click in a narrow window shows the width that
+    /// fits and saves the standard 270 pt, the choice of the user.
+    @Test func aDoubleClickInANarrowWindowSavesTheStandardWidth() async throws {
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let (model, _, window, _) = try await open(try await package())
+        model.inspectorWidth = InspectorWidth(240)
+        window.setContentSize(NSSize(width: 960, height: 600))
+        await until("the window takes 960 pt") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return window.contentLayoutRect.width == 960 && layout(window) == 720
+        }
+        let view = try handle(window)
+        let x = Double(view.convert(view.bounds, to: nil).midX)
+        view.mouseDown(with: try event(.leftMouseDown, x, window, clicks: 2))
+        #expect(model.inspectorWidth.points == 240, "the room of a 960 pt window")
+        #expect(defaults.object(forKey: InspectorWidth.defaultsKey) as? Double == 270, "the double-click saves 270 pt")
+        await model.close()
+    }
 }

@@ -83,8 +83,9 @@ final class FaderSlider: NSSlider {
     weak var readout: NSTextField?
     /// The gain that the readout shows: the drag value during a drag, else the session gain.
     private(set) var shown = 0.0
-    /// The scale from the drag start and the last drag value, between `beginDrag` and `endDrag`.
-    private var drag: (scale: FaderScale, dB: Double)?
+    /// The scale from the drag start, the start value, and the last drag value, between
+    /// `beginDrag` and `endDrag`.
+    private var drag: (scale: FaderScale, start: Double, dB: Double)?
     var dragging: Bool { drag != nil }
     /// The session revision and the time of the last mouse-up that made an edit.
     private var clickEdit: (revision: Int, time: TimeInterval)?
@@ -117,7 +118,7 @@ final class FaderSlider: NSSlider {
     }
 
     func beginDrag() {
-        drag = (FaderScale(start: stored), stored)
+        drag = (FaderScale(start: stored), stored, stored)
     }
 
     /// A drag that ends at the start value makes no edit and gives the Player the session gain.
@@ -132,7 +133,8 @@ final class FaderSlider: NSSlider {
     /// A drag step plays its value with no edit. An action outside a drag puts the thumb back.
     @objc func moved() {
         guard var drag else { return show(stored) }
-        let dB = drag.scale.dB(position: doubleValue)
+        // At the start position the start value stays: a click on the thumb rounds no gain.
+        let dB = doubleValue == drag.scale.position(dB: drag.start) ? drag.start : drag.scale.dB(position: doubleValue)
         guard dB != drag.dB else { return }
         drag.dB = dB
         self.drag = drag

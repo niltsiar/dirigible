@@ -239,6 +239,26 @@ import os
         await model.close()
     }
 
+    /// Code gate 1 item 2: a click on the thumb with no move keeps an off-grid gain, with no
+    /// preview and no edit.
+    @Test func aClickOnTheThumbKeepsAnOffGridGain() async throws {
+        let (model, studio) = try await model()
+        try setGain(studio, -6.25)
+        let (window, view) = fader(model, studio)
+        view.update(model: model, track: "t1", name: "T1", dB: -6.25, enabled: true)
+        let revision = studio.sessionRevision
+
+        view.slider.beginDrag()
+        view.slider.sendAction(view.slider.action, to: view.slider.target)
+        #expect(view.slider.shown == -6.25, "code gate 1: no rounded preview at the start position")
+        view.slider.endDrag()
+
+        #expect(studio.session.track("t1")?.gain.dB == -6.25, "code gate 1: the gain stays")
+        #expect(studio.sessionRevision == revision, "code gate 1: no edit")
+        window.close()
+        await model.close()
+    }
+
     /// C10: the scroll wheel scrolls the view and never changes the gain.
     @Test func theScrollWheelGoesToTheNextResponder() async throws {
         let (model, studio) = try await model()

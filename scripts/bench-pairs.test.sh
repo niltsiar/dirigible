@@ -33,5 +33,8 @@ log "$tmp/branch-2.log" 10.2 10.1
 out="$("$pairs" --compare "$tmp" 2>&1)"
 grep -q '^INCONCLUSIVE XBenchmark b (1 of 2 pairs' <<< "$out" || { echo "FAIL: one pair over the rule is INCONCLUSIVE: $out"; failures=$((failures + 1)); }
 
+# bench.sh has no Makefile line of its own: its test runs here.
+bash "$(dirname "$0")/bench.test.sh" || failures=$((failures + 1))
+
 [[ $failures -eq 0 ]] && echo "bench-pairs tests: all passed"
 exit $((failures > 0))

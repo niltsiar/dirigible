@@ -32,8 +32,7 @@ extension SessionWindow {
         case .raiseVolume: stepVolume(by: 1, tracks: tracks)
         case .lowerVolume: stepVolume(by: -1, tracks: tracks)
         case .resetVolume: setVolume(.zero, tracks: tracks)
-        // `run(_:)` sends only the three volume commands here.
-        default: break
+        default: assertionFailure("run(_:) sends only the three volume commands here")
         }
     }
 

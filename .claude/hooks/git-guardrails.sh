@@ -27,6 +27,7 @@ joined="${COMMAND//\\$'\n'/ }"
 NORMALIZED="$(tr -s '\t ' '  ' <<< "$joined")"
 # Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
 NORMALIZED="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$NORMALIZED")"
+UNSPLIT="$NORMALIZED"
 # Put each command of a chain (&&, ||, ;, |) on its own line. grep matches one line at a time,
 # so a pattern cannot match a word of the next command, for example `--base main` of gh.
 NORMALIZED="$(awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' <<< "$NORMALIZED")"
@@ -104,14 +105,15 @@ fi
 if grep -qE 'dirigible-slow-date' <<< "$NORMALIZED"; then
   block "names the slow-run date file (only a passing make test-slow or make test-slow-push writes it)"
 fi
-# reads_only <name>: each simple command (a line of NORMALIZED) that names the file <name> is a
-# read. Its first word is cat, grep, head, tail, wc, ls, stat, test, or [; it has no -i word; and
+# reads_only <name>: each simple command that names the file <name> is a read. A \| (an
+# alternation in a grep pattern) does not split the command. Its first word is cat, grep, head,
+# tail, wc, ls, stat, test, [, rg, awk, sort (no -o), sed (with -n and no -i), or git grep; and
 # no redirect path runs up to the name (quotes and a $(...) part are part of the path, and the
 # path stops at `*` and `[`, so a grep whose quoted pattern holds `>` is a read). An allowlist,
 # because a list of write forms missed sed -i, dd of=, and a variable. A path that starts with ../
 # or / and has no .git in it is a folder of that name (a worktree), not the file.
 reads_only() {
-  local line token first named redirect=">[>|]?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
+  local line token first second named redirect=">[>|]?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
   while IFS= read -r line; do
     named=0
     while IFS= read -r token; do
@@ -119,11 +121,17 @@ reads_only() {
       [[ -n "$token" && "$token" =~ ^(\.\./|/) && "$token" != *.git* ]] || named=1
     done < <(grep -oE "[^[:space:]]*$1([^A-Za-z0-9_.-]|\$)" <<< "$line")
     [[ $named -eq 1 ]] || continue
-    read -r first _ <<< "$line"
-    case "$first" in cat | grep | head | tail | wc | ls | stat | test | '[') ;; *) return 1 ;; esac
-    grep -qE "(^|[[:space:]])-i([[:space:]]|\$)" <<< "$line" && return 1
+    read -r first second _ <<< "$line"
+    case "$first" in
+      cat | grep | head | tail | wc | ls | stat | test | '[' | rg | awk) ;;
+      sort) grep -qE '(^|[[:space:]])-[a-zA-Z]*o' <<< "$line" && return 1 ;;
+      sed) grep -qE '(^|[[:space:]])-[a-zA-Z]*i' <<< "$line" && return 1
+        grep -qE '(^|[[:space:]])-[a-zA-Z]*n' <<< "$line" || return 1 ;;
+      git) [[ "$second" == grep ]] || return 1 ;;
+      *) return 1 ;;
+    esac
     grep -qE "$redirect" <<< "$line" && return 1
-  done <<< "$NORMALIZED"
+  done < <(sed -E 's/\\\|/ /g' <<< "$UNSPLIT" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }')
   return 0
 }
 # Only scripts/run-checks.sh appends to dirigible-flakes, and only scripts/land.sh removes its

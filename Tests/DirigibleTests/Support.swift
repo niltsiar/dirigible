@@ -32,6 +32,17 @@ import os
     }
 }
 
+/// Returns at the end of a pass of the main run loop: the observer has the last order of
+/// `beforeWaiting`, so it runs after the SwiftUI and Core Animation observers of that pass.
+@MainActor func runLoopPass() async {
+    let passed = OSAllocatedUnfairLock(initialState: false)
+    let observer = CFRunLoopObserverCreateWithHandler(
+        nil, CFRunLoopActivity.beforeWaiting.rawValue, false, .max
+    ) { _, _ in passed.withLock { $0 = true } }
+    CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+    await until("the main run loop ends a pass") { passed.withLock { $0 } }
+}
+
 /// The silence and first-record limit of a test writer that no test reaches: one day. A loaded
 /// full suite holds a test for more than 60 s, and a watchdog that fires in a test gives a second
 /// attach that the test did not ask for. A watchdog test sets its own limit. A copy of the

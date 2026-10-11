@@ -107,17 +107,6 @@ struct TimeTextTests {
         }
     }
 
-    /// Returns after the next whole pass of the main run loop: its observer has the last order, so
-    /// SwiftUI has run each body that was due before the pass.
-    func runLoopPass() async {
-        await withCheckedContinuation { continuation in
-            let observer = CFRunLoopObserverCreateWithHandler(
-                nil, CFRunLoopActivity.beforeWaiting.rawValue, false, .max
-            ) { _, _ in continuation.resume() }
-            CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
-        }
-    }
-
     // MARK: A9
 
     /// During a take the zoom items stay on, as the View menu and the gestures (beta B1.1): a zoom
@@ -347,14 +336,19 @@ struct TimeTextTests {
         try #require(studio.session.tracks.first { $0.id == "t1" }?.clips.first?.start == 0)
         await studio.perform(.playStop)
         // SwiftUI runs the bodies for the writes before the play (the first `timeline.visible` of
-        // the lanes, `shown.isRunning` of the play start) in a later run loop pass. Under load that
-        // pass came after the snapshot and counted as 2 play bodies. A layout flush does not run it.
-        await until("the play start reaches the window") { model.shown.isRunning && model.timeline.visible != nil }
-        var before: Int
-        repeat {
-            before = model.bodyRuns
+        // the lanes, `shown.isRunning` of the play start) in a later run loop pass. The count starts
+        // after two passes in a row that run no body.
+        await until("the model has the play start and the visible lanes") {
+            model.shown.isRunning && model.timeline.visible != nil
+        }
+        try #require(model.shown.isRunning && model.timeline.visible != nil)
+        var quiet = 0
+        for _ in 1...20 where quiet < 2 {
+            let before = model.bodyRuns
             await runLoopPass()
-        } while model.bodyRuns != before
+            quiet = model.bodyRuns == before ? quiet + 1 : 0
+        }
+        try #require(quiet == 2, "SwiftUI ran bodies in 20 run loop passes before the play")
         let (bodies, updates, changes) = (model.bodyRuns, view.updates, time.textChanges)
 
         await renderRealTime(studio, seconds: 1) { time.textChanges >= changes + 3 }

@@ -5,6 +5,7 @@
 - Accepted: 2026-10-03, after plan gates 1 and 2 of run `2026-10-03-mp3-export`.
 - Amends: 0007 (LAME 4.0, not 3.100; the names of the LGPL files), 0019 (MP3 in the format list and the CLI), 0032 (MP3 gets no dither; the LAME level scale).
 - Amended: 2026-10-10, run `2026-10-10-episode-metadata`. An MP3 with episode data starts with an ID3v2.3 tag, and the LAME tag frame follows it. An MP3 with no episode data has no ID3 tag, as before (see 0045).
+- Amended: 2026-10-11, run `2026-10-11-chapters-in-file`. The ID3 tag also holds one `CTOC` frame and one `CHAP` frame for each chapter of the range. An MP3 with chapters and no episode data has a tag with only these frames.
 
 ## Context
 

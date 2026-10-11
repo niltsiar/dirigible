@@ -68,7 +68,8 @@ struct ExportTarget {
             case .mp3: .mp3(bitRate)
             case .flac: .flac(bits)
             }
-        return ExportOptions(format: file, layout: layout, rate: rate, loudness: loudness)
+        return ExportOptions(
+            format: file, layout: layout, rate: rate, loudness: loudness, introTitle: L10n.exportChapterIntro.text)
     }
 
     var fileExtension: String {

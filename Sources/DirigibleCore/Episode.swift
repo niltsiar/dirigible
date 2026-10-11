@@ -30,7 +30,8 @@ public struct Episode: Hashable, Sendable {
 
     public init() {}
 
-    /// True when no field has a value. An empty episode raises no file version and writes no tag.
+    /// True when no field has a value. An empty episode raises no file version. An export with an
+    /// empty episode and no chapter in its range writes no tag.
     public var isEmpty: Bool { self == Episode() }
 
     /// The text of a field: the stored value, or empty for no value.

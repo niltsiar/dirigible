@@ -8,6 +8,15 @@ import Testing
 /// extension, and each change is stored at once, so a Cancel of the panel keeps it.
 @MainActor struct ExportSettingsTests {
     let name = "ExportSettingsTests-\(UUID().uuidString)"
+    static var intro: String { L10n.exportChapterIntro.text }
+
+    /// Run 2026-10-11-chapters-in-file, C5g: the M4A chapter that the export adds at the range
+    /// start has the localized title, not the English default of the library.
+    @Test func theExportPanelPassesTheLocalizedIntroTitle() throws {
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        #expect(ExportSettings(defaults: defaults).options.introTitle == L10n.exportChapterIntro.text)
+    }
 
     @Test func theOptionsMapAndComeBack() throws {
         let defaults = try #require(UserDefaults(suiteName: name))
@@ -15,7 +24,8 @@ import Testing
         let settings = ExportSettings(defaults: defaults)
         #expect(
             settings.options
-                == ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .session, loudness: .podcast))
+                == ExportOptions(
+                    format: .wav(.bits24), layout: .stereo, rate: .session, loudness: .podcast, introTitle: Self.intro))
         #expect(settings.fileExtension == "wav" && settings.contentType.preferredFilenameExtension == "wav")
 
         settings.format = .flac
@@ -26,17 +36,23 @@ import Testing
         settings.layout = .mono
         settings.rate = .hz44100
         #expect(
-            settings.options == ExportOptions(format: .aac(.k96), layout: .mono, rate: .hz44100, loudness: .podcast))
+            settings.options
+                == ExportOptions(
+                    format: .aac(.k96), layout: .mono, rate: .hz44100, loudness: .podcast, introTitle: Self.intro))
         #expect(settings.fileExtension == "m4a" && settings.contentType.preferredFilenameExtension == "m4a")
 
         // The panel closes with Cancel: nothing else runs. The next panel shows the same values.
         let again = ExportSettings(defaults: defaults)
-        #expect(again.options == ExportOptions(format: .aac(.k96), layout: .mono, rate: .hz44100, loudness: .podcast))
+        #expect(
+            again.options
+                == ExportOptions(
+                    format: .aac(.k96), layout: .mono, rate: .hz44100, loudness: .podcast, introTitle: Self.intro))
         again.format = .wav
         again.rate = .hz48000
         #expect(
             ExportSettings(defaults: defaults).options
-                == ExportOptions(format: .wav(.bits16), layout: .mono, rate: .hz48000, loudness: .podcast))
+                == ExportOptions(
+                    format: .wav(.bits16), layout: .mono, rate: .hz48000, loudness: .podcast, introTitle: Self.intro))
 
         // MP3 run criterion 14: MP3 takes the bit rate, and comes back from the defaults.
         again.format = .mp3

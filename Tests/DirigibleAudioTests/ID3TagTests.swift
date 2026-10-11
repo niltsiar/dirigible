@@ -88,10 +88,10 @@ struct ID3TagTests {
 
     @Test func anEmptyEpisodeWritesNoTag() throws {
         var episode = Episode()
-        #expect(id3Tag(episode).isEmpty)
+        #expect(try id3Tag(episode).isEmpty)
         episode.summary = EpisodeNotes("\t")
         episode.notes = EpisodeNotes(" \t\n")
-        #expect(id3Tag(episode).isEmpty, "a whitespace-only text is no value")
+        #expect(try id3Tag(episode).isEmpty, "a whitespace-only text is no value")
 
         let url = try writeSine("plain.mp3", tag: id3Tag(episode))
         let bytes = try #require(FileManager.default.contents(atPath: url.path))

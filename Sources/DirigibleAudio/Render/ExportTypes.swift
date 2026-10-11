@@ -62,4 +62,9 @@ public enum ExportError: Error, Hashable, Sendable {
     case artworkMissing(String)
     /// The cancel check was true at a chunk.
     case cancelled
+    /// The range of an MP3 export has this count of chapters, over `maximumChapters`. No file was
+    /// made.
+    case tooManyChapters(Int)
+    /// The ID3 tag of an MP3 export is over `maximumTagSize` bytes. No file was made.
+    case tagTooLarge
 }

@@ -124,4 +124,23 @@ extension ExportWindowTests {
         #expect(model.alert == .error(.export(.moveFailed(ENOENT))))
         await model.close()
     }
+
+    /// Run 2026-10-11-chapters-in-file, C5f: a second chapter at one start is not in the file,
+    /// and a warning banner names it.
+    @Test func aChaptersFileWithADroppedChapterShowsAWarningBanner() async throws {
+        let file = folder.url.appending(path: "dropped.json")
+        _ = chaptersPanel(file)
+        let (model, studio, _) = try await window()
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "a", name: "A", position: 192_000, kind: .chapter))
+            try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter))
+        }
+        model.exportChapters()
+        await until("the file is written") { FileManager.default.fileExists(atPath: file.path) }
+        #expect(try startTimes(file) == [4])
+        await until("the banner shows") {
+            model.shown.banners.contains(.chaptersDropped(["C"], file: "dropped.json"))
+        }
+        await model.close()
+    }
 }

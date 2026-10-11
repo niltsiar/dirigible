@@ -18,6 +18,20 @@ enum ExportStep: Hashable {
     case choosing
 }
 
+/// The names of the chapters that an exported file leaves out, because each starts at the time of
+/// another chapter, the name of the file, and the session revision of the export.
+struct DroppedChaptersShown: Equatable {
+    let names: [String]
+    let file: String
+    let revision: Int
+
+    /// Nil when no chapter is left out.
+    init?(_ chapters: [Marker], file: String, revision: Int) {
+        guard !chapters.isEmpty else { return nil }
+        (names, self.file, self.revision) = (chapters.map(\.name), file, revision)
+    }
+}
+
 extension SessionWindow {
     /// The studio when an export can start: idle, no pending take, no export step, no export.
     private var exportStudio: Studio? {
@@ -117,11 +131,14 @@ extension SessionWindow {
     func run(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
         recordRefusal = nil
         exportReport = nil
+        droppedChapters = nil
         defer { recordRefusal = nil }
         // The file has the session of the export start: an edit during the export does not match it.
         let revision = studio.sessionRevision
         do throws(StudioError) {
             let result = try await studio.export(source, target.options, to: target.url, replacing: target.confirmed)
+            droppedChapters = DroppedChaptersShown(
+                result.droppedChapters, file: target.url.lastPathComponent, revision: revision)
             if result.faults.isEmpty {
                 exportReport = result.loudness.map {
                     ExportReportShown(report: $0, file: target.url.lastPathComponent, revision: revision)
@@ -149,7 +166,8 @@ extension SessionWindow {
     }
 
     /// Option-Command-E: the save panel, then an atomic write of the JSON off the main actor. The
-    /// file has the session of the command. A failed write shows the export alert of its errno.
+    /// file has the session of the command. A failed write shows the export alert of its errno. A
+    /// written file with a chapter left out shows the banner of `droppedChapters`.
     func exportChapters() {
         guard let studio = exportStudio, let window, let app else { return }
         let (range, marks) = chaptersRange(in: studio)
@@ -162,6 +180,7 @@ extension SessionWindow {
             alert = .error(.export(ExportError(writing: error)))
             return
         }
+        let (dropped, revision) = (studio.session.chapterList(in: range).dropped, studio.sessionRevision)
         exportStep = .choosing
         let name = url.deletingPathExtension().lastPathComponent + ".chapters.json"
         app.chooseChaptersExport(window, name, marks ? L10n.panelChaptersMarks.text : nil) { [weak self] target in
@@ -171,6 +190,8 @@ extension SessionWindow {
             Task {
                 do {
                     try await Task.detached { try data.write(to: target, options: .atomic) }.value
+                    droppedChapters = DroppedChaptersShown(
+                        dropped, file: target.lastPathComponent, revision: revision)
                 } catch {
                     alert = .error(.export(ExportError(writing: error)))
                 }

@@ -104,27 +104,38 @@ fi
 if grep -qE 'dirigible-slow-date' <<< "$NORMALIZED"; then
   block "names the slow-run date file (only a passing make test-slow or make test-slow-push writes it)"
 fi
-# writes_to <name>: the command writes, moves, or removes a file whose path ends in <name>. It
-# matches a command word (rm, mv, cp, tee, truncate, touch, ln) before the name, or a redirect
-# whose path runs up to the name: quotes and a $(...) part are part of the path, so
-# `"$(git rev-parse --git-common-dir)/<name>"` and `"$d"/<name>` match. The path stops at `*` and
-# `[`, so a grep whose quoted pattern holds `>` is a read. A text rule: `sed -i` and a write from a
-# script pass.
-writes_to() {
-  local word="(^|[;&|[:space:]])(rm|mv|cp|tee|truncate|touch|ln)[[:space:]][^;&|]*$1"
-  local redirect=">>?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
-  grep -qE "$word|$redirect" <<< "$NORMALIZED"
+# reads_only <name>: each simple command (a line of NORMALIZED) that names the file <name> is a
+# read. Its first word is cat, grep, head, tail, wc, ls, stat, test, or [; it has no -i word; and
+# no redirect path runs up to the name (quotes and a $(...) part are part of the path, and the
+# path stops at `*` and `[`, so a grep whose quoted pattern holds `>` is a read). An allowlist,
+# because a list of write forms missed sed -i, dd of=, and a variable. A path that starts with ../
+# or / and has no .git in it is a folder of that name (a worktree), not the file.
+reads_only() {
+  local line token first named redirect=">[>|]?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
+  while IFS= read -r line; do
+    named=0
+    while IFS= read -r token; do
+      token="${token#[\"\']}"
+      [[ -n "$token" && "$token" =~ ^(\.\./|/) && "$token" != *.git* ]] || named=1
+    done < <(grep -oE "[^[:space:]]*$1([^A-Za-z0-9_.-]|\$)" <<< "$line")
+    [[ $named -eq 1 ]] || continue
+    read -r first _ <<< "$line"
+    case "$first" in cat | grep | head | tail | wc | ls | stat | test | '[') ;; *) return 1 ;; esac
+    grep -qE "(^|[[:space:]])-i([[:space:]]|\$)" <<< "$line" && return 1
+    grep -qE "$redirect" <<< "$line" && return 1
+  done <<< "$NORMALIZED"
+  return 0
 }
 # Only scripts/run-checks.sh appends to dirigible-flakes, and only scripts/land.sh removes its
 # lines after it writes their flake rows, so a direct change cannot erase a flake row. A read is
 # allowed.
-if writes_to dirigible-flakes; then
-  block "writes, moves, or removes the flakes file (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
+if ! reads_only dirigible-flakes; then
+  block "names the flakes file in a command that is not a read: cat, grep, head, tail, wc, ls, stat, or test, with no -i and no redirect into it (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
 fi
 # Only scripts/run-checks.sh writes and removes the run marks that .githooks/pre-commit reads, so
 # a direct write, move, or remove cannot clear a mark to commit during a check. A read is allowed.
-if writes_to dirigible-check-running; then
-  block "writes, moves, or removes the run marks of make check-changed (only scripts/run-checks.sh writes them; the pre-commit hook skips a stale mark; read them with ls or cat)"
+if ! reads_only dirigible-check-running; then
+  block "names the run marks of make check-changed in a command that is not a read (only scripts/run-checks.sh writes them; the pre-commit hook skips a stale mark; read them with ls or cat)"
 fi
 
 # A new Finder window opens as a tab of the window group of the user, so a bounds, position, or

@@ -112,16 +112,31 @@ struct SessionView: View {
             TakeBanner(model: model, studio: studio)
             WindowBanners(model: model)
             if studio.session.tracks.isEmpty {
-                // The first action has its button (ux-decisions 14).
+                // The first action has its button (ux-decisions 14). Add Track is the one prominent
+                // action, above Add Call Tracks, at one width. The full frame centers the content
+                // in the area beside the inspector, also under a banner (ui-polish-chrome U2).
                 ContentUnavailableView {
                     Label(L10n.emptyTitle.key, systemImage: "waveform")
                 } description: {
                     Text(L10n.emptySteps.key)
                 } actions: {
-                    Button(L10n.menuTrackAdd.key) { model.run(.addTrack) }.disabled(!model.canEdit)
-                    Menu(L10n.menuTrackAddCall.key) { CallTracksItems(model: model) }
-                        .fixedSize().disabled(!model.canEdit)
+                    VStack {
+                        Button {
+                            model.run(.addTrack)
+                        } label: {
+                            Text(L10n.menuTrackAdd.key).frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Menu {
+                            CallTracksItems(model: model)
+                        } label: {
+                            Text(L10n.menuTrackAddCall.key).frame(maxWidth: .infinity)
+                        }
+                        .menuStyle(.button).buttonStyle(.bordered)
+                    }
+                    .fixedSize().disabled(!model.canEdit)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // An overlay, not a row: the lanes do not move when it shows or goes. It shows
                 // over the ruler, below the overview strip, where the user acts on it (0025).

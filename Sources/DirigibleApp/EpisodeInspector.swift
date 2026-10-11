@@ -47,7 +47,9 @@ struct EpisodeInspector: View {
                     row(.language, .episodeLanguage, episode, prompt: .episodeLanguagePrompt)
                     row(.copyright, .episodeCopyright, episode)
                     GridRow {
-                        Color.clear.frame(width: 64, height: 1)
+                        // A 0 x 0 pt cell: a cell with no size on an axis stops the fill of the
+                        // fields (ui-polish-chrome U14).
+                        Color.clear.frame(width: 0, height: 0)
                         Toggle(
                             L10n.episodeExplicit.key,
                             isOn: Binding(get: { episode.explicit }, set: { model.setExplicit($0) })
@@ -107,7 +109,8 @@ struct EpisodeInspector: View {
 
     private func row(_ name: EpisodeField, _ label: L10n, _ episode: Episode, prompt: L10n? = nil) -> some View {
         GridRow(alignment: .firstTextBaseline) {
-            Text(label.key).foregroundStyle(.secondary).lineLimit(1).frame(width: 64, alignment: .trailing)
+            // The column takes the width of its widest label, so no label is cut (C17, C19).
+            Text(label.key).foregroundStyle(.secondary).lineLimit(1).fixedSize().gridColumnAlignment(.trailing)
             field(name, label: label, episode, prompt: prompt)
         }
     }
@@ -127,6 +130,7 @@ struct EpisodeInspector: View {
                     model.focusLanes()
                 }
                 .accessibilityIdentifier("episode.\(name)")
+                .frame(maxWidth: .infinity)
             refusalText(name)
         }
     }
@@ -209,13 +213,23 @@ private struct ArtworkWell: View {
                 model.setArtwork(first)
                 return true
             }
+            // One width for both buttons: the width of the longer label (C23).
             VStack(alignment: .leading, spacing: 6) {
-                Button(L10n.episodeArtworkChoose.key) { model.chooseArtwork() }
-                    .accessibilityIdentifier("episode.artwork.choose")
-                Button(L10n.episodeArtworkRemove.key) { model.removeArtwork() }
-                    .disabled(url == nil)
-                    .accessibilityIdentifier("episode.artwork.remove")
+                Button {
+                    model.chooseArtwork()
+                } label: {
+                    Text(L10n.episodeArtworkChoose.key).frame(maxWidth: .infinity)
+                }
+                .accessibilityIdentifier("episode.artwork.choose")
+                Button {
+                    model.removeArtwork()
+                } label: {
+                    Text(L10n.episodeArtworkRemove.key).frame(maxWidth: .infinity)
+                }
+                .disabled(url == nil)
+                .accessibilityIdentifier("episode.artwork.remove")
             }
+            .fixedSize()
         }
     }
 }

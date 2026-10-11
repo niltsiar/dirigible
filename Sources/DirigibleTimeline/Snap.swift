@@ -51,7 +51,7 @@ struct Snap: Sendable {
 
     /// Calls `body` with each edge in reach of `frame` of a clip that is not excluded and is at
     /// least `LaneGeometry.grabWidth` wide. The clips do not overlap, so their starts and their ends
-    /// are both sorted (a lane index is its offset from 0): the walk starts at the first clip that starts at or after `frame` and goes
+    /// are both sorted: the walk starts at the first clip that starts at or after `frame` and goes
     /// out on both sides until a clip is out of reach.
     private func clipEdges(near frame: Frames, reach: Int, in clips: ClipLane, _ body: (Frames) -> Void) {
         let narrowest = LaneGeometry.grabWidth * geometry.scale.framesPerPoint

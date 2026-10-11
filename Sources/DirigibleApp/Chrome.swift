@@ -77,9 +77,7 @@ enum ToolbarItemID: String, CaseIterable {
     }
 
     /// A push-on-push-off button: its on state is a shape, not only a color.
-    var isToggle: Bool {
-        self == .record || self == .monitor || self == .play || self == .inspector || self == .snap
-    }
+    var isToggle: Bool { [.record, .monitor, .play, .inspector, .snap].contains(self) }
 
     /// The command of the item. Nil only for the time display: a new item with no command does
     /// not compile (F16).

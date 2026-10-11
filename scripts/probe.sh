@@ -19,7 +19,8 @@
 # runs outside it, in the folder of the caller: put it in a script file in the probe folder and
 # run `probe.sh <folder> bash <file>`.
 # A package copy with an APFS clone of .build fails with "PCH was compiled with module cache
-# path": delete *.pch and .build/*/debug/ModuleCache in the copy before you build. In a
+# path": delete each *.pch and each ModuleCache folder of every configuration in the copy, also
+# under .build/bench/.build, before you build (scripts/bench.sh does it for its copy). In a
 # command-line Swift probe, a top-level `Task {}` inherits the main actor: when the main thread
 # then blocks (a semaphore), use `Task.detached`, or the probe hangs.
 # The sandbox refuses writes under /Volumes, so `hdiutil create -srcfolder` fails with "Operation

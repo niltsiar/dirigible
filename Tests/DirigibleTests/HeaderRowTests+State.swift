@@ -49,6 +49,22 @@ extension HeaderRowTests {
         await model.close()
     }
 
+    /// Code gate 1 item 3: a quiet monitor puts its text on line 3 of a tall row, so line 2 keeps
+    /// the fader. A row of 56 to 79 pt shows the quiet symbol in place of the fader.
+    @Test func aTallQuietRowKeepsTheFader() async throws {
+        let (model, studio) = try await model()
+        (studio.listenRequest, studio.deviceReports) = (["t1"], ["mic": .quiet])
+        #expect(studio.quietListens == ["t1"])
+        for (height, faders) in [(100.0, 2), (60.0, 1)] {
+            let (window, host) = rows(model, studio, laneHeight: height, width: 340)
+            let found = controls(host, in: host).filter { $0.kind == "fader" }.count
+            #expect(found == faders, "\(faders) faders at \(height) pt: \(found)")
+            window.close()
+        }
+        (studio.listenRequest, studio.deviceReports) = ([], [:])
+        await model.close()
+    }
+
     /// C6: from 80 pt, line 1 stays at the row top, as in Hindenburg, Logic, and Final Cut Pro.
     /// Under 80 pt the row stays centered.
     @Test func aTallRowPinsLineOneToTheTop() async throws {

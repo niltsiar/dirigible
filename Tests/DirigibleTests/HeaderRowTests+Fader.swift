@@ -44,13 +44,14 @@ extension HeaderRowTests {
         await model.close()
     }
 
-    /// C10: the live state of a take or a monitor, and the quiet text, take line 2: no fader.
+    /// C10: the live state of a take or a monitor, and the quiet symbol of a row under 80 pt, take
+    /// line 2: no fader. A tall row has the quiet text on line 3 (`aTallQuietRowKeepsTheFader`).
     @Test func aLiveStateOrAQuietTextHidesTheFader() async throws {
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .monitoring, droppedFrames: 0, peak: 0.1)
         studio.listenRequest = ["t2"]
         studio.deviceReports["mic"] = .quiet
-        let (window, host) = rows(model, studio, laneHeight: 100, width: 340)
+        let (window, host) = rows(model, studio, laneHeight: 60, width: 340)
         #expect(faders(host).map(\.slider.track) == ["t3"], "C10: only the row with no state shows a fader")
         window.close()
         await model.close()

@@ -127,9 +127,10 @@ private struct TrackRow: View {
             }
             if secondLine {
                 let live = studio.liveTracks[track.id]
-                // The live state and the quiet text take the place of the fader, so the fader
-                // never reads as an input gain next to the meter.
-                let fader = showsFader && live == nil && quiet == nil
+                // The live state and the quiet symbol take the place of the fader, so the fader
+                // never reads as an input gain next to the meter. A tall row has the quiet text
+                // on line 3.
+                let fader = showsFader && live == nil && (quiet == nil || tall)
                 HStack(spacing: 8) {
                     Group { if taking { takeRoute } else { routeMenu.disabled(!model.canEdit) } }
                         .frame(minWidth: 0, maxWidth: 240, alignment: .leading)

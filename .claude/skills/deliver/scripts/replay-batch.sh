@@ -46,14 +46,14 @@ done_log() { [[ -f "$1" ]] && grep '^# result: ' "$1" | grep -qv '^# result: sto
 too_long=0
 count() {
     local n=0 log
-    for log in "${logs[@]}"; do done_log "$controls/replay/$(basename "$log")" && n=$((n + 1)); done
+    for log in ${logs[@]+"${logs[@]}"}; do done_log "$controls/replay/$(basename "$log")" && n=$((n + 1)); done
     local left=$(( ${#logs[@]} - n - too_long ))
     echo "replayed $n of ${#logs[@]}; left $left; too long $too_long"
     [[ $left -gt 0 ]] || echo "ALL DONE"
 }
 
 start="$(date +%s)"
-for log in "${logs[@]}"; do
+for log in ${logs[@]+"${logs[@]}"}; do
     name="$(basename "$log")"
     out="$controls/replay/$name"
     [[ $# -eq 0 ]] && done_log "$out" && continue

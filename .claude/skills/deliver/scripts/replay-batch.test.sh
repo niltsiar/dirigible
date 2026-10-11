@@ -154,6 +154,14 @@ grep -q '^e.log: mutate: .*side effects' <<<"$out" || fail "exit 2: no message: 
 [[ "$(calls | cut -d' ' -f1 | paste -sd' ' -)" == 'e.log f.log' ]] || fail "exit 2: calls [$(calls)]"
 grep -qx 'replayed 1 of 2; left 1; too long 0' <<<"$out" || fail "exit 2: count line: $out"
 
+# A folder with no killed log ends at once (bash 3.2 with set -u has no empty array).
+fresh
+control s survived 100.0
+run 480
+[[ $code -eq 0 && -z "$(calls)" ]] || fail "no killed log: exit $code, calls [$(calls)]: $out"
+grep -q '^replayed 0 of 0; left 0' <<<"$out" || fail "no killed log: count line: $out"
+grep -qx 'ALL DONE' <<<"$out" || fail "no killed log: no ALL DONE: $out"
+
 # Refusals: a budget over 480, a tree that is not a worktree root, the main checkout.
 fresh
 control a killed 100.0

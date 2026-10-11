@@ -4,10 +4,9 @@ import Foundation
 import SwiftUI
 
 /// The key of each UI string (decision 0010). The raw value is the key in
-/// `Support/Resources/<lang>.lproj/Localizable.strings`. Code names a key only through this enum,
-/// and `LocalizationTests` checks both tables against it. The enum is the one list
-/// of keys: Swift cannot put enum cases in an extension in another file. The texts of library
-/// errors are in `L10n+Messages.swift`.
+/// `Support/Resources/<lang>.lproj/Localizable.strings`. Code names a key only through this enum, and
+/// `LocalizationTests` checks both tables against it. The enum is the one list of keys: Swift cannot
+/// put enum cases in an extension in another file. The texts of library errors are in `L10n+Messages.swift`.
 enum L10n: String, CaseIterable {
     case menuFileNew = "menu.file.new"
     case menuFileOpen = "menu.file.open"

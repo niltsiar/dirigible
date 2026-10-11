@@ -36,6 +36,7 @@
 // first "Clear Menu" pressed Apple > Recent Items > Clear Menu and cleared the Recent Items list of
 // the Mac (run 2026-09-30-start-window).
 // A press path with an empty title is refused: a menu separator has an empty title.
+// With no match, press lists the path of each element whose title holds the last title.
 // Exit: 0 done, 1 no app with the bundle ID, no element, or no witness line, 2 usage, an empty
 // title in the press path, or an empty DIRIGIBLE_BUNDLE_ID, 3 no Accessibility trust, 4 more than
 // one element matches the press path.
@@ -172,6 +173,15 @@ func matches(_ path: [String], _ node: Node, _ above: [String]) -> [(node: Node,
     return own + node.children.flatMap { matches(path, $0, titles) }
 }
 
+/// The path of each element whose title holds the last title of the path in any case, for the
+/// message of a press with no match. The Apple menu stays out, as in `matches`.
+func holders(_ path: [String], _ node: Node, _ above: [String]) -> [String] {
+    if node.role == "AXMenuBarItem", node.title == "Apple", path.first != "Apple" { return [] }
+    let titles = above + [node.title].compactMap { $0 }.filter { !$0.isEmpty }
+    let own = node.title?.localizedCaseInsensitiveContains(path.last ?? "") == true ? [titles.joined(separator: " > ")] : []
+    return own + node.children.flatMap { holders(path, $0, titles) }
+}
+
 var found = false
 switch command {
 case "dump":
@@ -209,7 +219,10 @@ case "press":
         let list = all.map { "  " + $0.titles.joined(separator: " > ") }.joined(separator: "\n")
         fail("\(all.count) elements match \"\(arguments[1])\". Give a longer path:\n\(list)", 4)
     }
-    guard let match = all.first else { fail("No element matches \"\(arguments[1])\".", 1) }
+    guard let match = all.first else {
+        let paths = holders(path, top, []).map { "  " + $0 }.joined(separator: "\n")
+        fail("No element matches \"\(arguments[1])\"." + (paths.isEmpty ? "" : " Paths that hold the title:\n\(paths)"), 1)
+    }
     let title = match.titles.joined(separator: " > ")
     if let element = match.node.element {
         AXUIElementPerformAction(element, kAXPressAction as CFString)

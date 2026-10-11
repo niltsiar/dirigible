@@ -55,7 +55,7 @@ path	words	decision
 .claude/skills/unslop/SKILL.md	918	baseline
 .claude/skills/verify-this/	1720	2026-10-01-verify-copy D1 (decisions.tsv 2026-10-01T22:17: the driving-the-app.md row goes down by 50)
 .claude/skills/verify-this/SKILL.md	890	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/verify-this/references/driving-the-app.md	830	2026-10-01-verify-copy D1 (decisions.tsv 2026-10-01T22:17: 748 words x 1.1 = 822.8, up to the next 10)
+.claude/skills/verify-this/references/driving-the-app.md	860	2026-10-11-upkeep-batch-10 S3 (decisions.tsv 2026-10-11T07:35: the speakers read-back step and the drag offset example)
 .claude/skills/writing-for-agents/	2191	baseline
 .claude/skills/writing-for-agents/SKILL-MECHANICS.md	414	baseline
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline

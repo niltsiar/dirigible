@@ -152,7 +152,7 @@ The app version is `0.<release>.<run>`, from the release and the run number of t
 
 - A merge that changes app code (`Sources/`, `Package.swift`, `Package.resolved`, `Support/`) and is not a numbered run gets a fourth number when the lead tags it: `0.3.4.1`, `0.3.4.2`. The fourth number counts the tags, not the merges. The next numbered run resets it.
 - The source of the version is an annotated tag `v<version>` on `main`. A lightweight tag does not count. There is no GitHub release.
-- After the land, the lead tags the next merge that ships app code. One tag can cover earlier untagged app-code merges.
+- After the land, the lead tags the next merge that ships app code. One tag can cover earlier untagged app-code merges. Push the tag before `make dmg`, and build the DMG from a checkout of `main` at the tagged commit. A DMG built before the tag gets the describe version in its name and in the app.
 - `scripts/land.sh` merges with a rebase, so `main` has no merge commit, and the head commit of the pull request is not on `main`. Tag the commit that `gh pr view <n> --json mergeCommit -q .mergeCommit.oid` prints: the last commit of the pull request on `main`.
 - The commands:
   1. `git fetch origin`

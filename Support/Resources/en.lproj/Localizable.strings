@@ -263,6 +263,7 @@
 "menu.view.tracks.shorter" = "Shorter Tracks";
 "menu.view.tracks.fit" = "Fit Tracks to Window";
 "menu.view.follow" = "Automatic Scroll";
+"menu.view.snap" = "Snap";
 "menu.view.loudness.show" = "Show Loudness Meter";
 "menu.view.loudness.hide" = "Hide Loudness Meter";
 "menu.view.inspector.show" = "Show Inspector";

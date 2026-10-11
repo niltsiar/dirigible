@@ -263,6 +263,7 @@
 "menu.view.tracks.shorter" = "Pistas más bajas";
 "menu.view.tracks.fit" = "Ajustar pistas a la ventana";
 "menu.view.follow" = "Desplazamiento automático";
+"menu.view.snap" = "Ajuste";
 "menu.view.loudness.show" = "Mostrar medidor de sonoridad";
 "menu.view.loudness.hide" = "Ocultar medidor de sonoridad";
 "menu.view.inspector.show" = "Mostrar inspector";

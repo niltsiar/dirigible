@@ -2,6 +2,7 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -117,6 +118,24 @@ import Testing
         await model.close()
     }
 
+    /// Plan gate item 3: N during a drag sends the drag again, so the clip and the guide take the
+    /// new state with no mouse move.
+    @Test func nDuringADragResendsTheDrag() async throws {
+        // The fixture window is not a session window, so the key path is nil (nTogglesSnapAndTypesInAField).
+        let (model, _, _, view) = try await lanes()
+        model.timelineView = view
+        app.key = model
+        try event(.leftMouseDown, 100, in: view)
+        try event(.leftMouseDragged, 397, in: view)
+        #expect(start(view) == Self.target)
+        app.toggleSnap(event: nil, in: nil)
+        #expect(!app.snaps && start(view) == Self.raw && view.lanes.guide.isHidden, "snap off at once")
+        app.toggleSnap(event: nil, in: nil)
+        #expect(app.snaps && start(view) == Self.target && !view.lanes.guide.isHidden, "snap on at once")
+        try event(.leftMouseUp, 397, in: view)
+        await model.close()
+    }
+
     /// C9: the haptic plays once at each change from not snapped to snapped.
     @Test func theHapticPlaysOncePerSnap() async throws {
         let (model, _, _, view) = try await lanes()
@@ -151,5 +170,41 @@ import Testing
         #expect(defaults.object(forKey: "timeline.snaps") as? Bool == false)
         #expect(AppDelegate(recordings: nil, defaults: defaults).snaps == false, "a new launch reads it")
         #expect(AppDelegate(recordings: nil).snaps, "no defaults: on")
+    }
+
+    /// Plan gate item 1: the menu item, its N key, and the toolbar item reach the one writer, and
+    /// the toolbar item shows the state.
+    @Test func oneWriterForEachEntryPoint() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (model, _) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 1, seconds: 1), app: app)
+        app.key = model
+        #expect(ChromeState(model: model).on.contains(.snap) && ChromeState(model: model).enabled.contains(.snap))
+        app.toggleSnap(event: nil, in: nil)
+        #expect(!app.snaps && !ChromeState(model: model).on.contains(.snap), "the menu path")
+        model.leafCalls = []
+        model.run(.toggleSnap)
+        #expect(app.snaps && model.leafCalls == ["toggleSnap"], "the toolbar path")
+        #expect(ToolbarItemID.snap.command == .toggleSnap && WindowCommand.toggleSnap.menuItem.title == .menuViewSnap)
+        #expect(WindowCommand.toggleSnap.menuItem.key == KeyboardShortcut("n", modifiers: []))
+        #expect(toolbarTooltip(.toggleSnap, format: "%@ (%@)") == "menu.view.snap (N)")
+        await model.close()
+    }
+
+    /// Plan gate item 1: N goes to a focused text field first, as the transport keys. Control:
+    /// with no text focus, N toggles snap.
+    @Test(arguments: [true, false])
+    func nTogglesSnapAndTypesInAField(focus: Bool) throws {
+        let app = AppDelegate(recordings: nil)
+        let window = UndoRoutingWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: [.titled], backing: .buffered,
+            defer: false)
+        let field = NSTextField(frame: NSRect(x: 10, y: 10, width: 200, height: 24))
+        window.contentView?.addSubview(field)
+        #expect(window.makeFirstResponder(focus ? field : nil))
+        app.toggleSnap(event: key(.keyDown, "n", code: 45, in: window), in: window)
+        #expect(field.stringValue == (focus ? "n" : ""))
+        #expect(app.snaps == focus)
     }
 }

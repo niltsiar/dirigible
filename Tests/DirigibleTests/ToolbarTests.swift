@@ -16,7 +16,7 @@ struct ToolbarValueTests {
                 "track.add", "record.monitor", "transport.stop", "transport.play", "transport.record",
                 "transport.time", "transport.start", "transport.end", "edit.split", "edit.cut", "edit.copy",
                 "edit.paste", "edit.delete", "view.zoom.out", "view.zoom.in", "view.zoom.session", "file.export",
-                "view.inspector",
+                "view.inspector", "view.snap",
             ])
     }
 
@@ -27,7 +27,7 @@ struct ToolbarValueTests {
                 "track.add", "NSToolbarSpaceItem", "record.monitor", "transport.start", "transport.stop",
                 "transport.play", "transport.record", "transport.time", "NSToolbarSpaceItem", "edit.split",
                 "edit.delete", "NSToolbarFlexibleSpaceItem", "view.zoom.out", "view.zoom.in", "view.zoom.session",
-                "file.export", "view.inspector",
+                "view.snap", "file.export", "view.inspector",
             ])
     }
 
@@ -40,6 +40,7 @@ struct ToolbarValueTests {
             .zoomOut: "minus.magnifyingglass", .zoomIn: "plus.magnifyingglass",
             .zoomToSession: "arrow.up.left.and.down.right.magnifyingglass", .export: "square.and.arrow.up",
             .start: "backward.end.fill", .end: "forward.end.fill", .inspector: "sidebar.trailing",
+            .snap: "arrow.right.and.line.vertical.and.arrow.left",
         ]
         for id in ToolbarItemID.allCases {
             #expect(id.symbol == symbols[id], "\(id)")
@@ -57,7 +58,7 @@ struct ToolbarValueTests {
             .stop: .high, .play: .high, .record: .high, .time: .high, .inspector: .high, .monitor: boost,
             .export: boost,
             .addTrack: .standard, .start: .standard, .end: .standard, .split: .low, .cut: .low, .copy: .low,
-            .paste: .low, .delete: .low, .zoomOut: .low, .zoomIn: .low, .zoomToSession: .low,
+            .paste: .low, .delete: .low, .zoomOut: .low, .zoomIn: .low, .zoomToSession: .low, .snap: .low,
         ]
         for id in ToolbarItemID.allCases { #expect(id.priority == priorities[id], "priority of \(id)") }
     }

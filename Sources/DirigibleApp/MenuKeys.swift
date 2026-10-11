@@ -33,6 +33,8 @@ enum MenuKeys {
     static let loudnessMeter = KeyboardShortcut("8", modifiers: [.command, .shift])
     /// View > Show Inspector, as the inspector of Final Cut Pro and Xcode (run 11b-2).
     static let inspector = KeyboardShortcut("i", modifiers: [.command, .option])
+    /// View > Snap (snap run): a plain key, so a focused text field gets it first.
+    static let snap = KeyboardShortcut("n", modifiers: [])
 
     /// The keys of the items that macOS and SwiftUI add: Undo, Redo, Close, Quit, Hide, Hide
     /// Others, Minimize, Enter Full Screen, Show/Hide Toolbar (`ToolbarCommands`), and Settings.
@@ -61,7 +63,7 @@ enum MenuKeys {
             newSession, open, startWindow, addTrack, record, stop, monitor, monitorTrack, retry, play, stopAndReturn,
             reverse, pause,
             forward, slowReverse, slowForward, start, end, previousClip, nextClip, zoomInEquals, loudnessMeter,
-            inspector,
+            inspector, snap,
         ] + system
 }
 

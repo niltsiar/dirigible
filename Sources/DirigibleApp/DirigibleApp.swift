@@ -59,6 +59,9 @@ struct DirigibleApp: App {
                             Button(L10n.menuViewTracksFit.key) { app.timeline(.fitTracks) }
                         }
                     }
+                    // Snap joins the group of Automatic Scroll. A plain key: never disabled (probe K1).
+                    Toggle(L10n.menuViewSnap.key, isOn: Binding(get: { app.snaps }, set: { _ in app.toggleSnap() }))
+                        .keyboardShortcut(MenuKeys.snap)
                     Divider()
                     // It has Command in its keys, so it can be off (probe K1 is about plain keys).
                     Button(app.loudnessItem.title.key) { app.key?.toggleLoudness() }

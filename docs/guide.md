@@ -263,6 +263,8 @@ Choose **View > Show Inspector** (Option-Command-I), or click **Inspector** at t
 
 A text that is not a number gives a beep, and the field shows the old value. Each value that you set is one step in the undo history. During a take, the fields are off. New windows keep your choice to show or hide the inspector.
 
+Drag the left edge of the inspector to make it wider or narrower, from 240 to 400 pt. New windows keep the width. Double-click the edge to go back to the standard width.
+
 ### Level the clips
 
 Choose **Tools > Auto Level** (Command-L) to set the gain of each clip that the selection touches, on the selected tracks. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.

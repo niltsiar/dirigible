@@ -50,6 +50,9 @@ extension SessionWindow {
     /// of 0023: a live width missed the 16 ms budget at 2 h (p95 26 ms, C16), so the pane and the
     /// lanes keep their width until the up.
     func dragInspector(_ event: PaneDragEvent) {
+        // A down first commits the typed text and ends the text focus, as the header handle does:
+        // a focused field takes Esc.
+        if case .down = event { endNameEdit() }
         guard let step = inspectorDrag.handle(event, width: inspectorPreview ?? inspectorWidth) else { return }
         if inspectorDrag.isActive {
             inspectorPreview = fitted(step.width)

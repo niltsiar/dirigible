@@ -20,7 +20,6 @@ Dirigible shows its menus and windows in English or Spanish. By default, it uses
 
 ### What Dirigible does not do yet
 
-- The export does not write the chapters into the file. Choose **File > Export Chapters** to write them to a separate JSON file.
 - Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
 
 ## Record your first episode
@@ -112,7 +111,7 @@ The in point is the start of the selection, and the out point is the end. With n
 
 1. Click the time ruler where a new topic starts.
 2. Choose **Markers > Add Chapter** (Shift-Command-Return). A flag with the name **Chapter 1** shows in the time ruler.
-3. To change the name, choose **Markers > Rename Marker**, type the name, and click **OK**.
+3. To change the name, double-click the flag. The **Marker** tab of the inspector shows, with the name selected. Type the name and press Return.
 
 ### Export an AAC file
 
@@ -284,9 +283,21 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 - Drag a flag to move it. The flag becomes the current marker.
 - The current marker shows its name in bold on a filled label in the flag color. Press Esc or choose **Edit > Deselect All** to clear it.
 - **Edit > Paste** and **Edit > Delete** do not move the flags. **Edit > Cut**, **Edit > Delete and Close Gap**, **Edit > Insert**, and an Option drag of a clip edge move the flags after the edit with the audio. See [Remove a mistake and close the gap](#remove-a-mistake-and-close-the-gap).
-- **Rename Marker**, **Move Marker to Playhead**, and **Delete Marker** change the current marker. With no current marker, the command beeps.
+- **Marker Info**, **Move Marker to Playhead**, and **Delete Marker** act on the current marker. With no current marker, the command beeps.
 - To move the current marker with the menu, put the playhead at the new point: click the time ruler, or play. Then choose **Markers > Move Marker to Playhead**. When the marker is already at the playhead, the command beeps. A click on the ruler away from a flag keeps the current marker.
 - **Previous Marker** and **Next Marker** move the playhead to a flag and make it the current marker.
+
+### Give a chapter a link and an image
+
+Double-click a flag, or choose **Markers > Marker Info** (Shift-Return), to show the **Marker** tab of the inspector. The tab shows the current marker: its name and time, **Name**, **Link**, and **Image**. Click another flag to show that marker in the tab.
+
+- Type the name in **Name**, and the address of a web page for the chapter in **Link**. A link is an http or https URL of at most 255 bytes. Delete the text in **Link** to remove the link.
+- Press Return or Tab, or click in another place, to save a field. Each save is one step for **Undo**. Esc puts back the saved text. A link that Dirigible cannot use makes a beep and shows the rule in red below the field. The field keeps the focus, and the session keeps the old link.
+- For the image, click **Choose…** or drag an image to the well. The image must be a square JPEG or PNG file, at most 3000 x 3000 pixels. Dirigible copies it into the session. **Remove** removes the image from the chapter.
+- Only a chapter has a link and an image. For a marker, **Link** and the well are off.
+- During a take, the fields are off.
+
+A session with a chapter link or a chapter image does not open in a version of Dirigible from before chapter links and images.
 
 ## Work with tracks
 
@@ -397,16 +408,27 @@ With **Off**, the mix exports at its level, and a mix over full scale clips. A 1
 
 AAC and MP3 cannot export a 96 kHz session at the session rate: set **Sample rate** to **44.1 kHz** or **48 kHz**. An MP3 file plays up to 0.45 dB lower than the loudness in the banner, because the MP3 encoder lowers the level a little against clipping. Apple apps can show an MP3 at 44.1 kHz with 96 or 160 kbit/s as 26 ms longer than the export.
 
+### Chapters in the file
+
+An MP3 or AAC (.m4a) export contains the chapters of its range: the title, the link, and the image of each chapter. WAV and FLAC exports do not contain chapters. Markers are never in the file.
+
+- In an AAC file, a chapter with no image shows the episode artwork. When the episode has no artwork and a chapter has no image, the AAC file has no chapter images, and a banner says so. Set the episode artwork, or an image for each chapter.
+- When the first chapter starts after the start of the range, the AAC file gets one more chapter at the start. Its title is the episode title, else the show name, else **Intro**, and it shows the image of the first chapter. The MP3 file and the chapters file do not get this chapter.
+- Two chapters at the same time, to the millisecond, cannot both be in a file. The export keeps the first one, leaves out the other one, and shows a banner with its name. Move the chapter, then export again.
+- Podcast apps read different parts. Pocket Casts shows the title, the link, and the image in both formats. Overcast shows the images and the links of AAC chapters. Apple Podcasts reads the chapters of both formats. QuickTime Player and Music show no link.
+
 If an audio file of the session is missing or cannot be read, Dirigible shows its name before the export. Its clips export as silence. Click **Export** to go on, or click **Cancel**. After the export, an alert names the files, and with a **Loudness** target it also shows the result.
 
 ### Export the chapters
 
-Choose **File > Export Chapters** (Option-Command-E) to write the chapters to a file for your podcast host. The file is in the Podcasting 2.0 JSON Chapters 1.2.0 format, with the time and the title of each chapter. The default name is the session name with `.chapters.json`.
+Choose **File > Export Chapters** (Option-Command-E) to write the chapters to a file for your podcast host. The file is in the Podcasting 2.0 JSON Chapters 1.2.0 format, with the time, the title, the link, and the image of each chapter. The default name is the session name with `.chapters.json`.
 
 - The range is the range of the export. When **Export Selection** is on, it is the selection, and the save panel says that the chapter times start at the in point. Else it is the whole session.
 - The times start at 0 at the start of the range. If your host needs a first chapter at 0, put a chapter at the start of the range: the in point with **Export Selection**, else the session start.
 - The file has only the chapters, not the markers. A chapter at or after the end of the audio is not in the file. When the range has no chapter, the item is off.
-- Upload the file to a host that reads Podcasting 2.0 chapters. Not every host does.
+- Dirigible writes each chapter image beside the JSON file, with the name of the JSON file, a hyphen, and the place of the chapter in the file: for example `Episode.chapters-2.jpg`. The JSON file gives this name as the image of the chapter. When a file with one of these names exists, Dirigible writes nothing and shows an alert.
+- Two chapters at the same time, to the millisecond, cannot both be in the file. The export keeps the first one and shows a banner with the name of the other one.
+- Upload the file to a host that reads Podcasting 2.0 chapters. Not every host does. Upload the images to the same folder, or change each image name in the file to the web address of the image.
 
 ### Add the episode details
 
@@ -563,7 +585,7 @@ The **Markers** menu (**Marcadores**).
 |---|---|---|
 | **Add Marker** | **Añadir marcador** | Command-Return |
 | **Add Chapter** | **Añadir capítulo** | Shift-Command-Return |
-| **Rename Marker** | **Renombrar marcador** | Shift-Return |
+| **Marker Info** | **Información del marcador** | Shift-Return |
 | **Move Marker to Playhead** | **Mover marcador al cursor** | Option-Command-Return |
 | **Delete Marker** | **Eliminar marcador** | Command-Delete |
 | **Previous Marker** | **Marcador anterior** | Page Up |

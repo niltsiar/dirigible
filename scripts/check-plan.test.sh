@@ -6,7 +6,7 @@
 # research.md, and exits 0 for a good folder, a routed research file, a user row answered with a
 # default, a nit tagged no behavior change, a nit that is not taken, and an old review file.
 # Check the ## Plan gate changes section of plan.md: each item has a Criteria: field, and each
-# criterion ID of a field has a criterion change row before the first phase 4 row.
+# criterion ID of a field has a criterion change row from Phase 4 on.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -239,6 +239,7 @@ pass 'a missing criterion change row before Phase 4'
 export CHECK_PLAN_AT_PHASE4=1
 refuse 'a criterion with no criterion change row' 'criterion C3b of a plan gate change has no criterion change row'
 refuse 'the refusal says to edit analysis.md first' 'edit analysis.md first'
+refuse 'with no phase 4 row, the refusal says before Phase 4' 'criterion change row before Phase 4;'
 row 3 'Criterion change C3: old a, new b'
 refuse 'a row for C3 does not count for C3b' 'criterion C3b of a plan gate change has no criterion change row'
 row 3 'criterion change C3b: old a, new b'
@@ -248,8 +249,11 @@ row 4 'Slice S1 committed'
 pass 'each criterion has a row before the first phase 4 row'
 gate $'1. S2: a new case. Criteria: C1'
 row 4 'Slice S1 committed'
+refuse 'after a phase 4 row, the refusal does not say before Phase 4' 'criterion C1 of a plan gate change has no criterion change row; edit'
+# A change of the code gate adds an item after Phase 4 starts. log-decision.sh refused the first
+# phase 4 row while an earlier item had no row, so a row at any position counts here.
 row 3 'criterion change C1: old a, new b'
-refuse 'a criterion change row after the first phase 4 row' 'criterion C1 of a plan gate change has no criterion change row before the first phase 4 row'
+pass 'a late item with its criterion change row after the first phase 4 row'
 gate $'1. S2: a new case. Criteria: C1'
 row 3 'criterion change C12: old a, new b'
 row 4 'Slice S1 committed'

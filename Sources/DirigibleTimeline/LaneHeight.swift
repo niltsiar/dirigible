@@ -8,10 +8,10 @@ public enum LaneHeight: Equatable, Sendable {
     /// Q9: 200 pt keeps the 0022 surface memory at about 93 MB.
     public static let steps: [Double] = [40, 50, 60, 80, 100, 120, 160, 200]
 
-    /// Automatic: the free height over the tracks, 40 to 120 pt, rounded down to whole points.
+    /// Automatic: the free height over the tracks, 40 to 200 pt, rounded down to whole points.
     public func points(free: Double, tracks: Int) -> Double {
         switch self {
-        case .automatic: min(120, max(40, (free / Double(max(1, tracks))).rounded(.down)))
+        case .automatic: min(200, max(40, (free / Double(max(1, tracks))).rounded(.down)))
         case .fixed(let points): points
         }
     }

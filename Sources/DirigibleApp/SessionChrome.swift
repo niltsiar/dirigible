@@ -198,10 +198,11 @@ import Observation
         item.target = self
         item.action = #selector(runItem(_:))
         if id.isToggle {
-            let button = NSButton(image: toggleImage(id, image), target: self, action: #selector(runItem(_:)))
-            button.setButtonType(.pushOnPushOff)
-            button.bezelStyle = .toolbar
-            button.identifier = NSUserInterfaceItemIdentifier(id.rawValue)
+            let button = Self.toggleButton(id)
+            button.target = self
+            button.action = #selector(runItem(_:))
+            // One width for the push-on items: their symbols gave 40 to 51 pt (ui-polish-chrome U5).
+            button.widthAnchor.constraint(equalToConstant: Self.toggleWidth).isActive = true
             item.view = button
             // AppKit gives the overflow menu item of a view item no state (probe P4).
             let menuItem = NSMenuItem(title: id.label.text, action: #selector(runItem(_:)), keyEquivalent: "")
@@ -216,9 +217,24 @@ import Observation
         return item
     }
 
+    /// The button of a push-on item, with no target.
+    private static func toggleButton(_ id: ToolbarItemID) -> NSButton {
+        let image = id.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: id.label.text) }
+        let button = NSButton(image: toggleImage(id, image), target: nil, action: nil)
+        button.setButtonType(.pushOnPushOff)
+        button.bezelStyle = .toolbar
+        button.identifier = NSUserInterfaceItemIdentifier(id.rawValue)
+        return button
+    }
+
+    /// The widest fitting width of the push-on items, computed once.
+    private static let toggleWidth =
+        ToolbarItemID.allCases.filter(\.isToggle)
+        .map { toggleButton($0).fittingSize.width }.max() ?? 0
+
     /// Record keeps its red in the toolbar, the overflow menu, and the palette: a palette
     /// configuration makes the symbol a color image, not a template.
-    private func toggleImage(_ id: ToolbarItemID, _ image: NSImage?) -> NSImage {
+    private static func toggleImage(_ id: ToolbarItemID, _ image: NSImage?) -> NSImage {
         let image = image ?? NSImage()
         guard id == .record else { return image }
         return image.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed])) ?? image

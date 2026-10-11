@@ -66,7 +66,6 @@ extension HeaderRowTests {
         #expect(model.headerRuns.rows <= Self.mainTickRows, "row bodies over 60 ticks: \(model.headerRuns.rows)")
         // The take form reads the transport, not the level reports: no header body at a tick.
         #expect(model.headerRuns.headers == 0, "header bodies over 60 ticks: \(model.headerRuns.headers)")
-        print("HEADER TICK ROWS", model.headerRuns.rows)
         window.close()
         studio.transport = .idle
         await model.close()

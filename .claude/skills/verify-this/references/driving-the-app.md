@@ -6,7 +6,7 @@
 - A check that writes preferences or a recent list, or answers a privacy prompt, runs on the verify copy. Run `make app`, then `scripts/verify-copy.sh start` and `doctor`, then `ax` and `prompt Allow`, then `stop`. Press the prompt by name, never with `hid.swift`.
 - `scripts/screenshots.sh` writes `docs/images` and the preferences of the real app, so it is not a check.
 - For a light or a Spanish capture on a Mac in Dark Mode or in English, pass launch arguments (`open -a "$PWD/build/Dirigible.app" <package> --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(es)"`); do not write user defaults.
-- The speakers are real. For a play-only check, mute each track before the launch with the CLI on a copy of the fixture (`dirigible track mute <package> <track>`: no HID, no undo entry), and again after an import. For a check that needs signal (export, loudness, meter), set a low gain with `dirigible track gain` and do not mute.
+- The speakers are real. Before a play-only check, mute each track of a fixture copy with `dirigible track mute <package> <track>` (no HID, no undo entry), also after an import. A check that needs signal (export, loudness, meter) sets a low `dirigible track gain` and does not mute.
 
 ## Capture
 
@@ -19,10 +19,10 @@
 
 ## Drive and inspect
 
-- To drive the app, run `scripts/hid.swift` (`drag <x> <y> <dx> <dy>` takes a start point and an offset, not an end point: `drag 100 50 -20 0` ends at 80, 50, and `--dry-run` prints the end; a drag with `--no-up` and then `up` (at the pointer) or `up <x> <y>` in window points, `click <x> <y>` with `--right` or `--double`, Esc, Cmd-Z with `key 6 --command`, `--shift` and `--option`, a trackpad scroll with `scroll ... --phases`).
+- To drive the app, run `scripts/hid.swift` (`drag <x> <y> <dx> <dy>` (an offset; `--dry-run` prints the end), a drag with `--no-up` and then `up` (at the pointer) or `up <x> <y>` in window points, `click <x> <y>` with `--right` or `--double`, Esc, Cmd-Z with `key 6 --command`, `--shift` and `--option`, a trackpad scroll with `scroll ... --phases`).
 - Send keys and text only through `hid.swift` (`key`, `type <text>`), never `osascript` keystroke or key code. It refuses (exit 4) when the app is not frontmost and releases each modifier key it presses.
 - Walk the accessibility tree of the built app with `scripts/ax.swift` down to each new control: a test that calls the accessibility methods of an element does not prove that VoiceOver reaches it.
-- Drive a setup step with `press` of a menu path that `ax.swift dump` shows (`press "File > Open Recent > Clear Menu"`), not with a key, a title alone, or a toolbar point; `--role AXMenuBarItem` opens a menu.
+- Drive a setup step with `press` of a menu path from `ax.swift dump` (`press "File > Open Recent > Clear Menu"`), not with a key, a title alone, or a toolbar point; `--role AXMenuBarItem` opens a menu.
 - `swift scripts/ax.swift` compiles on each call: for a poll, compile it once with `swiftc -O scripts/ax.swift -o <scratchpad>/ax`. On the verify copy, set `DIRIGIBLE_BUNDLE_ID="$(<worktree>/scripts/verify-copy.sh id)"` (an absolute path) for `ax.swift` and `hid.swift`.
 - A claim that something does not happen, from a poll, states the largest gap between samples around each event. An effect shorter than that gap is not tested.
 - For a menu claim, run `scripts/ax.swift dump` per UI language (`-AppleLanguages "(es)"`) before and in each new state; compare the key and `Enabled=`. In a transient state, add `--witness <text>`, a text of only that state (progress `Value=0.`); exit 1 (no witness line) voids the dump: read again.

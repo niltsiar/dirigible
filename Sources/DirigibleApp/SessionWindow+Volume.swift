@@ -15,8 +15,10 @@ extension SessionWindow {
     /// The fader mouse-up: one edit with `dB`, then the end of the preview, so a later edit or
     /// an undo plays the session gain. Returns true for an edit.
     @discardableResult func commitVolume(_ dB: Double, track: TrackID) -> Bool {
+        // The defer comes before the guard, so no return keeps the preview. A drag value is
+        // always in `Gain.range`, so no test reaches the guard.
+        defer { studio?.endPreview() }
         guard let studio, let gain = Gain(dB: dB) else { return false }
-        defer { studio.endPreview() }
         let changed = studio.session.track(track).map { $0.gain != gain } ?? false
         return changed && edit({ session throws(SessionError) in try session.setGain(gain, track: track) }) != nil
     }

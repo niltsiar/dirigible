@@ -111,8 +111,12 @@ import Testing
                         #expect(Self.bands(orange) == 1, "one line of state text: \(label)")
                         #expect(!orange.suffix(4).contains(true), "no orange in the last 2 pt of the row: \(label)")
                         let privacy = try #require(Self.lowestButton(host, lane: lane), "a button on line 3: \(label)")
+                        // The route menu is the highest route-kind host of row 1; the button is under it.
+                        let menus = header.controls(host, in: host).filter { $0.kind == "route" }.map(\.frame)
+                        let row = menus.filter { $0.midY > lane && $0.midY < 2 * lane }
+                        let route = try #require(row.min { $0.minY < $1.minY }).maxY
                         #expect(
-                            privacy.minY > lane + lane / 2 && privacy.minX >= 8 && privacy.maxX <= width - 8,
+                            privacy.minY >= route && privacy.minX >= 8 && privacy.maxX <= width - 8,
                             "the Privacy button is on line 3, inside the row: \(label): \(privacy)")
                         window.close()
                     }

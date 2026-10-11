@@ -33,7 +33,7 @@ Deliver Phase 2 says which guards get controls. The docstring of `.claude/skills
 ## When no test fails
 
 - Another mechanism can hide the planned mutation. If no test fails, also with `DIRIGIBLE_SLOW_TESTS=1`, record a `decisions.tsv` row with the result `survived`, and do not pass the item to the code gate. Write a test that reaches the guard past the other mechanism, or remove the guard.
-- When the other mechanism exists only in the test process (Return reaches a list action there that a real Return does not), retire the control with that reason in `decisions.tsv` and prove the path on the built app. Never change a product mechanism only so that a control can kill it: a row gesture added for a control broke single-click select.
+- When the other mechanism exists only in the test process (Return reaches a list action there that a real Return does not), retire the control with that reason in `decisions.tsv` and prove the path on the built app. Never change a product mechanism only so that a control can kill it.
 - A mutation that does not reproduce the failure is a finding: record it, then find the mutation that does.
 - When no caller can reach the mutated behavior, the mutant is equivalent. Record the caller reason in `decisions.tsv`, and stop. A probe that measured one effect of the mutant is not a caller reason.
 - A surviving mutant that moves framework setup (a value set before or after an object takes ownership) stays on the replay list. Check it first when a check of the built app finds a defect.

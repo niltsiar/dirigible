@@ -11,10 +11,10 @@
 #   plan.md, so the plan routes the findings before the build (check-governance.sh checks the copy
 #   at the land). A bare research.md is refused: the land check reads only research-<name>.md.
 # - Each item (a line that starts with `- ` or `<n>. `) of a plan.md section whose heading starts
-#   with `## Plan gate changes` has a `Criteria:` field: the criterion IDs that the change moves,
-#   separated by commas (an ID is capitals, digits, and an optional lower-case suffix: C3b), or
+#   with `## Plan gate changes` or `## Plan gate <n> changes` has a `Criteria:` field: the
+#   criterion IDs that the change moves, separated by commas (an ID is capitals, digits, and an optional lower-case suffix: C3b), or
 #   `none`. From the start of Phase 4 (a phase 4 row in decisions.tsv, or CHECK_PLAN_AT_PHASE4=1,
-#   which log-decision.sh sets before the first phase 4 row), each ID needs a decisions.tsv row
+#   which log-decision.sh sets before each phase 4 row), each ID needs a decisions.tsv row
 #   before the first phase 4 row whose decision starts with `criterion change` and names the ID as
 #   a whole word. A plan gate change that moves a criterion gets its row while a fix is still
 #   possible: decisions.tsv is append-only, and a row after Phase 4 starts is late.
@@ -81,7 +81,7 @@ else
             }
             item = 0
         }
-        /^## / { close_item(); inside = ($0 ~ /^## Plan gate changes/); next }
+        /^## / { close_item(); inside = ($0 ~ /^## Plan gate( [0-9]+)? changes/); next }
         !inside { next }
         /^(- |[0-9]+\. )/ { close_item(); item = ++n; text = $0; next }
         item { text = text "\n" $0 }
@@ -98,7 +98,7 @@ else
                 found = 0
                 for (k = 1; k <= m; k++) if (changes[k] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) found = 1
                 if (!found)
-                    print "plan.md: criterion " id " of a plan gate change has no criterion change row before the first phase 4 row; log it first: .claude/skills/deliver/scripts/log-decision.sh " run " 3 \"criterion change " id ": old ..., new ...\" <why> <evidence> <result>"
+                    print "plan.md: criterion " id " of a plan gate change has no criterion change row before the first phase 4 row; edit analysis.md first, then log it: .claude/skills/deliver/scripts/log-decision.sh " run " 3 \"criterion change " id ": old ..., new ...\" <why> <evidence> <result>"
             }
         }' "$run/plan.md")
     for research in "$run"/research*.md; do

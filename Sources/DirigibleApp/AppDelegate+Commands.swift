@@ -24,6 +24,8 @@ extension AppDelegate {
 
     func toggleSnap(event: NSEvent?, in keyWindow: NSWindow?) {
         if let event, forwardTypingKey(event, in: keyWindow) { return }
+        // A held N toggles once, not at each key repeat.
+        if let event, event.type == .keyDown, event.isARepeat { return }
         snaps.toggle()
         // A drag takes the new state at once, with no mouse move, as at a Command change.
         key?.timelineView?.resendDrag()

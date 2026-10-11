@@ -237,7 +237,7 @@ struct ChromeState: Equatable {
         if playing { on.insert(.play) }
         if model.monitoring { on.insert(.monitor) }
         if model.showsInspector { on.insert(.inspector) }
-        if model.app?.snaps == true { on.insert(.snap) }
+        if model.snaps { on.insert(.snap) }
         // During a take the disk watch gives the time left; before it, the idle read of the
         // armed tracks with a route.
         let left = recording ? studio.recordTimeLeft : model.armedWithRoute.isEmpty ? nil : model.idleRecordTimeLeft

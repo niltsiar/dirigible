@@ -136,6 +136,31 @@ import Testing
         await model.close()
     }
 
+    /// Code gate item 3: a new target 8 pt away plays the haptic again. A snapped drag event renders
+    /// the lanes once, and none when the clip stays on its target (the snap benches are not in the
+    /// push check).
+    @Test func aNewTargetPlaysTheHapticAndEachSnappedEventDrawsOnce() async throws {
+        let (model, studio, window, view) = try await lanes()
+        let marker = Frames(308 * 512)
+        try studio.edit { s throws(SessionError) in
+            try s.setMarker(Marker(id: "m", name: "M", position: marker, kind: .marker))
+        }
+        view.update(laneInputs(model, studio))
+        drawNow(window)
+        var plays = 0
+        view.lanes.guide.feedback = { plays += 1 }
+        try event(.leftMouseDown, 100, in: view)
+        for (x, expected, count, renders) in [(397.0, Self.target, 1, 1), (405, marker, 2, 1), (406, marker, 2, 0)] {
+            let draws = view.lanes.draws
+            try event(.leftMouseDragged, x, in: view)
+            drawNow(window)
+            #expect(start(view) == expected && plays == count, "x \(x)")
+            #expect(view.lanes.draws == draws + renders, "x \(x): \(renders) render")
+        }
+        try event(.leftMouseUp, 406, in: view)
+        await model.close()
+    }
+
     /// C9: the haptic plays once at each change from not snapped to snapped.
     @Test func theHapticPlaysOncePerSnap() async throws {
         let (model, _, _, view) = try await lanes()
@@ -182,7 +207,7 @@ import Testing
         app.key = model
         #expect(ChromeState(model: model).on.contains(.snap) && ChromeState(model: model).enabled.contains(.snap))
         app.toggleSnap(event: nil, in: nil)
-        #expect(!app.snaps && !ChromeState(model: model).on.contains(.snap), "the menu path")
+        #expect(!app.snaps && !model.snaps && !ChromeState(model: model).on.contains(.snap), "the menu path")
         model.leafCalls = []
         model.run(.toggleSnap)
         #expect(app.snaps && model.leafCalls == ["toggleSnap"], "the toolbar path")
@@ -206,5 +231,16 @@ import Testing
         app.toggleSnap(event: key(.keyDown, "n", code: 45, in: window), in: window)
         #expect(field.stringValue == (focus ? "n" : ""))
         #expect(app.snaps == focus)
+    }
+
+    /// Code gate item 1: a held N toggles once; the key repeats do nothing.
+    @Test func aHeldNTogglesOnce() throws {
+        let app = AppDelegate(recordings: nil)
+        let window = UndoRoutingWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: [.titled], backing: .buffered,
+            defer: false)
+        app.toggleSnap(event: key(.keyDown, "n", code: 45, in: window), in: window)
+        for _ in 0..<3 { app.toggleSnap(event: key(.keyDown, "n", code: 45, repeat: true, in: window), in: window) }
+        #expect(!app.snaps)
     }
 }

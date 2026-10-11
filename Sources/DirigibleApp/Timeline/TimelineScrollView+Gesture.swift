@@ -26,7 +26,7 @@ extension TimelineScrollView {
             canEdit: model.canEdit,
             canRipple: studio.canRipple)
         context.columnsPerPoint = Double(window?.backingScaleFactor ?? 2)
-        context.snaps = model.app?.snaps != false && !lanes.commandHeld
+        context.snaps = model.snaps && !lanes.commandHeld
         return context
     }
 }

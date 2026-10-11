@@ -2,7 +2,7 @@ import AppKit
 
 /// The snap guide (snap run, decision 0020): a yellow line over the lanes at the target of a snap.
 /// It is a layer like the playhead, so it never changes a lane pixel. Each change from hidden to
-/// shown plays the alignment haptic once (a Force Touch trackpad only).
+/// shown, or to a new target, plays the alignment haptic once (a Force Touch trackpad only).
 final class GuideLayer: CALayer {
     /// The haptic of a snap; a test counts the calls.
     var feedback: @MainActor () -> Void = {
@@ -30,7 +30,7 @@ final class GuideLayer: CALayer {
             isHidden = true
             return
         }
-        if isHidden { feedback() }
+        if isHidden || position.x != x { feedback() }
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
         position = CGPoint(x: x, y: height / 2)
         isHidden = false

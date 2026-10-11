@@ -209,6 +209,8 @@ import Testing
     /// from the front only the rects that the 3 commits after its surface drew (the 3 events before
     /// it), never the lanes in view. With 4 slots the pick is 4 commits old.
     @Test func aDragEventCopiesOnlyTheRectsOfTheLaterCommits() async throws {
+        // Each event must move the clip by 1 pt: snap off, so no event stops at a clip edge.
+        app.snaps = false
         let (model, studio, window, view) = try await lanes()
         model.timeline.scale = TimelineScale(framesPerPoint: 512)
         view.update(inputs(model, studio))

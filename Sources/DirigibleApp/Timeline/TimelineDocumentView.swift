@@ -16,6 +16,8 @@ private let drawLog = Logger(subsystem: "com.delineas.dirigible", category: "tim
 /// playhead is a layer that moves with no redraw.
 final class TimelineDocumentView: NSView {
     let playhead = CALayer()
+    /// The snap guide (snap run).
+    let guide = GuideLayer()
     /// The value of a gain or fade-handle drag at the pointer (run 11b-1).
     let readout = ReadoutLayer()
     /// The live take comes from here at each draw (`LiveLanes`). Weak, as in the scroll view.
@@ -146,6 +148,7 @@ final class TimelineDocumentView: NSView {
         playhead.zPosition = 10
         playhead.actions = ["position": NSNull(), "bounds": NSNull()]
         layer?.addSublayer(playhead)
+        layer?.addSublayer(guide)
         readout.zPosition = 20
         layer?.addSublayer(readout)
         setAccessibilityElement(true)
@@ -210,6 +213,13 @@ final class TimelineDocumentView: NSView {
     /// Moves the playhead line to `frame`, with no redraw of the lanes.
     func movePlayhead(to frame: Double) {
         playhead.position = CGPoint(x: frame / framesPerPoint, y: bounds.height / 2)
+    }
+
+    /// The snap guide at `frame` with the width rule of the playhead; nil hides it (snap run).
+    func showGuide(_ frame: Frames?) {
+        guide.show(
+            at: frame.map { Double($0.count) / framesPerPoint }, width: increasesContrast ? 2 : 1,
+            height: bounds.height)
     }
 
     /// The box of a clip in the document view: the box of `LaneGeometry` (decision 0020).
@@ -311,6 +321,7 @@ final class TimelineDocumentView: NSView {
         guard !event.modifierFlags.contains(.control) else { return }
         window?.makeFirstResponder(self)
         let flags = event.modifierFlags
+        commandHeld = flags.contains(.command)
         scrollView?.mouse(
             .down(
                 place(event), shift: flags.contains(.shift), command: flags.contains(.command),
@@ -319,6 +330,7 @@ final class TimelineDocumentView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        commandHeld = event.modifierFlags.contains(.command)
         scrollView?.mouse(.drag(place(event)))
         scrollView?.dragPointer = (event.locationInWindow, ruler: false)
         showCursor(event)
@@ -355,7 +367,16 @@ final class TimelineDocumentView: NSView {
     override func flagsChanged(with event: NSEvent) {
         super.flagsChanged(with: event)
         if let hoverPlace { showCursor(at: hoverPlace, option: event.modifierFlags.contains(.option)) }
+        // A Command change during a drag turns snap off or on at once, with no mouse move.
+        let command = event.modifierFlags.contains(.command)
+        if command != commandHeld {
+            commandHeld = command
+            scrollView?.resendDrag()
+        }
     }
+
+    /// Command at the last mouse or modifier event: a drag with Command does not snap (snap run).
+    private(set) var commandHeld = false
 
     private func showCursor(_ event: NSEvent) {
         showCursor(at: place(event), option: modifierFlags().contains(.option))
@@ -366,24 +387,5 @@ final class TimelineDocumentView: NSView {
         guard let kind = scrollView?.cursor(at: place, option: option) else { return }
         shownCursor = kind
         NSCursor.timeline(kind).set()
-    }
-}
-
-extension LanePalette {
-    /// The palette of `appearance`: the appearance and the accent resolve together. The outline of
-    /// a selected clip is the accent in both appearances (decision 0038).
-    static func pick(for appearance: NSAppearance) -> LanePalette {
-        var picked = LanePalette.light
-        appearance.performAsCurrentDrawingAppearance {
-            guard let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) else { return }
-            func channel(_ value: CGFloat) -> UInt32 { UInt32((value * 255).rounded()) }
-            let pixel =
-                0xFF00_0000 | channel(accent.redComponent) << 16 | channel(accent.greenComponent) << 8
-                | channel(accent.blueComponent)
-            picked =
-                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-                ? .dark(accent: pixel) : .light(accent: pixel)
-        }
-        return picked
     }
 }

@@ -124,6 +124,13 @@ extension TimelineScrollView {
         scroll(toFrame: target)
         // Also after a real drag event: the preview of the frame is at the pointer after the
         // scroll, so the mouse-up drops the clip where the frame showed it (code gate 2 item 2).
+        resendDrag()
+    }
+
+    /// The drag again at the held window point: an autoscroll tick, a Command key change, or the
+    /// N key during a gesture (snap run).
+    func resendDrag() {
+        guard gesture.isActive, let pointer = dragPointer else { return }
         let point = lanes.convert(pointer.window, from: nil)
         let y = pointer.ruler ? Double(ruler.convert(pointer.window, from: nil).y) : Double(point.y)
         mouse(.drag(pointer.ruler ? .ruler(x: Double(point.x), y: y) : .lanes(x: Double(point.x), y: y)))

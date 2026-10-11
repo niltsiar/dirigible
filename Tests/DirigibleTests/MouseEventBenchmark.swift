@@ -89,6 +89,8 @@ func expectWithinBudget(
         _ session: Session, _ peaks: [FileID: PeakState], framesPerPoint: Double, app: AppDelegate, folder: URL,
         laneHeight: Double = 100
     ) async throws -> (NSWindow, TimelineScrollView, SessionWindow, LaneInputs) {
+        // The paths of these benches run with snap off; MouseEventSnapBenchmark has the snap paths.
+        app.snaps = false
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder, tracks: 1, seconds: 1), app: app)
         let url = studio.url

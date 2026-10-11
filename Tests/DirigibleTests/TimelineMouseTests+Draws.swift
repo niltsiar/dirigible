@@ -77,6 +77,8 @@ extension TimelineMouseTests {
     /// drag events of each kind draws the lanes exactly once and changes a drawn input.
     @Test(arguments: DragKind.allCases)
     func eachDragEventDrawsTheLanesOnce(kind: DragKind) async throws {
+        // The drags of the benches run with snap off; MouseEventSnapBenchmark has the snap paths.
+        app.snaps = false
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 3, seconds: 20), app: app)
         try studio.edit { s throws(SessionError) in

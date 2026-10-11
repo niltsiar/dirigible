@@ -21,6 +21,10 @@ import UniformTypeIdentifiers
     static let recentLimit = 10
     /// The folder of new sessions that the user chose with Change…, a `String` absolute path.
     static let folderKey = "session.folder"
+    /// View > Snap (snap run): one value for all windows, kept in the app preferences. On when
+    /// no value is stored.
+    var snaps: Bool { didSet { defaults?.set(snaps, forKey: Self.snapKey) } }
+    static let snapKey = "timeline.snaps"
 
     @ObservationIgnored let recordings: ActiveRecordings?
     /// The peak cache folder of every studio (decision 0017). Nil: no peaks (tests).
@@ -121,6 +125,7 @@ import UniformTypeIdentifiers
         self.defaultFolder = defaultFolder
         self.peakCache = peakCache
         self.defaults = defaults
+        snaps = defaults?.object(forKey: Self.snapKey) as? Bool ?? true
         // Only absolute paths, as for the folder preference. The hint reads no file.
         recent = (defaults?.stringArray(forKey: Self.recentKey) ?? []).filter { $0.hasPrefix("/") }.map {
             URL(fileURLWithPath: $0, isDirectory: true)

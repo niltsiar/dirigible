@@ -231,6 +231,8 @@ public struct TimelineGesture: Sendable {
             switch state {
             case .moving, .grouping, .trimming, .gaining, .fading, .crossfading, .markerDrag: state = .dropped
             case .pressed(let press) where press.target.edits: state = .idle
+            // An undo or a take changes the clip edges: the range drag snaps to the new session.
+            case .ranging(let press, _, _): state = rangeState(press, context)
             default: break
             }
             return []
@@ -340,8 +342,12 @@ public struct TimelineGesture: Sendable {
             }
             var preview = press.base
             // `trimLimits` keeps every range inside the neighbors and the file, so no input reaches a
-            // throw. A throw keeps the last preview (decision 0020).
-            guard (try? preview.trim(trim.clip.id, to: range)) != nil else { return [] }
+            // throw. A throw keeps the last preview (decision 0020) with no guide.
+            guard (try? preview.trim(trim.clip.id, to: range)) != nil else {
+                trim.guide = nil
+                state = .trimming(press, trim)
+                return []
+            }
             (trim.range, trim.preview) = (range, preview)
             state = .trimming(press, trim)
             return []

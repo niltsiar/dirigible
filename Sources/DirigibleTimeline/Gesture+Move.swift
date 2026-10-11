@@ -77,8 +77,12 @@ extension TimelineGesture {
         }
         var preview = base
         // The clamps and the layout check run first, so no gesture input reaches a throw. A throw
-        // keeps the last preview (decision 0020).
-        guard (try? preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta)) != nil else { return [] }
+        // keeps the last preview (decision 0020) with no guide: its edge can be off the target.
+        guard (try? preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta)) != nil else {
+            group.guide = nil
+            state = .grouping(press, group)
+            return []
+        }
         (group.offset, group.lanes, group.preview) = (offset, delta, preview)
         state = .grouping(press, group)
         return []
@@ -120,8 +124,12 @@ extension TimelineGesture {
         }
         var preview = base
         // No gesture input reaches a throw (the clamp and the layout check run first). A throw
-        // keeps the last preview (decision 0020).
-        guard (try? preview.move(move.clip.id, to: track, start: start)) != nil else { return [] }
+        // keeps the last preview (decision 0020) with no guide: its edge can be off the target.
+        guard (try? preview.move(move.clip.id, to: track, start: start)) != nil else {
+            move.guide = nil
+            state = .moving(press, move)
+            return []
+        }
         (move.track, move.start, move.preview) = (track, start, preview)
         state = .moving(press, move)
         return []

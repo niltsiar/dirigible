@@ -120,9 +120,9 @@ extension TimelineGesture {
         }
     }
 
-    /// A range drag with the snap targets of the session at the down.
+    /// A range drag with the snap targets of the session at the down, or after a session change.
     func rangeState(_ press: Press, _ context: GestureContext) -> State {
-        .ranging(press, Snap(press.base, geometry: context.geometry), guide: nil)
+        .ranging(press, Snap(context.session, geometry: context.geometry), guide: nil)
     }
 
     /// A range drag event. The pointer end snaps after 3 pt of horizontal movement from the press,
@@ -132,13 +132,11 @@ extension TimelineGesture {
         -> [GestureEffect]
     {
         let geometry = context.geometry
-        var end = geometry.frame(at: x)
-        var guide: Frames?
-        if context.snaps, abs(x - press.x) >= Self.threshold,
-            let shifted = snap.shift([end], playhead: context.playhead)
-        {
-            (end, guide) = (shifted.target, shifted.target)
-        }
+        let raw = geometry.frame(at: x)
+        // Under the threshold the delta is zero, so Snap.snapped keeps the raw end.
+        let moved = abs(x - press.x) >= Self.threshold ? raw - press.frame : .zero
+        let (delta, guide) = Snap.snapped(snap, moved, [press.frame], context)
+        let end = moved == .zero ? raw : press.frame + delta
         state = .ranging(press, snap, guide: guide)
         let drag = Marks.drag(
             from: press.frame, to: end, lanes: (geometry.lane(at: press.y), geometry.lane(at: y)), in: context.session)

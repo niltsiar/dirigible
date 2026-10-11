@@ -84,7 +84,7 @@ extension InspectorTests {
         model.toggleInspector()
         try await Task.sleep(for: .milliseconds(100))
         #expect(Double(window.contentLayoutRect.width) == 1180, "a wide window keeps its width")
-        await until("the lanes give 270 pt") { layout(window) == wide - InspectorView.width }
+        await until("the lanes give 270 pt") { layout(window) == wide - InspectorWidth.standard.points }
         // The ruler base line must not draw past the lanes into the pane (on-screen check).
         #expect(window.contentView.flatMap(scrollView)?.ruler.clipsToBounds == true, "the ruler clips")
         await model.close()

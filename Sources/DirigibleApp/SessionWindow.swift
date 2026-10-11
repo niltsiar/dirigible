@@ -81,6 +81,10 @@ struct ExportReportShown: Equatable {
     var showsLoudness = true
     /// View > Show Inspector (run 11b-2): the app preference at open.
     var showsInspector = false
+    /// The inspector width (decision 0023): the app preference at open, then the handle.
+    var inspectorWidth = InspectorWidth.standard
+    /// The drag of the inspector handle.
+    @ObservationIgnored var inspectorDrag = PaneDrag<InspectorWidth>()
     /// The typed text of the inspector field that no commit has saved yet.
     var inspectorDraft: InspectorDraft?
     /// The inspector field with the focus, from the pane.
@@ -179,6 +183,7 @@ struct ExportReportShown: Equatable {
         self.app = app
         showsLoudness = app.defaults?.object(forKey: Self.loudnessKey) as? Bool ?? true
         showsInspector = app.defaults?.bool(forKey: Self.inspectorKey) ?? false
+        inspectorWidth = InspectorWidth(stored: app.defaults?.object(forKey: InspectorWidth.defaultsKey))
     }
 
     /// The studio of an open window, also while a close waits for it.

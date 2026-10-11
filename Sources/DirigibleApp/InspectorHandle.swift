@@ -73,8 +73,10 @@ extension SessionWindow {
         return true
     }
 
-    /// An AX step of the splitter: the width changes and saves at once.
+    /// An AX step of the splitter: the width changes and saves at once. A step ends a pointer drag
+    /// first, so the later mouse-up does not undo the step.
     func stepInspector(by points: Double) {
+        _ = cancelInspectorDrag()
         setInspectorWidth(InspectorWidth(inspectorWidth.points + points), save: true)
     }
 

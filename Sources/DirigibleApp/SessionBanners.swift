@@ -6,23 +6,33 @@ import SwiftUI
 /// One banner row (decision 0023): a symbol by kind, the text, an opaque 12 % tint of the kind
 /// color over the window background, and a 1 pt separator. No shadow, no material, no animation.
 /// VoiceOver reads the row as one element with the kind word first; its buttons stay separate.
-struct BannerRow: View {
+struct BannerRow<Actions: View>: View {
     let kind: WindowBanner.Kind
     let text: String
+    /// The buttons at the trailing edge, on the tint. They are not in the one element of the text,
+    /// so VoiceOver reaches each button (ui-polish-chrome U9).
+    @ViewBuilder let actions: Actions
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: kind.symbol).foregroundStyle(kind.color)
-            Text(verbatim: text)
+        HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: kind.symbol).foregroundStyle(kind.color)
+                Text(verbatim: text)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: kind.label(text)))
+            actions
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
         .background(kind.color.opacity(0.12))
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay(alignment: .bottom) { Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1) }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: kind.label(text)))
     }
+}
+
+extension BannerRow where Actions == EmptyView {
+    init(kind: WindowBanner.Kind, text: String) { self.init(kind: kind, text: text) { EmptyView() } }
 }
 
 extension WindowBanner.Kind {
@@ -81,23 +91,20 @@ struct TakeBanner: View {
             EmptyView()  // A paste shows its banner after 0.5 s.
         case .importing(let run):
             let text = run.bannerText
-            HStack {
-                BannerRow(kind: .info, text: text)
+            BannerRow(kind: .info, text: text) {
                 // VoiceOver reads the bar with the banner text (ui-panel.md item 7).
                 ProgressView(value: model.importJob?.progress ?? 0).frame(width: 160)
                     .accessibilityLabel(Text(verbatim: text))
                 // Command-period is the Mac key of Cancel; a focused field does not take it.
                 Button(L10n.importCancel.key) { model.cancelImport() }.keyboardShortcut(".", modifiers: .command)
-                    .padding(.trailing)
             }
         case .idle:
             if let pending = studio.pendingTake {
-                HStack {
-                    BannerRow(kind: .warning, text: pendingText(pending.take))
+                BannerRow(kind: .warning, text: pendingText(pending.take)) {
                     if model.canFinishLeavingUnreadable {
                         Button(L10n.menuRecordLeaveUnreadable.key) { Task { await model.finishLeavingUnreadable() } }
                     }
-                    Button(L10n.menuRecordRetry.key) { Task { await model.retry() } }.padding(.trailing)
+                    Button(L10n.menuRecordRetry.key) { Task { await model.retry() } }
                 }
                 .task(id: pending.take) { await model.refreshPendingSpace() }
             } else {

@@ -37,6 +37,25 @@ struct OverviewGeometryTests {
         #expect(Self.strip.viewFrame(Self.view(points: 40)) == Rect(x: 100, y: 0, width: 40, height: 28))
     }
 
+    /// Wider lanes at one zoom show more frames than the session: the drawn frame stays in the strip,
+    /// and the edge zones move to the drawn edge.
+    @Test func theViewFrameStaysInTheStrip() {
+        let wide = Self.view(points: 1600, at: 0)
+        #expect(Self.strip.viewFrame(wide) == Rect(x: 0, y: 0, width: 1440, height: 28))
+        #expect(Self.strip.hit(1438, wide) == .trailingEdge, "the trailing zone is at the strip end")
+        #expect(Self.strip.viewFrame(Self.view(points: 300, at: 1200)) == Rect(x: 1200, y: 0, width: 240, height: 28))
+        let last = Self.view(points: 0.75, at: 1439.25)
+        #expect(Self.strip.viewFrame(last) == Rect(x: 1434, y: 0, width: 6, height: 28), "6 pt on the last page")
+        let first = Self.view(points: 0.75, at: 0)
+        #expect(Self.strip.viewFrame(first) == Rect(x: 0, y: 0, width: 6, height: 28), "6 pt at the start")
+        for points in [0.5, 3, 40, 1439, 1500, 3000] {
+            for x in stride(from: -10.0, through: 1450, by: 7.25) {
+                let frame = Self.strip.viewFrame(Self.view(points: points, at: x))
+                #expect(frame.minX >= 0 && frame.maxX <= 1440 && frame.width >= 6, "\(points) pt at x \(x)")
+            }
+        }
+    }
+
     /// U9: each edge zone takes 3 pt out and 3 pt in, only on a frame of 16 pt or more.
     @Test func theEdgesNeedSixteenPoints() {
         let wide = Self.view(points: 40)

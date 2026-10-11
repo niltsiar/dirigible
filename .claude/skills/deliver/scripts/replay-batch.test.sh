@@ -128,7 +128,8 @@ run 480
 grep -qx "big.log: TOO LONG; run it with run_in_background: $script --timeout 900 $tmp/tree $c 480 $c/big.log" <<<"$out" ||
   fail "TOO LONG: line: $out"
 grep -qx 'replayed 0 of 1; left 0; too long 1; refused 0' <<<"$out" || fail "TOO LONG: count line: $out"
-grep -qx 'ALL DONE' <<<"$out" || fail "TOO LONG: no ALL DONE: $out"
+grep -qx 'ALL DONE' <<<"$out" && fail "TOO LONG: ALL DONE with a TOO LONG log"
+grep -qx 'TOO LONG PENDING: do not build or commit until it ends' <<<"$out" || fail "TOO LONG: no PENDING line: $out"
 # --timeout gives a named log that limit, with no budget and no cap.
 : > "$tmp/calls"
 runf --timeout 900 480 "$c/big.log"
@@ -199,6 +200,24 @@ run 480
 [[ $code -eq 0 && -z "$(calls)" ]] || fail "no killed log: exit $code, calls [$(calls)]: $out"
 grep -q '^replayed 0 of 0; left 0' <<<"$out" || fail "no killed log: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" || fail "no killed log: no ALL DONE: $out"
+
+# Refusals: a tree with changes (a mutant or a TOO LONG run in it), and a live mutate.py lock.
+fresh
+control a killed 100.0
+touch "$tmp/tree/new"
+run 480
+[[ $code -eq 2 && "$out" == *'has changes'* && -z "$(calls)" ]] || fail "dirty tree: exit $code, calls [$(calls)]: $out"
+rm "$tmp/tree/new"
+lock="$(git -C "$tmp/tree" rev-parse --absolute-git-dir)/dirigible-mutate.lock"
+mkdir "$lock" && echo $$ > "$lock/pid"
+run 480
+[[ $code -eq 2 && "$out" == *'mutate.py run holds'* && -z "$(calls)" ]] || fail "live lock: exit $code, calls [$(calls)]: $out"
+sh -c 'exit 0' & dead=$!
+wait "$dead"
+echo "$dead" > "$lock/pid"
+run 480
+[[ "$(calls | cut -d' ' -f1)" == a.log ]] || fail "dead lock: calls [$(calls)]: $out"
+rm -rf "$lock"
 
 # Refusals: a budget over 480, a tree that is not a worktree root, the main checkout.
 fresh

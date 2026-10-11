@@ -4,13 +4,15 @@
 # old/new pairs as one mutant, refuses an old text that is not in the file once, and always
 # restores the file, counts a test past --timeout as a kill, replays a control from its log only
 # with a time limit, reports a run of no test as NO TESTS, applies --in=<file> pairs to a second
-# file, and restores the file on SIGINT, SIGTERM, and SIGHUP, also when killpg raises EPERM. Run by
-# `make test-hooks`.
+# file, restores the file on SIGINT, SIGTERM, and SIGHUP, also when killpg raises EPERM, and in a
+# git tree holds a lock that a second run refuses. Run by `make test-hooks`.
 set -uo pipefail
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+# Outside a git tree: no lock in the git dir of the repo that runs the tests.
+cd "$tmp" || exit 1
 file="$tmp/x.txt"
 printf 'a = 1\nb = 1\n' > "$file"
 before="$(shasum -a 256 "$file")"
@@ -195,6 +197,20 @@ for sig in TERM HUP INT EPERM; do
   ended "$(cat "$tmp/pid")" || { echo "FAIL: the test still runs after SIG$sig"; kill "$(cat "$tmp/pid")"; failures=$((failures + 1)); }
   rm -f "$tmp/pid"
 done
+
+# In a git tree, a run holds a lock in the git dir. A second run refuses while the holder lives; the
+# lock of a dead holder is taken over; the lock is gone after the run.
+git init -q "$tmp/repo"
+lock="$(git -C "$tmp/repo" rev-parse --absolute-git-dir)/dirigible-mutate.lock"
+cd "$tmp/repo" || exit 1
+mkdir "$lock" && echo $$ > "$lock/pid"
+expect '2:mutate' 'a live lock holder' 'a = 1' 'a = 2'
+sh -c 'exit 0' & dead=$!
+wait "$dead"
+echo "$dead" > "$lock/pid"
+expect '0:killed' 'the lock of a dead holder' 'a = 1' 'a = 2'
+[[ ! -e "$lock" ]] || { echo "FAIL: the lock is left after the run"; failures=$((failures + 1)); }
+cd "$tmp" || exit 1
 
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

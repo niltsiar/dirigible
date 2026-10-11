@@ -3,7 +3,8 @@
 # Replay once in Phase 7).
 # Usage: replay-batch.sh [--timeout <seconds>] [--again] [--allow-side-effects] <tree> <controls folder> <budget seconds> [<log>...]
 # - <tree> is the absolute root of the worktree to replay. The script runs there, because a replay
-#   mutates, builds, and tests the tree that it runs in; it refuses the main checkout.
+#   mutates, builds, and tests the tree that it runs in. It refuses the main checkout, a tree
+#   with changes, and a tree whose mutate.py lock a live process holds (an earlier replay runs).
 # - With no <log>, it takes each top-level log of the folder with `# result: killed` (a hang too).
 #   Each replay log goes to <controls>/replay/<name>, the folder that cost.sh and replay-list.sh
 #   read. A replay is done when its log has the result killed, killed (hang), or survived; a done
@@ -22,7 +23,8 @@
 # - --timeout <seconds> gives each log that limit, with no budget, no cap, and no BUDGET stop.
 # - A mutate.py refusal (side effects, a changed old text) prints its message, counts as refused,
 #   and the next log runs. --allow-side-effects goes to mutate.py.
-# - Each call ends with `replayed N of M; left K; too long J; refused R`, and ALL DONE when K is 0.
+# - Each call ends with `replayed N of M; left K; too long J; refused R`. ALL DONE follows when K
+#   and J are 0; with K 0 and J over 0, TOO LONG PENDING follows.
 # replay-batch.test.sh tests it.
 set -uo pipefail
 usage="usage: replay-batch.sh [--timeout <seconds>] [--again] [--allow-side-effects] <tree> <controls folder> <budget seconds, 480 or less> [<log>...]"
@@ -45,6 +47,11 @@ top="$(git -C "$tree" rev-parse --show-toplevel 2>/dev/null)" && [[ "$top" == "$
     { echo "replay-batch: $tree is not the root of a worktree" >&2; exit 2; }
 common="$(git -C "$tree" rev-parse --path-format=absolute --git-common-dir)"
 [[ "$(dirname "$common")" != "$top" ]] || { echo "replay-batch: $tree is the main checkout; replay in the worktree of the run" >&2; exit 2; }
+[[ -z "$(git -C "$top" status --porcelain)" ]] ||
+    { echo "replay-batch: $top has changes; commit them, or wait for the replay that runs there" >&2; exit 2; }
+lock="$(git -C "$top" rev-parse --absolute-git-dir)/dirigible-mutate.lock"
+[[ -d "$lock" ]] && kill -0 "$(cat "$lock/pid" 2>/dev/null)" 2>/dev/null &&
+    { echo "replay-batch: a mutate.py run holds $lock; wait for it to end" >&2; exit 2; }
 cd "$top" || exit 2
 allowance=30
 mkdir -p "$controls/replay"
@@ -63,7 +70,8 @@ count() {
     for log in ${logs[@]+"${logs[@]}"}; do done_log "$controls/replay/$(basename "$log")" && n=$((n + 1)); done
     local left=$(( ${#logs[@]} - n - too_long - refused ))
     echo "replayed $n of ${#logs[@]}; left $left; too long $too_long; refused $refused"
-    [[ $left -gt 0 ]] || echo "ALL DONE"
+    [[ $left -gt 0 ]] && return
+    if [[ $too_long -eq 0 ]]; then echo "ALL DONE"; else echo "TOO LONG PENDING: do not build or commit until it ends"; fi
 }
 
 start="$(date +%s)"

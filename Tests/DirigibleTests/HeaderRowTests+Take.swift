@@ -65,6 +65,8 @@ extension HeaderRowTests {
             drawNow(window)
         }
         #expect(model.headerRuns.rows <= Self.mainTickRows, "row bodies over 60 ticks: \(model.headerRuns.rows)")
+        // The rows still read the level reports, so the meter of a row moves.
+        #expect(model.headerRuns.rows > 0, "no row body over 60 ticks")
         // The take form reads the transport, not the level reports: no header body at a tick.
         #expect(model.headerRuns.headers == 0, "header bodies over 60 ticks: \(model.headerRuns.headers)")
         window.close()

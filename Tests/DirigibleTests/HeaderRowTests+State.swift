@@ -107,6 +107,10 @@ extension HeaderRowTests {
             drawNow(window)
             return model.headerRuns.headers > 0
         }
+        // A row body in a later pass counts too.
+        await runLoopPass()
+        host.layoutSubtreeIfNeeded()
+        drawNow(window)
         #expect(model.headerRuns.rows == 0, "no row body from 100 to 120 pt: \(model.headerRuns.rows)")
         window.close()
         await model.close()

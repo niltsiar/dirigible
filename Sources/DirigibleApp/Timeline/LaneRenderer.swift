@@ -53,16 +53,17 @@ struct LanePalette: Equatable {
         var palette = light
         (palette.lane, palette.clip, palette.peak, palette.rms) = (0xFF1E_1F22, 0xFF2C_3E57, 0xFF6E_9FE0, 0xFFA9_C8F2)
         (palette.missing, palette.missingOutline, palette.label) = (0xFF4A_2427, 0xFFFF_6961, 0xFFE6_E6E6)
-        (palette.liveClip, palette.livePeak, palette.liveRms) = (0xFF57_2C2C, 0xFFE0_6E6E, 0xFFF2_A9A9)
+        (palette.liveClip, palette.livePeak, palette.liveRms) = (0xFF7A_2020, 0xFFE0_6E6E, 0xFFF2_A9A9)
         (palette.accent, palette.outline) = (accent, accent)
         return palette
     }
 
     /// The clip, peak, and RMS colors of the live region while a take records: red, as in
-    /// Hindenburg and Logic (run 2026-10-11-ui-polish-header U4).
-    var liveClip: UInt32 = 0xFFF5_C4C4
-    var livePeak: UInt32 = 0xFFE0_7A7A
-    var liveRms: UInt32 = 0xFF9E_1F1F
+    /// Hindenburg and Logic (run 2026-10-11-ui-polish-header U4). The fill is more saturated than
+    /// the pale missing-media fill, so a take does not look broken (code gate 1 item 2).
+    var liveClip: UInt32 = 0xFFFC_9898
+    var livePeak: UInt32 = 0xFFD0_4848
+    var liveRms: UInt32 = 0xFF7E_1414
 
     /// The palette of the live region while a take records. The finalize draws the normal palette,
     /// so its pixels equal the clips after the hand-off.

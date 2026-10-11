@@ -9,8 +9,10 @@
 #   read. A replay is done when its log has the result killed, killed (hang), or survived; a done
 #   replay is skipped, also for a named log, unless --again is given.
 # - Time: the budget is at most 480 s. Before each log, the time left is the budget minus the time
-#   used minus 120 s for the build (mutate.py gives the build no limit). A log whose header
-#   timeout plus 120 fits the budget runs only with its full header timeout; when that is over the
+#   used minus the build allowance (mutate.py gives the build no limit): twice the build time of
+#   the last replay log (its `Build complete! (<n>s)` line), and 30 s or more. One incremental
+#   build after a one-line Sources/ mutation took 13 s. A log whose header timeout plus the
+#   allowance fits the budget runs only with its full header timeout; when that is over the
 #   time left, the script prints BUDGET and stops, and a fresh call runs it. A log that cannot fit
 #   (or has no `# timeout:` line) runs once, capped at the time left (60 s or more, else BUDGET).
 #   A capped `killed (hang)` or `WRONG FAILURE` can come from the cap, so it is not done: its log
@@ -44,7 +46,7 @@ top="$(git -C "$tree" rev-parse --show-toplevel 2>/dev/null)" && [[ "$top" == "$
 common="$(git -C "$tree" rev-parse --path-format=absolute --git-common-dir)"
 [[ "$(dirname "$common")" != "$top" ]] || { echo "replay-batch: $tree is the main checkout; replay in the worktree of the run" >&2; exit 2; }
 cd "$top" || exit 2
-allowance=120
+allowance=30
 mkdir -p "$controls/replay"
 
 logs=("$@")
@@ -87,6 +89,8 @@ for log in ${logs[@]+"${logs[@]}"}; do
         t=$left capped=1
     fi
     result="$(python3 -I "$mutate" --timeout "$t" $allow --replay "$log" "$out" 2>&1)"
+    b="$(sed -n 's/.*Build complete! (\([0-9]*\).*/\1/p' "$out" 2>/dev/null | tail -1)"
+    [[ -n "$b" ]] && allowance=$(( 2 * b > 30 ? 2 * b : 30 ))
     line="$(grep -m1 -E '^(killed|survived|BUILD FAILED|WRONG FAILURE|NO TESTS|stopped|mutate:)' <<<"$result" || tail -1 <<<"$result")"
     [[ "$line" == mutate:* ]] && refused=$((refused + 1))
     if [[ $capped -eq 1 && "$line" =~ ^(killed\ \(hang\)|WRONG\ FAILURE) ]]; then

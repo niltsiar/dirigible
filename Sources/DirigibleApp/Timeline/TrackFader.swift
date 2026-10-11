@@ -32,12 +32,6 @@ final class TrackFaderView: NSView {
         super.init(frame: NSRect(origin: .zero, size: Self.size))
         slider.controlSize = .mini
         slider.isContinuous = true
-        // Gray, not the accent color: R, Monitor, M, and S have the colors (ui-panel synthesis).
-        // The slider blends the fill into the track: system gray draws near black in Light Mode,
-        // but does not show in Dark Mode, so Dark Mode takes white (on-screen check of S5).
-        slider.trackFillColor = NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .white : .systemGray
-        }
         slider.refusesFirstResponder = true
         slider.toolTip = L10n.trackVolumeHelp.text
         slider.target = slider
@@ -75,6 +69,11 @@ final class TrackFaderView: NSView {
 
 /// The slider of `TrackFaderView`. Its value is a position from 0 to 1 on `FaderScale`.
 final class FaderSlider: NSSlider {
+    override class var cellClass: AnyClass? {
+        get { FaderSliderCell.self }
+        set {}
+    }
+
     weak var model: SessionWindow?
     var track: TrackID = ""
     var name = ""
@@ -187,5 +186,20 @@ final class FaderSlider: NSSlider {
             let gain = Gain(dB: FaderScale(start: stored).dB(position: position))
         else { return }
         set(gain)
+    }
+}
+
+/// The bar of `FaderSlider`: a gray fill, not the accent color, because R, Monitor, M, and S
+/// have the colors (ui-panel synthesis). The fill has the tone of the readout. `NSSlider` blends
+/// its `trackFillColor` into the track, so that fill did not show in Dark Mode (code gate 1).
+final class FaderSliderCell: NSSliderCell {
+    override func drawBar(inside rect: NSRect, flipped: Bool) {
+        let radius = rect.height / 2
+        NSColor.quaternaryLabelColor.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+        var fill = rect
+        fill.size.width = max(0, knobRect(flipped: flipped).midX - rect.minX)
+        (isEnabled ? NSColor.secondaryLabelColor : .tertiaryLabelColor).setFill()
+        NSBezierPath(roundedRect: fill, xRadius: radius, yRadius: radius).fill()
     }
 }

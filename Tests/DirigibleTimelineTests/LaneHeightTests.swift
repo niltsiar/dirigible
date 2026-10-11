@@ -17,12 +17,15 @@ struct LaneHeightTests {
         #expect(LaneHeight.fixed(40).shorter(than: 40) == .fixed(40), "40 pt is the shortest")
     }
 
-    /// The automatic height of 0017: the free height over the tracks, 40 to 120 pt, whole points.
+    /// The automatic height of 0017: the free height over the tracks, 40 to 200 pt, whole points.
+    /// Run 2026-10-11-ui-polish-header B2.2: 120 pt left 2 tracks small in a tall window.
     @Test func theAutomaticHeightSharesTheFreeHeight() {
         #expect(LaneHeight.automatic.points(free: 555, tracks: 6) == 92, "the height is whole points")
-        #expect(LaneHeight.automatic.points(free: 1000, tracks: 2) == 120)
+        #expect(LaneHeight.automatic.points(free: 1000, tracks: 2) == 200)
+        #expect(LaneHeight.automatic.points(free: 399, tracks: 2) == 199, "under the cap")
+        #expect(LaneHeight.automatic.points(free: 1000, tracks: 10) == 100)
         #expect(LaneHeight.automatic.points(free: 300, tracks: 20) == 40)
-        #expect(LaneHeight.automatic.points(free: 300, tracks: 0) == 120)
+        #expect(LaneHeight.automatic.points(free: 300, tracks: 0) == 200)
         #expect(LaneHeight.fixed(160).points(free: 300, tracks: 20) == 160)
     }
 }

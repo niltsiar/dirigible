@@ -134,7 +134,7 @@ struct SessionView: View {
 }
 
 /// The track headers on the left and the lanes on the right (decision 0017). The lanes share
-/// the height, 40 to 120 pt each, or take the fixed height of Taller and Shorter Tracks, 40 to
+/// the height, 40 to 200 pt each, or take the fixed height of Taller and Shorter Tracks, 40 to
 /// 200 pt (0025); the headers take the same height. Lanes that do not fit scroll vertically, and
 /// the headers scroll with them.
 private struct TimelinePane: View {

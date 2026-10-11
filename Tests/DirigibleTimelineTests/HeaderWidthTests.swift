@@ -24,36 +24,36 @@ struct HeaderWidthTests {
     }
 }
 
-struct HeaderDragTests {
-    var drag = HeaderDrag()
+struct PaneDragTests {
+    var drag = PaneDrag<HeaderWidth>()
     let w340 = HeaderWidth(340)
 
     @Test mutating func aDragIsLiveAndSavesAtTheUp() {
-        #expect(drag.handle(.down(x: 338, clicks: 1), width: w340) == HeaderDragStep(width: w340, save: false))
+        #expect(drag.handle(.down(x: 338, clicks: 1), width: w340) == PaneDragStep(width: w340, save: false))
         #expect(drag.grab == -2, "grab")
         #expect(
-            drag.handle(.drag(x: 400), width: w340) == HeaderDragStep(width: HeaderWidth(402), save: false),
+            drag.handle(.drag(x: 400), width: w340) == PaneDragStep(width: HeaderWidth(402), save: false),
             "live width")
         #expect(
-            drag.handle(.drag(x: 420), width: HeaderWidth(402)) == HeaderDragStep(width: HeaderWidth(422), save: false),
+            drag.handle(.drag(x: 420), width: HeaderWidth(402)) == PaneDragStep(width: HeaderWidth(422), save: false),
             "no save")
         #expect(
-            drag.handle(.up, width: HeaderWidth(422)) == HeaderDragStep(width: HeaderWidth(422), save: true),
+            drag.handle(.up, width: HeaderWidth(422)) == PaneDragStep(width: HeaderWidth(422), save: true),
             "save at the up")
         #expect(!drag.isActive)
     }
 
     @Test mutating func anUpWithNoMoveSavesNothing() {
         _ = drag.handle(.down(x: 338, clicks: 1), width: w340)
-        #expect(drag.handle(.up, width: w340) == HeaderDragStep(width: w340, save: false), "no save")
+        #expect(drag.handle(.up, width: w340) == PaneDragStep(width: w340, save: false), "no save")
     }
 
     /// A drag away and back to the start width saves nothing: the up compares with the start.
     @Test mutating func anUpAtTheStartWidthSavesNothing() {
         _ = drag.handle(.down(x: 338, clicks: 1), width: w340)
         _ = drag.handle(.drag(x: 400), width: w340)
-        #expect(drag.handle(.drag(x: 338), width: HeaderWidth(402)) == HeaderDragStep(width: w340, save: false))
-        #expect(drag.handle(.up, width: w340) == HeaderDragStep(width: w340, save: false), "no save")
+        #expect(drag.handle(.drag(x: 338), width: HeaderWidth(402)) == PaneDragStep(width: w340, save: false))
+        #expect(drag.handle(.up, width: w340) == PaneDragStep(width: w340, save: false), "no save")
     }
 
     /// The up compares the width with the start, not with the width of the last event.
@@ -61,7 +61,7 @@ struct HeaderDragTests {
         _ = drag.handle(.down(x: 338, clicks: 1), width: w340)
         _ = drag.handle(.drag(x: 400), width: w340)
         #expect(
-            drag.handle(.up, width: HeaderWidth(402)) == HeaderDragStep(width: HeaderWidth(402), save: true),
+            drag.handle(.up, width: HeaderWidth(402)) == PaneDragStep(width: HeaderWidth(402), save: true),
             "save at the up")
     }
 
@@ -69,7 +69,7 @@ struct HeaderDragTests {
         _ = drag.handle(.down(x: 338, clicks: 1), width: w340)
         _ = drag.handle(.drag(x: 400), width: w340)
         #expect(
-            drag.handle(.escape, width: HeaderWidth(402)) == HeaderDragStep(width: w340, save: false),
+            drag.handle(.escape, width: HeaderWidth(402)) == PaneDragStep(width: w340, save: false),
             "Esc gives the start width")
         #expect(!drag.isActive)
         #expect(drag.handle(.up, width: w340) == nil, "Esc gives the start width")
@@ -85,7 +85,7 @@ struct HeaderDragTests {
         _ = drag.handle(.down(x: 418, clicks: 1), width: HeaderWidth(420))
         _ = drag.handle(.up, width: HeaderWidth(420))
         #expect(
-            drag.handle(.down(x: 418, clicks: 2), width: HeaderWidth(420)) == HeaderDragStep(width: w340, save: true),
+            drag.handle(.down(x: 418, clicks: 2), width: HeaderWidth(420)) == PaneDragStep(width: w340, save: true),
             "double-click gives 340")
         #expect(!drag.isActive, "double-click gives 340")
         #expect(drag.handle(.drag(x: 300), width: w340) == nil, "double-click gives 340")

@@ -15,7 +15,7 @@ final class TrackHeaderRuler: NSRulerView {
     var save: ((HeaderWidth) -> Void)?
     /// The calls of `layout()`, for the bench (probe Q4).
     private(set) var layouts = 0
-    private var drag = HeaderDrag()
+    private var drag = PaneDrag<HeaderWidth>()
     /// The document y at the top of the clip view, and the height of all lanes.
     private var rows: (top: CGFloat, height: CGFloat) = (0, 0)
     private let edge = CALayer()
@@ -91,7 +91,7 @@ final class TrackHeaderRuler: NSRulerView {
 
     /// A handle event. A mouse-down first commits the typed track names and ends the text focus,
     /// as a lane mouse-down does, so Esc reaches the window.
-    func dragged(_ event: HeaderDragEvent) {
+    func dragged(_ event: PaneDragEvent) {
         if case .down = event { endTextEdit() }
         guard let step = drag.handle(event, width: width) else { return }
         width = step.width

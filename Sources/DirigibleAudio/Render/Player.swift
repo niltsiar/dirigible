@@ -147,24 +147,26 @@ actor Player {
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
     }
 
-    /// The session of the next chunks. The running feed goes on. A change of the heard set of the
-    /// tracks in both sessions crossfades the next chunk; any other change steps (decision 0039). Does
-    /// nothing when `revision` is not newer than the last revision.
+    /// The session of the next chunks. The running feed goes on. A change of the heard set or of a
+    /// track gain of the tracks in both sessions crossfades the next chunk; any other change steps
+    /// (decision 0039). Does nothing when `revision` is not newer than the last revision.
     func update(_ session: Session, revision: Int) {
         guard revision > self.revision else { return }
         self.revision = revision
-        if let old = feed?.mix.session, feed?.fadeFrom == nil, Self.heardChanged(from: old, to: session) {
+        if let old = feed?.mix.session, feed?.fadeFrom == nil, Self.mixChanged(from: old, to: session) {
             feed?.fadeFrom = old
         }
         self.session = session
         feed?.mix.session = session
     }
 
-    /// The heard set of the tracks that are in both sessions changed: a mute or solo change, or
-    /// the removal of the only soloed track. A track add or remove alone keeps it.
-    private static func heardChanged(from old: Session, to new: Session) -> Bool {
+    /// The heard set or a track gain of the tracks that are in both sessions changed: a mute, solo,
+    /// or fader change, or the removal of the only soloed track. A track add or remove alone keeps it.
+    private static func mixChanged(from old: Session, to new: Session) -> Bool {
         let shared = Set(old.tracks.map(\.id)).intersection(new.tracks.map(\.id))
+        let gains = { (session: Session) in session.tracks.filter { shared.contains($0.id) }.map(\.gain) }
         return Set(old.heardTracks(in: shared).map(\.id)) != Set(new.heardTracks(in: shared).map(\.id))
+            || gains(old) != gains(new)
     }
 
     /// `ended`: the feed scheduled its last frame, and the output played it (the output latency

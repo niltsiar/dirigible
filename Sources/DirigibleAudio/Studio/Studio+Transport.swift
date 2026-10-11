@@ -69,6 +69,8 @@ struct PlayState {
     var feed = 0
     /// The last session revision sent to the Player. An edit takes a revision, not a feed number.
     var revision = 0
+    /// The gain of a fader drag: each session that the Player gets has it, until `endPreview`.
+    var preview: (track: TrackID, gain: Gain)?
     /// Made at the first play from `environment.playerOutput`.
     var player: Player?
     /// Reads the Player every 33 ms while `playback` is `.playing`.
@@ -238,19 +240,24 @@ extension Studio {
     public func previewGain(_ gain: Gain, track: TrackID) throws(StudioError) {
         try checkIdle()
         guard play.playback != .stopped else { return }
-        var preview = session
-        do { try preview.setGain(gain, track: track) } catch { throw .session(error) }
-        send(preview)
+        var checked = session
+        do { try checked.setGain(gain, track: track) } catch { throw .session(error) }
+        play.preview = (track, gain)
+        sendSession()
     }
 
-    /// Sends the session again after a preview that made no edit.
+    /// Ends the preview of a drag and sends the session again.
     public func endPreview() {
+        play.preview = nil
         sendSession()
     }
 
     /// The one owner of the play revision: a newer revision replaces the session of the Player.
     private func send(_ session: Session) {
         guard let player = play.player else { return }
+        var session = session
+        // An edit during a drag sends the session again: the Player keeps the dragged gain.
+        if let preview = play.preview { try? session.setGain(preview.gain, track: preview.track) }
         play.revision += 1
         let revision = play.revision
         Task { await player.update(session, revision: revision) }

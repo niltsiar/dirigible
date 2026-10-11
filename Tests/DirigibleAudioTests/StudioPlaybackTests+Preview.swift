@@ -90,4 +90,30 @@ extension StudioPlaybackTests {
         await untilPlayed(studio, 0, "C6: the committed gain is back")
         await studio.perform(.playStop)
     }
+
+    /// Code gate 1 item 3: an edit during a drag sends the session again; the Player keeps the
+    /// dragged gain until `endPreview`.
+    @Test func anEditDuringAPreviewKeepsTheDraggedGain() async throws {
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        await untilPlayed(studio, 0, "the play feed runs")
+        try studio.previewGain(try #require(Gain(dB: -6)), track: "t1")
+        await untilPlayed(studio, -6, "the preview reaches the Player")
+
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "m1", name: "A", position: 0, kind: .marker))
+        }
+        let clock = ContinuousClock()
+        let end = clock.now + .seconds(10)
+        while await studio.play.player?.session.markers.isEmpty != false, clock.now < end {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(await studio.play.player?.session.markers.isEmpty == false, "the edit reaches the Player")
+        #expect(await playedGain(studio) == -6, "code gate 1: the Player keeps the dragged gain")
+
+        studio.endPreview()
+        await untilPlayed(studio, 0, "code gate 1: endPreview gives the session gain")
+        await studio.perform(.playStop)
+    }
 }

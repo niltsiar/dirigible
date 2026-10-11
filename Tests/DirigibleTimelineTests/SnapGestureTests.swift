@@ -142,6 +142,19 @@ struct SnapGestureTests {
         #expect(gesture.guide == nil)
     }
 
+    /// Code gate item 2: a session change (an undo, a take) during a range drag gives the targets of
+    /// the new session, so the pointer end never stops at a clip edge that is gone.
+    @Test mutating func aRangeDragAfterASessionChangeSnapsToTheNewEdges() throws {
+        down(250, 50)
+        _ = drag(297, 50)
+        #expect(gesture.guide == Self.frame(300), "the start of B")
+        session = try Fixture.session(withB: false)
+        _ = gesture.handle(.sessionChanged, context)
+        let effects = drag(297, 50)
+        #expect(effects == [.selection(.range(Marks(inPoint: 120_000, outPoint: Self.frame(297), tracks: ["t1"])))])
+        #expect(gesture.guide == nil)
+    }
+
     @Test mutating func aGroupSnapsByTheClipUnderThePointer() throws {
         // A, B, and C move together. The playhead is 2 pt from the moved end of B; a marker 1 pt from
         // the moved end of A. Only B, the clip under the pointer, snaps.

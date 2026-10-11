@@ -103,6 +103,14 @@ ROLE=AXMenuBarItem expect_press "a role that no match has" "Close" 1 "" "No elem
 expect_press "an item with an Enabled field" "File > Close" 0 "match: Dirigible > File > Close"
 expect_press "an empty title at the end" "File > " 2 "" "has an empty title"
 expect_press "an empty title in the middle" "File >  > Close" 2 "" "has an empty title"
+# With no match, press lists the path of each element whose title holds the last title (in any
+# case), so a guessed menu path shows the real one (run 2026-10-10-arm-toggle-button).
+expect_press "a wrong title in the middle" "File > Recent > Clear Menu" 1 "" "No element matches" \
+    "Paths that hold the title:" "Dirigible > File > Open Recent > Clear Menu"
+expect_press "a part of a title" "clear" 1 "" "Paths that hold the title:" \
+    "Dirigible > Welcome to Dirigible > Clear Menu" "Dirigible > File > Open Recent > Clear Menu"
+expect_press "a title that no element holds" "Zork" 1 "" "No element matches"
+[[ "$(cat "$tree/err")" != *"Paths that hold"* ]] || fail "a title that no element holds: a path list: $(cat "$tree/err")"
 
 # dump --tree prints the lines of a dump file. --witness <text> exits 1 when no line of the same
 # dump has the text, so a read in a transient state that already ended is void, not a pass.

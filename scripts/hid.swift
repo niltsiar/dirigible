@@ -12,9 +12,10 @@
 // or an up with no target window, goes to the pointer location.
 //
 // usage: run it with no command. The table `verbs` gives the arguments and the flags of each verb.
-//        drag: a left drag in 20 steps, then the up (--no-up: no up). --outside: the start point
-//              may be outside the target window, in a Finder window in front (a drag of a file
-//              from the Finder), and the end point must be in a target window in front
+//        drag: a left drag in 20 steps from <x> <y> by the offset <dx> <dy>, not to an end point
+//              (drag 100 50 -20 0 ends at 80 50), then the up (--no-up: no up). --outside: the
+//              start point may be outside the target window, in a Finder window in front (a drag
+//              of a file from the Finder), and the end point must be in a target window in front
 //        up: a left mouse-up (after drag --no-up)
 //        click: a click (--right: a right click; --double: a double-click)
 //        move: a mouse move with no button

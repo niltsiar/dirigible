@@ -252,11 +252,11 @@ final class ImportPackage {
 }
 
 enum SourceFormat {
-    case wav16, wav24, aiff24, flac, m4a, mp3
+    case wav16, wav24, wavFloat, aiff24, flac, m4a, mp3
 
     var fileExtension: String {
         switch self {
-        case .wav16, .wav24: "wav"
+        case .wav16, .wav24, .wavFloat: "wav"
         case .aiff24: "aif"
         case .flac: "flac"
         case .m4a: "m4a"
@@ -283,12 +283,12 @@ func writeSource(_ url: URL, _ format: SourceFormat, rate: Int, channels: [[Floa
     for (index, samples) in channels.enumerated() {
         buffer.floatChannelData![index].update(from: samples, count: samples.count)
     }
-    func pcm(bits: Int, bigEndian: Bool) throws {
+    func pcm(bits: Int, bigEndian: Bool, float: Bool = false) throws {
         let file = try AVAudioFile(
             forWriting: url,
             settings: [
                 AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: rate, AVNumberOfChannelsKey: channels.count,
-                AVLinearPCMBitDepthKey: bits, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: bigEndian,
+                AVLinearPCMBitDepthKey: bits, AVLinearPCMIsFloatKey: float, AVLinearPCMIsBigEndianKey: bigEndian,
             ], commonFormat: .pcmFormatFloat32, interleaved: false)
         try file.write(from: buffer)
     }
@@ -296,6 +296,7 @@ func writeSource(_ url: URL, _ format: SourceFormat, rate: Int, channels: [[Floa
     switch format {
     case .wav16: return try pcm(bits: 16, bigEndian: false)
     case .wav24: return try pcm(bits: 24, bigEndian: false)
+    case .wavFloat: return try pcm(bits: 32, bigEndian: false, float: true)
     case .aiff24: return try pcm(bits: 24, bigEndian: true)
     case .flac: exported = .flac(.bits16)
     case .m4a: exported = .aac(.k192)

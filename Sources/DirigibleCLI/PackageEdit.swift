@@ -65,10 +65,10 @@ func parseLayout(_ text: String) throws -> ChannelLayout {
     return layout
 }
 
-/// `Gain(dB:)` refuses nan and inf.
+/// `Gain(dB:)` refuses a value outside `Gain.range`, nan, and inf.
 func parseGain(_ text: String) throws -> Gain {
     guard let dB = Double(text), let gain = Gain(dB: dB) else {
-        throw ValidationError("A gain is a finite number of dB.")
+        throw ValidationError("A gain is a number of dB \(Gain.rangeText).")
     }
     return gain
 }

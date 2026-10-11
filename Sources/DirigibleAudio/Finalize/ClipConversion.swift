@@ -39,9 +39,10 @@ struct ClipConversion {
                 input, file: descriptor, from: source, to: rate, into: url, scale: 1, progress: { progress($0 / 2) })
         else { return nil }
         var gain = Gain.zero
-        // An infinite peak gives no finite gain, so it keeps the one pass.
+        // An infinite peak gives no finite gain, so it keeps the one pass. A finite peak always gets
+        // the second pass; its clip gain stops at the end of `Gain.range`.
         let scale = Float(ceiling / Double(result.peak))
-        if result.peak > 1, let scaled = Gain(dB: -20 * log10(Double(scale))) {
+        if result.peak > 1, let scaled = Gain(clamping: -20 * log10(Double(scale))) {
             input.framePosition = 0
             guard
                 let second = try pass(

@@ -140,6 +140,21 @@ struct TrackCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// Track fader C2: `track gain` and `clip gain` refuse a gain outside -96...+96 dB with the
+    /// range in the text, and take the range end.
+    @Test func aGainOutsideTheRangeIsRefusedWithTheRange() async throws {
+        let before = try package.xml()
+        for (verb, value) in [("track", "96.1"), ("clip", "-1e300")] {
+            let target = verb == "track" ? "host" : "c1"
+            let result = try await package.run([verb, "gain", "PKG", target, "--db", value])
+            #expect(result.status == 64, "C2: \(verb) gain \(value) is a usage error")
+            #expect(result.stderr.contains("A gain is a number of dB from -96 to 96."), "C2: the text gives the range")
+        }
+        #expect(try package.xml() == before, "C2: a refused gain changes nothing")
+        #expect(try await package.run(["track", "gain", "PKG", "host", "--db", "96"]).status == 0)
+        #expect(try package.read().track("host")?.gain == Gain(dB: 96), "C2: the range end passes")
+    }
+
     @Test(arguments: [
         ["gain", "PKG", "host", "--db", "nan"],
         ["gain", "PKG", "host", "--db", "inf"],

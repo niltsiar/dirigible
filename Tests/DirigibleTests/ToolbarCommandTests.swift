@@ -246,13 +246,38 @@ struct ToolbarMenuTests {
             #expect(item.toolTip == toolbarTooltip(command), "tooltip of \(id)")
             // The test process has no app tables, so the format comes from each table.
             for table in [tables.en, tables.es] {
-                let format = try #require(table[L10n.toolbarTooltip.rawValue])
+                let format = try #require(table[tooltipKey(command).rawValue])
                 #expect(
-                    toolbarTooltip(command, format: format) == "\(command.menuItem.title.text) (\(key))",
+                    toolbarTooltip(command, format: format).hasPrefix("\(command.menuItem.title.text) (\(key))"),
                     "tooltip of \(id)")
             }
         }
         await model.close()
+    }
+
+    /// Run 2026-10-11-ui-polish-header C21: the zoom tooltips name the gestures that zoom at the
+    /// pointer, in English and Spanish. The test process has no app tables, so the titles and the
+    /// formats come from each table.
+    @Test func theZoomTooltipsNameTheGestures() throws {
+        let expected = [
+            "en": [
+                "Zoom In (⌘+). ⌘-scroll or pinch zooms at the pointer.",
+                "Zoom Out (⌘-). ⌘-scroll or pinch zooms at the pointer.",
+            ],
+            "es": [
+                "Acercar (⌘+). Desplaza con ⌘ o pellizca para hacer zoom en el puntero.",
+                "Alejar (⌘-). Desplaza con ⌘ o pellizca para hacer zoom en el puntero.",
+            ],
+        ]
+        for (language, texts) in expected {
+            let table = try stringsTable(language)
+            for (command, text) in zip([WindowCommand.timeline(.zoomIn), .timeline(.zoomOut)], texts) {
+                let format = try #require(table[tooltipKey(command).rawValue])
+                let title = try #require(table[command.menuItem.title.rawValue])
+                let tooltip = String(format: format, title, keyText(command.menuItem.key))
+                #expect(tooltip == text, "\(language): \(tooltip)")
+            }
+        }
     }
 
     static func keys(_ id: ToolbarItemID) -> String? {

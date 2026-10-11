@@ -8,7 +8,7 @@ public struct OverviewGeometry: Equatable, Sendable {
     /// The narrowest view frame that the strip draws, in points.
     static let frameMinimum = 6.0
     /// The narrowest view frame with edge zones (U9); a narrower frame is all body.
-    static let edgeMinimum = 16.0
+    public static let edgeMinimum = 16.0
     /// The reach of an edge zone outside and inside the frame.
     static let edgeOut = 3.0
     static let edgeIn = 3.0

@@ -262,6 +262,7 @@ enum L10n: String, CaseIterable {
     case toolbarExport = "toolbar.export"
     case toolbarInspector = "toolbar.inspector"
     case toolbarTooltip = "toolbar.tooltip"
+    case toolbarTooltipZoom = "toolbar.tooltip.zoom"
     case keySpace = "key.space"
     case subtitleTracks = "subtitle.tracks"
     case subtitleRecordTime = "subtitle.record.time"

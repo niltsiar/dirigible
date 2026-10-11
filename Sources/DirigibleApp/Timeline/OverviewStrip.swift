@@ -50,6 +50,9 @@ final class OverviewStrip: NSView {
     let dimTrailing = CALayer()
     let viewFrame = CALayer()
     let playhead = CALayer()
+    /// A grip at the leading and at the trailing edge of a frame that zooms at its edges (run
+    /// 2026-10-11-ui-polish-header C22): the edges show that they can be dragged.
+    let grips = [CALayer(), CALayer()]
     /// The image renders, for the count guard (criterion N6).
     private(set) var renders = 0
     /// The value changes that the strip posted, for the accessibility test (criterion N8).
@@ -80,7 +83,9 @@ final class OverviewStrip: NSView {
         let still = [
             "position", "bounds", "frame", "contents", "hidden", "backgroundColor", "borderColor", "borderWidth",
         ].reduce(into: [String: any CAAction]()) { $0[$1] = NSNull() }
-        for (sublayer, z) in [(image, 0.0), (dimLeading, 1), (dimTrailing, 1), (viewFrame, 2), (playhead, 3)] {
+        let layers: [(CALayer, Double)] =
+            [(image, 0), (dimLeading, 1), (dimTrailing, 1), (viewFrame, 2), (playhead, 3)] + grips.map { ($0, 2.5) }
+        for (sublayer, z) in layers {
             sublayer.actions = still
             sublayer.zPosition = z
             layer?.addSublayer(sublayer)
@@ -167,6 +172,12 @@ final class OverviewStrip: NSView {
         viewFrame.frame = frame
         dimLeading.frame = NSRect(x: 0, y: 0, width: max(0, frame.minX), height: bounds.height)
         dimTrailing.frame = NSRect(x: frame.maxX, y: 0, width: max(0, bounds.width - frame.maxX), height: bounds.height)
+        // In the edge zones: 3 pt inside each edge.
+        let edges = strip.viewFrame(viewport).width >= OverviewGeometry.edgeMinimum
+        for (grip, x) in zip(grips, [frame.minX, frame.maxX - 3]) {
+            grip.isHidden = !edges
+            grip.frame = NSRect(x: x, y: frame.midY - 6, width: 3, height: 12)
+        }
     }
 
     // MARK: Mouse and cursor
@@ -266,6 +277,7 @@ final class OverviewStrip: NSView {
             let dim = NSColor.black.withAlphaComponent(palette.lanes.accent == nil ? 0.18 : 0.35).cgColor
             dimLeading.backgroundColor = dim
             dimTrailing.backgroundColor = dim
+            for grip in grips { grip.backgroundColor = viewFrame.borderColor }
         }
         image.frame = bounds
         image.contentsScale = scale

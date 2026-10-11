@@ -369,6 +369,7 @@
 "toolbar.export" = "Exportar";
 "toolbar.inspector" = "Inspector";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.zoom" = "%1$@ (%2$@). Desplaza con ⌘ o pellizca para hacer zoom en el puntero.";
 "key.space" = "Espacio";
 
 /* Subtitle and banners (decision 0023) */

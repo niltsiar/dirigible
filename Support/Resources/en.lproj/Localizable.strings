@@ -175,6 +175,7 @@
 "track.layout.stereo" = "Stereo";
 "track.route" = "%1$@, %2$@";
 "track.route.none" = "No Input";
+"track.route.label" = "Input";
 "track.route.choose" = "Choose Input…";
 "track.route.channel" = "Channel %lld";
 "track.route.channels" = "Channels %1$lld and %2$lld";

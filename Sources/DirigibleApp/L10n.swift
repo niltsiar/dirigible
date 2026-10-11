@@ -202,6 +202,7 @@ enum L10n: String, CaseIterable {
     case trackLayoutStereo = "track.layout.stereo"
     case trackRoute = "track.route"
     case trackRouteNone = "track.route.none"
+    case trackRouteLabel = "track.route.label"
     case trackRouteChoose = "track.route.choose"
     case trackRouteChannel = "track.route.channel"
     case trackRouteChannels = "track.route.channels"

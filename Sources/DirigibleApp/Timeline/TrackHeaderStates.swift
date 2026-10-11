@@ -66,7 +66,9 @@ struct LiveState: View {
             }
             .buttonStyle(.borderless)
             .help(Text(verbatim: full))
-            .accessibilityLabel(Text(verbatim: full))
+            // VoiceOver: the label names the action, the hint gives the state.
+            .accessibilityLabel(L10n.trackNoSoundSettings.key)
+            .accessibilityHint(Text(verbatim: full))
         case .noSound: EmptyView()
         }
         if live.droppedFrames > 0 {

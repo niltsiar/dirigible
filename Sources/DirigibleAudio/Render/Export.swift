@@ -142,14 +142,23 @@ func exportMix(
     if case .mp3 = options.format, ![32_000, 44_100, 48_000].contains(rate) { throw .rateNotSupported(rate) }
     let artwork = try readArtwork(of: session.episode, format: options.format, package: package)
     let aac = if case .aac = options.format { true } else { false }
-    // Only an M4A has chapter tracks so far. Its images are JPEG, read before any file exists.
-    let chapters = aac ? session.chapterList(in: source.range).chapters : []
+    let list = session.chapterList(in: source.range)
+    // Only an M4A has chapter tracks. Its images are JPEG, read before any file exists.
+    let chapters = aac ? list.chapters : []
     let jpegs = try readChapterImages(
         chapterImages.filter { id, _ in chapters.contains { $0.id == id } }, package: package)
     var chapterArtwork: Data?
     if !jpegs.isEmpty, let artwork, let name = session.episode.artwork {
         chapterArtwork = try m4aJPEG(artwork, of: name)
     }
+    // Only an MP3 file takes the ID3 tag. It is built before any file exists, so a refused tag
+    // leaves no file.
+    let mp3 = if case .mp3 = options.format { true } else { false }
+    let id3 =
+        mp3
+        ? try id3Tag(
+            session.episode, artwork: artwork, chapters: id3Chapters(list.chapters, in: session, range: source.range))
+        : []
     let sessionRate = Double(session.sampleRate)
     let capacity = AVAudioFrameCount(chunk)
     guard let stereo = AVAudioFormat(standardFormatWithSampleRate: sessionRate, channels: 2),
@@ -218,8 +227,6 @@ func exportMix(
     let tagged = tags ? folder.appending(path: "\(name).tag.tmp") : nil
     // This unlink runs before the unlink of the `.tmp` file, so no sweep removes a live file.
     defer { if let tagged { unlink(tagged.path) } }
-    // Only an MP3 file takes the ID3 tag, so no other export builds it.
-    let id3: [UInt8] = if case .mp3 = options.format { id3Tag(session.episode, artwork: artwork) } else { [] }
     try writeFile(
         temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3
     ) {
@@ -275,7 +282,7 @@ func exportMix(
     // The file is at the target now. A volume that refuses both flushes does not undo the move.
     _ = flush(folder.path)
     return ExportResult(
-        faults: mix.faults, loudness: stage?.report(), droppedChapters: m4a.dropped,
+        faults: mix.faults, loudness: stage?.report(), droppedChapters: mp3 ? list.dropped : m4a.dropped,
         chapterImagesOmitted: imagesOmitted)
 }
 

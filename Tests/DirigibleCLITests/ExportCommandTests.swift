@@ -328,4 +328,27 @@ struct ExportCommandTests {
                 == CLIResult(status: 0, stdout: "", stderr: silent))
         #expect(try peak(out("a.wav")) == 0, "the file is silent")
     }
+
+    /// C4, C5f: an MP3 export gets the chapters of the core list in its ID3 tag, with no added
+    /// chapter at 0, and a warning for the chapter that it leaves out.
+    @Test func anMP3GetsTheChapterTag() async throws {
+        try package.edit { session in
+            try session.setMarker(Marker(id: "a", name: "A", position: 1_000, kind: .chapter))
+            try session.setMarker(Marker(id: "b", name: "B", position: 5_000, kind: .chapter))
+            try session.setMarker(Marker(id: "c", name: "C", position: 5_000, kind: .chapter))
+        }
+        #expect(
+            try await package.run("export", "PKG", "--out", out("a.mp3").path)
+                == CLIResult(
+                    status: 0, stdout: "",
+                    stderr:
+                        "Warning: chapter \"C\" at 5000 starts at the time of another chapter; the file leaves it out.\n"
+                ))
+        let bytes = [UInt8](try Data(contentsOf: out("a.mp3")).prefix(4_096))
+        let hasTag = bytes.starts(with: Array("ID3".utf8))
+        #expect(hasTag, "no ID3 tag")
+        let chap = Array("CHAP".utf8)
+        let count = (0..<(bytes.count - 4)).count { Array(bytes[$0..<($0 + 4)]) == chap }
+        #expect(count == 2, "CHAP frames \(count)")
+    }
 }

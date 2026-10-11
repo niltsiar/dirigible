@@ -139,4 +139,31 @@ extension ExportWindowTests {
             #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")
         }
     }
+
+    /// Run 2026-10-11-chapters-in-file, C5f: an MP3 export leaves out a second chapter at one
+    /// start, and a warning banner names it. A session edit removes the banner.
+    @Test func aDroppedChapterShowsAWarningBanner() async throws {
+        let (model, studio, _) = try await window()
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "a", name: "A", position: 192_000, kind: .chapter))
+            try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter))
+        }
+        let source = try #require(model.source(of: .session, in: studio))
+        let mp3 = ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session)
+        let target = ExportTarget(url: folder.url.appending(path: "mix.mp3"), options: mp3, confirmed: nil)
+
+        await model.run(source, target, studio)
+
+        #expect(model.alert == nil, "\(String(describing: model.alert))")
+        let banner = WindowBanner.chaptersDropped(["C"], file: "mix.mp3")
+        await until("the banner shows") { model.shown.banners.contains(banner) }
+        #expect(banner.kind == .warning)
+        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
+        await until("the banner goes") { !model.shown.banners.contains { $0.key == "chaptersDropped" } }
+        for language in ["en", "es"] {
+            let text = (try? stringsTable(language))?["banner.export.chapter.dropped"] ?? ""
+            #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")
+        }
+        await model.close()
+    }
 }

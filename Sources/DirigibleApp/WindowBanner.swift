@@ -14,6 +14,9 @@ enum WindowBanner: Equatable {
     /// The loudness of the last clean export with a target and the name of its file (decision
     /// 0032). A warning when the gain is over the auto-level limit.
     case exportReport(LoudnessReport, file: String)
+    /// The names of the chapters that the exported file leaves out, because each starts at the
+    /// time of another chapter (run 2026-10-11-chapters-in-file, C5f).
+    case chaptersDropped([String], file: String)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -49,12 +52,13 @@ enum WindowBanner: Equatable {
         case .useHeadphones: "useHeadphones"
         case .monitorHeadphones: "monitorHeadphones"
         case .exportReport: "exportReport"
+        case .chaptersDropped: "chaptersDropped"
         }
     }
 
     var kind: Kind {
         switch self {
-        case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .warning
+        case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped: .warning
         case .missingMedia: .error
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
@@ -69,6 +73,8 @@ enum WindowBanner: Equatable {
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
         case .exportReport(let report, let file):
             L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
+        case .chaptersDropped(let names, let file):
+            L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
         }
     }
 
@@ -76,7 +82,7 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
-        case .missingMedia, .exportReport: .medium
+        case .missingMedia, .exportReport, .chaptersDropped: .medium
         }
     }
 }

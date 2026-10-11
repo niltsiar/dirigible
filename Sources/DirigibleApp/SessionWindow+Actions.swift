@@ -53,6 +53,7 @@ extension SessionWindow {
                 try await studio.startRecording(armed: armed)
             }
             exportReport = nil
+            droppedChapters = nil
         } catch let error where studio.exportProgress != nil {
             // A refused start keeps the export, and its sheet hides a window alert until the end.
             recordRefusal = error

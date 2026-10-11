@@ -18,8 +18,9 @@ struct Export: ParsableCommand {
             and the printed values are at the session rate: a --rate change can add about 0.3 dB of true \
             peak. A 16-bit export has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes 32000, \
             44100, or 48000 Hz. An MP3 decodes up to 0.45 dB lower than the printed loudness: LAME scales \
-            its input. An .m4a gets the chapter markers of the range as a chapter track; a chapter at the \
-            time of the chapter before it is not in the file, and a warning names it.
+            its input. An .m4a gets the chapter markers of the range as a chapter track, and an .mp3 gets \
+            them as ID3 CHAP frames, at most 255. A chapter at the time of the chapter before it is not in \
+            the file, and a warning names it.
             """)
 
     @OptionGroup var package: PackageArgument

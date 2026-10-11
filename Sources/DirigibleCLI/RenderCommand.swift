@@ -77,6 +77,13 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
         message =
             "the artwork file \(file) is not in the package, or it is not downloaded. Set the artwork again with "
             + "`dirigible episode set --artwork <image> <package>`, or remove it with `--artwork \"\"`."
+    case .tooManyChapters(let count):
+        message =
+            "the range has \(count) chapters, and an MP3 file holds at most \(maximumChapters). Remove chapters, "
+            + "or export a smaller range."
+    case .tagTooLarge:
+        message =
+            "the ID3 tag of \(out) is over \(maximumTagSize) bytes. Use a smaller artwork file or shorter notes."
     }
     return fail(message, code: packageError)
 }

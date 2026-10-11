@@ -76,6 +76,8 @@
 "error.export.package" = "La sesión se movió a otro disco o se eliminó. La exportación se detuvo.";
 "error.export.yielded" = "La exportación se detuvo por una toma en otra ventana. No se creó ningún archivo. Exporte de nuevo después de la toma.";
 "error.export.artwork" = "El archivo de ilustración %@ no está en la sesión, o no está descargado de iCloud. En Archivo > Información del episodio, elija la ilustración de nuevo o quítela. Después exporte de nuevo.";
+"error.export.chapters" = "Un archivo MP3 admite como máximo %2$lld capítulos, y la exportación tiene %1$lld. Quite capítulos o exporte una selección más pequeña.";
+"error.export.tag" = "La información del episodio y los capítulos son demasiado grandes para la etiqueta MP3. Use una ilustración más pequeña o notas más cortas. Después exporte de nuevo.";
 "menu.file.episode.info" = "Información del episodio…";
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episodio";
@@ -355,6 +357,7 @@
 "panel.export.loudness.speech" = "Voz (%lld LUFS)";
 "panel.export.loudness.ebu" = "EBU R 128 (%lld LUFS)";
 "panel.export.loudness.atsc" = "Emisión de EE. UU. (%lld LUFS)";
+"export.chapter.intro" = "Introducción";
 "sheet.export.title" = "Exportando…";
 "sheet.export.cancel" = "Cancelar";
 "alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";
@@ -381,6 +384,7 @@
 "banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "La exportación de %1$@ terminó: %2$@.";
+"banner.export.chapter.dropped" = "%1$@ no incluye estos capítulos, porque cada uno empieza en el tiempo de otro capítulo: %2$@. Muévalos y exporte de nuevo.";
 "report.loudness" = "sonoridad %.1f LUFS";
 "report.loudness.none" = "sonoridad sin medir";
 "report.peak" = "pico real %.1f dBTP";

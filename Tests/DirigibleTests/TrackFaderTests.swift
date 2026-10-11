@@ -309,6 +309,22 @@ import os
         await model.close()
     }
 
+    /// Code gate 1 item 4: a disabled fader (a take) takes no VoiceOver action.
+    @Test func aDisabledFaderTakesNoAccessibilityAction() async throws {
+        let (model, studio) = try await model()
+        let (window, view) = fader(model, studio)
+        view.update(model: model, track: "t1", name: "T1", dB: 0, enabled: false)
+        let revision = studio.sessionRevision
+
+        #expect(!view.slider.accessibilityPerformIncrement(), "code gate 1: no increment")
+        #expect(!view.slider.accessibilityPerformDecrement(), "code gate 1: no decrement")
+        view.slider.setAccessibilityValue(NSNumber(value: FaderScale(start: 0).position(dB: -20)))
+
+        #expect(studio.sessionRevision == revision, "code gate 1: a disabled fader changes nothing")
+        window.close()
+        await model.close()
+    }
+
     /// C10: a slider action outside a drag (a key or an AX press) makes no edit and puts the thumb
     /// back on the session value.
     @Test func anActionOutsideADragMakesNoEdit() async throws {

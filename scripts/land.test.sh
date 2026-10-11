@@ -142,6 +142,14 @@ code=$?
 [[ $code -eq 0 ]] || fail "main in a changed worktree: exit $code: $(cat "$c/out")"
 grep -q 'which has changes; fast-forward it there with git merge --ff-only origin/main' "$c/out" || fail "main in a changed worktree: no command line: $(cat "$c/out")"
 [[ "$(git -C "$c/wt" rev-parse HEAD)" == "$before" && -f "$c/wt/y.txt" ]] || fail 'main in a changed worktree: the worktree changed'
+# A local main that diverged: the fast-forward fails after the merge, and the land says so.
+setup
+git -C "$c/work" worktree add -q "$c/wt" main
+git -C "$c/wt" commit -q --allow-empty -m local
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "main diverged: exit $code: $(cat "$c/out")"
+grep -q 'the merge is done, but the fast-forward of main in .*/case/wt failed' "$c/out" || fail "main diverged: no failure line: $(cat "$c/out")"
 
 # A red check stops before the push.
 setup

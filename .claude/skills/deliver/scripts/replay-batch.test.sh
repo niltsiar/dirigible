@@ -90,6 +90,12 @@ run 480
 run 480
 [[ -z "$(calls)" ]] || fail "done replays ran again: [$(calls)]"
 grep -qx 'ALL DONE' <<<"$out" || fail "done replays: no ALL DONE: $out"
+# Done means done on this HEAD: after a new commit, each log replays again with no flag.
+git -C "$tmp/tree" -c user.name=t -c user.email=t@t commit -q --allow-empty -m next
+: > "$tmp/calls"
+run 480
+[[ "$(calls | cut -d' ' -f1 | paste -sd' ' -)" == 'a.log b.log' ]] || fail "new HEAD: calls [$(calls)]"
+: > "$tmp/calls"
 # A named log that is done is skipped too; --again replays it. Only the named logs count.
 run 480 "$c/a.log"
 [[ -z "$(calls)" ]] || fail "named done log: calls [$(calls)]"

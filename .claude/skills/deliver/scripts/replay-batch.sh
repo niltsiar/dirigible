@@ -7,8 +7,9 @@
 #   with changes, and a tree whose mutate.py lock a live process holds (an earlier replay runs).
 # - With no <log>, it takes each top-level log of the folder with `# result: killed` (a hang too).
 #   Each replay log goes to <controls>/replay/<name>, the folder that cost.sh and replay-list.sh
-#   read. A replay is done when its log has the result killed, killed (hang), or survived; a done
-#   replay is skipped, also for a named log, unless --again is given.
+#   read. A replay is done when its log has the result killed, killed (hang), or survived, and the
+#   `# head:` line that the script appends names the HEAD of the tree now. A done replay is
+#   skipped, also for a named log, unless --again is given; after a new commit each log replays.
 # - Time: the budget is at most 480 s. Before each log, the time left is the budget minus the time
 #   used minus the build allowance (mutate.py gives the build no limit): twice the build time of
 #   the last replay log (its first `Build complete! (<n>s)` line: the build command; the test
@@ -69,7 +70,8 @@ if [[ ${#logs[@]} -eq 0 ]]; then
         grep -q '^# result: killed' "$log" 2>/dev/null && logs+=("$log")
     done
 fi
-done_log() { [[ -f "$1" ]] && grep -qE '^# result: (killed|survived)' "$1"; }
+head="$(git rev-parse HEAD)"
+done_log() { [[ -f "$1" ]] && grep -qE '^# result: (killed|survived)' "$1" && grep -qx "# head: $head" "$1"; }
 # count: print the count line, and ALL DONE when no log is left.
 too_long=0 refused=0
 count() {
@@ -106,6 +108,7 @@ for log in ${logs[@]+"${logs[@]}"}; do
         t=$left capped=1
     fi
     result="$(python3 -I "$mutate" --timeout "$t" $allow --replay "$log" "$out" 2>&1)"
+    grep -q '^# result: ' "$out" 2>/dev/null && echo "# head: $head" >> "$out"
     build_allowance "$out"
     line="$(grep -m1 -E '^(killed|survived|BUILD FAILED|WRONG FAILURE|NO TESTS|stopped|mutate:)' <<<"$result" || tail -1 <<<"$result")"
     [[ "$line" == mutate:* ]] && refused=$((refused + 1))

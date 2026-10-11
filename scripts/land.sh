@@ -14,9 +14,10 @@
 # origin/main. It prints the stamp line. Before the push, it writes one flake row (phase 7) for
 # each dirigible-flakes line of run-checks.sh whose commit is an ancestor of HEAD before or after
 # the rebase, and removes those lines. Then it pushes the branch, creates the pull request,
-# refuses the merge when origin/main moved after the checks, merges with a rebase, and updates
-# main. It stops at the first failure and never force-pushes. It prints the PR URL and the commit
-# range on main.
+# refuses the merge when origin/main moved after the checks, merges with a rebase, and prints
+# the PR URL and the commit range on main. Then it updates main: in this worktree, or with a
+# fast-forward in the worktree that holds main when its status is clean; with changes there, it
+# prints the command. It stops at the first failure and never force-pushes.
 # scripts/land.test.sh tests it.
 set -euo pipefail
 
@@ -117,7 +118,17 @@ git merge-base --is-ancestor origin/main HEAD ||
     die "origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
 old="$(git rev-parse origin/main)"
 gh pr merge "$branch" --rebase --delete-branch
-git switch main
-git pull --ff-only origin main
 git fetch --prune origin
-echo "range: $old..$(git rev-parse HEAD)"
+echo "range: $old..$(git rev-parse origin/main)"
+# git switch main fails while another worktree holds main (often the main checkout). This
+# worktree is on the run branch, so a worktree on main is another one.
+holder="$(git worktree list --porcelain | awk '/^worktree /{ w = substr($0, 10) } $0 == "branch refs/heads/main" { print w }')"
+if [[ -n "$holder" && -z "$(git -C "$holder" status --porcelain)" ]]; then
+    git -C "$holder" merge -q --ff-only origin/main
+    echo "land.sh: main is checked out in $holder; fast-forwarded it"
+elif [[ -n "$holder" ]]; then
+    echo "land.sh: main is checked out in $holder, which has changes; fast-forward it there with git merge --ff-only origin/main"
+else
+    git switch main
+    git pull --ff-only origin main
+fi

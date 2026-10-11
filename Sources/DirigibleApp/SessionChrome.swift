@@ -194,7 +194,6 @@ import Observation
             item.view = display
             return item
         }
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: id.label.text)
         item.target = self
         item.action = #selector(runItem(_:))
         if id.isToggle {
@@ -210,7 +209,7 @@ import Observation
             menuItem.identifier = button.identifier
             item.menuFormRepresentation = menuItem
         } else {
-            item.image = image
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: id.label.text)
             item.isBordered = true
         }
         if let model { apply(ChromeState(model: model), to: item) }

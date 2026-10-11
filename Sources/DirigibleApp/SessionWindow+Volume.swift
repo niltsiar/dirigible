@@ -29,7 +29,9 @@ extension SessionWindow {
         switch command {
         case .raiseVolume: stepVolume(by: 1, tracks: tracks)
         case .lowerVolume: stepVolume(by: -1, tracks: tracks)
-        default: setVolume(.zero, tracks: tracks)
+        case .resetVolume: setVolume(.zero, tracks: tracks)
+        // `run(_:)` sends only the three volume commands here.
+        default: break
         }
     }
 

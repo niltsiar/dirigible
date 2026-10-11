@@ -10,6 +10,8 @@ struct ExportChapter: Hashable, Sendable {
     var title: String
     var start: Int
     var image: Data?
+    /// The link of the chapter, in the `href` box of its title sample.
+    var url: String?
 }
 
 /// The chapters of the M4A chapter track, and the chapters of the range that the file does not have.
@@ -37,7 +39,8 @@ func m4aChapters(
         if start >= frames || start == chapters.last?.start {
             dropped.append(marker)
         } else {
-            chapters.append(ExportChapter(title: marker.name, start: start, image: images[marker.id]))
+            chapters.append(
+                ExportChapter(title: marker.name, start: start, image: images[marker.id], url: marker.url?.text))
         }
     }
     if let first = chapters.first, first.start > 0 {
@@ -68,21 +71,21 @@ func imageSamples(_ chapters: [ExportChapter], artwork: Data?) -> (samples: [(st
     return (samples, false)
 }
 
-/// The JPEG of each chapter image in `names` for an M4A export, read once before any file exists.
-/// The writer takes no PNG input (probe P1), so a PNG becomes a JPEG on white: JPEG has no alpha.
-/// A file that does not read or decode throws `.artworkMissing(<path>)`.
+/// The bytes of the image of each chapter in `chapters` that has one, read once before any file
+/// exists. A file that does not read throws `.artworkMissing(<path>)`.
 func readChapterImages(
-    _ names: [MarkerID: ArtworkName], package: () throws(SessionFileError) -> URL
+    _ chapters: [Marker], package: () throws(SessionFileError) -> URL
 ) throws(ExportError) -> [MarkerID: Data] {
-    guard !names.isEmpty else { return [:] }
+    guard chapters.contains(where: { $0.image != nil }) else { return [:] }
     let root: URL
     do { root = try package() } catch { throw .packageUnavailable }
     var images: [MarkerID: Data] = [:]
-    for (id, name) in names {
+    for marker in chapters {
+        guard let name = marker.image else { continue }
         guard let data = try? Data(contentsOf: root.appending(path: name.path)) else {
             throw .artworkMissing(name.path)
         }
-        images[id] = try m4aJPEG(data, of: name)
+        images[marker.id] = data
     }
     return images
 }

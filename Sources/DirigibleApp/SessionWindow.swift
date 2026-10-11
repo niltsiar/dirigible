@@ -129,8 +129,8 @@ struct ExportReportShown: Equatable {
     /// The last clean export with a target, for its banner (decision 0032). The next export
     /// start and the next take start remove it; the banner shows only at its session revision.
     var exportReport: ExportReportShown?
-    /// The chapters that the last export left out, for their banner. It goes as `exportReport` goes.
-    var droppedChapters: DroppedChaptersShown?
+    /// The chapter warnings of the last export, for their banners. They go as `exportReport` goes.
+    var chapterWarnings: ChapterWarningsShown?
     /// The running import (decision 0040). Nil: no import.
     var importJob: ImportJob?
     /// The error of a take start that its checks refused while an export runs. The progress

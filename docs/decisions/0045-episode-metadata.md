@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-10-10
 - Accepted: 2026-10-10, after plan gates 1 and 2 of run `2026-10-10-episode-metadata`.
-- Amended: 2026-10-11, run `2026-10-11-chapters-in-file`. A marker can have a URL and an image. The image is a file in `Artwork/` with the rules of the episode artwork, and `session.xml` is then version 7 (see 0024). The MP3 has `CTOC` and `CHAP` frames, and an M4A with chapters goes through an `AVAssetWriter` copy, not the export session pass.
+- Amended: 2026-10-11, run `2026-10-11-chapters-in-file`. A marker can have a URL and an image. The image is a file in `Artwork/` with the rules of the episode artwork, and `session.xml` is then version 7 (see 0024). The MP3 has `CTOC` and `CHAP` frames, and an M4A with chapters goes through an `AVAssetWriter` copy, not the export session pass. The title sample of a chapter with a URL has a 3GPP `href` box, and a chapter image goes into the image track as a JPEG.
 - Amends: 0003 (the layout has `Artwork/`), 0024 (`session.xml` is version 6 with episode data), 0034 (an MP3 with episode data starts with an ID3 tag, and the LAME tag frame follows it), 0041 (the tools `episode_set` and `episode_get`).
 
 ## Context

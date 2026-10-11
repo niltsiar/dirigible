@@ -78,10 +78,21 @@ struct ChapterTagTests {
         Marker(id: MarkerID(name.lowercased()), name: name, position: position, kind: .chapter)
     }
 
-    /// Exports the markers and the episode as MP3 of `range`.
+    /// Writes `text` as a chapter image file in `Artwork/` and gives its name. The MP3 copies the
+    /// bytes, so they need not decode.
+    func artwork(_ text: String, png: Bool = false) throws -> ArtworkName {
+        let name = try ArtworkName("\(UUID().uuidString).\(png ? "png" : "jpg")")
+        let file = package.url.appending(path: name.path)
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(text.utf8).write(to: file)
+        return name
+    }
+
+    /// Exports the markers and the episode as MP3 of `range`, or in `options` to `target`.
     @discardableResult
     func export(
-        _ markers: [Marker], episode: Episode = Episode(), range: Range<Frames> = 0..<144_000
+        _ markers: [Marker], episode: Episode = Episode(), range: Range<Frames> = 0..<144_000,
+        options: ExportOptions = MP3ExportTests.mp3(), to target: URL? = nil
     ) throws(ExportError) -> ExportResult {
         var session = package.session
         for marker in markers {
@@ -89,8 +100,7 @@ struct ChapterTagTests {
         }
         session.setEpisode(episode)
         return try exportMix(
-            session, source: ExportSource(range: range)!, options: MP3ExportTests.mp3(), to: url,
-            package: { package.url })
+            session, source: ExportSource(range: range)!, options: options, to: target ?? url, package: { package.url })
     }
 
     /// C4. One CTOC with each child in time order, and one CHAP per chapter with its title, its
@@ -183,5 +193,64 @@ struct ChapterTagTests {
     @Test func aTagOverTheLimitThrows() throws {
         #expect(try tagHeaderSize(maximumTagSize) == [0x7F, 0x7F, 0x7F, 0x7F])
         #expect(throws: ExportError.tagTooLarge) { try tagHeaderSize(maximumTagSize + 1) }
+    }
+
+    /// C6. A chapter with a URL has `WXXX`, and a chapter with an image has `APIC` (type 0), in its
+    /// `CHAP`. A chapter with neither has only its title.
+    @Test func aChapterWithAURLAndAnImageGetsWXXXAndAPIC() throws {
+        let jpeg = try artwork("jpeg bytes")
+        try export([
+            Marker(
+                id: "one", name: "One", position: 0, kind: .chapter, url: try WebURL("https://example.com/one"),
+                image: jpeg),
+            Self.chapter("Two", at: 72_000),
+        ])
+        let chapters = Self.chapters(try Self.tag(url))
+        let wxxx = chapters.first?.frames.first { $0.id == "WXXX" }?.body
+        #expect(wxxx == [0, 0] + Array("https://example.com/one".utf8), "WXXX \(String(describing: wxxx))")
+        let apic = chapters.first?.frames.first { $0.id == "APIC" }?.body
+        let expected: [UInt8] = [0] + Array("image/jpeg".utf8) + [0, 0, 0] + Array("jpeg bytes".utf8)
+        #expect(apic == expected, "APIC \(String(describing: apic))")
+        #expect(chapters.last?.frames.map(\.id) == ["TIT2"], "Two has only its title")
+    }
+
+    /// C6, C5e. A PNG chapter image keeps its type and its bytes in the MP3.
+    @Test func aPNGChapterImageStaysPNGInAPIC() throws {
+        let png = try artwork("png bytes", png: true)
+        try export([Marker(id: "one", name: "One", position: 0, kind: .chapter, image: png)])
+        let apic = Self.chapters(try Self.tag(url)).first?.frames.first { $0.id == "APIC" }?.body
+        let expected: [UInt8] = [0] + Array("image/png".utf8) + [0, 0, 0] + Array("png bytes".utf8)
+        #expect(apic == expected, "APIC \(String(describing: apic))")
+    }
+
+    /// C6. A chapter image file that is not in the package throws before any file exists, in the
+    /// MP3 and in the M4A.
+    @Test func aMissingChapterImageThrowsBeforeAnyFile() throws {
+        let name = try ArtworkName("\(UUID().uuidString).jpg")
+        let marker = Marker(id: "one", name: "One", position: 0, kind: .chapter, image: name)
+        #expect(throws: ExportError.artworkMissing(name.path)) { try export([marker]) }
+        let aac = ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session)
+        #expect(throws: ExportError.artworkMissing(name.path)) {
+            try export([marker], options: aac, to: package.folder.url.appending(path: "mix.m4a"))
+        }
+        try MP3ExportTests.expectNoOutput(package)
+    }
+
+    /// C7. A WAV and a FLAC export keep their bytes with chapters that have a URL and an image.
+    @Test func wavAndFLACKeepTheirBytesWithChapters() throws {
+        let marker = Marker(
+            id: "one", name: "One", position: 48_000, kind: .chapter, url: try WebURL("https://example.com"),
+            image: try artwork("jpeg bytes"))
+        for (format, name) in [(ExportFormat.wav(.bits16), "wav"), (.flac(.bits16), "flac")] {
+            let options = ExportOptions(format: format, layout: .stereo, rate: .session)
+            let (plain, chapters) = (
+                package.folder.url.appending(path: "plain.\(name)"),
+                package.folder.url.appending(path: "chapters.\(name)")
+            )
+            try export([], options: options, to: plain)
+            try export([marker], options: options, to: chapters)
+            let same = try Data(contentsOf: plain) == Data(contentsOf: chapters)
+            #expect(same, "\(name) bytes changed")
+        }
     }
 }

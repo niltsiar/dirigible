@@ -18,17 +18,19 @@ enum ExportStep: Hashable {
     case choosing
 }
 
-/// The names of the chapters that an exported file leaves out, because each starts at the time of
-/// another chapter, the name of the file, and the session revision of the export.
-struct DroppedChaptersShown: Equatable {
+/// The chapter warnings of an exported file: the names of the chapters that it leaves out, because
+/// each starts at the time of another chapter, and whether it has no chapter images. Also the name
+/// of the file and the session revision of the export.
+struct ChapterWarningsShown: Equatable {
     let names: [String]
+    let imagesOmitted: Bool
     let file: String
     let revision: Int
 
-    /// Nil when no chapter is left out.
-    init?(_ chapters: [Marker], file: String, revision: Int) {
-        guard !chapters.isEmpty else { return nil }
-        (names, self.file, self.revision) = (chapters.map(\.name), file, revision)
+    /// Nil when no chapter is left out and the images are not omitted.
+    init?(_ chapters: [Marker], imagesOmitted: Bool = false, file: String, revision: Int) {
+        guard !chapters.isEmpty || imagesOmitted else { return nil }
+        (names, self.imagesOmitted, self.file, self.revision) = (chapters.map(\.name), imagesOmitted, file, revision)
     }
 }
 
@@ -131,14 +133,15 @@ extension SessionWindow {
     func run(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
         recordRefusal = nil
         exportReport = nil
-        droppedChapters = nil
+        chapterWarnings = nil
         defer { recordRefusal = nil }
         // The file has the session of the export start: an edit during the export does not match it.
         let revision = studio.sessionRevision
         do throws(StudioError) {
             let result = try await studio.export(source, target.options, to: target.url, replacing: target.confirmed)
-            droppedChapters = DroppedChaptersShown(
-                result.droppedChapters, file: target.url.lastPathComponent, revision: revision)
+            chapterWarnings = ChapterWarningsShown(
+                result.droppedChapters, imagesOmitted: result.chapterImagesOmitted, file: target.url.lastPathComponent,
+                revision: revision)
             if result.faults.isEmpty {
                 exportReport = result.loudness.map {
                     ExportReportShown(report: $0, file: target.url.lastPathComponent, revision: revision)
@@ -168,7 +171,7 @@ extension SessionWindow {
     /// Option-Command-E: the save panel, then the chapter images and an atomic write of the JSON
     /// off the main actor (`Studio.exportChapters`). The file has the session of the command. A
     /// failed write, or an item at the name of a chapter image, shows the export alert. A written
-    /// file with a chapter left out shows the banner of `droppedChapters`.
+    /// file with a chapter left out shows the banner of `chapterWarnings`.
     func exportChapters() {
         guard let studio = exportStudio, let window, let app else { return }
         let (range, marks) = chaptersRange(in: studio)
@@ -184,7 +187,7 @@ extension SessionWindow {
             Task {
                 do throws(ExportError) {
                     try await studio.exportChapters(session, in: range, to: target)
-                    droppedChapters = DroppedChaptersShown(
+                    chapterWarnings = ChapterWarningsShown(
                         dropped, file: target.lastPathComponent, revision: revision)
                 } catch {
                     alert = .error(.export(error))

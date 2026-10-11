@@ -277,8 +277,9 @@ struct ChromeState: Equatable {
         if let shown = model.exportReport, shown.revision == studio.sessionRevision {
             banners.append(.exportReport(shown.report, file: shown.file))
         }
-        if let shown = model.droppedChapters, shown.revision == studio.sessionRevision {
-            banners.append(.chaptersDropped(shown.names, file: shown.file))
+        if let shown = model.chapterWarnings, shown.revision == studio.sessionRevision {
+            if !shown.names.isEmpty { banners.append(.chaptersDropped(shown.names, file: shown.file)) }
+            if shown.imagesOmitted { banners.append(.chapterImagesOmitted(file: shown.file)) }
         }
         shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
     }

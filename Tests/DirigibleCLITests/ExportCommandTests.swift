@@ -351,4 +351,24 @@ struct ExportCommandTests {
         let count = (0..<(bytes.count - 4)).count { Array(bytes[$0..<($0 + 4)]) == chap }
         #expect(count == 2, "CHAP frames \(count)")
     }
+
+    /// C5b. An M4A with a chapter image, a chapter with none, and no episode artwork has no
+    /// chapter images, and a warning says so.
+    @Test func omittedChapterImagesPrintAWarning() async throws {
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try FileManager.default.createDirectory(
+            at: package.url.appending(path: image.path).deletingLastPathComponent(), withIntermediateDirectories: true)
+        try EpisodeCommandTests.writeImage(package.url.appending(path: image.path), width: 300, height: 300)
+        try package.edit { session in
+            try session.setMarker(Marker(id: "a", name: "A", position: 1_000, kind: .chapter, image: image))
+            try session.setMarker(Marker(id: "b", name: "B", position: 5_000, kind: .chapter))
+        }
+        let file = out("a.m4a")
+        #expect(
+            try await package.run("export", "PKG", "--out", file.path)
+                == CLIResult(
+                    status: 0, stdout: "",
+                    stderr: "Warning: \(file.path) has no chapter images: a chapter has no image, and the episode has "
+                        + "no artwork. Set the episode artwork, or an image for each chapter.\n"))
+    }
 }

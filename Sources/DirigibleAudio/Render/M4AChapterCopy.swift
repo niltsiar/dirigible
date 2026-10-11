@@ -1,6 +1,7 @@
 import AVFoundation
 import AudioToolbox
 import CoreMedia
+import DirigibleCore
 import Foundation
 import ImageIO
 
@@ -58,7 +59,7 @@ func copyWithChapters(
     // Each sample is made in the append loop, so the loop reads the cancel between two samples.
     let textFormat = try chapterTextFormat()
     let titles = zip(chapters, chapters.dropFirst().map(\.start) + [frames]).map {
-        (data: textSample($0.title), start: $0.start, end: $1)
+        (data: textSample($0.title, url: $0.url), start: $0.start, end: $1)
     }
     var queues = [
         (try chapterInput(.text, hint: textFormat, scale: scale, writer: writer, audio: audioInput), titles)
@@ -153,8 +154,9 @@ private func chapterInput(
 }
 
 /// A `tx3g` sample: a 16-bit big-endian length and the UTF-8 title, cut at a character boundary to
-/// `maximumChapterTitleBytes`.
-func textSample(_ title: String) -> Data {
+/// `maximumChapterTitleBytes`. A `url` of at most `Marker.maximumURLBytes` adds an `href` box; a
+/// longer one adds none.
+func textSample(_ title: String, url: String? = nil) -> Data {
     var bytes = 0
     var end = title.startIndex
     for index in title.indices {
@@ -164,7 +166,16 @@ func textSample(_ title: String) -> Data {
         end = title.index(after: index)
     }
     let length = UInt16(bytes)
-    return Data([UInt8(length >> 8), UInt8(length & 0xFF)]) + Data(title[..<end].utf8)
+    let cut = title[..<end]
+    var sample = Data([UInt8(length >> 8), UInt8(length & 0xFF)]) + Data(cut.utf8)
+    // The 3GPP `href` box spans the whole title. Its URL length field has 8 bits.
+    if let url, url.utf8.count <= Marker.maximumURLBytes {
+        let characters = UInt16(cut.utf16.count)
+        let body =
+            [0, 0, UInt8(characters >> 8), UInt8(characters & 0xFF), UInt8(url.utf8.count)] + Array(url.utf8) + [0]
+        sample += Data(bigEndian(UInt32(8 + body.count)) + Array("href".utf8) + body)
+    }
+    return sample
 }
 
 /// The `tx3g` format of the chapter track: black text, no box, the font Sans-Serif.

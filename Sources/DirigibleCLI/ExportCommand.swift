@@ -19,8 +19,10 @@ struct Export: ParsableCommand {
             peak. A 16-bit export has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes 32000, \
             44100, or 48000 Hz. An MP3 decodes up to 0.45 dB lower than the printed loudness: LAME scales \
             its input. An .m4a gets the chapter markers of the range as a chapter track, and an .mp3 gets \
-            them as ID3 CHAP frames, at most 255. A chapter at the time of the chapter before it is not in \
-            the file, and a warning names it.
+            them as ID3 CHAP frames, at most 255. Each chapter keeps its URL and its image. A chapter at \
+            the time of the chapter before it is not in the file, and a warning names it. An .m4a with a \
+            chapter image, a chapter with none, and no episode artwork gets no chapter images, and a \
+            warning says so.
             """)
 
     @OptionGroup var package: PackageArgument
@@ -142,6 +144,12 @@ struct Export: ParsableCommand {
         for chapter in result.droppedChapters {
             let line =
                 "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter; the file leaves it out.\n"
+            try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
+        }
+        if result.chapterImagesOmitted {
+            let line =
+                "Warning: \(output.path) has no chapter images: a chapter has no image, and the episode has no "
+                + "artwork. Set the episode artwork, or an image for each chapter.\n"
             try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
         }
         if let report = result.loudness {

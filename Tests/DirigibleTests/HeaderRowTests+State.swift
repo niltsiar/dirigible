@@ -38,10 +38,15 @@ extension HeaderRowTests {
                     "no \"Privacy…\" text button: \(label)")
                 window.orderFront(nil)
                 drawNow(window)
-                try await Task.sleep(for: .milliseconds(200))
-                let capture = try await TimelineColorTests.capture(window)
+                // The window server shows a flushed frame some milliseconds later: capture until
+                // the symbol shows, for 5 s or less.
                 let rect = host.convert(NSRect(x: 0, y: 0, width: width, height: lane), to: nil)
-                let orange = try TimelineRulerTests.pixels(of: rect, capture, window).filter(Self.isOrange).count
+                let end = ContinuousClock.now + .seconds(5)
+                var orange = 0
+                repeat {
+                    let capture = try await TimelineColorTests.capture(window)
+                    orange = try TimelineRulerTests.pixels(of: rect, capture, window).filter(Self.isOrange).count
+                } while orange <= 10 && ContinuousClock.now < end
                 #expect(orange > 10, "the orange symbol shows: \(label)")
                 window.close()
             }
@@ -97,10 +102,11 @@ extension HeaderRowTests {
         model.headerRuns = (0, 0)
         height.value = 120
         // SwiftUI reads the change on a run loop pass.
-        try await Task.sleep(for: .milliseconds(100))
-        host.layoutSubtreeIfNeeded()
-        drawNow(window)
-        #expect(model.headerRuns.headers > 0, "the headers took the new height")
+        await until("the headers took the new height") {
+            host.layoutSubtreeIfNeeded()
+            drawNow(window)
+            return model.headerRuns.headers > 0
+        }
         #expect(model.headerRuns.rows == 0, "no row body from 100 to 120 pt: \(model.headerRuns.rows)")
         window.close()
         await model.close()

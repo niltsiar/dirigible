@@ -156,6 +156,19 @@ expect block 'dd if=/dev/null of=.git/dirigible-flakes'
 expect block 'f=.git/dirigible-flakes; : > "$f"'
 expect block "python3 -c 'open(\".git/dirigible-flakes\", \"w\")'"
 expect block 'cat x > .git/dirigible-flakes'
+# More read tools: git grep, rg, sort (no -o), grep -i, sed -n (no -i), awk (no redirect). A \|
+# in a quoted grep pattern does not split the command.
+expect allow 'git grep -n dirigible-flakes'
+expect allow 'rg dirigible-flakes scripts'
+expect allow 'sort .git/dirigible-flakes'
+expect allow 'grep -i x .git/dirigible-flakes'
+expect allow 'sed -n 1p .git/dirigible-flakes'
+expect allow "awk '{ print \$1 }' .git/dirigible-flakes"
+expect allow "grep -n 'land\\|dirigible-flakes' scripts/run-checks.sh"
+expect block 'sed 1d .git/dirigible-flakes'
+expect block "sed -n -i '' 1d .git/dirigible-flakes"
+expect block 'sort -o .git/dirigible-flakes x'
+expect block "awk '{ print > \".git/dirigible-flakes\" }' x"
 # A folder path with no .git in it (a worktree named dirigible-flakes) is not the file: the past
 # commands of probe-u1/commands.txt stay allowed.
 expect allow 'git worktree add -b fix/flakes-and-upkeep ../dirigible-flakes main 2>&1 | tail -1'

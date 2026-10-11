@@ -146,6 +146,22 @@ Run order. The research for this order is in `docs/research/podcast-features.md`
 22. **EQ and compressor per track (F36).** A real-time chain in the Player and the same result in the export. Raises the session version. One-way decision: the effect chain model.
 23. **Remove the remote guest from the local microphone (F42, R14).** Offline, with the app track as the reference. It uses the DSP of runs 20 and 21. This is the largest unknown of the release, so it comes last.
 
+## Versions
+
+The app version is `0.<release>.<run>`, from the release and the run number of this file. Release 3 run 4 is `0.3.4`, and Release 4 starts at `0.4.0`.
+
+- A merge that changes app code (`Sources/`, `Package.swift`, `Package.resolved`, `Support/`) and is not a numbered run gets a fourth number when the lead tags it: `0.3.4.1`, `0.3.4.2`. The fourth number counts the tags, not the merges. The next numbered run resets it.
+- The source of the version is an annotated tag `v<version>` on `main`. A lightweight tag does not count. There is no GitHub release.
+- After the land, the lead tags the next merge that ships app code. One tag can cover earlier untagged app-code merges.
+- `scripts/land.sh` merges with a rebase, so `main` has no merge commit, and the head commit of the pull request is not on `main`. Tag the commit that `gh pr view <n> --json mergeCommit -q .mergeCommit.oid` prints: the last commit of the pull request on `main`.
+- The commands:
+  1. `git fetch origin`
+  2. `git tag -a v<version> <commit> -m '<run>'`
+  3. Compare `git rev-parse 'v<version>^{}'` with `<commit>`. If they differ, run `git tag -d v<version>` and stop.
+  4. `git push origin v<version>`
+- `scripts/version.sh` prints the version of a work tree: the nearest tag without its `v`, plus `-<n>-g<commit>` for a commit after the tag. `scripts/bundle.sh` writes it to `CFBundleShortVersionString`, with `-dirty` for a tree with uncommitted changes. With no tag, the version is `0.0.0`. `CFBundleVersion` stays 1.
+- The version shows in **Dirigible > About Dirigible**, in the start window, in the DMG name, and in the output of `dirigible --version`.
+
 ## Later
 
 Each item needs its own design run.

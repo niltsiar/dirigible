@@ -76,7 +76,7 @@ Use a DMG that `make dmg` built, or a DMG that the maintainer of the project gav
 2. Drag **Dirigible** to **Applications**.
 3. Open Dirigible from the Applications folder.
 
-To report a bug, give the text of **Dirigible > About Dirigible**: the version and, in parentheses, the commit of the build.
+To report a bug, give the text of **Dirigible > About Dirigible**: the version and, in parentheses, the commit of the build. `dirigible --version` prints the same version. A release version has the form `0.<release>.<run>`, for example `0.3.4`. A build after the last release tag adds `-<commits>-g<commit>`, and a build with uncommitted changes adds `-dirty`. The rule is in [Versions](docs/requirements/releases.md#versions).
 
 `make dmg` also writes `Dirigible-<version>.dmg.sha256`. To check a DMG against this file, put both files in one folder and run `shasum -a 256 -c Dirigible-<version>.dmg.sha256` there. The result must be `OK`.
 

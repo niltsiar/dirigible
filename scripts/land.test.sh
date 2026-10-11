@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check that land.sh runs the land steps of deliver Phase 9 in order and stops at the first
 # failure. Each case uses a temporary repo, a bare remote, and fake make and gh on PATH that log
-# their arguments. Cases: the happy path, a red check, a rebase conflict (the rebase is aborted),
+# their arguments. Cases: the happy path, another worktree that holds main, a red check, a rebase conflict (the rebase is aborted),
 # main moved after the check, a run on main or a detached HEAD, an untracked or a changed file, a
 # red governance check, `risk: yes` with and with no control row, a body that pr-terms.sh flags
 # (before the fetch), a body that lost a number of logs/pr-draft.md, a pr-terms.sh error, a
@@ -118,6 +118,30 @@ new="$(git -C "$c/origin.git" rev-parse main)"
 grep -qx 'pr: https://github.com/o/r/pull/7' "$c/out" || fail "happy: no PR URL: $(cat "$c/out")"
 grep -qx "range: $old..$new" "$c/out" || fail "happy: no commit range $old..$new: $(cat "$c/out")"
 grep -qx 'stamp: none (no stamp)' "$c/out" || fail "happy: no stamp line: $(cat "$c/out")"
+
+# Another worktree holds main: the land prints the range before it touches main, skips the
+# switch, and stays on the branch (git switch main exits 128 in this state).
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+git -C "$c/work" worktree add -q "$c/wt" main
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "main in a worktree: exit $code: $(cat "$c/out")"
+new="$(git -C "$c/origin.git" rev-parse main)"
+grep -qx "range: $old..$new" "$c/out" || fail "main in a worktree: no commit range $old..$new: $(cat "$c/out")"
+grep -q "main is checked out in .*/case/wt; fast-forwarded it" "$c/out" || fail "main in a worktree: no fast-forward line: $(cat "$c/out")"
+[[ "$(git -C "$c/work" branch --show-current)" == feat/x ]] || fail 'main in a worktree: not on the branch at the end'
+[[ "$(git -C "$c/wt" rev-parse HEAD)" == "$new" ]] || fail 'main in a worktree: the clean worktree is not at origin/main'
+# With changes in that worktree, the land prints the command and does not touch the worktree.
+setup
+git -C "$c/work" worktree add -q "$c/wt" main
+before="$(git -C "$c/wt" rev-parse HEAD)"
+echo y > "$c/wt/y.txt"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "main in a changed worktree: exit $code: $(cat "$c/out")"
+grep -q 'which has changes; fast-forward it there with git merge --ff-only origin/main' "$c/out" || fail "main in a changed worktree: no command line: $(cat "$c/out")"
+[[ "$(git -C "$c/wt" rev-parse HEAD)" == "$before" && -f "$c/wt/y.txt" ]] || fail 'main in a changed worktree: the worktree changed'
 
 # A red check stops before the push.
 setup

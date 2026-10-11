@@ -65,8 +65,8 @@ Write `plan.md`:
 
 Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interrogate** skill with target `plan` and the lenses of the class table. Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
-- Change the plan for each "Act on" item and log it. Grep each fact that a fix changes, as in Phase 2.
-- Round 2 runs only as the class table section says. After the last round and the fix check, the gate is closed: record open risks in `run.md`.
+- Put each "Act on" change in `## Plan gate changes` with `Criteria:`, and log it. Grep each fact that a fix changes, as in Phase 2.
+- After the last round and the fix check, the gate is closed: record open risks in `run.md`.
 
 ## Phase 4: Implement
 

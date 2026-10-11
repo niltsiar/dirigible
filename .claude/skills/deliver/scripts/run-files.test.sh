@@ -117,9 +117,9 @@ check_row 'a criterion change after an analysis.md edit' $'4\tCriterion change C
 refused 'a second criterion change with no new analysis.md edit' analysis.md "${change[@]}"
 "$log" "$run" 7 'criterion 4 verified' 'the test passes' evidence done || fail "a criterion verification row exits $?"
 
-# The first phase 4 row of a run with a plan.md runs scripts/check-plan.sh on the run folder: a
-# plan gate change with no Criteria: field, or a criterion with no criterion change row, refuses
-# the row, while a fix can still come before Phase 4. A run with no plan.md is not checked.
+# Each phase 4 row of a run with a plan.md runs scripts/check-plan.sh on the run folder: a plan
+# gate change with no Criteria: field, or a criterion with no criterion change row, refuses the
+# row, while a fix can still come before Phase 4. A run with no plan.md is not checked.
 gated="$tmp/gated"
 mkdir "$gated"
 printf '# A\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$gated/analysis.md"
@@ -140,7 +140,8 @@ touch -t 200001010000 "$gated/decisions.tsv"
 "$log" "$gated" 3 'criterion change C8: old 3 s, new 5 s' why evidence done || fail "the criterion change row for C8 exits $?"
 "$log" "$gated" 4 'Slice S1 committed' why evidence done || fail "the first phase 4 row after the C8 row exits $?"
 printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case.\n' > "$gated/plan.md"
-"$log" "$gated" 4 'Slice S2 committed' why evidence done || fail "a second phase 4 row was checked again: exit $?"
+"$log" "$gated" 4 'Slice S2 committed' why evidence done 2>/dev/null
+[[ $? -eq 2 ]] || fail "a second phase 4 row with a plan item with no Criteria field was not refused"
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

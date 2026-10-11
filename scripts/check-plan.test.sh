@@ -227,6 +227,9 @@ gate $'- Slice 1: a new case.\n  - a nested bullet of the item'
 refuse 'a bullet plan gate change with no Criteria field' 'Plan gate changes item 1 has no Criteria: field'
 gate $'- Slice 1: a new case.\n  - Criteria: none\n- Slice 2: another case.'
 refuse 'the second item with no Criteria field' 'Plan gate changes item 2 has no Criteria: field'
+good
+printf '\n## Plan gate 2 changes\n\n1. S2: a round 2 case.\n' >> "$run/plan.md"
+refuse 'a numbered Plan gate 2 changes section' 'Plan gate changes item 1 has no Criteria: field'
 # Before Phase 4 a missing row can still come, so only a phase 4 row, or CHECK_PLAN_AT_PHASE4=1
 # (log-decision.sh before the first phase 4 row), makes a missing row a failure.
 gate $'1. S2: a new case. Criteria: C8, C3b'
@@ -235,6 +238,7 @@ row 3 'criterion change C8: old 3 s, new 5 s'
 pass 'a missing criterion change row before Phase 4'
 export CHECK_PLAN_AT_PHASE4=1
 refuse 'a criterion with no criterion change row' 'criterion C3b of a plan gate change has no criterion change row'
+refuse 'the refusal says to edit analysis.md first' 'edit analysis.md first'
 row 3 'Criterion change C3: old a, new b'
 refuse 'a row for C3 does not count for C3b' 'criterion C3b of a plan gate change has no criterion change row'
 row 3 'criterion change C3b: old a, new b'

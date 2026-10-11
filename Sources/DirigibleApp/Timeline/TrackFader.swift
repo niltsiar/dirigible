@@ -95,7 +95,9 @@ final class FaderSlider: NSSlider {
         guard isEnabled else { return super.mouseDown(with: event) }
         if event.clickCount >= 2 || event.modifierFlags.contains(.option) {
             // The first click of a double-click off the thumb moved the thumb there and made an
-            // edit. The reset joins that edit, so a double-click is one undo step (C8).
+            // edit. The reset joins that edit, so a double-click is one undo step (C8). The time
+            // check stays: when the first click hits the readout, `clickEdit` is from an older
+            // click, and the click count does not show that.
             if event.clickCount >= 2, let click = clickEdit,
                 event.timestamp - click.time < NSEvent.doubleClickInterval
             {

@@ -97,6 +97,24 @@ struct ChaptersCommandTests {
         #expect(try startTimes(wide) == [10, 12, 20, 20.833])
     }
 
+    /// C5f, C3 of run 2026-10-11-chapters-in-file. "Outro 2" starts at the millisecond of "Outro",
+    /// so the file leaves it out, and stderr names it.
+    @Test func aDroppedChapterPrintsAWarning() async throws {
+        try package.edit { session in
+            try session.setMarker(Marker(id: "c", name: "Outro 2", position: 576_010, kind: .chapter))
+        }
+        let file = out("dropped.json")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", file.path)
+                == CLIResult(
+                    status: 0, stdout: "",
+                    stderr: """
+                        Warning: chapter "Outro 2" at 576010 starts at the millisecond of another chapter; the file leaves it out.
+
+                        """))
+        #expect(try startTimes(file) == [10, 12])
+    }
+
     /// Code gate item 1. A session with chapters and no clip has no range: exit 1, not 64.
     @Test func aSessionWithNoAudioExitsOne() async throws {
         var session = Session(sampleRate: 48_000)

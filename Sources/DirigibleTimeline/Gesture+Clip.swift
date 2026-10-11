@@ -201,9 +201,11 @@ extension TimelineGesture {
             press.option
             ? rippleTrimLimits(clip, edge: edge, fileLength: file.length, minimum: minimum)
             : trimLimits(clip, edge: edge, in: press.base.tracks[lane].clips, fileLength: file.length, minimum: minimum)
+        // A trim excludes its own clip, so a start edge never stops at its own end.
+        let snap = press.option ? nil : Snap(press.base, excluding: [clip.id], geometry: context.geometry)
         return Trim(
             clip: clip, edge: edge, lane: lane, ripple: press.option, limits: limits, range: clip.range,
-            preview: press.base)
+            preview: press.base, snap: snap)
     }
 
     /// A ripple trim drag event: the edge moves by the pointer motion in whole device columns,

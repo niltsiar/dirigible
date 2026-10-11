@@ -88,3 +88,60 @@ struct Snap: Sendable {
         return low
     }
 }
+
+extension Snap {
+    /// The snap step of a drag (decision 0020): the delta after the nearest of `edges` moved by
+    /// `delta` goes on a target in reach, and that target. No snap targets, snap off, or a delta of
+    /// zero (under the 3 pt threshold, so a click never snaps) keep the delta, with no target.
+    static func snapped(_ snap: Snap?, _ delta: Frames, _ edges: [Frames], _ context: GestureContext)
+        -> (delta: Frames, target: Frames?)
+    {
+        guard let snap, context.snaps, delta != .zero,
+            let shifted = snap.shift(edges.map { $0 + delta }, playhead: context.playhead)
+        else { return (delta, nil) }
+        return (delta + shifted.by, shifted.target)
+    }
+
+    /// The guide: `target` when an edge after the clamps is on it, else nil.
+    static func guide(_ target: Frames?, on edges: [Frames]) -> Frames? {
+        target.flatMap { edges.contains($0) ? $0 : nil }
+    }
+}
+
+extension TimelineGesture {
+    /// The frame of the target that an edge of the drag is on, for the guide line; else nil.
+    public var guide: Frames? {
+        switch state {
+        case .moving(_, let move): move.guide
+        case .grouping(_, let group): group.guide
+        case .trimming(_, let trim): trim.guide
+        case .ranging(_, _, let guide): guide
+        default: nil
+        }
+    }
+
+    /// A range drag with the snap targets of the session at the down.
+    func rangeState(_ press: Press, _ context: GestureContext) -> State {
+        .ranging(press, Snap(press.base, geometry: context.geometry), guide: nil)
+    }
+
+    /// A range drag event. The pointer end snaps after 3 pt of horizontal movement from the press,
+    /// so a vertical drag across the lanes keeps its frames (snap run plan gate 1); the press end
+    /// never snaps.
+    mutating func rangeDrag(_ press: Press, _ snap: Snap, _ x: Double, _ y: Double, _ context: GestureContext)
+        -> [GestureEffect]
+    {
+        let geometry = context.geometry
+        var end = geometry.frame(at: x)
+        var guide: Frames?
+        if context.snaps, abs(x - press.x) >= Self.threshold,
+            let shifted = snap.shift([end], playhead: context.playhead)
+        {
+            (end, guide) = (shifted.target, shifted.target)
+        }
+        state = .ranging(press, snap, guide: guide)
+        let drag = Marks.drag(
+            from: press.frame, to: end, lanes: (geometry.lane(at: press.y), geometry.lane(at: y)), in: context.session)
+        return [.selection(.range(press.shift ? press.marks.extended(by: drag) : drag))]
+    }
+}

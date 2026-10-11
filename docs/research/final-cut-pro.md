@@ -131,7 +131,7 @@ The Dirigible model (0003): a session has tracks. A track holds clips at absolut
 | Synchronize Clips by audio | Aligns clips by waveform | Sync a clip to another track by waveform (F74) | Adapt | A double-ender file from a remote guest needs this | [SY] |
 | Multicam | Angles synced by audio or timecode | No mapping | Skip | Video angle switching; F74 gives the audio part | [MC] |
 | Timeline index | List of clips, markers, chapters, roles; search; select seeks | Session index (F76) | Adapt | Hindenburg has Markers and Chapters lists too | [IX] |
-| Clip appearance | Clip height; waveform size (Control-Option-Up and Down) | Waveform vertical zoom (F78) | Adapt | Quiet speech is hard to see; the lanes already fit 40 to 120 pt | [CA] |
+| Clip appearance | Clip height; waveform size (Control-Option-Up and Down) | Waveform vertical zoom (F78) | Adapt | Quiet speech is hard to see; the lanes already fit 40 to 200 pt | [CA] |
 | Timeline scrolling (10.7) | The view follows the playhead | Follow scroll (0022) | Keep | Dirigible already has it | [RN] |
 | Transcribe to Captions, Transcript Search | Captions and word search from audio | F27 | Keep, later | Same place as the catalog | [RN] |
 | Solo and mute a clip | Per clip | Not researched here | - | Out of the scope of this document | - |

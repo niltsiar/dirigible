@@ -103,6 +103,7 @@ import os
         try studio.undo()
         #expect(!studio.canUndo, "C7: one undo entry")
         #expect(studio.session.track("t1")?.gain == .zero, "C7: undo gives the old gain")
+        await untilPlayed(studio, 0, "code gate 1: the undo reaches the Player after the drag")
         try studio.redo()
         try await Task.sleep(for: .milliseconds(600))
         #expect(saves.withLock { $0 } >= 1, "C7: an autosave after the edit")

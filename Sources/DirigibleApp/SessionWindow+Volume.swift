@@ -12,16 +12,13 @@ extension SessionWindow {
         try? studio?.previewGain(gain, track: track)
     }
 
-    /// The fader mouse-up: one edit with `dB`. With no change, or when the edit fails, the Player
-    /// gets the session gain again. Returns true for an edit.
+    /// The fader mouse-up: one edit with `dB`, then the end of the preview, so a later edit or
+    /// an undo plays the session gain. Returns true for an edit.
     @discardableResult func commitVolume(_ dB: Double, track: TrackID) -> Bool {
         guard let studio, let gain = Gain(dB: dB) else { return false }
+        defer { studio.endPreview() }
         let changed = studio.session.track(track).map { $0.gain != gain } ?? false
-        guard changed, edit({ session throws(SessionError) in try session.setGain(gain, track: track) }) != nil else {
-            studio.endPreview()
-            return false
-        }
-        return true
+        return changed && edit({ session throws(SessionError) in try session.setGain(gain, track: track) }) != nil
     }
 
     /// Track > Raise, Lower, and Reset Track Volume: the tracks of the range selection, in one edit.

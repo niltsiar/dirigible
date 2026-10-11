@@ -228,4 +228,28 @@ extension InspectorTests {
         await until("the lanes take the new width") { layout(window) == 940 }
         await model.close()
     }
+
+    // MARK: Code gate 1
+
+    /// Code gate 1 item 1: a mouse-down on the handle commits a typed gain and ends the text focus,
+    /// as the header handle does, so Esc reaches the drag. Control: the field kept Esc.
+    @Test func aHandleDownCommitsTheDraftAndEscEndsTheDrag() async throws {
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let (model, studio, window, _) = try await open(try await package())
+        window.setContentSize(NSSize(width: 1180, height: 600))
+        await until("the lanes give the pane its width") {
+            window.contentLayoutRect.width == 1180 && layout(window) == 910
+        }
+        model.timeline.marks = overA
+        try await type("-6", in: try await paneFields(window)[0], window, model)
+        try drag(window, by: -100, up: false)
+        #expect(gain(studio, "A") == -6, "the down commits the typed gain")
+        #expect(focusedField(window) == nil, "the down ends the text focus")
+        // The hosting view takes cancelOperation(_:) until SwiftUI ends its focus in a run loop pass.
+        await runLoopPass()
+        press("\u{1b}", 53, window)
+        #expect(model.inspectorWidth == .standard && !model.inspectorDrag.isActive, "Esc ends the drag")
+        #expect(model.inspectorGuide.superlayer == nil, "Esc removes the guide")
+        await model.close()
+    }
 }

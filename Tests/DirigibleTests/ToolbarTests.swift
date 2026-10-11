@@ -171,6 +171,26 @@ struct ToolbarValueTests {
         await model.close()
     }
 
+    /// C27 (run ui-polish-chrome): the push-on items have one width, off and on. Today the
+    /// symbols give 40 to 51 pt (U5). The copies of the palette give each item, also an item that
+    /// the toolbar does not show.
+    @Test func theTogglesHaveOneWidth() async throws {
+        let (model, _, chrome) = try await open("toggles")
+        var widths: [String: Double] = [:]
+        for id in ToolbarItemID.allCases.filter(\.isToggle) {
+            let item = try #require(
+                chrome.toolbar(chrome.toolbar, itemForItemIdentifier: id.identifier, willBeInsertedIntoToolbar: false))
+            let button = try #require(item.view as? NSButton, "\(id)")
+            for state in [NSControl.StateValue.off, .on] {
+                button.state = state
+                widths["\(id) \(state == .on ? "on" : "off")"] = Double(button.fittingSize.width)
+            }
+        }
+        let (low, high) = (widths.values.min() ?? 0, widths.values.max() ?? 0)
+        #expect(widths.count == 10 && high - low <= 0.5, "\(widths.sorted { $0.key < $1.key })")
+        await model.close()
+    }
+
     /// A10: at the minimum width, with a long title, the transport and the time stay in the
     /// toolbar; at 900 pt, Input Levels and Export too (probe P1c). English and Spanish labels.
     @Test func theTransportStaysVisibleAtTheMinimumWidth() async throws {

@@ -27,6 +27,12 @@ struct TrackHeaders: View {
     /// The header width from which a one-line row shows the short-term text: under it the text
     /// pushes the dropped-frames symbol out of the row. The guide and `loudness.take.tip` give it.
     static let compactLoudnessWidth = 262.0
+    /// The header width from which a two-line row shows the volume fader (F94): the narrowest
+    /// width where the route menu keeps `faderRouteWidth` and every view stays inside the row
+    /// (`HeaderRowTests.theFaderShowsOnlyWhereItFits`). Under it Track > Raise Track Volume and
+    /// the other volume items still act. A one-line row has no fader.
+    static let faderTwoLineWidth = 252.0
+    static let faderRouteWidth = 80.0
 
     /// The boxes of a row of `width`: M and S from their gate, Monitor from its gate.
     static func boxes(width: Double, twoLines: Bool) -> HeaderBoxes {
@@ -46,7 +52,8 @@ struct TrackHeaders: View {
                         secondLine: laneHeight >= 56,
                         showsLayout: laneHeight >= 56 || geometry.size.width >= Self.layoutWidth,
                         boxes: Self.boxes(width: geometry.size.width, twoLines: laneHeight >= 56),
-                        showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth
+                        showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth,
+                        showsFader: laneHeight >= 56 && geometry.size.width >= Self.faderTwoLineWidth
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
                     // At the lane edge, as the lanes have no line: the rows read as rows (D8).
@@ -58,9 +65,9 @@ struct TrackHeaders: View {
 }
 
 /// The header of one lane. In a lane of 56 pt or more: the R, Monitor, M, and S buttons, the
-/// name, and the layout on the first line; the route menu, and during a take or a monitor the
-/// meter and the state, on the second. In a lower lane, one line: the buttons, the name, the
-/// layout, a route symbol menu, and the compact meter and state.
+/// name, and the layout on the first line; the route menu and the volume fader, or during a take
+/// or a monitor the meter and the state, on the second. In a lower lane, one line: the buttons,
+/// the name, the layout, a route symbol menu, and the compact meter and state.
 private struct TrackRow: View {
     let model: SessionWindow
     let studio: Studio
@@ -79,6 +86,8 @@ private struct TrackRow: View {
     /// The short-term text in the one-line row, from `TrackHeaders.compactLoudnessWidth`. A Bool,
     /// as `showsLayout`.
     let showsCompactLoudness: Bool
+    /// The fader on line 2, from `TrackHeaders.faderTwoLineWidth`. A Bool, as `showsLayout`.
+    let showsFader: Bool
     @FocusState private var focused: Bool
     /// Key: the window is key, so a selected row shows the emphasized fill.
     @Environment(\.controlActiveState) private var activeState
@@ -114,12 +123,24 @@ private struct TrackRow: View {
                 }
             }
             if secondLine {
+                let live = studio.liveTracks[track.id]
+                let quiet = quietText
+                // The live state and the quiet text take the place of the fader, so the fader
+                // never reads as an input gain next to the meter.
+                let fader = showsFader && live == nil && quiet == nil
                 HStack(spacing: 8) {
                     routeMenu.frame(minWidth: 0, maxWidth: 240, alignment: .leading).disabled(!model.canEdit)
-                    if let live = studio.liveTracks[track.id] {
+                        .layoutPriority(fader ? 1 : 0)
+                    if let live {
                         LiveState(live: live, source: sourceLabel, openSettings: model.openAudioCaptureSettings)
                     }
-                    if let quiet = quietText { Text(verbatim: quiet).foregroundStyle(.orange) }
+                    if let quiet { Text(verbatim: quiet).foregroundStyle(.orange) }
+                    if fader {
+                        // At the trailing edge, so the faders of the rows make one column.
+                        Spacer(minLength: 0)
+                        TrackFader(model: model, track: track.id, name: track.name, dB: track.gain.dB)
+                            .fixedSize().disabled(!model.canEdit)
+                    }
                 }
             }
         }

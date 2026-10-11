@@ -165,6 +165,9 @@
 "track.solo.label" = "Solo %@";
 "track.mute.help" = "Mute Track (⇧M). Option-click: all tracks.";
 "track.solo.help" = "Solo Track (⇧S). Option-click: all tracks.";
+"track.volume.label" = "Volume of %@";
+"track.volume.help" = "Track volume in the mix. It does not change the recording level. Double-click or Option-click: 0 dB.";
+"track.volume.value" = "%@ dB";
 "track.layout.mono" = "Mono";
 "track.layout.stereo" = "Stereo";
 "track.route" = "%1$@, %2$@";

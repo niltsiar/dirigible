@@ -165,6 +165,9 @@
 "track.solo.label" = "Solo %@";
 "track.mute.help" = "Silenciar pista (⇧M). Opción-clic: todas las pistas.";
 "track.solo.help" = "Solo de pista (⇧S). Opción-clic: todas las pistas.";
+"track.volume.label" = "Volumen de %@";
+"track.volume.help" = "Volumen de la pista en la mezcla. No cambia el nivel de grabación. Doble clic u Opción-clic: 0 dB.";
+"track.volume.value" = "%@ dB";
 "track.layout.mono" = "Mono";
 "track.layout.stereo" = "Estéreo";
 "track.route" = "%1$@, %2$@";

@@ -43,15 +43,15 @@ extension SessionWindow {
     func record() async {
         commitDrafts()
         guard canRecord, let studio = idleStudio else { return }
+        // The take form removes the name field, so its focus change cannot end a rename with no
+        // typed text (run 2026-10-11-ui-polish-header code gate 1).
+        renamingTrack = nil
         let armed = studio.session.tracks.map(\.id).filter(armed.contains)
         do throws(StudioError) {
             // The take starts at the Studio playhead; a play stops first (decision 0016).
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
                 try await studio.startRecording(armed: armed)
             }
-            // The take form removes the name field, so its focus change cannot end a rename with no
-            // typed text (run 2026-10-11-ui-polish-header code gate 1).
-            renamingTrack = nil
             exportReport = nil
         } catch let error where studio.exportProgress != nil {
             // A refused start keeps the export, and its sheet hides a window alert until the end.
@@ -72,6 +72,8 @@ extension SessionWindow {
     func retry() async {
         commitDrafts()
         guard canRetry else { return }
+        // The finalize removes the name field, as in record().
+        renamingTrack = nil
         try? await idleStudio?.retryFinalize()
         await refreshPendingSpace()
     }

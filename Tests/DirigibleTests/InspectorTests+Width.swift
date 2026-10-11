@@ -208,6 +208,7 @@ extension InspectorTests {
         let x = Double(view.convert(view.bounds, to: nil).midX)
         view.mouseDown(with: try event(.leftMouseDown, x, window))
         await runLoopPass()
+        #expect(model.inspectorGuide.superlayer == nil, "the guide shows at the first drag, not at the down")
         let (bodies, inspectorBodies) = (model.bodyRuns, model.inspectorRuns)
         for dx in [-20.0, -60, -100, 40] {
             view.mouseDragged(with: try event(.leftMouseDragged, x + dx, window))

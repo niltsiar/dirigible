@@ -25,11 +25,14 @@ public struct OverviewGeometry: Equatable, Sendable {
     public func frame(at x: Double) -> Frames { Frames(Int(max(0, x) * framesPerPoint)) }
     public func x(of frame: Frames) -> Double { Double(frame.count) / framesPerPoint }
 
-    /// The view frame of `view`: at least 6 pt wide, on its true center.
+    /// The view frame of `view`: at least 6 pt wide, on its true center, inside the strip. Lanes
+    /// wider than the session at one zoom show frames past the strip end.
     public func viewFrame(_ view: Viewport) -> Rect {
-        let (low, high) = (view.origin / framesPerPoint, (view.origin + view.frames) / framesPerPoint)
-        let width = max(high - low, Self.frameMinimum)
-        return Rect(x: (low + high - width) / 2, y: 0, width: width, height: Self.height)
+        let low = max(0, view.origin / framesPerPoint)
+        let high = min(width, (view.origin + view.frames) / framesPerPoint)
+        let drawn = min(max(high - low, Self.frameMinimum), width)
+        let x = min(max((low + high - drawn) / 2, 0), width - drawn)
+        return Rect(x: x, y: 0, width: drawn, height: Self.height)
     }
 
     /// The edge zones of the frame of `view`, each from `edgeOut` outside to `edgeIn` inside the

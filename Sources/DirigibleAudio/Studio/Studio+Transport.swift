@@ -229,9 +229,30 @@ extension Studio {
     /// Sends the session to the Player with a new revision and no feed number: the running feed
     /// goes on with the new session (plan gate 1 item 2). Each autosave calls it.
     func sendSession() {
+        send(session)
+    }
+
+    /// Plays `gain` on `track` during play, with no edit and no autosave: the drag of the track
+    /// fader (F94). The mouse-up makes the one edit, or `endPreview` restores the session. Stopped,
+    /// it sends nothing, so the next play starts from the session.
+    public func previewGain(_ gain: Gain, track: TrackID) throws(StudioError) {
+        try checkIdle()
+        guard play.playback != .stopped else { return }
+        var preview = session
+        do { try preview.setGain(gain, track: track) } catch { throw .session(error) }
+        send(preview)
+    }
+
+    /// Sends the session again after a preview that made no edit.
+    public func endPreview() {
+        sendSession()
+    }
+
+    /// The one owner of the play revision: a newer revision replaces the session of the Player.
+    private func send(_ session: Session) {
         guard let player = play.player else { return }
         play.revision += 1
-        let (session, revision) = (session, play.revision)
+        let revision = play.revision
         Task { await player.update(session, revision: revision) }
     }
 

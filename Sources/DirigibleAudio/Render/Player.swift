@@ -68,7 +68,7 @@ actor Player {
     private let open: MediaOpen
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
     let chunk: Int
-    private var session: Session
+    private(set) var session: Session
     private var revision = 0
     private var number = 0
     private var played = 0

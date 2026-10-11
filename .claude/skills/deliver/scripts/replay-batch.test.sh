@@ -2,7 +2,7 @@
 # Check replay-batch.sh with a fake python3 (in place of mutate.py) and a fake date (a clock that
 # the fake python3 moves on). Check that it replays each killed log once into controls/replay/,
 # skips a done replay (a result other than stopped), replays a stopped or header-only replay and
-# a named log, gives a log that fits the budget its full header timeout, caps a log that cannot
+# a named log only with --again, counts only killed, a hang, and survived as done, gives a log that fits the budget its full header timeout, caps a log that cannot
 # fit once, moves a capped hang aside and gives it only its full limit later (else TOO LONG),
 # stops with BUDGET and the count line, goes on after a mutate.py exit 2, and refuses a budget
 # over 480, a tree that is not a worktree root, and the main checkout. Run by `make test-hooks`.
@@ -31,15 +31,16 @@ EOF
 cat > "$tmp/bin/python3" <<EOF
 #!/bin/bash
 [[ "\$1" == -I ]] || { echo "fake python3: no -I" >&2; exit 9; }
-t="" log="" out=""
+t="" log="" out="" allow=""
 while [[ \$# -gt 0 ]]; do
   case "\$1" in
     --timeout) t="\$2"; shift 2 ;;
     --replay) log="\$2" out="\$3"; shift 3 ;;
+    --allow-side-effects) allow=" allow"; shift ;;
     *) shift ;;
   esac
 done
-echo "\$(basename "\$log") \$t \$PWD" >> "$tmp/calls"
+echo "\$(basename "\$log") \$t \$PWD\$allow" >> "$tmp/calls"
 s="\$(sed -n 's/^# fake-seconds: //p' "\$log")"
 echo \$(( \$(cat "$tmp/clock") + \${s:-10} )) > "$tmp/clock"
 r="\$(sed -n 's/^# fake: //p' "\$log")"
@@ -58,6 +59,8 @@ control() {
 fresh() { rm -rf "$c" "$tmp/calls"; mkdir -p "$c"; echo 1000 > "$tmp/clock"; : > "$tmp/calls"; }
 run() { out="$(PATH="$tmp/bin:$PATH" "$script" "$tmp/tree" "$c" "$@" 2>&1)"; code=$?; }
 # runf <flag> <value> <budget> [<log>...]: a run with one flag and its value before the tree.
+# runx <arguments>: a run with the whole argument list, flags and tree too.
+runx() { out="$(PATH="$tmp/bin:$PATH" "$script" "$@" 2>&1)"; code=$?; }
 runf() { out="$(PATH="$tmp/bin:$PATH" "$script" "$1" "$2" "$tmp/tree" "$c" "${@:3}" 2>&1)"; code=$?; }
 calls() { cat "$tmp/calls"; }
 
@@ -71,7 +74,7 @@ run 480
 [[ "$(calls)" == "a.log 100 $tmp/tree"$'\n'"b.log 200 $tmp/tree" ]] || fail "replay: calls [$(calls)]"
 grep -qx 'a.log: killed' <<<"$out" || fail "replay: no result line for a: $out"
 [[ -f "$c/replay/a.log" && -f "$c/replay/b.log" ]] || fail 'replay: no replay logs'
-grep -qx 'replayed 2 of 2; left 0; too long 0' <<<"$out" || fail "replay: count line: $out"
+grep -qx 'replayed 2 of 2; left 0; too long 0; refused 0' <<<"$out" || fail "replay: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" || fail "replay: no ALL DONE: $out"
 
 # A done replay is skipped; a stopped or header-only replay log replays again.
@@ -84,10 +87,19 @@ run 480
 run 480
 [[ -z "$(calls)" ]] || fail "done replays ran again: [$(calls)]"
 grep -qx 'ALL DONE' <<<"$out" || fail "done replays: no ALL DONE: $out"
-# A named log replays, also when done; only the named logs count.
+# A named log that is done is skipped too; --again replays it. Only the named logs count.
 run 480 "$c/a.log"
-[[ "$(calls | cut -d' ' -f1)" == a.log ]] || fail "named log: calls [$(calls)]"
-grep -qx 'replayed 1 of 1; left 0; too long 0' <<<"$out" || fail "named log: count line: $out"
+[[ -z "$(calls)" ]] || fail "named done log: calls [$(calls)]"
+grep -qx 'replayed 1 of 1; left 0; too long 0; refused 0' <<<"$out" || fail "named log: count line: $out"
+runx --again "$tmp/tree" "$c" 480 "$c/a.log"
+[[ "$(calls | cut -d' ' -f1)" == a.log ]] || fail "--again: calls [$(calls)]"
+# A replay that ended with BUILD FAILED, NO TESTS, or WRONG FAILURE is not done.
+for r in 'BUILD FAILED' 'NO TESTS' 'WRONG FAILURE'; do
+  printf '# result: %s\n' "$r" > "$c/replay/b.log"
+  : > "$tmp/calls"
+  run 480
+  [[ "$(calls | cut -d' ' -f1)" == b.log ]] || fail "$r: not replayed: calls [$(calls)]"
+done
 
 # A log that cannot fit a full budget (900 + 120 > 480) runs once, capped at the time left.
 fresh
@@ -104,7 +116,7 @@ control big killed 900.0 'killed (hang)'
 run 480
 grep -qx 'big.log: CAPPED HANG (capped 360 s)' <<<"$out" || fail "capped hang: result line: $out"
 [[ -f "$c/replay/big.log.capped" && ! -e "$c/replay/big.log" ]] || fail 'capped hang: replay log not moved aside'
-grep -qx 'replayed 0 of 1; left 1; too long 0' <<<"$out" || fail "capped hang: count line: $out"
+grep -qx 'replayed 0 of 1; left 1; too long 0; refused 0' <<<"$out" || fail "capped hang: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" && fail "capped hang: ALL DONE with a log left"
 : > "$tmp/calls"
 run 480
@@ -112,14 +124,14 @@ run 480
 # The printed command holds the tree, so it never replays in the main checkout.
 grep -qx "big.log: TOO LONG; run it with run_in_background: $script --timeout 900 $tmp/tree $c 480 $c/big.log" <<<"$out" ||
   fail "TOO LONG: line: $out"
-grep -qx 'replayed 0 of 1; left 0; too long 1' <<<"$out" || fail "TOO LONG: count line: $out"
+grep -qx 'replayed 0 of 1; left 0; too long 1; refused 0' <<<"$out" || fail "TOO LONG: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" || fail "TOO LONG: no ALL DONE: $out"
 # --timeout gives a named log that limit, with no budget and no cap.
 : > "$tmp/calls"
 runf --timeout 900 480 "$c/big.log"
 [[ "$(calls)" == "big.log 900 $tmp/tree" ]] || fail "--timeout: calls [$(calls)]: $out"
 grep -qx 'big.log: killed (hang)' <<<"$out" || fail "--timeout: result line: $out"
-grep -qx 'replayed 1 of 1; left 0; too long 0' <<<"$out" || fail "--timeout: count line: $out"
+grep -qx 'replayed 1 of 1; left 0; too long 0; refused 0' <<<"$out" || fail "--timeout: count line: $out"
 # A capped hang whose full limit fits replays with that limit.
 fresh
 control mid killed 300.0
@@ -145,7 +157,7 @@ control a2 killed 300.0
 run 480
 [[ "$(calls | cut -d' ' -f1)" == a1.log ]] || fail "budget: calls [$(calls)]"
 grep -qx 'BUDGET' <<<"$out" || fail "budget: no BUDGET: $out"
-grep -qx 'replayed 1 of 2; left 1; too long 0' <<<"$out" || fail "budget: count line: $out"
+grep -qx 'replayed 1 of 2; left 1; too long 0; refused 0' <<<"$out" || fail "budget: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" && fail 'budget: ALL DONE with a log left'
 # Under 60 s left, a capped log does not start: BUDGET.
 fresh
@@ -162,7 +174,12 @@ control f killed 100.0
 run 480
 grep -q '^e.log: mutate: .*side effects' <<<"$out" || fail "exit 2: no message: $out"
 [[ "$(calls | cut -d' ' -f1 | paste -sd' ' -)" == 'e.log f.log' ]] || fail "exit 2: calls [$(calls)]"
-grep -qx 'replayed 1 of 2; left 1; too long 0' <<<"$out" || fail "exit 2: count line: $out"
+grep -qx 'replayed 1 of 2; left 0; too long 0; refused 1' <<<"$out" || fail "exit 2: count line: $out"
+grep -qx 'ALL DONE' <<<"$out" || fail "exit 2: no ALL DONE: $out"
+# --allow-side-effects goes to mutate.py.
+: > "$tmp/calls"
+runx --allow-side-effects "$tmp/tree" "$c" 480 "$c/e.log"
+[[ "$(calls)" == "e.log 100 $tmp/tree allow" ]] || fail "--allow-side-effects: calls [$(calls)]"
 
 # A folder with no killed log ends at once (bash 3.2 with set -u has no empty array).
 fresh

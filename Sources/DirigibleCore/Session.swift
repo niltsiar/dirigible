@@ -177,10 +177,11 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 6 with episode data
-    /// (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
+    /// The `session.xml` version that holds this session (decision 0024 P6): 7 with a marker URL or
+    /// image (run 2026-10-11-chapters-in-file), else 6 with episode data (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
     /// (decision 0035), else 2 with an app route (decision 0029), else 1.
     public var fileVersion: Int {
+        if markers.values.contains(where: { $0.url != nil || $0.image != nil }) { return 7 }
         if !episode.isEmpty { return 6 }
         if tracks.contains(where: { $0.isMuted || $0.isSoloed }) { return 5 }
         if tracks.contains(where: { $0.clips.contains { $0.crossfades != .zero } }) { return 4 }
@@ -206,10 +207,12 @@ public struct Session: Hashable, Sendable {
     /// The markers by position, then by ID: the order of the session file, the overview, and the chapters.
     public var sortedMarkers: [Marker] { markers.values.sorted { ($0.position, $0.id) < ($1.position, $1.id) } }
 
-    /// Adds the marker, or replaces the marker with its ID.
+    /// Adds the marker, or replaces the marker with its ID. It refuses a URL over
+    /// `Marker.maximumURLBytes` UTF-8 bytes.
     public mutating func setMarker(_ marker: Marker) throws(SessionError) {
         try Self.checkText(marker.id.rawValue, marker.name)
         guard marker.position.isInRange else { throw .frameOutOfRange }
+        guard (marker.url?.text.utf8.count ?? 0) <= Marker.maximumURLBytes else { throw .markerURLTooLong }
         markers[marker.id] = marker
     }
 
@@ -263,6 +266,8 @@ public enum SessionError: Error, Hashable, Sendable {
     case invalidPath(String)
     case invalidText(String)
     case frameOutOfRange
+    /// The marker URL is over `Marker.maximumURLBytes` UTF-8 bytes.
+    case markerURLTooLong
     /// A take number that is not a stem part of decision 0012 (1 to 9 digits).
     case takeOutOfRange(Int)
     case clipOutsideFile(ClipID)

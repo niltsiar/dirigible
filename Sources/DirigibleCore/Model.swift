@@ -319,16 +319,29 @@ extension Frames {
 public struct Marker: Identifiable, Hashable, Sendable {
     public enum Kind: String, Sendable { case marker, chapter }
 
+    /// The longest URL in UTF-8 bytes: the URL length of the 3GPP `href` box of an M4A chapter
+    /// has 8 bits (TS 26.245). `Session.setMarker` refuses a longer one.
+    public static let maximumURLBytes = 255
+
     public let id: MarkerID
     public var name: String
     public var position: Frames
     public var kind: Kind
+    /// The link of a chapter in the MP3, the M4A, and chapters.json. A marker keeps it, and only a
+    /// chapter goes into a file.
+    public var url: WebURL?
+    /// The image of a chapter, a file in `Artwork/` (decision 0045).
+    public var image: ArtworkName?
 
-    public init(id: MarkerID, name: String, position: Frames, kind: Kind) {
+    public init(
+        id: MarkerID, name: String, position: Frames, kind: Kind, url: WebURL? = nil, image: ArtworkName? = nil
+    ) {
         self.id = id
         self.name = name
         self.position = position
         self.kind = kind
+        self.url = url
+        self.image = image
     }
 }
 

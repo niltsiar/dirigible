@@ -164,3 +164,28 @@ struct StudioArtworkTests {
         #expect(studio.session.episode.isEmpty && !studio.canUndo)
     }
 }
+
+/// `Studio.setMarkerImage`: a blocking run with one undo entry, as `setArtwork` (run
+/// 2026-10-11-chapters-in-file, C8).
+@MainActor
+struct StudioMarkerImageTests {
+    @Test func aDroppedImageIsOneUndoEntry() async throws {
+        let fixture = try await ImportStudioFixture.make()
+        let studio = try await fixture.open()
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "c", name: "C", position: 0, kind: .chapter))
+        }
+        let source = try ArtworkTests.image(300, 300, in: fixture.package.folder.url)
+
+        try await studio.setMarkerImage("c", from: source)
+
+        let name = try #require(studio.session.markers["c"]?.image)
+        #expect(try Data(contentsOf: fixture.url.appending(path: name.path)) == Data(contentsOf: source))
+        #expect(try Session(contentsOf: fixture.url).markers["c"]?.image == name, "the run saved the session")
+        try studio.undo()
+        #expect(studio.session.markers["c"]?.image == nil && studio.session.markers["c"]?.name == "C")
+        await #expect(throws: StudioError.session(.unknownMarker("gone"))) {
+            try await studio.setMarkerImage("gone", from: source)
+        }
+    }
+}

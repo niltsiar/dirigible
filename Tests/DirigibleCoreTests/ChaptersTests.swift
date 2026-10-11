@@ -118,4 +118,29 @@ struct ChaptersTests {
         #expect(session.markers["c"]?.position == 384_000)
         #expect(try Self.startTimes(session.chaptersJSON(in: 0..<session.end)) == [8])
     }
+
+    /// Run 2026-10-11-chapters-in-file, C3: "url" and "img" only for a chapter that has them. The
+    /// image name is `<stem>-<n>.<ext>`, with n the place of the chapter in the file. A session with
+    /// no URL and no image gives the bytes of today.
+    @Test func aChapterWithAURLAndAnImageGetsUrlAndImg() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.setMarker(Marker(id: "a", name: "A", position: 0, kind: .chapter))
+        let today =
+            "{\n  \"chapters\" : [\n    {\n      \"startTime\" : 0,\n      \"title\" : \"A\"\n    }\n  ],\n  \"version\" : \"1.2.0\"\n}"
+        #expect(String(decoding: try session.chaptersJSON(in: 0..<480_000, imageStem: "show"), as: UTF8.self) == today)
+        let png = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.png")
+        let jpeg = try ArtworkName("1B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try session.setMarker(
+            Marker(
+                id: "b", name: "B", position: 48_000, kind: .chapter, url: try WebURL("https://example.com/b"),
+                image: png))
+        try session.setMarker(Marker(id: "c", name: "C", position: 96_000, kind: .chapter, image: jpeg))
+        let chapters = try Self.chapters(session.chaptersJSON(in: 0..<480_000, imageStem: "show"))
+        #expect(chapters[0]["url"] == nil && chapters[0]["img"] == nil, "A has neither key")
+        #expect(
+            chapters[1]["url"] as? String == "https://example.com/b" && chapters[1]["img"] as? String == "show-2.png")
+        #expect(chapters[2]["url"] == nil && chapters[2]["img"] as? String == "show-3.jpg")
+        let images = session.chapterImages(in: 0..<480_000, imageStem: "show")
+        #expect(images.map(\.image) == [png, jpeg] && images.map(\.name) == ["show-2.png", "show-3.jpg"])
+    }
 }

@@ -148,4 +148,37 @@ struct ChaptersCommandTests {
         #expect(result.stderr.contains(reason))
         #expect(!FileManager.default.fileExists(atPath: out(arguments[1]).path))
     }
+
+    /// Run 2026-10-11-chapters-in-file, C3, C3b. A chapter image goes beside the JSON as
+    /// `<stem>-<n>.<ext>`. An existing file of that name stops the command before any write, and
+    /// `--replace` overwrites it.
+    @Test func anExistingImageFileNeedsReplace() async throws {
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try FileManager.default.createDirectory(
+            at: package.url.appending(path: image.path).deletingLastPathComponent(), withIntermediateDirectories: true)
+        let bytes = Data("jpeg bytes".utf8)
+        try bytes.write(to: package.url.appending(path: image.path))
+        try package.edit { session in
+            try session.setMarker(
+                Marker(
+                    id: "b", name: "Outro", position: 576_000, kind: .chapter,
+                    url: try WebURL("https://example.com/outro"), image: image))
+        }
+        let (file, picture) = (out("show.json"), out("show-2.jpg"))
+        let old = Data("old image".utf8)
+        try old.write(to: picture)
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", file.path)
+                == CLIResult(status: 2, stdout: "", stderr: "Error: \(picture.path) exists.\n"))
+        #expect(try Data(contentsOf: picture) == old, "the old image stays")
+        #expect(!FileManager.default.fileExists(atPath: file.path), "no JSON")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", file.path, "--replace")
+                == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(try Data(contentsOf: picture) == bytes)
+        let json = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        let chapters = try #require(json["chapters"] as? [[String: Any]])
+        #expect(chapters[1]["img"] as? String == "show-2.jpg")
+        #expect(chapters[1]["url"] as? String == "https://example.com/outro")
+    }
 }

@@ -139,6 +139,26 @@ extension Studio {
     }
 }
 
+extension Studio {
+    /// `writeChapters` of `range` of `session` to `url` on a utility GCD thread, in the package
+    /// that the lock holds now. It never replaces a chapter image file: the save panel confirms
+    /// only the JSON name.
+    public func exportChapters(_ session: Session, in range: Range<Frames>, to url: URL) async throws(ExportError) {
+        let lock = lock
+        let result = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(
+                    returning: Result { () throws(ExportError) in
+                        let package: URL
+                        do { package = try lock.package() } catch { throw .packageUnavailable }
+                        try writeChapters(session, in: range, to: url, replacingImages: false, package: package)
+                    })
+            }
+        }
+        try result.get()
+    }
+}
+
 /// True when `folder` is on the volume of the package that `lock` holds now.
 @concurrent nonisolated func onVolume(_ folder: URL, of lock: PackageLock) async -> Bool {
     guard let package = try? lock.package() else { return false }

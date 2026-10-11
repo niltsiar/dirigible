@@ -33,7 +33,7 @@ extension Session {
         var tracks: [ParsedTrack] = []
         for node in root.children("tracks", "track") { tracks.append(try ParsedTrack(node, version: version)) }
         var markers: [Marker] = []
-        for node in root.children("markers", "marker") { markers.append(try Marker(node)) }
+        for node in root.children("markers", "marker") { markers.append(try Marker(node, version: version)) }
         let recording = try root.sessionElements("recording").first.map { node throws(SessionFileError) in
             try Recording(node)
         }
@@ -157,13 +157,21 @@ extension Route {
 }
 
 extension Marker {
-    fileprivate init(_ node: XMLElement) throws(SessionFileError) {
+    /// `url` and `image` need version 7, and each parses through its type.
+    fileprivate init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         guard let kind = Kind(rawValue: try node.string("kind")) else {
             throw .invalidValue(element: "marker", attribute: "kind")
         }
+        func parse<T>(_ name: String, _ make: (String) throws(EpisodeFieldError) -> T) throws(SessionFileError) -> T? {
+            guard let text = node.optionalString(name) else { return nil }
+            guard version >= 7, let value = try? make(text) else {
+                throw .invalidValue(element: "marker", attribute: name)
+            }
+            return value
+        }
         self.init(
             id: MarkerID(try node.string("id")), name: try node.string("name"), position: try node.frames("position"),
-            kind: kind)
+            kind: kind, url: try parse("url", WebURL.init), image: try parse("image", ArtworkName.init))
     }
 }
 

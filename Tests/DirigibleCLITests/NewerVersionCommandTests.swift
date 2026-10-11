@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 /// Decision 0024 P3 and P4 (criteria 3 and 5): a command on a package whose `session.xml` is
-/// version 7 exits 2 with a newer-version message and changes no file of the package. The only
+/// one version newer than `sessionVersion` exits 2 with a newer-version message and changes no file of the package. The only
 /// permitted new file is an empty `.lock`.
 struct NewerVersionCommandTests {
     let package: TemporaryPackage
@@ -17,7 +17,7 @@ struct NewerVersionCommandTests {
     ]
 
     /// Track `t1`, a pending take 1, a leftover temporary file of a save, and a file in each
-    /// folder. `session.xml` says version 7.
+    /// folder. `session.xml` says one version newer than `sessionVersion`.
     init() throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
@@ -25,8 +25,8 @@ struct NewerVersionCommandTests {
         package = try TemporaryPackage(session)
         let xml = String(decoding: try package.xml(), as: UTF8.self)
         try #require(xml.contains("version=\"1\""))
-        try Data(xml.replacingOccurrences(of: "version=\"1\"", with: "version=\"7\"").utf8).write(
-            to: package.sessionXML)
+        try Data(xml.replacingOccurrences(of: "version=\"1\"", with: "version=\"\(sessionVersion + 1)\"").utf8)
+            .write(to: package.sessionXML)
         try Data("a save of the newer build".utf8).write(
             to: package.url.appending(path: ".session.xml.11111111-2222-3333-4444-555555555555.tmp"))
         for folder in ["Capture", "Clips"] {
@@ -42,8 +42,8 @@ struct NewerVersionCommandTests {
     }
 
     var newer: String {
-        "Error: \(package.path)/session.xml was made by a newer version of Dirigible (session version 7). This build "
-            + "reads version 6 or lower.\n"
+        "Error: \(package.path)/session.xml was made by a newer version of Dirigible (session version "
+            + "\(sessionVersion + 1)). This build reads version \(sessionVersion) or lower.\n"
     }
 
     @Test(arguments: commands)
@@ -73,7 +73,7 @@ struct NewerVersionCommandTests {
     /// Criterion 5: a version 1 package keeps the files that it does not know after an edit.
     @Test func anEditKeepsUnknownFiles() async throws {
         let xml = String(decoding: try package.xml(), as: UTF8.self)
-        try Data(xml.replacingOccurrences(of: "version=\"7\"", with: "version=\"1\"").utf8).write(
+        try Data(xml.replacingOccurrences(of: "version=\"\(sessionVersion + 1)\"", with: "version=\"1\"").utf8).write(
             to: package.sessionXML)
         try package.edit { try $0.setRecording(nil) }
         let unknown = ["future.bin", "Capture/take9-1-1.future"]

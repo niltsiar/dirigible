@@ -48,14 +48,14 @@ struct SessionCommandTests {
     @Test func infoRefusesNewerVersion() async throws {
         let package = try TemporaryPackage(Session(sampleRate: 48_000))
         let xml = String(decoding: try package.xml(), as: UTF8.self)
-        try Data(xml.replacingOccurrences(of: "version=\"1\"", with: "version=\"7\"").utf8).write(
-            to: package.sessionXML)
+        try Data(xml.replacingOccurrences(of: "version=\"1\"", with: "version=\"\(sessionVersion + 1)\"").utf8)
+            .write(to: package.sessionXML)
         #expect(
             try await dirigible("info", package.path)
                 == CLIResult(
                     status: 2, stdout: "",
                     stderr: "Error: \(package.path)/session.xml was made by a newer version of Dirigible (session "
-                        + "version 7). This build reads version 6 or lower.\n"))
+                        + "version \(sessionVersion + 1)). This build reads version \(sessionVersion) or lower.\n"))
     }
 
     @Test func unknownSubcommandIsAUsageError() async throws {

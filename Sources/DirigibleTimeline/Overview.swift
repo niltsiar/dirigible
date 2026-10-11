@@ -8,7 +8,7 @@ public struct OverviewGeometry: Equatable, Sendable {
     /// The narrowest view frame that the strip draws, in points.
     static let frameMinimum = 6.0
     /// The narrowest view frame with edge zones (U9); a narrower frame is all body.
-    public static let edgeMinimum = 16.0
+    static let edgeMinimum = 16.0
     /// The reach of an edge zone outside and inside the frame.
     static let edgeOut = 3.0
     static let edgeIn = 3.0
@@ -32,12 +32,25 @@ public struct OverviewGeometry: Equatable, Sendable {
         return Rect(x: (low + high - width) / 2, y: 0, width: width, height: Self.height)
     }
 
-    func hit(_ x: Double, _ view: Viewport) -> OverviewHit {
+    /// The edge zones of the frame of `view`, each from `edgeOut` outside to `edgeIn` inside the
+    /// edge, at the strip height; nil for a frame under `edgeMinimum` (all body). The hit test and
+    /// the grips of the strip read them.
+    public func edgeZones(_ view: Viewport) -> (leading: Rect, trailing: Rect)? {
         let frame = viewFrame(view)
-        if frame.width >= Self.edgeMinimum {
-            if x >= frame.minX - Self.edgeOut, x < frame.minX + Self.edgeIn { return .leadingEdge }
-            if x > frame.maxX - Self.edgeIn, x <= frame.maxX + Self.edgeOut { return .trailingEdge }
+        guard frame.width >= Self.edgeMinimum else { return nil }
+        let width = Self.edgeOut + Self.edgeIn
+        return (
+            Rect(x: frame.minX - Self.edgeOut, y: 0, width: width, height: Self.height),
+            Rect(x: frame.maxX - Self.edgeIn, y: 0, width: width, height: Self.height)
+        )
+    }
+
+    func hit(_ x: Double, _ view: Viewport) -> OverviewHit {
+        if let zones = edgeZones(view) {
+            if x >= zones.leading.minX, x < zones.leading.maxX { return .leadingEdge }
+            if x > zones.trailing.minX, x <= zones.trailing.maxX { return .trailingEdge }
         }
+        let frame = viewFrame(view)
         return x >= frame.minX && x <= frame.maxX ? .body : .outside
     }
 }

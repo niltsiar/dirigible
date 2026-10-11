@@ -20,7 +20,8 @@ icon-preview:
 # In one process, the stall tripped the 60 s DeviceEventTests watchdog in 3 of 40 runs.
 # Process 2 runs also when process 1 fails, so scripts/run-checks.sh sees each failed test.
 # Each swift test call goes through scripts/swift-test.sh: a process that ends with exit 0 and no
-# report line fails.
+# report line fails. scripts/bench.sh is the one exception: its release run reads its own result
+# lines.
 test:
 	scripts/swift-test.sh --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests; s=$$?; scripts/swift-test.sh --filter DirigibleCLITests && exit $$s
 

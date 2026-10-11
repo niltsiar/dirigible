@@ -74,7 +74,9 @@ import os
         return saves
     }
 
+    /// A play with no sound: the offline output.
     func play(_ studio: Studio) async {
+        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         await untilPlayed(studio, 0, "the play feed runs")

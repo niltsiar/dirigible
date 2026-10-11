@@ -39,6 +39,7 @@ final class TrackFaderView: NSView {
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .white : .systemGray
         }
         slider.refusesFirstResponder = true
+        slider.toolTip = L10n.trackVolumeHelp.text
         slider.target = slider
         slider.action = #selector(FaderSlider.moved)
         slider.readout = readout
@@ -63,7 +64,6 @@ final class TrackFaderView: NSView {
         slider.name = name
         slider.stored = dB
         slider.isEnabled = enabled
-        slider.toolTip = L10n.trackVolumeHelp.text
         if !slider.dragging { slider.show(dB) }
     }
 

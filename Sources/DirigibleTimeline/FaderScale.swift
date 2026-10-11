@@ -27,7 +27,7 @@ public struct FaderScale: Sendable {
     }
 
     /// The gain at `position`, before the rounding.
-    public func rawDB(position: Double) -> Double {
+    func rawDB(position: Double) -> Double {
         let position = min(max(position, 0), 1)
         let upper = points.firstIndex { $0.position >= position } ?? points.count - 1
         guard upper > 0 else { return points[0].dB }

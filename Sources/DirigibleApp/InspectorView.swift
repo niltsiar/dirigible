@@ -140,10 +140,12 @@ extension SessionWindow {
     /// meaning or type (0024 P11).
     static let inspectorKey = "view.inspector.shown"
 
-    /// View > Show/Hide Inspector. A new window takes the preference. A hide commits the typed
+    /// View > Show/Hide Inspector. A new window takes the preference. A toggle ends an inspector
+    /// drag that got no mouse-up. A hide commits the typed
     /// text first, and moves a focus in the pane to the lanes. A show widens a window that is
     /// narrower than the minimum, with no animation.
     func toggleInspector() {
+        _ = cancelInspectorDrag()
         if showsInspector, holdsRefusedEpisode() { return }
         showsInspector.toggle()
         app?.defaults?.set(showsInspector, forKey: Self.inspectorKey)

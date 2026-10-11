@@ -51,8 +51,11 @@ extension SessionWindow {
     /// lanes keep their width until the up.
     func dragInspector(_ event: PaneDragEvent) {
         // A down first commits the typed text and ends the text focus, as the header handle does:
-        // a focused field takes Esc.
-        if case .down = event { endNameEdit() }
+        // a focused field takes Esc. A drag with no mouse-up leaves an old target: drop it.
+        if case .down = event {
+            endNameEdit()
+            inspectorPreview = nil
+        }
         guard let step = inspectorDrag.handle(event, width: inspectorPreview ?? inspectorWidth) else { return }
         if inspectorDrag.isActive {
             inspectorPreview = fitted(step.width)

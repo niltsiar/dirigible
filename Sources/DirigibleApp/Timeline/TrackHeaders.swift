@@ -44,12 +44,13 @@ struct TrackHeaders: View {
         let _ = model.countHeaderRun(row: false)
         // The layout of a row comes from the header width and the lane height only, never from
         // the text: a typed name that picks another layout rebuilds its field (code gate 1).
+        let taking = studio.transport.liveTake != nil
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(studio.session.tracks) { track in
                     TrackRow(
                         model: model, studio: studio, track: track, selected: selected.contains(track.id),
-                        secondLine: laneHeight >= 56, tall: laneHeight >= 80,
+                        secondLine: laneHeight >= 56, tall: laneHeight >= 80, taking: taking,
                         showsLayout: laneHeight >= 56 || geometry.size.width >= Self.layoutWidth,
                         boxes: Self.boxes(width: geometry.size.width, twoLines: laneHeight >= 56),
                         showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth,
@@ -77,6 +78,9 @@ private struct TrackRow: View {
     let secondLine: Bool
     /// True in a lane of 80 pt or more: the state text has a line 3. A Bool, as `showsLayout`.
     let tall: Bool
+    /// True while a take is live: the route and the name show as text, not as dimmed controls
+    /// (run 2026-10-11-ui-polish-header C18). The transport changes only at the take start and end.
+    let taking: Bool
     /// The layout text, when the header width has room for it: at every width on two lines, from
     /// `TrackHeaders.layoutWidth` on one line, so no control goes under the handle. The width
     /// alone picks it, never the typed name. A Bool, not the width: a row whose inputs do not
@@ -103,7 +107,7 @@ private struct TrackRow: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 TrackToggles(model: model, track: track, boxes: boxes)
-                nameField
+                if taking { takeName } else { nameField }
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the
                     // name is at its minimum, so the route and the state always show.
@@ -114,7 +118,7 @@ private struct TrackRow: View {
                 if !secondLine {
                     // A lost device must show during a take at every lane height, so the route and
                     // the state stay on one line, in compact form.
-                    compactRoute
+                    if taking { takeRouteSymbol } else { compactRoute }
                     if let live = studio.liveTracks[track.id] {
                         CompactLiveState(live: live, source: sourceLabel, showsLoudness: showsCompactLoudness)
                     }
@@ -127,7 +131,8 @@ private struct TrackRow: View {
                 // never reads as an input gain next to the meter.
                 let fader = showsFader && live == nil && quiet == nil
                 HStack(spacing: 8) {
-                    routeMenu.frame(minWidth: 0, maxWidth: 240, alignment: .leading).disabled(!model.canEdit)
+                    Group { if taking { takeRoute } else { routeMenu.disabled(!model.canEdit) } }
+                        .frame(minWidth: 0, maxWidth: 240, alignment: .leading)
                         .layoutPriority(fader ? 1 : 0)
                     if let live {
                         LiveState(
@@ -186,6 +191,25 @@ private struct TrackRow: View {
             .accessibilityAction(named: Text(L10n.headerRename.key)) { model.startRename(track.id) }
             // A one-line row has the arm box of 18 pt at every width, so its name gives up 6 pt.
             .frame(minWidth: secondLine ? 60 : 54, maxWidth: .infinity)
+    }
+
+    /// The name during a take: 13 pt in the row text color. A dimmed field reads as broken; the
+    /// rename stays blocked.
+    private var takeName: some View {
+        Text(verbatim: track.name).font(.body).lineLimit(1).truncationMode(.tail)
+            .frame(minWidth: secondLine ? 60 : 54, maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The route during a take: secondary text, as the route cannot change.
+    private var takeRoute: some View {
+        Text(verbatim: routeText).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+    }
+
+    /// The route of a one-line row during a take: the symbol, with the route text for VoiceOver
+    /// and as its tooltip.
+    private var takeRouteSymbol: some View {
+        Image(systemName: "mic").foregroundStyle(.secondary)
+            .accessibilityLabel(Text(verbatim: routeText)).help(Text(verbatim: routeText))
     }
 
     /// A click selects at once. `HeaderHost` takes the second click of a double-click on the name;

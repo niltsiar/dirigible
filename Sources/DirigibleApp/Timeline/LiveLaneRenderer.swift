@@ -55,18 +55,25 @@ extension LiveLanes {
     /// when `head` is nil.
     @MainActor init(_ studio: Studio, head: Frames?) {
         files = studio.liveFiles
-        guard let head, let recording = studio.session.recording else { return }
-        let finalizing: Bool
-        switch studio.transport {
-        case .recording: finalizing = false
-        case .finalizing: finalizing = true
-        case .idle, .placing, .leveling, .importing: return
-        }
+        guard let head, let recording = studio.session.recording, let live = studio.transport.liveTake else { return }
         var tracks: [TrackID: (peaks: LivePeaks, state: LiveTrack.State?)] = [:]
         for id in recording.armedTracks {
             if let peaks = studio.livePeaks(of: id) { tracks[id] = (peaks, studio.liveTracks[id]?.state) }
         }
-        take = Take(number: recording.take, finalizing: finalizing, head: head, tracks: tracks)
+        take = Take(number: recording.take, finalizing: live.finalizing, head: head, tracks: tracks)
+    }
+}
+
+extension Studio.Transport {
+    /// The take number while a take is live: it records or it finalizes (run
+    /// 2026-10-11-ui-polish-header C18). The live draw and the header rows read this one test.
+    /// `session.recording` stays set through the finalize, so it is not the test.
+    var liveTake: (take: Int, finalizing: Bool)? {
+        switch self {
+        case .recording(let take): (take, false)
+        case .finalizing(let take): (take, true)
+        case .idle, .placing, .leveling, .importing: nil
+        }
     }
 }
 

@@ -12,13 +12,9 @@ struct LiveKey: Equatable {
     init() {}
 
     @MainActor init(_ studio: Studio) {
-        switch studio.transport {
-        case .recording(let take):
-            self.take = take
-            states = studio.liveTracks.mapValues(\.state)
-        case .finalizing(let take): (self.take, finalizing) = (take, true)
-        case .idle, .placing, .leveling, .importing: break
-        }
+        guard let live = studio.transport.liveTake else { return }
+        (take, finalizing) = (live.take, live.finalizing)
+        if !live.finalizing { states = studio.liveTracks.mapValues(\.state) }
     }
 }
 

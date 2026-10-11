@@ -175,4 +175,27 @@ struct InfoCommandTests {
         let text = try await dirigible("info", package.path)
         #expect(text.stdout.contains("track guest \"Guest\" stereo 0.0 dB route app \"us.zoom.xos\"\n"), "text")
     }
+
+    /// Run 2026-10-11-chapters-in-file, C8: the text and the JSON show the URL and the image of a
+    /// marker; a marker with neither has no new key.
+    @Test func infoShowsAMarkerURLAndImage() async throws {
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try package.edit { session in
+            try session.setMarker(
+                Marker(
+                    id: "m2", name: "Intro", position: 48_000, kind: .chapter, url: try WebURL("https://example.com/i"),
+                    image: image))
+        }
+        let text = try await dirigible("info", package.path)
+        #expect(
+            text.stdout.contains(
+                "marker m2 \"Intro\" chapter at 48000 url \"https://example.com/i\" image \"\(image.path)\"\n"),
+            "\(text.stdout)")
+        #expect(text.stdout.contains("marker m1 \"Note\" marker at 96000\n"))
+        let json = try await dirigible("info", package.path, "--json")
+        let root = try #require(try JSONSerialization.jsonObject(with: Data(json.stdout.utf8)) as? [String: Any])
+        let markers = try #require(root["markers"] as? [[String: Any]])
+        #expect(markers[0]["url"] as? String == "https://example.com/i" && markers[0]["image"] as? String == image.path)
+        #expect(markers[1]["url"] == nil && markers[1]["image"] == nil)
+    }
 }

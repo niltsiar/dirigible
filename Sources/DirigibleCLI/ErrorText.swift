@@ -42,6 +42,17 @@ extension EditFailure where Body == PasteError {
     }
 }
 
+extension EditFailure where Body == MarkerEditError {
+    func message(package: String) -> String {
+        switch self {
+        case .file(let error): error.message(package: package)
+        case .pendingTake: pendingTakeMessage(package)
+        case .splitTake: splitTakeMessage(package)
+        case .body(let error): error.message
+        }
+    }
+}
+
 extension EditFailure where Body == ArtworkError {
     func message(package: String) -> String {
         switch self {

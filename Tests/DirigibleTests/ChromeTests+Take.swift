@@ -31,8 +31,11 @@ extension ChromeTests {
         #expect(time.accessibilityLabel() == L10n.toolbarTime.text, "C10: label")
         #expect(time.accessibilityValue() as? String == time.text, "C10: value")
 
+        // Other suites can hold the main actor for seconds, so the lower bound waits for 3 changes
+        // with a limit; the upper bound counts over the measured span.
         let changes = time.textChanges
         let start = ContinuousClock.now
+        await until(limit: .seconds(30), "the head tick changes the time 3 times") { time.textChanges - changes >= 3 }
         try? await Task.sleep(for: .seconds(1))
         let seconds = (ContinuousClock.now - start) / .seconds(1)
         let count = time.textChanges - changes

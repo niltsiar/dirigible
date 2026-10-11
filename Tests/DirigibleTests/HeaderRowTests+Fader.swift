@@ -9,11 +9,15 @@ import Testing
 
 /// Track fader C7, C10, and C11 (F94): the fader on line 2 of a two-line row, from its measured
 /// width, and only with no live state and no quiet text.
+/// The faders under `view`, in subview order.
+@MainActor func faderViews(_ view: NSView) -> [TrackFaderView] {
+    (view as? TrackFaderView).map { [$0] } ?? view.subviews.flatMap(faderViews)
+}
+
 extension HeaderRowTests {
     /// The faders under `view`, top row first.
     func faders(_ view: NSView) -> [TrackFaderView] {
-        let found = (view as? TrackFaderView).map { [$0] } ?? view.subviews.flatMap(faders)
-        return found.sorted { $0.convert($0.bounds, to: nil).minY > $1.convert($1.bounds, to: nil).minY }
+        faderViews(view).sorted { $0.convert($0.bounds, to: nil).minY > $1.convert($1.bounds, to: nil).minY }
     }
 
     /// C10: two-line rows show the fader from `faderTwoLineWidth`, where the route menu keeps

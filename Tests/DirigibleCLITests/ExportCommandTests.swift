@@ -299,6 +299,26 @@ struct ExportCommandTests {
                 == CLIResult(status: 0, stdout: "", stderr: two))
     }
 
+    /// C5f of run 2026-10-11-chapters-in-file. "C" starts at the millisecond of "B": the M4A
+    /// leaves it out, and stderr names it.
+    @Test func aDroppedChapterPrintsAWarning() async throws {
+        try package.edit { session in
+            try session.setMarker(Marker(id: "a", name: "A", position: 1_000, kind: .chapter))
+            try session.setMarker(Marker(id: "b", name: "B", position: 5_000, kind: .chapter))
+            try session.setMarker(Marker(id: "c", name: "C", position: 5_010, kind: .chapter))
+        }
+        #expect(
+            try await package.run("export", "PKG", "--out", out("a.m4a").path)
+                == CLIResult(
+                    status: 0, stdout: "",
+                    stderr:
+                        "Warning: chapter \"C\" at 5010 starts at the time of another chapter; the file leaves it out.\n"
+                ))
+        let groups = try await AVURLAsset(url: out("a.m4a")).loadChapterMetadataGroups(
+            withTitleLocale: Locale(identifier: "en"), containingItemsWithCommonKeys: [])
+        #expect(groups.count == 3, "groups \(groups.count): the added chapter at 0, A, and B")
+    }
+
     /// Mute and solo C9 e: with no heard track, the warning says that the file is silent.
     @Test func anExportWithNoHeardTrackPrintsTheSilentNote() async throws {
         try package.edit { try $0.setMuted(true, tracks: ["t1", "t2"]) }

@@ -18,7 +18,8 @@ struct Export: ParsableCommand {
             and the printed values are at the session rate: a --rate change can add about 0.3 dB of true \
             peak. A 16-bit export has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes 32000, \
             44100, or 48000 Hz. An MP3 decodes up to 0.45 dB lower than the printed loudness: LAME scales \
-            its input.
+            its input. An .m4a gets the chapter markers of the range as a chapter track; a chapter at the \
+            time of the chapter before it is not in the file, and a warning names it.
             """)
 
     @OptionGroup var package: PackageArgument
@@ -137,6 +138,11 @@ struct Export: ParsableCommand {
         }
         warn(read, in: session)
         warnUnheard(session, source: source)
+        for chapter in result.droppedChapters {
+            let line =
+                "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter; the file leaves it out.\n"
+            try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
+        }
         if let report = result.loudness {
             let loudness = report.output.map { String(format: "%.1f LUFS", $0.value) } ?? "none"
             let peak = report.truePeak.map { String(format: "%.1f dBTP", $0) } ?? "none"

@@ -31,7 +31,10 @@ final class TimelineDocumentView: NSView {
     /// The pixels of the lanes in view.
     let surfaces = LaneSurfaces()
     /// The dim of the lanes that are not heard (decision 0039).
-    let dim = LaneDim()
+    let dim = LaneShade()
+    /// The tint of the lanes of the selected tracks, above the dim (run 2026-10-11-ui-polish-header
+    /// C11).
+    let tint = LaneShade()
     /// A drag of audio files from the Finder (run 13c).
     let drop = LaneDrop()
     /// The renders, for the redraw tests (criteria 10 and 24).
@@ -133,7 +136,7 @@ final class TimelineDocumentView: NSView {
     var palette = LanePalette.light {
         didSet {
             needsDisplay = true
-            updateDim()
+            updateShades()
             drop.palette = palette
         }
     }
@@ -143,6 +146,7 @@ final class TimelineDocumentView: NSView {
         wantsLayer = true
         layer?.addSublayer(surfaces.layer)
         layer?.addSublayer(dim.layer)
+        layer?.addSublayer(tint.layer)
         layer?.addSublayer(drop.layer)
         playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
@@ -202,12 +206,18 @@ final class TimelineDocumentView: NSView {
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.bounds = CGRect(x: 0, y: 0, width: increasesContrast ? 2 : 1, height: height)
-        updateDim()
+        updateShades()
     }
 
-    private func updateDim() {
+    private func updateShades() {
         guard let inputs else { return }
-        dim.update(inputs.session, laneHeight: inputs.laneHeight, width: frame.width, color: palette.lane)
+        let (height, width) = (inputs.laneHeight, frame.width)
+        dim.update(
+            lanes: LaneShade.unheard(inputs.session), laneHeight: height, width: width, color: palette.lane, alpha: 0.5)
+        // The accent at 8 % in light mode and 10 % in Dark Mode: only the dark palette has an accent.
+        let alpha = palette.accent == nil ? 0.08 : 0.10
+        tint.update(
+            lanes: LaneShade.selected(inputs), laneHeight: height, width: width, color: palette.outline, alpha: alpha)
     }
 
     /// Moves the playhead line to `frame`, with no redraw of the lanes.

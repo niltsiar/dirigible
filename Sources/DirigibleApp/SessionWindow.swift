@@ -85,6 +85,11 @@ struct ExportReportShown: Equatable {
     var inspectorWidth = InspectorWidth.standard
     /// The drag of the inspector handle.
     @ObservationIgnored var inspectorDrag = PaneDrag<InspectorWidth>()
+    /// The target width of an inspector drag, nil when idle. Not observed: a drag event runs no
+    /// SwiftUI body (C16).
+    @ObservationIgnored var inspectorPreview: InspectorWidth?
+    /// The line at the target edge during an inspector drag, over the window content.
+    @ObservationIgnored let inspectorGuide = CALayer()
     /// The typed text of the inspector field that no commit has saved yet.
     var inspectorDraft: InspectorDraft?
     /// The inspector field with the focus, from the pane.

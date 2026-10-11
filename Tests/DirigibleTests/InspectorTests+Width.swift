@@ -85,9 +85,10 @@ extension InspectorTests {
         window.setContentSize(NSSize(width: 1180, height: 600))
         await until("the window takes 1180 pt") { window.contentLayoutRect.width == 1180 }
         try drag(window, by: -30, up: false)
-        #expect(model.inspectorWidth.points == 300)
+        #expect(model.inspectorPreview?.points == 300 && model.inspectorWidth == .standard)
         #expect(defaults.object(forKey: InspectorWidth.defaultsKey) == nil, "a drag event saves nothing")
         try handle(window).mouseUp(with: try event(.leftMouseUp, 0, window))
+        #expect(model.inspectorWidth.points == 300 && model.inspectorPreview == nil, "the up sets the width")
         #expect(defaults.object(forKey: InspectorWidth.defaultsKey) as? Double == 300, "the up saves")
         await model.close()
     }
@@ -116,10 +117,11 @@ extension InspectorTests {
         window.setContentSize(NSSize(width: 1180, height: 600))
         await until("the window takes 1180 pt") { window.contentLayoutRect.width == 1180 }
         try drag(window, by: -100, up: false)
-        #expect(model.inspectorWidth.points == 370)
+        #expect(model.inspectorPreview?.points == 370)
         #expect(window.firstResponder === view.lanes, "Esc goes to the window from the lanes")
         window.cancelOperation(nil)
         #expect(model.inspectorWidth.points == 270, "Esc gives the start width")
+        #expect(model.inspectorPreview == nil && model.inspectorGuide.superlayer == nil, "Esc removes the guide")
         #expect(defaults.object(forKey: InspectorWidth.defaultsKey) == nil, "Esc saves nothing")
         #expect(!model.inspectorDrag.isActive)
 
@@ -186,6 +188,44 @@ extension InspectorTests {
             }
         }
         #expect(window.contentView.flatMap(scrollView)?.ruler.clipsToBounds == true, "the ruler clips")
+        await model.close()
+    }
+
+    // MARK: C16 fallback
+
+    /// C16, fallback 1 of 0023: during a drag the pane and the lanes keep their width, a guide line
+    /// over the window shows the target edge, and no SwiftUI body runs. The mouse-up sets the width
+    /// and removes the line. Control: a live width runs one content body and one inspector body for
+    /// each drag event (release bench 13:36).
+    @Test func aDragMovesTheGuideAndTheUpSetsTheWidth() async throws {
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let (model, _, window, _) = try await open(try await package())
+        window.setContentSize(NSSize(width: 1180, height: 600))
+        await until("the lanes give the pane its width") {
+            window.contentLayoutRect.width == 1180 && layout(window) == 910
+        }
+        let view = try handle(window)
+        let x = Double(view.convert(view.bounds, to: nil).midX)
+        view.mouseDown(with: try event(.leftMouseDown, x, window))
+        await runLoopPass()
+        let (bodies, inspectorBodies) = (model.bodyRuns, model.inspectorRuns)
+        for dx in [-20.0, -60, -100, 40] {
+            view.mouseDragged(with: try event(.leftMouseDragged, x + dx, window))
+            await runLoopPass()
+            #expect(model.inspectorWidth == .standard && layout(window) == 910, "dx \(dx): the pane keeps 270 pt")
+            let guide = model.inspectorGuide
+            #expect(guide.superlayer != nil && guide.superlayer === window.contentView?.layer, "dx \(dx): no guide")
+            let target = 1180 - min(400, max(240, 270 - dx))
+            #expect(abs(Double(guide.frame.minX) - target) <= 0.5, "dx \(dx): guide at \(guide.frame)")
+        }
+        #expect(model.bodyRuns == bodies, "a drag ran \(model.bodyRuns - bodies) content bodies")
+        #expect(
+            model.inspectorRuns == inspectorBodies,
+            "a drag ran \(model.inspectorRuns - inspectorBodies) inspector bodies")
+        view.mouseUp(with: try event(.leftMouseUp, x + 40, window))
+        #expect(model.inspectorWidth.points == 240, "the up sets the clamped width")
+        #expect(model.inspectorGuide.superlayer == nil, "the up removes the guide")
+        await until("the lanes take the new width") { layout(window) == 940 }
         await model.close()
     }
 }

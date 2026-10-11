@@ -11,6 +11,7 @@
 - Amended: 2026-10-05, run `2026-10-05-mute-solo`. `session.xml` is version 5 with a muted or soloed track (see 0039).
 - Amended: 2026-10-10, run `2026-10-10-episode-metadata`. `session.xml` is version 6 with episode data (see 0045).
 - Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The formats table has the backup files `Backups/session-<time>.xml`.
+- Amended: 2026-10-11, run `2026-10-11-track-fader`. The reader clamps a gain outside `Gain.range` to the range end and keeps the session version. It still refuses a gain that is not finite.
 
 ## Context
 

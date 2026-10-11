@@ -5,6 +5,7 @@
 - Accepted: 2026-10-05, after plan gates 1 and 2 of run `2026-10-05-mute-solo`.
 - Amended: 2026-10-10. No playback runs during a take, and M and S stay off during a take. Release 3 run 9 (pre-roll) decides playback, M, and S during a take (see 0044).
 - Amended: 2026-10-10. The Monitor button of 0044 goes between the arm button and M. M and S hide first: from 328 pt on one line and 230 pt on two lines. The Monitor button shows from 284 pt and 186 pt.
+- Amended: 2026-10-11, run `2026-10-11-track-fader` (F94). A track gain change of a track in both sessions also crossfades during play. Line 2 of a two-line row shows the volume fader from 252 pt, when the row shows no live state and no quiet text. The line 1 gates do not change.
 - Amends: 0003 (version 5 adds mute and solo), 0016 (an update during play crossfades a mute or solo change), 0019 (the track filter of `MixReader`), 0024 (the `session.xml` version table).
 
 ## Context

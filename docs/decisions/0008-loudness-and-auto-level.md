@@ -6,6 +6,7 @@
 - Amended: 2026-10-03, run 8b. A clip with no gated block, a missing file, or a read fault keeps its gain, not 0 dB. At stop the take clips of one track share one delta (equally per track). See 0031.
 - Amended: 2026-10-03, run 9a. The true-peak meter and Tech 3341 cases 15 to 19 are done (`DSP/TruePeak.swift`). The export limiter is our own look-ahead true-peak limiter, not `kAudioUnitSubType_PeakLimiter`; the Consequences line on it is history. See 0032.
 - Amended: 2026-10-03, run 9b. One meter still serves all three: the live meter (momentary, short-term, integrated, and true peak) uses `LoudnessMeter` and `TruePeakMeter`, and the gates compare mean squares. See 0033.
+- Amended: 2026-10-11, run `2026-10-11-track-fader`. `Gain(dB:)` refuses a value outside `Gain.range`, -96 to +96 dB. `Gain(clamping:)` clamps a computed gain (the reader, the export loudness gain, the clip conversion, the excerpt sum) and refuses a value that is not finite. The track fader travel ends at `Gain.levelLimit`.
 
 ## Context
 

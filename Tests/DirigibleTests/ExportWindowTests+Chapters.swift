@@ -143,4 +143,28 @@ extension ExportWindowTests {
         }
         await model.close()
     }
+
+    /// Run 2026-10-11-chapters-in-file, C3b. The save panel confirms only the JSON name: an
+    /// existing file at the name of a chapter image shows the exists alert, and nothing is written.
+    @Test func anExistingChapterImageShowsTheExistsAlert() async throws {
+        let file = folder.url.appending(path: "show.json")
+        _ = chaptersPanel(file)
+        let (model, studio, _) = try await window()
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        let source = model.url.appending(path: image.path)
+        try FileManager.default.createDirectory(
+            at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("jpeg bytes".utf8).write(to: source)
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter, image: image))
+        }
+        let picture = folder.url.appending(path: "show-1.jpg")
+        try Data("old".utf8).write(to: picture)
+        model.exportChapters()
+        await until("the alert shows") { model.alert != nil }
+        #expect(model.alert == .error(.export(.exists)))
+        #expect(!FileManager.default.fileExists(atPath: file.path), "a JSON")
+        #expect(try Data(contentsOf: picture) == Data("old".utf8), "the old image changed")
+        await model.close()
+    }
 }

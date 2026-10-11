@@ -165,22 +165,16 @@ extension SessionWindow {
         return studio.session.markers.values.contains { $0.kind == .chapter && range.contains($0.position) }
     }
 
-    /// Option-Command-E: the save panel, then an atomic write of the JSON off the main actor. The
-    /// file has the session of the command. A failed write shows the export alert of its errno. A
-    /// written file with a chapter left out shows the banner of `droppedChapters`.
+    /// Option-Command-E: the save panel, then the chapter images and an atomic write of the JSON
+    /// off the main actor (`Studio.exportChapters`). The file has the session of the command. A
+    /// failed write, or an item at the name of a chapter image, shows the export alert. A written
+    /// file with a chapter left out shows the banner of `droppedChapters`.
     func exportChapters() {
         guard let studio = exportStudio, let window, let app else { return }
         let (range, marks) = chaptersRange(in: studio)
         guard !studio.session.chapters(in: range).isEmpty else { return }
-        let data: Data
-        do {
-            data = try studio.session.chaptersJSON(in: range)
-        } catch {
-            // An encode error has no POSIX cause: the alert shows error 5 (EIO).
-            alert = .error(.export(ExportError(writing: error)))
-            return
-        }
-        let (dropped, revision) = (studio.session.chapterList(in: range).dropped, studio.sessionRevision)
+        let session = studio.session
+        let (dropped, revision) = (session.chapterList(in: range).dropped, studio.sessionRevision)
         exportStep = .choosing
         let name = url.deletingPathExtension().lastPathComponent + ".chapters.json"
         app.chooseChaptersExport(window, name, marks ? L10n.panelChaptersMarks.text : nil) { [weak self] target in
@@ -188,12 +182,12 @@ extension SessionWindow {
             exportStep = nil
             guard let target else { return }
             Task {
-                do {
-                    try await Task.detached { try data.write(to: target, options: .atomic) }.value
+                do throws(ExportError) {
+                    try await studio.exportChapters(session, in: range, to: target)
                     droppedChapters = DroppedChaptersShown(
                         dropped, file: target.lastPathComponent, revision: revision)
                 } catch {
-                    alert = .error(.export(ExportError(writing: error)))
+                    alert = .error(.export(error))
                 }
             }
         }
@@ -205,21 +199,5 @@ extension SessionWindow {
     /// The pool path of each file, sorted.
     private func paths(of faults: [FileID: MediaFault], in session: Session) -> [String] {
         faults.keys.map { session.files[$0]?.path ?? $0.rawValue }.sorted()
-    }
-}
-
-extension ExportError {
-    /// The error of a failed atomic write of a small file. Foundation gives the POSIX errno under
-    /// the CocoaError (probe-errno of run 2026-10-09-chapters-export). ENOSPC is a full disk.
-    /// Another errno came from the temporary file or the rename, so it is `.moveFailed`. An error
-    /// with no POSIX cause gives EIO. No errno goes into `.writeFailed`, which holds an OSStatus.
-    init(writing error: any Error) {
-        guard let cause = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError,
-            cause.domain == NSPOSIXErrorDomain
-        else {
-            self = .moveFailed(EIO)
-            return
-        }
-        self = cause.code == Int(ENOSPC) ? .diskFull : .moveFailed(Int32(cause.code))
     }
 }

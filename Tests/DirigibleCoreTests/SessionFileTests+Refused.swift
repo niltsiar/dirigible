@@ -137,7 +137,7 @@ extension SessionFileTests {
 
     @Test(arguments: [
         ("<session", SessionFileError.malformedXML),
-        (document(version: "7"), .unsupportedVersion(7)),
+        (document(version: "\(sessionVersion + 1)"), .unsupportedVersion(sessionVersion + 1)),
         (
             document(tracks: #"<track id="t1" name="A" gain="0" layout="mono"><route app="us.zoom.xos"/></track>"#),
             .invalidValue(element: "route", attribute: "app")

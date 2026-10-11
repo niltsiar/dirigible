@@ -13,14 +13,16 @@ struct ChaptersExport: ParsableCommand {
         commandName: "export",
         abstract: "Write the chapters of a range as a Podcasting 2.0 JSON Chapters 1.2.0 file.",
         discussion: """
-            Each chapter marker in the range gives startTime and title. startTime is the time from \
-            --from in seconds, rounded to the millisecond. Markers that are not chapters are not in \
+            Each chapter marker in the range gives startTime and title, and url and img when it has \
+            them. startTime is the time from --from in seconds, rounded to the millisecond. The image \
+            of a chapter is written beside the file as <name>-<n>.jpg or .png, n the place of the \
+            chapter in the file. Markers that are not chapters are not in \
             the file. A chapter at or after the session end is past the audio: a warning names it, and \
             the file has it only when --to is after it. A chapter that starts at the millisecond of the \
             chapter before it is not in the file, and a warning names it. Exit 1 when the range has no chapter, or when \
             the session has no audio and no --to: the command writes no empty file. Exit 2 \
-            when the package cannot be read, --out exists (unless --replace), or the write fails; a \
-            failed write leaves the old file or no file.
+            when the package cannot be read, --out or an image file exists (unless --replace), or the \
+            write fails; a failed write leaves the old file or no file.
             """)
 
     @OptionGroup var package: PackageArgument
@@ -67,20 +69,24 @@ struct ChaptersExport: ParsableCommand {
                 "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the millisecond of another chapter; the file leaves it out.\n"
             try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
         }
-        let data: Data
-        do {
-            data = try session.chaptersJSON(in: range)
-        } catch {
-            throw fail("cannot make the chapters file: \(error.localizedDescription)", code: packageError)
-        }
         let output = URL(filePath: out)
         // An lstat: a dangling link is an item too. `[.atomic, .withoutOverwriting]` is a fatal
         // error of Foundation, so the check comes first, and a race with another writer is accepted.
         guard replace || ConfirmedFile(at: output) == nil else { throw fail("\(out) exists.", code: packageError) }
-        do {
-            try data.write(to: output, options: .atomic)
+        // The chapter images beside the JSON get the same check, before any write.
+        let stem = output.deletingPathExtension().lastPathComponent
+        for (_, name) in session.chapterImages(in: range, imageStem: stem) {
+            let image = output.deletingLastPathComponent().appending(path: name)
+            guard replace || ConfirmedFile(at: image) == nil else {
+                throw fail("\(image.path) exists.", code: packageError)
+            }
+        }
+        do throws(ExportError) {
+            try writeChapters(session, in: range, to: output, replacingImages: true, package: package.url)
+        } catch .artworkMissing(let path) {
+            throw fail("the chapter image file \(path) is not in the package.", code: packageError)
         } catch {
-            throw fail("cannot write \(out): \(error.localizedDescription)", code: packageError)
+            throw failure(error, out: out, noun: "chapters file")
         }
     }
 }

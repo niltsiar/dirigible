@@ -42,9 +42,9 @@ package func isTemporaryWAV(_ name: String) -> Bool { name.hasPrefix(".") && nam
 package let artworkFolderName = "Artwork"
 /// The name in `Artwork/` of the image of `name` until its rename.
 package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
-/// The newest `session.xml` version that this build reads (decision 0039). A save writes
+/// The newest `session.xml` version that this build reads (decision 0024). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 6
+package let sessionVersion = 7
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -210,10 +210,13 @@ extension Session {
 
         let markerList = element("markers")
         for marker in sortedMarkers {
-            markerList.addChild(
-                element(
-                    "marker", ("id", marker.id.rawValue), ("name", marker.name),
-                    ("position", marker.position.description), ("kind", marker.kind.rawValue)))
+            let node = element(
+                "marker", ("id", marker.id.rawValue), ("name", marker.name),
+                ("position", marker.position.description), ("kind", marker.kind.rawValue))
+            // Each field is written only with a value, so a marker with neither keeps its old text.
+            if let url = marker.url { add(("url", url.text), to: node) }
+            if let image = marker.image { add(("image", image.name), to: node) }
+            markerList.addChild(node)
         }
         root.addChild(markerList)
         if !episode.isEmpty { root.addChild(episodeElement(episode)) }

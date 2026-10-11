@@ -68,3 +68,19 @@ public enum ExportError: Error, Hashable, Sendable {
     /// The ID3 tag of an MP3 export is over `maximumTagSize` bytes. No file was made.
     case tagTooLarge
 }
+
+extension ExportError {
+    /// The error of a failed atomic write of a small file. Foundation gives the POSIX errno under
+    /// the CocoaError (probe-errno of run 2026-10-09-chapters-export). ENOSPC is a full disk.
+    /// Another errno came from the temporary file or the rename, so it is `.moveFailed`. An error
+    /// with no POSIX cause gives EIO. No errno goes into `.writeFailed`, which holds an OSStatus.
+    public init(writing error: any Error) {
+        guard let cause = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError,
+            cause.domain == NSPOSIXErrorDomain
+        else {
+            self = .moveFailed(EIO)
+            return
+        }
+        self = cause.code == Int(ENOSPC) ? .diskFull : .moveFailed(Int32(cause.code))
+    }
+}

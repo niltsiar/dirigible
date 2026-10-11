@@ -12,12 +12,13 @@
 #   at the land). A bare research.md is refused: the land check reads only research-<name>.md.
 # - Each item (a line that starts with `- ` or `<n>. `) of a plan.md section whose heading starts
 #   with `## Plan gate changes` or `## Plan gate <n> changes` has a `Criteria:` field: the
-#   criterion IDs that the change moves, separated by commas (an ID is capitals, digits, and an optional lower-case suffix: C3b), or
-#   `none`. From the start of Phase 4 (a phase 4 row in decisions.tsv, or CHECK_PLAN_AT_PHASE4=1,
-#   which log-decision.sh sets before each phase 4 row), each ID needs a decisions.tsv row
-#   before the first phase 4 row whose decision starts with `criterion change` and names the ID as
-#   a whole word. A plan gate change that moves a criterion gets its row while a fix is still
-#   possible: decisions.tsv is append-only, and a row after Phase 4 starts is late.
+#   criterion IDs that the change moves, separated by commas (an ID is capitals, digits, and an
+#   optional lower-case suffix: C3b), or `none`. From the start of Phase 4 (a phase 4 row in
+#   decisions.tsv, or CHECK_PLAN_AT_PHASE4=1, which log-decision.sh sets before each phase 4 row),
+#   each ID needs a decisions.tsv row whose decision starts with `criterion change` and names the
+#   ID as a whole word. log-decision.sh runs this check before the first phase 4 row, so each
+#   plan gate change gets its row while a fix is still possible; a later row is for a change that
+#   came after Phase 4 started (the code gate).
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -87,18 +88,20 @@ else
         item { text = text "\n" $0 }
         END {
             close_item()
-            # The criterion change decisions before the first phase 4 row.
+            # The criterion change decisions. log-decision.sh refuses the first phase 4 row while an ID
+            # has no row, so a row after it can only be for a change that came later (the code gate).
             while ((getline line < rows) > 0) {
                 split(line, c, "\t")
-                if (c[2] == "4") { at4 = 1; break }
+                if (c[2] == "4") has4 = 1
                 if (tolower(c[3]) ~ /^criterion change/) changes[++m] = c[3]
             }
-            if (!at4) exit
+            if (!at4 && !has4) exit
+            when = has4 ? "" : " before Phase 4"
             for (id in ids) {
                 found = 0
                 for (k = 1; k <= m; k++) if (changes[k] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) found = 1
                 if (!found)
-                    print "plan.md: criterion " id " of a plan gate change has no criterion change row before the first phase 4 row; edit analysis.md first, then log it: .claude/skills/deliver/scripts/log-decision.sh " run " 3 \"criterion change " id ": old ..., new ...\" <why> <evidence> <result>"
+                    print "plan.md: criterion " id " of a plan gate change has no criterion change row" when "; edit analysis.md first, then log it: .claude/skills/deliver/scripts/log-decision.sh " run " 3 \"criterion change " id ": old ..., new ...\" <why> <evidence> <result>"
             }
         }' "$run/plan.md")
     for research in "$run"/research*.md; do

@@ -142,6 +142,14 @@ touch -t 200001010000 "$gated/decisions.tsv"
 printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case.\n' > "$gated/plan.md"
 "$log" "$gated" 4 'Slice S2 committed' why evidence done 2>/dev/null
 [[ $? -eq 2 ]] || fail "a second phase 4 row with a plan item with no Criteria field was not refused"
+# A late plan gate change (C5, after the first phase 4 row) passes once its row is in.
+printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case. Criteria: C8\n2. S1: a late case. Criteria: C5\n' > "$gated/plan.md"
+"$log" "$gated" 4 'Slice S3 committed' why evidence done 2>/dev/null
+[[ $? -eq 2 ]] || fail "a phase 4 row with a late C5 and no row was not refused"
+touch "$gated/analysis.md"
+touch -t 200001010000 "$gated/decisions.tsv"
+"$log" "$gated" 6 'criterion change C5: old a, new b' why evidence done || fail "the criterion change row for C5 exits $?"
+"$log" "$gated" 4 'Slice S3 committed' why evidence done || fail "the next phase 4 row after the late C5 row exits $?"
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

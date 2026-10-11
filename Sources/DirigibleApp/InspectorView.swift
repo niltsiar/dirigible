@@ -55,8 +55,9 @@ struct InspectorView: View {
         let _ = model.countInspector()
         let inspection = ClipInspection(selection: model.timeline.selection, session: studio.session)
         VStack(alignment: .leading, spacing: 10) {
-            Text(verbatim: Self.title(inspection)).font(.headline).lineLimit(1).truncationMode(.middle)
-            Divider()
+            // The header style of the Episode pane (C29).
+            Text(verbatim: Self.title(inspection)).font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             if let inspection {
                 Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 8) {
                     row(.gain, L10n.inspectorGain, L10n.inspectorDecibels, inspection)
@@ -71,6 +72,9 @@ struct InspectorView: View {
                 Spacer()
             }
         }
+        // The control size and the text size of the Episode pane (C28); the picker stays regular.
+        .controlSize(.small)
+        .font(.system(size: 11))
         .onChange(of: focus) { old, new in
             model.inspectorFocus = new
             if old != nil { model.commitInspector() }

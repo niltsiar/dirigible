@@ -250,8 +250,10 @@ import os
         let revision = studio.sessionRevision
 
         view.slider.beginDrag()
+        // Code gate 2: a click on the thumb can move the value by less than a point.
+        view.slider.doubleValue += 0.4 / view.slider.bounds.width
         view.slider.sendAction(view.slider.action, to: view.slider.target)
-        #expect(view.slider.shown == -6.25, "code gate 1: no rounded preview at the start position")
+        #expect(view.slider.shown == -6.25, "code gate 2: no rounded preview within half a point of the start")
         view.slider.endDrag()
 
         #expect(studio.session.track("t1")?.gain.dB == -6.25, "code gate 1: the gain stays")

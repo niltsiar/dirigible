@@ -132,8 +132,10 @@ final class FaderSlider: NSSlider {
     /// A drag step plays its value with no edit. An action outside a drag puts the thumb back.
     @objc func moved() {
         guard var drag else { return show(stored) }
-        // At the start position the start value stays: a click on the thumb rounds no gain.
-        let dB = doubleValue == drag.scale.position(dB: drag.start) ? drag.start : drag.scale.dB(position: doubleValue)
+        // Within half a point of the start position the start value stays: a click on the thumb
+        // can move the value a little, and it rounds no gain.
+        let atStart = abs(doubleValue - drag.scale.position(dB: drag.start)) < 0.5 / bounds.width
+        let dB = atStart ? drag.start : drag.scale.dB(position: doubleValue)
         guard dB != drag.dB else { return }
         drag.dB = dB
         self.drag = drag

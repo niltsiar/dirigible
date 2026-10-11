@@ -52,7 +52,8 @@ if ! git rebase origin/main; then
     git rebase --abort
     die "the rebase on origin/main stopped on a conflict; the rebase is aborted, so the branch is as before; resolve the conflict with a rebase on a fresh branch"
 fi
-"$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
+# GOVERNANCE_LAND: the taken-item check runs also when the run has no reflect row.
+GOVERNANCE_LAND=1 "$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
 out="$("$here/check-changed.sh" origin/main)" || die "check-changed.sh origin/main failed; nothing is pushed"
 risk="$(sed -n 's/^risk: //p' <<<"$out")"
 if [[ "$risk" == yes ]]; then

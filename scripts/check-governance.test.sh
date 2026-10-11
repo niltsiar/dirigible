@@ -2,8 +2,8 @@
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
 # its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), and a run research
-# file with no docs/research copy, and a taken item of the run in ## Next of the backlog. Each case uses
-# a temporary repo with a base commit on main and a branch.
+# file with no docs/research copy, and a taken item of the run in ## Next of the backlog after the
+# reflect row (phase 8). Each case uses a temporary repo with a base commit on main and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-governance.sh"
@@ -99,7 +99,17 @@ refuse 'a run research file whose copy the branch does not change' 'research-top
 # A run moves its own taken items out of ## Next of the main-checkout backlog before the land, so
 # ## Next stays short (each run reads it at Phase 0). A taken item of another run, a taken item in
 # ## Later, and no backlog file pass. In a worktree, the backlog of the main checkout counts.
-new_repo; run2="$tmp/2026-01-01-x"; rm -rf "$run2"; cp -R "$tmp/run" "$run2"; mkdir -p "$tmp/r/.scratchpads"
+# The check runs only after the reflect row (phase 8): Phase 7 runs it before Phase 8 moves the
+# taken items out, and land.sh runs it after Phase 8.
+new_repo; echo x > "$tmp/r/x.md"; commit
+run2="$tmp/2026-01-01-x"; rm -rf "$run2"; cp -R "$tmp/run" "$run2"; mkdir -p "$tmp/r/.scratchpads"
+printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
+pass 'a taken item of the run with no reflect row' "$run2"
+out="$(cd "$tmp/r" && GOVERNANCE_LAND=1 "$script" main "$run2" 2>&1)" && fail 'a taken item at the land with no reflect row: expected a nonzero exit'
+[[ "$out" == *'## Next has a taken item of 2026-01-01-x'* ]] || fail "a taken item at the land with no reflect row: $out"
+printf '2026-10-01T01:00\t8\treflect\tw\te\tr\n' >> "$run2/decisions.tsv"
+refuse 'a taken item of the run with a reflect row' '## Next has a taken item of 2026-01-01-x' "$run2"
+rm "$tmp/r/.scratchpads/backlog.md"
 pass 'no backlog file' "$run2"
 printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-x) an item\n\n## Later\n\n- b\n' > "$tmp/r/.scratchpads/backlog.md"
 refuse 'a taken item of the run in ## Next' '## Next has a taken item of 2026-01-01-x' "$run2"

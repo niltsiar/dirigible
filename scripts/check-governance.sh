@@ -7,9 +7,10 @@
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes.
-# - With a run folder, ## Next of the main-checkout .scratchpads/backlog.md has no taken item of
-#   that run: a line with `(taken: run <run folder name>` and then a space, a comma, or `)`. A
-#   backlog with no line that starts with `## Next` fails.
+# - With a run folder that has a reflect row (phase 8), or with GOVERNANCE_LAND set (land.sh),
+#   ## Next of the main-checkout .scratchpads/backlog.md has no taken item of that run: a line with
+#   `(taken: run <run folder name>` and then a space, a comma, or `)`. A backlog with no line that
+#   starts with `## Next` fails.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -35,9 +36,10 @@ if [[ -f "$budgets" ]]; then
         }' - "$budgets")
 fi
 
+# A run with a reflect row (phase 8) in its decisions.tsv.
+reflected() { [[ -n "$run" && -f "$run/decisions.tsv" ]] && awk -F'\t' '$2 == "8" { found = 1 } END { exit !found }' "$run/decisions.tsv"; }
 rules=docs/workflow/rules.tsv
-if [[ -n "$run" && -f "$run/decisions.tsv" && -f "$rules" ]] &&
-    awk -F'\t' '$2 == "8" { found = 1 } END { exit !found }' "$run/decisions.tsv"; then
+if [[ -f "$rules" ]] && reflected; then
     out="$("$here/check-changed.sh" "$base")" || die "check-changed.sh $base failed"
     if [[ "$(sed -n 's/^classes: //p' <<<"$out")" == docs ]]; then
         removed="$(at_base "$rules" | awk -F'\t' '
@@ -62,9 +64,11 @@ if [[ -n "$run" ]]; then
 fi
 # A run moves its own taken items out of ## Next of the backlog before the land: each run reads
 # ## Next at Phase 0, so a long ## Next costs each run. The backlog is in the main checkout, the
-# parent of the git common dir, also when the branch is in a worktree.
+# parent of the git common dir, also when the branch is in a worktree. Phase 8 moves the items,
+# so the check waits for the reflect row: Phase 7 runs this script before it. land.sh sets
+# GOVERNANCE_LAND, so a land with no reflect row still fails on a taken item.
 backlog="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.scratchpads/backlog.md"
-if [[ -n "$run" && -f "$backlog" ]]; then
+if [[ -f "$backlog" ]] && { reflected || [[ -n "$run" && -n "${GOVERNANCE_LAND:-}" ]]; }; then
     name="$(basename "${run%/}")"
     while IFS= read -r hit; do
         if [[ $hit == none ]]; then

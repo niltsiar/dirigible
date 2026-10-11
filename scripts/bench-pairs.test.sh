@@ -35,6 +35,8 @@ grep -q '^INCONCLUSIVE XBenchmark b (1 of 2 pairs' <<< "$out" || { echo "FAIL: o
 
 # bench.sh has no Makefile line of its own: its test runs here.
 bash "$(dirname "$0")/bench.test.sh" || failures=$((failures + 1))
+# with-lock.sh has no Makefile line of its own either (a Makefile change makes the push class bundle).
+bash "$(dirname "$0")/with-lock.test.sh" || failures=$((failures + 1))
 
 [[ $failures -eq 0 ]] && echo "bench-pairs tests: all passed"
 exit $((failures > 0))

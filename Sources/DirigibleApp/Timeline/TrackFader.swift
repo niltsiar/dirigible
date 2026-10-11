@@ -163,24 +163,27 @@ final class FaderSlider: NSSlider {
         model?.setVolume(gain, tracks: [track])
     }
 
-    // VoiceOver acts on the fader track only, never on the selection, and never beeps.
+    // VoiceOver acts on the fader track only, never on the selection, and never beeps. A disabled
+    // fader (a take) takes no action.
 
     override func accessibilityLabel() -> String? { L10n.trackVolumeLabel.format(name) }
 
     override func accessibilityValueDescription() -> String? { Self.text(shown) }
 
     override func accessibilityPerformIncrement() -> Bool {
+        guard isEnabled else { return false }
         model?.stepVolume(by: 1, tracks: [track])
         return true
     }
 
     override func accessibilityPerformDecrement() -> Bool {
+        guard isEnabled else { return false }
         model?.stepVolume(by: -1, tracks: [track])
         return true
     }
 
     override func setAccessibilityValue(_ accessibilityValue: Any?) {
-        guard let position = (accessibilityValue as? NSNumber)?.doubleValue,
+        guard isEnabled, let position = (accessibilityValue as? NSNumber)?.doubleValue,
             let gain = Gain(dB: FaderScale(start: stored).dB(position: position))
         else { return }
         set(gain)

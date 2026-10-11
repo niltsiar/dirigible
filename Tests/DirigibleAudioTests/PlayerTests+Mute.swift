@@ -71,12 +71,35 @@ extension PlayerTests {
         expectEqual(slice(out, 19_200..<24_000), try backward(muted, 19_200..<24_000), "the new mix")
     }
 
-    /// C5 e: an update with no mute or solo change steps at the chunk boundary, as before.
-    @Test func aGainEditDoesNotCrossfade() async throws {
-        var louder = try addSecondTrack().old
+    /// Track fader C5 (0039 point 5): a track gain change of a track in both sessions crossfades
+    /// the next chunk, as a mute does. Before the fader run it stepped at the chunk boundary.
+    @Test func aGainEditCrossfades() async throws {
+        let old = try addSecondTrack().old
+        var louder = old
         try louder.setGain(try #require(Gain(dB: 6)), track: "t1")
         let (_, out) = await playAndUpdate(to: louder)
-        expectEqual(slice(out, 14_400..<19_200), try package.mix(14_400..<19_200, session: louder), "e: a step")
+        let fade = crossfade(
+            try package.mix(14_400..<19_200, session: old), try package.mix(14_400..<19_200, session: louder))
+        expectEqual(slice(out, 14_400..<19_200), fade, "C5: a gain change crossfades the next chunk")
+        expectEqual(slice(out, 19_200..<24_000), try package.mix(19_200..<24_000, session: louder), "the new mix")
+    }
+
+    /// Track fader C5: the updates of a fader drag (ten gains before the next refill) give one
+    /// crossfade, from the mix of the scheduled chunks to the last gain.
+    @Test func manyGainUpdatesCrossfadeOnceFromTheScheduledMix() async throws {
+        let old = try addSecondTrack().old
+        let player = player()
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        var last = old
+        for step in 1...10 {
+            try last.setGain(try #require(Gain(dB: Double(step))), track: "t1")
+            await player.update(last, revision: step)
+        }
+        let out = await player.renderOffline(frames: 5 * 4800)
+        let fade = crossfade(
+            try package.mix(14_400..<19_200, session: old), try package.mix(14_400..<19_200, session: last))
+        expectEqual(slice(out, 14_400..<19_200), fade, "C5: one crossfade from the scheduled mix")
+        expectEqual(slice(out, 19_200..<24_000), try package.mix(19_200..<24_000, session: last), "the last gain")
     }
 
     /// C5 e: a track add or remove alone steps; only a change of the heard set of the tracks in both sessions

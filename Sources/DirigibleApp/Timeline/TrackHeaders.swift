@@ -118,7 +118,7 @@ private struct TrackRow: View {
                 if !secondLine {
                     // A lost device must show during a take at every lane height, so the route and
                     // the state stay on one line, in compact form.
-                    if taking { takeRouteSymbol } else { compactRoute }
+                    if !taking { compactRoute } else if track.route != nil { takeRouteSymbol }
                     if let live = studio.liveTracks[track.id] {
                         CompactLiveState(live: live, source: sourceLabel, showsLoudness: showsCompactLoudness)
                     }
@@ -132,7 +132,8 @@ private struct TrackRow: View {
                 // on line 3.
                 let fader = showsFader && live == nil && (quiet == nil || tall)
                 HStack(spacing: 8) {
-                    Group { if taking { takeRoute } else { routeMenu.disabled(!model.canEdit) } }
+                    // During a take an unrouted row shows no route: "Choose Input…" reads as an action.
+                    Group { if !taking { routeMenu.disabled(!model.canEdit) } else if track.route != nil { takeRoute } }
                         .frame(minWidth: 0, maxWidth: 240, alignment: .leading)
                         .layoutPriority(fader ? 1 : 0)
                     if let live {
@@ -199,18 +200,20 @@ private struct TrackRow: View {
     private var takeName: some View {
         Text(verbatim: track.name).font(.body).lineLimit(1).truncationMode(.tail)
             .frame(minWidth: secondLine ? 60 : 54, maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel(Text(L10n.trackName.key)).accessibilityValue(Text(verbatim: track.name))
     }
 
     /// The route during a take: secondary text, as the route cannot change.
     private var takeRoute: some View {
         Text(verbatim: routeText).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+            .accessibilityLabel(Text(L10n.trackRouteLabel.key)).accessibilityValue(Text(verbatim: routeText))
     }
 
     /// The route of a one-line row during a take: the symbol, with the route text for VoiceOver
     /// and as its tooltip.
     private var takeRouteSymbol: some View {
-        Image(systemName: "mic").foregroundStyle(.secondary)
-            .accessibilityLabel(Text(verbatim: routeText)).help(Text(verbatim: routeText))
+        Image(systemName: "mic").foregroundStyle(.secondary).help(Text(verbatim: routeText))
+            .accessibilityLabel(Text(L10n.trackRouteLabel.key)).accessibilityValue(Text(verbatim: routeText))
     }
 
     /// A click selects at once. `HeaderHost` takes the second click of a double-click on the name;

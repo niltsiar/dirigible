@@ -175,6 +175,7 @@
 "track.layout.stereo" = "Estéreo";
 "track.route" = "%1$@, %2$@";
 "track.route.none" = "Sin entrada";
+"track.route.label" = "Entrada";
 "track.route.choose" = "Elegir entrada…";
 "track.route.channel" = "Canal %lld";
 "track.route.channels" = "Canales %1$lld y %2$lld";

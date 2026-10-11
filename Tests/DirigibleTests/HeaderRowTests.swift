@@ -47,7 +47,9 @@ import Testing
         let name = String(describing: type(of: view))
         var found: [(String, NSRect, NSView)] = []
         if name.hasPrefix("PlatformViewHost") {
-            let kind = name.contains("TextField") ? "name" : name.contains("Progress") ? "meter" : "route"
+            let kind =
+                name.contains("TextField")
+                ? "name" : name.contains("Progress") ? "meter" : name.contains("TrackFader") ? "fader" : "route"
             found.append((kind, view.convert(view.bounds, to: root), view))
         }
         return found + view.subviews.flatMap { controls($0, in: root) }
@@ -189,7 +191,9 @@ import Testing
         for width in [180.0, 340, 480] {
             let (window, host) = rows(model, studio, laneHeight: 100, width: width)
             let found = controls(host, in: host)
-            #expect(found.count == 4, "\(width): name and route in each row, and no check box")
+            #expect(
+                found.filter { $0.kind != "fader" }.count == 4, "\(width): name and route in each row, and no check box"
+            )
             for control in found {
                 #expect(
                     control.frame.minX >= 8 && control.frame.maxX <= width - 8,

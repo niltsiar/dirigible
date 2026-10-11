@@ -1,0 +1,44 @@
+import DirigibleCore
+import DirigibleTimeline
+
+/// The track volume (F94): the fader of a header row, its VoiceOver actions, and the Track menu
+/// items. The volume is the track gain in the mix, not a recording level.
+extension SessionWindow {
+    /// A fader drag step: the Player plays `dB` with no edit and no autosave. During a take or with
+    /// no play it does nothing.
+    func previewVolume(_ dB: Double, track: TrackID) {
+        guard let gain = Gain(dB: dB) else { return }
+        try? studio?.previewGain(gain, track: track)
+    }
+
+    /// The fader mouse-up: one edit with `dB`. With no change, or when the edit fails, the Player
+    /// gets the session gain again. Returns true for an edit.
+    @discardableResult func commitVolume(_ dB: Double, track: TrackID) -> Bool {
+        guard let studio, let gain = Gain(dB: dB) else { return false }
+        let changed = studio.session.track(track).map { $0.gain != gain } ?? false
+        guard changed, edit({ session throws(SessionError) in try session.setGain(gain, track: track) }) != nil else {
+            studio.endPreview()
+            return false
+        }
+        return true
+    }
+
+    /// Sets each of `tracks` to `gain` in one edit: the fader reset and a VoiceOver set value.
+    func setVolume(_ gain: Gain, tracks: [TrackID]) {
+        edit { session throws(SessionError) in
+            for track in tracks { try session.setGain(gain, track: track) }
+        }
+    }
+
+    /// Moves each of `tracks` by `delta` dB from its own value, in one edit. A step stops at the
+    /// end of the fader travel; a stored value outside it does not move further out.
+    func stepVolume(by delta: Double, tracks: [TrackID]) {
+        edit { session throws(SessionError) in
+            for track in tracks {
+                guard let dB = session.track(track)?.gain.dB, let gain = Gain(dB: FaderScale.step(dB, by: delta))
+                else { continue }
+                try session.setGain(gain, track: track)
+            }
+        }
+    }
+}

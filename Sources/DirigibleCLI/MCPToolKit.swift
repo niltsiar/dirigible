@@ -26,6 +26,8 @@ enum ToolWork: Sendable {
     case revert(Backup)
     /// `episode_set`: an edit under the lock that can copy an image into the package.
     case episode(EpisodeWork)
+    /// `marker_set`: an edit under the lock that can copy an image into the package.
+    case marker(MarkerWork)
     /// `episode_get`: no lock, as `session_info`.
     case episodeInfo
 }

@@ -77,6 +77,9 @@ struct SessionView: Encodable {
         let name: String
         let position: Int
         let kind: String
+        /// Left out when nil, as in `session.xml`. `image` is the path in the package.
+        let url: String?
+        let image: String?
     }
 
     struct RecordingView: Encodable {
@@ -126,7 +129,9 @@ struct SessionView: Encodable {
                 }, muted: track.isMuted ? true : nil, soloed: track.isSoloed ? true : nil)
         }
         markers = session.sortedMarkers.map {
-            MarkerView(id: $0.id.rawValue, name: $0.name, position: $0.position.count, kind: $0.kind.rawValue)
+            MarkerView(
+                id: $0.id.rawValue, name: $0.name, position: $0.position.count, kind: $0.kind.rawValue,
+                url: $0.url?.text, image: $0.image?.path)
         }
         episode = session.episode.isEmpty ? nil : EpisodeView(session.episode)
         recording = session.recording.map {
@@ -210,7 +215,10 @@ func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> 
         lines.append(line)
     }
     for marker in session.sortedMarkers {
-        lines.append("marker \(marker.id) \(quoted(marker.name)) \(marker.kind.rawValue) at \(marker.position)")
+        var line = "marker \(marker.id) \(quoted(marker.name)) \(marker.kind.rawValue) at \(marker.position)"
+        if let url = marker.url { line += " url \(quoted(url.text))" }
+        if let image = marker.image { line += " image \(quoted(image.path))" }
+        lines.append(line)
     }
     if let recording = session.recording {
         let armed = recording.armedTracks.map(\.rawValue).joined(separator: ",")

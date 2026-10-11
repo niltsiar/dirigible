@@ -68,6 +68,14 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         } catch {
             throw ToolError(error.message(package: path))
         }
+    case .marker(let work):
+        do throws(EditFailure<MarkerEditError>) {
+            return try editPackageCore(package, ripple: false) { session, _ throws(MarkerEditError) in
+                try work.run(&session, package: package)
+            }.rawValue
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in

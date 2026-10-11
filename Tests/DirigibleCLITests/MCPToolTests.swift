@@ -261,4 +261,56 @@ struct MCPToolTests {
             Issue.record("docs/guide.md does not name the tool \(name)")
         }
     }
+
+    /// Run 2026-10-11-chapters-in-file, C8, G14: `marker_set` with only the ID and a URL keeps the
+    /// kind, the name, the position, and the image of the marker.
+    @Test func markerSetWithOnlyIDAndURLKeepsTheChapter() async throws {
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try package.edit { session in
+            try session.setMarker(Marker(id: "c", name: "Part", position: 960, kind: .chapter, image: image))
+        }
+        let answers = try await mcp([
+            toolCall(1, "marker_set", ["package": package.path, "id": "c", "url": "https://example.com/p"])
+        ])
+        #expect(toolResult(answer(answers, id: 1)) == ("c", false))
+        #expect(
+            try package.read().markers["c"]
+                == Marker(
+                    id: "c", name: "Part", position: 960, kind: .chapter, url: try WebURL("https://example.com/p"),
+                    image: image))
+    }
+
+    /// C8: `marker_set` takes `url` and `image` (an absolute path), with the rules of the CLI.
+    @Test func markerSetTakesURLAndImage() async throws {
+        let source = package.folder.appending(path: "art.jpg")
+        try EpisodeCommandTests.writeImage(source, width: 300, height: 300)
+        let answers = try await mcp([
+            toolCall(
+                1, "marker_set",
+                [
+                    "package": package.path, "id": "n", "name": "New", "at": 480, "kind": "chapter",
+                    "url": "https://example.com/n", "image": source.path,
+                ]),
+            toolCall(2, "marker_set", ["package": package.path, "id": "n", "image": "art.jpg"]),
+        ])
+        #expect(toolResult(answer(answers, id: 1)) == ("n", false))
+        let marker = try #require(try package.read().markers["n"])
+        #expect(marker.kind == .chapter && marker.url?.text == "https://example.com/n" && marker.image != nil)
+        #expect(toolResult(answer(answers, id: 2)) == ("The argument \"image\" must be an absolute path.", true))
+    }
+
+    /// C1, C8, G14: a URL over 255 bytes and a new marker with no name or position give a tool
+    /// error and no change.
+    @Test func markerSetRefusesAURLOver255Bytes() async throws {
+        let before = try package.xml()
+        let head = "https://example.com/"
+        let long = head + String(repeating: "a", count: Marker.maximumURLBytes + 1 - head.utf8.count)
+        let answers = try await mcp([
+            toolCall(1, "marker_set", ["package": package.path, "name": "X", "at": 0, "url": long]),
+            toolCall(2, "marker_set", ["package": package.path, "id": "new", "name": "X"]),
+        ])
+        #expect(toolResult(answer(answers, id: 1)) == ("a marker URL has at most 255 bytes.", true))
+        #expect(toolResult(answer(answers, id: 2)) == ("a new marker needs a name and a position.", true))
+        #expect(try package.xml() == before)
+    }
 }

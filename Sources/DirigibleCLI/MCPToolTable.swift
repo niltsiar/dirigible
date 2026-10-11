@@ -185,25 +185,40 @@ private func routeArgument(_ a: Arguments) throws(ToolError) -> Route? {
     return route
 }
 
-private let markerName = Param.required("name", "The marker name.", .string)
-private let markerAt = Param.required("at", "The timeline frame.", .integer())
-private let markerKind = Param.defaulted(
-    "kind", "marker or chapter.", .choice(["marker", "chapter"], Marker.Kind.init), "marker")
+private let markerName = Param<String?>.optional(
+    "name", "The marker name. A new marker needs it; an existing marker keeps its name without it.", .string)
+private let markerAt = Param<Int?>.optional(
+    "at", "The timeline frame. A new marker needs it; an existing marker keeps its frame without it.", .integer())
+private let markerKind = Param<Marker.Kind?>.optional(
+    "kind", "marker or chapter. A new marker is a marker without it; an existing marker keeps its kind.",
+    .choice(["marker", "chapter"], Marker.Kind.init))
 private let markerID = Param<String?>.optional("id", "The marker ID. The default is a new UUID.", .string)
+private let markerURL = Param<String?>.optional(
+    "url",
+    "The chapter link: an http or https URL of at most \(Marker.maximumURLBytes) bytes. An empty string clears it.",
+    .string)
+private let markerImage = Param<String?>.optional(
+    "image",
+    "The absolute path of the chapter image: a square JPEG or PNG file, at most \(maximumArtworkSide) x "
+        + "\(maximumArtworkSide) pixels. The tool copies it into the package. An empty string clears it.",
+    .string)
 private let marker = Param.required("marker", "The marker ID.", .string)
 
 let markerTools = [
     Tool(
-        "marker_set", "Add a marker, or replace the marker with its ID, and give its ID.",
-        [markerName, markerAt, markerKind, markerID]
+        "marker_set",
+        "Add a marker, or change the marker with its ID, and give its ID. For an existing marker, each argument "
+            + "that is not given keeps its value.",
+        [markerName, markerAt, markerKind, markerID, markerURL, markerImage]
     ) { a throws(ToolError) in
-        let set = Marker(
-            id: try a[markerID].map { MarkerID($0) } ?? MarkerID(), name: try a[markerName],
-            position: Frames(try a[markerAt]), kind: try a[markerKind])
-        return .edit { session throws(SessionError) in
-            try session.setMarker(set)
-            return [set.id.rawValue]
+        let image = try a[markerImage]
+        if let image, !image.isEmpty, !image.hasPrefix("/") {
+            throw ToolError("The argument \"image\" must be an absolute path.")
         }
+        let fields = MarkerFields(
+            id: try a[markerID], name: try a[markerName], at: try a[markerAt], kind: try a[markerKind],
+            url: try a[markerURL], image: image)
+        do throws(MarkerEditError) { return .marker(try fields.work()) } catch { throw ToolError(error.message) }
     },
     Tool("marker_remove", "Remove a marker.", [marker]) { a throws(ToolError) in
         let id = MarkerID(try a[marker])

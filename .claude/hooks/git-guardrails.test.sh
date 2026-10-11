@@ -206,6 +206,15 @@ expect block ': > "$(git rev-parse --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$d"/dirigible-check-running/5'
 expect block 'printf 1 "$a">"$d/dirigible-check-running/5"'
+# Only scripts/with-lock.sh takes and removes the build lock, after its own take: a hand-written
+# mkdir and rmdir chain removed the lock of another agent three times. A read is allowed.
+expect_each_write .git/dirigible-build.lock
+expect block 'mkdir .git/dirigible-build.lock && make test; rmdir .git/dirigible-build.lock'
+expect block 'rmdir "$(git rev-parse --git-common-dir)/dirigible-build.lock"'
+expect block 'rm -rf /Users/x/repo/.git/dirigible-build.lock'
+expect allow 'ls .git/dirigible-build.lock'
+expect allow 'cat .git/dirigible-build.lock/pid .git/dirigible-build.lock/command'
+expect allow 'scripts/with-lock.sh make test'
 expect allow "grep -n '>.*dirigible-check-running' .claude/hooks/git-guardrails.sh"
 expect allow 'ls .git/dirigible-check-running'
 expect allow 'cat .git/dirigible-check-running/5'

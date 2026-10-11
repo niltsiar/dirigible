@@ -77,6 +77,9 @@ public struct LaneGeometry: Equatable, Sendable {
     /// 1 pt cannot be seen or hit again; settled Q4 of the mouse-edits run).
     var trimMinimum: Frames { Frames(max(1, Int(scale.framesPerPoint))) }
 
+    /// The narrowest clip box (points) that a move or a trim can grab, and that gives snap targets
+    /// (decision 0020): a narrower clip cannot be seen at the zoom.
+    public static let grabWidth = 12.0
     /// The narrowest clip box (points) that draws and hits the gain line and the fade handles.
     public static let controlsWidth = 40.0
     /// The side of a fade handle (points).
@@ -133,8 +136,8 @@ public struct LaneGeometry: Equatable, Sendable {
         let track = session.tracks[lane]
         guard let index = track.clips.index(holding: frame(at: x)) else { return .range(lane: lane) }
         let clip = track.clips[index]
-        let (box, smallest, trim) = (box(of: clip, lane: lane), 12.0, 4.0)
-        guard box.width >= smallest else { return .range(lane: lane) }
+        let (box, trim) = (box(of: clip, lane: lane), 4.0)
+        guard box.width >= Self.grabWidth else { return .range(lane: lane) }
         let handles = fadeHandles(of: clip, at: index, in: track.clips, lane: lane)
         switch (
             handles.start.flatMap { $0.contains(x, y) ? $0 : nil }, handles.end.flatMap { $0.contains(x, y) ? $0 : nil }

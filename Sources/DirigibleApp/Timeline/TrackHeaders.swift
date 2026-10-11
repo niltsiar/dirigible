@@ -49,7 +49,7 @@ struct TrackHeaders: View {
                 ForEach(studio.session.tracks) { track in
                     TrackRow(
                         model: model, studio: studio, track: track, selected: selected.contains(track.id),
-                        secondLine: laneHeight >= 56,
+                        secondLine: laneHeight >= 56, tall: laneHeight >= 80,
                         showsLayout: laneHeight >= 56 || geometry.size.width >= Self.layoutWidth,
                         boxes: Self.boxes(width: geometry.size.width, twoLines: laneHeight >= 56),
                         showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth,
@@ -75,6 +75,8 @@ private struct TrackRow: View {
     let selected: Bool
     /// True in a lane of 56 pt or more: the row has two lines (H7).
     let secondLine: Bool
+    /// True in a lane of 80 pt or more: the state text has a line 3. A Bool, as `showsLayout`.
+    let tall: Bool
     /// The layout text, when the header width has room for it: at every width on two lines, from
     /// `TrackHeaders.layoutWidth` on one line, so no control goes under the handle. The width
     /// alone picks it, never the typed name. A Bool, not the width: a row whose inputs do not
@@ -116,15 +118,11 @@ private struct TrackRow: View {
                     if let live = studio.liveTracks[track.id] {
                         CompactLiveState(live: live, source: sourceLabel, showsLoudness: showsCompactLoudness)
                     }
-                    if let quiet = quietText {
-                        Image(systemName: "speaker.slash.fill").foregroundStyle(.orange)
-                            .accessibilityLabel(Text(verbatim: quiet)).help(Text(verbatim: quiet))
-                    }
+                    if let quiet { quietSymbol(quiet) }
                 }
             }
             if secondLine {
                 let live = studio.liveTracks[track.id]
-                let quiet = quietText
                 // The live state and the quiet text take the place of the fader, so the fader
                 // never reads as an input gain next to the meter.
                 let fader = showsFader && live == nil && quiet == nil
@@ -132,9 +130,11 @@ private struct TrackRow: View {
                     routeMenu.frame(minWidth: 0, maxWidth: 240, alignment: .leading).disabled(!model.canEdit)
                         .layoutPriority(fader ? 1 : 0)
                     if let live {
-                        LiveState(live: live, source: sourceLabel, openSettings: model.openAudioCaptureSettings)
+                        LiveState(
+                            live: live, source: sourceLabel, showsNoSound: !tall,
+                            openSettings: model.openAudioCaptureSettings)
                     }
-                    if let quiet { Text(verbatim: quiet).foregroundStyle(.orange) }
+                    if let quiet, !tall { quietSymbol(quiet) }
                     if fader {
                         // At the trailing edge, so the faders of the rows make one column.
                         Spacer(minLength: 0)
@@ -142,6 +142,7 @@ private struct TrackRow: View {
                             .fixedSize().disabled(!model.canEdit)
                     }
                 }
+                if tall { stateLine(live) }
             }
         }
         .controlSize(.small)
@@ -251,11 +252,36 @@ private struct TrackRow: View {
         .onAppear { model.refreshApps() }
     }
 
-    /// The text of a listened track that plays no monitor sound (decision 0044).
-    private var quietText: String? {
-        listenQuietText(
+    /// The state of a listened track that plays no monitor sound (decision 0044).
+    private var quiet: HeaderStateText? {
+        HeaderStateText.quiet(
             live: studio.liveTracks[track.id], quiet: studio.quietListens.contains(track.id),
             loopback: studio.loopbackListens.contains(track.id))
+    }
+
+    private func quietSymbol(_ quiet: HeaderStateText) -> some View {
+        Image(systemName: "speaker.slash.fill").foregroundStyle(.orange)
+            .accessibilityLabel(Text(verbatim: quiet.full)).help(Text(verbatim: quiet.full))
+    }
+
+    /// Line 3 of a row of 80 pt or more: the short state on one line, then the "Privacy…" button of
+    /// an app track that gets no sound. The full sentence wrapped to 3 to 13 lines (run
+    /// 2026-10-11-ui-polish-header U5).
+    @ViewBuilder private func stateLine(_ live: LiveTrack?) -> some View {
+        let noSound = live?.state == .noSound
+        if let state = noSound ? HeaderStateText.noSound(sourceLabel) : quiet {
+            HStack(spacing: 8) {
+                Text(verbatim: state.row).foregroundStyle(.orange).lineLimit(1).truncationMode(.tail)
+                    .help(Text(verbatim: state.full)).accessibilityLabel(Text(verbatim: state.full))
+                if noSound {
+                    // A short title; the full name is the help and the VoiceOver name.
+                    Button(L10n.trackNoSoundPrivacy.key, action: model.openAudioCaptureSettings)
+                        .fixedSize()
+                        .help(L10n.trackNoSoundSettings.key)
+                        .accessibilityLabel(L10n.trackNoSoundSettings.key)
+                }
+            }
+        }
     }
 
     /// The source of the route: a device name or an app name; empty with no route.

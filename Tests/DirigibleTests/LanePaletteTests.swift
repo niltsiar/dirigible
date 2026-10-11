@@ -29,12 +29,23 @@ struct LanePaletteTests {
         #expect(LanePalette.light.selected(0xFFE8_ECF2) == 0xFF74_7679, "selection blend: light halves")
     }
 
-    /// WCAG 2 contrast of the label on the clip: 7:1 or more in both palettes.
+    /// WCAG 2 contrast of the label on the clip: 7:1 or more in both palettes and their live
+    /// palettes (the take label on the red live region, run 2026-10-11-ui-polish-header C15).
     @Test func theLabelHasAContrastOfSevenOnTheClip() {
-        for palette in [LanePalette.light, .dark(accent: 0xFF00_7AFF)] {
+        let palettes = [LanePalette.light, .dark(accent: 0xFF00_7AFF)]
+        for palette in palettes + palettes.map(\.live) {
             let ratio = contrast(palette.label, palette.clip)
             #expect(ratio >= 7, "label contrast \(ratio)")
         }
+    }
+
+    /// The red live palette of the prototype (run 2026-10-11-ui-polish-header U4).
+    @Test func theLivePaletteIsRed() {
+        let light = LanePalette.light.live
+        #expect([light.clip, light.peak, light.rms] == [0xFFF5_C4C4, 0xFFE0_7A7A, 0xFF9E_1F1F])
+        let dark = LanePalette.dark(accent: 0xFF00_7AFF).live
+        #expect([dark.clip, dark.peak, dark.rms] == [0xFF57_2C2C, 0xFFE0_6E6E, 0xFFF2_A9A9])
+        #expect(dark.lane == LanePalette.dark(accent: 0xFF00_7AFF).lane, "the lane color stays")
     }
 
     private func contrast(_ a: UInt32, _ b: UInt32) -> Double {

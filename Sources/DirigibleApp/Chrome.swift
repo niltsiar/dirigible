@@ -229,7 +229,10 @@ struct ChromeState: Equatable {
         guard let studio = model.studio else { return }
         let recording = model.canStop
         playing = studio.playback != .stopped
-        time = timeDisplayText(studio.playhead, rate: studio.session.sampleRate, playing: playing)
+        // During a take and its finalize, the time shows the record head with tenths.
+        let head = studio.liveHead()
+        time = timeDisplayText(
+            head ?? studio.playhead, rate: studio.session.sampleRate, playing: playing || head != nil)
         // Record stays on during a take: a click then does nothing (ux-decisions 4).
         if recording || model.canRecord { enabled.insert(.record) }
         if recording || playing { enabled.insert(.stop) }
@@ -278,8 +281,8 @@ struct ChromeState: Equatable {
     }
 }
 
-/// The playhead of the toolbar: h:mm:ss.t during play, h:mm:ss.mmm when stopped. The digits are
-/// cut, not rounded.
+/// The head of the toolbar: h:mm:ss.t during play or a take, h:mm:ss.mmm when stopped. The digits
+/// are cut, not rounded.
 func timeDisplayText(_ frames: Frames, rate: Int, playing: Bool) -> String {
     let milliseconds = frames.count * 1000 / max(1, rate)
     let (hours, minutes) = (milliseconds / 3_600_000, milliseconds / 60_000 % 60)

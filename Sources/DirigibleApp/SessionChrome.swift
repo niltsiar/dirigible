@@ -39,6 +39,8 @@ import Observation
     private var readFor: (armed: [TrackID], idle: Bool)?
     /// Reads the record time again at an interval while idle.
     private var ticker: Task<Void, Never>?
+    /// Runs a loop turn every 100 ms while a take records: no observed value carries the record head.
+    private var headTick: Task<Void, Never>?
 
     init(model: SessionWindow, window: NSWindow) {
         self.model = model
@@ -77,6 +79,7 @@ import Observation
     func close() {
         closed = true
         ticker?.cancel()
+        headTick?.cancel()
         reading?.cancel()
     }
 
@@ -125,6 +128,18 @@ import Observation
             }
         }
         apply(state)
+        if model.canStop, headTick == nil {
+            headTick = Task { [weak self] in
+                while (try? await Task.sleep(for: .milliseconds(100))) != nil {
+                    // The check and the clear are in one turn, so a new take always starts a new tick.
+                    guard let self, self.model?.canStop == true else {
+                        self?.headTick = nil
+                        return
+                    }
+                    self.update()
+                }
+            }
+        }
         let key = (armed: model.armedWithRoute, idle: model.idleStudio != nil)
         if readFor.map({ $0.armed != key.armed || $0.idle != key.idle }) ?? true {
             readFor = key
@@ -283,7 +298,7 @@ final class TimeDisplay: NSView {
         }
     }
 
-    // VoiceOver reads "Playhead" and the time. A play posts no notice for each change.
+    // VoiceOver reads "Playhead" and the time. A play or a take posts no notice for each change.
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .staticText }
     override func accessibilityLabel() -> String? { L10n.toolbarTime.text }

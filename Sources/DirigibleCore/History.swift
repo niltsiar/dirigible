@@ -46,7 +46,13 @@ public struct History: Hashable, Sendable {
         guard let before = undoStack.last else { return try edit(body) }
         var copy = session
         try body(&copy)
-        guard copy != session else { return }
+        // As in `edit`, a change of only the recording is no change of the entry.
+        var withCurrentRecording = copy
+        withCurrentRecording.recording = session.recording
+        guard withCurrentRecording != session else {
+            session = copy
+            return
+        }
         var withOldRecording = copy
         withOldRecording.recording = before.recording
         if withOldRecording == before { undoStack.removeLast() }

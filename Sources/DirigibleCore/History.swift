@@ -39,6 +39,22 @@ public struct History: Hashable, Sendable {
         return result
     }
 
+    /// Runs `body` as a part of the last recorded edit, with no new entry: the reset of a fader
+    /// double-click joins the edit of its first click. When the result equals the state before
+    /// that edit, its entry goes. With no entry, it is `edit`.
+    public mutating func amend<Failure: Error>(_ body: (inout Session) throws(Failure) -> Void) throws(Failure) {
+        guard let before = undoStack.last else { return try edit(body) }
+        var copy = session
+        try body(&copy)
+        guard copy != session else { return }
+        var withOldRecording = copy
+        withOldRecording.recording = before.recording
+        if withOldRecording == before { undoStack.removeLast() }
+        redoStack.removeAll()
+        session = copy
+        revision += 1
+    }
+
     /// Throws `.trackInRecording` and changes nothing if the entry removes a track that the
     /// current recording arms, or changes its route or layout (decision 0012).
     public mutating func undo() throws(SessionError) {

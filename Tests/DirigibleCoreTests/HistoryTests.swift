@@ -169,4 +169,26 @@ struct HistoryTests {
             }
         }
     }
+
+    /// Track fader code gate 1 item 1: the reset of a double-click joins the edit of its first
+    /// click, so the double-click is one undo step. A result equal to the state before that edit
+    /// leaves no entry, and no redo entry stays.
+    @Test mutating func anAmendJoinsTheLastEdit() throws {
+        try history.edit { try $0.addTrack("t1", name: "Host", layout: .mono) }
+        try history.edit { try $0.setGain(Gain(dB: -36)!, track: "t1") }
+        let revision = history.revision
+
+        try history.amend { try $0.setGain(Gain(dB: 3)!, track: "t1") }
+        #expect(history.session.track("t1")?.gain.dB == 3)
+        #expect(history.revision == revision + 1, "an amend is a change")
+        try history.undo()
+        #expect(history.session.track("t1")?.gain == .zero, "one undo gives the state before the joined edit")
+        try history.redo()
+
+        try history.amend { try $0.setGain(.zero, track: "t1") }
+        #expect(history.session.track("t1")?.gain == .zero)
+        #expect(!history.canRedo, "no redo entry")
+        try history.undo()
+        #expect(history.session.tracks.isEmpty, "the joined edit that changed nothing has no entry")
+    }
 }

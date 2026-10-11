@@ -86,8 +86,8 @@ final class FaderSlider: NSSlider {
     /// The scale from the drag start and the last drag value, between `beginDrag` and `endDrag`.
     private var drag: (scale: FaderScale, dB: Double)?
     var dragging: Bool { drag != nil }
-    /// True when the last drag, or click, made an edit.
-    private var lastDragEdited = false
+    /// The session revision and the time of the last mouse-up that made an edit.
+    private var clickEdit: (revision: Int, time: TimeInterval)?
 
     /// `NSCell` tracks the drag in a modal loop and returns at the mouse-up, so the drag is the
     /// call of `super.mouseDown`. A double-click or an Option-click sets 0 dB.
@@ -95,10 +95,16 @@ final class FaderSlider: NSSlider {
         guard isEnabled else { return super.mouseDown(with: event) }
         if event.clickCount >= 2 || event.modifierFlags.contains(.option) {
             // The first click of a double-click off the thumb moved the thumb there and made an
-            // edit. The reset takes its place, so a double-click is one edit (C8).
-            if event.clickCount >= 2 && lastDragEdited { model?.undo() }
-            lastDragEdited = false
-            return set(.zero)
+            // edit. The reset joins that edit, so a double-click is one undo step (C8).
+            if event.clickCount >= 2, let click = clickEdit,
+                event.timestamp - click.time < NSEvent.doubleClickInterval
+            {
+                model?.resetVolume(track, joining: click.revision)
+            } else {
+                set(.zero)
+            }
+            clickEdit = nil
+            return
         }
         beginDrag()
         defer { endDrag() }
@@ -118,7 +124,8 @@ final class FaderSlider: NSSlider {
     func endDrag() {
         guard let drag else { return }
         self.drag = nil
-        lastDragEdited = model?.commitVolume(drag.dB, track: track) ?? false
+        let edited = model?.commitVolume(drag.dB, track: track) ?? false
+        clickEdit = edited ? model?.studio.map { ($0.sessionRevision, ProcessInfo.processInfo.systemUptime) } : nil
         show(drag.dB)
     }
 

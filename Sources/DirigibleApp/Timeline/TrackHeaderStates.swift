@@ -66,8 +66,9 @@ struct LiveState: View {
             }
             .buttonStyle(.borderless)
             .help(Text(verbatim: full))
-            // VoiceOver: the label names the action, the hint gives the state.
+            // VoiceOver: the label names the action; the value gives the state also with hints off.
             .accessibilityLabel(L10n.trackNoSoundSettings.key)
+            .accessibilityValue(Text(verbatim: HeaderStateText.noSound(source).row))
             .accessibilityHint(Text(verbatim: full))
         case .noSound: EmptyView()
         }

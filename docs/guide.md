@@ -63,7 +63,7 @@ A track records only when its arm button is on. Click the button to turn it on o
 ### Record a take
 
 1. Choose **Record > Record** (Command-R). The window shows **Recording take 1** and the time.
-2. Record the interview. The armed tracks show the audio in red as it records. A red line shows the record head. The header of each track shows its input and its name as text until the take is finished. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
+2. Record the interview. The armed tracks show the audio in red as it records. A red line shows the record head. The header of each track shows its name and its input (if it has one) as text until the take is finished. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
 3. Choose **Transport > Stop** (Command-Period). The window shows **Finishing take 1**, then **Take 1 is finished.**
 
 A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. After a take, the playhead is at the end of the take.

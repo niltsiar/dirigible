@@ -41,6 +41,8 @@ extension SessionWindow {
         case .insert, .cutSelectedTracks, .fade, .autoLevel, .autoLevelPerTrack: importJob == nil
         case .zoomBack: timeline.canGoBack
         case .zoomForward: timeline.canGoForward
+        // No text field uses their keys, so they can be off during a take.
+        case .raiseVolume, .lowerVolume, .resetVolume: canEdit
         default: true
         }
     }

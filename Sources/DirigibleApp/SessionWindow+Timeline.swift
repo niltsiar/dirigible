@@ -49,6 +49,7 @@ enum TimelineCommand: Hashable {
     case split, nudgeLeft, nudgeRight, fade
     case addMarker, addChapter, renameMarker, moveMarker, deleteMarker, previousMarker, nextMarker
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
+    case raiseVolume, lowerVolume, resetVolume
     case exportChapters, episodeInfo
     case autoLevel, autoLevelPerTrack
 
@@ -83,6 +84,8 @@ enum TimelineCommand: Hashable {
         case .renameTrack, .removeTrack, .showInFinder: true
         // A focused text field types the capital letter of Shift-M and Shift-S.
         case .muteTracks, .soloTracks: true
+        // A text field does nothing with Control-=, Control-minus, or Control-0.
+        case .raiseVolume, .lowerVolume, .resetVolume: false
         case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         // A text field does nothing with Command-T (run 13a, C9).
@@ -90,6 +93,15 @@ enum TimelineCommand: Hashable {
         case .autoLevel, .autoLevelPerTrack: false
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
         case .fade: false
+        }
+    }
+
+    /// The volume keys stay the typed characters. With the automatic localization, AppKit moved "="
+    /// of Raise Track Volume to the "*" key of the Spanish layout, where "=" is Shift-0 (S6 check).
+    var keyLocalization: KeyboardShortcut.Localization {
+        switch self {
+        case .raiseVolume, .lowerVolume, .resetVolume: .custom
+        default: .automatic
         }
     }
 
@@ -172,12 +184,17 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .nextMarker, title: .menuMarkersNext, key: .pageDown, modifiers: []),
     ]
 
-    /// The Rename Track, Remove Track, Mute Track, and Solo Track items of the Track menu.
+    /// The Rename Track, Remove Track, Mute Track, Solo Track, and track volume items of the Track
+    /// menu. The volume keys are the keys of Final Cut Pro. The Spanish Control-Shift-0 types "=",
+    /// so it reaches Raise Track Volume (`TrackVolumeKeyTests`).
     static let trackItems = [
         MenuItem(command: .renameTrack, title: .menuTrackRename, key: .return, modifiers: []),
         MenuItem(command: .removeTrack, title: .menuTrackRemove, key: .delete, modifiers: [.command, .option]),
         MenuItem(command: .muteTracks, title: .menuTrackMute, key: "m", modifiers: .shift),
         MenuItem(command: .soloTracks, title: .menuTrackSolo, key: "s", modifiers: .shift),
+        MenuItem(command: .raiseVolume, title: .menuTrackVolumeUp, key: "=", modifiers: .control),
+        MenuItem(command: .lowerVolume, title: .menuTrackVolumeDown, key: "-", modifiers: .control),
+        MenuItem(command: .resetVolume, title: .menuTrackVolumeReset, key: "0", modifiers: .control),
     ]
 
     /// The Tools items (decision 0031).
@@ -286,6 +303,7 @@ extension SessionWindow {
             removeTracks(timeline.selection.headerTracks(in: studio.session))
         case .muteTracks: toggleFlag(.muted)
         case .soloTracks: toggleFlag(.soloed)
+        case .raiseVolume, .lowerVolume, .resetVolume: changeVolume(command, studio)
         case .showInFinder: Task { await showClipsInFinder() }
         case .importAudio: chooseImport()
         case .export: Task { await export(.session) }

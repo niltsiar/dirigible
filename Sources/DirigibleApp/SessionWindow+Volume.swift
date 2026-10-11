@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import DirigibleTimeline
 
@@ -21,6 +22,18 @@ extension SessionWindow {
             return false
         }
         return true
+    }
+
+    /// Track > Raise, Lower, and Reset Track Volume: the tracks of the range selection, in one edit.
+    /// No track, or a clip set: a beep (decision 0038).
+    func changeVolume(_ command: TimelineCommand, _ studio: Studio) {
+        let tracks = timeline.selection.headerTracks(in: studio.session)
+        guard !tracks.isEmpty else { return beep() }
+        switch command {
+        case .raiseVolume: stepVolume(by: 1, tracks: tracks)
+        case .lowerVolume: stepVolume(by: -1, tracks: tracks)
+        default: setVolume(.zero, tracks: tracks)
+        }
     }
 
     /// Sets each of `tracks` to `gain` in one edit: the fader reset and a VoiceOver set value.

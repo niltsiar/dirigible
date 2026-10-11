@@ -30,6 +30,7 @@ import Testing
                 "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)", "fade f \(command)",
             ])
         let shift = EventModifiers.shift.rawValue
+        let control = EventModifiers.control.rawValue
         #expect(
             TimelineCommand.markerItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
                 "addMarker \r \(command)", "addChapter \r \(EventModifiers([.command, .shift]).rawValue)",
@@ -41,7 +42,8 @@ import Testing
                 "\($0.command) \($0.key.character) \($0.modifiers.rawValue)"
             } == [
                 "renameTrack \r 0", "removeTrack \u{8} \(EventModifiers([.command, .option]).rawValue)",
-                "muteTracks m \(shift)", "soloTracks s \(shift)", "importAudio t \(command)",
+                "muteTracks m \(shift)", "soloTracks s \(shift)", "raiseVolume = \(control)",
+                "lowerVolume - \(control)", "resetVolume 0 \(control)", "importAudio t \(command)",
                 "showInFinder r \(EventModifiers([.command, .shift]).rawValue)", "export e \(command)",
                 "exportSelection e \(EventModifiers([.command, .shift]).rawValue)",
                 "exportChapters e \(EventModifiers([.command, .option]).rawValue)",

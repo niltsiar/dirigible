@@ -1,6 +1,7 @@
 import DirigibleCore
-import DirigibleTimeline
 import Testing
+
+@testable import DirigibleTimeline
 
 /// Track fader C9: the travel of the fader, its drag values, and the key steps.
 struct FaderScaleTests {

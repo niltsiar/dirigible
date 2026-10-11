@@ -188,6 +188,26 @@ import Testing
         await model.close()
     }
 
+    /// Fix check of code gate 1 (run 2026-10-11-ui-polish-header): a Retry during a track rename
+    /// with no typed text ends the rename, as a take start does. The finalize removes the name field.
+    @Test func aRetryEndsATrackRename() async throws {
+        let (model, studio) = try await open()
+        let clips = model.url.appending(path: clipsFolderName)
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        defer { chmod(clips.path, 0o755) }
+        await take(model, studio) { chmod(clips.path, 0o500) }
+        try #require(studio.pendingTake != nil)
+        chmod(clips.path, 0o755)
+        model.startRename("t1")
+        #expect(model.renamingTrack == "t1")
+
+        await model.retry()
+
+        #expect(studio.pendingTake == nil)
+        #expect(model.renamingTrack == nil, "the retry ends the rename")
+        await model.close()
+    }
+
     @Test func finishLeavingUnreadableEndsTheTake() async throws {
         let (model, studio) = try await open()
         let caf = model.url.appending(path: "\(captureFolderName)/take1-1-1.caf")

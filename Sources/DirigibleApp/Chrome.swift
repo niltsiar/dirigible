@@ -174,10 +174,17 @@ extension TimelineCommand {
         uniquingKeysWith: { first, _ in first })
 }
 
-/// The tooltip of a toolbar item: the menu text and the key, "Record (⌘R)". `format` is the
-/// value of `toolbar.tooltip` in the app language.
-func toolbarTooltip(_ command: WindowCommand, format: String = L10n.toolbarTooltip.text) -> String {
-    String(format: format, locale: .current, command.menuItem.title.text, keyText(command.menuItem.key))
+/// The tooltip of a toolbar item: the menu text and the key, "Record (⌘R)". The zoom items also
+/// name the gestures that zoom at the pointer (run 2026-10-11-ui-polish-header C21). `format` is
+/// the value of `tooltipKey(command)` in the app language.
+func toolbarTooltip(_ command: WindowCommand, format: String? = nil) -> String {
+    let title = command.menuItem.title.text
+    return String(format: format ?? tooltipKey(command).text, locale: .current, title, keyText(command.menuItem.key))
+}
+
+/// The key of the tooltip format of `command`.
+func tooltipKey(_ command: WindowCommand) -> L10n {
+    [.timeline(.zoomIn), .timeline(.zoomOut)].contains(command) ? .toolbarTooltipZoom : .toolbarTooltip
 }
 
 /// A key as a menu shows it: the modifier glyphs, then the key ("⌥⌘N", "⌘.", "⌫").

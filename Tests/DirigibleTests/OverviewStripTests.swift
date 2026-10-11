@@ -230,6 +230,44 @@ import Testing
         await model.close()
     }
 
+    /// Run 2026-10-11-ui-polish-header C22: from a frame of 16 pt (the edge-zoom gate), a grip of
+    /// 3 x 12 pt shows at each frame edge, in the edge zone. Under 16 pt the frame has no edge zone
+    /// and no grip. The grips move with the frame and render no strip image.
+    @Test func theFrameEdgesShowGrips() async throws {
+        let (model, _, window, pane) = try await pane()
+        let strip = pane.overview
+        drawNow(window)
+        // A 2 h session: the closest zoom of the 20 s fixture gives a frame of about 270 pt.
+        let (end, rate) = (Frames(345_600_000), 48_000)
+        let stripFrames = Viewport.extent(end: end, rate: rate) / strip.bounds.width
+        /// Shows a view whose frame is `width` points wide in the strip.
+        func show(frameWidth width: Double, origin: Double) {
+            let scale = TimelineScale(framesPerPoint: width * stripFrames / 1440)
+            strip.show(Viewport(scale: scale, origin: origin, width: 1440, end: end, rate: rate))
+        }
+        func shown() -> [NSRect] { strip.grips.filter { !$0.isHidden }.map(\.frame) }
+
+        let renders = strip.renders
+        show(frameWidth: 16.01, origin: 10_000_000)
+        var frame = strip.viewFrame.frame
+        #expect(shown().count == 2, "two grips at 16 pt: \(frame)")
+        #expect(shown().allSatisfy { $0.width == 3 && $0.height == 12 }, "3 x 12 pt: \(shown())")
+        #expect(shown().allSatisfy { abs($0.midY - frame.midY) <= 0.5 }, "on the frame middle")
+        #expect(abs(shown()[0].minX - frame.minX) <= 0.5, "at the leading edge: \(shown()[0]), \(frame)")
+        #expect(abs(shown()[1].maxX - frame.maxX) <= 0.5, "at the trailing edge: \(shown()[1]), \(frame)")
+
+        show(frameWidth: 40, origin: 100_000_000)
+        frame = strip.viewFrame.frame
+        #expect(abs(shown()[0].minX - frame.minX) <= 0.5 && abs(shown()[1].maxX - frame.maxX) <= 0.5, "moved")
+        drawNow(window)
+        #expect(strip.renders == renders, "a grip move renders no strip image")
+
+        show(frameWidth: 15, origin: 10_000_000)
+        #expect(shown().isEmpty, "no grip under 16 pt: \(strip.viewFrame.frame)")
+        window.close()
+        await model.close()
+    }
+
     /// The clip view owns the origin: an AppKit scroll moves the frame with no `navigate`.
     @Test func aScrollOfTheClipViewMovesTheFrame() async throws {
         let (model, _, window, pane) = try await pane()

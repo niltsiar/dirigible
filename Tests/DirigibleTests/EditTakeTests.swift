@@ -115,6 +115,27 @@ import Testing
         await model.close()
     }
 
+    /// Code gate 1 of run 2026-10-11-ui-polish-header, item 1: a take that starts during a track
+    /// rename with no typed text ends the rename. The take form removes the name field, so its
+    /// focus change cannot end it. After the stop, a click on the header of the track selects it.
+    @Test func aTakeEndsATrackRename() async throws {
+        let model = await app.open(try await package())
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        studio.environment = hal.environment
+        model.startRename("t1")
+        #expect(model.renamingTrack == "t1")
+
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+        #expect(model.renamingTrack == nil, "the take ends the rename")
+        await hal.feed(seconds: 0.5)
+        await model.stop()
+        await until("the take finalizes") { studio.transport == .idle }
+        model.clickHeader("t1", flags: [])
+        #expect(model.timeline.selection.headerTracks(in: studio.session) == ["t1"], "a header click selects")
+        await model.close()
+    }
+
     /// Control: an edit that stops the play first leaves the playhead still.
     @Test func anEditDuringPlayKeepsThePlayGoing() async throws {
         let model = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 10, audio: true))

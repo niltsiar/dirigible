@@ -39,22 +39,44 @@ struct LanePaletteTests {
         }
     }
 
-    /// The red live palette of the prototype (run 2026-10-11-ui-polish-header U4).
-    @Test func theLivePaletteIsRed() {
-        let light = LanePalette.light.live
-        #expect([light.clip, light.peak, light.rms] == [0xFFF5_C4C4, 0xFFE0_7A7A, 0xFF9E_1F1F])
-        let dark = LanePalette.dark(accent: 0xFF00_7AFF).live
-        #expect([dark.clip, dark.peak, dark.rms] == [0xFF57_2C2C, 0xFFE0_6E6E, 0xFFF2_A9A9])
-        #expect(dark.lane == LanePalette.dark(accent: 0xFF00_7AFF).lane, "the lane color stays")
+    /// The live palette reads as red, its fill stays apart from the missing-media fill (CIE76
+    /// distance 20 or more), and its waveform shows on its fill: a take must not look broken (run
+    /// 2026-10-11-ui-polish-header code gate 1 item 2).
+    @Test(arguments: [LanePalette.light, .dark(accent: 0xFF00_7AFF)])
+    func theLivePaletteIsRedAndApartFromMissing(palette: LanePalette) {
+        let live = palette.live
+        for pixel in [live.clip, live.peak, live.rms] {
+            let (r, g, b) = (Int(pixel >> 16 & 0xFF), Int(pixel >> 8 & 0xFF), Int(pixel & 0xFF))
+            #expect(r >= g + 40 && r >= b + 40, "red: \(String(pixel, radix: 16))")
+        }
+        let distance = deltaE(live.clip, palette.missing)
+        #expect(distance >= 20, "the live fill and the missing fill: \(distance)")
+        #expect(contrast(live.peak, live.clip) >= 1.5 && contrast(live.rms, live.peak) >= 1.5, "the waveform shows")
+        #expect(live.lane == palette.lane, "the lane color stays")
+    }
+
+    /// The CIE76 distance of two sRGB pixels.
+    private func deltaE(_ a: UInt32, _ b: UInt32) -> Double {
+        func lab(_ pixel: UInt32) -> [Double] {
+            let (r, g, bl) = (linear(pixel >> 16), linear(pixel >> 8), linear(pixel))
+            let xyz = [
+                (0.4124 * r + 0.3576 * g + 0.1805 * bl) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * bl,
+                (0.0193 * r + 0.1192 * g + 0.9505 * bl) / 1.08883,
+            ]
+            let f = xyz.map { $0 > 0.008856 ? pow($0, 1.0 / 3) : 7.787 * $0 + 16.0 / 116 }
+            return [116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])]
+        }
+        return sqrt(zip(lab(a), lab(b)).map { ($0 - $1) * ($0 - $1) }.reduce(0, +))
+    }
+
+    private func linear(_ channel: UInt32) -> Double {
+        let c = Double(channel & 0xFF) / 255
+        return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
     }
 
     private func contrast(_ a: UInt32, _ b: UInt32) -> Double {
         func luminance(_ pixel: UInt32) -> Double {
-            func channel(_ shift: UInt32) -> Double {
-                let c = Double((pixel >> shift) & 0xFF) / 255
-                return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
-            }
-            return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)
+            0.2126 * linear(pixel >> 16) + 0.7152 * linear(pixel >> 8) + 0.0722 * linear(pixel)
         }
         let (x, y) = (luminance(a), luminance(b))
         return (max(x, y) + 0.05) / (min(x, y) + 0.05)

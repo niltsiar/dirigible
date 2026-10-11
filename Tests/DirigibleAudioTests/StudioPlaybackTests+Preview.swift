@@ -116,4 +116,23 @@ extension StudioPlaybackTests {
         await untilPlayed(studio, 0, "code gate 1: endPreview gives the session gain")
         await studio.perform(.playStop)
     }
+
+    /// Code gate 2: the edit of a fader mouse-up and the end of its preview send the Player one
+    /// session, not two.
+    @Test func aFaderEditSendsOneSession() async throws {
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        await untilPlayed(studio, 0, "the play feed runs")
+        let gain = try #require(Gain(dB: -6))
+        try studio.previewGain(gain, track: "t1")
+        let sends = studio.play.revision
+
+        try studio.edit { session throws(SessionError) in try session.setGain(gain, track: "t1") }
+        studio.endPreview()
+
+        #expect(studio.play.revision == sends + 1, "code gate 2: one send")
+        await untilPlayed(studio, -6, "the Player has the edit")
+        await studio.perform(.playStop)
+    }
 }

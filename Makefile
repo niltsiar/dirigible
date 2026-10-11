@@ -40,7 +40,7 @@ SLOW_TESTS = $(call slow_tests)
 # their asserts (decision 0028). make test-slow still runs them. scripts/check-changed.sh reads
 # this line: a changed file of the list adds PUSH_RUN=<names>, joined with commas, so
 # test-slow-push also runs the slow tests of those files.
-PUSH_SKIP = LoudnessExportBenchmark AutoLevelBenchmark LiveLoudnessBenchmark ExportBenchmark PeakComputeBenchmark LoudnessBenchmark InspectionBenchmark EditBenchmark NavigationKeyBenchmark LaneRenderBenchmark MouseEventBenchmark+CommandF FinalizeBenchmark MouseEventBenchmark MouseEventGainBenchmark MouseEventGroupBenchmark MouseEventCrossfadeBenchmark MouseEventRippleBenchmark MouseEventRedrawBenchmark AutoscrollBenchmark FollowScrollBenchmark OverviewBenchmark HeaderDragBenchmark LiveTakeBenchmark PlayTickBenchmark DropHighlightBenchmark
+PUSH_SKIP = LoudnessExportBenchmark AutoLevelBenchmark LiveLoudnessBenchmark ExportBenchmark PeakComputeBenchmark LoudnessBenchmark InspectionBenchmark EditBenchmark NavigationKeyBenchmark LaneRenderBenchmark MouseEventBenchmark+CommandF FinalizeBenchmark MouseEventBenchmark MouseEventGainBenchmark MouseEventGroupBenchmark MouseEventCrossfadeBenchmark MouseEventRippleBenchmark MouseEventRedrawBenchmark AutoscrollBenchmark FollowScrollBenchmark OverviewBenchmark HeaderDragBenchmark LiveTakeBenchmark PlayTickBenchmark DropHighlightBenchmark SnapSearchBenchmark
 PUSH_RUN ?=
 comma := ,
 SLOW_PUSH_TESTS = $(call slow_tests,$(foreach n,$(filter-out $(subst $(comma), ,$(PUSH_RUN)),$(PUSH_SKIP)),--exclude='$(n).swift'))

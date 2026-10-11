@@ -4,15 +4,16 @@
 # fails, a live holder (the call waits, also from a second worktree), a TERM to a waiting call (the
 # lock of the holder stays), a release by the holder (the waiting call runs), a TERM to a holder
 # (the command stops and the lock goes), a dead holder with a live child (the call waits), a dead
-# holder (the lock is taken over), and a git dir with no write (exit 2). Each case uses a temporary
-# repo with a worktree, so the lock of an outer with-lock.sh call is not touched.
+# holder (the lock is taken over), a git dir with no write (exit 2), and a pid write that fails
+# (exit 2, no lock). Each case uses a temporary repo with a worktree, so the lock of an outer
+# with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/with-lock.sh"
 failures=0
 tmp="$(mktemp -d)"
-holder="" child=""
-trap 'kill $holder $child 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
+holder="" child="" waiter="" inner=""
+trap 'kill $holder $child $waiter $inner 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
@@ -24,10 +25,12 @@ git -C "$repo" init -q && git -C "$repo" add -A &&
     git -C "$repo" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base
 git -C "$repo" worktree add -q "$tmp/wt" 2>/dev/null
 # until_true <limit in tenths of a second> <command...>: 0 when the command passes in the limit.
+# At the limit it stops the waiting call, so a regression fails the test and never hangs it.
 until_true() {
   local n="$1"
   shift
   while ((n-- > 0)); do "$@" && return 0; sleep 0.1; done
+  [[ -z "$waiter" ]] || kill "$waiter" 2>/dev/null
   return 1
 }
 # A live holder: a sleep whose pid is in the lock.
@@ -66,17 +69,20 @@ until_true 50 test -e "$tmp/ran" || fail 'release: the waiting call did not run'
 wait "$waiter" || fail 'release: the waiting call failed'
 [[ ! -e "$lock" ]] || fail 'release: the lock stays after the command'
 
-# A TERM to a holder stops its command and removes the lock.
-"$repo/scripts/with-lock.sh" sleep 60 > /dev/null 2>&1 &
+# A TERM to a holder stops its command, also a process that the command started (make sends
+# TERM only to its recipe shell), and removes the lock.
+"$repo/scripts/with-lock.sh" bash -c "sleep 60 & echo \$! > '$tmp/inner'; wait" > /dev/null 2>&1 &
 waiter=$!
-until_true 50 test -s "$lock/child" || fail 'TERM to a holder: no child pid in the lock'
-child="$(cat "$lock/child" 2>/dev/null)"
+until_true 50 test -s "$tmp/inner" || fail 'TERM to a holder: the command did not start'
+child="$(cat "$lock/child" 2>/dev/null)" inner="$(cat "$tmp/inner" 2>/dev/null)"
 kill -TERM "$waiter"
 wait "$waiter"
 code=$?
 [[ $code -eq 143 ]] || fail "TERM to a holder: exit $code, not 143"
 until_true 50 dead "$child" || fail 'TERM to a holder: the command still runs'
+until_true 50 dead "$inner" || fail 'TERM to a holder: a process of the command still runs'
 [[ ! -e "$lock" ]] || fail 'TERM to a holder: the lock stays'
+waiter=""
 
 # A dead holder whose child still runs (a kill -9 of the call): the call waits.
 kill "$holder" 2>/dev/null
@@ -97,11 +103,23 @@ wait "$waiter" 2>/dev/null
 [[ ! -e "$lock" && ! -e "$lock.reap" ]] || fail 'dead holder: the lock or the reap folder stays'
 
 # A git dir with no write (a sandbox): exit 2 with a reason, not a wait.
+rm -rf "$lock" "$lock.reap"
 chmod a-w "$repo/.git"
 out="$("$repo/scripts/with-lock.sh" true 2>&1)"
 code=$?
 chmod u+w "$repo/.git"
 [[ $code -eq 2 && "$out" == *'cannot make'* ]] || fail "no write: exit $code: $out"
+
+# A pid write that fails (a full disk after the mkdir): exit 2, and the call removes its lock, so
+# later calls do not wait on a lock with no pid. A wrapper of mkdir makes the folder with no write.
+mkdir "$tmp/bin"
+printf '#!/bin/bash\n/bin/mkdir "$@" && chmod a-w "${@: -1}"\n' > "$tmp/bin/mkdir"
+chmod +x "$tmp/bin/mkdir"
+out="$(PATH="$tmp/bin:$PATH" "$repo/scripts/with-lock.sh" touch "$tmp/ran2" 2>&1)"
+code=$?
+chmod -R u+w "$lock" 2>/dev/null
+[[ $code -eq 2 && "$out" == *'cannot write the pid'* ]] || fail "pid write: exit $code: $out"
+[[ ! -e "$lock" && ! -e "$tmp/ran2" ]] || fail 'pid write: the lock stays or the command ran'
 
 [[ $failures -eq 0 ]] && echo "with-lock tests: all passed"
 exit $((failures > 0))

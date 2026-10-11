@@ -188,7 +188,9 @@
 "track.state.retry.stopped" = "Stopped retrying. Turn Input Levels off and on.";
 "track.state.waiting.app" = "Waiting for %@";
 "track.state.no.sound" = "No sound from %1$@. If %1$@ plays sound, allow Dirigible in Privacy & Security > System Audio Recording.";
+"track.state.no.sound.short" = "No sound from %@";
 "track.listen.quiet" = "No monitor sound. Turn Monitor Track off and on.";
+"track.listen.quiet.short" = "No monitor sound";
 "track.listen.loopback" = "No monitor sound: the output can feed this input. Choose another output.";
 "track.dropped" = "Dropped frames: %lld";
 "take.recording" = "Recording take %lld";

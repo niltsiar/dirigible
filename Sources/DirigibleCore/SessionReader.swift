@@ -243,7 +243,8 @@ extension XMLElement {
     }
 
     fileprivate func gain(_ attribute: String) throws(SessionFileError) -> Gain {
-        guard let gain = Gain(dB: try value(attribute)) else { throw invalid(attribute) }
+        // An old file can hold a finite gain outside `Gain.range` (track fader run): it opens.
+        guard let gain = Gain(clamping: try value(attribute)) else { throw invalid(attribute) }
         return gain
     }
 

@@ -88,6 +88,20 @@ struct ExcerptResampleTests {
         #expect(failures == 0, "\(failures) of 1000 lanes broke a join or a check")
     }
 
+    /// Track fader C4: a clip gain plus a conversion gain over the range gives the range end, not
+    /// the old clip gain.
+    @Test func aGainSumOverTheRangeClamps() throws {
+        var session = Session(sampleRate: 44_100)
+        try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 88_200))
+        try session.addTrack("t", name: "T", layout: .mono)
+        try session.place(Clip(id: "A", file: "f", start: 0, offset: 0, length: 88_200, gain: Gain(dB: 60)!), on: "t")
+        let excerpt = try session.excerpt(of: 0..<88_200, on: ["t"])
+
+        let scaled = excerpt.resampled(to: 48_000, lengths: ["f": 96_000], gains: ["f": Gain(dB: 60)!])
+
+        #expect(scaled.lanes[0].clips.map(\.gain.dB) == [96], "C4: the sum clamps at +96 dB")
+    }
+
     /// Literal edges at 44 100 to 48 000 Hz: 88 200 -> 96 000, a 441-frame fade -> 480, an
     /// 882-frame crossfade -> 960, and the length stops at the converted file end.
     @Test func literalEdgesScaleToTheNearestFrame() throws {

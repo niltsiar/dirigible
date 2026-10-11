@@ -325,8 +325,8 @@ private struct LoudnessStage {
     init(target: LUFS, measured: LUFS?, rate: Int, layout: ChannelLayout) {
         self.target = target
         self.measured = measured
-        // Gain(dB:) is nil only for a value that is not finite.
-        gain = measured.flatMap { Gain(dB: target.value - $0.value) } ?? .zero
+        // Nil only for a value that is not finite. The -70 LUFS gate keeps the gain under +60 dB.
+        gain = measured.flatMap { Gain(clamping: target.value - $0.value) } ?? .zero
         factor = Float(pow(10, gain.dB / 20))
         limiter = TruePeakLimiter(ceiling: -1, rate: rate, layout: layout)
         loudness = LoudnessMeter(sampleRate: rate, layout: layout)

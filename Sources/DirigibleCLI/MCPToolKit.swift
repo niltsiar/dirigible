@@ -66,8 +66,11 @@ extension Kind where T == Int {
 }
 
 extension Kind where T == Gain {
-    /// A finite number of dB (V9: `Gain(dB:)`).
-    static let gain = Kind(schema: ["type": "number"], expected: "a finite number of dB") { value in
+    /// A number of dB in `Gain.range` (V9: `Gain(dB:)`).
+    static let gain = Kind(
+        schema: ["type": "number", "minimum": Gain.range.lowerBound, "maximum": Gain.range.upperBound],
+        expected: "a number of dB \(Gain.rangeText)"
+    ) { value in
         guard let number = value as? NSNumber, !isBoolean(number) else { return nil }
         return Gain(dB: number.doubleValue)
     }

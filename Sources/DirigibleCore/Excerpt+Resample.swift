@@ -31,7 +31,7 @@ extension Excerpt {
                 (result.start, result.offset) = (start, offset)
                 result.length = min(scale(clip.end) - start, fileLength - offset)
                 result.crossfades = .zero
-                if let gain = gains[clip.file], let sum = Gain(dB: clip.gain.dB + gain.dB) { result.gain = sum }
+                if let gain = gains[clip.file], let sum = Gain(clamping: clip.gain.dB + gain.dB) { result.gain = sum }
                 return result
             }
             // A seamless source join (a split) stays seamless: the right clip goes on from the file

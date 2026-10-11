@@ -36,22 +36,6 @@ public struct Frames: Hashable, Comparable, Sendable, AdditiveArithmetic, Expres
     var isInRange: Bool { self >= .zero && self <= .limit }
 }
 
-/// A gain in dB. It is always finite.
-public struct Gain: Hashable, Sendable, CustomStringConvertible {
-    public let dB: Double
-
-    public init?(dB: Double) {
-        guard dB.isFinite else { return nil }
-        self.dB = dB
-    }
-
-    public static let zero = Gain(dB: 0)!
-    /// The gain limit of decision 0008, in dB, in each direction: auto-level, the warning of the
-    /// export report, the start rule of the gain drag of the lanes, and the clamp of the inspector.
-    public static let levelLimit = 20.0
-    public var description: String { "\(dB) dB" }
-}
-
 /// The fade lengths of a clip (decision 0035). Each length is in `0...Frames.limit`, so a sum
 /// cannot overflow. `Session.check` keeps fadeIn + fadeOut <= the clip length.
 public struct Fades: Hashable, Sendable {

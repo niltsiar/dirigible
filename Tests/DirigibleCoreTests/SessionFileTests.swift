@@ -29,6 +29,25 @@ struct SessionFileTests {
             "MARKERS-3 the file lists markers by position, then ID")
     }
 
+    /// Track fader C3: an old file with a finite gain outside `Gain.range` opens, with the gain at
+    /// the range end. A gain inside the range stays (control). inf and NaN stay refused
+    /// (`refusesAnInvalidFile`).
+    @Test func aGainOutsideTheRangeClampsAtRead() throws {
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+        let xml = document(
+            files: #"<file id="f1" path="a.wav" channels="1" length="10"/>"#,
+            tracks: #"<track id="t1" name="A" gain="1e300" layout="mono">"#
+                + #"<clip id="c1" file="f1" start="0" offset="0" length="5" gain="-200"/></track>"#
+                + #"<track id="t2" name="B" gain="50" layout="mono"/>"#)
+        try Data(xml.utf8).write(to: sessionXML)
+
+        let session = try? Session(contentsOf: package)
+
+        #expect(session?.track("t1")?.gain.dB == 96, "C3: a track gain over the range opens at +96 dB")
+        #expect(session?.track("t1")?.clips.first?.gain.dB == -96, "C3: a clip gain under the range opens at -96 dB")
+        #expect(session?.track("t2")?.gain.dB == 50, "C3: a gain inside the range stays")
+    }
+
     @Test func writesTheExpectedDocument() throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f1", path: "a.wav", layout: .mono, length: 480_000))

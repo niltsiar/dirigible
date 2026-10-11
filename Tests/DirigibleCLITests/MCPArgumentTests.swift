@@ -17,6 +17,19 @@ extension MCPToolTests {
         }
     }
 
+    /// Track fader C2b: the `db` schema of the gain tools carries the bound of `Gain.range`.
+    @Test func theGainSchemaHasTheRange() async throws {
+        let listed = try await mcp([modernRequest(1, "tools/list")])
+        let tools = result(answer(listed, id: 1))["tools"] as? [[String: Any]] ?? []
+        for name in ["track_gain", "clip_gain"] {
+            let tool = tools.first { $0["name"] as? String == name }
+            let properties = (tool?["inputSchema"] as? [String: Any])?["properties"] as? [String: [String: Any]]
+            let db = properties?["db"] ?? [:]
+            #expect(
+                db["minimum"] as? Double == -96 && db["maximum"] as? Double == 96, "C2b: \(name) db has the range")
+        }
+    }
+
     @Test func badArgumentsAreToolErrors() async throws {
         let listed = try await mcp([modernRequest(1, "tools/list")])
         let tools = result(answer(listed, id: 1))["tools"] as? [[String: Any]] ?? []
@@ -58,7 +71,18 @@ extension MCPToolTests {
             ("session_info", ["package": pkg, "from": 96_000], "Give from and to, or neither."),
             ("session_info", ["package": pkg, "tracks": ["a", "zz"]], "no track \"zz\"."),
             ("session_info", ["package": pkg, "tracks": [String]()], "\"tracks\" must be an array of strings"),
-            ("track_gain", ["package": pkg, "track": "a", "db": "nan"], "\"db\" must be a finite number of dB."),
+            (
+                "track_gain", ["package": pkg, "track": "a", "db": "nan"],
+                "\"db\" must be a number of dB from -96 to 96."
+            ),
+            (
+                "track_gain", ["package": pkg, "track": "a", "db": 96.1],
+                "\"db\" must be a number of dB from -96 to 96."
+            ),
+            (
+                "clip_gain", ["package": pkg, "clips": ["c1"], "db": -1e300],
+                "\"db\" must be a number of dB from -96 to 96."
+            ),
             ("track_add", ["package": pkg, "name": "Q", "layout": "quad"], "\"layout\" must be mono or stereo."),
             ("track_add_call", ["package": pkg, "device": "D", "channels": [1, 2]], "Host takes one channel."),
             ("track_add_call", ["package": pkg, "device": "D"], "Give device with channels."),

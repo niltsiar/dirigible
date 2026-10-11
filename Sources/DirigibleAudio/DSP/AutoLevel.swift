@@ -66,7 +66,7 @@ public func autoLevel(_ clips: Set<ClipID>, _ mode: LevelMode, of session: Sessi
         let delta = clipTarget(group[0].track.layout) - integrated.value
         for item in readable {
             let base = mode == .eachClip ? 0 : item.clip.gain.dB
-            // Gain(dB:) is nil only for a value that is not finite.
+            // Nil only for a value that is not finite: the clamp keeps it in `Gain.range`.
             guard results[item.clip.id]?.integrated != nil,
                 let gain = Gain(dB: min(max(base + delta, -Gain.levelLimit), Gain.levelLimit))
             else {

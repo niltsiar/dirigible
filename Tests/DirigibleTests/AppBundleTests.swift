@@ -266,7 +266,8 @@ struct AppBundleTests {
     /// Criteria V1 and V2: `CFBundleVersion` stays 1, because Launch Services opens a session
     /// package in the registered copy with the highest value. `DirigibleCommit` holds the short
     /// hash of the source, with `-dirty` when the notice says that the tree had changes. In a git
-    /// work tree, the hash is also the hash of HEAD.
+    /// work tree, the hash is also the hash of HEAD. `CFBundleShortVersionString` is the output of
+    /// `scripts/version.sh` (the nearest annotated version tag), with the same dirty mark.
     @Test func theBundleNamesItsSourceCommit() throws {
         let plist = try propertyList(at: "Contents/Info.plist")
         #expect(plist["CFBundleVersion"] as? String == "1")
@@ -282,6 +283,9 @@ struct AppBundleTests {
         if let head = try? run("/usr/bin/git", "-C", repo.path, "rev-parse", "HEAD") {
             #expect(head.hasPrefix(value.1), "HEAD is \(head)")
         }
+        let version = try #require(plist["CFBundleShortVersionString"] as? String)
+        let tagged = try run(repo.appending(path: "scripts/version.sh").path, repo.path)
+        #expect(version == tagged + (value.2 == nil ? "" : "-dirty"), "the version is \(version), the tag \(tagged)")
     }
 
     private func propertyList(at path: String) throws -> [String: Any] {

@@ -111,9 +111,10 @@ final class LaneRenderer {
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
 
     /// Draws the rect of `region`: the lanes that its rows cross, in its columns. Then the live
-    /// take over the clips.
+    /// take over the clips. Each label of `labels` gets its chip: no peak or RMS span there.
     func draw(
-        _ inputs: LaneInputs, _ palette: LanePalette, live: LiveLanes = LiveLanes(), into region: borrowing PixelRegion
+        _ inputs: LaneInputs, _ palette: LanePalette, live: LiveLanes = LiveLanes(), labels: [ClipLabel] = [],
+        into region: borrowing PixelRegion
     ) {
         let (window, rect) = (region.window, region.rect)
         guard !rect.isEmpty, let geometry = inputs.geometry else { return }
@@ -171,6 +172,8 @@ final class LaneRenderer {
             region.fill(palette.lane, columns: gap..<end, rows: rows)
         }
         crossfaded.removeAll(keepingCapacity: true)
+        var chips: [ClipID: (columns: Range<Int>, top: Int)] = [:]
+        for label in labels { if let clip = label.clip { chips[clip] = label.cut(scale: scale) } }
         for lane in drawn {
             let track = tracks[lane]
             let bottom = window.rows(of: lane..<lane + 1).upperBound - 1
@@ -208,7 +211,9 @@ final class LaneRenderer {
                         first: Double(range.lowerBound) * pixelFrames - Double(start.count),
                         step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
                 drawColumns(
-                    range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, palette, into: region)
+                    range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, chip: chips[clip.id],
+                    palette,
+                    into: region)
             }
         }
         // The fade line of each crossfade half outside its box, over the waveform of the neighbor
@@ -224,7 +229,7 @@ final class LaneRenderer {
                 drawControls(clip, track, lane, geometry, palette, into: region)
             }
         }
-        if let take = live.take { drawLive(take, inputs, palette, into: region) }
+        if let take = live.take { drawLive(take, inputs, palette, labels: labels, into: region) }
 
         if let selection = inputs.marks.selection(in: inputs.session) {
             let band =
@@ -276,9 +281,11 @@ final class LaneRenderer {
     /// The one waveform draw of the final and the live columns: `values` from the column
     /// `range.lowerBound`, rectified on a -60 dB to 0 dB scale with `gain`, light peaks over dark
     /// RMS, up from the row `bottom`. A column in a fade of `fades` adds 20 log10 of its fade factor.
+    /// `chip`: the columns of a label chip and its top row; the peak and RMS spans of those columns
+    /// end above it. The fade line still draws.
     func drawColumns(
-        _ range: Range<Int>, gain: Double, fades: ColumnFades? = nil, bottom: Int, _ palette: LanePalette,
-        into region: borrowing PixelRegion
+        _ range: Range<Int>, gain: Double, fades: ColumnFades? = nil, bottom: Int,
+        chip: (columns: Range<Int>, top: Int)? = nil, _ palette: LanePalette, into region: borrowing PixelRegion
     ) {
         let laneRows = region.window.laneRows
         values.withUnsafeBufferPointer { values in
@@ -300,8 +307,12 @@ final class LaneRenderer {
                     // A cache file can hold an RMS over its peak; the span never inverts.
                     let rms = min(height(values[index].rms, columnGain), peak)
                     // A column span is a strided fill: one call, not one Swift step per pixel.
-                    region.span(palette.peak, column: column, rows: bottom - peak + 1..<bottom - rms + 1)
-                    region.span(palette.rms, column: column, rows: bottom - rms + 1..<bottom + 1)
+                    // The end of the spans: the chip top in a chip column.
+                    let end =
+                        chip.map { $0.columns.contains(column) ? min($0.top, bottom + 1) : bottom + 1 } ?? bottom + 1
+                    let (top, middle) = (min(bottom - peak + 1, end), min(bottom - rms + 1, end))
+                    region.span(palette.peak, column: column, rows: top..<middle)
+                    region.span(palette.rms, column: column, rows: middle..<end)
                     if factor != nil, fades?.line == true {
                         let row = Self.lineRow(columnGain, bottom: bottom, laneRows: laneRows)
                         region.span(palette.label, column: column, rows: row..<row + 1)

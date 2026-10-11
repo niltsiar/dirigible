@@ -274,8 +274,7 @@ final class TimelineDocumentView: NSView {
         switch surfaces.show(
             lanes, changed: lanes.pixels(of: dirty), shift: shift,
             draw: { region in
-                renderer.draw(inputs, palette, live: live, into: region)
-                Self.drawLabels(inputs, palette, live: live.take, into: region)
+                Self.drawLanes(renderer, inputs, palette, live: live, into: region)
             })
         {
         case .drawn(let rect): drawn = rect

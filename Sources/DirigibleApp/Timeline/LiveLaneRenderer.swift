@@ -76,7 +76,8 @@ extension LaneRenderer {
     /// records, to the head, then the waveform of the bins. The waveform takes the columns whose
     /// first frame is covered, as a clip does, so the hand-off keeps the pixels.
     func drawLive(
-        _ take: LiveLanes.Take, _ inputs: LaneInputs, _ palette: LanePalette, into region: borrowing PixelRegion
+        _ take: LiveLanes.Take, _ inputs: LaneInputs, _ palette: LanePalette, labels: [ClipLabel] = [],
+        into region: borrowing PixelRegion
     ) {
         let window = region.window
         guard !region.rect.isEmpty, let geometry = inputs.geometry else { return }
@@ -91,6 +92,8 @@ extension LaneRenderer {
         for lane in window.lanes(of: region.rect.rows).clamped(to: tracks.indices) {
             let track = tracks[lane]
             guard let (peaks, state) = take.tracks[track.id] else { continue }
+            // The take label chip: its columns keep the region color under the text.
+            let chip = labels.first { $0.clip == nil && $0.lane == lane }?.cut(scale: scale)
             let rows = window.rows(of: lane..<lane + 1)
             let origin = peaks.origin
             let covered = peaks.covered.map { origin + $0.lowerBound..<origin + $0.upperBound }
@@ -106,7 +109,7 @@ extension LaneRenderer {
                 resize(range.count)
                 peaks.fill(
                     &values, from: Double(range.lowerBound) * pixelFrames - Double(origin.count), step: pixelFrames)
-                drawColumns(range, gain: track.gain.dB, bottom: rows.upperBound - 1, palette, into: region)
+                drawColumns(range, gain: track.gain.dB, bottom: rows.upperBound - 1, chip: chip, palette, into: region)
             }
         }
     }

@@ -172,11 +172,14 @@ final class OverviewStrip: NSView {
         viewFrame.frame = frame
         dimLeading.frame = NSRect(x: 0, y: 0, width: max(0, frame.minX), height: bounds.height)
         dimTrailing.frame = NSRect(x: frame.maxX, y: 0, width: max(0, bounds.width - frame.maxX), height: bounds.height)
-        // In the edge zones: 3 pt inside each edge.
-        let edges = strip.viewFrame(viewport).width >= OverviewGeometry.edgeMinimum
-        for (grip, x) in zip(grips, [frame.minX, frame.maxX - 3]) {
-            grip.isHidden = !edges
-            grip.frame = NSRect(x: x, y: frame.midY - 6, width: 3, height: 12)
+        // The part of each edge zone inside the frame, at the aligned frame edges.
+        let zones = strip.edgeZones(viewport)
+        for grip in grips { grip.isHidden = zones == nil }
+        if let zones {
+            let raw = strip.viewFrame(viewport)
+            let (inLeading, inTrailing) = (zones.leading.maxX - raw.minX, raw.maxX - zones.trailing.minX)
+            grips[0].frame = NSRect(x: frame.minX, y: frame.midY - 6, width: inLeading, height: 12)
+            grips[1].frame = NSRect(x: frame.maxX - inTrailing, y: frame.midY - 6, width: inTrailing, height: 12)
         }
     }
 

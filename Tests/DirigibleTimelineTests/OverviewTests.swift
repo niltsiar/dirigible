@@ -52,6 +52,16 @@ struct OverviewGeometryTests {
         #expect(Self.strip.hit(98, Self.view(points: 12)) == .outside, "a 12 pt frame has no edge")
         #expect(Self.strip.hit(101, Self.view(points: 20)) == .leadingEdge, "a 20 pt frame has edges")
     }
+
+    /// Code gate 1 item 8: one method gives the edge zones that the hit test and the grips use.
+    @Test func theEdgeZonesComeFromOneMethod() throws {
+        let zones = try #require(Self.strip.edgeZones(Self.view(points: 40)))
+        #expect(
+            [zones.leading.minX, zones.leading.maxX, zones.trailing.minX, zones.trailing.maxX] == [97, 103, 137, 143])
+        #expect(zones.leading.height == OverviewGeometry.height && zones.trailing.y == 0)
+        #expect(Self.strip.edgeZones(Self.view(points: 15.9)) == nil, "a frame under 16 pt has no zone")
+        #expect(Self.strip.edgeZones(Self.view(points: 16)) != nil)
+    }
 }
 
 /// Criterion N2: merged column spans per row, at most one row per 2 px, and the ticks, the band,

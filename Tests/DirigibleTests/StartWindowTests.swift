@@ -206,6 +206,29 @@ import Testing
         await closeAll(app)
     }
 
+    /// C20 of run ui-polish-chrome: Change… and Create have one width, for any label length. The
+    /// test process shows the keys: 92.5 and 86 pt before the fix. Create is the prominent button;
+    /// Change… is the other button with the nearest trailing edge.
+    @Test func theTrailingButtonsHaveOneWidth() async throws {
+        app.showStart()
+        let content = try #require(app.start?.window?.contentView)
+        var buttons: [NSButton] = []
+        await until("the three buttons are in the view tree") {
+            content.layoutSubtreeIfNeeded()
+            buttons = self.buttons(in: content)
+            return buttons.count == 3
+        }
+        let frame = { (button: NSButton) in button.convert(button.alignmentRect(forFrame: button.bounds), to: nil) }
+        let create = try #require(buttons.first { $0.bezelColor != nil }, "no prominent Create")
+        let change = try #require(
+            buttons.filter { $0 !== create }.min {
+                abs(frame($0).maxX - frame(create).maxX) < abs(frame($1).maxX - frame(create).maxX)
+            })
+        #expect(
+            abs(frame(change).width - frame(create).width) <= 0.5, "Change \(frame(change)), Create \(frame(create))")
+        await closeAll(app)
+    }
+
     /// The SwiftUI buttons. A test runner does not run `NSApp`, so SwiftUI gives no accessibility
     /// children (probe-u2b). Each button is an `NSButton`, and its alignment rect has the height
     /// that VoiceOver reads in the app.

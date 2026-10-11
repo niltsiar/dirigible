@@ -273,4 +273,23 @@ extension InspectorTests {
         #expect(model.inspectorWidth.points == 300, "the down starts from 270 pt: \(model.inspectorWidth.points)")
         await model.close()
     }
+
+    /// Code gate 1 item 3: an AX step during a pointer drag ends the drag, so the mouse-up keeps the
+    /// step.
+    @Test func anAXStepDuringADragEndsTheDrag() async throws {
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let (model, _, window, _) = try await open(try await package())
+        window.setContentSize(NSSize(width: 1180, height: 600))
+        await until("the lanes give the pane its width") {
+            window.contentLayoutRect.width == 1180 && layout(window) == 910
+        }
+        try drag(window, by: -100, up: false)
+        let view = try handle(window)
+        #expect(view.accessibilityPerformIncrement())
+        #expect(model.inspectorWidth.points == 290 && !model.inspectorDrag.isActive, "the step ends the drag")
+        #expect(model.inspectorGuide.superlayer == nil, "the step removes the guide")
+        view.mouseUp(with: try event(.leftMouseUp, 0, window))
+        #expect(model.inspectorWidth.points == 290, "the up keeps the step: \(model.inspectorWidth.points)")
+        await model.close()
+    }
 }

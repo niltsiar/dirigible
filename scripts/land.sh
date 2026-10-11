@@ -125,8 +125,11 @@ echo "range: $old..$(git rev-parse origin/main)"
 # worktree is on the run branch, so a worktree on main is another one.
 holder="$(git worktree list --porcelain | awk '/^worktree /{ w = substr($0, 10) } $0 == "branch refs/heads/main" { print w }')"
 if [[ -n "$holder" && -z "$(git -C "$holder" status --porcelain)" ]]; then
-    git -C "$holder" merge -q --ff-only origin/main
-    echo "land.sh: main is checked out in $holder; fast-forwarded it"
+    if git -C "$holder" merge -q --ff-only origin/main; then
+        echo "land.sh: main is checked out in $holder; fast-forwarded it"
+    else
+        echo "land.sh: the merge is done, but the fast-forward of main in $holder failed; run git -C $holder merge --ff-only origin/main"
+    fi
 elif [[ -n "$holder" ]]; then
     echo "land.sh: main is checked out in $holder, which has changes; fast-forward it there with git merge --ff-only origin/main"
 else

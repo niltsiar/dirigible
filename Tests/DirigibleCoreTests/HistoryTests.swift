@@ -191,4 +191,19 @@ struct HistoryTests {
         try history.undo()
         #expect(history.session.tracks.isEmpty, "the joined edit that changed nothing has no entry")
     }
+
+    /// Code gate 2: an amend of only the recording records nothing, as `edit` does.
+    @Test mutating func anAmendOfOnlyTheRecordingRecordsNothing() throws {
+        try history.edit { try $0.addTrack("t1", name: "Host", layout: .mono) }
+        try history.edit { try $0.setGain(Gain(dB: -36)!, track: "t1") }
+        try history.undo()
+        let revision = history.revision
+        let take = Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 9, armedTracks: [])
+
+        try history.amend { try $0.setRecording(take) }
+
+        #expect(history.session.recording == take)
+        #expect(history.revision == revision, "code gate 2: no new revision")
+        #expect(history.canRedo, "code gate 2: the redo entry stays")
+    }
 }

@@ -45,11 +45,19 @@ final class InspectorHandleView: NSView {
 }
 
 extension SessionWindow {
-    /// An event of the inspector handle. A drag is live, the up saves a changed width, Esc gives
-    /// the start width, and a double-click gives 270 pt (the header drag of 0023).
+    /// An event of the inspector handle. A drag moves the guide line, the up sets and saves a
+    /// changed width, Esc gives the start width, and a double-click gives 270 pt (0023). Fallback 1
+    /// of 0023: a live width missed the 16 ms budget at 2 h (p95 26 ms, C16), so the pane and the
+    /// lanes keep their width until the up.
     func dragInspector(_ event: PaneDragEvent) {
-        guard let step = inspectorDrag.handle(event, width: inspectorWidth) else { return }
-        setInspectorWidth(step.width, save: step.save)
+        guard let step = inspectorDrag.handle(event, width: inspectorPreview ?? inspectorWidth) else { return }
+        if inspectorDrag.isActive {
+            inspectorPreview = fitted(step.width)
+        } else {
+            inspectorPreview = nil
+            setInspectorWidth(step.width, save: step.save)
+        }
+        showInspectorGuide()
     }
 
     /// Esc: true when an inspector drag ran and Esc ended it with the start width.
@@ -64,11 +72,36 @@ extension SessionWindow {
         setInspectorWidth(InspectorWidth(inspectorWidth.points + points), save: true)
     }
 
-    /// The width stays inside the room of the window, its content width minus the lanes minimum:
-    /// the minimum frame follows the width, so a wider pane would widen the window.
-    private func setInspectorWidth(_ width: InspectorWidth, save: Bool) {
+    /// The width inside the room of the window, its content width minus the lanes minimum: the
+    /// minimum frame follows the width, so a wider pane would widen the window.
+    private func fitted(_ width: InspectorWidth) -> InspectorWidth {
         let room = window.map { Double($0.contentLayoutRect.width) - SessionView.minWidth } ?? .infinity
-        inspectorWidth = InspectorWidth(min(width.points, room))
+        return InspectorWidth(min(width.points, room))
+    }
+
+    private func setInspectorWidth(_ width: InspectorWidth, save: Bool) {
+        // The same width writes nothing: an Observation write runs the bodies also for an equal value.
+        let width = fitted(width)
+        if width != inspectorWidth { inspectorWidth = width }
         if save { app?.defaults?.set(inspectorWidth.points, forKey: InspectorWidth.defaultsKey) }
+    }
+
+    /// The 1 pt accent line at the target edge, over the window content; nil removes it. A Core
+    /// Animation layer: a move runs no SwiftUI body and draws no lanes.
+    private func showInspectorGuide() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        guard let content = window?.contentView, let layer = content.layer, let preview = inspectorPreview else {
+            inspectorGuide.removeFromSuperlayer()
+            return
+        }
+        if inspectorGuide.superlayer !== layer { layer.addSublayer(inspectorGuide) }
+        inspectorGuide.zPosition = 100
+        content.effectiveAppearance.performAsCurrentDrawingAppearance {
+            inspectorGuide.backgroundColor = NSColor.controlAccentColor.cgColor
+        }
+        inspectorGuide.frame = CGRect(
+            x: content.bounds.width - preview.points, y: 0, width: 1, height: content.bounds.height)
     }
 }

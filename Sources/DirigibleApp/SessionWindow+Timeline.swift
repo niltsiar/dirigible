@@ -254,6 +254,9 @@ extension SessionWindow {
         if canStop { await stop() } else { await studio?.perform(.pause) }
     }
 
+    /// View > Snap, the app preference: the one predicate of the gesture context and the toolbar.
+    var snaps: Bool { app?.snaps == true }
+
     /// Runs a timeline command on this window.
     func run(_ command: TimelineCommand) {
         leafCalls?.append("\(command)")

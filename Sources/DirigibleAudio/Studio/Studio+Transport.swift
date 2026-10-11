@@ -246,10 +246,12 @@ extension Studio {
         sendSession()
     }
 
-    /// Ends the preview of a drag and sends the session again.
+    /// Ends the preview of a drag. When the session gain differs from the preview gain, it sends
+    /// the session again. After the edit of a mouse-up the Player has the session already.
     public func endPreview() {
+        guard let preview = play.preview else { return }
         play.preview = nil
-        sendSession()
+        if session.track(preview.track)?.gain != preview.gain { sendSession() }
     }
 
     /// The one owner of the play revision: a newer revision replaces the session of the Player.

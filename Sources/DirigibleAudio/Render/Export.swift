@@ -108,8 +108,9 @@ public struct LoudnessReport: Hashable, Sendable {
 /// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
 /// percent changes: pass 1 maps to 0...0.25 and pass 2 to 0.25...1. The call of 1.0
 /// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
-/// folder of `url` and closes it. An AAC export of a session with episode fields then copies it
-/// to `.<name>.<UUID>.tag.tmp` with the iTunes atoms (decision 0045): the encode maps to
+/// folder of `url` and closes it. An AAC export of a session with episode fields or chapters then
+/// copies it to `.<name>.<UUID>.tag.tmp` with the iTunes atoms and the chapter tracks (decision
+/// 0045): the encode maps to
 /// 0...0.95, the call of 1.0 comes after the copy, and the copy reads `isCancelled()` too. It
 /// flushes the file of the last step through `flush`, then moves it: over `replacing` when the
 /// target still is that item, else with `moveNew`, which never replaces an item. Then it flushes
@@ -122,12 +123,33 @@ public func exportMix(
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
     chunk: Int = 48_000, flush: ((String) -> Int32?)? = nil
 ) throws(ExportError) -> ExportResult {
+    try exportMix(
+        session, source: source, options: options, to: url, replacing: replacing, package: package, progress: progress,
+        isCancelled: isCancelled, chunk: chunk, flush: flush, chapterImages: [:])
+}
+
+/// `exportMix` with the chapter image of each marker in `chapterImages`.
+func exportMix(
+    _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
+    replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
+    progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
+    chunk: Int = 48_000, flush: ((String) -> Int32?)? = nil, chapterImages: [MarkerID: ArtworkName]
+) throws(ExportError) -> ExportResult {
     let flush = flush ?? { fullFlush(path: $0) }
     let rate = options.rate.hertz(session: session.sampleRate)
     if case .aac = options.format, rate > 48_000 { throw .rateNotSupported(rate) }
     // The MPEG-1 rates, where LAME keeps each bit rate of `BitRate` (probes U3 and U7).
     if case .mp3 = options.format, ![32_000, 44_100, 48_000].contains(rate) { throw .rateNotSupported(rate) }
     let artwork = try readArtwork(of: session.episode, format: options.format, package: package)
+    let aac = if case .aac = options.format { true } else { false }
+    // Only an M4A has chapter tracks so far. Its images are JPEG, read before any file exists.
+    let chapters = aac ? session.chapterList(in: source.range).chapters : []
+    let jpegs = try readChapterImages(
+        chapterImages.filter { id, _ in chapters.contains { $0.id == id } }, package: package)
+    var chapterArtwork: Data?
+    if !jpegs.isEmpty, let artwork, let name = session.episode.artwork {
+        chapterArtwork = try m4aJPEG(artwork, of: name)
+    }
     let sessionRate = Double(session.sampleRate)
     let capacity = AVAudioFrameCount(chunk)
     guard let stereo = AVAudioFormat(standardFormatWithSampleRate: sessionRate, channels: 2),
@@ -140,7 +162,7 @@ public func exportMix(
     let total = source.range.upperBound.count - first.count
     let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks)
     var percent = 0
-    let tags = if case .aac = options.format, !session.episode.isEmpty { true } else { false }
+    let tags = aac && (!session.episode.isEmpty || !chapters.isEmpty)
     func report(_ whole: Int, _ fraction: Double) {
         if whole > percent {
             percent = whole
@@ -228,8 +250,18 @@ public func exportMix(
     // A cancel after the last chunk skips the flush and the move, so a take start does not
     // wait for them (code gate 1).
     if isCancelled() { throw .cancelled }
+    var m4a = M4AChapters(chapters: [], dropped: [])
+    var imagesOmitted = false
     if let tagged {
-        try tagM4A(temporary, episode: session.episode, artwork: artwork, to: tagged, isCancelled: isCancelled)
+        let frames = chapters.isEmpty ? 0 : try validFrames(temporary)
+        if !chapters.isEmpty {
+            m4a = m4aChapters(
+                in: session, range: source.range, outputRate: rate, outputFrames: frames,
+                introTitle: options.introTitle, images: jpegs)
+        }
+        imagesOmitted = try tagM4A(
+            temporary, episode: session.episode, artwork: artwork, chapters: m4a.chapters,
+            chapterArtwork: chapterArtwork, rate: rate, frames: frames, to: tagged, isCancelled: isCancelled)
         progress(1)
         if isCancelled() { throw .cancelled }
     }
@@ -242,7 +274,9 @@ public func exportMix(
     }
     // The file is at the target now. A volume that refuses both flushes does not undo the move.
     _ = flush(folder.path)
-    return ExportResult(faults: mix.faults, loudness: stage?.report())
+    return ExportResult(
+        faults: mix.faults, loudness: stage?.report(), droppedChapters: m4a.dropped,
+        chapterImagesOmitted: imagesOmitted)
 }
 
 /// The bytes of the episode artwork for an MP3 or an AAC export, read once before any file

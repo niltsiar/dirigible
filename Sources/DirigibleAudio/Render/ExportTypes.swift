@@ -7,12 +7,20 @@ public struct ExportOptions: Hashable, Sendable {
     public var rate: ExportRate
     /// Nil: no gain and no limiter.
     public var loudness: LoudnessTarget?
+    /// The title of the chapter that an M4A export adds at the range start when the episode has no
+    /// title and no show name. Only `DirigibleApp` reads `L10n` (decision 0010), so the app gives
+    /// its text here; the CLI and MCP keep the English default.
+    public var introTitle: String
 
-    public init(format: ExportFormat, layout: ChannelLayout, rate: ExportRate, loudness: LoudnessTarget? = nil) {
+    public init(
+        format: ExportFormat, layout: ChannelLayout, rate: ExportRate, loudness: LoudnessTarget? = nil,
+        introTitle: String = "Intro"
+    ) {
         self.format = format
         self.layout = layout
         self.rate = rate
         self.loudness = loudness
+        self.introTitle = introTitle
     }
 
     /// The output of `dirigible render`: 32-bit float stereo CAF at the session rate.
@@ -24,6 +32,12 @@ public struct ExportResult: Hashable, Sendable {
     public let faults: [FileID: MediaFault]
     /// Nil for an export with no loudness target.
     public let loudness: LoudnessReport?
+    /// The chapters of the range that the file does not have, because each starts at the time of
+    /// the chapter before it. Empty for a format with no chapters.
+    public let droppedChapters: [Marker]
+    /// The M4A has chapters with an image and chapters with none, and the episode has no artwork, so
+    /// the file has no chapter images.
+    public let chapterImagesOmitted: Bool
 }
 
 public enum ExportError: Error, Hashable, Sendable {
@@ -42,8 +56,9 @@ public enum ExportError: Error, Hashable, Sendable {
     case openFailed(Int32)
     /// The package source threw: the lock lost the package.
     case packageUnavailable
-    /// The artwork file of the episode (this path in the package) is not in the package, or it
-    /// is not downloaded (decision 0045). No file was made.
+    /// The artwork file of the episode or of a chapter (this path in the package) is not in the
+    /// package, it is not downloaded (decision 0045), or a PNG of an M4A export does not decode. No
+    /// file was made.
     case artworkMissing(String)
     /// The cancel check was true at a chunk.
     case cancelled

@@ -34,6 +34,8 @@ change. A failed restore exits 3. A control that needs two edits (a guard mutant
 that trips it) is one call with two pairs. An extra argument --in=<file> puts the pairs after it
 in <file>: one mutant in two files, with each file hashed and restored. Do not nest mutate.py in the test command: the outer
 result line then gives the verdict of the inner script, not of the mutant.
+In a git tree, a run holds the lock <git dir>/dirigible-mutate.lock (a folder with the pid), so two
+runs never mutate one tree; a second run exits 2, and the lock of a dead process is taken over.
 --side-effects marks a control whose test command acts on shared state (it opens Mission Control,
 posts HID events, or starts a probe). The log header says so, and --replay of that log exits 2
 unless --allow-side-effects is given: a batch replay must not run it by accident.
@@ -176,6 +178,33 @@ for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
     signal.signal(sig, stop)
 
 
+def take_lock():
+    """The lock folder in the git dir of the tree, or None outside a git tree. Exits 2 while a live process holds it."""
+    found = subprocess.run(['git', 'rev-parse', '--absolute-git-dir'], capture_output=True, text=True)
+    if found.returncode:
+        return None
+    lock = os.path.join(found.stdout.strip(), 'dirigible-mutate.lock')
+    for _ in range(2):
+        try:
+            os.mkdir(lock)
+        except FileExistsError:
+            try:
+                os.kill(int(open(os.path.join(lock, 'pid')).read()), 0)
+            except ProcessLookupError:
+                shutil.rmtree(lock, ignore_errors=True)
+                continue
+            except (OSError, ValueError):
+                pass  # No pid yet: the holder is between its mkdir and its write.
+            print(f'mutate: another mutate.py run holds {lock}; wait for it to end', file=sys.stderr)
+            sys.exit(2)
+        with open(os.path.join(lock, 'pid'), 'w') as pid:
+            pid.write(str(os.getpid()))
+        return lock
+    print(f'mutate: cannot take {lock}', file=sys.stderr)
+    sys.exit(2)
+
+
+lock = take_lock()
 backups = {name: log + '.orig' + (str(n) if n else '') for n, name in enumerate(edits)}
 for name, backup in backups.items():
     shutil.copyfile(name, backup)
@@ -213,6 +242,8 @@ finally:
         signal.signal(sig, signal.SIG_IGN)
     for name, backup in backups.items():
         shutil.copyfile(backup, name)
+    if lock:
+        shutil.rmtree(lock, ignore_errors=True)
 for name, backup in backups.items():
     if hashlib.sha256(open(name, 'rb').read()).hexdigest() != digests[name]:
         print(f'mutate: the restore of {name} failed; the copy is {backup}', file=sys.stderr)

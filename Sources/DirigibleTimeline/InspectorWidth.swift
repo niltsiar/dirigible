@@ -13,9 +13,4 @@ public struct InspectorWidth: PaneWidth {
     public init(_ points: Double) {
         self.points = points.isNaN ? Self.standard.points : min(400, max(240, points.rounded()))
     }
-
-    /// A stored preference: a number of points, else the standard width (a missing key, a text).
-    public init(stored: Any?) {
-        self = (stored as? Double).map(InspectorWidth.init) ?? .standard
-    }
 }

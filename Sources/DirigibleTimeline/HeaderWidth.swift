@@ -13,9 +13,4 @@ public struct HeaderWidth: PaneWidth {
     public init(_ points: Double) {
         self.points = points.isNaN ? Self.standard.points : min(480, max(180, points.rounded()))
     }
-
-    /// A stored preference: a number of points, else the standard width (a missing key, a text).
-    public init(stored: Any?) {
-        self = (stored as? Double).map(HeaderWidth.init) ?? .standard
-    }
 }

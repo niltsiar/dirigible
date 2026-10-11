@@ -9,6 +9,13 @@ public protocol PaneWidth: Equatable, Sendable {
     init(_ points: Double)
 }
 
+extension PaneWidth {
+    /// A stored preference: a number of points, else the standard width (a missing key, a text).
+    public init(stored: Any?) {
+        self = (stored as? Double).map(Self.init) ?? .standard
+    }
+}
+
 /// An event of a pane handle. The pointer x grows toward a wider pane.
 public enum PaneDragEvent: Equatable, Sendable {
     case down(x: Double, clicks: Int)

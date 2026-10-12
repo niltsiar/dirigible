@@ -272,3 +272,19 @@ extension SessionWindow {
 func newMarkerName(_ kind: Marker.Kind, in session: Session) -> (key: L10n, number: Int) {
     (kind == .chapter ? .chapterDefaultName : .markerDefaultName, session.markers.count + 1)
 }
+
+extension AppDelegate {
+    /// The title of Tools > Auto Level or Auto Level per Track for the key window: "All" only when
+    /// the selection is empty, so the command levels every clip. Nil for another command.
+    func levelTitle(_ command: TimelineCommand, for model: SessionWindow?) -> L10n? {
+        var all = false
+        if let model, let studio = model.studio {
+            all = model.timeline.selection.clipsToLevel(in: studio.session) == nil
+        }
+        switch command {
+        case .autoLevel: return all ? .menuToolsLevelAll : .menuToolsLevel
+        case .autoLevelPerTrack: return all ? .menuToolsLevelTrackAll : .menuToolsLevelTrack
+        default: return nil
+        }
+    }
+}

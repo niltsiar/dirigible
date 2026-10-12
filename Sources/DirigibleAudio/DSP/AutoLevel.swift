@@ -25,9 +25,9 @@ public enum ClipLevel: Hashable, Sendable {
 /// The counts of one Auto Level (decision 0031): the clips whose gain changed, the changed clips
 /// at the ±20 dB limit, and the clips with no measurement or no readable file.
 public struct LevelReport: Hashable, Sendable {
-    public var changed = 0
-    public var atLimit = 0
-    public var unmeasured = 0
+    public private(set) var changed = 0
+    public private(set) var atLimit = 0
+    public private(set) var unmeasured = 0
 
     /// Counts the `levels` of `autoLevel` against the gains of `before`.
     public init(_ levels: [ClipID: ClipLevel], before: Session) {

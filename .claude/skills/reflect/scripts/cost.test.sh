@@ -225,6 +225,16 @@ for line in 'phase 1: 2026-09-20T08:00 to 2026-09-20T08:31, 31 min, first row af
   grep -qxF -- "$line" <<<"$out" || fail "a late first row: no line '$line' in: $out"
 done
 
+# A timed bench and a trace of one commit and filter (bench.sh --trace ends its line with trace) are
+# not a repeat: the rule asks for both.
+traced="$tmp/2026-09-20-traced"
+mkdir -p "$traced/logs"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-09-20T08:31\t4\ta\tw\te\tdone\n' > "$traced/decisions.tsv"
+printf 'bench: commit bbb tree clean filter LiveBench\n' > "$traced/logs/b1.log"
+printf 'bench: commit bbb tree clean filter LiveBench trace\n' > "$traced/logs/b2.log"
+out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$traced" 2>&1)" || fail "a bench and a trace: exit $?: $out"
+grep -qxF 'benches: 2 bench logs, 0 pairs sets, 0 repeated (same commit and filter)' <<<"$out" || fail "a bench and a trace: $out"
+
 # A run whose first row is phase 0 (run 2026-10-07-heap-corruption): the phase compares as text, so
 # phase 0 starts a block. As a number it equals the unset phase, and cost.sh printed date errors.
 zero="$tmp/2026-09-20-zero"

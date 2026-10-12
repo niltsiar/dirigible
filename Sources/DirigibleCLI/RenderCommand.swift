@@ -98,12 +98,14 @@ func failureMessage(_ error: ExportError, out: String, noun: String) -> String? 
 }
 
 /// One warning line on stderr for each chapter that a file leaves out, in `export` and in
-/// `chapters export`.
-func warnDropped(_ chapters: [Marker]) {
+/// `chapters export`. Only an audio file has an end of the audio: pass `pastEnd` false for a
+/// chapters file (code gate item E2).
+func warnDropped(_ chapters: [Marker], pastEnd: Bool) {
+    let reason = pastEnd ? ", or at or after the end of the audio" : ""
     for chapter in chapters {
         let line =
-            "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter, "
-            + "or at or after the end of the audio; the file leaves it out.\n"
+            "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter"
+            + "\(reason); the file leaves it out.\n"
         try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
     }
 }

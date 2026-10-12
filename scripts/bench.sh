@@ -6,7 +6,7 @@
 # do not work in the copy.
 # The script holds the build lock (with-lock.sh) for the build and the timed run. Under the hold of
 # a caller (bench-pairs.sh, or an outer with-lock.sh call), it runs at once.
-# Usage: scripts/bench.sh [--trace <file>] <name> [<name>...], for example
+# Usage: scripts/bench.sh [--trace <file> [--under <frame>]] <name> [<name>...], for example
 #        scripts/bench.sh LaneRenderBenchmark
 # The names, also with spaces in one argument (make bench FILTER='<name> <name>'), join into one
 # --filter '<name>|<name>'. A test run whose output has both no-test strings of test-filter.sh
@@ -18,18 +18,26 @@
 # count. The run fails when the output has no "Test run with" line of 1 test or more (a dyld
 # failure, a crash, or the time limit), or when the trace has no time-profile table. Else the
 # script exports the table to <file>.xml and writes the top leaf frames (scripts/trace-top.py)
-# to <file>.top.txt. xctrace finds no Time Profiler template inside scripts/probe.sh.
+# to <file>.top.txt. With --under <frame>, the list counts only the samples under that frame: the
+# @inline(never) function of the timed span (NavigationKeyBenchmark.timedSpan), so the fixture
+# build and the untimed steps do not count. xctrace finds no Time Profiler template inside
+# scripts/probe.sh.
 set -euo pipefail
-: "${1:?usage: scripts/bench.sh [--trace <file>] <name> [<name>...]}"
+: "${1:?usage: scripts/bench.sh [--trace <file> [--under <frame>]] <name> [<name>...]}"
 # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
 [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$(dirname "$0")/with-lock.sh" "$0" "$@"
-trace=""
+trace="" under=()
 if [[ "$1" == --trace ]]; then
-    : "${3:?usage: scripts/bench.sh --trace <file> <name> [<name>...]}"
+    : "${3:?usage: scripts/bench.sh --trace <file> [--under <frame>] <name> [<name>...]}"
     # The test step runs in the copy, so a relative path becomes absolute here.
     trace="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
     [[ ! -e "$trace" ]] || { echo "bench: the trace exists: $trace" >&2; exit 2; }
     shift 2
+    if [[ "$1" == --under ]]; then
+        : "${3:?usage: scripts/bench.sh --trace <file> [--under <frame>] <name> [<name>...]}"
+        under=(--under "$2")
+        shift 2
+    fi
 fi
 read -ra names <<< "$*"
 filter="$(IFS='|'; echo "${names[*]}")"
@@ -85,5 +93,5 @@ grep -qE 'Test run with [1-9]' "$out" ||
 toc="$(xcrun xctrace export --input "$trace" --toc)"
 grep -qF 'schema="time-profile"' <<<"$toc" || { echo "bench: the trace $trace has no time-profile table" >&2; exit 1; }
 xcrun xctrace export --input "$trace" --xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' --output "$trace.xml"
-"$root/scripts/trace-top.py" "$trace.xml" | tee "$trace.top.txt"
+"$root/scripts/trace-top.py" ${under[@]+"${under[@]}"} "$trace.xml" | tee "$trace.top.txt"
 echo "bench: the trace is $trace, its top leaf frames are in $trace.top.txt"

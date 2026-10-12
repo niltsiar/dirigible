@@ -115,7 +115,8 @@ code=$?
 # --trace <file>: the run step is an xctrace record of the bundle through scripts/test-helper.sh,
 # with no swift test. The fake xcrun logs its arguments in xcrun.log. Its record prints the report
 # line of FAKE_TESTS tests (FAKE_NONE: the two no-test strings) and exits FAKE_RECORD_EXIT; its
-# --toc lists a time-profile table unless FAKE_NO_TABLE is set; its table export writes one sample.
+# --toc lists a time-profile table unless FAKE_NO_TABLE is set; its table export writes two samples:
+# the leaf Leaf under the frame Span, and the leaf Setup.
 cp "$here/trace-top.py" "$root/scripts/"
 printf '#!/bin/bash\nexit 0\n' > "$root/scripts/test-helper.sh"
 chmod +x "$root/scripts/test-helper.sh"
@@ -135,7 +136,7 @@ record*)
     fi
     exit "${FAKE_RECORD_EXIT:-0}" ;;
 *--toc*) [[ -n "${FAKE_NO_TABLE:-}" ]] && echo '<table schema="cpu-profile"/>' || echo '<table schema="time-profile"/>' ;;
-export*) echo '<trace-query-result><node><row><backtrace id="1"><frame id="2" name="Leaf"/></backtrace></row></node></trace-query-result>' > "$output" ;;
+export*) echo '<trace-query-result><node><row><backtrace id="1"><frame id="2" name="Leaf"/><frame id="3" name="Span"/></backtrace></row><row><backtrace id="4"><frame id="5" name="Setup"/></backtrace></row></node></trace-query-result>' > "$output" ;;
 esac
 EOF
 chmod +x "$tmp/bin/xcrun"
@@ -156,7 +157,11 @@ trace pass logs/a.trace A B
 [[ $code -eq 0 ]] || fail "trace: exit $code: $(cat "$tmp/out")"
 [[ "$(head -1 "$tmp/xcrun.log")" == "$want" ]] || fail "trace: the record call: $(head -1 "$tmp/xcrun.log")"
 grep -q '^test ' "$tmp/args.log" && fail "trace: swift test ran: $(cat "$tmp/args.log")"
-[[ "$(cat "$tmp/logs/a.trace.top.txt" 2>&1)" == 'Leaf 1 100.0%' ]] || fail "trace: the top frames: $(cat "$tmp/logs/a.trace.top.txt" 2>&1)"
+[[ "$(cat "$tmp/logs/a.trace.top.txt" 2>&1)" == $'Leaf 1 50.0%\nSetup 1 50.0%' ]] || fail "trace: the top frames: $(cat "$tmp/logs/a.trace.top.txt" 2>&1)"
+# --under <name>: the same record call, and the top list counts only the samples under <name>.
+trace under logs/a.trace --under Span A B
+[[ $code -eq 0 && "$(head -1 "$tmp/xcrun.log")" == "$want" ]] || fail "trace --under: exit $code, the record call: $(head -1 "$tmp/xcrun.log") $(cat "$tmp/out")"
+[[ "$(cat "$tmp/logs/a.trace.top.txt" 2>&1)" == 'Leaf 1 100.0%' ]] || fail "trace --under: the top frames: $(cat "$tmp/logs/a.trace.top.txt" 2>&1)"
 # A bench miss fails the test, and xctrace then exits nonzero: the trace is still the result.
 FAKE_RECORD_EXIT=54 trace miss logs/a.trace A
 [[ $code -eq 0 && -s "$tmp/logs/a.trace.top.txt" ]] || fail "trace of a failed test: exit $code: $(cat "$tmp/out")"

@@ -14,7 +14,7 @@
 
 - Phase 1 gives a relative budget an absolute limit that a user feels (50 ms, 3 frames at 60 Hz). Each budget clears the A/A spread of its bench (`scripts/bench-pairs.sh`).
 - Before the plan gate and each fix try, sum the measured parts of the path, name the limiter, and compute the best possible saving. A bound that cannot meet the budget makes the design change a planned slice, or a `criterion change`.
-- Before the first try of a bench miss, run `scripts/bench.sh --trace <run>/logs/<name>.trace <name>`. The try row names the top frames under the `@inline(never)` wrapper of the timed span (as `NavigationKeyBenchmark.timedSpan`).
+- Before the first try of a bench miss, run `scripts/bench.sh --trace <run>/logs/<name>.trace --under <wrapper> <name>`, with `<wrapper>` the `@inline(never)` function of the timed span (add one if missing, as `NavigationKeyBenchmark.timedSpan`). The try row names the top frames.
 - A try is one change, `make bench` before and after, and the slice tests. Keep a gain past the A/A spread, else revert in full. One `decisions.tsv` row per try; no pairs.
 
 ## A new way to move or resize something

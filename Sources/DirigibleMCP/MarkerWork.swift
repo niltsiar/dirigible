@@ -60,16 +60,23 @@ package struct MarkerWork: Sendable {
     /// Nil: no change. Empty: no image.
     let image: String?
 
-    package func run(_ session: inout Session, package: URL) throws(MarkerEditError) -> MarkerID {
-        let old = session.markers[id]
+    /// The marker of this edit from the marker with its ID, with no image file read: an empty
+    /// `image` removes the image, and a path keeps the old one. The live path of an agent runs it
+    /// in `Studio.edit` (decision 0046).
+    package func marker(from old: Marker?) throws(MarkerEditError) -> Marker {
         guard let name = name ?? old?.name, let position = position ?? old?.position else { throw .incomplete }
         var marker = Marker(
             id: id, name: name, position: position, kind: kind ?? old?.kind ?? .marker, url: old?.url,
-            image: old?.image)
+            image: image == "" ? nil : old?.image)
         if let url { marker.url = url }
-        if let image {
+        return marker
+    }
+
+    package func run(_ session: inout Session, package: URL) throws(MarkerEditError) -> MarkerID {
+        var marker = try marker(from: session.markers[id])
+        if let image, !image.isEmpty {
             do throws(ArtworkError) {
-                marker.image = image.isEmpty ? nil : try importArtwork(URL(filePath: image), into: package)
+                marker.image = try importArtwork(URL(filePath: image), into: package)
             } catch {
                 throw .artwork(error)
             }

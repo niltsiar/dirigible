@@ -23,6 +23,7 @@
 - Amended: 2026-10-07, run 2026-10-07-mcp-cli. `DirigibleCLI` also holds the MCP server and its tool table, in files with no ArgumentParser import. Release 3 moves them into a library target that the app imports (see 0041).
 - Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **Folders** lists every folder with its purpose, and says how to find a type with no file of its own. `AGENTS.md` points here.
 - Amended: 2026-10-12, run `2026-10-12-mcp-in-app`. The library target `DirigibleMCP` holds the MCP server, its tool table, and the shared edit and error text code of the CLI, so the app can import them. `DirigibleCLI` depends on it. The import-rule test covers it (see 0046).
+- Amended: 2026-10-12, run `2026-10-12-mcp-in-app`. `DirigibleMCP` also holds the app server (`AgentServer`, `AgentListener`), the live executor, and the bridge client (`AgentBridge`). `DirigibleMCPTests` tests them over a real socket (see 0046).
 
 ## Context
 
@@ -39,16 +40,16 @@ Two designs were compared: few targets, and one target for each capability (capt
 | `DirigibleTimeline` | The timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, the gesture model (0020) | Foundation, `DirigibleCore` | 1 |
 | `CLame` | libmp3lame of LAME 4.0 with no decoder, C warnings as errors (0007, 0034) | none | 2 |
 | `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, the three libraries | 1 |
-| `DirigibleMCP` | The MCP server and its tool table (0041, 0046), the locked read-edit-save step, the argument rules, the error text, the text and JSON views of a session, and the marker, episode, paste, and backup work of the CLI and the tools | Foundation, `DirigibleCore`, `DirigibleAudio` | 3 |
+| `DirigibleMCP` | The MCP server and its tool table (0041, 0046), the app server and the live executor, the bridge client, the locked read-edit-save step, the argument rules, the error text, the text and JSON views of a session, and the marker, episode, paste, and backup work of the CLI and the tools | Foundation, Observation, `DirigibleCore`, `DirigibleAudio` | 3 |
 | `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the exit codes, the commands, and the stdin loop of `dirigible mcp`. No logic that the app needs | Foundation, AVFoundation (the microphone access request), `ArgumentParser` (swift-argument-parser), `DirigibleCore`, `DirigibleAudio`, `DirigibleMCP` | CLI run |
 
 Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, `DirigibleAudio` to `CLame`, `DirigibleApp` to `DirigibleTimeline` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleMCP` depends on `DirigibleCore` and `DirigibleAudio`. `DirigibleCLI` depends on `DirigibleCore`, `DirigibleAudio` (0012), and `DirigibleMCP` (0046). `DirigibleCore` depends on no target.
 
-Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), `DirigibleTimelineTests`, and `DirigibleTests` (bundle, localization, import rule).
+Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), `DirigibleTimelineTests`, `DirigibleMCPTests` (the app server, the live tools, and the bridge, over a real socket), and `DirigibleTests` (bundle, localization, import rule).
 
 Rules that come with the map:
 
-- **Import-rule test.** SwiftPM cannot stop a target from importing a system framework. A test in `DirigibleTests` reads every file in `Sources/DirigibleCore` and fails on any `import` other than Foundation. It also fails when `DirigibleTimeline` imports more than Foundation and `DirigibleCore` (0020), and when `DirigibleMCP` imports more than Foundation, `DirigibleCore`, and `DirigibleAudio` (0046).
+- **Import-rule test.** SwiftPM cannot stop a target from importing a system framework. A test in `DirigibleTests` reads every file in `Sources/DirigibleCore` and fails on any `import` other than Foundation. It also fails when `DirigibleTimeline` imports more than Foundation and `DirigibleCore` (0020), and when `DirigibleMCP` imports more than Foundation, Observation, `DirigibleCore`, and `DirigibleAudio` (0046).
 - **Studio is in the library.** "Stop, finalize, add the take as one undo step, save" is logic. Integration tests drive it through `Studio`. The app only maps views and menu commands to `Studio` calls.
 - **Snapshot undo.** `History` keeps `Session` values. `edit { }` records one entry; an edit that changes nothing records none. There is no command protocol with inverse commands.
 - **Actors.** `Studio` and the views are `@MainActor`. The `Player` is an actor on its own serial dispatch queue, with its own refill tick (0016). Each device writer has its own serial dispatch queue. Each IOProc and listener is a static C function that captures nothing and gets a client-data pointer (0013). Finalize, export, and peak calculation run off the main actor.

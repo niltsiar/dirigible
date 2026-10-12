@@ -41,9 +41,10 @@ extension Studio {
     public var isIdle: Bool { transport == .idle && !isStarting }
 
     /// Edits, saves, and a new take wait during a take (0004), a placement (0021), a level (0031),
-    /// or an import (0040).
+    /// or an import (0040). They also wait during `settle()`, so an agent edit that gets OK is on
+    /// disk before its window closes (decision 0046).
     func checkIdle() throws(StudioError) {
-        guard isIdle else { throw .busy }
+        guard isIdle, !settling else { throw .busy }
     }
 
     /// Refuses a ripple under a pending or split take (decision 0037).

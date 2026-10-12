@@ -16,7 +16,10 @@ struct MCPCommand: ParsableCommand {
         // A client that closes stdout gives a write error, not a SIGPIPE that stops the process
         // with no message.
         signal(SIGPIPE, SIG_IGN)
-        var server = MCPServer()
+        // The bridge connects at start, so the app counts the agent before its first call (0046).
+        let bridge = AgentBridge()
+        bridge.connect()
+        var server = MCPServer(route: bridge.route)
         // readLine splits on \n and \r\n only, and gives nil at the end of stdin.
         while let line = readLine() {
             guard let answer = server.answer(line) else { continue }

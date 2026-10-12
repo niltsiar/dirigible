@@ -9,6 +9,7 @@
 - Amended: 2026-10-10, run `2026-10-10-episode-metadata` (see 0045). `episode show` maps to `episode_get` in `ParityTests.toolNames`. It reads with no lock, as `session_info`, so an agent reads the episode also when `session_info` is an overview.
 - Amended: 2026-10-09, run `2026-10-09-chapters-export`. `chapters export` has no tool, with its reason in `ParityTests.toolExemptions`: it writes a file outside the package and edits nothing, and `session_info` gives the markers.
 - Amended: 2026-10-12, run `2026-10-12-mcp-in-app` (see 0046). Code place: the MCP files are in the library target `DirigibleMCP`, which the app can import. `DirigibleCLI` keeps `MCPCommand` and its stdin loop.
+- Amended: 2026-10-12, run `2026-10-12-mcp-in-app` (see 0046). Guard and Consequences: with the app server on, a call on a package that the app has open runs in the app as one undo step, and the edit tool descriptions say so. A call that copies files into an open package is refused with "`<path>` is open in Dirigible. Do this in the app, or close the window." With the server off, the lock refusal stays.
 
 ## Context
 

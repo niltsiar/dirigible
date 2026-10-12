@@ -221,13 +221,18 @@ struct Tool: Sendable {
     let params: [any ParamInfo]
     let make: @Sendable (Arguments) throws(ToolError) -> ToolWork
 
-    /// An edit tool (`saves`) says in its description that a call has no undo.
+    /// The end of the description of each edit tool (decision 0046).
+    static let undoNote =
+        " On a package that is open in Dirigible, the call runs in the app as one undo step. On a closed package, "
+        + "the call saves the package and has no undo."
+
+    /// An edit tool (`saves`) says in its description how the call can be undone.
     init(
         _ name: String, _ description: String, _ params: [any ParamInfo], saves: Bool = true,
         make: @escaping @Sendable (Arguments) throws(ToolError) -> ToolWork
     ) {
         self.name = name
-        self.description = saves ? description + " No undo: each call saves the package." : description
+        self.description = saves ? description + Self.undoNote : description
         self.params = params
         self.make = make
     }

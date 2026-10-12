@@ -10,14 +10,14 @@ let modernVersion = "2026-07-28"
 /// Runs `dirigible mcp` with `lines` on stdin, from a file, and gives the answer lines, parsed.
 /// It checks the frame rule (C15) on each line: a JSON object with `jsonrpc` 2.0 and an `id`,
 /// with a null `id` only on a -32700 or -32600 error. It also checks that the server exits 0 at
-/// the end of stdin (C16).
-func mcp(_ lines: [String]) async throws -> [Answer] {
+/// the end of stdin (C16). With `socket`, the server is the bridge to that app socket (0046).
+func mcp(_ lines: [String], socket: URL? = nil) async throws -> [Answer] {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-mcp-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
     let input = folder.appending(path: "stdin")
     try Data(lines.map { $0 + "\n" }.joined().utf8).write(to: input)
-    let result = try await dirigible(["mcp"], input: input)
+    let result = try await dirigible(["mcp"], input: input, socket: socket)
     #expect(result.status == 0, "dirigible mcp exited \(result.status): \(result.stderr)")
     #expect(result.stdout.isEmpty || result.stdout.hasSuffix("\n"), "the last stdout line has no newline")
     return result.stdout.split(separator: "\n", omittingEmptySubsequences: false).dropLast().map { line in

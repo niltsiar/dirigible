@@ -17,7 +17,7 @@ R9 asks for an automatic level of each clip. 0008 gives the rule: `gain = clipTa
 
 ## Decision
 
-**One function.** `autoLevel(clips, mode, of:in:)` in `DirigibleAudio/DSP/` sets the gains. It is sync and never throws. It measures all clips in one pass with `DispatchQueue.concurrentPerform`, so the width is the core count. A clip with no gated block, a missing file, or a read fault keeps its gain. A new gain nearer than 0.05 dB to the old gain keeps the old gain, so a second level of the same clips changes nothing. Two modes:
+**One function.** `autoLevel(clips, mode, of:in:)` in `DirigibleAudio/DSP/` sets the gains. It is sync and never throws. It measures all clips in one pass with `DispatchQueue.concurrentPerform`, so the width is the core count. A clip with no gated block, a missing file, or a read fault keeps its gain. A new gain nearer than 0.05 dB to the old gain keeps the old gain, so a second level of the same clips changes nothing. The tolerance is in `autoLevel`, so it applies to each caller: Auto Level, `dirigible level`, the level at take stop, and the level at import. One rule gives no change for a second level with no audio change, for each caller. At take stop and at import, a new gain under 0.05 dB keeps 0 dB, and that difference is too small to hear. Two modes:
 
 - `.eachClip` measures each clip without its gain and gives it the target.
 - `.equallyPerTrack` measures each clip with its gain, joins the blocks of the clips of one track (`Loudness.init(union:)`), and adds one delta to each measured clip of that track. The gain differences between the clips stay, unless a gain reaches the ±20 dB limit.

@@ -43,6 +43,9 @@ public struct ExportResult: Hashable, Sendable {
 public enum ExportError: Error, Hashable, Sendable {
     /// An item is at the target. It did not change.
     case exists
+    /// An item is at this path, the name of a chapter image beside a chapters file. Nothing was
+    /// written.
+    case chapterImageExists(String)
     /// AAC at a file rate above 48 kHz (probe P5), or MP3 at a file rate other than 32, 44.1, or
     /// 48 kHz (decision 0034). No file was made.
     case rateNotSupported(Int)

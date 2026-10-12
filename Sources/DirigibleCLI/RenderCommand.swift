@@ -67,6 +67,7 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
     // Control-C: the exit status of the default action, with no message.
     case .cancelled: return ExitCode(128 + SIGINT)
     case .exists: message = "\(out) exists."
+    case .chapterImageExists(let path): message = "\(path) exists."
     case .writeFailed(let status): message = "cannot write \(out) (status \(status))."
     case .openFailed(let code): message = "cannot open the audio files: \(String(cString: strerror(code)))."
     case .moveFailed(let code): message = "cannot move the \(noun) to \(out): \(String(cString: strerror(code)))."

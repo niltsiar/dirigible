@@ -130,7 +130,7 @@ struct ParityTests {
         let guide = try String(
             contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
             encoding: .utf8)
-        let section = guide.components(separatedBy: "### Connect an agent with MCP").dropFirst().first ?? ""
+        let section = guide.components(separatedBy: "### Connect an AI agent").dropFirst().first ?? ""
         let text = section.components(separatedBy: "\n### ").first ?? ""
         #expect(!text.isEmpty, "the guide has no MCP section")
         for command in Self.toolExemptions.keys.sorted() where !text.contains("`\(command)`") {

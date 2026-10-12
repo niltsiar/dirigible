@@ -336,6 +336,22 @@
 "settings.language" = "Language";
 "settings.language.system" = "System Language";
 "settings.language.restart" = "Restart Dirigible to apply the language.";
+"settings.agents" = "Let Agents Edit Open Sessions";
+"settings.agents.on" = "AI agents (Claude Code, Codex, opencode, or any MCP app) can change an open session. Each change is one Undo step.";
+"settings.agents.off" = "Off. Agents can edit only closed sessions.";
+"settings.agents.elsewhere" = "Another copy of Dirigible serves agents. Quit it to use this one.";
+"settings.agents.failed" = "Dirigible could not start the agent server.";
+"settings.agents.copy" = "Copy Setup Command";
+"settings.agents.copied" = "Copied";
+"settings.agents.copy.hint" = "Paste it in Terminal, then start the agent.";
+"settings.agents.move.first" = "Move Dirigible to the Applications folder first.";
+"settings.agents.any.app" = "Any MCP App";
+"agent.mark" = "Agent";
+"agent.mark.help" = "An agent is connected and can edit open sessions.";
+"undo.agent" = "Undo %@ Edit";
+"redo.agent" = "Redo %@ Edit";
+"undo.agent.unnamed" = "Undo Agent Edit";
+"redo.agent.unnamed" = "Redo Agent Edit";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Chapter %lld";
 

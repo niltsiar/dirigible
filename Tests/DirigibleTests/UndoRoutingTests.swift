@@ -36,6 +36,37 @@ import Testing
         await model.close()
     }
 
+    /// C11: after an agent edit, Undo names the agent; after its undo, Redo names it. A user edit
+    /// gives the plain titles, and an agent with no valid name gives "Agent".
+    @Test func undoTitleNamesTheAgent() async throws {
+        let (model, window) = try await openWithOneTrack()
+        #expect(window.makeFirstResponder(nil))
+        let studio = try #require(model.studio)
+        let undo = NSMenuItem(title: "Undo", action: #selector(UndoRoutingWindow.undo(_:)), keyEquivalent: "z")
+        let redo = NSMenuItem(title: "Redo", action: #selector(UndoRoutingWindow.redo(_:)), keyEquivalent: "Z")
+        let plain = (UndoManager().undoMenuItemTitle, UndoManager().redoMenuItemTitle)
+
+        try studio.edit(agent: AgentName(title: "Claude Code", clientName: "claude-code")) { s throws(SessionError) in
+            try s.renameTrack("t1", to: "Host")
+        }
+        #expect(window.validateMenuItem(undo))
+        #expect(undo.title == L10n.undoAgent.format("Claude Code"), "C11: \(undo.title)")
+        try studio.undo()
+        #expect(window.validateMenuItem(redo))
+        #expect(redo.title == L10n.redoAgent.format("Claude Code"))
+        #expect(window.validateMenuItem(undo))
+        #expect(undo.title == plain.0, "the add track of the user")
+
+        try studio.edit(agent: AgentName(title: nil, clientName: "\n")) { s throws(SessionError) in
+            try s.renameTrack("t1", to: "Guest")
+        }
+        #expect(window.validateMenuItem(undo))
+        #expect(undo.title == L10n.undoAgentUnnamed.text)
+        #expect(!window.validateMenuItem(redo))
+        #expect(redo.title == plain.1)
+        await model.close()
+    }
+
     @Test func aTextViewIsTheTextTargetAndAnythingElseTheSession() {
         #expect(undoTarget(firstResponder: NSTextView()) == .text)
         #expect(undoTarget(firstResponder: nil) == .session)

@@ -97,7 +97,7 @@ package final class AgentBridge {
         }
     }
 
-    private func disconnect() {
+    package func disconnect() {
         guard fd >= 0 else { return }
         close(fd)
         fd = -1

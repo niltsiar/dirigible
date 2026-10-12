@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import Observation
 import UniformTypeIdentifiers
 
@@ -42,8 +43,15 @@ import UniformTypeIdentifiers
     @ObservationIgnored let defaultFolder: URL?
     /// The start window while it shows (decision 0027). A close sets it to nil.
     @ObservationIgnored private(set) var start: StartWindow?
-    /// True from the Quit decision until a cancel: no start window shows (decision 0027).
+    /// True from the Quit decision until a cancel: no start window shows (decision 0027), and
+    /// each agent edit is refused (decision 0046).
     @ObservationIgnored private(set) var terminating = false
+    /// The socket of the agent server. Tests give a short path of their own.
+    @ObservationIgnored let agentSocket: URL
+    /// The agent server (decision 0046). The Settings switch starts and stops it.
+    @ObservationIgnored private(set) lazy var agents = AgentServer(socket: agentSocket) { [weak self] in
+        self?.agentTargets() ?? []
+    }
     /// Tests replace the Quit question (message, button, true after a failed save; true for the button)
     /// and the answer to `.terminateLater`, so no alert shows and the test process does not quit.
     @ObservationIgnored var confirmQuit: @MainActor (String, String, Bool) -> Bool = { message, button, unsaved in
@@ -119,9 +127,11 @@ import UniformTypeIdentifiers
     }
 
     init(
-        recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil, defaultFolder: URL? = nil
+        recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil, defaultFolder: URL? = nil,
+        agentSocket: URL = agentSocketPath()
     ) {
         self.recordings = recordings
+        self.agentSocket = agentSocket
         self.defaultFolder = defaultFolder
         self.peakCache = peakCache
         self.defaults = defaults
@@ -298,6 +308,7 @@ import UniformTypeIdentifiers
     /// Open events come before this call (probe P7).
     func applicationDidFinishLaunching(_ notification: Notification) {
         watchKeys()
+        startAgentsIfOn()
         Task { await openAtLaunch() }
     }
 
@@ -332,6 +343,9 @@ import UniformTypeIdentifiers
             held.window?.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
+        // After the cancel gates and before the settle: no agent edit can come after its window
+        // settles (decision 0046).
+        agents.stop()
         let open = Array(windows.values)
         Task {
             for window in open { await window.settle() }
@@ -346,6 +360,7 @@ import UniformTypeIdentifiers
             if !quit {
                 terminating = false
                 for window in open { window.studio?.loadPeaks() }
+                startAgentsIfOn()
             }
             replyToTerminate(quit)
         }

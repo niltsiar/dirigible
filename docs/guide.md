@@ -559,6 +559,8 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 
 macOS adds **Undo** (Command-Z) and **Redo** (Shift-Command-Z) at the top of the Edit menu.
 
+After an edit of an agent, Undo and Redo name the agent, for example "Undo Claude Code Edit" ("Deshacer edición de Claude Code"). With no agent name, they say "Undo Agent Edit" ("Deshacer edición de un agente").
+
 | Command | Spanish name | Key |
 |---|---|---|
 | **Cut** | **Cortar** | Command-X |
@@ -748,17 +750,38 @@ These commands use the backups of the session in `Backups/`:
 
 The text of the tool is English only.
 
-### Connect an agent with MCP
+### Connect an AI agent
 
-An agent such as Claude Code can read and edit a session through MCP (Model Context Protocol). `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create`, `session_info`, and `backup_list`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
+An AI agent can read and edit a session through MCP (Model Context Protocol). Claude Code, Codex, opencode, and other MCP apps can use it. `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create`, `session_info`, and `backup_list`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
 
-Register the server once for your user:
+To register the server:
+
+1. Move Dirigible to the Applications folder and open it once. An app that runs from the disk image or from the Downloads folder has a path that changes, so the pull-down copies nothing.
+2. Choose Dirigible > Settings.
+3. Click Copy Setup Command, then choose your agent: Claude Code, Codex, opencode, or Any MCP App.
+4. Paste the text in Terminal and press Return. For Any MCP App, the text is the server command: give it to your app as a local (stdio) server.
+5. Start the agent.
+
+The commands that the pull-down copies, for the app in the Applications folder:
 
 ```sh
-claude mcp add --scope user dirigible -- /Applications/Dirigible.app/Contents/Helpers/dirigible mcp
+claude mcp add --scope user dirigible -- '/Applications/Dirigible.app/Contents/Helpers/dirigible' mcp
+codex mcp add dirigible -- '/Applications/Dirigible.app/Contents/Helpers/dirigible' mcp
+opencode mcp add dirigible -- '/Applications/Dirigible.app/Contents/Helpers/dirigible' mcp
 ```
 
-If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`.
+An app that reads an `mcpServers` file, for example Claude Desktop or Cursor, takes this entry:
+
+```json
+{
+  "mcpServers": {
+    "dirigible": {
+      "command": "/Applications/Dirigible.app/Contents/Helpers/dirigible",
+      "args": ["mcp"]
+    }
+  }
+}
+```
 
 From a clone of the repository, register the debug build in its place:
 
@@ -768,6 +791,18 @@ claude mcp add --scope user dirigible -- "$PWD/.build/debug/dirigible" mcp
 ```
 
 The registered binary is in `.build`. Run `make build` again after `make clean`.
+
+#### Let agents edit open sessions
+
+By default, an agent edits only sessions that are closed in the app. To let an agent edit a session that you have open, turn on Dirigible > Settings > Let Agents Edit Open Sessions. Then:
+
+- An edit of an agent on an open session runs in the app, and the window shows it at once. It does not move the playhead, the selection, the scroll, or the zoom.
+- Each edit of an agent is one Undo step. The Edit menu names the agent, for example "Undo Claude Code Edit". Command-Z undoes it.
+- The title bar of each session window shows "Agent" with a sparkles symbol while an agent is connected.
+- The app refuses an edit of an agent during a take, during a drag, while the window closes, and during Quit. The agent gets the error "`<path>` is busy in Dirigible" and can try again later.
+- `clip_paste`, `clip_paste_clips`, and `backup_revert` do not run on an open session. Do them in the app, or close the window.
+- An edit of an agent on a closed session saves the package and has no Undo in the app.
+- One copy of Dirigible serves the agents. When another copy serves them, Settings says so.
 
 The 35 tools, in groups:
 
@@ -782,9 +817,9 @@ The 35 tools, in groups:
 
 `session_info` gives the JSON of `dirigible info --json` on one line. The JSON of a long edited session is too large for the agent, so a `session_info` answer over a size limit is an overview: each track with its clip count, the end frame, and the marker count. Then the agent reads the session in parts: `from` and `to` give only the clips and markers that touch that frame range, and `tracks` gives only those tracks. With a filter, the answer has only the files and captures of the clips in it.
 
-- The server does not edit a package that the app has open. The tool gives the error "`<path>` is open in Dirigible." Close the session in the app, then try again.
+- With Let Agents Edit Open Sessions off, the server does not edit a package that the app has open. The tool gives the error "`<path>` is open in Dirigible." Close the session in the app, or turn the switch on, then try again.
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
-- A tool call has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
+- A tool call on a closed session has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
 - `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another session package, with `onto`. In the terminal, `dirigible clip paste` and `dirigible clip paste-clips` take `--source` and `--onto`. The call copies the audio files of the clips into the package, or converts them at another sample rate. A long copy or conversion runs to the end and saves, also when the agent stops waiting, so the agent reads `session_info` before a retry.
 - These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `devices` and `apps` read no package, and `mcp` is the server. Run these commands in the terminal.
 

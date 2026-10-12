@@ -134,11 +134,15 @@ run
 
 # C4: a red stub test gives exit 1 and no stamp, also with make -i.
 new_repo
-printf '#!/bin/bash\necho b >> "$HOOKS_LOG"\nexit 1\n' > "$repo/t/b.test.sh"
+printf '#!/bin/bash\necho b >> "$HOOKS_LOG"\nfor i in $(seq 50); do echo "b line $i"; done\nexit 1\n' > "$repo/t/b.test.sh"
 commit red
 run
 [[ $code -ne 0 && $(ran) -eq 2 && $(stamps) -eq 0 ]] && grep -q '^test-hooks: 1 of 2 failed: t/b.test.sh$' "$tmp/out" \
     || fail "a red stub: code $code, ran $(ran), stamps $(stamps): $(out)"
+# After the failed line, the last 40 lines of the output of each failed test.
+sed -n '/^test-hooks: 1 of 2 failed/,$p' "$tmp/out" > "$tmp/tail"
+grep -qx 'b line 50' "$tmp/tail" && grep -qx 'b line 11' "$tmp/tail" && ! grep -qx 'b line 10' "$tmp/tail" \
+    || fail "a red stub: no last 40 lines after the failed line: $(tr '\n' '|' < "$tmp/tail")"
 run -i
 [[ $(ran) -eq 4 && $(stamps) -eq 0 ]] || fail "a red stub with make -i: ran $(ran), stamps $(stamps): $(out)"
 

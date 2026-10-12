@@ -112,5 +112,73 @@ code=$?
 [[ $code -eq 1 && "$out" == *'moved during the run'* ]] || fail "a moved HEAD: exit $code: $out"
 [[ -e "$root/.build/pairs-moved/aa-1.log" && ! -e "$root/.build/pairs-moved/aa-2.log" ]] || fail "a moved HEAD: the run did not stop after aa-1: $(ls "$root/.build/pairs-moved" 2>/dev/null | xargs)"
 
+# --trace <file>: the run step is an xctrace record of the bundle through scripts/test-helper.sh,
+# with no swift test. The fake xcrun logs its arguments in xcrun.log. Its record prints the report
+# line of FAKE_TESTS tests (FAKE_NONE: the two no-test strings) and exits FAKE_RECORD_EXIT; its
+# --toc lists a time-profile table unless FAKE_NO_TABLE is set; its table export writes one sample.
+cp "$here/trace-top.py" "$root/scripts/"
+printf '#!/bin/bash\nexit 0\n' > "$root/scripts/test-helper.sh"
+chmod +x "$root/scripts/test-helper.sh"
+cat > "$tmp/bin/xcrun" <<'EOF'
+#!/bin/bash
+echo "$*" >> "$FAKE_DIR/xcrun.log"
+output=""
+for ((i = 1; i < $#; i++)); do [[ "${!i}" == --output ]] && { j=$((i + 1)); output="${!j}"; }; done
+case "$2 $*" in
+record*)
+    mkdir "$output" || exit 9
+    if [[ -n "$FAKE_NONE" ]]; then
+        echo 'No matching test cases were run'
+        echo 'Test run with 0 tests passed after 0.001 seconds.'
+    else
+        echo "Test run with ${FAKE_TESTS:-1} test passed"
+    fi
+    exit "${FAKE_RECORD_EXIT:-0}" ;;
+*--toc*) [[ -n "${FAKE_NO_TABLE:-}" ]] && echo '<table schema="cpu-profile"/>' || echo '<table schema="time-profile"/>' ;;
+export*) echo '<trace-query-result><node><row><backtrace id="1"><frame id="2" name="Leaf"/></backtrace></row></node></trace-query-result>' > "$output" ;;
+esac
+EOF
+chmod +x "$tmp/bin/xcrun"
+mkdir -p "$tmp/logs"
+# trace <name> <file> <names...>: run bench.sh --trace from $tmp (so the file can be relative).
+trace() {
+    local file="$2"
+    shift 2
+    rm -rf "$tmp/logs/"* && : > "$tmp/xcrun.log" && : > "$tmp/args.log"
+    (cd "$tmp" && PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" --trace "$file" "$@") > "$tmp/out" 2>&1
+    code=$?
+}
+bundle="$root/.build/bench/.build/$(uname -m)-apple-macosx/release/DirigiblePackageTests.xctest/Contents/MacOS/DirigiblePackageTests"
+want="xctrace record --template Time Profiler --no-prompt --time-limit 10m --output $tmp/logs/a.trace"
+want+=" --env DIRIGIBLE_SLOW_TESTS=1 --target-stdout - --launch -- $root/scripts/test-helper.sh"
+want+=" --test-bundle-path $bundle --testing-library swift-testing --no-parallel --filter A|B"
+trace pass logs/a.trace A B
+[[ $code -eq 0 ]] || fail "trace: exit $code: $(cat "$tmp/out")"
+[[ "$(head -1 "$tmp/xcrun.log")" == "$want" ]] || fail "trace: the record call: $(head -1 "$tmp/xcrun.log")"
+grep -q '^test ' "$tmp/args.log" && fail "trace: swift test ran: $(cat "$tmp/args.log")"
+[[ "$(cat "$tmp/logs/a.trace.top.txt" 2>&1)" == 'Leaf 1 100.0%' ]] || fail "trace: the top frames: $(cat "$tmp/logs/a.trace.top.txt" 2>&1)"
+# A bench miss fails the test, and xctrace then exits nonzero: the trace is still the result.
+FAKE_RECORD_EXIT=54 trace miss logs/a.trace A
+[[ $code -eq 0 && -s "$tmp/logs/a.trace.top.txt" ]] || fail "trace of a failed test: exit $code: $(cat "$tmp/out")"
+FAKE_TESTS=0 trace zero logs/a.trace A
+[[ $code -eq 1 && "$(cat "$tmp/out")" == *'bench: the traced run printed no Test run with line of 1 test or more'* ]] ||
+    fail "trace with 0 tests: exit $code: $(cat "$tmp/out")"
+grep -q 'export' "$tmp/xcrun.log" && fail "trace with 0 tests: an export ran"
+FAKE_NONE=1 trace none logs/a.trace NoSuchBench
+[[ $code -eq 1 && "$(cat "$tmp/out")" == *'bench: no test matched the filter NoSuchBench'* ]] || fail "trace with no test: exit $code: $(cat "$tmp/out")"
+FAKE_NO_TABLE=1 trace table logs/a.trace A
+[[ $code -eq 1 && "$(cat "$tmp/out")" == *'has no time-profile table'* && ! -e "$tmp/logs/a.trace.xml" ]] ||
+    fail "trace with no table: exit $code: $(cat "$tmp/out")"
+# A trace that exists is refused before the build: the script does not delete it.
+rm -rf "$tmp/logs/"* && mkdir "$tmp/logs/a.trace" && : > "$tmp/args.log"
+(cd "$tmp" && PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" --trace logs/a.trace A) > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 2 && "$(cat "$tmp/out")" == *'bench: the trace exists'* && -d "$tmp/logs/a.trace" && ! -s "$tmp/args.log" ]] ||
+    fail "an existing trace: exit $code: $(cat "$tmp/out")"
+# A call with no --trace calls no xcrun.
+: > "$tmp/xcrun.log"
+run "no trace"
+[[ ! -s "$tmp/xcrun.log" ]] || fail "no trace: xcrun ran: $(cat "$tmp/xcrun.log")"
+
 [[ $failures -eq 0 ]] && echo "bench tests: all passed"
 exit $((failures > 0))

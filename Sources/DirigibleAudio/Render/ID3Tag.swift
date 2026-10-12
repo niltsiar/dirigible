@@ -2,14 +2,32 @@ import DirigibleCore
 import Foundation
 
 /// A chapter of the MP3 tag: its title, its start and end in ms from the range start, its link,
-/// and its image with the MIME type.
+/// and its image.
 struct ID3Chapter: Hashable, Sendable {
     var title: String
     var start: Int
     var end: Int
     var url: String?
-    var image: Data?
-    var mime: String
+    var image: ChapterImage?
+}
+
+/// The bytes of a chapter image and their type (plan gate G10).
+enum ChapterImage: Hashable, Sendable {
+    case jpeg(Data)
+    case png(Data)
+
+    var data: Data {
+        switch self {
+        case .jpeg(let data), .png(let data): data
+        }
+    }
+
+    var mime: String {
+        switch self {
+        case .jpeg: "image/jpeg"
+        case .png: "image/png"
+        }
+    }
 }
 
 /// The ID3 chapters of `chapters`, a list of `Session.chapterList(in: range)`: each chapter ends at
@@ -20,10 +38,9 @@ func id3Chapters(
 ) -> [ID3Chapter] {
     let starts = chapters.map { session.milliseconds($0.position - range.lowerBound) }
     let ends = starts.dropFirst() + [session.milliseconds(range.upperBound - range.lowerBound)]
-    return zip(chapters, zip(starts, ends)).map {
-        ID3Chapter(
-            title: $0.name, start: $1.0, end: $1.1, url: $0.url?.text, image: images[$0.id],
-            mime: $0.image?.isPNG == true ? "image/png" : "image/jpeg")
+    return zip(chapters, zip(starts, ends)).map { marker, times in
+        let image = images[marker.id].map { marker.image?.isPNG == true ? ChapterImage.png($0) : .jpeg($0) }
+        return ID3Chapter(title: marker.name, start: times.0, end: times.1, url: marker.url?.text, image: image)
     }
 }
 
@@ -49,7 +66,9 @@ func id3Tag(_ episode: Episode, artwork: Data? = nil, chapters: [ID3Chapter] = [
             // WXXX: ISO-8859-1, an empty description, then the URL.
             if let url = chapter.url { body += frame("WXXX", [0, 0] + Array(url.utf8)) }
             // APIC: ISO-8859-1, the MIME type, picture type 0 (other), an empty description.
-            if let image = chapter.image { body += frame("APIC", [0] + Array(chapter.mime.utf8) + [0, 0, 0] + image) }
+            if let image = chapter.image {
+                body += frame("APIC", [0] + Array(image.mime.utf8) + [0, 0, 0] + image.data)
+            }
             frames.append(frame("CHAP", body))
         }
     }

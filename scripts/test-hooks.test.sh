@@ -3,8 +3,8 @@
 # a new run after a change of each key input (C2), a reuse after a change of an excluded path
 # (C3), no stamp and no reuse on a dirty tree, a red test, or a make flag (C4), and a run from a
 # key tree that fails on a read outside the key and leaves no git state (C5). Each case uses a
-# stub repo whose two stub tests append their name to a log, fake swift, xcodebuild, sw_vers, and
-# date on PATH, and its own TMPDIR. Run by `make test-hooks`.
+# stub repo whose two stub tests append their name to a log, fake swift, xcodebuild, jq, sw_vers,
+# and date on PATH, and its own TMPDIR. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
 # A make value of an outer run (make test-hooks) must not reach the stub make.
@@ -17,6 +17,7 @@ fail() { echo "FAIL: $*"; failures=$((failures + 1)); }
 mkdir "$tmp/bin"
 printf '#!/bin/bash\necho "swift-driver version: 1 Apple Swift version ${FAKE_SWIFT}"\n' > "$tmp/bin/swift"
 printf '#!/bin/bash\necho "Xcode 26.3"\n' > "$tmp/bin/xcodebuild"
+printf '#!/bin/bash\necho "jq-${FAKE_JQ}"\n' > "$tmp/bin/jq"
 printf '#!/bin/bash\necho "ProductVersion: 15.6"\n' > "$tmp/bin/sw_vers"
 printf '#!/bin/bash\n[[ "$*" == +%%F ]] || { echo "fake date: $*" >&2; exit 2; }\necho "$FAKE_DATE"\n' > "$tmp/bin/date"
 chmod +x "$tmp/bin/"*
@@ -42,7 +43,7 @@ new_repo() {
         echo x > "$repo/$f"
     done
     commit init
-    export FAKE_SWIFT=6.2.4 FAKE_DATE=2026-10-12
+    export FAKE_SWIFT=6.2.4 FAKE_JQ=1.7.1 FAKE_DATE=2026-10-12
 }
 commit() { git -C "$repo" add -A && git -C "$repo" commit -qm "$1"; }
 # run [make arguments]: make test-hooks in the stub repo. The output goes to $tmp/out, the exit
@@ -85,6 +86,7 @@ change_support() { echo y > "$repo/Support/s.txt"; commit d; }
 add_root_file() { echo y > "$repo/new.txt"; commit e; }
 remove_floor_path() { git -C "$repo" rm -q Sources/DirigibleCore/PackageLock.swift; commit f; }
 change_swift() { FAKE_SWIFT=6.3; }
+change_jq() { FAKE_JQ=1.8.0; }
 change_date() { FAKE_DATE=2026-10-13; }
 expect_rerun '(a) a stub test script' change_test
 expect_rerun '(b) the Makefile' change_makefile
@@ -93,6 +95,7 @@ expect_rerun '(d) a file under Support/' change_support
 expect_rerun '(e) a new file at the repo root' add_root_file
 expect_rerun '(f) a removed floor path' remove_floor_path
 expect_rerun '(g) another tool version' change_swift
+expect_rerun '(g) another jq version' change_jq
 expect_rerun '(h) another date' change_date
 
 # C2 (i): a pass of a subset of the list writes no stamp, and the next full run runs each test.

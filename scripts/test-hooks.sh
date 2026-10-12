@@ -45,8 +45,10 @@ if [[ $dirty == no ]]; then
             if git cat-file -e "$sha:${f%/}" 2>/dev/null; then echo "$f yes"; else echo "$f no"; fi
         done
         printf '%s\n' "$@" | sort
+        # Each tool that a hook test or the script under it runs. sw_vers covers the tools of macOS
+        # (plutil, osascript, codesign, bc, awk), and xcodebuild those of Xcode (actool).
         for tool in 'swift --version' sw_vers 'xcodebuild -version' 'python3 --version' 'node --version' \
-            'git --version' 'make --version'; do
+            'git --version' 'make --version' 'jq --version' 'perl --version' 'gh --version'; do
             echo "$tool: $($tool 2>&1 | head -2 | tr '\n' ' ')"
         done
         date +%F

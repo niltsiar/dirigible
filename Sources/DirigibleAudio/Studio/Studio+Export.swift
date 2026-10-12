@@ -152,7 +152,7 @@ extension Studio {
                     returning: Result { () throws(ExportError) in
                         let package: URL
                         do { package = try lock.package() } catch { throw .packageUnavailable }
-                        // An lstat: the save panel confirmed a dangling link too.
+                        // An lstat, as the image check of `writeChapters`.
                         let replacing = ConfirmedFile(at: url) != nil
                         try writeChapters(session, in: range, to: url, replacingImages: replacing, package: package)
                     })

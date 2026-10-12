@@ -31,7 +31,7 @@ struct ChaptersTests {
             ("at-start", n, .chapter), ("later", n + 96_000, .chapter), ("before", n - 1, .chapter),
             ("last", 1_439_975, .chapter), ("upper", 1_440_000, .chapter), ("plain", n + 48_000, .marker),
         ])
-        #expect(try Self.startTimes(session.chaptersJSON(in: n..<1_440_000)) == [0, 2, 19.999])
+        #expect(try Self.startTimes(session.chaptersJSON(in: n..<1_440_000, imageStem: "")) == [0, 2, 19.999])
     }
 
     /// C3. Half up at the millisecond: 24 frames at 48 kHz are 0.5 ms.
@@ -40,7 +40,7 @@ struct ChaptersTests {
     ])
     func roundsToMilliseconds(rate: Int, frames: Int, seconds: Double) throws {
         let session = try Self.session(rate: rate, [("c", Frames(frames), .chapter)])
-        #expect(try Self.startTimes(session.chaptersJSON(in: 0..<Frames(rate))) == [seconds])
+        #expect(try Self.startTimes(session.chaptersJSON(in: 0..<Frames(rate), imageStem: "")) == [seconds])
     }
 
     /// C4, C3 of run 2026-10-11-chapters-in-file: "b" starts at the millisecond of "a", so the
@@ -49,7 +49,9 @@ struct ChaptersTests {
         let session = try Self.session([
             ("b", 96_000, .chapter), ("a", 96_000, .chapter), ("earlier", 48_000, .chapter),
         ])
-        let titles = try Self.chapters(session.chaptersJSON(in: 0..<480_000)).map { $0["title"] as? String }
+        let titles = try Self.chapters(session.chaptersJSON(in: 0..<480_000, imageStem: "")).map {
+            $0["title"] as? String
+        }
         #expect(titles == ["earlier", "a"], "titles \(titles)")
     }
 
@@ -71,7 +73,7 @@ struct ChaptersTests {
     /// Control: a `startTime` written as a string fails.
     @Test func fieldsAndTypesFollowSpec120() throws {
         let session = try Self.session([("one", 0, .chapter), ("two", 48_000, .chapter), ("three", 100_001, .chapter)])
-        let data = try session.chaptersJSON(in: 0..<480_000)
+        let data = try session.chaptersJSON(in: 0..<480_000, imageStem: "")
         let file = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         #expect(Set(file.keys) == ["version", "chapters"])
         #expect(file["version"] as? String == "1.2.0")
@@ -104,7 +106,8 @@ struct ChaptersTests {
         let name = "Capítulo \"1\" / intro"
         var session = Session(sampleRate: 48_000)
         try session.setMarker(Marker(id: "c", name: name, position: 0, kind: .chapter))
-        #expect(try Self.chapters(session.chaptersJSON(in: 0..<48_000)).first?["title"] as? String == name)
+        #expect(
+            try Self.chapters(session.chaptersJSON(in: 0..<48_000, imageStem: "")).first?["title"] as? String == name)
     }
 
     /// C8. A ripple delete of 2 s on the speech track "a" only; the music on "s" is out of scope.
@@ -116,7 +119,7 @@ struct ChaptersTests {
         try session.setMarker(Marker(id: "c", name: "c", position: 480_000, kind: .chapter))
         try session.rippleDelete(96_000..<192_000, on: ["a"])
         #expect(session.markers["c"]?.position == 384_000)
-        #expect(try Self.startTimes(session.chaptersJSON(in: 0..<session.end)) == [8])
+        #expect(try Self.startTimes(session.chaptersJSON(in: 0..<session.end, imageStem: "")) == [8])
     }
 
     /// Run 2026-10-11-chapters-in-file, C3: "url" and "img" only for a chapter that has them. The

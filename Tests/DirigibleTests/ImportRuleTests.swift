@@ -1,9 +1,10 @@
 import Foundation
 import Testing
 
-/// DirigibleCore imports only Foundation (decision 0002), and DirigibleTimeline imports only
-/// Foundation and DirigibleCore (decision 0020). SwiftPM cannot stop a target from importing a
-/// system framework, so this test reads the sources.
+/// DirigibleCore imports only Foundation (decision 0002), DirigibleTimeline imports only
+/// Foundation and DirigibleCore (decision 0020), and DirigibleMCP imports only Foundation,
+/// DirigibleCore, and DirigibleAudio (decision 0046). SwiftPM cannot stop a target from importing
+/// a system framework, so this test reads the sources.
 struct ImportRuleTests {
     @Test func coreImportsOnlyFoundation() throws {
         try checkImports(of: "DirigibleCore", allowed: ["Foundation"])
@@ -11,6 +12,10 @@ struct ImportRuleTests {
 
     @Test func timelineImportsOnlyFoundationAndCore() throws {
         try checkImports(of: "DirigibleTimeline", allowed: ["Foundation", "DirigibleCore"])
+    }
+
+    @Test func mcpImportsOnlyFoundationCoreAndAudio() throws {
+        try checkImports(of: "DirigibleMCP", allowed: ["Foundation", "DirigibleCore", "DirigibleAudio"])
     }
 
     private func checkImports(of target: String, allowed: Set<String>) throws {

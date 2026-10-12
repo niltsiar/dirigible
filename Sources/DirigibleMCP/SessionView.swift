@@ -5,7 +5,7 @@ import Foundation
 /// The JSON contract for scripts and agents (decision 0011). Keys are sorted. An absent optional
 /// value is left out. Tracks keep the session order and clips the lane order. Files and captures
 /// sort by ID, markers by position and then ID.
-struct SessionView: Encodable {
+package struct SessionView: Encodable {
     struct CaptureView: Encodable {
         let id: String
         let deviceUID: String
@@ -100,7 +100,7 @@ struct SessionView: Encodable {
     /// Left out when empty (decision 0045).
     let episode: EpisodeView?
 
-    init(_ session: Session, media: [FileID: MediaFault]) {
+    package init(_ session: Session, media: [FileID: MediaFault]) {
         version = session.fileVersion
         sampleRate = session.sampleRate
         captures = session.sortedCaptures.map {
@@ -143,7 +143,7 @@ struct SessionView: Encodable {
 
     /// Pretty JSON with a newline at the end for `info --json`, or compact JSON on one line for
     /// `session_info`.
-    func json(pretty: Bool = true) throws -> String {
+    package func json(pretty: Bool = true) throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         if pretty { encoder.outputFormatting.insert(.prettyPrinted) }
@@ -177,7 +177,7 @@ struct SessionView: Encodable {
 }
 
 /// The text summary of `info`: one line for the session, then one line for each object.
-func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> String {
+package func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> String {
     var lines = ["\(name): \(session.sampleRate) Hz"]
     for track in session.tracks {
         var line = "track \(track.id) \(quoted(track.name)) \(track.layout.rawValue) \(track.gain)"

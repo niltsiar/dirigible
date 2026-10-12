@@ -1,6 +1,7 @@
 import ArgumentParser
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 
 struct TrackCommand: ParsableCommand {
     static let configuration = CommandConfiguration(

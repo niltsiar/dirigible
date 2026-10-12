@@ -1,5 +1,6 @@
 import ArgumentParser
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 
 /// The exit code for an edit that the session refuses (decision 0011).

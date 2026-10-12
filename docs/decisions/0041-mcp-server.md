@@ -8,6 +8,7 @@
 - Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The tools `backup_list` and `backup_revert` follow the name rule. `backup_list` reads with no lock, as `session_info`. `backup_revert` is a typed `ToolWork.revert`, because it needs the lock to read the backup.
 - Amended: 2026-10-10, run `2026-10-10-episode-metadata` (see 0045). `episode show` maps to `episode_get` in `ParityTests.toolNames`. It reads with no lock, as `session_info`, so an agent reads the episode also when `session_info` is an overview.
 - Amended: 2026-10-09, run `2026-10-09-chapters-export`. `chapters export` has no tool, with its reason in `ParityTests.toolExemptions`: it writes a file outside the package and edits nothing, and `session_info` gives the markers.
+- Amended: 2026-10-12, run `2026-10-12-mcp-in-app` (see 0046). Code place: the MCP files are in the library target `DirigibleMCP`, which the app can import. `DirigibleCLI` keeps `MCPCommand` and its stdin loop.
 
 ## Context
 

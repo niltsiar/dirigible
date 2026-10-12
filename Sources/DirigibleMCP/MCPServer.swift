@@ -1,18 +1,20 @@
 import Foundation
 
 /// The JSON-RPC 2.0 side of `dirigible mcp` (decision 0041): one request line in, one answer line
-/// out. It has no stdio and no ArgumentParser, so Release 3 can move it into a library.
-struct MCPServer {
+/// out. It has no stdio and no ArgumentParser, so the app can import it (decision 0046).
+package struct MCPServer {
     /// `initialize` selects the legacy era for the life of the process.
     enum Era { case modern, legacy }
     private(set) var era = Era.modern
 
     /// The legacy versions, newest first. `initialize` gets the client version when it is here.
+    package init() {}
+
     static let legacyVersions = ["2025-11-25", "2025-06-18", "2025-03-26"]
 
     /// One request line to one answer line, or nil for a notification or an empty line. Each line
     /// gets its answer here, so no input stops the server.
-    mutating func answer(_ line: String) -> String? {
+    package mutating func answer(_ line: String) -> String? {
         guard !line.allSatisfy(\.isWhitespace) else { return nil }
         guard let message = try? JSONSerialization.jsonObject(with: Data(line.utf8), options: .fragmentsAllowed) else {
             return reply(NSNull(), error: -32700, "the line is not JSON.")

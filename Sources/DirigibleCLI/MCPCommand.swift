@@ -1,4 +1,5 @@
 import ArgumentParser
+import DirigibleMCP
 import Foundation
 
 /// `dirigible mcp`: the only owner of stdin and stdout for the MCP server (decision 0041).

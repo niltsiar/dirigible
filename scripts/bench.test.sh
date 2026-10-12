@@ -24,6 +24,7 @@ export FAKE_PID_FILE="$root/.git/dirigible-build.lock/pid" FAKE_DIR="$tmp" FAKE_
 cat > "$tmp/bin/swift" <<'EOF'
 #!/bin/bash
 echo "$*" >> "$FAKE_DIR/args.log"
+[[ -z "${FAKE_MOVE:-}" ]] || git -C "$FAKE_MOVE" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m moved
 echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo free)" >> "$FAKE_DIR/lock.log"
 if [[ "$1" == test && -n "$FAKE_NONE" ]]; then
     echo 'No matching test cases were run'
@@ -92,6 +93,24 @@ PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$root/.bui
 grep -vqE '^([0-9]+) \1$' "$tmp/lock.log" && fail "pairs: a bench ran with no hold of the lock: $(cat "$tmp/lock.log")"
 [[ "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 && "$(wc -l < "$tmp/lock.log" | tr -d ' ')" -eq 8 ]] ||
     fail "pairs: the benches did not share one hold: $(cat "$tmp/lock.log")"
+
+# A pair run checks its provenance at the start, not only at --compare. A change in a bench input
+# of a tree refuses the run with exit 2 before a bench; an untracked doc is not a bench input, so
+# its tree stays clean; a HEAD that moves during the run stops the run before the next bench.
+echo '// x' >> "$tmp/main/Sources/App/main.swift"
+: > "$tmp/args.log"
+out="$(PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$root/.build/pairs-dirty" 2>&1)"
+code=$?
+[[ $code -eq 2 && "$out" == *'has a change in the bench inputs'* ]] || fail "a changed bench input: exit $code: $out"
+[[ ! -s "$tmp/args.log" && ! -e "$root/.build/pairs-dirty" ]] || fail 'a changed bench input: a bench ran or the folder was made'
+git -C "$tmp/main" checkout -q -- Sources
+echo note > "$root/notes.md"
+run "an untracked doc"
+grep -q '^bench: commit [0-9a-f]* tree clean filter X$' "$tmp/out" || fail "an untracked doc made the tree dirty: $(head -1 "$tmp/out")"
+out="$(FAKE_MOVE="$tmp/main" PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$root/.build/pairs-moved" 2>&1)"
+code=$?
+[[ $code -eq 1 && "$out" == *'moved during the run'* ]] || fail "a moved HEAD: exit $code: $out"
+[[ -e "$root/.build/pairs-moved/aa-1.log" && ! -e "$root/.build/pairs-moved/aa-2.log" ]] || fail "a moved HEAD: the run did not stop after aa-1: $(ls "$root/.build/pairs-moved" 2>/dev/null | xargs)"
 
 [[ $failures -eq 0 ]] && echo "bench tests: all passed"
 exit $((failures > 0))

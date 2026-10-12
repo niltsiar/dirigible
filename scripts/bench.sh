@@ -18,8 +18,9 @@ read -ra names <<< "$*"
 filter="$(IFS='|'; echo "${names[*]}")"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # The cost review of reflect (cost.sh) counts a repeat by the commit and the filter of this line.
+# Only a change in a bench input makes the tree dirty (bench-pairs.sh checks the same paths).
 tree=clean
-[[ -z "$(git -C "$root" status --porcelain)" ]] || tree=dirty
+[[ -z "$(git -C "$root" status --porcelain -- Sources Tests Package.swift Package.resolved scripts/bench.sh)" ]] || tree=dirty
 echo "bench: commit $(git -C "$root" rev-parse HEAD) tree $tree filter $filter"
 copy="$root/.build/bench"
 mkdir -p "$copy/.build"

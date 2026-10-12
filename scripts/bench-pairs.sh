@@ -15,7 +15,9 @@
 # clean tree, and the branch commit has the Sources, Tests, Package.swift, Package.resolved, and
 # scripts/bench.sh of HEAD of this tree, and the two sides name two commits (no A/A comparison).
 # Else --compare prints NOT VERIFIED with the reason and exits 1. A branch commit that differs
-# from HEAD only in other paths (docs) passes.
+# from HEAD only in other paths (docs) passes. A tree is dirty only by a change in those paths. A
+# pair run checks the same at its start (exit 2) and before each bench (exit 1 when a HEAD moved),
+# and refuses an out folder that git does not ignore in a tree.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 if [[ "${1:-}" != "--compare" ]]; then
@@ -30,10 +32,20 @@ if [[ "${1:-}" != "--compare" ]]; then
     echo "bench-pairs: $out is in a git tree and git does not ignore it; give a folder outside or an ignored one" >&2
     exit 2
   fi
+  # The provenance of --compare, checked at the start too: a change in a bench input of a tree
+  # refuses the run, and a HEAD that moves stops it before the next bench.
+  inputs=(Sources Tests Package.swift Package.resolved scripts/bench.sh)
+  for tree in "$main" "$root"; do
+    [[ -z "$(git -C "$tree" status --porcelain -- "${inputs[@]}")" ]] ||
+      { echo "bench-pairs: $tree has a change in the bench inputs (${inputs[*]}); commit it first" >&2; exit 2; }
+  done
+  heads="$(git -C "$main" rev-parse HEAD) $(git -C "$root" rev-parse HEAD)"
   # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
   [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$root/scripts/with-lock.sh" "$0" "$@"
   mkdir -p "$out"; out="$(cd "$out" && pwd)"
   run() { # run <tree> <log name>
+    [[ "$(git -C "$main" rev-parse HEAD) $(git -C "$root" rev-parse HEAD)" == "$heads" ]] ||
+      { echo "bench-pairs: the HEAD of $main or $root moved during the run; stop before $2" >&2; exit 1; }
     echo "$2 $(date +%T) $(uptime | sed 's/.*load/load/')" >> "$out/load.txt"
     (cd "$1" && scripts/bench.sh "$filter") > "$out/$2.log" 2>&1 || echo "$2: the bench failed" >> "$out/load.txt"
   }

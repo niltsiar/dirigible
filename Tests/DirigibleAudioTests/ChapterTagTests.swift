@@ -249,6 +249,24 @@ struct ChapterTagTests {
         try MP3ExportTests.expectNoOutput(package)
     }
 
+    /// Code gate item D3. The image stage reads the cancel before each image: a cancel set before
+    /// the call throws `.cancelled` in the MP3 and in the M4A. The image file is missing, so a read
+    /// of it would throw `.chapterImageMissing`.
+    @Test func aCancelBeforeTheChapterImagesThrowsCancelled() throws {
+        var session = package.session
+        let name = try ArtworkName("\(UUID().uuidString).jpg")
+        try session.setMarker(Marker(id: "one", name: "One", position: 0, kind: .chapter, image: name))
+        let aac = ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session)
+        for (options, file) in [(MP3ExportTests.mp3(), "mix.mp3"), (aac, "mix.m4a")] {
+            #expect(throws: ExportError.cancelled, "\(file)") {
+                try exportMix(
+                    session, source: ExportSource(range: 0..<144_000)!, options: options,
+                    to: package.folder.url.appending(path: file), package: { package.url }, isCancelled: { true })
+            }
+        }
+        try MP3ExportTests.expectNoOutput(package)
+    }
+
     /// C7. A WAV and a FLAC export keep their bytes with chapters that have a URL and an image.
     @Test func wavAndFLACKeepTheirBytesWithChapters() throws {
         let marker = Marker(

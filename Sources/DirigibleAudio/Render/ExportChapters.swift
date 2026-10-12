@@ -72,8 +72,9 @@ func imageSamples(_ chapters: [ExportChapter], artwork: Data?) -> (samples: [(st
 
 /// The bytes of the image of each chapter in `chapters` that has one, read once before any file
 /// exists. A file that does not read throws `.chapterImageMissing` with `rate`, the session rate.
+/// It reads `isCancelled()` before each image, so a take start does not wait for the reads.
 func readChapterImages(
-    _ chapters: [Marker], rate: Int, package: () throws(SessionFileError) -> URL
+    _ chapters: [Marker], rate: Int, package: () throws(SessionFileError) -> URL, isCancelled: () -> Bool
 ) throws(ExportError) -> [MarkerID: Data] {
     guard chapters.contains(where: { $0.image != nil }) else { return [:] }
     let root: URL
@@ -81,6 +82,7 @@ func readChapterImages(
     var images: [MarkerID: Data] = [:]
     for marker in chapters {
         guard let name = marker.image else { continue }
+        if isCancelled() { throw .cancelled }
         guard let data = try? Data(contentsOf: root.appending(path: name.path)) else {
             throw .chapterImageMissing(marker, rate: rate)
         }

@@ -22,7 +22,8 @@ struct ChaptersExport: ParsableCommand {
             chapter before it is not in the file, and a warning names it. Exit 1 when the range has no chapter, or when \
             the session has no audio and no --to: the command writes no empty file. Exit 2 \
             when the package cannot be read, --out or an image file exists (unless --replace), or the \
-            write fails; a failed write leaves the old file or no file.
+            write fails. The command writes the images first, then the file, each with an atomic \
+            write: a failed write leaves the old file or no file, and it can leave new images.
             """)
 
     @OptionGroup var package: PackageArgument

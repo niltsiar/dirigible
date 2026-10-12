@@ -178,6 +178,19 @@ echo y > "$repo/untracked.txt"
 run
 [[ $code -eq 0 ]] || fail "outside read: the run in place failed: code $code: $(out)"
 
+# A run removes each key tree folder over one hour old that a killed run left, and keeps a newer
+# one. A stamp append keeps only the lines of today.
+new_repo
+mkdir "$repo/.git/dirigible-hooks-tree.old" "$repo/.git/dirigible-hooks-tree.new"
+touch -t "$(/bin/date -v-2H +%Y%m%d%H%M)" "$repo/.git/dirigible-hooks-tree.old"
+printf 'k0 s0 2026-10-11\nk1 s1 2026-10-12\n' > "$stamp"
+run
+[[ $code -eq 0 && ! -e "$repo/.git/dirigible-hooks-tree.old" && -d "$repo/.git/dirigible-hooks-tree.new" ]] \
+    || fail "sweep: code $code, folders [$(ls -d "$repo/.git/dirigible-hooks-tree."* 2>/dev/null | xargs)]: $(out)"
+[[ "$(cut -d' ' -f1,3 "$stamp" | head -1)" == 'k1 2026-10-12' && $(stamps) -eq 2 ]] && ! grep -q '^k0 ' "$stamp" \
+    || fail "stamp of today only: [$(tr '\n' '|' < "$stamp")]"
+rm -rf "$repo/.git/dirigible-hooks-tree.new"
+
 # C5: the key holds only the existence of a floor path, so each floor file is empty in the key
 # tree. A test that reads floor content fails on a clean tree and writes no stamp.
 new_repo

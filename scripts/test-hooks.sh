@@ -12,8 +12,9 @@
 # removes the folder at the exit and after INT or TERM. A hook test reads only the work tree of
 # the key tree. The clone holds each object of the repo, so a read of an excluded path through git
 # (for example git show HEAD:docs/x.md) is outside the key: a hook test must not do it.
-# A pass appends the key to dirigible-hooks-stamp in `git rev-parse --git-common-dir`. The next
-# run with the same key prints "test-hooks: reuse <key>" and runs no test.
+# A pass appends "<key> <commit> <date>" to dirigible-hooks-stamp in the git common dir, and drops
+# the lines of other days. The next run with the same key prints "test-hooks: reuse <key>" and runs
+# no test. At the start, the script removes each key tree folder over one hour old.
 # No reuse and no stamp: on a dirty tree (the tests run in place), when the list is not the
 # HOOK_TESTS list of the Makefile at HEAD, after a failed test, and when the first word of
 # MAKEFLAGS has -n, -t, -i, or -q (as scripts/check-stamp.sh).
@@ -23,6 +24,10 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 common="$(git rev-parse --path-format=absolute --git-common-dir)" || exit 1
 stamp="$common/dirigible-hooks-stamp"
 sha="$(git rev-parse HEAD)" || exit 1
+today="$(date +%F)"
+# A killed run (no trap) leaves its key tree: remove each one over one hour old. A run takes about
+# 10 min, so the run of another worktree keeps its tree.
+find "$common" -maxdepth 1 -type d -name 'dirigible-hooks-tree.*' -mmin +60 -exec rm -rf {} +
 
 reason="" flags="${MAKEFLAGS:-}"
 flags="${flags%% *}"
@@ -51,7 +56,7 @@ if [[ $dirty == no ]]; then
             'git --version' 'make --version' 'jq --version' 'perl --version' 'gh --version'; do
             echo "$tool: $($tool 2>&1 | head -2 | tr '\n' ' ')"
         done
-        date +%F
+        echo "$today"
     } | shasum -a 256 | cut -c1-64)"
     if [[ -z $reason ]] && grep -q "^$key " "$stamp" 2>/dev/null; then
         echo "test-hooks: reuse $key"
@@ -83,6 +88,7 @@ fi
 if [[ -n $reason ]]; then
     echo "test-hooks: no stamp ($reason)"
 else
-    echo "$key $sha" >> "$stamp"
+    # The key holds the date, so only the lines of today can match: drop the others.
+    { grep " $today\$" "$stamp" 2>/dev/null; echo "$key $sha $today"; } > "$stamp.new" && mv "$stamp.new" "$stamp"
     echo "test-hooks: wrote $key"
 fi

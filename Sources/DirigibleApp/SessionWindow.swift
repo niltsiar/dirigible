@@ -6,26 +6,9 @@ import DirigibleTimeline
 import Observation
 import SwiftUI
 
-/// A question or an error that the window shows.
-enum WindowAlert: Hashable {
-    case error(StudioError)
-    /// The end of an import of several files (run 13c): the error of each file that did not
-    /// import, in the drop order, and the names of the files after a stop of the chain.
-    case importChain([StudioError], notImported: [String])
-    case microphone(MicrophoneAccess)
-    case confirmStopAndClose
-    case confirmUnsavedClose
-    /// Remove Track of tracks with clips (ui-polish A1). The alert holds the IDs: the binding sets
-    /// `alert` to nil before the button action runs.
-    case confirmRemoveTracks([TrackID])
-    /// The report after an export: the paths of the files that rendered as silence (decision 0003),
-    /// and the loudness of an export with a target (decision 0032).
-    case exported([String], LoudnessReport?)
-}
-
 /// The state of one session window and its `NSWindowDelegate` (decision 0014). `Studio` is the
 /// model; this type adds only window state and maps the actions to `Studio` calls.
-@Observable @MainActor final class SessionWindow: NSObject, NSWindowDelegate {
+@Observable @MainActor final class SessionWindow: NSObject {
     enum Phase {
         case opening
         case open(Studio)
@@ -370,28 +353,5 @@ enum WindowAlert: Hashable {
     private func showTitle() {
         window?.title = url.deletingPathExtension().lastPathComponent
         window?.representedURL = url
-    }
-
-    // MARK: NSWindowDelegate
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        requestClose()
-        return false
-    }
-
-    /// A focus reads the device list again, so a channel change of a present device shows, and
-    /// checks the media, so a file that the user put back shows (decision 0016). It loads the
-    /// peaks again, because a WAV can change outside the app (decision 0017).
-    func windowDidBecomeKey(_ notification: Notification) {
-        app?.key = self
-        chrome?.refreshRecordTime()
-        deviceList.changed()
-        refreshApps()
-        if case .open(let studio) = phase { studio.loadPeaks() }
-        Task { await idleStudio?.checkMedia() }
-    }
-
-    func windowDidResignKey(_ notification: Notification) {
-        if app?.key === self { app?.key = nil }
     }
 }

@@ -130,18 +130,29 @@ enum ExportPanel {
     }
 }
 
+/// The answer of the save panel of Export Chapters: the JSON file, and the item at its path that
+/// the panel confirmed to replace. Nil `confirmed`: nothing was at the path, so the export does not
+/// replace a chapter image beside it (code gate item E3).
+struct ChaptersTarget {
+    let url: URL
+    let confirmed: ConfirmedFile?
+}
+
 extension ExportPanel {
     /// The save panel of Export Chapters: a JSON file, with `message` when the times start at the
     /// in point. The panel asks before it replaces a file.
     @MainActor static func beginChapters(
-        for window: NSWindow, name: String, message: String?, done: @escaping @MainActor (URL?) -> Void
+        for window: NSWindow, name: String, message: String?, done: @escaping @MainActor (ChaptersTarget?) -> Void
     ) {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = name
         panel.allowedContentTypes = [.json]
         if let message { panel.message = message }
         panel.beginSheetModal(for: window) { response in
-            MainActor.assumeIsolated { done(response == .OK ? panel.url : nil) }
+            MainActor.assumeIsolated {
+                guard response == .OK, let url = panel.url else { return done(nil) }
+                done(ChaptersTarget(url: url, confirmed: ConfirmedFile(at: url)))
+            }
         }
     }
 }

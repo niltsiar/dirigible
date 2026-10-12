@@ -103,7 +103,7 @@ import UniformTypeIdentifiers
     /// The save panel of Export Chapters as a sheet of a window: the name, the message, and the
     /// answer. Tests give their own.
     @ObservationIgnored var chooseChaptersExport:
-        (NSWindow, String, String?, @escaping @MainActor (URL?) -> Void) -> Void = {
+        (NSWindow, String, String?, @escaping @MainActor (ChaptersTarget?) -> Void) -> Void = {
             ExportPanel.beginChapters(for: $0, name: $1, message: $2, done: $3)
         }
 

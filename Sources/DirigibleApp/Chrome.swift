@@ -224,8 +224,11 @@ struct ChromeState: Equatable {
     var time = timeDisplayText(0, rate: 48_000, playing: false)
     var subtitle = ""
     var shown = ShownChrome()
+    /// One or more agents are connected to the app server (C12).
+    var agentConnected = false
 
     @MainActor init(model: SessionWindow) {
+        agentConnected = (model.app?.agents.connected ?? 0) > 0
         guard let studio = model.studio else { return }
         let recording = model.canStop
         playing = studio.playback != .stopped
@@ -323,4 +326,27 @@ func subtitleText(
         parts.append("\(text(.subtitleRecordTime)) \(recordTimeLeft.formatted(style))")
     }
     return parts.joined(separator: " · ")
+}
+
+/// The trailing title bar mark of a connected agent (ui-panel.md): the `sparkles` symbol and
+/// "Agent" in secondary gray, with no animation. It starts hidden.
+@MainActor func agentMarkAccessory() -> NSTitlebarAccessoryViewController {
+    let image = NSImageView(
+        image: NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil) ?? NSImage())
+    image.contentTintColor = .secondaryLabelColor
+    let label = NSTextField(labelWithString: L10n.agentMark.text)
+    label.textColor = .secondaryLabelColor
+    label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+    let stack = NSStackView(views: [image, label])
+    stack.spacing = 4
+    stack.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+    stack.toolTip = L10n.agentMarkHelp.text
+    stack.setAccessibilityElement(true)
+    stack.setAccessibilityRole(.staticText)
+    stack.setAccessibilityLabel(L10n.agentMarkHelp.text)
+    let accessory = NSTitlebarAccessoryViewController()
+    accessory.layoutAttribute = .trailing
+    accessory.view = stack
+    accessory.isHidden = true
+    return accessory
 }

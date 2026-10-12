@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleCore
 import DirigibleTimeline
 
 enum UndoTarget: Equatable {
@@ -78,9 +79,23 @@ final class UndoRoutingWindow: NSWindow {
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let text = undoTarget(firstResponder: firstResponder) == .text
         switch menuItem.action {
-        case #selector(undo(_:)): return text ? firstResponder?.undoManager?.canUndo == true : model?.canUndo == true
-        case #selector(redo(_:)): return text ? firstResponder?.undoManager?.canRedo == true : model?.canRedo == true
+        case #selector(undo(_:)):
+            menuItem.title = undoTitle(text ? nil : model?.studio?.undoAgent, redo: false)
+            return text ? firstResponder?.undoManager?.canUndo == true : model?.canUndo == true
+        case #selector(redo(_:)):
+            menuItem.title = undoTitle(text ? nil : model?.studio?.redoAgent, redo: true)
+            return text ? firstResponder?.undoManager?.canRedo == true : model?.canRedo == true
         default: return super.validateMenuItem(menuItem)
+        }
+    }
+
+    /// "Undo <name> Edit" after an agent edit (C11), "Undo Agent Edit" for an agent with no valid
+    /// name, else the plain title of the system.
+    private func undoTitle(_ agent: AgentName?, redo: Bool) -> String {
+        switch (agent, agent?.name) {
+        case (nil, _): redo ? UndoManager().redoMenuItemTitle : UndoManager().undoMenuItemTitle
+        case (_, let name?): (redo ? L10n.redoAgent : L10n.undoAgent).format(name)
+        case (_, nil): (redo ? L10n.redoAgentUnnamed : L10n.undoAgentUnnamed).text
         }
     }
 }

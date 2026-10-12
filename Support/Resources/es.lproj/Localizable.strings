@@ -336,6 +336,22 @@
 "settings.language" = "Idioma";
 "settings.language.system" = "Idioma del sistema";
 "settings.language.restart" = "Reinicia Dirigible para aplicar el idioma.";
+"settings.agents" = "Permitir que los agentes editen las sesiones abiertas";
+"settings.agents.on" = "Los agentes de IA (Claude Code, Codex, opencode o cualquier app MCP) pueden cambiar una sesión abierta. Cada cambio es un paso de Deshacer.";
+"settings.agents.off" = "Desactivado. Los agentes solo pueden editar sesiones cerradas.";
+"settings.agents.elsewhere" = "Otra copia de Dirigible atiende a los agentes. Ciérrala para usar esta.";
+"settings.agents.failed" = "Dirigible no pudo iniciar el servidor de agentes.";
+"settings.agents.copy" = "Copiar comando de configuración";
+"settings.agents.copied" = "Copiado";
+"settings.agents.copy.hint" = "Pégalo en Terminal y después abre el agente.";
+"settings.agents.move.first" = "Mueve primero Dirigible a la carpeta Aplicaciones.";
+"settings.agents.any.app" = "Cualquier app MCP";
+"agent.mark" = "Agente";
+"agent.mark.help" = "Hay un agente conectado que puede editar las sesiones abiertas.";
+"undo.agent" = "Deshacer edición de %@";
+"redo.agent" = "Rehacer edición de %@";
+"undo.agent.unnamed" = "Deshacer edición de un agente";
+"redo.agent.unnamed" = "Rehacer edición de un agente";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";
 

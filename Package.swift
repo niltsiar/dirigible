@@ -23,7 +23,8 @@ let package = Package(
         .target(name: "DirigibleTimeline", dependencies: ["DirigibleCore"]),
         .target(name: "DirigibleMCP", dependencies: ["DirigibleCore", "DirigibleAudio"]),
         .executableTarget(
-            name: "DirigibleApp", dependencies: ["DirigibleCore", "DirigibleAudio", "DirigibleTimeline"]),
+            name: "DirigibleApp",
+            dependencies: ["DirigibleCore", "DirigibleAudio", "DirigibleTimeline", "DirigibleMCP"]),
         .executableTarget(
             name: "DirigibleCLI",
             dependencies: [
@@ -39,7 +40,7 @@ let package = Package(
         .testTarget(name: "DirigibleTimelineTests", dependencies: ["DirigibleTimeline", "DirigibleCore"]),
         .testTarget(
             name: "DirigibleTests",
-            dependencies: ["DirigibleApp", "DirigibleAudio", "DirigibleCore", "DirigibleTimeline"]),
+            dependencies: ["DirigibleApp", "DirigibleAudio", "DirigibleCore", "DirigibleTimeline", "DirigibleMCP"]),
     ]
 )
 

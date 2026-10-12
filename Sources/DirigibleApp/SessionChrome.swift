@@ -7,6 +7,9 @@ import Observation
 /// controller, so a later split view changes no toolbar code.
 @MainActor final class SessionChrome: NSObject, NSToolbarDelegate, NSMenuItemValidation {
     let toolbar = NSToolbar(identifier: ToolbarItemID.toolbar)
+    /// The mark of a connected agent (C12): a title bar accessory that only hides and shows, so
+    /// the autosaved toolbar never changes.
+    let agentMark = agentMarkAccessory()
     private weak var model: SessionWindow?
     private(set) weak var window: NSWindow?
     private(set) weak var time: TimeDisplay?
@@ -57,6 +60,7 @@ import Observation
         // A visible title keeps the display-mode menu (Icon and Text).
         window.titleVisibility = .visible
         window.toolbar = toolbar
+        window.addTitlebarAccessoryViewController(agentMark)
         update()
         startTicker()
     }
@@ -160,6 +164,7 @@ import Observation
             }
         }
         if let window, window.subtitle != state.subtitle { window.subtitle = state.subtitle }
+        if agentMark.isHidden == state.agentConnected { agentMark.isHidden = !state.agentConnected }
         guard let model, model.shown != state.shown else { return }
         // A banner of a kind that did not show is announced once.
         for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {

@@ -9,7 +9,7 @@ struct DirigibleApp: App {
 
     var body: some Scene {
         // The system adds Dirigible > Settings… with Command-comma.
-        Settings { SettingsView(defaults: app.defaults, domain: Bundle.main.bundleIdentifier) }
+        Settings { SettingsView(defaults: app.defaults, domain: Bundle.main.bundleIdentifier, app: app) }
             .commands {
                 // View > Show/Hide Toolbar (Option-Command-T) and Customize Toolbar… (decision 0023).
                 ToolbarCommands()

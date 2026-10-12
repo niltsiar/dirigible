@@ -69,6 +69,10 @@ struct MarkerCommandTests {
         expected.name = "Renamed"
         #expect(try package.read().markers["m1"] == expected, "only the name changes")
 
+        // Code gate item D5: the rule of the Marker pane, so the spaces around the URL go.
+        #expect(
+            try await package.run("marker", "set", "PKG", "--id", "m1", "--url", " https://example.com/b ").status == 0)
+        #expect(try package.read().markers["m1"]?.url?.text == "https://example.com/b")
         #expect(try await package.run("marker", "set", "PKG", "--id", "m1", "--url", "").status == 0)
         expected.url = nil
         #expect(try package.read().markers["m1"] == expected, "the URL is cleared, the image stays")

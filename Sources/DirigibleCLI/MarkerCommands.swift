@@ -102,11 +102,8 @@ struct MarkerFields: Sendable {
     func work() throws(MarkerEditError) -> MarkerWork {
         var link: WebURL??
         if let url {
-            do throws(EpisodeFieldError) { link = .some(url.isEmpty ? nil : try WebURL(url)) } catch {
+            do throws(EpisodeFieldError) { link = .some(try Marker.url(fromText: url)) } catch {
                 throw .badURL(error.message)
-            }
-            if let text = link??.text, text.utf8.count > Marker.maximumURLBytes {
-                throw .badURL(SessionError.markerURLTooLong.message)
             }
         }
         return MarkerWork(

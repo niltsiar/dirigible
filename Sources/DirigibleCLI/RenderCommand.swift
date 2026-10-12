@@ -103,8 +103,8 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
 func warnDropped(_ chapters: [Marker]) {
     for chapter in chapters {
         let line =
-            "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter; "
-            + "the file leaves it out.\n"
+            "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter, "
+            + "or at or after the end of the audio; the file leaves it out.\n"
         try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
     }
 }

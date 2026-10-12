@@ -15,7 +15,8 @@ enum WindowBanner: Equatable {
     /// 0032). A warning when the gain is over the auto-level limit.
     case exportReport(LoudnessReport, file: String)
     /// The names of the chapters that the exported file leaves out, because each starts at the
-    /// time of another chapter (run 2026-10-11-chapters-in-file, C5f).
+    /// time of another chapter, or at or after the end of the M4A audio (run
+    /// 2026-10-11-chapters-in-file, C5f, code gate item D6).
     case chaptersDropped([String], file: String)
     /// The exported M4A has no chapter images: a chapter has no image, and the episode has no
     /// artwork (run 2026-10-11-chapters-in-file, C5b).

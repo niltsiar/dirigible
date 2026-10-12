@@ -19,7 +19,8 @@ enum ExportStep: Hashable {
 }
 
 /// The chapter warnings of an exported file: the names of the chapters that it leaves out, because
-/// each starts at the time of another chapter, and whether it has no chapter images. Also the name
+/// each starts at the time of another chapter or after the audio, and whether it has no chapter
+/// images. Also the name
 /// of the file and the session revision of the export.
 struct ChapterWarningsShown: Equatable {
     let names: [String]

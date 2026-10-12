@@ -17,9 +17,12 @@ import Testing
 
     init() throws { folder = try TemporaryFolder() }
 
-    func open(device: String = "mic") async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView) {
+    func open(device: String = "mic", in parent: URL? = nil) async throws
+        -> (SessionWindow, Studio, NSWindow, TimelineScrollView)
+    {
         let opened = try await openLanes(
-            app, try await timelinePackage(in: folder.url, tracks: 3, seconds: 60, noise: true, device: device))
+            app,
+            try await timelinePackage(in: parent ?? folder.url, tracks: 3, seconds: 60, noise: true, device: device))
         #expect(opened.2.makeFirstResponder(opened.3.lanes))
         return opened
     }
@@ -30,16 +33,139 @@ import Testing
         return await Task.detached { autoLevel(clips, mode, of: session, in: url).session }.value
     }
 
-    /// 12a. Control: a level of every clip with no selection changes the session.
-    @Test func noSelectionDoesNothing() async throws {
-        let (model, studio, _, _) = try await open()
+    /// Mutes t3, then levels `marks` with `mode`. Records an issue when the clips of `leveled` do
+    /// not get the gains of `autoLevel`, when another clip changes, or when one Undo does not give
+    /// back the session before the level.
+    func expectLevel(
+        _ marks: Marks, _ mode: LevelMode, levels leveled: Set<ClipID>, _ label: String,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws {
+        let parent = folder.url.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        let (model, studio, _, _) = try await open(in: parent)
+        model.edit { session throws(SessionError) in try session.setMuted(true, tracks: ["t3"]) }
         let before = studio.session
-        for marks in [Marks(), Marks(inPoint: 0, outPoint: 48_000), Marks(tracks: ["t1"])] {
-            model.timeline.marks = marks
-            await model.level(.eachClip)
+        let target = await expected(leveled, mode, studio)
+        model.timeline.marks = marks
+
+        await model.level(mode)
+
+        for clip: ClipID in ["c1", "c2", "c3"] {
+            let gain = studio.session.clip(clip)?.clip.gain
+            let wanted = leveled.contains(clip) ? target.clip(clip)?.clip.gain : .zero
+            #expect(
+                gain == wanted && (gain != .zero) == leveled.contains(clip),
+                "\(label): \(clip) gain \(String(describing: gain)), not \(String(describing: wanted))",
+                sourceLocation: sourceLocation)
         }
-        #expect(studio.session == before, "no selection: the session changed")
-        #expect(!studio.canUndo && model.alert == nil, "no selection: an entry or an alert")
+        model.undo()
+        let undone = studio.session == before
+        #expect(
+            undone && model.alert == nil, "\(label): one Undo does not give back the session",
+            sourceLocation: sourceLocation)
+        await model.close()
+    }
+
+    /// C1, C4: with the empty selection, each command levels every clip, also on the muted t3.
+    @Test func noSelectionLevelsEveryClip() async throws {
+        try await expectLevel(Marks(), .eachClip, levels: ["c1", "c2", "c3"], "no selection")
+        try await expectLevel(Marks(inPoint: 0), .equallyPerTrack, levels: ["c1", "c2", "c3"], "in point only")
+    }
+
+    /// C1b: a track-only selection levels every clip of its tracks.
+    @Test func aTrackOnlySelectionLevelsItsTracks() async throws {
+        try await expectLevel(Marks(tracks: ["t1", "t3"]), .eachClip, levels: ["c1", "c3"], "tracks t1 and t3")
+    }
+
+    /// C1c: a range with no track touches the clips of all tracks, as I and O do.
+    @Test func aRangeWithNoTrackUsesAllTracks() async throws {
+        try await expectLevel(
+            Marks(inPoint: 48_000, outPoint: 96_000), .eachClip, levels: ["c1", "c2", "c3"], "range with no track")
+    }
+
+    /// C4: a range on the muted t3 only levels c3 (decision 0039).
+    @Test func aMutedTrackGetsItsLevel() async throws {
+        try await expectLevel(
+            Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t3"]), .eachClip, levels: ["c3"], "muted t3")
+    }
+
+    /// C1b, plan gate P7: a click on the t1 header from the empty selection, then Cmd-L.
+    @Test func aHeaderClickLevelsItsTrack() async throws {
+        let (model, studio, _, _) = try await open()
+        let target = await expected(["c1"], .eachClip, studio)
+        model.clickHeader("t1", flags: [])
+        #expect(model.timeline.selection == .range(Marks(tracks: ["t1"])), "header click: \(model.timeline.selection)")
+
+        app.timeline(.autoLevel, event: nil, in: nil)
+
+        await until("Command-L levels c1") { studio.session.clip("c1")?.clip.gain != .zero }
+        #expect(studio.session.clip("c1")?.clip.gain == target.clip("c1")?.clip.gain, "header click: c1")
+        #expect(
+            studio.session.clip("c2")?.clip.gain == .zero && studio.session.clip("c3")?.clip.gain == .zero,
+            "header click: c2 or c3 changed")
+        await model.close()
+    }
+
+    /// C3: a selection with no clip beeps one time and changes nothing.
+    @Test func aSelectionWithNoClipBeeps() async throws {
+        let (model, studio, _, _) = try await open()
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        model.edit { session throws(SessionError) in try session.addTrack("t4", name: "t4", layout: .mono) }
+        let past = Marks(inPoint: 3_000_000, outPoint: 3_048_000)
+        let values: [(Selection, String)] = [
+            (.range(Marks(inPoint: 3_000_000, outPoint: 3_048_000, tracks: ["t1"])), "gap on t1"),
+            (.range(past), "range with no track past the end"),
+            (.range(Marks(tracks: ["t4"])), "track t4 with no clip"),
+            (ClipSet(["gone"]).map { .clips($0) } ?? .none, "stale clip set"),
+        ]
+        for (selection, label) in values {
+            let (before, undo, count) = (studio.session, studio.canUndo, beeps)
+            model.timeline.selection = selection
+            await model.level(.eachClip)
+            let same = studio.session == before
+            #expect(same && studio.canUndo == undo, "\(label): the session or the undo changed")
+            #expect(beeps == count + 1, "\(label): beeps \(beeps - count)")
+            #expect(model.timeline.selection == selection, "\(label): the selection changed")
+        }
+        await model.close()
+    }
+
+    /// C9: the titles say All only for the empty selection, and with no key window they do not.
+    @Test func theTitlesFollowTheScope() async throws {
+        let (model, _, _, _) = try await open()
+        let cases: [(Selection, L10n, L10n)] = [
+            (.none, .menuToolsLevelAll, .menuToolsLevelTrackAll),
+            (.range(Marks(inPoint: 0)), .menuToolsLevelAll, .menuToolsLevelTrackAll),
+            (.range(Marks(tracks: ["t1"])), .menuToolsLevel, .menuToolsLevelTrack),
+            (.range(Marks(inPoint: 0, outPoint: 48_000)), .menuToolsLevel, .menuToolsLevelTrack),
+            (.range(Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])), .menuToolsLevel, .menuToolsLevelTrack),
+            (
+                .range(Marks(inPoint: 3_000_000, outPoint: 3_048_000, tracks: ["t1"])), .menuToolsLevel,
+                .menuToolsLevelTrack
+            ),
+            (ClipSet(["c1"]).map { .clips($0) } ?? .none, .menuToolsLevel, .menuToolsLevelTrack),
+        ]
+        for (selection, title, trackTitle) in cases {
+            model.timeline.selection = selection
+            #expect(app.levelTitle(.autoLevel, for: model) == title, "\(selection)")
+            #expect(app.levelTitle(.autoLevelPerTrack, for: model) == trackTitle, "\(selection) per track")
+        }
+        #expect(app.levelTitle(.autoLevel, for: nil) == .menuToolsLevel, "no key window")
+        #expect(app.levelTitle(.autoLevelPerTrack, for: nil) == .menuToolsLevelTrack, "no key window per track")
+        #expect(app.levelTitle(.fade, for: model) == nil, "another command")
+        await model.close()
+    }
+
+    /// C10: the items are off with no clip, and a selection does not turn them off.
+    @Test func theItemsAreOffWithNoClip() async throws {
+        let (model, studio, _, _) = try await open()
+        model.timeline.marks = Marks(inPoint: 3_000_000, outPoint: 3_048_000, tracks: ["t1"])
+        #expect(model.isOn(.autoLevel) && model.isOn(.autoLevelPerTrack), "a range over a gap turns the items off")
+        let tracks = studio.session.tracks.map(\.id)
+        model.edit { session throws(SessionError) in try session.clear(.zero..<Frames.limit, on: tracks) }
+        #expect(studio.session.tracks.allSatisfy { $0.clips.isEmpty }, "the clips stay")
+        #expect(!model.isOn(.autoLevel) && !model.isOn(.autoLevelPerTrack), "no clip: the items are on")
         await model.close()
     }
 
@@ -83,14 +209,18 @@ import Testing
         #expect(studio.transport == .recording(take: 1))
         await hal.feed(seconds: 0.5)
         let (before, undo) = (studio.session, studio.canUndo)
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        #expect(!model.isOn(.autoLevel) && !model.isOn(.autoLevelPerTrack), "take running: the items are on")
 
         await model.level(.eachClip)
 
         #expect(studio.session == before && studio.canUndo == undo, "take running: the session changed")
-        #expect(model.alert == nil, "take running: an alert")
+        #expect(model.alert == nil && beeps == 0, "take running: an alert or a beep")
         #expect(studio.transport == .recording(take: 1), "take running: the take ended")
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
+        #expect(model.isOn(.autoLevel), "after the take: the item is off")
         await model.close()
     }
 

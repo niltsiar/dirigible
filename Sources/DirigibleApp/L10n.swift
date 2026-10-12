@@ -44,6 +44,8 @@ enum L10n: String, CaseIterable {
     case menuTools = "menu.tools"
     case menuToolsLevel = "menu.tools.level"
     case menuToolsLevelTrack = "menu.tools.level.track"
+    case menuToolsLevelAll = "menu.tools.level.all"
+    case menuToolsLevelTrackAll = "menu.tools.level.track.all"
     case menuTransport = "menu.transport"
     case menuTransportPlay = "menu.transport.play"
     case menuTransportStop = "menu.transport.stop"

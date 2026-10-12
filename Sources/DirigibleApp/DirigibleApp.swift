@@ -157,7 +157,7 @@ struct DirigibleApp: App {
     /// Each timeline item reads `isOn`, so one rule turns the items off (probe K1 keeps the items whose key a
     /// field uses on).
     private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {
-        Button(item.title.key) { app.timeline(item.command) }
+        Button((app.levelTitle(item.command, for: app.key) ?? item.title).key) { app.timeline(item.command) }
             .keyboardShortcut(item.key, modifiers: item.modifiers, localization: item.command.keyLocalization)
             .disabled(app.key?.isOn(item.command) == false)
     }

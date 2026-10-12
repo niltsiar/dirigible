@@ -266,11 +266,21 @@ Drag the left edge of the inspector to make it wider or narrower, from 240 to 40
 
 ### Level the clips
 
-Choose **Tools > Auto Level** (Command-L) to set the gain of each clip that the selection touches, on the selected tracks. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.
+Choose **Tools > Auto Level** (Command-L) to set the gain of each clip in the selection. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.
 
 Choose **Tools > Auto Level per Track** (Option-Command-L) to give the clips of one track the same change. The differences in level between them stay, unless a gain reaches the 20 dB limit.
 
-With no selection, the commands do nothing. Each command is one step in the undo history.
+The selection gives the clips:
+
+- Nothing selected: every clip of the session, also on a muted track. The commands are **Auto Level All Clips** and **Auto Level per Track (All)**.
+- Only tracks selected (for example after a click on a track header): every clip of those tracks.
+- A selection on the selected tracks: each clip that the selection touches on those tracks.
+- A selection with no selected track: each clip that the selection touches on all tracks, as **I** and **O** do.
+- A set of clips: the clips of the set.
+
+When the selection has no clip, the command beeps and changes nothing. The commands are off when the session has no clip, during a take, and during an import. Each command is one step in the undo history.
+
+Auto Level changes the clip gain only. The track volume adds to the clip gain, and Auto Level does not change it.
 
 ## Add markers and chapters
 
@@ -628,6 +638,8 @@ The **Tools** menu (**Herramientas**).
 |---|---|---|
 | **Auto Level** | **Nivelar automáticamente** | Command-L |
 | **Auto Level per Track** | **Nivelar automáticamente por pista** | Option-Command-L |
+| **Auto Level All Clips** | **Nivelar automáticamente todos los clips** | Command-L |
+| **Auto Level per Track (All)** | **Nivelar automáticamente por pista (todos)** | Option-Command-L |
 
 ### Transport
 

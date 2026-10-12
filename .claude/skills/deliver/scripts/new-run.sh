@@ -1,6 +1,8 @@
 #!/bin/bash
-# Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md, decisions.tsv, and logs/,
-# plus one line in .scratchpads/ledger.md. Running it again for the slug of an open run,
+# Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md, decisions.tsv, logs/, and the
+# analysis.md and plan.md skeletons (headings only, so scripts/check-plan.sh refuses them until the
+# run fills them), plus one line in .scratchpads/ledger.md. A subagent fills a skeleton with the
+# Edit tool, which works where the Write tool refuses a new run file. Running it again for the slug of an open run,
 # on any day, returns the same folder and changes nothing. It prints the backlog section sizes,
 # the upkeep items of ## Next, and a due architecture audit on stderr.
 set -euo pipefail
@@ -62,6 +64,8 @@ product="$(awk -F'|' -v cur="$run" '
     "audit the module boundaries, the files near 400 lines, the copies, and the red flags of" \
     ".claude/skills/architect/references/design-red-flags.md" >&2
 
+[[ -f "$dir/analysis.md" ]] || printf '# Analysis: %s\n\n## Acceptance criteria\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n\n## Out of scope\n' "$slug" > "$dir/analysis.md"
+[[ -f "$dir/plan.md" ]] || printf '# Plan: %s\n\n## Slices\n' "$slug" > "$dir/plan.md"
 [[ -f "$dir/decisions.tsv" ]] || printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$dir/decisions.tsv"
 [[ -f "$dir/run.md" ]] || cat > "$dir/run.md" <<MD
 # Run $run

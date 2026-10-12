@@ -171,6 +171,20 @@ grep -qx -- '- Later items: 3' "$dir/run.md" || fail "run.md has no '- Later ite
 [[ -d "$dir/logs" ]] || fail 'new-run made no logs/ folder'
 grep -q '## Later has 3 items (+2 since 2026-01-01-old)' "$tmp/err" || fail "no Later count with the change: $(cat "$tmp/err")"
 
+# It writes analysis.md and plan.md skeletons, so a subagent fills them with the Edit tool.
+# check-plan.sh refuses the skeletons, and a second call for the open run keeps each edited file.
+grep -qx '## Unknowns' "$dir/analysis.md" && grep -qx '| id | parent | question | resolver | answer | row |' "$dir/analysis.md" ||
+  fail "no analysis.md skeleton with the Unknowns header line: $(cat "$dir/analysis.md" 2>&1)"
+grep -qx '## Slices' "$dir/plan.md" || fail "no plan.md skeleton with ## Slices: $(cat "$dir/plan.md" 2>&1)"
+out="$("$(cd "$(dirname "$log")/../../../.." && pwd)/scripts/check-plan.sh" "$dir" 2>&1)"
+code=$?
+[[ $code -eq 1 && "$out" == *'no ## Unknowns table with rows'* ]] || fail "check-plan.sh on the skeletons: exit $code: $out"
+echo '| U1 | - | q | code | a | 2026-01-01T00:00 |' >> "$dir/analysis.md"
+echo '### S1' >> "$dir/plan.md"
+before="$(cat "$dir/analysis.md" "$dir/plan.md" | shasum)"
+(cd "$repo" && "$new_run" big > /dev/null 2>&1) || fail "new-run again for the open run exits $?"
+[[ "$(cat "$dir/analysis.md" "$dir/plan.md" | shasum)" == "$before" ]] || fail 'a second new-run changed an edited skeleton'
+
 printf '# Backlog\n\n## Next\n\n- short\n\n## Later\n\n- a\n' > "$repo/.scratchpads/backlog.md"
 rm -r "$dir"
 printf '# Run 2026-01-01-old\n' > "$repo/.scratchpads/runs/2026-01-01-old/run.md"

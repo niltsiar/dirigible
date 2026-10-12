@@ -5,9 +5,10 @@
 # The key is the HEAD tree with no Sources/, Tests/, docs/, or README.md, plus the existence of
 # each floor path of scripts/check-changed.sh --floor, the sorted test list, the tool versions,
 # and the date: a pass is good for one day. The script computes the key once, before the tests.
-# On a clean tree, the tests run from a key tree: a clone of HEAD in a temporary folder with a
-# sparse checkout of the key paths only, so a test that reads a path outside the key fails. The
-# sparse checkout stays inside the clone: in a linked worktree it changes the shared config.
+# On a clean tree, the tests run from a key tree: a clone of HEAD in a temporary folder of the git
+# common dir with a sparse checkout of the key paths only, so a test that reads a path outside the
+# key fails. The sparse checkout stays inside the clone: in a linked worktree it changes the shared
+# config. A trap removes the folder at the exit and after INT or TERM.
 # A pass appends the key to dirigible-hooks-stamp in `git rev-parse --git-common-dir`. The next
 # run with the same key prints "test-hooks: reuse <key>" and runs no test.
 # No reuse and no stamp: on a dirty tree (the tests run in place), when the list is not the

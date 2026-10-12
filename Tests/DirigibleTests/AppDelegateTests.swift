@@ -166,7 +166,7 @@ import os
         let (window, studio) = try await windowWithPeaks()
         studio.peakLoad.states = [:]
 
-        window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        (window as any NSWindowDelegate).windowDidBecomeKey?(Notification(name: NSWindow.didBecomeKeyNotification))
 
         await until(limit: .seconds(30), "the focus loads the peaks") { studio.peaks["f1"]?.peaks != nil }
         await window.close()

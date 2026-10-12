@@ -6,10 +6,19 @@ package struct MCPServer {
     /// `initialize` selects the legacy era for the life of the process.
     enum Era { case modern, legacy }
     private(set) var era = Era.modern
+    /// The `clientInfo` of `initialize`, for the agent name of a legacy call (decision 0046).
+    private var initializeClient = ClientInfo()
+
+    /// Gives the result of a `tools/call` from the app, or nil to run the call on the files.
+    package typealias Route = (_ tool: String, _ arguments: [String: Any], _ client: ClientInfo) -> (
+        text: String, isError: Bool
+    )?
+    private let route: Route?
+
+    /// With `route`, `dirigible mcp` is the bridge to the app (decision 0046).
+    package init(route: Route? = nil) { self.route = route }
 
     /// The legacy versions, newest first. `initialize` gets the client version when it is here.
-    package init() {}
-
     static let legacyVersions = ["2025-11-25", "2025-06-18", "2025-03-26"]
 
     /// One request line to one answer line, or nil for a notification or an empty line. Each line
@@ -50,7 +59,8 @@ package struct MCPServer {
             guard let arguments = params["arguments"].map({ $0 as? [String: Any] }) ?? [:] else {
                 return reply(id, error: -32602, "the arguments of tools/call are not an object.")
             }
-            let (text, isError) = tool.call(arguments)
+            let client = ClientInfo(meta(params)?["io.modelcontextprotocol/clientInfo"]) ?? initializeClient
+            let (text, isError) = route?(name, arguments, client) ?? tool.call(arguments)
             return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])
         default: return reply(id, error: -32601, "no method \(method).")
         }
@@ -66,19 +76,22 @@ package struct MCPServer {
         let asked = params["protocolVersion"] as? String ?? ""
         let version = Self.legacyVersions.contains(asked) ? asked : Self.legacyVersions[0]
         era = .legacy
+        initializeClient = ClientInfo(params["clientInfo"]) ?? ClientInfo()
         return reply(id, ["protocolVersion": version, "capabilities": capabilities, "serverInfo": serverInfo])
     }
 
     /// A modern request with a `_meta` version that is not 2026-07-28 gets -32022. A request with
     /// no `_meta` version is served (U13).
     private func versionRefusal(_ id: Any, _ params: [String: Any]) -> String? {
-        let meta = params["_meta"] as? [String: Any]
-        guard let asked = meta?["io.modelcontextprotocol/protocolVersion"] as? String, asked != Self.modernVersion
+        guard let asked = meta(params)?["io.modelcontextprotocol/protocolVersion"] as? String,
+            asked != Self.modernVersion
         else { return nil }
         return reply(
             id, error: -32022, "the protocol version \(asked) is not supported.",
             data: ["supported": [Self.modernVersion] + Self.legacyVersions, "requested": asked])
     }
+
+    private func meta(_ params: [String: Any]) -> [String: Any]? { params["_meta"] as? [String: Any] }
 
     private let capabilities = ["tools": [String: Any]()]
     private let serverInfo = ["name": "dirigible", "version": "1"]

@@ -51,6 +51,18 @@ extension MCPProtocolTests {
         #expect(listed["cacheScope"] as? String == "public")
     }
 
+    /// C18 of run 2026-10-12-mcp-in-app: after `initialize`, `server/discover` and an unknown
+    /// method get -32601, never -32022, so a client that tries the modern era first falls back.
+    @Test func legacyDiscoverIsMethodNotFound() async throws {
+        let answers = try await mcp([
+            request(
+                1, "initialize", ["protocolVersion": "2025-11-25", "capabilities": [:], "clientInfo": ["name": "t"]]),
+            request(2, "server/discover"), request(3, "no/method"),
+        ])
+        #expect(errorCode(answer(answers, id: 2)) == -32601)
+        #expect(errorCode(answer(answers, id: 3)) == -32601)
+    }
+
     @Test func aModernRequestNeedsASupportedVersion() async throws {
         let modern = try await mcp([
             modernRequest(1, "tools/list"), request(2, "tools/list"),

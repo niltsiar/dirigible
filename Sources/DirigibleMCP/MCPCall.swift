@@ -105,6 +105,17 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     } catch {
         throw ToolError(mediaCheckMessage(error))
     }
+    return try infoText(session, media: media, tracks: tracks, range: range)
+}
+
+/// The `session_info` text of a session and its media faults: the file path and the live path
+/// of an agent give the same JSON (decision 0046).
+func infoText(_ session: Session, media: [FileID: MediaFault], tracks: [TrackID]?, range: Range<Frames>?)
+    throws(ToolError) -> String
+{
+    if let unknown = tracks?.first(where: { session.track($0) == nil }) {
+        throw ToolError(SessionError.unknownTrack(unknown).message)
+    }
     let whole = SessionView(session, media: media)
     let view = whole.filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
     let text: String

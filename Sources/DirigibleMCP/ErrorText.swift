@@ -17,6 +17,12 @@ package func splitTakeMessage(_ package: String) -> String {
         + "other segments, so place them first (dirigible capture place)."
 }
 
+/// The refusal of a live agent call that copies files into a package that the app has open
+/// (decision 0046, C7).
+func openInAppMessage(_ package: String) -> String {
+    "\(package) is open in Dirigible. Do this in the app, or close the window."
+}
+
 /// The fault of the media check of `info` and `session_info`.
 package func mediaCheckMessage(_ error: any Error) -> String {
     "cannot check the audio files: \(error.localizedDescription)"

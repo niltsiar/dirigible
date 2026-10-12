@@ -48,12 +48,19 @@ package struct EpisodeWork: Sendable {
     let change: @Sendable (inout Episode) -> Void
 
     package func run(_ session: inout Session, package: URL) throws(ArtworkError) {
-        var episode = session.episode
-        change(&episode)
-        if let artwork {
-            episode.artwork = artwork.isEmpty ? nil : try importArtwork(URL(filePath: artwork), into: package)
-        }
+        var episode = episode(from: session.episode)
+        if let artwork, !artwork.isEmpty { episode.artwork = try importArtwork(URL(filePath: artwork), into: package) }
         session.setEpisode(episode)
+    }
+
+    /// The episode after this edit, with no image file read: an empty `artwork` removes the
+    /// artwork, and a path keeps the old one. The live path of an agent runs it in `Studio.edit`
+    /// (decision 0046).
+    package func episode(from old: Episode) -> Episode {
+        var episode = old
+        change(&episode)
+        if artwork == "" { episode.artwork = nil }
+        return episode
     }
 }
 

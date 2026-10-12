@@ -22,12 +22,13 @@ extension ExportWindowTests {
         }
     }
 
-    /// The panel stub: it keeps the name and the message, and answers `url`.
+    /// The panel stub: it keeps the name and the message, and answers `url` with the item there now
+    /// as the confirmed item, as the panel does.
     func chaptersPanel(_ url: URL?) -> OSAllocatedUnfairLock<[(String, String?)]> {
         let calls = OSAllocatedUnfairLock<[(String, String?)]>(initialState: [])
         app.chooseChaptersExport = { _, name, message, done in
             calls.withLock { $0.append((name, message)) }
-            done(url)
+            done(url.map { ChaptersTarget(url: $0, confirmed: ConfirmedFile(at: $0)) })
         }
         return calls
     }
@@ -206,6 +207,35 @@ extension ExportWindowTests {
         }
         #expect(model.alert == nil, "alert \(String(describing: model.alert))")
         #expect(try startTimes(file) == [4])
+        await model.close()
+    }
+
+    /// Code gate item E3. Only the save panel confirms a replace: a JSON that appears after the panel
+    /// and before the write does not let the export replace the chapter images.
+    @Test func aJSONAfterThePanelDoesNotReplaceTheChapterImages() async throws {
+        let file = folder.url.appending(path: "show.json")
+        let picture = folder.url.appending(path: "show-1.jpg")
+        app.chooseChaptersExport = { _, _, _, done in
+            try? Data("old json".utf8).write(to: file)
+            try? Data("old".utf8).write(to: picture)
+            done(ChaptersTarget(url: file, confirmed: nil))
+        }
+        let (model, studio, _) = try await window()
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        let source = model.url.appending(path: image.path)
+        try FileManager.default.createDirectory(
+            at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("new".utf8).write(to: source)
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter, image: image))
+        }
+        model.exportChapters()
+        await until("the alert shows or the image changes") {
+            model.alert != nil || (try? Data(contentsOf: picture)) != Data("old".utf8)
+        }
+        #expect(model.alert == .error(.export(.chapterImageExists(picture.path))))
+        #expect(try Data(contentsOf: picture) == Data("old".utf8), "the old image changed")
+        #expect(try Data(contentsOf: file) == Data("old json".utf8), "the JSON changed")
         await model.close()
     }
 

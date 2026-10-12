@@ -15,9 +15,9 @@ if [[ "${1:-}" != "--compare" ]]; then
   main="${1:?usage: bench-pairs.sh <main worktree> <filter> <pairs> <out folder>}"
   filter="${2:?filter}"; count="${3:?pairs}"; out="${4:?out folder}"
   root="$(cd "$(dirname "$0")/.." && pwd)"
+  [[ ! -e "$out" ]] || { echo "bench-pairs: $out exists; give a new folder" >&2; exit 2; }
   # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
   [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$root/scripts/with-lock.sh" "$0" "$@"
-  [[ ! -e "$out" ]] || { echo "bench-pairs: $out exists; give a new folder" >&2; exit 2; }
   mkdir -p "$out"; out="$(cd "$out" && pwd)"
   run() { # run <tree> <log name>
     echo "$2 $(date +%T) $(uptime | sed 's/.*load/load/')" >> "$out/load.txt"

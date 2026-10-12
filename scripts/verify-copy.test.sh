@@ -211,6 +211,28 @@ run start "$repo/Pilot.dirigible"
     fail "start new with a package: open got: $(tail -1 "$state/open.log" 2>/dev/null)"
 run stop
 
+# C3d a package that routes a track to an input device: a take can record a real input, so start
+# refuses it before the copy step, and --live-input <check> opens it. An app route opens.
+pkg="$repo/Live.dirigible"
+mkdir -p "$pkg"
+printf '<session><tracks><track name="Host"><route device="BuiltInMicrophoneDevice" channels="1"/></track></tracks></session>\n' >"$pkg/session.xml"
+: >"$state/open.log"
+run start "$pkg"
+[[ $code -eq 1 && "$err" == *'device="BuiltInMicrophoneDevice"'* && "$err" == *"dirigible track route $pkg <track> --none"* &&
+    "$err" == *"--live-input <check>"* ]] || fail "device route: exit $code: $err"
+[[ ! -s "$state/open.log" && ! -e "$copy" ]] || fail "device route: the copy was made or opened: $(cat "$state/open.log")"
+run start --live-input c3 "$pkg"
+[[ $code -eq 0 ]] && is_copy "$out" || fail "device route with --live-input: exit $code: $err"
+[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy $pkg" ]] ||
+    fail "device route with --live-input: open got: $(tail -1 "$state/open.log" 2>/dev/null)"
+run stop
+printf '<session><tracks><track name="Call"><route app="us.zoom.xos"/></track></tracks></session>\n' >"$pkg/session.xml"
+run start "$pkg"
+[[ $code -eq 0 ]] && is_copy "$out" || fail "app route: exit $code: $err"
+run stop
+run start --live-input
+[[ $code -eq 2 && "$err" == *"usage: verify-copy.sh"* ]] || fail "--live-input with no check: exit $code: $err"
+
 # C3b start with arguments
 new_case
 run start -- --args -AppleLanguages "(es)"

@@ -8,6 +8,13 @@ import Testing
 /// runs at most the bound of its slots. Each hold test has its own slots, so the other suites
 /// cannot delay its children.
 struct CLIHelperTests {
+    /// Code gate item E6. The MP3 chapter limit is a limit with an action, in ms and in days.
+    @Test func theMP3ChapterLimitGivesTheLimitAndAnAction() {
+        #expect(
+            failureMessage(.chaptersTooLong, out: "mix.mp3", noun: "export")
+                == "an MP3 file with chapters holds at most 4294967295 ms (about 49.7 days). Export a shorter range.")
+    }
+
     /// As many children as the pool is wide wait for a release file. The test writes the file only
     /// after every child started. A helper that holds a pool thread for each child leaves no
     /// thread for this test, so the children end at the limit of the helper.

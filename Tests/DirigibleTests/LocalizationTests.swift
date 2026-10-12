@@ -36,6 +36,17 @@ struct LocalizationTests {
         }
     }
 
+    /// Code gate item E6. An MP3 chapter time is 32-bit in ms: at most about 49.7 days.
+    @Test func theMP3ChapterLimitSaysAbout49Point7Days() throws {
+        let texts = [
+            "en": "An MP3 file with chapters is at most about 49.7 days long. Export a smaller selection.",
+            "es": "Un archivo MP3 con capítulos dura como máximo unos 49,7 días. Exporte una selección más pequeña.",
+        ]
+        for (language, text) in texts {
+            #expect(try stringsTable(language)[L10n.errorExportChaptersTooLong.rawValue] == text, "\(language)")
+        }
+    }
+
     @Test func checkerFindsAnEmptyValue() {
         #expect(tableProblems(en: ["a": "A"], es: ["a": ""], keys: ["a"]) == ["es: no value for a"])
     }

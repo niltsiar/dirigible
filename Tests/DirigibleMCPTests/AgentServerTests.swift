@@ -35,7 +35,8 @@ struct AgentServerTests {
         #expect(server.state == .off)
         await until("the socket file stays") { !FileManager.default.fileExists(atPath: socket.path) }
         #expect(await onThread { client.readsEOF() }, "the connection did not close")
-        #expect(await probe(socket) == .noApp)
+        let afterStop = await probe(socket)
+        #expect(afterStop == .noApp)
 
         let next = emptyServer(socket)
         await until("the lock stays held") {
@@ -58,7 +59,8 @@ struct AgentServerTests {
         defer { server.stop() }
 
         #expect(server.state == .listening)
-        #expect(await probe(folder.socket) == .reply(.notOpen))
+        let outcome = await probe(folder.socket)
+        #expect(outcome == .reply(.notOpen))
     }
 
     /// C9: with the lock held by another server, a second server does not listen, and the first
@@ -72,7 +74,8 @@ struct AgentServerTests {
         second.start()
 
         #expect(second.state == .servedElsewhere)
-        #expect(await probe(folder.socket) == .reply(.notOpen))
+        let outcome = await probe(folder.socket)
+        #expect(outcome == .reply(.notOpen))
     }
 
     /// C10: `sun_path` holds 104 bytes with the NUL: a path of 103 bytes binds, and one of 104
@@ -104,6 +107,35 @@ struct AgentServerTests {
         #expect(agentSocketPath(environment: ["DIRIGIBLE_MCP_SOCKET": ""]).lastPathComponent == "mcp.sock")
     }
 
+    /// C1: a stop during a call answers that call, then closes the connection and frees the lock,
+    /// also when the app drops the listener at once (decision 0046 Life cycle).
+    @Test func stopAnswersTheRunningCall() async throws {
+        let folder = try SocketFolder()
+        let gate = Gate()
+        var listener: AgentListener?
+        let handle: @Sendable (AgentCall) async -> AgentReply = { _ in
+            await gate.wait()
+            return .notOpen
+        }
+        if case .listening(let opened) = AgentListener.open(socket: folder.socket, handle: handle, counted: { _ in }) {
+            listener = opened
+        }
+        try #require(listener != nil)
+        let reply = Task { await send(folder.socket, "session_info", ["package": "/tmp/none.dirigible"]) }
+        await until("the call did not start") { gate.waiting }
+        listener?.stop()
+        listener = nil
+        gate.open()
+
+        #expect(await reply.value == .reply(.notOpen), "C1: the running call got no reply")
+        let next = emptyServer(folder.socket)
+        await until("the lock stays held") {
+            next.start()
+            return next.state == .listening
+        }
+        next.stop()
+    }
+
     /// C16: a bridge that closes before its reply does not stop the server: the next connection
     /// is served. The server ignores SIGPIPE, so this test does not check SO_NOSIGPIPE.
     @Test func peerClosesBeforeReply() async throws {
@@ -117,7 +149,8 @@ struct AgentServerTests {
         client.send(#"{"tool":"session_info","arguments":{"package":"/tmp/none.dirigible"}}"#)
         client.close()
 
-        #expect(await probe(folder.socket) == .reply(.notOpen))
+        let outcome = await probe(folder.socket)
+        #expect(outcome == .reply(.notOpen))
         await until("the closed connection stays counted") { server.connected == 0 }
     }
 }

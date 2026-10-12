@@ -156,14 +156,15 @@ final class AgentListener: @unchecked Sendable {
         connection.source?.suspend()
         let checked = Self.check(Data(line))
         let (handle, key) = (handle, ObjectIdentifier(connection))
-        // The task only waits for the main actor; the reply write runs on the queue.
-        Task {
+        // The task only waits for the main actor; the reply write runs on the queue. The task
+        // keeps the listener until the reply, also after a stop: a freed suspended source traps.
+        Task { [self] in
             let reply =
                 switch checked {
                 case .success(let call): await handle(call)
                 case .failure(let error): AgentReply.result(text: error.message, isError: true)
                 }
-            queue.async { [weak self] in self?.answered(key, reply) }
+            queue.async { self.answered(key, reply) }
         }
     }
 

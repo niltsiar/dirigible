@@ -312,56 +312,8 @@ final class TimelineDocumentView: NSView {
         readout.show(value, at: point, in: shown, rate: inputs?.session.sampleRate ?? 48_000, view: self)
     }
 
-    // MARK: Mouse
-
     /// The events go to the gesture of the scroll view (decision 0020).
-    private var scrollView: TimelineScrollView? { enclosingScrollView as? TimelineScrollView }
-
-    private func place(_ event: NSEvent) -> Place {
-        let point = convert(event.locationInWindow, from: nil)
-        return .lanes(x: Double(point.x), y: Double(point.y))
-    }
-
-    /// The lane menu (decision 0037). AppKit asks for it at a right-click and a Control-click.
-    override func menu(for event: NSEvent) -> NSMenu? { scrollView?.laneMenu(at: place(event)) }
-
-    override func mouseDown(with event: NSEvent) {
-        // A Control-click opens the menu and starts no press (`ui-panel.md` 5).
-        guard !event.modifierFlags.contains(.control) else { return }
-        window?.makeFirstResponder(self)
-        let flags = event.modifierFlags
-        commandHeld = flags.contains(.command)
-        scrollView?.mouse(
-            .down(
-                place(event), shift: flags.contains(.shift), command: flags.contains(.command),
-                option: flags.contains(.option), clicks: event.clickCount))
-        showCursor(event)
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        commandHeld = event.modifierFlags.contains(.command)
-        scrollView?.mouse(.drag(place(event)))
-        scrollView?.dragPointer = (event.locationInWindow, ruler: false)
-        showCursor(event)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        scrollView?.mouse(.up(place(event)))
-        showCursor(event)
-    }
-
-    // MARK: Cursor
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        guard trackingAreas.isEmpty else { return }
-        addTrackingArea(
-            NSTrackingArea(
-                rect: .zero, options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect], owner: self))
-    }
-
-    override func mouseMoved(with event: NSEvent) { showCursor(event) }
-    override func cursorUpdate(with event: NSEvent) { showCursor(event) }
+    var scrollView: TimelineScrollView? { enclosingScrollView as? TimelineScrollView }
 
     /// The modifier keys that the hover path reads. `flagsChanged` reaches only the first
     /// responder, so a hover with the focus in a name field reads the keys here (decision 0037).
@@ -369,32 +321,9 @@ final class TimelineDocumentView: NSView {
     var modifierFlags: () -> NSEvent.ModifierFlags = { NSEvent.modifierFlags }
     /// The last cursor kind that the lanes set, and the lane point of the last hover or mouse
     /// event.
-    private(set) var shownCursor: TimelineCursor?
-    private var hoverPlace: Place?
-
-    /// An Option key-down or key-up sets the cursor again at the last point, with no mouse move.
-    override func flagsChanged(with event: NSEvent) {
-        super.flagsChanged(with: event)
-        if let hoverPlace { showCursor(at: hoverPlace, option: event.modifierFlags.contains(.option)) }
-        // A Command change during a drag turns snap off or on at once, with no mouse move.
-        let command = event.modifierFlags.contains(.command)
-        if command != commandHeld {
-            commandHeld = command
-            scrollView?.resendDrag()
-        }
-    }
+    var shownCursor: TimelineCursor?
+    var hoverPlace: Place?
 
     /// Command at the last mouse or modifier event: a drag with Command does not snap (snap run).
-    private(set) var commandHeld = false
-
-    private func showCursor(_ event: NSEvent) {
-        showCursor(at: place(event), option: modifierFlags().contains(.option))
-    }
-
-    private func showCursor(at place: Place, option: Bool) {
-        hoverPlace = place
-        guard let kind = scrollView?.cursor(at: place, option: option) else { return }
-        shownCursor = kind
-        NSCursor.timeline(kind).set()
-    }
+    var commandHeld = false
 }

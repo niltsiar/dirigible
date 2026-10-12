@@ -20,7 +20,9 @@ Changed files. Each has a dated notice line at its top. The changes remove compi
   (-Wshorten-64-to-32); the always-true check pTagData->toc != NULL in GetVbrTag removed
   (-Wtautological-pointer-compare: toc is an array).
 - gain_analysis.c: one cast (-Wshorten-64-to-32).
-- id3tag.c: four casts (-Wshorten-64-to-32).
+- id3tag.c: four casts (-Wshorten-64-to-32); four snprintf calls with the buffer size in place of
+  sprintf (-Wdeprecated-declarations, which only a sanitizer build gives). The text is the same
+  while it fits the buffer; a longer text is cut, not written past the buffer.
 - lame.c: two literal types in EQ and NEQ (-Wabsolute-value).
 - presets.c: one cast in SET_OPTION and SET__OPTION (-Wabsolute-value).
 - set_get.c: one literal type in EQ (-Wabsolute-value); two casts (-Wshorten-64-to-32).

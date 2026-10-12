@@ -102,6 +102,8 @@ HOOK_TESTS = \
 	.claude/skills/deliver/scripts/run-files.test.sh \
 	.claude/skills/reflect/scripts/seen.test.sh \
 	scripts/bench-pairs.test.sh \
+	scripts/test-helper.test.sh \
+	scripts/trace-top.test.sh \
 	scripts/icon.test.sh \
 	scripts/bundle.test.sh \
 	scripts/guide-html.test.sh \

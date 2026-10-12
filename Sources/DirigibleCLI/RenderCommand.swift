@@ -59,43 +59,42 @@ func cancelOnInterrupt() -> (source: DispatchSourceSignal, isCancelled: @Sendabl
 }
 
 /// The exit of a failed or cancelled render or export. `noun` is "render" or "export". The
-/// switch has no `default`, so a new error case does not compile until it has a message. The
 /// caller gives the message of `.rateNotSupported`.
 func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
-    let message: String
-    switch error {
     // Control-C: the exit status of the default action, with no message.
-    case .cancelled: return ExitCode(128 + SIGINT)
-    case .exists: message = "\(out) exists."
-    case .chapterImageExists(let path): message = "\(path) exists."
-    case .writeFailed(let status): message = "cannot write \(out) (status \(status))."
-    case .openFailed(let code): message = "cannot open the audio files: \(String(cString: strerror(code)))."
-    case .moveFailed(let code): message = "cannot move the \(noun) to \(out): \(String(cString: strerror(code)))."
-    case .rateNotSupported(let rate): message = "cannot write \(out) at \(rate) Hz."
-    case .diskFull: message = "cannot write \(out): the disk is full."
-    case .packageUnavailable: message = "cannot read the package."
+    guard let message = failureMessage(error, out: out, noun: noun) else { return ExitCode(128 + SIGINT) }
+    return fail(message, code: packageError)
+}
+
+/// The message of a failed render or export, nil for a cancel. The switch has no `default`, so a
+/// new error case does not compile until it has a message.
+func failureMessage(_ error: ExportError, out: String, noun: String) -> String? {
+    switch error {
+    case .cancelled: nil
+    case .exists: "\(out) exists."
+    case .chapterImageExists(let path): "\(path) exists."
+    case .writeFailed(let status): "cannot write \(out) (status \(status))."
+    case .openFailed(let code): "cannot open the audio files: \(String(cString: strerror(code)))."
+    case .moveFailed(let code): "cannot move the \(noun) to \(out): \(String(cString: strerror(code)))."
+    case .rateNotSupported(let rate): "cannot write \(out) at \(rate) Hz."
+    case .diskFull: "cannot write \(out): the disk is full."
+    case .packageUnavailable: "cannot read the package."
     case .artworkMissing(let file):
-        message =
-            "the artwork file \(file) is not in the package, or it is not downloaded. Set the artwork again with "
+        "the artwork file \(file) is not in the package, or it is not downloaded. Set the artwork again with "
             + "`dirigible episode set --artwork <image> <package>`, or remove it with `--artwork \"\"`."
     case .chapterImageMissing(let chapter, _):
-        message =
-            "the image file of chapter \"\(chapter.name)\" at \(chapter.position) is not in the package, or it is "
+        "the image file of chapter \"\(chapter.name)\" at \(chapter.position) is not in the package, or it is "
             + "not downloaded. Set the image again with `dirigible marker set --id \(chapter.id) --image <image> "
             + "<package>`, or remove it with `--image \"\"`."
     case .tooManyChapters(let count):
-        message =
-            "the range has \(count) chapters, and an MP3 file holds at most \(maximumChapters). Remove chapters, "
+        "the range has \(count) chapters, and an MP3 file holds at most \(maximumChapters). Remove chapters, "
             + "or export a smaller range."
     case .tagTooLarge:
-        message =
-            "the ID3 tag of \(out) is over \(maximumTagSize) bytes. Use a smaller artwork file or shorter notes."
+        "the ID3 tag of \(out) is over \(maximumTagSize) bytes. Use a smaller artwork file or shorter notes."
     case .chaptersTooLong:
-        message =
-            "an MP3 chapter ends at most \(maximumChapterMilliseconds) ms after the range start. Export a smaller "
-            + "range."
+        "an MP3 file with chapters holds at most \(maximumChapterMilliseconds) ms (about 49.7 days). Export a "
+            + "shorter range."
     }
-    return fail(message, code: packageError)
 }
 
 /// One warning line on stderr for each chapter that a file leaves out, in `export` and in

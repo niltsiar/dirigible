@@ -102,6 +102,14 @@ code=$?
   grep -qxF 'note: main-1 failed its asserts after its report line; its samples count' <<< "$out" ||
   fail "a main side that misses its budget: exit $code: $out"
 
+# The exception is only for the aa-* and main-* sides: a branch bench that fails its own budget
+# assert stays a failure.
+echo 'Test run with 1 test in 1 suite failed after 7.3 seconds with 2 issues.' >> "$tmp/f/branch-1.log"
+echo 'branch-1: the bench failed' >> "$tmp/f/load.txt"
+out="$("$pairs" --compare "$tmp/f" 2>&1)"
+code=$?
+[[ $code -eq 1 && "$out" == *'NOT VERIFIED: branch-1: the bench failed'* ]] || fail "a branch side that misses its budget: exit $code: $out"
+
 # Provenance: the pairs give the verdict only when the aa-* and main-* logs name one commit, the
 # branch-* logs name one commit, each log ran on a clean tree, and the branch commit has the
 # Sources, Tests, Package.swift, Package.resolved, and scripts/bench.sh of HEAD. A set in the

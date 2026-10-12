@@ -37,7 +37,7 @@ enum WindowBanner: Equatable {
     /// artwork (run 2026-10-11-chapters-in-file, C5b).
     case chapterImagesOmitted(file: String)
     /// The result of an Auto Level (run 2026-10-12-autolevel-fader). The press number makes a
-    /// new key for each press. A warning when a changed clip is at the 20 dB limit.
+    /// new key for each press. A warning when a clip is at the 20 dB limit.
     case levelReport(LevelReport, press: Int)
 
     enum Kind: CaseIterable {

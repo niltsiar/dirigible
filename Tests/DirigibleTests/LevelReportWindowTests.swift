@@ -157,6 +157,17 @@ struct LevelReportBannerTests {
         )
     }
 
+    /// Code gate F1: a second level of a clip at the limit changes nothing and repeats the limit
+    /// sentence.
+    @Test func aKeptClipAtTheLimitGivesAWarning() throws {
+        let report = LevelReport(changed: 0, atLimit: 1, unmeasured: 0)
+        #expect(
+            try english(report)
+                == "Auto Level is done. Clips changed: 0. The track volume does not change the clip gain. Clips at the 20 dB limit: 1. Check that they have speech."
+        )
+        #expect(WindowBanner.levelReport(report, press: 2).kind == .warning)
+    }
+
     @Test func aClipAtTheLimitGivesAWarning() throws {
         let report = LevelReport(changed: 3, atLimit: 1, unmeasured: 0)
         #expect(

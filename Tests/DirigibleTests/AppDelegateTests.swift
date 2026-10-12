@@ -124,10 +124,11 @@ import os
         }
         try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
-        // The close of AppKit goes through the delegate, so the test calls the same witness.
-        let shouldClose = try #require(
-            (window as any NSWindowDelegate).windowShouldClose, "the window delegate has a close witness")
-        #expect(shouldClose(try #require(window.window)) == false)
+        // AppKit asks the delegate of the window, so the test calls the same witness.
+        let nsWindow = try #require(window.window)
+        let delegate = try #require(nsWindow.delegate, "the window has a delegate")
+        let shouldClose = try #require(delegate.windowShouldClose, "the window delegate has a close witness")
+        #expect(shouldClose(nsWindow) == false)
         await until(limit: .seconds(30), "the close asks") { window.alert == .confirmUnsavedClose }
         #expect(window.window?.isVisible == true)
         #expect(app.windows.count == 1)
@@ -167,10 +168,12 @@ import os
     /// Decision 0017: a focus loads the peaks again, because a WAV can change outside the app.
     @Test func aFocusLoadsPeaks() async throws {
         let (window, studio) = try await windowWithPeaks()
+        // AppKit tells the delegate of the window, so the model needs its window.
+        window.show()
         studio.peakLoad.states = [:]
 
-        let becomeKey = try #require(
-            (window as any NSWindowDelegate).windowDidBecomeKey, "the window delegate has a focus witness")
+        let delegate = try #require(window.window?.delegate, "the window has a delegate")
+        let becomeKey = try #require(delegate.windowDidBecomeKey, "the window delegate has a focus witness")
         becomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
 
         await until(limit: .seconds(30), "the focus loads the peaks") { studio.peaks["f1"]?.peaks != nil }

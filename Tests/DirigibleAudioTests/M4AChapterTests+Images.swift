@@ -73,14 +73,16 @@ extension M4AChapterTests {
         #expect(pixel.prefix(3).allSatisfy { $0 >= 250 }, "the transparent pixel decodes as \(pixel)")
     }
 
-    /// C5e. A PNG that ImageIO cannot decode throws before any file exists.
+    /// C5e, code gate item D2. A PNG that ImageIO cannot decode throws before any file exists, and
+    /// the error names the chapter.
     @Test func anUnreadablePNGThrowsBeforeAnyFile() async throws {
         let png = ArtworkName(png: true)
         let folder = package.url.appending(path: artworkFolderName)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data("not a png".utf8).write(to: folder.appending(path: png.name))
         let before = try FileManager.default.contentsOfDirectory(atPath: package.folder.url.path).sorted()
-        await #expect(throws: ExportError.artworkMissing(png.path)) {
+        let chapter = Marker(id: "one", name: "One", position: 0, kind: .chapter, image: png)
+        await #expect(throws: ExportError.chapterImageMissing(chapter, rate: package.session.sampleRate)) {
             try await export([Self.chapter("One", at: 0)], images: ["one": png])
         }
         let after = try FileManager.default.contentsOfDirectory(atPath: package.folder.url.path).sorted()

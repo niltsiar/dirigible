@@ -77,6 +77,11 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
         message =
             "the artwork file \(file) is not in the package, or it is not downloaded. Set the artwork again with "
             + "`dirigible episode set --artwork <image> <package>`, or remove it with `--artwork \"\"`."
+    case .chapterImageMissing(let chapter, _):
+        message =
+            "the image file of chapter \"\(chapter.name)\" at \(chapter.position) is not in the package, or it is "
+            + "not downloaded. Set the image again with `dirigible marker set --id \(chapter.id) --image <image> "
+            + "<package>`, or remove it with `--image \"\"`."
     case .tooManyChapters(let count):
         message =
             "the range has \(count) chapters, and an MP3 file holds at most \(maximumChapters). Remove chapters, "

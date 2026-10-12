@@ -54,11 +54,13 @@ extension Session {
 }
 
 extension Session {
-    /// The image of each chapter of `chapterList(in: range)` that has one, and its file name beside
-    /// the JSON.
-    public func chapterImages(in range: Range<Frames>, imageStem: String) -> [(image: ArtworkName, name: String)] {
+    /// Each chapter of `chapterList(in: range)` that has an image, its image, and the file name of
+    /// the image beside the JSON.
+    public func chapterImages(
+        in range: Range<Frames>, imageStem: String
+    ) -> [(chapter: Marker, image: ArtworkName, name: String)] {
         chapterList(in: range).chapters.enumerated().compactMap { index, chapter in
-            chapter.image.map { ($0, imageName($0, stem: imageStem, place: index + 1)) }
+            chapter.image.map { (chapter, $0, imageName($0, stem: imageStem, place: index + 1)) }
         }
     }
 }

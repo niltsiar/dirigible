@@ -181,4 +181,22 @@ struct ChaptersCommandTests {
         #expect(chapters[1]["img"] as? String == "show-2.jpg")
         #expect(chapters[1]["url"] as? String == "https://example.com/outro")
     }
+
+    /// Code gate item D2. A chapter image file that is not in the package names the chapter and the
+    /// command that sets its image, not the episode artwork. No file is written.
+    @Test func aMissingChapterImageNamesTheChapter() async throws {
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try package.edit { session in
+            try session.setMarker(Marker(id: "b", name: "Outro", position: 576_000, kind: .chapter, image: image))
+        }
+        let file = out("show.json")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", file.path)
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: the image file of chapter \"Outro\" at 576000 is not in the package, or it is "
+                        + "not downloaded. Set the image again with `dirigible marker set --id b --image <image> "
+                        + "<package>`, or remove it with `--image \"\"`.\n"))
+        #expect(!FileManager.default.fileExists(atPath: file.path), "a JSON")
+    }
 }

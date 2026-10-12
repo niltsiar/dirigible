@@ -371,4 +371,23 @@ struct ExportCommandTests {
                     stderr: "Warning: \(file.path) has no chapter images: a chapter has no image, and the episode has "
                         + "no artwork. Set the episode artwork, or an image for each chapter.\n"))
     }
+
+    /// Code gate item D2. A chapter image file that is not in the package names the chapter, in
+    /// the MP3 and in the M4A, and no file is written.
+    @Test func aMissingChapterImageNamesTheChapter() async throws {
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try package.edit { session in
+            try session.setMarker(Marker(id: "a", name: "A", position: 1_000, kind: .chapter, image: image))
+        }
+        for name in ["a.mp3", "a.m4a"] {
+            #expect(
+                try await package.run("export", "PKG", "--out", out(name).path)
+                    == CLIResult(
+                        status: 2, stdout: "",
+                        stderr: "Error: the image file of chapter \"A\" at 1000 is not in the package, or it is not "
+                            + "downloaded. Set the image again with `dirigible marker set --id a --image <image> "
+                            + "<package>`, or remove it with `--image \"\"`.\n"), "\(name)")
+            #expect(!FileManager.default.fileExists(atPath: out(name).path), "\(name) exists")
+        }
+    }
 }

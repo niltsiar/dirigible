@@ -235,14 +235,15 @@ struct ChapterTagTests {
         #expect(apic == expected, "APIC \(String(describing: apic))")
     }
 
-    /// C6. A chapter image file that is not in the package throws before any file exists, in the
-    /// MP3 and in the M4A.
+    /// C6, code gate item D2. A chapter image file that is not in the package throws before any
+    /// file exists, in the MP3 and in the M4A. The error names the chapter, not the episode artwork.
     @Test func aMissingChapterImageThrowsBeforeAnyFile() throws {
         let name = try ArtworkName("\(UUID().uuidString).jpg")
         let marker = Marker(id: "one", name: "One", position: 0, kind: .chapter, image: name)
-        #expect(throws: ExportError.artworkMissing(name.path)) { try export([marker]) }
+        let missing = ExportError.chapterImageMissing(marker, rate: 48_000)
+        #expect(throws: missing) { try export([marker]) }
         let aac = ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session)
-        #expect(throws: ExportError.artworkMissing(name.path)) {
+        #expect(throws: missing) {
             try export([marker], options: aac, to: package.folder.url.appending(path: "mix.m4a"))
         }
         try MP3ExportTests.expectNoOutput(package)

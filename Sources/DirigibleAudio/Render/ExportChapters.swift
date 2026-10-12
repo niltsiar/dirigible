@@ -71,9 +71,9 @@ func imageSamples(_ chapters: [ExportChapter], artwork: Data?) -> (samples: [(st
 }
 
 /// The bytes of the image of each chapter in `chapters` that has one, read once before any file
-/// exists. A file that does not read throws `.artworkMissing(<path>)`.
+/// exists. A file that does not read throws `.chapterImageMissing` with `rate`, the session rate.
 func readChapterImages(
-    _ chapters: [Marker], package: () throws(SessionFileError) -> URL
+    _ chapters: [Marker], rate: Int, package: () throws(SessionFileError) -> URL
 ) throws(ExportError) -> [MarkerID: Data] {
     guard chapters.contains(where: { $0.image != nil }) else { return [:] }
     let root: URL
@@ -82,7 +82,7 @@ func readChapterImages(
     for marker in chapters {
         guard let name = marker.image else { continue }
         guard let data = try? Data(contentsOf: root.appending(path: name.path)) else {
-            throw .artworkMissing(name.path)
+            throw .chapterImageMissing(marker, rate: rate)
         }
         images[marker.id] = data
     }
@@ -116,18 +116,18 @@ func m4aJPEG(_ data: Data, of name: ArtworkName) throws(ExportError) -> Data {
 /// image beside it (`Session.chapterImages`) with the bytes of `Artwork/` in `package`, then the
 /// JSON, each with an atomic write (run 2026-10-11-chapters-in-file, C3, C3b). The caller checks
 /// the JSON target. Before any write, an item at the name of an image throws `.exists` when
-/// `replacingImages` is false, and an image that does not read throws `.artworkMissing(<path>)`.
+/// `replacingImages` is false, and an image that does not read throws `.chapterImageMissing`.
 public func writeChapters(
     _ session: Session, in range: Range<Frames>, to url: URL, replacingImages: Bool, package: URL
 ) throws(ExportError) {
     let (folder, stem) = (url.deletingLastPathComponent(), url.deletingPathExtension().lastPathComponent)
     var copies: [(data: Data, target: URL)] = []
-    for (image, name) in session.chapterImages(in: range, imageStem: stem) {
+    for (chapter, image, name) in session.chapterImages(in: range, imageStem: stem) {
         let target = folder.appending(path: name)
         // An lstat: a dangling link is an item too.
         guard replacingImages || ConfirmedFile(at: target) == nil else { throw .exists }
         guard let data = try? Data(contentsOf: package.appending(path: image.path)) else {
-            throw .artworkMissing(image.path)
+            throw .chapterImageMissing(chapter, rate: session.sampleRate)
         }
         copies.append((data, target))
     }

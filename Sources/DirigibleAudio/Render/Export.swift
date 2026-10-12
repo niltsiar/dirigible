@@ -138,12 +138,14 @@ public func exportMix(
     let list = session.chapterList(in: source.range)
     // Only an M4A has chapter tracks. The chapter images are read before any file exists.
     let chapters = aac ? list.chapters : []
-    let images = try readChapterImages(aac || mp3 ? list.chapters : [], package: package)
+    let images = try readChapterImages(aac || mp3 ? list.chapters : [], rate: session.sampleRate, package: package)
     // The writer of the M4A image track takes only JPEG (probe P1).
     var jpegs: [MarkerID: Data] = [:]
     for marker in chapters {
         guard let name = marker.image, let data = images[marker.id] else { continue }
-        jpegs[marker.id] = try m4aJPEG(data, of: name)
+        do { jpegs[marker.id] = try m4aJPEG(data, of: name) } catch {
+            throw .chapterImageMissing(marker, rate: session.sampleRate)
+        }
     }
     var chapterArtwork: Data?
     if !jpegs.isEmpty, let artwork, let name = session.episode.artwork {

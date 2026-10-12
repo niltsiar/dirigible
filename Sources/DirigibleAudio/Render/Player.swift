@@ -179,11 +179,6 @@ actor Player {
             stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values)
     }
 
-    /// Tests only: posts the configuration change of this engine, as the system does.
-    func postConfigurationChange() {
-        NotificationCenter.default.post(name: .AVAudioEngineConfigurationChange, object: graph?.engine)
-    }
-
     private func outputChanged() {
         stop = .outputChanged
     }
@@ -381,14 +376,4 @@ actor Player {
         graph = Graph(engine: engine, node: node, format: format)
         return graph
     }
-}
-
-/// A NotificationCenter observer for the life of the value.
-private final class Observer: Sendable {
-    /// NotificationCenter gives an opaque token that is only passed back to `removeObserver`.
-    nonisolated(unsafe) private let token: any NSObjectProtocol
-
-    init(_ token: any NSObjectProtocol) { self.token = token }
-
-    deinit { NotificationCenter.default.removeObserver(token) }
 }

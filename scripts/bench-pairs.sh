@@ -13,8 +13,9 @@
 # The pairs give the bench verdict of a budget only with clean provenance: the bench.sh line of the
 # aa-* and main-* logs names one commit, that of the branch-* logs names one commit, each on a
 # clean tree, and the branch commit has the Sources, Tests, Package.swift, Package.resolved, and
-# scripts/bench.sh of HEAD of this tree. Else --compare prints NOT VERIFIED with the reason and
-# exits 1. A branch commit that differs from HEAD only in other paths (docs) passes.
+# scripts/bench.sh of HEAD of this tree, and the two sides name two commits (no A/A comparison).
+# Else --compare prints NOT VERIFIED with the reason and exits 1. A branch commit that differs
+# from HEAD only in other paths (docs) passes.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 if [[ "${1:-}" != "--compare" ]]; then
@@ -67,6 +68,8 @@ for path in sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*
     else: commits['branch' if name.startswith('branch-') else 'aa and main'].add(found.group(1))
 for side, shas in commits.items():
     if len(shas) > 1: problems.append(f'the {side} logs name {len(shas)} commits')
+if len(commits['branch']) == 1 and commits['branch'] == commits['aa and main']:
+    problems.append('the main and branch logs name the same commit')
 if len(commits['branch']) == 1:
     sha = next(iter(commits['branch']))
     def object_id(rev, path):

@@ -125,6 +125,13 @@ fresh
 echo y > "$r/scripts/bench.sh"
 commit bench
 refused 'a branch commit with another bench script' 'the branch commit differs from HEAD in scripts/bench.sh'
+# The main side and the branch side name one commit: an A/A comparison, not a verdict.
+branch="$(g rev-parse HEAD)"
+log "$tmp/v/branch-1.log" 10.3 10.2
+log "$tmp/v/branch-2.log" 10.2 10.1
+fresh
+for f in aa-1 aa-2 main-1 main-2; do line "$f.log" "bench: commit $branch tree clean filter X"; done
+refused 'the same commit on both sides' 'the main and branch logs name the same commit'
 
 # bench.sh has no Makefile line of its own: its test runs here.
 bash "$(dirname "$0")/bench.test.sh" || failures=$((failures + 1))

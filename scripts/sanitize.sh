@@ -10,6 +10,7 @@
 # list is a copy of the one of scripts/test-filter.sh: the app bundle and disk image tests need a
 # build of their own, and the inserted runtime reaches the `dirigible` binary that the CLI tests
 # start, so they fail.
+# DIRIGIBLE_SLOW_TESTS=1, so a name of a slow test (the capture-ring stress tests) runs it too.
 # ASAN_OPTIONS stops at the first report and does not check leaks. TSAN_OPTIONS reports each race,
 # with the LAME tables of scripts/tsan.supp suppressed. The script fails on a sanitizer report, on
 # a test failure, when no test matched, and when the test process ended before its report line.
@@ -35,7 +36,7 @@ export TSAN_OPTIONS="halt_on_error=0:report_signal_unsafe=0:suppressions=$root/s
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
 code=0
-TEST_HELPER_INSERT="$(xcrun clang -print-file-name="libclang_rt.${short}_osx_dynamic.dylib")" \
+DIRIGIBLE_SLOW_TESTS=1 TEST_HELPER_INSERT="$(xcrun clang -print-file-name="libclang_rt.${short}_osx_dynamic.dylib")" \
     "$root/scripts/test-helper.sh" \
     --test-bundle-path "$root/.build/$short/$(uname -m)-apple-macosx/debug/DirigiblePackageTests.xctest/Contents/MacOS/DirigiblePackageTests" \
     --testing-library swift-testing --filter "$filter" --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests |

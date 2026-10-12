@@ -30,8 +30,9 @@ test:
 test-filter:
 	scripts/test-filter.sh $(FILTER)
 
-# The tests of FILTER under Address Sanitizer, in a debug build of its own (.build/asan, about
-# 3 GB). `swift test --sanitize` does not run on this Mac: read the header of scripts/sanitize.sh.
+# The tests of FILTER, slow tests too, under Address Sanitizer, in a debug build of its own
+# (.build/asan, about 1.3 GB). `swift test --sanitize` does not run on this Mac: read the header
+# of scripts/sanitize.sh.
 test-asan:
 	scripts/sanitize.sh address $(FILTER)
 

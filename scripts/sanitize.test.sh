@@ -10,7 +10,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_SLOW_TESTS
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 root="$tmp/root"
@@ -30,6 +30,7 @@ echo "runner $*" >> "$FAKE_DIR/args.log"
 echo "insert $TEST_HELPER_INSERT" >> "$FAKE_DIR/args.log"
 echo "asan ${ASAN_OPTIONS:-}" >> "$FAKE_DIR/args.log"
 echo "tsan ${TSAN_OPTIONS:-}" >> "$FAKE_DIR/args.log"
+echo "slow ${DIRIGIBLE_SLOW_TESTS:-}" >> "$FAKE_DIR/args.log"
 echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo free)" >> "$FAKE_DIR/lock.log"
 printf '%b\n' "$FAKE_OUT"
 exit "$FAKE_EXIT"
@@ -61,6 +62,8 @@ grep -qxF "runner --test-bundle-path $root/.build/asan/$bundle --testing-library
     fail "asan: the runner call: $(cat "$tmp/args.log")"
 grep -qxF 'insert /clang/lib/darwin/libclang_rt.asan_osx_dynamic.dylib' "$tmp/args.log" || fail "asan: the insert: $(cat "$tmp/args.log")"
 grep -qxF 'asan halt_on_error=1:detect_leaks=0' "$tmp/args.log" || fail "asan: ASAN_OPTIONS: $(cat "$tmp/args.log")"
+# The filter names slow tests too (the capture-ring stress tests), so the gate is on.
+grep -qxF 'slow 1' "$tmp/args.log" || fail "asan: DIRIGIBLE_SLOW_TESTS is not 1: $(cat "$tmp/args.log")"
 # One hold of the lock of the repo for the build and the run: both get the value in the pid file.
 [[ "$(grep -cE '^([0-9]+) \1$' "$tmp/lock.log")" -eq 2 && "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 ]] ||
     fail "asan: no one hold of the lock: $(cat "$tmp/lock.log")"

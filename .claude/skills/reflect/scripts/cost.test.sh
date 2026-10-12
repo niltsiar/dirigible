@@ -277,7 +277,8 @@ out="$(cd "$b" && PATH="$bin:$PATH" scripts/bench.sh FooBench 2>&1)" || fail "be
 # its own build just raised the load), and prints the load before and after the run.
 [[ "$(cat "$tmp/wait.log" 2>/dev/null)" == "max=cores --wait-load bench" ]] || fail "bench.sh wait call: [$(cat "$tmp/wait.log" 2>/dev/null)]"
 [[ "$(grep -c '^bench: load [0-9.]*$' <<<"$out")" == 2 ]] || fail "bench.sh load lines: $out"
-echo x > "$b/x.txt"
+# Only a change in a bench input path (here Sources/) makes the tree dirty.
+echo '// x' >> "$b/Sources/App/App.swift"
 out="$(cd "$b" && PATH="$bin:$PATH" scripts/bench.sh FooBench 2>&1)" || fail "bench.sh on a dirty tree exits $?: $out"
 [[ "$(head -n 1 <<<"$out")" == "bench: commit $head tree dirty filter FooBench" ]] || fail "bench.sh on a dirty tree: $out"
 

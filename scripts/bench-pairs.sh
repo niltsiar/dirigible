@@ -22,6 +22,14 @@ if [[ "${1:-}" != "--compare" ]]; then
   main="${1:?usage: bench-pairs.sh <main worktree> <filter> <pairs> <out folder>}"
   filter="${2:?filter}"; count="${3:?pairs}"; out="${4:?out folder}"
   [[ ! -e "$out" ]] || { echo "bench-pairs: $out exists; give a new folder" >&2; exit 2; }
+  # A log in a git tree that git does not ignore makes that tree dirty, so its benches void.
+  parent="$(dirname "$out")"
+  while [[ ! -d "$parent" ]]; do parent="$(dirname "$parent")"; done
+  if git -C "$parent" rev-parse --show-toplevel > /dev/null 2>&1 &&
+      ! git -C "$parent" check-ignore -q "$(cd "$parent" && pwd -P)/${out#"$parent"/}"; then
+    echo "bench-pairs: $out is in a git tree and git does not ignore it; give a folder outside or an ignored one" >&2
+    exit 2
+  fi
   # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
   [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$root/scripts/with-lock.sh" "$0" "$@"
   mkdir -p "$out"; out="$(cd "$out" && pwd)"

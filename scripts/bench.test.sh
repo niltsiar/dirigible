@@ -85,9 +85,9 @@ run "lock"
 [[ "$(grep -cE '^([0-9]+) \1$' "$tmp/lock.log")" -eq 2 ]] || fail "lock: swift ran with no hold of the lock: $(cat "$tmp/lock.log")"
 
 # One bench-pairs.sh run (an A/A pair and one main/branch pair) holds the lock once: its four
-# benches get one value, and it is in the pid file.
+# benches get one value, and it is in the pid file. Its out folder is in .build/, which git ignores.
 : > "$tmp/lock.log"
-PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$tmp/pairs" > "$tmp/out" 2>&1 ||
+PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$root/.build/pairs" > "$tmp/out" 2>&1 ||
     fail "pairs: bench-pairs.sh failed: $(cat "$tmp/out")"
 grep -vqE '^([0-9]+) \1$' "$tmp/lock.log" && fail "pairs: a bench ran with no hold of the lock: $(cat "$tmp/lock.log")"
 [[ "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 && "$(wc -l < "$tmp/lock.log" | tr -d ' ')" -eq 8 ]] ||

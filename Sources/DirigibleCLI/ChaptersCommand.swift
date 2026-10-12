@@ -75,7 +75,7 @@ struct ChaptersExport: ParsableCommand {
         guard replace || ConfirmedFile(at: output) == nil else { throw fail("\(out) exists.", code: packageError) }
         // The chapter images beside the JSON get the same check, before any write.
         let stem = output.deletingPathExtension().lastPathComponent
-        for (_, name) in session.chapterImages(in: range, imageStem: stem) {
+        for (_, _, name) in session.chapterImages(in: range, imageStem: stem) {
             let image = output.deletingLastPathComponent().appending(path: name)
             guard replace || ConfirmedFile(at: image) == nil else {
                 throw fail("\(image.path) exists.", code: packageError)
@@ -83,8 +83,6 @@ struct ChaptersExport: ParsableCommand {
         }
         do throws(ExportError) {
             try writeChapters(session, in: range, to: output, replacingImages: true, package: package.url)
-        } catch .artworkMissing(let path) {
-            throw fail("the chapter image file \(path) is not in the package.", code: packageError)
         } catch {
             throw failure(error, out: out, noun: "chapters file")
         }

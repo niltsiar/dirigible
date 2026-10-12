@@ -167,4 +167,35 @@ extension ExportWindowTests {
         #expect(try Data(contentsOf: picture) == Data("old".utf8), "the old image changed")
         await model.close()
     }
+
+    /// Code gate item D2. A chapter image file that is not in the package shows an alert that names
+    /// the chapter and its time and points to Marker Info, not to Episode Info. No file is written.
+    @Test func aMissingChapterImageShowsTheChapterAlert() async throws {
+        let file = folder.url.appending(path: "show.json")
+        _ = chaptersPanel(file)
+        let (model, studio, _) = try await window()
+        let chapter = Marker(
+            id: "c", name: "Talk", position: 192_000, kind: .chapter,
+            image: try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg"))
+        try studio.edit { session throws(SessionError) in try session.setMarker(chapter) }
+        model.exportChapters()
+        await until("the alert shows") { model.alert != nil }
+        let error = StudioError.export(.chapterImageMissing(chapter, rate: 48_000))
+        #expect(model.alert == .error(error))
+        #expect(!FileManager.default.fileExists(atPath: file.path), "a JSON")
+        #expect(L10n.message(for: error) == L10n.errorExportChapterImage.rawValue)
+        let texts = [
+            "en": "The image of the chapter “Talk” at 0:00:04.000 is not in the session, it is not downloaded from "
+                + "iCloud, or it does not open. In Markers > Marker Info, choose the image again or remove it. Then "
+                + "export again.",
+            "es": "La imagen del capítulo «Talk» en 0:00:04.000 no está en la sesión, no está descargada de iCloud o "
+                + "no se puede abrir. En Marcadores > Información del marcador, elija la imagen de nuevo o quítela. "
+                + "Después exporte de nuevo.",
+        ]
+        for (language, text) in texts {
+            let format = try #require(try stringsTable(language)[L10n.errorExportChapterImage.rawValue], "\(language)")
+            #expect(String(format: format, "Talk", "0:00:04.000") == text, "\(language)")
+        }
+        await model.close()
+    }
 }

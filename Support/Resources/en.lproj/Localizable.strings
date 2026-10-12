@@ -76,6 +76,7 @@
 "error.export.package" = "The session moved to another disk or was deleted. The export stopped.";
 "error.export.yielded" = "The export stopped for a take in another window. No file was made. Export again after the take.";
 "error.export.artwork" = "The artwork file %@ is not in the session, or it is not downloaded from iCloud. In File > Episode Info, choose the artwork again or remove it. Then export again.";
+"error.export.chapter.image" = "The image of the chapter “%1$@” at %2$@ is not in the session, it is not downloaded from iCloud, or it does not open. In Markers > Marker Info, choose the image again or remove it. Then export again.";
 "error.export.chapters" = "An MP3 file holds at most %2$lld chapters, and the export has %1$lld. Remove chapters or export a smaller selection.";
 "error.export.chapters.long" = "An MP3 file with chapters is at most 49 days long. Export a smaller selection.";
 "error.export.tag" = "The episode info and the chapters are too large for the MP3 tag. Use a smaller artwork image or shorter notes. Then export again.";

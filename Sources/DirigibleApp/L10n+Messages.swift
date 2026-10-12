@@ -101,6 +101,8 @@ extension L10n {
         case .openFailed(let code): errorExportOpen.format(Int(code))
         case .packageUnavailable: errorExportPackage.text
         case .artworkMissing(let file): errorExportArtwork.format(file)
+        case .chapterImageMissing(let chapter, let rate):
+            errorExportChapterImage.format(chapter.name, timeDisplayText(chapter.position, rate: rate, playing: false))
         case .tooManyChapters(let count): errorExportChapters.format(count, maximumChapters)
         case .tagTooLarge: errorExportTag.text
         case .chaptersTooLong: errorExportChaptersTooLong.text

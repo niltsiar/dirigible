@@ -56,10 +56,12 @@ public enum ExportError: Error, Hashable, Sendable {
     case openFailed(Int32)
     /// The package source threw: the lock lost the package.
     case packageUnavailable
-    /// The artwork file of the episode or of a chapter (this path in the package) is not in the
-    /// package, it is not downloaded (decision 0045), or a PNG of an M4A export does not decode. No
-    /// file was made.
+    /// The artwork file of the episode (this path in the package) is not in the package, it is
+    /// not downloaded (decision 0045), or a PNG of an M4A export does not decode. No file was made.
     case artworkMissing(String)
+    /// The image file of this chapter is not in the package, it is not downloaded, or a PNG of an
+    /// M4A export does not decode. `rate` is the session rate of its position. No file was made.
+    case chapterImageMissing(Marker, rate: Int)
     /// The cancel check was true at a chunk.
     case cancelled
     /// The range of an MP3 export has this count of chapters, over `maximumChapters`. No file was

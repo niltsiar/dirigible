@@ -13,7 +13,8 @@ public enum LevelMode: Sendable {
 
 /// The result of `autoLevel` for one clip.
 public enum ClipLevel: Hashable, Sendable {
-    /// The measured loudness and the new gain.
+    /// The measured loudness and the gain of the returned session. A change under
+    /// `levelTolerance` keeps the old gain, so this gain is then the old gain.
     case leveled(LUFS, Gain)
     /// No block passes the gates. The clip keeps its gain.
     case noMeasurement
@@ -21,11 +22,41 @@ public enum ClipLevel: Hashable, Sendable {
     case unreadable
 }
 
+/// The counts of one Auto Level (decision 0031): the clips whose gain changed, the changed clips
+/// at the ±20 dB limit, and the clips with no measurement or no readable file.
+public struct LevelReport: Hashable, Sendable {
+    public var changed = 0
+    public var atLimit = 0
+    public var unmeasured = 0
+
+    /// Counts the `levels` of `autoLevel` against the gains of `before`.
+    public init(_ levels: [ClipID: ClipLevel], before: Session) {
+        for (clip, level) in levels {
+            guard case .leveled(_, let gain) = level else {
+                unmeasured += 1
+                continue
+            }
+            let changed = gain != before.clip(clip)?.clip.gain
+            if changed { self.changed += 1 }
+            if changed && abs(gain.dB) >= Gain.levelLimit { atLimit += 1 }
+        }
+    }
+
+    init(changed: Int, atLimit: Int, unmeasured: Int) {
+        (self.changed, self.atLimit, self.unmeasured) = (changed, atLimit, unmeasured)
+    }
+}
+
 /// The target loudness of a track layout (decision 0008).
 func clipTarget(_ layout: ChannelLayout) -> Double { LoudnessTarget.podcast.integrated(for: layout).value }
 
+/// A new gain nearer than this to the old gain keeps the old gain, so a second level of the same
+/// clips changes nothing.
+let levelTolerance = 0.05
+
 /// Gives each clip of `clips` the gain `clipTarget - measured`, clamped to ±20 dB (decisions
-/// 0008 and 0031). It ignores an ID that is not in `session`.
+/// 0008 and 0031). A clip keeps its gain when the new gain differs by less than
+/// `levelTolerance` dB. It ignores an ID that is not in `session`.
 /// - `.eachClip` measures each clip without its gain.
 /// - `.equallyPerTrack` measures each clip with its gain, joins the blocks of the clips of one
 ///   track, and adds one delta to the gain of each measured clip of that track.
@@ -68,11 +99,12 @@ public func autoLevel(_ clips: Set<ClipID>, _ mode: LevelMode, of session: Sessi
             let base = mode == .eachClip ? 0 : item.clip.gain.dB
             // Nil only for a value that is not finite: the clamp keeps it in `Gain.range`.
             guard results[item.clip.id]?.integrated != nil,
-                let gain = Gain(dB: min(max(base + delta, -Gain.levelLimit), Gain.levelLimit))
+                var gain = Gain(dB: min(max(base + delta, -Gain.levelLimit), Gain.levelLimit))
             else {
                 levels[item.clip.id] = .noMeasurement
                 continue
             }
+            if abs(gain.dB - item.clip.gain.dB) < levelTolerance { gain = item.clip.gain }
             gains[item.clip.id] = gain
             levels[item.clip.id] = .leveled(integrated, gain)
         }

@@ -93,3 +93,97 @@ struct AutoLevelTests {
         #expect(levels["D"] == nil, "per track D level: \(String(describing: levels["D"]))")
     }
 }
+
+/// Run 2026-10-12-autolevel-fader C6, C7, and C14: the 0.05 dB tolerance and the level report.
+extension AutoLevelTests {
+    /// Track t1 (stereo): A at -30 dBFS with +2 dB and B at -24 dBFS. A per-track level leaves a
+    /// float residue in `base + delta` when the tolerance is missing.
+    @Test func aSecondLevelPerTrackChangesNothing() throws {
+        let package = try MixPackage()
+        try package.addFile("a", channels: tone([(20, -30)]))
+        try package.addFile("b", channels: tone([(20, -24)]))
+        try package.addTrack("t1", layout: .stereo, clip: "A", file: "a", start: 0, offset: 0, length: 960_000)
+        try package.session.place(Clip(id: "B", file: "b", start: 960_000, offset: 0, length: 960_000), on: "t1")
+        try package.session.setGain(Gain(dB: 2)!, clip: "A")
+        let first = autoLevel(["A", "B"], .equallyPerTrack, of: package.session, in: package.url).session
+        AutoLevelTests.expectGain(first, "B", 9.56, "first level B")
+        let (second, levels) = autoLevel(["A", "B"], .equallyPerTrack, of: first, in: package.url)
+        let same = second == first
+        #expect(same, "second per-track level: A \(gainText(second, "A")), B \(gainText(second, "B"))")
+        #expect(LevelReport(levels, before: first).changed == 0, "second per-track level: changed count")
+    }
+
+    /// One stereo clip of a -30 dBFS tone. A first level gives the exact gain `leveled`.
+    @Test func aSmallChangeKeepsTheGain() throws {
+        let package = try MixPackage()
+        try package.addFile("s", channels: tone([(20, -30)]))
+        try package.addTrack("t1", layout: .stereo, clip: "c", file: "s", start: 0, offset: 0, length: 960_000)
+        let leveled = try #require(
+            autoLevel(["c"], .eachClip, of: package.session, in: package.url).session.clip("c")?.clip.gain.dB)
+        for (offset, keeps) in [(0.04, true), (0.06, false)] {
+            var session = package.session
+            let old = try #require(Gain(dB: leveled + offset))
+            try session.setGain(old, clip: "c")
+            let (result, levels) = autoLevel(["c"], .eachClip, of: session, in: package.url)
+            let gain = result.clip("c")?.clip.gain
+            #expect((gain == old) == keeps, "offset \(offset): gain \(String(describing: gain)), old \(old)")
+            guard case .leveled(_, let reported) = levels["c"] else {
+                Issue.record("offset \(offset): level \(String(describing: levels["c"]))")
+                continue
+            }
+            #expect(
+                reported == gain, "offset \(offset): leveled gain \(reported), session gain \(String(describing: gain))"
+            )
+            #expect(LevelReport(levels, before: session).changed == (keeps ? 0 : 1), "offset \(offset): changed count")
+        }
+    }
+
+    /// t1: a -36.5 dBFS tone wants +20.5 dB. t2: a -35.5 dBFS tone wants +19.5 dB. t3: the
+    /// full-scale square of `gainIsClampedAtTwentyDecibels` wants less than -20 dB.
+    @Test func theReportCountsTheClipsAtTheLimit() throws {
+        let package = try MixPackage()
+        try package.addFile("over", channels: tone([(20, -36.5)]))
+        try package.addFile("under", channels: tone([(20, -35.5)]))
+        let square = (0..<960_000).map { Float(sin(2 * .pi * 10_000 * Double($0) / 48_000) >= 0 ? 0.999 : -0.999) }
+        try package.addFile("loud", channels: [square, square])
+        try package.addTrack("t1", layout: .stereo, clip: "co", file: "over", start: 0, offset: 0, length: 960_000)
+        try package.addTrack("t2", layout: .stereo, clip: "cu", file: "under", start: 0, offset: 0, length: 960_000)
+        try package.addTrack("t3", layout: .stereo, clip: "cl", file: "loud", start: 0, offset: 0, length: 960_000)
+
+        let (first, levels) = autoLevel(["co", "cu"], .eachClip, of: package.session, in: package.url)
+        AutoLevelTests.expectGain(first, "co", 20, tolerance: 0.001, "-36.5 dBFS clamp")
+        AutoLevelTests.expectGain(first, "cu", 19.5, "-35.5 dBFS gain")
+        #expect(
+            LevelReport(levels, before: package.session) == LevelReport(changed: 2, atLimit: 1, unmeasured: 0),
+            "tones at the +20 dB side: \(LevelReport(levels, before: package.session))")
+
+        let (_, squareLevels) = autoLevel(["cl"], .eachClip, of: package.session, in: package.url)
+        #expect(
+            LevelReport(squareLevels, before: package.session) == LevelReport(changed: 1, atLimit: 1, unmeasured: 0),
+            "square at the -20 dB side: \(LevelReport(squareLevels, before: package.session))")
+
+        let (_, again) = autoLevel(["co"], .eachClip, of: first, in: package.url)
+        #expect(
+            LevelReport(again, before: first) == LevelReport(changed: 0, atLimit: 0, unmeasured: 0),
+            "second level of the clamped clip: \(LevelReport(again, before: first))")
+    }
+
+    @Test func theReportCountsTheUnmeasuredClips() throws {
+        let package = try MixPackage()
+        try package.addFile("silent", channels: tone([(20, -.infinity)]))
+        try package.addFile("gone", channels: tone([(20, -30)]))
+        try package.addFile("tone", channels: tone([(20, -30)]))
+        try package.addTrack("t1", layout: .stereo, clip: "cs", file: "silent", start: 0, offset: 0, length: 960_000)
+        try package.addTrack("t2", layout: .stereo, clip: "cg", file: "gone", start: 0, offset: 0, length: 960_000)
+        try package.addTrack("t3", layout: .stereo, clip: "ct", file: "tone", start: 0, offset: 0, length: 960_000)
+        try FileManager.default.removeItem(at: package.url.appending(path: "\(clipsFolderName)/gone.wav"))
+        let (_, levels) = autoLevel(["cs", "cg", "ct"], .eachClip, of: package.session, in: package.url)
+        #expect(
+            LevelReport(levels, before: package.session) == LevelReport(changed: 1, atLimit: 0, unmeasured: 2),
+            "unmeasured clips: \(LevelReport(levels, before: package.session))")
+    }
+
+    private func gainText(_ session: Session, _ clip: ClipID) -> String {
+        session.clip(clip).map { "\($0.clip.gain.dB)" } ?? "nil"
+    }
+}

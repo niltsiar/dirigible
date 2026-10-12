@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -192,7 +193,7 @@ struct StopLevelTests {
         #expect(studio.transport == .leveling, "level hold: \(studio.transport)")
         #expect(throws: StudioError.busy) { try studio.edit { _ throws(SessionError) in } }
         gate.open()
-        try await leveling.value
+        _ = try await leveling.value
 
         #expect(studio.transport == .idle, "after the level: \(studio.transport)")
         Self.expectGain(studio.session, "c1", 8, "Cmd-L c1")
@@ -209,6 +210,38 @@ struct StopLevelTests {
         Self.expectGain(studio.session, "c1", 0, tolerance: 0, "Cmd-L undo c1")
         Self.expectGain(studio.session, "c2", 0, tolerance: 0, "Cmd-L undo c2")
         #expect(!studio.canUndo, "Cmd-L: more than one entry")
+    }
+
+    /// C5 and C13: a second level in each mode changes nothing, saves nothing, and adds no undo
+    /// entry, and it still returns its report.
+    @Test @MainActor func levelAtTheTargetIsNoEntry() async throws {
+        let studio = try await studio()
+        let first = try await studio.level(["c1", "c2"], .eachClip)
+        #expect(first == LevelReport(changed: 2, atLimit: 0, unmeasured: 0), "first level: \(first)")
+        Self.expectGain(studio.session, "c1", 8, "first level c1")
+        let leveled = studio.session
+        let saves = OSAllocatedUnfairLock(initialState: 0)
+        let save = studio.environment.saveSession
+        studio.environment.saveSession = { [saves] session, lock throws(SessionFileError) in
+            saves.withLock { $0 += 1 }
+            return try await save(session, lock)
+        }
+
+        for mode in [LevelMode.eachClip, .equallyPerTrack] {
+            let report = try await studio.level(["c1", "c2"], mode)
+            #expect(report == LevelReport(changed: 0, atLimit: 0, unmeasured: 0), "second level \(mode): \(report)")
+            let same = studio.session == leveled
+            #expect(same, "second level \(mode) changed the session")
+            #expect(studio.transport == .idle, "second level \(mode): \(studio.transport)")
+        }
+        let count = saves.withLock { $0 }
+        #expect(count == 0, "second level: session saves \(count)")
+        let written = try Session(contentsOf: url) == leveled
+        #expect(written, "second level: session.xml is not the first level")
+
+        try studio.undo()
+        Self.expectGain(studio.session, "c1", 0, tolerance: 0, "undo after the second level c1")
+        #expect(!studio.canUndo, "second level: a new undo entry")
     }
 
     @Test @MainActor func levelDuringATakeIsBusy() async throws {
@@ -229,7 +262,7 @@ struct StopLevelTests {
         let studio = try await studio()
         try FileManager.default.removeItem(at: url)
 
-        try? await studio.level(["c1"], .eachClip)
+        _ = try? await studio.level(["c1"], .eachClip)
 
         #expect(studio.transport == .idle, "level fault: \(studio.transport)")
         Self.expectGain(studio.session, "c1", 0, tolerance: 0, "level fault")

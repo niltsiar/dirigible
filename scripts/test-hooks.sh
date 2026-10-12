@@ -17,7 +17,8 @@
 # no test. At the start, the script removes each key tree folder over one hour old.
 # No reuse and no stamp: on a dirty tree (the tests run in place), when the list is not the
 # HOOK_TESTS list of the Makefile at HEAD, after a failed test, and when the first word of
-# MAKEFLAGS has -n, -t, -i, or -q (as scripts/check-stamp.sh).
+# MAKEFLAGS has -n, -t, -i, or -q (as scripts/check-stamp.sh). After a failed test, the summary
+# names each failed test and prints the last 40 lines of its output.
 # scripts/test-hooks.test.sh tests it.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -77,12 +78,25 @@ if [[ $dirty == no ]]; then
     find $floor -type f | while IFS= read -r f; do : > "$f"; done
 fi
 
-failed=()
+# The output of each test goes to the log of the caller and to a file, so the summary can repeat
+# the end of each failed test.
+logs="$(mktemp -d)" || exit 1
+trap 'rm -rf "$logs" ${work:+"$work"}' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+failed=() n=0
 for t in "$@"; do
-    "$t" || failed+=("$t")
+    n=$((n + 1))
+    "$t" 2>&1 | tee "$logs/$n.log" || failed+=("$n")
 done
 if [[ ${#failed[@]} -gt 0 ]]; then
-    echo "test-hooks: ${#failed[@]} of $# failed: ${failed[*]}"
+    names=()
+    for n in "${failed[@]}"; do names+=("${!n}"); done
+    echo "test-hooks: ${#failed[@]} of $# failed: ${names[*]}"
+    for n in "${failed[@]}"; do
+        echo "test-hooks: the last 40 lines of ${!n}:"
+        tail -n 40 "$logs/$n.log"
+    done
     exit 1
 fi
 if [[ -n $reason ]]; then

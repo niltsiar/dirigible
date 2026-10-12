@@ -203,6 +203,21 @@ struct M4AChapterTests {
         #expect(result.droppedChapters.map(\.id) == ["c"], "dropped \(result.droppedChapters.map(\.id))")
     }
 
+    /// Code gate item E7. The M4A reads only the images of the chapters that it keeps. "C" is at the
+    /// output frame of "B", and its image is missing, so a read of it throws `.chapterImageMissing`.
+    @Test func aDroppedChapterReadsNoImage() async throws {
+        let package48 = try Self.package(rate: 48_000)
+        var options = Self.aac
+        options.rate = .hz44100
+        let target = package48.folder.url.appending(path: "mix.m4a")
+        let missing = try ArtworkName("\(UUID().uuidString).jpg")
+        let result = try await export(
+            [Self.chapter("A", at: 0), Self.chapter("B", at: 215), Self.chapter("C", at: 216)], package: package48,
+            options: options, images: ["c": missing], to: target)
+        #expect(try await Self.groups(target).map(\.title) == ["A", "B"], "two groups")
+        #expect(result.droppedChapters.map(\.id) == ["c"], "dropped \(result.droppedChapters.map(\.id))")
+    }
+
     /// C5f. Two chapters at one time stop the writer; the list keeps the first.
     @Test func twoChaptersAtOneTimeWriteAFile() async throws {
         let result = try await export([

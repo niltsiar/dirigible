@@ -48,10 +48,14 @@ func id3Chapters(
 /// `chapters`: one `CTOC` and one `CHAP` for each chapter, with no byte offsets. No bytes for an
 /// empty episode with no chapter. Text frames are UTF-16 with a BOM; URL frames are ISO-8859-1,
 /// and `WebURL` is ASCII. It throws before any file exists: `.tooManyChapters` over
-/// `maximumChapters`, and `.tagTooLarge` over `maximumTagSize`.
+/// `maximumChapters`, `.chaptersTooLong` for a time over `maximumChapterMilliseconds`, and
+/// `.tagTooLarge` over `maximumTagSize`.
 func id3Tag(_ episode: Episode, artwork: Data? = nil, chapters: [ID3Chapter] = []) throws(ExportError) -> [UInt8] {
     guard !episode.isEmpty || !chapters.isEmpty else { return [] }
     guard chapters.count <= maximumChapters else { throw .tooManyChapters(chapters.count) }
+    guard chapters.allSatisfy({ max($0.start, $0.end) <= maximumChapterMilliseconds }) else {
+        throw .chaptersTooLong
+    }
     var frames = episode.isEmpty ? [] : episodeFrames(episode, artwork: artwork)
     if !chapters.isEmpty {
         let ids = chapters.indices.map { Array("chp\($0)".utf8) + [0] }
@@ -138,6 +142,9 @@ private func utf16(_ text: String) -> [UInt8] {
 
 /// The most chapters of an MP3 export: the entry count of the ID3 table of contents is one byte.
 public let maximumChapters = 255
+
+/// The last start or end of an ID3 chapter in ms: the `CHAP` times are 32-bit (about 49.7 days).
+public let maximumChapterMilliseconds = Int(UInt32.max)
 
 /// The largest ID3 tag body: the size in the header has 7 bits in each of its 4 bytes.
 public let maximumTagSize = (1 << 28) - 1

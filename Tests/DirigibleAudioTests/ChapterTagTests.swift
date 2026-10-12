@@ -189,6 +189,18 @@ struct ChapterTagTests {
         try MP3ExportTests.expectNoOutput(package)
     }
 
+    /// Code gate item D7. The `CHAP` times are 32-bit: an end of `maximumChapterMilliseconds`
+    /// passes, and one ms more throws before any tag byte, not a trap.
+    @Test func aChapterTimeOverTheID3LimitThrows() throws {
+        let last = maximumChapterMilliseconds
+        let tag = try id3Tag(Episode(), chapters: [ID3Chapter(title: "A", start: 0, end: last)])
+        let size = tag[6..<10].reduce(0) { $0 << 7 | Int($1) }
+        #expect(Self.chapters(Self.frames(tag[10..<(10 + size)])).map(\.end) == [last], "the last ms")
+        #expect(throws: ExportError.chaptersTooLong) {
+            try id3Tag(Episode(), chapters: [ID3Chapter(title: "A", start: 0, end: last + 1)])
+        }
+    }
+
     /// C4b. The header size has 28 bits: a body of `maximumTagSize` passes, one byte more throws.
     @Test func aTagOverTheLimitThrows() throws {
         #expect(try tagHeaderSize(maximumTagSize) == [0x7F, 0x7F, 0x7F, 0x7F])

@@ -345,6 +345,7 @@ enum L10n: String, CaseIterable {
     case errorExportArtwork = "error.export.artwork"
     case errorExportChapters = "error.export.chapters"
     case errorExportTag = "error.export.tag"
+    case errorExportChaptersTooLong = "error.export.chapters.long"
     case menuFileEpisodeInfo = "menu.file.episode.info"
     case inspectorTabClip = "inspector.tab.clip"
     case inspectorTabEpisode = "inspector.tab.episode"

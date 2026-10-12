@@ -103,6 +103,7 @@ extension L10n {
         case .artworkMissing(let file): errorExportArtwork.format(file)
         case .tooManyChapters(let count): errorExportChapters.format(count, maximumChapters)
         case .tagTooLarge: errorExportTag.text
+        case .chaptersTooLong: errorExportChaptersTooLong.text
         case .cancelled: ""
         }
     }

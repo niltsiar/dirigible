@@ -84,6 +84,10 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
     case .tagTooLarge:
         message =
             "the ID3 tag of \(out) is over \(maximumTagSize) bytes. Use a smaller artwork file or shorter notes."
+    case .chaptersTooLong:
+        message =
+            "an MP3 chapter ends at most \(maximumChapterMilliseconds) ms after the range start. Export a smaller "
+            + "range."
     }
     return fail(message, code: packageError)
 }

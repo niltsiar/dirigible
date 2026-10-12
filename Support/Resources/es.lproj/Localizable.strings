@@ -77,6 +77,7 @@
 "error.export.yielded" = "La exportación se detuvo por una toma en otra ventana. No se creó ningún archivo. Exporte de nuevo después de la toma.";
 "error.export.artwork" = "El archivo de ilustración %@ no está en la sesión, o no está descargado de iCloud. En Archivo > Información del episodio, elija la ilustración de nuevo o quítela. Después exporte de nuevo.";
 "error.export.chapters" = "Un archivo MP3 admite como máximo %2$lld capítulos, y la exportación tiene %1$lld. Quite capítulos o exporte una selección más pequeña.";
+"error.export.chapters.long" = "Un archivo MP3 con capítulos dura como máximo 49 días. Exporte una selección más pequeña.";
 "error.export.tag" = "La información del episodio y los capítulos son demasiado grandes para la etiqueta MP3. Use una ilustración más pequeña o notas más cortas. Después exporte de nuevo.";
 "menu.file.episode.info" = "Información del episodio…";
 "inspector.tab.clip" = "Clip";

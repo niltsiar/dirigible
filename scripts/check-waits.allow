@@ -8,3 +8,4 @@ Tests/DirigibleTests/ImportWindowTests.swift	a raw 30 s hold of product work; a 
 Tests/DirigibleTests/RevertMenuTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
 Tests/DirigibleTests/SessionBannerAccessibilityTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
 Tests/DirigibleTests/SessionPasteWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)
+Tests/DirigibleTests/LevelReportWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (backlog ## Later, the Gate.openLimit item)

@@ -98,7 +98,8 @@ struct ChaptersCommandTests {
     }
 
     /// C5f, C3 of run 2026-10-11-chapters-in-file. "Outro 2" starts at the millisecond of "Outro",
-    /// so the file leaves it out, and stderr names it.
+    /// so the file leaves it out, and stderr names it. Code gate item E2: a JSON has no end of the
+    /// audio, so the line gives only the time rule.
     @Test func aDroppedChapterPrintsAWarning() async throws {
         try package.edit { session in
             try session.setMarker(Marker(id: "c", name: "Outro 2", position: 576_010, kind: .chapter))
@@ -109,7 +110,7 @@ struct ChaptersCommandTests {
                 == CLIResult(
                     status: 0, stdout: "",
                     stderr: """
-                        Warning: chapter "Outro 2" at 576010 starts at the time of another chapter, or at or after the end of the audio; the file leaves it out.
+                        Warning: chapter "Outro 2" at 576010 starts at the time of another chapter; the file leaves it out.
 
                         """))
         #expect(try startTimes(file) == [10, 12])

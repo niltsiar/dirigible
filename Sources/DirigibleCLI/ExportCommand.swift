@@ -141,7 +141,7 @@ struct Export: ParsableCommand {
         }
         warn(read, in: session)
         warnUnheard(session, source: source)
-        warnDropped(result.droppedChapters)
+        warnDropped(result.droppedChapters, pastEnd: true)
         if result.chapterImagesOmitted {
             let line =
                 "Warning: \(output.path) has no chapter images: a chapter has no image, and the episode has no "

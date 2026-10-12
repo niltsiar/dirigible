@@ -153,13 +153,7 @@ extension Marker {
             guard text.unicodeScalars.allSatisfy(\.isStorableInSession) else { return false }
             name = text
         case .url:
-            let trimmed = text.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty else {
-                url = nil
-                return true
-            }
-            guard let link = try? WebURL(trimmed), link.text.utf8.count <= Marker.maximumURLBytes else { return false }
-            url = link
+            do { url = try Marker.url(fromText: text) } catch { return false }
         }
         return true
     }

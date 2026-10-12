@@ -108,4 +108,20 @@ struct MarkerFieldTests {
         }
         #expect(session.markers["c1"] == stored, "the refused edit changed the marker")
     }
+
+    /// Code gate item D5. The one parse of a typed link for the Marker pane, the CLI, and MCP: the
+    /// spaces around it go, an empty text is no link, and an http or https URL of at most
+    /// `Marker.maximumURLBytes` bytes passes.
+    @Test func aLinkTextHasOneParse() throws {
+        #expect(try Marker.url(fromText: "") == nil && Marker.url(fromText: "  ") == nil, "empty")
+        #expect(try Marker.url(fromText: " https://example.com/a ")?.text == "https://example.com/a")
+        let longest = Self.url(bytes: Marker.maximumURLBytes)
+        #expect(try Marker.url(fromText: longest)?.text == longest, "255 bytes")
+        #expect(throws: EpisodeFieldError(message: "a marker URL has at most 255 bytes.")) {
+            try Marker.url(fromText: Self.url(bytes: Marker.maximumURLBytes + 1))
+        }
+        #expect(throws: EpisodeFieldError(message: "\"ftp://a.b\" is not an http or https URL.")) {
+            try Marker.url(fromText: "ftp://a.b")
+        }
+    }
 }

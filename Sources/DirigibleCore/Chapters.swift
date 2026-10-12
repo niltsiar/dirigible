@@ -65,6 +65,21 @@ extension Session {
     }
 }
 
+extension Marker {
+    /// The link of typed `text`, the one rule of the Marker pane, the CLI, and MCP (code gate item
+    /// D5). It removes the spaces around the text. An empty text is no link. Else the text must be
+    /// a `WebURL` of at most `maximumURLBytes` bytes, the rule of `Session.setMarker`.
+    public static func url(fromText text: String) throws(EpisodeFieldError) -> WebURL? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return nil }
+        let link = try WebURL(trimmed)
+        guard link.text.utf8.count <= maximumURLBytes else {
+            throw EpisodeFieldError(message: "a marker URL has at most \(maximumURLBytes) bytes.")
+        }
+        return link
+    }
+}
+
 /// The chapters of an export range in order, and the chapters that the list drops.
 public struct ChapterList: Hashable, Sendable {
     public let chapters: [Marker]

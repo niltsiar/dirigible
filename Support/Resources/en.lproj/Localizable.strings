@@ -31,6 +31,8 @@
 "menu.tools" = "Tools";
 "menu.tools.level" = "Auto Level";
 "menu.tools.level.track" = "Auto Level per Track";
+"menu.tools.level.all" = "Auto Level All Clips";
+"menu.tools.level.track.all" = "Auto Level per Track (All)";
 
 /* Errors */
 "error.studio.busy" = "A take records or finishes. Wait until it ends.";

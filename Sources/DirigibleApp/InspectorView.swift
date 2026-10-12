@@ -241,4 +241,15 @@ extension AppDelegate {
     func inspectorItem(for model: SessionWindow?) -> (title: L10n, enabled: Bool) {
         (model?.showsInspector == true ? .menuViewInspectorHide : .menuViewInspectorShow, model != nil)
     }
+
+    /// The title of Tools > Auto Level or Auto Level per Track for the key window: "All" only when
+    /// the selection is empty, so the command levels every clip. Nil for another command.
+    func levelTitle(_ command: TimelineCommand, for model: SessionWindow?) -> L10n? {
+        let all = model?.studio.map { model?.timeline.selection.clipsToLevel(in: $0.session) == nil } == true
+        switch command {
+        case .autoLevel: return all ? .menuToolsLevelAll : .menuToolsLevel
+        case .autoLevelPerTrack: return all ? .menuToolsLevelTrackAll : .menuToolsLevelTrack
+        default: return nil
+        }
+    }
 }

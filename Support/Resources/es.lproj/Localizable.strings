@@ -31,6 +31,8 @@
 "menu.tools" = "Herramientas";
 "menu.tools.level" = "Nivelar automáticamente";
 "menu.tools.level.track" = "Nivelar automáticamente por pista";
+"menu.tools.level.all" = "Nivelar automáticamente todos los clips";
+"menu.tools.level.track.all" = "Nivelar automáticamente por pista (todos)";
 
 /* Errores */
 "error.studio.busy" = "Hay una toma en curso o terminando. Espera a que termine.";

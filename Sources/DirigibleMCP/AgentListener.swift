@@ -110,6 +110,9 @@ final class AgentListener: @unchecked Sendable {
         }
     }
 
+    /// The fds of the open connections, for the tests.
+    var connectionFDs: [Int32] { queue.sync { connections.values.map(\.fd) } }
+
     private func startAccepting() {
         let source = DispatchSource.makeReadSource(fileDescriptor: listenFD, queue: queue)
         let fd = listenFD

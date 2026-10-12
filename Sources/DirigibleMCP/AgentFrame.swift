@@ -84,12 +84,14 @@ func withAddress(_ path: String, _ call: (UnsafePointer<sockaddr>, socklen_t) ->
     }
 }
 
-/// Writes all of `data` to `fd`. False on an error, for example EPIPE from a peer that closed.
+/// Writes all of `data` to the socket `fd`. False on an error, for example EPIPE from a peer that
+/// closed. `MSG_NOSIGNAL` stops SIGPIPE also when `SO_NOSIGPIPE` failed: `setsockopt` gives EINVAL
+/// on an accepted socket whose peer closed before the accept.
 func writeAll(_ fd: Int32, _ data: Data) -> Bool {
     data.withUnsafeBytes { buffer in
         var offset = 0
         while offset < buffer.count {
-            let written = write(fd, buffer.baseAddress! + offset, buffer.count - offset)
+            let written = send(fd, buffer.baseAddress! + offset, buffer.count - offset, MSG_NOSIGNAL)
             if written < 0, errno == EINTR { continue }
             guard written > 0 else { return false }
             offset += written

@@ -107,6 +107,53 @@ struct AgentServerTests {
         #expect(agentSocketPath(environment: ["DIRIGIBLE_MCP_SOCKET": ""]).lastPathComponent == "mcp.sock")
     }
 
+    /// C16: each accepted connection has SO_NOSIGPIPE, so a write to a bridge that closed gives
+    /// EPIPE and no signal. The SIGPIPE guard of `start()` hides a missing flag from the other tests.
+    @Test func acceptedConnectionHasNoSigPipe() async throws {
+        let folder = try SocketFolder()
+        let server = emptyServer(folder.socket)
+        server.start()
+        defer { server.stop() }
+        let client = try #require(Client(folder.socket))
+        await until("the server did not count the agent") { server.connected == 1 }
+
+        let fds = server.listener?.connectionFDs ?? []
+        #expect(fds.count == 1)
+        for fd in fds {
+            var on: Int32 = 0
+            var size = socklen_t(MemoryLayout<Int32>.size)
+            #expect(getsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, &size) == 0)
+            #expect(on != 0, "C16: an accepted connection has no SO_NOSIGPIPE")
+        }
+        client.close()
+    }
+
+    /// C16: a bridge that sends and closes before the accept leaves a socket that refuses
+    /// SO_NOSIGPIPE (EINVAL: both directions are shut). The reply write to it must not raise
+    /// SIGPIPE. The test opens the listener alone, so no SIGPIPE guard of `start()` hides it.
+    @Test func peerClosedBeforeAcceptGetsNoSignal() async throws {
+        let folder = try SocketFolder()
+        var listener: AgentListener?
+        if case .listening(let opened) = AgentListener.open(
+            socket: folder.socket, handle: { _ in .notOpen }, counted: { _ in })
+        {
+            listener = opened
+        }
+        try #require(listener != nil)
+        defer { listener?.stop() }
+
+        // Many short connections: the listener accepts most of them after their close.
+        let socket = folder.socket
+        await onThread {
+            for _ in 0..<200 {
+                guard let client = Client(socket) else { continue }
+                client.send(#"{"tool":"session_info","arguments":{"package":"/tmp/none.dirigible"}}"#)
+                client.close()
+            }
+        }
+        #expect(await probe(folder.socket) == .reply(.notOpen), "the listener stops answering")
+    }
+
     /// C1: a stop during a call answers that call, then closes the connection and frees the lock,
     /// also when the app drops the listener at once (decision 0046 Life cycle).
     @Test func stopAnswersTheRunningCall() async throws {
@@ -137,7 +184,7 @@ struct AgentServerTests {
     }
 
     /// C16: a bridge that closes before its reply does not stop the server: the next connection
-    /// is served. The server ignores SIGPIPE, so this test does not check SO_NOSIGPIPE.
+    /// is served.
     @Test func peerClosesBeforeReply() async throws {
         let folder = try SocketFolder()
         let server = emptyServer(folder.socket)

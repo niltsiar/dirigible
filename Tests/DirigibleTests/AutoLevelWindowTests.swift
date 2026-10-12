@@ -106,7 +106,8 @@ import Testing
         await model.close()
     }
 
-    /// C3: a selection with no clip beeps one time and changes nothing.
+    /// C3: a selection with no clip beeps one time and changes nothing. Each value starts after a
+    /// level, and the beep also removes the banner of that level (plan gate P2).
     @Test func aSelectionWithNoClipBeeps() async throws {
         let (model, studio, _, _) = try await open()
         var beeps = 0
@@ -120,6 +121,9 @@ import Testing
             (ClipSet(["gone"]).map { .clips($0) } ?? .none, "stale clip set"),
         ]
         for (selection, label) in values {
+            model.timeline.marks = Self.oneSecondOnT1
+            await model.level(.eachClip)
+            #expect(model.levelReport != nil, "\(label): no level before the value")
             let (before, undo, count) = (studio.session, studio.canUndo, beeps)
             model.timeline.selection = selection
             await model.level(.eachClip)
@@ -127,6 +131,7 @@ import Testing
             #expect(same && studio.canUndo == undo, "\(label): the session or the undo changed")
             #expect(beeps == count + 1, "\(label): beeps \(beeps - count)")
             #expect(model.timeline.selection == selection, "\(label): the selection changed")
+            #expect(model.levelReport == nil, "\(label): the old level banner stays")
         }
         await model.close()
     }
@@ -205,7 +210,10 @@ import Testing
         let (model, studio, _, _) = try await open(device: "duo")
         studio.environment = hal.environment
         model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])
+        await model.level(.eachClip)
+        #expect(model.levelReport != nil, "take running: no level before the take")
         await model.record()
+        #expect(model.levelReport == nil, "take running: the take start keeps the level banner")
         #expect(studio.transport == .recording(take: 1))
         await hal.feed(seconds: 0.5)
         let (before, undo) = (studio.session, studio.canUndo)

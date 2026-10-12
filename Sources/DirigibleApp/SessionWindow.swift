@@ -129,6 +129,10 @@ enum WindowAlert: Hashable {
     var exportReport: ExportReportShown?
     /// The chapter warnings of the last export, for their banners. They go as `exportReport` goes.
     var chapterWarnings: ChapterWarningsShown?
+    /// The last Auto Level, for its banner. The next Auto Level and the next take start remove it;
+    /// the banner shows only at its session revision.
+    var levelReport: LevelReportShown?
+    @ObservationIgnored var levelPresses = 0
     /// The running import (decision 0040). Nil: no import.
     var importJob: ImportJob?
     /// The error of a take start that its checks refused while an export runs. The progress

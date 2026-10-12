@@ -396,6 +396,11 @@
 "banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "La exportación de %1$@ terminó: %2$@.";
+"banner.level.changed" = "Nivelado automático terminado. Clips cambiados: %lld.";
+"banner.level.none" = "Nivelado automático terminado. Sin cambios: los clips ya están en el nivel objetivo.";
+"banner.level.volume" = "El volumen de la pista no cambia la ganancia del clip.";
+"banner.level.limit" = "Clips en el límite de 20 dB: %lld. Comprueba que tienen voz.";
+"banner.level.unmeasured" = "Clips sin nivel que medir: %lld. Mantienen su ganancia.";
 "banner.export.chapter.images.omitted" = "%@ no tiene imágenes de capítulo: un capítulo no tiene imagen y el episodio no tiene ilustración. Defina la ilustración del episodio o una imagen para cada capítulo.";
 "banner.export.chapter.dropped" = "%1$@ no incluye estos capítulos, porque cada uno empieza en el tiempo de otro capítulo, o en el final del audio o después: %2$@. Muévalos y exporte de nuevo.";
 "report.loudness" = "sonoridad %.1f LUFS";

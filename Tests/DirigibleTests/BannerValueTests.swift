@@ -62,6 +62,14 @@ struct BannerValueTests {
             (.playbackStopped(.outputChanged), .warning, L10n.transportStopOutputChanged.text, .high),
             (.missingMedia(["a.wav"]), .error, L10n.mediaMissing.text, .medium),
             (.lowRecordTime(minutes: 5), .warning, L10n.bannerLowRecordTime.text, .high),
+            (
+                .levelReport(LevelReport(changed: 1, atLimit: 0, unmeasured: 0), press: 1), .info,
+                L10n.bannerLevelChanged.text, .medium
+            ),
+            (
+                .levelReport(LevelReport(changed: 1, atLimit: 1, unmeasured: 0), press: 1), .warning,
+                L10n.bannerLevelChanged.text + " " + L10n.bannerLevelLimit.text, .medium
+            ),
         ]
         for (banner, kind, text, announcement) in banners {
             #expect(banner.kind == kind, "\(banner)")

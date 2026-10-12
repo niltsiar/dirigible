@@ -396,6 +396,11 @@
 "banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "The export of %1$@ is done: %2$@.";
+"banner.level.changed" = "Auto Level is done. Clips changed: %lld.";
+"banner.level.none" = "Auto Level is done. No change: the clips are at the target level.";
+"banner.level.volume" = "The track volume does not change the clip gain.";
+"banner.level.limit" = "Clips at the 20 dB limit: %lld. Check that they have speech.";
+"banner.level.unmeasured" = "Clips with no level to measure: %lld. They keep their gain.";
 "banner.export.chapter.images.omitted" = "%@ has no chapter images: a chapter has no image, and the episode has no artwork. Set the episode artwork, or an image for each chapter.";
 "banner.export.chapter.dropped" = "%1$@ leaves out these chapters, because each starts at the time of another chapter, or at or after the end of the audio: %2$@. Move them, then export again.";
 "report.loudness" = "loudness %.1f LUFS";

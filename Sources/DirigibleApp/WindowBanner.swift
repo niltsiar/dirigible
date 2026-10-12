@@ -8,6 +8,14 @@ struct ExportReportShown: Equatable {
     let revision: Int
 }
 
+/// The report of the last Auto Level, the session revision after it, and the number of its press,
+/// so each press gives a new banner key and VoiceOver reads each result.
+struct LevelReportShown: Equatable {
+    let report: LevelReport
+    let revision: Int
+    let press: Int
+}
+
 /// A banner row of the window (decision 0023): a fact, then what to do.
 enum WindowBanner: Equatable {
     case playbackStopped(PlaybackStop)
@@ -28,6 +36,9 @@ enum WindowBanner: Equatable {
     /// The exported M4A has no chapter images: a chapter has no image, and the episode has no
     /// artwork (run 2026-10-11-chapters-in-file, C5b).
     case chapterImagesOmitted(file: String)
+    /// The result of an Auto Level (run 2026-10-12-autolevel-fader). The press number makes a
+    /// new key for each press. A warning when a changed clip is at the 20 dB limit.
+    case levelReport(LevelReport, press: Int)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -65,6 +76,7 @@ enum WindowBanner: Equatable {
         case .exportReport: "exportReport"
         case .chaptersDropped: "chaptersDropped"
         case .chapterImagesOmitted: "chapterImagesOmitted"
+        case .levelReport(_, let press): "levelReport.\(press)"
         }
     }
 
@@ -74,6 +86,7 @@ enum WindowBanner: Equatable {
             .chapterImagesOmitted:
             .warning
         case .missingMedia: .error
+        case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
     }
@@ -90,6 +103,7 @@ enum WindowBanner: Equatable {
         case .chaptersDropped(let names, let file):
             L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
         case .chapterImagesOmitted(let file): L10n.bannerExportChapterImagesOmitted.format(file)
+        case .levelReport(let report, _): L10n.message(for: report)
         }
     }
 
@@ -97,7 +111,7 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
-        case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted: .medium
+        case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .levelReport: .medium
         }
     }
 }

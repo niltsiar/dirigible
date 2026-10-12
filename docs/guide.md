@@ -280,6 +280,15 @@ The selection gives the clips:
 
 When the selection has no clip, the command beeps and changes nothing. The commands are off when the session has no clip, during a take, and during an import. Each command is one step in the undo history.
 
+After each command, a banner gives the result, and VoiceOver reads it:
+
+- How many clips changed, or "No change" when each clip is at the target level already.
+- When no clip changed: the track volume does not change the clip gain.
+- How many changed clips are at the 20 dB limit. Then the banner is a warning: check that those clips have speech.
+- How many clips have no level to measure, for example silence. They keep their gain.
+
+The banner goes after the next edit, the next take, or the next Auto Level.
+
 Auto Level changes the clip gain only. The track volume adds to the clip gain, and Auto Level does not change it.
 
 ## Add markers and chapters

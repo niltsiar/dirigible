@@ -74,7 +74,7 @@ extension ExportError {
     /// the CocoaError (probe-errno of run 2026-10-09-chapters-export). ENOSPC is a full disk.
     /// Another errno came from the temporary file or the rename, so it is `.moveFailed`. An error
     /// with no POSIX cause gives EIO. No errno goes into `.writeFailed`, which holds an OSStatus.
-    public init(writing error: any Error) {
+    init(writing error: any Error) {
         guard let cause = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError,
             cause.domain == NSPOSIXErrorDomain
         else {

@@ -42,6 +42,9 @@ printf 'x\n' > "$root/Tests/T/t.swift"
 printf '.build/\n' > "$root/.gitignore"
 git -C "$root" init -q && git -C "$root" add -A &&
     git -C "$root" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base
+# The main side of a pair run: a worktree of the same repo (one build lock) on another commit.
+git -C "$root" worktree add -q --detach "$tmp/main" &&
+    git -C "$tmp/main" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m main
 
 # seed: a PCH file and a module cache in the copy, as a build leaves them.
 seed() { mkdir -p "$cache/x/release/ModuleCache" && touch "$cache/x/release/a.pch" "$cache/x/release/ModuleCache/m"; }
@@ -84,7 +87,7 @@ run "lock"
 # One bench-pairs.sh run (an A/A pair and one main/branch pair) holds the lock once: its four
 # benches get one value, and it is in the pid file.
 : > "$tmp/lock.log"
-PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$root" X 1 "$tmp/pairs" > "$tmp/out" 2>&1 ||
+PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$tmp/pairs" > "$tmp/out" 2>&1 ||
     fail "pairs: bench-pairs.sh failed: $(cat "$tmp/out")"
 grep -vqE '^([0-9]+) \1$' "$tmp/lock.log" && fail "pairs: a bench ran with no hold of the lock: $(cat "$tmp/lock.log")"
 [[ "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 && "$(wc -l < "$tmp/lock.log" | tr -d ' ')" -eq 8 ]] ||

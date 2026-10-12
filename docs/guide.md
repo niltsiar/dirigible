@@ -705,7 +705,7 @@ swift run dirigible create Demo.dirigible --sample-rate 48000
 swift run dirigible info Demo.dirigible
 ```
 
-`dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain. `dirigible level Demo.dirigible` sets the gain of each clip as **Tools > Auto Level** does. Add `--per-track` for **Auto Level per Track**.
+`dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain. `dirigible level Demo.dirigible` sets the gain of each clip as **Tools > Auto Level** does. Add `--per-track` for **Auto Level per Track**. It prints one line for each clip, then one report line on stderr, for example `Clips changed: 3.` or `No change: the clips are at the target level.` When no gain changes, it does not write the session.
 
 These commands change clips and the export. `info` shows the clip IDs. A length is in frames: at 48 kHz, 24000 frames are 0.5 s.
 

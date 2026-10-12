@@ -14,7 +14,10 @@ struct LevelCommand: ParsableCommand {
             ID, a tab, and the new gain (for example "+7.0 dB"), "none" when no block passes the gates, \
             or "unreadable" when the file is missing or does not read. Such a clip keeps its gain. \
             With --per-track, the clips of one track get one change, so the gain differences between \
-            them stay, unless a gain reaches the -20...20 dB limit. Exit 1 when a clip ID is unknown. \
+            them stay, unless a gain reaches the -20...20 dB limit. Then one report line on stderr: \
+            the count of changed clips, of changed clips at the limit, and of clips with no level, or \
+            "No change: the clips are at the target level." A level that changes no gain does not \
+            write session.xml. Exit 1 when a clip ID is unknown. \
             Exit 2 when the package cannot be read or written, is locked, or has a take that is not \
             finalized.
             """)
@@ -24,7 +27,8 @@ struct LevelCommand: ParsableCommand {
     @Flag(help: "Give the clips of one track one change.") var perTrack = false
 
     func run() throws {
-        let lines = try editPackage(package) { session throws(SessionError) -> [String] in
+        let (lines, report) = try editPackage(package, writeUnchanged: false) {
+            session throws(SessionError) -> ([String], LevelReport) in
             let all = session.tracks.flatMap(\.clips).map(\.id)
             let chosen = clips.isEmpty ? all : clips.map { ClipID($0) }
             if let unknown = chosen.first(where: { session.clip($0) == nil }) { throw .unknownClip(unknown) }
@@ -38,9 +42,24 @@ struct LevelCommand: ParsableCommand {
                 case .unreadable?: "\(id)\tunreadable"
                 }
             }
+            let report = LevelReport(levels, before: session)
             session = leveled
-            return lines
+            return (lines, report)
         }
         for line in lines { print(line) }
+        try? FileHandle.standardError.write(contentsOf: Data((Self.text(of: report) + "\n").utf8))
+    }
+
+    /// The report line: the banner text of the app without its head and the track volume sentence.
+    static func text(of report: LevelReport) -> String {
+        guard report.changed > 0 || report.atLimit > 0 || report.unmeasured > 0 else {
+            return "No change: the clips are at the target level."
+        }
+        var text = "Clips changed: \(report.changed)."
+        if report.atLimit > 0 { text += " Clips at the 20 dB limit: \(report.atLimit). Check that they have speech." }
+        if report.unmeasured > 0 {
+            text += " Clips with no level to measure: \(report.unmeasured). They keep their gain."
+        }
+        return text
     }
 }

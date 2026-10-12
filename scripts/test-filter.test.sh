@@ -4,8 +4,8 @@
 # word that a CLI test file names. Check that --exact anchors each name and escapes its regex
 # characters, and that --no-parallel reaches both processes. Check that it fails closed: no test
 # in each process that ran, a nonzero swift exit, no word, or a swift exit 0 with no report line
-# (scripts/swift-test.sh), also in make test. A fake swift on PATH logs its arguments. Run by
-# `make test-hooks`.
+# (scripts/swift-test.sh), also in make test. Check that a bare swift-test.sh takes the build
+# lock of its repo. A fake swift on PATH logs its arguments. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -13,9 +13,12 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
-# A package copy: the script and one CLI test file that names the suite CLIWordTests.
+# A package copy: the scripts and one CLI test file that names the suite CLIWordTests. It is a git
+# repo, so swift-test.sh takes the lock of the copy (with-lock.sh exits 2 outside a repo).
 mkdir -p "$tmp/pkg/scripts" "$tmp/pkg/Tests/DirigibleCLITests" "$tmp/bin"
-cp "$repo/scripts/test-filter.sh" "$repo/scripts/swift-test.sh" "$tmp/pkg/scripts/"
+cp "$repo/scripts/test-filter.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/with-lock.sh" "$tmp/pkg/scripts/"
+git init -q "$tmp/pkg"
+export FAKE_PID_FILE="$tmp/pkg/.git/dirigible-build.lock/pid"
 printf 'struct CLIWordTests {\n    @Test func cliWordRuns() {}\n}\n' > "$tmp/pkg/Tests/DirigibleCLITests/CLIWordTests.swift"
 
 # The fake swift logs one line for each call. FAKE_P1 and FAKE_P2 set the output of process 1
@@ -23,9 +26,11 @@ printf 'struct CLIWordTests {\n    @Test func cliWordRuns() {}\n}\n' > "$tmp/pkg
 # mutate.py), xctest (only the XCTest string, and tests ran), tests, or fail (tests, exit 1).
 # Swift Testing writes its summary to stderr: real (the summary of a real run, on stderr) and
 # noreport (exit 0 and no summary line, on stderr, as when an AppKit call ends the process).
+# In <log>.lock it logs the hold value that it gets and the pid file of the lock of the copy.
 cat > "$tmp/bin/swift" <<'EOF'
 #!/bin/bash
 echo "swift $*" >> "$FAKE_LOG"
+echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo free)" >> "$FAKE_LOG.lock"
 mode="$FAKE_P2"
 [[ " $* " == *" --skip DirigibleCLITests "* ]] && mode="$FAKE_P1"
 case "$mode" in
@@ -45,6 +50,7 @@ run() {
   local p1="$1" p2="$2"
   shift 2
   : > "$tmp/log"
+  : > "$tmp/log.lock"
   out="$(cd / && PATH="$tmp/bin:$PATH" FAKE_LOG="$tmp/log" FAKE_P1="$p1" FAKE_P2="$p2" "$tmp/pkg/scripts/test-filter.sh" "$@" 2>&1)"
   code=$?
 }
@@ -53,6 +59,8 @@ p1='swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITe
 run tests tests ClipTests TrackTests
 [[ $code -eq 0 ]] || fail "two words: exit $code: $out"
 [[ "$(cat "$tmp/log")" == "$p1 --filter ClipTests --filter TrackTests" ]] || fail "two words: calls differ: $(cat "$tmp/log")"
+# The bare swift-test.sh took the lock of the copy: swift got the value that the pid file holds.
+grep -qE '^([0-9]+) \1$' "$tmp/log.lock" || fail "lock: swift ran with no hold of the lock of the copy: $(cat "$tmp/log.lock")"
 
 run tests tests ClipTests CLIWordTests
 [[ $code -eq 0 ]] || fail "a CLI word: exit $code: $out"

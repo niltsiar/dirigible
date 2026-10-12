@@ -1,10 +1,12 @@
 #!/bin/bash
 # Check that bench.sh clears the PCH files and the module caches of its copy when the copy was
 # built under another root (a .build cloned from another checkout), and keeps them when the root
-# is the same. A fake swift and a stub check-changed.sh stand in for the build and the load wait.
+# is the same. Check that a bare bench.sh takes the build lock of its repo, and that the benches of
+# one bench-pairs.sh run share one hold. A fake swift and a stub check-changed.sh stand in for the
+# build and the load wait.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
-bench="$(cd "$(dirname "$0")" && pwd)/bench.sh"
+here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -13,9 +15,11 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 root="$tmp/root" cache="$tmp/root/.build/bench/.build"
 mkdir -p "$root/scripts" "$root/Sources/App" "$root/Tests/T" "$tmp/bin"
-cp "$bench" "$root/scripts/bench.sh"
+cp "$here/bench.sh" "$here/bench-pairs.sh" "$here/with-lock.sh" "$root/scripts/"
 printf '#!/bin/bash\nexit 0\n' > "$root/scripts/check-changed.sh"
-printf '#!/bin/bash\necho "Test run with 1 test passed"\n' > "$tmp/bin/swift"
+# The fake swift logs the hold value that it gets and the pid file of the lock of the repo.
+printf '#!/bin/bash\necho "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "%s" 2>/dev/null || echo free)" >> "%s"\necho "Test run with 1 test passed"\n' \
+    "$root/.git/dirigible-build.lock/pid" "$tmp/lock.log" > "$tmp/bin/swift"
 chmod +x "$root/scripts/check-changed.sh" "$tmp/bin/swift"
 printf '.executableTarget(name: "App")\n' > "$root/Package.swift"
 printf '{}\n' > "$root/Package.resolved"
@@ -40,6 +44,20 @@ run "the same root"
 echo /other/root/.build/bench > "$cache/dirigible-bench-root"
 run "another root"
 [[ ! -e "$cache/x/release/a.pch" && ! -e "$cache/x/release/ModuleCache" ]] || fail "another root: the cache stays"
+
+# A bare bench.sh takes the lock of its repo: each swift call gets the value in the pid file.
+: > "$tmp/lock.log"
+run "lock"
+[[ "$(grep -cE '^([0-9]+) \1$' "$tmp/lock.log")" -eq 2 ]] || fail "lock: swift ran with no hold of the lock: $(cat "$tmp/lock.log")"
+
+# One bench-pairs.sh run (an A/A pair and one main/branch pair) holds the lock once: its four
+# benches get one value, and it is in the pid file.
+: > "$tmp/lock.log"
+PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$root" X 1 "$tmp/pairs" > "$tmp/out" 2>&1 ||
+    fail "pairs: bench-pairs.sh failed: $(cat "$tmp/out")"
+grep -vqE '^([0-9]+) \1$' "$tmp/lock.log" && fail "pairs: a bench ran with no hold of the lock: $(cat "$tmp/lock.log")"
+[[ "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 && "$(wc -l < "$tmp/lock.log" | tr -d ' ')" -eq 8 ]] ||
+    fail "pairs: the benches did not share one hold: $(cat "$tmp/lock.log")"
 
 [[ $failures -eq 0 ]] && echo "bench tests: all passed"
 exit $((failures > 0))

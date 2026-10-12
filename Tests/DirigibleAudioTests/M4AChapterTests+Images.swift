@@ -167,6 +167,51 @@ extension M4AChapterTests {
         #expect(try temporaryFiles() == [], "temporary files stay")
     }
 
+    /// Code gate item E4. Read 1 is before the chapter image, and read 2 is the check in the M4A
+    /// JPEG loop. The PNG does not decode, so a conversion before the cancel throws
+    /// `.chapterImageMissing`, not `.cancelled`.
+    @Test func aCancelInTheJPEGLoopStopsBeforeTheConversion() async throws {
+        let png = ArtworkName(png: true)
+        let folder = package.url.appending(path: artworkFolderName)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("not a png".utf8).write(to: folder.appending(path: png.name))
+        let reads = OSAllocatedUnfairLock(initialState: 0)
+        await #expect(throws: ExportError.cancelled) {
+            try await export(
+                [Self.chapter("One", at: 0)], images: ["one": png],
+                isCancelled: {
+                    reads.withLock {
+                        $0 += 1
+                        return $0 >= 2
+                    }
+                })
+        }
+        try MP3ExportTests.expectNoOutput(package)
+    }
+
+    /// Code gate item E4. Read 1 is before the chapter image, and read 2 is the check before the MP3
+    /// tag. The 256 chapters are over the limit, so a tag before the cancel throws
+    /// `.tooManyChapters`, not `.cancelled`.
+    @Test func aCancelBeforeTheMP3TagStopsBeforeTheTag() async throws {
+        let image = try artwork(300)
+        let chapters = (0..<256).map { index in
+            Marker(id: MarkerID("c\(index)"), name: "C\(index)", position: Frames(index * 100), kind: .chapter)
+        }
+        let reads = OSAllocatedUnfairLock(initialState: 0)
+        await #expect(throws: ExportError.cancelled) {
+            try await export(
+                chapters, options: MP3ExportTests.mp3(), images: ["c0": image],
+                to: package.folder.url.appending(path: "mix.mp3"),
+                isCancelled: {
+                    reads.withLock {
+                        $0 += 1
+                        return $0 >= 2
+                    }
+                })
+        }
+        try MP3ExportTests.expectNoOutput(package)
+    }
+
     /// Run 2026-10-11-chapters-in-file slice 4, C5b: the image of the marker in the session goes
     /// into the image track.
     @Test func aChapterImageFromTheMarkerIsInTheImageTrack() async throws {

@@ -157,6 +157,9 @@ trace pass logs/a.trace A B
 [[ $code -eq 0 ]] || fail "trace: exit $code: $(cat "$tmp/out")"
 [[ "$(head -1 "$tmp/xcrun.log")" == "$want" ]] || fail "trace: the record call: $(head -1 "$tmp/xcrun.log")"
 grep -q '^test ' "$tmp/args.log" && fail "trace: swift test ran: $(cat "$tmp/args.log")"
+# The provenance line names the trace, so the cost review of reflect does not count it as a repeat
+# of a timed bench of the same commit and filter.
+grep -qE '^bench: commit [0-9a-f]+ tree clean filter A\|B trace$' "$tmp/out" || fail "trace: the provenance line: $(head -1 "$tmp/out")"
 [[ "$(cat "$tmp/logs/a.trace.top.txt" 2>&1)" == $'Leaf 1 50.0%\nSetup 1 50.0%' ]] || fail "trace: the top frames: $(cat "$tmp/logs/a.trace.top.txt" 2>&1)"
 # --under <name>: the same record call, and the top list counts only the samples under <name>.
 trace under logs/a.trace --under Span A B

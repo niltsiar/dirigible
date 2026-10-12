@@ -22,8 +22,8 @@ public enum ClipLevel: Hashable, Sendable {
     case unreadable
 }
 
-/// The counts of one Auto Level (decision 0031): the clips whose gain changed, the changed clips
-/// at the ±20 dB limit, and the clips with no measurement or no readable file.
+/// The counts of one Auto Level (decision 0031): the clips whose gain changed, the leveled clips
+/// at the ±20 dB limit (changed or not), and the clips with no measurement or no readable file.
 public struct LevelReport: Hashable, Sendable {
     public private(set) var changed = 0
     public private(set) var atLimit = 0
@@ -36,11 +36,15 @@ public struct LevelReport: Hashable, Sendable {
                 unmeasured += 1
                 continue
             }
-            let changed = gain != before.clip(clip)?.clip.gain
-            if changed { self.changed += 1 }
-            if changed && abs(gain.dB) >= Gain.levelLimit { atLimit += 1 }
+            if gain != before.clip(clip)?.clip.gain { changed += 1 }
+            // The tolerance can keep an old gain a little under the clamp.
+            if abs(gain.dB) >= Gain.levelLimit - levelTolerance { atLimit += 1 }
         }
     }
+
+    /// True when no clip changed, none is at the limit, and each has a measurement: each clip is at
+    /// the target level.
+    public var isEmpty: Bool { changed == 0 && atLimit == 0 && unmeasured == 0 }
 
     init(changed: Int, atLimit: Int, unmeasured: Int) {
         (self.changed, self.atLimit, self.unmeasured) = (changed, atLimit, unmeasured)

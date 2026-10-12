@@ -84,6 +84,24 @@ struct LevelCommandTests {
             "second level: \(second)")
     }
 
+    /// Code gate F1: a second level of a clip at the 20 dB limit repeats the limit sentence. The
+    /// -40 dBFS `loud` wants +24 dB.
+    @Test func aSecondLevelAtTheLimitSaysSo() async throws {
+        let package = try Self.package()
+        try LoudnessCommandTests.writeWAV(package.url.appending(path: "Clips/loud.wav"), seconds: 10, dBFS: -40)
+        let first = try await package.run("level", "PKG", "loud")
+        #expect(
+            first.stderr == "Clips changed: 1. Clips at the 20 dB limit: 1. Check that they have speech.\n",
+            "first level: \(first)")
+        let second = try await package.run("level", "PKG", "loud")
+        #expect(
+            second
+                == CLIResult(
+                    status: 0, stdout: "loud\t+20.0 dB\n",
+                    stderr: "Clips changed: 0. Clips at the 20 dB limit: 1. Check that they have speech.\n"),
+            "second level: \(second)")
+    }
+
     /// C15b: a level that changes no gain does not write `session.xml`. The claim is "no write",
     /// and a write of the same session gives the same bytes, so the test reads the modification
     /// date: the first level gets an old date, and a write gives a new one.

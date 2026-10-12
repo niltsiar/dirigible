@@ -149,8 +149,7 @@ extension L10n {
     /// a key, so a test can read the English table.
     static func message(for report: LevelReport, text: (L10n) -> String = { $0.text }) -> String {
         func count(_ key: L10n, _ value: Int) -> String { String(format: text(key), locale: .current, value) }
-        let none = report.changed == 0 && report.atLimit == 0 && report.unmeasured == 0
-        var parts = [none ? text(.bannerLevelNone) : count(.bannerLevelChanged, report.changed)]
+        var parts = [report.isEmpty ? text(.bannerLevelNone) : count(.bannerLevelChanged, report.changed)]
         if report.changed == 0 { parts.append(text(.bannerLevelVolume)) }
         if report.atLimit > 0 { parts.append(count(.bannerLevelLimit, report.atLimit)) }
         if report.unmeasured > 0 { parts.append(count(.bannerLevelUnmeasured, report.unmeasured)) }

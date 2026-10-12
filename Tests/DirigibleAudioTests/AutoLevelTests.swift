@@ -164,8 +164,22 @@ extension AutoLevelTests {
 
         let (_, again) = autoLevel(["co"], .eachClip, of: first, in: package.url)
         #expect(
-            LevelReport(again, before: first) == LevelReport(changed: 0, atLimit: 0, unmeasured: 0),
+            LevelReport(again, before: first) == LevelReport(changed: 0, atLimit: 1, unmeasured: 0),
             "second level of the clamped clip: \(LevelReport(again, before: first))")
+    }
+
+    /// A -36.5 dBFS tone with +19.98 dB wants +20.5 dB. The clamp gives +20 dB, and the tolerance
+    /// keeps +19.98 dB, so the clip did not change but is at the limit.
+    @Test func aKeptGainNearTheLimitCounts() throws {
+        let package = try MixPackage()
+        try package.addFile("over", channels: tone([(20, -36.5)]))
+        try package.addTrack("t1", layout: .stereo, clip: "co", file: "over", start: 0, offset: 0, length: 960_000)
+        try package.session.setGain(Gain(dB: 19.98)!, clip: "co")
+        let (leveled, levels) = autoLevel(["co"], .equallyPerTrack, of: package.session, in: package.url)
+        AutoLevelTests.expectGain(leveled, "co", 19.98, tolerance: 0, "kept gain")
+        #expect(
+            LevelReport(levels, before: package.session) == LevelReport(changed: 0, atLimit: 1, unmeasured: 0),
+            "kept gain near the limit: \(LevelReport(levels, before: package.session))")
     }
 
     @Test func theReportCountsTheUnmeasuredClips() throws {

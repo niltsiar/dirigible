@@ -1,12 +1,13 @@
 #!/bin/bash
 # Check that with-lock.sh holds the shared build lock (<git common dir>/dirigible-build.lock) only
 # while its command runs, and removes only a lock that it took. Cases: a free lock, a command that
-# fails, a live holder (the call waits, also from a second worktree), a TERM to a waiting call (the
-# lock of the holder stays), a release by the holder (the waiting call runs), a TERM to a holder
-# (the command stops and the lock goes), a dead holder with a live child (the call waits), a dead
-# holder (the lock is taken over), a git dir with no write (exit 2), and a pid write that fails
-# (exit 2, no lock). Each case uses a temporary repo with a worktree, so the lock of an outer
-# with-lock.sh call is not touched.
+# fails, a nested call in the command (it runs at once and leaves the lock), a live holder (the
+# call waits, also from a second worktree, also with a stale DIRIGIBLE_BUILD_LOCK), a TERM to a
+# waiting call (the lock of the holder stays), a release by the holder (the waiting call runs), a
+# TERM to a holder (the command stops and the lock goes), a dead holder with a live child (the call
+# waits), a dead holder (the lock is taken over), a git dir with no write (exit 2, also with a dead
+# holder), and a pid write that fails (exit 2, no lock). Each case uses a temporary repo with a
+# worktree, so the lock of an outer with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/with-lock.sh"
@@ -14,7 +15,8 @@ failures=0
 tmp="$(mktemp -d)"
 holder="" child="" waiter="" inner=""
 trap 'kill $holder $child $waiter $inner 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+# The value of an outer with-lock.sh call names another lock.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
@@ -48,6 +50,19 @@ code=$?
 [[ $code -eq 3 ]] || fail "failed command: exit $code, not 3"
 [[ ! -e "$lock" ]] || fail 'failed command: the lock stays'
 
+# A nested call in the command (make test runs swift-test.sh, which calls with-lock.sh) sees the
+# exported value in the pid file: it runs at once, and the lock of the outer call stays after it.
+nested="'$repo/scripts/with-lock.sh' touch '$tmp/ran' && { cat '$lock/pid' || echo gone; } > '$tmp/after'"
+"$repo/scripts/with-lock.sh" bash -c "$nested; echo \$DIRIGIBLE_BUILD_LOCK > '$tmp/value'" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 test -s "$tmp/after" || fail "nested: the nested call waited for its own holder: $(cat "$tmp/wait.out")"
+wait "$waiter"
+waiter=""
+[[ -s "$tmp/value" && "$(cat "$tmp/after")" == "$(cat "$tmp/value")" ]] ||
+    fail "nested: the pid file after the nested call ($(cat "$tmp/after")) is not the exported value ($(cat "$tmp/value"))"
+[[ ! -e "$lock" ]] || fail 'nested: the lock stays after the outer command'
+rm -f "$tmp/ran"
+
 # A live holder: a call from the second worktree waits. A TERM to the waiting call leaves the
 # lock of the holder in place (a release trap set before the take removes it).
 hold
@@ -59,6 +74,15 @@ kill -TERM "$waiter"
 wait "$waiter" 2>/dev/null
 [[ "$(cat "$lock/pid" 2>/dev/null)" == "$holder" ]] || fail 'TERM while waiting: the lock of the holder is gone'
 [[ ! -e "$tmp/ran" ]] || fail 'TERM while waiting: the command ran'
+
+# A stale value (a pid that is not in the pid file) waits as a call with no value does.
+DIRIGIBLE_BUILD_LOCK=$$ "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 grep -q "held by pid $holder" "$tmp/wait.out" || fail "stale value: no wait line: $(cat "$tmp/wait.out")"
+[[ ! -e "$tmp/ran" ]] || fail 'stale value: the command ran while another process held the lock'
+kill -TERM "$waiter"
+wait "$waiter" 2>/dev/null
+[[ "$(cat "$lock/pid" 2>/dev/null)" == "$holder" ]] || fail 'stale value: the lock of the holder is gone'
 
 # The holder releases: the waiting call takes the lock and runs.
 "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
@@ -109,6 +133,22 @@ out="$("$repo/scripts/with-lock.sh" true 2>&1)"
 code=$?
 chmod u+w "$repo/.git"
 [[ $code -eq 2 && "$out" == *'cannot make'* ]] || fail "no write: exit $code: $out"
+
+# A dead holder in a git dir with no write (the sandbox of scripts/probe.sh refuses the reap
+# folder): exit 2 with a reason, not a wait without end.
+mkdir "$lock" && echo "$holder" > "$lock/pid"
+chmod a-w "$repo/.git"
+"$repo/scripts/with-lock.sh" true > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 dead "$waiter" || fail "dead holder, no write: the call waits: $(cat "$tmp/wait.out")"
+wait "$waiter"
+code=$?
+waiter=""
+chmod u+w "$repo/.git"
+[[ $code -eq 2 && "$(cat "$tmp/wait.out")" == *'outside scripts/probe.sh'* ]] ||
+    fail "dead holder, no write: exit $code: $(cat "$tmp/wait.out")"
+[[ "$(cat "$lock/pid" 2>/dev/null)" == "$holder" ]] || fail 'dead holder, no write: the lock changed'
+rm -rf "$lock"
 
 # A pid write that fails (a full disk after the mkdir): exit 2, and the call removes its lock, so
 # later calls do not wait on a lock with no pid. A wrapper of mkdir makes the folder with no write.

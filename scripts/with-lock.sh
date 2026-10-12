@@ -8,11 +8,15 @@
 # call prints the holder once and tries again each 30 s (WITH_LOCK_RETRY sets other seconds).
 # When the call, the child, and the process group of the child are all dead, one waiter at a time
 # (the folder <lock>.reap) reads the pid again and takes the lock over. A lock with no pid file is
-# held. A mkdir that fails with no lock folder (a sandbox, a full disk), or a pid write that fails,
-# exits 2 and leaves no lock. Only after its own take does the call set the trap that removes the
+# held. A mkdir that fails with no lock folder (a sandbox, a full disk), a reap mkdir that fails in a
+# git dir with no write (a dead holder seen from scripts/probe.sh), or a pid write that fails, exits
+# 2 and leaves no lock. Only after its own take does the call set the trap that removes the
 # lock, and the trap removes it only while the pid file holds this pid: a call that stops while it
 # waits never removes the lock of another process. INT or TERM stops the process group of the
 # command first. The call exits with the status of the command.
+# The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
+# file (a nested call, for example swift-test.sh under make test) runs its command at once, and
+# does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
 # The guardrail hook blocks each command that names the lock and is not a read.
 # scripts/with-lock.test.sh tests it.
 set -uo pipefail
@@ -23,16 +27,20 @@ retry="${WITH_LOCK_RETRY:-30}"
 told=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
+[[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
 until mkdir "$lock" 2>/dev/null; do
     [[ -d "$lock" ]] || { echo "with-lock: cannot make $lock; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
     pid="$(cat "$lock/pid" 2>/dev/null)" child="$(cat "$lock/child" 2>/dev/null)"
-    if [[ -n "$pid" ]] && ! alive "$pid" && ! alive "$child" && ! alive "-$child" && mkdir "$lock.reap" 2>/dev/null; then
-        if [[ "$(cat "$lock/pid" 2>/dev/null)" == "$pid" ]]; then
-            rm -rf "$lock" || { rmdir "$lock.reap"; echo "with-lock: cannot remove the dead lock $lock" >&2; exit 2; }
-            echo "with-lock: took over the lock of the dead pid $pid" >&2
+    if [[ -n "$pid" ]] && ! alive "$pid" && ! alive "$child" && ! alive "-$child"; then
+        if mkdir "$lock.reap" 2>/dev/null; then
+            if [[ "$(cat "$lock/pid" 2>/dev/null)" == "$pid" ]]; then
+                rm -rf "$lock" || { rmdir "$lock.reap"; echo "with-lock: cannot remove the dead lock $lock" >&2; exit 2; }
+                echo "with-lock: took over the lock of the dead pid $pid" >&2
+            fi
+            rmdir "$lock.reap"
+            continue
         fi
-        rmdir "$lock.reap"
-        continue
+        [[ -w "${lock%/*}" ]] || { echo "with-lock: cannot reap the lock of the dead pid $pid; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
     fi
     if [[ -z "$told" ]]; then
         echo "with-lock: $lock is held by pid ${pid:-unknown (no pid file)} ($(cat "$lock/command" 2>/dev/null)); retry each $retry s" >&2
@@ -50,6 +58,7 @@ stop() { [[ -z "$child" ]] || { kill -TERM -- "-$child" 2>/dev/null; wait "$chil
 trap release EXIT
 trap 'stop 130' INT
 trap 'stop 143' TERM
+export DIRIGIBLE_BUILD_LOCK=$$
 # A child in the background, so a signal reaches the trap while the command runs. Job control
 # (set -m) gives it its own process group, which a TERM and the takeover check can name.
 set -m

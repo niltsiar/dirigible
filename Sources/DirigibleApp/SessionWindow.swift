@@ -23,13 +23,6 @@ enum WindowAlert: Hashable {
     case exported([String], LoudnessReport?)
 }
 
-/// The loudness report of an export, the name of its file, and the session revision at its end.
-struct ExportReportShown: Equatable {
-    let report: LoudnessReport
-    let file: String
-    let revision: Int
-}
-
 /// The state of one session window and its `NSWindowDelegate` (decision 0014). `Studio` is the
 /// model; this type adds only window state and maps the actions to `Studio` calls.
 @Observable @MainActor final class SessionWindow: NSObject, NSWindowDelegate {

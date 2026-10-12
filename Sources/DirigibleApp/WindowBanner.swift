@@ -1,6 +1,13 @@
 import AppKit
 import DirigibleAudio
 
+/// The loudness report of an export, the name of its file, and the session revision at its end.
+struct ExportReportShown: Equatable {
+    let report: LoudnessReport
+    let file: String
+    let revision: Int
+}
+
 /// A banner row of the window (decision 0023): a fact, then what to do.
 enum WindowBanner: Equatable {
     case playbackStopped(PlaybackStop)

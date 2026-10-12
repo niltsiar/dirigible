@@ -38,6 +38,8 @@ printf '.executableTarget(name: "App")\n' > "$root/Package.swift"
 printf '{}\n' > "$root/Package.resolved"
 printf '@main\nstruct App {}\n' > "$root/Sources/App/main.swift"
 printf 'x\n' > "$root/Tests/T/t.swift"
+# The bench copy stays out of git, so each bench log says tree clean, as bench-pairs.sh needs.
+printf '.build/\n' > "$root/.gitignore"
 git -C "$root" init -q && git -C "$root" add -A &&
     git -C "$root" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base
 

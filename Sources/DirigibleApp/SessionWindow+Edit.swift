@@ -115,8 +115,8 @@ extension SessionWindow {
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers
     /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
     /// marker. Move and Delete act on the current marker when the session has it, else they beep;
-    /// Move with the marker at the playhead beeps too. Marker Info… shows the Marker pane. During a take they do nothing
-    /// and do not beep, as no edit command acts then (decision 0018).
+    /// Move with the marker at the playhead beeps too. Marker Info… shows the Marker pane. During a
+    /// take they do nothing and do not beep, as no edit command acts then (decision 0018).
     func runMarker(_ command: TimelineCommand, _ studio: Studio) {
         let (session, playhead) = (studio.session, studio.playhead)
         switch command {

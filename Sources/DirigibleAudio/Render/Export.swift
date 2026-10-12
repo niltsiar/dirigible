@@ -110,8 +110,8 @@ public struct LoudnessReport: Hashable, Sendable {
 /// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
 /// folder of `url` and closes it. An AAC export of a session with episode fields or chapters then
 /// copies it to `.<name>.<UUID>.tag.tmp` with the iTunes atoms and the chapter tracks (decision
-/// 0045): the encode maps to
-/// 0...0.95, the call of 1.0 comes after the copy, and the copy reads `isCancelled()` too. It
+/// 0045): the encode maps to 0...0.95, the call of 1.0 comes after the copy, and the copy reads
+/// `isCancelled()` too. It
 /// flushes the file of the last step through `flush`, then moves it: over `replacing` when the
 /// target still is that item, else with `moveNew`, which never replaces an item. Then it flushes
 /// the folder. Every exit removes the temporary files. It holds an flock on the `.tmp` file while

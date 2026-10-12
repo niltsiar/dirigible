@@ -9,14 +9,14 @@ struct ID3Chapter: Hashable, Sendable {
     var end: Int
     var url: String?
     var image: Data?
-    var mime = "image/jpeg"
+    var mime: String
 }
 
 /// The ID3 chapters of `chapters`, a list of `Session.chapterList(in: range)`: each chapter ends at
 /// the start of the next one, and the last one at the range end. An MP3 has no added chapter at 0.
 /// `images` has the bytes of the image of each chapter that has one.
 func id3Chapters(
-    _ chapters: [Marker], in session: Session, range: Range<Frames>, images: [MarkerID: Data] = [:]
+    _ chapters: [Marker], in session: Session, range: Range<Frames>, images: [MarkerID: Data]
 ) -> [ID3Chapter] {
     let starts = chapters.map { session.milliseconds($0.position - range.lowerBound) }
     let ends = starts.dropFirst() + [session.milliseconds(range.upperBound - range.lowerBound)]

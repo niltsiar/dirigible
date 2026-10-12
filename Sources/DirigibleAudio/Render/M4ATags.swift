@@ -12,8 +12,8 @@ import Foundation
 /// images, because a chapter has no image and there is no artwork.
 @discardableResult
 func tagM4A(
-    _ source: URL, episode: Episode, artwork: Data?, chapters: [ExportChapter] = [], chapterArtwork: Data? = nil,
-    rate: Int = 0, frames: Int = 0, to output: URL, isCancelled: () -> Bool
+    _ source: URL, episode: Episode, artwork: Data?, chapters: [ExportChapter], chapterArtwork: Data?, rate: Int,
+    frames: Int, to output: URL, isCancelled: () -> Bool
 ) throws(ExportError) -> Bool {
     // An empty episode with chapters gets no iTunes atom, as the export with no chapter (G16).
     let items = episode.isEmpty ? [] : m4aItems(episode, artwork: artwork)

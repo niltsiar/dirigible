@@ -162,9 +162,16 @@ extension ExportWindowTests {
         #expect(banner.kind == .warning)
         try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
         await until("the banner goes") { !model.shown.banners.contains { $0.key == "chaptersDropped" } }
-        for language in ["en", "es"] {
-            let text = (try? stringsTable(language))?["banner.export.chapter.dropped"] ?? ""
-            #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")
+        // Code gate item D6: the text also gives the second reason, a chapter after the audio.
+        let texts = [
+            "en": "mix.mp3 leaves out these chapters, because each starts at the time of another chapter, or at or "
+                + "after the end of the audio: C. Move them, then export again.",
+            "es": "mix.mp3 no incluye estos capítulos, porque cada uno empieza en el tiempo de otro capítulo, o en el "
+                + "final del audio o después: C. Muévalos y exporte de nuevo.",
+        ]
+        for (language, expected) in texts {
+            let format = (try? stringsTable(language))?["banner.export.chapter.dropped"] ?? ""
+            #expect(String(format: format, "mix.mp3", "C") == expected, "\(language): \(format)")
         }
         await model.close()
     }

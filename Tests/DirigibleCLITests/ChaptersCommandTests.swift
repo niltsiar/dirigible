@@ -109,7 +109,7 @@ struct ChaptersCommandTests {
                 == CLIResult(
                     status: 0, stdout: "",
                     stderr: """
-                        Warning: chapter "Outro 2" at 576010 starts at the time of another chapter; the file leaves it out.
+                        Warning: chapter "Outro 2" at 576010 starts at the time of another chapter, or at or after the end of the audio; the file leaves it out.
 
                         """))
         #expect(try startTimes(file) == [10, 12])

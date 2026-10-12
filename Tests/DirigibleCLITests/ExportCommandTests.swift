@@ -312,7 +312,7 @@ struct ExportCommandTests {
                 == CLIResult(
                     status: 0, stdout: "",
                     stderr:
-                        "Warning: chapter \"C\" at 5010 starts at the time of another chapter; the file leaves it out.\n"
+                        "Warning: chapter \"C\" at 5010 starts at the time of another chapter, or at or after the end of the audio; the file leaves it out.\n"
                 ))
         let groups = try await AVURLAsset(url: out("a.m4a")).loadChapterMetadataGroups(
             withTitleLocale: Locale(identifier: "en"), containingItemsWithCommonKeys: [])
@@ -342,7 +342,7 @@ struct ExportCommandTests {
                 == CLIResult(
                     status: 0, stdout: "",
                     stderr:
-                        "Warning: chapter \"C\" at 5000 starts at the time of another chapter; the file leaves it out.\n"
+                        "Warning: chapter \"C\" at 5000 starts at the time of another chapter, or at or after the end of the audio; the file leaves it out.\n"
                 ))
         let bytes = [UInt8](try Data(contentsOf: out("a.mp3")).prefix(4_096))
         let hasTag = bytes.starts(with: Array("ID3".utf8))

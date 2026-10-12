@@ -33,7 +33,8 @@ public struct ExportResult: Hashable, Sendable {
     /// Nil for an export with no loudness target.
     public let loudness: LoudnessReport?
     /// The chapters of the range that the file does not have, because each starts at the time of
-    /// the chapter before it. Empty for a format with no chapters.
+    /// the chapter before it, or an M4A chapter starts at or after the end of the audio. Empty for
+    /// a format with no chapters.
     public let droppedChapters: [Marker]
     /// The M4A has chapters with an image and chapters with none, and the episode has no artwork, so
     /// the file has no chapter images.

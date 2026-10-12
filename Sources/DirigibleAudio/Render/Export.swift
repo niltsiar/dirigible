@@ -257,7 +257,7 @@ public func exportMix(
         let frames = chapters.isEmpty ? 0 : try validFrames(temporary)
         if !chapters.isEmpty {
             m4a = m4aChapters(
-                in: session, range: source.range, outputRate: rate, outputFrames: frames,
+                list, in: session, range: source.range, outputRate: rate, outputFrames: frames,
                 introTitle: options.introTitle, images: jpegs)
         }
         imagesOmitted = try tagM4A(

@@ -20,17 +20,16 @@ struct M4AChapters {
     var dropped: [Marker]
 }
 
-/// The M4A chapter list of `range`. It starts from `Session.chapterList(in:)`, converts each start
-/// to the output rate, and only then drops each chapter at the start of the chapter before it and
+/// The M4A chapter list of `range`. It starts from `list`, the `Session.chapterList(in: range)` of
+/// the caller, converts each start to the output rate, and only then drops each chapter at the start of the chapter before it and
 /// each chapter at or after `outputFrames`: two text samples at one time stop the writer (probe
 /// P1, plan gate G12). When the first start is after 0, it adds a chapter at 0, because the writer
 /// moves a first sample to 0. The added chapter has the episode title, else the show name, else
 /// `introTitle`, and the image of the first chapter. `images` holds the JPEG of each marker.
 func m4aChapters(
-    in session: Session, range: Range<Frames>, outputRate: Int, outputFrames frames: Int, introTitle: String,
-    images: [MarkerID: Data]
+    _ list: ChapterList, in session: Session, range: Range<Frames>, outputRate: Int, outputFrames frames: Int,
+    introTitle: String, images: [MarkerID: Data]
 ) -> M4AChapters {
-    let list = session.chapterList(in: range)
     var chapters: [ExportChapter] = []
     var dropped = list.dropped
     for marker in list.chapters {

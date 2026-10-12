@@ -28,11 +28,11 @@ if [[ -f "$allow" ]]; then
   done <"$allow"
 fi
 
-while IFS= read -r file; do
-  count=$(($(wc -l <"$root/$file")))
+# One wc for all files: a wc for each file took about 3 s, too slow for the pre-commit hook.
+while read -r count file; do
   ((count > limit)) || continue
   grep -qxF "$file" <<<"$entries" || problems+="$file: $count lines, over $limit with no allow entry"$'\n'
-done < <(cd "$root" && find Sources Tests -name '*.swift' -type f 2>/dev/null | sort)
+done < <(cd "$root" && find Sources Tests -name '*.swift' -type f -exec wc -l {} + 2>/dev/null | grep -v ' total$' | sort -k2)
 
 problems="$(sed '/^$/d' <<<"$problems")"
 [[ -z "$problems" ]] || { sed 's/^/check-sizes: /' <<<"$problems" >&2; exit 1; }

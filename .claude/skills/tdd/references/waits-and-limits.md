@@ -18,7 +18,7 @@
 
 ## Stops, threads, and OS resources
 
-- A test of a cancel or a stop asserts that no work happens after it (no progress call, no write, no next chunk). An end state such as "cancelled, no file" also passes when a later check stops the work, so it cannot fail when the earlier guard goes.
+- A test of a cancel or a stop asserts that the work right after the cancel read did not run (no progress call, no write, no next chunk). A count of cancel reads, the end error, or an end state such as "cancelled, no file" also passes when the next cancel read stops the work. So give that work an input that fails with its own error (for example an image that does not decode), and give each cancel read its own test.
 - A hook that asserts where work runs (the thread or the actor) is synchronous and sits at the operation, for example right after the file read. A hook in a nearby async or nonisolated closure reports the isolation of that closure, so it passes when the operation moves to the main actor.
 - A hook that asserts a priority reads `Task.currentPriority` at the operation, also on a GCD thread. `qos_class_self()` gives only the requested QoS and misses the escalation when a caller with a higher priority awaits `task.value` of a detached task.
 - A script or a test that holds an OS resource (a mount, a child process, a temporary folder) ends its committed check with an assert that the resource is gone. A tolerant cleanup (`|| true`, "detach only when still attached") turns a failure into a silent leak. Resolve both paths with `pwd -P` before a compare: `mktemp -d` gives `/var/folders/...`, and `mount` prints `/private/var/folders/...`.

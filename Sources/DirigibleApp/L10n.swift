@@ -344,6 +344,7 @@ enum L10n: String, CaseIterable {
     case errorExportYielded = "error.export.yielded"
     case errorExportArtwork = "error.export.artwork"
     case errorExportChapterImage = "error.export.chapter.image"
+    case errorExportChapterImageExists = "error.export.chapter.image.exists"
     case errorExportChapters = "error.export.chapters"
     case errorExportTag = "error.export.tag"
     case errorExportChaptersTooLong = "error.export.chapters.long"

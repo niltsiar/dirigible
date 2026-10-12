@@ -117,6 +117,10 @@ public struct LoudnessReport: Hashable, Sendable {
 /// the folder. Every exit removes the temporary files. It holds an flock on the `.tmp` file while
 /// it runs. At the start it removes the leftovers of an export to `url` that died. A test passes
 /// `flush` to see the order of the flushes; nil is `fullFlush`.
+///
+/// Thread rule: call it off the main actor. The call blocks its thread until it returns, and the
+/// M4A chapter copy waits on semaphores for up to 10 s for each wait. The app calls it on a GCD
+/// utility queue, so that it holds no thread of the Swift concurrency pool.
 public func exportMix(
     _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
     replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,

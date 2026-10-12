@@ -7,8 +7,9 @@
 # A run holds the build lock (with-lock.sh) once for all its benches; --compare takes no lock.
 # Usage: scripts/bench-pairs.sh <main worktree> <test filter> <pairs> <new out folder>
 #        scripts/bench-pairs.sh --compare <out folder>
-# Per case the compare prints VERIFIED (no pair over the rule), NOT VERIFIED (each pair over the
-# rule), or INCONCLUSIVE (the A/A spread is over the rule, or only some pairs are). Exit 1 when a
+# Per case (its p95, or its p50 for a bench that prints p50 and max) the compare prints VERIFIED
+# (no pair over the rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread
+# is over the rule, or only some pairs are). Exit 1 when a
 # case is NOT VERIFIED, a bench failed (load.txt), or a log has no sample.
 # The pairs give the bench verdict of a budget only with clean provenance: the bench.sh line of the
 # aa-* and main-* logs names one commit, that of the branch-* logs names one commit, each on a
@@ -60,11 +61,17 @@ fi
 python3 - "${2:?usage: bench-pairs.sh --compare <out folder>}" "$root" <<'PY'
 import glob, os, re, statistics, subprocess, sys
 folder, root = sys.argv[1], sys.argv[2]
+# The value of a case: its p95, or its p50 when the bench prints p50 and max (NavigationKeyBenchmark,
+# whose budget is on the p50).
+metric = {}
 def read(path):
     cases = {}
     for line in open(path, errors='replace'):
-        m = re.match(r'(\w+Benchmark .+?): (?:drag )?p50 [0-9.e-]+ seconds, p95 ([0-9.e-]+) seconds', line)
-        if m: cases[m.group(1)] = float(m.group(2)) * 1000
+        m = re.match(r'(\w+Benchmark .+?): (?:drag )?p50 ([0-9.e-]+) seconds, (p95|max) ([0-9.e-]+) seconds', line)
+        if m:
+            p95 = m.group(3) == 'p95'
+            cases[m.group(1)] = float(m.group(4) if p95 else m.group(2)) * 1000
+            metric[m.group(1)] = 'p95' if p95 else 'p50'
     return cases
 aa = [read(f'{folder}/aa-{n}.log') for n in (1, 2)]
 pairs = []
@@ -117,6 +124,6 @@ for case in sorted(aa[0]):
         print(f'NOT VERIFIED {case}'); worst = 1
     else:
         print(f'INCONCLUSIVE {case} ({over} of {len(pairs)} pairs over the rule {limit:.2f} ms)')
-    print(f'  main/branch p95 ms per pair: {detail}; A/A {aa[0][case]:.2f}/{aa[1].get(case, float("nan")):.2f}')
+    print(f'  main/branch {metric[case]} ms per pair: {detail}; A/A {aa[0][case]:.2f}/{aa[1].get(case, float("nan")):.2f}')
 sys.exit(worst)
 PY

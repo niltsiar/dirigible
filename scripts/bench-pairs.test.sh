@@ -53,6 +53,25 @@ log "$tmp/v/branch-2.log" 10.2 10.1
 out="$("$pairs" --compare "$tmp/v" 2>&1)"
 grep -q '^INCONCLUSIVE XBenchmark b (1 of 2 pairs' <<< "$out" || fail "one pair over the rule is INCONCLUSIVE: $out"
 
+# A bench that prints p50 and max (NavigationKeyBenchmark) has no p95: the pairs compare its p50.
+logmax() { # logmax <file> <p50 ms>
+  local c="$main"
+  [[ "${1##*/}" != branch-* ]] || c="$branch"
+  printf 'bench: commit %s tree clean filter X\nNavigationKeyBenchmark crossfade, fit: p50 %s seconds, max 0.09 seconds\n' \
+    "$c" "$(echo "$2 / 1000" | bc -l)" > "$1"
+}
+mkdir "$tmp/m"
+logmax "$tmp/m/aa-1.log" 53
+logmax "$tmp/m/aa-2.log" 53.5
+logmax "$tmp/m/main-1.log" 53
+logmax "$tmp/m/branch-1.log" 49
+logmax "$tmp/m/main-2.log" 53.2
+logmax "$tmp/m/branch-2.log" 49.3
+out="$("$pairs" --compare "$tmp/m" 2>&1)"
+code=$?
+[[ $code -eq 0 ]] && grep -q '^VERIFIED NavigationKeyBenchmark crossfade, fit$' <<< "$out" &&
+  grep -qF 'main/branch p50 ms per pair: 53.00/49.00 53.20/49.30; A/A 53.00/53.50' <<< "$out" || fail "a p50 and max bench: exit $code: $out"
+
 # A side with no sample (a filter that matched no test), or a bench that failed, gives exit 1.
 mkdir "$tmp/none"
 for f in aa-1 aa-2 main-1 branch-1; do : > "$tmp/none/$f.log"; done

@@ -277,6 +277,8 @@ extension AppDelegate {
     /// The title of Tools > Auto Level or Auto Level per Track for the key window: "All" only when
     /// the selection is empty, so the command levels every clip. Nil for another command.
     func levelTitle(_ command: TimelineCommand, for model: SessionWindow?) -> L10n? {
+        // The menu asks for each timeline item: skip the scope of the other items.
+        guard command == .autoLevel || command == .autoLevelPerTrack else { return nil }
         var all = false
         if let model, let studio = model.studio {
             all = model.timeline.selection.clipsToLevel(in: studio.session) == nil

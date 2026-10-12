@@ -89,13 +89,12 @@ extension Selection {
         return result
     }
 
-    /// The clips of Auto Level (decision 0031). Nil with no selection.
+    /// The clips of Auto Level (decision 0031). Nil only for the empty selection; a set with no
+    /// clip that is still in the session gives an empty set.
     public func clipsToLevel(in session: Session) -> Set<ClipID>? {
         switch self {
-        case .range(let marks): return marks.clipsToLevel(in: session)
-        case .clips:
-            let ids = Set(selectedClips(in: session).map(\.clip.id))
-            return ids.isEmpty ? nil : ids
+        case .range(let marks): marks.clipsToLevel(in: session)
+        case .clips: Set(selectedClips(in: session).map(\.clip.id))
         }
     }
 

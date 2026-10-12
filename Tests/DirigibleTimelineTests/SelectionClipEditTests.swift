@@ -56,6 +56,7 @@ struct SelectionClipEditTests {
         var session = session
         try session.setGain(Gain(dB: -6)!, clip: "B")
         #expect(set.clipsToLevel(in: session) == ["A", "B"])
+        #expect(Self.clips(["gone"]).clipsToLevel(in: session) == [], "a stale set is a selection with no clip")
         let inspection = try #require(ClipInspection(selection: set, session: session))
         #expect(inspection.clips == ["A", "B"] && inspection.gain == .mixed)
     }

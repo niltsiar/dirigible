@@ -211,8 +211,8 @@ run start "$repo/Pilot.dirigible"
     fail "start new with a package: open got: $(tail -1 "$state/open.log" 2>/dev/null)"
 run stop
 
-# C3d a package that routes a track to an input device opens with no flag (user decision
-# 2026-10-12: a check can use the internal mic). The removed --live-input flag gets the usage text.
+# C3d a package with a device route (<route device=) opens with no flag. A --live-input flag gets
+# the usage text.
 pkg="$repo/Live.dirigible"
 mkdir -p "$pkg"
 printf '<session><tracks><track name="Host"><route device="BuiltInMicrophoneDevice" channels="1"/></track></tracks></session>\n' >"$pkg/session.xml"

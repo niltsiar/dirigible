@@ -243,4 +243,22 @@ struct M4AChapterTests {
         let cut = title == String(repeating: "é", count: 32_767)
         #expect(cut, "title of \(title?.count ?? 0) characters, last \(String(describing: title?.last))")
     }
+
+    /// Code gate item D12. A source that does not load gives the status of the load error, not the
+    /// "file not found" status of an empty track list.
+    @Test func aSourceThatDoesNotLoadGivesTheLoadError() throws {
+        let source = package.folder.url.appending(path: "text.m4a")
+        try Data("not audio".utf8).write(to: source)
+        var thrown: ExportError?
+        do {
+            try copyWithChapters(
+                source, items: [], chapters: [], images: [], rate: 44_100, frames: 0,
+                to: package.folder.url.appending(path: "out.m4a"), isCancelled: { false })
+        } catch { thrown = error }
+        guard case .writeFailed(let status) = thrown else {
+            Issue.record("thrown \(String(describing: thrown))")
+            return
+        }
+        #expect(status != kAudio_FileNotFoundError && status != noErr, "status \(status)")
+    }
 }

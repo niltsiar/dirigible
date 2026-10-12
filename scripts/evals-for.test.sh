@@ -275,12 +275,13 @@ verdict_case policy-no-new-run 2
 
 # questions.py: run r of set a and of set b ask the same questions in the same order, and run 1
 # and run 2 differ. The prompt of each set and run fills the template; with no template argument,
-# the committed scripts/eval/prompt-template.md.
+# the committed scripts/eval/prompt-template.md. A row of another section is not a question.
 q="$tmp/q"
 mkdir -p "$q/answer"
 {
-  printf '| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n'
+  printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n'
   for i in 1 2 3 4 5 6; do printf '| E%s | policy | s | Question %s? | (a) k | `a.md` | - | - |\n' "$i" "$i"; done
+  printf '\n## Other\n\n| E1 | policy | s | Not a question? | (a) k | `a.md` | - | - |\n'
 } > "$q/evals.md"
 printf 'set {S} run {R} out {OUT} eval {EVAL}\n' > "$q/template.md"
 python3 "$eval_dir/questions.py" "$q/evals.md" "$q/answer" E1,E2,E3,E4,E5,E6 3 "$q/template.md" > /dev/null \

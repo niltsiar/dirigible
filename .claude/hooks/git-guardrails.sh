@@ -86,8 +86,15 @@ fi
 # new line, a pipe (no pipefail), or a background `&`, the row is written before that. && and ||
 # pass the status, and a redirect (2>&1, &>, >&) is not a background job.
 # [[:space:]] and not $: in [[ =~ ]], $ is the end of the text, not the end of a line.
-if [[ "$chained" =~ (^|[^[:alnum:]_./-])(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
-  middle="${BASH_REMATCH[3]}${BASH_REMATCH[4]}"
+# The rule matches git commit, make, or swift only at a command start: the text start, or after
+# `;`, `|`, `&`, `(`, or a new line, then the prefix words NAME=value, time, with-lock.sh, and
+# probe.sh <folder>, in any order. So the word make in row text is data. Limit: in quoted data,
+# git commit, make, or swift after `;`, `|`, `&`, `(`, or a new line still blocks: write the row
+# file with the Write tool and log it with log-decision.sh --from <file>.
+word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
+start="(^|[;|&(]|"$'\n'") ?([A-Za-z_][A-Za-z0-9_]*=$word |time |[^[:space:]]*with-lock\.sh |[^[:space:]]*probe\.sh $word )*"
+if [[ "$chained" =~ $start(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
+  middle="${BASH_REMATCH[6]}${BASH_REMATCH[7]}"
   drop_safe_joins "${middle//||/}"
   if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then
     block "logs a decisions.tsv row after git commit, make, or swift joined by ;, a new line, a pipe, or & (the row can come before the status). Run log-decision.sh in its own command after you read the status"

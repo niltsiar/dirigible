@@ -54,6 +54,7 @@ extension SessionWindow {
             }
             exportReport = nil
             chapterWarnings = nil
+            levelReport = nil
         } catch let error where studio.exportProgress != nil {
             // A refused start keeps the export, and its sheet hides a window alert until the end.
             recordRefusal = error

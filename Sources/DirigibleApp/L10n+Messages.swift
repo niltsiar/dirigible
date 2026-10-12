@@ -144,6 +144,19 @@ extension L10n {
         report.exceedsLevelLimit ? " " + reportGainLarge.text : ""
     }
 
+    /// The banner text of an Auto Level: the head, the track volume sentence when no clip changed,
+    /// then the count of clips at the limit and of clips with no level. `text` gives the value of
+    /// a key, so a test can read the English table.
+    static func message(for report: LevelReport, text: (L10n) -> String = { $0.text }) -> String {
+        func count(_ key: L10n, _ value: Int) -> String { String(format: text(key), locale: .current, value) }
+        let none = report.changed == 0 && report.atLimit == 0 && report.unmeasured == 0
+        var parts = [none ? text(.bannerLevelNone) : count(.bannerLevelChanged, report.changed)]
+        if report.changed == 0 { parts.append(text(.bannerLevelVolume)) }
+        if report.atLimit > 0 { parts.append(count(.bannerLevelLimit, report.atLimit)) }
+        if report.unmeasured > 0 { parts.append(count(.bannerLevelUnmeasured, report.unmeasured)) }
+        return parts.joined(separator: " ")
+    }
+
     /// The text of a stop of playback that the user did not ask for.
     static func message(for stop: PlaybackStop) -> String {
         switch stop {

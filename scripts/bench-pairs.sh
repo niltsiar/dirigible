@@ -11,7 +11,8 @@
 # (no pair over the rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread
 # is over the rule, or only some pairs are). Exit 1 when a case is NOT VERIFIED, a bench failed
 # (load.txt) with no report line of 1 test or more, or a log has no sample. A bench that failed only
-# its asserts (a budget miss of the main side) prints a note, and its samples count.
+# its asserts on the aa or main side (a budget miss that the branch fixes) prints a note, and its
+# samples count.
 # The pairs give the bench verdict of a budget only with clean provenance: the bench.sh line of the
 # aa-* and main-* logs names one commit, that of the branch-* logs names one commit, each on a
 # clean tree, and the branch commit has the Sources, Tests, Package.swift, Package.resolved, and
@@ -85,10 +86,11 @@ load = f'{folder}/load.txt'
 failed = [l.strip() for l in open(load)] if os.path.exists(load) else []
 failed = [l for l in failed if l.endswith('the bench failed')]
 # A bench that failed only its asserts printed its samples and a report line of 1 test or more:
-# the main side of a fix of a budget miss. Its samples count.
+# the main side of a fix of a budget miss. Its samples count. A failed branch bench stays a failure.
 def asserts_only(line):
-    path = f'{folder}/{line.split(":")[0]}.log'
-    return os.path.exists(path) and bool(read(path)) and any(
+    name = line.split(':')[0]
+    path = f'{folder}/{name}.log'
+    return not name.startswith('branch-') and os.path.exists(path) and bool(read(path)) and any(
         re.search(r'Test run with [1-9]', l) for l in open(path, errors='replace'))
 for line in [l for l in failed if asserts_only(l)]:
     print(f'note: {line.split(":")[0]} failed its asserts after its report line; its samples count')

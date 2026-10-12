@@ -93,7 +93,9 @@ extension L10n {
     /// no key.
     private static func message(for error: ExportError) -> String {
         switch error {
-        case .exists, .chapterImageExists: errorExportExists.text
+        case .exists: errorExportExists.text
+        case .chapterImageExists(let path):
+            errorExportChapterImageExists.format(URL(filePath: path).lastPathComponent)
         case .rateNotSupported(let rate): errorExportRate.format(rate)
         case .diskFull: errorExportDiskFull.text
         case .writeFailed(let status): errorExportWrite.format(Int(status))

@@ -1,4 +1,4 @@
-/* Changed by Dirigible on 2026-10-03: four casts, to remove compiler warnings. Changed by Dirigible on 2026-10-12: four snprintf calls in place of sprintf, for the sanitizer builds. No change of behavior. See README.dirigible. */
+/* Changed by Dirigible on 2026-10-03: four casts, to remove compiler warnings, with no change of behavior. Changed by Dirigible on 2026-10-12: four snprintf calls in place of sprintf, for the sanitizer builds: a text longer than its buffer is now cut, not written past the buffer. See README.dirigible. */
 /*
  * id3tag.c -- Write ID3 version 1 and 2 tags.
  *

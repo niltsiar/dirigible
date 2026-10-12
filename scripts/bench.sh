@@ -31,7 +31,10 @@ if [[ "$1" == --trace ]]; then
     : "${3:?usage: scripts/bench.sh --trace <file> [--under <frame>] <name> [<name>...]}"
     # The test step runs in the copy, so a relative path becomes absolute here.
     trace="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
-    [[ ! -e "$trace" ]] || { echo "bench: the trace exists: $trace" >&2; exit 2; }
+    # The export writes the two derived files after the full run, so each must be new too.
+    for file in "$trace" "$trace.xml" "$trace.top.txt"; do
+        [[ ! -e "$file" ]] || { echo "bench: the trace exists: $file" >&2; exit 2; }
+    done
     shift 2
     if [[ "$1" == --under ]]; then
         : "${3:?usage: scripts/bench.sh --trace <file> [--under <frame>] <name> [<name>...]}"

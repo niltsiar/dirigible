@@ -183,6 +183,15 @@ rm -rf "$tmp/logs/"* && mkdir "$tmp/logs/a.trace" && : > "$tmp/args.log"
 code=$?
 [[ $code -eq 2 && "$(cat "$tmp/out")" == *'bench: the trace exists'* && -d "$tmp/logs/a.trace" && ! -s "$tmp/args.log" ]] ||
     fail "an existing trace: exit $code: $(cat "$tmp/out")"
+# A derived file of an earlier trace is refused before the build too: else the export fails after
+# the full traced run.
+for derived in a.trace.xml a.trace.top.txt; do
+    rm -rf "$tmp/logs/"* && : > "$tmp/logs/$derived" && : > "$tmp/args.log"
+    (cd "$tmp" && PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" --trace logs/a.trace A) > "$tmp/out" 2>&1
+    code=$?
+    [[ $code -eq 2 && "$(cat "$tmp/out")" == *"bench: the trace exists: $tmp/logs/$derived"* && ! -s "$tmp/args.log" ]] ||
+        fail "an existing $derived: exit $code: $(cat "$tmp/out")"
+done
 # A call with no --trace calls no xcrun.
 : > "$tmp/xcrun.log"
 run "no trace"

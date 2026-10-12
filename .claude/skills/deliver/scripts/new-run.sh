@@ -2,9 +2,9 @@
 # Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md, decisions.tsv, logs/, and the
 # analysis.md and plan.md skeletons (headings only, so scripts/check-plan.sh refuses them until the
 # run fills them), plus one line in .scratchpads/ledger.md. A subagent fills a skeleton with the
-# Edit tool, which works where the Write tool refuses a new run file. Running it again for the slug of an open run,
-# on any day, returns the same folder and changes nothing. It prints the backlog section sizes,
-# the upkeep items of ## Next, and a due architecture audit on stderr.
+# Edit tool, which works where the Write tool refuses a new run file. Running it again for the
+# slug of an open run, on any day, returns the same folder and changes nothing. It prints the
+# backlog section sizes, the upkeep items of ## Next, and a due architecture audit on stderr.
 set -euo pipefail
 
 slug="${1:?usage: new-run.sh <slug>}"

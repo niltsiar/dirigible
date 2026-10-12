@@ -8,9 +8,9 @@
 # call prints the holder once and tries again each 30 s (WITH_LOCK_RETRY sets other seconds).
 # When the call, the child, and the process group of the child are all dead, one waiter at a time
 # (the folder <lock>.reap) reads the pid again and takes the lock over. A lock with no pid file is
-# held. A mkdir that fails with no lock folder (a sandbox, a full disk), a reap mkdir that fails in a
-# git dir with no write (a dead holder seen from scripts/probe.sh), or a pid write that fails, exits
-# 2 and leaves no lock. Only after its own take does the call set the trap that removes the
+# held. A mkdir that fails with no lock folder (a sandbox, a full disk), a reap mkdir that fails
+# in a git dir with no write (a dead holder seen from scripts/probe.sh), or a pid write that fails,
+# exits 2 and leaves no lock. Only after its own take does the call set the trap that removes the
 # lock, and the trap removes it only while the pid file holds this pid: a call that stops while it
 # waits never removes the lock of another process. INT or TERM stops the process group of the
 # command first. The call exits with the status of the command.

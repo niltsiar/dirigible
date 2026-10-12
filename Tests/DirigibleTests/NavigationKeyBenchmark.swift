@@ -98,9 +98,7 @@ import Testing
                 let draws = view.lanes.draws
                 try await Task.sleep(for: .microseconds(16_700))
                 let start = ContinuousClock.now
-                action()
-                update()
-                drawNow(window)
+                timedSpan(action, update, window)
                 // The first events after the window shows are not timed (the backing store and the
                 // window server set up: 96 to 225 ms, then 8 to 19 ms).
                 if event >= 5 { times.append(ContinuousClock.now - start) }
@@ -115,5 +113,15 @@ import Testing
             await model.close()
         }
         return results
+    }
+
+    /// The timed span of each event: the command, the SwiftUI update, and the draw. It is a
+    /// function of its own, so a trace keeps only its samples
+    /// (`scripts/trace-top.py --under timedSpan`).
+    @inline(never)
+    static func timedSpan(_ action: @MainActor () -> Void, _ update: @MainActor () -> Void, _ window: NSWindow) {
+        action()
+        update()
+        drawNow(window)
     }
 }

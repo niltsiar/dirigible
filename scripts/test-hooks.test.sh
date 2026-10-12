@@ -175,6 +175,17 @@ echo y > "$repo/untracked.txt"
 run
 [[ $code -eq 0 ]] || fail "outside read: the run in place failed: code $code: $(out)"
 
+# C5: the key holds only the existence of a floor path, so each floor file is empty in the key
+# tree. A test that reads floor content fails on a clean tree and writes no stamp.
+new_repo
+printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\ngrep -q x Sources/DirigibleCore/PackageLock.swift\n' > "$repo/t/a.test.sh"
+commit 'floor read'
+run
+[[ $code -ne 0 && $(stamps) -eq 0 ]] && grep -q 'failed: t/a.test.sh$' "$tmp/out" \
+    || fail "floor read: the clean run passed or wrote a stamp: code $code, stamps $(stamps): $(out)"
+[[ -e "$repo/Sources/DirigibleCore/PackageLock.swift" && -s "$repo/Sources/DirigibleCore/PackageLock.swift" ]] \
+    || fail 'floor read: the floor file of the repo changed'
+
 # C5: a run, and a run stopped with a signal, leave the shared config, the worktree list, and
 # the TMPDIR of the case as before.
 new_repo

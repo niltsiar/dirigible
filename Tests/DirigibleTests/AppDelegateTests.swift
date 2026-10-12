@@ -124,8 +124,11 @@ import os
         }
         try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
-        await window.close()
-        #expect(window.alert == .confirmUnsavedClose)
+        // The close of AppKit goes through the delegate, so the test calls the same witness.
+        let shouldClose = try #require(
+            (window as any NSWindowDelegate).windowShouldClose, "the window delegate has a close witness")
+        #expect(shouldClose(try #require(window.window)) == false)
+        await until(limit: .seconds(30), "the close asks") { window.alert == .confirmUnsavedClose }
         #expect(window.window?.isVisible == true)
         #expect(app.windows.count == 1)
 
@@ -166,7 +169,9 @@ import os
         let (window, studio) = try await windowWithPeaks()
         studio.peakLoad.states = [:]
 
-        (window as any NSWindowDelegate).windowDidBecomeKey?(Notification(name: NSWindow.didBecomeKeyNotification))
+        let becomeKey = try #require(
+            (window as any NSWindowDelegate).windowDidBecomeKey, "the window delegate has a focus witness")
+        becomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
 
         await until(limit: .seconds(30), "the focus loads the peaks") { studio.peaks["f1"]?.peaks != nil }
         await window.close()

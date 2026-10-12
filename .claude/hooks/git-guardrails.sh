@@ -87,12 +87,14 @@ fi
 # pass the status, and a redirect (2>&1, &>, >&) is not a background job.
 # [[:space:]] and not $: in [[ =~ ]], $ is the end of the text, not the end of a line.
 # The rule matches git commit, make, or swift only at a command start: the text start, or after
-# `;`, `|`, `&`, `(`, or a new line, then the prefix words NAME=value, time, with-lock.sh, and
-# probe.sh <folder>, in any order. So the word make in row text is data. Limit: in quoted data,
-# git commit, make, or swift after `;`, `|`, `&`, `(`, or a new line still blocks: write the row
-# file with the Write tool and log it with log-decision.sh --from <file>.
+# `;`, `|`, `&`, `(`, or a new line, then the prefix words `{`, `!`, if, then, do, else, while,
+# NAME=value, time, env, bash, with-lock.sh, and probe.sh <folder>, in any order. So the word make
+# in row text is data. Limits: in quoted data, git commit, make, or swift after `;`, `|`, `&`, `(`,
+# or a new line still blocks: write the row file with the Write tool and log it with
+# log-decision.sh --from <file>. A command after another wrapper word (nice, nohup, caffeinate,
+# xcrun) or after a quote character is not blocked.
 word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
-start="(^|[;|&(]|"$'\n'") ?([A-Za-z_][A-Za-z0-9_]*=$word |time |[^[:space:]]*with-lock\.sh |[^[:space:]]*probe\.sh $word )*"
+start="(^|[;|&(]|"$'\n'") ?(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |bash |[^[:space:]]*with-lock\.sh |[^[:space:]]*probe\.sh $word )*"
 if [[ "$chained" =~ $start(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
   middle="${BASH_REMATCH[6]}${BASH_REMATCH[7]}"
   drop_safe_joins "${middle//||/}"

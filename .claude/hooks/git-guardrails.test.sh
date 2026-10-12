@@ -381,6 +381,16 @@ expect allow $'cat > row.txt <<\'EOF\'\n4\nwe make the row\nEOF\n.claude/skills/
 expect block "X=1 make x; $ld"
 expect block "time make x; $ld"
 expect block "(make x); $ld"
+# A group, a negation, a shell keyword, env, and bash also start a command.
+expect block "{ make x; }; $ld"
+expect block "! make x; $ld"
+expect block "if make x; then $ld; fi"
+expect block "while make x; do $ld; done"
+expect block "for i in 1; do make x; $ld; done"
+expect block "if true; then :; else make x; $ld; fi"
+expect block "if true; then make x; $ld; fi"
+expect block "env X=1 make x; $ld"
+expect block "bash scripts/with-lock.sh make x; $ld"
 
 # A chain rule must hold for each join form, not only for the forms that a gate found one at a time
 # (run 2026-10-08-upkeep-batch-4). Each chain rule calls this helper: one block case for each join

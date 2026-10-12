@@ -31,7 +31,7 @@ package final class AgentServer {
 
     private let socket: URL
     private let targets: @MainActor () -> [AgentTarget]
-    @ObservationIgnored private var listener: AgentListener?
+    @ObservationIgnored private(set) var listener: AgentListener?
     /// One more for each start, so a count of a stopped listener does not change `connected`.
     @ObservationIgnored private var generation = 0
 
@@ -42,8 +42,8 @@ package final class AgentServer {
 
     package func start() {
         guard listener == nil else { return }
-        // A second guard after SO_NOSIGPIPE (C16): a stray SIGPIPE is not found yet. It is of the
-        // whole process, and a child process of the app gets it too.
+        // A second guard after MSG_NOSIGNAL and SO_NOSIGPIPE (C16). It is of the whole process,
+        // and a child process of the app gets it too.
         signal(SIGPIPE, SIG_IGN)
         generation += 1
         let generation = generation

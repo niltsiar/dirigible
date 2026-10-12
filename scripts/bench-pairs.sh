@@ -4,6 +4,7 @@
 # main alone moves more than the rule, the pairs cannot give a verdict. The pair count is fixed
 # before the runs, and every pair counts: a pick of the clean pairs after the results is not a
 # verdict (timeline-navigation Phase 7). Each run writes the load of the Mac next to its log.
+# A run holds the build lock (with-lock.sh) once for all its benches; --compare takes no lock.
 # Usage: scripts/bench-pairs.sh <main worktree> <test filter> <pairs> <new out folder>
 #        scripts/bench-pairs.sh --compare <out folder>
 # Per case the compare prints VERIFIED (no pair over the rule), NOT VERIFIED (each pair over the
@@ -14,6 +15,8 @@ if [[ "${1:-}" != "--compare" ]]; then
   main="${1:?usage: bench-pairs.sh <main worktree> <filter> <pairs> <out folder>}"
   filter="${2:?filter}"; count="${3:?pairs}"; out="${4:?out folder}"
   root="$(cd "$(dirname "$0")/.." && pwd)"
+  # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
+  [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$root/scripts/with-lock.sh" "$0" "$@"
   [[ ! -e "$out" ]] || { echo "bench-pairs: $out exists; give a new folder" >&2; exit 2; }
   mkdir -p "$out"; out="$(cd "$out" && pwd)"
   run() { # run <tree> <log name>

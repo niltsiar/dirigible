@@ -4,9 +4,13 @@
 # So the script copies the package to .build/bench, makes each executable target a library,
 # removes its @main, and runs the tests in that copy. Tests that start the `dirigible` binary
 # do not work in the copy.
+# The script holds the build lock (with-lock.sh) for the build and the timed run. Under the hold of
+# a caller (bench-pairs.sh, or an outer with-lock.sh call), it runs at once.
 # Usage: scripts/bench.sh <test filter>, for example scripts/bench.sh LaneRenderBenchmark
 set -euo pipefail
 filter="${1:?usage: scripts/bench.sh <test filter>}"
+# with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
+[[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$(dirname "$0")/with-lock.sh" "$0" "$@"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # The cost review of reflect (cost.sh) counts a repeat by the commit and the filter of this line.
 tree=clean

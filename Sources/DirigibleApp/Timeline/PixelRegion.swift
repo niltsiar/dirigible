@@ -44,13 +44,19 @@ struct PixelRegion: ~Copyable {
     }
 
     /// Each pixel through `transform`: the selection band (`LanePalette.selected`) and the tint of
-    /// a selected clip (`LanePalette.tinted`).
+    /// a selected clip (`LanePalette.tinted`). Each transform is a pure function of the pixel, and a
+    /// row has long runs of one color, so the result of the last pixel is used again for an equal
+    /// pixel (the Command-F bench spent 13 % of its timed span in this loop).
     func blend(columns: Range<Int>, rows: Range<Int>, _ transform: (UInt32) -> UInt32) {
         let (columns, rows) = (columns.clamped(to: rect.columns), rows.clamped(to: rect.rows))
         guard !columns.isEmpty else { return }
+        var (last, result): (UInt32, UInt32) = (0, transform(0))
         for row in rows {
             let pixels = address(columns.lowerBound, row)
-            for index in 0..<columns.count { pixels[index] = transform(pixels[index]) }
+            for index in 0..<columns.count {
+                if pixels[index] != last { (last, result) = (pixels[index], transform(pixels[index])) }
+                pixels[index] = result
+            }
         }
     }
 

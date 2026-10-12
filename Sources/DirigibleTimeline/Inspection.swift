@@ -1,7 +1,7 @@
 import DirigibleCore
 import Foundation
 
-/// The values of the clips that the selection touches (the clips of `Marks.clipsToLevel`), for
+/// The values of the clips that the selection touches (the clips of `Marks.touchedClips`), for
 /// the inspector (run 11b-2).
 public struct ClipInspection: Equatable, Sendable {
     /// One value for every clip, or `mixed` when two clips differ.

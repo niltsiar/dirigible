@@ -175,8 +175,25 @@ struct MarksTests {
             Marks(inPoint: 1000, outPoint: 480_000, tracks: ["t1", "t2"]).clipsToLevel(in: session) == ["c1", "c3"])
         #expect(Marks(inPoint: 479_999, outPoint: 480_001, tracks: ["t1"]).clipsToLevel(in: session) == ["c1", "c2"])
         #expect(Marks(inPoint: 0, outPoint: 10, tracks: ["t3"]).clipsToLevel(in: session) == [])
-        #expect(Marks(tracks: ["t1"]).clipsToLevel(in: session) == nil)
-        #expect(Marks(inPoint: 0, outPoint: 10).clipsToLevel(in: session) == nil)
+    }
+
+    /// Run 2026-10-12-autolevel-fader C1, C1b, C1c, C3: nil only for the empty selection; a
+    /// track-only selection gives every clip of its tracks; a range with no track uses all tracks;
+    /// a stale selection gives an empty set.
+    @Test func clipsToLevelFollowsTheSelectionState() throws {
+        var session = try Self.session()
+        try session.place(Clip(id: "c2", file: "f1", start: 480_000, offset: 0, length: 480_000), on: "t1")
+        try session.place(Clip(id: "c3", file: "f1", start: 0, offset: 0, length: 480_000), on: "t2")
+
+        #expect(Marks().clipsToLevel(in: session) == nil, "empty selection")
+        #expect(Marks(inPoint: 0).clipsToLevel(in: session) == nil, "in point only")
+        #expect(Marks(tracks: ["t1"]).clipsToLevel(in: session) == ["c1", "c2"], "track only")
+        #expect(Marks(tracks: ["t3"]).clipsToLevel(in: session) == [], "track only with no clip")
+        #expect(Marks(inPoint: 0, outPoint: 10).clipsToLevel(in: session) == ["c1", "c3"], "range with no track")
+        #expect(Marks(inPoint: 2_000_000, outPoint: 2_000_010).clipsToLevel(in: session) == [], "range past the end")
+        #expect(Marks(tracks: ["gone"]).clipsToLevel(in: session) == [], "stale track only")
+        #expect(
+            Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["gone"]).clipsToLevel(in: session) == [], "stale range")
     }
 
     @Test func nudge() throws {

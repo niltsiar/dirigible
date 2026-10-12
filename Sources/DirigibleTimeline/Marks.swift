@@ -170,7 +170,7 @@ public struct Marks: Hashable, Sendable {
     }
 
     /// Each clip on a selected track whose range overlaps the selection, in session order, as its
-    /// lane and its index there. Auto Level and the inspector take these clips. Nil
+    /// lane and its index there. The inspector takes these clips. Nil
     /// with no selection.
     public func touchedClips(in session: Session) -> [(lane: ClipLane, index: Int)]? {
         guard let selection = selection(in: session) else { return nil }
@@ -179,10 +179,16 @@ public struct Marks: Hashable, Sendable {
         }
     }
 
-    /// The clips of Auto Level (decision 0031): each whole clip that the selection touches. Nil
-    /// with no selection.
+    /// The clips of Auto Level (decision 0031): each whole clip that the range touches, or every
+    /// clip with no range, on the selected tracks. With no selected track, a range uses all tracks,
+    /// as I and O do. Nil only with no range and no track; a selected track that is gone gives no
+    /// clip.
     public func clipsToLevel(in session: Session) -> Set<ClipID>? {
-        touchedClips(in: session).map { Set($0.map { $0.lane[$0.index].id }) }
+        var range: Range<Frames>?
+        if let inPoint, let outPoint, inPoint < outPoint { range = inPoint..<outPoint }
+        guard range != nil || !tracks.isEmpty else { return nil }
+        let lanes = session.tracks.filter { tracks.isEmpty || tracks.contains($0.id) }.map(\.clips)
+        return Set(lanes.flatMap { $0.filter { range?.overlaps($0.range) ?? true }.map(\.id) })
     }
 
     /// The fades of Command-F (decision 0035) for each clip on a selected track that overlaps the

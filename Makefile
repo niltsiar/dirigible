@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app icon-preview test test-filter test-slow test-slow-push check-slow-gates check-warnings check-sizes bench test-app dmg test-dmg test-hooks check-docs run lint format check check-fast check-changed clean
+.PHONY: setup build app icon-preview test test-filter test-slow test-slow-push check-slow-gates check-warnings check-sizes bench test-app dmg test-dmg test-hooks check-docs run lint format static check check-fast check-changed clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -153,10 +153,15 @@ lint:
 format:
 	swift format format --in-place --recursive $(SWIFT_SOURCES)
 
-check: lint check-docs check-slow-gates check-warnings check-sizes test test-hooks test-app
+# The gates with no Swift test. scripts/run-checks.sh runs them first with make static, so a red
+# gate stops check or check-fast before the Swift targets (decision 0028).
+STATIC_GATES := lint check-docs check-slow-gates check-warnings check-sizes
+static: $(STATIC_GATES)
+
+check: $(STATIC_GATES) test test-hooks test-app
 
 # The checks with no Swift test: for a change to scripts, hooks, or workflows.
-check-fast: lint check-docs check-slow-gates check-warnings check-sizes test-hooks
+check-fast: $(STATIC_GATES) test-hooks
 
 # Runs the targets that scripts/check-changed.sh picks for the changed paths (decision 0028).
 # With BASE, the targets before the push. With FILTER and no BASE, test-filter in place of test.

@@ -5,8 +5,9 @@
 # backtick before the target name, and exit 2. Cases: a pass on rerun 2 (the flake line and one
 # dirigible-flakes line), red on 3 reruns, parameterized names, a level-0 make prefix, each
 # refusal with no rerun, CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
-# later try with only the names that did not pass again, a real make on a stub Makefile, and
-# --flakes (the read route of the flakes file). Run by `make test-hooks`.
+# later try with only the names that did not pass again, a real make on a stub Makefile, the
+# static gates first (a red gate stops the check before test; a gate runs once; a nested make
+# still runs a gate), and --flakes (the read route of the flakes file). Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -47,11 +48,14 @@ done
 exit $red
 EOF
 chmod +x "$w/scripts/"*.sh
-# The fake make logs its arguments and prints the lines of $tmp/lines in order: a line that
-# starts with 2: goes to stderr, else to stdout. It exits with $tmp/code.
+# The fake make logs its arguments. For the goal static (the pre-pass of the static gates) it
+# exits 0. Else it prints the lines of $tmp/lines in order: a line that starts with 2: goes to
+# stderr, else to stdout. It exits with $tmp/code. The stub Makefile gives the static gates.
+printf 'STATIC_GATES := lint check-sizes\n' > "$w/Makefile"
 cat > "$tmp/bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$FAKE_LOG"
+[[ " $* " == *" static "* ]] && exit 0
 for f in "$(git rev-parse --path-format=absolute --git-dir)"/dirigible-check-running/*; do
   p="${f##*/}"
   [[ -e $f ]] && kill -0 "$p" 2>/dev/null && [[ "$(cat "$f")" == "$(ps -o lstart= -p "$p")" ]] &&
@@ -86,13 +90,14 @@ filters() { grep '^test-filter ' "$tmp/log"; }
 # A pass with no rerun.
 run 1 0 'ok'
 [[ $code -eq 0 ]] || fail "a pass: exit $code: $out"
-[[ "$(cat "$tmp/log")" == 'make -k check' ]] || fail "a pass: calls [$(cat "$tmp/log")]"
+[[ "$(cat "$tmp/log")" == $'make -k static\nmake -k -o lint -o check-sizes check' ]] || fail "a pass: calls [$(cat "$tmp/log")]"
 
 # A test failure that passes on rerun 2: the load wait before each rerun, a flake line, and one
 # dirigible-flakes line with HEAD and the load.
 run 2 2 "$red_test" check FILTER=
 [[ $code -eq 0 ]] || fail "a pass on rerun 2: exit $code: $out"
-want="make -k check FILTER=
+want="make -k static FILTER=
+make -k -o lint -o check-sizes check FILTER=
 check-changed --wait-load test
 test-filter slow= --exact aFlake
 check-changed --wait-load test
@@ -179,7 +184,42 @@ out="$(cd "$w" && FAKE_LOG="$tmp/log" FAKE_TRIES="$tmp/tries" FAKE_PASS_AT=1 scr
 code=$?
 [[ $code -eq 0 ]] || fail "a real make: exit $code: $out"
 grep -qx 'run-checks: flake: aFlake passed on rerun 1 of 3' <<<"$out" || fail "a real make: no flake line: $out"
-rm "$w/Makefile"
+
+# The static gates first, with a real make on a stub Makefile. A red gate stops the check before
+# the test recipe, with the reason. With green gates, each gate recipe runs once and test runs. A
+# goal with no check or check-fast gets no pre-pass. GNU make does not pass -o to a nested make, so
+# a nested make of a gate still runs it.
+cat > "$w/Makefile" <<'EOF'
+STATIC_GATES := lint check-sizes
+static: $(STATIC_GATES)
+check: $(STATIC_GATES) test
+check-fast: $(STATIC_GATES)
+lint:
+	@echo lint >> "$$COUNT"
+check-sizes:
+	@echo check-sizes >> "$$COUNT"; exit $${SIZES_CODE:-0}
+test:
+	@echo test >> "$$COUNT"; if [ -n "$$NESTED" ]; then $(MAKE) -s lint; fi
+EOF
+static_run() {
+  : > "$tmp/count"
+  out="$(cd "$w" && COUNT="$tmp/count" "$@" 2>&1)"
+  code=$?
+}
+recipes() { paste -sd' ' - < "$tmp/count"; }
+static_run env SIZES_CODE=1 scripts/run-checks.sh check
+[[ $code -eq 1 ]] || fail "a red static gate: exit $code: $out"
+grep -qx 'run-checks: a static gate is red' <<<"$out" || fail "a red static gate: no reason: $out"
+[[ "$(recipes)" == 'lint check-sizes' ]] || fail "a red static gate: recipes [$(recipes)]"
+static_run scripts/run-checks.sh check
+[[ $code -eq 0 && "$(recipes)" == 'lint check-sizes test' ]] || fail "green static gates: exit $code, recipes [$(recipes)]: $out"
+static_run env SIZES_CODE=1 scripts/run-checks.sh check-fast
+[[ $code -eq 1 ]] && grep -qx 'run-checks: a static gate is red' <<<"$out" || fail "a red static gate of check-fast: exit $code: $out"
+static_run env NESTED=1 scripts/run-checks.sh check
+[[ $code -eq 0 && "$(recipes)" == 'lint check-sizes test lint' ]] || fail "a nested make of a gate: exit $code, recipes [$(recipes)]: $out"
+static_run env SIZES_CODE=1 scripts/run-checks.sh test
+[[ $code -eq 0 && "$(recipes)" == 'test' ]] || fail "a goal with no gate: exit $code, recipes [$(recipes)]: $out"
+printf 'STATIC_GATES := lint check-sizes\n' > "$w/Makefile"
 
 # --flakes prints the lines of the flakes file and runs no make; with no file, it prints nothing.
 printf 'abc aFlake load 1.0\ndef bFlake load 2.0\n' > "$flakes"

@@ -34,7 +34,8 @@ struct LevelCommandTests {
         let package = try Self.package()
         let level = try await package.run("level", "PKG")
         let expected = "loud\t+7.0 dB\nquiet\t+14.0 dB\nhush\tnone\nmono\t+7.0 dB\ngone\tunreadable\n"
-        #expect(level == CLIResult(status: 0, stdout: expected, stderr: ""), "level: \(level)")
+        let report = "Clips changed: 3. Clips with no level to measure: 2. They keep their gain.\n"
+        #expect(level == CLIResult(status: 0, stdout: expected, stderr: report), "level: \(level)")
         let loudness = try await package.run("loudness", "PKG", "loud", "quiet", "mono")
         #expect(
             loudness.stdout == "loud\t-16.0 LUFS\nquiet\t-16.0 LUFS\nmono\t-19.0 LUFS\n",
@@ -55,16 +56,48 @@ struct LevelCommandTests {
         #expect(
             level.stdout == String(format: "loud\t%+.1f dB\nquiet\t%+.1f dB\n", loud, quiet),
             "per track output: \(level)")
+        #expect(level.stderr == "Clips changed: 2.\n", "per track report: \(level)")
     }
 
     @Test func aClipIDLimitsTheEdit() async throws {
         let package = try Self.package()
         let level = try await package.run("level", "PKG", "mono")
-        #expect(level == CLIResult(status: 0, stdout: "mono\t+7.0 dB\n", stderr: ""), "one clip: \(level)")
+        #expect(
+            level == CLIResult(status: 0, stdout: "mono\t+7.0 dB\n", stderr: "Clips changed: 1.\n"),
+            "one clip: \(level)")
         let session = try package.read()
         #expect(session.clip("loud")?.clip.gain == .zero, "one clip: loud changed")
         let mono = try #require(session.clip("mono")?.clip.gain.dB)
         #expect(abs(mono - 7) <= 0.1, "one clip: mono \(mono)")
+    }
+
+    /// C15: a second level of a leveled clip prints its gain and says that nothing changed.
+    @Test func aSecondLevelSaysNoChange() async throws {
+        let package = try Self.package()
+        let first = try await package.run("level", "PKG", "mono")
+        #expect(first.stderr == "Clips changed: 1.\n", "first level: \(first)")
+        let second = try await package.run("level", "PKG", "mono")
+        #expect(
+            second
+                == CLIResult(
+                    status: 0, stdout: "mono\t+7.0 dB\n", stderr: "No change: the clips are at the target level.\n"),
+            "second level: \(second)")
+    }
+
+    /// C15b: a level that changes no gain does not write `session.xml`. The claim is "no write",
+    /// and a write of the same session gives the same bytes, so the test reads the modification
+    /// date: the first level gets an old date, and a write gives a new one.
+    @Test func aSecondLevelWritesNoSession() async throws {
+        let package = try Self.package()
+        let file = package.sessionXML.path
+        let first = try await package.run("level", "PKG", "mono")
+        #expect(first.status == 0, "first level: \(first)")
+        let old = Date(timeIntervalSince1970: 1_000_000_000)
+        try FileManager.default.setAttributes([.modificationDate: old], ofItemAtPath: file)
+        let second = try await package.run("level", "PKG", "mono")
+        #expect(second.status == 0, "second level: \(second)")
+        let date = try FileManager.default.attributesOfItem(atPath: file)[.modificationDate] as? Date
+        #expect(date == old, "second level wrote session.xml: date \(String(describing: date))")
     }
 
     @Test func anUnknownClipExitsOne() async throws {

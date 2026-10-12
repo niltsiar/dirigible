@@ -160,7 +160,8 @@ if ! reads_only dirigible-build.lock; then
   block "names the build lock in a command that is not a read (run the build or test through scripts/with-lock.sh, which takes the lock and removes only a lock that it took; read the lock with ls or cat)"
 fi
 # Only scripts/test-hooks.sh appends to the hooks pass stamp, after a pass of the whole list, so a
-# hand write cannot skip the hook tests. A read is allowed.
+# Bash command cannot write it to skip the hook tests. A read is allowed. This rule covers only the
+# Bash tool, not the Edit and Write tools.
 if ! reads_only dirigible-hooks-stamp; then
   block "names the hooks pass stamp in a command that is not a read (only scripts/test-hooks.sh appends to it after a pass; read it with cat or grep)"
 fi

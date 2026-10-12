@@ -215,7 +215,7 @@ expect block 'rm -rf /Users/x/repo/.git/dirigible-build.lock'
 expect allow 'ls .git/dirigible-build.lock'
 expect allow 'cat .git/dirigible-build.lock/pid .git/dirigible-build.lock/command'
 # Only scripts/test-hooks.sh appends to the hooks pass stamp, after a pass of the whole list, so
-# a hand write cannot skip the hook tests. A read is allowed.
+# a Bash command cannot write it to skip the hook tests. A read is allowed.
 expect_each_write .git/dirigible-hooks-stamp
 expect block 'echo k >> "$(git rev-parse --git-common-dir)/dirigible-hooks-stamp"'
 expect block 'rm .git/dirigible-hooks-stamp'

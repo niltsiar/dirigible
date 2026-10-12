@@ -157,6 +157,11 @@ fi
 if ! reads_only dirigible-build.lock; then
   block "names the build lock in a command that is not a read (run the build or test through scripts/with-lock.sh, which takes the lock and removes only a lock that it took; read the lock with ls or cat)"
 fi
+# Only with-lock.sh, bench.sh, and bench-pairs.sh set the lock reuse values: a value set by hand
+# runs a build beside the holder of the lock.
+if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$NORMALIZED"; then
+  block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
+fi
 
 # A new Finder window opens as a tab of the window group of the user, so a bounds, position, or
 # size change of a Finder window moves the windows of the user. The rule reads the whole command

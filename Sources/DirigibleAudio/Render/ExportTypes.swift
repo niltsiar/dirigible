@@ -67,6 +67,9 @@ public enum ExportError: Error, Hashable, Sendable {
     case tooManyChapters(Int)
     /// The ID3 tag of an MP3 export is over `maximumTagSize` bytes. No file was made.
     case tagTooLarge
+    /// The range of an MP3 export with chapters is over `maximumChapterMilliseconds`, the last
+    /// time of an ID3 chapter. No file was made.
+    case chaptersTooLong
 }
 
 extension ExportError {

@@ -133,6 +133,13 @@ fresh
 for f in aa-1 aa-2 main-1 main-2; do line "$f.log" "bench: commit $branch tree clean filter X"; done
 refused 'the same commit on both sides' 'the main and branch logs name the same commit'
 
+# A pair run refuses an out folder in a git tree that git does not ignore (its logs would make the
+# tree dirty), before it makes the folder or runs a bench.
+out="$("$pairs" "$r" X 1 "$r/pairs-out" 2>&1)"
+code=$?
+[[ $code -eq 2 && "$out" == *'is in a git tree and git does not ignore it'* ]] || fail "an out folder in a tree: exit $code: $out"
+[[ ! -e "$r/pairs-out" ]] || fail 'an out folder in a tree: the folder was made'
+
 # bench.sh has no Makefile line of its own: its test runs here.
 bash "$(dirname "$0")/bench.test.sh" || failures=$((failures + 1))
 # with-lock.sh has no Makefile line of its own either (a Makefile change makes the push class bundle).

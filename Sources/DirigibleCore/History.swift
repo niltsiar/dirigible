@@ -6,9 +6,16 @@ import Foundation
 /// backup does (decision 0043). The `<recording>` element records a take on the disk, not an
 /// edit, so an undo must not bring back a take that finalize already placed.
 public struct History: Hashable, Sendable {
+    /// The session on the other side of one recorded change, and the agent that made the change
+    /// (decision 0046), or nil for the user.
+    private struct Entry: Hashable, Sendable {
+        let session: Session
+        let agent: AgentName?
+    }
+
     public private(set) var session: Session
-    private var undoStack: [Session] = []
-    private var redoStack: [Session] = []
+    private var undoStack: [Entry] = []
+    private var redoStack: [Entry] = []
     /// One more for each recorded edit, undo, and redo, so a reader can tell that the session
     /// changed since a moment (the export report banner).
     public private(set) var revision = 0
@@ -19,19 +26,24 @@ public struct History: Hashable, Sendable {
 
     public var canUndo: Bool { !undoStack.isEmpty }
     public var canRedo: Bool { !redoStack.isEmpty }
+    /// The agent of the change that `undo` reverts, or nil for a user change or no entry.
+    public var undoAgent: AgentName? { undoStack.last?.agent }
+    /// The agent of the change that `redo` makes again, or nil for a user change or no entry.
+    public var redoAgent: AgentName? { redoStack.last?.agent }
 
     /// Runs `body` on a copy of the session. A throw discards the copy. An edit that changes
-    /// only `recording` records no entry, because undo could not change it back.
+    /// only `recording` records no entry, because undo could not change it back. `agent` names the
+    /// agent of an MCP edit (decision 0046).
     @discardableResult
     public mutating func edit<Result, Failure: Error>(
-        _ body: (inout Session) throws(Failure) -> Result
+        agent: AgentName? = nil, _ body: (inout Session) throws(Failure) -> Result
     ) throws(Failure) -> Result {
         var copy = session
         let result = try body(&copy)
         var withOldRecording = copy
         withOldRecording.recording = session.recording
         if withOldRecording != session {
-            undoStack.append(session)
+            undoStack.append(Entry(session: session, agent: agent))
             redoStack.removeAll()
             revision += 1
         }
@@ -41,9 +53,9 @@ public struct History: Hashable, Sendable {
 
     /// Runs `body` as a part of the last recorded edit, with no new entry: the reset of a fader
     /// double-click joins the edit of its first click. When the result equals the state before
-    /// that edit, its entry goes. With no entry, it is `edit`.
+    /// that edit, its entry goes. With no entry, it is `edit`. The entry keeps its agent.
     public mutating func amend<Failure: Error>(_ body: (inout Session) throws(Failure) -> Void) throws(Failure) {
-        guard let before = undoStack.last else { return try edit(body) }
+        guard let before = undoStack.last?.session else { return try edit(body) }
         var copy = session
         try body(&copy)
         // As in `edit`, a change of only the recording is no change of the entry.
@@ -65,18 +77,18 @@ public struct History: Hashable, Sendable {
     /// current recording arms, or changes its route or layout (decision 0012).
     public mutating func undo() throws(SessionError) {
         guard let entry = undoStack.last else { return }
-        let restored = try session.reverted(to: entry)
+        let restored = try session.reverted(to: entry.session)
         undoStack.removeLast()
-        redoStack.append(session)
+        redoStack.append(Entry(session: session, agent: entry.agent))
         session = restored
         revision += 1
     }
 
     public mutating func redo() throws(SessionError) {
         guard let entry = redoStack.last else { return }
-        let restored = try session.reverted(to: entry)
+        let restored = try session.reverted(to: entry.session)
         redoStack.removeLast()
-        undoStack.append(session)
+        undoStack.append(Entry(session: session, agent: entry.agent))
         session = restored
         revision += 1
     }

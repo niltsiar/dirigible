@@ -206,4 +206,24 @@ struct HistoryTests {
         #expect(history.revision == revision, "code gate 2: no new revision")
         #expect(history.canRedo, "code gate 2: the redo entry stays")
     }
+
+    /// C11 of run 2026-10-12-mcp-in-app: each entry keeps its agent through undo, redo, and amend.
+    @Test mutating func agentFollowsTheEntry() throws {
+        let agent = AgentName(title: "Claude Code", clientName: nil)
+        try history.edit { try $0.addTrack("t1", name: "Host", layout: .mono) }
+        #expect(history.undoAgent == nil, "a user edit has no agent")
+        try history.edit(agent: agent) { try $0.renameTrack("t1", to: "Guest") }
+        #expect(history.undoAgent == agent)
+
+        try history.undo()
+        #expect(history.redoAgent == agent, "the redo entry keeps the agent")
+        #expect(history.undoAgent == nil)
+        try history.redo()
+        #expect(history.undoAgent == agent, "the undo entry keeps the agent after a redo")
+
+        try history.amend { try $0.renameTrack("t1", to: "Co-host") }
+        #expect(history.undoAgent == agent, "an amend joins the entry and keeps its agent")
+        try history.undo()
+        #expect(history.session.track("t1")?.name == "Host")
+    }
 }

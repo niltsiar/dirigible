@@ -38,6 +38,11 @@ out="$("$here/trace-top.py" "$tmp/unresolved.xml" 2>&1)"
 code=$?
 [[ $code -eq 1 && "$out" == *'unresolved ref 99'* ]] || fail "unresolved ref: exit $code: $out"
 
+# A frame with no name and no address counts as "?", also with --under.
+sed 's/<frame id="21" name="B" addr="0x4">/<frame id="21">/' "$tmp/small.xml" > "$tmp/nameless.xml"
+out="$("$here/trace-top.py" --under main "$tmp/nameless.xml" 2>&1)" || fail "nameless frame: exit $?: $out"
+[[ "$out" == $'A 2 66.7%\n? 1 33.3%' ]] || fail "nameless frame: $out"
+
 out="$("$here/trace-top.py" "$here/trace-top.fixture.xml" 2>&1)" || fail "real export: exit $?: $out"
 [[ "$(head -1 <<<"$out")" == '0x7ff803c57ebf 3 13.0%' ]] || fail "real export: $out"
 

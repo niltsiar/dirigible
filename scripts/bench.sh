@@ -12,10 +12,10 @@
 # ran no test: the script exits 1.
 set -euo pipefail
 : "${1:?usage: scripts/bench.sh <name> [<name>...]}"
-read -ra names <<< "$*"
-filter="$(IFS='|'; echo "${names[*]}")"
 # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
 [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$(dirname "$0")/with-lock.sh" "$0" "$@"
+read -ra names <<< "$*"
+filter="$(IFS='|'; echo "${names[*]}")"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # The cost review of reflect (cost.sh) counts a repeat by the commit and the filter of this line.
 tree=clean

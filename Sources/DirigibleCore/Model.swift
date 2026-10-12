@@ -322,6 +322,8 @@ public struct Marker: Identifiable, Hashable, Sendable {
     /// The longest URL in UTF-8 bytes: the URL length of the 3GPP `href` box of an M4A chapter
     /// has 8 bits (TS 26.245). `Session.setMarker` refuses a longer one.
     public static let maximumURLBytes = 255
+    /// The English rule text of a URL over `maximumURLBytes`, for the CLI and MCP (code gate item E5).
+    public static let urlTooLongText = "a marker URL has at most \(maximumURLBytes) bytes."
 
     public let id: MarkerID
     public var name: String

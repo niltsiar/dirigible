@@ -147,7 +147,7 @@ extension SessionError {
         case .invalidPath(let path): "the path \"\(path)\" is not inside Clips/."
         case .invalidText(let text): "the text \(String(reflecting: text)) has a control character."
         case .frameOutOfRange: "a frame is negative or more than 2^40."
-        case .markerURLTooLong: "a marker URL has at most \(Marker.maximumURLBytes) bytes."
+        case .markerURLTooLong: Marker.urlTooLongText
         case .takeOutOfRange(let take): "take \(take) is not in 1...999999999."
         case .clipOutsideFile(let id): "clip \"\(id)\" is not inside its file."
         case .overlap(let clip, let other): "clip \"\(clip)\" overlaps clip \"\(other)\"."

@@ -112,12 +112,15 @@ func copyWithChapters(
 }
 
 /// The audio track of `asset`. The wait reads `isCancelled()` every 50 ms and stops after 10 s, so a
-/// load that never ends does not hang the export.
+/// load that never ends does not hang the export. A load error gives its status.
 private func audioTrack(of asset: AVURLAsset, isCancelled: () -> Bool) throws(ExportError) -> AVAssetTrack {
+    // The handler writes these before `done.signal()`, and this thread reads them only after the
+    // wait returns `.success`, so the semaphore orders each write before each read.
     nonisolated(unsafe) var found: AVAssetTrack?
+    nonisolated(unsafe) var loadError: (any Error)?
     let done = DispatchSemaphore(value: 0)
-    asset.loadTracks(withMediaType: .audio) { tracks, _ in
-        found = tracks?.first
+    asset.loadTracks(withMediaType: .audio) { tracks, error in
+        (found, loadError) = (tracks?.first, error)
         done.signal()
     }
     var waits = 0
@@ -126,6 +129,7 @@ private func audioTrack(of asset: AVURLAsset, isCancelled: () -> Bool) throws(Ex
         waits += 1
         if waits == 200 { throw .writeFailed(kAudio_FileNotFoundError) }
     }
+    if let loadError { throw .writeFailed(status(of: loadError)) }
     guard let track = found else { throw .writeFailed(kAudio_FileNotFoundError) }
     return track
 }

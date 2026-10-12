@@ -273,5 +273,31 @@ grep -q 'H1:' <<<"$out" && fail "verdict void: a clause line names the void H1: 
 verdict_case policy-no-new-run 2
 [[ "$out" != *'verdict: PASS'* ]] || fail "verdict policy-no-new-run: [$out]"
 
+# questions.py: run r of set a and of set b ask the same questions in the same order, and run 1
+# and run 2 differ. The prompt of each set and run fills the template; with no template argument,
+# the committed scripts/eval/prompt-template.md.
+q="$tmp/q"
+mkdir -p "$q/answer"
+{
+  printf '| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n'
+  for i in 1 2 3 4 5 6; do printf '| E%s | policy | s | Question %s? | (a) k | `a.md` | - | - |\n' "$i" "$i"; done
+} > "$q/evals.md"
+printf 'set {S} run {R} out {OUT} eval {EVAL}\n' > "$q/template.md"
+python3 "$eval_dir/questions.py" "$q/evals.md" "$q/answer" E1,E2,E3,E4,E5,E6 3 "$q/template.md" > /dev/null \
+  || fail "questions.py: exit $?"
+for r in 1 2 3; do
+  [[ "$(grep -c '^E[1-6]: Question [1-6]?$' "$q/answer/questions-a-$r.txt" 2>/dev/null)" -eq 6 ]] \
+    || fail "questions.py run $r: set a does not ask the 6 questions: $(cat "$q/answer/questions-a-$r.txt" 2>/dev/null)"
+  cmp -s "$q/answer/questions-a-$r.txt" "$q/answer/questions-b-$r.txt" || fail "questions.py run $r: the sets differ"
+done
+[[ -f "$q/answer/questions-a-1.txt" ]] && cmp -s "$q/answer/questions-a-1.txt" "$q/answer/questions-a-2.txt" \
+  && fail 'questions.py: run 1 and run 2 ask in the same order'
+[[ "$(cat "$q/answer/prompt-b-2.md" 2>/dev/null)" == "set b run 2 out $q/answer eval $q" ]] \
+  || fail "questions.py: prompt-b-2.md is [$(cat "$q/answer/prompt-b-2.md" 2>/dev/null)]"
+rm -f "$q/answer"/*
+python3 "$eval_dir/questions.py" "$q/evals.md" "$q/answer" E1,E2 1 > /dev/null || fail "questions.py with no template: exit $?"
+grep -qF "$q/docs-a" "$q/answer/prompt-a-1.md" 2>/dev/null && grep -qF "$q/answer/questions-a-1.txt" "$q/answer/prompt-a-1.md" \
+  || fail "questions.py with no template: prompt-a-1.md does not name the copy and the questions: $(cat "$q/answer/prompt-a-1.md" 2>/dev/null)"
+
 [[ $failures -eq 0 ]] && echo "evals-for tests: all passed"
 exit $((failures > 0))

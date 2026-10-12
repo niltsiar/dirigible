@@ -165,8 +165,8 @@ fi
 if ! reads_only dirigible-hooks-stamp; then
   block "names the hooks pass stamp in a command that is not a read (only scripts/test-hooks.sh appends to it after a pass; read it with cat or grep)"
 fi
-# Only with-lock.sh, bench.sh, and bench-pairs.sh set the lock reuse values: a value set by hand
-# runs a build beside the holder of the lock.
+# Only with-lock.sh, bench.sh, bench-pairs.sh, and sanitize.sh set the lock reuse values: a value
+# set by hand runs a build beside the holder of the lock.
 if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$NORMALIZED"; then
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi

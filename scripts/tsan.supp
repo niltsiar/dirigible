@@ -1,0 +1,10 @@
+# Thread Sanitizer suppressions of scripts/sanitize.sh thread (make test-tsan). Each line is a static
+# table of LAME (Sources/CLame) that each encoder fills at its init with the same values, so two
+# encoders at the same time give a race report with no wrong value. Add no symbol of Dirigible code
+# here: a suppression hides a real race.
+race:hogege
+race:pow43
+race:adj43
+race:ipow20
+race:pow20
+race:init_log_table

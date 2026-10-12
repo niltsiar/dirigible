@@ -104,7 +104,8 @@ public struct LoudnessReport: Hashable, Sendable {
 /// true-peak limiter at -1 dBTP, and measures the output for the report. A WAV 16 or FLAC 16
 /// export gets a seeded TPDF dither, also with no target.
 ///
-/// At each chunk and once after the close it reads `isCancelled()`; at each chunk it reads
+/// Before each chapter image, at each chunk, and once after the close it reads `isCancelled()`. An
+/// MP3 with chapter images also reads it once before the tag. At each chunk it reads
 /// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
 /// percent changes: pass 1 maps to 0...0.25 and pass 2 to 0.25...1. The call of 1.0
 /// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
@@ -138,11 +139,14 @@ public func exportMix(
     let list = session.chapterList(in: source.range)
     // Only an M4A has chapter tracks. The chapter images are read before any file exists.
     let chapters = aac ? list.chapters : []
-    let images = try readChapterImages(aac || mp3 ? list.chapters : [], rate: session.sampleRate, package: package)
-    // The writer of the M4A image track takes only JPEG (probe P1).
+    let images = try readChapterImages(
+        aac || mp3 ? list.chapters : [], rate: session.sampleRate, package: package, isCancelled: isCancelled)
+    // The writer of the M4A image track takes only JPEG (probe P1). The image stage reads the
+    // cancel before each image and before the tag, so a take start does not wait for it (D3).
     var jpegs: [MarkerID: Data] = [:]
     for marker in chapters {
         guard let name = marker.image, let data = images[marker.id] else { continue }
+        if isCancelled() { throw .cancelled }
         do { jpegs[marker.id] = try m4aJPEG(data, of: name) } catch {
             throw .chapterImageMissing(marker, rate: session.sampleRate)
         }
@@ -153,6 +157,7 @@ public func exportMix(
     }
     // Only an MP3 file takes the ID3 tag. It is built before any file exists, so a refused tag
     // leaves no file. Its chapter images keep their bytes and their type.
+    if mp3, !images.isEmpty, isCancelled() { throw .cancelled }
     let id3 =
         mp3
         ? try id3Tag(

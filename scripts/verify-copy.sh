@@ -6,12 +6,9 @@
 # copies of two trees and refuses, and a stop in one tree resets the grants of the other copy.
 # The script does not build the app: run `make app` first.
 #
-# usage: verify-copy.sh start [--live-input <check>] [<package>] [-- <open arguments>]
+# usage: verify-copy.sh start [<package>] [-- <open arguments>]
 #                                  stop a running copy, clean up, copy build/Dirigible.app, set
-#                                  the bundle ID, sign it, open it, and print its PID. A package
-#                                  whose session.xml routes a track to an input device (a take
-#                                  records a real input) exits 1 before the copy step, unless
-#                                  --live-input names the check that needs the live input
+#                                  the bundle ID, sign it, open it, and print its PID
 #        verify-copy.sh id         print the bundle ID of the copy of this worktree (no build);
 #                                  call it by the absolute path of the tree that runs the copy
 #        verify-copy.sh ax <ax.swift arguments>
@@ -33,7 +30,7 @@
 # Exit: 0 done, 1 a failed step (the message names it), 2 usage or a pgrep error.
 set -euo pipefail
 
-usage="usage: verify-copy.sh start [--live-input <check>] [<package>] [-- <open arguments>]
+usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
        verify-copy.sh id
        verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh prompt <button>
@@ -110,22 +107,12 @@ cleanup() {
 }
 
 start() {
-    local open_args=() pid="" out live="" routes
-    if [[ "${1:-}" == --live-input ]]; then
-        [[ $# -ge 2 ]] || { echo "$usage" >&2 && exit 2; }
-        live="$2" && shift 2
-    fi
+    local open_args=() pid="" out
     if [[ $# -gt 0 && "$1" != -- ]]; then open_args+=("$1") && shift; fi
     if [[ $# -gt 0 ]]; then
         [[ "$1" == -- ]] || { echo "$usage" >&2 && exit 2; }
         shift
         open_args+=("$@")
-    fi
-    # A route to an input device is the first sign that a take records a real voice (VER-058).
-    if [[ -z "$live" && ${#open_args[@]} -gt 0 && -f "${open_args[0]}/session.xml" ]] &&
-        routes="$(grep -o '<route device="[^"]*"' "${open_args[0]}/session.xml")"; then
-        echo "verify-copy.sh: ${open_args[0]} routes a track to an input device (${routes//$'\n'/, }), so a take records a real input. Run dirigible track route ${open_args[0]} <track> --none for each track, or start with --live-input <check> for a check that needs the input." >&2
-        exit 1
     fi
     [[ -d "$real_app" ]] || { echo "verify-copy.sh: no $real_app: run make app first." >&2 && exit 1; }
     stop_copy >/dev/null

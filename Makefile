@@ -88,37 +88,43 @@ dmg:
 test-dmg: dmg
 	scripts/test-dmg.sh
 
+# Each hook and script test. scripts/test-hooks.sh runs them and reuses a pass with the same input
+# key: read its header. It writes a pass stamp only for this whole list.
+HOOK_TESTS = \
+	.claude/hooks/git-guardrails.test.sh \
+	scripts/probe.test.sh \
+	scripts/hid.test.sh \
+	scripts/ax.test.sh \
+	scripts/screenshot.test.sh \
+	scripts/screenshots.test.sh \
+	scripts/verify-copy.test.sh \
+	.claude/skills/deliver/scripts/mutate.test.sh \
+	.claude/skills/deliver/scripts/run-files.test.sh \
+	.claude/skills/reflect/scripts/seen.test.sh \
+	scripts/bench-pairs.test.sh \
+	scripts/icon.test.sh \
+	scripts/bundle.test.sh \
+	scripts/guide-html.test.sh \
+	scripts/check-changed.test.sh \
+	scripts/check-stamp.test.sh \
+	scripts/evals-for.test.sh \
+	scripts/test-filter.test.sh \
+	scripts/run-checks.test.sh \
+	scripts/check-plan.test.sh \
+	scripts/check-waits.test.sh \
+	.claude/skills/deliver/scripts/replay-list.test.sh \
+	.claude/skills/deliver/scripts/replay-batch.test.sh \
+	.claude/skills/reflect/scripts/cost.test.sh \
+	scripts/check-governance.test.sh \
+	scripts/pr-terms.test.sh \
+	scripts/land.test.sh \
+	.claude/workflows/review-panel.test.sh \
+	scripts/flake-monitor/sample-threads.test.sh \
+	scripts/flake-monitor/loop.test.sh \
+	scripts/test-hooks.test.sh
+
 test-hooks:
-	.claude/hooks/git-guardrails.test.sh
-	scripts/probe.test.sh
-	scripts/hid.test.sh
-	scripts/ax.test.sh
-	scripts/screenshot.test.sh
-	scripts/screenshots.test.sh
-	scripts/verify-copy.test.sh
-	.claude/skills/deliver/scripts/mutate.test.sh
-	.claude/skills/deliver/scripts/run-files.test.sh
-	.claude/skills/reflect/scripts/seen.test.sh
-	scripts/bench-pairs.test.sh
-	scripts/icon.test.sh
-	scripts/bundle.test.sh
-	scripts/guide-html.test.sh
-	scripts/check-changed.test.sh
-	scripts/check-stamp.test.sh
-	scripts/evals-for.test.sh
-	scripts/test-filter.test.sh
-	scripts/run-checks.test.sh
-	scripts/check-plan.test.sh
-	scripts/check-waits.test.sh
-	.claude/skills/deliver/scripts/replay-list.test.sh
-	.claude/skills/deliver/scripts/replay-batch.test.sh
-	.claude/skills/reflect/scripts/cost.test.sh
-	scripts/check-governance.test.sh
-	scripts/pr-terms.test.sh
-	scripts/land.test.sh
-	.claude/workflows/review-panel.test.sh
-	scripts/flake-monitor/sample-threads.test.sh
-	scripts/flake-monitor/loop.test.sh
+	scripts/test-hooks.sh $(HOOK_TESTS)
 
 check-docs:
 	scripts/check-docs.test.sh

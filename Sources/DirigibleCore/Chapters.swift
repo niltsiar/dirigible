@@ -33,9 +33,9 @@ extension Session {
     /// (https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/examples/chapters/jsonChapters.md).
     /// Each chapter of `chapterList(in:)` has `startTime` and `title`, so a chapter at the
     /// millisecond of another one is not in the file. A chapter with a URL has `url`, and a chapter
-    /// with an image has `img`, the name of `chapterImages(in:imageStem:)`.
-    /// `imageStem` is the file name of the JSON with no extension. `startTime` is the offset from the start of
-    /// `range` in seconds, rounded half up to the millisecond with integer math. The caller checks
+    /// with an image has `img`, the name of `chapterImages(in:imageStem:)`. `imageStem` is the file
+    /// name of the JSON with no extension. `startTime` is the offset from the start of `range` in
+    /// seconds, rounded half up to the millisecond with integer math. The caller checks
     /// first that `chapters(in: range)` is not empty: an empty file removes the chapters at the
     /// host. It throws the error of `JSONEncoder`, so a failed encode is not "no chapter".
     public func chaptersJSON(in range: Range<Frames>, imageStem: String = "") throws -> Data {

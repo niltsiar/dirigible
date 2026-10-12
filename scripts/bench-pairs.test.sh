@@ -89,6 +89,19 @@ out="$("$pairs" --compare "$tmp/none" 2>&1)"
 code=$?
 [[ $code -eq 1 && "$out" == *'main-1: the bench failed'* ]] || fail "a failed bench: exit $code: $out"
 
+# A bench that fails only its budget asserts prints its samples and a report line of 1 test or
+# more: the main side of a fix of a budget miss. Its samples count, with a note, and the verdict
+# stays. A failed bench with no report line (above) still gives exit 1.
+mkdir "$tmp/f"
+cp "$tmp"/m/*.log "$tmp/f/"
+for f in aa-1 aa-2 main-1 main-2; do echo 'Test run with 1 test in 1 suite failed after 7.3 seconds with 2 issues.' >> "$tmp/f/$f.log"; done
+printf 'aa-1: the bench failed\naa-2: the bench failed\nmain-1: the bench failed\nmain-2: the bench failed\n' > "$tmp/f/load.txt"
+out="$("$pairs" --compare "$tmp/f" 2>&1)"
+code=$?
+[[ $code -eq 0 ]] && grep -q '^VERIFIED NavigationKeyBenchmark crossfade, fit$' <<< "$out" &&
+  grep -qxF 'note: main-1 failed its asserts after its report line; its samples count' <<< "$out" ||
+  fail "a main side that misses its budget: exit $code: $out"
+
 # Provenance: the pairs give the verdict only when the aa-* and main-* logs name one commit, the
 # branch-* logs name one commit, each log ran on a clean tree, and the branch commit has the
 # Sources, Tests, Package.swift, Package.resolved, and scripts/bench.sh of HEAD. A set in the

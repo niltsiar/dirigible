@@ -74,7 +74,7 @@ extension Marker {
         guard !trimmed.isEmpty else { return nil }
         let link = try WebURL(trimmed)
         guard link.text.utf8.count <= maximumURLBytes else {
-            throw EpisodeFieldError(message: "a marker URL has at most \(maximumURLBytes) bytes.")
+            throw EpisodeFieldError(message: urlTooLongText)
         }
         return link
     }

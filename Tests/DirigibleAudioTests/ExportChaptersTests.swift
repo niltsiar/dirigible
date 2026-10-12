@@ -18,8 +18,9 @@ struct ExportChaptersTests {
 
     /// The M4A list of the range 0..<3 s, with an output of `frames` frames at 44.1 kHz.
     static func list(_ session: Session, frames: Int = 132_300) -> M4AChapters {
-        m4aChapters(
-            in: session, range: 0..<Frames(3 * session.sampleRate), outputRate: 44_100, outputFrames: frames,
+        let range = 0..<Frames(3 * session.sampleRate)
+        return m4aChapters(
+            session.chapterList(in: range), in: session, range: range, outputRate: 44_100, outputFrames: frames,
             introTitle: "Start", images: [:])
     }
 

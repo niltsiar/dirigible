@@ -40,8 +40,25 @@ here="$(cd "$(dirname "$0")" && pwd)"
 log="$(mktemp)"
 trap 'rm -f "$log" "$log".* ${mark:+"$mark"}' EXIT
 
+# The static gates first (decision 0028): for the goal check or check-fast, make -k static runs
+# the gates of STATIC_GATES in the Makefile. A red gate stops the check before the Swift targets.
+# The main make then skips each passed gate with -o, so each gate runs once. GNU make does not
+# pass -o to a nested make.
+skip=() vars=() first=no
+gates="$(sed -n 's/^STATIC_GATES := //p' Makefile 2>/dev/null || true)"
+for a in "$@"; do
+    if [[ $a == *=* ]]; then vars+=("$a"); fi
+    if [[ $a == check || $a == check-fast ]]; then first=yes; fi
+done
+if [[ $first == yes && -n $gates ]]; then
+    for g in $gates; do skip+=(-o "$g"); done
+fi
+if [[ ${#skip[@]} -gt 0 ]] && ! "${MAKE:-make}" -k static ${vars[@]+"${vars[@]}"} 2>&1; then
+    echo "run-checks: a static gate is red" >&2
+    exit 1
+fi
 # GNU Make 3.81 writes the Error and not-remade lines to stderr: 2>&1 keeps them in order.
-if "${MAKE:-make}" -k "$@" 2>&1 | tee "$log"; then exit 0; fi
+if "${MAKE:-make}" -k ${skip[@]+"${skip[@]}"} "$@" 2>&1 | tee "$log"; then exit 0; fi
 # The load at the end of the check: make -k runs the later targets after a red test.
 load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
 

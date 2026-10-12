@@ -141,8 +141,9 @@ extension Studio {
 
 extension Studio {
     /// `writeChapters` of `range` of `session` to `url` on a utility GCD thread, in the package
-    /// that the lock holds now. It never replaces a chapter image file: the save panel confirms
-    /// only the JSON name.
+    /// that the lock holds now. An item at `url` means that the save panel confirmed its replace,
+    /// so the chapter images beside it are replaced too. Else an item at the name of an image
+    /// stops the write.
     public func exportChapters(_ session: Session, in range: Range<Frames>, to url: URL) async throws(ExportError) {
         let lock = lock
         let result = await withCheckedContinuation { continuation in
@@ -151,7 +152,9 @@ extension Studio {
                     returning: Result { () throws(ExportError) in
                         let package: URL
                         do { package = try lock.package() } catch { throw .packageUnavailable }
-                        try writeChapters(session, in: range, to: url, replacingImages: false, package: package)
+                        // An lstat: the save panel confirmed a dangling link too.
+                        let replacing = ConfirmedFile(at: url) != nil
+                        try writeChapters(session, in: range, to: url, replacingImages: replacing, package: package)
                     })
             }
         }

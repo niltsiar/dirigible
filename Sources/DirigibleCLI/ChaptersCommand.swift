@@ -73,16 +73,9 @@ struct ChaptersExport: ParsableCommand {
         // An lstat: a dangling link is an item too. `[.atomic, .withoutOverwriting]` is a fatal
         // error of Foundation, so the check comes first, and a race with another writer is accepted.
         guard replace || ConfirmedFile(at: output) == nil else { throw fail("\(out) exists.", code: packageError) }
-        // The chapter images beside the JSON get the same check, before any write.
-        let stem = output.deletingPathExtension().lastPathComponent
-        for (_, _, name) in session.chapterImages(in: range, imageStem: stem) {
-            let image = output.deletingLastPathComponent().appending(path: name)
-            guard replace || ConfirmedFile(at: image) == nil else {
-                throw fail("\(image.path) exists.", code: packageError)
-            }
-        }
+        // `writeChapters` checks the chapter images beside the JSON before any write.
         do throws(ExportError) {
-            try writeChapters(session, in: range, to: output, replacingImages: true, package: package.url)
+            try writeChapters(session, in: range, to: output, replacingImages: replace, package: package.url)
         } catch {
             throw failure(error, out: out, noun: "chapters file")
         }

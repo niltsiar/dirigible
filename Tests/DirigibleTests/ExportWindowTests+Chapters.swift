@@ -162,9 +162,38 @@ extension ExportWindowTests {
         try Data("old".utf8).write(to: picture)
         model.exportChapters()
         await until("the alert shows") { model.alert != nil }
-        #expect(model.alert == .error(.export(.exists)))
+        #expect(model.alert == .error(.export(.chapterImageExists(picture.path))))
         #expect(!FileManager.default.fileExists(atPath: file.path), "a JSON")
         #expect(try Data(contentsOf: picture) == Data("old".utf8), "the old image changed")
+        await model.close()
+    }
+
+    /// Code gate item D1. A second export to a name that the save panel confirmed replaces the JSON
+    /// and its chapter images.
+    @Test func aConfirmedReplaceAlsoReplacesTheChapterImages() async throws {
+        let file = folder.url.appending(path: "show.json")
+        _ = chaptersPanel(file)
+        let (model, studio, _) = try await window()
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        let source = model.url.appending(path: image.path)
+        try FileManager.default.createDirectory(
+            at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("first".utf8).write(to: source)
+        try studio.edit { session throws(SessionError) in
+            try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter, image: image))
+        }
+        let picture = folder.url.appending(path: "show-1.jpg")
+        model.exportChapters()
+        // The images are written before the JSON, so the wait is for the JSON.
+        await until("the first file is written") { FileManager.default.fileExists(atPath: file.path) }
+        #expect(try Data(contentsOf: picture) == Data("first".utf8))
+        try Data("second".utf8).write(to: source)
+        model.exportChapters()
+        await until("the second image is written or the alert shows") {
+            model.alert != nil || (try? Data(contentsOf: picture)) == Data("second".utf8)
+        }
+        #expect(model.alert == nil, "alert \(String(describing: model.alert))")
+        #expect(try startTimes(file) == [4])
         await model.close()
     }
 

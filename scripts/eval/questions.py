@@ -17,10 +17,13 @@ if len(args) not in (4, 5):
 evals, out, ids, runs = args[0], os.path.abspath(args[1]), args[2].split(','), int(args[3])
 here = os.path.dirname(os.path.abspath(__file__))
 template = args[4] if len(args) == 5 else os.path.join(here, 'prompt-template.md')
-questions = {}
+# Only the rows of the Scenarios section, as grade.py reads them.
+questions, section = {}, ''
 for line in open(evals):
+    if line.startswith('## '):
+        section = line[3:].strip()
     cells = [c.strip() for c in line.split('|')]
-    if len(cells) > 5 and cells[1] in ids:
+    if section == 'Scenarios' and len(cells) > 5 and cells[1] in ids:
         questions[cells[1]] = cells[4]
 missing = sorted(set(ids) - set(questions))
 if missing:

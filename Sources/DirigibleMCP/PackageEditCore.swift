@@ -4,7 +4,7 @@ import Foundation
 
 /// Why a package edit changed nothing. The CLI maps each case to an exit code, and an MCP tool
 /// to an error result.
-enum EditFailure<Body: Error>: Error {
+package enum EditFailure<Body: Error>: Error {
     /// The lock is held (`.locked`, decision 0012), or the read or the save failed.
     case file(SessionFileError)
     /// `session.xml` holds `<recording>`: a take that is not finalized (decision 0004).
@@ -22,7 +22,7 @@ enum EditFailure<Body: Error>: Error {
 /// lock is held until the save ends. `session.xml` does not change when a step fails.
 /// A due save can add a backup and delete the oldest backup before the replace, and a refused
 /// revert can leave the kept copy of the current file (decision 0043).
-func editPackageCore<Result, Failure: Error>(
+package func editPackageCore<Result, Failure: Error>(
     _ package: URL, ripple: Bool, writeUnchanged: Bool = true,
     _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(EditFailure<Failure>) -> Result {

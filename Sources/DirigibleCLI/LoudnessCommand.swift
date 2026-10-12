@@ -1,6 +1,7 @@
 import ArgumentParser
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 
 /// `dirigible loudness`: the integrated loudness of each clip (run 8a, decision 0008).

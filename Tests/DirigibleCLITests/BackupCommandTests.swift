@@ -2,7 +2,7 @@ import DirigibleCore
 import Foundation
 import Testing
 
-@testable import DirigibleCLI
+@testable import DirigibleMCP
 
 /// `dirigible backup list` and `dirigible backup revert` (decision 0043, criteria C9, C13, and C16
 /// of run 14).

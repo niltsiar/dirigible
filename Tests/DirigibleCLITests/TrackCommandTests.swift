@@ -4,6 +4,7 @@ import Foundation
 import Testing
 
 @testable import DirigibleCLI
+@testable import DirigibleMCP
 
 let invalidRouteMessage = "the route has a channel number less than 1 or an empty app ID."
 

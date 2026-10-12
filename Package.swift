@@ -21,16 +21,20 @@ let package = Package(
             name: "DirigibleAudio",
             dependencies: ["DirigibleCore", "CLame", .product(name: "Atomics", package: "swift-atomics")]),
         .target(name: "DirigibleTimeline", dependencies: ["DirigibleCore"]),
+        .target(name: "DirigibleMCP", dependencies: ["DirigibleCore", "DirigibleAudio"]),
         .executableTarget(
             name: "DirigibleApp", dependencies: ["DirigibleCore", "DirigibleAudio", "DirigibleTimeline"]),
         .executableTarget(
             name: "DirigibleCLI",
             dependencies: [
-                "DirigibleCore", "DirigibleAudio", .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "DirigibleCore", "DirigibleAudio", "DirigibleMCP",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]),
         .testTarget(name: "DirigibleCoreTests", dependencies: ["DirigibleCore"]),
         .testTarget(name: "DirigibleAudioTests", dependencies: ["DirigibleAudio", "DirigibleCore"]),
-        .testTarget(name: "DirigibleCLITests", dependencies: ["DirigibleCLI", "DirigibleCore", "DirigibleAudio"]),
+        .testTarget(
+            name: "DirigibleCLITests",
+            dependencies: ["DirigibleCLI", "DirigibleMCP", "DirigibleCore", "DirigibleAudio"]),
         .testTarget(name: "DirigibleTimelineTests", dependencies: ["DirigibleTimeline", "DirigibleCore"]),
         .testTarget(
             name: "DirigibleTests",

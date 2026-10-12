@@ -2,7 +2,7 @@ import DirigibleCore
 import Foundation
 import Testing
 
-@testable import DirigibleCLI
+@testable import DirigibleMCP
 
 /// The tools of `dirigible mcp` that are not a plain edit row: `session_info`, `session_create`,
 /// the lock, the pending take, and the argument checks (decision 0041).

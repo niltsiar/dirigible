@@ -2,6 +2,7 @@ import AVFoundation
 import ArgumentParser
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 
 struct Devices: ParsableCommand {

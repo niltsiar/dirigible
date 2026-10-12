@@ -5,8 +5,8 @@ import Foundation
 /// A paste from another session package (decision 0042): the data of `clip paste --source` and
 /// `clip paste-clips --source`, and of their MCP tools. The command and the server run it in
 /// `editPackageCore`, under the lock of the target. The source is read with no lock, as `info`.
-struct PasteWork: Sendable {
-    enum Selection: Sendable {
+package struct PasteWork: Sendable {
+    package enum Selection: Sendable {
         case range(Range<Frames>, tracks: [TrackID])
         case clips([ClipID])
     }
@@ -17,8 +17,12 @@ struct PasteWork: Sendable {
     /// Checked by `EditRules.pasteTargets` and `EditRules.sourceNeedsOnto`.
     let onto: [String]
 
+    package init(source: URL, selection: Selection, at: Frames, onto: [String]) {
+        (self.source, self.selection, self.at, self.onto) = (source, selection, at, onto)
+    }
+
     /// Copies or converts the files of the clips into the target and pastes them (`pasteClipboard`).
-    func run(_ session: inout Session, lock: PackageLock, package: URL) throws(PasteError) -> [ClipID] {
+    package func run(_ session: inout Session, lock: PackageLock, package: URL) throws(PasteError) -> [ClipID] {
         let read: Session
         do throws(SessionFileError) {
             read = try Session(contentsOf: source)

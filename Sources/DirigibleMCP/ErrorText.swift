@@ -6,22 +6,24 @@ import Foundation
 // text in its error result (decision 0041).
 
 /// The refusal of an app route on a macOS with no process taps (A14).
-let appSourcesUnavailableMessage = "app sources need macOS 14.2 or later."
+package let appSourcesUnavailableMessage = "app sources need macOS 14.2 or later."
 
-func pendingTakeMessage(_ package: String) -> String {
+package func pendingTakeMessage(_ package: String) -> String {
     "\(package) has a take that is not finalized; open it in Dirigible first."
 }
 
-func splitTakeMessage(_ package: String) -> String {
+package func splitTakeMessage(_ package: String) -> String {
     "\(package) has a take with some segments on the timeline and some not. A ripple moves the timeline under the "
         + "other segments, so place them first (dirigible capture place)."
 }
 
 /// The fault of the media check of `info` and `session_info`.
-func mediaCheckMessage(_ error: any Error) -> String { "cannot check the audio files: \(error.localizedDescription)" }
+package func mediaCheckMessage(_ error: any Error) -> String {
+    "cannot check the audio files: \(error.localizedDescription)"
+}
 
 extension EditFailure where Body == SessionError {
-    func message(package: String) -> String {
+    package func message(package: String) -> String {
         switch self {
         case .file(let error): error.message(package: package)
         case .pendingTake: pendingTakeMessage(package)
@@ -32,7 +34,7 @@ extension EditFailure where Body == SessionError {
 }
 
 extension EditFailure where Body == PasteError {
-    func message(package: String) -> String {
+    package func message(package: String) -> String {
         switch self {
         case .file(let error): error.message(package: package)
         case .pendingTake: pendingTakeMessage(package)
@@ -43,7 +45,7 @@ extension EditFailure where Body == PasteError {
 }
 
 extension EditFailure where Body == MarkerEditError {
-    func message(package: String) -> String {
+    package func message(package: String) -> String {
         switch self {
         case .file(let error): error.message(package: package)
         case .pendingTake: pendingTakeMessage(package)
@@ -54,7 +56,7 @@ extension EditFailure where Body == MarkerEditError {
 }
 
 extension EditFailure where Body == ArtworkError {
-    func message(package: String) -> String {
+    package func message(package: String) -> String {
         switch self {
         case .file(let error): error.message(package: package)
         case .pendingTake: pendingTakeMessage(package)
@@ -66,7 +68,7 @@ extension EditFailure where Body == ArtworkError {
 
 extension ArtworkError {
     /// No `default` case: a new error case does not compile until it has a message.
-    var message: String {
+    package var message: String {
         switch self {
         case .notDownloaded(let file): "the artwork file \"\(file)\" is not on this Mac. Download it first."
         case .unreadable(let file): "the artwork file \"\(file)\" does not open as an image."
@@ -80,7 +82,7 @@ extension ArtworkError {
 }
 
 extension EditFailure where Body == RevertError {
-    func message(package: String) -> String {
+    package func message(package: String) -> String {
         switch self {
         case .file(let error): error.message(package: package)
         case .pendingTake: pendingTakeMessage(package)
@@ -92,7 +94,7 @@ extension EditFailure where Body == RevertError {
 
 extension RevertError {
     /// Each file error names the file that failed: the backup, `session.xml`, or `Backups`.
-    func message(package: String) -> String {
+    package func message(package: String) -> String {
         switch self {
         case .backup(let backup, let error):
             error.message(package: package, file: "\(backupsFolderName)/\(backup.fileName)")
@@ -110,7 +112,7 @@ private let copyFirst = " The revert keeps a backup of session.xml first, so ses
 
 extension PasteError {
     /// No `default` case: a new error case does not compile until it has a message.
-    var message: String {
+    package var message: String {
         switch self {
         case .sourceMissing(let file): "the source \"\(file)\" is not there: the source package moved or was deleted."
         case .notDownloaded(let file): "the source file \"\(file)\" is not on this Mac. Download it first."
@@ -126,7 +128,7 @@ extension PasteError {
 
 extension SessionError {
     /// No `default` case: a new error case does not compile until it has a message.
-    var message: String {
+    package var message: String {
         switch self {
         case .duplicateID(let id): "the ID \"\(id)\" is already used."
         case .unknownCapture(let id): "no capture \"\(id)\"."
@@ -171,7 +173,7 @@ extension SessionError {
 
 extension SessionFileError {
     /// No `default` case: a new error case does not compile until it has a message.
-    func message(package: String, file name: String = "session.xml") -> String {
+    package func message(package: String, file name: String = "session.xml") -> String {
         let file = "\(package)/\(name)"
         return switch self {
         case .malformedXML: "\(file) is not a Dirigible session file."
@@ -191,6 +193,66 @@ extension SessionFileError {
         case .packageMoved:
             "\(package) moved to another volume or was deleted, so \(package)/session.xml did not change."
         case .exists: "\(package) exists."
+        }
+    }
+}
+
+extension SegmentFault {
+    /// No `default` case: a new fault does not compile until it has a message.
+    package func message(segment: SegmentName) -> String {
+        let capture = "\(captureFolderName)/\(segment.stem)"
+        return switch self {
+        case .notUnplaced:
+            "\(segment) is on the timeline, is in a pending take, or has no audio in \(captureFolderName)/."
+        case .noSidecar: "\(capture).sidecar is missing or damaged, so the timing of \(segment) is not known."
+        case .newerSidecar(let version):
+            "\(capture).sidecar was made by a newer version of Dirigible (version \(version)), so this build cannot "
+                + "place \(segment)."
+        case .badAudio: "\(capture).caf is not audio that Dirigible can convert."
+        case .beforeTimeline: "\(segment) ends before the start of the timeline."
+        case .noAlignment: "no take anchor gives the track and the start of \(segment). Give --track and --at."
+        case .newerAnchor(let version):
+            "\(captureFolderName)/take\(segment.take).anchor was made by a newer version of Dirigible (version "
+                + "\(version)). Give --track and --at to place \(segment)."
+        case .wavInUse(let file): "file \"\(file)\" has the path of Clips/\(segment.stem).wav."
+        case .session(let error): error.message
+        }
+    }
+}
+
+extension StudioError {
+    /// No `default` case: a new error case does not compile until it has a message.
+    package func message(package: String) -> String {
+        switch self {
+        case .locked: SessionFileError.locked.message(package: package)
+        case .busy: "\(package) is busy with a take."
+        case .noRoute(let track): "track \"\(track)\" has no route."
+        case .deviceMissing(let track): "the device of track \"\(track)\" is missing."
+        case .channelOutOfRange(let track): "the device of track \"\(track)\" does not have its channel."
+        case .channelInUse(let first, let second): "tracks \"\(first)\" and \"\(second)\" use the same channel."
+        case .session(let error): error.message
+        case .file(let error): error.message(package: package)
+        case .finalize(.readFailed(let file, let code)), .finalize(.segmentUnreadable(_, let file, let code)):
+            "cannot read \(package)/\(file): \(String(cString: strerror(code)))."
+        case .finalize(.writeFailed(let file, let status)): "cannot write \(package)/\(file) (status \(status))."
+        case .segment(let segment, let fault): fault.message(segment: segment)
+        case .microphoneAccess:
+            "the terminal has no microphone access. Allow it in System Settings > Privacy & Security > Microphone."
+        case .diskLow: "the disk of \(package) has less than 1 GB free."
+        case .appSourcesUnavailable: appSourcesUnavailableMessage
+        case .placementSpace(let needed, let free):
+            "the placement needs \(needed) bytes free on the disk of \(package); \(free) bytes are free."
+        // No command exports through Studio; `dirigible export` calls `exportMix` (decision 0019).
+        case .export(let error): "the export failed (\(error))."
+        case .exportYielded: "a take in another studio stopped the export."
+        // No command imports through Studio; `dirigible import` calls `importAudio` (decision 0040).
+        case .audioImport(let error): "the import failed (\(error))."
+        case .importYielded: "a take in another studio stopped the import."
+        case .paste(let error, _): "the paste failed (\(error))."
+        case .pasteYielded: "a take in another studio stopped the paste."
+        case .rippleBlocked: "a ripple cannot move the timeline under a pending or split take."
+        // No command sets the artwork through Studio; `episode set --artwork` calls `importArtwork`.
+        case .artwork(let error): error.message
         }
     }
 }

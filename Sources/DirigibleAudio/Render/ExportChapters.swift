@@ -50,6 +50,20 @@ func m4aChapters(
     return M4AChapters(chapters: chapters, dropped: dropped)
 }
 
+/// The chapters of `list` that the M4A keeps, so the export reads only their images before any file
+/// exists (code gate item E7). The frame count of the encode is not known yet, so the list uses the
+/// range at the output rate: no chapter of the range starts at or after it, so the list drops only a
+/// chapter at the output frame of the chapter before it. The call after the encode stays the rule.
+func m4aKept(_ list: ChapterList, in session: Session, range: Range<Frames>, outputRate: Int) -> [Marker] {
+    let frames = outputFrames(
+        range.upperBound - range.lowerBound, sessionRate: session.sampleRate, outputRate: outputRate)
+    let dropped = Set(
+        m4aChapters(
+            list, in: session, range: range, outputRate: outputRate, outputFrames: frames, introTitle: "", images: [:]
+        ).dropped.map(\.id))
+    return list.chapters.filter { !dropped.contains($0.id) }
+}
+
 /// `offset` session frames at the output rate, rounded half up with integer math (plan gate G1).
 func outputFrames(_ offset: Frames, sessionRate: Int, outputRate: Int) -> Int {
     (2 * offset.count * outputRate + sessionRate) / (2 * sessionRate)

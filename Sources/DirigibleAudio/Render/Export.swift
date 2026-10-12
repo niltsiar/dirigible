@@ -140,7 +140,8 @@ public func exportMix(
     // Only an M4A has chapter tracks. The chapter images are read before any file exists.
     let chapters = aac ? list.chapters : []
     let images = try readChapterImages(
-        aac || mp3 ? list.chapters : [], rate: session.sampleRate, package: package, isCancelled: isCancelled)
+        aac ? m4aKept(list, in: session, range: source.range, outputRate: rate) : mp3 ? list.chapters : [],
+        rate: session.sampleRate, package: package, isCancelled: isCancelled)
     // The writer of the M4A image track takes only JPEG (probe P1). The image stage reads the
     // cancel before each image and before the tag, so a take start does not wait for it (D3).
     var jpegs: [MarkerID: Data] = [:]

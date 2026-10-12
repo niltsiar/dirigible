@@ -9,7 +9,9 @@
 # common dir with a sparse checkout of the key paths only, so a test that reads a path outside the
 # key fails. Each floor file in it is empty: the key holds only its existence. The sparse
 # checkout stays inside the clone: in a linked worktree it changes the shared config. A trap
-# removes the folder at the exit and after INT or TERM.
+# removes the folder at the exit and after INT or TERM. A hook test reads only the work tree of
+# the key tree. The clone holds each object of the repo, so a read of an excluded path through git
+# (for example git show HEAD:docs/x.md) is outside the key: a hook test must not do it.
 # A pass appends the key to dirigible-hooks-stamp in `git rev-parse --git-common-dir`. The next
 # run with the same key prints "test-hooks: reuse <key>" and runs no test.
 # No reuse and no stamp: on a dirty tree (the tests run in place), when the list is not the

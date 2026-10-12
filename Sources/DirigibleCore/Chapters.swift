@@ -38,7 +38,7 @@ extension Session {
     /// seconds, rounded half up to the millisecond with integer math. The caller checks
     /// first that `chapters(in: range)` is not empty: an empty file removes the chapters at the
     /// host. It throws the error of `JSONEncoder`, so a failed encode is not "no chapter".
-    public func chaptersJSON(in range: Range<Frames>, imageStem: String = "") throws -> Data {
+    public func chaptersJSON(in range: Range<Frames>, imageStem: String) throws -> Data {
         let chapters = chapterList(in: range).chapters
         precondition(!chapters.isEmpty, "The range has no chapter")
         let file = ChaptersFile(

@@ -98,6 +98,17 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
     return fail(message, code: packageError)
 }
 
+/// One warning line on stderr for each chapter that a file leaves out, in `export` and in
+/// `chapters export`.
+func warnDropped(_ chapters: [Marker]) {
+    for chapter in chapters {
+        let line =
+            "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter; "
+            + "the file leaves it out.\n"
+        try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
+    }
+}
+
 /// One warning line on stderr for each file that rendered as silence.
 func warn(_ faults: [FileID: MediaFault], in session: Session) {
     for (id, fault) in faults.sorted(by: { $0.key < $1.key }) {

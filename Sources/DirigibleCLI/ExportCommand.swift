@@ -141,11 +141,7 @@ struct Export: ParsableCommand {
         }
         warn(read, in: session)
         warnUnheard(session, source: source)
-        for chapter in result.droppedChapters {
-            let line =
-                "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the time of another chapter; the file leaves it out.\n"
-            try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
-        }
+        warnDropped(result.droppedChapters)
         if result.chapterImagesOmitted {
             let line =
                 "Warning: \(output.path) has no chapter images: a chapter has no image, and the episode has no "

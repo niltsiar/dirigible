@@ -90,13 +90,15 @@ filters() { grep '^test-filter ' "$tmp/log"; }
 # A pass with no rerun.
 run 1 0 'ok'
 [[ $code -eq 0 ]] || fail "a pass: exit $code: $out"
-[[ "$(cat "$tmp/log")" == $'make -k static\nmake -k -o lint -o check-sizes check' ]] || fail "a pass: calls [$(cat "$tmp/log")]"
+# The load wait comes after the static gates and before the main make.
+[[ "$(cat "$tmp/log")" == $'make -k static\ncheck-changed --wait-load check\nmake -k -o lint -o check-sizes check' ]] || fail "a pass: calls [$(cat "$tmp/log")]"
 
 # A test failure that passes on rerun 2: the load wait before each rerun, a flake line, and one
 # dirigible-flakes line with HEAD and the load.
 run 2 2 "$red_test" check FILTER=
 [[ $code -eq 0 ]] || fail "a pass on rerun 2: exit $code: $out"
 want="make -k static FILTER=
+check-changed --wait-load check
 make -k -o lint -o check-sizes check FILTER=
 check-changed --wait-load test
 test-filter slow= --exact aFlake
@@ -203,7 +205,8 @@ test:
 EOF
 static_run() {
   : > "$tmp/count"
-  out="$(cd "$w" && COUNT="$tmp/count" "$@" 2>&1)"
+  : > "$tmp/log"
+  out="$(cd "$w" && COUNT="$tmp/count" FAKE_LOG="$tmp/log" "$@" 2>&1)"
   code=$?
 }
 recipes() { paste -sd' ' - < "$tmp/count"; }
@@ -211,6 +214,7 @@ static_run env SIZES_CODE=1 scripts/run-checks.sh check
 [[ $code -eq 1 ]] || fail "a red static gate: exit $code: $out"
 grep -qx 'run-checks: a static gate is red' <<<"$out" || fail "a red static gate: no reason: $out"
 [[ "$(recipes)" == 'lint check-sizes' ]] || fail "a red static gate: recipes [$(recipes)]"
+[[ ! -s "$tmp/log" ]] || fail "a red static gate waited for the load: $(cat "$tmp/log")"
 static_run scripts/run-checks.sh check
 [[ $code -eq 0 && "$(recipes)" == 'lint check-sizes test' ]] || fail "green static gates: exit $code, recipes [$(recipes)]: $out"
 static_run env SIZES_CODE=1 scripts/run-checks.sh check-fast

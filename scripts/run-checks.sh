@@ -1,5 +1,6 @@
 #!/bin/bash
-# Run the make targets of a check with -k, so a red target does not skip the later targets. When
+# Run the make targets of a check with -k, so a red target does not skip the later targets. Before
+# make, it waits for a normal load (check-changed.sh --wait-load), after the static gates. When
 # the only red targets are test and test-slow-push, rerun only their failed Swift tests with
 # test-filter.sh --exact, after the load wait of check-changed.sh: up to 3 tries, or 1 try with
 # CHECK_RISK=yes. A later try reruns each test with a failed line or with no pass line in the last
@@ -44,10 +45,10 @@ trap 'rm -f "$log" "$log".* ${mark:+"$mark"}' EXIT
 # the gates of STATIC_GATES in the Makefile. A red gate stops the check before the Swift targets.
 # The main make then skips each passed gate with -o, so each gate runs once. GNU make does not
 # pass -o to a nested make.
-skip=() vars=() first=no
+skip=() vars=() goals=() first=no
 gates="$(sed -n 's/^STATIC_GATES := //p' Makefile 2>/dev/null || true)"
 for a in "$@"; do
-    if [[ $a == *=* ]]; then vars+=("$a"); fi
+    if [[ $a == *=* ]]; then vars+=("$a"); else goals+=("$a"); fi
     if [[ $a == check || $a == check-fast ]]; then first=yes; fi
 done
 if [[ $first == yes && -n $gates ]]; then
@@ -57,6 +58,8 @@ if [[ ${#skip[@]} -gt 0 ]] && ! "${MAKE:-make}" -k static ${vars[@]+"${vars[@]}"
     echo "run-checks: a static gate is red" >&2
     exit 1
 fi
+# The load wait of check-changed.sh comes after the static gates, so a red gate does not wait.
+"$here/check-changed.sh" --wait-load ${goals[@]+"${goals[@]}"}
 # GNU Make 3.81 writes the Error and not-remade lines to stderr: 2>&1 keeps them in order.
 if "${MAKE:-make}" -k ${skip[@]+"${skip[@]}"} "$@" 2>&1 | tee "$log"; then exit 0; fi
 # The load at the end of the check: make -k runs the later targets after a red test.

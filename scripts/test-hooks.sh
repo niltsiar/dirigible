@@ -7,8 +7,9 @@
 # and the date: a pass is good for one day. The script computes the key once, before the tests.
 # On a clean tree, the tests run from a key tree: a clone of HEAD in a temporary folder of the git
 # common dir with a sparse checkout of the key paths only, so a test that reads a path outside the
-# key fails. The sparse checkout stays inside the clone: in a linked worktree it changes the shared
-# config. A trap removes the folder at the exit and after INT or TERM.
+# key fails. Each floor file in it is empty: the key holds only its existence. The sparse
+# checkout stays inside the clone: in a linked worktree it changes the shared config. A trap
+# removes the folder at the exit and after INT or TERM.
 # A pass appends the key to dirigible-hooks-stamp in `git rev-parse --git-common-dir`. The next
 # run with the same key prints "test-hooks: reuse <key>" and runs no test.
 # No reuse and no stamp: on a dirty tree (the tests run in place), when the list is not the
@@ -63,6 +64,8 @@ if [[ $dirty == no ]]; then
             $(sed 's|^|/|' <<< "$floor") \
         && git -C "$work/tree" checkout -q --detach "$sha" || exit 1
     cd "$work/tree" || exit 1
+    # The key holds only the existence of a floor path, so a test that reads floor content fails.
+    find $floor -type f | while IFS= read -r f; do : > "$f"; done
 fi
 
 failed=()

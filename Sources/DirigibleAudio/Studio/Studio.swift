@@ -27,6 +27,10 @@ import Observation
     }
     public var canUndo: Bool { history.canUndo }
     public var canRedo: Bool { history.canRedo }
+    /// The agent of the change that Undo reverts, or nil for a user change (decision 0046).
+    public var undoAgent: AgentName? { history.undoAgent }
+    /// The agent of the change that Redo makes again, or nil for a user change.
+    public var redoAgent: AgentName? { history.redoAgent }
     /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
     public internal(set) var backups: [Backup]
 
@@ -154,14 +158,15 @@ import Observation
     /// Runs `body` on a copy of the session and records one undo entry if it changed. A change
     /// schedules one autosave of the new session; `edit` does not wait for it. A caller declares a
     /// ripple with `ripple`: under a pending or split take, it throws `.rippleBlocked` (decision 0037).
-    public func edit<Result>(ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result)
-        throws(StudioError) -> Result
-    {
+    /// `agent` names the agent of an MCP edit in its undo entry (decision 0046).
+    public func edit<Result>(
+        ripple: Bool = false, agent: AgentName? = nil, _ body: (inout Session) throws(SessionError) -> Result
+    ) throws(StudioError) -> Result {
         try checkIdle()
         if ripple { try checkRipple() }
         let before = session
         let result: Result
-        do { result = try history.edit(body) } catch { throw .session(error) }
+        do { result = try history.edit(agent: agent, body) } catch { throw .session(error) }
         if session != before { scheduleSave() }
         poolChanged(from: before.files)
         return result

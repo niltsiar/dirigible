@@ -65,11 +65,7 @@ struct ChaptersExport: ParsableCommand {
         guard !session.chapters(in: range).isEmpty else {
             throw fail("no chapter in frames \(from)..<\(end).", code: editRefused)
         }
-        for chapter in session.chapterList(in: range).dropped {
-            let line =
-                "Warning: chapter \"\(chapter.name)\" at \(chapter.position) starts at the millisecond of another chapter; the file leaves it out.\n"
-            try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
-        }
+        warnDropped(session.chapterList(in: range).dropped)
         let output = URL(filePath: out)
         // An lstat: a dangling link is an item too. `[.atomic, .withoutOverwriting]` is a fatal
         // error of Foundation, so the check comes first, and a race with another writer is accepted.

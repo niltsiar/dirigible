@@ -76,4 +76,9 @@ extension Player {
         else { return nil }
         return (0..<2).map { Array(UnsafeBufferPointer(start: buffer.floatChannelData![$0], count: count)) }
     }
+
+    /// Tests only: posts the configuration change of this engine, as the system does.
+    func postConfigurationChange() {
+        NotificationCenter.default.post(name: .AVAudioEngineConfigurationChange, object: graph?.engine)
+    }
 }

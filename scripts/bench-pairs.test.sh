@@ -33,6 +33,23 @@ log "$tmp/branch-2.log" 10.2 10.1
 out="$("$pairs" --compare "$tmp" 2>&1)"
 grep -q '^INCONCLUSIVE XBenchmark b (1 of 2 pairs' <<< "$out" || { echo "FAIL: one pair over the rule is INCONCLUSIVE: $out"; failures=$((failures + 1)); }
 
+# A side with no sample (a filter that matched no test), or a bench that failed, gives exit 1.
+mkdir "$tmp/none"
+for f in aa-1 aa-2 main-1 branch-1; do : > "$tmp/none/$f.log"; done
+out="$("$pairs" --compare "$tmp/none" 2>&1)"
+code=$?
+[[ $code -eq 1 && "$out" == *'no bench sample in aa-1.log'* ]] || { echo "FAIL: no sample: exit $code: $out"; failures=$((failures + 1)); }
+cp "$tmp"/aa-*.log "$tmp"/main-*.log "$tmp"/branch-*.log "$tmp/none/"
+: > "$tmp/none/branch-2.log"
+out="$("$pairs" --compare "$tmp/none" 2>&1)"
+code=$?
+[[ $code -eq 1 && "$out" == *'no bench sample in branch-2.log'* ]] || { echo "FAIL: a branch side with no sample: exit $code: $out"; failures=$((failures + 1)); }
+cp "$tmp/branch-2.log" "$tmp/none/"
+echo 'main-1: the bench failed' > "$tmp/none/load.txt"
+out="$("$pairs" --compare "$tmp/none" 2>&1)"
+code=$?
+[[ $code -eq 1 && "$out" == *'main-1: the bench failed'* ]] || { echo "FAIL: a failed bench: exit $code: $out"; failures=$((failures + 1)); }
+
 # bench.sh has no Makefile line of its own: its test runs here.
 bash "$(dirname "$0")/bench.test.sh" || failures=$((failures + 1))
 # with-lock.sh has no Makefile line of its own either (a Makefile change makes the push class bundle).

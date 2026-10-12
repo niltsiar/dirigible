@@ -29,6 +29,7 @@ if [[ "$1" == test && -n "$FAKE_NONE" ]]; then
     echo 'No matching test cases were run'
     echo 'Test run with 0 tests passed after 0.001 seconds.' >&2
 else
+    echo "XBenchmark a: p50 0.001 seconds, p95 0.001 seconds"
     echo "Test run with 1 test passed"
 fi
 EOF

@@ -9,7 +9,7 @@
 #        scripts/bench-pairs.sh --compare <out folder>
 # Per case the compare prints VERIFIED (no pair over the rule), NOT VERIFIED (each pair over the
 # rule), or INCONCLUSIVE (the A/A spread is over the rule, or only some pairs are). Exit 1 when a
-# case is NOT VERIFIED.
+# case is NOT VERIFIED, a bench failed (load.txt), or a log has no sample.
 set -euo pipefail
 if [[ "${1:-}" != "--compare" ]]; then
   main="${1:?usage: bench-pairs.sh <main worktree> <filter> <pairs> <out folder>}"
@@ -46,6 +46,16 @@ for n in range(1, 1000):
     a, b = f'{folder}/main-{n}.log', f'{folder}/branch-{n}.log'
     if not (os.path.exists(a) and os.path.exists(b)): break
     pairs.append((read(a), read(b)))
+# A failed bench or a side with no sample (a filter that matched no test) gives no verdict.
+load = f'{folder}/load.txt'
+failed = [l.strip() for l in open(load)] if os.path.exists(load) else []
+failed = [l for l in failed if l.endswith('the bench failed')]
+empty = [n for n, cases in [('aa-1.log', aa[0]), ('aa-2.log', aa[1])] + [
+    (f'{side}-{i}.log', c) for i, pair in enumerate(pairs, 1) for side, c in zip(('main', 'branch'), pair)] if not cases]
+if failed or empty:
+    for line in failed: print(f'NOT VERIFIED: {line}')
+    for name in empty: print(f'NOT VERIFIED: no bench sample in {name}')
+    sys.exit(1)
 worst = 0
 for case in sorted(aa[0]):
     mains = [m[case] for m, _ in pairs if case in m]

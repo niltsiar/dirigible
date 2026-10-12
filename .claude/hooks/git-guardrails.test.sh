@@ -461,7 +461,12 @@ pre_fail() { echo "FAIL: pre-commit: $1"; failures=$((failures + 1)); }
 git init -q "$tmp/p"
 mkdir -p "$tmp/p/.githooks"
 cp "$(dirname "$0")/../../.githooks/pre-commit" "$tmp/p/.githooks/" || pre_fail 'no .githooks/pre-commit'
-git -C "$tmp/p" add .githooks
+mkdir -p "$tmp/p/scripts"
+cp "$(dirname "$0")/../../scripts/check-sizes.sh" "$(dirname "$0")/../../scripts/check-waits.sh" "$tmp/p/scripts/" \
+  || pre_fail 'no scripts/check-sizes.sh or scripts/check-waits.sh'
+: > "$tmp/p/scripts/check-sizes.allow"
+: > "$tmp/p/scripts/check-waits.allow"
+git -C "$tmp/p" add .githooks scripts
 gc "$tmp/p" -m hook || pre_fail 'the commit of the hook failed'
 git -C "$tmp/p" worktree add -q "$tmp/pw" 2>/dev/null || pre_fail 'git worktree add failed'
 git -C "$tmp/p" config core.hooksPath "$tmp/p/.githooks"
@@ -489,6 +494,27 @@ dead="$(bash -c 'echo $$')"
 echo 'Mon Jan  1 00:00:00 2001' > "$marks/$dead"
 gc "$tmp/pw" -m dead 2>"$tmp/err"
 grep -q lint "$tmp/err" || pre_fail "a dead pid did not reach make lint: $(cat "$tmp/err")"
+# Before make lint, the hook runs scripts/check-sizes.sh and scripts/check-waits.sh on the working
+# tree. A Swift file of 401 lines under Sources/, or a raw .wait(timeout: under Tests/, with no
+# allow entry, refuses the commit before make lint. 400 lines, and a raw wait under Sources/, pass.
+mkdir -p "$tmp/pw/Sources/M" "$tmp/pw/Tests/T"
+seq 401 | sed 's|^|// |' > "$tmp/pw/Sources/M/Big.swift"
+gc "$tmp/pw" -m big 2>"$tmp/err" && pre_fail 'a commit with a Swift file of 401 lines passed'
+grep -q '^check-sizes: Sources/M/Big.swift: 401 lines, over 400' "$tmp/err" || pre_fail "a file of 401 lines gave no check-sizes line: $(cat "$tmp/err")"
+grep -q lint "$tmp/err" && pre_fail 'make lint ran before the size gate'
+seq 400 | sed 's|^|// |' > "$tmp/pw/Sources/M/Big.swift"
+gc "$tmp/pw" -m fits 2>"$tmp/err"
+grep -q check-sizes "$tmp/err" && pre_fail 'a Swift file of 400 lines failed the size gate'
+grep -q lint "$tmp/err" || pre_fail "a Swift file of 400 lines did not reach make lint: $(cat "$tmp/err")"
+rm "$tmp/pw/Sources/M/Big.swift"
+echo 'group.wait(timeout: .now() + 1)' > "$tmp/pw/Tests/T/W.swift"
+gc "$tmp/pw" -m wait 2>"$tmp/err" && pre_fail 'a commit with a raw wait under Tests/ passed'
+grep -qF 'check-waits: Tests/T/W.swift:1: a raw .wait(timeout: with no allow entry' "$tmp/err" || pre_fail "a raw wait under Tests/ gave no check-waits line: $(cat "$tmp/err")"
+grep -q lint "$tmp/err" && pre_fail 'make lint ran before the wait gate'
+mv "$tmp/pw/Tests/T/W.swift" "$tmp/pw/Sources/M/W.swift"
+gc "$tmp/pw" -m source-wait 2>"$tmp/err"
+grep -q check-waits "$tmp/err" && pre_fail 'a raw wait under Sources/ failed the wait gate'
+grep -q lint "$tmp/err" || pre_fail "a raw wait under Sources/ did not reach make lint: $(cat "$tmp/err")"
 
 # The shipped commit-msg hook refuses a word pair ("10 before, 11 after") that no staged budgeted
 # file shows: wc -w at HEAD or HEAD^ (an amend) before, in the index after; a missing copy counts 0.

@@ -44,7 +44,7 @@ def main():
                     if "ref" in frame.attrib:
                         names.append(resolve(frames, frame.get("ref")))
                     else:
-                        frames[frame.get("id")] = frame.get("name") or frame.get("addr")
+                        frames[frame.get("id")] = frame.get("name") or frame.get("addr") or "?"
                         names.append(frames[frame.get("id")])
                 backtraces[backtrace.get("id")] = names
             if names and (args.under is None or any(args.under in name for name in names)):

@@ -4,6 +4,7 @@
 - Date: 2026-10-03
 - Accepted: 2026-10-03, after the architect synthesis of run `2026-10-03-loudness` and plan gates 1 and 2 of run `2026-10-03-auto-level`.
 - Amends: 0008 (a clip with no measurement keeps its gain; at stop the take clips of one track share one delta).
+- Amended: 2026-10-12, run 2026-10-12-autolevel-fader. Cmd-L levels every clip with no selection, shows a result banner, and never changes the track fader. A change under 0.05 dB keeps the old gain. `dirigible level` prints a report line on stderr and does not write an unchanged session.
 
 ## Context
 
@@ -16,7 +17,7 @@ R9 asks for an automatic level of each clip. 0008 gives the rule: `gain = clipTa
 
 ## Decision
 
-**One function.** `autoLevel(clips, mode, of:in:)` in `DirigibleAudio/DSP/` sets the gains. It is sync and never throws. It measures all clips in one pass with `DispatchQueue.concurrentPerform`, so the width is the core count. A clip with no gated block, a missing file, or a read fault keeps its gain. Two modes:
+**One function.** `autoLevel(clips, mode, of:in:)` in `DirigibleAudio/DSP/` sets the gains. It is sync and never throws. It measures all clips in one pass with `DispatchQueue.concurrentPerform`, so the width is the core count. A clip with no gated block, a missing file, or a read fault keeps its gain. A new gain nearer than 0.05 dB to the old gain keeps the old gain, so a second level of the same clips changes nothing. Two modes:
 
 - `.eachClip` measures each clip without its gain and gives it the target.
 - `.equallyPerTrack` measures each clip with its gain, joins the blocks of the clips of one track (`Loudness.init(union:)`), and adds one delta to each measured clip of that track. The gain differences between the clips stay, unless a gain reaches the ±20 dB limit.
@@ -27,9 +28,17 @@ The stop, Cmd-L, Option-Cmd-L, and `dirigible level` call it, so they give the s
 
 **Undo.** `TakeOutcome.beforeLevel` holds the session of the first write. `Studio.apply` records it as one entry, then the leveled session as a second entry. `History.edit` records no unchanged session, so a take with no measurement gives one entry. The first Undo after a take removes the level, and the second removes the take.
 
-**Cmd-L.** `Studio.level(clips, mode)` checks that the studio is idle, ends a play, and sets `Transport.leveling`. A `defer` sets `.idle` on every exit. In one turn of the write chain, it stops the Player, measures off the main actor, writes `session.xml` when a gain changed, and records one undo entry. A Quit right after Cmd-L does not lose the level. The app levels each whole clip that the selection touches on the selected tracks (`Marks.clipsToLevel(in:)`). With no selection, Cmd-L does nothing. The two items are in a Tools menu after the Record menu: Auto Level (Command-L) and Auto Level per Track (Option-Command-L).
+**Cmd-L.** `Studio.level(clips, mode)` checks that the studio is idle, ends a play, and sets `Transport.leveling`. A `defer` sets `.idle` on every exit. In one turn of the write chain, it stops the Player, measures off the main actor, writes `session.xml` when a gain changed, and records one undo entry. A Quit right after Cmd-L does not lose the level. A level that changes no gain writes nothing and records no entry. The app levels the clips of `Selection.clipsToLevel(in:)`, which gives nil only for the empty selection (no range and no selected track):
 
-**CLI.** `dirigible level <package> [<clip>...] [--per-track]` calls `autoLevel` through `editPackage`.
+- The empty selection: every clip of the session, also on a muted track (0039). The items are then Auto Level All Clips and Auto Level per Track (All).
+- A track-only selection: every clip of its tracks.
+- A range: each whole clip that it touches on the selected tracks. With no selected track, it uses all tracks, as I, O, and Split do (0018).
+- A clip set: its clips.
+- A selection with no clip (a gap, a track with no clip, or tracks or clips that an undo removed): Cmd-L beeps and changes nothing (0038).
+
+The two items are in a Tools menu after the Record menu: Auto Level (Command-L) and Auto Level per Track (Option-Command-L). They are off when the session has no clip, during an import, and when the studio is not idle. `Studio.level` returns a `LevelReport`: the changed clips, the changed clips at the 20 dB limit, and the clips with no measurement. The app shows it in a banner after each press, with a new banner key for each press, so VoiceOver reads each result. When no clip changed, the banner says that the track volume does not change the clip gain. Each press removes the old banner first. Auto Level never reads or changes the track volume: the track volume adds to the clip gain, as clip gain does in Pro Tools and Logic (`docs/research/auto-level-reference-apps.md`).
+
+**CLI.** `dirigible level <package> [<clip>...] [--per-track]` calls `autoLevel` through `editPackage`. It prints one line for each clip on stdout, then the report as one line on stderr, with no track volume sentence. When no gain changed, it does not write `session.xml` (`editPackage(writeUnchanged: false)`). This is an exception to the 0011 **Grammar** rule for `dirigible level` only; the other edit commands still write.
 
 ## Consequences
 

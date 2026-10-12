@@ -3,11 +3,13 @@ import Foundation
 /// The agent of an edit that came over MCP (decision 0046). The Undo and Redo items name it.
 public struct AgentName: Hashable, Sendable {
     /// The longest name in characters.
-    public static let maximumLength = 40
+    private static let maximumLength = 40
 
     /// The display names of the client IDs that send no title (`research-mcp-clients.md` of run
     /// 2026-10-12-mcp-in-app).
-    static let knownClients = ["claude-code": "Claude Code", "codex-mcp-client": "Codex", "opencode": "opencode"]
+    private static let knownClients = [
+        "claude-code": "Claude Code", "codex-mcp-client": "Codex", "opencode": "opencode",
+    ]
 
     /// The name to show, or nil when the client gave no valid name: the UI then says "Agent".
     public let name: String?

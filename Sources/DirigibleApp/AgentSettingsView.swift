@@ -96,11 +96,7 @@ struct AgentSettingsView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         copied = true
-        NSAccessibility.post(
-            element: NSApp as Any, notification: .announcementRequested,
-            userInfo: [
-                .announcement: L10n.settingsAgentsCopied.text, .priority: NSAccessibilityPriorityLevel.high.rawValue,
-            ])
+        postAnnouncement(L10n.settingsAgentsCopied.text, priority: .high)
         Task {
             try? await Task.sleep(for: .seconds(2))
             copied = false

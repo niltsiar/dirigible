@@ -23,11 +23,7 @@ import Observation
     /// The clock of the time limit. Tests give their own.
     var now: () -> ContinuousClock.Instant = { .now }
     /// Posts a VoiceOver announcement. Tests give their own.
-    var announce: (String, NSAccessibilityPriorityLevel) -> Void = { text, priority in
-        NSAccessibility.post(
-            element: NSApp as Any, notification: .announcementRequested,
-            userInfo: [.announcement: text, .priority: priority.rawValue])
-    }
+    var announce: @MainActor (String, NSAccessibilityPriorityLevel) -> Void = postAnnouncement
     /// The record time left of the armed tracks before a take. It only returns a value;
     /// `refreshRecordTime()` writes it. Tests give their own.
     var readRecordTime: @MainActor ([TrackID]) async -> Duration?
@@ -333,4 +329,11 @@ extension NSWindow {
         // The first call puts the window at the top left of `previous` and gives the next point.
         cascadeTopLeft(from: cascadeTopLeft(from: NSPoint(x: previous.frame.minX, y: previous.frame.maxY)))
     }
+}
+
+/// Posts a VoiceOver announcement of the app.
+@MainActor func postAnnouncement(_ text: String, priority: NSAccessibilityPriorityLevel) {
+    NSAccessibility.post(
+        element: NSApp as Any, notification: .announcementRequested,
+        userInfo: [.announcement: text, .priority: priority.rawValue])
 }

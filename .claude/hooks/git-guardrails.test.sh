@@ -214,6 +214,9 @@ expect block 'rmdir "$(git rev-parse --git-common-dir)/dirigible-build.lock"'
 expect block 'rm -rf /Users/x/repo/.git/dirigible-build.lock'
 expect allow 'ls .git/dirigible-build.lock'
 expect allow 'cat .git/dirigible-build.lock/pid .git/dirigible-build.lock/command'
+# A hand-set reuse value would run a build beside the holder of the lock.
+expect block 'DIRIGIBLE_BUILD_LOCK=123 scripts/with-lock.sh make test'
+expect block 'DIRIGIBLE_LOCKED_SCRIPT=scripts/bench.sh scripts/bench.sh X'
 expect allow 'scripts/with-lock.sh make test'
 expect allow "grep -n '>.*dirigible-check-running' .claude/hooks/git-guardrails.sh"
 expect allow 'ls .git/dirigible-check-running'

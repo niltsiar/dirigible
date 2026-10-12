@@ -6,9 +6,14 @@
 # do not work in the copy.
 # The script holds the build lock (with-lock.sh) for the build and the timed run. Under the hold of
 # a caller (bench-pairs.sh, or an outer with-lock.sh call), it runs at once.
-# Usage: scripts/bench.sh <test filter>, for example scripts/bench.sh LaneRenderBenchmark
+# Usage: scripts/bench.sh <name> [<name>...], for example scripts/bench.sh LaneRenderBenchmark
+# The names, also with spaces in one argument (make bench FILTER='<name> <name>'), join into one
+# --filter '<name>|<name>'. A test run whose output has both no-test strings of test-filter.sh
+# ran no test: the script exits 1.
 set -euo pipefail
-filter="${1:?usage: scripts/bench.sh <test filter>}"
+: "${1:?usage: scripts/bench.sh <name> [<name>...]}"
+read -ra names <<< "$*"
+filter="$(IFS='|'; echo "${names[*]}")"
 # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
 [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$(dirname "$0")/with-lock.sh" "$0" "$@"
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -37,7 +42,14 @@ swift build -c release -Xswiftc -enable-testing --build-tests
 "$root/scripts/check-changed.sh" --wait-load bench
 load() { echo "bench: load $(sysctl -n vm.loadavg | awk '{ print $2 }')"; }
 load
+out="$(mktemp)"
+trap 'rm -f "$out"' EXIT
 code=0
-DIRIGIBLE_SLOW_TESTS=1 swift test -c release -Xswiftc -enable-testing --skip-build --no-parallel --filter "$filter" || code=$?
+DIRIGIBLE_SLOW_TESTS=1 swift test -c release -Xswiftc -enable-testing --skip-build --no-parallel --filter "$filter" 2>&1 |
+    tee "$out" || code=$?
 load
+if grep -qF 'No matching test cases were run' "$out" && grep -qF 'Test run with 0 tests' "$out"; then
+    echo "bench: no test matched the filter $filter" >&2
+    exit 1
+fi
 exit "$code"

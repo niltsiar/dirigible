@@ -1,6 +1,6 @@
 SWIFT_SOURCES := Package.swift Sources Tests
 
-.PHONY: setup build app icon-preview test test-filter test-slow test-slow-push check-slow-gates check-warnings check-sizes bench test-app dmg test-dmg test-hooks check-docs run lint format static check check-fast check-changed clean
+.PHONY: setup build app icon-preview test test-filter test-asan test-tsan test-slow test-slow-push check-slow-gates check-warnings check-sizes bench test-app dmg test-dmg test-hooks check-docs run lint format static check check-fast check-changed clean
 
 setup:
 	git config --local core.hooksPath .githooks
@@ -20,8 +20,8 @@ icon-preview:
 # In one process, the stall tripped the 60 s DeviceEventTests watchdog in 3 of 40 runs.
 # Process 2 runs also when process 1 fails, so scripts/run-checks.sh sees each failed test.
 # Each swift test call goes through scripts/swift-test.sh: a process that ends with exit 0 and no
-# report line fails. scripts/bench.sh is the one exception: its release run reads its own result
-# lines.
+# report line fails. Two scripts do not go through it, and read their own result lines:
+# scripts/bench.sh (its release run) and scripts/sanitize.sh (it runs scripts/test-helper.sh).
 test:
 	scripts/swift-test.sh --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests; s=$$?; scripts/swift-test.sh --filter DirigibleCLITests && exit $$s
 
@@ -29,6 +29,17 @@ test:
 # of test. It fails when no test matched.
 test-filter:
 	scripts/test-filter.sh $(FILTER)
+
+# The tests of FILTER under Address Sanitizer, in a debug build of its own (.build/asan, about
+# 3 GB). `swift test --sanitize` does not run on this Mac: read the header of scripts/sanitize.sh.
+test-asan:
+	scripts/sanitize.sh address $(FILTER)
+
+# The tests of FILTER under Thread Sanitizer (.build/tsan), with the LAME tables of
+# scripts/tsan.supp suppressed. For the capture and listen suites, leave out StudioListenTests:
+# it reaches Player, whose reports are an open item, so the run would always fail.
+test-tsan:
+	scripts/sanitize.sh thread $(FILTER)
 
 # The gate of a slow test. The checks match the whole expression, so a comment that names the
 # variable does not change the count. scripts/check-changed.sh repeats the expression: change both.
@@ -104,6 +115,7 @@ HOOK_TESTS = \
 	scripts/bench-pairs.test.sh \
 	scripts/test-helper.test.sh \
 	scripts/trace-top.test.sh \
+	scripts/sanitize.test.sh \
 	scripts/icon.test.sh \
 	scripts/bundle.test.sh \
 	scripts/guide-html.test.sh \

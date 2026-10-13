@@ -127,6 +127,9 @@ final class AgentListener: @unchecked Sendable {
             let fd = accept(listenFD, nil, nil)
             guard fd >= 0 else { return }
             setNoSigPipe(fd)
+            // The fd takes O_NONBLOCK from the listener; a reply write must block, else a reply
+            // over the socket buffer gives EAGAIN.
+            _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)
             // A peer that stops reading cannot hold the queue for long.
             var limit = timeval(tv_sec: 5, tv_usec: 0)
             setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &limit, socklen_t(MemoryLayout<timeval>.size))

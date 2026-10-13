@@ -139,7 +139,7 @@ You can play the session faster or slower, and the voices keep their pitch. This
 - Press Period to change between 1x and the last speed that you used. The first time, the last speed is 1.5x. Dirigible keeps the last speed after you quit.
 - Press ">" for a faster speed and "<" for a slower speed. On a Spanish keyboard, "<" is the key to the left of Z, and ">" is Shift and the same key.
 - When the speed is not 1x, the pop-up shows it in the accent color.
-- The speed applies to **Play or Stop** and to the first **Play Forward**. **Play Backward**, the second and third **Play Forward**, and the slow play commands play at their own rate, with the pitch of a tape.
+- The speed applies to **Play or Stop**, the first **Play Forward**, and the first **Play Backward**. The second and third **Play Forward** or **Play Backward**, and the slow play commands, play at their own rate, with the pitch of a tape.
 - During a take, the speed keys do nothing. The speed does not change an export.
 
 ### Zoom

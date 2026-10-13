@@ -272,6 +272,8 @@ printf '2026-10-01T03:00\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkille
 land_in "Add x" "$c/pr.md"
 code=$?
 risk_refused 'risk with a pass row before the last Sources commit' 'older than the last Sources/ commit'
+grep -q 'or pass the time of the phase 7 row that says the fix touches no guard' "$c/out" ||
+  fail "risk with a pass row before the last Sources commit: no why-row option in: $(cat "$c/out")"
 # Only a row whose decision starts with "mutation pass" is the pass row: a newer phase 7 row with
 # a log under controls/ (a pass measure row) does not hide a stale pass.
 risk_setup

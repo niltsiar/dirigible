@@ -38,7 +38,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 - The mutation pass keys on the `risk:` line, not on the class.
 - At each risk level, the red-first log of each slice is its control. No mutation control runs at slice time, and no control replays.
-- With `risk: yes`, one mutation pass runs on the landing tree, after the last code gate fix and before the push check. One agent picks one mutant for each data-safety guard on the changed lines, with no cap, and one for each other risk guard while the total is under 6. With fewer than 3, it adds another direction of the riskiest guard. With no guard on the changed lines, a logged row says why no pass applies. Each mutant runs once, with a timeout. `scripts/land.sh` needs its phase 7 row, not older than the last `Sources/` commit: a later source change runs the pass again for the guards that it touched.
+- With `risk: yes`, one mutation pass runs on the landing tree, after the last code gate fix and before the push check. One agent picks one mutant for each data-safety guard on the changed lines, with no cap, and one for each other risk guard while the total is under 6. With fewer than 3, it adds another direction of the riskiest guard. With no guard on the changed lines, a logged row says why no pass applies. Each mutant runs once, with a timeout. `scripts/land.sh` needs its phase 7 row, not older than the last `Sources/` commit: a fix after the pass runs one new mutant for each guard that it touched, and a fix that touches no guard gets a row that says so.
 - With `risk: no`, there is no mutation pass.
 
 ### Review panel scale

@@ -4,7 +4,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 
 ## Pick the mutants
 
-- Run the pass once, on the landing tree: after the last code gate fix and the last Phase 7 fix, before the push check. A killed mutant does not run again. A `Sources/` change after the pass runs the pass again for the guards that it touched: `scripts/land.sh` refuses a pass row older than the last `Sources/` commit.
+- Run the pass once, on the landing tree: after the last code gate fix and the last Phase 7 fix, before the push check. A killed mutant does not run again. A fix after the pass runs one new mutant for each guard that it touched, on its changed line; no other mutant runs again. When the fix touches no guard, log a phase 7 row that says so, and give its time to `scripts/land.sh`, which refuses a pass row older than the last `Sources/` commit.
 - One agent reads the diff, the criteria, and the probe results. It picks one mutant for each data-safety guard of the AGENTS.md Safety rules on the changed lines, in the direction that loses data, with no cap. Then it adds one mutant for each other risk guard on the changed lines while the total is under 6. With fewer than 3, it adds another direction of the riskiest guard until there are 3 or no direction is left. With no guard on the changed lines, log a phase 7 row that says why no pass applies, and give its time to `scripts/land.sh`.
 - Prefer a removed check, a guard operator or boundary, and a constant that a probe measured. Skip logging, waits, time limits, speed (the bench owns it), UI strings, and framework setup order.
 - The mutant breaks the mechanism of the claim (a removed guard, a relaxed memory order). A mutant that only corrupts the input of the checker proves only the checker.

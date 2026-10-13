@@ -6,8 +6,9 @@
 # It refuses a working tree with changes, because the checks build the working tree and the
 # push sends only the commits. It rebases on origin/main (on a conflict, it aborts the rebase and
 # stops), runs check-governance.sh with the run folder of the body file, and with `risk: yes` from
-# check-changed.sh it needs a control row in the decisions.tsv of that folder: phase 2 or 4, with
-# a log under controls/. The third argument names the row that says why no control applies. Then
+# check-changed.sh it needs the mutation pass row in the decisions.tsv of that folder: phase 7,
+# with a log under controls/ (a red log or a slice row is not the pass). The third argument names
+# the row that says why no pass applies. Then
 # it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
 # delta after the load wait of check-changed.sh when the stamp has an ancestor of HEAD, else
 # `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with the risk of
@@ -62,8 +63,8 @@ if [[ "$risk" == yes ]]; then
     if [[ -n "$why" ]]; then
         awk -F'\t' -v t="$why" '$1 == t { f = 1 } END { exit !f }' "$log" || die "no row $why in $log"
     else
-        awk -F'\t' '($2 == "2" || $2 == "4") && /controls\// { f = 1 } END { exit !f }' "$log" ||
-            die "risk: yes, and $log has no control row (phase 2 or 4, with a log under controls/); add the controls, or pass the time of the row that says why no control applies"
+        awk -F'\t' '$2 == "7" && /controls\// { f = 1 } END { exit !f }' "$log" ||
+            die "risk: yes, and $log has no mutation pass row (phase 7, with a log under controls/); run the pass of mutation-controls.md, or pass the time of the row that says why no pass applies"
     fi
 fi
 # The pass stamp: a passing push check of HEAD or of an ancestor of HEAD, with this base.

@@ -7,7 +7,7 @@
 # field has text that the guardrail hook blocks in a command, for example the check and the commit.
 # A row whose decision or result starts with `default` (any case) needs `Reverse:` (any case) in
 # its why: the word or line that reverses the default (deliver autonomy rules). The phase is one
-# digit (0-9), so land.sh finds the control rows of phase 2 and 4. A decision that starts with
+# digit (0-9), so land.sh finds the mutation pass row of phase 7. A decision that starts with
 # `criterion change` (any case) needs an analysis.md in the run folder that changed after the last
 # row, and the words old and new. Each phase 4 row of a run folder with a plan.md needs a
 # passing scripts/check-plan.sh (CHECK_PLAN_AT_PHASE4=1): a Criteria: field for each plan gate

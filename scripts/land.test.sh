@@ -3,7 +3,7 @@
 # failure. Each case uses a temporary repo, a bare remote, and fake make and gh on PATH that log
 # their arguments. Cases: the happy path, another worktree that holds main, a red check, a rebase conflict (the rebase is aborted),
 # main moved after the check, a run on main or a detached HEAD, an untracked or a changed file, a
-# red governance check, `risk: yes` with and with no control row, a body that pr-terms.sh flags
+# red governance check, `risk: yes` with and with no mutation pass row, a body that pr-terms.sh flags
 # (before the fetch), a body that lost a number of logs/pr-draft.md, a pr-terms.sh error, a
 # missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta
 # after the stamp runs the targets of the delta after the load wait, and no usable stamp runs the
@@ -229,9 +229,10 @@ code=$?
 grep -q 'the governance check failed' "$c/out" || fail "governance: no reason: $(cat "$c/out")"
 no_side_effects 'governance'
 
-# risk: yes (a file under Sources/DirigibleAudio/) needs a control row in the decisions.tsv of
-# the run folder (the folder of the body file), or a third argument that names the row that says
-# why no control applies. Else the land stops before the checks and the push.
+# risk: yes (a file under Sources/DirigibleAudio/) needs a mutation pass row (phase 7, a log under
+# controls/) in the decisions.tsv of the run folder (the folder of the body file), or a third
+# argument that names the row that says why no pass applies. A slice control row (phase 4) or a red
+# log row alone is not the pass. Else the land stops before the checks and the push.
 risk_setup() {
   setup
   mkdir -p "$c/work/Sources/DirigibleAudio"
@@ -252,17 +253,24 @@ risk_refused 'risk with no decisions.tsv' 'risk: yes and no decisions.tsv'
 risk_setup
 land_in "Add x" "$c/pr.md"
 code=$?
-risk_refused 'risk with no control row' 'has no control row'
+risk_refused 'risk with no pass row' 'has no mutation pass row'
 risk_setup
 land_in "Add x" "$c/pr.md" 2026-10-01T09:99
 code=$?
 risk_refused 'risk with a missing why row' 'no row 2026-10-01T09:99'
 risk_setup
-printf '2026-10-01T02:00\t4\tk1 killed\tw\tcontrols/k1.log\tkilled\n' >> "$c/decisions.tsv"
+printf '2026-10-01T02:00\t4\ts2 red first\tw\tlogs/s2-red.log\tdone\n' >> "$c/decisions.tsv"
+printf '2026-10-01T02:01\t4\tk1 killed\tw\tcontrols/k1.log\tkilled\n' >> "$c/decisions.tsv"
 land_in "Add x" "$c/pr.md"
 code=$?
-[[ $code -eq 0 ]] || fail "risk with a control row: exit $code: $(cat "$c/out")"
-grep -q '^gh pr merge' "$c/log" || fail "risk with a control row: no merge: $(cat "$c/log")"
+risk_refused 'risk with only slice rows' 'has no mutation pass row'
+risk_setup
+printf '2026-10-01T02:00\t4\ts2 red first\tw\tlogs/s2-red.log\tdone\n' >> "$c/decisions.tsv"
+printf '2026-10-01T03:00\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' >> "$c/decisions.tsv"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "risk with a pass row: exit $code: $(cat "$c/out")"
+grep -q '^gh pr merge' "$c/log" || fail "risk with a pass row: no merge: $(cat "$c/log")"
 risk_setup
 land_in "Add x" "$c/pr.md" 2026-10-01T01:00
 code=$?
@@ -331,7 +339,7 @@ stamp_case 'renamed bundle path' 'stamp: delta check test-dmg' 'make -k check te
 # A delta with risk: yes against origin/main gives run-checks.sh CHECK_RISK=yes (1 rerun at most).
 stamp_setup
 commit_file Sources/DirigibleAudio/A.swift
-printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-01T02:00\t4\tk1 killed\tw\tcontrols/k1.log\tkilled\n' > "$c/decisions.tsv"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-01T02:00\t7\tk1 killed\tw\tcontrols/k1.log\tkilled\n' > "$c/decisions.tsv"
 stamp origin/main
 commit_file docs/a.md
 stamp_case 'risk delta' 'stamp: delta check-docs' 'make -k check-docs'

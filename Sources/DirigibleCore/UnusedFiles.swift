@@ -257,8 +257,9 @@ private struct Holders {
     var names: Set<String> = []
     var identities: Set<FileIdentity> = []
 
+    /// Many entries name the same paths, so each path gets one `lstat` and one `stat`.
     init(_ paths: [String], in clips: URL) {
-        for path in paths {
+        for path in Set(paths) {
             names.insert(normalized(path))
             identities.formUnion(FileIdentity.both(clips.appending(path: path).path))
         }

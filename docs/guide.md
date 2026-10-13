@@ -830,7 +830,7 @@ By default, an agent edits only sessions that are closed in the app. To let an a
 An agent can ask to record, but only you start the take. The `record` tool takes the tracks (`arm`), the length in seconds (`seconds`, 24 hours or less), and the start (`playhead`, by default the playhead of the window). The session must be open, and Let Agents Edit Open Sessions must be on.
 
 1. The agent calls `record`. A sheet opens on the session window. It names the agent, the tracks, the length, and the start. When a track has audio after the start, a line says that the take records over it.
-2. Click Record to start the take, or click Don't Record. Escape is Don't Record. Return does nothing, so a key that you type when the sheet opens cannot start a take.
+2. Click Record to start the take, or click Don't Record. Escape is Don't Record. Return, Tab, and Space cannot press Record, so a key that you type when the sheet opens cannot start a take.
 3. The take stops after its length, or earlier when you click Stop.
 
 - The request ends after 20 seconds with no answer, and also when the agent stops waiting or you turn off Let Agents Edit Open Sessions. The sheet closes, and a banner says that the agent asked to record. The agent can ask again.

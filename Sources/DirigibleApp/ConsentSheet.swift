@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleCore
 import SwiftUI
 
@@ -25,7 +26,7 @@ struct ConsentSheet: View {
                 Spacer()
                 Button(L10n.consentDontRecord.key, role: .cancel) { Task { await model.answerConsent(record: false) } }
                     .keyboardShortcut(.cancelAction)
-                Button(L10n.transportRecord.key) { Task { await model.answerConsent(record: true) } }
+                RecordButton(model: model).fixedSize()
             }
         }
         .padding(20)
@@ -48,4 +49,33 @@ struct ConsentSheet: View {
     private var startText: String { timeDisplayText(consent.start, rate: sampleRate, playing: false) }
 
     private func list(_ names: [String]) -> String { ListFormatter.localizedString(byJoining: names) }
+}
+
+/// Record of the consent sheet: an AppKit button that refuses the key focus, so Tab and Space
+/// cannot press it with Keyboard navigation on. `.focusable(false)` and `refusesFirstResponder`
+/// do not stop `makeFirstResponder`.
+private struct RecordButton: NSViewRepresentable {
+    let model: SessionWindow
+
+    func makeNSView(context: Context) -> ClickOnlyButton {
+        let button = ClickOnlyButton(
+            title: L10n.transportRecord.text, target: context.coordinator, action: #selector(Click.record))
+        return button
+    }
+
+    func updateNSView(_ button: ClickOnlyButton, context: Context) { context.coordinator.model = model }
+
+    func makeCoordinator() -> Click { Click(model) }
+
+    @MainActor final class Click: NSObject {
+        weak var model: SessionWindow?
+        init(_ model: SessionWindow) { self.model = model }
+        @objc func record() { Task { await model?.answerConsent(record: true) } }
+    }
+}
+
+/// A button that never takes the key focus, so no key presses it.
+final class ClickOnlyButton: NSButton {
+    override var acceptsFirstResponder: Bool { false }
+    override func becomeFirstResponder() -> Bool { false }
 }

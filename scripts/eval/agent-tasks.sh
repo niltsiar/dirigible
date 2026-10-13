@@ -10,9 +10,10 @@
 # setting, or hook of the repo reaches the agent. The whole claude run is inside
 # scripts/probe.sh --no-audio of that folder: the agent, its Bash commands, and the MCP server write
 # only there, open no audio device, and reach no app (the socket path has no listener). The runner
-# copies stream.jsonl, after.json, out.txt, stderr.txt, and variant to <results>/<label>/<task>/,
-# then deletes the task folder. A smoke task (T4, MCP only) runs first; the batch stops when it
-# does not pass. scripts/eval/agent-grade.py grades the runs, also each init message.
+# copies stream.jsonl, after.json, after.stderr.txt, out.txt, stderr.txt, and variant to
+# <results>/<label>/<task>/, then deletes the task folder. A smoke task (T4, MCP only) runs first;
+# the batch stops when it does not pass. scripts/eval/agent-grade.py grades the runs, also each
+# init message.
 set -euo pipefail
 [[ $# -ge 4 ]] || { sed -n '4,8p' "$0" >&2; exit 2; }
 bin="$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")" model="$3" label="$4"
@@ -81,7 +82,7 @@ run_task() {
         --mcp-config "$t/mcp.json" --strict-mcp-config --setting-sources project "${tools[@]}" "${allowed[@]}" \
         --output-format stream-json --verbose --no-session-persistence \
         </dev/null >"$out/stream.jsonl" 2>"$out/stderr.txt" || echo "claude exit $?" >>"$out/stderr.txt"
-    "$t/dirigible" info "$t/Show.dirigible" --json >"$out/after.json" 2>&1 || true
+    "$t/dirigible" info "$t/Show.dirigible" --json >"$out/after.json" 2>"$out/after.stderr.txt" || true
     ls -la "$t/out" >"$out/out.txt"
     echo "$variant" >"$out/variant"
     rm -rf "$t"

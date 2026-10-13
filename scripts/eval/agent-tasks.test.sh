@@ -16,6 +16,7 @@ cat >"$tmp/bin/dirigible" <<'EOF'
 [[ $1 == create ]] && mkdir -p "$2"
 if [[ $1 == info ]]; then
     echo '{"tracks": [{"id": "host", "name": "Ana", "clips": []}, {"id": "guest", "name": "Ben", "clips": []}], "markers": []}'
+    [[ -z ${FAKE_WARNING:-} ]] || echo "warning: a file is short" >&2
 fi
 exit 0
 EOF
@@ -41,6 +42,11 @@ run() {
 SKILL_LINK=Fake.app run skill T5
 grep -q skill-ok "$tmp/results/skill/T5/stream.jsonl" 2>/dev/null \
     || fail "a relative SKILL_LINK gives a dangling skill link: $(cat "$tmp/skill.log")"
+
+# A warning of `dirigible info` on stderr does not go into after.json (code gate 1 item 7).
+FAKE_WARNING=1 run warning T5
+python3 -I -c 'import json, sys; json.load(open(sys.argv[1]))' "$tmp/results/warning/T5/after.json" 2>/dev/null \
+    || fail "a stderr warning makes after.json invalid: $(cat "$tmp/warning.log")"
 
 if [[ $failures -gt 0 ]]; then
     echo "agent-tasks tests: $failures failed"

@@ -246,4 +246,17 @@ struct UnusedFilesTests {
 
         #expect(Self.paths(scan) == ["s.wav"] && scan.damagedBackups.isEmpty)
     }
+
+    /// Review item 6: a pool entry that is a symbolic link to a file outside the package is no
+    /// candidate. The scan names it.
+    @Test func linkedPoolFileIsNoCandidate() throws {
+        let outside = package.deletingLastPathComponent().appending(path: "outside.wav")
+        try Data(count: 4).write(to: outside)
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: clips.appending(path: "ext.wav"), withDestinationURL: outside)
+
+        let scan = try scan(Self.session([("e", "ext.wav")]))
+
+        #expect(scan.items.isEmpty && scan.notFiles == ["ext.wav"])
+    }
 }

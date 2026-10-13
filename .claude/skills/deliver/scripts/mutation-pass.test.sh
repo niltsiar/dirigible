@@ -77,7 +77,7 @@ for r in exit3 exit130; do
   grep -q 'mutation-pass: stopped after mutant 2' <<<"$out" || fail "$r: no stop line: $out"
 done
 
-# A TERM to the script (pkill -TERM -f mutation-pass.sh) stops the running mutate.py, which
+# A TERM to the script (pkill -TERM -f "mutation-pass.sh <tree>") stops the running mutate.py, which
 # restores its file, and then the batch: the next mutant does not run.
 batch hang killed
 rm -f "$tmp/hang.pid" "$tmp/restored"

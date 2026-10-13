@@ -122,6 +122,22 @@ struct LiveExportTests {
     }
 }
 
+extension LiveExportTests {
+    /// Code gate 1 item 1: a window that shows a dialog refuses an agent export with no file.
+    @Test func aDialogRefusesTheExport() async throws {
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio, dialog: true)
+        defer { server.stop() }
+
+        let outcome = await send(folder.socket, "export", arguments)
+
+        let text = "\(package.path) is busy in Dirigible: its window shows a question. Try again later."
+        #expect(outcome == .reply(.result(text: text, isError: true)))
+        #expect(try outputs() == [], "the export ran")
+        await studio.settle()
+    }
+}
+
 /// Holds the export of a studio once, at chunk `at`, until `release`.
 final class ChunkHold: @unchecked Sendable {
     private let lock = NSLock()

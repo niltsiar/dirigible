@@ -24,6 +24,7 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
             return .result(text: error.code == .ECANCELED ? cancelledMessage : audioReadMessage(error), isError: true)
         }
     case .export(let work):
+        if target.dialog { return .result(text: AgentBusy.dialog.message(package: call.path), isError: true) }
         do throws(ToolError) {
             return .result(
                 text: try await liveExport(work, studio: studio, path: call.path, report: report), isError: false)

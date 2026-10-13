@@ -41,7 +41,7 @@ extension AppDelegate {
                 } else {
                     nil
                 }
-            return AgentTarget(studio: studio, busy: busy) { [weak window] request, agent in
+            return AgentTarget(studio: studio, busy: busy, dialog: window.showsDialog) { [weak window] request, agent in
                 await window?.askRecord(request, agent: agent) ?? .closed
             }
         }

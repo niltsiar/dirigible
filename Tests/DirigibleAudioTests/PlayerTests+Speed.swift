@@ -145,8 +145,10 @@ struct PlayerSpeedTests {
     }
 
     /// Code gate 1 item 1: a new play clears the unit. The file has 440 Hz for 2 s, then 880 Hz.
-    /// After a seek past 2 s during a 1.5x play, and after 1.5x, 1x, 1.5x, the first 0.1 s of
-    /// output has no 440 Hz from the old position.
+    /// After a seek past 2 s during a 1.5x play, the first 0.1 s of output has no 440 Hz from the
+    /// old position; this case failed with no reset. The reconnect case (1.5x, 1x, 1.5x) passed
+    /// with no reset in offline rendering, so it only guards against a later change; agent check
+    /// M5 checks it on the device.
     @Test func aNewPlayClearsTheUnit() async throws {
         let package = try MixPackage()
         let tones =

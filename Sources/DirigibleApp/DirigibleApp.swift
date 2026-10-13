@@ -153,7 +153,7 @@ struct DirigibleApp: App {
             }
     }
 
-    /// Transport > Playback Speed (decision 0048): the plain-key items, never disabled, then one
+    /// Transport > Playback Speed (decision 0052): the plain-key items, never disabled, then one
     /// radio item per speed. The radio items are off when the speed unit does not load.
     private var speedMenu: some View {
         Menu(L10n.menuTransportSpeed.key) {

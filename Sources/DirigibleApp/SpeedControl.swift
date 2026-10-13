@@ -1,7 +1,7 @@
 import AppKit
 import DirigibleAudio
 
-/// A change of the vari-speed (decision 0048): Period (`toggle`), ">" (`faster`), "<"
+/// A change of the vari-speed (decision 0052): Period (`toggle`), ">" (`faster`), "<"
 /// (`slower`), or a pick of the menu or the toolbar pop-up (`set`).
 enum SpeedChange: Hashable {
     case toggle, faster, slower
@@ -28,7 +28,7 @@ func speedSpokenText(_ speed: Speed, locale: Locale = .current, format: String =
     String(format: format, locale: locale, speed.factor.formatted(.number.locale(locale)))
 }
 
-/// The toolbar pop-up of the vari-speed (decision 0048, ui-panel): its title is the readout, 1x in
+/// The toolbar pop-up of the vari-speed (decision 0052, ui-panel): its title is the readout, 1x in
 /// the normal text color and another speed in the accent color. One width for the widest value
 /// in English and Spanish, so the toolbar does not move. The tag of each item is the raw value.
 final class SpeedPopUp: NSPopUpButton {

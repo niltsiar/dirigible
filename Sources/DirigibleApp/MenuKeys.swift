@@ -35,7 +35,7 @@ enum MenuKeys {
     static let inspector = KeyboardShortcut("i", modifiers: [.command, .option])
     /// View > Snap (snap run): a plain key, so a focused text field gets it first.
     static let snap = KeyboardShortcut("n", modifiers: [])
-    /// Transport > Playback Speed (decision 0048): the Hindenburg keys. The items match the
+    /// Transport > Playback Speed (decision 0052): the Hindenburg keys. The items match the
     /// characters, so ">" and "<" are Shift-Period and Shift-Comma on a US keyboard and the key
     /// left of Z on a Spanish ISO keyboard. Plain keys, so a focused text field gets them first.
     static let variSpeed = KeyboardShortcut(".", modifiers: [])
@@ -103,7 +103,7 @@ enum TransportMenu {
     ]
 }
 
-/// The plain-key items of Transport > Playback Speed (decision 0048). The submenu adds a radio
+/// The plain-key items of Transport > Playback Speed (decision 0052). The submenu adds a radio
 /// item for each speed.
 enum SpeedMenu {
     struct Item {

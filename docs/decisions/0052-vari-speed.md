@@ -1,4 +1,4 @@
-# 0048. Vari-speed: a speed unit in the Player graph only at speeds other than 1x
+# 0052. Vari-speed: a speed unit in the Player graph only at speeds other than 1x
 
 - Status: accepted
 - Date: 2026-10-13

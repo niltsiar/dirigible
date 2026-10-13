@@ -2,11 +2,11 @@ import AVFoundation
 import AudioToolbox
 
 /// Finds the speed unit, with no instance, so a check on the main actor loads no audio unit.
-/// Nil when the system has no such component. Tests give one that finds nothing (decision 0048).
+/// Nil when the system has no such component. Tests give one that finds nothing (decision 0052).
 typealias SpeedUnitLookup = @Sendable () -> AudioComponentDescription?
 
 /// The time-domain voice unit (`kAudioUnitSubType_AUiPodTimeOther`, rate 0.5 to 2), or nil when
-/// the system has no such component (decision 0048, probe S1).
+/// the system has no such component (decision 0052, probe S1).
 @Sendable func findSpeedUnit() -> AudioComponentDescription? {
     var description = AudioComponentDescription(
         componentType: kAudioUnitType_FormatConverter, componentSubType: kAudioUnitSubType_AUiPodTimeOther,
@@ -38,7 +38,7 @@ extension Player {
     }
 
     /// Puts the speed unit between the node and the main mixer only at a speed other than 1, at
-    /// that rate. At 1 the node feeds the main mixer, bit for bit as with no unit (decision 0048).
+    /// that rate. At 1 the node feeds the main mixer, bit for bit as with no unit (decision 0052).
     /// Only `apply` calls it, after the node stops: a rewire while the node plays stops the node
     /// and drops its schedule (probe S6). False when the unit refuses the rate (0013: only `noErr` or not): then the node feeds
     /// the main mixer, and the play runs at 1x.

@@ -248,7 +248,7 @@ extension SessionWindow {
         Task { await studio?.perform(command) }
     }
 
-    /// A vari-speed change from a key, the menu, or the pop-up (decision 0048). The app owns the
+    /// A vari-speed change from a key, the menu, or the pop-up (decision 0052). The app owns the
     /// last speed: the window resolves the change to one speed and stores it with no await before
     /// the Studio takes it, so two changes that overlap keep the last pick.
     func speed(_ change: SpeedChange) {

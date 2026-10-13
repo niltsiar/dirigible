@@ -18,7 +18,7 @@ struct ToolbarMenuTests {
         .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I", .snap: "N",
     ]
 
-    /// A5: each item but the time display and the speed pop-up (a pop-up of picks, decision 0048)
+    /// A5: each item but the time display and the speed pop-up (a pop-up of picks, decision 0052)
     /// has a command, and the menu tables give that command a title and a key.
     @Test func eachToolbarItemIsAMenuItemWithAKey() {
         for id in ToolbarItemID.allCases where ![.time, .speed].contains(id) {

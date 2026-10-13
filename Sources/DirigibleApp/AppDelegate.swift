@@ -26,7 +26,7 @@ import UniformTypeIdentifiers
     /// no value is stored.
     var snaps: Bool { didSet { defaults?.set(snaps, forKey: Self.snapKey) } }
     static let snapKey = "timeline.snaps"
-    /// The speed that Period turns on (decision 0048): the last speed other than 1.
+    /// The speed that Period turns on (decision 0052): the last speed other than 1.
     var lastSpeed: Speed { didSet { defaults?.set(lastSpeed.factor, forKey: Self.speedKey) } }
     static let speedKey = "playback.lastSpeed"
 

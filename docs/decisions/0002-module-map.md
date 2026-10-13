@@ -25,7 +25,7 @@
 - Amended: 2026-10-12, run `2026-10-12-mcp-in-app`. The library target `DirigibleMCP` holds the MCP server, its tool table, and the shared edit and error text code of the CLI, so the app can import them. `DirigibleCLI` depends on it. The import-rule test covers it (see 0046).
 - Amended: 2026-10-12, run `2026-10-12-mcp-in-app`. `DirigibleMCP` also holds the app server (`AgentServer`, `AgentListener`), the live executor, and the bridge client (`AgentBridge`). `DirigibleMCPTests` tests them over a real socket (see 0046).
 - Amended: 2026-10-13, run `2026-10-12-mcp-in-app`. `DirigibleApp` and `DirigibleTests` depend on `DirigibleMCP`: the app owns one `AgentServer` (see 0046).
-- Amended: 2026-10-13, run `2026-10-13-preroll-varispeed` (9a). `Render/Speed.swift` holds the vari-speed value, and `Render/Player+Speed.swift` the speed unit of the `Player` and its rewire (see 0048).
+- Amended: 2026-10-13, run `2026-10-13-preroll-varispeed` (9a). `Render/Speed.swift` holds the vari-speed value, and `Render/Player+Speed.swift` the speed unit of the `Player` and its rewire (see 0052).
 
 ## Context
 

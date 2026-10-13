@@ -4,7 +4,7 @@
 - Date: 2026-10-03
 - Accepted: 2026-10-03, after a UI panel of three, prototype P1, and plan gates 1 and 2 of run `2026-10-03-loudness-meter`.
 - Amends: 0008 (the live meter), 0016 (the Player feeds the meter), 0023 (the strip is a row of the content, not a side pane), and 0002 (the new files).
-- Amended: 2026-10-13, run `2026-10-13-preroll-varispeed` (9a). Only a 1x forward play at the speed 1x feeds the meter: a play at another vari-speed gives no value, as the other shuttle rates do (0048).
+- Amended: 2026-10-13, run `2026-10-13-preroll-varispeed` (9a). Only a 1x forward play at the speed 1x feeds the meter: a play at another vari-speed gives no value, as the other shuttle rates do (0052).
 
 ## Context
 

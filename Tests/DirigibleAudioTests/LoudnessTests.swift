@@ -146,7 +146,7 @@ struct LoudnessTests {
     }
 
     /// The biquad state and the step sums continue across calls of `feed`.
-    /// A slow test: 5.2 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    /// A slow test: 5.2 s alone in a debug build, over the 5 s of a fast test.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func resultDoesNotDependOnTheFeedBlock() throws {
         let signal = tone([(10, -36), (60, -23), (10, -36)])

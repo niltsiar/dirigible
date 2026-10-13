@@ -9,7 +9,7 @@
 # seconds of each suite alone; after a big test change, run each module with test-helper.sh
 # --no-parallel and add the "passed after <s> seconds" of each test into its suite line); the CLI
 # tests in a shard of their own, because their fixture I/O slows the main actor of the other
-# tests (Makefile, target test). Each
+# tests (in one process, the stall tripped the 60 s DeviceEventTests watchdog in 3 of 40 runs). Each
 # shard runs the bundle through scripts/test-helper.sh with --filter '^(<keys>)(/|$)'.
 # Each shard log is .build/test-shards/shard-<n>.log. The script prints each log whole, in shard
 # order, after all shards end, so scripts/run-checks.sh reads each failed-test line. A shard that

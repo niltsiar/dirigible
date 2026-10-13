@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run only the tests of a slice: process 1 skips the app bundle, disk image, and CLI tests, with
 # one --filter for each name. Process 2 runs the CLI tests of a name that a file under
-# Tests/DirigibleCLITests/ has, in its own process, as make test gives the CLI tests a shard of their own.
+# Tests/DirigibleCLITests/ has, in its own process, as the CLI shard of make test.
 # Process 2 runs also when process 1 fails, as in make test. It fails closed: it exits with the
 # first nonzero swift status, and with 1 when no process ran a test. swift test exits 0 when a
 # filter matches no test, so the script reads the two no-test strings of mutate.py; one string

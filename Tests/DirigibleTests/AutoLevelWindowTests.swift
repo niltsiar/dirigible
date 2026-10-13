@@ -10,7 +10,7 @@ import Testing
 /// Run 8b criterion 12: Auto Level and Auto Level per Track on a real Studio. Tracks t1 to t3 each
 /// have a clip of the noise file f1 at 0..<480 000 (10 s). The noise level changes each 0.5 s,
 /// so 1 s of a clip and the whole clip give two different gains. A clip of 10 s, not 60 s, keeps
-/// each test under 5 s alone (run 2026-10-13-test-speed).
+/// each test under 5 s alone.
 @Suite(.serialized) @MainActor struct AutoLevelWindowTests {
     let folder: TemporaryFolder
     let app = AppDelegate(recordings: nil)

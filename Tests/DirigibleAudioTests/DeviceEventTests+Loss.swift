@@ -56,8 +56,7 @@ extension DeviceEventTests {
     /// watchdog limit) loses the device before its first record. The silence limit is
     /// `noWatchdog`, so a late `finish()` after the end of the producer keeps the device:
     /// `theSilenceLimitFollowsTheFirstRecord` tests the silence limit after the first record.
-    /// A slow test: 6.3 s for each case alone in a debug build (run 2026-10-13-test-speed), over
-    /// the 5 s of a fast test.
+    /// A slow test: 6.3 s for each case alone in a debug build, over the 5 s of a fast test.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"), arguments: Self.limits)
     func aSlowStartKeepsTheFirstAttach(firstRecordLimit: Duration) async throws {
         let hal = TestHAL([mic])
@@ -84,7 +83,7 @@ extension DeviceEventTests {
     /// After the first record of an appearance, the silence limit replaces the first-record
     /// limit, and a new attach uses the first-record limit again. Each producer starts 3 s
     /// after its attach: the second producer gives a segment only when attach 2 waits 10 s.
-    /// A slow test: 8.8 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    /// A slow test: 8.8 s alone in a debug build, over the 5 s of a fast test.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func theSilenceLimitFollowsTheFirstRecord() async throws {
         let hal = TestHAL([mic])

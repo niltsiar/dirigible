@@ -126,6 +126,8 @@ actor Player {
         frame = position()
         loudness.stop(at: frame, played: heardFrames())
         graph?.node.stop()
+        // The unit keeps the frames of the old position; a new play must not hear them.
+        graph?.unit?.reset()
         feed = nil
         guard case .play(let start, let shuttle, let speed) = command else {
             graph?.engine.stop()

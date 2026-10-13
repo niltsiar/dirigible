@@ -120,6 +120,42 @@ struct PlayerSpeedTests {
         #expect(await !player.speedUnitInGraph)
     }
 
+    /// The power of `frequency` in `x` (one Goertzel bin), for the energy of one tone.
+    func power(_ x: [Float], _ frequency: Double) -> Double {
+        let w = 2 * Double.pi * frequency / Double(rate)
+        var (re, im) = (0.0, 0.0)
+        for (i, value) in x.enumerated() {
+            re += Double(value) * cos(w * Double(i))
+            im -= Double(value) * sin(w * Double(i))
+        }
+        return (re * re + im * im) / Double(x.count * x.count)
+    }
+
+    /// Code gate 1 item 1: a new play clears the unit. The file has 440 Hz for 2 s, then 880 Hz.
+    /// After a seek past 2 s during a 1.5x play, and after 1.5x, 1x, 1.5x, the first 0.1 s of
+    /// output has no 440 Hz from the old position.
+    @Test func aNewPlayClearsTheUnit() async throws {
+        let package = try MixPackage()
+        let tones =
+            sine(seconds: 2, rate: Double(rate), frequency: 440) + sine(seconds: 2, rate: Double(rate), frequency: 880)
+        try package.addFile("f1", channels: [tones])
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: Frames(tones.count))
+        let player = player(package)
+        let after: Frames = 144_000
+        for (number, between) in [(1, nil), (31, Speed.one)] {
+            await player.apply(.play(from: 0, shuttle: forward, speed: .x150), number: number)
+            _ = await player.renderOffline(frames: rate / 2)
+            if let between {
+                await player.apply(.play(from: after, shuttle: forward, speed: between), number: number + 10)
+                _ = await player.renderOffline(frames: rate / 10)
+            }
+            await player.apply(.play(from: after, shuttle: forward, speed: .x150), number: number + 20)
+            let out = await player.renderOffline(frames: rate / 10)[0]
+            let (old, new) = (power(out, 440), power(out, 880))
+            #expect(old < new / 100, "\(between.map { "via \($0)" } ?? "seek"): 440 Hz at \(old), 880 Hz at \(new)")
+        }
+    }
+
     @Test func fasterAndSlowerStopAtTheLimits() {
         #expect(Speed.one.faster == .x125 && Speed.x175.faster == .x200 && Speed.x200.faster == .x200)
         #expect(Speed.one.slower == .x075 && Speed.x125.slower == .one && Speed.x075.slower == .x075)

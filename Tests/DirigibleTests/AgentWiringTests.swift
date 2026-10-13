@@ -124,8 +124,7 @@ import Testing
             mark.view.frame.width >= mark.view.fittingSize.width && mark.view.fittingSize.width > 20,
             "C12: the mark is \(mark.view.frame.width) pt of \(mark.view.fittingSize.width) pt")
         bridge.disconnect()
-        await until("the mark hides") { !shown(mark) }
-        #expect(!shown(mark), "C12: the mark stays in the title bar after the agent left")
+        await until("C12: the mark leaves the title bar after the agent left") { !shown(mark) }
         await model.close()
     }
 

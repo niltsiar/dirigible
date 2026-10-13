@@ -181,18 +181,21 @@ run TEST_SHARDS=2 FAKE_BUILD_FAIL=1
 [[ $code -ne 0 ]] || fail "build: exit 0"
 grep -q '^runner' "$tmp/args.log" && fail "build: a runner ran: $(cat "$tmp/args.log")"
 
-# A TERM stops every shard, leaves no test process, keeps the logs, and prints the tail of each
-# unfinished shard.
+# A TERM stops every shard, leaves no test process, keeps the logs, names only the shard that ran,
+# prints its tail, and exits 143.
 : > "$tmp/hang.pid"
 : > "$tmp/args.log" && : > "$tmp/lock.log"
-(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=2 FAKE_HANG=c1 "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1 &
+# The lock marker skips the with-lock.sh wrap, so the TERM and the exit code are the script's own.
+(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=2 FAKE_HANG=c1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
+    "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1 &
 pid=$!
 for _ in $(seq 100); do [[ -s "$tmp/hang.pid" ]] && break; sleep 0.1; done
 [[ -s "$tmp/hang.pid" ]] || fail "term: the hanging shard did not start"
 kill -TERM "$pid"
 wait "$pid"
 code=$?
-[[ $code -ne 0 ]] || fail "term: exit 0"
+[[ $code -eq 143 ]] || fail "term: exit $code, want 143"
+[[ "$(grep -c '^test-shards: shard .* stopped' "$tmp/out")" -eq 1 ]] || fail "term: not only the running shard named: $(grep stopped "$tmp/out")"
 sleep 0.5
 ! kill -0 "$(cat "$tmp/hang.pid")" 2>/dev/null || fail "term: a test process is alive"
 pgrep -f "$root/scripts/test-helper.sh" > /dev/null && fail "term: a runner is alive"

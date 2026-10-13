@@ -7,8 +7,8 @@ import Testing
 @testable import DirigibleAudio
 
 /// Vari-speed criteria V8 and V10 (run 2026-10-13-preroll-varispeed): Transport > Playback Speed,
-/// its plain keys in each start state, and the last-speed preference. A play at a speed is
-/// `StudioSpeedTests` (the same `Studio.perform` path).
+/// its plain keys in each start state, and the last-speed preference, which the app owns. A play
+/// at a speed is `StudioSpeedTests` (the same `Studio.changeSpeed` path).
 @Suite(.serialized) @MainActor struct SpeedKeyTests {
     let folder: TemporaryFolder
     let defaults: UserDefaults
@@ -29,7 +29,7 @@ import Testing
             charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
     }
 
-    /// The studio after `perform` of the task of the menu action ran.
+    /// The studio after the task of the menu action ran.
     func settle(_ studio: Studio, _ expected: Speed) async {
         await until("the speed is \(expected)") { studio.speed == expected }
     }
@@ -38,8 +38,18 @@ import Testing
         #expect(MenuKeys.variSpeed == KeyboardShortcut(".", modifiers: []))
         #expect(MenuKeys.faster == KeyboardShortcut(">", modifiers: []))
         #expect(MenuKeys.slower == KeyboardShortcut("<", modifiers: []))
-        #expect(SpeedMenu.items.map(\.command) == [.speed(.toggle), .speed(.faster), .speed(.slower)])
+        #expect(SpeedMenu.items.map(\.change) == [.toggle, .faster, .slower])
         #expect(SpeedMenu.items.map(\.key) == [MenuKeys.variSpeed, MenuKeys.faster, MenuKeys.slower])
+    }
+
+    /// V8: Period switches between 1 and the last speed; Faster and Slower step and stop at a
+    /// limit; Slower from 1 turns the speed on.
+    @Test func eachChangeHasItsTarget() {
+        #expect(SpeedChange.toggle.target(from: .one, last: .x175) == .x175)
+        #expect(SpeedChange.toggle.target(from: .x125, last: .x175) == .one)
+        #expect(SpeedChange.faster.target(from: .x200, last: .x150) == .x200)
+        #expect(SpeedChange.slower.target(from: .one, last: .x150) == .x075)
+        #expect(SpeedChange.set(.x125).target(from: .x200, last: .x150) == .x125)
     }
 
     /// V8 and V10: with no text focus Period turns on the last speed (the preference), Faster
@@ -51,12 +61,30 @@ import Testing
             app, try await timelinePackage(in: folder.url, tracks: 1, seconds: 2))
         window.makeFirstResponder(nil)
 
-        app.transport(.speed(.toggle), event: event(".", code: 47, in: window), in: window)
+        app.speed(.toggle, event: event(".", code: 47, in: window), in: window)
         await settle(studio, .x175)
-        app.transport(.speed(.slower), event: event("<", code: 43, shift: true, in: window), in: window)
+        app.speed(.slower, event: event("<", code: 43, shift: true, in: window), in: window)
         await settle(studio, .x150)
         #expect(app.lastSpeed == .x150 && defaults.double(forKey: AppDelegate.speedKey) == 1.5)
         #expect(studio.playback == .stopped, "a speed key while stopped starts no play")
+        await model.close()
+    }
+
+    /// Code gate 1 item 2: during a 1x play, ">" (a new play that awaits) and then Period at once.
+    /// The preference keeps 1.25, the last speed that the user picked.
+    @Test func overlappingSpeedKeysKeepTheLastPick() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 1, seconds: 2, audio: true), app: app)
+        studio.environment.playerOutput = .offline
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        #expect(studio.playback != .stopped)
+        model.speed(.faster)
+        model.speed(.toggle)
+        await settle(studio, .one)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(app.lastSpeed == .x125, "the preference has \(app.lastSpeed), not the last pick 1.25")
+        await studio.perform(.playStop)
         await model.close()
     }
 
@@ -66,8 +94,8 @@ import Testing
             app, try await timelinePackage(in: folder.url, tracks: 1, seconds: 2))
         let editor = try await focusName(in: window)
 
-        app.transport(.speed(.toggle), event: event(".", code: 47, in: window), in: window)
-        app.transport(.speed(.faster), event: event(">", code: 47, shift: true, in: window), in: window)
+        app.speed(.toggle, event: event(".", code: 47, in: window), in: window)
+        app.speed(.faster, event: event(">", code: 47, shift: true, in: window), in: window)
 
         // The field selects its whole text at focus, so the first key replaces it.
         #expect(editor.string == ".>", "the field got \(editor.string)")
@@ -83,8 +111,8 @@ import Testing
         studio.transport = .recording(take: 1)
         defer { studio.transport = .idle }
 
-        model.transport(.speed(.toggle))
-        model.transport(.speed(.faster))
+        model.speed(.toggle)
+        model.speed(.faster)
         try await Task.sleep(for: .milliseconds(200))
 
         #expect(studio.speed == .one)
@@ -103,7 +131,7 @@ import Testing
         let menu = NSMenu()
         for item in SpeedMenu.items {
             let key = String(item.key.key.character)
-            let menuItem = NSMenuItem(title: "\(item.command)", action: #selector(Target.fire(_:)), keyEquivalent: key)
+            let menuItem = NSMenuItem(title: "\(item.change)", action: #selector(Target.fire(_:)), keyEquivalent: key)
             menuItem.keyEquivalentModifierMask = []
             menuItem.target = target
             menu.addItem(menuItem)
@@ -117,9 +145,7 @@ import Testing
         #expect(!menu.performKeyEquivalent(with: event(":", code: 47, shift: true)), "es: Shift-Period types a colon")
         #expect(
             target.fired == [
-                "speed(DirigibleAudio.SpeedChange.slower)", "speed(DirigibleAudio.SpeedChange.faster)",
-                "speed(DirigibleAudio.SpeedChange.slower)", "speed(DirigibleAudio.SpeedChange.faster)",
-                "speed(DirigibleAudio.SpeedChange.toggle)",
+                "slower", "faster", "slower", "faster", "toggle",
             ], "each key reaches its item: \(target.fired)")
     }
 

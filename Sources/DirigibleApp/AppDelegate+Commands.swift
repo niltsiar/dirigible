@@ -16,6 +16,17 @@ extension AppDelegate {
         key?.transport(command)
     }
 
+    /// The action of each plain-key item of Transport > Playback Speed: a key that belongs to text
+    /// or to a panel goes there, as the transport keys do (decision 0048).
+    func speed(_ change: SpeedChange) {
+        speed(change, event: NSApp.currentEvent, in: NSApp.keyWindow)
+    }
+
+    func speed(_ change: SpeedChange, event: NSEvent?, in keyWindow: NSWindow?) {
+        if let event, forwardTypingKey(event, in: keyWindow) { return }
+        key?.speed(change)
+    }
+
     /// The one writer of the snap preference: View > Snap, its N key, and the toolbar item. N goes
     /// to text or to a panel first, as the transport keys do.
     func toggleSnap() {

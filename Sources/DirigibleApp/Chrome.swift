@@ -83,7 +83,7 @@ enum ToolbarItemID: String, CaseIterable {
     var isToggle: Bool { [.record, .monitor, .play, .inspector, .snap].contains(self) }
 
     /// The command of the item. Nil only for the time display and the speed pop-up, whose picks
-    /// run `.transport(.speed(.set(_)))`: a new item with no command does not compile (F16).
+    /// run `SessionWindow.speed(.set(_))`: a new item with no command does not compile (F16).
     var command: WindowCommand? {
         switch self {
         case .addTrack: .addTrack

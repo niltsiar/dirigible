@@ -159,8 +159,8 @@ struct DirigibleApp: App {
         Menu(L10n.menuTransportSpeed.key) {
             // The keys stay the typed characters: with the automatic localization, AppKit moved ">"
             // and "<" to ":" and ";" of the Spanish layout (A3 on-screen check).
-            ForEach(SpeedMenu.items, id: \.command) { item in
-                Button(item.title.key) { app.transport(item.command) }
+            ForEach(SpeedMenu.items, id: \.change) { item in
+                Button(item.title.key) { app.speed(item.change) }
                     .keyboardShortcut(item.key.key, modifiers: item.key.modifiers, localization: .custom)
             }
             Divider()
@@ -168,7 +168,7 @@ struct DirigibleApp: App {
                 Toggle(
                     speedText(speed),
                     isOn: Binding(
-                        get: { app.key?.shown.speed == speed }, set: { _ in app.key?.transport(.speed(.set(speed))) })
+                        get: { app.key?.shown.speed == speed }, set: { _ in app.key?.speed(.set(speed)) })
                 )
                 .disabled(app.key?.shown.canChangeSpeed != true)
             }

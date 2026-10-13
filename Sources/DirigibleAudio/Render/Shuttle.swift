@@ -28,7 +28,7 @@ extension Shuttle {
         case .reverse: climb(.reverse, from: current)
         case .slowForward: Shuttle(direction: .forward, rate: .half)
         case .slowReverse: Shuttle(direction: .reverse, rate: .half)
-        case .seek, .speed: current
+        case .seek: current
         }
     }
 
@@ -47,8 +47,6 @@ extension Shuttle {
 public enum TransportCommand: Hashable, Sendable {
     case playStop, stopAndReturn, pause, forward, reverse, slowForward, slowReverse
     case seek(Seek)
-    /// A vari-speed change: the shuttle stays (decision 0048).
-    case speed(SpeedChange)
 }
 
 public enum Seek: Hashable, Sendable {

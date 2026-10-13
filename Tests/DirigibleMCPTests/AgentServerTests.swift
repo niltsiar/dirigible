@@ -154,6 +154,24 @@ struct AgentServerTests {
         #expect(await probe(folder.socket) == .reply(.notOpen), "the listener stops answering")
     }
 
+    /// C5: a reply larger than the socket buffer (8 KB on Darwin) arrives whole. An accepted fd
+    /// takes O_NONBLOCK from the listener, so a write there can give EAGAIN.
+    @Test func largeReplyArrivesWhole() async throws {
+        let folder = try SocketFolder()
+        let text = String(repeating: "0123456789", count: 10_000)
+        var listener: AgentListener?
+        if case .listening(let opened) = AgentListener.open(
+            socket: folder.socket, handle: { _ in .result(text: text, isError: false) }, counted: { _ in })
+        {
+            listener = opened
+        }
+        try #require(listener != nil)
+        defer { listener?.stop() }
+
+        #expect(
+            await probe(folder.socket) == .reply(.result(text: text, isError: false)), "C5: the large reply is lost")
+    }
+
     /// C1: a stop during a call answers that call, then closes the connection and frees the lock,
     /// also when the app drops the listener at once (decision 0046 Life cycle).
     @Test func stopAnswersTheRunningCall() async throws {

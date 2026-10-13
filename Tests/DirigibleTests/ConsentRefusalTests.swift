@@ -52,11 +52,10 @@ extension ConsentTests {
     }
 
     /// A start that a guard refuses after the Record click (here a level runs) gives the agent
-    /// the busy cause, not "closed". The window beeps, and nothing records.
+    /// the busy cause, not "closed". The window shows the alert of a refused start, and nothing
+    /// records.
     @Test func busyStartRepliesBusy() async throws {
         let (model, studio) = try await window()
-        var beeps = 0
-        model.beep = { beeps += 1 }
         let answer = ask(model)
         let sheet = try await sheet(model)
         studio.transport = .leveling
@@ -64,7 +63,8 @@ extension ConsentTests {
         try click(record: true, in: sheet)
 
         #expect(await answer.value == .busy(.task))
-        #expect(beeps == 1 && studio.session.recording == nil && model.consent == nil)
+        #expect(model.alert == .error(.busy) && studio.session.recording == nil && model.consent == nil)
+        model.alert = nil
         studio.transport = .idle
         await model.close()
     }

@@ -140,9 +140,7 @@ extension SessionWindow {
         switch await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
         case .started(let take):
             endConsent(.started(take: take, tracks: consent.names, seconds: consent.seconds))
-        case .busy(let busy):
-            beep()
-            endConsent(.busy(busy))
+        case .busy(let busy): endConsent(.busy(busy))
         case .closed: endConsent(.closed)
         case .failed(let error): endConsent(.refused(error))
         }

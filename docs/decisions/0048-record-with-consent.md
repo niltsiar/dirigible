@@ -1,4 +1,5 @@
 # 0048. Record with consent: one `record` call that waits 20 s for the answer of the user
+- Amended: 2026-10-14, run `2026-10-13-agent-record-grant` (see 0050). A window grant that the user gives in the sheet starts later takes of the same connection with no sheet. The sheet title has no agent name; a line under it quotes the name. Record is disabled until the sheet window was key for 1 s. A request is also refused at once with no disk room for its length, and after 3 requests in 60 s on the window.
 - Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). The bridge reads stdin during each call, not only a `record` call, with one read buffer for the call. A cancel line closes the connection, and the call gets no answer (not the lost-call text). EOF of stdin still ends only a `record` call.
 
 - Status: accepted

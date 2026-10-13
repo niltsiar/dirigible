@@ -5,6 +5,7 @@
 - Accepted: 2026-09-27, after plan gates 1 and 2 of the format-versioning run. The gates made a newer anchor a per-segment fault, made a finalize keep a newer anchor and end the take, made an anchor read fault keep the take pending before any WAV, and made the next take number count every take file.
 - Changed: 2026-09-27, by code gate 1 of the format-versioning run: P1 freezes the root element, the namespace, and the version attribute of `session.xml`; P8 asks for the lock before a write, not before a read.
 - Amended: 2026-10-02. `session.xml` is version 2 when a track has an app route, else 1 (see 0029).
+- Amended: 2026-10-14, run `2026-10-13-agent-record-grant` (see 0050). P1: a text file can carry its version in its first line. The formats table has `agent-log.tsv`.
 - Amends: 0003 (the sweep after the version check), 0012 (a newer sidecar), 0013 (the take number of a take with no segment), 0017 (a newer cache file), 0021 (a newer anchor and the anchor name in the take number).
 - Amended: 2026-10-03, run 11a. `session.xml` is version 3 with a fade (see 0035).
 - Amended: 2026-10-04, run 11c-1. `session.xml` is version 4 with a crossfade (see 0036).
@@ -42,7 +43,7 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 
 | Rule | Text |
 |---|---|
-| P1. One version per file | Each file format that Dirigible owns has one integer version. The version is in the file: an XML attribute, or the last byte of the magic. The peak cache keeps its 8-byte magic `DIRPEAKS` and a UInt32 version field. The root element `session` of `session.xml`, its namespace `https://github.com/niltsiar/dirigible/session`, and its `version` attribute never change: the reader checks them before the version, so a change makes a newer file read as damaged. |
+| P1. One version per file | Each file format that Dirigible owns has one integer version. The version is in the file: an XML attribute, the last byte of the magic, or the first line of a text file (a fixed text and a decimal integer). The peak cache keeps its 8-byte magic `DIRPEAKS` and a UInt32 version field. The root element `session` of `session.xml`, its namespace `https://github.com/niltsiar/dirigible/session`, and its `version` attribute never change: the reader checks them before the version, so a change makes a newer file read as damaged. |
 | P2. Read older | A reader accepts each version from 1 to its current version. It upgrades an older version in memory. |
 | P3. Refuse newer | A reader refuses a version higher than its current version with a named error "made by a newer version of Dirigible (version N)". This error is not the error of a damaged file. The CLI and the app (English and Spanish) say that a newer version of Dirigible made the file. |
 | P4. Never change a newer file | An older build never writes, moves, deletes, or repairs a file that it refuses as newer. It also makes no change to a package whose `session.xml` is newer, other than the `.lock` file (P8). A sweep of leftover files runs only after the version check. |
@@ -63,6 +64,7 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 | `Capture/take<n>.anchor` | magic `DRGANCH` + digit | 1 | A placement that needs the anchor gives a per-segment "newer version" fault. A placement with a track and a start does not read the anchor. A finalize of that take keeps the anchor bytes, writes no anchor, places the segments from `<recording>`, and ends the take. No newer file keeps a take pending. An anchor that the finalize cannot read (an errno other than ENOENT) keeps the take pending with a read error that names the file, before any WAV is written: the build does not write over a file that it cannot identify (P4). |
 | `Backups/session-<time>.xml` | `version` attribute of the copy | The version of the copied `session.xml` | A revert refuses it (P3). A prune never deletes it (P4). A name that does not parse stays (P10). |
 | Peak cache `*.peaks` | magic `DIRPEAKS` + UInt32 version | 1 | A miss (P5). |
+| `agent-log.tsv` | first line `# Dirigible agent log, version <n>`: that text and a decimal integer | 1 | No line is appended (P4). A first line that does not parse also gets no line. A file of 0 bytes counts as new. |
 | `.lock`, `recovery-attempt` | none (frozen, P8) | - | - |
 | Package layout, CAF and WAV names | none (P10) | - | - |
 | `active-recordings.plist`, UserDefaults keys, toolbar autosave | none (P11; AppKit owns the toolbar format) | - | - |

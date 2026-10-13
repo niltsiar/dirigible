@@ -1,4 +1,5 @@
 # 0046. MCP server in the running app: a Unix socket, the `dirigible mcp` bridge, and `AgentServer`
+- Amended: 2026-10-14, run `2026-10-13-agent-record-grant` (see 0050). `AgentCall` has the connection of the call (`AgentConnection`). The connection serial is one counter in the process, so it never repeats in the process, also after a server stop and start.
 - Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). The app sends zero or more `{"progress": <0...1>}` lines before the reply line, and only while the call has no reply. While a long call runs, a line goes at least once in each 10 s. The reply limit is 30 s with no line from the app. A cancel closes the socket fully. With the package open, `loudness`, `export`, `render`, `level`, and `import` run in the app; the banner Cancel of the window stops an agent level or import.
 
 - Status: accepted

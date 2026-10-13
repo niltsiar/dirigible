@@ -1,0 +1,46 @@
+# 0050. Agent record grant: a window grant, the notice of an agent take, and the agent log
+
+- Status: accepted
+- Accepted: 2026-10-13, after plan gates 1 and 2 of run `2026-10-13-agent-record-grant`.
+- Date: 2026-10-13
+- Amends: 0048 (a window grant can start a take with no sheet; the sheet title has no agent name; a 1 s click delay; refusals for disk room and the request rate), 0046 (`AgentCall` has the connection of the call; the serial is one counter for the process), 0024 (P1 allows a version in the first line of a text file; the formats row of `agent-log.tsv`).
+
+## Context
+
+R16 and 0048: an agent starts a take only after the user clicks Record in a consent sheet. A producer wants an agent to start a backup take or a scheduled take with no click (`.scratchpads/research/agent-record-consent/producer.md`). Five expert inputs (`synthesis.md` in that folder) agree: a take with an app track always shows the sheet, because the people in the call get no notice from Dirigible; the default stays "ask". The user accepted on 2026-10-13: no permanent "Record without asking" switch, only a grant that expires; no relief for app tracks. The sheet of 0048 has two gaps (security.md): the self-reported agent name is in the title, and a click that the user aimed at the window before the sheet showed can press Record.
+
+## Decision
+
+- **Window grant.** The sheet has the checkbox "Don't ask again until I close this window", off at each sheet. It shows only when each request track has a device route, no request track has a clip after the start, and the length is 2 h or less. Record with the checkbox on stores a grant on the window: the connection of the call (`AgentConnection`, the 0046 serial), the route of each track at the click (`[TrackID: Route]`), an end 1 h after the click on `ContinuousClock` (it counts the sleep of the Mac), and 2 h of take length. A later request with the same connection, the same tracks with the same routes at the ask, no record-over clip, a length within the length left, before the end, starts with no sheet (a grant take). A route change of a grant track (another device, other channels, an app, a track removed and added again with the same ID) shows the sheet. Its length comes off the length left. A grant take has its own `ConsentRequest` with no sheet, in `checking` and then `starting`, so agent edits are busy during its awaits; after the microphone prompt, `covers` runs again, and a failed check starts no take. A help line under the checkbox ("Ends when you close this window, after 1 hour, after 2 hours of takes, or when the agent reconnects."), and the reply of each grant take (the end time, the minutes left, and the new connection), name each end of the grant. A grant never covers an app track or a record-over take. The grant ends at Always Ask Again, at the window close, at its end, and at each new connection of the bridge (a reconnect after the 30 s reply limit, a cancel, a new agent session). It is not stored on the disk.
+- **Connection.** `AgentCall` has `connection: AgentConnection`. `AgentTarget.Record` gets it. The app binds the grant to it, not to the agent name: any client can send any name. The serial comes from one counter for the process, not one for each listener, so it never repeats in the process, also after a server stop and start.
+- **Sheet.** The title is "An AI agent wants to record", with no name. A line under the title says "It says it is “<name>”." Record is disabled until the sheet window was key for 1 s with no break, and again at each resign (Firefox `security.dialog_enable_delay`; CVE-2024-2609 was a delay that ran out with no focus). A request with an app track shows "This take records <tracks>. People in the call get no notice from Dirigible."
+- **Refusals at once.** Added to 0048: the free space of the package volume gives less record time than the length (`Studio.remainingRecordTime(armed:)`); and 3 requests on the window showed a sheet or started a grant take in the last 60 s (on `ContinuousClock`). During the free-space await, the request is in a `checking` phase, so the window is busy for agents; one guard function takes the request and, after each await, checks first that the request is still the request of the window, then the 0048 guards. `canRecord` and Command-R treat a `checking` request as no request: Command-R ends it as busy and starts the take of the person.
+- **Notice of an agent take.** The take row of the window says "Take <n> records <tracks> for an AI agent (it says: “<name>”) · <time> left", with Stop, and Always Ask Again while a grant lives. The row takes no key focus. VoiceOver announces it. The app derives the Dock badge from all windows: "REC" while any window has an agent take. In the background, the Dock icon bounces once (`.informationalRequest`), and a notification with a Stop action posts. The notification holds the package identity and the take number; its Stop ends only that agent take while it runs, and the app removes it at the take end. The `.criticalRequest` of the sheet stays.
+- **Agent log.** Each end of an agent request appends one line to `agent-log.tsv` at the top level of the package: the time, the event (`click`, `grant`, `declined`, `no-answer`), the take, the self-reported agent name, the connection, the tracks, and the seconds. The connection serial starts again at each app launch, so it is unique only with the time. The first line is `# Dirigible agent log, version 1` (0024 P1, amended for a text first line: that text and a decimal integer), then the column header. When its `O_CREAT | O_EXCL` open makes the file, or the file has 0 bytes, the writer writes the version line, the header, and the first entry in one `write()`. It writes no line to a file of a higher version (0024 P4) or with a first line that does not parse, and logs it. One serial writer for the process keeps the lines in the order of the events. The window reads the package URL of its studio at each append, so the log follows a rename. A queued append holds the studio, which holds the package lock, so no append runs after the window released the package. The file is not part of the session: undo, a backup revert, and Remove Unused Files keep it, and an app that does not know it ignores it (0024 P10). A failed write does not stop a take. 0024 gets a formats row for it.
+- **Limits.** An agent never stops or changes a take that a person started (a `record` call during a take is busy), and the `record` tool has no device, gain, or monitoring argument. A click take keeps the 24 h rule of `EditRules.takeSeconds` (0041); the 2 h limit is the length of a grant.
+- **Tool annotations.** `readOnlyHint` on the read tools; `destructiveHint` and `openWorldHint` on `record`. Clients must treat them as untrusted hints (MCP specification), so they are not a gate.
+- **Command line.** `dirigible record` stays with no prompt. On a track with an app route, it writes a warning on stderr. The guide says that the sheet guards only the `record` tool, gives the ask rules of each agent client, and says that the block for a shell agent is to deny the microphone to its terminal.
+
+## Consequences
+
+- R16 gets the text "... or while a window grant that the user gave in that sheet lasts."
+- An injected prompt can start a grant take only within the grant: the same tracks, microphones only, no record-over, 2 h in total, 1 h, one connection, and 3 requests a minute. The banner, the badge, and the notification show each grant take.
+- A bridge that reconnects loses its grant; the user sees the sheet again.
+- The package can hold `agent-log.tsv`. A copy of the package copies it.
+
+## Alternatives considered
+
+- **A permanent "Record without asking" switch in Settings.** Rejected (security, producer): under a prompt injection it removes the R16 gate for each window and each day.
+- **A grant bound to the agent name.** Rejected: the name is self-reported.
+- **A grant that covers app tracks, or an "I told everyone on this call" checkbox.** Rejected for now (legal, user decision 2): the people in the call get no notice.
+- **The agent log as an element of `session.xml`.** Rejected: undo snapshots the session, so an undo of the take removes its line unless the log gets a rule like `<recording>`; the reader and the writer change and the session version goes up.
+- **MCP elicitation, or `_meta["anthropic/requiresUserInteraction"]`.** Rejected as in 0048: the client shows the question, and a host can answer it with no person.
+- **The attested parent process of the bridge (`LOCAL_PEERPID`).** Not now: it works on an accepted socket (probe of run `2026-10-13-agent-record-grant`), but a parent can be a wrapper shell, so it is not a trust boundary.
+
+## Sources
+
+- MCP specification 2025-06-18, Tools (rate limit, annotations untrusted). https://modelcontextprotocol.io/specification/2025-06-18/server/tools
+- Mozilla bug 916726 (dialog delay 1000 ms). https://bugzilla.mozilla.org/show_bug.cgi?id=916726
+- CVE-2024-2609. https://vulnerability.circl.lu/vuln/cve-2024-2609
+- Claude Code, Configure permissions. https://code.claude.com/docs/en/permissions
+- Android 11 one-time permissions. https://developer.android.com/about/versions/11/privacy/permissions

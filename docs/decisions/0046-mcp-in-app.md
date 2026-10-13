@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-12
 - Accepted: 2026-10-12, after plan gates 1 and 2 of run `2026-10-12-mcp-in-app`.
+- Amended: 2026-10-13, run `2026-10-12-remove-unused-files` (see 0047). `file_prune` on an open package also gives the "open in Dirigible" error.
 - Amends: 0041 (the library target `DirigibleMCP`; a call on a package that the app has open runs in the app; the tool description text about undo), 0002 (a new library target and test target).
 
 ## Context

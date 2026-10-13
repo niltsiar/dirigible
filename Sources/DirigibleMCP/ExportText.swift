@@ -10,6 +10,7 @@ package enum ExportText {
     package static func options(
         out: String, bits: Int?, bitrate: Int?, mono: Bool, rate: Int?, loudness: String?
     ) throws(ToolError) -> ExportOptions {
+        try checkOutsidePackages(URL(filePath: out))
         let format: ExportFormat
         let pathExtension = URL(filePath: out).pathExtension.lowercased()
         switch pathExtension {
@@ -41,6 +42,19 @@ package enum ExportText {
             target = value
         }
         return ExportOptions(format: format, layout: mono ? .mono : .stereo, rate: fileRate, loudness: target)
+    }
+
+    /// The refusal of an output file inside a session package: a write there can replace a take.
+    package static let insidePackageMessage = "The output file must be outside the session package."
+
+    /// Refuses an output file in any session package. The links of its folder resolve first, so a
+    /// link into a package is refused too. The extension compares with no case, as the package
+    /// name can have any case.
+    package static func checkOutsidePackages(_ out: URL) throws(ToolError) {
+        let folder = out.absoluteURL.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
+        if folder.pathComponents.contains(where: { ($0 as NSString).pathExtension.lowercased() == "dirigible" }) {
+            throw ToolError(insidePackageMessage)
+        }
     }
 
     package static func noTrackMessage(_ track: TrackID) -> String { "The session has no track \(track)." }

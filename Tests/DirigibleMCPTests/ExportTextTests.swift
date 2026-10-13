@@ -1,4 +1,5 @@
 import DirigibleAudio
+import Foundation
 import Testing
 
 @testable import DirigibleMCP
@@ -31,4 +32,53 @@ struct ExportTextTests {
             ExportText.failureMessage(.chaptersTooLong, out: "mix.mp3", noun: "export")
                 == "an MP3 file with chapters holds at most 4294967295 ms (about 49.7 days). Export a shorter range.")
     }
+
+    /// C19: a file in any package is refused, also in a package that is not the one of the call.
+    /// A file beside a package passes.
+    @Test func anOutInsideAPackageIsRefused() throws {
+        let folder = try temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try FileManager.default.createDirectory(
+            at: folder.appending(path: "Other.dirigible/Clips"), withIntermediateDirectories: true)
+
+        #expect(throws: Never.self, "a file beside a package") {
+            try ExportText.checkOutsidePackages(folder.appending(path: "show.wav"))
+        }
+        let error = #expect(throws: ToolError.self, "a file in a package") {
+            try ExportText.checkOutsidePackages(folder.appending(path: "Other.dirigible/Clips/take.wav"))
+        }
+        #expect(error?.message == "The output file must be outside the session package.")
+    }
+
+    /// C19: a link to a folder in a package does not hide the package.
+    @Test func anOutThroughALinkIntoAPackageIsRefused() throws {
+        let folder = try temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let clips = folder.appending(path: "Show.dirigible/Clips")
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: folder.appending(path: "link"), withDestinationURL: clips)
+
+        #expect(throws: ToolError.self, "a file through a link") {
+            try ExportText.checkOutsidePackages(folder.appending(path: "link/take.wav"))
+        }
+    }
+
+    /// C19: the package extension compares with no case.
+    @Test func anOutInAnUpperCasePackageIsRefused() throws {
+        let folder = try temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let package = folder.appending(path: "Show.DIRIGIBLE")
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+
+        #expect(throws: ToolError.self, "a file in an upper-case package") {
+            try ExportText.checkOutsidePackages(package.appending(path: "x.wav"))
+        }
+    }
+}
+
+/// A new empty folder in the temporary folder. The caller removes it.
+private func temporaryFolder() throws -> URL {
+    let folder = FileManager.default.temporaryDirectory.appending(path: "ExportTextTests-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    return folder
 }

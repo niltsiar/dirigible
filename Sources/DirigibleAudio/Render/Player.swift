@@ -173,15 +173,6 @@ actor Player {
         feed?.mix.session = session
     }
 
-    /// The heard set or a track gain of the tracks that are in both sessions changed: a mute, solo,
-    /// or fader change, or the removal of the only soloed track. A track add or remove alone keeps it.
-    private static func mixChanged(from old: Session, to new: Session) -> Bool {
-        let shared = Set(old.tracks.map(\.id)).intersection(new.tracks.map(\.id))
-        let gains = { (session: Session) in session.tracks.filter { shared.contains($0.id) }.map(\.gain) }
-        return Set(old.heardTracks(in: shared).map(\.id)) != Set(new.heardTracks(in: shared).map(\.id))
-            || gains(old) != gains(new)
-    }
-
     /// `ended`: the feed scheduled its last frame, and the output played it (the output latency
     /// after the node).
     func reading() -> Reading {
@@ -245,12 +236,6 @@ actor Player {
             loudness.scheduled(buffer, end: feed.scheduled)
         }
         self.feed = feed
-    }
-
-    /// The output frames of the whole feed: to the session end (forward) or to 0 (reverse).
-    func length(_ feed: Feed) -> Int {
-        let distance = feed.shuttle.direction == .forward ? feed.mix.session.end - feed.anchor : feed.anchor
-        return max(0, Int((Double(distance.count) / feed.shuttle.rate.rawValue).rounded(.up)))
     }
 
     /// Renders the next `count` output frames of the feed. Output frame k is the mix at
@@ -353,12 +338,6 @@ actor Player {
     private func position() -> Frames {
         guard let feed else { return frame }
         return frame(feed, played: min(heardFrames(), feed.scheduled))
-    }
-
-    /// The session frame after `played` output frames of the feed.
-    private func frame(_ feed: Feed, played: Int) -> Frames {
-        let moved = Frames(Int(Double(played) * feed.shuttle.rate.rawValue))
-        return feed.shuttle.direction == .forward ? feed.anchor + moved : feed.anchor - moved
     }
 
     /// The node frames that the output played since the play.

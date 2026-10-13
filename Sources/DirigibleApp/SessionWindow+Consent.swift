@@ -7,8 +7,10 @@ import Observation
 /// What the shared record body of Command-R and the consent sheet gave (decision 0048).
 enum RecordStart: Equatable {
     case started(take: Int)
-    /// A guard refused the start, or the window changed during the microphone prompt.
-    case notStarted
+    /// A guard refused the start on an open window, with this cause.
+    case busy(AgentBusy)
+    /// The window is not open, or it changed during the microphone prompt.
+    case closed
     case failed(StudioError)
 }
 
@@ -139,7 +141,10 @@ extension SessionWindow {
         case .started(let take):
             endConsent(.started(take: take, tracks: consent.names, seconds: consent.seconds))
             stopTake(take, after: consent.seconds)
-        case .notStarted: endConsent(.closed)
+        case .busy(let busy):
+            beep()
+            endConsent(.busy(busy))
+        case .closed: endConsent(.closed)
         case .failed(let error): endConsent(.refused(error))
         }
     }

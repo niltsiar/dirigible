@@ -1,5 +1,6 @@
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 
 /// The actions of the session window and the rules that turn them on (decision 0014). Each
 /// action maps to a `Studio` call.
@@ -58,7 +59,10 @@ extension SessionWindow {
     @discardableResult
     func startTake(armed: [TrackID], playhead: Frames?) async -> RecordStart {
         commitDrafts()
-        guard canStartTake, let studio = idleStudio else { return .notStarted }
+        guard canStartTake, let studio = idleStudio else {
+            guard case .open = phase else { return .closed }
+            return .busy(exportStep == nil || exportStep == .checking ? .task : .dialog)
+        }
         // The take form removes the name field, so its focus change cannot end a rename with no
         // typed text (run 2026-10-11-ui-polish-header code gate 1).
         renamingTrack = nil
@@ -73,7 +77,7 @@ extension SessionWindow {
                 }
             }
             // The body does not run when the window changed during the microphone prompt.
-            guard let take else { return .notStarted }
+            guard let take else { return .closed }
             exportReport = nil
             chapterWarnings = nil
             levelReport = nil

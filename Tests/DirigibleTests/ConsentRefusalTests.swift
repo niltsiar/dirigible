@@ -50,6 +50,24 @@ extension ConsentTests {
         await other.close()
     }
 
+    /// A start that a guard refuses after the Record click (here a level runs) gives the agent
+    /// the busy cause, not "closed". The window beeps, and nothing records.
+    @Test func busyStartRepliesBusy() async throws {
+        let (model, studio) = try await window()
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        let answer = ask(model)
+        let sheet = try await sheet(model)
+        studio.transport = .leveling
+
+        try click(record: true, in: sheet)
+
+        #expect(await answer.value == .busy(.task))
+        #expect(beeps == 1 && studio.session.recording == nil && model.consent == nil)
+        studio.transport = .idle
+        await model.close()
+    }
+
     /// C8: while a request waits, agent edits are busy and Command-R is off.
     @Test func editWhileAskingIsBusy() async throws {
         let (model, studio) = try await window()

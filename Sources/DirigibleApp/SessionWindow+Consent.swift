@@ -96,7 +96,7 @@ extension SessionWindow {
     /// or a close. The window does not come to the front: in the background, the Dock asks for
     /// attention.
     func askRecord(_ request: RecordRequest, agent: AgentName) async -> RecordAnswer {
-        if consent != nil { return .waits }
+        if consent != nil { return .busy(.asking) }
         guard case .open(let studio) = phase else { return .busy(.closing) }
         if window?.isMiniaturized == true { return .minimized }
         if alert != nil || exportStep != nil || window?.attachedSheet != nil { return .busy(.dialog) }

@@ -249,7 +249,15 @@ let poolTools = [
             return []
         }
     },
+    Tool(
+        "file_prune",
+        "Move the clip files that no clip uses to the Trash, as dirigible file prune does. A file that a clip of a "
+            + "backup uses stays. A package that is open in the app is refused: use File > Remove Unused Files there.",
+        [dryRun], saves: false
+    ) { a throws(ToolError) in .prune(dryRun: try a[dryRun]) },
 ]
+
+private let dryRun = Param.defaulted("dry_run", "Give the list and change nothing.", .boolean, false)
 
 private let backupName = Param.required(
     "name", "The backup file name, as backup_list gives it.",

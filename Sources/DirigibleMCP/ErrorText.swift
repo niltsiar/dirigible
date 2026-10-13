@@ -87,6 +87,17 @@ extension ArtworkError {
     }
 }
 
+extension EditFailure where Body == UnusedFilesError {
+    package func message(package: String) -> String {
+        switch self {
+        case .file(let error): error.message(package: package)
+        case .pendingTake: pendingTakeMessage(package)
+        case .splitTake: splitTakeMessage(package)
+        case .body(let error): error.message(package: package)
+        }
+    }
+}
+
 extension EditFailure where Body == RevertError {
     package func message(package: String) -> String {
         switch self {

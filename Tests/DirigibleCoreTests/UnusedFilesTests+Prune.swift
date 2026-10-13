@@ -18,13 +18,13 @@ extension UnusedFilesTests {
     static func fakeTrashURL(_ url: URL) -> URL { URL(filePath: "/Trash").appending(path: url.lastPathComponent) }
 
     /// C8. The fake trash reads `session.xml` at its first call.
-    @Test func savesBeforeTrash() async throws {
+    @Test func savesBeforeTrash() throws {
         var session = try Self.session([("u", "u.wav")])
         try plant("u.wav")
         let scan = try scan(session)
         var onDiskAtTrash: [FileID: AudioFile]?
 
-        let report = try await scan.prune(&session, save: save) { url in
+        let report = try scan.prune(&session, save: save) { url in
             if onDiskAtTrash == nil { onDiskAtTrash = try Session(contentsOf: package).files }
             return Self.fakeTrashURL(url)
         }
@@ -35,15 +35,15 @@ extension UnusedFilesTests {
     }
 
     /// C8 negative. A failed save moves no file and changes no session.
-    @Test func saveFailureMovesNothing() async throws {
+    @Test func saveFailureMovesNothing() throws {
         var session = try Self.session([("u", "u.wav")])
         let before = session
         try plant("u.wav")
         let scan = try scan(session)
         var calls = 0
 
-        await #expect(throws: UnusedFilesError.save(.writeFailed(step: "write", errno: ENOSPC))) {
-            try await scan.prune(
+        #expect(throws: UnusedFilesError.save(.writeFailed(step: "write", errno: ENOSPC))) {
+            try scan.prune(
                 &session, save: { _ throws(SessionFileError) in throw .writeFailed(step: "write", errno: ENOSPC) },
                 trash: { url in
                     calls += 1
@@ -57,13 +57,13 @@ extension UnusedFilesTests {
     }
 
     /// C9. A file that does not move stays and the report names it; the other file still moves.
-    @Test func trashFailureKeepsFile() async throws {
+    @Test func trashFailureKeepsFile() throws {
         var session = try Self.session([("a", "a.wav")])
         try plant("a.wav")
         try plant("b.wav")
         let scan = try scan(session)
 
-        let report = try await scan.prune(&session, save: save) { url in
+        let report = try scan.prune(&session, save: save) { url in
             if url.lastPathComponent == "a.wav" { throw Self.refusal }
             return Self.fakeTrashURL(url)
         }
@@ -77,13 +77,13 @@ extension UnusedFilesTests {
     }
 
     /// C9b. An unused pool entry with no file loses its entry and is not a failure.
-    @Test func missingFileDropsEntry() async throws {
+    @Test func missingFileDropsEntry() throws {
         var session = try Self.session([("m", "m.wav")])
         try plant("x.wav")
         let scan = try scan(session)
         try #require(scan.items.map(\.kind) == [.pool("m"), .stray])
 
-        let report = try await scan.prune(&session, save: save) { url in Self.fakeTrashURL(url) }
+        let report = try scan.prune(&session, save: save) { url in Self.fakeTrashURL(url) }
 
         #expect(report.dropped == ["m"])
         #expect(report.moved.map(\.item.path) == ["x.wav"])

@@ -69,7 +69,6 @@ struct ParityTests {
         "devices": "It lists the audio devices of this Mac, not a package.",
         "apps": "It lists the apps of this Mac, not a package.",
         "mcp": "It is the MCP server.",
-        "file prune": "Slice S4 of run 2026-10-12-remove-unused-files adds file_prune after the MCP target lands.",
     ]
 
     /// The commands whose tool name does not follow the name rule.

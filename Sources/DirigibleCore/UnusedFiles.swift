@@ -97,29 +97,21 @@ public struct UnusedFiles: Hashable, Sendable {
     }
 
     /// Removes the pool entries of the items from `session`, calls `save` with the result, and
-    /// only then moves each item to the Trash under the package URL that `save` returns. The one
-    /// place of this order: a crash between the two steps leaves stray WAVs that the next scan
-    /// finds. A failed save moves nothing and leaves `session` as it was.
+    /// only then moves each item to the Trash under the package URL that `save` returns. A crash
+    /// between the two steps leaves stray WAVs that the next scan finds. A failed save moves
+    /// nothing and leaves `session` as it was. The CLI and MCP use this form.
+    public func prune(_ session: inout Session, save: (Session) throws(SessionFileError) -> URL)
+        throws(UnusedFilesError) -> PruneReport
+    {
+        try prune(&session, save: save, trash: Self.trash)
+    }
+
+    /// `prune` with the async save of `Studio`, in the same order.
     public func prune(_ session: inout Session, save: (Session) async throws(SessionFileError) -> URL)
         async throws(UnusedFilesError) -> PruneReport
     {
-        try await prune(&session, save: save) { url in
-            var result: NSURL?
-            try FileManager.default.trashItem(at: url, resultingItemURL: &result)
-            return (result as URL?) ?? url
-        }
-    }
-
-    /// The seam of the failure tests. `trash` returns the Trash URL of the file.
-    func prune(
-        _ session: inout Session, save: (Session) async throws(SessionFileError) -> URL, trash: (URL) throws -> URL
-    ) async throws(UnusedFilesError) -> PruneReport {
-        guard !items.isEmpty else { return PruneReport(moved: [], failed: [], dropped: []) }
-        var pruned = session
-        do throws(SessionError) {
-            for case .pool(let id) in items.map(\.kind) { try pruned.removeFile(id) }
-        } catch {
-            throw .save(.invalidSession(error))
+        guard let pruned = try removingEntries(from: session) else {
+            return PruneReport(moved: [], failed: [], dropped: [])
         }
         let package: URL
         do throws(SessionFileError) {
@@ -128,6 +120,46 @@ public struct UnusedFiles: Hashable, Sendable {
             throw .save(error)
         }
         session = pruned
+        return moved(under: package, trash: Self.trash)
+    }
+
+    /// The seam of the failure tests. `trash` returns the Trash URL of the file.
+    func prune(
+        _ session: inout Session, save: (Session) throws(SessionFileError) -> URL, trash: (URL) throws -> URL
+    ) throws(UnusedFilesError) -> PruneReport {
+        guard let pruned = try removingEntries(from: session) else {
+            return PruneReport(moved: [], failed: [], dropped: [])
+        }
+        let package: URL
+        do throws(SessionFileError) {
+            package = try save(pruned)
+        } catch {
+            throw .save(error)
+        }
+        session = pruned
+        return moved(under: package, trash: trash)
+    }
+
+    /// `session` with no pool entry of the items, or nil when there is no item.
+    private func removingEntries(from session: Session) throws(UnusedFilesError) -> Session? {
+        guard !items.isEmpty else { return nil }
+        var pruned = session
+        do throws(SessionError) {
+            for case .pool(let id) in items.map(\.kind) { try pruned.removeFile(id) }
+        } catch {
+            throw .save(.invalidSession(error))
+        }
+        return pruned
+    }
+
+    private static func trash(_ url: URL) throws -> URL {
+        var result: NSURL?
+        try FileManager.default.trashItem(at: url, resultingItemURL: &result)
+        return (result as URL?) ?? url
+    }
+
+    /// Moves each item to the Trash under `package`, after the save.
+    private func moved(under package: URL, trash: (URL) throws -> URL) -> PruneReport {
         let clips = package.appending(path: clipsFolderName)
         var moved: [PruneReport.Moved] = []
         var failed: [PruneReport.Failed] = []

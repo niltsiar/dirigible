@@ -107,7 +107,7 @@ extension Studio {
     var written = previous
     let report: PruneReport
     do throws(UnusedFilesError) {
-        report = try await items.prune(&pruned) { session throws(SessionFileError) in
+        report = try await items.prune(&pruned) { session async throws(SessionFileError) in
             written = try await save(session, lock)
             do throws(SessionError) {
                 try await apply()

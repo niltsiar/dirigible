@@ -214,7 +214,8 @@ struct LiveToolTests {
         await studio.settle()
     }
 
-    /// C7: a call that copies a file into an open package is refused with the app text.
+    /// C7: a call that copies a file into an open package is refused with the app text. So is
+    /// `file_prune` (decision 0047): the app has the clipboard and the undo steps that keep files.
     @Test func fileToolsAreRefusedLive() async throws {
         let package = try LivePackage()
         let source = try LivePackage(name: "Source")
@@ -231,6 +232,8 @@ struct LiveToolTests {
             ("marker_set", ["package": package.path, "name": "A", "at": 0, "image": image]),
             ("episode_set", ["package": package.path, "artwork": image]),
             ("backup_revert", ["package": package.path, "name": "session-20261009T081530.250Z.xml"]),
+            ("file_prune", ["package": package.path]),
+            ("file_prune", ["package": package.path, "dry_run": true]),
             (
                 "clip_paste",
                 [

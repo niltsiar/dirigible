@@ -76,6 +76,17 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         } catch {
             throw ToolError(error.message(package: path))
         }
+    case .prune(let dryRun):
+        let output: PruneOutput
+        do throws(EditFailure<UnusedFilesError>) {
+            output = try prunePackage(package, dryRun: dryRun)
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
+        // A file that did not move makes the result an error, as exit 1 of the CLI.
+        let text = (output.lines + output.failed).joined(separator: "\n")
+        guard output.failed.isEmpty else { throw ToolError(text) }
+        return text
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in

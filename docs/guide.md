@@ -821,17 +821,17 @@ By default, an agent edits only sessions that are closed in the app. To let an a
 - Each edit of an agent is one Undo step. The Edit menu names the agent, for example "Undo Claude Code Edit". Command-Z undoes it.
 - The title bar of each session window shows "Agent" with a sparkles symbol while an agent tool is connected to Dirigible. The mark does not tell which session the agent edits.
 - The app refuses an edit of an agent during a take, during a drag, while the window closes, and during Quit. The agent gets the error "`<path>` is busy in Dirigible", with the cause, and can try again later.
-- `clip_paste`, `clip_paste_clips`, and `backup_revert` do not run on an open session. Do them in the app, or close the window.
+- `clip_paste`, `clip_paste_clips`, `backup_revert`, and `file_prune` do not run on an open session. Do them in the app, or close the window.
 - An edit of an agent on a closed session saves the package and has no Undo in the app.
 - One copy of Dirigible serves the agents. When another copy serves them, Settings says so.
 
-The 35 tools, in groups:
+The 36 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
 - Marker: `marker_set`, `marker_remove`.
 - Episode: `episode_set`, `episode_get`. The keys of `episode_get` are the argument names of `episode_set`.
-- Pool: `capture_remove`, `file_remove`.
+- Pool: `capture_remove`, `file_remove`, `file_prune`. `file_prune` gives the lines of `dirigible file prune`. With `dry_run` set to true, it changes nothing.
 - Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`.
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
 - Backup: `backup_list`, `backup_revert`.
@@ -842,7 +842,7 @@ The 35 tools, in groups:
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
 - A tool call on a closed session has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
 - `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another session package, with `onto`. In the terminal, `dirigible clip paste` and `dirigible clip paste-clips` take `--source` and `--onto`. The call copies the audio files of the clips into the package, or converts them at another sample rate. A long copy or conversion runs to the end and saves, also when the agent stops waiting, so the agent reads `session_info` before a retry.
-- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `devices` and `apps` read no package, and `mcp` is the server. `file prune` has no tool yet. Run these commands in the terminal.
+- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `devices` and `apps` read no package, and `mcp` is the server. Run these commands in the terminal.
 
 ### Make the screenshots again
 

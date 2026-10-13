@@ -219,8 +219,7 @@ import Testing
         }
     }
 
-    /// A slow test: 11 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a
-    /// fast test.
+    /// A slow test: 11 s alone in a debug build, over the 5 s of a fast test.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func noLanePixelShowsUnderOrOverTheHeaders() async throws {
         let started = ContinuousClock.now

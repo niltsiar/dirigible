@@ -1,8 +1,8 @@
 #!/bin/bash
 # Run a test bundle outside `swift test`: the runner of scripts/bench.sh --trace,
-# scripts/sanitize.sh, and scripts/test-shards.sh (make test). It runs an ad-hoc signed copy of the Xcode swiftpm-testing-helper with the
-# entitlement get-task-allow, because dyld refuses a sanitizer runtime in the Apple-signed helper
-# ("Sanitizer load violates platform policy").
+# scripts/sanitize.sh, and scripts/test-shards.sh (make test). It runs an ad-hoc signed copy of
+# the Xcode swiftpm-testing-helper with the entitlement get-task-allow, because dyld refuses a
+# sanitizer runtime in the Apple-signed helper ("Sanitizer load violates platform policy").
 # Usage: [TEST_HELPER_INSERT=<dylib>] scripts/test-helper.sh --test-bundle-path <Mach-O of the
 #        .xctest> --testing-library swift-testing [--filter <regex>] [--skip <regex>] ...
 # The copy is .build/test-helper/swiftpm-testing-helper of the repo that holds this script, so the

@@ -15,16 +15,11 @@ app:
 icon-preview:
 	scripts/icon.sh --preview
 
-# All tests but the app bundle and disk image tests, in shards at the same time after one build
-# (scripts/test-shards.sh): one process holds the main actor of its tests, so the main-actor suites
-# wait in one queue. The CLI tests have a shard of their own: their fixture I/O at the suite start
-# adds to the main-actor stall of the other tests (in one process, the stall tripped the 60 s
-# DeviceEventTests watchdog in 3 of 40 runs). Each shard runs to its end when another fails, so
-# scripts/run-checks.sh sees each failed test. A shard that ends with no report line, or runs fewer
-# tests than it listed, fails with the text that run-checks.sh does not rerun. TEST_SHARDS sets the
-# count (default 4). Other swift test calls go through scripts/swift-test.sh, which fails a process
-# that ends with exit 0 and no report line. Two scripts do not, and read their own result lines:
-# scripts/bench.sh (its release run) and scripts/sanitize.sh (it runs scripts/test-helper.sh).
+# All tests but the app bundle and disk image tests, in shards at the same time after one build:
+# read the header of scripts/test-shards.sh. Other swift test calls go through
+# scripts/swift-test.sh, which fails a process that ends with exit 0 and no report line. Two
+# scripts do not, and read their own result lines: scripts/bench.sh (its release run) and
+# scripts/sanitize.sh (it runs scripts/test-helper.sh).
 test:
 	scripts/test-shards.sh
 

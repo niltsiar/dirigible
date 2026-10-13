@@ -51,7 +51,7 @@ extension TimelineLayerTests {
 
     /// Criterion 1: the script once at 60 pt clips (1024 frames per point), so labels cross the
     /// edges of each drawn rect, with fewer repeats than the whole script. A slow test: 8 s alone in
-    /// a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    /// a debug build, over the 5 s of a fast test.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func theLanesInViewEqualAFullRender() async throws {
         try await equalAFullRender(zooms: [1024], repeats: 1)

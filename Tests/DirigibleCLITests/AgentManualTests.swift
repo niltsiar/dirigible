@@ -143,9 +143,9 @@ struct AgentManualTests {
     /// W10: the manual says what does not exist yet, until a tool or a command for it exists.
     @Test func theManualSaysWhatDoesNotExist() {
         #expect(Self.core.contains("Dirigible has no noise reduction and no voice profile yet: tell the user."))
-        let names = Tool.all.map(\.name) + ManualScan.words.sorted()
+        // The words of the span scan hold each tool name, argument, and command word.
         #expect(
-            Self.notYetNames(names).isEmpty,
+            Self.notYetNames(ManualScan.words.sorted()).isEmpty,
             "A noise or voice feature exists: change the not-yet line of AgentManual.core and of docs/guide.md")
         // The control: a fixture name list with a denoise tool is found.
         #expect(Self.notYetNames(["clip_gain", "clip_denoise"]) == ["clip_denoise"])

@@ -35,4 +35,17 @@ struct AgentNameTests {
         #expect(AgentName(title: "Claude\u{202E}tidE", clientName: "codex-mcp-client").name == "Codex")
         #expect(AgentName(title: nil, clientName: "Zero\u{200B}Width").name == nil)
     }
+
+    /// A line or paragraph separator, and a flood of combining marks, change the look of the menu
+    /// title. A ZWJ emoji and a variation selector do not.
+    @Test func aNameKeepsTheMenuTitleOnOneLine() {
+        #expect(AgentName(title: "Claude\u{2028}Code", clientName: "codex-mcp-client").name == "Codex")
+        #expect(AgentName(title: "Claude\u{2029}Code", clientName: "codex-mcp-client").name == "Codex")
+        let flood = "A" + String(repeating: "\u{0301}", count: 5_000)
+        #expect(AgentName(title: flood, clientName: "codex-mcp-client").name == "Codex", "over 64 scalars")
+        #expect(
+            AgentName(title: "\u{1F9D1}\u{200D}\u{1F4BB} Coder", clientName: nil).name
+                == "\u{1F9D1}\u{200D}\u{1F4BB} Coder")
+        #expect(AgentName(title: "\u{2764}\u{FE0F} Bot", clientName: nil).name == "\u{2764}\u{FE0F} Bot")
+    }
 }

@@ -188,6 +188,7 @@ import Observation
             for menuItem in item.menuFormRepresentation?.submenu?.items ?? [] {
                 let value: NSControl.StateValue = menuItem.tag == state.shown.speed.rawValue ? .on : .off
                 if menuItem.state != value { menuItem.state = value }
+                if menuItem.isEnabled != enabled { menuItem.isEnabled = enabled }
             }
             return
         }
@@ -262,6 +263,8 @@ import Observation
         if inserted { speedPopUp = popUp }
         item.view = popUp
         let submenu = NSMenu()
+        // `apply` sets each item on or off with the toolbar item.
+        submenu.autoenablesItems = false
         for speed in Speed.allCases {
             let menuItem = NSMenuItem(title: speedText(speed), action: #selector(pickSpeed(_:)), keyEquivalent: "")
             menuItem.tag = speed.rawValue

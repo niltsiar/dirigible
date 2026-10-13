@@ -173,6 +173,21 @@ struct ToolbarValueTests {
         await model.close()
     }
 
+    /// Code gate 1 item 7: with no speed unit, the pop-up and each item of its overflow submenu
+    /// are off.
+    @Test func noUnitTurnsTheOverflowItemsOff() async throws {
+        let (model, _, chrome) = try await open("no-unit")
+        let studio = try #require(model.studio)
+        studio.environment.speedUnit = { nil }
+        chrome.update()
+        let item = try #require(
+            chrome.toolbar.items.first { $0.itemIdentifier.rawValue == ToolbarItemID.speed.rawValue })
+        let submenu = try #require(item.menuFormRepresentation?.submenu)
+        #expect(chrome.speedPopUp?.isEnabled == false)
+        #expect(!submenu.autoenablesItems && submenu.items.allSatisfy { !$0.isEnabled }, "an overflow speed item is on")
+        await model.close()
+    }
+
     /// Icon only by default: 1180 pt fits the default set (ux-decisions 8); the user can pick Icon
     /// and Text in the display-mode menu, and AppKit saves it. The test first removes the saved
     /// configuration of the test process (its own defaults domain, not the app domain): an

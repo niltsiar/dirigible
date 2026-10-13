@@ -232,7 +232,9 @@ no_side_effects 'governance'
 # risk: yes (a file under Sources/DirigibleAudio/) needs a mutation pass row (phase 7, a log under
 # controls/) in the decisions.tsv of the run folder (the folder of the body file), or a third
 # argument that names the row that says why no pass applies. A slice control row (phase 4) or a red
-# log row alone is not the pass. Else the land stops before the checks and the push.
+# log row alone is not the pass, and a pass row older than the last Sources/ commit of the branch
+# (its author minute) does not cover the tree that lands. Else the land stops before the checks
+# and the push.
 risk_setup() {
   setup
   mkdir -p "$c/work/Sources/DirigibleAudio"
@@ -267,6 +269,11 @@ risk_refused 'risk with only slice rows' 'has no mutation pass row'
 risk_setup
 printf '2026-10-01T02:00\t4\ts2 red first\tw\tlogs/s2-red.log\tdone\n' >> "$c/decisions.tsv"
 printf '2026-10-01T03:00\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' >> "$c/decisions.tsv"
+land_in "Add x" "$c/pr.md"
+code=$?
+risk_refused 'risk with a pass row before the last Sources commit' 'older than the last Sources/ commit'
+risk_setup
+printf '%s\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' "$(date +%FT%R)" >> "$c/decisions.tsv"
 land_in "Add x" "$c/pr.md"
 code=$?
 [[ $code -eq 0 ]] || fail "risk with a pass row: exit $code: $(cat "$c/out")"
@@ -339,7 +346,7 @@ stamp_case 'renamed bundle path' 'stamp: delta check test-dmg' 'make -k check te
 # A delta with risk: yes against origin/main gives run-checks.sh CHECK_RISK=yes (1 rerun at most).
 stamp_setup
 commit_file Sources/DirigibleAudio/A.swift
-printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-01T02:00\t7\tk1 killed\tw\tcontrols/k1.log\tkilled\n' > "$c/decisions.tsv"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n%s\t7\tk1 killed\tw\tcontrols/k1.log\tkilled\n' "$(date +%FT%R)" > "$c/decisions.tsv"
 stamp origin/main
 commit_file docs/a.md
 stamp_case 'risk delta' 'stamp: delta check-docs' 'make -k check-docs'

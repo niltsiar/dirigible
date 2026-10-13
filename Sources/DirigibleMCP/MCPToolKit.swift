@@ -207,9 +207,7 @@ struct Arguments {
         let keys = Set(params.map(\.key))
         let values = json.filter { !($0.value is NSNull) }
         (self.keys, self.values) = (keys, values)
-        if let unknown = values.keys.sorted().first(where: { $0 != "package" && !keys.contains($0) }) {
-            throw ToolError("There is no argument \"\(unknown)\".")
-        }
+        try Self.refuseUnknown(values, keys: keys.union(["package"]))
         guard let path = values["package"] else { throw ToolError("The argument \"package\" is missing.") }
         guard let path = path as? String, !path.isEmpty else {
             throw ToolError("The argument \"package\" must be the path of a session package.")
@@ -218,6 +216,14 @@ struct Arguments {
         // differ from the folder of the agent, so an edit could change another package.
         guard path.hasPrefix("/") else { throw ToolError("The argument \"package\" must be an absolute path.") }
         self.path = path
+    }
+
+    /// Refuses an argument that is not in `keys`. A JSON null counts as absent.
+    static func refuseUnknown(_ json: [String: Any], keys: Set<String>) throws(ToolError) {
+        let given = json.filter { !($0.value is NSNull) }.keys
+        if let unknown = given.sorted().first(where: { !keys.contains($0) }) {
+            throw ToolError("There is no argument \"\(unknown)\".")
+        }
     }
 
     subscript<Value>(_ param: Param<Value>) -> Value {
@@ -230,16 +236,25 @@ struct Arguments {
     }
 }
 
-/// One MCP tool of one of two kinds: a package tool, with the parameters after `package` and the
-/// work of a call, or a tool that reads this Mac and takes no argument (`lines`).
+/// One MCP tool: the name, the description, and its body of one of two kinds.
 struct Tool: Sendable {
+    enum Body: Sendable {
+        /// A tool on a package: the parameters after `package`, and the work of a call.
+        case package(params: [any ParamInfo], make: @Sendable (Arguments) throws(ToolError) -> ToolWork)
+        /// A tool that reads this Mac, not a package. It takes no argument, and the server gives
+        /// its text before the bridge, so the call never goes to the app.
+        case local(@Sendable () -> String)
+    }
+
     let name: String
     let description: String
-    let params: [any ParamInfo]
-    let make: @Sendable (Arguments) throws(ToolError) -> ToolWork
-    /// The text of a tool that reads this Mac, not a package: it takes no argument, and the server
-    /// gives this text before the bridge, so the call never goes to the app.
-    let lines: (@Sendable () -> String)?
+    let body: Body
+
+    /// The parameters after `package`. A local tool has none.
+    var params: [any ParamInfo] {
+        guard case .package(let params, _) = body else { return [] }
+        return params
+    }
 
     /// The end of the description of each edit tool (decision 0046).
     static let undoNote =
@@ -253,20 +268,18 @@ struct Tool: Sendable {
     ) {
         self.name = name
         self.description = saves ? description + Self.undoNote : description
-        self.params = params
-        self.make = make
-        self.lines = nil
+        self.body = .package(params: params, make: make)
     }
 
-    /// A tool with no argument that gives `lines`. The app gets no call of it from the bridge, so
-    /// its `make` refuses a direct socket call that gives a package.
-    init(_ name: String, _ description: String, lines: @escaping @Sendable () -> String) {
-        (self.name, self.description, self.params, self.lines) = (name, description, [], lines)
-        self.make = { _ throws(ToolError) in throw ToolError("The tool \(name) takes no package.") }
+    /// A local tool that gives `text`.
+    init(_ name: String, _ description: String, text: @escaping @Sendable () -> String) {
+        (self.name, self.description, self.body) = (name, description, .local(text))
     }
 
     var inputSchema: [String: Any] {
-        if lines != nil { return ["type": "object", "properties": [String: Any](), "additionalProperties": false] }
+        guard case .package(let params, _) = body else {
+            return ["type": "object", "properties": [String: Any](), "additionalProperties": false]
+        }
         var properties: [String: Any] = [
             "package": [
                 "type": "string",

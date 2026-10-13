@@ -8,9 +8,14 @@ import Foundation
 extension Tool {
     func call(_ json: [String: Any], control: CallControl) -> (text: String, isError: Bool) {
         do throws(ToolError) {
-            let arguments = try Arguments(json, params: params)
-            let text = try perform(try make(arguments), path: arguments.path, control: control)
-            return (text, false)
+            switch body {
+            case .local(let text):
+                try Arguments.refuseUnknown(json, keys: [])
+                return (text(), false)
+            case .package(let params, let make):
+                let arguments = try Arguments(json, params: params)
+                return (try perform(try make(arguments), path: arguments.path, control: control), false)
+            }
         } catch {
             return (error.message, true)
         }

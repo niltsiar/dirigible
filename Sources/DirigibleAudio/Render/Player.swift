@@ -80,6 +80,8 @@ actor Player {
     /// The output latency of offline rendering, in session frames. Tests give one; the device
     /// output reads its own at each play.
     private let offlineLatency: Int
+    /// The parameter that sets the unit rate. Tests change it to one that the unit refuses.
+    var rateParameter = kTimePitchParam_Rate
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
     let chunk: Int
     private(set) var session: Session
@@ -341,7 +343,8 @@ actor Player {
     /// caller then starts a new play.
     func setSpeed(_ speed: Speed) -> Bool {
         guard speed != .one, let graph, let current = feed?.speed, current != .one else { return false }
-        guard wire(graph, speed: speed) else { return false }
+        // No rewire while the node plays: a rewire stops the node (probe S6).
+        guard let unit = graph.unit, setRate(unit, speed) else { return false }
         let node = nodeFrames()
         let held = Self.held(nodeFrames: node, latency: latency, speed: current.factor, step: feed?.step)
         feed?.step = SpeedStep(node: node, held: held)

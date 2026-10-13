@@ -20,8 +20,8 @@ extension SessionWindow {
 
     /// The rules of `canRecord` that the consent sheet also keeps: no armed track is needed.
     private var canStartTake: Bool {
-        guard exportStep == nil || exportStep == .checking else { return false }
-        return idleStudio?.pendingTake == nil && idleStudio != nil
+        guard exportStep == nil || exportStep == .checking, let studio = idleStudio else { return false }
+        return studio.pendingTake == nil
     }
 
     /// The armed tracks with a route, in session order: the tracks that a take records.

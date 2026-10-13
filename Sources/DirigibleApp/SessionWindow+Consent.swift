@@ -26,9 +26,9 @@ struct ConsentExpiredShown: Equatable {
 }
 
 /// One record request of an agent (decision 0048). The window resolves the tracks and the start
-/// at the ask, so the take records what the sheet shows. `start()` moves to `starting` and stops
-/// the end of the answer time in one step. `finish` is one-shot: it gives the reply, stops the
-/// timer, and ends the activity token.
+/// at the ask, so the take records what the sheet shows. `begin()` moves to `starting` and stops
+/// the end of the answer time in one step. `finish` gives the reply once, stops the timer, and
+/// ends the activity token.
 @MainActor @Observable
 final class ConsentRequest {
     enum Phase { case waiting, starting }
@@ -46,7 +46,6 @@ final class ConsentRequest {
     @ObservationIgnored var expiry: Task<Void, Never>?
     @ObservationIgnored var attentionRequest: Int?
     @ObservationIgnored private var reply: CheckedContinuation<RecordAnswer, Never>?
-    @ObservationIgnored private var answer: RecordAnswer?
 
     init(agent: AgentName, tracks: [Track], start: Frames, seconds: Double, over: [String]) {
         (self.agent, self.start, self.seconds, self.over) = (agent, start, seconds, over)
@@ -55,11 +54,8 @@ final class ConsentRequest {
             options: .userInitiated, reason: "An agent asks the user to record.")
     }
 
-    /// Waits for the one answer.
-    func wait() async -> RecordAnswer {
-        if let answer { return answer }
-        return await withCheckedContinuation { reply = $0 }
-    }
+    /// Waits for the one answer. The window calls it right after the ask, with no await between.
+    func wait() async -> RecordAnswer { await withCheckedContinuation { reply = $0 } }
 
     func begin() {
         phase = .starting
@@ -67,8 +63,6 @@ final class ConsentRequest {
     }
 
     func finish(_ answer: RecordAnswer) {
-        guard self.answer == nil else { return }
-        self.answer = answer
         expiry?.cancel()
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil

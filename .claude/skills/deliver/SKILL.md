@@ -22,7 +22,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 
 1. Read `.scratchpads/ledger.md`, the `## Next` section of the backlog, and the last `run.md`. The **reflect** skill reads `learnings.md`.
 2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume an open run on its branch: read its `run.md` and `decisions.tsv`, and continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
-3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug>`.
+3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug> <type>`.
 4. Run `make check` on `main` only when `main` has commits that no run landed. If it is red, the fix is the goal.
 5. Before any file change, create the branch `<type>/<slug>` and write it in `run.md`. Every commit of the run goes on it.
 

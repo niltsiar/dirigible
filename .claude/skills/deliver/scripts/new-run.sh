@@ -5,12 +5,27 @@
 # Edit tool, which works where the Write tool refuses a new run file. Running it again for the
 # slug of an open run, on any day, returns the same folder and changes nothing. It prints the
 # backlog section sizes, the upkeep items of ## Next, and a due architecture audit on stderr.
+# A new run gets `- Branch: <type>/<slug>` in run.md. The script refuses a third non-feature run
+# in a row (exit 2, no folder, no ledger line): the two newest done rows of the ledger have a
+# run.md branch type other than feat (the text between "- Branch: " and the first slash; no type
+# is not a feature), and <type> is not feat. With --blocks-feature, it opens the run and logs the
+# reason as a phase 0 row. The ledger is in .scratchpads/ of the main checkout (the git common dir).
+# Usage: new-run.sh <slug> <type> [--blocks-feature '<reason>']
 set -euo pipefail
 
-slug="${1:?usage: new-run.sh <slug>}"
+usage="usage: new-run.sh <slug> <type> [--blocks-feature '<reason>']"
+slug="${1:?$usage}"
+type="${2:?$usage}"
+reason=""
+if [[ $# -gt 2 ]]; then
+    [[ $# -eq 4 && "$3" == --blocks-feature && -n "$4" ]] || { echo "$usage" >&2; exit 2; }
+    reason="$4"
+fi
 [[ "$slug" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "slug must be kebab-case: $slug" >&2; exit 2; }
+[[ "$type" =~ ^(feat|fix|test|refactor|perf|docs|build|chore|style)$ ]] ||
+    { echo "type must be a Conventional Commits type: $type" >&2; exit 2; }
 
-root="$(git rev-parse --show-toplevel)/.scratchpads"
+root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.scratchpads"
 # Reuse the open run of this exact slug, so a run that spans days keeps one folder.
 # A done run is history: never reopen it.
 run=""
@@ -24,6 +39,20 @@ if [[ -z "$run" ]]; then
     [[ ! -d "$root/runs/$run" ]] || { echo "run $run is closed; choose a new slug" >&2; exit 2; }
 fi
 dir="$root/runs/$run"
+# The feature guard, for a new run only.
+if [[ ! -d "$dir" && "$type" != feat ]]; then
+    last="$(awk -F'|' '{ n = $2; gsub(/ /, "", n); st = $4; gsub(/ /, "", st) } n ~ /^[0-9]{4}-/ && st == "done" { print n }' \
+        "$root/ledger.md" 2>/dev/null | tail -n 2)"
+    features=0
+    for r in $last; do
+        t="$(sed -n 's/^- Branch: \([^/]*\)\/.*/\1/p' "$root/runs/$r/run.md" 2>/dev/null | head -n 1)"
+        [[ "$t" != feat ]] || features=1
+    done
+    if [[ "$(wc -w <<<"$last")" -eq 2 && $features -eq 0 && -z "$reason" ]]; then
+        echo "new-run: a third non-feature run in a row; give --blocks-feature '<reason>'" >&2
+        exit 2
+    fi
+fi
 # logs/ holds the check and bench logs that cost.sh of reflect counts.
 mkdir -p "$dir/logs"
 touch "$root/learnings.md" "$root/backlog.md"
@@ -73,7 +102,7 @@ product="$(awk -F'|' -v cur="$run" '
 - Status: open
 - Goal: $slug
 - Requirements:
-- Branch:
+- Branch: $type/$slug
 - Later items: $later
 
 ## Phases
@@ -96,4 +125,8 @@ product="$(awk -F'|' -v cur="$run" '
 ## Summary
 MD
 
+if [[ -n "$reason" ]] && ! grep -qF 'third non-feature run' "$dir/decisions.tsv"; then
+    "$(dirname "$0")/log-decision.sh" "$dir" 0 "third non-feature run in a row: $type/$slug" "$reason" \
+        "new-run.sh --blocks-feature" "accepted" > /dev/null
+fi
 echo "$dir"

@@ -119,7 +119,7 @@ phase 7: 2026-09-20T11:00 to 2026-09-20T11:20, 20 min
 phase 9: 2026-09-20T11:20 to 2026-09-20T11:30, 10 min
 checks: 5 logs, 1 filtered, 3 push checks, 1 repeated (same commit and targets)
 benches: 3 bench logs, 2 pairs sets, 1 repeated (same commit and filter)
-controls: 3 written, 2 replayed
+controls: 3 written
 late on-screen: 1
 missed unknowns: 1
 critical findings: 4
@@ -203,7 +203,7 @@ bare="$tmp/2026-09-19-bare"
 mkdir "$bare"
 cp "$run/decisions.tsv" "$run/run.md" "$bare/"
 out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$bare" 2>&1)" || fail "no logs and no controls: exit $?: $out"
-for line in 'checks: no logs folder' 'benches: no logs folder, 0 pairs sets' 'controls: 0 written, 0 replayed' 'critical findings: 0' 'friction: 5'; do
+for line in 'checks: no logs folder' 'benches: no logs folder, 0 pairs sets' 'controls: 0 written' 'critical findings: 0' 'friction: 5'; do
   grep -qxF -- "$line" <<<"$out" || fail "no logs and no controls: no line '$line' in: $out"
 done
 grep -q '^pace: merges per day ' <<<"$out" || fail "no logs and no controls: no pace line: $out"

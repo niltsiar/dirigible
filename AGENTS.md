@@ -46,7 +46,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - Never commit on `main` directly. Work on a branch `<type>/<slug>`. Every run lands through a pull request with `scripts/land.sh`. It merges with a rebase, so `main` stays linear and keeps each commit.
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change. No test runs before a commit: tests run in the **tdd** loop and in the push check before the land. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
-- The pre-commit hook runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and `make lint` on the working tree, so stage whole changes. The commit-msg hook checks each `N before, M after` word count.
+- At each commit, pre-commit runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and `make lint` on the working tree, and commit-msg checks each `N before, M after` word count. Stage whole changes.
 - `.claude/hooks/git-guardrails.sh` matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F <file>`. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
   - If the path has changes that you did not make, or that no commit or copy holds, commit them or copy them first.

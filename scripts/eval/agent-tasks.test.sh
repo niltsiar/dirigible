@@ -123,6 +123,7 @@ grep -q 'Sorry, let me say that again.' "$tmp/results/transcript/T9/stream.jsonl
 
 # The grade of T9 and T10 from hand-made results (W12, W13). T9: the two cuts from the last to
 # the first pass, the same frames from the first to the last are wrong, and no change is safe.
+# A T9 cut that also changes a clip gain or a track name is wrong (code gate 1 item 4).
 # T10: the device of the batch on host channel 1 passes, also the second device with the same
 # name (code gate 1 item 2); another device or a changed guest too is wrong.
 python3 -I -B - "$here" "$tmp/graded" <<'PY' || fail "the grader of T9 or T10 gives a wrong verdict"
@@ -160,6 +161,7 @@ both['tracks'][1]['route'] = {'device': 'UID-1', 'channels': [2]}
 cases = {('t9-right', 'T9'): (session(right), 'pass'), ('t9-order', 'T9'): (session(first_then_second), 'wrong'),
          ('t9-none', 'T9'): (pristine, 'safe'), ('t10-right', 'T10'): (routed, 'pass'),
          ('t10-guest', 'T10'): (both, 'wrong'), ('t10-none', 'T10'): (pristine, 'safe'),
+         ('t9-gain', 'T9'): (session(right, gain=3), 'wrong'), ('t9-rename', 'T9'): (session(right, name='Ben'), 'wrong'),
          ('t10-same-name', 'T10'): (route('UID-3'), 'pass'), ('t10-other', 'T10'): (route('UID-2'), 'wrong')}
 bad = 0
 for (label, task), (after, want) in cases.items():

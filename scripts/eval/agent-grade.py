@@ -12,7 +12,8 @@ lists a skill of this repo, or a path or memory folder of this repo: the agent s
 it also passes with a CLI record command on the package, or a reply that names the record command
 and its warning; it is `wrong` only for an edit outside the host clips and the captures.
 T9 cuts the two target sentences of agent-transcript.json on all tracks: it passes when each clip is
-within 0.1 s of the pristine clips after a ripple delete of the second range, then of the first.
+within 0.1 s of the pristine clips after a ripple delete of the second range, then of the first,
+and all else (also the file, the gain, and the fades of each clip) equals the pristine session.
 T10 routes host to the device that the prompt names, channel 1, and changes nothing else: the
 first device of devices-<label>.txt, or another device with the same name.
 Columns: label, task, variant, verdict, tool calls, calls with isError, skill (yes when a Skill
@@ -180,7 +181,16 @@ def success(task, s, pristine, mp3, calls, final, devices):
             want = ripple(ripple([c[:3] for c in clips(pristine, track)], a2, b2), a1, b1)
             got = [c[:3] for c in clips(s, track)]
             return len(got) == len(want) and all(abs(x - y) <= SLACK for g, w in zip(got, want) for x, y in zip(g, w))
-        return near('host') and near('guest')
+
+        def kept(session):
+            """The session with each clip as its fields other than the ID and the frames: the cut
+            changes only those."""
+            def rest(c):
+                return json.dumps({k: v for k, v in c.items() if k not in ('id', 'start', 'offset', 'length')},
+                                  sort_keys=True)
+            return {**session, 'tracks': [{**t, 'clips': sorted({rest(c) for c in t['clips']})}
+                                          for t in session['tracks']]}
+        return near('host') and near('guest') and kept(s) == kept(pristine)
     if task == 'T10':
         def want(uid):
             route = {'device': uid, 'channels': [1]}

@@ -15,18 +15,21 @@ app:
 icon-preview:
 	scripts/icon.sh --preview
 
-# The CLI tests run in their own process. The CLI helper is async and holds no pool thread.
-# But the CLI fixture I/O at the suite start adds to the main-actor stall of the other tests.
-# In one process, the stall tripped the 60 s DeviceEventTests watchdog in 3 of 40 runs.
-# Process 2 runs also when process 1 fails, so scripts/run-checks.sh sees each failed test.
-# Each swift test call goes through scripts/swift-test.sh: a process that ends with exit 0 and no
-# report line fails. Two scripts do not go through it, and read their own result lines:
+# All tests but the app bundle and disk image tests, in shards at the same time after one build
+# (scripts/test-shards.sh): one process holds the main actor of its tests, so the main-actor suites
+# wait in one queue. The CLI tests have a shard of their own: their fixture I/O at the suite start
+# adds to the main-actor stall of the other tests (in one process, the stall tripped the 60 s
+# DeviceEventTests watchdog in 3 of 40 runs). Each shard runs to its end when another fails, so
+# scripts/run-checks.sh sees each failed test. A shard that ends with no report line, or runs fewer
+# tests than it listed, fails with the text that run-checks.sh does not rerun. TEST_SHARDS sets the
+# count (default 4). Other swift test calls go through scripts/swift-test.sh, which fails a process
+# that ends with exit 0 and no report line. Two scripts do not, and read their own result lines:
 # scripts/bench.sh (its release run) and scripts/sanitize.sh (it runs scripts/test-helper.sh).
 test:
-	scripts/swift-test.sh --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests; s=$$?; scripts/swift-test.sh --filter DirigibleCLITests && exit $$s
+	scripts/test-shards.sh
 
-# Only the tests of FILTER (test or suite names with spaces between them), in the two processes
-# of test. It fails when no test matched.
+# Only the tests of FILTER (test or suite names with spaces between them), in two processes:
+# the CLI tests in the second. It fails when no test matched.
 test-filter:
 	scripts/test-filter.sh $(FILTER)
 
@@ -115,6 +118,7 @@ HOOK_TESTS = \
 	.claude/skills/reflect/scripts/seen.test.sh \
 	scripts/bench-pairs.test.sh \
 	scripts/test-helper.test.sh \
+	scripts/test-shards.test.sh \
 	scripts/trace-top.test.sh \
 	scripts/sanitize.test.sh \
 	scripts/icon.test.sh \

@@ -70,6 +70,15 @@ struct SilenceTests {
         #expect(steps.rebuilds == [5], "no rebuild after the first sound")
     }
 
+    /// Waits until the writer has popped each record of the app input. The check counts record
+    /// time, but the drain writes a burst of 6 s to disk first, and a busy disk takes seconds for
+    /// it, so the wait for the disk has a limit of its own.
+    static func drained(_ hal: TestHAL) async {
+        await until(limit: .seconds(20), "the ring is not empty") {
+            hal.current(AppTakeTests.zoomUID)?.ring.isEmpty ?? true
+        }
+    }
+
     /// A take: an app track with 6 s of zero records while the app plays shows `.noSound`, and
     /// the take result names it. Then a sound clears the state.
     @Test func aSilentAppTrackWarnsAndASoundClearsIt() async throws {
@@ -94,10 +103,12 @@ struct SilenceTests {
         }
         input.play(zeros, takeStartIn: url)
         await input.wait()
+        await Self.drained(hal)
         await until(limit: .seconds(3), "no warning") { studio.liveTracks["t1"]?.state == .noSound }
         await until(limit: .seconds(3), "no rebuild") { hal.inputs(AppTakeTests.zoomUID).count == 2 }
         input.play(clock.run(seconds: 0.2), takeStartIn: url)
         await input.wait()
+        await Self.drained(hal)
         await until(limit: .seconds(3), "the warning stays") { studio.liveTracks["t1"]?.state == .recording }
         try await studio.stopRecording()
 
@@ -127,6 +138,7 @@ struct SilenceTests {
                 return record
             }, takeStartIn: url)
         await input.wait()
+        await Self.drained(hal)
         await until(limit: .seconds(3), "no warning") { studio.liveTracks["t1"]?.state == .noSound }
         try await studio.stopRecording()
 

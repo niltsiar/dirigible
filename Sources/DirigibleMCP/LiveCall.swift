@@ -13,7 +13,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     func edit<Result>(ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result) throws(StudioError)
         -> Result
     {
-        if target.busy { throw .busy }
+        if target.busy != nil { throw .busy }
         return try studio.edit(ripple: ripple, agent: call.agent, body)
     }
     do throws(StudioError) {
@@ -49,6 +49,8 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .paste, .revert: return refusedOpen
         case .create: return .notOpen
         }
+    } catch .busy {
+        return .result(text: (target.busy ?? .task).message(package: path), isError: true)
     } catch {
         return .result(text: error.message(package: path), isError: true)
     }

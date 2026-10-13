@@ -87,19 +87,20 @@ struct LiveToolTests {
     @Test func editWhileBusyIsRefused() async throws {
         let package = try LivePackage()
         let studio = try await package.open()
-        let busy = AgentBridge.Outcome.reply(
-            .result(text: StudioError.busy.message(package: package.path), isError: true))
+        func busy(_ cause: AgentBusy) -> AgentBridge.Outcome {
+            .reply(.result(text: cause.message(package: package.path), isError: true))
+        }
         let rename: [String: any Sendable] = ["package": package.path, "track": "t1", "name": "Guest"]
 
         let (server, folder) = try liveServer(studio)
         studio.transport = .leveling
-        #expect(await send(folder.socket, "track_rename", rename) == busy, "a studio that levels")
+        #expect(await send(folder.socket, "track_rename", rename) == busy(.task), "a studio that levels")
         studio.transport = .idle
         server.stop()
 
-        let (marked, other) = try liveServer(studio, busy: true)
+        let (marked, other) = try liveServer(studio, busy: .drag)
         defer { marked.stop() }
-        #expect(await send(other.socket, "track_rename", rename) == busy, "a window that the app marks busy")
+        #expect(await send(other.socket, "track_rename", rename) == busy(.drag), "a window that the app marks busy")
         #expect(studio.session.track("t1")?.name == "Host")
         #expect(!studio.canUndo)
         await studio.settle()
@@ -124,7 +125,7 @@ struct LiveToolTests {
 
         #expect(studio.settling, "the call came during the settle")
         #expect(
-            outcome == .reply(.result(text: StudioError.busy.message(package: package.path), isError: true)),
+            outcome == .reply(.result(text: AgentBusy.task.message(package: package.path), isError: true)),
             "C4: a live edit during settle ran")
         gate.open()
         await held.value

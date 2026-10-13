@@ -259,6 +259,23 @@ extension StudioError {
         case .rippleBlocked: "a ripple cannot move the timeline under a pending or split take."
         // No command sets the artwork through Studio; `episode set --artwork` calls `importArtwork`.
         case .artwork(let error): error.message
+        // `file prune` calls `UnusedFiles` with no Studio.
+        case .unusedFiles(let error): error.message(package: package)
+        }
+    }
+}
+
+extension UnusedFilesError {
+    /// No `default` case: a new error case does not compile until it has a message.
+    package func message(package: String) -> String {
+        switch self {
+        case .clipsUnreadable(let code):
+            "cannot read \(package)/\(clipsFolderName): \(String(cString: strerror(code)))."
+        case .sessionUnreadable(let error): error.message(package: package)
+        case .backupUnreadable(let backup, let error):
+            error.message(package: package, file: "\(backupsFolderName)/\(backup.fileName)")
+                + " The scan cannot know the clips of that backup, so no file moves until that backup goes."
+        case .save(let error): error.message(package: package) + " No file moved."
         }
     }
 }

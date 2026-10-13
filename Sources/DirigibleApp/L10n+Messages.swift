@@ -45,6 +45,16 @@ extension L10n {
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         case .artwork(let error): return message(for: error)
+        case .unusedFiles(let error): return message(for: error)
+        }
+    }
+
+    /// The text of a refused Remove Unused Files (decision 0047): no file moved.
+    private static func message(for error: UnusedFilesError) -> String {
+        switch error {
+        case .clipsUnreadable(let code): errorUnusedClips.format(Int(code))
+        case .sessionUnreadable(let error), .save(let error): message(for: error)
+        case .backupUnreadable(let backup, _): errorUnusedBackup.format(backupTitle(backup.saved))
         }
     }
 

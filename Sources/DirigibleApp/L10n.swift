@@ -411,6 +411,8 @@ enum L10n: String, CaseIterable {
     case errorArtworkSquare = "error.artwork.square"
     case errorArtworkLarge = "error.artwork.large"
     case errorArtworkWrite = "error.artwork.write"
+    case errorUnusedClips = "error.unused.clips"
+    case errorUnusedBackup = "error.unused.backup"
     case errorEpisodeLine = "error.episode.line"
     case errorEpisodeNumber = "error.episode.number"
     case errorEpisodeDate = "error.episode.date"

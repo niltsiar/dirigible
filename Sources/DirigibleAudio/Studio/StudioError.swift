@@ -48,4 +48,6 @@ public enum StudioError: Error, Hashable, Sendable {
     case rippleBlocked
     /// The artwork import refused the image or failed (decision 0045). The session did not change.
     case artwork(ArtworkError)
+    /// Remove Unused Files could not scan or save (decision 0047). No file moved.
+    case unusedFiles(UnusedFilesError)
 }

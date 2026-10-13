@@ -748,6 +748,10 @@ These commands use the backups of the session in `Backups/`:
 - `dirigible backup list Demo.dirigible` writes the backup file names, newest first.
 - `dirigible backup revert Demo.dirigible --name <file name>` reverts the session to a backup. First it keeps a backup of the session that it replaces.
 
+This command removes the audio files that the session does not use:
+
+- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses and each WAV file in `Clips/` that the session does not name. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
+
 The text of the tool is English only.
 
 ### Connect an AI agent
@@ -824,7 +828,7 @@ The 35 tools, in groups:
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.
 - A tool call on a closed session has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
 - `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another session package, with `onto`. In the terminal, `dirigible clip paste` and `dirigible clip paste-clips` take `--source` and `--onto`. The call copies the audio files of the clips into the package, or converts them at another sample rate. A long copy or conversion runs to the end and saves, also when the agent stops waiting, so the agent reads `session_info` before a retry.
-- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `devices` and `apps` read no package, and `mcp` is the server. Run these commands in the terminal.
+- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `record` needs the consent sheet of the app. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `devices` and `apps` read no package, and `mcp` is the server. `file prune` has no tool yet. Run these commands in the terminal.
 
 ### Make the screenshots again
 

@@ -49,7 +49,9 @@ package struct MCPServer {
         case "ping": return reply(id, [:])
         case "prompts/list": return reply(id, ["prompts": AgentManual.promptList], cached: true)
         case "prompts/get":
-            let name = params["name"] as? String ?? ""
+            guard let name = params["name"] as? String else {
+                return reply(id, error: -32602, "prompts/get needs a name.")
+            }
             guard let recipe = AgentManual.recipes.first(where: { $0.name == name }) else {
                 return reply(id, error: -32602, "no prompt \(name).")
             }

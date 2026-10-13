@@ -90,22 +90,22 @@ package enum AgentManual {
     /// The `SKILL.md` text: the frontmatter, the core with the path rule of the bundle, and each
     /// recipe in full.
     package static var skill: String {
-        """
-        ---
-        name: dirigible
-        description: Read and edit Dirigible podcast sessions (.dirigible packages) with the dirigible CLI and \
-        the Dirigible MCP tools. Use it to check the levels, cut a range, add chapters, and export an episode.
-        ---
+        let recipeText = recipes.map { "### \($0.title) (\($0.name))\n\n\($0.summary) Steps: \($0.steps)\n" }
+        return """
+            ---
+            name: dirigible
+            description: Read and edit Dirigible podcast sessions (.dirigible packages) with the dirigible CLI and \
+            the Dirigible MCP tools. Use it to check the levels, cut a range, add chapters, and export an episode.
+            ---
 
-        # Dirigible
+            # Dirigible
 
-        \(core(pathLine: bundledPathLine))
+            \(core(pathLine: bundledPathLine))
 
-        ## Recipes
+            ## Recipes
 
-        """
-            + recipes.map { "### \($0.title) (\($0.name))\n\n\($0.summary) Steps: \($0.steps)\n" }.joined(
-                separator: "\n")
+            \(recipeText.joined(separator: "\n"))
+            """
     }
 }
 

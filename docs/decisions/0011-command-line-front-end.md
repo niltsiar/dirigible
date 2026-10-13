@@ -17,6 +17,7 @@
 - Amended: 2026-10-08, run 2026-10-08-cli-bundle. The app bundle holds the tool at `Contents/Helpers/dirigible`, so a DMG user has `dirigible` and `dirigible mcp` with no developer setup.
 - Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **CLI parity** holds the parity rule. `AGENTS.md` points here.
 - Amended: 2026-10-13, run `2026-10-13-agent-onboarding`. The root flag `--instructions` prints the agent manual, and `skill show` and `skill path` give its skill. They read no package, so they have no MCP tool (see 0051).
+- Amended: 2026-10-13, run `2026-10-13-ripple-ranges`. `clip ripple-delete` takes `--from` and `--to` more than once, paired by order, and cuts all the ranges in one save. No range, or a count of `--to` that is not the count of `--from`, exits 64. The tool `clip_ripple_delete` takes `from` and `to` as arrays (see 0037).
 
 ## Context
 

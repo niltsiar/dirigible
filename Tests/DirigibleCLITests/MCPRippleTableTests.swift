@@ -6,11 +6,17 @@ struct MCPRippleTableTests {
     static var rows: [EditRow] {
         [
             EditRow(
-                tool: "clip_ripple_delete", arguments: ["from": 10_000, "to": 20_000, "track": ["a"]],
+                tool: "clip_ripple_delete", arguments: ["from": [10_000], "to": [20_000], "track": ["a"]],
                 command: ["clip", "ripple-delete", "PKG", "--from", "10000", "--to", "20000", "--track", "a"]),
             EditRow(
-                tool: "clip_ripple_delete", arguments: ["from": 10_000, "to": 20_000],
+                tool: "clip_ripple_delete", arguments: ["from": [10_000], "to": [20_000]],
                 command: ["clip", "ripple-delete", "PKG", "--from", "10000", "--to", "20000"]),
+            EditRow(
+                tool: "clip_ripple_delete", arguments: ["from": [30_000, 10_000], "to": [40_000, 20_000]],
+                command: [
+                    "clip", "ripple-delete", "PKG", "--from", "30000", "--to", "40000", "--from", "10000", "--to",
+                    "20000",
+                ]),
             EditRow(
                 tool: "clip_ripple_insert", arguments: ["at": 24_000, "length": 1000, "track": ["b"]],
                 command: ["clip", "ripple-insert", "PKG", "--at", "24000", "--length", "1000", "--track", "b"]),
@@ -29,7 +35,7 @@ struct MCPRippleTableTests {
     static var refusals: [EditRow] {
         [
             EditRow(
-                tool: "clip_ripple_delete", arguments: ["from": 0, "to": 10, "track": ["zz"]],
+                tool: "clip_ripple_delete", arguments: ["from": [0], "to": [10], "track": ["zz"]],
                 command: ["clip", "ripple-delete", "PKG", "--from", "0", "--to", "10", "--track", "zz"]),
             EditRow(
                 tool: "clip_ripple_insert", arguments: ["at": 0, "length": 1, "track": ["zz"]],

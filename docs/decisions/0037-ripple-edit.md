@@ -6,7 +6,7 @@
 - Amends: 0011 (the ripple commands), 0022 (the shift draw of a ripple drag), 0012 and 0021 (no ripple under a pending or split take), 0018 (Cut closes the gap, run 12 slice 3), 0020 (the Option edge drag and the lane menu, run 12 slices 2 and 4).
 - Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard` (see 0038). Cut of a clip set is no ripple: it removes the set clips, the gaps stay, and the playhead stays. So a pending or split take does not block it, and the lane menu shows it then. The ripple rules stay for a range.
 - Amended: 2026-10-10, run 2026-10-10-studio-edit-preconditions. Studio owns the ripple check of the window (see the No ripple rule).
-- Amended: 2026-10-13, run 2026-10-13-ripple-ranges (research: `docs/research/multi-range-delete.md`). `Session.rippleDelete(_ ranges:on:)` takes several ranges in one edit and one undo entry. It checks each range first. Then it merges the overlapping and touching ranges, and cuts from the last merged range to the first. The one-range form calls it.
+- Amended: 2026-10-13, run 2026-10-13-ripple-ranges (research: `docs/research/multi-range-delete.md`). `Session.rippleDelete(_ ranges:on:)` takes several ranges in one edit and one undo entry. It checks each range first. Then it merges the overlapping and touching ranges, and cuts from the last merged range to the first. The one-range form calls it. `clip ripple-delete` takes `--from` and `--to` more than once, paired by order. No range or a count mismatch exits 64. With several pairs, the refusal of a bad pair names its number, for example "--from must be less than --to (range 2)."
 
 ## Context
 

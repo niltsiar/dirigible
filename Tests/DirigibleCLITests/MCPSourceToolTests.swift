@@ -53,7 +53,7 @@ struct MCPSourceToolTests {
             ),
         ])
         try #require(answers.count == 2, "\(answers)")
-        let (first, second) = (toolText(answers[0]), toolText(answers[1]))
+        let (first, second) = (answers[0], answers[1])
         guard !first.hasPrefix("No input devices.") else { return }
         #expect(made != nil, "no aggregate device over the first device of \(first)")
         #expect(!first.contains(uid), "the first list has the new device")
@@ -90,7 +90,8 @@ private func removeTestAggregates() {
 
 /// Starts `dirigible mcp` with a pipe on stdin. For each step, it runs `before` with the tool text
 /// of the last answer, writes the line, and waits for its answer line while stdin stays open, as
-/// `mcpOverPipe` does. So a step runs between two calls of one server process.
+/// `mcpOverPipe` does. So a step runs between two calls of one server process. Gives the tool
+/// text of each answer.
 private func mcpInSteps(
     _ steps: [(line: String, before: (String) -> Void)], limit: Duration = .seconds(30)
 ) async throws -> [String] {
@@ -111,13 +112,13 @@ private func mcpInSteps(
     var answers: [String] = []
     let clock = ContinuousClock()
     for (index, step) in steps.enumerated() {
-        step.before(answers.last.map(toolText) ?? "")
+        step.before(answers.last ?? "")
         stdin.fileHandleForWriting.write(Data((step.line + "\n").utf8))
         let deadline = clock.now + limit
         while clock.now < deadline {
             let lines = String(decoding: try Data(contentsOf: output), as: UTF8.self).split(separator: "\n")
             if lines.count > answers.count {
-                answers.append(String(lines[answers.count]))
+                answers.append(toolText(String(lines[answers.count])))
                 break
             }
             try await Task.sleep(for: .milliseconds(20))

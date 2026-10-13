@@ -4,6 +4,10 @@ import Foundation
 public struct AgentName: Hashable, Sendable {
     /// The longest name in characters.
     private static let maximumLength = 40
+    /// The longest name in Unicode scalars, so combining marks cannot draw over the menu.
+    private static let maximumScalars = 64
+    /// The general categories that change the lines or the direction of a menu title.
+    private static let refused: Set<Unicode.GeneralCategory> = [.control, .format, .lineSeparator, .paragraphSeparator]
 
     /// The display names of the client IDs that send no title (`research-mcp-clients.md` of run
     /// 2026-10-12-mcp-in-app).
@@ -15,8 +19,8 @@ public struct AgentName: Hashable, Sendable {
     public let name: String?
 
     /// The first valid one of: the `clientInfo` title, the display name of a known client ID, and
-    /// the raw client name. A valid name is trimmed, has 1 to 40 characters, and has no control
-    /// or format character (a format character, for example U+202E, can spoof the menu title).
+    /// the raw client name. A valid name is trimmed, has 1 to 40 characters and 64 scalars at most,
+    /// and has no control, format, or separator scalar except the zero width joiner of an emoji.
     public init(title: String?, clientName: String?) {
         let candidates = [title, clientName.map { Self.knownClients[$0] ?? $0 }]
         name = candidates.lazy.compactMap { $0.flatMap(Self.valid) }.first
@@ -24,8 +28,10 @@ public struct AgentName: Hashable, Sendable {
 
     private static func valid(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        guard (1...maximumLength).contains(trimmed.count),
-            !trimmed.unicodeScalars.contains(where: { [.control, .format].contains($0.properties.generalCategory) })
+        guard (1...maximumLength).contains(trimmed.count), trimmed.unicodeScalars.count <= maximumScalars,
+            !trimmed.unicodeScalars.contains(where: {
+                $0 != "\u{200D}" && refused.contains($0.properties.generalCategory)
+            })
         else { return nil }
         return trimmed
     }

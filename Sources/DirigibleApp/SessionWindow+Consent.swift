@@ -94,6 +94,10 @@ func recordOverTracks(_ session: Session, _ tracks: [TrackID], from start: Frame
 }
 
 extension SessionWindow {
+    /// True while the window shows an alert, a step of Export, or a sheet: then the sheet of an
+    /// agent record or export cannot show (decisions 0048 and 0049).
+    var showsDialog: Bool { alert != nil || exportStep != nil || window?.attachedSheet != nil }
+
     /// An agent asks to record (decision 0048). A refusal answers at once; else the sheet shows,
     /// and the answer comes after Record and the start, Don't Record, the end of the answer time,
     /// or a close. The window does not come to the front: in the background, the Dock asks for
@@ -104,7 +108,7 @@ extension SessionWindow {
         if consent != nil { return .busy(.asking) }
         guard case .open(let studio) = phase else { return .busy(.closing) }
         if window?.isMiniaturized == true { return .minimized }
-        if alert != nil || exportStep != nil || window?.attachedSheet != nil { return .busy(.dialog) }
+        if showsDialog { return .busy(.dialog) }
         guard studio.isIdle, studio.pendingTake == nil, importJob == nil else { return .busy(.task) }
         let tracks: [Track]
         do throws(StudioError) { tracks = try consentTracks(request.armed, in: studio.session) } catch {

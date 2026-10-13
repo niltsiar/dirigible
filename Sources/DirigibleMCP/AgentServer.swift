@@ -4,16 +4,19 @@ import Foundation
 import Observation
 
 /// A window that an agent call can reach: its studio, why the app refuses agent edits now
-/// (C4), or nil, and the consent sheet of `record` (decision 0048), or nil.
+/// (C4), or nil, and the consent sheet of `record` (decision 0048), or nil. With `dialog`, the
+/// window shows an alert, a step of Export, or a sheet, so the export sheet of an agent `export`
+/// or `render` cannot show: the call is refused (decision 0049).
 package struct AgentTarget {
     package typealias Record = @MainActor (RecordRequest, AgentName) async -> RecordAnswer
 
     package let studio: Studio
     package let busy: AgentBusy?
+    package let dialog: Bool
     package let record: Record?
 
-    package init(studio: Studio, busy: AgentBusy? = nil, record: Record? = nil) {
-        (self.studio, self.busy, self.record) = (studio, busy, record)
+    package init(studio: Studio, busy: AgentBusy? = nil, dialog: Bool = false, record: Record? = nil) {
+        (self.studio, self.busy, self.dialog, self.record) = (studio, busy, dialog, record)
     }
 }
 

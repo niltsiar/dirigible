@@ -85,6 +85,18 @@ import Testing
         await closing.value
     }
 
+    /// Code gate 1 item 1: a window with a step of Export shows a dialog, so the app refuses an
+    /// agent export, whose sheet could not show (decision 0049).
+    @Test func anExportStepIsADialog() async throws {
+        let model = await app.open(try folder.package("dialog"))
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        #expect(app.agentTargets().first { $0.studio === studio }?.dialog == false)
+        model.exportStep = .choosing
+        #expect(app.agentTargets().first { $0.studio === studio }?.dialog == true, "the save panel is a dialog")
+        model.exportStep = nil
+        await model.close()
+    }
+
     /// C4: an agent edit during a lane drag is refused, so it never joins the drag's undo step.
     @Test func dragRefusesEdits() async throws {
         let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 20)

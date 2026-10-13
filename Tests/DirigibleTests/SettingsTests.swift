@@ -57,28 +57,33 @@ import Testing
         ),
     ])
     func setupCommandOfEachClient(client: SetupClient, bundle: String, text: String) {
-        #expect(setupCommand(client, bundle: URL(filePath: bundle), environment: [:]) == text)
+        #expect(setupCommand(client, bundle: URL(filePath: bundle), readOnly: false, environment: [:]) == text)
     }
 
     /// C13: the verify copy sets `DIRIGIBLE_MCP_SOCKET` for the server, so the copied text reaches
     /// the copy and not the installed app.
     @Test func setupCommandKeepsTheSocketOfTheCopy() {
         let text = setupCommand(
-            .codex, bundle: URL(filePath: "/tmp/v/Dirigible.app"),
+            .codex, bundle: URL(filePath: "/tmp/v/Dirigible.app"), readOnly: false,
             environment: ["DIRIGIBLE_MCP_SOCKET": "/tmp/v/mcp.sock"])
         #expect(
             text == "codex mcp add dirigible -- env 'DIRIGIBLE_MCP_SOCKET=/tmp/v/mcp.sock' "
                 + "'/tmp/v/Dirigible.app/Contents/Helpers/dirigible' mcp")
     }
 
-    /// C13: an app in App Translocation or on a disk image copies nothing.
+    /// C13: an app in App Translocation or on a read-only volume (a mounted disk image) copies
+    /// nothing; an app on an external drive gets its command.
     @Test func translocatedAppCopiesNothing() {
-        let translocated = "/private/var/folders/x/T/AppTranslocation/1234/d/Dirigible.app"
-        for bundle in [translocated, "/Volumes/Dirigible/Dirigible.app"] {
-            #expect(setupCommand(.claudeCode, bundle: URL(filePath: bundle), environment: [:]) == nil, "\(bundle)")
-        }
+        let translocated = URL(filePath: "/private/var/folders/x/T/AppTranslocation/1234/d/Dirigible.app")
+        let external = URL(filePath: "/Volumes/SSD/Applications/Dirigible.app")
+        #expect(setupCommand(.claudeCode, bundle: translocated, readOnly: false, environment: [:]) == nil)
+        #expect(setupCommand(.claudeCode, bundle: external, readOnly: true, environment: [:]) == nil, "a disk image")
         #expect(
-            setupCommand(.claudeCode, bundle: URL(filePath: "/Applications/Dirigible.app"), environment: [:]) != nil)
+            setupCommand(.claudeCode, bundle: external, readOnly: false, environment: [:]) != nil, "an external drive")
+        #expect(
+            setupCommand(
+                .claudeCode, bundle: URL(filePath: "/Applications/Dirigible.app"), readOnly: false, environment: [:])
+                != nil)
     }
 
     /// C14: the texts of the Undo item name the agent in both languages.

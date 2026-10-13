@@ -129,6 +129,9 @@ struct MCPExportToolTests {
             #expect(Set(properties.keys).subtracting(["package"]) == options, "the arguments of \(name)")
             #expect(properties["from"]?["default"] as? Int == 0, "\(name)")
             #expect((schema["required"] as? [String]) == ["package", "out"], "\(name)")
+            let outText = properties["out"]?["description"] as? String ?? ""
+            #expect(
+                !outText.contains("replace") || properties["replace"] != nil, "\(name) out names replace: \(outText)")
         }
         let export = tools.first { $0["name"] as? String == "export" }?["inputSchema"] as? [String: Any] ?? [:]
         let properties = export["properties"] as? [String: [String: Any]] ?? [:]

@@ -758,6 +758,9 @@ To register the server:
 
 1. Move Dirigible to the Applications folder and open it once. An app that runs from the disk image or from the Downloads folder has a path that changes, so the pull-down copies nothing.
 2. Choose Dirigible > Settings.
+
+   ![Dirigible Settings: the Language pop-up, the Let Agents Edit Open Sessions switch with its help line, and the Copy Setup Command pull-down.](images/screenshot-settings.png)
+
 3. Click Copy Setup Command, then choose your agent: Claude Code, Codex, opencode, or Any MCP App.
 4. Paste the text in Terminal and press Return. For Any MCP App, the text is the server command: give it to your app as a local (stdio) server.
 5. Start the agent.
@@ -832,7 +835,7 @@ The screenshots of the README and of this guide come from a script. The script m
 3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`. The script builds the app first.
 4. Do not move the pointer or other windows over the Dirigible window until the script stops.
 
-The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, and `docs/images/screenshot-crossfade.png`. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, and when the display scale is not 2x (Retina). The images are 2360 x 1544 pixels.
+The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, `docs/images/screenshot-crossfade.png`, and `docs/images/screenshot-settings.png`. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, and when the display scale is not 2x (Retina). The images of the session window are 2360 x 1544 pixels.
 
 ### Make the banner again
 

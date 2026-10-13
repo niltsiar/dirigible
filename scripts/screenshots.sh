@@ -5,7 +5,7 @@
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in English (US number format) and light mode, and writes
 # docs/images/screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png,
-# screenshot-episode.png, and screenshot-crossfade.png. The app also
+# screenshot-episode.png, screenshot-crossfade.png, and screenshot-settings.png. The app also
 # writes its preferences (the recent list, the inspector) for the real bundle ID, so do not run
 # this script as a check.
 # The terminal app needs the Screen Recording and Accessibility permissions, and the screen must be
@@ -83,10 +83,11 @@ sips -s format png -Z 1024 "$app/Contents/Resources/AppIcon.icns" --out "$folder
 refuse_running
 pid=""
 trap '[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
-# The View preferences in the arguments win over the stored ones, so the images do not depend on
-# them. The inspector toggle below starts from hidden.
+# The View preferences and the agent switch in the arguments win over the stored ones, so the
+# images do not depend on them. The inspector toggle below starts from hidden.
 open -a "$app" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(en)" \
-    -AppleLocale en_US -ApplePersistenceIgnoreState YES -view.inspector.shown NO -view.loudness.shown YES
+    -AppleLocale en_US -ApplePersistenceIgnoreState YES -view.inspector.shown NO -view.loudness.shown YES \
+    -agents.edit.open.sessions NO
 # No copy ran before the launch, so the one Dirigible process is the launched one.
 # open can return before the process shows, so wait up to 10 s for it.
 for _ in $(seq 1 20); do
@@ -99,24 +100,30 @@ done
 # The size of a new session window: a content size of 1180 x 720 pt (placeAsSessionWindow) and
 # the toolbar. Another size (a narrow screen, a saved window) gives other images.
 # The window is the "Demo Episode" window of the launched process, not a window of another copy.
-found=""
-for _ in $(seq 60); do
-    found="$(PID="$pid" swift - <<'SWIFT'
+# Prints "<number> <width> x <height>" of the window with the title in argument 1, after it shows.
+find_window() {
+    local found=""
+    for _ in $(seq 60); do
+        found="$(PID="$pid" NAME="$1" swift - <<'SWIFT'
 import CoreGraphics
 import Foundation
 let pid = Int(ProcessInfo.processInfo.environment["PID"] ?? "")
+let name = ProcessInfo.processInfo.environment["NAME"]
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
 if let window = windows.first(where: {
-    $0[kCGWindowOwnerPID as String] as? Int == pid && $0[kCGWindowName as String] as? String == "Demo Episode"
+    $0[kCGWindowOwnerPID as String] as? Int == pid && $0[kCGWindowName as String] as? String == name
         && $0[kCGWindowLayer as String] as? Int == 0
 }), let bounds = window[kCGWindowBounds as String] as? [String: Any] {
     print("\(window[kCGWindowNumber as String]!) \(bounds["Width"]!) x \(bounds["Height"]!)")
 }
 SWIFT
 )"
-    [[ -z "$found" ]] || break
-    sleep 0.5
-done
+        [[ -z "$found" ]] || break
+        sleep 0.5
+    done
+    echo "$found"
+}
+found="$(find_window "Demo Episode")"
 id="${found%% *}"
 size="${found#* }"
 want="1180 x 772"
@@ -170,8 +177,17 @@ key 124 --shift
 for _ in 1 2 3 4 5 6; do swift "$repo/scripts/ax.swift" press "View > Zoom In" >/dev/null; done
 sleep 1
 shot screenshot-crossfade.png
+# Dirigible > Settings: the image is the Settings window alone, at its own size.
+swift "$repo/scripts/ax.swift" press "Settings…" >/dev/null
+found="$(find_window "Dirigible Settings")"
+[[ -n "$found" ]] || { echo "screenshots.sh: the Settings window did not show." >&2; exit 1; }
+id="${found%% *}"
+size="${found#* }"
+width="${size%% *}"
+sleep 1
+shot screenshot-settings.png
 
-for png in "$images"/screenshot-{edit,zoom,inspector,episode,crossfade}.png; do
+for png in "$images"/screenshot-{edit,zoom,inspector,episode,crossfade,settings}.png; do
     [[ "$(stat -f %z "$png")" -le 1000000 ]] || sips --resampleWidth 1600 "$png" >/dev/null
     echo "$png"
 done

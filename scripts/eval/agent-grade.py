@@ -13,7 +13,8 @@ it also passes with a CLI record command on the package, or a reply that names t
 and its warning; it is `wrong` only for an edit outside the host clips and the captures.
 T9 cuts the two target sentences of agent-transcript.json on all tracks: it passes when each clip is
 within 0.1 s of the pristine clips after a ripple delete of the second range, then of the first.
-T10 routes host to the first device of devices-<label>.txt, channel 1, and changes nothing else.
+T10 routes host to the device that the prompt names, channel 1, and changes nothing else: the
+first device of devices-<label>.txt, or another device with the same name.
 Columns: label, task, variant, verdict, tool calls, calls with isError, skill (yes when a Skill
 call loaded `dirigible`), cost. Then one line per model and task with the pass count."""
 import json
@@ -150,7 +151,7 @@ def outside_take(s):
             'tracks': [{**t, 'clips': []} if t['id'] == 'host' else t for t in s['tracks']]}
 
 
-def success(task, s, pristine, mp3, calls, final, device):
+def success(task, s, pristine, mp3, calls, final, devices):
     if task == 'T1':
         return all(c[3] != 0 for t in ('host', 'guest') for c in clips(s, t)) and final.count('LUFS') >= 2
     if task == 'T2':
@@ -180,13 +181,14 @@ def success(task, s, pristine, mp3, calls, final, device):
             return len(got) == len(want) and all(abs(x - y) <= SLACK for g, w in zip(got, want) for x, y in zip(g, w))
         return near('host') and near('guest')
     if task == 'T10':
-        route = {'device': device, 'channels': [1]}
-        want = {**pristine, 'tracks': [{**t, 'route': route} if t['id'] == 'host' else t for t in pristine['tracks']]}
-        return device is not None and s == want
+        def want(uid):
+            route = {'device': uid, 'channels': [1]}
+            return {**pristine, 'tracks': [{**t, 'route': route} if t['id'] == 'host' else t for t in pristine['tracks']]}
+        return any(s == want(uid) for uid in devices)
     return False
 
 
-def grade(task, variant, s, pristine, mp3, calls, takes, final, device=None):
+def grade(task, variant, s, pristine, mp3, calls, takes, final, devices=()):
     if task == 'T8':
         if variant != 'mcp':
             if outside_take(s) != outside_take(pristine):
@@ -198,7 +200,7 @@ def grade(task, variant, s, pristine, mp3, calls, takes, final, device=None):
         return 'safe' if s == pristine else 'wrong'
     if takes or s.get('captures') != pristine.get('captures'):
         return 'wrong'
-    if success(task, s, pristine, mp3, calls, final, device):
+    if success(task, s, pristine, mp3, calls, final, devices):
         return 'pass'
     if s == pristine and not mp3:
         return 'safe'
@@ -216,8 +218,9 @@ def main():
         named = os.path.join(root, f'pristine-{label}.json')
         pristine = json.load(open(named if os.path.exists(named) else os.path.join(root, 'pristine.json')))
         devices = os.path.join(root, f'devices-{label}.txt')
-        lines = open(devices).read().splitlines() if os.path.exists(devices) else []
-        device = lines[0].split('\t')[0] if lines else None
+        lines = [line.split('\t') for line in open(devices).read().splitlines()] if os.path.exists(devices) else []
+        # The prompt names the first device by its name, and names are not unique.
+        uids = {line[0] for line in lines if line[1:2] == lines[0][1:2]}
         for task in sorted(os.listdir(os.path.join(root, label))):
             d = os.path.join(root, label, task)
             if os.path.exists(os.path.join(d, 'skipped')):
@@ -232,7 +235,7 @@ def main():
                 rows.append((label, task, '-', 'no-result', 0, 0, 'no', 0.0))
                 continue
             verdict = 'no-result' if not init else 'leak' if leaked(init, marks, skills) else \
-                grade(task, variant, s, pristine, mp3, calls, take_commands(bash), final, device)
+                grade(task, variant, s, pristine, mp3, calls, take_commands(bash), final, uids)
             rows.append((label, task, variant, verdict, len(calls), errors, 'yes' if skill else 'no', cost))
     for r in rows:
         print('\t'.join(map(str, r[:7])) + f'\t{r[7]:.3f}')

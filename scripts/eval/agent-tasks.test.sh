@@ -121,7 +121,8 @@ grep -q 'Sorry, let me say that again.' "$tmp/results/transcript/T9/stream.jsonl
 
 # The grade of T9 and T10 from hand-made results (W12, W13). T9: the two cuts from the last to
 # the first pass, the same frames from the first to the last are wrong, and no change is safe.
-# T10: the device of the batch on host channel 1 passes, a changed guest too is wrong.
+# T10: the device of the batch on host channel 1 passes, also the second device with the same
+# name (code gate 1 item 2); another device or a changed guest too is wrong.
 python3 -I -B - "$here" "$tmp/graded" <<'PY' || fail "the grader of T9 or T10 gives a wrong verdict"
 import json, os, subprocess, sys
 here, root = sys.argv[1], sys.argv[2]
@@ -131,33 +132,40 @@ doc = json.load(open(os.path.join(here, 'agent-transcript.json')))
 n = 4416000
 
 
-def track(id, clips, **more):
+def track(id, clips, gain=0, **more):
     return {'id': id, 'name': id, 'layout': 'mono', 'gain': 0,
-            'clips': [{'id': f'{id}{i}', 'file': 'f', 'start': s, 'offset': o, 'length': l, 'gain': 0}
+            'clips': [{'id': f'{id}{i}', 'file': 'f', 'start': s, 'offset': o, 'length': l, 'gain': gain}
                       for i, (s, o, l) in enumerate(clips)], **more}
 
 
-def session(clips, **guest):
+def session(clips, gain=0, **guest):
     return {'version': 1, 'sampleRate': 48000, 'captures': [], 'files': [], 'markers': [],
-            'tracks': [track('host', clips), track('guest', clips, **guest)]}
+            'tracks': [track('host', clips, gain), track('guest', clips, **guest)]}
 
 
 pristine = session([(0, 0, n)])
 right = [(0, 0, a1), (a1, b1, a2 - b1), (a2 - (b1 - a1) + 2400, b2 + 2400, n - b2 - 2400)]
 first_then_second = [(0, 0, a1), (a1, b1, a2 - a1), (a2, a2 + b1 - a1 + (b2 - a2), n - b1 - (b2 - a2) - (a2 - a1))]
-routed = json.loads(json.dumps(pristine))
-routed['tracks'][0]['route'] = {'device': 'UID-1', 'channels': [1]}
+def route(uid):
+    routed = json.loads(json.dumps(pristine))
+    routed['tracks'][0]['route'] = {'device': uid, 'channels': [1]}
+    return routed
+
+
+routed = route('UID-1')
 both = json.loads(json.dumps(routed))
 both['tracks'][1]['route'] = {'device': 'UID-1', 'channels': [2]}
 cases = {('t9-right', 'T9'): (session(right), 'pass'), ('t9-order', 'T9'): (session(first_then_second), 'wrong'),
          ('t9-none', 'T9'): (pristine, 'safe'), ('t10-right', 'T10'): (routed, 'pass'),
-         ('t10-guest', 'T10'): (both, 'wrong'), ('t10-none', 'T10'): (pristine, 'safe')}
+         ('t10-guest', 'T10'): (both, 'wrong'), ('t10-none', 'T10'): (pristine, 'safe'),
+         ('t10-same-name', 'T10'): (route('UID-3'), 'pass'), ('t10-other', 'T10'): (route('UID-2'), 'wrong')}
 bad = 0
 for (label, task), (after, want) in cases.items():
     d = os.path.join(root, label, task)
     os.makedirs(d)
     json.dump(pristine, open(os.path.join(root, f'pristine-{label}.json'), 'w'))
-    open(os.path.join(root, f'devices-{label}.txt'), 'w').write('UID-1\tFake Mic\t1\t48000\nUID-2\tOther\t2\t48000\n')
+    open(os.path.join(root, f'devices-{label}.txt'), 'w').write(
+        'UID-1\tFake Mic\t1\t48000\nUID-2\tOther\t2\t48000\nUID-3\tFake Mic\t2\t48000\n')
     json.dump(after, open(os.path.join(d, 'after.json'), 'w'))
     open(os.path.join(d, 'stream.jsonl'), 'w').write('{"type": "system", "subtype": "init", "skills": []}\n')
     open(os.path.join(d, 'out.txt'), 'w').write('')

@@ -55,7 +55,7 @@ struct UnusedFilesSheet: View {
 }
 
 extension L10n {
-    /// "Kept for a backup or Undo: N (size)", or nil when no file is kept.
+    /// "Kept for a backup, Undo, or the clipboard: N (size)", or nil when no file is kept.
     static func keptLine(_ kept: UnusedFiles.Kept) -> String? {
         kept.count == 0 ? nil : sheetUnusedKept.format(kept.count, bytes(kept.bytes))
     }

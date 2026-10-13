@@ -109,9 +109,10 @@ final class AgentListener: @unchecked Sendable {
 
     /// Closes the listener, removes the socket file, and then frees the lock, so the next open
     /// can take it. Each connection answers its running call, then closes (decision 0046 Life
-    /// cycle).
+    /// cycle). It returns after the unlink, so a bridge that connects later finds no app. Never
+    /// call it on the queue.
     func stop() {
-        queue.async { [self] in
+        queue.sync { [self] in
             guard !stopped else { return }
             stopped = true
             listenSource?.cancel()

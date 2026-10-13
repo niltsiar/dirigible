@@ -10,6 +10,8 @@ private let loudnessClips = Param<[String]?>.optional(
 private let out = Param.required(
     "out", "The absolute path of the output file, outside each session package. It must not exist, unless replace.",
     .string)
+private let renderOut = Param.required(
+    "out", "The absolute path of the output file, outside each session package. It must not exist.", .string)
 private let bits = Param<Int?>.optional(
     "bits", "The bit depth of WAV and FLAC: 16 or 24. The default is 24.", .integer())
 private let bitrate = Param<Int?>.optional(
@@ -35,8 +37,8 @@ private let cancelNote =
 
 /// Refuses a relative `out` first: the option checks resolve a relative path against the working
 /// folder of the server, which can differ from the folder of the agent.
-private func outPath(_ arguments: Arguments) throws(ToolError) -> String {
-    let path = try arguments[out]
+private func outPath(_ arguments: Arguments, _ param: Param<String> = out) throws(ToolError) -> String {
+    let path = try arguments[param]
     guard path.hasPrefix("/") else { throw ToolError("The argument \"out\" must be an absolute path.") }
     return path
 }
@@ -77,10 +79,10 @@ let audioTools = [
         "Render the session mix to a 32-bit float stereo CAF file at the session rate, as dirigible render. A "
             + "missing or short file renders as silence, with a warning line. The text is the warning lines, or OK."
             + cancelNote,
-        [out, from, to], saves: false
+        [renderOut, from, to], saves: false
     ) { a throws(ToolError) in
         let (first, end) = (try a[from], try a[to])
-        let path = try outPath(a)
+        let path = try outPath(a, renderOut)
         try ExportText.checkOutsidePackages(URL(filePath: path))
         return .export(
             ExportWork(

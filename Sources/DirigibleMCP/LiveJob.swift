@@ -74,3 +74,12 @@ private func stopMessage(_ stop: ExportStop?, noun: String) -> String {
     case .close, nil: "The session window closed, so the \(noun) stopped. No file was written."
     }
 }
+
+/// The text of a long call that a stop of the agent server ended: the user turned the server off,
+/// or quits.
+func serverStopMessage(_ work: ToolWork) -> String {
+    guard case .export(let export) = work else {
+        return "Dirigible stopped its agent server, so the loudness measure stopped."
+    }
+    return "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
+}

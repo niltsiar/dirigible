@@ -90,7 +90,9 @@ package final class AgentServer {
         let generation = generation
         let opening = AgentListener.open(
             socket: socket,
-            handle: { [weak self] call, report in await self?.answer(call, report: report) ?? .notOpen },
+            handle: { [weak self] call, report in
+                await self?.answer(call, generation: generation, report: report) ?? .notOpen
+            },
             counted: { [weak self] count in
                 // The main queue is FIFO, so the last count of the listener is the last one set.
                 DispatchQueue.main.async {
@@ -129,10 +131,16 @@ package final class AgentServer {
         connected = 0
     }
 
-    private func answer(_ call: AgentCall, report: @escaping @Sendable (Double) -> Void) async -> AgentReply {
+    private func answer(_ call: AgentCall, generation: Int, report: @escaping @Sendable (Double) -> Void) async
+        -> AgentReply
+    {
         guard let target = targets().first(where: { $0.studio.url.path == call.identity.path }) else { return .notOpen }
         if case .record(let request) = call.work { return await liveRecord(request, call, target: target) }
-        if call.work.isLong { return await liveJob(call, target: target, report: report) }
-        return liveCall(call, target: target)
+        guard call.work.isLong else { return liveCall(call, target: target) }
+        let reply = await liveJob(call, target: target, report: report)
+        // A stop of the server cancels the job too, but the agent did not cancel it (decision 0049).
+        let stopped = listener == nil || self.generation != generation
+        guard stopped, reply == .result(text: cancelledMessage, isError: true) else { return reply }
+        return .result(text: serverStopMessage(call.work), isError: true)
     }
 }

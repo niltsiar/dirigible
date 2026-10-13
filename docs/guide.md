@@ -523,7 +523,20 @@ To go back to a backup:
 
 Before the revert, Dirigible keeps a backup of the session that the revert replaces. To go back to the session before the revert, choose **Edit > Undo** (Command-Z).
 
-During a take, an import, or Auto Level, the backups are off. A revert deletes no audio. If you recorded a take after the backup, the audio of the take shows as unplaced audio. Edit > Undo puts the take back on its tracks.
+During a take, an import, or Auto Level, the backups are off. A revert deletes no audio. If you recorded a take after the backup, the audio of the take shows as unplaced audio. Edit > Undo puts the take back on its tracks. To remove the audio files that no clip uses, see the next section.
+
+### Remove the audio files that no clip uses
+
+After many retakes, the session package keeps audio files that no clip uses. To move them to the Trash:
+
+1. Choose **File > Remove Unused Files**. A sheet shows each file, its size, and why Dirigible can remove it, the largest file first. Under the list are the number of files and the total size.
+2. Click **Move to Trash**. To keep the files, click **Cancel** or press Return or Esc.
+
+The window then shows the number of moved files and their size. If a file does not move, the window names it, and the file stays in the session package.
+
+Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. Remove Unused Files has no Undo: to get a file back, use **Put Back** in the Trash. The space on the disk comes back when you empty the Trash.
+
+During a take, an import, or Auto Level, the command is off. With no file to remove, an alert says so.
 
 ## Menu commands and keys
 
@@ -554,6 +567,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Episode Info** | **Información del episodio** | Shift-Command-I |
 | **Revert To** | **Volver a** | None |
 | **No Backups** (in **Revert To**, when the session has no backup) | **No hay copias de seguridad** | None |
+| **Remove Unused Files** | **Eliminar archivos sin usar** | None |
 
 ### Edit
 
@@ -750,7 +764,7 @@ These commands use the backups of the session in `Backups/`:
 
 This command removes the audio files that the session does not use:
 
-- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses and each WAV file in `Clips/` that the session does not name. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
+- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses and each WAV file in `Clips/` that the session does not name, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
 
 The text of the tool is English only.
 

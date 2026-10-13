@@ -48,3 +48,8 @@ extension AppDelegate {
         key?.run(command)
     }
 }
+
+extension AppDelegate {
+    /// File > Remove Unused Files… is on while the key session window takes an edit (decision 0047).
+    var canRemoveUnusedFiles: Bool { key?.canEdit == true }
+}

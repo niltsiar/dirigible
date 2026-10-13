@@ -41,7 +41,7 @@ struct SessionView: View {
                 case .microphone:
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
-                case .error, .importChain, .exported:
+                case .error, .importChain, .exported, .noUnusedFiles:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
                 }
@@ -83,6 +83,12 @@ struct SessionView: View {
             // An AppKit sheet: the close button is off while it shows (probe S1).
             .sheet(isPresented: Binding(get: { studio.exportProgress != nil }, set: { _ in })) {
                 ExportSheet(model: model, studio: studio)
+            }
+            // The list of Remove Unused Files (decision 0047). Only its buttons and Esc close it.
+            .background {
+                Color.clear.sheet(isPresented: Binding(get: { model.unusedFiles != nil }, set: { _ in })) {
+                    if let scan = model.unusedFiles { UnusedFilesSheet(model: model, scan: scan) }
+                }
             }
         case .closing(nil), .closed:
             EmptyView()
@@ -209,6 +215,8 @@ extension WindowAlert {
         case .confirmStopAndClose: L10n.alertCloseRecording.text
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text
         case .confirmRemoveTracks: L10n.alertTrackRemove.text
+        case .noUnusedFiles(let kept):
+            ([L10n.alertUnusedNone.text] + [L10n.keptLine(kept)].compactMap(\.self)).joined(separator: "\n\n")
         case .exported(let paths, let report):
             L10n.alertExported.format(paths.joined(separator: "\n"))
                 + (report.map {

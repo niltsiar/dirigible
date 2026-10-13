@@ -18,6 +18,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Hear a microphone in your headphones while you record: click the headphones button in the track header, or choose **Track > Monitor Track** (Control-Command-M).
 - Keep the recorded audio after a crash, an unplug, or a full disk.
 - Go back to an earlier state of the session with **File > Revert To**. Dirigible keeps backups of the session, and Undo reverses a revert.
+- Make a session smaller after many retakes with **File > Remove Unused Files**. It shows the list and the size first, and moves the files to the Trash.
 - Import WAV, AIFF, FLAC, MP3, and M4A files into a track, by the menu or a drag from Finder. Dirigible copies each file into the session at its sample rate and levels it.
 - Edit with the keyboard or the mouse: cut, copy, paste, delete, split, nudge, move, and trim. Ripple delete, insert, and ripple trim keep all tracks and the markers in sync. Command-click clips on several tracks and drag them together. Each edit is one undo step.
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.

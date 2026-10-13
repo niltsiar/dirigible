@@ -42,14 +42,14 @@ extension Player {
     /// The caller stopped the node: a rewire while the node plays drops its schedule (probe S6).
     /// False when the unit refuses the rate (0013: only `noErr` or not): then the node feeds
     /// the main mixer, and the play runs at 1x.
-    func wire(_ graph: Graph, speed: Double) -> Bool {
-        guard let unit = graph.unit else { return speed == 1 }
-        let rate = Float(speed)
+    func wire(_ graph: Graph, speed: Speed) -> Bool {
+        guard let unit = graph.unit else { return speed == .one }
+        let rate = Float(speed.factor)
         let through =
-            speed != 1
+            speed != .one
             && AudioUnitSetParameter(unit.audioUnit, kTimePitchParam_Rate, kAudioUnitScope_Global, 0, rate, 0) == noErr
         if through != speedUnitInGraph { connect(graph, unit, through: through) }
-        return through == (speed != 1)
+        return through == (speed != .one)
     }
 
     /// Connects the node to the main mixer, through the unit or not.

@@ -52,9 +52,10 @@ actor Player {
     struct Feed {
         let anchor: Frames
         let shuttle: Shuttle
-        /// The vari-speed factor: 1 at a tape rate or with no unit. `scheduled` counts node
-        /// frames, which are source frames at any speed (probe S3).
-        var speed: Double
+        /// The vari-speed that the unit plays: 1x at a tape rate, with no unit, or when the unit
+        /// refuses the rate. `scheduled` counts node frames, which are source frames at any
+        /// speed (probe S3).
+        var speed: Speed
         /// The last change of speed with no new play, for the heard frame.
         var step: SpeedStep?
         let mix: MixReader
@@ -140,9 +141,9 @@ actor Player {
         stop = nil
         guard let graph = makeGraph() else { return }
         // A rewire while the engine runs costs no more than a seek during play (probe S6).
-        let wanted = shuttle.rate == .one ? speed.factor : 1
-        let factor = wire(graph, speed: wanted) ? wanted : 1
-        loudness.start(at: start, shuttle: shuttle, speed: factor)
+        let wanted = shuttle.rate == .one ? speed : .one
+        let played = wire(graph, speed: wanted) ? wanted : .one
+        loudness.start(at: start, shuttle: shuttle, speed: played)
         guard let url = try? package() else {
             stop = .packageUnavailable
             return
@@ -158,7 +159,7 @@ actor Player {
             output == .device
             ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded()) : 0
         feed = Feed(
-            anchor: start, shuttle: shuttle, speed: factor, mix: MixReader(package: url, session: session, open: open))
+            anchor: start, shuttle: shuttle, speed: played, mix: MixReader(package: url, session: session, open: open))
         refill()
         graph.node.play()
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
@@ -201,7 +202,7 @@ actor Player {
         let (scheduled, played) = (feed.scheduled, nodeFrames())
         let dry = scheduled < length(feed) && played > scheduled
         // `depth` chunks of output time: the unit takes `speed` node frames per output frame.
-        let ahead = Int((Double(chunk * Self.depth) * feed.speed).rounded(.up))
+        let ahead = Int((Double(chunk * Self.depth) * feed.speed.factor).rounded(.up))
         // A full or complete feed skips the package lookup (a stat), so a running play looks up
         // the package only on a tick that schedules a chunk.
         if !dry, scheduled >= min(length(feed), played + ahead) { return }
@@ -332,12 +333,12 @@ actor Player {
     /// speeds other than 1 (decision 0048, S6). False when no feed plays through the unit; the
     /// caller then starts a new play.
     func setSpeed(_ speed: Speed) -> Bool {
-        guard speed != .one, let graph, feed.map({ $0.speed != 1 }) == true, speedUnitInGraph else { return false }
-        guard wire(graph, speed: speed.factor) else { return false }
+        guard speed != .one, let graph, let current = feed?.speed, current != .one else { return false }
+        guard wire(graph, speed: speed) else { return false }
         let node = nodeFrames()
-        let held = Self.held(nodeFrames: node, latency: latency, speed: feed?.speed ?? 1, step: feed?.step)
+        let held = Self.held(nodeFrames: node, latency: latency, speed: current.factor, step: feed?.step)
         feed?.step = SpeedStep(node: node, held: held)
-        feed?.speed = speed.factor
+        feed?.speed = speed
         return true
     }
 
@@ -349,7 +350,7 @@ actor Player {
 
     /// The node frames that the output played since the play.
     private func heardFrames() -> Int {
-        Self.heard(nodeFrames: nodeFrames(), latency: latency, speed: feed?.speed ?? 1, step: feed?.step)
+        Self.heard(nodeFrames: nodeFrames(), latency: latency, speed: feed?.speed.factor ?? 1, step: feed?.step)
     }
 
     /// The output frames that the node played since its play; 0 before the first render.

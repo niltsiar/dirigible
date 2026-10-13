@@ -142,6 +142,15 @@ public struct UnusedFiles: Hashable, Sendable {
         return live.moved(under: package, trash: trash)
     }
 
+    /// The pool IDs of `session` that name an item: each pool item, and each entry whose path names
+    /// a stray item. An undo or redo entry can name a stray WAV with no clip (decision 0047 D3).
+    public func poolIDs(in session: Session) -> Set<FileID> {
+        let strays = Set(items.filter { $0.kind == .stray }.map { normalized($0.path) })
+        var ids = Set(items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
+        for file in session.files.values where strays.contains(normalized(file.path)) { ids.insert(file.id) }
+        return ids
+    }
+
     /// The items that `session` still does not use. An edit after the scan keeps the file of a
     /// pool entry that a clip now uses or that the pool no longer has; the next scan lists it again.
     public func unused(in session: Session) -> UnusedFiles {

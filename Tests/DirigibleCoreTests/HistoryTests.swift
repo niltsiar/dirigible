@@ -243,10 +243,10 @@ struct HistoryTests {
         let (revision, title) = (history.revision, history.session.track("a")?.name)
         let before = history
 
-        #expect(throws: SessionError.fileInUse("h")) { try history.removeUnusedFiles(["h", "z"]) }
+        #expect(throws: SessionError.fileInUse("h")) { try history.removeUnusedFiles { _ in ["h", "z"] } }
         #expect(history == before, "a refused removal changes nothing")
 
-        try history.removeUnusedFiles(["z"])
+        try history.removeUnusedFiles { _ in ["z"] }
 
         #expect(history.revision == revision + 1)
         #expect(history.canUndo && history.canRedo, "no entry is added or lost")

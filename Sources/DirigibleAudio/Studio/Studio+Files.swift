@@ -40,9 +40,8 @@ extension Studio {
             guard isIdle else { return .failure(.busy) }
             let before = session
             let items = confirmed.intersection(scan).unused(in: before)
-            let ids = Set(items.items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
             // The pool change comes after the save, so a failed save leaves memory as the disk.
-            let apply = { @MainActor () throws(SessionError) in try self.removePoolEntries(ids) }
+            let apply = { @MainActor () throws(SessionError) in try self.removePoolEntries(items) }
             let done = await pruneFiles(
                 items, of: before, lock: lock, previous: url, recordings: recordings, environment.saveSession, apply)
             // Only a write clears a save error: a prune with no item writes nothing.

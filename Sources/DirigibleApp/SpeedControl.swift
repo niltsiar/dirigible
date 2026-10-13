@@ -1,6 +1,23 @@
 import AppKit
 import DirigibleAudio
 
+/// A change of the vari-speed (decision 0048): Period (`toggle`), ">" (`faster`), "<"
+/// (`slower`), or a pick of the menu or the toolbar pop-up (`set`).
+enum SpeedChange: Hashable {
+    case toggle, faster, slower
+    case set(Speed)
+
+    /// The speed after the change from `speed`. Period turns on `last`, the preference.
+    func target(from speed: Speed, last: Speed) -> Speed {
+        switch self {
+        case .toggle: speed == .one ? last : .one
+        case .faster: speed.faster
+        case .slower: speed.slower
+        case .set(let target): target
+        }
+    }
+}
+
 /// The readout of a speed in the number format of `locale`: "1×", "1.5×" ("1,5×" in Spanish).
 func speedText(_ speed: Speed, locale: Locale = .current) -> String {
     speed.factor.formatted(.number.locale(locale)) + "×"

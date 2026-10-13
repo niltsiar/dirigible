@@ -282,7 +282,7 @@ import Observation
     @objc func pickSpeed(_ sender: Any?) {
         let tag = (sender as? NSPopUpButton)?.selectedTag() ?? (sender as? NSMenuItem)?.tag
         guard let model, let tag, let speed = Speed(rawValue: tag) else { return }
-        model.transport(.speed(.set(speed)))
+        model.speed(.set(speed))
     }
 
     /// The button of a push-on item, with no target.

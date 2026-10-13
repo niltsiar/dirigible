@@ -20,7 +20,7 @@ Probes (2026-10-13; `.scratchpads/runs/2026-10-13-preroll-varispeed/probes/outpu
 
 ## Decision
 
-- **Speed.** 0.75x to 2x in steps of 0.25. Window state, 1x at open. The app keeps the last speed other than 1x as a preference (default 1.5x).
+- **Speed.** 0.75x to 2x in steps of 0.25. Window state, 1x at open. The app keeps the last speed other than 1x as a preference (default 1.5x). It is the one owner: the window resolves Period, ">", "<", and a pick to one speed before `Studio.changeSpeed(to:)`, so the Studio keeps no copy (code gate 1 item 2).
 - **Unit.** The time-domain voice unit 'ipto' (`AVAudioUnitTimeEffect`, rate 0.5 to 2; S1, S2), between the player node and the main mixer, only while the feed speed is not 1x. A play rewires the graph upstream of the main mixer, also while the engine runs (S6). At 1x the graph is the node into the main mixer, bit for bit as before.
 - **Which plays.** A play at the shuttle rate 1x (Space, the first L or J) uses the speed. The tape rates (0.5x, 2x, 4x) use no unit. A take and its pre-roll play at 1x.
 - **Change.** A speed change during play goes on from the heard frame, as a shuttle change does (0016): the node stops, the graph changes upstream of the main mixer while the engine runs, and the node plays again from the heard frame. The heard gap is 10 ms or less (S6). A change between two speeds other than 1x only sets the rate of the unit, with no new play (S6: no gap, a transient of 0.5 to 8 dB).

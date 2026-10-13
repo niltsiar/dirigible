@@ -106,9 +106,15 @@ enum TransportMenu {
 /// The plain-key items of Transport > Playback Speed (decision 0048). The submenu adds a radio
 /// item for each speed.
 enum SpeedMenu {
-    static let items: [TransportMenu.Item] = [
-        TransportMenu.Item(title: .menuTransportVariSpeed, command: .speed(.toggle), key: MenuKeys.variSpeed),
-        TransportMenu.Item(title: .menuTransportFaster, command: .speed(.faster), key: MenuKeys.faster),
-        TransportMenu.Item(title: .menuTransportSlower, command: .speed(.slower), key: MenuKeys.slower),
+    struct Item {
+        let title: L10n
+        let change: SpeedChange
+        let key: KeyboardShortcut
+    }
+
+    static let items = [
+        Item(title: .menuTransportVariSpeed, change: .toggle, key: MenuKeys.variSpeed),
+        Item(title: .menuTransportFaster, change: .faster, key: MenuKeys.faster),
+        Item(title: .menuTransportSlower, change: .slower, key: MenuKeys.slower),
     ]
 }

@@ -74,9 +74,6 @@ struct PlayState {
     var preview: (track: TrackID, gain: Gain)?
     /// The vari-speed of a 1x play (decision 0048): window state, 1x at open.
     var speed = Speed.one
-    /// The speed that Period turns on: the last speed other than 1. The app sets it from its
-    /// preference.
-    var lastSpeed = Speed.x150
     /// Made at the first play from `environment.playerOutput`.
     var player: Player?
     /// Reads the Player every 33 ms while `playback` is `.playing`.
@@ -98,11 +95,6 @@ extension Studio {
     public var playbackStop: PlaybackStop? { play.playbackStop }
     /// The vari-speed of a 1x play (decision 0048).
     public var speed: Speed { play.speed }
-    /// The speed that Period turns on. A value of 1 is ignored.
-    public var lastSpeed: Speed {
-        get { play.lastSpeed }
-        set { if newValue != .one { play.lastSpeed = newValue } }
-    }
     /// The speed unit loads; else the speed stays 1 (decision 0048).
     public var canChangeSpeed: Bool {
         if let loads = speedUnitLoads { return loads }
@@ -135,10 +127,6 @@ extension Studio {
             return
         }
         guard isIdle else { return }
-        if case .speed(let change) = command {
-            await changeSpeed(change)
-            return
-        }
         let current = play.playback.shuttle
         if case .seek(let seek) = command {
             guard let target = frame(of: seek) else { return }
@@ -181,22 +169,15 @@ extension Studio {
         await startPlay(next, from: play.playhead, number: number)
     }
 
-    /// Stopped or at a tape rate, a change sets only the next 1x play. During a 1x play the play
-    /// goes on from the heard frame: a change between two speeds other than 1 sets only the
-    /// rate of the unit; another change is a new play, as a shuttle change (decision 0048, S6).
-    private func changeSpeed(_ change: SpeedChange) async {
-        guard canChangeSpeed else { return }
+    /// Sets the vari-speed (decision 0048). It does nothing during a take or when the unit does
+    /// not load. Stopped or at a tape rate, a change sets only the next 1x play. During a 1x play
+    /// the play goes on from the heard frame: a change between two speeds other than 1 sets only
+    /// the rate of the unit; another change is a new play, as a shuttle change (S6). The speed
+    /// changes with no await first, as a feed number does in `perform`.
+    public func changeSpeed(to new: Speed) async {
         let old = play.speed
-        let new: Speed =
-            switch change {
-            case .toggle: old == .one ? play.lastSpeed : .one
-            case .faster: old.faster
-            case .slower: old.slower
-            case .set(let speed): speed
-            }
-        guard new != old else { return }
+        guard isIdle, canChangeSpeed, new != old else { return }
         play.speed = new
-        lastSpeed = new
         guard let shuttle = play.playback.shuttle, shuttle.rate == .one else { return }
         if old != .one, new != .one, let player = play.player, await player.setSpeed(new) { return }
         let number = await endFeed(stop: false)

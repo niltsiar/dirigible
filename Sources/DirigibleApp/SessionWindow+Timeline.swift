@@ -245,13 +245,20 @@ extension SessionWindow {
     func transport(_ command: TransportCommand) {
         leafCalls?.append("\(command)")
         commitInspector()
+        Task { await studio?.perform(command) }
+    }
+
+    /// A vari-speed change from a key, the menu, or the pop-up (decision 0048). The app owns the
+    /// last speed: the window resolves the change to one speed and stores it with no await before
+    /// the Studio takes it, so two changes that overlap keep the last pick.
+    func speed(_ change: SpeedChange) {
+        leafCalls?.append("\(change)")
+        commitInspector()
         guard let studio else { return }
         Task {
-            // The last speed is an app preference (decision 0048): the studio reads it and gives it back.
-            guard case .speed = command, let app else { return await studio.perform(command) }
-            studio.lastSpeed = app.lastSpeed
-            await studio.perform(command)
-            app.lastSpeed = studio.lastSpeed
+            let target = change.target(from: studio.speed, last: app?.lastSpeed ?? .x150)
+            if target != .one, studio.isIdle, studio.canChangeSpeed { app?.lastSpeed = target }
+            await studio.changeSpeed(to: target)
         }
     }
 

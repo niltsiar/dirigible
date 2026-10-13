@@ -144,7 +144,7 @@ struct ToolbarValueTests {
         #expect(popUp.accessibilityLabel() == L10n.menuTransportSpeed.text)
         #expect(popUp.selectedItem?.attributedTitle == nil, "1x has the normal text color")
 
-        await studio.perform(.speed(.set(.x150)))
+        await studio.changeSpeed(to: .x150)
         await until("the pop-up shows 1.5") { popUp.titleOfSelectedItem == speedText(.x150) }
         let color = popUp.selectedItem?.attributedTitle?.attribute(.foregroundColor, at: 0, effectiveRange: nil)
         #expect(color as? NSColor == .controlAccentColor, "another speed has the accent color")

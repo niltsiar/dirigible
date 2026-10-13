@@ -840,7 +840,7 @@ An agent can ask to record, but only you start the take. The `record` tool takes
 - VoiceOver and Full Keyboard Access can press Record: that is your consent. An app that you gave Accessibility permission in System Settings can also press Record for you, for example a terminal that runs the agent. Give that permission only to apps that you trust.
 - The agent gets the take number when the take starts. To find the end, it reads `session_info`: `recording` goes when the take ends.
 
-The 36 tools, in groups:
+The 37 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.

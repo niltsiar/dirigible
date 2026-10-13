@@ -66,8 +66,9 @@ struct LiveStdinTests {
         return package
     }
 
-    @Test func aLiveCancelEndsTheLoudness() async throws {
-        let package = try package()
+    /// Runs a `name` call with id 2 and a token, cancels it after its first progress line, then
+    /// sends a `ping` with id 3. Gives the stdout lines.
+    private func cancelled(_ name: String, _ arguments: [String: Any]) async throws -> [[String: Any]] {
         let (stdin, run) = (Pipe(), Run())
         defer { run.release() }
         serve(stdin, run)
@@ -75,7 +76,7 @@ struct LiveStdinTests {
             stdin,
             [
                 "jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                "params": ["name": "loudness", "arguments": ["package": package.path], "_meta": ["progressToken": 1]],
+                "params": ["name": name, "arguments": arguments, "_meta": ["progressToken": 1]],
             ])
         await until("the job holds after its first progress line") { run.isHolding }
         try write(stdin, ["jsonrpc": "2.0", "method": "notifications/cancelled", "params": ["requestId": 2]])
@@ -87,7 +88,22 @@ struct LiveStdinTests {
         withExtendedLifetime(stdin) {}
         let lines = run.all
         #expect(lines.contains { $0["id"] as? Int == 3 }, "the ping after the cancel has its answer: \(lines)")
-        #expect(!lines.contains { $0["id"] as? Int == 2 }, "a cancelled call has no answer: \(lines)")
+        #expect(!lines.contains { $0["id"] as? Int == 2 }, "a cancelled \(name) has no answer: \(lines)")
+        return lines
+    }
+
+    @Test func aLiveCancelEndsTheLoudness() async throws {
+        let package = try package()
+        _ = try await cancelled("loudness", ["package": package.path])
+    }
+
+    /// The export of 3 s has three chunks; the cancel comes after the first one. No file stays.
+    @Test func aLiveCancelEndsTheExport() async throws {
+        let package = try package()
+        let out = package.folder.appending(path: "mix.wav")
+        _ = try await cancelled("export", ["package": package.path, "out": out.path])
+        let left = try FileManager.default.contentsOfDirectory(atPath: package.folder.path)
+        #expect(left == ["Show.dirigible"], "a cancelled export left a file: \(left)")
     }
 }
 

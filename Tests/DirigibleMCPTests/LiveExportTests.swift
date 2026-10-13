@@ -1,0 +1,148 @@
+import DirigibleCore
+import Foundation
+import Testing
+
+@testable import DirigibleAudio
+@testable import DirigibleMCP
+
+/// `export` on a package that the app has open: it runs through `Studio.export` (decision 0049,
+/// C9). The package has clip `c1` of 3 s, so the export has three chunks.
+@MainActor
+struct LiveExportTests {
+    let package: LivePackage
+    var out: URL { package.folder.appending(path: "mix.wav") }
+    var arguments: [String: String] { ["package": package.path, "out": out.path] }
+
+    init() throws {
+        package = try LivePackage()
+        try package.addTone()
+    }
+
+    /// The files beside the package.
+    func outputs() throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: package.folder.path).filter { $0 != "Show.dirigible" }
+    }
+
+    /// Opens the studio with its export held at chunk 2, and starts a server for it.
+    func open(_ hold: ChunkHold) async throws -> (Studio, AgentServer, SocketFolder) {
+        let studio = try await package.open()
+        studio.environment.exportChunk = { hold.step() }
+        let (server, folder) = try liveServer(studio)
+        return (studio, server, folder)
+    }
+
+    /// The bridge gets progress values that grow, before the reply, and the reply is the CLI text.
+    @Test func liveExportReportsProgress() async throws {
+        let hold = ChunkHold(at: 3)
+        defer { hold.release() }
+        let (studio, server, folder) = try await open(hold)
+        defer { server.stop() }
+        let (sent, socket, arguments) = (Sent(), folder.socket, arguments)
+        let call = Task {
+            await onThread {
+                let control = CallControl(token: 1, interval: .zero, send: sent.send, poll: { _ in false }, step: {})
+                return AgentBridge(socket: socket, timeout: .seconds(120)).call(
+                    tool: "export", arguments: arguments, client: testClient, control: control)
+            }
+        }
+        await until("no progress line before the last chunk") { !sent.progress(token: 1).isEmpty }
+        hold.release()
+        let outcome = await call.value
+
+        #expect(outcome == .reply(.result(text: "OK", isError: false)))
+        let values = sent.progress(token: 1)
+        #expect(zip(values, values.dropFirst()).allSatisfy { $0 < $1 } && values.allSatisfy { $0 < 100 }, "\(values)")
+        #expect(try outputs() == ["mix.wav"])
+        await studio.settle()
+    }
+
+    /// A cancel line on stdin closes the bridge, the listener cancels the call task, and the
+    /// export ends with no file and no answer.
+    @Test func aCancelOfTheCallEndsTheExport() async throws {
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        let (studio, server, folder) = try await open(hold)
+        defer { server.stop() }
+        let stdin = try StdinPipe()
+        let (socket, fd) = (folder.socket, stdin.readFD)
+        stdin.put(progressCall("export", arguments, id: 7))
+        let answers = Task {
+            await onThread { () -> [String?] in
+                let input = LineInput(fd: fd)
+                var server = MCPServer(
+                    route: AgentBridge(socket: socket, input: input).route, pollCancel: input.pollCancel)
+                var answers: [String?] = []
+                while let line = input.next() { answers.append(server.answer(line)) }
+                return answers
+            }
+        }
+        await until("the export does not hold") { hold.isHeld && server.connected == 1 }
+        stdin.put(
+            MCPServer.encode(["jsonrpc": "2.0", "method": "notifications/cancelled", "params": ["requestId": 7]]))
+        // The listener cancels the call task before it counts the closed connection.
+        await until("the bridge did not close") { server.connected == 0 }
+        hold.release()
+        await until("the export did not end") { studio.exportProgress == nil }
+        stdin.closeWrite()
+        let all = await answers.value
+        // The pipe closes its read end when it goes, so it lives until the server thread ends.
+        withExtendedLifetime(stdin) {}
+
+        #expect(all.count == 2 && all.allSatisfy { $0 == nil }, "the cancelled export got an answer: \(all)")
+        #expect(try outputs() == [], "a cancelled export left a file")
+        await studio.settle()
+    }
+
+    /// Cancel in the export sheet and a take start end the export, and the agent gets the cause.
+    @Test(arguments: [
+        (ExportStop.user, "The user cancelled the export in Dirigible. No file was written."),
+        (.take, "A take started in Dirigible, so the export stopped. No file was written."),
+    ])
+    func aStopInTheAppGivesItsText(stop: ExportStop, text: String) async throws {
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        let (studio, server, folder) = try await open(hold)
+        defer { server.stop() }
+        let (socket, arguments) = (folder.socket, arguments)
+        let call = Task { await send(socket, "export", arguments) }
+        await until("the export does not hold") { hold.isHeld }
+
+        let end = Task {
+            if stop == .user { studio.cancelExport() } else { await studio.endExport(.take) }
+        }
+        // The stop sets its cause and cancels before the held chunk goes on.
+        await until("the stop did not start") { studio.exportStop == stop }
+        hold.release()
+        await end.value
+        let outcome = await call.value
+
+        #expect(outcome == .reply(.result(text: text, isError: true)))
+        #expect(try outputs() == [], "a stopped export left a file")
+        await studio.settle()
+    }
+}
+
+/// Holds the export of a studio once, at chunk `at`, until `release`.
+final class ChunkHold: @unchecked Sendable {
+    private let lock = NSLock()
+    private let semaphore = DispatchSemaphore(value: 0)
+    private let at: Int
+    private var calls = 0
+    private var held = false
+
+    init(at: Int) { self.at = at }
+
+    var isHeld: Bool { lock.withLock { held } }
+
+    func step() {
+        let hold = lock.withLock {
+            calls += 1
+            held = held || calls == at
+            return calls == at
+        }
+        if hold { semaphore.wait() }
+    }
+
+    /// A second release leaves the semaphore at 1, which no later step reads.
+    func release() { semaphore.signal() }
+}

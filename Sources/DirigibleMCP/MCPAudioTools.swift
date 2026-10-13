@@ -7,6 +7,40 @@ import Foundation
 private let loudnessClips = Param<[String]?>.optional(
     "clips", "The IDs of the clips to measure. The default is every clip.", .strings())
 
+private let out = Param.required(
+    "out", "The absolute path of the output file, outside each session package. It must not exist, unless replace.",
+    .string)
+private let bits = Param<Int?>.optional(
+    "bits", "The bit depth of WAV and FLAC: 16 or 24. The default is 24.", .integer())
+private let bitrate = Param<Int?>.optional(
+    "bitrate", "The AAC or MP3 bit rate in kbit/s: 64, 96, 128, 160, 192, or 256. The default is 128.", .integer())
+private let mono = Param.defaulted("mono", "Fold the mix to one channel: 0.5 x (L + R).", .boolean, false)
+private let rate = Param<Int?>.optional(
+    "rate", "The file rate in Hz: 44100 or 48000. The default is the session rate.", .integer())
+private let from = Param.defaulted("from", "The first frame.", .integer(), 0)
+private let to = Param<Int?>.optional(
+    "to", "The frame after the last frame. The default is the session end.", .integer())
+private let tracks = Param<[String]?>.optional(
+    "track", "The IDs of the tracks to export. The default is every track.", .strings())
+private let loudnessTarget = Param<String?>.optional(
+    "loudness", "Normalize to a loudness target: podcast (-16), speech (-18), ebu (-23), or atsc (-24) LUFS.", .string)
+private let replace = Param.defaulted("replace", "Replace the output file when it exists.", .boolean, false)
+private let allowMissing = Param.defaulted(
+    "allow_missing", "Export the clips of a missing, short, or unreadable file as silence, with a warning.", .boolean,
+    false)
+
+/// The text of a tool call that stops before its end: the agent must read the result first.
+private let cancelNote =
+    " A cancel stops it, and no file is written; a cancel at the end can be late, so check the output file."
+
+/// Refuses a relative `out` first: the option checks resolve a relative path against the working
+/// folder of the server, which can differ from the folder of the agent.
+private func outPath(_ arguments: Arguments) throws(ToolError) -> String {
+    let path = try arguments[out]
+    guard path.hasPrefix("/") else { throw ToolError("The argument \"out\" must be an absolute path.") }
+    return path
+}
+
 let audioTools = [
     Tool(
         "loudness",
@@ -14,7 +48,44 @@ let audioTools = [
             + "clip ID, a tab, and the BS.1770 loudness with the clip gain, \"none\", \"missing\", or \"unreadable\". "
             + "It writes nothing. A cancel stops the measure.",
         [loudnessClips], saves: false
-    ) { a throws(ToolError) in .loudness(clips: try a[loudnessClips] ?? []) }
+    ) { a throws(ToolError) in .loudness(clips: try a[loudnessClips] ?? []) },
+    Tool(
+        "export",
+        "Export the session mix to WAV, AAC (.m4a), MP3, or FLAC, as dirigible export. The extension of out gives "
+            + "the format. The text is the loudness line with a loudness target, then the warning lines, or OK. A "
+            + "file in the range that is missing, short, or unreadable refuses the export, unless allow_missing."
+            + cancelNote,
+        [out, bits, bitrate, mono, rate, from, to, tracks, loudnessTarget, replace, allowMissing], saves: false
+    ) { a throws(ToolError) in
+        // The type of each argument first, then the path, then the option rules.
+        let (depth, kbits, folds, hertz, target) = (
+            try a[bits], try a[bitrate], try a[mono], try a[rate], try a[loudnessTarget]
+        )
+        let (first, end, ids, replaces, allows) = (
+            try a[from], try a[to], try a[tracks] ?? [], try a[replace], try a[allowMissing]
+        )
+        let path = try outPath(a)
+        let options = try ExportText.options(
+            out: path, bits: depth, bitrate: kbits, mono: folds, rate: hertz, loudness: target)
+        return .export(
+            ExportWork(
+                out: path, options: options, from: first, to: end, tracks: ids.map { TrackID($0) },
+                replace: replaces, allowMissing: allows))
+    },
+    Tool(
+        "render",
+        "Render the session mix to a 32-bit float stereo CAF file at the session rate, as dirigible render. A "
+            + "missing or short file renders as silence, with a warning line. The text is the warning lines, or OK."
+            + cancelNote,
+        [out, from, to], saves: false
+    ) { a throws(ToolError) in
+        let (first, end) = (try a[from], try a[to])
+        let path = try outPath(a)
+        try ExportText.checkOutsidePackages(URL(filePath: path))
+        return .export(
+            ExportWork(
+                out: path, options: .render, from: first, to: end, tracks: [], replace: false, allowMissing: true))
+    },
 ]
 
 /// The clips of `dirigible loudness` and the `loudness` tool: each clip, track by track in

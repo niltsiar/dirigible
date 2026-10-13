@@ -55,10 +55,10 @@ struct AgentSettingsView: View {
     var body: some View {
         Toggle(L10n.settingsAgents.key, isOn: $on).toggleStyle(.switch)
             .onChange(of: on) { _, new in app.setAgents(new) }
-        Text(help.key).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        Text(help.key).settingsHelp()
         let commands = SetupClient.allCases.compactMap(command)
         if commands.isEmpty {
-            Text(L10n.settingsAgentsMoveFirst.key).font(.callout).foregroundStyle(.secondary)
+            Text(L10n.settingsAgentsMoveFirst.key).settingsHelp()
         } else {
             Menu {
                 ForEach(commands, id: \.title) { item in Button(item.title) { copy(item.text) } }
@@ -74,7 +74,7 @@ struct AgentSettingsView: View {
                 .frame(width: 220)
             }
             .fixedSize()
-            Text(L10n.settingsAgentsCopyHint.key).font(.callout).foregroundStyle(.secondary)
+            Text(L10n.settingsAgentsCopyHint.key).settingsHelp()
         }
     }
 

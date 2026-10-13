@@ -72,16 +72,28 @@ struct SettingsView: View {
                 Text(verbatim: "English").tag(LanguageChoice.english)
                 Text(verbatim: "Español").tag(LanguageChoice.spanish)
             }
-            Text(L10n.settingsLanguageRestart.key).font(.callout).foregroundStyle(.secondary)
+            Text(L10n.settingsLanguageRestart.key).settingsHelp()
             if let app {
                 Divider()
                 AgentSettingsView(app: app)
             }
         }
+        // No fixed width: the window takes the width of the longest label in the app language.
+        // fixedSize: the window takes the ideal size, not the largest size of the form.
         .padding(20)
-        .frame(width: 420)
+        .fixedSize()
         .onChange(of: choice) { _, new in
             if let defaults { new.write(to: defaults) }
         }
+    }
+}
+
+extension Text {
+    /// A help line of Settings. It wraps at 260 pt, so that the window does not grow to the width
+    /// of a long line. A fixed width, not a maximum: the ideal height of the window then counts
+    /// the wrapped lines.
+    func settingsHelp() -> some View {
+        font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            .frame(width: 260, alignment: .leading)
     }
 }

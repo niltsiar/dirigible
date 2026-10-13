@@ -120,6 +120,9 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
     let studio = try #require(await model.opened() ? model.studio : nil)
     let window = try #require(model.window)
     await until("the window shows the lanes") { model.timelineView?.window != nil }
+    // The first read of the shared device list is async. Its result runs each header row again,
+    // so a test that counts body runs waits for it.
+    await until("the device list has its first read") { model.deviceList.reads > 0 }
     app.key = model
     return (model, studio, window, try #require(model.timelineView))
 }

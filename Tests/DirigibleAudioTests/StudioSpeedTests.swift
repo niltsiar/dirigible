@@ -105,6 +105,41 @@ struct StudioSpeedTests {
         #expect(studio.speed == .x150)
     }
 
+    /// Code gate 1 item 5: a Space during the await of a speed change wins. The Player lost its
+    /// feed behind the Studio (as after a failed engine start), so the change from 1.5 to 2
+    /// needs a new play. The Player queue is held, so the Space comes in the await.
+    @Test func aStopDuringASpeedChangeWins() async throws {
+        let studio = try await studio()
+        await studio.changeSpeed(to: .x150)
+        await studio.perform(.playStop)
+        let player = try #require(studio.play.player)
+        await player.apply(.stop, number: studio.play.feed + 1)
+        let hold = DispatchSemaphore(value: 0)
+        player.queue.async { hold.wait() }
+        let change = Task { await studio.changeSpeed(to: .x200) }
+        let stop = Task { await studio.perform(.playStop) }
+        await until("the Space took its feed number") { studio.playback == .stopped }
+        hold.signal()
+        await change.value
+        await stop.value
+        #expect(studio.playback == .stopped)
+        #expect(await !player.reading().running, "the speed change started a play after the Space")
+    }
+
+    /// Code gate 1 item 5: with no stop in the await, a change that the unit cannot take plays
+    /// again at the new speed.
+    @Test func aChangeWithNoFeedPlaysAgain() async throws {
+        let studio = try await studio()
+        await studio.changeSpeed(to: .x150)
+        await studio.perform(.playStop)
+        let player = try #require(studio.play.player)
+        studio.play.feed += 1
+        await player.apply(.stop, number: studio.play.feed)
+        await studio.changeSpeed(to: .x200)
+        #expect(await player.reading().running, "no new play after the change")
+        await studio.perform(.playStop)
+    }
+
     /// V13: with no unit, the speed stays 1 and the control is off.
     @Test func unitFailureKeepsOne() async throws {
         let studio = try await studio(unit: { nil })

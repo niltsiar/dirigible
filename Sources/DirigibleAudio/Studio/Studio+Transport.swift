@@ -179,7 +179,12 @@ extension Studio {
         guard isIdle, canChangeSpeed, new != old else { return }
         play.speed = new
         guard let shuttle = play.playback.shuttle, shuttle.rate == .one else { return }
-        if old != .one, new != .one, let player = play.player, await player.setSpeed(new) { return }
+        if old != .one, new != .one, let player = play.player {
+            let before = play.feed
+            if await player.setSpeed(new) { return }
+            // A stop, a seek, or Record in the await ended this play: no new play.
+            guard play.feed == before, isIdle else { return }
+        }
         let number = await endFeed(stop: false)
         if play.feed == number { await startPlay(shuttle, from: play.playhead, number: number) }
     }

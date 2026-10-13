@@ -131,6 +131,17 @@ The in point is the start of the selection, and the out point is the end. With n
 - **Go to Start**, **Go to End**, **Previous Clip Edge**, and **Next Clip Edge** move the playhead.
 - When **View > Automatic Scroll** is on, the view follows the playhead during play, and the record head during a take. If you scroll left or right during play or a take, the view stays there. It follows again after the head goes out of the view and comes back into it. A scroll up or down does not stop the follow.
 
+### Play at a different speed
+
+You can play the session faster or slower, and the voices keep their pitch. This helps you to listen to a long interview in less time.
+
+- Choose **Transport > Playback Speed**, or choose the speed in the **Speed** pop-up menu of the toolbar. The speeds are 0.75x, 1x, 1.25x, 1.5x, 1.75x, and 2x.
+- Press Period to change between 1x and the last speed that you used. The first time, the last speed is 1.5x. Dirigible keeps the last speed after you quit.
+- Press ">" for a faster speed and "<" for a slower speed. On a Spanish keyboard, "<" is the key to the left of Z, and ">" is Shift and the same key.
+- When the speed is not 1x, the pop-up shows it in the accent color.
+- The speed applies to **Play or Stop** and to the first **Play Forward**. **Play Backward**, the second and third **Play Forward**, and the slow play commands play at their own rate, with the pitch of a tape.
+- During a take, the speed keys do nothing. The speed does not change an export.
+
 ### Zoom
 
 - Choose **View > Zoom In**, **View > Zoom Out**, or **View > Zoom to Session**.
@@ -684,6 +695,14 @@ The **Transport** menu (**Transporte**).
 | **Go to End** | **Ir al final** | End |
 | **Previous Clip Edge** | **Borde de clip anterior** | Shift-Left Arrow |
 | **Next Clip Edge** | **Borde de clip siguiente** | Shift-Right Arrow |
+
+The **Playback Speed** submenu (**Velocidad de reproducción**) has these commands and one item for each speed.
+
+| Command | Spanish name | Key |
+|---|---|---|
+| **Vari-Speed** | **Velocidad variable** | Period |
+| **Faster** | **Más rápido** | > |
+| **Slower** | **Más lento** | < |
 
 ### Window
 

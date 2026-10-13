@@ -246,6 +246,11 @@
 "menu.transport.end" = "Go to End";
 "menu.transport.previous" = "Previous Clip Edge";
 "menu.transport.next" = "Next Clip Edge";
+"menu.transport.speed" = "Playback Speed";
+"menu.transport.speed.toggle" = "Vari-Speed";
+"menu.transport.speed.faster" = "Faster";
+"menu.transport.speed.slower" = "Slower";
+"speed.spoken" = "%@ times";
 "menu.window.start" = "Start Window";
 "transport.record" = "Record";
 "transport.stop" = "Stop";
@@ -422,6 +427,7 @@
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Levels";
 "toolbar.time" = "Playhead";
+"toolbar.speed" = "Speed";
 "toolbar.zoom.fit" = "Fit";
 "toolbar.export" = "Export";
 "toolbar.inspector" = "Inspector";

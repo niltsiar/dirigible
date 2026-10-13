@@ -26,6 +26,9 @@ import UniformTypeIdentifiers
     /// no value is stored.
     var snaps: Bool { didSet { defaults?.set(snaps, forKey: Self.snapKey) } }
     static let snapKey = "timeline.snaps"
+    /// The speed that Period turns on (decision 0048): the last speed other than 1.
+    var lastSpeed: Speed { didSet { defaults?.set(lastSpeed.factor, forKey: Self.speedKey) } }
+    static let speedKey = "playback.lastSpeed"
 
     @ObservationIgnored let recordings: ActiveRecordings?
     /// The peak cache folder of every studio (decision 0017). Nil: no peaks (tests).
@@ -136,6 +139,7 @@ import UniformTypeIdentifiers
         self.peakCache = peakCache
         self.defaults = defaults
         snaps = defaults?.object(forKey: Self.snapKey) as? Bool ?? true
+        lastSpeed = Self.lastSpeed(stored: defaults?.object(forKey: Self.speedKey))
         // Only absolute paths, as for the folder preference. The hint reads no file.
         recent = (defaults?.stringArray(forKey: Self.recentKey) ?? []).filter { $0.hasPrefix("/") }.map {
             URL(fileURLWithPath: $0, isDirectory: true)

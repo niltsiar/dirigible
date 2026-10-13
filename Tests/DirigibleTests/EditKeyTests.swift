@@ -65,8 +65,8 @@ import Testing
     }
 
     /// Timeline-navigation N17 (U6, probe K1, plan gate item 2): a symbol or digit key with Shift
-    /// and without Shift is one key at run time, a shifted character is no key, and the reserved
-    /// system keys count. Space, Return, Delete, and the arrows keep Shift.
+    /// and without Shift is one key at run time, a shifted character with a modifier is no key, and
+    /// the reserved system keys count. Space, Return, Delete, and the arrows keep Shift.
     @Test func theKeyRuleFindsTheRunTimeRepeats() {
         let command = KeyboardShortcut("+")
         #expect(
@@ -74,6 +74,8 @@ import Testing
             "Shift-Command-plus repeats Command-plus")
         #expect(KeyRule.problems([KeyboardShortcut("_")]) == ["shifted character: _"])
         #expect(KeyRule.problems([KeyboardShortcut("*", modifiers: [.command, .shift])]) == ["shifted character: *"])
+        // Vari-speed V8: a plain ">" item gets the typed ">" on the US and Spanish layouts.
+        #expect(KeyRule.problems([KeyboardShortcut(">", modifiers: [])]) == [])
         #expect(
             KeyRule.problems([KeyboardShortcut("=", modifiers: [.command, .option])] + MenuKeys.all)
                 == ["repeat: = ⌥⌘"], "Option-Command-= is a system key")
@@ -208,7 +210,8 @@ import Testing
 /// The key check of the menus (timeline-navigation N17). A key equivalent matches the characters
 /// of the event (probe K1): the US Shift-Command-= gives "+" and reaches Command-"+". So Shift does
 /// not count for a printable symbol or digit key, and a character that needs Shift or Option on
-/// both the US and the Spanish layout is no key at all. Letters, Space, Return, Delete, the arrows,
+/// both the US and the Spanish layout is no key with Command, Option, or Control. With no modifier
+/// the item matches the typed character (`SpeedKeyTests.spanishISOKeysStepTheSpeed`). Letters, Space, Return, Delete, the arrows,
 /// and the function keys keep Shift.
 enum KeyRule {
     static let shifted = Set("!\"#$%&()*:>?@^_{|}~")
@@ -227,7 +230,7 @@ enum KeyRule {
             let symbol = character.isASCII && (character.isPunctuation || character.isSymbol || character.isNumber)
             return symbol ? KeyboardShortcut(key.key, modifiers: key.modifiers.subtracting(.shift)) : key
         }
-        let refused = keys.filter { shifted.contains($0.key.character) }.map {
+        let refused = keys.filter { shifted.contains($0.key.character) && !$0.modifiers.isEmpty }.map {
             "shifted character: \($0.key.character)"
         }
         let groups = Dictionary(grouping: keys, by: normal).filter { $0.value.count > 1 }

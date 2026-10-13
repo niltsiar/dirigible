@@ -119,8 +119,9 @@ public struct UnusedFiles: Hashable, Sendable {
         try prune(&session, save: save, trash: Self.trash)
     }
 
-    /// `prune` with the async save of `Studio`, in the same order.
-    public func prune(_ session: inout Session, save: (Session) async throws(SessionFileError) -> URL)
+    /// `prune` with the async save of `Studio`, in the same order. `save` also gets the items that
+    /// move, after the `unused(in:)` filter, so the caller makes the same pool change in memory.
+    public func prune(_ session: inout Session, save: (Session, UnusedFiles) async throws(SessionFileError) -> URL)
         async throws(UnusedFilesError) -> PruneReport
     {
         let live = unused(in: session)
@@ -129,7 +130,7 @@ public struct UnusedFiles: Hashable, Sendable {
         }
         let package: URL
         do throws(SessionFileError) {
-            package = try await save(pruned)
+            package = try await save(pruned, live)
         } catch {
             throw .save(error)
         }

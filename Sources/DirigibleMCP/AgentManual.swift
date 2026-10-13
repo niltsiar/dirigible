@@ -134,6 +134,15 @@ extension AgentManual.Recipe {
     }
 }
 
+/// The `Contents` folder of the app that holds `executable` at `<name>.app/Contents/<folder>/<tool>`,
+/// after symlinks, or nil outside an app.
+package func appContents(of executable: URL) -> URL? {
+    let contents = executable.resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+    guard contents.lastPathComponent == "Contents", contents.deletingLastPathComponent().pathExtension == "app"
+    else { return nil }
+    return contents
+}
+
 /// `text` in single quotes for a POSIX shell: each `'` becomes `'\''`.
 package func shellQuoted(_ text: String) -> String {
     "'" + text.replacingOccurrences(of: "'", with: #"'\''"#) + "'"

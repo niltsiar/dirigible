@@ -68,7 +68,10 @@ struct AgentManualCommandTests {
         #expect(shown.status == 0 && shown.stdout == AgentManual.skill)
         let text = shown.stdout
         #expect(text.hasPrefix("---\nname: dirigible\ndescription: ") && text.contains("\n---\n"))
-        #expect(text.contains("Run `realpath <the folder of this file>`"))
+        // The realpath step goes first, and the /Applications path is only for a copy (Phase 7: an
+        // agent skipped the step and ran the CLI of /Applications, which the allow rule refused).
+        #expect(text.contains("First run `realpath <the base folder of this skill>`"))
+        #expect(text.contains("Only when the result is not in an app (a copy of this skill)"))
         let absolute = text.matches(of: /[\s`'"(](\/[^\s`'")]+)/).map { String($0.1) }
         #expect(absolute == ["/Applications/Dirigible.app/Contents/Helpers/dirigible"], "\(absolute)")
         for recipe in AgentManual.recipes {

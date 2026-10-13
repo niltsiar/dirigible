@@ -329,7 +329,8 @@ func subtitleText(
 }
 
 /// The trailing title bar mark of a connected agent (ui-panel.md): the `sparkles` symbol and
-/// "Agent" in secondary gray, with no animation. It starts hidden.
+/// "Agent" in secondary gray, with no animation. The session chrome adds it to the title bar only
+/// while an agent is connected.
 @MainActor func agentMarkAccessory() -> NSTitlebarAccessoryViewController {
     let image = NSImageView(
         image: NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil) ?? NSImage())
@@ -344,9 +345,10 @@ func subtitleText(
     stack.setAccessibilityElement(true)
     stack.setAccessibilityRole(.staticText)
     stack.setAccessibilityLabel(L10n.agentMarkHelp.text)
+    // The title bar sizes a trailing accessory from the frame of its view, not from Auto Layout.
+    stack.frame.size = stack.fittingSize
     let accessory = NSTitlebarAccessoryViewController()
     accessory.layoutAttribute = .trailing
     accessory.view = stack
-    accessory.isHidden = true
     return accessory
 }

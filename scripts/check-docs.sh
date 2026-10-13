@@ -264,7 +264,7 @@ else
     e38="$(awk '/^## / { inside = ($0 ~ /^## Scenarios[[:space:]]*$/); next }
         inside && /^\| E38 \|/ { k = split($0, cell, "|"); print cell[k - 3]; exit }' "$evals")"
     for f in "$root"/Sources/DirigibleMCP/*.swift; do
-        [[ -f "$f" ]] && grep -qE '^ *((public|internal|private|fileprivate) )?let [A-Za-z0-9_]+Tools *[:=]' "$f" || continue
+        [[ -f "$f" ]] && grep -qE '^ *((public|package|internal|private|fileprivate) )?(static )?let [A-Za-z0-9_]+Tools *[:=]' "$f" || continue
         rel="${f#"$root"/}"
         [[ "$e38" == *"\`$rel\`"* ]] || err "docs/workflow/evals.md: the Files cell of E38 has no \`$rel\` (it defines a tools array)"
     done

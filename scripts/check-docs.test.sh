@@ -177,6 +177,8 @@ good; sed -i '' 's|, `Sources/DirigibleMCP/XTools.swift`||' "$tmp/docs/workflow/
 expect fail 'a tools file that the E38 Files cell does not name' 'docs/workflow/evals.md: the Files cell of E38 has no `Sources/DirigibleMCP/XTools.swift` (it defines a tools array)'
 good; sed -i '' 's|`Sources/DirigibleMCP/XTools.swift`|`Sources/DirigibleMCP/XTools.swift.bak`|' "$tmp/docs/workflow/evals.md"
 expect fail 'a longer path in the E38 Files cell' 'docs/workflow/evals.md: the Files cell of E38 has no `Sources/DirigibleMCP/XTools.swift`'
+good; printf '    package static let yTools = [Tool(name: "y")]\n' > "$tmp/Sources/DirigibleMCP/YTools.swift"
+expect fail 'a package static tools array that the E38 Files cell does not name' 'docs/workflow/evals.md: the Files cell of E38 has no `Sources/DirigibleMCP/YTools.swift` (it defines a tools array)'
 good; sed -i '' 's/description, Invariant,/description, Rule,/' "$tmp/.claude/skills/interrogate/SKILL.md"
 expect fail 'an Act on format with another field than check-plan.sh' '.claude/skills/interrogate/SKILL.md: the Act on line of ## Output format has no Invariant (a field of scripts/check-plan.sh)'
 good; sed -i '' 's/^- \*\*Act on:\*\*/- **Fix:**/' "$tmp/.claude/skills/interrogate/SKILL.md"

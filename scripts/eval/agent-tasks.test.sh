@@ -25,6 +25,8 @@ cat >"$tmp/bin/claude" <<'EOF'
 #!/bin/bash
 skill=missing
 [[ -f .claude/skills/dirigible/SKILL.md ]] && skill=ok
+# On T2, remove the out folder, so the step after the claude run fails.
+[[ $2 != *"trim the silence"* ]] || rm -rf ../out
 echo '{"type": "system", "subtype": "init", "skills": []}'
 echo "{\"type\": \"result\", \"result\": \"skill-$skill\", \"total_cost_usd\": 0}"
 EOF
@@ -47,6 +49,15 @@ grep -q skill-ok "$tmp/results/skill/T5/stream.jsonl" 2>/dev/null \
 FAKE_WARNING=1 run warning T5
 python3 -I -c 'import json, sys; json.load(open(sys.argv[1]))' "$tmp/results/warning/T5/after.json" 2>/dev/null \
     || fail "a stderr warning makes after.json invalid: $(cat "$tmp/warning.log")"
+
+# A failed task fails the batch and leaves no task folder (code gate 1 item 8).
+before="$(ls -d /private/tmp/dirigible-e38-* 2>/dev/null | wc -l)"
+if run broken T2 T3; then
+    fail "a failed task gives exit 0: $(cat "$tmp/broken.log")"
+fi
+grep -q "the runner failed on T2$" "$tmp/broken.log" || fail "the runner does not name the failed task: $(cat "$tmp/broken.log")"
+after="$(ls -d /private/tmp/dirigible-e38-* 2>/dev/null | wc -l)"
+[[ $after -le $before ]] || fail "a failed task leaves $((after - before)) task folders in /private/tmp"
 
 if [[ $failures -gt 0 ]]; then
     echo "agent-tasks tests: $failures failed"

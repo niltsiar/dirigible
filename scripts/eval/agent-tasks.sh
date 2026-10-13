@@ -56,7 +56,8 @@ trap 'rm -rf "$base"' EXIT
 # run_task <task> <label> <variant>: one claude run in a new task folder.
 run_task() {
     local task="$1" out="$results/$2/$1" variant="$3" t
-    t="$(mktemp -d /private/tmp/dirigible-e38-XXXXXX)"
+    # In the batch folder, so the trap removes it also after a failure or an interrupt.
+    t="$(mktemp -d "$base/task-XXXXXX")"
     mkdir -p "$t/out" "$t/tmp" "$t/cwd" "$out"
     cp -R "$base/Show.dirigible" "$t/Show.dirigible"
     cp "$bin" "$t/dirigible"
@@ -94,8 +95,12 @@ variant=mcp
 run_task T4 "smoke-$label" mcp
 smoke="$(python3 -I "$here/agent-grade.py" "$results" "smoke-$label" | awk -F'\t' -v l="smoke-$label" '$1 == l && $2 == "T4" { print $4 }')"
 [[ $smoke == pass ]] || { echo "agent-tasks.sh: the smoke task T4 is $smoke, not pass; no batch" >&2; exit 1; }
+pids=()
 for task in "${tasks[@]}"; do
     run_task "$task" "$label" "$variant" &
+    pids+=("$!")
 done
-wait
+failed=()
+for i in "${!pids[@]}"; do wait "${pids[$i]}" || failed+=("${tasks[$i]}"); done
 python3 -I "$here/agent-grade.py" "$results" "$label"
+[[ ${#failed[@]} -eq 0 ]] || { echo "agent-tasks.sh: the runner failed on ${failed[*]}" >&2; exit 1; }

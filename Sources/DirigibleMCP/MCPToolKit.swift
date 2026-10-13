@@ -230,7 +230,8 @@ struct Arguments {
     }
 }
 
-/// One MCP tool: the name, the description, the parameters after `package`, and the work of a call.
+/// One MCP tool of one of two kinds: a package tool, with the parameters after `package` and the
+/// work of a call, or a tool that reads this Mac and takes no argument (`lines`).
 struct Tool: Sendable {
     let name: String
     let description: String

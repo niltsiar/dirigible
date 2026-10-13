@@ -7,13 +7,14 @@ let sourceTools = [
     Tool(
         "devices",
         "List the input devices of this Mac: one line for each device with the UID, the name, the input channels, "
-            + "and the nominal rate, split by tabs. Give the UID as device to track_route or track_add_call."
+            + "and the nominal rate, split by tabs. Give the UID as device to track_route or track_add_call. It "
+            + "takes no argument."
     ) { deviceText(InputDevice.all()) },
     Tool(
         "apps",
         "List the running apps that can be a track source: one line for each app with the bundle ID, the name, and "
             + "1 when the app plays sound now (else 0), split by tabs. Give the bundle ID as app to track_route or "
-            + "track_add_call."
+            + "track_add_call. It takes no argument."
     ) {
         let taps = processTapsAvailable
         return appText(taps ? RunningApp.all() : [], tapsAvailable: taps)

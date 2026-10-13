@@ -104,12 +104,15 @@ struct AgentManualTests {
         #expect(ripple.contains("Cut from the last range to the first."), "\(ripple)")
     }
 
-    /// W8: the transcript is of the current session, the ranges merge, the user agrees before the
-    /// first cut, and the cuts go from the last range to the first.
+    /// W8: the transcript is of the current session with each track heard, the ranges merge, the
+    /// user agrees before the first cut, and the cuts go from the last range to the first. A cut
+    /// ripples each track, so a track that the export left out stops the recipe (code gate 1 item 1).
     @Test func theTranscriptRecipeCutsFromTheLast() {
         let steps = Self.steps("cut-from-transcript")
         for text in [
-            "of the current session from frame 0", "merge ranges that overlap", "the sample rate of `session_info`",
+            "of the current session from frame 0 with each track heard", "muted or not soloed, stop and ask the user",
+            "of the current session with each track heard", "merge ranges that overlap",
+            "the sample rate of `session_info`",
             "before the first cut", "`clip_ripple_delete` with no `track`", "from the last range to the first",
         ] {
             #expect(steps.contains(text), "the transcript recipe does not say \(text)")

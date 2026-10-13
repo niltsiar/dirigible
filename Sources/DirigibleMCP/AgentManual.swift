@@ -36,9 +36,9 @@ package enum AgentManual {
         Recipe(
             phase: .prepare, name: "prepare-tracks", title: "Prepare the tracks",
             summary: "Add the tracks of a recording and route each one to an input device, an app, or a call.",
-            steps: "read `session_info`; `devices` lists the input devices (UID, name, channels) and `apps` the apps "
-                + "that can be a source; add a track with `track_add`; route it with `track_route` and `device` with "
-                + "`channels`, or `app`; for a call, `track_add_call`. Report each track and its source."),
+            steps: "`devices` lists the input devices and `apps` the apps that can be a source; add a track with "
+                + "`track_add`; route it with `track_route` and `device` with `channels`, or `app`; for a call, "
+                + "`track_add_call`. Report each track and its source."),
         Recipe(
             phase: .edit, name: "cut-a-range", title: "Cut a range",
             summary: "Remove a time range from all tracks and keep them in sync.",
@@ -46,10 +46,11 @@ package enum AgentManual {
         Recipe(
             phase: .edit, name: "cut-from-transcript", title: "Cut from a transcript",
             summary: "Find words in a transcript with word times, and cut them from all tracks in sync.",
-            steps: "the transcript must be of an `export` of the current session from frame 0: `export` a .wav file "
-                + "and give it to a tool that gives word times, such as Whisper; for a transcript of the user, ask if "
-                + "it is of the current session. Find the words to cut, and merge ranges that overlap. frame = "
-                + "seconds x the sample rate of `session_info`, rounded. A cut on a closed package saves at once: list "
+            steps: "the transcript must be of an `export` of the current session from frame 0 with each track heard: "
+                + "`export` a .wav file for a tool that gives word times, such as Whisper; if the export says that a "
+                + "track is muted or not soloed, stop and ask the user. For a transcript of the user, ask if it is of "
+                + "the current session with each track heard. Find the words to cut, and merge ranges that overlap. "
+                + "Use the sample rate of `session_info`. A cut on a closed package saves at once: list "
                 + "each range with its words and seconds, and get the consent of the user before the first cut, "
                 + "unless the user already agreed. Run `clip_ripple_delete` with no `track` for each range, from the "
                 + "last range to the first; report each cut in seconds."),

@@ -36,6 +36,7 @@ struct UnusedFilesSheet: View {
             .frame(width: 560, height: 220)
             Text(verbatim: L10n.sheetUnusedTotal.format(rows.count, L10n.bytes(rows.map(\.bytes).reduce(0, +))))
             if let kept = L10n.keptLine(scan.kept) { Text(verbatim: kept) }
+            if let damaged = L10n.damagedLine(scan.damagedBackups) { Text(verbatim: damaged) }
             Text(L10n.sheetUnusedFootnote.key).foregroundStyle(.secondary)
             HStack {
                 Spacer()
@@ -57,5 +58,10 @@ extension L10n {
     /// "Kept for a backup or Undo: N (size)", or nil when no file is kept.
     static func keptLine(_ kept: UnusedFiles.Kept) -> String? {
         kept.count == 0 ? nil : sheetUnusedKept.format(kept.count, bytes(kept.bytes))
+    }
+
+    /// The damaged backups that keep no file (decision 0047 D2), or nil when there is none.
+    static func damagedLine(_ backups: [Backup]) -> String? {
+        backups.isEmpty ? nil : sheetUnusedDamaged.format(backups.map { backupTitle($0.saved) }.joined(separator: ", "))
     }
 }

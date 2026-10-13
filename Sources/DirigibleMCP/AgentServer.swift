@@ -3,13 +3,33 @@ import DirigibleCore
 import Foundation
 import Observation
 
-/// A window that an agent call can reach: its studio, and whether the app refuses agent edits
-/// now (a window that is not open, a user drag, or a Quit; C4).
+/// A window that an agent call can reach: its studio, and why the app refuses agent edits now
+/// (C4), or nil.
 package struct AgentTarget {
     package let studio: Studio
-    package let busy: Bool
+    package let busy: AgentBusy?
 
-    package init(studio: Studio, busy: Bool = false) { (self.studio, self.busy) = (studio, busy) }
+    package init(studio: Studio, busy: AgentBusy? = nil) { (self.studio, self.busy) = (studio, busy) }
+}
+
+/// Why the app refuses a live agent edit (C4). The CLI keeps the text of `StudioError.busy`.
+package enum AgentBusy: Sendable {
+    /// The studio is not idle: a take, an import, a level, or the settle of a close.
+    case task
+    case drag
+    case closing
+    case quit
+
+    package func message(package: String) -> String {
+        let cause =
+            switch self {
+            case .task: "a take, an import, a level, or a close runs"
+            case .drag: "a drag runs in its window"
+            case .closing: "its window closes"
+            case .quit: "Dirigible quits"
+            }
+        return "\(package) is busy in Dirigible: \(cause). Try again later."
+    }
 }
 
 /// The app server of decision 0046: the face of `AgentListener` for the app and its views. The

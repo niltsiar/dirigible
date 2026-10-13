@@ -231,7 +231,7 @@ extension StudioError {
     package func message(package: String) -> String {
         switch self {
         case .locked: SessionFileError.locked.message(package: package)
-        case .busy: "\(package) is busy in Dirigible: a take, a drag, or a close runs. Try again later."
+        case .busy: "\(package) is busy with a take."
         case .noRoute(let track): "track \"\(track)\" has no route."
         case .deviceMissing(let track): "the device of track \"\(track)\" is missing."
         case .channelOutOfRange(let track): "the device of track \"\(track)\" does not have its channel."

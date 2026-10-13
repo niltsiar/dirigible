@@ -47,7 +47,7 @@ import Testing
         }
         try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         var replied: Bool?
-        var busyAtTheQuestion: [Bool] = []
+        var busyAtTheQuestion: [AgentBusy?] = []
         app.confirmQuit = { _, _, _ in
             busyAtTheQuestion = app.agentTargets().map(\.busy)
             return false
@@ -59,7 +59,7 @@ import Testing
         await until("the Quit asks") { replied != nil }
 
         #expect(replied == false)
-        #expect(busyAtTheQuestion == [true], "C4: a Quit refuses agent edits")
+        #expect(busyAtTheQuestion == [.quit], "C4: a Quit refuses agent edits")
         #expect(app.agents.state == .listening, "C1: a cancelled Quit keeps the server")
         #expect(FileManager.default.fileExists(atPath: socket.path))
         app.setAgents(false)
@@ -72,14 +72,14 @@ import Testing
     @Test func closingWindowRefusesEdits() async throws {
         let model = await app.open(try folder.package("closing"))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        #expect(app.agentTargets().map(\.busy) == [false])
+        #expect(app.agentTargets().map(\.busy) == [nil])
         let gate = AsyncGate()
         let held = Task { await studio.serialized { await gate.wait() } }
         await gate.entered()
 
         let closing = Task { await model.close() }
         await until("the close did not start") { studio.settling }
-        #expect(app.agentTargets().map(\.busy) == [true], "C4: a closing window refuses agent edits")
+        #expect(app.agentTargets().map(\.busy) == [.closing], "C4: a closing window refuses agent edits")
         gate.open()
         await held.value
         await closing.value
@@ -98,7 +98,7 @@ import Testing
 
         let outcome = await call("track_rename", ["package": package.path, "track": track, "name": "Agent"])
 
-        #expect(outcome == .reply(.result(text: StudioError.busy.message(package: package.path), isError: true)))
+        #expect(outcome == .reply(.result(text: AgentBusy.drag.message(package: package.path), isError: true)))
         #expect(studio.session.tracks.first?.name != "Agent")
         _ = view.cancelGesture()
         await model.close()

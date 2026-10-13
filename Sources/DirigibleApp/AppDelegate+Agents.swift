@@ -28,7 +28,9 @@ extension AppDelegate {
             guard let studio = window.studio else { return nil }
             let open = if case .open = window.phase { true } else { false }
             let dragging = window.timelineView?.gesture.isActive == true
-            return AgentTarget(studio: studio, busy: terminating || !open || dragging)
+            let busy: AgentBusy? =
+                if terminating { .quit } else if !open { .closing } else if dragging { .drag } else { nil }
+            return AgentTarget(studio: studio, busy: busy)
         }
     }
 }

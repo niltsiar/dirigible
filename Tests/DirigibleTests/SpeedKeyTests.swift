@@ -123,7 +123,7 @@ import Testing
         await model.close()
     }
 
-    /// V8: during a take the speed keys do nothing.
+    /// V8: during a take the speed keys do nothing, and the preference stays.
     @Test func aTakeIgnoresTheSpeedKeys() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 1, seconds: 2), app: app)
@@ -135,6 +135,18 @@ import Testing
         try await Task.sleep(for: .milliseconds(200))
 
         #expect(studio.speed == .one)
+        #expect(app.lastSpeed == .x150, "a refused change wrote the preference")
+        await model.close()
+    }
+
+    /// V13: with no speed unit, a speed key changes neither the speed nor the preference.
+    @Test func noUnitKeepsThePreference() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 1, seconds: 2), app: app)
+        studio.environment.speedUnit = { nil }
+        model.speed(.set(.x200))
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(studio.speed == .one && app.lastSpeed == .x150)
         await model.close()
     }
 

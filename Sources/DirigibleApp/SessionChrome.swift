@@ -56,7 +56,6 @@ import Observation
         // A visible title keeps the display-mode menu (Icon and Text).
         window.titleVisibility = .visible
         window.toolbar = toolbar
-        window.addTitlebarAccessoryViewController(agentMark)
         update()
         startTicker()
     }
@@ -160,7 +159,14 @@ import Observation
             }
         }
         if let window, window.subtitle != state.subtitle { window.subtitle = state.subtitle }
-        if agentMark.isHidden == state.agentConnected { agentMark.isHidden = !state.agentConnected }
+        // A hidden trailing accessory still draws (probe), so the mark is added and removed.
+        if let window, window.titlebarAccessoryViewControllers.contains(agentMark) != state.agentConnected {
+            if state.agentConnected {
+                window.addTitlebarAccessoryViewController(agentMark)
+            } else {
+                agentMark.removeFromParent()
+            }
+        }
         guard let model, model.shown != state.shown else { return }
         // A banner of a kind that did not show is announced once.
         for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {

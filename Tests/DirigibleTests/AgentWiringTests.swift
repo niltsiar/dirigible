@@ -109,16 +109,26 @@ import Testing
         let model = await app.open(try folder.package("mark"))
         _ = try #require(await model.opened() ? model.studio : nil)
         let mark = try #require(model.chrome?.agentMark)
-        #expect(mark.isHidden)
+        // A hidden trailing accessory still draws (probe), so the mark is in the title bar only
+        // while an agent is connected.
+        let shown = { mark.view.window != nil && !mark.view.isHiddenOrHasHiddenAncestor }
+        #expect(!shown())
         app.agents.start()
         defer { app.agents.stop() }
 
         let bridge = AgentBridge(socket: socket)
         #expect(bridge.connect())
-        await until("the mark shows") { !mark.isHidden }
+        await until("the mark shows") { shown() }
         #expect(mark.view.toolTip == L10n.agentMarkHelp.text)
+        // The title bar sizes a trailing accessory from the frame of its view: a zero frame draws
+        // the mark 2 pt wide, so the user sees no mark.
+        model.window?.layoutIfNeeded()
+        #expect(
+            mark.view.frame.width >= mark.view.fittingSize.width && mark.view.fittingSize.width > 20,
+            "C12: the mark is \(mark.view.frame.width) pt of \(mark.view.fittingSize.width) pt")
         bridge.disconnect()
-        await until("the mark hides") { mark.isHidden }
+        await until("the mark hides") { !shown() }
+        #expect(!shown(), "C12: the mark stays in the title bar after the agent left")
         await model.close()
     }
 

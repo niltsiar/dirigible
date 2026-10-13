@@ -121,7 +121,7 @@ ls /Applications/Dirigible.app/Contents/Helpers/dirigible && sudo ln -sf /Applic
 
 If you have no administrator rights, add this line to `~/.zprofile` in its place: `export PATH="/Applications/Dirigible.app/Contents/Helpers:$PATH"`. If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`. The guide shows the commands in [The dirigible tool](docs/guide.md#the-dirigible-tool).
 
-An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a session through `dirigible mcp`. Dirigible > Settings > Copy Setup Command copies the setup command of your agent. With Let Agents Edit Open Sessions on, an agent edits an open session in the app, and each edit is one Undo step. See [Connect an AI agent](docs/guide.md#connect-an-ai-agent).
+An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a session through `dirigible mcp`. Dirigible > Settings > Copy Setup Command copies the setup command of your agent. With Let Agents Edit Open Sessions on, an agent edits an open session in the app, and each edit is one Undo step. See [Connect an AI agent](docs/guide.md#connect-an-ai-agent). [What you can ask an agent](docs/guide.md#what-you-can-ask-an-agent) gives example requests, the recipes, and the agent skill.
 
 ## How the project works
 

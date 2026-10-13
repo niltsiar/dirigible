@@ -861,6 +861,33 @@ The 37 tools, in groups:
 - `record` records only in the app, after you agree. On a closed session, or with Let Agents Edit Open Sessions off, it gives an error and records nothing.
 - These commands have no tool. `capture place`, `take finalize`, `import`, `level`, `loudness`, `peaks`, `render`, and `export` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `devices` and `apps` read no package, and `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. Run these commands in the terminal.
 
+#### What you can ask an agent
+
+Dirigible gives the agent a manual: the rules of the tools, the path of the `dirigible` command, and recipes for frequent tasks. Claude Code, Codex, and opencode read the manual when the server starts. For an MCP app that reads no manual, run `dirigible --instructions` and give the text to the agent.
+
+Example requests:
+
+- "Rename Track 1 to Ana and Track 2 to Ben."
+- "Cut 0:30 to 0:40, and keep the host and the guest in sync."
+- "Add the chapter Gear talk at minute 1."
+- "Check the levels of all clips."
+- "Prepare the episode for publishing as an MP3, with its title and show."
+- "Record 10 seconds on the host track." The agent asks with the `record` tool, and you click Record in the app.
+
+An agent with a shell can also run `dirigible record`. It records at once from the routed devices, with no consent sheet. The manual tells the agent to run it only when you ask for a recording. To stop an agent that runs commands, set the permission rules of your agent.
+
+The server also gives four recipes as prompts: `check-levels`, `prepare-for-publishing`, `cut-a-range`, and `add-chapter`. In Claude Code, type `/dirigible:check-levels`; in opencode, `dirigible:check-levels`. Each prompt asks for the path of the session package.
+
+An agent that reads skills can use the Dirigible skill, also with no MCP server. The skill is in the app, and `dirigible skill path` prints its path. Link its folder into the skills folder of your agent. Claude Code reads `~/.claude/skills`; Codex, opencode, and Cursor read `~/.agents/skills`:
+
+```sh
+mkdir -p ~/.claude/skills ~/.agents/skills
+ln -s '/Applications/Dirigible.app/Contents/Resources/skills/dirigible' ~/.claude/skills/dirigible
+ln -s '/Applications/Dirigible.app/Contents/Resources/skills/dirigible' ~/.agents/skills/dirigible
+```
+
+When you move the app, the link breaks: link the folder again.
+
 ### Make the screenshots again
 
 The screenshots of the README and of this guide come from a script. The script makes the session "Demo Episode" with `say` voices, so the images show no personal data.

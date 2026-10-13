@@ -9,7 +9,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - Prefer a removed check, a guard operator or boundary, and a constant that a probe measured. Skip logging, waits, time limits, speed (the bench owns it), UI strings, and framework setup order.
 - The mutant breaks the mechanism of the claim (a removed guard, a relaxed memory order). A mutant that only corrupts the input of the checker proves only the checker.
 - A guard that compares measured quantities gets a mutant of an operand that widens or narrows what it measures, for example the whole bounds in place of the visible rect; its fixture makes each region differ in each dimension. A test that sets the other condition of a compound guard cannot reach this one.
-- Run each mutant under the exact conditions of the claim. Turn on a condition that is off (a compiler feature) with a temporary change that you revert.
+- Run each mutant under the exact conditions of the claim. Turn on a condition that is off (a compiler feature) with another old/new pair of the mutant (`--in=<file> <old> <new>`), so mutate.py applies and restores it: `mutation-pass.sh` refuses a tree with changes.
 
 ## Run the pass
 

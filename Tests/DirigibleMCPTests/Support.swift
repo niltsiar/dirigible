@@ -83,10 +83,14 @@ let takeStart: UInt64 = 1_000_000_000_000
 let testClient = ClientInfo(title: "Test Agent", name: "test-agent")
 
 /// Sends one call over `socket` from a new bridge, off the main actor, so the server can answer.
+/// The reply waits for the main actor of a test shard, and other suites hold it for over 30 s, so
+/// the bridge of the tests waits 120 s. This is test patience, not a product time.
 func send(_ socket: URL, _ tool: String, _ arguments: [String: any Sendable], client: ClientInfo = testClient) async
     -> AgentBridge.Outcome
 {
-    await onThread { AgentBridge(socket: socket).call(tool: tool, arguments: arguments, client: client) }
+    await onThread {
+        AgentBridge(socket: socket, timeout: .seconds(120)).call(tool: tool, arguments: arguments, client: client)
+    }
 }
 
 /// Runs a blocking `body` on a new thread, not on the concurrency pool: a bridge call blocks its
@@ -95,9 +99,10 @@ func onThread<T: Sendable>(_ body: @escaping @Sendable () -> T) async -> T {
     await withCheckedContinuation { continuation in Thread.detachNewThread { continuation.resume(returning: body()) } }
 }
 
-/// Waits until `condition` holds, or records an issue after `limit`.
+/// Waits until `condition` holds, or records an issue after `limit`. The limit is 60 s: other
+/// suites of a test shard hold the main actor for over 30 s (test patience, not a product time).
 @MainActor
-func until(limit: Duration = .seconds(30), _ message: String, _ condition: () -> Bool) async {
+func until(limit: Duration = .seconds(60), _ message: String, _ condition: () -> Bool) async {
     let deadline = ContinuousClock.now + limit
     while !condition() {
         guard ContinuousClock.now < deadline else {

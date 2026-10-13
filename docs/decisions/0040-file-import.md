@@ -1,5 +1,5 @@
 # 0040. File import: a 24-bit WAV copy at the session rate, a blocking studio operation, one undo entry
-- Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). A cancel after the rename, also during the level, removes the renamed WAV through one helper, so `Clips/` stays as it was. The stem rule makes the WAV a new name that `session.xml` does not use. A flush fault, a failed `session.xml` write, and Undo still keep the WAV. The level after the rename reports progress (the conversion maps to 0...0.8, the level to 0.8...1) and stops at a cancel.
+- Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049), part 2, pending. A cancel after the rename, also during the level, removes the renamed WAV through one helper, so `Clips/` stays as it was. The stem rule makes the WAV a new name that `session.xml` does not use. A flush fault, a failed `session.xml` write, and Undo still keep the WAV. The level after the rename reports progress (the conversion maps to 0...0.8, the level to 0.8...1) and stops at a cancel.
 
 - Status: accepted
 - Date: 2026-10-05

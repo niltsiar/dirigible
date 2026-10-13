@@ -30,7 +30,7 @@ Each "Act on" item and taken nit, except a `no behavior change` nit, needs two f
 - **Invariant:** the broken invariant, named by the state, not the operation: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
 - **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter of it and of the trigger state. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>". Prove each sibling that the fix leaves unchanged with a test, log, or control.
 
-With `risk: yes`, after each fix commit, replay the logs that `.claude/skills/deliver/scripts/replay-list.sh <controls folder> HEAD~1` prints (`mutation-controls.md`). Pass both fields and the replay command to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer the symptom names. When a fix relaxes a guard, drops a wait, moves a read across an `await`, or adds a state (a block rule, a marker file, an output line), name what the old code must still keep out, and list each reader, start state, and exit under Siblings.
+Pass both fields to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer the symptom names. When a fix relaxes a guard, drops a wait, moves a read across an `await`, or adds a state (a block rule, a marker file, an output line), name what the old code must still keep out, and list each reader, start state, and exit under Siblings.
 
 ## Rounds
 

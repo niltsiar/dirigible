@@ -70,7 +70,7 @@ import Observation
     /// True while `startRecording` works off the main actor: every other entry point is busy.
     public internal(set) var isStarting = false
     /// The last autosave error. Nil after a good save.
-    public private(set) var saveError: StudioError?
+    public internal(set) var saveError: StudioError?
     @ObservationIgnored var diskWatcher: Task<Void, Never>?
     /// The device writers of the take that records, by device UID.
     @ObservationIgnored var writers: [String: DeviceWriter] = [:]

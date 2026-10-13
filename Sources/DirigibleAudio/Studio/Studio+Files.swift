@@ -21,9 +21,10 @@ extension Studio {
 
     /// Moves to the Trash the files of `confirmed` that a new scan in this turn of the write chain
     /// still lists, so an edit after the list keeps a file that it uses (decision 0047). It removes
-    /// their pool entries from the session and from each undo and redo entry with no new entry,
-    /// saves, and only then moves the files. Throws `.busy` as `unusedFiles`, also for a take that
-    /// starts during the scan. A throw of the save moves no file.
+    /// saves, then removes their pool entries from the session and from each undo and redo entry
+    /// with no new entry, and only then moves the files. Throws `.busy` as `unusedFiles`, also for
+    /// a take that starts during the scan. A failed save moves no file, changes no session, and
+    /// sets `saveError` as a failed autosave does.
     public func removeUnusedFiles(_ confirmed: UnusedFiles, clipboard: Clipboard? = nil) async throws(StudioError)
         -> PruneReport
     {
@@ -35,25 +36,23 @@ extension Studio {
             case .success(let value): scan = value
             case .failure(let error): return .failure(error)
             }
-            // A take can start during the scan (AGENTS.md, Actors). No await comes between this
-            // check and the pool change.
+            // A take can start during the scan (AGENTS.md, Actors).
             guard isIdle else { return .failure(.busy) }
             let items = confirmed.intersection(scan)
             let before = session
-            do throws(SessionError) {
-                try removePoolEntries(
-                    Set(items.items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } }))
-            } catch {
-                return .failure(.session(error))
-            }
+            let ids = Set(items.items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
+            // The pool change comes after the save, so a failed save leaves memory as the disk.
+            let apply = { @MainActor () throws(SessionError) in try self.removePoolEntries(ids) }
             switch await pruneFiles(
-                items, of: before, lock: lock, previous: url, recordings: recordings, environment.saveSession)
+                items, of: before, lock: lock, previous: url, recordings: recordings, environment.saveSession, apply)
             {
             case .success(let done):
-                (url, backups) = (done.package, done.backups)
+                (url, backups, saveError) = (done.package, done.backups, nil)
                 poolChanged(from: before.files)
                 return .success(done.report)
             case .failure(let error):
+                // The next save or `settle()` writes the session in memory again.
+                if case .unusedFiles(.save(let fault)) = error { saveError = .file(fault) }
                 return .failure(error)
             }
         }
@@ -95,11 +94,13 @@ extension Studio {
     }
 }
 
-/// The save and the Trash of `UnusedFiles.prune`, off the main actor. Returns the report, the
-/// package path in `packageIdentity` form, and the backups after the save.
+/// The save and the Trash of `UnusedFiles.prune`, off the main actor. After the save and before
+/// the first move, `apply` makes the same pool change in memory; its throw moves no file. Returns
+/// the report, the package path in `packageIdentity` form, and the backups after the save.
 @concurrent nonisolated private func pruneFiles(
     _ items: UnusedFiles, of session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
-    _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL
+    _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL,
+    _ apply: @MainActor @Sendable () throws(SessionError) -> Void
 ) async -> Result<(report: PruneReport, package: URL, backups: [Backup]), StudioError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
     var pruned = session
@@ -108,6 +109,11 @@ extension Studio {
     do throws(UnusedFilesError) {
         report = try await items.prune(&pruned) { session throws(SessionFileError) in
             written = try await save(session, lock)
+            do throws(SessionError) {
+                try await apply()
+            } catch {
+                throw .invalidSession(error)
+            }
             return written
         }
     } catch {

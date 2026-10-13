@@ -186,6 +186,30 @@ struct PlayerSpeedTests {
         }
     }
 
+    /// Code gate 2 item 2: when the unit refuses the rate during a play, the change returns false
+    /// and does not rewire the playing node, so the play goes on through the unit.
+    @Test func aRefusedRateDuringPlayKeepsTheGraph() async throws {
+        let package = try sinePackage()
+        let player = player(package)
+        await player.apply(.play(from: 0, shuttle: forward, speed: .x150), number: 1)
+        _ = await player.renderOffline(frames: rate / 2)
+        await player.refuseRates()
+        #expect(await !player.setSpeed(.x200), "a refused rate is not a change")
+        #expect(await player.speedUnitInGraph, "the change rewired the playing node")
+    }
+
+    /// Code gate 1 item 8: a play whose rate the unit refuses plays the mix at 1x, with no unit.
+    @Test func aRefusedRatePlaysAtOne() async throws {
+        let package = try sinePackage()
+        let player = player(package)
+        await player.refuseRates()
+        await player.apply(.play(from: 2_400, shuttle: forward, speed: .x150), number: 1)
+        let out = await player.renderOffline(frames: 9_600)
+        let mix = try package.mix(2_400..<12_000)
+        #expect(maxError(out[0], mix[0]) <= 1e-6, "the output is the mix at 1x")
+        #expect(await !player.speedUnitInGraph)
+    }
+
     @Test func fasterAndSlowerStopAtTheLimits() {
         #expect(Speed.one.faster == .x125 && Speed.x175.faster == .x200 && Speed.x200.faster == .x200)
         #expect(Speed.one.slower == .x075 && Speed.x125.slower == .one && Speed.x075.slower == .x075)

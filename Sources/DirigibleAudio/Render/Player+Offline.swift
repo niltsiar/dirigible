@@ -3,6 +3,10 @@ import Foundation
 
 /// The test helpers of the Player: offline pulls with and without the wait for the feed.
 extension Player {
+    /// Tests only: the next rate changes use a parameter that the unit refuses (-10878, probe
+    /// cg1-rate-refuse), as a unit that refuses the rate would.
+    func refuseRates() { rateParameter = 99 }
+
     /// Tests only: the chunks that the loudness meter keeps.
     var loudnessQueued: Int { loudness.queued }
 

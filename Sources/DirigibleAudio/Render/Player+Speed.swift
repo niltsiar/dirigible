@@ -39,17 +39,19 @@ extension Player {
 
     /// Puts the speed unit between the node and the main mixer only at a speed other than 1, at
     /// that rate. At 1 the node feeds the main mixer, bit for bit as with no unit (decision 0048).
-    /// The caller stopped the node: a rewire while the node plays drops its schedule (probe S6).
-    /// False when the unit refuses the rate (0013: only `noErr` or not): then the node feeds
+    /// Only `apply` calls it, after the node stops: a rewire while the node plays stops the node
+    /// and drops its schedule (probe S6). False when the unit refuses the rate (0013: only `noErr` or not): then the node feeds
     /// the main mixer, and the play runs at 1x.
     func wire(_ graph: Graph, speed: Speed) -> Bool {
         guard let unit = graph.unit else { return speed == .one }
-        let rate = Float(speed.factor)
-        let through =
-            speed != .one
-            && AudioUnitSetParameter(unit.audioUnit, kTimePitchParam_Rate, kAudioUnitScope_Global, 0, rate, 0) == noErr
+        let through = speed != .one ? setRate(unit, speed) : false
         if through != speedUnitInGraph { connect(graph, unit, through: through) }
         return through == (speed != .one)
+    }
+
+    /// Sets the rate of the unit. False when the unit refuses it (0013: only `noErr` or not).
+    func setRate(_ unit: AVAudioUnitTimeEffect, _ speed: Speed) -> Bool {
+        AudioUnitSetParameter(unit.audioUnit, rateParameter, kAudioUnitScope_Global, 0, Float(speed.factor), 0) == noErr
     }
 
     /// Connects the node to the main mixer, through the unit or not.

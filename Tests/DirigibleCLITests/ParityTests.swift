@@ -70,7 +70,7 @@ struct ParityTests {
         "apps": "It lists the apps of this Mac, not a package.",
         "mcp": "It is the MCP server.",
         "skill show": "It reads no package: the skill text of the agent manual (decision 0051).",
-        "skill path": "It reads no package: the skill text of the agent manual (decision 0051).",
+        "skill path": "It reads no package: the path of the bundled skill file (decision 0051).",
     ]
 
     /// The commands whose tool name does not follow the name rule.

@@ -24,14 +24,14 @@ extension Studio {
     /// then removes their pool entries from the session and from each undo and redo entry with no
     /// new entry, and only then moves the files. Throws `.busy` as `unusedFiles` does, also for a
     /// take that starts during the scan. A failed save moves no file, changes no session, and
-    /// sets `saveError` as a failed autosave does.
-    public func removeUnusedFiles(_ confirmed: UnusedFiles, clipboard: Clipboard? = nil) async throws(StudioError)
-        -> PruneReport
+    /// sets `saveError` as a failed autosave does. It reads `clipboard` in its turn.
+    public func removeUnusedFiles(_ confirmed: UnusedFiles, clipboard: @autoclosure () -> Clipboard? = nil)
+        async throws(StudioError) -> PruneReport
     {
         try checkIdle()
-        let kept = keptFiles(clipboard)
         let result = await serialized { () async -> Result<PruneReport, StudioError> in
             let scan: UnusedFiles
+            let kept = keptFiles(clipboard())
             switch await scanUnusedFiles(session, keptBy: history.entries, keptFiles: kept, lock: lock) {
             case .success(let value): scan = value
             case .failure(let error): return .failure(error)

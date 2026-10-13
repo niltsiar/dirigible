@@ -166,4 +166,19 @@ extension UnusedFilesTests {
         #expect(report.moved.isEmpty)
         #expect(FileManager.default.fileExists(atPath: clips.appending(path: "a.wav").path))
     }
+
+    /// Round 2 item 2: an lstat that fails with an errno other than ENOENT is no replacement. The
+    /// move runs and its error is the fault.
+    @Test func unreadableFolderGivesTheMoveError() throws {
+        var session = try Self.session([("u", "u.wav")])
+        try plant("u.wav")
+        let scan = try scan(session)
+        try #require(chmod(clips.path, 0o600) == 0)
+        defer { chmod(clips.path, 0o755) }
+
+        let report = try scan.prune(&session, save: save) { _ in throw Self.refusal }
+
+        #expect(report.failed.map(\.item.path) == ["u.wav"])
+        #expect(report.failed.first?.fault == TrashFault(Self.refusal), "the error of the move, not .replaced")
+    }
 }

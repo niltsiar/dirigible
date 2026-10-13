@@ -212,7 +212,8 @@ public struct UnusedFiles: Hashable, Sendable {
                 if case .pool(let id) = item.kind { dropped.append(id) }
                 continue
             }
-            guard now == item.identity else {
+            // With another lstat errno, the move runs, and its error gives the true cause.
+            if let now, now != item.identity {
                 failed.append(PruneReport.Failed(item: item, fault: .replaced))
                 continue
             }

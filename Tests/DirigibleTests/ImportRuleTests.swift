@@ -3,7 +3,7 @@ import Testing
 
 /// DirigibleCore imports only Foundation (decision 0002), DirigibleTimeline imports only
 /// Foundation and DirigibleCore (decision 0020), and DirigibleMCP imports only Foundation,
-/// Observation (for the `@Observable` server), DirigibleCore, and DirigibleAudio (decision 0046). SwiftPM cannot stop a target from importing
+/// Observation (for the `@Observable` server), os (the logger), DirigibleCore, and DirigibleAudio (decision 0046). SwiftPM cannot stop a target from importing
 /// a system framework, so this test reads the sources.
 struct ImportRuleTests {
     @Test func coreImportsOnlyFoundation() throws {
@@ -14,8 +14,9 @@ struct ImportRuleTests {
         try checkImports(of: "DirigibleTimeline", allowed: ["Foundation", "DirigibleCore"])
     }
 
-    @Test func mcpImportsOnlyFoundationObservationCoreAndAudio() throws {
-        try checkImports(of: "DirigibleMCP", allowed: ["Foundation", "Observation", "DirigibleCore", "DirigibleAudio"])
+    @Test func mcpImportsOnlyFoundationObservationOsCoreAndAudio() throws {
+        try checkImports(
+            of: "DirigibleMCP", allowed: ["Foundation", "Observation", "os", "DirigibleCore", "DirigibleAudio"])
     }
 
     private func checkImports(of target: String, allowed: Set<String>) throws {

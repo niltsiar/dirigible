@@ -2,9 +2,9 @@ import DirigibleCore
 import Foundation
 
 /// The text of an MCP tool error result (`isError: true`).
-struct ToolError: Error, Sendable {
-    let message: String
-    init(_ message: String) { self.message = message }
+package struct ToolError: Error, Sendable {
+    package let message: String
+    package init(_ message: String) { self.message = message }
 }
 
 /// The edit of one MCP tool call. It gives the new IDs, in the order that the command prints them.

@@ -29,4 +29,10 @@ struct AgentNameTests {
     @Test func aBadTitleFallsBackToTheName() {
         #expect(AgentName(title: "Bad\u{7}Title", clientName: "codex-mcp-client").name == "Codex")
     }
+
+    /// A format character, for example the right-to-left override, can spoof the Undo title.
+    @Test func aFormatCharacterIsRefused() {
+        #expect(AgentName(title: "Claude\u{202E}tidE", clientName: "codex-mcp-client").name == "Codex")
+        #expect(AgentName(title: nil, clientName: "Zero\u{200B}Width").name == nil)
+    }
 }

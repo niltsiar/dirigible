@@ -837,6 +837,7 @@ An agent can ask to record, but only you start the take. The `record` tool takes
 - The window does not come to the front. When Dirigible is in the background, its Dock icon bounces until you switch to it.
 - The app refuses a request at once while the window shows a question or a sheet, during a take, while a take is pending, when the window is minimized, and while another request waits.
 - While the sheet shows, the agent cannot edit the session.
+- VoiceOver and Full Keyboard Access can press Record: that is your consent. An app that you gave Accessibility permission in System Settings can also press Record for you, for example a terminal that runs the agent. Give that permission only to apps that you trust.
 - The agent gets the take number when the take starts. To find the end, it reads `session_info`: `recording` goes when the take ends.
 
 The 36 tools, in groups:

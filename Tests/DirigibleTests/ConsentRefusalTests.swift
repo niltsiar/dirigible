@@ -24,7 +24,7 @@ extension ConsentTests {
 
         let first = ask(model)
         _ = try await sheet(model)
-        #expect(await ask(model).value == .waits, "a second request")
+        #expect(await ask(model).value == .busy(.asking), "a second request")
         await model.answerConsent(record: false)
         #expect(await first.value == .declined)
 

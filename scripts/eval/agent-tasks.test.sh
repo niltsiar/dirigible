@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check scripts/eval/agent-tasks.sh with a fake claude and a fake dirigible, so no model runs and no
-# Swift build is needed. Run by `make test-hooks`.
+# Swift build is needed, and the take match of scripts/eval/agent-grade.py. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
 failures=0
@@ -58,6 +58,33 @@ fi
 grep -q "the runner failed on T2$" "$tmp/broken.log" || fail "the runner does not name the failed task: $(cat "$tmp/broken.log")"
 after="$(ls -d /private/tmp/dirigible-e38-* 2>/dev/null | wc -l)"
 [[ $after -le $before ]] || fail "a failed task leaves $((after - before)) task folders in /private/tmp"
+
+# The grader sees a CLI take behind a wrapper word or in bash -c (code gate 1 item 6).
+python3 -I -B - "$here/agent-grade.py" <<'PY' || fail "the grader misses a CLI take behind a wrapper"
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location('grade', sys.argv[1])
+grade = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(grade)
+cli, package = '/private/tmp/t/dirigible', '/private/tmp/t/Show.dirigible'
+takes = [
+    f'{cli} record {package} --seconds 10 --arm host',
+    f'X=1 {cli} record {package} --seconds 10 --arm host',
+    f'env DIRIGIBLE_MCP_SOCKET=x {cli} record {package} --seconds 10 --arm host',
+    f'env -i {cli} capture place {package} take1-1-1',
+    f'exec {cli} record {package} --seconds 10 --arm host',
+    f'time nohup {cli} take finalize {package}',
+    f'cd /private/tmp && bash -c "{cli} record {package} --seconds 10 --arm host"',
+    f"sh -c '{cli} record {package} --seconds 1 --arm host'",
+]
+safe = [f'{cli} help record', f'{cli} info {package}', f'env {cli} loudness {package}']
+missed = [c for c in takes if not grade.take_commands([c])]
+wrong = [c for c in safe if grade.take_commands([c])]
+for c in missed:
+    print('missed:', c)
+for c in wrong:
+    print('not a take:', c)
+sys.exit(1 if missed or wrong else 0)
+PY
 
 if [[ $failures -gt 0 ]]; then
     echo "agent-tasks tests: $failures failed"

@@ -35,9 +35,15 @@ package enum AgentManual {
             steps: "`marker_set` with `kind` chapter and `at` in frames."),
     ]
 
-    /// The manual with the quoted path of the running `dirigible`, after symlinks.
+    /// The manual with the quoted path of the running `dirigible`, after symlinks. realpath(3), not
+    /// `resolvingSymlinksInPath()`, which gives /tmp for /private/tmp: an allow rule of the client
+    /// names the real path.
     package static var instructions: String {
-        let path = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? "dirigible"
+        var path = Bundle.main.executableURL?.path ?? "dirigible"
+        if let real = realpath(path, nil) {
+            path = String(cString: real)
+            free(real)
+        }
         return manual(pathLine: pathLine(quoted: shellQuoted(path)))
     }
 

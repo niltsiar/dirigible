@@ -31,6 +31,18 @@ struct AgentManualCommandTests {
         let resolved = shellQuoted(dirigibleBinary.resolvingSymlinksInPath().path)
         #expect(result.stdout.contains("The CLI is \(resolved). Below,"), "\(result.stdout.prefix(400))")
         #expect(!result.stdout.contains(link.path))
+        // A copy under /var, a link to /private/var: the manual names the real path, as the client
+        // registers it (Phase 7: the E38 allow rule refused the /tmp form of /private/tmp).
+        let copy = folder.appending(path: "copy/dirigible")
+        try FileManager.default.createDirectory(at: copy.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: dirigibleBinary, to: copy)
+        let real = try #require(realpath(copy.path, nil))
+        defer { free(real) }
+        #expect(String(cString: real).hasPrefix("/private/"), "the temporary folder is not under /private")
+        let copied = try await dirigible(shell: #"exec "$0" --instructions"#, copy.path)
+        #expect(
+            copied.stdout.contains("The CLI is \(shellQuoted(String(cString: real))). Below,"),
+            "\(copied.stdout.prefix(300))")
         withExtendedLifetime(temporary) {}
     }
 

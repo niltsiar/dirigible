@@ -127,6 +127,7 @@
 "error.artwork.write" = "Dirigible cannot copy the artwork into the session (error %lld). Check the disk and try again.";
 "error.unused.clips" = "The Clips folder of the session cannot be read (error %lld). No file moved.";
 "error.unused.backup" = "The backup of %@ cannot be read, or a newer version of Dirigible made it. No file moves until that backup goes.";
+"error.unused.changed" = "An edit during Remove Unused Files uses a file of the list. No file moved. Try again.";
 "error.episode.line" = "Type one line, with no tab and no control character.";
 "error.episode.number" = "Type a whole number from 1 to %lld.";
 "error.episode.date" = "Type a date in the form YYYY-MM-DD.";

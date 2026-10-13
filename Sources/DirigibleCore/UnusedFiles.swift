@@ -110,7 +110,8 @@ public struct UnusedFiles: Hashable, Sendable {
     public func prune(_ session: inout Session, save: (Session) async throws(SessionFileError) -> URL)
         async throws(UnusedFilesError) -> PruneReport
     {
-        guard let pruned = try removingEntries(from: session) else {
+        let live = unused(in: session)
+        guard let pruned = try live.removingEntries(from: session) else {
             return PruneReport(moved: [], failed: [], dropped: [])
         }
         let package: URL
@@ -120,14 +121,15 @@ public struct UnusedFiles: Hashable, Sendable {
             throw .save(error)
         }
         session = pruned
-        return moved(under: package, trash: Self.trash)
+        return live.moved(under: package, trash: Self.trash)
     }
 
     /// The seam of the failure tests. `trash` returns the Trash URL of the file.
     func prune(
         _ session: inout Session, save: (Session) throws(SessionFileError) -> URL, trash: (URL) throws -> URL
     ) throws(UnusedFilesError) -> PruneReport {
-        guard let pruned = try removingEntries(from: session) else {
+        let live = unused(in: session)
+        guard let pruned = try live.removingEntries(from: session) else {
             return PruneReport(moved: [], failed: [], dropped: [])
         }
         let package: URL
@@ -137,7 +139,18 @@ public struct UnusedFiles: Hashable, Sendable {
             throw .save(error)
         }
         session = pruned
-        return moved(under: package, trash: trash)
+        return live.moved(under: package, trash: trash)
+    }
+
+    /// The items that `session` still does not use. An edit after the scan keeps the file of a
+    /// pool entry that a clip now uses or that the pool no longer has; the next scan lists it again.
+    public func unused(in session: Session) -> UnusedFiles {
+        let used = Set(session.tracks.flatMap { $0.clips.map(\.file) })
+        let live = items.filter { item in
+            guard case .pool(let id) = item.kind else { return true }
+            return session.files[id] != nil && !used.contains(id)
+        }
+        return UnusedFiles(items: live, kept: kept, damagedBackups: damagedBackups)
     }
 
     /// `session` with no pool entry of the items, or nil when there is no item.
@@ -308,4 +321,7 @@ public enum UnusedFilesError: Error, Hashable, Sendable {
     case backupUnreadable(Backup, SessionFileError)
     /// The save before the Trash failed, so no file moved.
     case save(SessionFileError)
+    /// An edit during the prune save uses a listed file (`Studio`). The save wrote the session
+    /// before that edit, no file moved, and the autosave of the edit writes it.
+    case changedDuringPrune
 }

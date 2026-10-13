@@ -127,6 +127,7 @@
 "error.artwork.write" = "Dirigible no puede copiar la ilustración en la sesión (error %lld). Compruebe el disco y vuelva a intentarlo.";
 "error.unused.clips" = "No se puede leer la carpeta Clips de la sesión (error %lld). No se movió ningún archivo.";
 "error.unused.backup" = "No se puede leer la copia de seguridad de %@, o la hizo una versión más nueva de Dirigible. No se mueve ningún archivo mientras esa copia exista.";
+"error.unused.changed" = "Una edición durante Eliminar archivos sin usar usa un archivo de la lista. No se movió ningún archivo. Inténtalo de nuevo.";
 "error.episode.line" = "Escriba una línea, sin tabulador ni carácter de control.";
 "error.episode.number" = "Escriba un número entero de 1 a %lld.";
 "error.episode.date" = "Escriba una fecha con la forma AAAA-MM-DD.";

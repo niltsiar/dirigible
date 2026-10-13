@@ -137,10 +137,9 @@ extension SessionWindow {
         guard let consent, consent.phase == .waiting else { return }
         guard record else { return endConsent(.declined) }
         consent.begin()
-        switch await startTake(armed: consent.tracks, playhead: consent.start) {
+        switch await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
         case .started(let take):
             endConsent(.started(take: take, tracks: consent.names, seconds: consent.seconds))
-            stopTake(take, after: consent.seconds)
         case .busy(let busy):
             beep()
             endConsent(.busy(busy))
@@ -167,15 +166,5 @@ extension SessionWindow {
         self.consent = nil
         if let id = consent.attentionRequest { attention.cancel(id) }
         consent.finish(answer)
-    }
-
-    /// Stops `take` after `seconds`, unless it ended first.
-    private func stopTake(_ take: Int, after seconds: Double) {
-        agentStop?.cancel()
-        agentStop = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(seconds))
-            guard !Task.isCancelled, let self, studio?.transport == .recording(take: take) else { return }
-            await stop()
-        }
     }
 }

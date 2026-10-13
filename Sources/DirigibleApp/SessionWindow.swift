@@ -133,8 +133,6 @@ import SwiftUI
     /// The answer time of a request. Tests give a short one.
     @ObservationIgnored var consentLifetime = RecordRequest.answerLimit
     @ObservationIgnored var attention = ConsentAttention()
-    /// Stops the take of a request after its seconds.
-    @ObservationIgnored var agentStop: Task<Void, Never>?
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
 

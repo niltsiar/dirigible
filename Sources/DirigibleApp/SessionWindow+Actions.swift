@@ -55,10 +55,11 @@ extension SessionWindow {
     }
 
     /// The take start of Command-R and of the consent sheet (decision 0048). With no `playhead`,
-    /// the take starts at the Studio playhead; a play stops first (decision 0016). A refusal
-    /// shows its alert, as for Command-R.
+    /// the take starts at the Studio playhead; a play stops first (decision 0016). With
+    /// `seconds`, the Studio stops the take after them. A refusal shows its alert, as for
+    /// Command-R.
     @discardableResult
-    func startTake(armed: [TrackID], playhead: Frames?) async -> RecordStart {
+    func startTake(armed: [TrackID], playhead: Frames?, seconds: Double? = nil) async -> RecordStart {
         commitDrafts()
         guard canStartTake, let studio = idleStudio else {
             guard case .open = phase else { return .closed }
@@ -70,6 +71,10 @@ extension SessionWindow {
         var take: Int?
         do throws(StudioError) {
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
+                if let seconds {
+                    take = try await studio.startRecording(armed: armed, playhead: playhead, for: .seconds(seconds))
+                    return
+                }
                 try await studio.startRecording(armed: armed, playhead: playhead)
                 // Read with no await after the start: a stop can end the take soon after it.
                 switch studio.transport {

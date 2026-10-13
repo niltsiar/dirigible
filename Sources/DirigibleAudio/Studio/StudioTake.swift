@@ -20,9 +20,8 @@ extension Studio {
         -> TakeResult
     {
         // Before the start: a conversion that traps after the save of <recording> would leave a
-        // pending take. The length saturates, so a very long duration cannot trap.
-        let nanos = max(0, duration / .nanoseconds(1))
-        let length = nanos < 0x1p64 ? UInt64(nanos) : .max
+        // pending take.
+        let length = Self.nanos(duration)
         // The generation, not the take number, tells this take from a new one that another
         // caller starts.
         // The take ends at its start host time + duration, also when the stop comes late.
@@ -71,6 +70,31 @@ extension Studio {
     /// releases its devices (decision 0015).
     public func startRecording(armed: [TrackID], playhead: Frames? = nil) async throws(StudioError) {
         _ = try await beginRecording(armed: armed, playhead: playhead)
+    }
+
+    /// `startRecording` for `duration`, the take of an agent (decision 0048). Each writer ends at
+    /// the take start + `duration`, and `takeTimer` stops the take then. A stop before cancels
+    /// the timer. Returns the take.
+    public func startRecording(armed: [TrackID], playhead: Frames?, for duration: Duration) async throws(StudioError)
+        -> Int
+    {
+        let length = Self.nanos(duration)
+        let (take, _) = try await beginRecording(armed: armed, playhead: playhead, length: length)
+        // A stop can end the take before the start returns: then no timer.
+        guard transport == .recording(take: take) else { return take }
+        let wait = environment.takeLength
+        takeTimer = Task { [weak self] in
+            await wait(duration)
+            guard !Task.isCancelled else { return }
+            try? await self?.stopRecording()
+        }
+        return take
+    }
+
+    /// The nanoseconds of `duration`, saturated, so a very long duration cannot trap.
+    private static func nanos(_ duration: Duration) -> UInt64 {
+        let nanos = max(0, duration / .nanoseconds(1))
+        return nanos < 0x1p64 ? UInt64(nanos) : .max
     }
 
     /// `startRecording`, which also returns the take and the generation that it started. A stop
@@ -129,6 +153,8 @@ extension Studio {
         stopLive()
         diskWatcher?.cancel()
         diskWatcher = nil
+        takeTimer?.cancel()
+        takeTimer = nil
         // E1: the take ends now on every track, also while an app attach waits for the prompt.
         let now = hostNanosNow()
         for writer in writers.values { writer.end(atHostNanos: now) }

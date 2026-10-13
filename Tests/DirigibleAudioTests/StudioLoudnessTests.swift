@@ -93,3 +93,42 @@ struct StudioLoudnessTests {
         try await studio.stopRecording()
     }
 }
+
+/// Decision 0049, C12: `Studio.measureLoudness` stops at a cancel of its caller.
+@MainActor
+struct StudioMeasureLoudnessTests {
+    /// Two clips of 1 s, one block each. The steps: 1 before the first progress, 2 the block of
+    /// `c1`, 3 the block of `c2`. The cancel comes while step 3 waits.
+    @Test func aCancelOfTheCallerEndsTheLoudness() async throws {
+        let package = try MixPackage()
+        let signal = tone([(1, -20)])
+        try package.addFile("f1", channels: signal)
+        try package.addFile("f2", channels: signal)
+        try package.addTrack("t1", layout: .stereo, clip: "c1", file: "f1", start: 0, offset: 0, length: 48_000)
+        try package.session.place(Clip(id: "c2", file: "f2", start: 48_000, offset: 0, length: 48_000), on: "t1")
+        try package.session.write(to: package.url)
+        let studio = try await Studio.open(package.url)
+        let (gate, steps) = (Gate(limit: nil), OSAllocatedUnfairLock(initialState: 0))
+        defer { gate.open() }
+        studio.environment.loudnessBlock = {
+            let step = steps.withLock { count in
+                count += 1
+                return count
+            }
+            if step == 3 { gate.waitOnce() }
+        }
+        let clips = studio.session.tracks.flatMap(\.clips)
+
+        let measure = Task { try await studio.measureLoudness(clips) }
+        await gate.entered()
+        measure.cancel()
+        gate.open()
+        let result = await measure.result
+
+        switch result {
+        case .success: Issue.record("a cancel of the caller did not end the measure")
+        case .failure(let error): #expect((error as? POSIXError)?.code == .ECANCELED, "\(error)")
+        }
+        await studio.settle()
+    }
+}

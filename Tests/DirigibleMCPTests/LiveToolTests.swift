@@ -164,6 +164,32 @@ struct LiveToolTests {
         await studio.settle()
     }
 
+    /// C12: a live `loudness` measures the session of the window. After an agent split, the new
+    /// clip has a value while the autosave waits, so the files do not have it yet.
+    @Test func liveLoudnessReadsTheWindowSession() async throws {
+        let package = try LivePackage()
+        try package.addTone()
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let gate = Gate()
+        let held = Task { await studio.serialized { await gate.wait() } }
+        await until("the write turn is not held") { gate.waiting }
+
+        let split = await send(folder.socket, "clip_split", ["package": package.path, "clip": "c1", "at": 48_000])
+        let right = replyText(split)
+        let measured = await send(folder.socket, "loudness", ["package": package.path, "clips": [right]])
+
+        #expect(
+            replyText(measured).hasPrefix("\(right)\t") && replyText(measured).hasSuffix(" LUFS"),
+            "the live loudness has no value of the new clip: \(measured)")
+        let saved = try Session(contentsOf: package.url).tracks.flatMap(\.clips).map(\.id.rawValue)
+        #expect(!saved.contains(right), "the autosave waits, so the files do not have the new clip")
+        gate.open()
+        await held.value
+        await studio.settle()
+    }
+
     /// C6: a path through a symlink, or with a trailing slash, runs live. A package that no
     /// window has gets "not open", and a studio of another package never runs the call.
     @Test func symlinkPathRunsLive() async throws {

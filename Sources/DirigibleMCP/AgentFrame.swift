@@ -5,6 +5,7 @@ import Foundation
 //
 // A call:  {"tool": <name>, "arguments": {...}, "client": {"title": <text>, "name": <text>}}
 // A reply: {"text": <text>, "isError": <bool>}, or {"notOpen": true} when no window has the package.
+// Before the reply, zero or more progress lines: {"progress": <0...1>} (decision 0049).
 
 /// The `clientInfo` of the MCP client: the request `_meta` in the modern era, else `initialize`.
 package struct ClientInfo: Sendable, Equatable {
@@ -45,6 +46,25 @@ package enum AgentReply: Sendable, Equatable {
             return nil
         }
     }
+}
+
+/// One line of the app during a call: a progress frame or the reply (decision 0049).
+enum AppFrame: Equatable {
+    case progress(Double)
+    case reply(AgentReply)
+
+    init?(line: Data) {
+        let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any]
+        if let object, object.count == 1, let fraction = object["progress"] as? Double {
+            self = .progress(fraction)
+        } else if let reply = AgentReply(line: line) {
+            self = .reply(reply)
+        } else {
+            return nil
+        }
+    }
+
+    static func progressLine(_ fraction: Double) -> String { MCPServer.encode(["progress": fraction]) }
 }
 
 /// The size of one socket read of the listener and the bridge.

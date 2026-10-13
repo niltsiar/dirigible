@@ -8,8 +8,6 @@ package final class LineInput {
     private var bytes = [UInt8](repeating: 0, count: readSize)
     /// True after EOF or a read error.
     private(set) var ended = false
-    /// The JSON-RPC `id` of the last line that `next` gave, or nil.
-    private var current: NSObject?
 
     package init(fd: Int32 = STDIN_FILENO) { self.fd = fd }
 
@@ -20,13 +18,11 @@ package final class LineInput {
                 var line = buffer[buffer.startIndex..<newline]
                 buffer.removeSubrange(buffer.startIndex...newline)
                 if line.last == UInt8(ascii: "\r") { line = line.dropLast() }
-                current = Self.object(line)?["id"] as? NSObject
                 return String(decoding: line, as: UTF8.self)
             }
             if ended {
                 guard !buffer.isEmpty else { return nil }
                 defer { buffer.removeAll() }
-                current = Self.object(buffer)?["id"] as? NSObject
                 return String(decoding: buffer, as: UTF8.self)
             }
             fill()
@@ -42,14 +38,6 @@ package final class LineInput {
             return
         }
         buffer.append(contentsOf: bytes[..<count])
-    }
-
-    /// True when stdin ended, or a buffered line cancels the request of the last line: the agent
-    /// no longer waits for that call.
-    func stopsCall() -> Bool {
-        if ended { return true }
-        guard let current else { return false }
-        return cancels(current)
     }
 
     /// With `read`, reads stdin after a poll of 0 ms. Gives true when a buffered line cancels

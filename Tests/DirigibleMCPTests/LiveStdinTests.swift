@@ -60,21 +60,9 @@ struct LiveStdinTests {
         stdin.fileHandleForWriting.write(data + Data("\n".utf8))
     }
 
-    /// `LivePackage` with clip `c1` of 3 s on `t1`: three blocks of `clipLoudness`.
     private func package() throws -> LivePackage {
         let package = try LivePackage()
-        var session = try Session(contentsOf: package.url)
-        try session.addFile(AudioFile(id: "tone", path: "tone.wav", layout: .mono, length: 144_000))
-        try session.place(Clip(id: "c1", file: "tone", start: 0, offset: 0, length: 144_000), on: "t1")
-        try session.write(to: package.url)
-        let clips = package.url.appending(path: "Clips")
-        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
-        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
-        let file = try AVAudioFile(forWriting: clips.appending(path: "tone.wav"), settings: format.settings)
-        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 144_000))
-        buffer.frameLength = 144_000
-        for frame in 0..<144_000 { buffer.floatChannelData![0][frame] = Float(0.1 * sin(Double(frame) / 8)) }
-        try file.write(from: buffer)
+        try package.addTone()
         return package
     }
 
@@ -95,8 +83,28 @@ struct LiveStdinTests {
         try write(stdin, ["jsonrpc": "2.0", "id": 3, "method": "ping"])
         try stdin.fileHandleForWriting.close()
         await until("the server ends at the end of stdin") { run.isEnded }
+        // The pipe closes its read end when it goes, so it lives until the server thread ends.
+        withExtendedLifetime(stdin) {}
         let lines = run.all
         #expect(lines.contains { $0["id"] as? Int == 3 }, "the ping after the cancel has its answer: \(lines)")
         #expect(!lines.contains { $0["id"] as? Int == 2 }, "a cancelled call has no answer: \(lines)")
+    }
+}
+
+extension LivePackage {
+    /// Adds clip `c1` of 3 s of a tone on `t1`: three blocks of `clipLoudness`.
+    func addTone() throws {
+        var session = try Session(contentsOf: url)
+        try session.addFile(AudioFile(id: "tone", path: "tone.wav", layout: .mono, length: 144_000))
+        try session.place(Clip(id: "c1", file: "tone", start: 0, offset: 0, length: 144_000), on: "t1")
+        try session.write(to: url)
+        let clips = url.appending(path: "Clips")
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let file = try AVAudioFile(forWriting: clips.appending(path: "tone.wav"), settings: format.settings)
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 144_000))
+        buffer.frameLength = 144_000
+        for frame in 0..<144_000 { buffer.floatChannelData![0][frame] = Float(0.1 * sin(Double(frame) / 8)) }
+        try file.write(from: buffer)
     }
 }

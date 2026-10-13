@@ -36,6 +36,11 @@ enum ToolWork: Sendable {
     case record(RecordRequest)
     /// `loudness`: no lock, as `dirigible loudness`; an empty list is every clip (decision 0049).
     case loudness(clips: [String])
+
+    /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
+    var isLong: Bool {
+        if case .loudness = self { true } else { false }
+    }
 }
 
 /// The JSON Schema of one property, with JSON values only.

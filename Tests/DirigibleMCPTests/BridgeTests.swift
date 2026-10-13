@@ -95,7 +95,8 @@ struct BridgeTests {
     }
 
     /// Decision 0048: during a call, a cancel of the running request or the end of stdin closes
-    /// the connection, so the app ends a record request. A cancel of another request does not.
+    /// the connection, so the app ends a record request. A cancel of another request does not. A
+    /// cancelled call gets no answer (decision 0049).
     @Test(arguments: ["cancel", "eof", "other"]) func stdinDuringACall(_ how: String) throws {
         let app = try FakeApp { _ in how == "other" ? .lateReply(#"{"isError":false,"text":"late"}"#) : .hold }
         var fds: [Int32] = [0, 0]
@@ -112,7 +113,7 @@ struct BridgeTests {
         let done = OSAllocatedUnfairLock(initialState: false)
         Thread.detachNewThread {
             let input = LineInput(fd: readFD)
-            var server = MCPServer(route: AgentBridge(socket: socket, input: input).route)
+            var server = MCPServer(route: AgentBridge(socket: socket, input: input).route, pollCancel: input.pollCancel)
             let reply = input.next().flatMap { server.answer($0) }
             answer.withLock { $0 = reply }
             done.withLock { $0 = true }
@@ -131,13 +132,13 @@ struct BridgeTests {
 
         try #require(waitUntil(10) { done.withLock { $0 } }, "the bridge still waits")
         if how != "eof" { close(writeFD) }
-        let text = toolText(answer.withLock { $0 })
-        if how == "other" {
-            #expect(text == ("late", false), "a cancel of another request ended the call")
-        } else {
-            #expect(text == (lostCallMessage, true))
-            #expect(waitUntil(5) { app.holdsClosed == 1 }, "the app did not see the close")
+        let reply = answer.withLock { $0 }
+        switch how {
+        case "other": #expect(toolText(reply) == ("late", false), "a cancel of another request ended the call")
+        case "cancel": #expect(reply == nil, "a cancelled call got an answer: \(reply ?? "")")
+        default: #expect(toolText(reply) == (lostCallMessage, true))
         }
+        if how != "other" { #expect(waitUntil(5) { app.holdsClosed == 1 }, "the app did not see the close") }
     }
 
     /// C8: an app that closed between two calls counts as no app: the second call runs on the
@@ -171,6 +172,8 @@ final class FakeApp: @unchecked Sendable {
         case replyAndQuit(String)
         /// No reply: read until the bridge closes the connection, and count the close.
         case hold
+        /// Each line after its wait in seconds, each in one write.
+        case script([(TimeInterval, String)])
     }
 
     let socket: URL
@@ -237,6 +240,11 @@ final class FakeApp: @unchecked Sendable {
                     while read(fd, &bytes, bytes.count) > 0 {}
                     lock.withLock { closedHolds += 1 }
                     break connection
+                case .script(let lines):
+                    for (wait, line) in lines {
+                        Thread.sleep(forTimeInterval: wait)
+                        _ = writeAll(fd, Data((line + "\n").utf8))
+                    }
                 case .lateReply(let reply):
                     Thread.sleep(forTimeInterval: 1)
                     _ = writeAll(fd, Data((reply + "\n").utf8))

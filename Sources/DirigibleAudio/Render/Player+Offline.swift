@@ -61,7 +61,10 @@ extension Player {
     /// its end, so the wait asks for one chunk more than the pull: with one chunk, a pull on a
     /// full suite ran before the refill and played silence.
     private func waitForFeed(_ count: Int, budget: inout Duration) async {
-        while let feed, feed.scheduled - nodeFrames() < count + chunk, feed.scheduled < length(feed), budget > .zero {
+        // A pull of `count` output frames takes `count` x the speed node frames.
+        while let feed, feed.scheduled - nodeFrames() < Int(Double(count + chunk) * feed.speed),
+            feed.scheduled < length(feed), budget > .zero
+        {
             let start = ContinuousClock.now
             try? await Task.sleep(for: .milliseconds(1))
             budget -= min(ContinuousClock.now - start, .milliseconds(10))

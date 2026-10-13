@@ -15,7 +15,8 @@ actor Player {
     enum Output { case device, offline }
     /// Only these change the feed number. A seek or a shuttle change is a new play.
     enum Command: Sendable {
-        case play(from: Frames, shuttle: Shuttle)
+        /// `speed` applies only at the shuttle rate 1x (decision 0048).
+        case play(from: Frames, shuttle: Shuttle, speed: Speed = .one)
         case stop
     }
 
@@ -41,6 +42,8 @@ actor Player {
         let engine: AVAudioEngine
         let node: AVAudioPlayerNode
         let format: AVAudioFormat
+        /// The speed unit, attached but in the path only at a speed other than 1 (decision 0048).
+        let unit: AVAudioUnitTimeEffect?
     }
 
     /// The running play. `scheduled` counts output frames from the play start. `fadeFrom` is the
@@ -49,6 +52,9 @@ actor Player {
     struct Feed {
         let anchor: Frames
         let shuttle: Shuttle
+        /// The vari-speed factor: 1 at a tape rate or with no unit. `scheduled` counts node
+        /// frames, which are source frames at any speed (probe S3).
+        let speed: Double
         let mix: MixReader
         var scheduled = 0
         var fadeFrom: Session?
@@ -66,6 +72,8 @@ actor Player {
     private let start: @Sendable (AVAudioEngine) throws -> Void
     /// Opens a pool file. Tests give one that fails.
     private let open: MediaOpen
+    /// Makes the speed unit at the first play. Tests give one that gives nil.
+    private let speedUnit: SpeedUnitFactory
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
     let chunk: Int
     private(set) var session: Session
@@ -97,13 +105,14 @@ actor Player {
     init(
         package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
         start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() },
-        open: @escaping MediaOpen = openMedia
+        open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitFactory = makeSpeedUnit
     ) {
         self.package = package
         self.output = output
         self.session = session
         self.start = start
         self.open = open
+        self.speedUnit = speedUnit
         chunk = max(1, session.sampleRate / 10)
         loudness = PlayerLoudness(sampleRate: session.sampleRate)
     }
@@ -118,15 +127,18 @@ actor Player {
         loudness.stop(at: frame, played: heardFrames())
         graph?.node.stop()
         feed = nil
-        guard case .play(let start, let shuttle) = command else {
+        guard case .play(let start, let shuttle, let speed) = command else {
             graph?.engine.stop()
             return
         }
         frame = start
-        loudness.start(at: start, shuttle: shuttle)
         played = number
         stop = nil
         guard let graph = makeGraph() else { return }
+        let factor = shuttle.rate == .one && graph.unit != nil ? speed.factor : 1
+        loudness.start(at: start, shuttle: shuttle, speed: factor)
+        // A rewire while the engine runs costs no more than a seek during play (probe S6).
+        wire(graph, speed: factor)
         guard let url = try? package() else {
             stop = .packageUnavailable
             return
@@ -141,7 +153,8 @@ actor Player {
         latency =
             output == .device
             ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded()) : 0
-        feed = Feed(anchor: start, shuttle: shuttle, mix: MixReader(package: url, session: session, open: open))
+        feed = Feed(
+            anchor: start, shuttle: shuttle, speed: factor, mix: MixReader(package: url, session: session, open: open))
         refill()
         graph.node.play()
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
@@ -173,7 +186,7 @@ actor Player {
     /// after the node).
     func reading() -> Reading {
         loudness.heard(heardFrames())
-        let ended = feed.map { $0.scheduled >= length($0) && nodeFrames() - latency >= $0.scheduled } ?? false
+        let ended = feed.map { $0.scheduled >= length($0) && heardFrames() >= $0.scheduled } ?? false
         return Reading(
             number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false,
             stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values)
@@ -192,9 +205,11 @@ actor Player {
         // ahead of the heard audio. Start the node again at the last frame that it played.
         let (scheduled, played) = (feed.scheduled, nodeFrames())
         let dry = scheduled < length(feed) && played > scheduled
+        // `depth` chunks of output time: the unit takes `speed` node frames per output frame.
+        let ahead = Int((Double(chunk * Self.depth) * feed.speed).rounded(.up))
         // A full or complete feed skips the package lookup (a stat), so a running play looks up
         // the package only on a tick that schedules a chunk.
-        if !dry, scheduled >= min(length(feed), played + chunk * Self.depth) { return }
+        if !dry, scheduled >= min(length(feed), played + ahead) { return }
         guard let url = try? package() else {
             stop = .packageUnavailable
             return
@@ -204,12 +219,13 @@ actor Player {
             loudness.restart(scheduled: scheduled)
             graph.node.stop()
             feed = Feed(
-                anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, mix: feed.mix, fadeFrom: feed.fadeFrom)
+                anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, speed: feed.speed, mix: feed.mix,
+                fadeFrom: feed.fadeFrom)
             self.feed = feed
         }
         defer { if dry { graph.node.play() } }
         let total = length(feed)
-        let target = min(total, nodeFrames() + chunk * Self.depth)
+        let target = min(total, nodeFrames() + ahead)
         while feed.scheduled < target {
             let count = min(chunk, total - feed.scheduled)
             guard let buffer = AVAudioPCMBuffer(pcmFormat: graph.format, frameCapacity: AVAudioFrameCount(count)),
@@ -331,11 +347,10 @@ actor Player {
         }
     }
 
-    /// The frame that the user hears: the node frames less the output latency, at most the
-    /// scheduled frames.
+    /// The frame that the user hears: the heard node frames, at most the scheduled frames.
     private func position() -> Frames {
         guard let feed else { return frame }
-        return frame(feed, played: min(max(0, nodeFrames() - latency), feed.scheduled))
+        return frame(feed, played: min(heardFrames(), feed.scheduled))
     }
 
     /// The session frame after `played` output frames of the feed.
@@ -344,9 +359,10 @@ actor Player {
         return feed.shuttle.direction == .forward ? feed.anchor + moved : feed.anchor - moved
     }
 
-    /// The output frames that the output played since the play: the node frames less the
-    /// output latency.
-    private func heardFrames() -> Int { max(0, nodeFrames() - latency) }
+    /// The node frames that the output played since the play.
+    private func heardFrames() -> Int {
+        Self.heard(nodeFrames: nodeFrames(), latency: latency, speed: feed?.speed ?? 1)
+    }
 
     /// The output frames that the node played since its play; 0 before the first render.
     func nodeFrames() -> Int {
@@ -362,7 +378,9 @@ actor Player {
         else { return nil }
         let engine = AVAudioEngine()
         let node = AVAudioPlayerNode()
+        let unit = speedUnit()
         engine.attach(node)
+        if let unit { engine.attach(unit) }
         engine.connect(node, to: engine.mainMixerNode, format: format)
         if output == .offline {
             guard
@@ -373,7 +391,7 @@ actor Player {
         observer = Observer(
             NotificationCenter.default.addObserver(
                 forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil, using: Self.changed(self)))
-        graph = Graph(engine: engine, node: node, format: format)
+        graph = Graph(engine: engine, node: node, format: format, unit: unit)
         return graph
     }
 }

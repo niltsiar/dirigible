@@ -15,7 +15,7 @@ package struct AgentCall: Sendable {
 /// The listener of the app server (decision 0046 Owners). It owns the lock fd, the listener fd,
 /// the socket file, and the connections, and is confined to `queue`: each fd is read by a
 /// `DispatchSourceRead` there, so no `accept` or `read` runs on the main actor or in a `Task`.
-/// All listeners share the queue, so an open runs after the stop of the listener before it.
+/// The main actor never waits for the queue.
 final class AgentListener: @unchecked Sendable {
     enum Opening {
         case listening(AgentListener)
@@ -51,17 +51,10 @@ final class AgentListener: @unchecked Sendable {
         init(fd: Int32) { self.fd = fd }
     }
 
-    /// Takes the lock beside `socket`, replaces an old socket file, binds, and listens, on the
-    /// queue: a stop that came before has freed its lock then. `handle` answers each call;
-    /// `counted` gets the number of connections. Never call it on the queue.
+    /// Takes the lock beside `socket`, replaces an old socket file, binds, and listens. It runs
+    /// no blocking call. Open after the completion of the stop before it: the old lock is free
+    /// then. `handle` answers each call; `counted` gets the number of connections.
     static func open(
-        socket: URL, handle: @escaping @Sendable (AgentCall) async -> AgentReply,
-        counted: @escaping @Sendable (Int) -> Void
-    ) -> Opening {
-        queue.sync { openOnQueue(socket: socket, handle: handle, counted: counted) }
-    }
-
-    private static func openOnQueue(
         socket: URL, handle: @escaping @Sendable (AgentCall) async -> AgentReply,
         counted: @escaping @Sendable (Int) -> Void
     ) -> Opening {
@@ -107,19 +100,20 @@ final class AgentListener: @unchecked Sendable {
         (self.handle, self.counted) = (handle, counted)
     }
 
-    /// Closes the listener, removes the socket file, and then frees the lock, so the next open
-    /// can take it. Each connection answers its running call, then closes (decision 0046 Life
-    /// cycle). It returns after the unlink, so a bridge that connects later finds no app. Never
-    /// call it on the queue.
-    func stop() {
-        queue.sync { [self] in
-            guard !stopped else { return }
-            stopped = true
-            listenSource?.cancel()
-            listenSource = nil
-            unlink(socket.path)
-            close(lockFD)
-            for connection in connections.values where !connection.running { end(connection) }
+    /// Closes the listener, removes the socket file, and then frees the lock, on the queue. Then
+    /// `done` runs on the main actor: the next open can take the lock. Each connection answers
+    /// its running call, then closes (decision 0046 Life cycle).
+    func stop(then done: @escaping @MainActor @Sendable () -> Void = {}) {
+        queue.async { [self] in
+            if !stopped {
+                stopped = true
+                listenSource?.cancel()
+                listenSource = nil
+                unlink(socket.path)
+                close(lockFD)
+                for connection in connections.values where !connection.running { end(connection) }
+            }
+            DispatchQueue.main.async { MainActor.assumeIsolated { done() } }
         }
     }
 
@@ -139,13 +133,8 @@ final class AgentListener: @unchecked Sendable {
         while !stopped {
             let fd = accept(listenFD, nil, nil)
             guard fd >= 0 else { return }
+            // The fd takes O_NONBLOCK from the listener, so no read blocks the queue.
             setNoSigPipe(fd)
-            // The fd takes O_NONBLOCK from the listener; a reply write must block, else a reply
-            // over the socket buffer gives EAGAIN.
-            _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)
-            // A peer that stops reading cannot hold the queue for long.
-            var limit = timeval(tv_sec: 5, tv_usec: 0)
-            setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &limit, socklen_t(MemoryLayout<timeval>.size))
             let connection = Connection(fd: fd)
             let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
             source.setEventHandler { [weak self, unowned connection] in self?.readable(connection) }

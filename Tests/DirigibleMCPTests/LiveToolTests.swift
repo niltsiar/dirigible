@@ -37,6 +37,7 @@ struct LiveToolTests {
         let studio = try await package.open()
         let (server, folder) = try liveServer(studio)
         server.stop()
+        await until("the stop did not end") { !server.draining }
         let (path, socket) = (package.path, folder.socket)
 
         let answer = await onThread {

@@ -37,6 +37,7 @@ struct AgentServerTests {
         #expect(await onThread { client.readsEOF() }, "the connection did not close")
         let afterStop = await probe(socket)
         #expect(afterStop == .noApp)
+        await until("the stop did not free the lock") { !server.draining }
 
         let next = emptyServer(socket)
         next.start()
@@ -62,7 +63,7 @@ struct AgentServerTests {
     }
 
     /// C1: a start at once after a stop serves: the switch off and on, and a cancelled Quit. The
-    /// stop frees the lock before the next open runs.
+    /// start opens when the stop freed the lock.
     @Test func stopThenStartServes() async throws {
         let folder = try SocketFolder()
         let server = emptyServer(folder.socket)
@@ -71,7 +72,7 @@ struct AgentServerTests {
         server.start()
         defer { server.stop() }
 
-        #expect(server.state == .listening, "C1: a start after a stop does not listen")
+        await until("C1: a start after a stop does not listen") { server.state == .listening }
         #expect(await probe(folder.socket) == .reply(.notOpen))
     }
 
@@ -201,6 +202,30 @@ struct AgentServerTests {
             await probe(folder.socket) == .reply(.result(text: text, isError: false)), "C5: the large reply is lost")
     }
 
+    /// Decision 0046 Owners: the main actor never waits for the queue. A stop while a reply
+    /// write waits for a peer that reads nothing returns at once.
+    @Test func stopDuringAStalledWriteReturnsAtOnce() async throws {
+        let folder = try SocketFolder()
+        let text = String(repeating: "0123456789", count: 100_000)
+        var listener: AgentListener?
+        if case .listening(let opened) = AgentListener.open(
+            socket: folder.socket, handle: { _ in .result(text: text, isError: false) }, counted: { _ in })
+        {
+            listener = opened
+        }
+        try #require(listener != nil)
+        let client = try #require(Client(folder.socket))
+        client.send(#"{"tool":"session_info","arguments":{"package":"/tmp/none.dirigible"}}"#)
+        await until("the reply write did not start") { client.hasData }
+
+        let start = ContinuousClock.now
+        listener?.stop()
+        let waited = ContinuousClock.now - start
+        // The close lets the write fail now, so the shared queue is free for the next test.
+        client.close()
+        #expect(waited < .milliseconds(500), "the main actor waited \(waited) for the queue")
+    }
+
     /// C1: a stop during a call answers that call, then closes the connection and frees the lock,
     /// also when the app drops the listener at once (decision 0046 Life cycle).
     @Test func stopAnswersTheRunningCall() async throws {
@@ -268,6 +293,12 @@ final class Client: @unchecked Sendable {
     }
 
     func send(_ line: String) { _ = writeAll(fd, Data((line + "\n").utf8)) }
+
+    /// True when bytes wait to be read now.
+    var hasData: Bool {
+        var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+        return poll(&entry, 1, 0) == 1
+    }
 
     /// True when a read gets EOF within 5 s.
     func readsEOF() -> Bool {

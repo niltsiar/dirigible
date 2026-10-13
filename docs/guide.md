@@ -534,7 +534,7 @@ After many retakes, the session package keeps audio files that no clip uses. To 
 
 The window then shows the number of moved files and their size. If a file does not move, the window names it, and the file stays in the session package.
 
-Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. Remove Unused Files has no Undo: to get a file back, use **Put Back** in the Trash. The space on the disk comes back when you empty the Trash.
+Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. A pool file that is a link or a folder also stays, and the sheet names it, with each damaged backup, which keeps no file. Remove Unused Files has no Undo: to get a file back, use **Put Back** in the Trash. The space on the disk comes back when you empty the Trash.
 
 During a take, an import, or Auto Level, the command is off. With no file to remove, an alert says so.
 
@@ -764,7 +764,7 @@ These commands use the backups of the session in `Backups/`:
 
 This command removes the audio files that the session does not use:
 
-- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses and each WAV file in `Clips/` that the session does not name, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
+- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses and each WAV file in `Clips/` that the session does not name, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. A pool file that is a symbolic link or a folder stays, and the command writes "Not a regular file, it stays" for it. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
 
 The text of the tool is English only.
 

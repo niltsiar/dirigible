@@ -130,6 +130,7 @@ extension Studio {
             diskWatcher = watchDisk()
             // A stop from now on waits for this step and does not throw `.busy`.
             isStarting = false
+            await environment.afterStart()
             await startApps()
             await handOver()
             return .success((started.take, generation))

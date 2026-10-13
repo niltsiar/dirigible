@@ -50,8 +50,10 @@ extension SessionWindow {
     var canRedo: Bool { idleStudio?.canRedo == true }
 
     /// Command-R. The library reads the microphone access; the app requests it (decision 0013).
-    /// `startTake` commits the drafts and keeps the other rules of `canRecord`.
+    /// It commits the drafts first, also when no track is armed. `startTake` keeps the other rules
+    /// of `canRecord`.
     func record() async {
+        commitDrafts()
         guard consent == nil, let tracks = studio?.session.tracks.map(\.id).filter(armed.contains), !tracks.isEmpty
         else { return }
         await startTake(armed: tracks, playhead: nil)

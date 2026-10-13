@@ -52,6 +52,9 @@ final class AgentListener: @unchecked Sendable {
         var bytes = [UInt8](repeating: 0, count: readSize)
         /// The running call. A line that comes during the call waits in `buffer`.
         var call: Task<Void, Never>?
+        /// The peer shut its write side during a call: the read source is suspended, and the
+        /// connection ends after the reply.
+        var halfClosed = false
         /// Never the same for two connections, also when a new one gets a freed address.
         let serial: Int
         init(fd: Int32, serial: Int) { (self.fd, self.serial) = (fd, serial) }
@@ -158,6 +161,12 @@ final class AgentListener: @unchecked Sendable {
     private func readable(_ connection: Connection) {
         let count = read(connection.fd, &connection.bytes, readSize)
         if count < 0, errno == EAGAIN || errno == EINTR { return }
+        // At EOF during a call, a send of 0 bytes fails only when the peer closed both sides.
+        if count == 0, connection.call != nil, send(connection.fd, nil, 0, 0) == 0 {
+            connection.halfClosed = true
+            connection.source?.suspend()
+            return
+        }
         guard count > 0, connection.buffer.count + count <= Self.maximumLine else { return end(connection) }
         connection.buffer.append(contentsOf: connection.bytes[..<count])
         nextCall(connection)
@@ -190,7 +199,7 @@ final class AgentListener: @unchecked Sendable {
             log.error("A reply to an agent did not arrive whole (errno \(code)). The connection ends.")
             return end(connection)
         }
-        guard !stopped else { return end(connection) }
+        guard !stopped, !connection.halfClosed else { return end(connection) }
         connection.call = nil
         nextCall(connection)
     }
@@ -198,6 +207,8 @@ final class AgentListener: @unchecked Sendable {
     private func end(_ connection: Connection) {
         guard connections.removeValue(forKey: ObjectIdentifier(connection)) != nil else { return }
         connection.call?.cancel()
+        // A suspended source runs its cancel handler only after a resume.
+        if connection.halfClosed { connection.source?.resume() }
         connection.source?.cancel()
         connection.source = nil
         counted(connections.count)

@@ -137,7 +137,9 @@ shot() {
     "$repo/scripts/screenshot.sh" --window "$id" "$folder/$1" >/dev/null
     local px
     px="$(sips -g pixelWidth "$folder/$1" | awk '/pixelWidth/ {print $2}')"
-    if [[ "$px" -ne $((2 * width)) ]]; then
+    # awk, not $((...)): the Settings window takes its content size, which can be a fraction of a
+    # point. A 1 px rounding is not a scale error.
+    if awk -v p="$px" -v w="$width" 'BEGIN { d = p - 2 * w; exit !(d > 1 || d < -1) }'; then
         echo "screenshots.sh: $1 is $px px wide for a window of $width pt: the display scale is" \
             "$(awk "BEGIN {print $px / $width}")x, not 2x. Use a Retina display." >&2
         exit 1

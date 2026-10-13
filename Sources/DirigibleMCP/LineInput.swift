@@ -1,7 +1,7 @@
 import Foundation
 
-/// The stdin lines of `dirigible mcp`, read with no stdio buffer, so the bridge can watch stdin
-/// while a call waits for the app (decision 0048). One thread uses it.
+/// The stdin lines of `dirigible mcp`, read with no stdio buffer, so a running call can read a
+/// cancel on stdin (decisions 0048 and 0049). One thread uses it.
 package final class LineInput {
     let fd: Int32
     private var buffer = Data()
@@ -49,11 +49,27 @@ package final class LineInput {
     func stopsCall() -> Bool {
         if ended { return true }
         guard let current else { return false }
-        return buffer.split(separator: UInt8(ascii: "\n")).contains { line in
+        return cancels(current)
+    }
+
+    /// With `read`, reads stdin after a poll of 0 ms. Gives true when a buffered line cancels
+    /// `requestID` (decision 0049). After EOF it reads nothing: EOF ends only a `record` call
+    /// (decision 0048).
+    package func pollCancel(_ requestID: NSObject, read: Bool = true) -> Bool {
+        if read, !ended {
+            var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            if poll(&entry, 1, 0) > 0 { fill() }
+        }
+        return cancels(requestID)
+    }
+
+    /// True when a buffered `notifications/cancelled` names `requestID`.
+    private func cancels(_ requestID: NSObject) -> Bool {
+        buffer.split(separator: UInt8(ascii: "\n")).contains { line in
             guard let message = Self.object(line), message["method"] as? String == "notifications/cancelled",
                 let params = message["params"] as? [String: Any]
             else { return false }
-            return (params["requestId"] as? NSObject)?.isEqual(current) == true
+            return (params["requestId"] as? NSObject)?.isEqual(requestID) == true
         }
     }
 

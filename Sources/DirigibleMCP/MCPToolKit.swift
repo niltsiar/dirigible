@@ -34,6 +34,8 @@ enum ToolWork: Sendable {
     case prune(dryRun: Bool)
     /// `record`: only the app records, after the consent of the user (decision 0048).
     case record(RecordRequest)
+    /// `loudness`: no lock, as `dirigible loudness`; an empty list is every clip (decision 0049).
+    case loudness(clips: [String])
 }
 
 /// The JSON Schema of one property, with JSON values only.

@@ -17,11 +17,13 @@ struct MCPCommand: ParsableCommand {
         // with no message.
         signal(SIGPIPE, SIG_IGN)
         // The bridge connects at start, so the app counts the agent before its first call (0046).
-        // No stdio buffer: the bridge reads stdin during a record call (decision 0048).
+        // No stdio buffer: a running call reads stdin for its cancel (decisions 0048 and 0049).
         let input = LineInput()
         let bridge = AgentBridge(input: input)
         bridge.connect()
-        var server = MCPServer(route: bridge.route)
+        // A failed progress write is lost; the write of the answer then reports the error.
+        let send = { (line: String) in _ = try? FileHandle.standardOutput.write(contentsOf: Data((line + "\n").utf8)) }
+        var server = MCPServer(route: bridge.route, send: send, pollCancel: input.pollCancel)
         // The lines split on \n and \r\n only, and nil comes at the end of stdin.
         while let line = input.next() {
             guard let answer = server.answer(line) else { continue }

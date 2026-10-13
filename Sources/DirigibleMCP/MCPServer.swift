@@ -10,19 +10,35 @@ package struct MCPServer {
     private var initializeClient = ClientInfo()
 
     /// Gives the result of a `tools/call` from the app, or nil to run the call on the files.
-    package typealias Route = (_ tool: String, _ arguments: [String: Any], _ client: ClientInfo) -> (
-        text: String, isError: Bool
-    )?
+    package typealias Route = (_ tool: String, _ arguments: [String: Any], _ client: ClientInfo, _ control: CallControl)
+        -> (text: String, isError: Bool)?
     private let route: Route?
+    /// Writes one notification line to stdout (decision 0049).
+    private let send: (String) -> Void
+    /// Reads stdin when the flag is true, and gives true when a buffered line cancels the request
+    /// with this ID (decision 0049).
+    private let pollCancel: (NSObject, Bool) -> Bool
+    private let pollInterval: Duration
+    private let step: () -> Void
 
-    /// With `route`, `dirigible mcp` is the bridge to the app (decision 0046).
-    package init(route: Route? = nil) { self.route = route }
+    /// With `route`, `dirigible mcp` is the bridge to the app (decision 0046). A call reads stdin
+    /// for its cancel at most once in `pollInterval`. `step` runs after each progress report of a
+    /// call; tests hold the job with it.
+    package init(
+        route: Route? = nil, send: @escaping (String) -> Void = { _ in },
+        pollCancel: @escaping (NSObject, Bool) -> Bool = { _, _ in false }, pollInterval: Duration = .milliseconds(100),
+        step: @escaping () -> Void = {}
+    ) {
+        (self.route, self.send, self.pollCancel, self.pollInterval, self.step) = (
+            route, send, pollCancel, pollInterval, step
+        )
+    }
 
     /// The legacy versions, newest first. `initialize` gets the client version when it is here.
     static let legacyVersions = ["2025-11-25", "2025-06-18", "2025-03-26"]
 
-    /// One request line to one answer line, or nil for a notification or an empty line. Each line
-    /// gets its answer here, so no input stops the server.
+    /// One request line to one answer line, or nil for a notification, an empty line, or a
+    /// cancelled call. Each other line gets its answer here, so no input stops the server.
     package mutating func answer(_ line: String) -> String? {
         guard !line.allSatisfy(\.isWhitespace) else { return nil }
         guard let message = try? JSONSerialization.jsonObject(with: Data(line.utf8), options: .fragmentsAllowed) else {
@@ -63,6 +79,9 @@ package struct MCPServer {
             let list = Tool.all.map { ["name": $0.name, "description": $0.description, "inputSchema": $0.inputSchema] }
             return reply(id, ["tools": list], cached: true)
         case "tools/call":
+            // A call that the client cancelled while it waited does not run (decision 0049).
+            let requestID = id as? NSObject
+            if let requestID, pollCancel(requestID, true) { return nil }
             guard let name = params["name"] as? String else {
                 return reply(id, error: -32602, "tools/call needs a name.")
             }
@@ -73,7 +92,13 @@ package struct MCPServer {
                 return reply(id, error: -32602, "the arguments of tools/call are not an object.")
             }
             let client = ClientInfo(meta(params)?["io.modelcontextprotocol/clientInfo"]) ?? initializeClient
-            let (text, isError) = route?(name, arguments, client) ?? tool.call(arguments)
+            let pollCancel = pollCancel
+            let control = CallControl(
+                token: meta(params)?["progressToken"], interval: pollInterval, send: send,
+                poll: { read in requestID.map { pollCancel($0, read) } ?? false }, step: step)
+            let (text, isError) = route?(name, arguments, client, control) ?? tool.call(arguments, control: control)
+            // MCP 2026-07-28: no response for a cancelled request.
+            if control.cancelSeen { return nil }
             return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])
         default: return reply(id, error: -32601, "no method \(method).")
         }

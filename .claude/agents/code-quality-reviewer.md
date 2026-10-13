@@ -16,6 +16,6 @@ Check:
 
 Rules:
 
-- Do not modify files. Use `Bash` for read-only commands, and you may run `scripts/with-lock.sh make test` to confirm a suspected bug.
+- Do not modify files. Use `Bash` for read-only commands, and you may run `scripts/with-lock.sh make test-filter FILTER='<test>'` to confirm a suspected bug.
 - Each finding has a severity (`critical`, `warning`, `nit`), a location, the evidence, and an optional fix.
 - Return nits only when they are useful. Zero findings is a valid result.

@@ -33,4 +33,4 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 
 ## Measure
 
-For the next 5 `risk: yes` runs, log each pick, its result, and its time. When a code gate or a check of the built app finds a defect that a skipped guard mutant would kill, go back to one mutant per guard.
+For the next 5 `risk: yes` runs, add a phase 7 `decisions.tsv` row (decision `pass measure`) with the picks, the guards left out, the results, and the minutes, and add the run to the `## Next` item "mutation pass trial" of `.scratchpads/backlog.md`. For each code gate or `NOT VERIFIED` defect in a guard that the pass left out, run the mutant of that guard on the commit of the pass. When no test kills it, the pass missed the defect: go back to one mutant per guard, with no cap. After the 5th run, an upkeep run decides whether to keep the cap and removes this section.

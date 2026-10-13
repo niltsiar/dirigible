@@ -75,7 +75,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 - A docs commit runs `check-docs` in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints, or reuses a stamp.
 - A commit can break a test that no loop ran. The push check finds it.
-- A guard with no pick in the pass can land with a weak red-first test. The next 5 risk runs measure the picks; a defect that a skipped mutant kills brings back one mutant per guard.
+- A guard with no pick in the pass can land with a weak red-first test. The next 5 risk runs measure the picks in the `## Next` item "mutation pass trial" of the backlog; a defect that a mutant of a left-out guard kills brings back one mutant per guard. An upkeep run closes the trial.
 - The path table is one place to change. A wrong class lets a red commit through, so its test compares the whole output for each class and checks the fail-closed exits.
 - Fewer mutation controls run. A defect in a guard outside the risk floor can land when its failing-before test is weak. The plan can raise such a guard to risk.
 - The workflow docs stop growing by one rule for each learning. A rule that does not fit the budget waits for a consolidation run.

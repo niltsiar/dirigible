@@ -16,3 +16,10 @@ public enum Speed: Int, CaseIterable, Hashable, Sendable {
     /// The next step down; the first step stays.
     public var slower: Speed { Self.allCases.last { $0.rawValue < rawValue } ?? self }
 }
+
+/// A change of the vari-speed (decision 0048): Period (`toggle`), ">" (`faster`), "<"
+/// (`slower`), or a pick of the menu or the toolbar pop-up (`set`).
+public enum SpeedChange: Hashable, Sendable {
+    case toggle, faster, slower
+    case set(Speed)
+}

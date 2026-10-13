@@ -54,7 +54,7 @@ actor Player {
         let shuttle: Shuttle
         /// The vari-speed factor: 1 at a tape rate or with no unit. `scheduled` counts node
         /// frames, which are source frames at any speed (probe S3).
-        let speed: Double
+        var speed: Double
         let mix: MixReader
         var scheduled = 0
         var fadeFrom: Session?
@@ -192,7 +192,7 @@ actor Player {
             stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values)
     }
 
-    private func outputChanged() {
+    func outputChanged() {
         stop = .outputChanged
     }
 
@@ -339,12 +339,14 @@ actor Player {
         loudness.heard(heardFrames())
     }
 
-    /// Made outside the actor: NotificationCenter calls it on an internal queue.
-    private nonisolated static func changed(_ player: Player) -> @Sendable (Notification) -> Void {
-        { [weak player] _ in
-            guard let player else { return }
-            Task { await player.outputChanged() }
-        }
+    /// Sets the rate of the unit of the running feed, with no new play: a change between two
+    /// speeds other than 1 (decision 0048, S6). False when no feed plays through the unit; the
+    /// caller then starts a new play.
+    func setSpeed(_ speed: Speed) -> Bool {
+        guard speed != .one, let graph, feed.map({ $0.speed != 1 }) == true, speedUnitInGraph else { return false }
+        wire(graph, speed: speed.factor)
+        feed?.speed = speed.factor
+        return true
     }
 
     /// The frame that the user hears: the heard node frames, at most the scheduled frames.

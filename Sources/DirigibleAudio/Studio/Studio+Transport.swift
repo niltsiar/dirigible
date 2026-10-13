@@ -72,6 +72,11 @@ struct PlayState {
     var revision = 0
     /// The gain of a fader drag: each session that the Player gets has it, until `endPreview`.
     var preview: (track: TrackID, gain: Gain)?
+    /// The vari-speed of a 1x play (decision 0048): window state, 1x at open.
+    var speed = Speed.one
+    /// The speed that Period turns on: the last speed other than 1. The app sets it from its
+    /// preference.
+    var lastSpeed = Speed.x150
     /// Made at the first play from `environment.playerOutput`.
     var player: Player?
     /// Reads the Player every 33 ms while `playback` is `.playing`.
@@ -91,6 +96,20 @@ extension Studio {
     public var playheadTime: ContinuousClock.Instant { play.playheadTime }
     /// The last stop of playback that the user did not ask for. A new play clears it.
     public var playbackStop: PlaybackStop? { play.playbackStop }
+    /// The vari-speed of a 1x play (decision 0048).
+    public var speed: Speed { play.speed }
+    /// The speed that Period turns on. A value of 1 is ignored.
+    public var lastSpeed: Speed {
+        get { play.lastSpeed }
+        set { if newValue != .one { play.lastSpeed = newValue } }
+    }
+    /// The speed unit loads; else the speed stays 1 (decision 0048).
+    public var canChangeSpeed: Bool {
+        if let loads = speedUnitLoads { return loads }
+        let loads = environment.speedUnit() != nil
+        speedUnitLoads = loads
+        return loads
+    }
     /// The frame that Previous Clip and Previous Marker look before. During play it is 0.5 s
     /// before the playhead: the playhead is past an edge or a marker when the user hears it, so
     /// a press just after it goes to the one before it (code gate 1).
@@ -116,6 +135,10 @@ extension Studio {
             return
         }
         guard isIdle else { return }
+        if case .speed(let change) = command {
+            await changeSpeed(change)
+            return
+        }
         let current = play.playback.shuttle
         if case .seek(let seek) = command {
             guard let target = frame(of: seek) else { return }
@@ -156,6 +179,28 @@ extension Studio {
         // A stop, a seek, a shuttle change, or Record in the check makes this play old.
         guard play.feed == number else { return }
         await startPlay(next, from: play.playhead, number: number)
+    }
+
+    /// Stopped or at a tape rate, a change sets only the next 1x play. During a 1x play the play
+    /// goes on from the heard frame: a change between two speeds other than 1 sets only the
+    /// rate of the unit; another change is a new play, as a shuttle change (decision 0048, S6).
+    private func changeSpeed(_ change: SpeedChange) async {
+        guard canChangeSpeed else { return }
+        let old = play.speed
+        let new: Speed =
+            switch change {
+            case .toggle: old == .one ? play.lastSpeed : .one
+            case .faster: old.faster
+            case .slower: old.slower
+            case .set(let speed): speed
+            }
+        guard new != old else { return }
+        play.speed = new
+        if new != .one { play.lastSpeed = new }
+        guard let shuttle = play.playback.shuttle, shuttle.rate == .one else { return }
+        if old != .one, new != .one, let player = play.player, await player.setSpeed(new) { return }
+        let number = await endFeed(stop: false)
+        if play.feed == number { await startPlay(shuttle, from: play.playhead, number: number) }
     }
 
     /// Tests only: pulls frames from the offline Player.
@@ -267,12 +312,12 @@ extension Studio {
             play.player
             ?? Player(
                 package: { [lock] in try lock.package() }, output: environment.playerOutput, session: session,
-                start: environment.startEngine)
+                start: environment.startEngine, speedUnit: environment.speedUnit)
         play.player = player
         // Awaited, so a play after a take hears the take (plan gate 2 item 5).
         play.revision += 1
         await player.update(session, revision: play.revision)
-        await player.apply(.play(from: from, shuttle: shuttle), number: number)
+        await player.apply(.play(from: from, shuttle: shuttle, speed: play.speed), number: number)
         guard play.poll == nil else { return }
         play.poll = Task { [weak self] in
             while true {

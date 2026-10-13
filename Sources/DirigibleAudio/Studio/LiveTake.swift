@@ -124,6 +124,8 @@ struct CaptureEnvironment: Sendable {
     /// A step at the start of each media check of `Studio.checkMedia` and `Studio.exportFaults`, off the main actor. Tests
     /// hold the check with it and suspend, so no thread of the concurrency pool waits.
     var beforeMediaCheck: @Sendable () async -> Void = {}
+    /// Makes the speed unit of the Player (decision 0048). Tests give one that gives nil.
+    var speedUnit: SpeedUnitFactory = makeSpeedUnit
     /// Starts the engine of the Player. Tests give one that throws.
     var startEngine: @Sendable (AVAudioEngine) throws -> Void = { try $0.start() }
     /// A step before each block of a peak compute (decision 0017), isolated to the actor of the

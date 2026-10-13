@@ -252,7 +252,8 @@ let poolTools = [
     Tool(
         "file_prune",
         "Move the clip files that no clip uses to the Trash, as dirigible file prune does. A file that a clip of a "
-            + "backup uses stays. A package that is open in the app is refused: use File > Remove Unused Files there.",
+            + "backup uses stays. The tool cannot see the clipboard of an app window. A package that is open in the app "
+            + "is refused: use File > Remove Unused Files there.",
         [dryRun], saves: false
     ) { a throws(ToolError) in .prune(dryRun: try a[dryRun]) },
 ]

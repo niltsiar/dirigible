@@ -78,7 +78,7 @@ code=$?
 "$log" "$run" 2 'use blue' 'no reference app. reverse: say red.' evidence 'default: blue' || fail "a default row with reverse: exits $?"
 [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 3)) ]] || fail 'a default row with reverse: did not append exactly one row'
 
-# The phase is one digit, so land.sh finds the control rows of phase 2 and 4.
+# The phase is one digit, so land.sh finds the mutation pass row of phase 7.
 for phase in '4 implement' implement 10 ''; do
   before="$(shasum -a 256 "$run/decisions.tsv")"
   err="$("$log" "$run" "$phase" decision why evidence done 2>&1)"

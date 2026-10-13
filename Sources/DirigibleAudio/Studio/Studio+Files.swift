@@ -20,10 +20,10 @@ extension Studio {
     }
 
     /// Moves to the Trash the files of `confirmed` that a new scan in this turn of the write chain
-    /// still lists, so an edit after the list keeps a file that it uses (decision 0047). It removes
-    /// saves, then removes their pool entries from the session and from each undo and redo entry
-    /// with no new entry, and only then moves the files. Throws `.busy` as `unusedFiles`, also for
-    /// a take that starts during the scan. A failed save moves no file, changes no session, and
+    /// still lists, so an edit after the list keeps a file that it uses (decision 0047). It saves,
+    /// then removes their pool entries from the session and from each undo and redo entry with no
+    /// new entry, and only then moves the files. Throws `.busy` as `unusedFiles` does, also for a
+    /// take that starts during the scan. A failed save moves no file, changes no session, and
     /// sets `saveError` as a failed autosave does.
     public func removeUnusedFiles(_ confirmed: UnusedFiles, clipboard: Clipboard? = nil) async throws(StudioError)
         -> PruneReport

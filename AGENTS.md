@@ -15,7 +15,7 @@ The toolchain is Xcode 26 with Swift 6.2, with no Xcode project (decision 0001).
 |---|---|
 | `make setup` | Enables the git hooks. Run it once per clone. |
 | `make build` | Debug build. |
-| `make test` | All tests except `AppBundleTests` and `DiskImageTests`, for the red-green loop. A bare `swift test` fails these two on purpose. `DirigibleCLITests` runs in its own process. |
+| `make test` | All tests except `AppBundleTests` and `DiskImageTests`, in parallel shards after one build. Only the push check runs it; a slice runs `make check-changed FILTER=...`. A bare `swift test` fails these two on purpose. |
 | `make lint` | `swift format lint --strict`. |
 | `make format` | Formats the Swift files in place. |
 | `make check-docs` | Checks the docs, this table, the links, and the word budgets of `docs/workflow/budgets.tsv`. |

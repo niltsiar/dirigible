@@ -45,7 +45,7 @@ Write `plan.md`:
 - An `Agents:` line: the agent groups (small adjacent slices of one module share an agent), which groups run at the same time (no shared file or build output), and why the others wait.
 - When the `risk:` line says `yes`, or a plan says that no control is possible, read `references/mutation-controls.md`.
 - When a criterion sets a time budget or fixes a missed budget, adds a way to move or resize something, or a rule classifies loop runs, read `references/performance-criteria.md`.
-- A bug goal proves its fix with its red repro log (tdd step 7). A refactor or a file split pins the behavior with a test before code moves, and reverts a move that deletes no branch, copy, or layer.
+- A bug goal proves its fix with its red repro log (tdd step 7). A refactor or a file split pins the behavior with a test before code moves, and reverts a move that deletes no branch, copy, or layer. A split by responsibility that keeps a file under the size limit is a gain.
 - A one-way decision (a file format, a module boundary, a threading model, a dependency) gets the **architect** skill and a record in `docs/decisions/`.
 - Grep `docs/decisions/`, `AGENTS.md`, and `CODING_STANDARDS.md` for each item. When an item changes a rule or a fact, grep its exact phrase and key terms in `docs/`, `Sources/` (comments too), `Tests/`, and the run files, and fix each copy in the same change. A test of the old rule is a copy: plan its old and new value. Quote each rule found and say if the plan keeps or changes it. A change amends that record. A probe in the record can refute a fix option.
 
@@ -72,7 +72,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interro
 
 1. Each slice follows the **tdd** skill. No other check runs before a commit. Commit the slice before a file of the next slice.
 2. Use Conventional Commits (see `AGENTS.md`).
-3. After each slice, log a row and tick `run.md` with the actual minutes. Time `make test` on `main` once per run, and log the branch time. At two times the `main` time, stop and treat the cost as a plan change.
+3. After each slice, log a row and tick `run.md` with the actual minutes. Only the push check runs the full suite.
 4. If the plan proves wrong, stop, update `plan.md`, and log why.
 5. A slice that changes what a user sees or does updates `docs/guide.md`. Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `<verdict>, on screen, <screenshot path>`.
 
@@ -93,7 +93,7 @@ Run the **interrogate** skill with target `diff` and the lenses and rounds of th
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each criterion against the real artifact (the built app, real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` gets a `decisions.tsv` row with the result `NOT VERIFIED` and sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once, with logs in `<run>/logs/`: each eval that `scripts/evals-for.sh --quoted origin/main` prints, `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs its bench until it passes and runs no pairs), `scripts/check-governance.sh origin/main <run>`, then the push check `make check-changed BASE=origin/main` with `run_in_background`. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. Tell the user the state of each background step over 15 min. A later `Sources/` change runs the pairs and the push check again. A later doc change runs its evals again.
+Run the **verify-this** skill for each criterion against the real artifact (the built app, real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` gets a `decisions.tsv` row with the result `NOT VERIFIED` and sends you back to Phase 4 for a test-first fix; first stop running replays (`pkill -INT -f mutate.py` restores the file). With `risk: yes`, when you replay the controls once on the tree that lands, read `references/mutation-controls.md`. If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once, with logs in `<run>/logs/`: each eval that `scripts/evals-for.sh --quoted origin/main` prints, `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs its bench until it passes and runs no pairs), `scripts/check-governance.sh origin/main <run>`, then the push check `make check-changed BASE=origin/main > <run>/logs/push-check.log 2>&1` with `run_in_background`. A `test-shards:` time over two times that of the newest landed run's `push-check.log` is a plan change. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. Tell the user the state of each background step over 15 min. A later `Sources/` change runs the pairs and the push check again. A later doc change runs its evals again.
 
 ## Phase 8: Reflect
 

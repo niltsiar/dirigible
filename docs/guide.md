@@ -798,7 +798,7 @@ By default, an agent edits only sessions that are closed in the app. To let an a
 
 - An edit of an agent on an open session runs in the app, and the window shows it at once. It does not move the playhead, the selection, the scroll, or the zoom.
 - Each edit of an agent is one Undo step. The Edit menu names the agent, for example "Undo Claude Code Edit". Command-Z undoes it.
-- The title bar of each session window shows "Agent" with a sparkles symbol while an agent is connected.
+- The title bar of each session window shows "Agent" with a sparkles symbol while an agent tool is connected to Dirigible. The mark does not tell which session the agent edits.
 - The app refuses an edit of an agent during a take, during a drag, while the window closes, and during Quit. The agent gets the error "`<path>` is busy in Dirigible", with the cause, and can try again later.
 - `clip_paste`, `clip_paste_clips`, and `backup_revert` do not run on an open session. Do them in the app, or close the window.
 - An edit of an agent on a closed session saves the package and has no Undo in the app.

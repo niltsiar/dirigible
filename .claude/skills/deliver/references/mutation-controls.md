@@ -22,7 +22,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - Pass `--timeout <seconds>`, a few times the green test time: a hang gives `killed (hang)`, with `--expect` only when the text came before the kill. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads, and the test reads its input with `try?`, so the assert message comes.
 - mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads, also for a survivor that runs again. A `BUILD FAILED` or a tool crash right after another mutant can come from its outputs.
 - A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`.
-- Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row: the pass row. `scripts/land.sh` refuses a risk run with no pass row.
+- Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row whose decision starts with `mutation pass`: the pass row. `scripts/land.sh` refuses a risk run with no pass row.
 
 ## Read each survivor
 

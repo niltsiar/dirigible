@@ -62,8 +62,6 @@ struct ParityTests {
         "import": "Long audio work that needs progress and cancel (Release 3).",
         "level": "Long audio work that needs progress and cancel (Release 3).",
         "peaks": "Long audio work that needs progress and cancel (Release 3).",
-        "render": "Long audio work that needs progress and cancel (Release 3).",
-        "export": "Long audio work that needs progress and cancel (Release 3).",
         "chapters export": "It writes a file outside the package and edits nothing; session_info gives the markers.",
         "devices": "It lists the audio devices of this Mac, not a package.",
         "apps": "It lists the apps of this Mac, not a package.",

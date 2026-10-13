@@ -187,9 +187,29 @@ struct StudioExportTests {
         if path == .startRecording { #expect(temporaryAtDiskCheck.value == []) }
         #expect(studio.exportProgress == nil)
         await #expect(throws: StudioError.export(.cancelled)) { try await export.value }
+        #expect(studio.exportStop == .take, "an agent gets the take text")
         #expect(!FileManager.default.fileExists(atPath: out.path))
         #expect(try fixture.temporaryFiles() == [])
         try await recordAndStop(studio, hal, from: host)
+    }
+
+    /// Decision 0049, C9: a cancel of the caller ends the export at its next chunk, with no file.
+    @Test func aCancelOfTheCallerEndsTheExport() async throws {
+        let fixture = try await ExportStudioFixture.make()
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
+        let studio = try await fixture.open(seam: ChunkSeam(at: [2: { gate.waitOnce() }]))
+        let (source, options, out) = (fixture.source, fixture.options, fixture.out)
+        let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
+        await gate.entered()
+
+        export.cancel()
+        gate.open()
+
+        await #expect(throws: StudioError.export(.cancelled)) { try await export.value }
+        #expect(studio.exportStop == nil, "a cancel of the caller is not a stop in the window")
+        #expect(!FileManager.default.fileExists(atPath: out.path))
+        #expect(try fixture.temporaryFiles() == [])
     }
 
     /// A start that its access check or its route check refuses keeps the export.

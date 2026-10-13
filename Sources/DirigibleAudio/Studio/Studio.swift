@@ -126,6 +126,9 @@ import Observation
     @ObservationIgnored public var otherStudios: () -> [Studio] = { [] }
     /// The number of the export that a take of another studio ended.
     @ObservationIgnored var yieldedExport: Int?
+    /// Why the last export stopped before its end, read after its `.export(.cancelled)`. Nil
+    /// while it runs.
+    @ObservationIgnored public internal(set) var exportStop: ExportStop?
     /// True from the start of `settle()` to its end: no peak pass and no export starts.
     private(set) var settling = false
 
@@ -210,7 +213,7 @@ import Observation
         settling = true
         endImport()
         await endListen()
-        await endExport()
+        await endExport(.close)
         await stopPlay()
         // The monitor order does not wait for a finalize in progress.
         monitorRequest = []

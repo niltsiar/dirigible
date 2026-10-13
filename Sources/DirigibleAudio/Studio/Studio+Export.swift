@@ -9,7 +9,15 @@ struct ExportJob {
     /// The target: the disk check of a take in another studio ends only an export to its volume.
     let url: URL
     var progress: Double
+    /// The progress of the caller of `export`.
+    let report: @MainActor @Sendable (Double) -> Void
     let task: Task<Result<ExportResult, ExportError>, Never>
+}
+
+/// The cause of an export end before its end: Cancel in the export sheet, a take start, or the
+/// close of the window (`settle()`).
+public enum ExportStop: Sendable, Equatable {
+    case user, take, close
 }
 
 extension Studio {
@@ -26,34 +34,46 @@ extension Studio {
     /// Exports `source` of the session of now to `url` (decision 0019). An edit during the export
     /// is saved and does not change the file. It throws `.busy` during a take start, a take, a
     /// finalize, a pending take, another export, or a `settle()`. A take start and `settle()`
-    /// cancel it: then it throws `.export(.cancelled)`. Returns the report: the faults of the
-    /// files that the export read, and the loudness with a target.
+    /// cancel it: then it throws `.export(.cancelled)`, and `exportStop` gives the cause. A cancel
+    /// of the caller cancels it too (decision 0049). `progress` gets the fraction on the main actor.
+    /// Returns the report: the faults of the files that the export read, and the loudness with a
+    /// target.
     public func export(
-        _ source: ExportSource, _ options: ExportOptions, to url: URL, replacing: ConfirmedFile?
+        _ source: ExportSource, _ options: ExportOptions, to url: URL, replacing: ConfirmedFile?,
+        progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> ExportResult {
         try checkIdle()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         exportNumber += 1
+        exportStop = nil
         let number = exportNumber
         let task = exportTask(number, session, source, options, url, replacing)
-        exportJob = ExportJob(number: number, url: url, progress: 0, task: task)
-        let result = await task.value
+        exportJob = ExportJob(number: number, url: url, progress: 0, report: progress, task: task)
+        let result = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
         if exportJob?.number == number { exportJob = nil }
         if case .failure(.cancelled) = result, yieldedExport == number { throw .exportYielded }
         do { return try result.get() } catch { throw .export(error) }
     }
 
-    /// Cancels the running export. It ends within one chunk.
+    /// Cancels the running export: Cancel in the export sheet. It ends within one chunk.
     public func cancelExport() {
-        exportJob?.task.cancel()
+        guard let job = exportJob else { return }
+        exportStop = .user
+        job.task.cancel()
     }
 
     /// Cancels the running export and waits for its end. `settle()` calls it after it sets
     /// `settling`. A take start calls it after its lookup, route, and access checks and before
     /// its disk check and its save, so a refused take start keeps the export. With `yielding`,
-    /// a take of another studio ends it, and `export` throws `.exportYielded`.
-    func endExport(yielding: Bool = false) async {
+    /// a take of another studio ends it, and `export` throws `.exportYielded`. `exportStop` gets
+    /// `stop`.
+    func endExport(_ stop: ExportStop, yielding: Bool = false) async {
         guard let job = exportJob else { return }
+        exportStop = stop
         if yielding { yieldedExport = job.number }
         job.task.cancel()
         _ = await job.task.value
@@ -69,9 +89,9 @@ extension Studio {
         let others = otherStudios().filter { $0.exportJob != nil || $0.importRun != nil }
         guard exportJob != nil || !others.isEmpty else { return nil }
         return { [weak self] in
-            await self?.endExport()
+            await self?.endExport(.take)
             for studio in others {
-                await studio.endExport(yielding: true)
+                await studio.endExport(.take, yielding: true)
                 studio.endImport(yielding: true)
             }
         }
@@ -87,7 +107,7 @@ extension Studio {
         var ended = false
         for studio in otherStudios() {
             if let job = studio.exportJob, await onVolume(job.url.deletingLastPathComponent(), of: lock) {
-                await studio.endExport(yielding: true)
+                await studio.endExport(.take, yielding: true)
                 ended = true
             }
             if studio.importRun != nil, await onVolume(studio.url, of: lock) {
@@ -99,8 +119,9 @@ extension Studio {
 
     /// The progress hop of export `number`. A hop of another export changes nothing.
     func exportProgressed(_ number: Int, _ fraction: Double) {
-        guard exportJob?.number == number else { return }
+        guard let job = exportJob, job.number == number else { return }
         exportJob?.progress = fraction
+        job.report(fraction)
     }
 
     /// The job: `exportMix` on a utility GCD thread. A Swift task that a caller awaits takes the

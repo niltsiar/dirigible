@@ -2,42 +2,56 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
+/// How a text names an option: `--allow-missing` for the command line, `allow_missing` for an
+/// MCP tool (decision 0041).
+package enum OptionSpelling: Sendable {
+    case cli, tool
+
+    func callAsFunction(_ key: String) -> String {
+        switch self {
+        case .cli: "--" + key.replacing("_", with: "-")
+        case .tool: key
+        }
+    }
+}
+
 /// The one owner of each text of `export` and `render`: the option rules, the refusals, and the
 /// warning and report lines. A command and its MCP tool call it, so both give the same text
 /// (decision 0041). A line has no line break at its end.
 package enum ExportText {
-    /// The options that the arguments of `export` give. The refusal text names the CLI option.
+    /// The options that the arguments of `export` give. The refusal text names the option as the
+    /// caller spells it.
     package static func options(
-        out: String, bits: Int?, bitrate: Int?, mono: Bool, rate: Int?, loudness: String?
+        out: String, bits: Int?, bitrate: Int?, mono: Bool, rate: Int?, loudness: String?, spelling o: OptionSpelling
     ) throws(ToolError) -> ExportOptions {
         try checkOutsidePackages(URL(filePath: out))
         let format: ExportFormat
         let pathExtension = URL(filePath: out).pathExtension.lowercased()
         switch pathExtension {
         case "wav", "flac":
-            guard bitrate == nil else { throw ToolError("--bitrate is only for .m4a and .mp3.") }
-            guard let depth = BitDepth(rawValue: bits ?? 24) else { throw ToolError("--bits must be 16 or 24.") }
+            guard bitrate == nil else { throw ToolError("\(o("bitrate")) is only for .m4a and .mp3.") }
+            guard let depth = BitDepth(rawValue: bits ?? 24) else { throw ToolError("\(o("bits")) must be 16 or 24.") }
             format = pathExtension == "wav" ? .wav(depth) : .flac(depth)
         case "m4a", "mp3":
-            guard bits == nil else { throw ToolError("--bits is only for .wav and .flac.") }
+            guard bits == nil else { throw ToolError("\(o("bits")) is only for .wav and .flac.") }
             guard let rate = BitRate(rawValue: bitrate ?? 128) else {
-                throw ToolError("--bitrate must be 64, 96, 128, 160, 192, or 256.")
+                throw ToolError("\(o("bitrate")) must be 64, 96, 128, 160, 192, or 256.")
             }
             format = pathExtension == "m4a" ? .aac(rate) : .mp3(rate)
         default:
-            throw ToolError("--out must end in .wav, .m4a, .mp3, or .flac.")
+            throw ToolError("\(o("out")) must end in .wav, .m4a, .mp3, or .flac.")
         }
         let fileRate: ExportRate
         switch rate {
         case nil: fileRate = .session
         case 44_100: fileRate = .hz44100
         case 48_000: fileRate = .hz48000
-        default: throw ToolError("--rate must be 44100 or 48000.")
+        default: throw ToolError("\(o("rate")) must be 44100 or 48000.")
         }
         var target: LoudnessTarget?
         if let loudness {
             guard let value = LoudnessTarget(rawValue: loudness) else {
-                throw ToolError("--loudness must be podcast, speech, ebu, or atsc.")
+                throw ToolError("\(o("loudness")) must be podcast, speech, ebu, or atsc.")
             }
             target = value
         }
@@ -60,29 +74,35 @@ package enum ExportText {
     package static func noTrackMessage(_ track: TrackID) -> String { "The session has no track \(track)." }
 
     /// The refusal of a range that is empty, below 0, or past the frame limit.
-    package static func rangeMessage(end: Frames) -> String {
-        "The range must be 0 or more, with --to more than --from; the session end is \(end)."
+    package static func rangeMessage(end: Frames, spelling o: OptionSpelling) -> String {
+        "The range must be 0 or more, with \(o("to")) more than \(o("from")); the session end is \(end)."
     }
 
     /// The refusal of the files that the media check finds bad before the export.
-    package static func faultMessage(_ faults: [FileID: MediaFault], in session: Session) -> String {
-        "\(files(faults, in: session)). Use --allow-missing to export its clips as silence."
+    package static func faultMessage(_ faults: [FileID: MediaFault], in session: Session, spelling o: OptionSpelling)
+        -> String
+    {
+        "\(files(faults, in: session)). Use \(o("allow_missing")) to export its clips as silence."
     }
 
     /// The refusal of the files that only the export finds bad. The output file is written.
-    package static func readFaultMessage(_ faults: [FileID: MediaFault], in session: Session, out: String) -> String {
-        "\(files(faults, in: session)); its clips in \(out) are silence. Use --allow-missing to accept it."
+    package static func readFaultMessage(
+        _ faults: [FileID: MediaFault], in session: Session, out: String, spelling o: OptionSpelling
+    ) -> String {
+        "\(files(faults, in: session)); its clips in \(out) are silence. Use \(o("allow_missing")) to accept it."
     }
 
     /// The refusal of an export rate that the format does not take.
-    package static func rateMessage(out: String, rate: Int) -> String {
-        "cannot write \(out) at \(rate) Hz. Use --rate 44100 or --rate 48000."
+    package static func rateMessage(out: String, rate: Int, spelling o: OptionSpelling) -> String {
+        "cannot write \(out) at \(rate) Hz. Use \(o("rate")) 44100 or \(o("rate")) 48000."
     }
 
     /// The message of a failed render or export, nil for a cancel. `noun` is "render", "export", or
     /// "chapters file". The switch has no `default`, so a new error case does not compile until it
     /// has a message.
-    package static func failureMessage(_ error: ExportError, out: String, noun: String) -> String? {
+    package static func failureMessage(_ error: ExportError, out: String, noun: String, spelling: OptionSpelling)
+        -> String?
+    {
         switch error {
         case .cancelled: nil
         case .exists: "\(out) exists."
@@ -94,12 +114,19 @@ package enum ExportText {
         case .diskFull: "cannot write \(out): the disk is full."
         case .packageUnavailable: "cannot read the package."
         case .artworkMissing(let file):
-            "the artwork file \(file) is not in the package, or it is not downloaded. Set the artwork again with "
-                + "`dirigible episode set --artwork <image> <package>`, or remove it with `--artwork \"\"`."
+            "the artwork file \(file) is not in the package, or it is not downloaded. "
+                + (spelling == .cli
+                    ? "Set the artwork again with `dirigible episode set --artwork <image> <package>`, or remove it "
+                        + "with `--artwork \"\"`."
+                    : "Set the artwork again with the episode_set tool and artwork, or remove it with artwork \"\".")
         case .chapterImageMissing(let chapter, _):
             "the image file of chapter \"\(chapter.name)\" at \(chapter.position) is not in the package, or it "
-                + "is not downloaded. Set the image again with `dirigible marker set --id \(chapter.id) --image "
-                + "<image> <package>`, or remove it with `--image \"\"`."
+                + "is not downloaded. "
+                + (spelling == .cli
+                    ? "Set the image again with `dirigible marker set --id \(chapter.id) --image <image> <package>`, "
+                        + "or remove it with `--image \"\"`."
+                    : "Set the image again with the marker_set tool, id \(chapter.id), and image, or remove it with "
+                        + "image \"\".")
         case .tooManyChapters(let count):
             "the range has \(count) chapters, and an MP3 file holds at most \(maximumChapters). Remove chapters, "
                 + "or export a smaller range."

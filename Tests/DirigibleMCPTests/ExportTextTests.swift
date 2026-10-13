@@ -21,7 +21,7 @@ struct ExportTextTests {
         let error = #expect(throws: ToolError.self) {
             try ExportText.options(
                 out: fields[0], bits: Int(fields[1]), bitrate: Int(fields[2]), mono: false, rate: Int(fields[3]),
-                loudness: fields[4].isEmpty ? nil : fields[4])
+                loudness: fields[4].isEmpty ? nil : fields[4], spelling: .cli)
         }
         #expect(error?.message == text, "the option text")
     }
@@ -29,7 +29,7 @@ struct ExportTextTests {
     /// Code gate item E6. The MP3 chapter limit is a limit with an action, in ms and in days.
     @Test func theMP3ChapterLimitGivesTheLimitAndAnAction() {
         #expect(
-            ExportText.failureMessage(.chaptersTooLong, out: "mix.mp3", noun: "export")
+            ExportText.failureMessage(.chaptersTooLong, out: "mix.mp3", noun: "export", spelling: .cli)
                 == "an MP3 file with chapters holds at most 4294967295 ms (about 49.7 days). Export a shorter range.")
     }
 

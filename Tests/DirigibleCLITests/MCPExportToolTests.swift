@@ -25,12 +25,14 @@ struct MCPExportToolTests {
         try FileManager.default.contentsOfDirectory(atPath: package.folder.path).filter { !$0.hasSuffix(".dirigible") }
     }
 
-    /// The tool text of a CLI run: the first error line with no "Error: ", or the stdout lines
-    /// and then the stderr lines, or "OK" when the run printed nothing.
+    /// The tool text of a CLI run: the first error line with no "Error: ", with the tool name of
+    /// each option (`allow_missing` for `--allow-missing`), or the stdout lines and then the
+    /// stderr lines, or "OK" when the run printed nothing.
     func toolText(of run: CLIResult) -> (text: String, isError: Bool) {
         guard run.status == 0 else {
             let first = run.stderr.split(separator: "\n").first.map(String.init) ?? ""
-            return (String(first.dropFirst("Error: ".count)), true)
+            let text = String(first.dropFirst("Error: ".count))
+            return (text.replacing(/--([a-z][a-z-]*)/) { $0.1.replacing("-", with: "_") }, true)
         }
         let lines = (run.stdout + run.stderr).split(separator: "\n").map(String.init)
         return (lines.isEmpty ? "OK" : lines.joined(separator: "\n"), false)
@@ -84,7 +86,7 @@ struct MCPExportToolTests {
     }
 
     /// C13: each tool gives the stdout and then the stderr lines of its command, "OK" for none, and
-    /// the error text of a refusal. Clip `c2` of the missing file `gone` is on `t2` at 0..<20 000.
+    /// the error text of a refusal with the tool names of the options (code gate 1 item 5). Clip `c2` of the missing file `gone` is on `t2` at 0..<20 000.
     @Test func theToolTextIsTheCommandText() async throws {
         try package.edit { session in
             try session.place(Clip(id: "c2", file: "gone", start: 0, offset: 0, length: 20_000), on: "t2")
@@ -94,6 +96,7 @@ struct MCPExportToolTests {
             ([], [:]),
             (["--from", "20000"], ["from": 20_000]),
             (["--bits", "20"], ["bits": 20]),
+            (["--from", "30000"], ["from": 30_000]),
             (["--track", "t1", "--mono", "--rate", "44100"], ["track": ["t1"], "mono": true, "rate": 44_100]),
         ]
         var calls: [String] = []

@@ -28,13 +28,29 @@ struct BridgeKeepAliveTests {
             return .result(text: "done", isError: false)
         }
         defer { listener.stop() }
-        let (sent, socket, rename) = (Sent(), folder.socket, rename)
+        let (sent, socket) = (Sent(), folder.socket)
         let answer = await onThread {
             var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(7)).route, send: sent.send)
-            return server.answer(progressCall("track_rename", rename))
+            return server.answer(progressCall("loudness", ["package": "/x.dirigible"]))
         }
         #expect(toolText(answer) == ("done", false), "the bridge lost a call whose job is silent")
         #expect(sent.progress(token: 1).count <= 1, "a repeated value went to the client: \(sent.progress(token: 1))")
+    }
+
+    /// Code gate 2 item 1: a short call sends no keep-alive frame, so a stalled app still gives
+    /// the lost-call text at the bridge limit.
+    @Test func aShortCallIsLostAtTheBridgeLimit() async throws {
+        let (listener, folder) = try listener(keepAlive: .milliseconds(300)) { _, _ in
+            try? await Task.sleep(for: .seconds(3))
+            return .result(text: "done", isError: false)
+        }
+        defer { listener.stop() }
+        let (socket, rename) = (folder.socket, rename)
+        let answer = await onThread {
+            var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(1)).route)
+            return server.answer(progressCall("track_rename", rename))
+        }
+        #expect(toolText(answer) == (lostCallMessage, true), "a short call got keep-alive frames")
     }
 
     /// Item 2: a lost `export` or `render` tells the agent to check the output file.

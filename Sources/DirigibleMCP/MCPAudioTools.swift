@@ -29,7 +29,7 @@ private let allowMissing = Param.defaulted(
     "allow_missing", "Export the clips of a missing, short, or unreadable file as silence, with a warning.", .boolean,
     false)
 
-/// The text of a tool call that stops before its end: the agent must read the result first.
+/// The end of the description of a tool that writes a file: a late cancel can leave the file.
 private let cancelNote =
     " A cancel stops it, and no file is written; a cancel at the end can be late, so check the output file."
 

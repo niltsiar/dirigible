@@ -87,11 +87,14 @@ struct AgentSettingsView: View {
         }
     }
 
+    /// Read once: the volume of a running app does not change.
+    private static let bundleReadOnly =
+        (try? Bundle.main.bundleURL.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly ?? false
+
     private func command(_ client: SetupClient) -> (title: String, text: String)? {
-        let bundle = Bundle.main.bundleURL
-        let readOnly = (try? bundle.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly ?? false
-        return setupCommand(
-            client, bundle: bundle, readOnly: readOnly, environment: ProcessInfo.processInfo.environment
+        setupCommand(
+            client, bundle: Bundle.main.bundleURL, readOnly: Self.bundleReadOnly,
+            environment: ProcessInfo.processInfo.environment
         )
         .map { (client.title, $0) }
     }

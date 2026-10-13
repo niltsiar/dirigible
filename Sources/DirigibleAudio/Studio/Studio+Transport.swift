@@ -165,6 +165,10 @@ extension Studio {
         await startPlay(next, from: play.playhead, number: number)
     }
 
+    /// A speed change now acts: no take starts, records, or finalizes, and the unit exists. The
+    /// window reads it to store the last speed before the change (decision 0048).
+    public var takesSpeedChange: Bool { isIdle && canChangeSpeed }
+
     /// Sets the vari-speed (decision 0048). It does nothing during a take or when the unit does
     /// not load. Stopped or at a tape rate, a change sets only the next 1x play. During a 1x play
     /// the play goes on from the heard frame: a change between two speeds other than 1 sets only
@@ -172,7 +176,7 @@ extension Studio {
     /// changes with no await first, as a feed number does in `perform`.
     public func changeSpeed(to new: Speed) async {
         let old = play.speed
-        guard isIdle, canChangeSpeed, new != old else { return }
+        guard takesSpeedChange, new != old else { return }
         play.speed = new
         guard let shuttle = play.playback.shuttle, shuttle.rate == .one else { return }
         if old != .one, new != .one, let player = play.player {

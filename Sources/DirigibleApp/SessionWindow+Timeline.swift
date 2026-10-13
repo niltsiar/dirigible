@@ -257,7 +257,7 @@ extension SessionWindow {
         guard let studio else { return }
         Task {
             let target = change.target(from: studio.speed, last: app?.lastSpeed ?? .x150)
-            if target != .one, studio.isIdle, studio.canChangeSpeed { app?.lastSpeed = target }
+            if target != .one, studio.takesSpeedChange { app?.lastSpeed = target }
             await studio.changeSpeed(to: target)
         }
     }

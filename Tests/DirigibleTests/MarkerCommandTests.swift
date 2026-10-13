@@ -101,10 +101,14 @@ import Testing
         await seek(studio, 100_800)
         model.run(.previousMarker)
         #expect(model.timeline.marker == "m3", "stopped, 0.1 s after m3")
+        // The seek of Previous is a task. Else it can run in the media check of the play below,
+        // and the play starts again at m3.
+        await until("Previous seeks to 96 000") { studio.playhead == 96_000 }
 
+        // 0.2 s of play from 91 200 ends at 100 800, 0.1 s after m3.
         await seek(studio, 91_200)
         await studio.perform(.playStop)
-        _ = await studio.renderOffline(frames: 4_800)
+        _ = await studio.renderOffline(frames: 9_600)
         await until(limit: .seconds(10), "the playhead passes m3") { studio.playhead > 96_000 }
         try #require(studio.playhead < 120_000, "the playhead is less than 0.5 s past m3")
         model.run(.previousMarker)

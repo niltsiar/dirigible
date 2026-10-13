@@ -222,6 +222,20 @@ struct AppBundleTests {
         #expect(info.contains("\"PlatformVersion\" : \"14.0\""), "Assets.car targets macOS 14.0")
     }
 
+    /// The agent skill (decision 0051): `skill show` of the helper wrote it before the signature,
+    /// and `skill path` of the helper names it.
+    @Test func theBundleHasTheSkill() throws {
+        let helper = app.appending(path: "Contents/Helpers/dirigible").path
+        let skill = app.appending(path: "Contents/Resources/skills/dirigible/SKILL.md")
+        let text = try String(contentsOf: skill, encoding: .utf8)
+        // run() trims the output, and the skill text ends in one newline.
+        #expect(text == (try run(helper, "skill", "show")) + "\n", "SKILL.md differs from skill show")
+        #expect(text.hasPrefix("---\nname: dirigible\n"))
+        let real = { (url: URL) in url.resolvingSymlinksInPath().standardizedFileURL.path }
+        #expect(try run(helper, "skill", "path") == real(skill))
+        _ = try run("/usr/bin/codesign", "--verify", "--strict", "--deep", app.path)
+    }
+
     /// The user guide: an HTML page that `scripts/guide-html.swift` makes from `docs/guide.md`.
     /// Each image resolves to a file in `Guide/images/`, and each anchor link names a heading id.
     @Test func theGuideIsInTheBundleWithItsImages() throws {

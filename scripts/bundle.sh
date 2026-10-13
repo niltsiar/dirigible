@@ -49,6 +49,9 @@ GUIDE="$APP/Contents/Resources/Guide"
 mkdir -p "$GUIDE/images"
 images="$(swift scripts/guide-html.swift docs/guide.md "$GUIDE/guide.html")"
 for image in $images; do cp "docs/$image" "$GUIDE/$image"; done
+# The agent skill (decision 0051): the helper writes its own text, so the file matches the app.
+mkdir -p "$APP/Contents/Resources/skills/dirigible"
+"$APP/Contents/Helpers/dirigible" skill show > "$APP/Contents/Resources/skills/dirigible/SKILL.md"
 SIGN_IDENTITY="$SIGN_IDENTITY" scripts/sign-app.sh "$APP"
 
 echo "$APP"

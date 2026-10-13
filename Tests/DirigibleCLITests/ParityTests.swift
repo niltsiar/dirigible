@@ -169,7 +169,6 @@ struct ParityTests {
         "capture place": "It recovers a segment of a take; the app and take finalize place each segment.",
         "take finalize": "It recovers a take after a crash; the app does it at launch.",
         "peaks": "It prints the peak cache of the app; an agent reads the levels with loudness.",
-        "render": "It writes the mix as a 32-bit CAF; the manual names export, which writes the episode formats.",
         "chapters export": "It writes a chapter file; export puts the chapters in the .m4a or .mp3 file.",
         "devices": "It lists the audio devices of this Mac, not a package.",
         "apps": "It lists the apps of this Mac, not a package.",

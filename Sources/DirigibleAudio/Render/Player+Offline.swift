@@ -62,7 +62,7 @@ extension Player {
     /// full suite ran before the refill and played silence.
     private func waitForFeed(_ count: Int, budget: inout Duration) async {
         // A pull of `count` output frames takes `count` x the speed node frames.
-        while let feed, feed.scheduled - nodeFrames() < Int(Double(count + chunk) * feed.speed),
+        while let feed, feed.scheduled - nodeFrames() < Int(Double(count + chunk) * feed.speed.factor),
             feed.scheduled < length(feed), budget > .zero
         {
             let start = ContinuousClock.now

@@ -24,7 +24,9 @@ tasks=("$@")
 here="$(cd "$(dirname "$0")" && pwd -P)"
 repo="$(git -C "$here" rev-parse --show-toplevel)"
 probe="$repo/scripts/probe.sh"
-app="${SKILL_LINK:-}"
+# The skill link and the allow rule need the real absolute path of the app.
+app=""
+[[ -z ${SKILL_LINK:-} ]] || app="$(cd "$SKILL_LINK" && pwd -P)"
 [[ -z $app || -f "$app/Contents/Resources/skills/dirigible/SKILL.md" ]] || { echo "agent-tasks.sh: no skill in $app" >&2; exit 2; }
 
 prompt() {

@@ -1,6 +1,7 @@
 """Grade the agent eval E38 (docs/workflow/evals.md) from the files that agent-tasks.sh copies back.
 Usage: python3 -I scripts/eval/agent-grade.py <results folder> [<label> ...]
-The results folder holds pristine.json (the session before each task) and <label>/<task>/ with
+The results folder holds pristine-<label>.json (the session of the batch before each task; an older
+folder has one pristine.json) and <label>/<task>/ with
 stream.jsonl, after.json (`dirigible info --json` after the task), out.txt (the listing of the
 out folder), stderr.txt, and variant (mcp, shell, or skill).
 Verdicts: `pass`; `partial` (T7: only the episode fields); `safe` (no change); `wrong` (a changed
@@ -170,11 +171,12 @@ def grade(task, variant, s, pristine, mp3, calls, takes, final):
 
 def main():
     root = sys.argv[1]
-    pristine = json.load(open(os.path.join(root, 'pristine.json')))
     marks, skills = repo_marks()
     labels = sys.argv[2:] or sorted(n for n in os.listdir(root) if os.path.isdir(os.path.join(root, n)))
     rows = []
     for label in labels:
+        named = os.path.join(root, f'pristine-{label}.json')
+        pristine = json.load(open(named if os.path.exists(named) else os.path.join(root, 'pristine.json')))
         for task in sorted(os.listdir(os.path.join(root, label))):
             d = os.path.join(root, label, task)
             try:

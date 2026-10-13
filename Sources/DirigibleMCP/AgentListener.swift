@@ -44,6 +44,8 @@ final class AgentListener: @unchecked Sendable {
         let fd: Int32
         var source: DispatchSourceRead?
         var buffer = Data()
+        /// The read target, kept for the life of the connection.
+        var bytes = [UInt8](repeating: 0, count: readSize)
         /// True while a call runs: the read source is suspended then.
         var running = false
         init(fd: Int32) { self.fd = fd }
@@ -155,11 +157,10 @@ final class AgentListener: @unchecked Sendable {
     }
 
     private func readable(_ connection: Connection) {
-        var bytes = [UInt8](repeating: 0, count: 64 * 1024)
-        let count = read(connection.fd, &bytes, bytes.count)
+        let count = read(connection.fd, &connection.bytes, readSize)
         if count < 0, errno == EAGAIN || errno == EINTR { return }
         guard count > 0, connection.buffer.count + count <= Self.maximumLine else { return end(connection) }
-        connection.buffer.append(contentsOf: bytes[..<count])
+        connection.buffer.append(contentsOf: connection.bytes[..<count])
         nextCall(connection)
     }
 

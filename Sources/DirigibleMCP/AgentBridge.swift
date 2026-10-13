@@ -16,6 +16,8 @@ package final class AgentBridge {
     private let socket: URL
     private let timeout: Duration
     private var fd: Int32 = -1
+    /// The read target, kept for the life of the bridge.
+    private var bytes = [UInt8](repeating: 0, count: readSize)
 
     package init(socket: URL = agentSocketPath(), timeout: Duration = .seconds(30)) {
         (self.socket, self.timeout) = (socket, timeout)
@@ -88,8 +90,7 @@ package final class AgentBridge {
             let ready = poll(&entry, 1, Int32((left / .milliseconds(1)).rounded(.up)))
             if ready < 0, errno == EINTR { continue }
             guard ready > 0 else { return nil }
-            var bytes = [UInt8](repeating: 0, count: 64 * 1024)
-            let count = read(fd, &bytes, bytes.count)
+            let count = read(fd, &bytes, readSize)
             if count < 0, errno == EINTR { continue }
             guard count > 0 else { return nil }
             buffer.append(contentsOf: bytes[..<count])

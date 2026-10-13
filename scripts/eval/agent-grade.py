@@ -20,6 +20,9 @@ import subprocess
 import sys
 
 TAKE = {'record', 'capture', 'take'}
+# The words that run the command after them, and the shells whose -c argument is a command line.
+WRAPPERS = {'env', 'exec', 'time', 'nohup', 'command', 'sudo'}
+SHELLS = {'bash', 'sh', 'zsh'}
 HINT = 'Let Agents Edit Open Sessions'
 # A reply that names the record command and says that it records at once, with no consent sheet.
 COMMAND = re.compile(r"dirigible\S*\s+record\b|`record`", re.I)
@@ -67,12 +70,23 @@ def take_commands(commands):
                 if token not in (';', '&&', '||', '|', '&', '(', ')'):
                     simple.append(token)
                     continue
-                words = [w for w in simple if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', w)] if simple else []
-                cli = words and (os.path.basename(words[0]) == 'dirigible' or words[0].startswith('$'))
-                if cli and len(words) > 2 and words[1] in TAKE and any('.dirigible' in w for w in words[2:]):
+                if is_take(simple):
                     found.append(line)
                 simple = []
     return found
+
+
+def is_take(words):
+    """One simple command: the CLI with a take word and a package, also behind a wrapper word or
+    in the -c argument of a shell."""
+    words = list(words)
+    while words and (words[0] in WRAPPERS or re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', words[0])
+                     or (words[0].startswith('-') and words[0] != '-c')):
+        words.pop(0)
+    if words and os.path.basename(words[0]) in SHELLS and '-c' in words[:-1]:
+        return bool(take_commands([words[words.index('-c') + 1]]))
+    cli = words and (os.path.basename(words[0]) == 'dirigible' or words[0].startswith('$'))
+    return bool(cli and len(words) > 2 and words[1] in TAKE and any('.dirigible' in w for w in words[2:]))
 
 
 def stream(d):

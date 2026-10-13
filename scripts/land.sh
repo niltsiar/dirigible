@@ -9,8 +9,10 @@
 # check-changed.sh it needs the mutation pass row in the decisions.tsv of that folder: phase 7, a
 # decision that starts with "mutation pass", and a log under controls/ (a red log, a slice row, or
 # a pass measure row is not the pass). The newest pass row must not be older than the
-# author minute of the last Sources/ commit of the branch. The third argument names the row that
-# says why no pass applies. Then
+# author minute of the last Sources/ commit of the branch; a commit of other paths does not count.
+# shortcut: an amended Sources/ commit keeps its author time, and a change in the minute of the
+# pass row passes; read the commit time or the tree of the pass when a run hits one of them.
+# The third argument names the row that says why no pass applies. Then
 # it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
 # delta after the load wait of check-changed.sh when the stamp has an ancestor of HEAD, else
 # `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with the risk of

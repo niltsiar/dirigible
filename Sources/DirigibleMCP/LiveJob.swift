@@ -66,7 +66,7 @@ private func liveExport(
 
 /// The text of an export that the app stopped: the agent must not export again before it asks
 /// the user.
-func stopMessage(_ stop: ExportStop?, noun: String) -> String {
+private func stopMessage(_ stop: ExportStop?, noun: String) -> String {
     switch stop {
     case .user: "The user cancelled the \(noun) in Dirigible. No file was written."
     case .take: "A take started in Dirigible, so the \(noun) stopped. No file was written."

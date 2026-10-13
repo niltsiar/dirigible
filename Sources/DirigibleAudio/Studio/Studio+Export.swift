@@ -16,7 +16,7 @@ struct ExportJob {
 
 /// The cause of an export end before its end: Cancel in the export sheet, a take start, or the
 /// close of the window (`settle()`).
-public enum ExportStop: Sendable, Equatable {
+public enum ExportStop: Sendable {
     case user, take, close
 }
 

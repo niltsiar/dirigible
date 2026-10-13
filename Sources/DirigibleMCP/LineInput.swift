@@ -43,7 +43,7 @@ package final class LineInput {
     /// With `read`, reads stdin after a poll of 0 ms. Gives true when a buffered line cancels
     /// `requestID` (decision 0049). After EOF it reads nothing: EOF ends only a `record` call
     /// (decision 0048).
-    package func pollCancel(_ requestID: NSObject, read: Bool = true) -> Bool {
+    package func pollCancel(_ requestID: NSObject, read: Bool) -> Bool {
         if read, !ended {
             var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
             if poll(&entry, 1, 0) > 0 { fill() }

@@ -166,4 +166,26 @@ struct StudioPruneTests {
         #expect(studio.saveError == .file(.writeFailed(step: "write", errno: ENOSPC)), "only a write clears it")
         await studio.settle()
     }
+
+    /// Review item 2: an edit during the prune save uses the spare file. No file moves, no save
+    /// failed, and the autosave of the edit writes it.
+    @Test func editDuringSaveMovesNothing() async throws {
+        let studio = try await open()
+        let scan = try await studio.unusedFiles()
+        let clip = Clip(id: "B", file: spare, start: 10_000, offset: 0, length: 4_800)
+        studio.environment = .test(
+            TestHAL([]),
+            saveSession: { session, lock throws(SessionFileError) in
+                await MainActor.run { _ = try? studio.edit { s throws(SessionError) in try s.place(clip, on: "t1") } }
+                return try session.write(under: lock)
+            })
+
+        await #expect(throws: StudioError.unusedFiles(.changedDuringPrune)) { try await studio.removeUnusedFiles(scan) }
+
+        #expect(studio.saveError == nil, "the save did not fail")
+        #expect(exists(spareName) && exists(stray) && studio.session.files[spare] != nil)
+        await studio.settle()
+        let saved = try Session(contentsOf: package.url)
+        #expect(saved.files[spare] != nil && saved.track("t1")?.clips.contains { $0.id == "B" } == true)
+    }
 }

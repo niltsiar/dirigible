@@ -102,4 +102,21 @@ extension UnusedFilesTests {
         #expect(Self.paths(withFiles.intersection(second)) == ["a.wav"])
         #expect(first.intersection(withFiles).items.isEmpty, "a file that appeared is another item")
     }
+
+    /// Review item 2: an edit after the scan uses one listed pool file and removes another entry.
+    /// The prune keeps both files, moves the stray WAV, and does not throw.
+    @Test func editAfterScanKeepsChangedEntries() throws {
+        var session = try Self.session([("u", "u.wav"), ("r", "r.wav")])
+        for name in ["u.wav", "r.wav", "s.wav"] { try plant(name) }
+        let scan = try scan(session)
+        try session.place(Clip(id: "c", file: "u", start: 0, offset: 0, length: 1), on: "a")
+        try session.removeFile("r")
+
+        let report = try scan.prune(&session, save: save) { url in Self.fakeTrashURL(url) }
+
+        #expect(report.moved.map(\.item.path) == ["s.wav"] && report.failed.isEmpty)
+        #expect(session.files["u"] != nil)
+        let kept = ["u.wav", "r.wav"].filter { FileManager.default.fileExists(atPath: clips.appending(path: $0).path) }
+        #expect(kept == ["u.wav", "r.wav"])
+    }
 }

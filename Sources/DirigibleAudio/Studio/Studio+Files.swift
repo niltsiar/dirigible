@@ -38,8 +38,8 @@ extension Studio {
             }
             // A take can start during the scan (AGENTS.md, Actors).
             guard isIdle else { return .failure(.busy) }
-            let items = confirmed.intersection(scan)
             let before = session
+            let items = confirmed.intersection(scan).unused(in: before)
             let ids = Set(items.items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
             // The pool change comes after the save, so a failed save leaves memory as the disk.
             let apply = { @MainActor () throws(SessionError) in try self.removePoolEntries(ids) }
@@ -120,7 +120,8 @@ extension Studio {
                 return url
             })
     } catch {
-        result = .failure(.unusedFiles(error))
+        // After a good save, only `apply` throws: an edit during the save uses a listed file.
+        result = .failure(.unusedFiles(written == nil ? error : .changedDuringPrune))
     }
     guard let written else { return (result, nil) }
     let package = packageIdentity(written)

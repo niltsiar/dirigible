@@ -287,6 +287,7 @@ extension UnusedFilesError {
             error.message(package: package, file: "\(backupsFolderName)/\(backup.fileName)")
                 + " The scan cannot know the clips of that backup, so no file moves until that backup goes."
         case .save(let error): error.message(package: package) + " No file moved."
+        case .changedDuringPrune: "an edit during the prune uses a listed file. No file moved."
         }
     }
 }

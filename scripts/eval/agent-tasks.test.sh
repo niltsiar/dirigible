@@ -111,6 +111,8 @@ grep -q '"Fake Mic\\"' "$tmp/results/devices/T10/stream.jsonl" 2>/dev/null \
 FAKE_DEVICES= run no-device T10
 grep -q "^T10 skipped: no input device$" "$tmp/no-device.log" || fail "no skip line with no device: $(cat "$tmp/no-device.log")"
 grep -qE "^no-device	T10	-	skipped" "$tmp/no-device.log" || fail "no skipped verdict with no device: $(cat "$tmp/no-device.log")"
+# A skip counts in no pass count (code gate 1 item 3).
+grep -qE "	T10	pass 0 of 0	skipped$" "$tmp/no-device.log" || fail "a skipped T10 counts as a run: $(cat "$tmp/no-device.log")"
 
 # The T9 prompt has the transcript and the two sentences of its targets (W12).
 run transcript T9

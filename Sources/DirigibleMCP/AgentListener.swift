@@ -236,8 +236,14 @@ final class AgentListener: @unchecked Sendable {
         frame(connection)
     }
 
+    /// A frame that does not arrive whole ends the connection, as a reply does: a part of a frame
+    /// would join the next line.
     private func frame(_ connection: Connection) {
-        _ = writeAll(connection.fd, Data((AppFrame.progressLine(connection.last) + "\n").utf8))
+        guard writeAll(connection.fd, Data((AppFrame.progressLine(connection.last) + "\n").utf8)) else {
+            let code = errno
+            log.error("A progress frame to an agent did not arrive whole (errno \(code)). The connection ends.")
+            return end(connection)
+        }
     }
 
     /// A reply goes only to the connection that asked, while it is open: a late reply never

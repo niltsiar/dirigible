@@ -259,6 +259,8 @@ struct MCPToolTests {
                 // They read this Mac, not a package: no argument (W1).
                 let properties = schema["properties"] as? [String: Any]
                 #expect(properties?.isEmpty == true && schema["required"] == nil, "\(name): \(schema)")
+                // The core rules ask for `package`, so the description says that these take none.
+                #expect((tool["description"] as? String)?.hasSuffix(" It takes no argument.") == true, "\(name)")
             } else {
                 #expect((schema["required"] as? [String])?.first == "package", "\(name)")
             }

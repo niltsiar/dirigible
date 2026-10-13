@@ -18,8 +18,8 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - Do not nest mutate.py in its test command. After `NO TESTS` or `BUILD FAILED`, correct the filter or the mutant and run it again.
 - Warnings are errors, so mutate the source of a value, not the place that uses it.
 - Pass the assertion message of the killing test with `--expect <text>`, not a test name. A guard and its refusal message read the limit from one variable.
-- Pass `--timeout <seconds>`, a few times the green test time. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads.
-- mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads.
+- Pass `--timeout <seconds>`, a few times the green test time: a hang gives `killed (hang)`, with `--expect` only when the text came before the kill. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads.
+- mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads. A `BUILD FAILED` or a tool crash right after another mutant can come from its outputs.
 - A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`.
 - Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row: the pass row. With `risk: yes`, `scripts/land.sh` refuses a run with no pass row, unless its third argument names the row that says why no pass applies.
 

@@ -47,6 +47,18 @@ struct LocalizationTests {
         }
     }
 
+    /// The banner after Remove Unused Files puts no noun after the count, so 1 does not read
+    /// "1 files" (decision 0010: avoid a plural).
+    @Test func theMovedBannerHasNoNounAfterTheCount() throws {
+        let texts = [
+            "en": "Files moved to the Trash: %lld (%@).",
+            "es": "Archivos trasladados a la Papelera: %lld (%@).",
+        ]
+        for (language, text) in texts {
+            #expect(try stringsTable(language)[L10n.bannerUnusedMoved.rawValue] == text, "\(language)")
+        }
+    }
+
     @Test func checkerFindsAnEmptyValue() {
         #expect(tableProblems(en: ["a": "A"], es: ["a": ""], keys: ["a"]) == ["es: no value for a"])
     }

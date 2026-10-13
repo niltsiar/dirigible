@@ -430,7 +430,7 @@
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "La exportación de %1$@ terminó: %2$@.";
 "banner.level.changed" = "Nivelado automático terminado. Clips cambiados: %lld.";
-"banner.unused.moved" = "Trasladados a la Papelera: %lld archivos (%@).";
+"banner.unused.moved" = "Archivos trasladados a la Papelera: %lld (%@).";
 "banner.unused.failed" = "Estos archivos no se movieron: %@";
 "banner.level.none" = "Nivelado automático terminado. Sin cambios: los clips ya están en el nivel objetivo.";
 "banner.level.volume" = "El volumen de la pista no cambia la ganancia del clip.";

@@ -11,6 +11,7 @@
 - Amended: 2026-10-10 (run `2026-10-10-upkeep-batch-7`, user decision on the code-review trial). At a code gate with a class other than docs, the `code-review` skill replaces the code-quality lens: `high` on the branch in round 1, and `medium` on the fix range as round 2, in place of the convergence panel. It runs on a clean committed tree with no `mutate.py` run, and the fixer checks each finding. The plan gate lenses do not change.
 - Amended: 2026-10-10 (run `2026-10-10-comment-only-class`, user complaint about a 45 min push for 3 comment lines). In the git modes, the content of a change can give the class. A change of only `//` lines and blank lines in a `Sources/` or `Tests/` Swift file is class `comments` (`check-fast`), also in a floor file, so `risk: no`. A change of only `#` lines and blank lines that make skips in the `Makefile` is class `docs`. Neither change counts for the push `test-slow-push` rule. A new, deleted, or untracked file, `Package.swift`, a Swift file with a multi-line string, and a Makefile with `define` keep the path class. `--paths` stays path-only, and a path argument after it exits 2. At a gate, the class `comments` gets one doc lens and no `code-review` round, as docs does.
 - Amended: 2026-10-12 (run `2026-10-12-pipeline-reuse`). The pre-commit hook also runs `scripts/check-sizes.sh` and `scripts/check-waits.sh` before lint, so it is no longer lint only. Each is a grep under 1 s, so a red size or wait gate stops the commit, not a push check after the Swift tests. For the goal `check` or `check-fast`, `scripts/run-checks.sh` runs the gates of `STATIC_GATES` in the Makefile first, and a red gate stops the check before the Swift targets.
+- Amended: 2026-10-13 (run `2026-10-13-controls-on-demand`, user question on the value of the controls). The red-first log of each slice is its control at each risk level. No control runs at slice time, and no control replays. A `risk: yes` run gets one mutation pass on the landing tree after the last code gate fix: 3 to 6 mutants, one per risk guard on the changed lines. In 58 runs with about 2,988 control logs, no surviving control found a product bug, and 4 gave a stronger test.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context
@@ -33,11 +34,12 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 - A plan can raise a guard outside the risk floor to risk when its defect loses data or breaks audio. It logs the reason in `decisions.tsv`. A plan cannot lower a floor path. `scripts/check-changed.test.sh` fails when a floor path does not exist.
 - `make test-slow` runs only the slow tests, and a pass writes the date of today. `make test-slow-push` runs them with no bench file of `PUSH_SKIP`, and a pass also writes the date. Before the push, `check` runs first. The push adds `test-slow-push` only for `risk: yes`, a changed slow test, a Makefile change, or a push with `check` when no slow run passed today on this clone.
 
-### Mutation controls and the replay
+### Mutation pass
 
-- Mutation controls and the replay key on the `risk:` line, not on the class.
-- With `risk: yes`, each guard in a risk path gets two controls: one for "accepts too much" and one for "refuses too much". Each control has a timeout. The controls replay once, in the verify phase, on the tree that lands. After a fix that follows that replay, only the controls that `.claude/skills/deliver/scripts/replay-list.sh` lists replay again: their mutated file or their killing test file changed.
-- With `risk: no`, there are no mutation controls. The failing-before test is the control, and there is no replay.
+- The mutation pass keys on the `risk:` line, not on the class.
+- At each risk level, the red-first log of each slice is its control. No mutation control runs at slice time, and no control replays.
+- With `risk: yes`, one mutation pass runs on the landing tree, after the last code gate fix and before the push check. One agent picks one mutant per risk guard on the changed lines: at least 3, at most 6, and each data-safety guard. Each mutant runs once, with a timeout. `scripts/land.sh` needs its phase 7 row.
+- With `risk: no`, there is no mutation pass.
 
 ### Review panel scale
 
@@ -73,7 +75,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 - A docs commit runs `check-docs` in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints, or reuses a stamp.
 - A commit can break a test that no loop ran. The push check finds it.
-- The replay after a fix misses a control that only a change in a caller in a third file makes unreachable.
+- A guard with no pick in the pass can land with a weak red-first test. The next 5 risk runs measure the picks; a defect that a skipped mutant kills brings back one mutant per guard.
 - The path table is one place to change. A wrong class lets a red commit through, so its test compares the whole output for each class and checks the fail-closed exits.
 - Fewer mutation controls run. A defect in a guard outside the risk floor can land when its failing-before test is weak. The plan can raise such a guard to risk.
 - The workflow docs stop growing by one rule for each learning. A rule that does not fit the budget waits for a consolidation run.

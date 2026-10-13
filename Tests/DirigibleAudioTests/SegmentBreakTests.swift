@@ -167,7 +167,9 @@ struct SegmentBreakTests {
         #expect(Set(samples[96_000...]) == [0.25])
     }
 
-    @Test func hostJitterOf200MicrosecondsStaysOneSegment() async throws {
+    /// A slow test: 9.9 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func hostJitterOf200MicrosecondsStaysOneSegment() async throws {
         var clock = DeviceClock()
         var generator = SeededGenerator(seed: 15)
 

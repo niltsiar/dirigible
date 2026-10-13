@@ -174,7 +174,9 @@ struct ExportLoudnessTests {
 
     /// Code gate 1: a gain over the 20 dB auto-level limit is marked, so the window can show it
     /// as a warning. A -60 LUFS selection gets +44 dB; a -30 LUFS one gets +14 dB.
-    @Test func aLargeGainIsMarked() throws {
+    /// A slow test: 5.1 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aLargeGainIsMarked() throws {
         let quiet = try #require(try Self.export(tone([(20, -60)]), Self.options(.podcast)).result.loudness)
         let plain = try #require(try Self.export(tone([(20, -30)]), Self.options(.podcast)).result.loudness)
 

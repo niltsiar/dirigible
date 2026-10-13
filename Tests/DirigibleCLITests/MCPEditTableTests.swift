@@ -145,8 +145,13 @@ struct MCPEditTableTests {
         ]
     }
 
-    @Test func eachEditToolMatchesItsCommand() async throws {
-        try await checkEdits(Self.trackRows + Self.markerAndPoolRows + Self.clipRows)
+    static var editRows: [EditRow] { trackRows + markerAndPoolRows + clipRows }
+
+    /// One case for each row, so each `dirigible mcp` child serves one call: one child for all the
+    /// rows took 18 s alone and passed its 30 s limit under the load of the test shards.
+    @Test(arguments: 0..<MCPEditTableTests.editRows.count)
+    func eachEditToolMatchesItsCommand(row: Int) async throws {
+        try await checkEdits([Self.editRows[row]])
     }
 
     @Test func eachEditToolRefusesAsItsCommand() async throws {

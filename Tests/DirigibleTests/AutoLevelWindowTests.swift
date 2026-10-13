@@ -8,8 +8,9 @@ import Testing
 @testable import DirigibleAudio
 
 /// Run 8b criterion 12: Auto Level and Auto Level per Track on a real Studio. Tracks t1 to t3 each
-/// have a clip of the noise file f1 at 0..<2 880 000 (60 s). The noise level changes each 0.5 s,
-/// so 1 s of a clip and the whole clip give two different gains.
+/// have a clip of the noise file f1 at 0..<480 000 (10 s). The noise level changes each 0.5 s,
+/// so 1 s of a clip and the whole clip give two different gains. A clip of 10 s, not 60 s, keeps
+/// each test under 5 s alone (run 2026-10-13-test-speed).
 @Suite(.serialized) @MainActor struct AutoLevelWindowTests {
     let folder: TemporaryFolder
     let app = AppDelegate(recordings: nil)
@@ -22,7 +23,7 @@ import Testing
     {
         let opened = try await openLanes(
             app,
-            try await timelinePackage(in: parent ?? folder.url, tracks: 3, seconds: 60, noise: true, device: device))
+            try await timelinePackage(in: parent ?? folder.url, tracks: 3, seconds: 10, noise: true, device: device))
         #expect(opened.2.makeFirstResponder(opened.3.lanes))
         return opened
     }
@@ -174,7 +175,7 @@ import Testing
         await model.close()
     }
 
-    /// 12b. 1 s of the 60 s clip on t1: the whole clip gets the level.
+    /// 12b. 1 s of the 10 s clip on t1: the whole clip gets the level.
     @Test func oneClipGetsTheLevelOfTheWholeClip() async throws {
         let (model, studio, _, _) = try await open()
         let before = studio.session
@@ -264,12 +265,12 @@ import Testing
     @Test func perTrackGivesOneDelta() async throws {
         let (model, studio, _, _) = try await open()
         model.edit { session throws(SessionError) in
-            let right = try session.split("c1", at: 1_440_000)
+            let right = try session.split("c1", at: 240_000)
             try session.setGain(Gain(dB: 3)!, clip: right)
         }
         let right = try #require(studio.session.track("t1")?.clips.last?.id)
         let target = await expected(["c1", right], .equallyPerTrack, studio)
-        model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 480_000, tracks: ["t1"])
 
         app.timeline(.autoLevelPerTrack, event: nil, in: nil)
 

@@ -5,7 +5,7 @@
 # line, runs fewer tests than it listed, or matches no test (exit 69) prints the text that
 # run-checks.sh reads as no rerun ("the test process ended before its report"), and fails the run
 # after the other shards end. Check that a failed test fails the run with its line once in the
-# output, that TEST_SHARDS sets the count, that a failed build runs no shard, that the build, the
+# output, that TEST_SHARDS sets the count, that the weights file balances the shards, that a failed build runs no shard, that the build, the
 # list, and the shards share one hold of the lock, and that a TERM leaves no test process alive.
 # A fake swift and a stub test-helper.sh stand in for the toolchain. make test-hooks runs it.
 set -uo pipefail
@@ -111,6 +111,13 @@ grep -q -- "--test-bundle-path $root/.build/debug/DirigiblePackageTests.xctest/C
 # One hold of the lock of the repo for the build, the list, and the shards.
 [[ "$(grep -cE '^([0-9]+) \1$' "$tmp/lock.log")" -eq 5 && "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 ]] ||
     fail "pass: no one hold of the lock: $(cat "$tmp/lock.log")"
+
+# The weights file: a heavy suite gets a shard of its own; a key with no weight counts 0.5 s a test.
+printf 'DirigibleTests.BTests\t100\n' > "$root/scripts/test-shards.weights"
+run TEST_SHARDS=4
+[[ $code -eq 0 ]] || fail "weights: exit $code"
+grep -qF -- '--filter ^(DirigibleTests\.BTests)(/|$)' "$tmp/args.log" || fail "weights: BTests is not alone: $(cat "$tmp/args.log")"
+rm "$root/scripts/test-shards.weights"
 
 # (f) The default is 4 shards and the CLI shard; a shard with no test does not start.
 run

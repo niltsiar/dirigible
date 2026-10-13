@@ -28,11 +28,11 @@ struct PlayerLoudness {
         return values
     }
 
-    /// A play starts at `frame`. Only a 1x forward play feeds the meter. It adds to the values
-    /// when it starts where the last 1x forward play stopped; else the values start again. A play
-    /// at another shuttle keeps the values.
-    mutating func start(at frame: Frames, shuttle: Shuttle) {
-        metering = shuttle == Shuttle(direction: .forward, rate: .one)
+    /// A play starts at `frame`. Only a 1x forward play at the speed 1 feeds the meter (0048). It
+    /// adds to the values when it starts where the last 1x forward play stopped; else the values
+    /// start again. A play at another shuttle or speed keeps the values.
+    mutating func start(at frame: Frames, shuttle: Shuttle, speed: Double) {
+        metering = shuttle == Shuttle(direction: .forward, rate: .one) && speed == 1
         if metering, frame != stopFrame { meter?.reset() }
         stopFrame = nil
     }

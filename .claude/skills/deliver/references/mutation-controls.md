@@ -4,7 +4,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 
 ## Pick the mutants
 
-- Run the pass once, on the landing tree: after the last code gate fix and the last Phase 7 fix, before the push check. A killed mutant does not run again.
+- Run the pass once, on the landing tree: after the last code gate fix and the last Phase 7 fix, before the push check. A killed mutant does not run again. A `Sources/` change after the pass runs the pass again for the guards that it touched: `scripts/land.sh` refuses a pass row older than the last `Sources/` commit.
 - One agent reads the diff, the criteria, and the probe results. It picks one mutant per risk guard on the changed lines: at least 3, at most 6.
 - Prefer a removed check, a guard operator or boundary, and a constant that a probe measured. Skip logging, waits, time limits, speed (the bench owns it), UI strings, and framework setup order.
 - Always pick each data-safety guard of the AGENTS.md Safety rules, in the direction that loses data.

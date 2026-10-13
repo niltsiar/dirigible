@@ -7,8 +7,9 @@
 # push sends only the commits. It rebases on origin/main (on a conflict, it aborts the rebase and
 # stops), runs check-governance.sh with the run folder of the body file, and with `risk: yes` from
 # check-changed.sh it needs the mutation pass row in the decisions.tsv of that folder: phase 7,
-# with a log under controls/ (a red log or a slice row is not the pass). The third argument names
-# the row that says why no pass applies. Then
+# with a log under controls/ (a red log or a slice row is not the pass), and not older than the
+# author minute of the last Sources/ commit of the branch. The third argument names the row that
+# says why no pass applies. Then
 # it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
 # delta after the load wait of check-changed.sh when the stamp has an ancestor of HEAD, else
 # `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with the risk of
@@ -63,8 +64,13 @@ if [[ "$risk" == yes ]]; then
     if [[ -n "$why" ]]; then
         awk -F'\t' -v t="$why" '$1 == t { f = 1 } END { exit !f }' "$log" || die "no row $why in $log"
     else
-        awk -F'\t' '$2 == "7" && /controls\// { f = 1 } END { exit !f }' "$log" ||
+        pass="$(awk -F'\t' '$2 == "7" && /controls\// && $1 > t { t = $1 } END { print t }' "$log")"
+        [[ -n "$pass" ]] ||
             die "risk: yes, and $log has no mutation pass row (phase 7, with a log under controls/); run the pass of mutation-controls.md, or pass the time of the row that says why no pass applies"
+        # The rebase keeps the author dates; the row time is local, so the date is too.
+        last="$(git log -1 --format=%ad --date=format-local:%FT%R origin/main..HEAD -- Sources)"
+        [[ "$pass" > "$last" || "$pass" == "$last" ]] ||
+            die "risk: yes, and the last mutation pass row of $log ($pass) is older than the last Sources/ commit ($last); run the pass again for the guards that the change touched"
     fi
 fi
 # The pass stamp: a passing push check of HEAD or of an ancestor of HEAD, with this base.

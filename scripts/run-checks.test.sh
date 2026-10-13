@@ -4,7 +4,7 @@
 # (probe-make-k of run 2026-10-08-workflow-speed-3): the Error and not-remade lines on stderr, a
 # backtick before the target name, and exit 2. Cases: a pass on rerun 2 (the flake line and one
 # dirigible-flakes line), red on 3 reruns, parameterized names, a level-0 make prefix, each
-# refusal with no rerun, CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
+# refusal with no rerun (also a crashed shard of test-shards.sh), CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
 # later try with only the names that did not pass again, a real make on a stub Makefile, the
 # static gates first (a red gate stops the check before test; a gate runs once; a nested make
 # still runs a gate), and --flakes (the read route of the flakes file). Run by `make test-hooks`.
@@ -174,6 +174,8 @@ no_rerun 'an issue of no test' 'an issue of no test' "✘ Test «unknown» recor
 # A failed test and then an early end with no report: a rerun of the failed test would hide the
 # tests that never ran.
 no_rerun 'a test process with no report' 'a test process ended before its report' "swift-test: the test process ended before its report (swift test --skip X)"$'\n'"$red_test"
+# A shard of test-shards.sh that crashed (exit 132, no report) beside a shard with a failed test.
+no_rerun 'a shard that crashed' 'a test process ended before its report' "✘ Test aFlake() failed after 1.0 seconds with 1 issue."$'\n'"test-shards: shard 2: the test process ended before its report (no report line, exit 132)"$'\n2:make[1]: *** [test] Error 1'
 no_rerun 'a red test with no test line' 'a red target with no failed test line' $'2:make[1]: *** [test] Error 1'
 no_rerun 'a failed test line after the last Error line' 'a failed test line of no red target' "$red_test"$'\n✘ Test late() failed after 1.0 seconds with 1 issue.'
 

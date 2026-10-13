@@ -1,10 +1,10 @@
 #!/bin/bash
-# Check that test-filter.sh runs the tests of FILTER as `make test` runs all tests: process 1
+# Check that test-filter.sh runs the tests of FILTER in two processes: process 1
 # skips the CLI tests and gets one --filter for each word, process 2 runs the CLI tests of a
 # word that a CLI test file names. Check that --exact anchors each name and escapes its regex
 # characters, and that --no-parallel reaches both processes. Check that it fails closed: no test
 # in each process that ran, a nonzero swift exit, no word, or a swift exit 0 with no report line
-# (scripts/swift-test.sh), also in make test. Check that a bare swift-test.sh takes the build
+# (scripts/swift-test.sh). Check that a bare swift-test.sh takes the build
 # lock of its repo. A fake swift on PATH logs its arguments. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -82,7 +82,7 @@ run none none CLIWordTests
 [[ $code -eq 1 ]] || fail "no test in both processes: expected exit 1, got $code"
 [[ "$(grep -c '^swift ' "$tmp/log")" -eq 2 ]] || fail "no test in both processes: calls: $(cat "$tmp/log")"
 
-# A failed test: process 2 still runs, as in make test, so a rerun sees each CLI test. The
+# A failed test: process 2 still runs, so a rerun sees each CLI test. The
 # exit status is the first nonzero status, and the text check does not hide it.
 run fail tests ClipTests CLIWordTests
 [[ $code -eq 1 ]] || fail "a failed test in process 1: expected exit 1, got $code"
@@ -126,19 +126,6 @@ run tests noreport CLIWordTests
 [[ $code -eq 1 ]] || fail "process 2 with no report: expected exit 1, got $code: $out"
 run real real ClipTests
 [[ $code -eq 0 ]] || fail "a real summary on stderr: exit $code: $out"
-
-# make test runs both processes through swift-test.sh, so a process with no report fails it.
-make_test() {
-  out="$(PATH="$tmp/bin:$PATH" FAKE_LOG="$tmp/log" FAKE_P1="$1" FAKE_P2="$2" make -s -f "$repo/Makefile" -C "$tmp/pkg" test 2>&1)"
-  code=$?
-}
-make_test noreport tests
-[[ $code -ne 0 ]] || fail "make test with no report in process 1: exit 0: $out"
-[[ "$out" == *"the test process ended before its report"* ]] || fail "make test: no reason: $out"
-make_test tests noreport
-[[ $code -ne 0 ]] || fail "make test with no report in process 2: exit 0: $out"
-make_test real tests
-[[ $code -eq 0 ]] || fail "make test with reports: exit $code: $out"
 
 [[ $failures -eq 0 ]] && echo "test-filter tests: all passed"
 exit $((failures > 0))

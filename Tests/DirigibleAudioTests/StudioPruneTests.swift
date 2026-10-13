@@ -205,4 +205,35 @@ struct StudioPruneTests {
         #expect(studio.session.files[spare] == nil, "no pool entry of a file in the Trash")
         await studio.settle()
     }
+
+    /// Review item 8: the new scan reads the clipboard of its turn of the write chain.
+    @Test func confirmationReadsClipboardOfItsTurn() async throws {
+        let studio = try await open()
+        var copied = studio.session
+        try copied.place(Clip(id: "B", file: spare, start: 10_000, offset: 0, length: 4_800), on: "t1")
+        let own = Clipboard(try copied.excerpt(of: ["B"]), package: package.url, origin: studio.identity)
+        let listed = try await studio.unusedFiles()
+        let gate = AsyncGate()
+        studio.environment = .test(
+            TestHAL([]),
+            saveSession: { session, lock throws(SessionFileError) in
+                await gate.wait()
+                return try session.write(under: lock)
+            })
+        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
+        await gate.entered()
+        let box = ClipboardBox()
+
+        let task = Task { try await studio.removeUnusedFiles(listed, clipboard: box.clipboard) }
+        await until("the prune waits for its turn") { studio.writesWaiting > 0 }
+        box.clipboard = own
+        gate.open()
+        let report = try await task.value
+        defer { cleanUp(report) }
+
+        #expect(report.moved.map(\.item.path) == [stray] && exists(spareName))
+        await studio.settle()
+    }
+
+    @MainActor final class ClipboardBox { var clipboard: Clipboard? }
 }

@@ -11,7 +11,15 @@ let modernVersion = "2026-07-28"
 /// It checks the frame rule (C15) on each line: a JSON object with `jsonrpc` 2.0 and an `id`,
 /// with a null `id` only on a -32700 or -32600 error. It also checks that the server exits 0 at
 /// the end of stdin (C16). With `socket`, the server is the bridge to that app socket (0046).
+/// A notification line is an issue: a call with no progress token gets none (decision 0049).
 func mcp(_ lines: [String], socket: URL? = nil) async throws -> [Answer] {
+    let all = try await mcpLines(lines, socket: socket)
+    #expect(notifications(all).isEmpty, "stdout has notifications: \(notifications(all))")
+    return all.filter { !isNotification($0) }
+}
+
+/// `mcp` with the notification lines too (a `method` and no `id`, decision 0049), in stdout order.
+func mcpLines(_ lines: [String], socket: URL? = nil) async throws -> [Answer] {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-mcp-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -20,18 +28,28 @@ func mcp(_ lines: [String], socket: URL? = nil) async throws -> [Answer] {
     let result = try await dirigible(["mcp"], input: input, socket: socket)
     #expect(result.status == 0, "dirigible mcp exited \(result.status): \(result.stderr)")
     #expect(result.stdout.isEmpty || result.stdout.hasSuffix("\n"), "the last stdout line has no newline")
-    return result.stdout.split(separator: "\n", omittingEmptySubsequences: false).dropLast().map { line in
+    var answers: [Answer] = []
+    for line in result.stdout.split(separator: "\n", omittingEmptySubsequences: false).dropLast() {
         let answer = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? Answer
+        if let answer, answer["jsonrpc"] as? String == "2.0", isNotification(answer) {
+            answers.append(answer)
+            continue
+        }
         guard let answer, answer["jsonrpc"] as? String == "2.0", let id = answer["id"] else {
             Issue.record("stdout has a line that is not a JSON-RPC answer: \(line)")
-            return [:]
+            answers.append([:])
+            continue
         }
         if id is NSNull, ![-32700, -32600].contains(errorCode(answer)) {
             Issue.record("an answer has a null id but is not a -32700 or -32600 error: \(line)")
         }
-        return answer
+        answers.append(answer)
     }
+    return answers
 }
+
+func isNotification(_ line: Answer) -> Bool { line["method"] is String && line["id"] == nil }
+func notifications(_ lines: [Answer]) -> [Answer] { lines.filter(isNotification) }
 
 /// One request line with compact JSON.
 func request(_ id: Any, _ method: String, _ params: [String: Any]? = nil) -> String {
@@ -110,9 +128,16 @@ func mcpOverPipe(_ line: String, limit: Duration = .seconds(30)) async throws ->
     return (first, process.isRunning ? nil : process.terminationStatus)
 }
 
-/// A modern `tools/call` request line.
-func toolCall(_ id: Int, _ name: String, _ arguments: [String: Any]) -> String {
-    modernRequest(id, "tools/call", ["name": name, "arguments": arguments])
+/// A modern `tools/call` request line. A `token` goes in `_meta.progressToken` (decision 0049).
+func toolCall(_ id: Int, _ name: String, _ arguments: [String: Any], token: Any? = nil) -> String {
+    guard let token else { return modernRequest(id, "tools/call", ["name": name, "arguments": arguments]) }
+    let meta: [String: Any] = ["io.modelcontextprotocol/protocolVersion": modernVersion, "progressToken": token]
+    return request(id, "tools/call", ["name": name, "arguments": arguments, "_meta": meta])
+}
+
+/// A `notifications/cancelled` line for the request `id`.
+func cancelLine(_ id: Any) -> String {
+    line(["jsonrpc": "2.0", "method": "notifications/cancelled", "params": ["requestId": id, "reason": "user"]])
 }
 
 /// The one text item of a tool result and its `isError`. It records an issue when the result has

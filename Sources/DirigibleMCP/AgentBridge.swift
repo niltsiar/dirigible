@@ -70,7 +70,9 @@ package final class AgentBridge {
 
     /// The `route` of `MCPServer`: the reply of the app, the lost-call error, or nil to run the
     /// call on the files.
-    package func route(tool: String, arguments: [String: Any], client: ClientInfo) -> (text: String, isError: Bool)? {
+    package func route(tool: String, arguments: [String: Any], client: ClientInfo, control: CallControl) -> (
+        text: String, isError: Bool
+    )? {
         switch call(tool: tool, arguments: arguments, client: client) {
         case .reply(.result(let text, let isError)): (text, isError)
         case .lost: (lostCallMessage, true)

@@ -23,24 +23,15 @@ struct LoudnessCommand: ParsableCommand {
 
     func run() throws {
         let session = try readPackage(package)
-        let all = session.tracks.flatMap(\.clips)
-        if let unknown = clips.first(where: { id in !all.contains { $0.id.rawValue == id } }) {
-            throw fail(SessionError.unknownClip(ClipID(unknown)).message, code: packageError)
+        let chosen: [Clip]
+        do throws(SessionError) { chosen = try loudnessClips(clips, in: session) } catch {
+            throw fail(error.message, code: packageError)
         }
-        for clip in all where clips.isEmpty || clips.contains(clip.id.rawValue) {
-            let measured: (loudness: Loudness, fault: MediaFault?)
+        for clip in chosen {
             do {
-                measured = try clipLoudness(clip, in: session, package: package.url)
+                print(loudnessLine(clip, try clipLoudness(clip, in: session, package: package.url)))
             } catch {
-                throw fail("cannot read the audio files: \(error.localizedDescription)", code: packageError)
-            }
-            let value =
-                measured.loudness.withGain(clip.gain).integrated.map { String(format: "%.1f LUFS", $0.value) } ?? "none"
-            switch measured.fault {
-            case nil: print("\(clip.id)\t\(value)")
-            case .short: print("\(clip.id)\t\(value)\tshort")
-            case .missing: print("\(clip.id)\tmissing")
-            case .unreadable: print("\(clip.id)\tunreadable")
+                throw fail(audioReadMessage(error), code: packageError)
             }
         }
     }

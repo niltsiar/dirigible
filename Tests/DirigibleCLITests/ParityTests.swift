@@ -61,7 +61,6 @@ struct ParityTests {
         "take finalize": "Long audio work that needs progress and cancel (Release 3).",
         "import": "Long audio work that needs progress and cancel (Release 3).",
         "level": "Long audio work that needs progress and cancel (Release 3).",
-        "loudness": "Long audio work that needs progress and cancel (Release 3).",
         "peaks": "Long audio work that needs progress and cancel (Release 3).",
         "render": "Long audio work that needs progress and cancel (Release 3).",
         "export": "Long audio work that needs progress and cancel (Release 3).",

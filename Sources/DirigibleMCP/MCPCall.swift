@@ -6,10 +6,10 @@ import Foundation
 /// whether it is an error. A bad argument, a refused edit, a held lock, and a pending take give
 /// the English text of the CLI line (decision 0041).
 extension Tool {
-    func call(_ json: [String: Any]) -> (text: String, isError: Bool) {
+    func call(_ json: [String: Any], control: CallControl) -> (text: String, isError: Bool) {
         do throws(ToolError) {
             let arguments = try Arguments(json, params: params)
-            let text = try perform(try make(arguments), path: arguments.path)
+            let text = try perform(try make(arguments), path: arguments.path, control: control)
             return (text, false)
         } catch {
             return (error.message, true)
@@ -17,7 +17,7 @@ extension Tool {
     }
 }
 
-private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String {
+private func perform(_ work: ToolWork, path: String, control: CallControl) throws(ToolError) -> String {
     let package = URL(filePath: path)
     switch work {
     case .edit(let ripple, let edit):
@@ -89,6 +89,8 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         return text
     case .record:
         throw ToolError(recordOnFilesMessage(path))
+    case .loudness(let ids):
+        return try loudness(package, path: path, ids: ids, control: control)
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in

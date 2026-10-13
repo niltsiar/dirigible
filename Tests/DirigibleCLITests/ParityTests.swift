@@ -148,6 +148,10 @@ struct ParityTests {
         }
         let requests = section.split(separator: "\n").filter { $0.hasPrefix("- \"") }
         #expect(requests.count >= 5, "the agent section has \(requests.count) example requests")
+        // W10 and W15: the gaps of the manual, and a request of the prepare and the edit phases.
+        #expect(section.contains("no noise reduction and no voice profile"), "the agent section does not name the gaps")
+        #expect(requests.contains { $0.contains("Record the host from") }, "no route request")
+        #expect(requests.contains { $0.contains("transcript") }, "no transcript request")
     }
 
     /// Each one-word span of the agent section names a tool, an argument, an enum value, or a

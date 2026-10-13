@@ -7,7 +7,7 @@
 # that the first phase 4 row of a run folder with a plan.md needs a passing scripts/check-plan.sh
 # (a Criteria: field for each plan gate change, and a criterion change row for each ID).
 # Check that new-run.sh reports the backlog sections, the upkeep items, and a due architecture
-# audit.
+# audit, and that it refuses a third non-feature run in a row with no --blocks-feature reason.
 # Run by `make test-hooks`.
 set -uo pipefail
 log="$(cd "$(dirname "$0")" && pwd)/log-decision.sh"
@@ -163,7 +163,7 @@ git -C "$repo" init -q
 words="$(printf 'w%.0s ' $(seq 1000))"
 printf '# Backlog\n\n## Next\n\n- %s\n\n## Later\n\n- a\n- b\n\n### From run x\n\n- c\n' "$words" > "$repo/.scratchpads/backlog.md"
 printf '# Run 2026-01-01-old\n\n- Later items: 1\n' > "$repo/.scratchpads/runs/2026-01-01-old/run.md"
-out="$(cd "$repo" && "$new_run" big 2> "$tmp/err")" || fail "new-run with a long ## Next exits $?"
+out="$(cd "$repo" && "$new_run" big feat 2> "$tmp/err")" || fail "new-run with a long ## Next exits $?"
 dir="$repo/.scratchpads/runs/$(date +%Y-%m-%d)-big"
 [[ "$out" == "$(cd "$repo" && pwd -P)/.scratchpads/runs/$(date +%Y-%m-%d)-big" ]] || fail "new-run stdout is not the run folder: $out"
 grep -q '## Next.*1001 words' "$tmp/err" || fail "no warning that names ## Next and 1001 words: $(cat "$tmp/err")"
@@ -182,13 +182,13 @@ code=$?
 echo '| U1 | - | q | code | a | 2026-01-01T00:00 |' >> "$dir/analysis.md"
 echo '### S1' >> "$dir/plan.md"
 before="$(cat "$dir/analysis.md" "$dir/plan.md" | shasum)"
-(cd "$repo" && "$new_run" big > /dev/null 2>&1) || fail "new-run again for the open run exits $?"
+(cd "$repo" && "$new_run" big feat > /dev/null 2>&1) || fail "new-run again for the open run exits $?"
 [[ "$(cat "$dir/analysis.md" "$dir/plan.md" | shasum)" == "$before" ]] || fail 'a second new-run changed an edited skeleton'
 
 printf '# Backlog\n\n## Next\n\n- short\n\n## Later\n\n- a\n' > "$repo/.scratchpads/backlog.md"
 rm -r "$dir"
 printf '# Run 2026-01-01-old\n' > "$repo/.scratchpads/runs/2026-01-01-old/run.md"
-(cd "$repo" && "$new_run" small > /dev/null 2> "$tmp/err") || fail "new-run with a short ## Next exits $?"
+(cd "$repo" && "$new_run" small feat > /dev/null 2> "$tmp/err") || fail "new-run with a short ## Next exits $?"
 grep -q 'Next' "$tmp/err" && fail "warning for a short ## Next: $(cat "$tmp/err")"
 grep -qx 'backlog: ## Later has 1 items' "$tmp/err" || fail "no Later count without a last count: $(cat "$tmp/err")"
 grep -qx 'upkeep items: 0' "$tmp/err" || fail "no upkeep count of 0: $(cat "$tmp/err")"
@@ -198,11 +198,11 @@ grep -q 'warning' "$tmp/err" && fail "warning with no upkeep item: $(cat "$tmp/e
 # ## Next and one in ## Later give no warning; 8 items in ## Next give one.
 items() { for i in $(seq "$1"); do printf -- '- upkeep k%d: x\n' "$i"; done; }
 printf '# Backlog\n\n## Next\n\n%s\n\n## Later\n\n- upkeep d: x\n' "$(items 7)" > "$repo/.scratchpads/backlog.md"
-(cd "$repo" && "$new_run" upkeep-seven > /dev/null 2> "$tmp/err") || fail "new-run with 7 upkeep items exits $?"
+(cd "$repo" && "$new_run" upkeep-seven feat > /dev/null 2> "$tmp/err") || fail "new-run with 7 upkeep items exits $?"
 grep -qx 'upkeep items: 7' "$tmp/err" || fail "no upkeep count of 7: $(cat "$tmp/err")"
 grep -q 'warning' "$tmp/err" && fail "warning at 7 upkeep items: $(cat "$tmp/err")"
 printf '# Backlog\n\n## Next\n\n%s\n\n## Later\n\n- upkeep d: x\n' "$(items 8)" > "$repo/.scratchpads/backlog.md"
-(cd "$repo" && "$new_run" upkeep > /dev/null 2> "$tmp/err") || fail "new-run with 8 upkeep items exits $?"
+(cd "$repo" && "$new_run" upkeep feat > /dev/null 2> "$tmp/err") || fail "new-run with 8 upkeep items exits $?"
 grep -qx 'upkeep items: 8' "$tmp/err" || fail "no upkeep count of 8: $(cat "$tmp/err")"
 grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 8 upkeep items: $(cat "$tmp/err")"
 
@@ -214,7 +214,7 @@ ledger_rows() {
   local r
   for r in "$@"; do printf '| %s | x | open | |\n| %s | x | done | |\n' "$r" "$r" >> "$repo/.scratchpads/ledger.md"; done
 }
-audit() { (cd "$repo" && "$new_run" "$1" > /dev/null 2> "$tmp/err") || fail "new-run $1 exits $?"; }
+audit() { (cd "$repo" && "$new_run" "$1" feat > /dev/null 2> "$tmp/err") || fail "new-run $1 exits $?"; }
 ledger_rows 2026-01-01-architecture-a 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 2026-01-05-p4
 audit audit-four
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder at 4 product runs: $(cat "$tmp/err")"
@@ -231,6 +231,46 @@ grep -q 'architecture audit' "$tmp/err" && fail "a reminder after a done archite
 ledger_rows 2026-01-01-architecture-a 2026-01-02-workflow-a 2026-01-03-upkeep-b 2026-01-04-docs-c 2026-01-05-workflow-d 2026-01-06-docs-e
 audit audit-docs
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder for workflow, upkeep, and docs runs: $(cat "$tmp/err")"
+
+# It refuses a third non-feature run in a row: the two newest done rows of the ledger (open rows do
+# not count) have a run.md branch type other than feat, and the new type is not feat. The type is
+# the text between "- Branch: " and the first slash, as the real run.md lines have it.
+guard_ledger() {
+  printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
+  local r t
+  while [[ $# -gt 0 ]]; do
+    r="$1" t="$2"; shift 2
+    mkdir -p "$repo/.scratchpads/runs/$r"
+    printf '# Run %s\n\n- Status: done\n- Branch: %s\n' "$r" "$t" > "$repo/.scratchpads/runs/$r/run.md"
+    printf '| %s | x | done | |\n' "$r" >> "$repo/.scratchpads/ledger.md"
+  done
+}
+guard() { (cd "$repo" && "$new_run" "$@" > "$tmp/out" 2> "$tmp/err"); code=$?; }
+gdir() { echo "$repo/.scratchpads/runs/$(date +%Y-%m-%d)-$1"; }
+guard_ledger 2026-02-01-f 'feat/f (worktree /x/dirigible-f, from origin/main 1234abcd)' \
+  2026-02-02-c 'chore/upkeep-batch-12, cut from origin/main 897b01d3, in the worktree /x/dirigible-upkeep' \
+  2026-02-03-r 'refactor/size-split (worktree /x/dirigible-upkeep, from 41bd906c)'
+printf '| 2026-02-04-open-feat | x | open | |\n' >> "$repo/.scratchpads/ledger.md"
+lines="$(wc -l < "$repo/.scratchpads/ledger.md")"
+guard speed perf
+[[ $code -eq 2 ]] || fail "guard: a third non-feature run exits $code"
+grep -qF "new-run: a third non-feature run in a row; give --blocks-feature '<reason>'" "$tmp/err" || fail "guard: no refusal message: $(cat "$tmp/err")"
+[[ ! -e "$(gdir speed)" ]] || fail 'guard: the refusal made a run folder'
+[[ "$(wc -l < "$repo/.scratchpads/ledger.md")" -eq $lines ]] || fail 'guard: the refusal wrote a ledger line'
+guard speed perf --blocks-feature 'R2 needs it'
+[[ $code -eq 0 ]] || fail "guard: a run with a reason exits $code: $(cat "$tmp/err")"
+awk -F'\t' '$2 == 0 && $3 ~ /third non-feature run/ && $4 == "R2 needs it"' "$(gdir speed)/decisions.tsv" 2>/dev/null | grep -q . || fail "guard: no phase 0 row with the reason: $(cat "$(gdir speed)/decisions.tsv" 2>&1)"
+grep -qx -- '- Branch: perf/speed' "$(gdir speed)/run.md" || fail "guard: no Branch line in run.md: $(cat "$(gdir speed)/run.md" 2>&1)"
+guard speed perf
+[[ $code -eq 0 ]] || fail "guard: a second call for the open run exits $code: $(cat "$tmp/err")"
+guard feature feat
+[[ $code -eq 0 ]] || fail "guard: a feat run after two non-feature runs exits $code: $(cat "$tmp/err")"
+guard_ledger 2026-02-01-c 'chore/a' 2026-02-02-f 'feat/b (worktree /x/y)' 2026-02-03-r 'refactor/c'
+guard after-feat fix
+[[ $code -eq 0 ]] || fail "guard: a feat run before the last one exits $code: $(cat "$tmp/err")"
+guard bad-type feature
+[[ $code -eq 2 ]] || fail "guard: a type that is not a Conventional Commits type exits $code"
+[[ ! -e "$(gdir bad-type)" ]] || fail 'guard: a bad type made a run folder'
 
 [[ $failures -eq 0 ]] && echo "run-files tests: all passed"
 exit $((failures > 0))

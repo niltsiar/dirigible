@@ -147,4 +147,23 @@ struct StudioPruneTests {
         #expect(report.moved.map(\.item.path) == [stray] && exists(spareName), "the new scan keeps the file")
         await studio.settle()
     }
+
+    /// Review item 1: a prune that writes nothing keeps the error of a failed autosave, so the
+    /// close still saves again.
+    @Test func emptyPruneKeepsSaveError() async throws {
+        let studio = try await open()
+        let scan = try await studio.unusedFiles()
+        studio.environment = .test(
+            TestHAL([]),
+            saveSession: { _, _ throws(SessionFileError) in throw .writeFailed(step: "write", errno: ENOSPC) })
+        try FileManager.default.removeItem(at: clips.appending(path: stray))
+        let clip = Clip(id: "B", file: spare, start: 10_000, offset: 0, length: 4_800)
+        try studio.edit { session throws(SessionError) in try session.place(clip, on: "t1") }
+
+        let report = try await studio.removeUnusedFiles(scan)
+
+        #expect(report.moved.isEmpty)
+        #expect(studio.saveError == .file(.writeFailed(step: "write", errno: ENOSPC)), "only a write clears it")
+        await studio.settle()
+    }
 }

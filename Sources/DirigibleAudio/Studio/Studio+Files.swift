@@ -43,13 +43,14 @@ extension Studio {
             let ids = Set(items.items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
             // The pool change comes after the save, so a failed save leaves memory as the disk.
             let apply = { @MainActor () throws(SessionError) in try self.removePoolEntries(ids) }
-            switch await pruneFiles(
+            let done = await pruneFiles(
                 items, of: before, lock: lock, previous: url, recordings: recordings, environment.saveSession, apply)
-            {
-            case .success(let done):
-                (url, backups, saveError) = (done.package, done.backups, nil)
+            // Only a write clears a save error: a prune with no item writes nothing.
+            if let written = done.written { (url, backups, saveError) = (written.package, written.backups, nil) }
+            switch done.result {
+            case .success(let report):
                 poolChanged(from: before.files)
-                return .success(done.report)
+                return .success(report)
             case .failure(let error):
                 // The next save or `settle()` writes the session in memory again.
                 if case .unusedFiles(.save(let fault)) = error { saveError = .file(fault) }
@@ -96,30 +97,33 @@ extension Studio {
 
 /// The save and the Trash of `UnusedFiles.prune`, off the main actor. After the save and before
 /// the first move, `apply` makes the same pool change in memory; its throw moves no file. Returns
-/// the report, the package path in `packageIdentity` form, and the backups after the save.
+/// the report, and when the save ran, the package path in `packageIdentity` form and the backups.
 @concurrent nonisolated private func pruneFiles(
     _ items: UnusedFiles, of session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
     _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL,
     _ apply: @MainActor @Sendable () throws(SessionError) -> Void
-) async -> Result<(report: PruneReport, package: URL, backups: [Backup]), StudioError> {
+) async -> (result: Result<PruneReport, StudioError>, written: (package: URL, backups: [Backup])?) {
     dispatchPrecondition(condition: .notOnQueue(.main))
     var pruned = session
-    var written = previous
-    let report: PruneReport
+    var written: URL?
+    let result: Result<PruneReport, StudioError>
     do throws(UnusedFilesError) {
-        report = try await items.prune(&pruned) { session async throws(SessionFileError) in
-            written = try await save(session, lock)
-            do throws(SessionError) {
-                try await apply()
-            } catch {
-                throw .invalidSession(error)
-            }
-            return written
-        }
+        result = .success(
+            try await items.prune(&pruned) { session async throws(SessionFileError) in
+                let url = try await save(session, lock)
+                written = url
+                do throws(SessionError) {
+                    try await apply()
+                } catch {
+                    throw .invalidSession(error)
+                }
+                return url
+            })
     } catch {
-        return .failure(.unusedFiles(error))
+        result = .failure(.unusedFiles(error))
     }
+    guard let written else { return (result, nil) }
     let package = packageIdentity(written)
     if package != previous { recordings?.set(package, active: session.recording != nil, previous: previous) }
-    return .success((report, package, Backup.all(in: written)))
+    return (result, (package, Backup.all(in: written)))
 }

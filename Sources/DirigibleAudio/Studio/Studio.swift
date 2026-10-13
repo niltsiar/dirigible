@@ -34,7 +34,7 @@ import Observation
     /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
     public internal(set) var backups: [Backup]
 
-    private var history: History
+    private(set) var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
     private var segmentsWithAudio: [SegmentName]
     private var notAudioSegments: Set<SegmentName>
@@ -298,6 +298,10 @@ import Observation
         history.edit { $0 = outcome.session }
         poolChanged(from: before)
     }
+
+    /// The pool change of Remove Unused Files (decision 0047): the session and each undo and redo
+    /// entry lose the pool entries `ids`, with no new entry.
+    func removePoolEntries(_ ids: Set<FileID>) throws(SessionError) { try history.removeUnusedFiles(ids) }
 
     /// The one undo entry of `level`, after its write. The write saved the whole session.
     func recordLevel(_ leveled: Session) {

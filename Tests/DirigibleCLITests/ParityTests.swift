@@ -41,6 +41,7 @@ struct ParityTests {
         "rippleDelete": ["clip ripple-delete"],
         "rippleInsert": ["clip ripple-insert"],
         "rippleTrim": ["clip ripple-trim"],
+        "removeUnusedFiles": ["file prune"],
     ]
 
     static let exemptions: [String: String] = [
@@ -49,7 +50,6 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
-        "removeUnusedFiles": "Slice S2 of run 2026-10-12-remove-unused-files maps it to file prune.",
     ]
 
     /// The commands with no MCP tool (decision 0041).
@@ -69,6 +69,7 @@ struct ParityTests {
         "devices": "It lists the audio devices of this Mac, not a package.",
         "apps": "It lists the apps of this Mac, not a package.",
         "mcp": "It is the MCP server.",
+        "file prune": "Slice S4 of run 2026-10-12-remove-unused-files adds file_prune after the MCP target lands.",
     ]
 
     /// The commands whose tool name does not follow the name rule.

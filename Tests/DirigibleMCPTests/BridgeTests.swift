@@ -36,6 +36,22 @@ struct BridgeTests {
         #expect((calls[1]["client"] as? [String: Any])?["name"] as? String == "codex-mcp-client")
     }
 
+    /// W3: `devices` and `apps` read this Mac in the server and never go to the app. The control:
+    /// a `session_info` call of the same server reaches the fake app.
+    @Test func aSourceToolNeverReachesTheApp() throws {
+        let app = try FakeApp { _ in .reply(#"{"isError":false,"text":"from the app"}"#) }
+        var server = MCPServer(route: AgentBridge(socket: app.socket).route)
+
+        for tool in ["devices", "apps"] {
+            let (text, isError) = toolText(server.answer(callLine(tool, [:])))
+            #expect(!isError && text != "from the app", "\(tool): \(text)")
+        }
+        #expect(app.calls.isEmpty, "\(app.calls)")
+        #expect(
+            toolText(server.answer(callLine("session_info", ["package": "/x.dirigible"]))) == ("from the app", false))
+        #expect(app.calls.count == 1)
+    }
+
     /// C6: a package that no window has runs on the files: `session_create` makes it.
     @Test func notOpenRunsOnFiles() throws {
         let app = try FakeApp { _ in .reply(#"{"notOpen":true}"#) }

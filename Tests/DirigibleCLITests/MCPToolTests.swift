@@ -233,7 +233,8 @@ struct MCPToolTests {
         #expect(kept == before, "the new backup holds the replaced session")
     }
 
-    /// C5: 40 tools in a fixed order, each with a description and a closed schema with `package`.
+    /// C5 and W1: 42 tools in a fixed order, each with a description and a closed schema with `package`,
+    /// except `devices` and `apps`, which take no argument.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
         let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
@@ -247,13 +248,20 @@ struct MCPToolTests {
                 "clip_paste",
                 "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
                 "clip_crossfade", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim", "backup_list",
-                "backup_revert", "record", "loudness", "export", "render",
+                "backup_revert", "record", "loudness", "export", "render", "devices", "apps",
             ])
         for tool in tools {
+            let name = tool["name"] as? String ?? ""
             let schema = tool["inputSchema"] as? [String: Any] ?? [:]
-            #expect((tool["description"] as? String)?.isEmpty == false, "\(tool["name"] ?? "")")
+            #expect((tool["description"] as? String)?.isEmpty == false, "\(name)")
             #expect(schema["type"] as? String == "object" && schema["additionalProperties"] as? Bool == false)
-            #expect((schema["required"] as? [String])?.first == "package", "\(tool["name"] ?? "")")
+            if ["devices", "apps"].contains(name) {
+                // They read this Mac, not a package: no argument (W1).
+                let properties = schema["properties"] as? [String: Any]
+                #expect(properties?.isEmpty == true && schema["required"] == nil, "\(name): \(schema)")
+            } else {
+                #expect((schema["required"] as? [String])?.first == "package", "\(name)")
+            }
         }
         #expect(NSArray(array: tools) == (result(answer(answers, id: 2))["tools"] as? NSArray), "two lists are equal")
         // The guide lists the tools by hand, so a new tool must also go there.

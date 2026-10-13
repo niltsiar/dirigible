@@ -26,7 +26,7 @@ enum ManualScan {
         if span.hasPrefix("dirigible ") { return true }
         if let call = span.wholeMatch(of: /([a-z_]+)\((.*)\)/) {
             guard let tool = Tool.all.first(where: { $0.name == call.1 }) else { return false }
-            let keys = Set(tool.params.map(\.key) + ["package"])
+            let keys = Set(tool.params.map(\.key) + (tool.lines == nil ? ["package"] : []))
             return call.2.split(separator: ",").allSatisfy {
                 keys.contains($0.trimmingCharacters(in: .whitespaces))
             }

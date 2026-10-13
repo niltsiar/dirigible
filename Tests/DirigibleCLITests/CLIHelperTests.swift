@@ -3,6 +3,7 @@ import Testing
 
 @testable import DirigibleAudio
 @testable import DirigibleCLI
+@testable import DirigibleMCP
 
 /// The helper of CLI.swift waits for a child process with no thread of the concurrency pool, and
 /// runs at most the bound of its slots. Each hold test has its own slots, so the other suites
@@ -50,6 +51,23 @@ struct CLIHelperTests {
             RunningApp(bundleID: "us.zoom.xos", name: "zoom\nus", path: "/B", playing: false, processes: [2]),
         ]
         #expect(appLines(apps) == "com.google.Chrome\tGoogle Chrome\t1\nus.zoom.xos\tzoom us\t0\n", "the apps lines")
+    }
+
+    /// W2: `dirigible devices` and the `devices` tool write one line for each device: the UID, the
+    /// name with no tab or line break, the channels, and the rate, with its fraction when it has one.
+    @Test func theDeviceLinesHaveFourFields() throws {
+        let devices = try [
+            #require(
+                InputDevice(
+                    uid: "BuiltIn", name: "Mac\tMic\nA", nominalRate: 48_000, availableRates: [48_000...48_000],
+                    channelsPerBuffer: [1], latency: 0)),
+            #require(
+                InputDevice(
+                    uid: "USB", name: "Desk", nominalRate: 44_099.5, availableRates: [44_099.5...44_099.5],
+                    channelsPerBuffer: [1, 1], latency: 0)),
+        ]
+        #expect(deviceLines(devices) == "BuiltIn\tMac Mic A\t1\t48000\nUSB\tDesk\t2\t44099.5\n")
+        #expect(deviceLines([]).isEmpty && appLines([]).isEmpty, "the command writes no line for an empty list")
     }
 
     /// A9: one warning line for each silent app track, in arm order. It does not change the exit

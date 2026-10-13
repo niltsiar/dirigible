@@ -8,8 +8,10 @@ struct ManualScanTests {
     /// The negative control of C5: a scan that skips a class lets one of these through.
     @Test func aBadNameIsFound() {
         let fixture =
-            "Call `clip_explode`, then `clip_trim(clip, speed)`, then `levle`. Keep `clip_trim(clip, from, to)`."
-        #expect(ManualScan.spansWithNoClass(in: fixture) == ["clip_explode", "clip_trim(clip, speed)", "levle"])
+            "Call `clip_explode`, then `clip_trim(clip, speed)`, then `levle`, then `devices(package)`. Keep "
+            + "`clip_trim(clip, from, to)` and `devices()`."
+        let bad = ManualScan.spansWithNoClass(in: fixture)
+        #expect(bad == ["clip_explode", "clip_trim(clip, speed)", "levle", "devices(package)"], "\(bad)")
     }
 
     /// A span of more than one word names a known kind, so a misspelled command line is found

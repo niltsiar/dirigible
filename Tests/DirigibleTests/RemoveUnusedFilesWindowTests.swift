@@ -178,4 +178,19 @@ import Testing
         model.alert = nil
         await model.close()
     }
+
+    /// Round 2 item 8: a Move to Trash that meets a window close shows no busy alert on the
+    /// closing window.
+    @Test func moveDuringCloseShowsNoAlert() async throws {
+        let (model, studio, window) = try await window()
+        let sheet = try await sheet(model, window)
+        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
+        studio.transport = .leveling
+
+        move.performClick(nil)
+        await model.close()
+        for _ in 0..<20 { await Task.yield() }
+
+        #expect(model.alert == nil && model.unusedFiles == nil)
+    }
 }

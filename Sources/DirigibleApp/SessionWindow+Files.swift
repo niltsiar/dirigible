@@ -28,7 +28,8 @@ extension SessionWindow {
 
     /// Move to Trash in the sheet: the studio scans again and moves the files that are in both
     /// lists. A banner gives the count and the size, and an error banner names each file that
-    /// did not move. A studio that became busy refuses, and the alert says so.
+    /// did not move. A studio that became busy refuses, and the alert says so, unless the window
+    /// closes.
     func moveUnusedFiles(_ scan: UnusedFiles) {
         unusedFiles = nil
         guard case .open(let studio) = phase else { return }
@@ -37,6 +38,8 @@ extension SessionWindow {
                 let report = try await studio.removeUnusedFiles(scan, clipboard: app?.clipboard)
                 pruneReport = PruneReportShown(report: report, revision: studio.sessionRevision)
             } catch {
+                // A window that closes refuses as busy; the close owns its alerts.
+                guard case .open = phase else { return }
                 alert = .error(error)
             }
         }

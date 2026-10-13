@@ -144,7 +144,9 @@ struct LiveLoudnessTests {
     }
 
     /// The 8a fixtures of `LoudnessTests` cases 3, 4, and 5.
-    @Test func liveIntegratedEqualsTheMeter() throws {
+    /// A slow test: 15.5 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func liveIntegratedEqualsTheMeter() throws {
         let fixtures = [
             tone([(10, -36), (60, -23), (10, -36)]),
             tone([(10, -72), (10, -36), (60, -23), (10, -36), (10, -72)]),

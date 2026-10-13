@@ -146,7 +146,9 @@ struct LoudnessTests {
     }
 
     /// The biquad state and the step sums continue across calls of `feed`.
-    @Test func resultDoesNotDependOnTheFeedBlock() throws {
+    /// A slow test: 5.2 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func resultDoesNotDependOnTheFeedBlock() throws {
         let signal = tone([(10, -36), (60, -23), (10, -36)])
         let large = try #require(try measure(signal, block: 65_536).integrated)
         expectLUFS(try measure(signal, block: 1_000).integrated, large.value, tolerance: 0.001, "1 000-frame feed")

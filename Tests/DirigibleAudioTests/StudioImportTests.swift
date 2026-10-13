@@ -299,7 +299,9 @@ struct StudioImportTests {
     /// The free space is low while B imports. The disk check of the take in A ends the import of
     /// B, and the take keeps recording. The check interval (2 s) is wide against a block of 0.1 s,
     /// and the 54 blocks of the source run past the first check.
-    @Test func theDiskCheckOfATakeEndsAnImportOnItsVolume() async throws {
+    /// A slow test: 8.1 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func theDiskCheckOfATakeEndsAnImportOnItsVolume() async throws {
         let a = try await ExportStudioFixture.make()
         let studioA = try await a.open(TestHAL([a.mic]))
         studioA.environment.diskCheckInterval = .seconds(2)

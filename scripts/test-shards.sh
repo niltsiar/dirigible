@@ -5,8 +5,11 @@
 # 600 s in two processes in sequence, 350 s in 5 shards on 4 cores).
 # Steps: swift build --build-tests; --list-tests of the bundle; the tests split by their key (the
 # ID up to the first slash: a suite, or a free function) over TEST_SHARDS shards (default 4), with
-# the largest keys first into the shard with the least tests; the CLI tests in a shard of their own,
-# because their fixture I/O slows the main actor of the other tests (Makefile, target test). Each
+# the largest keys first into the shard with the least seconds (scripts/test-shards.weights: the
+# seconds of each suite alone; after a big test change, run each module with test-helper.sh
+# --no-parallel and add the "passed after <s> seconds" of each test into its suite line); the CLI
+# tests in a shard of their own, because their fixture I/O slows the main actor of the other
+# tests (Makefile, target test). Each
 # shard runs the bundle through scripts/test-helper.sh with --filter '^(<keys>)(/|$)'.
 # Each shard log is .build/test-shards/shard-<n>.log. The script prints each log whole, in shard
 # order, after all shards end, so scripts/run-checks.sh reads each failed-test line. A shard that
@@ -40,10 +43,14 @@ list="$logs/list.txt"
 grep -vE '^DirigibleTests\.(AppBundleTests|DiskImageTests)/' "$list" | grep -E '^[A-Za-z0-9_]+\.' > "$logs/ids.txt"
 [[ -s "$logs/ids.txt" ]] || { echo "test-shards: the list has no test" >&2; exit 1; }
 
-# The shards: "<shard> <test count> <key>" lines, with the CLI key alone in shard cli.
-cut -d/ -f1 "$logs/ids.txt" | sort | uniq -c | sort -k1,1nr -k2,2 | awk -v n="$n" '
-    $2 ~ /^DirigibleCLITests\./ { cli += $1; next }
-    { b = 1; for (i = 2; i <= n; i++) if (load[i] < load[b]) b = i; load[b] += $1; print b, $1, $2 }
+# The shards: "<shard> <test count> <key>" lines, with the CLI key alone in shard cli. The weight
+# of a key is its seconds alone in scripts/test-shards.weights, else 0.5 s for each test.
+weights="$root/scripts/test-shards.weights"
+cut -d/ -f1 "$logs/ids.txt" | sort | uniq -c | awk -v file="$weights" '
+    BEGIN { while ((getline line < file) > 0) { split(line, f, "\t"); w[f[1]] = f[2] } }
+    { print ($2 in w) ? w[$2] : $1 * 0.5, $1, $2 }' | sort -k1,1nr -k3,3 | awk -v n="$n" '
+    $3 ~ /^DirigibleCLITests\./ { cli += $2; next }
+    { b = 1; for (i = 2; i <= n; i++) if (load[i] < load[b]) b = i; load[b] += $1; print b, $2, $3 }
     END { if (cli) print "cli", cli, "DirigibleCLITests\\." }' > "$logs/shards.txt"
 
 pids=() names=()

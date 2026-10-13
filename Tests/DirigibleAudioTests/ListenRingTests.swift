@@ -213,7 +213,9 @@ struct ListenRingTests {
     /// A2 ring part: a frame waits in the ring at most the target plus one pull, with the target
     /// from the sizes (512 frames plus 2 ms at 48 kHz). The value of each input frame is its
     /// number, so each output frame says how many frames came after it before its pull.
-    @Test func theRingAddsAtMostItsTarget() {
+    /// A slow test: 5.5 s alone in a debug build (run 2026-10-13-test-speed), over the 5 s of a fast test.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func theRingAddsAtMostItsTarget() {
         let ring = listenRing([.mono(1)])
         defer { ring.deallocate() }
         let target = 512 + 96

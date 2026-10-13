@@ -31,6 +31,10 @@ package enum AgentBusy: Sendable {
     case asking
     /// The window shows an alert, a sheet, or a panel.
     case dialog
+    /// An export of the window runs: a second export waits for its end.
+    case export
+    /// A take of the package is not finalized.
+    case pendingTake
 
     package func message(package: String) -> String {
         let cause =
@@ -41,6 +45,8 @@ package enum AgentBusy: Sendable {
             case .quit: "Dirigible quits"
             case .asking: "a record request waits for the user"
             case .dialog: "its window shows a question"
+            case .export: "an export runs in its window"
+            case .pendingTake: "a take is not finalized"
             }
         return "\(package) is busy in Dirigible: \(cause). Try again later."
     }

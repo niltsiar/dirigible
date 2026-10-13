@@ -143,6 +143,63 @@ extension LiveExportTests {
         await studio.settle()
     }
 
+    /// Code gate 1 item 4: a take in another window stops a render, and the text names the render.
+    @Test func aTakeInAnotherWindowGivesTheRenderText() async throws {
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        let (studio, server, folder) = try await open(hold)
+        defer { server.stop() }
+        let arguments = ["package": package.path, "out": package.folder.appending(path: "mix.caf").path]
+        let socket = folder.socket
+        let call = Task { await send(socket, "render", arguments) }
+        await until("the render does not hold") { hold.isHeld }
+
+        let end = Task { await studio.endExport(.take, yielding: true) }
+        await until("the stop did not start") { studio.exportStop == .take }
+        hold.release()
+        await end.value
+        let outcome = await call.value
+
+        let text = "A take started in Dirigible, so the render stopped. No file was written."
+        #expect(outcome == .reply(.result(text: text, isError: true)))
+        await studio.settle()
+    }
+
+    /// Code gate 1 item 4: an export of the window makes an agent export busy, with that cause.
+    @Test func aWindowExportGivesItsBusyCause() async throws {
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        let (studio, server, folder) = try await open(hold)
+        defer { server.stop() }
+        let own = package.folder.appending(path: "own.caf")
+        let window = Task {
+            try await studio.export(ExportSource(range: 0..<144_000)!, .render, to: own, replacing: nil)
+        }
+        await until("the export of the window does not hold") { hold.isHeld }
+
+        let outcome = await send(folder.socket, "export", arguments)
+
+        let text = "\(package.path) is busy in Dirigible: an export runs in its window. Try again later."
+        #expect(outcome == .reply(.result(text: text, isError: true)))
+        hold.release()
+        _ = try await window.value
+        await studio.settle()
+    }
+
+    /// Code gate 1 item 4: a take that is not finalized makes an agent export busy, with that cause.
+    @Test func aPendingTakeGivesItsBusyCause() async throws {
+        try package.addPendingTake()
+        let studio = try await package.open(pending: true)
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+
+        let outcome = await send(folder.socket, "export", arguments)
+
+        let text = "\(package.path) is busy in Dirigible: a take is not finalized. Try again later."
+        #expect(outcome == .reply(.result(text: text, isError: true)))
+        await studio.settle()
+    }
+
     /// Code gate 1 item 1: a window that shows a dialog refuses an agent export with no file.
     @Test func aDialogRefusesTheExport() async throws {
         let studio = try await package.open()

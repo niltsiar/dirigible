@@ -1,0 +1,560 @@
+{
+ "targets": [
+  4,
+  7
+ ],
+ "segments": [
+  {
+   "start": 6.0,
+   "end": 7.52,
+   "text": "Welcome to the show.",
+   "words": [
+    {
+     "word": "Welcome",
+     "start": 6.0,
+     "end": 6.42
+    },
+    {
+     "word": "to",
+     "start": 6.5,
+     "end": 6.75
+    },
+    {
+     "word": "the",
+     "start": 6.83,
+     "end": 7.12
+    },
+    {
+     "word": "show.",
+     "start": 7.2,
+     "end": 7.52
+    }
+   ]
+  },
+  {
+   "start": 9.6,
+   "end": 15.4,
+   "text": "Today we talk about home studios, microphones, and how to record a remote guest.",
+   "words": [
+    {
+     "word": "Today",
+     "start": 9.6,
+     "end": 9.96
+    },
+    {
+     "word": "we",
+     "start": 10.04,
+     "end": 10.29
+    },
+    {
+     "word": "talk",
+     "start": 10.37,
+     "end": 10.69
+    },
+    {
+     "word": "about",
+     "start": 10.77,
+     "end": 11.12
+    },
+    {
+     "word": "home",
+     "start": 11.2,
+     "end": 11.52
+    },
+    {
+     "word": "studios,",
+     "start": 11.6,
+     "end": 12.03
+    },
+    {
+     "word": "microphones,",
+     "start": 12.11,
+     "end": 12.67
+    },
+    {
+     "word": "and",
+     "start": 12.75,
+     "end": 13.04
+    },
+    {
+     "word": "how",
+     "start": 13.12,
+     "end": 13.4
+    },
+    {
+     "word": "to",
+     "start": 13.48,
+     "end": 13.73
+    },
+    {
+     "word": "record",
+     "start": 13.81,
+     "end": 14.2
+    },
+    {
+     "word": "a",
+     "start": 14.28,
+     "end": 14.5
+    },
+    {
+     "word": "remote",
+     "start": 14.58,
+     "end": 14.97
+    },
+    {
+     "word": "guest.",
+     "start": 15.05,
+     "end": 15.4
+    }
+   ]
+  },
+  {
+   "start": 17.2,
+   "end": 18.75,
+   "text": "Thanks for having me.",
+   "words": [
+    {
+     "word": "Thanks",
+     "start": 17.2,
+     "end": 17.59
+    },
+    {
+     "word": "for",
+     "start": 17.67,
+     "end": 17.95
+    },
+    {
+     "word": "having",
+     "start": 18.03,
+     "end": 18.42
+    },
+    {
+     "word": "me.",
+     "start": 18.5,
+     "end": 18.75
+    }
+   ]
+  },
+  {
+   "start": 19.4,
+   "end": 23.35,
+   "text": "I record in a small room with a dynamic microphone.",
+   "words": [
+    {
+     "word": "I",
+     "start": 19.4,
+     "end": 19.61
+    },
+    {
+     "word": "record",
+     "start": 19.7,
+     "end": 20.09
+    },
+    {
+     "word": "in",
+     "start": 20.16,
+     "end": 20.41
+    },
+    {
+     "word": "a",
+     "start": 20.49,
+     "end": 20.71
+    },
+    {
+     "word": "small",
+     "start": 20.79,
+     "end": 21.14
+    },
+    {
+     "word": "room",
+     "start": 21.22,
+     "end": 21.54
+    },
+    {
+     "word": "with",
+     "start": 21.62,
+     "end": 21.94
+    },
+    {
+     "word": "a",
+     "start": 22.02,
+     "end": 22.24
+    },
+    {
+     "word": "dynamic",
+     "start": 22.32,
+     "end": 22.74
+    },
+    {
+     "word": "microphone.",
+     "start": 22.82,
+     "end": 23.35
+    }
+   ]
+  },
+  {
+   "start": 31.2,
+   "end": 33.45,
+   "text": "Sorry, let me say that again.",
+   "words": [
+    {
+     "word": "Sorry,",
+     "start": 31.2,
+     "end": 31.55
+    },
+    {
+     "word": "let",
+     "start": 31.63,
+     "end": 31.92
+    },
+    {
+     "word": "me",
+     "start": 32.0,
+     "end": 32.25
+    },
+    {
+     "word": "say",
+     "start": 32.33,
+     "end": 32.61
+    },
+    {
+     "word": "that",
+     "start": 32.7,
+     "end": 33.02
+    },
+    {
+     "word": "again.",
+     "start": 33.09,
+     "end": 33.45
+    }
+   ]
+  },
+  {
+   "start": 33.6,
+   "end": 38.36,
+   "text": "A good recording starts with a quiet room and a steady level.",
+   "words": [
+    {
+     "word": "A",
+     "start": 33.6,
+     "end": 33.82
+    },
+    {
+     "word": "good",
+     "start": 33.9,
+     "end": 34.22
+    },
+    {
+     "word": "recording",
+     "start": 34.3,
+     "end": 34.79
+    },
+    {
+     "word": "starts",
+     "start": 34.87,
+     "end": 35.26
+    },
+    {
+     "word": "with",
+     "start": 35.34,
+     "end": 35.66
+    },
+    {
+     "word": "a",
+     "start": 35.74,
+     "end": 35.96
+    },
+    {
+     "word": "quiet",
+     "start": 36.04,
+     "end": 36.39
+    },
+    {
+     "word": "room",
+     "start": 36.47,
+     "end": 36.79
+    },
+    {
+     "word": "and",
+     "start": 36.87,
+     "end": 37.16
+    },
+    {
+     "word": "a",
+     "start": 37.24,
+     "end": 37.45
+    },
+    {
+     "word": "steady",
+     "start": 37.53,
+     "end": 37.92
+    },
+    {
+     "word": "level.",
+     "start": 38.0,
+     "end": 38.36
+    }
+   ]
+  },
+  {
+   "start": 45.0,
+   "end": 49.91,
+   "text": "I check the level before each take and I keep the gain low.",
+   "words": [
+    {
+     "word": "I",
+     "start": 45.0,
+     "end": 45.22
+    },
+    {
+     "word": "check",
+     "start": 45.3,
+     "end": 45.65
+    },
+    {
+     "word": "the",
+     "start": 45.73,
+     "end": 46.02
+    },
+    {
+     "word": "level",
+     "start": 46.1,
+     "end": 46.45
+    },
+    {
+     "word": "before",
+     "start": 46.53,
+     "end": 46.92
+    },
+    {
+     "word": "each",
+     "start": 47.0,
+     "end": 47.32
+    },
+    {
+     "word": "take",
+     "start": 47.4,
+     "end": 47.72
+    },
+    {
+     "word": "and",
+     "start": 47.8,
+     "end": 48.09
+    },
+    {
+     "word": "I",
+     "start": 48.17,
+     "end": 48.38
+    },
+    {
+     "word": "keep",
+     "start": 48.46,
+     "end": 48.78
+    },
+    {
+     "word": "the",
+     "start": 48.86,
+     "end": 49.15
+    },
+    {
+     "word": "gain",
+     "start": 49.23,
+     "end": 49.55
+    },
+    {
+     "word": "low.",
+     "start": 49.63,
+     "end": 49.91
+    }
+   ]
+  },
+  {
+   "start": 58.4,
+   "end": 61.31,
+   "text": "Oops, I lost my notes for a second.",
+   "words": [
+    {
+     "word": "Oops,",
+     "start": 58.4,
+     "end": 58.72
+    },
+    {
+     "word": "I",
+     "start": 58.8,
+     "end": 59.02
+    },
+    {
+     "word": "lost",
+     "start": 59.09,
+     "end": 59.41
+    },
+    {
+     "word": "my",
+     "start": 59.49,
+     "end": 59.74
+    },
+    {
+     "word": "notes",
+     "start": 59.82,
+     "end": 60.18
+    },
+    {
+     "word": "for",
+     "start": 60.26,
+     "end": 60.54
+    },
+    {
+     "word": "a",
+     "start": 60.62,
+     "end": 60.84
+    },
+    {
+     "word": "second.",
+     "start": 60.92,
+     "end": 61.31
+    }
+   ]
+  },
+  {
+   "start": 61.6,
+   "end": 65.71,
+   "text": "Blankets on the walls help a lot in a small room.",
+   "words": [
+    {
+     "word": "Blankets",
+     "start": 61.6,
+     "end": 62.06
+    },
+    {
+     "word": "on",
+     "start": 62.14,
+     "end": 62.39
+    },
+    {
+     "word": "the",
+     "start": 62.47,
+     "end": 62.75
+    },
+    {
+     "word": "walls",
+     "start": 62.84,
+     "end": 63.19
+    },
+    {
+     "word": "help",
+     "start": 63.27,
+     "end": 63.59
+    },
+    {
+     "word": "a",
+     "start": 63.67,
+     "end": 63.89
+    },
+    {
+     "word": "lot",
+     "start": 63.97,
+     "end": 64.25
+    },
+    {
+     "word": "in",
+     "start": 64.33,
+     "end": 64.58
+    },
+    {
+     "word": "a",
+     "start": 64.66,
+     "end": 64.88
+    },
+    {
+     "word": "small",
+     "start": 64.96,
+     "end": 65.31
+    },
+    {
+     "word": "room.",
+     "start": 65.39,
+     "end": 65.71
+    }
+   ]
+  },
+  {
+   "start": 74.5,
+   "end": 76.31,
+   "text": "That is all for today.",
+   "words": [
+    {
+     "word": "That",
+     "start": 74.5,
+     "end": 74.82
+    },
+    {
+     "word": "is",
+     "start": 74.9,
+     "end": 75.15
+    },
+    {
+     "word": "all",
+     "start": 75.23,
+     "end": 75.52
+    },
+    {
+     "word": "for",
+     "start": 75.59,
+     "end": 75.88
+    },
+    {
+     "word": "today.",
+     "start": 75.96,
+     "end": 76.31
+    }
+   ]
+  },
+  {
+   "start": 78.0,
+   "end": 81.22,
+   "text": "Thanks for listening, and see you next time.",
+   "words": [
+    {
+     "word": "Thanks",
+     "start": 78.0,
+     "end": 78.39
+    },
+    {
+     "word": "for",
+     "start": 78.47,
+     "end": 78.75
+    },
+    {
+     "word": "listening,",
+     "start": 78.83,
+     "end": 79.33
+    },
+    {
+     "word": "and",
+     "start": 79.41,
+     "end": 79.69
+    },
+    {
+     "word": "see",
+     "start": 79.77,
+     "end": 80.06
+    },
+    {
+     "word": "you",
+     "start": 80.14,
+     "end": 80.42
+    },
+    {
+     "word": "next",
+     "start": 80.5,
+     "end": 80.82
+    },
+    {
+     "word": "time.",
+     "start": 80.9,
+     "end": 81.22
+    }
+   ]
+  }
+ ]
+}

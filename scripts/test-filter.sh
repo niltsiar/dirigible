@@ -11,16 +11,18 @@
 # the regex characters escaped, so a name that is a prefix of another test name runs only its own
 # test. The CLI process then takes a name that a CLI test file has as 'func <name>('. With
 # --no-parallel, both swift calls get --no-parallel (a rerun of slow tests, scripts/run-checks.sh).
-# Usage: scripts/test-filter.sh [--exact] [--no-parallel] <name>...
+# With --skip-build, both swift calls get --skip-build --disable-xctest (a mutant that its build
+# command built already), and the Swift Testing no-test string alone means that no test ran.
+# Usage: scripts/test-filter.sh [--exact] [--no-parallel] [--skip-build] <name>...
 #        make test-filter FILTER='<name> <name>'
 # scripts/test-filter.test.sh tests it.
 set -euo pipefail
-exact=0 serial=0
-while [[ "${1:-}" == --exact || "${1:-}" == --no-parallel ]]; do
-    [[ "$1" == --exact ]] && exact=1 || serial=1
+exact=0 serial=0 built=0
+while [[ "${1:-}" =~ ^--(exact|no-parallel|skip-build)$ ]]; do
+    case "$1" in --exact) exact=1 ;; --no-parallel) serial=1 ;; *) built=1 ;; esac
     shift
 done
-[[ $# -gt 0 ]] || { echo "usage: scripts/test-filter.sh [--exact] [--no-parallel] <test or suite name>..." >&2; exit 2; }
+[[ $# -gt 0 ]] || { echo "usage: scripts/test-filter.sh [--exact] [--no-parallel] [--skip-build] <test or suite name>..." >&2; exit 2; }
 cd "$(dirname "$0")/.."
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
@@ -31,7 +33,7 @@ run() {
     local code=0
     scripts/swift-test.sh "$@" 2>&1 | tee "$out" || code=$?
     [[ $status -ne 0 ]] || status=$code
-    grep -qF 'No matching test cases were run' "$out" && grep -qF 'Test run with 0 tests' "$out" || ran=1
+    { [[ $built -eq 1 ]] || grep -qF 'No matching test cases were run' "$out"; } && grep -qF 'Test run with 0 tests' "$out" || ran=1
 }
 
 p1=(--skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests) p2=()
@@ -46,6 +48,7 @@ for name in "$@"; do
     fi
 done
 [[ $serial -eq 0 ]] || { p1+=(--no-parallel); [[ ${#p2[@]} -eq 0 ]] || p2+=(--no-parallel); }
+[[ $built -eq 0 ]] || { p1+=(--skip-build --disable-xctest); [[ ${#p2[@]} -eq 0 ]] || p2+=(--skip-build --disable-xctest); }
 run "${p1[@]}"
 [[ ${#p2[@]} -eq 0 ]] || run "${p2[@]}"
 [[ $status -eq 0 ]] || exit $status

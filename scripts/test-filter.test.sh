@@ -2,7 +2,9 @@
 # Check that test-filter.sh runs the tests of FILTER in two processes: process 1
 # skips the CLI tests and gets one --filter for each word, process 2 runs the CLI tests of a
 # word that a CLI test file names. Check that --exact anchors each name and escapes its regex
-# characters, and that --no-parallel reaches both processes. Check that it fails closed: no test
+# characters, and that --no-parallel reaches both processes. Check that --skip-build gives both
+# processes --skip-build --disable-xctest, and that then the Swift Testing string alone means no
+# test. Check that it fails closed: no test
 # in each process that ran, a nonzero swift exit, no word, or a swift exit 0 with no report line
 # (scripts/swift-test.sh). Check that a bare swift-test.sh takes the build
 # lock of its repo. A fake swift on PATH logs its arguments. Run by `make test-hooks`.
@@ -23,7 +25,8 @@ printf 'struct CLIWordTests {\n    @Test func cliWordRuns() {}\n}\n' > "$tmp/pkg
 
 # The fake swift logs one line for each call. FAKE_P1 and FAKE_P2 set the output of process 1
 # (the call with --skip DirigibleCLITests) and process 2: none (the two no-test strings of
-# mutate.py), xctest (only the XCTest string, and tests ran), tests, or fail (tests, exit 1).
+# mutate.py), xctest (only the XCTest string, and tests ran), swift0 (only the Swift Testing
+# no-test string, as with --disable-xctest), tests, or fail (tests, exit 1).
 # Swift Testing writes its summary to stderr: real (the summary of a real run, on stderr) and
 # noreport (exit 0 and no summary line, on stderr, as when an AppKit call ends the process).
 # In <log>.lock it logs the hold value that it gets and the pid file of the lock of the copy.
@@ -36,6 +39,7 @@ mode="$FAKE_P2"
 case "$mode" in
   none) echo 'No matching test cases were run'; echo 'Test run with 0 tests passed after 0.001 seconds.' ;;
   xctest) echo 'No matching test cases were run'; echo 'Test run with 3 tests passed after 0.1 seconds.' ;;
+  swift0) echo 'Test run with 0 tests passed after 0.001 seconds.' ;;
   tests) echo 'Test run with 3 tests passed after 0.1 seconds.' ;;
   fail) echo 'Test run with 3 tests failed after 0.1 seconds with 1 issue.'; exit 1 ;;
   real) echo '✘ Test run with 1980 tests in 247 suites passed after 431.790 seconds with 4 known issues.' >&2 ;;
@@ -108,6 +112,20 @@ run tests tests --exact --no-parallel cliWordRuns
 want="$p1 --filter /cliWordRuns\\( --no-parallel
 swift test --filter DirigibleCLITests.*/cliWordRuns\\( --no-parallel"
 [[ "$(cat "$tmp/log")" == "$want" ]] || fail "--no-parallel: calls differ: $(cat "$tmp/log")"
+
+# --skip-build: the control of a mutation pass builds once, so each process runs the built tests
+# with no second build and no XCTest pass. With no XCTest pass, the Swift Testing no-test string
+# alone means that no test ran.
+run tests tests --skip-build --exact cliWordRuns
+want="$p1 --filter /cliWordRuns\\( --skip-build --disable-xctest
+swift test --filter DirigibleCLITests.*/cliWordRuns\\( --skip-build --disable-xctest"
+[[ $code -eq 0 ]] || fail "--skip-build: exit $code: $out"
+[[ "$(cat "$tmp/log")" == "$want" ]] || fail "--skip-build: calls differ: $(cat "$tmp/log")"
+run swift0 swift0 --skip-build NoSuchTestName
+[[ $code -eq 1 ]] || fail "--skip-build with no test: expected exit 1, got $code: $out"
+[[ "$out" == *"test-filter: no test matched"* ]] || fail "--skip-build with no test: no reason: $out"
+run swift0 tests ClipTests
+[[ $code -eq 0 ]] || fail "only the Swift Testing no-test string with no --skip-build: exit $code: $out"
 
 run tests tests --exact
 [[ $code -eq 2 && ! -s "$tmp/log" ]] || fail "--exact and no word: expected exit 2 and no swift call, got $code"

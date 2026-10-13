@@ -37,7 +37,7 @@ variant=mcp
 [[ -n $app ]] && variant=skill
 # T10 needs the audio server, so only a variant with no shell runs it.
 [[ $variant == mcp || " ${tasks[*]} " != *" T10 "* ]] || { echo "agent-tasks.sh: T10 runs only in the MCP variant" >&2; exit 2; }
-transcript="$(cd "$(dirname "$0")" && pwd -P)/agent-transcript.json"
+transcript="$here/agent-transcript.json"
 
 prompt() {
     case "$1" in

@@ -2,7 +2,9 @@
 # Run a probe in its own folder. The probe can write only in that folder, the system
 # temporary folders, and /dev. A probe once deleted files in the home folder, so the
 # sandbox refuses a write anywhere else, also a relative path and an unlink() in C.
-# Usage: scripts/probe.sh <folder> <command> [args...]
+# Usage: scripts/probe.sh [--no-audio] <folder> <command> [args...]
+# --no-audio also refuses the audio server, so the command sees no audio device and cannot record.
+# A nested sandbox-exec is refused, so it is an option of this one call.
 # The folder must be under .scratchpads/ of this repo (in a worktree, also of the main checkout)
 # or under /private/tmp.
 # The command runs with the folder as its working directory.
@@ -27,7 +29,9 @@
 # not permitted". Create a blank image and attach it with `-mountpoint` in the probe folder.
 set -euo pipefail
 
-[[ $# -ge 2 ]] || { echo "usage: scripts/probe.sh <folder> <command> [args...]" >&2; exit 2; }
+no_audio=""
+[[ ${1:-} == --no-audio ]] && { no_audio=1; shift; }
+[[ $# -ge 2 ]] || { echo "usage: scripts/probe.sh [--no-audio] <folder> <command> [args...]" >&2; exit 2; }
 # Resolve the folder before it exists: the real path of its nearest existing parent, plus the
 # missing part. Refuse ".." in the missing part, because it can leave the allowed roots.
 parent="$1" missing=""
@@ -59,6 +63,7 @@ profile="(version 1)
 (allow default)
 (deny file-write*)
 (allow file-write* (subpath \"$folder\") (subpath \"/private/var/folders\") (subpath \"/dev\"))"
+[[ -z $no_audio ]] || profile+=$'\n(deny mach-lookup (global-name "com.apple.audio.audiohald"))'
 
 cd "$folder"
 exec sandbox-exec -p "$profile" "$@"

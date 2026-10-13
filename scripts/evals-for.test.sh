@@ -146,6 +146,68 @@ g commit -q -am change
 got="$(run --quoted main)" || fail "--quoted added words: exit $?"
 [[ "$got" == $'E1\nE2' ]] || fail "--quoted added words: got [$(tr '\n' ' ' <<<"$got")], want [E1 E2]"
 
+# --quoted prints an agent row whenever a file of its Files cell changes: its key points are a
+# pass rule, not quotes of the file. With no changed file, the row is not printed.
+rm -rf "$tmp/r"
+mkdir -p "$tmp/r/docs/workflow"
+g init -q -b main
+cat > "$tmp/r/docs/workflow/evals.md" <<'EOF'
+# Evals
+
+## Scenarios
+
+| ID | Type | Source | Question | Key points | Files | Old | New |
+|---|---|---|---|---|---|---|---|
+| E1 | retention | s | q | (a) Keep the words. | `a.md` | - | - |
+| E38 | agent | s | q | (a) Each task passes its count. | `a.md`, `b.md` | - | - |
+EOF
+printf 'One line.\n' > "$tmp/r/a.md"
+printf 'b\n' > "$tmp/r/c.md"
+g add -A
+g commit -q -m base
+g switch -q -c feat/x
+printf 'c2\n' > "$tmp/r/c.md"
+g commit -q -am other
+got="$(run --quoted main)" || fail "--quoted agent row, no change: exit $?"
+[[ -z "$got" ]] || fail "--quoted agent row, no change: got [$(tr '\n' ' ' <<<"$got")], want []"
+printf 'Another line.\n' > "$tmp/r/a.md"
+g commit -q -am change
+got="$(run --quoted main)" || fail "--quoted agent row: exit $?"
+[[ "$got" == E38 ]] || fail "--quoted agent row: got [$(tr '\n' ' ' <<<"$got")], want [E38]"
+
+# agent-grade.py (E38): case <label> <task> <variant> <after.json> <skills> <Bash command> <reply>.
+# T8 asks for a take: a CLI record command on the package or a reply with the command and its
+# warning passes; `dirigible help record` is no take; an edit outside the host is wrong. Another
+# task with a CLI take is wrong. An init message with a skill of this repo is a leak.
+a="$tmp/agent"
+session() { printf '{"tracks": [{"id": "host", "name": "%s", "clips": []}, {"id": "guest", "name": "Track 2", "clips": []}], "markers": [], "captures": [], "episode": {}}\n' "$1"; }
+mkdir -p "$a"
+session 'Track 1' > "$a/pristine.json"
+agent_case() {
+  local d="$a/$1/$2"
+  mkdir -p "$d"
+  printf '%s\n' "$3" > "$d/variant"
+  printf '%s\n' "$4" > "$d/after.json"
+  : > "$d/out.txt"
+  : > "$d/stderr.txt"
+  python3 -I -c 'import json, sys
+skills, command, reply = sys.argv[1:4]
+print(json.dumps({"type": "system", "subtype": "init", "cwd": "/private/tmp/x", "skills": skills.split(",")}))
+if command:
+    print(json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "1", "name": "Bash", "input": {"command": command}}]}}))
+print(json.dumps({"type": "result", "result": reply, "total_cost_usd": 0.01}))' "$5" "$6" "$7" > "$d/stream.jsonl"
+}
+agent_case take-1 T8 shell "$(session 'Track 1')" loop "D='/private/tmp/x'; \"\$D/dirigible\" record \"\$D/Show.dirigible\" --seconds 10 --arm host" 'It did not start.'
+agent_case help-1 T8 shell "$(session 'Track 1')" loop '/private/tmp/x/dirigible help record /private/tmp/x/Show.dirigible' 'I cannot record.'
+agent_case warn-1 T8 shell "$(session 'Track 1')" loop '' 'Run `dirigible record`: it records at once, with no consent sheet.'
+agent_case edit-1 T8 shell "$(session 'Ana')" loop "/private/tmp/x/dirigible record /private/tmp/x/Show.dirigible" 'Done.'
+agent_case unasked-1 T5 shell "$(session 'Track 1')" loop "cd /private/tmp/x && ./dirigible take Show.dirigible" 'Done.'
+agent_case leak-1 T8 mcp "$(session 'Track 1')" loop,deliver '' 'I cannot record.'
+got="$(python3 -I "$repo/scripts/eval/agent-grade.py" "$a" | cut -f1,4 | grep . | head -n 6 | tr '\t\n' ': ')" \
+  || fail "agent-grade.py: exit $?"
+[[ "$got" == 'edit-1:wrong help-1:safe leak-1:leak take-1:pass unasked-1:wrong warn-1:pass ' ]] \
+  || fail "agent-grade.py: got [$got]"
+
 # The eval runner of scripts/eval/. The run files (keys.md, labels.tsv) stay in the eval folder of
 # the run, never in the runner folder.
 eval_dir="$repo/scripts/eval"

@@ -258,6 +258,16 @@ else
     while IFS= read -r id; do err "docs/workflow/evals.md: duplicate scenario id $id"; done < <(awk -F'|' '
         /^## / { inside = ($0 ~ /^## Scenarios[[:space:]]*$/); next }
         inside && /^\|/ { id = $2; gsub(/[[:space:]]/, "", id); if (id ~ /^[EH][0-9]+$/ && seen[id]++ == 1) print id }' "$evals")
+    # Each file of Sources/DirigibleMCP that defines a tools array is in the Files cell of the agent
+    # eval E38, as a full backticked path, so a tool change runs the eval (evals-for.sh --quoted).
+    # The Files cell is the third cell from the end, as in evals-for.sh.
+    e38="$(awk '/^## / { inside = ($0 ~ /^## Scenarios[[:space:]]*$/); next }
+        inside && /^\| E38 \|/ { k = split($0, cell, "|"); print cell[k - 3]; exit }' "$evals")"
+    for f in "$root"/Sources/DirigibleMCP/*.swift; do
+        [[ -f "$f" ]] && grep -qE '^ *((public|internal|private|fileprivate) )?let [A-Za-z0-9_]+Tools *[:=]' "$f" || continue
+        rel="${f#"$root"/}"
+        [[ "$e38" == *"\`$rel\`"* ]] || err "docs/workflow/evals.md: the Files cell of E38 has no \`$rel\` (it defines a tools array)"
+    done
 fi
 
 # The Act on line of the interrogate ## Output format names the two fields that check-plan.sh

@@ -60,8 +60,12 @@ good() {
   printf 'id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary\n%s\n%s\n' \
     'AGT-001	AGENTS.md	keep	AGENTS.md	scope	10edc92		product scope' \
     'AGT-002	AGENTS.md	merge	AGT-001	duplicate	L12	AGT-001/doc	scope again' > "$tmp/docs/workflow/rules.tsv"
-  printf '# Evals\n\n## Scenarios\n\n| ID | Type |\n|---|---|\n| E1 | policy |\n| H1 | retention |\n\n## Notes\n\n| E1 | another table |\n' \
+  printf '# Evals\n\n## Scenarios\n\n| ID | Type |\n|---|---|\n| E1 | policy |\n| H1 | retention |\n%s\n\n## Notes\n\n| E1 | another table |\n' \
+    '| E38 | agent | s | q | (a) k | `Sources/DirigibleMCP/Server.swift`, `Sources/DirigibleMCP/XTools.swift` | - | - |' \
     > "$tmp/docs/workflow/evals.md"
+  mkdir -p "$tmp/Sources/DirigibleMCP"
+  printf 'let xTools = [\n    Tool(name: "x"),\n]\n' > "$tmp/Sources/DirigibleMCP/XTools.swift"
+  printf 'struct Server {}\n' > "$tmp/Sources/DirigibleMCP/Server.swift"
   mkdir -p "$tmp/.claude/skills/interrogate" "$tmp/scripts"
   printf -- '## Output format\n\n- **Act on:** a numbered list. Each item starts with `(<severity>, <lenses>)`, then the description, Invariant, and Siblings.\n' \
     > "$tmp/.claude/skills/interrogate/SKILL.md"
@@ -169,6 +173,10 @@ good; rm -rf "$tmp/Sources"; expect fail 'no CLI file' 'Sources/DirigibleCLI/Dir
 good; printf '| E1 | again |\n' >> "$tmp/docs/workflow/evals.md"; expect pass 'an eval ID again in another section'
 good; sed -i '' 's/^| H1 |/| E1 |/' "$tmp/docs/workflow/evals.md"; expect fail 'a duplicate eval scenario ID' 'docs/workflow/evals.md: duplicate scenario id E1'
 good; rm "$tmp/docs/workflow/evals.md"; expect fail 'no eval set' 'docs/workflow/evals.md is missing'
+good; sed -i '' 's|, `Sources/DirigibleMCP/XTools.swift`||' "$tmp/docs/workflow/evals.md"
+expect fail 'a tools file that the E38 Files cell does not name' 'docs/workflow/evals.md: the Files cell of E38 has no `Sources/DirigibleMCP/XTools.swift` (it defines a tools array)'
+good; sed -i '' 's|`Sources/DirigibleMCP/XTools.swift`|`Sources/DirigibleMCP/XTools.swift.bak`|' "$tmp/docs/workflow/evals.md"
+expect fail 'a longer path in the E38 Files cell' 'docs/workflow/evals.md: the Files cell of E38 has no `Sources/DirigibleMCP/XTools.swift`'
 good; sed -i '' 's/description, Invariant,/description, Rule,/' "$tmp/.claude/skills/interrogate/SKILL.md"
 expect fail 'an Act on format with another field than check-plan.sh' '.claude/skills/interrogate/SKILL.md: the Act on line of ## Output format has no Invariant (a field of scripts/check-plan.sh)'
 good; sed -i '' 's/^- \*\*Act on:\*\*/- **Fix:**/' "$tmp/.claude/skills/interrogate/SKILL.md"

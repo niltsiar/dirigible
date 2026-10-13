@@ -223,8 +223,8 @@ struct Tool: Sendable {
 
     /// The end of the description of each edit tool (decision 0046).
     static let undoNote =
-        " On a package that is open in Dirigible, the call runs in the app as one undo step. On a closed package, "
-        + "the call saves the package and has no undo."
+        " When Dirigible lets agents edit open sessions, a call on a package that is open in the app runs there as "
+        + "one undo step. On a closed package, the call saves the package and has no undo."
 
     /// An edit tool (`saves`) says in its description how the call can be undone.
     init(

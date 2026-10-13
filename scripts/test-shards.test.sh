@@ -5,8 +5,9 @@
 # line, runs fewer tests than it listed, or matches no test (exit 69) prints the text that
 # run-checks.sh reads as no rerun ("the test process ended before its report"), and fails the run
 # after the other shards end. Check that a failed test fails the run with its line once in the
-# output, that TEST_SHARDS sets the count, that the weights file balances the shards, that a failed build runs no shard, that the build, the
-# list, and the shards share one hold of the lock, and that a TERM leaves no test process alive.
+# output, that a report line with no suite count counts, that TEST_SHARDS sets the count, that the
+# weights file balances the shards, that a failed build runs no shard, that the build, the list,
+# and the shards share one hold of the lock, and that a TERM leaves no test process alive.
 # A fake swift and a stub test-helper.sh stand in for the toolchain. make test-hooks runs it.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -64,8 +65,11 @@ while IFS= read -r id; do
     fi
 done <<<"$ids"
 has "${FAKE_NOREPORT:-}" && exit 0
-if [[ $code -eq 0 ]]; then echo "✔ Test run with $n tests in 1 suite passed after 0.1 seconds."
-else echo "✘ Test run with $n tests in 1 suite failed after 0.1 seconds with 1 issue."; fi
+suites=" in 1 suite"
+# A real run of free functions only prints "in 0 suites"; FAKE_NOSUITE drops the part.
+[[ -z "${FAKE_NOSUITE:-}" ]] || suites=""
+if [[ $code -eq 0 ]]; then echo "✔ Test run with $n tests$suites passed after 0.1 seconds."
+else echo "✘ Test run with $n tests$suites failed after 0.1 seconds with 1 issue."; fi
 exit "$code"
 EOF
 chmod +x "$tmp/bin/swift" "$root/scripts/test-helper.sh"
@@ -123,6 +127,11 @@ rm "$root/scripts/test-shards.weights"
 run
 [[ $code -eq 0 ]] || fail "default: exit $code: $(cat "$tmp/out")"
 [[ "$(grep -c '^runner .*--filter' "$tmp/args.log")" -eq 5 ]] || fail "default: not 4 shards and the CLI shard: $(cat "$tmp/args.log")"
+
+# A report line with no suite count counts its tests.
+run TEST_SHARDS=2 FAKE_NOSUITE=1
+[[ $code -eq 0 ]] || fail "no suite count: exit $code: $(tail -5 "$tmp/out")"
+grep -qE '^test-shards: 7 of 7 tests in' "$tmp/out" || fail "no suite count: the count line: $(tail -3 "$tmp/out")"
 
 # (c) A failed test fails the run; the other shards run to their end; the failed line shows once.
 run TEST_SHARDS=2 FAKE_FAIL=b1

@@ -142,8 +142,8 @@ actor Player {
         guard let graph = makeGraph() else { return }
         // A rewire while the engine runs costs no more than a seek during play (probe S6).
         let wanted = shuttle.rate == .one ? speed : .one
-        let played = wire(graph, speed: wanted) ? wanted : .one
-        loudness.start(at: start, shuttle: shuttle, speed: played)
+        let feedSpeed = wire(graph, speed: wanted) ? wanted : .one
+        loudness.start(at: start, shuttle: shuttle, speed: feedSpeed)
         guard let url = try? package() else {
             stop = .packageUnavailable
             return
@@ -159,7 +159,8 @@ actor Player {
             output == .device
             ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded()) : 0
         feed = Feed(
-            anchor: start, shuttle: shuttle, speed: played, mix: MixReader(package: url, session: session, open: open))
+            anchor: start, shuttle: shuttle, speed: feedSpeed,
+            mix: MixReader(package: url, session: session, open: open))
         refill()
         graph.node.play()
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))

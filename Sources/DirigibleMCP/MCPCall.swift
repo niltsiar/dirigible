@@ -96,6 +96,7 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     } catch {
         throw ToolError(error.message(package: path))
     }
+    try checkTracks(tracks, in: session)
     let media: [FileID: MediaFault]
     do throws(POSIXError) {
         media = try checkMedia(session, package: package)
@@ -110,9 +111,7 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
 func infoText(_ session: Session, media: [FileID: MediaFault], tracks: [TrackID]?, range: Range<Frames>?)
     throws(ToolError) -> String
 {
-    if let unknown = tracks?.first(where: { session.track($0) == nil }) {
-        throw ToolError(SessionError.unknownTrack(unknown).message)
-    }
+    try checkTracks(tracks, in: session)
     let whole = SessionView(session, media: media)
     let view = whole.filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
     let text: String
@@ -124,6 +123,13 @@ func infoText(_ session: Session, media: [FileID: MediaFault], tracks: [TrackID]
     }
     guard text.count > sessionInfoBudget else { return text }
     return overview(of: view, in: whole, size: text.count, filtered: tracks != nil || range != nil)
+}
+
+/// Refuses a `session_info` track that the session does not have, before the media check.
+private func checkTracks(_ tracks: [TrackID]?, in session: Session) throws(ToolError) {
+    if let unknown = tracks?.first(where: { session.track($0) == nil }) {
+        throw ToolError(SessionError.unknownTrack(unknown).message)
+    }
 }
 
 /// The largest `session_info` answer in characters. Claude Code refuses a tool result over

@@ -33,7 +33,7 @@ Prefer no new test over a bad test: one that mostly tests mocks, encodes impleme
 - When a test refuses or blocks a user action, also assert that the user input stays (typed text, open alert, selection, clipboard). "The model did not change" alone passes when the input is lost. If the plan expects lost input, raise a plan finding in place of the test.
 - A test that expects a refusal (a nonzero exit, a throw, a refused edit) also asserts its reason (the rule message or error case): a broken fixture also fails.
 - A refusal of a path also asserts that the path does not exist afterwards. The script checks before its first side effect (`mkdir -p`) and resolves the path again (`pwd -P`) after it.
-- A test that asserts "nothing changed after X" first proves, in the same observation, that X reached the output (for example, a changed control region). A wait or sleep alone passes when X never happened.
+- A test that asserts "nothing changed after X" first proves, in the same observation, that X reached the output. A wait or sleep passes when X never happened. A test of "X during Y" also asserts that Y goes on.
 - A test that asserts unchanged files compares the bytes or a hash of each file, not names, sizes, or dates: the likely damage is a rewrite in place with the same size. Its control changes one byte at a fixed offset.
 - Compare processed audio with a stated tolerance, never exact float equality.
 - Put a slow test behind `DIRIGIBLE_SLOW_TESTS=1`. `make test-slow` runs it.

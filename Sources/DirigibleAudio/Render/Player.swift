@@ -139,10 +139,10 @@ actor Player {
         played = number
         stop = nil
         guard let graph = makeGraph() else { return }
-        let factor = shuttle.rate == .one && graph.unit != nil ? speed.factor : 1
-        loudness.start(at: start, shuttle: shuttle, speed: factor)
         // A rewire while the engine runs costs no more than a seek during play (probe S6).
-        wire(graph, speed: factor)
+        let wanted = shuttle.rate == .one ? speed.factor : 1
+        let factor = wire(graph, speed: wanted) ? wanted : 1
+        loudness.start(at: start, shuttle: shuttle, speed: factor)
         guard let url = try? package() else {
             stop = .packageUnavailable
             return
@@ -333,7 +333,7 @@ actor Player {
     /// caller then starts a new play.
     func setSpeed(_ speed: Speed) -> Bool {
         guard speed != .one, let graph, feed.map({ $0.speed != 1 }) == true, speedUnitInGraph else { return false }
-        wire(graph, speed: speed.factor)
+        guard wire(graph, speed: speed.factor) else { return false }
         let node = nodeFrames()
         let held = Self.held(nodeFrames: node, latency: latency, speed: feed?.speed ?? 1, step: feed?.step)
         feed?.step = SpeedStep(node: node, held: held)

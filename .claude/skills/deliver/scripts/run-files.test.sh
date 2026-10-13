@@ -232,19 +232,22 @@ ledger_rows 2026-01-01-architecture-a 2026-01-02-workflow-a 2026-01-03-upkeep-b 
 audit audit-docs
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder for workflow, upkeep, and docs runs: $(cat "$tmp/err")"
 
-# It refuses a third non-feature run in a row: the two newest done rows of the ledger (open rows do
-# not count) have a run.md branch type other than feat, and the new type is not feat. The type is
+# It refuses a third non-feature run in a row: the two runs of the ledger with the highest PR
+# numbers in their done rows (open rows do not count; a run with two done rows counts once) have a run.md branch type other than feat, and the new type is not feat. The type is
 # the text between "- Branch: " and the first slash, as the real run.md lines have it.
+# guard_ledger <run> <branch line> ...: done rows with PR numbers 101, 102, ... in argument order.
 guard_ledger() {
   printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
-  local r t
+  local r t n=100
   while [[ $# -gt 0 ]]; do
-    r="$1" t="$2"; shift 2
+    r="$1" t="$2" n=$((n + 1)); shift 2
     mkdir -p "$repo/.scratchpads/runs/$r"
     printf '# Run %s\n\n- Status: done\n- Branch: %s\n' "$r" "$t" > "$repo/.scratchpads/runs/$r/run.md"
-    printf '| %s | x | done | |\n' "$r" >> "$repo/.scratchpads/ledger.md"
+    printf '| %s | x | done | https://github.com/o/r/pull/%s, a..b: x |\n' "$r" "$n" >> "$repo/.scratchpads/ledger.md"
   done
 }
+# done_row <run> <PR number>: one more done row, at the end of the file.
+done_row() { printf '| %s | x | done | https://github.com/o/r/pull/%s, a..b: x |\n' "$1" "$2" >> "$repo/.scratchpads/ledger.md"; }
 guard() { (cd "$repo" && "$new_run" "$@" > "$tmp/out" 2> "$tmp/err"); code=$?; }
 gdir() { echo "$repo/.scratchpads/runs/$(date +%Y-%m-%d)-$1"; }
 guard_ledger 2026-02-01-f 'feat/f (worktree /x/dirigible-f, from origin/main 1234abcd)' \
@@ -268,6 +271,17 @@ guard feature feat
 guard_ledger 2026-02-01-c 'chore/a' 2026-02-02-f 'feat/b (worktree /x/y)' 2026-02-03-r 'refactor/c'
 guard after-feat fix
 [[ $code -eq 0 ]] || fail "guard: a feat run before the last one exits $code: $(cat "$tmp/err")"
+# The land order is the PR order, not the file order: a feat run that started first and landed
+# last is the newest run. A run with two done rows counts once.
+guard_ledger 2026-02-01-f 'feat/f' 2026-02-02-c 'chore/c' 2026-02-03-r 'refactor/r'
+printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n| 2026-01-30-old | x | done | no PR |\n' > "$repo/.scratchpads/ledger.md"
+done_row 2026-02-01-f 30; done_row 2026-02-02-c 10; done_row 2026-02-03-r 20
+guard land-order fix
+[[ $code -eq 0 ]] || fail "guard: a feat run that landed last exits $code: $(cat "$tmp/err")"
+printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
+done_row 2026-02-02-c 10; done_row 2026-02-01-f 20; done_row 2026-02-03-r 30; done_row 2026-02-03-r 31
+guard two-rows fix
+[[ $code -eq 0 ]] || fail "guard: a run with two done rows counts twice: exit $code: $(cat "$tmp/err")"
 guard bad-type feature
 [[ $code -eq 2 ]] || fail "guard: a type that is not a Conventional Commits type exits $code"
 [[ ! -e "$(gdir bad-type)" ]] || fail 'guard: a bad type made a run folder'

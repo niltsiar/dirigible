@@ -71,7 +71,7 @@ if [[ "$risk" == yes ]]; then
         # The rebase keeps the author dates; the row time is local, so the date is too.
         last="$(git log -1 --format=%ad --date=format-local:%FT%R origin/main..HEAD -- Sources)"
         [[ "$pass" > "$last" || "$pass" == "$last" ]] ||
-            die "risk: yes, and the last mutation pass row of $log ($pass) is older than the last Sources/ commit ($last); run the pass again for the guards that the change touched"
+            die "risk: yes, and the last mutation pass row of $log ($pass) is older than the last Sources/ commit ($last); run one new mutant for each guard that the fix touched, or pass the time of the phase 7 row that says the fix touches no guard"
     fi
 fi
 # The pass stamp: a passing push check of HEAD or of an ancestor of HEAD, with this base.

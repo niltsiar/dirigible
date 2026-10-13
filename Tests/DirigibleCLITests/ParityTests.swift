@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @testable import DirigibleCLI
+@testable import DirigibleMCP
 
 /// The CLI parity rule (AGENTS.md, decisions 0011 and 0041): each public mutating method in
 /// DirigibleCore has a `dirigible` command, or an exemption with its reason, and each command has
@@ -138,6 +139,38 @@ struct ParityTests {
         for command in Self.toolExemptions.keys.sorted() where !text.contains("`\(command)`") {
             Issue.record("the MCP section of docs/guide.md does not name \(command), a command with no tool")
         }
+    }
+
+    /// The guide section for people that names what the agent manual gives (decision 0051, C10).
+    @Test func theGuideNamesEachRecipe() throws {
+        let section = try Self.guideSection("#### What you can ask an agent")
+        #expect(!section.isEmpty, "the guide has no section What you can ask an agent")
+        for recipe in AgentManual.recipes where !section.contains("`\(recipe.name)`") {
+            Issue.record("the agent section of docs/guide.md does not name the recipe \(recipe.name)")
+        }
+        for text in ["`dirigible --instructions`", "`dirigible skill path`", "~/.claude/skills", "~/.agents/skills"] {
+            #expect(section.contains(text), "the agent section does not name \(text)")
+        }
+        let requests = section.split(separator: "\n").filter { $0.hasPrefix("- \"") }
+        #expect(requests.count >= 5, "the agent section has \(requests.count) example requests")
+    }
+
+    /// Each one-word span of the agent section names a tool, an argument, an enum value, or a
+    /// command word. The control: the scan finds a bad name in a guide line.
+    @Test func theGuideSpansHaveAClass() throws {
+        let section = try Self.guideSection("#### What you can ask an agent")
+        #expect(ManualScan.spans(in: section).count >= 5, "the scan found too few spans")
+        #expect(ManualScan.spansWithNoClass(in: section).isEmpty, "\(ManualScan.spansWithNoClass(in: section))")
+        #expect(ManualScan.spansWithNoClass(in: "- Ask the agent to run `clip_explode`.") == ["clip_explode"])
+    }
+
+    /// The text from `heading` to the next heading of docs/guide.md, or an empty text.
+    static func guideSection(_ heading: String) throws -> String {
+        let guide = try String(
+            contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
+            encoding: .utf8)
+        let section = guide.components(separatedBy: "\n\(heading)\n").dropFirst().first ?? ""
+        return section.components(separatedBy: "\n#").first ?? ""
     }
 
     /// The command words of each command that has no subcommand.

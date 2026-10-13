@@ -43,8 +43,10 @@ package struct ExportWork: Sendable {
         return source
     }
 
-    /// The media check of the files in the package, and its refusals.
+    /// The media check of the files in the package, and its refusals. A render writes a bad file
+    /// as silence, so it reads no media state.
     package func checkFiles(_ session: Session, package: URL, source: ExportSource) throws(ToolError) {
+        guard !isRender else { return }
         let faults: [FileID: MediaFault]
         do throws(POSIXError) { faults = try checkMedia(session, package: package, source: source) } catch {
             throw ToolError(mediaCheckMessage(error))

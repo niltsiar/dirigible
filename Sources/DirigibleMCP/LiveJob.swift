@@ -49,12 +49,15 @@ private func liveExport(
 ) async throws(ToolError) -> String {
     let session = studio.session
     let source = try work.source(in: session)
-    guard let faults = await studio.exportFaults(source) else {
-        throw ToolError("cannot check the audio files: the package or a file descriptor is not available.")
+    // A render writes a bad file as silence, so it reads no media state.
+    if !work.isRender {
+        guard let faults = await studio.exportFaults(source) else {
+            throw ToolError("cannot check the audio files: the package or a file descriptor is not available.")
+        }
+        try work.check(faults, in: session)
+        // The user can open a dialog during the media check.
+        if dialog() { throw ToolError(AgentBusy.dialog.message(package: path)) }
     }
-    try work.check(faults, in: session)
-    // The user can open a dialog during the media check.
-    if dialog() { throw ToolError(AgentBusy.dialog.message(package: path)) }
     // The item at `out` now is the one that `replace` confirms.
     let confirmed = work.replace ? ConfirmedFile(at: work.url) : nil
     let result: ExportResult

@@ -45,7 +45,10 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
         lines.append(
             "Moved to the Trash: \(total(report.moved.map(\.item))). The space comes back when you empty the Trash.")
         let failed = report.failed.map {
-            let reason = NSError(domain: $0.fault.domain, code: $0.fault.code).localizedDescription
+            let reason =
+                $0.fault == .replaced
+                ? "another file took its place after the scan."
+                : NSError(domain: $0.fault.domain, code: $0.fault.code).localizedDescription
             return "\($0.item.path) did not move to the Trash: \(reason)"
         }
         return PruneOutput(lines: lines + [kept], failed: failed)

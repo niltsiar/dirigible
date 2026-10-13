@@ -119,4 +119,23 @@ extension UnusedFilesTests {
         let kept = ["u.wav", "r.wav"].filter { FileManager.default.fileExists(atPath: clips.appending(path: $0).path) }
         #expect(kept == ["u.wav", "r.wav"])
     }
+
+    /// Review item 4: a file that another file replaced after the scan does not move.
+    @Test func replacedFileDoesNotMove() throws {
+        var session = try Self.session([("u", "u.wav")])
+        let url = try plant("u.wav")
+        let scan = try scan(session)
+        let other = try plant("other.wav", bytes: 9)
+        try #require(rename(other.path, url.path) == 0)
+        var trashed: [URL] = []
+
+        let report = try scan.prune(&session, save: save) { url in
+            trashed.append(url)
+            return Self.fakeTrashURL(url)
+        }
+
+        #expect(trashed.isEmpty && report.moved.isEmpty)
+        #expect(report.failed.map(\.item.path) == ["u.wav"] && report.failed.first?.fault == .replaced)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+    }
 }

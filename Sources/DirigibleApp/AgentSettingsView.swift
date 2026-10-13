@@ -19,11 +19,11 @@ enum SetupClient: CaseIterable, Sendable {
 }
 
 /// The registration text of `client` for the `dirigible` helper of the app at `bundle`. Nil for an
-/// app in App Translocation or on a disk image: that path is gone after the next launch. With
-/// `DIRIGIBLE_MCP_SOCKET` set (the verify copy), the server gets the same socket.
-func setupCommand(_ client: SetupClient, bundle: URL, environment: [String: String]) -> String? {
-    let path = bundle.path
-    guard !path.contains("/AppTranslocation/"), !path.hasPrefix("/Volumes/") else { return nil }
+/// app in App Translocation or on a `readOnly` volume (a mounted disk image): that path is gone
+/// after the next launch. With `DIRIGIBLE_MCP_SOCKET` set (the verify copy), the server gets the
+/// same socket.
+func setupCommand(_ client: SetupClient, bundle: URL, readOnly: Bool, environment: [String: String]) -> String? {
+    guard !readOnly, !bundle.path.contains("/AppTranslocation/") else { return nil }
     var server = quoted(bundle.appending(path: "Contents/Helpers/dirigible").path) + " mcp"
     if let socket = environment["DIRIGIBLE_MCP_SOCKET"], !socket.isEmpty {
         server = "env " + quoted("DIRIGIBLE_MCP_SOCKET=" + socket) + " " + server
@@ -88,8 +88,12 @@ struct AgentSettingsView: View {
     }
 
     private func command(_ client: SetupClient) -> (title: String, text: String)? {
-        setupCommand(client, bundle: Bundle.main.bundleURL, environment: ProcessInfo.processInfo.environment)
-            .map { (client.title, $0) }
+        let bundle = Bundle.main.bundleURL
+        let readOnly = (try? bundle.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly ?? false
+        return setupCommand(
+            client, bundle: bundle, readOnly: readOnly, environment: ProcessInfo.processInfo.environment
+        )
+        .map { (client.title, $0) }
     }
 
     private func copy(_ text: String) {

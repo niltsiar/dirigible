@@ -890,14 +890,19 @@ The 42 tools, in groups:
 
 Dirigible gives the agent a manual: the rules of the tools, the path of the `dirigible` command, and recipes for frequent tasks. Claude Code, Codex, and opencode read the manual when the server starts. For an MCP app that reads no manual, run `dirigible --instructions` and give the text to the agent.
 
-Example requests:
+The manual follows the order of the work: prepare, record, edit, produce, and export. Example requests, in that order:
 
+- "Record the host from the USB microphone, channel 1, and the guest from Zoom." The agent lists the devices and the apps, and routes the tracks.
 - "Rename Track 1 to Ana and Track 2 to Ben."
-- "Cut 0:30 to 0:40, and keep the host and the guest in sync."
-- "Add the chapter Gear talk at minute 1."
-- "Check the levels of all clips."
-- "Prepare the episode for publishing as an MP3, with its title and show."
 - "Record 10 seconds on the host track." The agent asks with the `record` tool, and you click Record in the app.
+- "Cut 0:30 to 0:40, and keep the host and the guest in sync."
+- "Here is a transcript with word times of an export of this session. Cut each false start." The agent shows each range and asks before the first cut.
+- "Check the levels of all clips."
+- "Add the jingle on a new track at the start, and fade it out."
+- "Add the chapter Gear talk at minute 1."
+- "Prepare the episode for publishing as an MP3, with its title and show."
+
+Dirigible has no noise reduction and no voice profile yet. The agent tells you so when you ask for one.
 
 An agent with a shell can also run `dirigible record`. It records at once from the routed devices, with no consent sheet. The manual tells the agent to run it only when you ask for a recording. To stop an agent that runs commands, set the permission rules of your agent.
 

@@ -15,8 +15,8 @@ path	words	decision
 .claude/skills/architect/references/runner-prompt.md	982	baseline
 .claude/skills/bro/	40	baseline
 .claude/skills/bro/SKILL.md	40	baseline
-.claude/skills/deliver/	3898	2026-10-13-controls-on-demand eval fix cycle 1: the timeout of each mutant, the control of a fix, and the cause of an old output folder; under the 1126 words before the rewrite (the sum of its file rows)
-.claude/skills/deliver/SKILL.md	1945	2026-10-13-controls-on-demand S2 (the mutation pass rule: no slice-time control, no replay; lowered to the new count)
+.claude/skills/deliver/	3907	2026-10-13-controls-on-demand eval fix cycle 2: the control of a Phase 7 fix and the timeout of each mutant in Phase 7, under the 1968 words before the run (the sum of its file rows)
+.claude/skills/deliver/SKILL.md	1954	2026-10-13-controls-on-demand eval fix cycle 2: the control of a Phase 7 fix and the timeout of each mutant in Phase 7, under the 1968 words before the run
 .claude/skills/deliver/references/long-runs.md	250	2026-10-04-workflow-speed-2 S10 (decisions.tsv 2026-10-04T19:59: the stop predicate and the pause line, +40 words)
 .claude/skills/deliver/references/mutation-controls.md	1107	2026-10-13-controls-on-demand eval fix cycle 1: the timeout of each mutant, the control of a fix, and the cause of an old output folder; under the 1126 words before the rewrite
 .claude/skills/deliver/references/performance-criteria.md	596	2026-10-12-apple-dev-tools code gate 1 item 1 (decisions.tsv 2026-10-12T18:00: the --under form of the bench trace rule, +7 words)
@@ -63,4 +63,4 @@ path	words	decision
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1318	2026-10-13-test-speed eval fix cycle 2 (decisions.tsv 2026-10-13T06:06: the docs-only pick of make check-changed, +5 words)
 CODING_STANDARDS.md	290	code gate 2 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:53): wc -w x 1.1, up to the next 10, of the final count 261
-TOTAL	31666	2026-10-13-controls-on-demand eval fix cycle 1: the timeout of each mutant, the control of a fix, and the cause of an old output folder; under the 1126 words before the rewrite (+23 for the mutation-controls.md row)
+TOTAL	31676	2026-10-13-controls-on-demand eval fix cycle 2: the control of a Phase 7 fix and the timeout of each mutant in Phase 7, under the 1968 words before the run (+9 for the SKILL.md row; +1 for the SKILL.md count under its old row)

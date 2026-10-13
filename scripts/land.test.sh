@@ -288,6 +288,15 @@ land_in "Add x" "$c/pr.md"
 code=$?
 [[ $code -eq 0 ]] || fail "risk with a pass row: exit $code: $(cat "$c/out")"
 grep -q '^gh pr merge' "$c/log" || fail "risk with a pass row: no merge: $(cat "$c/log")"
+# Only a Sources/ commit makes the pass old: a docs commit 5 min after the pass row lands.
+risk_setup
+printf '%s\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' "$(date +%FT%R)" >> "$c/decisions.tsv"
+echo d > "$c/work/notes.md"
+git -C "$c/work" add -A && GIT_AUTHOR_DATE="$(date -v+5M +%FT%T)" git -C "$c/work" commit -q -m docs
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "risk with a docs commit after the pass: exit $code: $(cat "$c/out")"
+grep -q '^gh pr merge' "$c/log" || fail "risk with a docs commit after the pass: no merge: $(cat "$c/log")"
 risk_setup
 land_in "Add x" "$c/pr.md" 2026-10-01T01:00
 code=$?

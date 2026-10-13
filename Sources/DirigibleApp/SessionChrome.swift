@@ -7,8 +7,9 @@ import Observation
 /// controller, so a later split view changes no toolbar code.
 @MainActor final class SessionChrome: NSObject, NSToolbarDelegate, NSMenuItemValidation {
     let toolbar = NSToolbar(identifier: ToolbarItemID.toolbar)
-    /// The mark of a connected agent (C12): a title bar accessory that only hides and shows, so
-    /// the autosaved toolbar never changes.
+    /// The mark of a connected agent (C12): a title bar accessory, not a toolbar item, so the
+    /// autosaved toolbar never changes. The chrome adds it while an agent is connected and removes
+    /// it after: a trailing accessory ignores `isHidden`.
     let agentMark = agentMarkAccessory()
     private weak var model: SessionWindow?
     private(set) weak var window: NSWindow?

@@ -20,7 +20,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - Warnings are errors, so mutate the source of a value, not the place that uses it.
 - Pass the assertion message of the killing test with `--expect <text>`, not a test name. A guard and its refusal message read the limit from one variable.
 - Pass `--timeout <seconds>`, a few times the green test time: a hang gives `killed (hang)`, with `--expect` only when the text came before the kill. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads, and the test reads its input with `try?`, so the assert message comes.
-- mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads. A `BUILD FAILED` or a tool crash right after another mutant can come from its outputs.
+- mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads, also for a survivor that runs again. A `BUILD FAILED` or a tool crash right after another mutant can come from its outputs.
 - A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`.
 - Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row: the pass row. `scripts/land.sh` refuses a risk run with no pass row.
 
@@ -28,7 +28,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 
 - The lead reads each survivor, also run with `DIRIGIBLE_SLOW_TESTS=1`, and logs it with the result `survived`; when only the slow run kills it, with the result `survived the fast suite`. A second agent checks each claim that a mutant is equivalent.
 - Equivalent: no caller can reach the mutated behavior. Log the caller reason in `decisions.tsv`, and stop. A probe that measured one effect of the mutant is not a caller reason.
-- Misaimed: the mutant does not reach the planned path. Fix the mutant once.
+- Misaimed: the mutant does not reach the planned path. Fix the mutant once, and log the misaimed one.
 - Each other survivor is the red step of a new test. Write the test; the killed log is its proof.
 - When only the test process has the mechanism that hides the mutant (Return reaches a list action there that a real Return does not), retire the mutant with that reason in `decisions.tsv`, and prove the path on the built app. Never change a product mechanism only so that a mutant can kill it.
 

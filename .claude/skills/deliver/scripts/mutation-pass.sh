@@ -15,11 +15,13 @@
 #   in the tree) or 130 (stopped) stops the batch with that exit. The last line is
 #   `pass: N mutants; killed K; survived S; other O` (other: BUILD FAILED, WRONG FAILURE, NO TESTS,
 #   or a mutate.py refusal, which need a decision).
-# - Stop a pass with `pkill -TERM -f mutation-pass.sh` (a background job ignores INT). On INT or
-#   TERM the script waits for the running mutate.py, which restores its file, and stops the batch
-#   with exit 130. A TERM to the process group (with-lock.sh) reaches mutate.py at once; after 1 s
-#   the script sends mutate.py a TERM of its own, so a signal to the script alone stops it too. The
-#   wait of 1 s keeps a second signal out of the restore of mutate.py.
+# - Stop a pass with `pkill -TERM -f "mutation-pass.sh <tree>"` (a background job ignores INT;
+#   <tree> keeps the stop to this run). On INT or TERM the script waits for the running mutate.py,
+#   which restores its file, and stops the batch with exit 130; the background job, with-lock.sh,
+#   exits 143. The line `stopped after mutant <n> (mutate.py exit 3)` means a failed restore.
+#   A TERM to the process group (with-lock.sh) reaches mutate.py at once; after 1 s the script
+#   sends mutate.py a TERM of its own, so a signal to the script alone stops it too. The wait of
+#   1 s keeps a second signal out of the restore of mutate.py.
 # mutation-pass.test.sh tests it.
 set -uo pipefail
 [[ $# -eq 2 ]] || { echo "usage: mutation-pass.sh <tree> <batch file>" >&2; exit 2; }

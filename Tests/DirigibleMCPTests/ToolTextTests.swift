@@ -7,6 +7,8 @@ import Testing
 /// the app, and a call on the files has no undo.
 struct ToolTextTests {
     @Test func editToolsNameTheUndoOfTheApp() {
+        #expect(
+            Tool.undoNote.contains("When Dirigible lets agents edit open sessions"), "the setting is off by default")
         let edits = Tool.all.filter { $0.description.hasSuffix(Tool.undoNote) }
         #expect(edits.count >= 30, "the edit tools: \(edits.map(\.name))")
         #expect(edits.contains { $0.name == "track_rename" })

@@ -15,7 +15,7 @@ actor Player {
     enum Output { case device, offline }
     /// Only these change the feed number. A seek or a shuttle change is a new play.
     enum Command: Sendable {
-        /// `speed` applies only at the shuttle rate 1x (decision 0048).
+        /// `speed` applies only at the shuttle rate 1x (decision 0052).
         case play(from: Frames, shuttle: Shuttle, speed: Speed = .one)
         case stop
     }
@@ -42,7 +42,7 @@ actor Player {
         let engine: AVAudioEngine
         let node: AVAudioPlayerNode
         let format: AVAudioFormat
-        /// The speed unit, attached but in the path only at a speed other than 1 (decision 0048).
+        /// The speed unit, attached but in the path only at a speed other than 1 (decision 0052).
         let unit: AVAudioUnitTimeEffect?
     }
 
@@ -339,7 +339,7 @@ actor Player {
     }
 
     /// Sets the rate of the unit of the running feed, with no new play: a change between two
-    /// speeds other than 1 (decision 0048, S6). False when no feed plays through the unit; the
+    /// speeds other than 1 (decision 0052, S6). False when no feed plays through the unit; the
     /// caller then starts a new play.
     func setSpeed(_ speed: Speed) -> Bool {
         guard speed != .one, let graph, let current = feed?.speed, current != .one else { return false }

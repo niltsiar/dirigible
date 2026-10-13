@@ -25,7 +25,7 @@ enum ToolbarItemID: String, CaseIterable {
     case export = "file.export"
     case inspector = "view.inspector"
     case snap = "view.snap"
-    /// The vari-speed pop-up (decision 0048).
+    /// The vari-speed pop-up (decision 0052).
     case speed = "transport.speed"
 
     static let toolbar = NSToolbar.Identifier("dirigible.session")
@@ -217,7 +217,7 @@ struct ShownChrome: Equatable {
     /// Command-period reaches a sheet (decision 0023).
     var isRunning = false
     /// The vari-speed and whether the speed unit loads: the radio items of Transport > Playback
-    /// Speed read them (decision 0048).
+    /// Speed read them (decision 0052).
     var speed = Speed.one
     var canChangeSpeed = false
 }

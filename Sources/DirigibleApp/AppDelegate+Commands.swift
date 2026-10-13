@@ -17,7 +17,7 @@ extension AppDelegate {
     }
 
     /// The action of each plain-key item of Transport > Playback Speed: a key that belongs to text
-    /// or to a panel goes there, as the transport keys do (decision 0048).
+    /// or to a panel goes there, as the transport keys do (decision 0052).
     func speed(_ change: SpeedChange) {
         speed(change, event: NSApp.currentEvent, in: NSApp.keyWindow)
     }

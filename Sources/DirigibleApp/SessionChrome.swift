@@ -255,7 +255,7 @@ import Observation
         return item
     }
 
-    /// The speed pop-up, and a submenu of the speeds in the overflow menu (decision 0048).
+    /// The speed pop-up, and a submenu of the speeds in the overflow menu (decision 0052).
     private func speedItem(_ item: NSToolbarItem, inserted: Bool) {
         let popUp = SpeedPopUp()
         popUp.target = self

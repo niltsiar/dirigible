@@ -72,7 +72,7 @@ struct PlayState {
     var revision = 0
     /// The gain of a fader drag: each session that the Player gets has it, until `endPreview`.
     var preview: (track: TrackID, gain: Gain)?
-    /// The vari-speed of a 1x play (decision 0048): window state, 1x at open.
+    /// The vari-speed of a 1x play (decision 0052): window state, 1x at open.
     var speed = Speed.one
     /// Made at the first play from `environment.playerOutput`.
     var player: Player?
@@ -93,9 +93,9 @@ extension Studio {
     public var playheadTime: ContinuousClock.Instant { play.playheadTime }
     /// The last stop of playback that the user did not ask for. A new play clears it.
     public var playbackStop: PlaybackStop? { play.playbackStop }
-    /// The vari-speed of a 1x play (decision 0048).
+    /// The vari-speed of a 1x play (decision 0052).
     public var speed: Speed { play.speed }
-    /// The system has the speed unit; else the speed stays 1 (decision 0048). One lookup for each
+    /// The system has the speed unit; else the speed stays 1 (decision 0052). One lookup for each
     /// environment, with no instance, so the main actor loads no audio unit.
     public var canChangeSpeed: Bool {
         if let found = speedUnitFound { return found }
@@ -171,10 +171,10 @@ extension Studio {
     }
 
     /// A speed change now acts: no take starts, records, or finalizes, and the unit exists. The
-    /// window reads it to store the last speed before the change (decision 0048).
+    /// window reads it to store the last speed before the change (decision 0052).
     public var takesSpeedChange: Bool { isIdle && canChangeSpeed }
 
-    /// Sets the vari-speed (decision 0048). It does nothing during a take or when the unit does
+    /// Sets the vari-speed (decision 0052). It does nothing during a take or when the unit does
     /// not load. Stopped or at a tape rate, a change sets only the next 1x play. During a 1x play
     /// the play goes on from the heard frame: a change between two speeds other than 1 sets only
     /// the rate of the unit; another change is a new play, as a shuttle change (S6). The speed

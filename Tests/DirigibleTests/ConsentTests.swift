@@ -129,6 +129,25 @@ import os
         await model.close()
     }
 
+    /// C11: Record refuses the key focus, so Tab and then Space (with Keyboard navigation on)
+    /// cannot press it. The test forces the focus, because the system setting is not known.
+    @Test func spaceDoesNotRecord() async throws {
+        let (model, studio) = try await window()
+        let answer = ask(model)
+        let sheet = try await sheet(model)
+        let record = try #require(sheetButton(cancel: false, in: sheet))
+        #expect(!record.acceptsFirstResponder && !record.canBecomeKeyView, "Record refuses the key focus")
+
+        sheet.makeFirstResponder(record)
+        press(" ", code: 49, in: sheet)
+
+        #expect(model.consent?.phase == .waiting && studio.transport == .idle, "Space records nothing")
+        press("\u{1b}", code: 53, in: sheet)
+        let value = await answer.value
+        #expect(value == .declined, "\(value)")
+        await model.close()
+    }
+
     // MARK: C5, C6
 
     /// C5: with no answer the sheet closes, nothing records, and the info banner names the agent.

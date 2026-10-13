@@ -130,7 +130,10 @@ extension AgentManual {
 extension AgentManual.Recipe {
     /// The `prompts/get` result: one user message with the recipe and the package path.
     func prompt(package: String) -> [String: Any] {
-        let text = "\(title) in the session package \(package). Steps: \(steps)"
+        // A client can cut an argument at a space (code gate 1 item 10).
+        let text =
+            "\(title) in the session package \(package). If no package is at that path, ask the user for the full "
+            + "path. Steps: \(steps)"
         return ["description": summary, "messages": [["role": "user", "content": ["type": "text", "text": text]]]]
     }
 }

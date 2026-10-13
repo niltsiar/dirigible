@@ -174,6 +174,8 @@ extension MCPProtocolTests {
             #expect(messages.count == 1 && messages.first?["role"] as? String == "user", "\(era)")
             let text = (messages.first?["content"] as? [String: Any])?["text"] as? String ?? ""
             #expect(text.contains("/Users/me/Show.dirigible") && text.contains("`clip_ripple_delete`"), "\(era)")
+            // A client can cut a path at a space (code gate 1 item 10).
+            #expect(text.contains("ask the user for the full path"), "\(era)")
         }
     }
 

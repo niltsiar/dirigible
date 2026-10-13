@@ -70,6 +70,20 @@ struct CLIHelperTests {
         #expect(deviceLines([]).isEmpty && appLines([]).isEmpty, "the command writes no line for an empty list")
     }
 
+    /// The tools name an empty list, and with no process taps (macOS 14.0 and 14.1) the `apps`
+    /// tool gives the cause, not an empty list (code gate 1 items 8 and 9).
+    @Test func theToolTextsNameAnEmptyList() throws {
+        let device = try #require(
+            InputDevice(
+                uid: "BuiltIn", name: "Mic", nominalRate: 48_000, availableRates: [48_000...48_000],
+                channelsPerBuffer: [1], latency: 0))
+        let app = RunningApp(bundleID: "us.zoom.xos", name: "zoom", path: "/B", playing: false, processes: [2])
+        #expect(deviceText([]) == "No input devices." && deviceText([device]) == deviceLines([device]))
+        #expect(
+            appText([], tapsAvailable: true) == "No apps." && appText([app], tapsAvailable: true) == appLines([app]))
+        #expect(appText([app], tapsAvailable: false) == appSourcesUnavailableMessage)
+    }
+
     /// A9: one warning line for each silent app track, in arm order. It does not change the exit
     /// code: the track has a clip (row 13:38, "silence line exit code").
     @Test func theSilenceLineNamesTheTrackAndTheApp() {

@@ -19,7 +19,7 @@ import os
 /// 3 times 70.4 s is longer than one suite run (about 200 s).
 @MainActor func until(limit: Duration = .seconds(60), _ message: String, _ condition: () -> Bool) async {
     let start = ContinuousClock.now
-    defer { reportWait("until", since: start, message) }
+    defer { reportWait("until", since: start, "\(message) (limit \(limit))", limit: limit) }
     let end = start + limit
     var expired = false
     while !condition() {
@@ -50,12 +50,13 @@ import os
 let noWatchdog = Duration.seconds(86_400)
 
 /// With `DIRIGIBLE_FLAKE_MONITOR` set, prints `WAIT <helper> <seconds> s <text>` for a wait over
-/// 2 s. `scripts/flake-monitor/loop.sh` takes the worst wait of each helper, and the hang guards
+/// 2 s, or over half of its `limit`. `scripts/flake-monitor/loop.sh` takes the worst wait of each helper, and the hang guards
 /// take their limits from it. A copy of the function of `DirigibleAudioTests`.
-func reportWait(_ helper: String, since start: ContinuousClock.Instant, _ text: String) {
+func reportWait(_ helper: String, since start: ContinuousClock.Instant, _ text: String, limit: Duration? = nil) {
     guard flakeMonitorIsOn else { return }
     let seconds = (ContinuousClock.now - start) / .seconds(1)
-    if seconds > 2 { print(String(format: "WAIT %@ %.1f s %@", helper, seconds, text)) }
+    let nearLimit = limit.map { seconds >= $0 / .seconds(1) / 2 } ?? false
+    if seconds > 2 || nearLimit { print(String(format: "WAIT %@ %.1f s %@", helper, seconds, text)) }
 }
 
 private let flakeMonitorIsOn = ProcessInfo.processInfo.environment["DIRIGIBLE_FLAKE_MONITOR"] != nil

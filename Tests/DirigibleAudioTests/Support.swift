@@ -178,12 +178,13 @@ let noWatchdog = Duration.seconds(86_400)
 @concurrent nonisolated func offMainActor(_ body: @Sendable () throws -> Void) async throws { try body() }
 
 /// With `DIRIGIBLE_FLAKE_MONITOR` set, prints `WAIT <helper> <seconds> s <text>` for a wait over
-/// 2 s. `scripts/flake-monitor/loop.sh` takes the worst wait of each helper, and the hang guards
+/// 2 s, or over half of its `limit`. `scripts/flake-monitor/loop.sh` takes the worst wait of each helper, and the hang guards
 /// take their limits from it.
-func reportWait(_ helper: String, since start: ContinuousClock.Instant, _ text: String) {
+func reportWait(_ helper: String, since start: ContinuousClock.Instant, _ text: String, limit: Duration? = nil) {
     guard flakeMonitorIsOn else { return }
     let seconds = (ContinuousClock.now - start) / .seconds(1)
-    if seconds > 2 { print(String(format: "WAIT %@ %.1f s %@", helper, seconds, text)) }
+    let nearLimit = limit.map { seconds >= $0 / .seconds(1) / 2 } ?? false
+    if seconds > 2 || nearLimit { print(String(format: "WAIT %@ %.1f s %@", helper, seconds, text)) }
 }
 
 private let flakeMonitorIsOn = ProcessInfo.processInfo.environment["DIRIGIBLE_FLAKE_MONITOR"] != nil
@@ -201,7 +202,10 @@ func until(
     limit: Duration = .seconds(1), cap: Duration? = nil, _ message: String, _ condition: () -> Bool
 ) async {
     let watch = Stopwatch()
-    defer { reportWait("until", since: watch.start, message) }
+    // The limit counts the time with no main-actor hold, so the line names that time too.
+    defer {
+        reportWait("until", since: watch.start, "\(message) (limit \(limit), counted \(watch.elapsed))", limit: limit)
+    }
     let cap = cap ?? limit * 3
     func over() -> Bool { watch.elapsed >= limit || watch.wall >= cap }
     var expired = false

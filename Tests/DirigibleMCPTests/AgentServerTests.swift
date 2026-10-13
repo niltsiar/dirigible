@@ -39,10 +39,8 @@ struct AgentServerTests {
         #expect(afterStop == .noApp)
 
         let next = emptyServer(socket)
-        await until("the lock stays held") {
-            next.start()
-            return next.state == .listening
-        }
+        next.start()
+        #expect(next.state == .listening, "the lock stays held")
         next.stop()
     }
 
@@ -61,6 +59,20 @@ struct AgentServerTests {
         #expect(server.state == .listening)
         let outcome = await probe(folder.socket)
         #expect(outcome == .reply(.notOpen))
+    }
+
+    /// C1: a start at once after a stop serves: the switch off and on, and a cancelled Quit. The
+    /// stop frees the lock before the next open runs.
+    @Test func stopThenStartServes() async throws {
+        let folder = try SocketFolder()
+        let server = emptyServer(folder.socket)
+        server.start()
+        server.stop()
+        server.start()
+        defer { server.stop() }
+
+        #expect(server.state == .listening, "C1: a start after a stop does not listen")
+        #expect(await probe(folder.socket) == .reply(.notOpen))
     }
 
     /// C9: with the lock held by another server, a second server does not listen, and the first
@@ -194,10 +206,8 @@ struct AgentServerTests {
 
         #expect(await reply.value == .reply(.notOpen), "C1: the running call got no reply")
         let next = emptyServer(folder.socket)
-        await until("the lock stays held") {
-            next.start()
-            return next.state == .listening
-        }
+        next.start()
+        #expect(next.state == .listening, "the lock stays held")
         next.stop()
     }
 

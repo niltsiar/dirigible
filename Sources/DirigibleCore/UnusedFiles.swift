@@ -188,8 +188,13 @@ public struct UnusedFiles: Hashable, Sendable {
         var dropped: [FileID] = []
         for item in items {
             let url = clips.appending(path: item.path)
-            guard FileIdentity(lstat: url.path) != nil || errno != ENOENT else {
+            let now = FileIdentity(lstat: url.path)
+            guard now != nil || errno != ENOENT else {
                 if case .pool(let id) = item.kind { dropped.append(id) }
+                continue
+            }
+            guard now == item.identity else {
+                failed.append(PruneReport.Failed(item: item, fault: .replaced))
                 continue
             }
             do {
@@ -302,6 +307,9 @@ public struct TrashFault: Hashable, Sendable {
         let error = error as NSError
         self.init(domain: error.domain, code: error.code)
     }
+
+    /// Another file took the place of the file of the scan, so the prune did not move it.
+    public static let replaced = TrashFault(domain: "Dirigible.UnusedFiles", code: 1)
 }
 
 /// The result of `UnusedFiles.prune`.

@@ -1,5 +1,5 @@
 # 0041. MCP server: `dirigible mcp` with its own JSON-RPC layer
-- Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). `export`, `render`, `level`, `loudness`, and `import` have tools with progress and cancel. A running request reads stdin for a `notifications/cancelled` of its ID; a request that comes during a job waits. A cancelled call gets no answer, and a call whose cancel is in the buffer before it starts does not run. `capture place`, `take finalize`, and `peaks` keep their exemption.
+- Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). `loudness`, `export`, and `render` have tools with progress and cancel. `level` and `import` get their tools in part 2 of the run, which is pending. A running request reads stdin for a `notifications/cancelled` of its ID; a request that comes during a job waits. A cancelled call gets no answer, and a call whose cancel is in the buffer before it starts does not run. `capture place`, `take finalize`, and `peaks` keep their exemption.
 
 - Status: accepted
 - Date: 2026-10-07

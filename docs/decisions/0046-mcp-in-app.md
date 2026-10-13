@@ -1,5 +1,5 @@
 # 0046. MCP server in the running app: a Unix socket, the `dirigible mcp` bridge, and `AgentServer`
-- Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). The app sends zero or more `{"progress": <0...1>}` lines before the reply line, and only while the call has no reply. The reply limit is 30 s with no line from the app. A cancel closes the socket fully. With the package open, the five long tools run in the app; the banner Cancel of the window stops an agent level or import.
+- Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). The app sends zero or more `{"progress": <0...1>}` lines before the reply line, and only while the call has no reply. While a call runs, a line goes at least once in each 10 s. The reply limit is 30 s with no line from the app. A cancel closes the socket fully. With the package open, `loudness`, `export`, and `render` run in the app. Part 2 of the run, which is pending, runs `level` and `import` in the app, with the banner Cancel of the window.
 
 - Status: accepted
 - Date: 2026-10-12

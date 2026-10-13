@@ -93,6 +93,18 @@ struct PlayerSpeedTests {
         #expect(Player.heard(nodeFrames: 300, latency: 480, speed: 2) == 0)
     }
 
+    /// Code gate 1 item 3: a change from 0.75x to 2x during a play on a 200 ms output keeps the
+    /// heard frame: the output frames from before the change hold 0.75x until they played.
+    @Test func aStepKeepsTheHeardFrame() {
+        let (latency, node) = (9_600, 100_000)
+        let held = Player.held(nodeFrames: node, latency: latency, speed: 0.75, step: nil)
+        let step = Player.SpeedStep(node: node, held: held)
+        let heard = [0, 9_600, 19_200, 30_000].map {
+            Player.heard(nodeFrames: node + $0, latency: latency, speed: 2, step: step)
+        }
+        #expect(heard == [92_800, 96_400, 100_000, 110_800], "the heard frames after the change: \(heard)")
+    }
+
     /// V7: a 1x forward play at a speed other than 1 gives no meter value; the same play at 1 does.
     @Test func meterSkipsOtherSpeeds() async throws {
         let (player, package) = try loudnessPlayer([(10, -20)])

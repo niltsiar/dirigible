@@ -16,10 +16,26 @@ typealias SpeedUnitFactory = @Sendable () -> AVAudioUnitTimeEffect?
 }
 
 extension Player {
-    /// The heard node frames: the node frames less the output latency (output frames). A node
-    /// frame is a source frame, so the latency in node frames is the latency x the speed (probe S3).
-    static func heard(nodeFrames: Int, latency: Int, speed: Double) -> Int {
-        max(0, nodeFrames - Int((Double(latency) * speed).rounded()))
+    /// A change of speed during a feed: the node frames at the change, and the node frames that
+    /// the output path held then (code gate 1 item 3).
+    struct SpeedStep {
+        let node: Int
+        let held: Double
+    }
+
+    /// The node frames in the output path, which holds `latency` output frames. A node frame is a
+    /// source frame, so that is the latency x the speed (probe S3). After a `step`, the output
+    /// frames from before it keep their node frames until the latency of output frames played.
+    static func held(nodeFrames: Int, latency: Int, speed: Double, step: SpeedStep?) -> Double {
+        let full = Double(latency) * speed
+        guard let step, latency > 0 else { return full }
+        let since = min(Double(latency), Double(max(0, nodeFrames - step.node)) / speed)
+        return step.held * (1 - since / Double(latency)) + since * speed
+    }
+
+    /// The heard node frames: the node frames less the node frames in the output path.
+    static func heard(nodeFrames: Int, latency: Int, speed: Double, step: SpeedStep? = nil) -> Int {
+        max(0, nodeFrames - Int(held(nodeFrames: nodeFrames, latency: latency, speed: speed, step: step).rounded()))
     }
 
     /// Puts the speed unit between the node and the main mixer only at a speed other than 1, at

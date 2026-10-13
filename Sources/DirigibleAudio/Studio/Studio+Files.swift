@@ -39,11 +39,11 @@ extension Studio {
             // A take can start during the scan (AGENTS.md, Actors).
             guard isIdle else { return .failure(.busy) }
             let before = session
-            let items = confirmed.intersection(scan).unused(in: before)
             // The pool change comes after the save, so a failed save leaves memory as the disk.
-            let apply = { @MainActor () throws(SessionError) in try self.removePoolEntries(items) }
+            let apply = { @MainActor (files: UnusedFiles) throws(SessionError) in try self.removePoolEntries(files) }
             let done = await pruneFiles(
-                items, of: before, lock: lock, previous: url, recordings: recordings, environment.saveSession, apply)
+                confirmed.intersection(scan), of: before, lock: lock, previous: url, recordings: recordings,
+                environment.saveSession, apply)
             // Only a write clears a save error: a prune with no item writes nothing.
             if let written = done.written { (url, backups, saveError) = (written.package, written.backups, nil) }
             switch done.result {
@@ -95,12 +95,13 @@ extension Studio {
 }
 
 /// The save and the Trash of `UnusedFiles.prune`, off the main actor. After the save and before
-/// the first move, `apply` makes the same pool change in memory; its throw moves no file. Returns
+/// the first move, `apply` makes the same pool change in memory with the items that move; its
+/// throw moves no file. Returns
 /// the report, and when the save ran, the package path in `packageIdentity` form and the backups.
 @concurrent nonisolated private func pruneFiles(
     _ items: UnusedFiles, of session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
     _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL,
-    _ apply: @MainActor @Sendable () throws(SessionError) -> Void
+    _ apply: @MainActor @Sendable (UnusedFiles) throws(SessionError) -> Void
 ) async -> (result: Result<PruneReport, StudioError>, written: (package: URL, backups: [Backup])?) {
     dispatchPrecondition(condition: .notOnQueue(.main))
     var pruned = session
@@ -108,11 +109,11 @@ extension Studio {
     let result: Result<PruneReport, StudioError>
     do throws(UnusedFilesError) {
         result = .success(
-            try await items.prune(&pruned) { session async throws(SessionFileError) in
+            try await items.prune(&pruned) { session, moving async throws(SessionFileError) in
                 let url = try await save(session, lock)
                 written = url
                 do throws(SessionError) {
-                    try await apply()
+                    try await apply(moving)
                 } catch {
                     throw .invalidSession(error)
                 }

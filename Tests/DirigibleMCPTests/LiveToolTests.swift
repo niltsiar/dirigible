@@ -195,6 +195,23 @@ struct LiveToolTests {
         await otherStudio.settle()
     }
 
+    /// C6: on a volume that ignores case (the default APFS), a path in another case names the same
+    /// package, so it runs live.
+    @Test func pathInAnotherCaseRunsLive() async throws {
+        let package = try LivePackage()
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let upper = package.folder.appending(path: "SHOW.dirigible")
+        try #require(FileManager.default.fileExists(atPath: upper.path), "the volume does not ignore case")
+
+        let outcome = await send(folder.socket, "track_rename", ["package": upper.path, "track": "t1", "name": "A"])
+
+        #expect(outcome == .reply(.result(text: "OK", isError: false)), "C6: a path in another case did not run live")
+        #expect(studio.session.track("t1")?.name == "A")
+        await studio.settle()
+    }
+
     /// C7: a call that copies a file into an open package is refused with the app text.
     @Test func fileToolsAreRefusedLive() async throws {
         let package = try LivePackage()

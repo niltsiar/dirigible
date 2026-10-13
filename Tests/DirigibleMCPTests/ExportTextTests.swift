@@ -1,4 +1,5 @@
 import DirigibleAudio
+import DirigibleCore
 import Foundation
 import Testing
 
@@ -24,6 +25,52 @@ struct ExportTextTests {
                 loudness: fields[4].isEmpty ? nil : fields[4], spelling: .cli)
         }
         #expect(error?.message == text, "the option text")
+    }
+
+    /// Code gate 2 item 5: the tool spelling of each option rule names the tool argument.
+    @Test(arguments: [
+        (["x.wav", "", "128", "", ""], "bitrate is only for .m4a and .mp3."),
+        (["x.flac", "20", "", "", ""], "bits must be 16 or 24."),
+        (["x.mp3", "16", "", "", ""], "bits is only for .wav and .flac."),
+        (["x.m4a", "", "100", "", ""], "bitrate must be 64, 96, 128, 160, 192, or 256."),
+        (["x.ogg", "", "", "", ""], "out must end in .wav, .m4a, .mp3, or .flac."),
+        (["x.wav", "", "", "96000", ""], "rate must be 44100 or 48000."),
+        (["x.wav", "", "", "", "loud"], "loudness must be podcast, speech, ebu, or atsc."),
+    ])
+    func theToolOptionsNameTheArguments(fields: [String], text: String) {
+        let error = #expect(throws: ToolError.self) {
+            try ExportText.options(
+                out: fields[0], bits: Int(fields[1]), bitrate: Int(fields[2]), mono: false, rate: Int(fields[3]),
+                loudness: fields[4].isEmpty ? nil : fields[4], spelling: .tool)
+        }
+        #expect(error?.message == text, "the option text")
+    }
+
+    /// Code gate 2 item 5: each other text that names an option or a command has a tool spelling
+    /// with no CLI option and no `dirigible` command.
+    @Test func theToolTextsNameTheArgumentsAndTools() {
+        var session = Session(sampleRate: 48_000)
+        try? session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 100))
+        let faults: [FileID: MediaFault] = ["f1": .missing]
+        let chapter = Marker(id: "c1", name: "One", position: 0, kind: .chapter)
+        let texts = [
+            ExportText.rangeMessage(end: 100, spelling: .tool),
+            ExportText.faultMessage(faults, in: session, spelling: .tool),
+            ExportText.readFaultMessage(faults, in: session, out: "mix.wav", spelling: .tool),
+            ExportText.rateMessage(out: "mix.m4a", rate: 96_000, spelling: .tool),
+            ExportText.failureMessage(.artworkMissing("art.png"), out: "mix.mp3", noun: "export", spelling: .tool),
+            ExportText.failureMessage(
+                .chapterImageMissing(chapter, rate: 48_000), out: "mix.mp3", noun: "export", spelling: .tool),
+        ]
+        let words = [
+            "with to more than from;", "Use allow_missing to export", "Use allow_missing to accept",
+            "Use rate 44100 or rate 48000.", "the episode_set tool and artwork",
+            "the marker_set tool, id c1, and image",
+        ]
+        for (text, word) in zip(texts, words) {
+            #expect(text?.contains(word) == true, "\(word) is not in: \(text ?? "nil")")
+            #expect(text?.contains("--") == false && text?.contains("dirigible ") == false, "a CLI name: \(text ?? "")")
+        }
     }
 
     /// Code gate item E6. The MP3 chapter limit is a limit with an action, in ms and in days.

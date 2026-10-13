@@ -304,6 +304,33 @@ struct AgentServerTests {
         listener?.stop()
     }
 
+    /// Code gate 2: a client that sends its line and half-closes still gets its reply.
+    @Test func halfCloseGetsTheReply() async throws {
+        let folder = try SocketFolder()
+        let gate = Gate()
+        var listener: AgentListener?
+        let handle: @Sendable (AgentCall) async -> AgentReply = { _ in
+            await gate.wait()
+            return .notOpen
+        }
+        if case .listening(let opened) = AgentListener.open(socket: folder.socket, handle: handle, counted: { _ in }) {
+            listener = opened
+        }
+        try #require(listener != nil)
+        let client = try #require(Client(folder.socket))
+        client.send(#"{"tool":"session_info","arguments":{"package":"/tmp/none.dirigible"}}"#)
+        await until("the call did not start") { gate.waiting }
+
+        client.shutdownWrite()
+        // The queue reads the EOF in microseconds; the wait gives it the time before the reply.
+        try await Task.sleep(for: .milliseconds(200))
+        gate.open()
+
+        let reply = await onThread { client.readLine() }
+        #expect(reply.map { $0.contains("notOpen") } == true, "\(reply ?? "no reply")")
+        listener?.stop()
+    }
+
     /// C16: a bridge that closes before its reply does not stop the server: the next connection
     /// is served.
     @Test func peerClosesBeforeReply() async throws {

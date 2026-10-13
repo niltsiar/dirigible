@@ -4,7 +4,8 @@
 # skips a done replay (a result other than stopped), replays a stopped or header-only replay and
 # a named log only with --again, counts only killed, a hang, and survived as done, gives a log that fits the budget its full header timeout, caps a log that cannot
 # fit once, moves a capped hang aside and gives it only its full limit later (else TOO LONG),
-# stops with BUDGET and the count line, goes on after a mutate.py exit 2, and refuses a budget
+# stops with BUDGET and the count line, goes on after a mutate.py exit 2, takes the build lock
+# once for the whole batch (scripts/with-lock.sh of the tree), and refuses a budget
 # over 480, a tree that is not a worktree root, and the main checkout. Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/replay-batch.sh"
@@ -16,6 +17,17 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 git init -q "$tmp/main"
 git -C "$tmp/main" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
+# The fake with-lock.sh of the tree logs each take and passes the hold to its command, as the real
+# one does with DIRIGIBLE_BUILD_LOCK.
+mkdir -p "$tmp/main/scripts"
+cat > "$tmp/main/scripts/with-lock.sh" <<EOF
+#!/bin/bash
+echo take >> "$tmp/locks"
+DIRIGIBLE_BUILD_LOCK=fake exec "\$@"
+EOF
+chmod +x "$tmp/main/scripts/with-lock.sh"
+git -C "$tmp/main" add scripts
+git -C "$tmp/main" -c user.name=t -c user.email=t@t commit -q -m lock
 git -C "$tmp/main" worktree add -q "$tmp/tree" 2>/dev/null
 mkdir -p "$tmp/bin"
 
@@ -42,6 +54,7 @@ while [[ \$# -gt 0 ]]; do
   esac
 done
 echo "\$(basename "\$log") \$t \$PWD\$allow" >> "$tmp/calls"
+echo "\${DIRIGIBLE_BUILD_LOCK:-none}" >> "$tmp/holds"
 s="\$(sed -n 's/^# fake-seconds: //p' "\$log")"
 echo \$(( \$(cat "$tmp/clock") + \${s:-10} )) > "$tmp/clock"
 r="\$(sed -n 's/^# fake: //p' "\$log")"
@@ -61,7 +74,7 @@ control() {
     echo "# result: $2"; [[ -n "${4:-}" ]] && echo "# fake: $4"; [[ -n "${5:-}" ]] && echo "# fake-seconds: $5"
     [[ -n "${6:-}" ]] && echo "# fake-build: $6"; } > "$c/$1.log"
 }
-fresh() { rm -rf "$c" "$tmp/calls"; mkdir -p "$c"; echo 1000 > "$tmp/clock"; : > "$tmp/calls"; }
+fresh() { rm -rf "$c" "$tmp/calls"; mkdir -p "$c"; echo 1000 > "$tmp/clock"; : > "$tmp/calls"; : > "$tmp/locks"; : > "$tmp/holds"; }
 run() { out="$(PATH="$tmp/bin:$PATH" "$script" "$tmp/tree" "$c" "$@" 2>&1)"; code=$?; }
 # runf <flag> <value> <budget> [<log>...]: a run with one flag and its value before the tree.
 # runx <arguments>: a run with the whole argument list, flags and tree too.
@@ -81,6 +94,10 @@ grep -qx 'a.log: killed' <<<"$out" || fail "replay: no result line for a: $out"
 [[ -f "$c/replay/a.log" && -f "$c/replay/b.log" ]] || fail 'replay: no replay logs'
 grep -qx 'replayed 2 of 2; left 0; too long 0; refused 0; needs a decision 0' <<<"$out" || fail "replay: count line: $out"
 grep -qx 'ALL DONE' <<<"$out" || fail "replay: no ALL DONE: $out"
+# One lock take for the batch, and each control runs under that hold, so its build and test
+# commands take no lock again and no other run builds between two controls.
+[[ "$(wc -l < "$tmp/locks" | tr -d ' ')" == 1 ]] || fail "lock: takes [$(cat "$tmp/locks")]"
+[[ "$(paste -sd' ' - < "$tmp/holds")" == 'fake fake' ]] || fail "lock: holds [$(cat "$tmp/holds")]"
 
 # A done replay is skipped; a stopped or header-only replay log replays again.
 : > "$tmp/calls"
@@ -215,7 +232,7 @@ fresh
 control x killed 100.0 'BUILD FAILED'
 run 480
 grep -qx 'replayed 0 of 1; left 0; too long 0; refused 0; needs a decision 1' <<<"$out" || fail "decision: count line: $out"
-grep -q 'mutation-controls.md:21' <<<"$out" || fail "decision: no pointer: $out"
+grep -q 'mutation-controls.md:19' <<<"$out" || fail "decision: no pointer: $out"
 grep -qx 'ALL DONE' <<<"$out" && fail "decision: ALL DONE with a decision left"
 : > "$tmp/calls"
 run 480

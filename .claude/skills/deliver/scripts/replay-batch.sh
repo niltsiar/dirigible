@@ -1,6 +1,7 @@
 #!/bin/bash
-# Replay the killed controls of a run once, in one Bash call of 10 min or less (mutation-controls.md,
-# Replay once in Phase 7).
+# Replay the killed controls of a run once, in one Bash call of 10 min or less, under one hold of
+# the build lock (scripts/with-lock.sh of the tree), so no other run builds between two controls and
+# the lock calls of each build and test command run at once.
 # Usage: replay-batch.sh [--timeout <seconds>] [--again] [--allow-side-effects] <tree> <controls folder> <budget seconds> [<log>...]
 # - <tree> is the absolute root of the worktree to replay. The script runs there, because a replay
 #   mutates, builds, and tests the tree that it runs in. It refuses the main checkout, a tree
@@ -24,7 +25,7 @@
 #   (run it with run_in_background): this script with --timeout and the same tree.
 # - --timeout <seconds> gives each log that limit, with no budget, no cap, and no BUDGET stop.
 # - A replay with BUILD FAILED, NO TESTS, or WRONG FAILURE on this HEAD needs a decision
-#   (mutation-controls.md:21): it is not left, and only --again replays it.
+#   (mutation-controls.md:19): it is not left, and only --again replays it.
 # - A mutate.py refusal (side effects, a changed old text) prints its message, counts as refused,
 #   and the next log runs. --allow-side-effects goes to mutate.py. A failed restore (exit 3) stops
 #   the batch at once with RESTORE FAILED and exit 3: a mutant can be in the tree.
@@ -33,6 +34,7 @@
 #   D are 0.
 # replay-batch.test.sh tests it.
 set -uo pipefail
+args=("$@")
 usage="usage: replay-batch.sh [--timeout <seconds>] [--again] [--allow-side-effects] <tree> <controls folder> <budget seconds, 480 or less> [<log>...]"
 limit="" again="" allow=""
 while [[ "${1:-}" == --* ]]; do
@@ -59,6 +61,8 @@ lock="$(git -C "$top" rev-parse --absolute-git-dir)/dirigible-mutate.lock"
 [[ -d "$lock" ]] && kill -0 "$(cat "$lock/pid" 2>/dev/null)" 2>/dev/null &&
     { echo "replay-batch: a mutate.py run holds $lock; wait for it to end" >&2; exit 2; }
 cd "$top" || exit 2
+# One lock hold for the batch: run again under with-lock.sh once.
+[[ -n "${REPLAY_BATCH_HELD:-}" ]] || REPLAY_BATCH_HELD=1 exec "$top/scripts/with-lock.sh" "$here/replay-batch.sh" "${args[@]}"
 allowance=30
 # build_allowance <log>: set the allowance from the first build line of the log, if it has one.
 build_allowance() {
@@ -93,7 +97,7 @@ count() {
         else left=$((left + 1)); fi
     done
     echo "replayed $n of ${#logs[@]}; left $left; too long $j; refused $r; needs a decision $d"
-    [[ $d -gt 0 ]] && echo "needs a decision: BUILD FAILED, NO TESTS, or WRONG FAILURE; see .claude/skills/deliver/references/mutation-controls.md:21"
+    [[ $d -gt 0 ]] && echo "needs a decision: BUILD FAILED, NO TESTS, or WRONG FAILURE; see .claude/skills/deliver/references/mutation-controls.md:19"
     [[ $left -gt 0 ]] && return
     [[ $j -gt 0 ]] && echo "TOO LONG PENDING: do not build or commit until it ends"
     [[ $r -gt 0 ]] && echo "REFUSED: replay each refused log, or log why not"

@@ -107,7 +107,7 @@ struct AgentManualCommandTests {
             switch hole.1 {
             case "package", "p": "/tmp/Show.dirigible"
             case let name where name.hasSuffix(".mp3"): "/tmp/out.mp3"
-            case "seconds": "10"
+            case "seconds", "frame": "10"
             default: "x"
             }
         }

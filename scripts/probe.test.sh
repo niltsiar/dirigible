@@ -58,4 +58,24 @@ git -C "$repo/main" worktree add -q --detach "$repo/wt" 2>/dev/null
 "$repo/wt/scripts/probe.sh" "$repo/main/build/p" /usr/bin/true 2>/dev/null
 [[ $? -eq 2 ]] || fail "a worktree accepted a folder of the main checkout outside .scratchpads/"
 
+# noAudioHidesTheDevices: with --no-audio, the audio server is out of reach, so no device shows.
+# system_profiler reads the devices through the audio server; the hook tests have no dirigible build.
+# It prints "no run" when the call did not run system_profiler, so a refused option is no pass.
+devices() {
+    local out
+    out="$("$probe" "$@" /usr/sbin/system_profiler SPAudioDataType 2>/dev/null)" && [[ "$out" == Audio:* ]] \
+        || { echo "no run"; return; }
+    grep -c 'Manufacturer:' <<<"$out" || true
+}
+if [[ "$(devices "$root/p")" == 0 ]]; then
+    echo "probe: skip noAudioHidesTheDevices: no audio device"
+else
+    got="$(devices --no-audio "$root/p")"
+    [[ "$got" == 0 ]] || fail "noAudioHidesTheDevices: --no-audio gave [$got] audio devices, want 0"
+fi
+"$probe" --no-audio "$root/p" /bin/sh -c 'echo x > n.txt' || fail "--no-audio refused a write in the folder"
+[[ -f "$root/p/n.txt" ]] || fail "--no-audio: a write in the folder did not land"
+"$probe" --no-audio "$root/p" /bin/sh -c "echo x > '$root/outside/n.txt'" 2>/dev/null
+[[ -e "$root/outside/n.txt" ]] && fail "--no-audio allowed a write outside the folder"
+
 [[ $failures -eq 0 ]] && echo "probe: all cases pass" || exit 1

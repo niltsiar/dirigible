@@ -3,8 +3,9 @@
 # a commit since <base>, a working tree change, or an untracked file. Deliver Phase 7 and the
 # eval pass of an upkeep run (reflect rule 8) run the scenarios of --quoted.
 # Usage: scripts/evals-for.sh [--quoted] <base>
-# --quoted keeps only a scenario that is new since <base>, a holdout, or a scenario whose key
-# points quote the changed words of a hunk of a changed file of its Files cell: a backticked term
+# --quoted keeps only a scenario that is new since <base>, a holdout, a row of type agent (its key
+# points are a pass rule, not quotes of a file), or a scenario whose key points quote the changed
+# words of a hunk of a changed file of its Files cell: a backticked term
 # of 8 or more characters (a whole term, not in the stop list) whose count differs between the
 # deleted and the added lines, or a run of 5 words (case and punctuation ignored) that touches a
 # changed word span of the hunk.
@@ -72,14 +73,14 @@ for raw in open(diff, encoding="utf-8", errors="replace"):
 
 
 def rows(path):
-    """(ID, key points, Files) of each row of the Scenarios table."""
+    """(ID, Type, key points, Files) of each row of the Scenarios table."""
     inside = False
     for line in open(path, encoding="utf-8"):
         if line.startswith("## "):
             inside = line.startswith("## Scenarios")
         elif inside and re.match(r"\| [EH][0-9]+ \|", line):
             cells = line.replace("\\|", "").split("|")
-            yield cells[1].strip(), cells[-5], cells[-4]
+            yield cells[1].strip(), cells[2].strip(), cells[-5], cells[-4]
 
 
 def words(text):
@@ -105,11 +106,11 @@ def changed_grams(gone, added):
 
 changed = {f for f in open(files, encoding="utf-8").read().split("\n") if f}
 base_ids = {row[0] for row in rows(base)}
-for sid, keys, cell in rows(evals):
+for sid, kind, keys, cell in rows(evals):
     hit = [f for f in re.findall(r"`([^`]+)`", cell) if f in changed]
     if not hit:
         continue
-    if sid not in base_ids or "holdout" in keys:
+    if sid not in base_ids or "holdout" in keys or kind == "agent":
         print(sid)
         continue
     terms = [t for t in re.findall(r"`([^`]+)`", keys) if len(t) >= 8 and t not in STOP]

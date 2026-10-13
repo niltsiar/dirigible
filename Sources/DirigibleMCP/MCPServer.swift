@@ -43,9 +43,20 @@ package struct MCPServer {
                 id,
                 [
                     "supportedVersions": [Self.modernVersion], "capabilities": capabilities,
+                    "instructions": AgentManual.instructions,
                     "_meta": ["io.modelcontextprotocol/serverInfo": serverInfo],
                 ], cached: true)
         case "ping": return reply(id, [:])
+        case "prompts/list": return reply(id, ["prompts": AgentManual.promptList], cached: true)
+        case "prompts/get":
+            let name = params["name"] as? String ?? ""
+            guard let recipe = AgentManual.recipes.first(where: { $0.name == name }) else {
+                return reply(id, error: -32602, "no prompt \(name).")
+            }
+            guard let package = (params["arguments"] as? [String: Any])?["package"] as? String else {
+                return reply(id, error: -32602, "the prompt \(name) needs the argument package, a string.")
+            }
+            return reply(id, recipe.prompt(package: package))
         case "tools/list":
             let list = Tool.all.map { ["name": $0.name, "description": $0.description, "inputSchema": $0.inputSchema] }
             return reply(id, ["tools": list], cached: true)
@@ -77,7 +88,12 @@ package struct MCPServer {
         let version = Self.legacyVersions.contains(asked) ? asked : Self.legacyVersions[0]
         era = .legacy
         initializeClient = ClientInfo(params["clientInfo"]) ?? ClientInfo()
-        return reply(id, ["protocolVersion": version, "capabilities": capabilities, "serverInfo": serverInfo])
+        return reply(
+            id,
+            [
+                "protocolVersion": version, "capabilities": capabilities, "serverInfo": serverInfo,
+                "instructions": AgentManual.instructions,
+            ])
     }
 
     /// A modern request with a `_meta` version that is not 2026-07-28 gets -32022. A request with
@@ -93,7 +109,7 @@ package struct MCPServer {
 
     private func meta(_ params: [String: Any]) -> [String: Any]? { params["_meta"] as? [String: Any] }
 
-    private let capabilities = ["tools": [String: Any]()]
+    private let capabilities = ["tools": [String: Any](), "prompts": [:]]
     private let serverInfo = ["name": "dirigible", "version": "1"]
 
     /// A modern result has `resultType`, and a `cached` one (`server/discover`, `tools/list`) has

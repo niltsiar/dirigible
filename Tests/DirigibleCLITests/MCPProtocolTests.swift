@@ -1,6 +1,8 @@
 import Foundation
 import Testing
 
+@testable import DirigibleMCP
+
 /// The JSON-RPC line protocol of `dirigible mcp` in both eras (decision 0041).
 struct MCPProtocolTests {
     @Test func initializeNegotiatesTheVersion() async throws {
@@ -141,6 +143,67 @@ extension MCPProtocolTests {
             let ended = try await mcpWithClosedOutput(closesStderr: closesStderr)
             #expect(!ended.signaled && ended.status == 1, "stderr closed \(closesStderr): \(ended)")
             if !closesStderr { #expect(ended.stderr.contains("Error: cannot write to stdout"), "\(ended.stderr)") }
+        }
+    }
+}
+
+/// The agent manual of the server (decision 0051): the `instructions` and the recipes as prompts.
+extension MCPProtocolTests {
+    static let initializeLine = request(
+        1, "initialize", ["protocolVersion": "2025-11-25", "capabilities": [:], "clientInfo": ["name": "t"]])
+
+    @Test func promptsListAndGetInBothEras() async throws {
+        let get = ["name": "cut-a-range", "arguments": ["package": "/Users/me/Show.dirigible"]] as [String: Any]
+        let modern = try await mcp([modernRequest(1, "prompts/list"), modernRequest(2, "prompts/get", get)])
+        let legacy = try await mcp([
+            Self.initializeLine, request(2, "prompts/list"), request(3, "prompts/get", get),
+        ])
+        for (era, list, got) in [
+            ("modern", answer(modern, id: 1), answer(modern, id: 2)),
+            ("legacy", answer(legacy, id: 2), answer(legacy, id: 3)),
+        ] {
+            let prompts = result(list)["prompts"] as? [[String: Any]] ?? []
+            #expect(prompts.compactMap { $0["name"] as? String } == AgentManual.recipes.map(\.name), "\(era)")
+            for prompt in prompts {
+                #expect(prompt["title"] is String && prompt["description"] is String, "\(era) \(prompt)")
+                let arguments = prompt["arguments"] as? [[String: Any]]
+                #expect(arguments?.count == 1 && arguments?[0]["name"] as? String == "package", "\(era)")
+                #expect(arguments?[0]["required"] as? Bool == true, "\(era)")
+            }
+            let messages = result(got)["messages"] as? [[String: Any]] ?? []
+            #expect(messages.count == 1 && messages.first?["role"] as? String == "user", "\(era)")
+            let text = (messages.first?["content"] as? [String: Any])?["text"] as? String ?? ""
+            #expect(text.contains("/Users/me/Show.dirigible") && text.contains("`clip_ripple_delete`"), "\(era)")
+        }
+    }
+
+    @Test func aBadPromptIsAnInvalidParams() async throws {
+        let answers = try await mcp([
+            modernRequest(1, "prompts/get", ["name": "no-such-recipe", "arguments": ["package": "/S.dirigible"]]),
+            modernRequest(2, "prompts/get", ["name": "cut-a-range"]),
+            modernRequest(3, "prompts/get", ["name": "cut-a-range", "arguments": ["package": 7]]),
+            modernRequest(4, "prompts/get", ["arguments": ["package": "/S.dirigible"]]),
+        ])
+        for id in 1...4 {
+            #expect(errorCode(answer(answers, id: id)) == -32602, "request \(id)")
+        }
+        let message = { (id: Int) in (answer(answers, id: id)["error"] as? [String: Any])?["message"] as? String }
+        #expect(message(1)?.contains("no-such-recipe") == true)
+        #expect(message(2)?.contains("package") == true)
+    }
+
+    /// In process, so `instructions` names the same running binary on both sides.
+    @Test func theInstructionsAreInBothEras() throws {
+        var legacy = MCPServer()
+        var modern = MCPServer()
+        for (era, line) in [
+            ("legacy", legacy.answer(Self.initializeLine)), ("modern", modern.answer(Self.discoverLine)),
+        ] {
+            let object = try JSONSerialization.jsonObject(with: Data((line ?? "").utf8)) as? [String: Any]
+            let answered = object?["result"] as? [String: Any] ?? [:]
+            #expect(answered["instructions"] as? String == AgentManual.instructions, "\(era)")
+            #expect((answered["capabilities"] as? [String: Any])?["prompts"] is [String: Any], "\(era)")
+            #expect((answered["capabilities"] as? [String: Any])?["tools"] is [String: Any], "\(era)")
         }
     }
 }

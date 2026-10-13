@@ -109,6 +109,31 @@ package enum AgentManual {
     }
 }
 
+extension AgentManual {
+    /// The `prompts/list` entries: one for each recipe, with the one argument `package`.
+    static var promptList: [[String: Any]] {
+        recipes.map { recipe in
+            [
+                "name": recipe.name, "title": recipe.title, "description": recipe.summary,
+                "arguments": [
+                    [
+                        "name": "package", "description": "The absolute path of the session package.",
+                        "required": true,
+                    ]
+                ],
+            ]
+        }
+    }
+}
+
+extension AgentManual.Recipe {
+    /// The `prompts/get` result: one user message with the recipe and the package path.
+    func prompt(package: String) -> [String: Any] {
+        let text = "\(title) in the session package \(package). Steps: \(steps)"
+        return ["description": summary, "messages": [["role": "user", "content": ["type": "text", "text": text]]]]
+    }
+}
+
 /// `text` in single quotes for a POSIX shell: each `'` becomes `'\''`.
 package func shellQuoted(_ text: String) -> String {
     "'" + text.replacingOccurrences(of: "'", with: #"'\''"#) + "'"

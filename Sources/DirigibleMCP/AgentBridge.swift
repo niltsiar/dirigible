@@ -80,7 +80,7 @@ package final class AgentBridge {
     )? {
         switch call(tool: tool, arguments: arguments, client: client, control: control) {
         case .reply(.result(let text, let isError)): (text, isError)
-        case .lost: (lostCallMessage, true)
+        case .lost: (["export", "render"].contains(tool) ? lostFileMessage(tool) : lostCallMessage, true)
         case .reply(.notOpen), .noApp: nil
         }
     }

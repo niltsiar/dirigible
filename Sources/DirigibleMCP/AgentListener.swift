@@ -40,6 +40,7 @@ final class AgentListener: @unchecked Sendable {
     private let listenFD: Int32
     private let handle: Handle
     private let counted: @Sendable (Int) -> Void
+    private let keepAlive: Duration
     private var listenSource: DispatchSourceRead?
     /// Keyed by a serial that never repeats, so a late reply can never find a new connection.
     private var connections: [UInt64: Connection] = [:]
@@ -62,6 +63,10 @@ final class AgentListener: @unchecked Sendable {
         var calls = 0
         /// The gate of the frames of the running call.
         var gate = ProgressGate()
+        /// The last fraction that went to the bridge, and the timer that sends it again while the
+        /// running call reports no new value (decision 0049).
+        var last = 0.0
+        var keepAlive: DispatchSourceTimer?
         /// The peer shut its write side during a call: the read source is suspended, and the
         /// connection ends after the reply.
         var halfClosed = false
@@ -72,9 +77,11 @@ final class AgentListener: @unchecked Sendable {
 
     /// Takes the lock beside `socket`, replaces an old socket file, binds, and listens. It runs
     /// no blocking call. Open after the completion of the stop before it: the old lock is free
-    /// then. `handle` answers each call; `counted` gets the number of connections.
+    /// then. `handle` answers each call; `counted` gets the number of connections. While a call
+    /// runs, a frame goes to its bridge at least once in `keepAlive` (decision 0049).
     static func open(
-        socket: URL, handle: @escaping Handle, counted: @escaping @Sendable (Int) -> Void
+        socket: URL, handle: @escaping Handle, counted: @escaping @Sendable (Int) -> Void,
+        keepAlive: Duration = .seconds(10)
     ) -> Opening {
         let folder = socket.deletingLastPathComponent().path
         guard unixAddress(socket.path) != nil else { return .failed }
@@ -105,17 +112,18 @@ final class AgentListener: @unchecked Sendable {
             return .failed
         }
         let listener = AgentListener(
-            socket: socket, lockFD: lockFD, listenFD: listenFD, handle: handle, counted: counted)
+            socket: socket, lockFD: lockFD, listenFD: listenFD, handle: handle, counted: counted,
+            keepAlive: keepAlive)
         listener.queue.async { listener.startAccepting() }
         return .listening(listener)
     }
 
     private init(
         socket: URL, lockFD: Int32, listenFD: Int32, handle: @escaping Handle,
-        counted: @escaping @Sendable (Int) -> Void
+        counted: @escaping @Sendable (Int) -> Void, keepAlive: Duration
     ) {
         (self.socket, self.lockFD, self.listenFD) = (socket, lockFD, listenFD)
-        (self.handle, self.counted) = (handle, counted)
+        (self.handle, self.counted, self.keepAlive) = (handle, counted, keepAlive)
     }
 
     /// Closes the listener, removes the socket file, and then frees the lock, on the queue. Then
@@ -188,8 +196,14 @@ final class AgentListener: @unchecked Sendable {
         connection.buffer.removeSubrange(connection.buffer.startIndex...newline)
         let checked = Self.check(Data(line))
         connection.calls += 1
-        (connection.running, connection.gate) = (connection.calls, ProgressGate())
+        (connection.running, connection.gate, connection.last) = (connection.calls, ProgressGate(), 0)
         let (handle, serial, number) = (handle, connection.serial, connection.calls)
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        let interval = DispatchTimeInterval.nanoseconds(Int(keepAlive / .nanoseconds(1)))
+        timer.schedule(deadline: .now() + interval, repeating: interval)
+        timer.setEventHandler { [weak self] in self?.keptAlive(serial, number) }
+        timer.resume()
+        connection.keepAlive = timer
         let report: @Sendable (Double) -> Void = { [weak self] fraction in
             guard let self else { return }
             queue.async { self.progressed(serial, number, fraction) }
@@ -211,7 +225,19 @@ final class AgentListener: @unchecked Sendable {
         guard let connection = connections[serial], connection.running == number,
             let value = connection.gate.pass(fraction, at: .now)
         else { return }
-        _ = writeAll(connection.fd, Data((AppFrame.progressLine(value / 100) + "\n").utf8))
+        connection.last = value / 100
+        frame(connection)
+    }
+
+    /// Sends the last value of call `number` again: the bridge limit starts again, and the bridge
+    /// sends no notification for a value that did not grow.
+    private func keptAlive(_ serial: UInt64, _ number: Int) {
+        guard let connection = connections[serial], connection.running == number else { return }
+        frame(connection)
+    }
+
+    private func frame(_ connection: Connection) {
+        _ = writeAll(connection.fd, Data((AppFrame.progressLine(connection.last) + "\n").utf8))
     }
 
     /// A reply goes only to the connection that asked, while it is open: a late reply never
@@ -219,6 +245,7 @@ final class AgentListener: @unchecked Sendable {
     private func answered(_ serial: UInt64, _ reply: AgentReply) {
         guard let connection = connections[serial] else { return }
         connection.running = nil
+        connection.keepAlive?.cancel()
         guard writeAll(connection.fd, Data((reply.line + "\n").utf8)) else {
             let code = errno
             log.error("A reply to an agent did not arrive whole (errno \(code)). The connection ends.")
@@ -232,6 +259,7 @@ final class AgentListener: @unchecked Sendable {
     private func end(_ connection: Connection) {
         guard connections.removeValue(forKey: connection.serial) != nil else { return }
         connection.call?.cancel()
+        connection.keepAlive?.cancel()
         // A suspended source runs its cancel handler only after a resume.
         if connection.halfClosed { connection.source?.resume() }
         connection.source?.cancel()

@@ -74,6 +74,13 @@ let readSize = 64 * 1024
 package let lostCallMessage =
     "The connection to Dirigible closed during the call. Read the session before you try again."
 
+/// The lost-call text of `export` and `render`: a job past its last cancel check still writes
+/// its file.
+func lostFileMessage(_ tool: String) -> String {
+    "The connection to Dirigible closed during the call. The \(tool) can still write its file: check the output "
+        + "file, and read the session before you try again."
+}
+
 /// The socket of the app server: `DIRIGIBLE_MCP_SOCKET` when it is set (the verify copy and the
 /// tests), else `mcp.sock` in the Application Support folder of Dirigible.
 package func agentSocketPath(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {

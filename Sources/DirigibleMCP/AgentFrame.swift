@@ -47,6 +47,9 @@ package enum AgentReply: Sendable, Equatable {
     }
 }
 
+/// The size of one socket read of the listener and the bridge.
+let readSize = 64 * 1024
+
 /// The error text of a call whose reply did not come: the app may have run it (C8).
 package let lostCallMessage =
     "The connection to Dirigible closed during the call. Read the session before you try again."

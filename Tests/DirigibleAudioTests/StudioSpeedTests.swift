@@ -24,7 +24,7 @@ struct StudioSpeedTests {
         try package.session.write(to: package.url)
     }
 
-    func studio(unit: @escaping SpeedUnitFactory = makeSpeedUnit) async throws -> Studio {
+    func studio(unit: @escaping SpeedUnitLookup = findSpeedUnit) async throws -> Studio {
         let studio = try await Studio.open(package.url)
         studio.environment = .test(TestHAL([mic]))
         studio.environment.speedUnit = unit

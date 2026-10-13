@@ -74,8 +74,8 @@ actor Player {
     private let start: @Sendable (AVAudioEngine) throws -> Void
     /// Opens a pool file. Tests give one that fails.
     private let open: MediaOpen
-    /// Makes the speed unit at the first play. Tests give one that gives nil.
-    private let speedUnit: SpeedUnitFactory
+    /// Finds the speed unit at the first play. Tests give one that finds nothing.
+    private let speedUnit: SpeedUnitLookup
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
     let chunk: Int
     private(set) var session: Session
@@ -107,7 +107,7 @@ actor Player {
     init(
         package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
         start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() },
-        open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitFactory = makeSpeedUnit
+        open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitLookup = findSpeedUnit
     ) {
         self.package = package
         self.output = output
@@ -366,7 +366,7 @@ actor Player {
         else { return nil }
         let engine = AVAudioEngine()
         let node = AVAudioPlayerNode()
-        let unit = speedUnit()
+        let unit = speedUnit().map { AVAudioUnitTimeEffect(audioComponentDescription: $0) }
         engine.attach(node)
         if let unit { engine.attach(unit) }
         engine.connect(node, to: engine.mainMixerNode, format: format)

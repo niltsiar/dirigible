@@ -55,13 +55,8 @@ import Observation
 
     /// The Core Audio calls of a take and the player output. Tests give their own.
     @ObservationIgnored var environment = CaptureEnvironment.live {
-        didSet {
-            if environment.playerOutput != oldValue.playerOutput { outputChanged() }
-            speedUnitLoads = nil
-        }
+        didSet { if environment.playerOutput != oldValue.playerOutput { outputChanged() } }
     }
-    /// The speed unit of `environment` loads: checked at the first read (decision 0048).
-    @ObservationIgnored var speedUnitLoads: Bool?
     /// The playback state (decision 0016), in `Studio+Transport.swift`.
     var play: PlayState
     /// The loudness of the heard frame (decision 0033). Only the display tick reads it, so no

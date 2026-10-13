@@ -833,7 +833,7 @@ An agent can ask to record, but only you start the take. The `record` tool takes
 2. Click Record to start the take, or click Don't Record. Escape is Don't Record. Return does nothing, so a key that you type when the sheet opens cannot start a take.
 3. The take stops after its length, or earlier when you click Stop.
 
-- The request ends after 20 seconds with no answer. The sheet closes, and a banner says that the agent asked to record. The agent can ask again.
+- The request ends after 20 seconds with no answer, and also when the agent stops waiting or you turn off Let Agents Edit Open Sessions. The sheet closes, and a banner says that the agent asked to record. The agent can ask again.
 - The window does not come to the front. When Dirigible is in the background, its Dock icon bounces until you switch to it.
 - The app refuses a request at once while the window shows a question or a sheet, during a take, while a take is pending, when the window is minimized, and while another request waits.
 - While the sheet shows, the agent cannot edit the session.

@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleMCP
 
@@ -234,6 +235,37 @@ struct AgentServerTests {
         next.start()
         #expect(next.state == .listening, "the lock stays held")
         next.stop()
+    }
+
+    /// Decision 0048: a bridge that closes during a call, and a stop, cancel the call, so a record
+    /// request does not wait for an agent that is gone.
+    @Test(arguments: [false, true]) func endCancelsTheRunningCall(stop: Bool) async throws {
+        let folder = try SocketFolder()
+        let gate = Gate()
+        let cancelled = OSAllocatedUnfairLock(initialState: false)
+        var listener: AgentListener?
+        let handle: @Sendable (AgentCall) async -> AgentReply = { _ in
+            await withTaskCancellationHandler {
+                await gate.wait()
+            } onCancel: {
+                cancelled.withLock { $0 = true }
+                gate.open()
+            }
+            return .notOpen
+        }
+        if case .listening(let opened) = AgentListener.open(socket: folder.socket, handle: handle, counted: { _ in }) {
+            listener = opened
+        }
+        try #require(listener != nil)
+        let client = try #require(Client(folder.socket))
+        client.send(#"{"tool":"session_info","arguments":{"package":"/tmp/none.dirigible"}}"#)
+        await until("the call did not start") { gate.waiting }
+
+        if stop { listener?.stop() } else { client.close() }
+
+        await until("the call is not cancelled") { cancelled.withLock { $0 } }
+        gate.open()
+        listener?.stop()
     }
 
     /// C16: a bridge that closes before its reply does not stop the server: the next connection

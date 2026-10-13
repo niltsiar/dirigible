@@ -116,9 +116,17 @@ extension SessionWindow {
         consent.expiry = Task { [weak self, weak consent] in
             try? await Task.sleep(for: lifetime)
             guard !Task.isCancelled, let self, let consent else { return }
-            expire(consent)
+            end(consent, .noAnswer)
         }
-        return await consent.wait()
+        // The agent stops waiting when its bridge closes or the server stops (decision 0048).
+        return await withTaskCancellationHandler {
+            await consent.wait()
+        } onCancel: {
+            Task { @MainActor [weak self, weak consent] in
+                guard let self, let consent else { return }
+                end(consent, .ended)
+            }
+        }
     }
 
     /// Record and Don't Record of the sheet. Each acts only while the request waits.
@@ -141,10 +149,11 @@ extension SessionWindow {
         if consent?.phase == .waiting { endConsent(.closed) }
     }
 
-    private func expire(_ request: ConsentRequest) {
+    /// Ends a waiting request with no answer of the user, and shows the info banner.
+    private func end(_ request: ConsentRequest, _ answer: RecordAnswer) {
         guard consent === request, request.phase == .waiting else { return }
         consentExpired = ConsentExpiredShown(agent: request.agent.name, revision: studio?.sessionRevision ?? 0)
-        endConsent(.noAnswer)
+        endConsent(answer)
     }
 
     private func endConsent(_ answer: RecordAnswer) {

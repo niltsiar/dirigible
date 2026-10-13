@@ -41,16 +41,16 @@ final class AgentListener: @unchecked Sendable {
     private var connections: [ObjectIdentifier: Connection] = [:]
     private var stopped = false
 
-    /// One accepted bridge. It runs one call at a time: its read source is suspended while its
-    /// call runs.
+    /// One accepted bridge. It runs one call at a time. Its read source stays on while a call
+    /// runs, so a close of the bridge cancels the call (decision 0048).
     private final class Connection {
         let fd: Int32
         var source: DispatchSourceRead?
         var buffer = Data()
         /// The read target, kept for the life of the connection.
         var bytes = [UInt8](repeating: 0, count: readSize)
-        /// True while a call runs: the read source is suspended then.
-        var running = false
+        /// The running call. A line that comes during the call waits in `buffer`.
+        var call: Task<Void, Never>?
         init(fd: Int32) { self.fd = fd }
     }
 
@@ -104,8 +104,8 @@ final class AgentListener: @unchecked Sendable {
     }
 
     /// Closes the listener, removes the socket file, and then frees the lock, on the queue. Then
-    /// `done` runs on the main actor: the next open can take the lock. Each connection answers
-    /// its running call, then closes (decision 0046 Life cycle).
+    /// `done` runs on the main actor: the next open can take the lock. Each running call is
+    /// cancelled, answers, and then its connection closes (decision 0046 Life cycle).
     func stop(then done: @escaping @MainActor @Sendable () -> Void = {}) {
         queue.async { [self] in
             if !stopped {
@@ -114,7 +114,9 @@ final class AgentListener: @unchecked Sendable {
                 listenSource = nil
                 unlink(socket.path)
                 close(lockFD)
-                for connection in connections.values where !connection.running { end(connection) }
+                for connection in connections.values {
+                    if let call = connection.call { call.cancel() } else { end(connection) }
+                }
             }
             DispatchQueue.main.async { MainActor.assumeIsolated { done() } }
         }
@@ -159,16 +161,13 @@ final class AgentListener: @unchecked Sendable {
 
     /// Starts the call of the first whole line in the buffer, if there is one.
     private func nextCall(_ connection: Connection) {
-        guard !connection.running, let newline = connection.buffer.firstIndex(of: UInt8(ascii: "\n")) else { return }
+        guard connection.call == nil, let newline = connection.buffer.firstIndex(of: UInt8(ascii: "\n")) else { return }
         let line = connection.buffer[connection.buffer.startIndex..<newline]
         connection.buffer.removeSubrange(connection.buffer.startIndex...newline)
-        connection.running = true
-        connection.source?.suspend()
         let checked = Self.check(Data(line))
         let (handle, key) = (handle, ObjectIdentifier(connection))
-        // The task only waits for the main actor; the reply write runs on the queue. The task
-        // keeps the listener until the reply, also after a stop: a freed suspended source traps.
-        Task { [self] in
+        // The task only waits for the main actor; the reply write runs on the queue.
+        connection.call = Task { [self] in
             let reply =
                 switch checked {
                 case .success(let call): await handle(call)
@@ -186,15 +185,13 @@ final class AgentListener: @unchecked Sendable {
             return end(connection)
         }
         guard !stopped else { return end(connection) }
-        connection.running = false
-        connection.source?.resume()
+        connection.call = nil
         nextCall(connection)
     }
 
     private func end(_ connection: Connection) {
         guard connections.removeValue(forKey: ObjectIdentifier(connection)) != nil else { return }
-        // A suspended source runs its cancel handler only after a resume.
-        if connection.running { connection.source?.resume() }
+        connection.call?.cancel()
         connection.source?.cancel()
         connection.source = nil
         counted(connections.count)

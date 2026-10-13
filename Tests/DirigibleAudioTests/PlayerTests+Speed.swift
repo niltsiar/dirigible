@@ -20,7 +20,7 @@ struct PlayerSpeedTests {
         return package
     }
 
-    func player(_ package: MixPackage, unit: @escaping SpeedUnitFactory = makeSpeedUnit) -> Player {
+    func player(_ package: MixPackage, unit: @escaping SpeedUnitLookup = findSpeedUnit) -> Player {
         let url = package.url
         return Player(package: { url }, output: .offline, session: package.session, speedUnit: unit)
     }

@@ -1,18 +1,17 @@
 import AVFoundation
 import AudioToolbox
 
-/// Makes the speed unit of a Player, or nil when the unit does not load. Tests give one that
-/// gives nil (decision 0048).
-typealias SpeedUnitFactory = @Sendable () -> AVAudioUnitTimeEffect?
+/// Finds the speed unit, with no instance, so a check on the main actor loads no audio unit.
+/// Nil when the system has no such component. Tests give one that finds nothing (decision 0048).
+typealias SpeedUnitLookup = @Sendable () -> AudioComponentDescription?
 
 /// The time-domain voice unit (`kAudioUnitSubType_AUiPodTimeOther`, rate 0.5 to 2), or nil when
 /// the system has no such component (decision 0048, probe S1).
-@Sendable func makeSpeedUnit() -> AVAudioUnitTimeEffect? {
+@Sendable func findSpeedUnit() -> AudioComponentDescription? {
     var description = AudioComponentDescription(
         componentType: kAudioUnitType_FormatConverter, componentSubType: kAudioUnitSubType_AUiPodTimeOther,
         componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0)
-    guard AudioComponentFindNext(nil, &description) != nil else { return nil }
-    return AVAudioUnitTimeEffect(audioComponentDescription: description)
+    return AudioComponentFindNext(nil, &description) == nil ? nil : description
 }
 
 extension Player {

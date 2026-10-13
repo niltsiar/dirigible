@@ -95,13 +95,9 @@ extension Studio {
     public var playbackStop: PlaybackStop? { play.playbackStop }
     /// The vari-speed of a 1x play (decision 0048).
     public var speed: Speed { play.speed }
-    /// The speed unit loads; else the speed stays 1 (decision 0048).
-    public var canChangeSpeed: Bool {
-        if let loads = speedUnitLoads { return loads }
-        let loads = environment.speedUnit() != nil
-        speedUnitLoads = loads
-        return loads
-    }
+    /// The system has the speed unit; else the speed stays 1 (decision 0048). A lookup only, so
+    /// the main actor loads no audio unit.
+    public var canChangeSpeed: Bool { environment.speedUnit() != nil }
     /// The frame that Previous Clip and Previous Marker look before. During play it is 0.5 s
     /// before the playhead: the playhead is past an edge or a marker when the user hears it, so
     /// a press just after it goes to the one before it (code gate 1).

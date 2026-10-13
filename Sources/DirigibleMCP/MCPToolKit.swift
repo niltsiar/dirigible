@@ -236,6 +236,9 @@ struct Tool: Sendable {
     let description: String
     let params: [any ParamInfo]
     let make: @Sendable (Arguments) throws(ToolError) -> ToolWork
+    /// The text of a tool that reads this Mac, not a package: it takes no argument, and the server
+    /// gives this text before the bridge, so the call never goes to the app.
+    let lines: (@Sendable () -> String)?
 
     /// The end of the description of each edit tool (decision 0046).
     static let undoNote =
@@ -251,9 +254,18 @@ struct Tool: Sendable {
         self.description = saves ? description + Self.undoNote : description
         self.params = params
         self.make = make
+        self.lines = nil
+    }
+
+    /// A tool with no argument that gives `lines`. The app gets no call of it from the bridge, so
+    /// its `make` refuses a direct socket call that gives a package.
+    init(_ name: String, _ description: String, lines: @escaping @Sendable () -> String) {
+        (self.name, self.description, self.params, self.lines) = (name, description, [], lines)
+        self.make = { _ throws(ToolError) in throw ToolError("The tool \(name) takes no package.") }
     }
 
     var inputSchema: [String: Any] {
+        if lines != nil { return ["type": "object", "properties": [String: Any](), "additionalProperties": false] }
         var properties: [String: Any] = [
             "package": [
                 "type": "string",

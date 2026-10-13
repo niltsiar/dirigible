@@ -91,6 +91,11 @@ package struct MCPServer {
             guard let arguments = params["arguments"].map({ $0 as? [String: Any] }) ?? [:] else {
                 return reply(id, error: -32602, "the arguments of tools/call are not an object.")
             }
+            if let lines = tool.lines {
+                let unknown = arguments.filter { !($0.value is NSNull) }.keys.sorted().first
+                let (text, isError) = unknown.map { ("There is no argument \"\($0)\".", true) } ?? (lines(), false)
+                return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])
+            }
             let client = ClientInfo(meta(params)?["io.modelcontextprotocol/clientInfo"]) ?? initializeClient
             let pollCancel = pollCancel
             let control = CallControl(

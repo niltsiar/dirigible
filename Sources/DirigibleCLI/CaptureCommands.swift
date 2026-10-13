@@ -11,15 +11,7 @@ struct Devices: ParsableCommand {
         discussion:
             "One line for each device: the UID, the name, the input channels, and the nominal rate, split by tabs.")
 
-    func run() {
-        for device in InputDevice.all() {
-            let name = device.name.map { $0 == "\t" || $0.isNewline ? " " : $0 }
-            let rate =
-                device.nominalRate.rounded() == device.nominalRate
-                ? "\(Int(device.nominalRate))" : "\(device.nominalRate)"
-            print("\(device.uid)\t\(String(name))\t\(device.channelCount)\t\(rate)")
-        }
-    }
+    func run() { print(deviceLines(InputDevice.all()), terminator: "") }
 }
 
 /// The exit code for a take that stopped early because the disk is almost full (decision 0013).
@@ -223,12 +215,4 @@ struct Apps: ParsableCommand {
             + "sound now (else 0), split by tabs.")
 
     func run() { print(appLines(RunningApp.all()), terminator: "") }
-}
-
-/// The lines of `dirigible apps`. A tab or a line break in a name becomes a space.
-func appLines(_ apps: [RunningApp]) -> String {
-    apps.map { app in
-        let name = String(app.name.map { $0 == "\t" || $0.isNewline ? " " : $0 })
-        return "\(app.bundleID)\t\(name)\t\(app.playing ? 1 : 0)\n"
-    }.joined()
 }

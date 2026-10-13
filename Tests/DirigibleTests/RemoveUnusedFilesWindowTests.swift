@@ -120,4 +120,20 @@ import Testing
         model.alert = nil
         await model.close()
     }
+
+    /// Review item 7: Move to Trash on a studio that became busy says so and moves nothing.
+    @Test func busyMoveShowsAlert() async throws {
+        let (model, studio, window) = try await window()
+        let sheet = try await sheet(model, window)
+        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
+        studio.transport = .leveling
+
+        move.performClick(nil)
+
+        await until("the alert shows") { model.alert != nil }
+        #expect(model.alert == .error(.busy) && strayExists(studio))
+        studio.transport = .idle
+        model.alert = nil
+        await model.close()
+    }
 }

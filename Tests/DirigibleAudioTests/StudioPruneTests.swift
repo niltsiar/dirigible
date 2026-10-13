@@ -88,6 +88,26 @@ struct StudioPruneTests {
         await studio.settle()
     }
 
+    /// C8 in a studio: a failed save moves no file and leaves the session as it was, and the
+    /// error shows as the error of an autosave. Memory and disk do not split.
+    @Test func saveFailureKeepsSession() async throws {
+        let studio = try await open()
+        studio.environment = .test(
+            TestHAL([]),
+            saveSession: { _, _ throws(SessionFileError) in throw .writeFailed(step: "write", errno: ENOSPC) })
+        let scan = try await studio.unusedFiles()
+        let (session, revision) = (studio.session, studio.sessionRevision)
+
+        await #expect(throws: StudioError.unusedFiles(.save(.writeFailed(step: "write", errno: ENOSPC)))) {
+            try await studio.removeUnusedFiles(scan)
+        }
+
+        #expect(studio.session == session && studio.sessionRevision == revision, "the pool entries stay")
+        #expect(exists(spareName) && exists(stray))
+        #expect(studio.saveError == .file(.writeFailed(step: "write", errno: ENOSPC)))
+        await studio.settle()
+    }
+
     /// C7: Undo and Redo after the prune bring back no pool entry of a moved file.
     @Test func undoAfterPruneHasNoMissingMedia() async throws {
         let studio = try await open()

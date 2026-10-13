@@ -96,9 +96,6 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     } catch {
         throw ToolError(error.message(package: path))
     }
-    if let unknown = tracks?.first(where: { session.track($0) == nil }) {
-        throw ToolError(SessionError.unknownTrack(unknown).message)
-    }
     let media: [FileID: MediaFault]
     do throws(POSIXError) {
         media = try checkMedia(session, package: package)

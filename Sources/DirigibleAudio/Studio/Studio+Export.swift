@@ -28,7 +28,7 @@ extension Studio {
     /// before an export (decision 0003). Nil when the check cannot run: the package left its
     /// volume, or the process has no free descriptor.
     public func exportFaults(_ source: ExportSource) async -> [FileID: MediaFault]? {
-        await mediaFaults(session, lock: lock, source: source)
+        await mediaFaults(session, lock: lock, source: source, before: environment.beforeMediaCheck)
     }
 
     /// Exports `source` of the session of now to `url` (decision 0019). An edit during the export

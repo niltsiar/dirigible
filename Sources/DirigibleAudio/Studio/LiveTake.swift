@@ -121,7 +121,7 @@ struct CaptureEnvironment: Sendable {
     /// A step of a take start after the take begins, before the app attach. Tests hold it to stop
     /// the take before the start returns; `live` does nothing.
     var afterStart: @Sendable () async -> Void = {}
-    /// A step at the start of each media check of `Studio.checkMedia`, off the main actor. Tests
+    /// A step at the start of each media check of `Studio.checkMedia` and `Studio.exportFaults`, off the main actor. Tests
     /// hold the check with it and suspend, so no thread of the concurrency pool waits.
     var beforeMediaCheck: @Sendable () async -> Void = {}
     /// Starts the engine of the Player. Tests give one that throws.

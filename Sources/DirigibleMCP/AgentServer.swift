@@ -12,10 +12,15 @@ package struct AgentTarget {
 
     package let studio: Studio
     package let busy: AgentBusy?
-    package let dialog: Bool
+    /// True while the window shows an alert, a sheet, or a panel. A live job reads it again after
+    /// each await.
+    package let dialog: @MainActor () -> Bool
     package let record: Record?
 
-    package init(studio: Studio, busy: AgentBusy? = nil, dialog: Bool = false, record: Record? = nil) {
+    package init(
+        studio: Studio, busy: AgentBusy? = nil, dialog: @escaping @MainActor () -> Bool = { false },
+        record: Record? = nil
+    ) {
         (self.studio, self.busy, self.dialog, self.record) = (studio, busy, dialog, record)
     }
 }

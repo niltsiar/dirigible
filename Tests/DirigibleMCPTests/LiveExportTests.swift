@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 @testable import DirigibleMCP
@@ -24,10 +25,12 @@ struct LiveExportTests {
     }
 
     /// Opens the studio with its export held at chunk 2, and starts a server for it.
-    func open(_ hold: ChunkHold) async throws -> (Studio, AgentServer, SocketFolder) {
+    func open(_ hold: ChunkHold, dialog: @escaping @MainActor () -> Bool = { false }) async throws -> (
+        Studio, AgentServer, SocketFolder
+    ) {
         let studio = try await package.open()
         studio.environment.exportChunk = { hold.step() }
-        let (server, folder) = try liveServer(studio)
+        let (server, folder) = try liveServer(studio, dialog: dialog)
         return (studio, server, folder)
     }
 
@@ -203,7 +206,23 @@ extension LiveExportTests {
     /// Code gate 1 item 1: a window that shows a dialog refuses an agent export with no file.
     @Test func aDialogRefusesTheExport() async throws {
         let studio = try await package.open()
-        let (server, folder) = try liveServer(studio, dialog: true)
+        let (server, folder) = try liveServer(studio) { true }
+        defer { server.stop() }
+
+        let outcome = await send(folder.socket, "export", arguments)
+
+        let text = "\(package.path) is busy in Dirigible: its window shows a question. Try again later."
+        #expect(outcome == .reply(.result(text: text, isError: true)))
+        #expect(try outputs() == [], "the export ran")
+        await studio.settle()
+    }
+
+    /// Code gate 2 item 2: a dialog that opens during the media check refuses the export.
+    @Test func aDialogDuringTheMediaCheckRefusesTheExport() async throws {
+        let studio = try await package.open()
+        let shown = OSAllocatedUnfairLock(initialState: false)
+        studio.environment.beforeMediaCheck = { shown.withLock { $0 = true } }
+        let (server, folder) = try liveServer(studio) { shown.withLock { $0 } }
         defer { server.stop() }
 
         let outcome = await send(folder.socket, "export", arguments)

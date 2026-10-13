@@ -24,10 +24,12 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
             return .result(text: error.code == .ECANCELED ? cancelledMessage : audioReadMessage(error), isError: true)
         }
     case .export(let work):
-        if target.dialog { return .result(text: AgentBusy.dialog.message(package: call.path), isError: true) }
+        if target.dialog() { return .result(text: AgentBusy.dialog.message(package: call.path), isError: true) }
         do throws(ToolError) {
             return .result(
-                text: try await liveExport(work, studio: studio, path: call.path, report: report), isError: false)
+                text: try await liveExport(
+                    work, studio: studio, path: call.path, dialog: target.dialog, report: report),
+                isError: false)
         } catch {
             return .result(text: error.message, isError: true)
         }
@@ -40,7 +42,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
 /// start, the sheet Cancel, or a cancel of the call ends the job with no file (decision 0049).
 @MainActor
 private func liveExport(
-    _ work: ExportWork, studio: Studio, path: String, report: @escaping @Sendable (Double) -> Void
+    _ work: ExportWork, studio: Studio, path: String, dialog: @MainActor () -> Bool,
+    report: @escaping @Sendable (Double) -> Void
 ) async throws(ToolError) -> String {
     let session = studio.session
     let source = try work.source(in: session)
@@ -48,6 +51,8 @@ private func liveExport(
         throw ToolError("cannot check the audio files: the package or a file descriptor is not available.")
     }
     try work.check(faults, in: session)
+    // The user can open a dialog during the media check.
+    if dialog() { throw ToolError(AgentBusy.dialog.message(package: path)) }
     // The item at `out` now is the one that `replace` confirms.
     let confirmed = work.replace ? ConfirmedFile(at: work.url) : nil
     let result: ExportResult

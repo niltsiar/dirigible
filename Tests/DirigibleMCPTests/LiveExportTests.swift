@@ -169,10 +169,11 @@ extension LiveExportTests {
     }
 
     /// Code gate 1 item 4: an export of the window makes an agent export busy, with that cause.
+    /// Code gate 2 item 3: the export sheet of the window is a dialog too, as in the app.
     @Test func aWindowExportGivesItsBusyCause() async throws {
         let hold = ChunkHold(at: 2)
         defer { hold.release() }
-        let (studio, server, folder) = try await open(hold)
+        let (studio, server, folder) = try await open(hold) { true }
         defer { server.stop() }
         let own = package.folder.appending(path: "own.caf")
         let window = Task {

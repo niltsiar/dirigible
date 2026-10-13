@@ -24,6 +24,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
             return .result(text: error.code == .ECANCELED ? cancelledMessage : audioReadMessage(error), isError: true)
         }
     case .export(let work):
+        // A running export shows its sheet too: its cause comes first.
+        if let busy = exportBusy(studio) { return .result(text: busy.message(package: call.path), isError: true) }
         if target.dialog() { return .result(text: AgentBusy.dialog.message(package: call.path), isError: true) }
         do throws(ToolError) {
             return .result(
@@ -67,8 +69,7 @@ private func liveExport(
     } catch .exportYielded {
         throw ToolError(stopMessage(.take, noun: work.noun))
     } catch .busy {
-        let busy: AgentBusy = studio.exportProgress != nil ? .export : studio.pendingTake != nil ? .pendingTake : .task
-        throw ToolError(busy.message(package: path))
+        throw ToolError((exportBusy(studio) ?? .task).message(package: path))
     } catch {
         throw ToolError(error.message(package: path))
     }
@@ -92,4 +93,11 @@ func serverStopMessage(_ work: ToolWork) -> String {
         return "Dirigible stopped its agent server, so the loudness measure stopped."
     }
     return "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
+}
+
+/// The busy cause of an export that `Studio.export` refuses: a running export or a take that is
+/// not finalized.
+@MainActor
+private func exportBusy(_ studio: Studio) -> AgentBusy? {
+    studio.exportProgress != nil ? .export : studio.pendingTake != nil ? .pendingTake : nil
 }

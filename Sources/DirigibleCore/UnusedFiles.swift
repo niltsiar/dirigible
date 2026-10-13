@@ -32,8 +32,8 @@ public struct UnusedFiles: Hashable, Sendable {
 
     /// Reads `Clips/`, `session.xml`, and `Backups/` of `package`. `keptFiles` are the pool paths
     /// of the files that the app clipboard of the same package uses. Throws for an unreadable
-    /// `Clips/` or `session.xml`, and for a backup of a newer version or with a read errno: the
-    /// scan cannot know its clips.
+    /// `Clips/` or `session.xml`, and for a backup of a newer version or with a read errno other
+    /// than ENOENT: the scan cannot know its clips. A backup that is gone keeps nothing.
     public init(scanning session: Session, keptBy keepers: [Session], keptFiles: [String] = [], in package: URL)
         throws(UnusedFilesError)
     {
@@ -56,6 +56,8 @@ public struct UnusedFiles: Hashable, Sendable {
                 held.append(try Self.read(Backup.folder(of: package).appending(path: backup.fileName)))
             } catch {
                 switch error {
+                // A due save of an autosave can delete the oldest backup during the scan.
+                case .readFailed(errno: ENOENT): continue
                 case .unsupportedVersion, .readFailed: throw .backupUnreadable(backup, error)
                 default: damaged.append(backup)
                 }

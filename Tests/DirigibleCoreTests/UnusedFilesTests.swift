@@ -231,4 +231,19 @@ struct UnusedFilesTests {
         #expect(scan.items.map(\.kind) == [.pool("z")])
         #expect(scan.kept == UnusedFiles.Kept(count: 2, bytes: 5))
     }
+
+    /// Review item 5: a listed backup that is gone at its read (here a dangling link, as a backup
+    /// that an autosave deletes during the scan) does not block the scan.
+    @Test func goneBackupDoesNotBlock() throws {
+        let folder = package.appending(path: "Backups")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let gone = Backup(saved: Date(timeIntervalSince1970: 2_000_000_000))
+        try FileManager.default.createSymbolicLink(
+            atPath: folder.appending(path: gone.fileName).path, withDestinationPath: "/missing-\(UUID().uuidString)")
+        try plant("s.wav")
+
+        let scan = try scan(Self.session([]))
+
+        #expect(Self.paths(scan) == ["s.wav"] && scan.damagedBackups.isEmpty)
+    }
 }

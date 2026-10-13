@@ -71,6 +71,9 @@ struct MCPToolTests {
         #expect((byRange?["markers"] as? [[String: Any]])?.map { $0["id"] as? String } == ["m1"], "m1 is at to")
         #expect((byRange?["files"] as? [[String: Any]])?.map { $0["id"] as? String } == ["f", "g"])
         #expect((byRange?["captures"] as? [[String: Any]])?.map { $0["id"] as? String } == ["k1"])
+
+        let unknown = try await info(["tracks": ["nope"]])
+        #expect(unknown.isError && unknown.text == "no track \"nope\".", "\(unknown)")
     }
 
     /// C9a: 6 tracks of 201 clips, each split from the right part of the split before, so the IDs

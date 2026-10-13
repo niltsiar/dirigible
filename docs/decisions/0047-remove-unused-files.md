@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-10-12
 - Accepted: 2026-10-12, after plan gates 1 and 2 of run `2026-10-12-remove-unused-files`.
-- Amends: 0043 (a clip of a backup keeps its file in `Clips/`), 0024 (Only a clip holds a top-level `Clips/` WAV: a clip of `session.xml`, or of a readable backup, or of the app clipboard. A pool entry with no clip does not hold it. A new holder raises the `session.xml` version or keeps its audio out of `Clips/`), 0021 (the WAV that an undo of a placement or a revert leaves in `Clips/` is a stray WAV that the prune can move, unless an undo or redo entry uses it).
+- Amends: 0043 (a clip of a backup keeps its file in `Clips/`), 0024 (Only a clip holds a top-level `Clips/` WAV: a clip of `session.xml`, or of a readable backup, or of the app clipboard. A pool entry with no clip does not hold it. A new holder raises the `session.xml` version or keeps its audio out of `Clips/`), 0021 (the WAV that an undo of a placement or a revert leaves in `Clips/` is a stray WAV that the prune can move, unless an undo or redo entry uses it), 0046 (`file_prune` on a package that the app has open gives the "open in Dirigible" error).
 
 ## Context
 
@@ -23,11 +23,11 @@ Four holders name clip files: the session (in memory and on the disk), the backu
 
 An unused pool entry whose file is not on the disk loses its entry and moves nothing; it is not a failure.
 
-**Order.** One function, `UnusedFiles.prune`, holds the order for the CLI and `Studio`. The prune removes the pool entries, writes `session.xml` with the durable write of 0003 (with the due backup of 0043), and only then moves the files. A crash between the two steps leaves stray WAVs that the next scan finds. When the write fails, no file moves.
+**Order.** `UnusedFiles.prune` holds the order: a sync form for the CLI and the MCP tool, and an async form for the save of `Studio`. The two forms call the same two steps. The prune removes the pool entries, writes `session.xml` with the durable write of 0003 (with the due backup of 0043), and only then moves the files. A crash between the two steps leaves stray WAVs that the next scan finds. When the write fails, no file moves.
 
 **Confirmation.** The app shows the list first. At the confirmation, the prune scans again in its turn of the write chain, and it moves only the files that are in both lists. `Studio` refuses the scan and the prune with `.busy` during a take, a finalize, a placement, a level, and an import. The CLI refuses a pending take, as every edit.
 
-**Commands.** File > Remove Unused Files… (the app, no key; Cancel is the default button), `dirigible file prune [--dry-run]`, and the MCP tool `file_prune` with `dry_run`. `--dry-run` writes nothing.
+**Commands.** File > Remove Unused Files… (the app, no key; Cancel is the default button), `dirigible file prune [--dry-run]`, and the MCP tool `file_prune` with `dry_run`. `--dry-run` writes nothing. `file prune` and `file_prune` run the same body and give the same lines. On a package that the app has open, `file_prune` gives the "open in Dirigible" error of 0046, as `backup_revert` does: the window holds the undo entries and the clipboard that keep files, and File > Remove Unused Files sees them.
 
 **No version change.** The prune adds no data to `session.xml` (0024).
 

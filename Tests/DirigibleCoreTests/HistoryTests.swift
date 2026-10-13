@@ -226,4 +226,36 @@ struct HistoryTests {
         try history.undo()
         #expect(history.session.track("t1")?.name == "Host")
     }
+
+    /// C7 (decision 0047 D3): the prune removes pool entries from the session and from each entry,
+    /// records no entry, and counts one revision. A file that a clip of an entry uses throws.
+    @Test mutating func removeUnusedFilesKeepsEntries() throws {
+        try history.edit {
+            try $0.addTrack("a", name: "A", layout: .mono)
+            for id: FileID in ["h", "z"] {
+                try $0.addFile(AudioFile(id: id, path: "\(id.rawValue).wav", layout: .mono, length: 48_000))
+            }
+            try $0.place(Clip(id: "c", file: "h", start: 0, offset: 0, length: 1_000), on: "a")
+        }
+        try history.edit { try $0.removeClips(["c"]) }
+        try history.edit { try $0.renameTrack("a", to: "B") }
+        try history.undo()
+        let (revision, title) = (history.revision, history.session.track("a")?.name)
+        let before = history
+
+        #expect(throws: SessionError.fileInUse("h")) { try history.removeUnusedFiles(["h", "z"]) }
+        #expect(history == before, "a refused removal changes nothing")
+
+        try history.removeUnusedFiles(["z"])
+
+        #expect(history.revision == revision + 1)
+        #expect(history.canUndo && history.canRedo, "no entry is added or lost")
+        #expect(history.session.files["z"] == nil && history.session.track("a")?.name == title)
+        #expect(history.entries.count == 3 && history.entries.allSatisfy { $0.files["z"] == nil })
+        try history.redo()
+        #expect(history.session.track("a")?.name == "B" && history.session.files["z"] == nil)
+        try history.undo()
+        try history.undo()
+        #expect(history.session.files["z"] == nil && history.session.files["h"] != nil)
+    }
 }

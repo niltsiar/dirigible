@@ -91,17 +91,15 @@ package struct MCPServer {
             guard let arguments = params["arguments"].map({ $0 as? [String: Any] }) ?? [:] else {
                 return reply(id, error: -32602, "the arguments of tools/call are not an object.")
             }
-            if let lines = tool.lines {
-                let unknown = arguments.filter { !($0.value is NSNull) }.keys.sorted().first
-                let (text, isError) = unknown.map { ("There is no argument \"\($0)\".", true) } ?? (lines(), false)
-                return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])
-            }
             let client = ClientInfo(meta(params)?["io.modelcontextprotocol/clientInfo"]) ?? initializeClient
             let pollCancel = pollCancel
             let control = CallControl(
                 token: meta(params)?["progressToken"], interval: pollInterval, send: send,
                 poll: { read in requestID.map { pollCancel($0, read) } ?? false }, step: step)
-            let (text, isError) = route?(name, arguments, client, control) ?? tool.call(arguments, control: control)
+            // A local tool reads this Mac, so its call never goes to the app.
+            var routed: (text: String, isError: Bool)?
+            if case .package = tool.body { routed = route?(name, arguments, client, control) }
+            let (text, isError) = routed ?? tool.call(arguments, control: control)
             // MCP 2026-07-28: no response for a cancelled request.
             if control.cancelSeen { return nil }
             return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])

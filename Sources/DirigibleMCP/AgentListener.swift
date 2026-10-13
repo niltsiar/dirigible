@@ -287,10 +287,14 @@ final class AgentListener: @unchecked Sendable {
         guard let tool = Tool.all.first(where: { $0.name == name }) else {
             return .failure(ToolError("no tool \(name)."))
         }
+        // The bridge sends no call of a local tool.
+        guard case .package(let params, let make) = tool.body else {
+            return .failure(ToolError("The tool \(name) does not run in the app."))
+        }
         let client = ClientInfo(object["client"]) ?? ClientInfo()
         do throws(ToolError) {
-            let checked = try Arguments(arguments, params: tool.params)
-            let work = try tool.make(checked)
+            let checked = try Arguments(arguments, params: params)
+            let work = try make(checked)
             return .success(
                 AgentCall(
                     path: checked.path, identity: packageIdentity(checked.package), work: work,

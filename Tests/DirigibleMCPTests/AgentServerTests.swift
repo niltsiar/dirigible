@@ -20,15 +20,15 @@ struct AgentServerTests {
     }
 
     /// W3: the bridge never sends `devices` or `apps`, so the app refuses a direct socket call of
-    /// one: with no `package` as any call, and with `package` because the tool takes none.
+    /// one, with or without `package`.
     @Test func aDirectSourceCallIsRefused() {
         func refusal(_ arguments: [String: Any]) -> String? {
             let line = MCPServer.encode(["tool": "devices", "arguments": arguments])
             guard case .failure(let error) = AgentListener.check(Data(line.utf8)) else { return nil }
             return error.message
         }
-        #expect(refusal([:]) == "The argument \"package\" is missing.")
-        #expect(refusal(["package": "/x.dirigible"]) == "The tool devices takes no package.")
+        #expect(refusal([:]) == "The tool devices does not run in the app.")
+        #expect(refusal(["package": "/x.dirigible"]) == "The tool devices does not run in the app.")
     }
 
     /// C1: on, the socket has mode 0600 in a folder with mode 0700, and the agent counts; off, the

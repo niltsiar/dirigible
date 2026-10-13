@@ -123,6 +123,26 @@ struct LiveExportTests {
 }
 
 extension LiveExportTests {
+    /// Code gate 1 item 3: a stop of the agent server ends the export with its own text, not the
+    /// text of a cancel that the agent did not send.
+    @Test func aServerStopGivesItsText() async throws {
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        let (studio, server, folder) = try await open(hold)
+        let (socket, arguments) = (folder.socket, arguments)
+        let call = Task { await send(socket, "export", arguments) }
+        await until("the export does not hold") { hold.isHeld }
+
+        server.stop()
+        hold.release()
+        let outcome = await call.value
+
+        let text = "Dirigible stopped its agent server, so the export stopped. No file was written."
+        #expect(outcome == .reply(.result(text: text, isError: true)))
+        #expect(try outputs() == [], "a stopped export left a file")
+        await studio.settle()
+    }
+
     /// Code gate 1 item 1: a window that shows a dialog refuses an agent export with no file.
     @Test func aDialogRefusesTheExport() async throws {
         let studio = try await package.open()

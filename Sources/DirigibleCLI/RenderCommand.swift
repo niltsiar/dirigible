@@ -9,7 +9,8 @@ struct Render: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Render the session mix to a 32-bit float stereo CAF file at the session rate.",
         discussion: """
-            Exit 2 when the package cannot be read, the output path exists, or the write fails; a failed \
+            Exit 64 when --out is in a .dirigible package. Exit 2 when the package cannot be read, the \
+            output path exists, or the write fails; a failed \
             render leaves no output file. A missing or short audio file renders as silence, with one warning \
             line on stderr, and exit 0.
             """)
@@ -19,6 +20,10 @@ struct Render: ParsableCommand {
     @Option(parsing: .unconditional, help: "The first frame. The default is 0.") var from = 0
     @Option(parsing: .unconditional, help: "The frame after the last frame. The default is the session end.")
     var to: Int?
+
+    func validate() throws {
+        try checkOutsidePackages(out)
+    }
 
     func run() throws {
         let session = try readPackage(package)
@@ -60,6 +65,15 @@ func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
     // Control-C: the exit status of the default action, with no message.
     guard let message = ExportText.failureMessage(error, out: out, noun: noun) else { return ExitCode(128 + SIGINT) }
     return fail(message, code: packageError)
+}
+
+/// Refuses an `--out` inside a session package, as a usage error.
+func checkOutsidePackages(_ out: String) throws(ValidationError) {
+    do throws(ToolError) {
+        try ExportText.checkOutsidePackages(URL(filePath: out))
+    } catch {
+        throw ValidationError(error.message)
+    }
 }
 
 /// Writes each line on stderr, with a line break.

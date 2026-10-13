@@ -8,7 +8,8 @@ struct Export: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Export the session mix to WAV, AAC (.m4a), MP3, or FLAC.",
         discussion: """
-            The extension of --out gives the format: .wav, .m4a, .mp3, or .flac. Exit 2 when the package cannot \
+            The extension of --out gives the format: .wav, .m4a, .mp3, or .flac. Exit 64 when --out is in a \
+            .dirigible package. Exit 2 when the package cannot \
             be read, the output path exists (unless --replace), a file in the range is missing, short, or \
             unreadable (unless --allow-missing), or the write fails; a failed export leaves no output file \
             and the old file does not change. A file that the check finds whole but the export cannot read \

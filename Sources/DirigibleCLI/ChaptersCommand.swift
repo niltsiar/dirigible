@@ -21,7 +21,8 @@ struct ChaptersExport: ParsableCommand {
             the file. A chapter at or after the session end is past the audio: a warning names it, and \
             the file has it only when --to is after it. A chapter that starts at the millisecond of the \
             chapter before it is not in the file, and a warning names it. Exit 1 when the range has no chapter, or when \
-            the session has no audio and no --to: the command writes no empty file. Exit 2 \
+            the session has no audio and no --to: the command writes no empty file. Exit 64 when --out \
+            is in a .dirigible package. Exit 2 \
             when the package cannot be read, --out or an image file exists (unless --replace), or the \
             write fails. The command writes the images first, then the file, each with an atomic \
             write: a failed write leaves the old file or no file, and it can leave new images.
@@ -38,6 +39,7 @@ struct ChaptersExport: ParsableCommand {
         guard URL(filePath: out).pathExtension.lowercased() == "json" else {
             throw ValidationError("--out must end in .json.")
         }
+        try checkOutsidePackages(out)
     }
 
     func run() throws {

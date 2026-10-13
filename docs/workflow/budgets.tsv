@@ -61,6 +61,6 @@ path	words	decision
 .claude/skills/writing-for-agents/SKILL.md	1777	baseline
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
-AGENTS.md	1314	2026-10-13-test-speed S3 (decisions.tsv 2026-10-13T02:43: the push-check-only make test row, +9 words)
+AGENTS.md	1318	2026-10-13-test-speed eval fix cycle 2 (decisions.tsv 2026-10-13T06:06: the docs-only pick of make check-changed, +5 words)
 CODING_STANDARDS.md	290	code gate 2 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:53): wc -w x 1.1, up to the next 10, of the final count 261
-TOTAL	31724	2026-10-13-test-speed eval fix (decisions.tsv 2026-10-13T06:01: the push check command in Phase 4 step 3, +2 words)
+TOTAL	31729	2026-10-13-test-speed eval fix cycle 2 (decisions.tsv 2026-10-13T06:06: the docs-only pick of make check-changed, +5 words)

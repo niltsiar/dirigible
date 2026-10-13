@@ -245,7 +245,14 @@ extension SessionWindow {
     func transport(_ command: TransportCommand) {
         leafCalls?.append("\(command)")
         commitInspector()
-        Task { await studio?.perform(command) }
+        guard let studio else { return }
+        Task {
+            // The last speed is an app preference (decision 0048): the studio reads it and gives it back.
+            guard case .speed = command, let app else { return await studio.perform(command) }
+            studio.lastSpeed = app.lastSpeed
+            await studio.perform(command)
+            app.lastSpeed = studio.lastSpeed
+        }
     }
 
     /// Stop and Command-period: a take stops and finalizes, else the play stops and keeps the

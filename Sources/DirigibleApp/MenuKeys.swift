@@ -35,6 +35,12 @@ enum MenuKeys {
     static let inspector = KeyboardShortcut("i", modifiers: [.command, .option])
     /// View > Snap (snap run): a plain key, so a focused text field gets it first.
     static let snap = KeyboardShortcut("n", modifiers: [])
+    /// Transport > Playback Speed (decision 0048): the Hindenburg keys. The items match the
+    /// characters, so ">" and "<" are Shift-Period and Shift-Comma on a US keyboard and the key
+    /// left of Z on a Spanish ISO keyboard. Plain keys, so a focused text field gets them first.
+    static let variSpeed = KeyboardShortcut(".", modifiers: [])
+    static let faster = KeyboardShortcut(">", modifiers: [])
+    static let slower = KeyboardShortcut("<", modifiers: [])
 
     /// The keys of the items that macOS and SwiftUI add: Undo, Redo, Close, Quit, Hide, Hide
     /// Others, Minimize, Enter Full Screen, Show/Hide Toolbar (`ToolbarCommands`), and Settings.
@@ -63,7 +69,7 @@ enum MenuKeys {
             newSession, open, startWindow, addTrack, record, stop, monitor, monitorTrack, retry, play, stopAndReturn,
             reverse, pause,
             forward, slowReverse, slowForward, start, end, previousClip, nextClip, zoomInEquals, loudnessMeter,
-            inspector, snap,
+            inspector, snap, variSpeed, faster, slower,
         ] + system
 }
 
@@ -94,5 +100,15 @@ enum TransportMenu {
             Item(title: .menuTransportPrevious, command: .seek(.previousClip), key: MenuKeys.previousClip),
             Item(title: .menuTransportNext, command: .seek(.nextClip), key: MenuKeys.nextClip),
         ],
+    ]
+}
+
+/// The plain-key items of Transport > Playback Speed (decision 0048). The submenu adds a radio
+/// item for each speed.
+enum SpeedMenu {
+    static let items: [TransportMenu.Item] = [
+        TransportMenu.Item(title: .menuTransportVariSpeed, command: .speed(.toggle), key: MenuKeys.variSpeed),
+        TransportMenu.Item(title: .menuTransportFaster, command: .speed(.faster), key: MenuKeys.faster),
+        TransportMenu.Item(title: .menuTransportSlower, command: .speed(.slower), key: MenuKeys.slower),
     ]
 }

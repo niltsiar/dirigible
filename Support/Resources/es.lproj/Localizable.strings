@@ -246,6 +246,11 @@
 "menu.transport.end" = "Ir al final";
 "menu.transport.previous" = "Borde de clip anterior";
 "menu.transport.next" = "Borde de clip siguiente";
+"menu.transport.speed" = "Velocidad de reproducción";
+"menu.transport.speed.toggle" = "Velocidad variable";
+"menu.transport.speed.faster" = "Más rápido";
+"menu.transport.speed.slower" = "Más lento";
+"speed.spoken" = "%@ veces";
 "menu.window.start" = "Ventana de inicio";
 "transport.record" = "Grabar";
 "transport.stop" = "Detener";
@@ -422,6 +427,7 @@
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Niveles";
 "toolbar.time" = "Cursor";
+"toolbar.speed" = "Velocidad";
 "toolbar.zoom.fit" = "Ajustar";
 "toolbar.export" = "Exportar";
 "toolbar.inspector" = "Inspector";

@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleAudio
 import DirigibleCore
 import Observation
 
@@ -14,6 +15,7 @@ import Observation
     private weak var model: SessionWindow?
     private(set) weak var window: NSWindow?
     private(set) weak var time: TimeDisplay?
+    private(set) weak var speedPopUp: SpeedPopUp?
     /// The loop turns, for the tests.
     private(set) var turns = 0
     /// True while an observation waits for a change: a direct `update()` then arms no second one.
@@ -159,6 +161,7 @@ import Observation
                 timeWritten = now
             }
         }
+        speedPopUp?.speed = state.shown.speed
         if let window, window.subtitle != state.subtitle { window.subtitle = state.subtitle }
         // A hidden trailing accessory still draws (probe), so the mark is added and removed.
         if let window, (agentMark.parent != nil) != state.agentConnected {
@@ -180,6 +183,14 @@ import Observation
         guard let id = ToolbarItemID(rawValue: item.itemIdentifier.rawValue), id != .time else { return }
         let enabled = state.enabled.contains(id)
         if item.isEnabled != enabled { item.isEnabled = enabled }
+        if id == .speed {
+            if let popUp = item.view as? NSPopUpButton, popUp.isEnabled != enabled { popUp.isEnabled = enabled }
+            for menuItem in item.menuFormRepresentation?.submenu?.items ?? [] {
+                let value: NSControl.StateValue = menuItem.tag == state.shown.speed.rawValue ? .on : .off
+                if menuItem.state != value { menuItem.state = value }
+            }
+            return
+        }
         guard let button = item.view as? NSButton else { return }
         if button.isEnabled != enabled { button.isEnabled = enabled }
         let value: NSControl.StateValue = state.on.contains(id) ? .on : .off
@@ -208,6 +219,10 @@ import Observation
         item.visibilityPriority = id.priority
         // The chrome sets the states from the window state; validation runs only after events.
         item.autovalidates = false
+        if id == .speed {
+            speedItem(item, inserted: flag)
+            return item
+        }
         guard let symbol = id.symbol else {
             let display = TimeDisplay()
             if flag {
@@ -237,6 +252,37 @@ import Observation
         }
         if let model { apply(ChromeState(model: model), to: item) }
         return item
+    }
+
+    /// The speed pop-up, and a submenu of the speeds in the overflow menu (decision 0048).
+    private func speedItem(_ item: NSToolbarItem, inserted: Bool) {
+        let popUp = SpeedPopUp()
+        popUp.target = self
+        popUp.action = #selector(pickSpeed(_:))
+        if inserted { speedPopUp = popUp }
+        item.view = popUp
+        let submenu = NSMenu()
+        for speed in Speed.allCases {
+            let menuItem = NSMenuItem(title: speedText(speed), action: #selector(pickSpeed(_:)), keyEquivalent: "")
+            menuItem.tag = speed.rawValue
+            menuItem.target = self
+            submenu.addItem(menuItem)
+        }
+        let menuItem = NSMenuItem(title: ToolbarItemID.speed.label.text, action: nil, keyEquivalent: "")
+        menuItem.submenu = submenu
+        item.menuFormRepresentation = menuItem
+        if let model {
+            let state = ChromeState(model: model)
+            popUp.speed = state.shown.speed
+            apply(state, to: item)
+        }
+    }
+
+    /// A pick of the pop-up or of its overflow submenu: the tag is the raw value of the speed.
+    @objc func pickSpeed(_ sender: Any?) {
+        let tag = (sender as? NSPopUpButton)?.selectedTag() ?? (sender as? NSMenuItem)?.tag
+        guard let model, let tag, let speed = Speed(rawValue: tag) else { return }
+        model.transport(.speed(.set(speed)))
     }
 
     /// The button of a push-on item, with no target.

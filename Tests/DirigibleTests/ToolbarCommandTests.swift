@@ -18,17 +18,17 @@ struct ToolbarMenuTests {
         .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I", .snap: "N",
     ]
 
-    /// A5: each item but the time display has a command, and the menu tables give that command a
-    /// title and a key.
+    /// A5: each item but the time display and the speed pop-up (a pop-up of picks, decision 0048)
+    /// has a command, and the menu tables give that command a title and a key.
     @Test func eachToolbarItemIsAMenuItemWithAKey() {
-        for id in ToolbarItemID.allCases where id != .time {
+        for id in ToolbarItemID.allCases where ![.time, .speed].contains(id) {
             guard let command = id.command else {
                 Issue.record("\(id) has no command")
                 continue
             }
             #expect(keyText(command.menuItem.key) == Self.keys[id], "key of \(id)")
         }
-        #expect(ToolbarItemID.time.command == nil)
+        #expect(ToolbarItemID.time.command == nil && ToolbarItemID.speed.command == nil)
         #expect(WindowCommand.transport(.playStop).menuItem.title == .menuTransportPlay)
         #expect(WindowCommand.transport(.seek(.end)).menuItem.title == .menuTransportEnd)
         #expect(WindowCommand.stop.menuItem.title == .menuTransportStop)
@@ -97,7 +97,7 @@ struct ToolbarMenuTests {
     @Test func theToolbarAndTheMenuReachTheSameLeaf() async throws {
         let (model, studio, window, chrome) = try await open()
         studio.environment.microphoneAccess = { .denied }
-        let pasteboard: Set<ToolbarItemID> = [.time, .cut, .copy, .paste, .delete]
+        let pasteboard: Set<ToolbarItemID> = [.time, .speed, .cut, .copy, .paste, .delete]
         for id in ToolbarItemID.allCases where !pasteboard.contains(id) {
             let command = try #require(id.command)
             model.leafCalls = []

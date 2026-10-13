@@ -147,8 +147,32 @@ struct DirigibleApp: App {
                         // Stop has Command, so it can be off: then Command-period reaches a sheet.
                         if group == 0 { windowButton(.stop).disabled(app.key?.shown.isRunning != true) }
                     }
+                    Divider()
+                    speedMenu
                 }
             }
+    }
+
+    /// Transport > Playback Speed (decision 0048): the plain-key items, never disabled, then one
+    /// radio item per speed. The radio items are off when the speed unit does not load.
+    private var speedMenu: some View {
+        Menu(L10n.menuTransportSpeed.key) {
+            // The keys stay the typed characters: with the automatic localization, AppKit moved ">"
+            // and "<" to ":" and ";" of the Spanish layout (A3 on-screen check).
+            ForEach(SpeedMenu.items, id: \.command) { item in
+                Button(item.title.key) { app.transport(item.command) }
+                    .keyboardShortcut(item.key.key, modifiers: item.key.modifiers, localization: .custom)
+            }
+            Divider()
+            ForEach(Speed.allCases, id: \.self) { speed in
+                Toggle(
+                    speedText(speed),
+                    isOn: Binding(
+                        get: { app.key?.shown.speed == speed }, set: { _ in app.key?.transport(.speed(.set(speed))) })
+                )
+                .disabled(app.key?.shown.canChangeSpeed != true)
+            }
+        }
     }
 
     /// A window action: the toolbar item of the command calls the same `run(_:)` (decision 0023).

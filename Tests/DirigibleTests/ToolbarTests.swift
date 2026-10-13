@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 import SwiftUI
@@ -16,7 +17,7 @@ struct ToolbarValueTests {
                 "track.add", "record.monitor", "transport.stop", "transport.play", "transport.record",
                 "transport.time", "transport.start", "transport.end", "edit.split", "edit.cut", "edit.copy",
                 "edit.paste", "edit.delete", "view.zoom.out", "view.zoom.in", "view.zoom.session", "file.export",
-                "view.inspector", "view.snap",
+                "view.inspector", "view.snap", "transport.speed",
             ])
     }
 
@@ -25,7 +26,8 @@ struct ToolbarValueTests {
         #expect(
             ToolbarItemID.defaults.map(\.rawValue) == [
                 "track.add", "NSToolbarSpaceItem", "record.monitor", "transport.start", "transport.stop",
-                "transport.play", "transport.record", "transport.time", "NSToolbarSpaceItem", "edit.split",
+                "transport.play", "transport.record", "transport.time", "transport.speed", "NSToolbarSpaceItem",
+                "edit.split",
                 "edit.delete", "NSToolbarFlexibleSpaceItem", "view.zoom.out", "view.zoom.in", "view.zoom.session",
                 "view.snap", "file.export", "view.inspector",
             ])
@@ -59,6 +61,7 @@ struct ToolbarValueTests {
             .export: boost,
             .addTrack: .standard, .start: .standard, .end: .standard, .split: .low, .cut: .low, .copy: .low,
             .paste: .low, .delete: .low, .zoomOut: .low, .zoomIn: .low, .zoomToSession: .low, .snap: .low,
+            .speed: .low,
         ]
         for id in ToolbarItemID.allCases { #expect(id.priority == priorities[id], "priority of \(id)") }
     }
@@ -126,6 +129,33 @@ struct ToolbarValueTests {
 
         #expect(window.toolbar === toolbar, "a SwiftUI update replaced the toolbar")
         #expect(window.title == "toolbar")
+        await model.close()
+    }
+
+    /// V9 (run 2026-10-13-preroll-varispeed): the speed pop-up shows "1×", then the speed in the
+    /// accent color, and a pick sets the speed. VoiceOver reads its label and its value. A chrome
+    /// turn with no speed change does not change the title.
+    @Test func speedPopUpShowsTheSpeed() async throws {
+        let (model, _, chrome) = try await open("speed")
+        let studio = try #require(model.studio)
+        let popUp = try #require(chrome.speedPopUp)
+        await until("the pop-up is on after the first chrome turn") { popUp.isEnabled }
+        #expect(popUp.titleOfSelectedItem == speedText(.one))
+        #expect(popUp.accessibilityLabel() == L10n.menuTransportSpeed.text)
+        #expect(popUp.selectedItem?.attributedTitle == nil, "1x has the normal text color")
+
+        await studio.perform(.speed(.set(.x150)))
+        await until("the pop-up shows 1.5") { popUp.titleOfSelectedItem == speedText(.x150) }
+        let color = popUp.selectedItem?.attributedTitle?.attribute(.foregroundColor, at: 0, effectiveRange: nil)
+        #expect(color as? NSColor == .controlAccentColor, "another speed has the accent color")
+        #expect(popUp.accessibilityValue() as? String == speedSpokenText(.x150))
+        let changes = popUp.changes
+        for _ in 0..<5 { chrome.update() }
+        #expect(popUp.changes == changes, "a turn with no speed change changed the pop-up")
+
+        popUp.selectItem(at: try #require(Speed.allCases.firstIndex(of: .x200)))
+        popUp.sendAction(popUp.action, to: popUp.target)
+        await until("a pick sets the speed") { studio.speed == .x200 }
         await model.close()
     }
 

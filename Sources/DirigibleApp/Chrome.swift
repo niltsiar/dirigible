@@ -25,6 +25,8 @@ enum ToolbarItemID: String, CaseIterable {
     case export = "file.export"
     case inspector = "view.inspector"
     case snap = "view.snap"
+    /// The vari-speed pop-up (decision 0048).
+    case speed = "transport.speed"
 
     static let toolbar = NSToolbar.Identifier("dirigible.session")
 
@@ -32,13 +34,14 @@ enum ToolbarItemID: String, CaseIterable {
     /// Copy, Paste, and Go to End are in the customization palette only.
     static let defaults: [NSToolbarItem.Identifier] =
         [addTrack.identifier, .space]
-        + [monitor, start, stop, play, record, time].map(\.identifier) + [.space]
+        + [monitor, start, stop, play, record, time, speed].map(\.identifier) + [.space]
         + [split, delete].map(\.identifier) + [.flexibleSpace]
         + [zoomOut, zoomIn, zoomToSession, snap, export, inspector].map(\.identifier)
 
     var identifier: NSToolbarItem.Identifier { NSToolbarItem.Identifier(rawValue) }
 
-    /// The SF Symbol: unique per item, each macOS 13 or older. The time display has none.
+    /// The SF Symbol: unique per item, each macOS 13 or older. The time display and the speed
+    /// pop-up have none.
     var symbol: String? {
         switch self {
         case .addTrack: "waveform.path.badge.plus"
@@ -46,7 +49,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .stop: "stop.fill"
         case .play: "play.fill"
         case .record: "circle.fill"
-        case .time: nil
+        case .time, .speed: nil
         case .start: "backward.end.fill"
         case .end: "forward.end.fill"
         case .split: "square.and.line.vertical.and.square"
@@ -72,15 +75,15 @@ enum ToolbarItemID: String, CaseIterable {
         case .monitor, .export:
             NSToolbarItem.VisibilityPriority(rawValue: NSToolbarItem.VisibilityPriority.standard.rawValue + 500)
         case .addTrack, .start, .end: .standard
-        case .split, .cut, .copy, .paste, .delete, .zoomOut, .zoomIn, .zoomToSession, .snap: .low
+        case .split, .cut, .copy, .paste, .delete, .zoomOut, .zoomIn, .zoomToSession, .snap, .speed: .low
         }
     }
 
     /// A push-on-push-off button: its on state is a shape, not only a color.
     var isToggle: Bool { [.record, .monitor, .play, .inspector, .snap].contains(self) }
 
-    /// The command of the item. Nil only for the time display: a new item with no command does
-    /// not compile (F16).
+    /// The command of the item. Nil only for the time display and the speed pop-up, whose picks
+    /// run `.transport(.speed(.set(_)))`: a new item with no command does not compile (F16).
     var command: WindowCommand? {
         switch self {
         case .addTrack: .addTrack
@@ -88,7 +91,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .stop: .stop
         case .play: .transport(.playStop)
         case .record: .record
-        case .time: nil
+        case .time, .speed: nil
         case .start: .transport(.seek(.start))
         case .end: .transport(.seek(.end))
         case .split: .timeline(.split)
@@ -114,6 +117,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .play: .transportPlay
         case .record: .transportRecord
         case .time: .toolbarTime
+        case .speed: .toolbarSpeed
         case .start: .menuTransportStart
         case .end: .menuTransportEnd
         case .split: .menuEditSplit
@@ -212,6 +216,10 @@ struct ShownChrome: Equatable {
     /// A take or a play runs: the Stop item and the Stop menu item are on. When nothing runs,
     /// Command-period reaches a sheet (decision 0023).
     var isRunning = false
+    /// The vari-speed and whether the speed unit loads: the radio items of Transport > Playback
+    /// Speed read them (decision 0048).
+    var speed = Speed.one
+    var canChangeSpeed = false
 }
 
 /// Everything that the AppKit chrome of a window shows, derived from the window state in one
@@ -244,6 +252,7 @@ struct ChromeState: Equatable {
         enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession, .snap, .inspector])
         if model.canEdit {
             enabled.formUnion([.addTrack, .play, .start, .end, .split, .cut, .copy, .paste, .delete])
+            if studio.canChangeSpeed { enabled.insert(.speed) }
             if model.isOn(.export) { enabled.insert(.export) }
         }
         if recording { on.insert(.record) }
@@ -295,7 +304,9 @@ struct ChromeState: Equatable {
         if let shown = model.consentExpired, shown.revision == studio.sessionRevision {
             banners.append(.consentExpired(agent: shown.agent))
         }
-        shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
+        shown = ShownChrome(
+            recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing, speed: studio.speed,
+            canChangeSpeed: studio.canChangeSpeed)
     }
 }
 

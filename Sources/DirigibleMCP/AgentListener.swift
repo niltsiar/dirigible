@@ -78,7 +78,7 @@ final class AgentListener: @unchecked Sendable {
     /// Takes the lock beside `socket`, replaces an old socket file, binds, and listens. It runs
     /// no blocking call. Open after the completion of the stop before it: the old lock is free
     /// then. `handle` answers each call; `counted` gets the number of connections. While a call
-    /// runs, a frame goes to its bridge at least once in `keepAlive` (decision 0049).
+    /// runs, a frame goes to its bridge at least once in `keepAlive` while the call is long (decision 0049).
     static func open(
         socket: URL, handle: @escaping Handle, counted: @escaping @Sendable (Int) -> Void,
         keepAlive: Duration = .seconds(10)
@@ -198,12 +198,15 @@ final class AgentListener: @unchecked Sendable {
         connection.calls += 1
         (connection.running, connection.gate, connection.last) = (connection.calls, ProgressGate(), 0)
         let (handle, serial, number) = (handle, connection.serial, connection.calls)
-        let timer = DispatchSource.makeTimerSource(queue: queue)
-        let interval = DispatchTimeInterval.nanoseconds(Int(keepAlive / .nanoseconds(1)))
-        timer.schedule(deadline: .now() + interval, repeating: interval)
-        timer.setEventHandler { [weak self] in self?.keptAlive(serial, number) }
-        timer.resume()
-        connection.keepAlive = timer
+        // A short call sends no frame, so a stalled main actor still gives the lost-call text.
+        if case .success(let call) = checked, call.work.isLong {
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            let interval = DispatchTimeInterval.nanoseconds(Int(keepAlive / .nanoseconds(1)))
+            timer.schedule(deadline: .now() + interval, repeating: interval)
+            timer.setEventHandler { [weak self] in self?.keptAlive(serial, number) }
+            timer.resume()
+            connection.keepAlive = timer
+        }
         let report: @Sendable (Double) -> Void = { [weak self] fraction in
             guard let self else { return }
             queue.async { self.progressed(serial, number, fraction) }

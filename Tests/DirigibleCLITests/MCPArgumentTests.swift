@@ -10,7 +10,7 @@ extension MCPToolTests {
         if let words = schema["enum"] as? [String] { return words[0] }
         switch schema["type"] as? String {
         case "integer": return 1
-        case "number": return 0
+        case "number": return 1
         case "boolean": return false
         case "array": return (schema["items"] as? [String: Any])?["type"] as? String == "integer" ? [1] : ["a"]
         default: return "a"
@@ -27,6 +27,28 @@ extension MCPToolTests {
             let db = properties?["db"] ?? [:]
             #expect(
                 db["minimum"] as? Double == -96 && db["maximum"] as? Double == 96, "C2b: \(name) db has the range")
+        }
+    }
+
+    /// C2 (decision 0048): `record` checks its arguments with the rules of `dirigible record`. A
+    /// valid call reaches the file refusal.
+    @Test func recordArguments() async throws {
+        let pkg = package.path
+        let refused = "To record, open \(pkg) in Dirigible"
+        let seconds = "The seconds must be more than 0 and 86400 (24 h) or less."
+        let cases: [([String: Any], String)] = [
+            (["seconds": 86_400, "arm": ["a"]], refused),
+            (["seconds": 86_400.001, "arm": ["a"]], seconds),
+            (["seconds": 0, "arm": ["a"]], seconds),
+            (["seconds": 1, "arm": [String]()], "\"arm\" must be an array of strings with one item or more"),
+            (["seconds": 1, "arm": ["a"], "playhead": -1], "\"playhead\" must be an integer, 0 or more"),
+            (["seconds": 1, "arm": ["a"], "playhead": 0], refused),
+        ]
+        let answers = try await mcp(
+            cases.enumerated().map { toolCall($0 + 1, "record", $1.0.merging(["package": pkg]) { $1 }) })
+        for (index, (arguments, text)) in cases.enumerated() {
+            let (got, isError) = toolResult(answer(answers, id: index + 1))
+            #expect(isError && got.contains(text), "\(arguments): \(got)")
         }
     }
 

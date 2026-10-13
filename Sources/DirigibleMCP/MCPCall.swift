@@ -87,6 +87,8 @@ private func perform(_ work: ToolWork, path: String) throws(ToolError) -> String
         let text = (output.lines + output.failed).joined(separator: "\n")
         guard output.failed.isEmpty else { throw ToolError(text) }
         return text
+    case .record:
+        throw ToolError(recordOnFilesMessage(path))
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in

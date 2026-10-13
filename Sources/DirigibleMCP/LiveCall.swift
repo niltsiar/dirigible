@@ -47,7 +47,8 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
         case .paste, .revert, .prune: return refusedOpen
-        case .create: return .notOpen
+        // The window path of decision 0048 comes in the next slice; the files refuse it.
+        case .create, .record: return .notOpen
         }
     } catch .busy {
         return .result(text: (target.busy ?? .task).message(package: path), isError: true)

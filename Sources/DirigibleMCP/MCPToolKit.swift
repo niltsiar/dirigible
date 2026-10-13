@@ -32,6 +32,8 @@ enum ToolWork: Sendable {
     case episodeInfo
     /// `file_prune`: the scan, and with `dryRun` false the moves to the Trash, under the lock.
     case prune(dryRun: Bool)
+    /// `record`: only the app records, after the consent of the user (decision 0048).
+    case record(RecordRequest)
 }
 
 /// The JSON Schema of one property, with JSON values only.

@@ -215,8 +215,7 @@ extension WindowAlert {
         case .confirmStopAndClose: L10n.alertCloseRecording.text
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text
         case .confirmRemoveTracks: L10n.alertTrackRemove.text
-        case .noUnusedFiles(let kept):
-            ([L10n.alertUnusedNone.text] + [L10n.keptLine(kept)].compactMap(\.self)).joined(separator: "\n\n")
+        case .noUnusedFiles(let scan): ([L10n.alertUnusedNone.text] + L10n.scanLines(scan)).joined(separator: "\n\n")
         case .exported(let paths, let report):
             L10n.alertExported.format(paths.joined(separator: "\n"))
                 + (report.map {

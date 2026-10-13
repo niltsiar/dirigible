@@ -115,7 +115,11 @@ import Testing
         model.removeUnusedFiles()
 
         await until("the alert shows") { model.alert != nil }
-        #expect(model.alert == .noUnusedFiles(UnusedFiles.Kept(count: 0, bytes: 0)) && model.unusedFiles == nil)
+        guard case .noUnusedFiles(let scan) = model.alert else {
+            Issue.record("\(String(describing: model.alert))")
+            return
+        }
+        #expect(scan.kept == UnusedFiles.Kept(count: 0, bytes: 0) && model.unusedFiles == nil)
         #expect(model.alert?.text == L10n.alertUnusedNone.text, "no kept line with no kept file")
         model.alert = nil
         await model.close()
@@ -146,5 +150,32 @@ import Testing
 
         #expect(L10n.damagedLine([]) == nil)
         #expect(L10n.damagedLine(backups) == L10n.sheetUnusedDamaged.format(titles))
+    }
+
+    /// Round 2 item 4: with no file to move, the alert also names the damaged backups and the pool
+    /// entries that are not a regular file, as the CLI does.
+    @Test func noUnusedFileAlertNamesBlockers() async throws {
+        let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 1, audio: true)
+        var session = try Session(contentsOf: package)
+        try session.addFile(AudioFile(id: "ext", path: "ext.wav", layout: .mono, length: 48_000))
+        try session.write(to: package)
+        let outside = folder.url.appending(path: "outside.wav")
+        try Data(count: 4).write(to: outside)
+        try FileManager.default.createSymbolicLink(
+            at: package.appending(path: "Clips/ext.wav"), withDestinationURL: outside)
+        let backup = Backup(saved: Date(timeIntervalSince1970: 2_000_000_000))
+        let backups = package.appending(path: "Backups")
+        try FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+        try Data("not xml".utf8).write(to: backups.appending(path: backup.fileName))
+        let (model, _, _, _) = try await openLanes(app, package)
+
+        model.removeUnusedFiles()
+
+        await until("the alert shows") { model.alert != nil }
+        let text = model.alert?.text ?? ""
+        #expect(text.contains(L10n.damagedLine([backup]) ?? "-"), "\(text)")
+        #expect(text.contains(L10n.notFilesLine(["ext.wav"]) ?? "-"), "\(text)")
+        model.alert = nil
+        await model.close()
     }
 }

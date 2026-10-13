@@ -402,6 +402,7 @@
 "sheet.unused.total" = "Files: %lld (%@)";
 "sheet.unused.kept" = "Kept for a backup, Undo, or the clipboard: %lld (%@)";
 "sheet.unused.damaged" = "Damaged backups keep no file: %@";
+"sheet.unused.notfiles" = "Links and folders in the session stay: %@";
 "sheet.unused.footnote" = "The space comes back when you empty the Trash.";
 "sheet.unused.move" = "Move to Trash";
 "alert.export.missing" = "These files are missing or cannot be read. They export as silence:\n%@";

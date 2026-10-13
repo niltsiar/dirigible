@@ -35,8 +35,7 @@ struct UnusedFilesSheet: View {
             }
             .frame(width: 560, height: 220)
             Text(verbatim: L10n.sheetUnusedTotal.format(rows.count, L10n.bytes(rows.map(\.bytes).reduce(0, +))))
-            if let kept = L10n.keptLine(scan.kept) { Text(verbatim: kept) }
-            if let damaged = L10n.damagedLine(scan.damagedBackups) { Text(verbatim: damaged) }
+            ForEach(L10n.scanLines(scan), id: \.self) { Text(verbatim: $0) }
             Text(L10n.sheetUnusedFootnote.key).foregroundStyle(.secondary)
             HStack {
                 Spacer()
@@ -63,5 +62,16 @@ extension L10n {
     /// The damaged backups that keep no file (decision 0047 D2), or nil when there is none.
     static func damagedLine(_ backups: [Backup]) -> String? {
         backups.isEmpty ? nil : sheetUnusedDamaged.format(backups.map { backupTitle($0.saved) }.joined(separator: ", "))
+    }
+
+    /// The pool entries that are not a regular file (a link or a folder): they stay.
+    static func notFilesLine(_ paths: [String]) -> String? {
+        paths.isEmpty ? nil : sheetUnusedNotFiles.format(paths.joined(separator: ", "))
+    }
+
+    /// The lines of the sheet and of the alert under the list, as the CLI prints them: the kept
+    /// files, the damaged backups, and the pool entries that are not a regular file.
+    static func scanLines(_ scan: UnusedFiles) -> [String] {
+        [keptLine(scan.kept), damagedLine(scan.damagedBackups), notFilesLine(scan.notFiles)].compactMap(\.self)
     }
 }

@@ -182,6 +182,7 @@ enum L10n: String, CaseIterable {
     case sheetUnusedTotal = "sheet.unused.total"
     case sheetUnusedKept = "sheet.unused.kept"
     case sheetUnusedDamaged = "sheet.unused.damaged"
+    case sheetUnusedNotFiles = "sheet.unused.notfiles"
     case sheetUnusedFootnote = "sheet.unused.footnote"
     case sheetUnusedMove = "sheet.unused.move"
     case windowOpening = "window.opening"

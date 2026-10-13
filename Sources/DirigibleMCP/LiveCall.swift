@@ -4,8 +4,8 @@ import Foundation
 
 /// Runs one agent call on the studio of an open window (decision 0046 Live tools). An edit is one
 /// `Studio.edit`: one undo entry with the agent name and one autosave. A read reads the studio. A
-/// call that copies files gives the "open in Dirigible" error, and `session_create` runs on the
-/// files, where the package exists.
+/// call that copies files, and `file_prune` (decision 0047), give the "open in Dirigible" error,
+/// and `session_create` runs on the files, where the package exists.
 @MainActor
 func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     let (studio, path) = (target.studio, call.path)
@@ -46,7 +46,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .backups:
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
-        case .paste, .revert: return refusedOpen
+        case .paste, .revert, .prune: return refusedOpen
         case .create: return .notOpen
         }
     } catch .busy {

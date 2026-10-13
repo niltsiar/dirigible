@@ -233,7 +233,7 @@ struct MCPToolTests {
         #expect(kept == before, "the new backup holds the replaced session")
     }
 
-    /// C5: 35 tools in a fixed order, each with a description and a closed schema with `package`.
+    /// C5: 36 tools in a fixed order, each with a description and a closed schema with `package`.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
         let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
@@ -242,7 +242,8 @@ struct MCPToolTests {
                 "session_create", "session_info", "track_add", "track_add_call", "track_remove", "track_rename",
                 "track_gain", "track_route", "track_layout", "track_mute", "track_solo", "marker_set", "marker_remove",
                 "episode_set", "episode_get",
-                "capture_remove", "file_remove", "clip_place", "clip_clear", "clip_split", "clip_split_at",
+                "capture_remove", "file_remove", "file_prune", "clip_place", "clip_clear", "clip_split",
+                "clip_split_at",
                 "clip_paste",
                 "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
                 "clip_crossfade", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim", "backup_list",

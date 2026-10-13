@@ -30,6 +30,8 @@ enum ToolWork: Sendable {
     case marker(MarkerWork)
     /// `episode_get`: no lock, as `session_info`.
     case episodeInfo
+    /// `file_prune`: the scan, and with `dryRun` false the moves to the Trash, under the lock.
+    case prune(dryRun: Bool)
 }
 
 /// The JSON Schema of one property, with JSON values only.

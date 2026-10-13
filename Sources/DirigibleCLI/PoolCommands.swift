@@ -45,7 +45,7 @@ struct CaptureCommand: AsyncParsableCommand {
     }
 }
 
-struct FileCommand: AsyncParsableCommand {
+struct FileCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "file", abstract: "Add and remove audio files in the pool.",
         subcommands: [Add.self, Remove.self, Prune.self])
@@ -82,7 +82,7 @@ struct FileCommand: AsyncParsableCommand {
 
 extension FileCommand {
     /// `dirigible file prune` (decision 0047): the lock is held from the read to the last move.
-    struct Prune: AsyncParsableCommand {
+    struct Prune: ParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Move the clip files that no clip uses to the Trash.",
             discussion: """
@@ -95,57 +95,19 @@ extension FileCommand {
         @OptionGroup var package: PackageArgument
         @Flag(help: "Write the list and change nothing.") var dryRun = false
 
-        func run() async throws {
-            let lock: PackageLock
-            do throws(SessionFileError) {
-                lock = try PackageLock(package.url)
+        func run() throws {
+            let output: PruneOutput
+            do throws(EditFailure<UnusedFilesError>) {
+                output = try prunePackage(package.url, dryRun: dryRun)
             } catch {
-                throw fail(error.message(package: package.path), code: packageError)
+                // A backup that blocks the scan exits 1; a package fault or a pending take exits 2.
+                let code = if case .body(.backupUnreadable) = error { editRefused } else { packageError }
+                throw fail(error.message(package: package.path), code: code)
             }
-            defer { withExtendedLifetime(lock) {} }
-            var session = try readPackage(package)
-            guard session.recording == nil else { throw fail(pendingTakeMessage(package.path), code: packageError) }
-            let scan: UnusedFiles
-            do throws(UnusedFilesError) {
-                scan = try UnusedFiles(scanning: session, keptBy: [], in: package.url)
-            } catch {
-                throw failure(error)
-            }
-            for backup in scan.damagedBackups { print("Damaged backup, it keeps no file: Backups/\(backup.fileName)") }
-            guard !dryRun else {
-                for item in scan.items { print("\(item.path)\t\(item.bytes) bytes") }
-                print("Unused files: \(count(scan.items.map(\.bytes)))")
-                print("Kept for a backup: \(scan.kept.count) (\(scan.kept.bytes) bytes)")
-                return
-            }
-            session.removeTemporaryFiles(in: package.url)
-            let report: PruneReport
-            do throws(UnusedFilesError) {
-                report = try await scan.prune(&session) { session throws(SessionFileError) in
-                    try session.write(under: lock)
-                }
-            } catch {
-                throw failure(error)
-            }
-            for moved in report.moved { print("\(moved.item.path)\t\(moved.item.bytes) bytes\t\(moved.trashURL.path)") }
-            print(
-                "Moved to the Trash: \(count(report.moved.map(\.item.bytes))). The space comes back when you empty the Trash."
-            )
-            print("Kept for a backup: \(scan.kept.count) (\(scan.kept.bytes) bytes)")
+            for line in output.lines { print(line) }
             var exit: ExitCode?
-            for failed in report.failed {
-                let reason = NSError(domain: failed.fault.domain, code: failed.fault.code).localizedDescription
-                exit = fail("\(failed.item.path) did not move to the Trash: \(reason)", code: editRefused)
-            }
+            for line in output.failed { exit = fail(line, code: editRefused) }
             if let exit { throw exit }
-        }
-
-        private func count(_ bytes: [Int64]) -> String { "\(bytes.count) (\(bytes.reduce(0, +)) bytes)" }
-
-        /// A backup that blocks the scan exits 1; a package fault exits 2.
-        private func failure(_ error: UnusedFilesError) -> ExitCode {
-            let code = if case .backupUnreadable = error { editRefused } else { packageError }
-            return fail(error.message(package: package.path), code: code)
         }
     }
 }

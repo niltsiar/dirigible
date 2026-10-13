@@ -300,8 +300,8 @@ import Observation
     }
 
     /// The pool change of Remove Unused Files (decision 0047): the session and each undo and redo
-    /// entry lose the pool entries `ids`, with no new entry.
-    func removePoolEntries(_ ids: Set<FileID>) throws(SessionError) { try history.removeUnusedFiles(ids) }
+    /// entry lose the pool entries that name a file of `files`, with no new entry.
+    func removePoolEntries(_ files: UnusedFiles) throws(SessionError) { try history.removeUnusedFiles(files.poolIDs) }
 
     /// The one undo entry of `level`, after its write. The write saved the whole session.
     func recordLevel(_ leveled: Session) {

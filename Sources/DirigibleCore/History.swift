@@ -34,14 +34,14 @@ public struct History: Hashable, Sendable {
     /// The undo and the redo entries: their clips keep their files (decision 0047 D3).
     public var entries: [Session] { (undoStack + redoStack).map(\.session) }
 
-    /// Removes the pool entries `ids` from the session and from each undo and redo entry, with no
-    /// new entry, so no undo brings back a pool entry of a file in the Trash (decision 0047 D3).
-    /// The revision goes up by one. Throws `.fileInUse` and changes nothing when a clip of the
+    /// Removes the pool entries `ids(session)` from the session and from each undo and redo entry,
+    /// with no new entry, so no undo brings back a pool entry of a file in the Trash (decision 0047
+    /// D3). The revision goes up by one. Throws `.fileInUse` and changes nothing when a clip of the
     /// session or of an entry uses an ID.
-    public mutating func removeUnusedFiles(_ ids: Set<FileID>) throws(SessionError) {
+    public mutating func removeUnusedFiles(_ ids: (Session) -> Set<FileID>) throws(SessionError) {
         func removed(_ value: Session) throws(SessionError) -> Session {
             var copy = value
-            for id in ids where copy.files[id] != nil { try copy.removeFile(id) }
+            for id in ids(value) where copy.files[id] != nil { try copy.removeFile(id) }
             return copy
         }
         func removed(_ entry: Entry) throws(SessionError) -> Entry {

@@ -188,4 +188,21 @@ struct StudioPruneTests {
         let saved = try Session(contentsOf: package.url)
         #expect(saved.files[spare] != nil && saved.track("t1")?.clips.contains { $0.id == "B" } == true)
     }
+
+    /// Review item 3: an undo entry whose pool names a stray WAV with no clip loses that entry, so
+    /// Undo brings back no pool entry of a file in the Trash.
+    @Test func undoEntryLosesEntryOfMovedStray() async throws {
+        let studio = try await open()
+        try studio.edit { session throws(SessionError) in try session.removeFile(spare) }
+        let scan = try await studio.unusedFiles()
+        #expect(scan.items.map(\.path) == [spareName, stray].sorted() && scan.items.allSatisfy { $0.kind == .stray })
+
+        let report = try await studio.removeUnusedFiles(scan)
+        defer { cleanUp(report) }
+
+        #expect(report.moved.count == 2)
+        try studio.undo()
+        #expect(studio.session.files[spare] == nil, "no pool entry of a file in the Trash")
+        await studio.settle()
+    }
 }

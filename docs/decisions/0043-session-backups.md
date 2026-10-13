@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-09
 - Accepted: 2026-10-09, after plan gates 1 and 2 of run `2026-10-09-autosave-backups`.
+- Amended: 2026-10-12, run `2026-10-12-remove-unused-files` (see 0047). A revert still deletes no audio file. Remove Unused Files and `dirigible file prune` move a clip file to the Trash only when no clip of a readable backup uses it.
 - Amends: 0003 (the layout has `Backups/`), 0014 (Versions is decided: it takes no part), 0024 (the formats table has the backup files), 0041 (the tools `backup_list` and `backup_revert`).
 
 ## Context

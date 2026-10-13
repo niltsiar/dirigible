@@ -13,6 +13,7 @@
 - Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). The formats table has the backup files `Backups/session-<time>.xml`.
 - Amended: 2026-10-11, run `2026-10-11-chapters-in-file`. `session.xml` is version 7 when a marker has a URL or an image. A file of version 6 or lower with a marker `url` or `image` is refused.
 - Amended: 2026-10-11, run `2026-10-11-track-fader`. The reader clamps a gain outside `Gain.range` to the range end and keeps the session version. It still refuses a gain that is not finite.
+- Amended: 2026-10-12, run `2026-10-12-remove-unused-files` (see 0047). Only a clip holds a top-level `Clips/` WAV: a clip of `session.xml`, or of a readable backup, or of the app clipboard. A pool entry with no clip does not hold it. A new holder raises the `session.xml` version or keeps its audio out of `Clips/`. A backup of a newer version stops Remove Unused Files until that backup goes.
 
 ## Context
 

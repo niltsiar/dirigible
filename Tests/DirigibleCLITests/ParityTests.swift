@@ -49,6 +49,7 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
+        "removeUnusedFiles": "Slice S2 of run 2026-10-12-remove-unused-files maps it to file prune.",
     ]
 
     /// The commands with no MCP tool (decision 0041).

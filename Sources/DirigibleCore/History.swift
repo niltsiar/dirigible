@@ -31,6 +31,27 @@ public struct History: Hashable, Sendable {
     /// The agent of the change that `redo` makes again, or nil for a user change or no entry.
     public var redoAgent: AgentName? { redoStack.last?.agent }
 
+    /// The undo and the redo entries: their clips keep their files (decision 0047 D3).
+    public var entries: [Session] { (undoStack + redoStack).map(\.session) }
+
+    /// Removes the pool entries `ids` from the session and from each undo and redo entry, with no
+    /// new entry, so no undo brings back a pool entry of a file in the Trash (decision 0047 D3).
+    /// The revision goes up by one. Throws `.fileInUse` and changes nothing when a clip of the
+    /// session or of an entry uses an ID.
+    public mutating func removeUnusedFiles(_ ids: Set<FileID>) throws(SessionError) {
+        func removed(_ value: Session) throws(SessionError) -> Session {
+            var copy = value
+            for id in ids where copy.files[id] != nil { try copy.removeFile(id) }
+            return copy
+        }
+        func removed(_ entry: Entry) throws(SessionError) -> Entry {
+            Entry(session: try removed(entry.session), agent: entry.agent)
+        }
+        let (current, undo, redo) = (try removed(session), try undoStack.map(removed), try redoStack.map(removed))
+        (session, undoStack, redoStack) = (current, undo, redo)
+        revision += 1
+    }
+
     /// Runs `body` on a copy of the session. A throw discards the copy. An edit that changes
     /// only `recording` records no entry, because undo could not change it back. `agent` names the
     /// agent of an MCP edit (decision 0046).

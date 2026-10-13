@@ -24,6 +24,8 @@ extension AppDelegate {
 
     func speed(_ change: SpeedChange, event: NSEvent?, in keyWindow: NSWindow?) {
         if let event, forwardTypingKey(event, in: keyWindow) { return }
+        // A held Period toggles once, as N does; a held ">" or "<" steps at each repeat.
+        if change == .toggle, let event, event.type == .keyDown, event.isARepeat { return }
         key?.speed(change)
     }
 

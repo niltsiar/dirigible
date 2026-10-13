@@ -22,11 +22,13 @@ import Testing
     }
 
     /// A Period, ">", or "<" key-down: the characters and the key code of the layout.
-    func event(_ characters: String, code: UInt16, shift: Bool = false, in window: NSWindow? = nil) -> NSEvent {
+    func event(
+        _ characters: String, code: UInt16, shift: Bool = false, repeated: Bool = false, in window: NSWindow? = nil
+    ) -> NSEvent {
         NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: shift ? .shift : [], timestamp: 0,
             windowNumber: window?.windowNumber ?? 0, context: nil, characters: characters,
-            charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
+            charactersIgnoringModifiers: characters, isARepeat: repeated, keyCode: code)!
     }
 
     /// The studio after the task of the menu action ran.
@@ -85,6 +87,23 @@ import Testing
         try await Task.sleep(for: .milliseconds(200))
         #expect(app.lastSpeed == .x125, "the preference has \(app.lastSpeed), not the last pick 1.25")
         await studio.perform(.playStop)
+        await model.close()
+    }
+
+    /// Code gate 1 item 4: a held Period toggles once; a held ">" steps at each key repeat.
+    @Test func aHeldPeriodTogglesOnce() async throws {
+        let (model, studio, window, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 1, seconds: 2))
+        window.makeFirstResponder(nil)
+        app.speed(.toggle, event: event(".", code: 47, in: window), in: window)
+        await settle(studio, .x150)
+        for _ in 0..<3 { app.speed(.toggle, event: event(".", code: 47, repeated: true, in: window), in: window) }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(studio.speed == .x150, "a key repeat of Period toggled the speed")
+        for _ in 0..<2 {
+            app.speed(.faster, event: event(">", code: 47, shift: true, repeated: true, in: window), in: window)
+        }
+        await settle(studio, .x200)
         await model.close()
     }
 

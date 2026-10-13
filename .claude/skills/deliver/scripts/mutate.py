@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Run one source-mutation control and never leave the mutant in the tree.
 
-Usage: mutate.py [--expect <text>] [--timeout <seconds>] [--side-effects] <file> <old text> <new text> <log>
+Usage: mutate.py [--expect <text>] [--timeout <seconds>] <file> <old text> <new text> <log>
                  <build command> <test command> [<old text 2> <new text 2> ...] [--in=<file 2> <old> <new> ...]
-       mutate.py [--expect <text>] [--timeout <seconds>] [--allow-side-effects] --replay <old log> <new log>
 
 The script records the SHA-256 of <file>, replaces the one exact copy of <old text> with
 <new text> (and of each extra pair, in order: one mutant with several edits), runs <build command>, then <test command> (each with bash -o pipefail -c), writes the raw output
@@ -24,11 +23,8 @@ With --timeout, a test that runs longer than <seconds> is killed with all its pr
 result is a kill: use it for a mutant that makes the code hang (a display loop), which no wait
 limit inside the test can stop. With --expect too, a hang is a kill only when <text> came before
 the kill: a failure report that hangs (a large value in an assert message) prints no text and
-gives WRONG FAILURE. --replay runs the control of <old log> again from its header
-(file, pairs, commands, expect, timeout) and writes <new log>; an option on the command line
-wins over the header. A replay needs a time limit, from the header or --timeout: with none, it
-exits 2. When a later commit changed an old text, the replay exits 2, so you write
-that mutant again on purpose.
+gives WRONG FAILURE. Another option before <file> exits 2: each mutant runs once
+(mutation-pass.sh), so there is no replay mode.
 A missing or repeated <old text>, or an extra old text with no new text, exits 2 before any
 change. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
 that trips it) is one call with two pairs. An extra argument --in=<file> puts the pairs after it
@@ -36,63 +32,21 @@ in <file>: one mutant in two files, with each file hashed and restored. Do not n
 result line then gives the verdict of the inner script, not of the mutant.
 In a git tree, a run holds the lock <git dir>/dirigible-mutate.lock (a folder with the pid), so two
 runs never mutate one tree; a second run exits 2, and the lock of a dead process is taken over.
---side-effects marks a control whose test command acts on shared state (it opens Mission Control,
-posts HID events, or starts a probe). The log header says so, and --replay of that log exits 2
-unless --allow-side-effects is given: a batch replay must not run it by accident.
 """
-import ast, hashlib, os, re, shutil, signal, subprocess, sys
+import hashlib, os, re, shutil, signal, subprocess, sys
 
 args = sys.argv[1:]
-expected = timeout = replay = None
-side_effects = allow_side_effects = False
-while args[:1] in (['--expect'], ['--timeout'], ['--replay'], ['--side-effects'], ['--allow-side-effects']):
-    if args[0] == '--side-effects':
-        side_effects, args = True, args[1:]
-    elif args[0] == '--allow-side-effects':
-        allow_side_effects, args = True, args[1:]
-    elif args[0] == '--replay':
-        if len(args) < 3:
-            sys.exit(__doc__)
-        replay, args = (args[1], args[2]), args[3:]
-    elif len(args) < 2:
+expected = timeout = None
+while args[:1] in (['--expect'], ['--timeout']):
+    if len(args) < 2:
         sys.exit(__doc__)
     elif args[0] == '--expect':
         expected, args = args[1], args[2:]
     else:
         timeout, args = float(args[1]), args[2:]
-
-if replay:
-    if args:
-        sys.exit(__doc__)
-    header = {'pairs': []}
-    current = None
-    for line in open(replay[0], errors='replace').read().splitlines():
-        if not line.startswith('# '):
-            break
-        key, _, value = line[2:].partition(' ')
-        if key == 'mutation':
-            header['file'] = value.removeprefix('of ')
-        elif key == 'in':
-            header['pairs'].append('--in=' + value)
-        elif key in ('-', '+'):
-            header['pairs'].append(ast.literal_eval(value))
-        elif key in ('build:', 'test:'):
-            header[key[:-1]] = value
-        elif key in ('expect:', 'timeout:'):
-            header[key[:-1]] = ast.literal_eval(value)
-        elif key == 'side-effects:':
-            side_effects = True
-    if side_effects and not allow_side_effects:
-        print(f'mutate: the test command of {replay[0]} has side effects; pass --allow-side-effects', file=sys.stderr)
-        sys.exit(2)
-    pairs = header['pairs']
-    args = [header['file'], pairs[0], pairs[1], replay[1], header['build'], header['test']] + pairs[2:]
-    expected = expected if expected is not None else header.get('expect')
-    timeout = timeout if timeout is not None else header.get('timeout')
-    if timeout is None:
-        # A replay with no limit hung for hours in a batch (start-window Phase 7).
-        print(f'mutate: {replay[0]} has no time limit; pass --timeout <seconds>', file=sys.stderr)
-        sys.exit(2)
+if args[:1] and args[0].startswith('--'):
+    print(f'mutate: unknown option {args[0]}', file=sys.stderr)
+    sys.exit(2)
 
 if len(args) < 6:
     sys.exit(__doc__)
@@ -226,8 +180,6 @@ try:
             out.write(f'# expect: {expected!r}\n')
         if timeout is not None:
             out.write(f'# timeout: {timeout!r}\n')
-        if side_effects:
-            out.write('# side-effects: yes\n')
         out.flush()
         built = run(build, out) == 0
         out.flush()

@@ -12,7 +12,7 @@
 #   no logs/ folder, the checks and benches lines say so, not zero.
 # - benches: the logs/ files with a `bench:` or `scripts/bench.sh` line; the pairs sets (folders
 #   with a load.txt); repeated: a `bench:` line on a clean tree with an earlier commit and filter.
-# - controls: the logs at the top of controls/ and the different replay logs under controls/replay*.
+# - controls: the logs at the top of controls/.
 # - late on-screen: the phase 7 rows with NOT VERIFIED and "on screen" or "on-screen".
 # - missed unknowns: the rows whose result starts with "missed unknown", in any case.
 # - critical findings: the lines of a review-*.md at the top of the run folder with critical in a
@@ -91,12 +91,9 @@ else
     echo "benches: no logs folder, $pairs pairs sets"
 fi
 
-written=0 replayed=0
-if [[ -d "$run/controls" ]]; then
-    written="$(find "$run/controls" -maxdepth 1 -name '*.log' -type f | wc -l | tr -d ' ')"
-    replayed="$(find "$run/controls" -path "$run/controls/replay*" -name '*.log' -type f -exec shasum {} + | awk '{ print $1 }' | sort -u | wc -l | tr -d ' ')"
-fi
-echo "controls: $written written, $replayed replayed"
+written=0
+[[ ! -d "$run/controls" ]] || written="$(find "$run/controls" -maxdepth 1 -name '*.log' -type f | wc -l | tr -d ' ')"
+echo "controls: $written written"
 
 critical="$(find "$run" -maxdepth 1 -name 'review-*.md' -type f -exec awk '
     FNR == 1 { keep = 1; section = 0 }

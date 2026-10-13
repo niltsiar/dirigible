@@ -13,7 +13,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 
 ## Run the pass
 
-- Write each mutant as one `mutate.py <file> <old> <new> <log> <build> <test>` line of one batch file. Run the file once as `scripts/with-lock.sh bash <file>`: one lock hold for the batch, so the nested lock calls run at once. Put no sleep between two mutants. A batch over 10 min runs with `run_in_background`.
+- Write each mutant as one `mutant <file> <old> <new> <log> <build> <test>` line (the arguments of mutate.py) of a batch file in the run folder. Run `.claude/skills/deliver/scripts/mutation-pass.sh <worktree> <batch file>` once, with `run_in_background`: it holds the build lock once for the batch, and puts no sleep between two mutants.
 - The build command is `scripts/with-lock.sh swift build --build-tests`. The test command is `scripts/test-filter.sh --skip-build --exact <name>`: no second build, and no XCTest pass.
 - A mutant with two edits (a guard mutant and the fault that trips it) is one call with two old/new pairs. Put `--in=<file>` before the pairs of a second file. Never apply an edit with a script in the build or test command.
 - Do not nest mutate.py in its test command. After `NO TESTS` or `BUILD FAILED`, correct the filter or the mutant and run it again.
@@ -21,7 +21,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - Pass the assertion message of the killing test with `--expect <text>`, not a test name. A guard and its refusal message read the limit from one variable.
 - Pass `--timeout <seconds>`, a few times the green test time. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads.
 - mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads.
-- Mark a mutant whose test command acts on shared state (Mission Control, HID events, a probe) with `--side-effects`. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`.
+- A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`.
 - Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row: the pass row. With `risk: yes`, `scripts/land.sh` refuses a run with no pass row, unless its third argument names the row that says why no pass applies.
 
 ## Read each survivor

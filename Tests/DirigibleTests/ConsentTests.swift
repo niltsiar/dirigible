@@ -182,6 +182,26 @@ import os
         await model.close()
     }
 
+    /// A call that is cancelled before the ask shows no sheet, asks for no attention, and shows
+    /// no banner.
+    @Test func cancelledBeforeTheAskShowsNothing() async throws {
+        let (model, _) = try await window()
+        var requests = 0
+        model.attention = ConsentAttention(
+            isActive: { false },
+            request: {
+                requests += 1
+                return 1
+            }, cancel: { _ in })
+        let answer = ask(model)
+
+        answer.cancel()
+
+        #expect(await answer.value == .ended)
+        #expect(requests == 0 && model.consent == nil && model.consentExpired == nil)
+        await model.close()
+    }
+
     /// C5: a click before the end records, and the end after the click does nothing.
     @Test func clickBeforeExpiryRecords() async throws {
         let (model, studio) = try await window()

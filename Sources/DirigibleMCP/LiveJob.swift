@@ -58,7 +58,7 @@ private func liveExport(
         if Task.isCancelled { throw ToolError(cancelledMessage) }
         throw ToolError(stopMessage(studio.exportStop, noun: work.noun))
     } catch .export(let error) {
-        throw ToolError(work.message(error))
+        throw ToolError(work.message(error) ?? cancelledMessage)
     } catch .exportYielded {
         throw ToolError(stopMessage(.take, noun: work.noun))
     } catch .busy {

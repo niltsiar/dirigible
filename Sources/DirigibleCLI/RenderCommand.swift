@@ -26,25 +26,37 @@ struct Render: ParsableCommand {
     }
 
     func run() throws {
-        let session = try readPackage(package)
-        let end = to ?? session.end.count
-        guard end > from, let source = ExportSource(range: Frames(from)..<Frames(end)) else {
-            throw ValidationError(ExportText.rangeMessage(end: session.end, spelling: .cli))
-        }
-        let output = URL(filePath: out)
-        let interrupt = cancelOnInterrupt()
-        defer { interrupt.source.cancel() }
-        let faults: [FileID: MediaFault]
-        do {
-            faults = try exportMix(
-                session, source: source, options: .render, to: output, package: { package.url },
-                isCancelled: interrupt.isCancelled
-            ).faults
-        } catch {
-            throw failure(error, out: out, noun: "render")
-        }
-        warn(ExportText.faultLines(faults, in: session) + ExportText.unheardLines(session, source: source))
+        let work = ExportWork(
+            out: out, options: .render, from: from, to: to, tracks: [], replace: false, allowMissing: true,
+            spelling: .cli)
+        try runWork(work, package: package.url, session: try readPackage(package))
     }
+}
+
+/// The steps of `export` and `render` from `ExportWork`, with the exit codes of the command: 64
+/// for a refused range or track, 2 for a refused file or a failed job.
+func runWork(_ work: ExportWork, package: URL, session: Session) throws {
+    let source: ExportSource
+    do { source = try work.source(in: session) } catch { throw ValidationError(error.message) }
+    do { try work.checkFiles(session, package: package, source: source) } catch {
+        throw fail(error.message, code: packageError)
+    }
+    let interrupt = cancelOnInterrupt()
+    defer { interrupt.source.cancel() }
+    let result: ExportResult
+    do {
+        result = try work.export(session, source: source, package: package, isCancelled: interrupt.isCancelled)
+    } catch {
+        // Control-C: the exit status of the default action, with no message.
+        guard let message = work.message(error) else { throw ExitCode(128 + SIGINT) }
+        throw fail(message, code: packageError)
+    }
+    let lines: (stdout: [String], stderr: [String])
+    do { lines = try work.lines(of: result, session: session, source: source) } catch {
+        throw fail(error.message, code: packageError)
+    }
+    warn(lines.stderr)
+    for line in lines.stdout { print(line) }
 }
 
 /// Control-C: the returned check becomes true, so the export cancels at its next chunk and

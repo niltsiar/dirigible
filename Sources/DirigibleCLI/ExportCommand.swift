@@ -63,49 +63,9 @@ struct Export: ParsableCommand {
     }
 
     func run() throws {
-        let options = try options()
-        let session = try readPackage(package)
-        let tracks = track.map { TrackID($0) }
-        if let unknown = tracks.first(where: { session.track($0) == nil }) {
-            throw ValidationError(ExportText.noTrackMessage(unknown))
-        }
-        let end = to ?? session.end.count
-        guard end > from,
-            let source = ExportSource(range: Frames(from)..<Frames(end), tracks: tracks.isEmpty ? nil : Set(tracks))
-        else {
-            throw ValidationError(ExportText.rangeMessage(end: session.end, spelling: .cli))
-        }
-        let faults: [FileID: MediaFault]
-        do {
-            faults = try checkMedia(session, package: package.url, source: source)
-        } catch {
-            throw fail(mediaCheckMessage(error), code: packageError)
-        }
-        guard faults.isEmpty || allowMissing else {
-            throw fail(ExportText.faultMessage(faults, in: session, spelling: .cli), code: packageError)
-        }
-        let output = URL(filePath: out)
-        // The item at --out now is the one that --replace confirms.
-        let confirmed = replace ? ConfirmedFile(at: output) : nil
-        let interrupt = cancelOnInterrupt()
-        defer { interrupt.source.cancel() }
-        let result: ExportResult
-        do {
-            result = try exportMix(
-                session, source: source, options: options, to: output, replacing: confirmed, package: { package.url },
-                isCancelled: interrupt.isCancelled)
-        } catch .rateNotSupported(let rate) {
-            throw fail(ExportText.rateMessage(out: out, rate: rate, spelling: .cli), code: packageError)
-        } catch {
-            throw failure(error, out: out, noun: "export")
-        }
-        // The check found no fault, or --allow-missing: a fault of the export itself is a file that
-        // went bad after the check. The file is written, so the error says so.
-        let read = result.faults
-        guard read.isEmpty || allowMissing else {
-            throw fail(ExportText.readFaultMessage(read, in: session, out: out, spelling: .cli), code: packageError)
-        }
-        warn(ExportText.warnings(of: result, session: session, source: source, output: output))
-        if let report = result.loudness { print(ExportText.loudnessLine(report)) }
+        let work = ExportWork(
+            out: out, options: try options(), from: from, to: to, tracks: track.map { TrackID($0) }, replace: replace,
+            allowMissing: allowMissing, spelling: .cli)
+        try runWork(work, package: package.url, session: try readPackage(package))
     }
 }

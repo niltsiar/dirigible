@@ -64,7 +64,7 @@ struct AppEventTests {
         let input = SyntheticInput(hal, Self.uid)
         input.play(clock.run(seconds: 0.2))
         await input.wait()
-        await until("the ring is not empty") { hal.current(Self.uid)?.ring.isEmpty ?? true }
+        await drained(hal, Self.uid)
     }
 
     func stems() throws -> [String] {

@@ -77,11 +77,6 @@ struct DeviceEventTests {
         }
     }
 
-    /// Waits until the writer drained the ring of the current input of `uid`.
-    func drained(_ hal: TestHAL, _ uid: String) async {
-        await until("the ring of \(uid) is not empty") { hal.current(uid)?.ring.isEmpty ?? true }
-    }
-
     // MARK: Criterion 6: rate
 
     @Test(arguments: [false, true])

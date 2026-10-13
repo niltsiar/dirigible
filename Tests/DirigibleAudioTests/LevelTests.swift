@@ -211,7 +211,7 @@ struct LevelTests {
         input.play(clock.run(seconds: 0.5))
         await input.wait()
         // The records after the ring is empty go to the next drain.
-        await until(limit: .seconds(20), "the ring is not empty") { hal.current("late")?.ring.isEmpty ?? true }
+        await drained(hal, "late", limit: .seconds(20))
         clock.sampleTime += 480
         clock.hostNanos += 10_000_000
         let afterGap = UInt64(clock.hostNanos)

@@ -217,6 +217,13 @@ func until(
     }
 }
 
+/// Waits until the writer drained the ring of the current input of `uid`. A burst of seconds of
+/// records needs a longer `limit`: the drain writes it to disk first, and a busy disk is slow.
+@MainActor
+func drained(_ hal: TestHAL, _ uid: String, limit: Duration = .seconds(1)) async {
+    await until(limit: limit, "the ring of \(uid) is not empty") { hal.current(uid)?.ring.isEmpty ?? true }
+}
+
 /// Holds the first caller of `wait` until `open`, with a limit. It polls, so it blocks no thread
 /// of the concurrency pool. Later callers pass.
 final class AsyncGate: @unchecked Sendable {

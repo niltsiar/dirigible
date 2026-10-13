@@ -1,4 +1,5 @@
 # 0048. Record with consent: one `record` call that waits 20 s for the answer of the user
+- Amended: 2026-10-13, run `2026-10-13-mcp-long-tools` (see 0049). The bridge reads stdin during each call, not only a `record` call, with one read buffer for the call. A cancel line closes the connection, and the call gets no answer (not the lost-call text). EOF of stdin still ends only a `record` call.
 
 - Status: accepted
 - Date accepted: 2026-10-13, after the plan gate of run `2026-10-12-record-with-consent`.

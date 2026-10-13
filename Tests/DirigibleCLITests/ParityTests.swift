@@ -74,7 +74,7 @@ struct ParityTests {
     ]
 
     /// The commands whose tool name does not follow the name rule.
-    static let toolNames = ["create": "session_create", "info": "session_info", "episode show": "episode_get"]
+    static let toolNames = Dictionary(uniqueKeysWithValues: Tool.commandNames.map { ($0.value, $0.key) })
 
     @Test func everyMutatingSessionMethodHasACommandOrAnExemption() throws {
         let names = try publicMutatingMethods()
@@ -162,6 +162,47 @@ struct ParityTests {
         #expect(ManualScan.spans(in: section).count >= 5, "the scan found too few spans")
         #expect(ManualScan.spansWithNoClass(in: section).isEmpty, "\(ManualScan.spansWithNoClass(in: section))")
         #expect(ManualScan.spansWithNoClass(in: "- Ask the agent to run `clip_explode`.") == ["clip_explode"])
+    }
+
+    /// The commands that the agent manual does not name (user rule of 2026-10-13: the manual and
+    /// the skill stay current, as the guide does).
+    static let manualExemptions: [String: String] = [
+        "capture add": "It writes raw clock data that only a capture run measures.",
+        "file add": "It adds a file record with no audio check; the manual names import, which adds a file and a clip.",
+        "capture place": "It recovers a segment of a take; the app and take finalize place each segment.",
+        "take finalize": "It recovers a take after a crash; the app does it at launch.",
+        "peaks": "It prints the peak cache of the app; an agent reads the levels with loudness.",
+        "render": "It writes the mix as a 32-bit CAF; the manual names export, which writes the episode formats.",
+        "chapters export": "It writes a chapter file; export puts the chapters in the .m4a or .mp3 file.",
+        "devices": "It lists the audio devices of this Mac, not a package.",
+        "apps": "It lists the apps of this Mac, not a package.",
+        "mcp": "It is the MCP server that sends the manual.",
+        "skill show": "It prints the skill itself.",
+        "skill path": "The guide names it for the person who links the skill.",
+    ]
+
+    /// Each tool and each command is named in the manual, a recipe, or the tool table of the skill,
+    /// or has a manual exemption with its reason (code gate 1 item 1).
+    @Test func theManualNamesEachToolAndCommand() {
+        let commands = leafCommands(of: Dirigible.self)
+        let rows = AgentManual.skill.split(separator: "\n").compactMap {
+            $0.wholeMatch(of: /\| ([a-z_]+) \| dirigible ([a-z -]+) \|/)
+        }
+        let table = Dictionary(rows.map { (String($0.1), String($0.2)) }) { first, _ in first }
+        #expect(Set(table.keys) == Set(Tool.all.map(\.name)), "the skill table and the tools differ")
+        for (tool, command) in table.sorted(by: { $0.key < $1.key }) where !commands.contains(command) {
+            Issue.record("the skill table gives \(tool) the command \(command), which does not exist")
+        }
+        let text = ([AgentManual.manual(pathLine: "x"), AgentManual.skill] + AgentManual.recipes.map(\.steps))
+            .joined(separator: "\n")
+        let lines = ManualScan.commandLines(in: text).map { $0 + " " }
+        for command in commands.sorted() where Self.manualExemptions[command] == nil {
+            let named = table.values.contains(command) || lines.contains { $0.hasPrefix("dirigible \(command) ") }
+            #expect(named, "the manual does not name dirigible \(command), and it has no manual exemption")
+        }
+        let stale = Self.manualExemptions.keys.filter { !commands.contains($0) || table.values.contains($0) }
+        #expect(stale.isEmpty, "stale manual exemptions: \(stale.sorted())")
+        #expect(Self.manualExemptions.values.allSatisfy { !$0.isEmpty })
     }
 
     /// The text from `heading` to the next heading of docs/guide.md, or an empty text.

@@ -18,6 +18,7 @@ R16: agents read and edit sessions through `dirigible mcp`. A tester asked for "
 - **`dirigible --instructions`.** A flag of the root command prints the manual, exit 0. `dirigible`, `dirigible help`, and `dirigible --help` print the help as before. The parser ignores the flag after a subcommand.
 - **Prompts.** Each recipe is an MCP prompt with one required argument, `package`. `prompts/get` gives one user message: the recipe with the package path. An unknown name or no `package` gives -32602.
 - **Skill.** `dirigible skill show` prints the `SKILL.md` text (frontmatter `name: dirigible` and `description`). `scripts/bundle.sh` writes it to `Contents/Resources/skills/dirigible/SKILL.md` before the signature, so the file always matches the app version. `dirigible skill path` prints the path of that file, exit 0. It exits 1 when no app holds the binary. The user links the folder into `~/.claude/skills` or `~/.agents/skills`.
+- **The skill works with no MCP server.** The skill gets a table of each tool and its `dirigible` command, made from the tool table and the name rule of 0041, so a new tool shows up with no hand edit. A test fails when a tool or a command is named nowhere in the manual, the recipes, or the table, and has no exemption with a reason. Each later run keeps the manual, the recipes, and the skill current, as it keeps the guide current (user rule, 2026-10-13).
 - **Copy Setup Command** does not change.
 
 ## Consequences

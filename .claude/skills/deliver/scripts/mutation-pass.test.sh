@@ -2,7 +2,8 @@
 # Check mutation-pass.sh with a fake python3 (in place of mutate.py) and a fake with-lock.sh in the
 # tree. Check that it runs each mutant of the batch file once, in the tree, under one lock take,
 # prints one result line for each mutant and the count line, stops the batch after a mutate.py
-# exit 3 (a failed restore) or 130 (stopped), and refuses a missing batch file, a tree with
+# exit 3 (a failed restore) or 130 (stopped), stops the running mutate.py and the batch on a TERM
+# to the script (exit 130), and refuses a missing batch file, a tree with
 # changes, a live mutate.py lock, a tree that is not a worktree root, and the main checkout.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -28,7 +29,8 @@ git -C "$tmp/main" -c user.name=t -c user.email=t@t commit -q -m init
 git -C "$tmp/main" worktree add -q "$tmp/tree" 2>/dev/null
 
 # The fake python3 logs its old text (the result to give), its folder, and the lock hold. The old
-# text sets the result: killed or survived (exit 0 or 1), exit3 (a failed restore), or exit130.
+# text sets the result: killed or survived (exit 0 or 1), exit3 (a failed restore), exit130, or
+# hang (it writes its pid and waits; a TERM writes restored and exits 130, as mutate.py does).
 cat > "$tmp/bin/python3" <<EOF
 #!/bin/bash
 [[ "\$1" == -I ]] || { echo "fake python3: no -I" >&2; exit 9; }
@@ -39,6 +41,8 @@ case "\$r" in
   survived) echo survived; exit 1 ;;
   exit3) echo "mutate: the restore of x failed; the copy is y" >&2; exit 3 ;;
   exit130) echo stopped; exit 130 ;;
+  hang) trap 'echo restored >> "$tmp/restored"; echo stopped; exit 130' TERM
+    echo \$\$ > "$tmp/hang.pid"; sleep 30 & wait ;;
 esac
 EOF
 chmod +x "$tmp/bin/python3"
@@ -72,6 +76,24 @@ for r in exit3 exit130; do
   [[ "$(calls)" == "killed $r" ]] || fail "$r: calls [$(calls)]"
   grep -q 'mutation-pass: stopped after mutant 2' <<<"$out" || fail "$r: no stop line: $out"
 done
+
+# A TERM to the script (pkill -TERM -f mutation-pass.sh) stops the running mutate.py, which
+# restores its file, and then the batch: the next mutant does not run.
+batch hang killed
+rm -f "$tmp/hang.pid" "$tmp/restored"
+PATH="$tmp/bin:$PATH" "$script" "$tmp/tree" "$tmp/batch.sh" > "$tmp/out" 2>&1 &
+pass=$!
+for _ in $(seq 50); do [[ -s "$tmp/hang.pid" ]] && break; sleep 0.1; done
+started=$SECONDS
+kill -TERM "$pass"
+wait "$pass"
+code=$?
+(( SECONDS - started < 10 )) || fail "TERM: the pass ran $((SECONDS - started)) s after the TERM"
+[[ $code -eq 130 ]] || fail "TERM: exit $code: $(cat "$tmp/out")"
+[[ -s "$tmp/restored" ]] || fail "TERM: the running mutant did not get the stop"
+[[ "$(calls)" == hang ]] || fail "TERM: calls [$(calls)]"
+grep -q 'mutation-pass: stopped after mutant 1' "$tmp/out" || fail "TERM: no stop line: $(cat "$tmp/out")"
+kill "$(cat "$tmp/hang.pid" 2>/dev/null)" 2>/dev/null
 
 # Refusals: no batch file, a tree with changes, a live mutate.py lock, a tree that is not a
 # worktree root, the main checkout, and a wrong argument count.

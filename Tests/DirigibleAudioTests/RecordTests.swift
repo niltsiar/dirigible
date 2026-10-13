@@ -41,6 +41,26 @@ struct RecordTests {
 
     // MARK: Criterion 16
 
+    /// Decision 0048: a stop that comes before the timed start returns leaves no timer, so the
+    /// timer never stops a later take.
+    @Test func stopDuringTheTimedStartSetsNoTimer() async throws {
+        let studio = try await studio(TestHAL([mic]))
+        let gate = AsyncGate()
+        studio.environment.afterStart = { await gate.wait() }
+        studio.environment.takeLength = { _ in }
+        let start = Task { try await studio.startRecording(armed: ["t1"], playhead: 0, for: .seconds(1)) }
+        await gate.entered()
+        let stop = Task { try await studio.stopRecording() }
+        await until("the stop begins") { studio.transport == .finalizing(take: 1) }
+
+        gate.open()
+        #expect(try await start.value == 1)
+        try await stop.value
+
+        #expect(studio.takeTimer == nil, "a timer of a take that ended")
+        #expect(studio.transport == .idle)
+    }
+
     /// 3 s of records from 0.5 s before the take start: the finalize cuts the frames before the
     /// take start, and the writer the frames after its end, so the stop time does not matter.
     /// Control: 0.5 s.

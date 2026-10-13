@@ -133,6 +133,7 @@ struct RippleTests {
         let before = session
         try session.rippleDelete(48_000..<48_000, on: ["a"])
         try session.rippleDelete(0..<48_000, on: [])
+        try session.rippleDelete([], on: ["a"])
         try session.rippleInsert(0, at: 0, on: ["a"])
         try session.rippleInsert(48_000, at: 0, on: [])
         #expect(session == before, "no edit with nothing to ripple")
@@ -141,6 +142,10 @@ struct RippleTests {
         #expect(throws: SessionError.frameOutOfRange) { try session.rippleDelete(-1..<10, on: ["a"]) }
         #expect(throws: SessionError.frameOutOfRange) { try session.rippleInsert(-1, at: 0, on: ["a"]) }
         #expect(throws: SessionError.frameOutOfRange) { try session.rippleInsert(10, at: -1, on: ["a"]) }
+        // The order of the checks: the frames, then the tracks, then nothing to ripple.
+        #expect(throws: SessionError.unknownTrack("x")) { try session.rippleDelete(48_000..<48_000, on: ["x"]) }
+        #expect(throws: SessionError.frameOutOfRange) { try session.rippleDelete(-1..<10, on: ["x"]) }
+        #expect(throws: SessionError.unknownTrack("x")) { try session.rippleDelete([], on: ["x"]) }
         #expect(session == before, "a refused ripple changes nothing")
         try session.rippleDelete(0..<12_000, on: ["a", "a"])
         #expect(lane("a") == [Clip(id: "A", file: "f", start: 0, offset: 12_000, length: 84_000)], "one ripple")

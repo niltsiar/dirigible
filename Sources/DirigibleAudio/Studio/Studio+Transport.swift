@@ -196,7 +196,7 @@ extension Studio {
             }
         guard new != old else { return }
         play.speed = new
-        if new != .one { play.lastSpeed = new }
+        lastSpeed = new
         guard let shuttle = play.playback.shuttle, shuttle.rate == .one else { return }
         if old != .one, new != .one, let player = play.player, await player.setSpeed(new) { return }
         let number = await endFeed(stop: false)

@@ -1,6 +1,6 @@
 /// The vari-speed of a play at the shuttle rate 1x, with the pitch kept (decision 0048). The raw
 /// value is in hundredths. Not a shuttle rate: 0.5x, 2x, and 4x keep tape pitch (0016).
-public enum Speed: Int, CaseIterable, Hashable, Sendable {
+public enum Speed: Int, CaseIterable, Sendable {
     case x075 = 75
     case one = 100
     case x125 = 125

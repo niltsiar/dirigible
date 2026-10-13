@@ -150,11 +150,11 @@ struct CaptureEnvironment: Sendable {
 
 /// A latency-critical `ProcessInfo` activity for the life of the value, so App Nap does not slow
 /// the drain of a hidden app (decisions 0014 and 0015). It lets the system sleep (probe P3).
-final class LatencyActivity: Sendable {
+package final class LatencyActivity: Sendable {
     /// `ProcessInfo` gives an `NSObjectProtocol` token that is only passed back to `endActivity`.
     nonisolated(unsafe) private let activity: any NSObjectProtocol
 
-    init(reason: String) {
+    package init(reason: String) {
         activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: reason)
     }

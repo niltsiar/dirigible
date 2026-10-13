@@ -2,6 +2,7 @@ import AppKit
 import DirigibleCore
 import DirigibleMCP
 import Foundation
+import IOKit.pwr_mgt
 import Testing
 import os
 
@@ -197,12 +198,14 @@ import os
     }
 
     /// C5: the activity token lives from the ask to the end, so App Nap does not delay the end.
+    /// It is a latency activity: it holds no sleep assertion (probe P3).
     @Test func activityLivesWithTheRequest() async throws {
         let (model, _) = try await window()
         let answer = ask(model)
         let sheet = try await sheet(model)
         let consent = try #require(model.consent)
         #expect(consent.activity != nil)
+        #expect(try sleepAssertions(named: ConsentRequest.activityReason).isEmpty, "the system can sleep (probe P3)")
         try click(record: false, in: sheet)
         #expect(await answer.value == .declined)
         #expect(consent.activity == nil)
@@ -272,5 +275,13 @@ import os
         _ = try await sheet(model)
         await model.close()
         #expect(await answer.value == .closed)
+    }
+
+    /// The IOPM assertions of this process named `name`.
+    func sleepAssertions(named name: String) throws -> [NSDictionary] {
+        var byProcess: Unmanaged<CFDictionary>?
+        try #require(IOPMCopyAssertionsByProcess(&byProcess) == kIOReturnSuccess)
+        let processes = try #require(byProcess?.takeRetainedValue() as? [NSNumber: [NSDictionary]])
+        return (processes[NSNumber(value: getpid())] ?? []).filter { $0["AssertName"] as? String == name }
     }
 }

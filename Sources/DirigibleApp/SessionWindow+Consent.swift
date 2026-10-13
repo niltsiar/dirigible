@@ -33,6 +33,8 @@ struct ConsentExpiredShown: Equatable {
 final class ConsentRequest {
     enum Phase { case waiting, starting }
 
+    static let activityReason = "An agent asks the user to record."
+
     let agent: AgentName
     let tracks: [TrackID]
     let names: [String]
@@ -41,8 +43,9 @@ final class ConsentRequest {
     /// The names of the request tracks with a clip after the start (C15).
     let over: [String]
     private(set) var phase = Phase.waiting
-    /// Keeps the timer of the answer time on time while App Nap could slow a hidden app.
-    @ObservationIgnored private(set) var activity: NSObjectProtocol?
+    /// Keeps the timer of the answer time on time while App Nap could slow a hidden app. It lets
+    /// the system sleep (probe P3).
+    @ObservationIgnored private(set) var activity: LatencyActivity?
     @ObservationIgnored var expiry: Task<Void, Never>?
     @ObservationIgnored var attentionRequest: Int?
     @ObservationIgnored private var reply: CheckedContinuation<RecordAnswer, Never>?
@@ -50,8 +53,7 @@ final class ConsentRequest {
     init(agent: AgentName, tracks: [Track], start: Frames, seconds: Double, over: [String]) {
         (self.agent, self.start, self.seconds, self.over) = (agent, start, seconds, over)
         (self.tracks, names) = (tracks.map(\.id), tracks.map(\.name))
-        activity = ProcessInfo.processInfo.beginActivity(
-            options: .userInitiated, reason: "An agent asks the user to record.")
+        activity = LatencyActivity(reason: Self.activityReason)
     }
 
     /// Waits for the one answer. The window calls it right after the ask, with no await between.
@@ -64,7 +66,6 @@ final class ConsentRequest {
 
     func finish(_ answer: RecordAnswer) {
         expiry?.cancel()
-        if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
         reply?.resume(returning: answer)
         reply = nil

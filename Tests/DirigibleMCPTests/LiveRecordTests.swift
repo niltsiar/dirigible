@@ -19,10 +19,12 @@ struct LiveRecordTests {
         let folder = try SocketFolder()
         let server = AgentServer(socket: folder.socket) {
             [
-                AgentTarget(studio: studio) { request, agent in
-                    asked.append((request, agent))
-                    return .started(take: 3, tracks: ["Host"], seconds: 1.5)
-                }
+                AgentTarget(
+                    studio: studio,
+                    record: { request, agent in
+                        asked.append((request, agent))
+                        return .started(take: 3, tracks: ["Host"], seconds: 1.5)
+                    })
             ]
         }
         server.start()
@@ -47,10 +49,12 @@ struct LiveRecordTests {
         let folder = try SocketFolder()
         let server = AgentServer(socket: folder.socket) {
             [
-                AgentTarget(studio: studio, busy: .asking) { _, _ in
-                    asked += 1
-                    return .declined
-                }
+                AgentTarget(
+                    studio: studio, busy: .asking,
+                    record: { _, _ in
+                        asked += 1
+                        return .declined
+                    })
             ]
         }
         server.start()

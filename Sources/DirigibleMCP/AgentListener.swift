@@ -20,6 +20,9 @@ package struct AgentCall: Sendable {
 /// `DispatchSourceRead` there, so no `accept` or `read` runs on the main actor or in a `Task`.
 /// The main actor never waits for the queue.
 final class AgentListener: @unchecked Sendable {
+    /// Answers one call. The job gives its fraction (0...1) to `report`, from any thread.
+    typealias Handle = @Sendable (AgentCall, _ report: @escaping @Sendable (Double) -> Void) async -> AgentReply
+
     enum Opening {
         case listening(AgentListener)
         /// Another process holds the lock: it serves the agents (C9).
@@ -35,7 +38,7 @@ final class AgentListener: @unchecked Sendable {
     private let socket: URL
     private let lockFD: Int32
     private let listenFD: Int32
-    private let handle: @Sendable (AgentCall) async -> AgentReply
+    private let handle: Handle
     private let counted: @Sendable (Int) -> Void
     private var listenSource: DispatchSourceRead?
     /// Keyed by a serial that never repeats, so a late reply can never find a new connection.
@@ -53,6 +56,12 @@ final class AgentListener: @unchecked Sendable {
         var bytes = [UInt8](repeating: 0, count: readSize)
         /// The running call. A line that comes during the call waits in `buffer`.
         var call: Task<Void, Never>?
+        /// The number of the call that has no reply yet, or nil. A progress hop of another call
+        /// writes no frame (decision 0049).
+        var running: Int?
+        var calls = 0
+        /// The gate of the frames of the running call.
+        var gate = ProgressGate()
         /// The peer shut its write side during a call: the read source is suspended, and the
         /// connection ends after the reply.
         var halfClosed = false
@@ -65,8 +74,7 @@ final class AgentListener: @unchecked Sendable {
     /// no blocking call. Open after the completion of the stop before it: the old lock is free
     /// then. `handle` answers each call; `counted` gets the number of connections.
     static func open(
-        socket: URL, handle: @escaping @Sendable (AgentCall) async -> AgentReply,
-        counted: @escaping @Sendable (Int) -> Void
+        socket: URL, handle: @escaping Handle, counted: @escaping @Sendable (Int) -> Void
     ) -> Opening {
         let folder = socket.deletingLastPathComponent().path
         guard unixAddress(socket.path) != nil else { return .failed }
@@ -103,7 +111,7 @@ final class AgentListener: @unchecked Sendable {
     }
 
     private init(
-        socket: URL, lockFD: Int32, listenFD: Int32, handle: @escaping @Sendable (AgentCall) async -> AgentReply,
+        socket: URL, lockFD: Int32, listenFD: Int32, handle: @escaping Handle,
         counted: @escaping @Sendable (Int) -> Void
     ) {
         (self.socket, self.lockFD, self.listenFD) = (socket, lockFD, listenFD)
@@ -179,22 +187,38 @@ final class AgentListener: @unchecked Sendable {
         let line = connection.buffer[connection.buffer.startIndex..<newline]
         connection.buffer.removeSubrange(connection.buffer.startIndex...newline)
         let checked = Self.check(Data(line))
-        let (handle, serial) = (handle, connection.serial)
+        connection.calls += 1
+        (connection.running, connection.gate) = (connection.calls, ProgressGate())
+        let (handle, serial, number) = (handle, connection.serial, connection.calls)
+        let report: @Sendable (Double) -> Void = { [weak self] fraction in
+            guard let self else { return }
+            queue.async { self.progressed(serial, number, fraction) }
+        }
         // The task only waits for the main actor; the reply write runs on the queue.
         connection.call = Task { [self] in
             let reply =
                 switch checked {
-                case .success(let call): await handle(call)
+                case .success(let call): await handle(call, report)
                 case .failure(let error): AgentReply.result(text: error.message, isError: true)
                 }
             queue.async { self.answered(serial, reply) }
         }
     }
 
+    /// Writes a progress frame of call `number` while that call has no reply, through the gate
+    /// of the call (decision 0049). A late hop never reaches the next call.
+    private func progressed(_ serial: UInt64, _ number: Int, _ fraction: Double) {
+        guard let connection = connections[serial], connection.running == number,
+            let value = connection.gate.pass(fraction, at: .now)
+        else { return }
+        _ = writeAll(connection.fd, Data((AppFrame.progressLine(value / 100) + "\n").utf8))
+    }
+
     /// A reply goes only to the connection that asked, while it is open: a late reply never
     /// answers the call of another connection.
     private func answered(_ serial: UInt64, _ reply: AgentReply) {
         guard let connection = connections[serial] else { return }
+        connection.running = nil
         guard writeAll(connection.fd, Data((reply.line + "\n").utf8)) else {
             let code = errno
             log.error("A reply to an agent did not arrive whole (errno \(code)). The connection ends.")

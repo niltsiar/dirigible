@@ -149,7 +149,7 @@ struct AgentServerTests {
         let folder = try SocketFolder()
         var listener: AgentListener?
         if case .listening(let opened) = AgentListener.open(
-            socket: folder.socket, handle: { _ in .notOpen }, counted: { _ in })
+            socket: folder.socket, handle: { _, _ in .notOpen }, counted: { _ in })
         {
             listener = opened
         }
@@ -165,7 +165,16 @@ struct AgentServerTests {
                 client.close()
             }
         }
-        #expect(await probe(folder.socket) == .reply(.notOpen), "the listener stops answering")
+        // The backlog holds 8 connections, and a full backlog refuses a connect (noApp) until the
+        // queue accepts the closed connections. The queue is shared by each listener of the test
+        // process, so other suites can slow it.
+        var outcome = await probe(folder.socket)
+        let deadline = ContinuousClock.now + .seconds(30)
+        while outcome == .noApp, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+            outcome = await probe(folder.socket)
+        }
+        #expect(outcome == .reply(.notOpen), "the listener stops answering: \(outcome)")
     }
 
     /// C5: a reply larger than the socket buffer (8 KB on Darwin) arrives whole. An accepted fd
@@ -175,7 +184,7 @@ struct AgentServerTests {
         let text = String(repeating: "0123456789", count: 10_000)
         var listener: AgentListener?
         if case .listening(let opened) = AgentListener.open(
-            socket: folder.socket, handle: { _ in .result(text: text, isError: false) }, counted: { _ in })
+            socket: folder.socket, handle: { _, _ in .result(text: text, isError: false) }, counted: { _ in })
         {
             listener = opened
         }
@@ -193,7 +202,7 @@ struct AgentServerTests {
         let text = String(repeating: "0123456789", count: 100_000)
         var listener: AgentListener?
         if case .listening(let opened) = AgentListener.open(
-            socket: folder.socket, handle: { _ in .result(text: text, isError: false) }, counted: { _ in })
+            socket: folder.socket, handle: { _, _ in .result(text: text, isError: false) }, counted: { _ in })
         {
             listener = opened
         }
@@ -216,7 +225,7 @@ struct AgentServerTests {
         let folder = try SocketFolder()
         let gate = Gate()
         var listener: AgentListener?
-        let handle: @Sendable (AgentCall) async -> AgentReply = { _ in
+        let handle: AgentListener.Handle = { _, _ in
             await gate.wait()
             return .notOpen
         }
@@ -244,7 +253,7 @@ struct AgentServerTests {
         let gate = Gate()
         let cancelled = OSAllocatedUnfairLock(initialState: false)
         var listener: AgentListener?
-        let handle: @Sendable (AgentCall) async -> AgentReply = { _ in
+        let handle: AgentListener.Handle = { _, _ in
             await withTaskCancellationHandler {
                 await gate.wait()
             } onCancel: {
@@ -275,7 +284,7 @@ struct AgentServerTests {
         let gate = Gate()
         let open = OSAllocatedUnfairLock(initialState: 0)
         var listener: AgentListener?
-        let handle: @Sendable (AgentCall) async -> AgentReply = { call in
+        let handle: AgentListener.Handle = { call, _ in
             guard call.path == "/tmp/first.dirigible" else { return .result(text: "second", isError: false) }
             await gate.wait()
             return .result(text: "late", isError: false)
@@ -309,7 +318,7 @@ struct AgentServerTests {
         let folder = try SocketFolder()
         let gate = Gate()
         var listener: AgentListener?
-        let handle: @Sendable (AgentCall) async -> AgentReply = { _ in
+        let handle: AgentListener.Handle = { _, _ in
             await gate.wait()
             return .notOpen
         }

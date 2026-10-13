@@ -15,13 +15,15 @@ package final class AgentBridge {
 
     private let socket: URL
     private let timeout: Duration
-    /// The stdin of `dirigible mcp`. During a call the bridge reads it too (decision 0048).
+    /// The stdin of `dirigible mcp`. During a call the bridge reads it too (decisions 0048 and
+    /// 0049).
     private let input: LineInput?
     private var fd: Int32 = -1
     /// The read target, kept for the life of the bridge.
     private var bytes = [UInt8](repeating: 0, count: readSize)
 
-    /// The longest wait for a reply. A record request and its start fit in it (decision 0048).
+    /// The longest wait with no line from the app. A record request and its start fit in it
+    /// (decision 0048), and each progress line starts it again (decision 0049).
     package static let replyLimit = Duration.seconds(30)
 
     package init(socket: URL = agentSocketPath(), timeout: Duration = replyLimit, input: LineInput? = nil) {
@@ -47,8 +49,11 @@ package final class AgentBridge {
     }
 
     /// Sends one call and waits for its reply. A connection that the app closed before the send
-    /// counts as no connection: the bridge connects again once.
-    package func call(tool: String, arguments: [String: Any], client: ClientInfo) -> Outcome {
+    /// counts as no connection: the bridge connects again once. With `control`, the progress
+    /// lines of the app go to it, and the wait reads stdin for a cancel (decision 0049).
+    package func call(tool: String, arguments: [String: Any], client: ClientInfo, control: CallControl? = nil)
+        -> Outcome
+    {
         let line = MCPServer.encode(["tool": tool, "arguments": arguments, "client": client.json]) + "\n"
         if fd >= 0, !isOpen() { disconnect() }
         if fd < 0, !connect() { return .noApp }
@@ -59,9 +64,9 @@ package final class AgentBridge {
                 return .noApp
             }
         }
-        // Only `record` waits for the user, so only its wait watches stdin (decision 0048).
-        guard let reply = readLine(watching: tool == "record" ? input : nil).flatMap(AgentReply.init(line:)) else {
-            // A late reply must never answer the next call.
+        guard let reply = reply(control: control, record: tool == "record") else {
+            // A late reply must never answer the next call. A full close also cancels the call
+            // in the app: the listener keeps a half-close (decision 0049).
             disconnect()
             return .lost
         }
@@ -73,7 +78,7 @@ package final class AgentBridge {
     package func route(tool: String, arguments: [String: Any], client: ClientInfo, control: CallControl) -> (
         text: String, isError: Bool
     )? {
-        switch call(tool: tool, arguments: arguments, client: client) {
+        switch call(tool: tool, arguments: arguments, client: client, control: control) {
         case .reply(.result(let text, let isError)): (text, isError)
         case .lost: (lostCallMessage, true)
         case .reply(.notOpen), .noApp: nil
@@ -86,18 +91,35 @@ package final class AgentBridge {
         return poll(&entry, 1, 0) == 0
     }
 
-    /// One reply line, or nil at a close, an error, or the time limit. With `stdin`, also nil
-    /// when stdin ends or cancels the call: the agent no longer waits, and the close lets the app
-    /// end the call.
-    private func readLine(watching stdin: LineInput?) -> Data? {
+    /// The reply of the app, or nil at a close, an error, the time limit, a cancel on stdin, or
+    /// the end of stdin during a `record` call. One buffer holds the reads of the whole call, and
+    /// each whole line in it is handled before the next poll. Each progress line goes to
+    /// `control` and starts the limit again; another line that is not a reply changes nothing.
+    /// After EOF, stdin is out of the poll set, so the wait does not spin (decision 0049).
+    private func reply(control: CallControl?, record: Bool) -> AgentReply? {
+        let stdin = control == nil ? nil : input
         var buffer = Data()
-        let deadline = ContinuousClock.now + timeout
+        var deadline = ContinuousClock.now + timeout
         while true {
-            if stdin?.stopsCall() == true { return nil }
+            while let newline = buffer.firstIndex(of: UInt8(ascii: "\n")) {
+                let line = Data(buffer[buffer.startIndex..<newline])
+                buffer.removeSubrange(buffer.startIndex...newline)
+                switch AppFrame(line: line) {
+                case .progress(let fraction):
+                    control?.report(fraction)
+                    deadline = ContinuousClock.now + timeout
+                case .reply(let reply): return reply
+                case nil: continue
+                }
+            }
+            if let stdin {
+                if record, stdin.ended { return nil }
+                if control?.isCancelled() == true { return nil }
+            }
             let left = ContinuousClock.now.duration(to: deadline)
             guard left > .zero else { return nil }
             var entries = [pollfd(fd: fd, events: Int16(POLLIN), revents: 0)]
-            if let stdin { entries.append(pollfd(fd: stdin.fd, events: Int16(POLLIN), revents: 0)) }
+            if let stdin, !stdin.ended { entries.append(pollfd(fd: stdin.fd, events: Int16(POLLIN), revents: 0)) }
             // Round up, so the last wait is not 0 ms.
             let ready = poll(&entries, nfds_t(entries.count), Int32((left / .milliseconds(1)).rounded(.up)))
             if ready < 0, errno == EINTR { continue }
@@ -108,7 +130,6 @@ package final class AgentBridge {
             if count < 0, errno == EINTR { continue }
             guard count > 0 else { return nil }
             buffer.append(contentsOf: bytes[..<count])
-            if let newline = buffer.firstIndex(of: UInt8(ascii: "\n")) { return buffer[buffer.startIndex..<newline] }
         }
     }
 

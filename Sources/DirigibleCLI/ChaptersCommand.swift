@@ -1,6 +1,7 @@
 import ArgumentParser
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 
 struct ChaptersCommand: ParsableCommand {
@@ -65,7 +66,7 @@ struct ChaptersExport: ParsableCommand {
         guard !session.chapters(in: range).isEmpty else {
             throw fail("no chapter in frames \(from)..<\(end).", code: editRefused)
         }
-        warnDropped(session.chapterList(in: range).dropped, pastEnd: false)
+        warn(ExportText.droppedLines(session.chapterList(in: range).dropped, pastEnd: false))
         let output = URL(filePath: out)
         // An lstat: a dangling link is an item too. `[.atomic, .withoutOverwriting]` is a fatal
         // error of Foundation, so the check comes first, and a race with another writer is accepted.

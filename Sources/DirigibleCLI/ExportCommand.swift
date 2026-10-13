@@ -1,6 +1,7 @@
 import ArgumentParser
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 
 struct Export: ParsableCommand {
@@ -52,37 +53,12 @@ struct Export: ParsableCommand {
 
     /// The options that the arguments give, or a usage error.
     func options() throws(ValidationError) -> ExportOptions {
-        let format: ExportFormat
-        let pathExtension = URL(filePath: out).pathExtension.lowercased()
-        switch pathExtension {
-        case "wav", "flac":
-            guard bitrate == nil else { throw ValidationError("--bitrate is only for .m4a and .mp3.") }
-            guard let depth = BitDepth(rawValue: bits ?? 24) else { throw ValidationError("--bits must be 16 or 24.") }
-            format = pathExtension == "wav" ? .wav(depth) : .flac(depth)
-        case "m4a", "mp3":
-            guard bits == nil else { throw ValidationError("--bits is only for .wav and .flac.") }
-            guard let rate = BitRate(rawValue: bitrate ?? 128) else {
-                throw ValidationError("--bitrate must be 64, 96, 128, 160, 192, or 256.")
-            }
-            format = pathExtension == "m4a" ? .aac(rate) : .mp3(rate)
-        default:
-            throw ValidationError("--out must end in .wav, .m4a, .mp3, or .flac.")
+        do throws(ToolError) {
+            return try ExportText.options(
+                out: out, bits: bits, bitrate: bitrate, mono: mono, rate: rate, loudness: loudness)
+        } catch {
+            throw ValidationError(error.message)
         }
-        let fileRate: ExportRate
-        switch rate {
-        case nil: fileRate = .session
-        case 44_100: fileRate = .hz44100
-        case 48_000: fileRate = .hz48000
-        default: throw ValidationError("--rate must be 44100 or 48000.")
-        }
-        var target: LoudnessTarget?
-        if let loudness {
-            guard let value = LoudnessTarget(rawValue: loudness) else {
-                throw ValidationError("--loudness must be podcast, speech, ebu, or atsc.")
-            }
-            target = value
-        }
-        return ExportOptions(format: format, layout: mono ? .mono : .stereo, rate: fileRate, loudness: target)
     }
 
     func run() throws {
@@ -90,28 +66,22 @@ struct Export: ParsableCommand {
         let session = try readPackage(package)
         let tracks = track.map { TrackID($0) }
         if let unknown = tracks.first(where: { session.track($0) == nil }) {
-            throw ValidationError("The session has no track \(unknown).")
+            throw ValidationError(ExportText.noTrackMessage(unknown))
         }
         let end = to ?? session.end.count
         guard end > from,
             let source = ExportSource(range: Frames(from)..<Frames(end), tracks: tracks.isEmpty ? nil : Set(tracks))
         else {
-            throw ValidationError(
-                "The range must be 0 or more, with --to more than --from; the session end is \(session.end).")
+            throw ValidationError(ExportText.rangeMessage(end: session.end))
         }
         let faults: [FileID: MediaFault]
         do {
             faults = try checkMedia(session, package: package.url, source: source)
         } catch {
-            throw fail("cannot check the audio files: \(error.localizedDescription)", code: packageError)
+            throw fail(mediaCheckMessage(error), code: packageError)
         }
         guard faults.isEmpty || allowMissing else {
-            let files = faults.sorted { $0.key < $1.key }.map {
-                "file \($0.key) \(path(of: $0.key, in: session)) \(describe($0.value))"
-            }
-            throw fail(
-                "\(files.joined(separator: "; ")). Use --allow-missing to export its clips as silence.",
-                code: packageError)
+            throw fail(ExportText.faultMessage(faults, in: session), code: packageError)
         }
         let output = URL(filePath: out)
         // The item at --out now is the one that --replace confirms.
@@ -124,7 +94,7 @@ struct Export: ParsableCommand {
                 session, source: source, options: options, to: output, replacing: confirmed, package: { package.url },
                 isCancelled: interrupt.isCancelled)
         } catch .rateNotSupported(let rate) {
-            throw fail("cannot write \(out) at \(rate) Hz. Use --rate 44100 or --rate 48000.", code: packageError)
+            throw fail(ExportText.rateMessage(out: out, rate: rate), code: packageError)
         } catch {
             throw failure(error, out: out, noun: "export")
         }
@@ -132,26 +102,9 @@ struct Export: ParsableCommand {
         // went bad after the check. The file is written, so the error says so.
         let read = result.faults
         guard read.isEmpty || allowMissing else {
-            let files = read.sorted { $0.key < $1.key }.map {
-                "file \($0.key) \(path(of: $0.key, in: session)) \(describe($0.value))"
-            }
-            throw fail(
-                "\(files.joined(separator: "; ")); its clips in \(out) are silence. Use --allow-missing to accept it.",
-                code: packageError)
+            throw fail(ExportText.readFaultMessage(read, in: session, out: out), code: packageError)
         }
-        warn(read, in: session)
-        warnUnheard(session, source: source)
-        warnDropped(result.droppedChapters, pastEnd: true)
-        if result.chapterImagesOmitted {
-            let line =
-                "Warning: \(output.path) has no chapter images: a chapter has no image, and the episode has no "
-                + "artwork. Set the episode artwork, or an image for each chapter.\n"
-            try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
-        }
-        if let report = result.loudness {
-            let loudness = report.output.map { String(format: "%.1f LUFS", $0.value) } ?? "none"
-            let peak = report.truePeak.map { String(format: "%.1f dBTP", $0) } ?? "none"
-            print("loudness \(loudness), true peak \(peak), gain \(String(format: "%+.1f dB", report.gain.dB))")
-        }
+        warn(ExportText.warnings(of: result, session: session, source: source, output: output))
+        if let report = result.loudness { print(ExportText.loudnessLine(report)) }
     }
 }

@@ -47,7 +47,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
         case .paste, .revert, .prune: return refusedOpen
-        // The window path of decision 0048 comes in the next slice; the files refuse it.
+        // `AgentServer` sends `record` to `liveRecord`.
         case .create, .record: return .notOpen
         }
     } catch .busy {
@@ -55,4 +55,14 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     } catch {
         return .result(text: error.message(package: path), isError: true)
     }
+}
+
+/// Asks the window of the package to record (decision 0048). The reply waits for the answer of
+/// the user, so it is the one async live call. A target with no consent sheet runs on the files,
+/// which refuse it.
+@MainActor
+func liveRecord(_ request: RecordRequest, _ call: AgentCall, target: AgentTarget) async -> AgentReply {
+    if let busy = target.busy { return RecordAnswer.busy(busy).reply(package: call.path) }
+    guard let record = target.record else { return .notOpen }
+    return await record(request, call.agent).reply(package: call.path)
 }

@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import DirigibleTimeline
 import Observation
 import SwiftUI
@@ -125,6 +126,15 @@ import SwiftUI
     /// The error of a take start that its checks refused while an export runs. The progress
     /// sheet shows it: a window alert would wait behind the sheet until the export ends.
     var recordRefusal: StudioError?
+    /// The record request of an agent that waits or starts (decision 0048), or nil.
+    var consent: ConsentRequest?
+    /// The agent of a request that ended with no answer, until the next edit (decision 0048).
+    var consentExpired: ConsentExpiredShown?
+    /// The answer time of a request. Tests give a short one.
+    @ObservationIgnored var consentLifetime = RecordRequest.answerLimit
+    @ObservationIgnored var attention = ConsentAttention()
+    /// Stops the take of a request after its seconds.
+    @ObservationIgnored var agentStop: Task<Void, Never>?
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?
 
@@ -270,6 +280,7 @@ import SwiftUI
         commitDrafts()
         alert = nil
         unusedFiles = nil
+        closeConsent()
         switch phase {
         case .closing, .closed: return
         case .failed:
@@ -311,6 +322,7 @@ import SwiftUI
     /// For Quit: waits for the open, turns the monitor off, stops a take, and waits for every
     /// write.
     func settle() async {
+        closeConsent()
         await opening?.value
         commitDrafts()
         monitoring = false

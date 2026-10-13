@@ -46,6 +46,12 @@ struct SessionView: View {
                     Button(L10n.alertOK.key) {}
                 }
             }
+            // An AppKit sheet, so the close button is off (decision 0048). Only its buttons answer.
+            .sheet(isPresented: Binding(get: { model.consent?.phase == .waiting }, set: { _ in })) {
+                if let consent = model.consent, let studio = model.studio {
+                    ConsentSheet(model: model, consent: consent, sampleRate: studio.session.sampleRate)
+                }
+            }
             // Only the buttons answer: a set of the binding comes before the action of Export.
             .alert(
                 Text(verbatim: L10n.alertExportMissing.format(model.exportQuestionPaths.joined(separator: "\n"))),

@@ -22,15 +22,28 @@ extension AppDelegate {
     }
 
     /// Each window with a studio. A window refuses agent edits (C4) while it is not open, while a
-    /// lane drag runs (an edit then cannot join the drag's undo step), and during a Quit.
+    /// lane drag runs (an edit then cannot join the drag's undo step), while a record request
+    /// waits or starts (decision 0048), and during a Quit. `record` shows the consent sheet.
     func agentTargets() -> [AgentTarget] {
         windows.values.compactMap { window in
             guard let studio = window.studio else { return nil }
             let open = if case .open = window.phase { true } else { false }
             let dragging = window.timelineView?.gesture.isActive == true
             let busy: AgentBusy? =
-                if terminating { .quit } else if !open { .closing } else if dragging { .drag } else { nil }
-            return AgentTarget(studio: studio, busy: busy)
+                if terminating {
+                    .quit
+                } else if !open {
+                    .closing
+                } else if window.consent != nil {
+                    .asking
+                } else if dragging {
+                    .drag
+                } else {
+                    nil
+                }
+            return AgentTarget(studio: studio, busy: busy) { [weak window] request, agent in
+                await window?.askRecord(request, agent: agent) ?? .closed
+            }
         }
     }
 }

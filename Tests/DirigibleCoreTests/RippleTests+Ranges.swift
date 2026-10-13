@@ -154,7 +154,8 @@ extension RippleTests {
         ranges.shuffle(using: &random)
 
         // The oracle: `before[t]` is the count of removed frames under t.
-        let extent = ranges.map(\.upperBound.count).max()!
+        // The clips and the markers end at or before 100 000; a range can end after it.
+        let extent = max(100_000, ranges.map(\.upperBound.count).max() ?? 0)
         var removed = [Bool](repeating: false, count: extent)
         for range in ranges { for frame in range.lowerBound.count..<range.upperBound.count { removed[frame] = true } }
         var before = [0]

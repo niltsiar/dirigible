@@ -402,6 +402,7 @@
 "sheet.unused.total" = "Archivos: %lld (%@)";
 "sheet.unused.kept" = "Se conservan por una copia, Deshacer o el portapapeles: %lld (%@)";
 "sheet.unused.damaged" = "Las copias dañadas no conservan ningún archivo: %@";
+"sheet.unused.notfiles" = "Los enlaces y las carpetas de la sesión se conservan: %@";
 "sheet.unused.footnote" = "El espacio se recupera al vaciar la Papelera.";
 "sheet.unused.move" = "Trasladar a la Papelera";
 "alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";

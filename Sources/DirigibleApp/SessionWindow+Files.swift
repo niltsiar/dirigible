@@ -19,7 +19,7 @@ extension SessionWindow {
         Task {
             do throws(StudioError) {
                 let scan = try await studio.unusedFiles(clipboard: app?.clipboard)
-                if scan.items.isEmpty { alert = .noUnusedFiles(scan.kept) } else { unusedFiles = scan }
+                if scan.items.isEmpty { alert = .noUnusedFiles(scan) } else { unusedFiles = scan }
             } catch {
                 alert = .error(error)
             }

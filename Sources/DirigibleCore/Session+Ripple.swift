@@ -6,9 +6,11 @@ import Foundation
 extension Session {
     /// On each track of `tracks`, removes the frames in each range of `ranges`, in one edit. The
     /// overlapping and touching ranges merge first, and the cut goes from the last merged range to
-    /// the first, so each range removes the frames that the caller gave. Each cut is as
-    /// `rippleDelete(_:on:)`. An empty range is skipped. No range or an empty track list changes
-    /// nothing.
+    /// the first, so each range removes the frames that the caller gave. Each cut removes the
+    /// frames of its range (the edge clips are cut by the 0003 ID rule) and moves each clip at or
+    /// after the range end left by the length of the range. Each marker at or after the range end
+    /// moves left by that length, and each marker in the range goes to the range start. An empty
+    /// range is skipped. No range or an empty track list changes nothing.
     public mutating func rippleDelete(_ ranges: [Range<Frames>], on tracks: [TrackID]) throws(SessionError) {
         guard ranges.allSatisfy({ $0.lowerBound.isInRange && $0.upperBound.isInRange }) else {
             throw .frameOutOfRange
@@ -29,11 +31,8 @@ extension Session {
         self = copy
     }
 
-    /// On each track of `tracks`, removes the frames in `range` (the edge clips are cut by the
-    /// 0003 ID rule) and moves each clip at or after `range.upperBound` left by the length of the
-    /// range. Each marker at or after the range end moves left by that length, and each marker in
-    /// the range goes to the range start. An empty range or an empty track list changes nothing.
-    /// It calls `rippleDelete(_:on:)` with one range.
+    /// On each track of `tracks`, removes the frames in `range`. It calls the array form with one
+    /// range.
     public mutating func rippleDelete(_ range: Range<Frames>, on tracks: [TrackID]) throws(SessionError) {
         try rippleDelete([range], on: tracks)
     }

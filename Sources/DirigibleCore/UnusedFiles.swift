@@ -83,20 +83,21 @@ public struct UnusedFiles: Hashable, Sendable {
         var kept = Kept(count: 0, bytes: 0)
         for (kind, path) in candidates {
             let url = clips.appending(path: path)
-            let identities = FileIdentity.both(url.path)
             var info = stat()
             let found = lstat(url.path, &info) == 0
             if found && info.st_mode & S_IFMT != S_IFREG {
                 notFiles.append(path)
                 continue
             }
+            let identity = found ? FileIdentity(info) : nil
+            let identities = FileIdentity.both(url.path, lstat: identity)
             let bytes = found ? Int64(info.st_size) : 0
             if own.hold(path, identities) { continue }
             if others.hold(path, identities) {
                 kept = Kept(count: kept.count + 1, bytes: kept.bytes + bytes)
                 continue
             }
-            items.append(Item(kind: kind, path: path, bytes: bytes, identity: FileIdentity(lstat: url.path)))
+            items.append(Item(kind: kind, path: path, bytes: bytes, identity: identity))
         }
         self.init(
             items: items.sorted { $0.path < $1.path }, kept: kept, damagedBackups: damaged, notFiles: notFiles.sorted())
@@ -158,11 +159,13 @@ public struct UnusedFiles: Hashable, Sendable {
 
     /// The pool IDs of `session` that name an item: each pool item, and each entry whose path names
     /// a stray item. An undo or redo entry can name a stray WAV with no clip (decision 0047 D3).
-    public func poolIDs(in session: Session) -> Set<FileID> {
+    /// It builds its sets once, so a caller can use it for many sessions (the undo and redo entries).
+    public var poolIDs: (Session) -> Set<FileID> {
         let strays = Set(items.filter { $0.kind == .stray }.map { normalized($0.path) })
-        var ids = Set(items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
-        for file in session.files.values where strays.contains(normalized(file.path)) { ids.insert(file.id) }
-        return ids
+        let ids = Set(items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
+        return { session in
+            ids.union(session.files.values.filter { strays.contains(normalized($0.path)) }.map(\.id))
+        }
     }
 
     /// The items that `session` still does not use, by the normalized path as the move uses it.
@@ -187,7 +190,7 @@ public struct UnusedFiles: Hashable, Sendable {
         guard !items.isEmpty else { return nil }
         var pruned = session
         do throws(SessionError) {
-            for id in poolIDs(in: session) { try pruned.removeFile(id) }
+            for id in poolIDs(session) { try pruned.removeFile(id) }
         } catch {
             // An in-memory conflict, not a write: only a failed write is a save error.
             throw .changedDuringPrune
@@ -292,15 +295,17 @@ struct FileIdentity: Hashable, Sendable {
         (device, inode) = (info.st_dev, info.st_ino)
     }
 
-    private init(device: dev_t, inode: ino_t) {
-        (self.device, self.inode) = (device, inode)
+    /// The identity of the `info` of a `stat` or an `lstat`.
+    init(_ info: stat) {
+        (device, inode) = (info.st_dev, info.st_ino)
     }
 
-    /// The `lstat` and the `stat` identity, so a link and its target match.
-    static func both(_ path: String) -> Set<FileIdentity> {
-        var result = Set([FileIdentity(lstat: path)].compactMap(\.self))
+    /// The `lstat` and the `stat` identity, so a link and its target match. A caller that has the
+    /// `lstat` identity gives it, so the path gets only the `stat`.
+    static func both(_ path: String, lstat known: FileIdentity? = nil) -> Set<FileIdentity> {
+        var result = Set([known ?? FileIdentity(lstat: path)].compactMap(\.self))
         var info = stat()
-        if stat(path, &info) == 0 { result.insert(FileIdentity(device: info.st_dev, inode: info.st_ino)) }
+        if stat(path, &info) == 0 { result.insert(FileIdentity(info)) }
         return result
     }
 }

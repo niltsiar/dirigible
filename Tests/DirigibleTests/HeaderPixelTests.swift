@@ -219,9 +219,7 @@ import Testing
         }
     }
 
-    /// A slow test: 11 s alone in a debug build, over the 5 s of a fast test.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func noLanePixelShowsUnderOrOverTheHeaders() async throws {
+    @Test func noLanePixelShowsUnderOrOverTheHeaders() async throws {
         let started = ContinuousClock.now
         let package = try await timelinePackage(in: folder.url, tracks: 10, seconds: 20, noise: true)
         let (model, studio, window, view) = try await openLanes(app, package)

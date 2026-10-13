@@ -87,7 +87,8 @@ for i in "${!pids[@]}"; do
     wait "${pids[$i]}"
     code=$?
     want="$(awk -v s="$s" '$1 == s { t += $2 } END { print t + 0 }' "$logs/shards.txt")"
-    got="$(sed -nE 's/.*Test run with ([0-9]+) tests? in .*/\1/p' "$log" | tail -n 1)"
+    # Swift Testing writes " in <n> suites" (also "in 0 suites" for free functions); the part is optional.
+    got="$(sed -nE 's/.*Test run with ([0-9]+) tests?( in [0-9]+ suites?)? (passed|failed) .*/\1/p' "$log" | tail -n 1)"
     listed=$((listed + want)) total=$((total + ${got:-0}))
     lost=""
     if [[ -z "$got" ]]; then lost="no report line, exit $code"

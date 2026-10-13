@@ -53,6 +53,17 @@ cut -d/ -f1 "$logs/ids.txt" | sort | uniq -c | awk -v file="$weights" '
     { b = 1; for (i = 2; i <= n; i++) if (load[i] < load[b]) b = i; load[b] += $1; print b, $2, $3 }
     END { if (cli) print "cli", cli, "DirigibleCLITests\\." }' > "$logs/shards.txt"
 
+# A stale weights file: the keys with no weight (no CLI key: its shard has no split) and the weight
+# keys with no test, on one line.
+stale=""
+if [[ -f "$weights" ]]; then
+    keys="$(cut -d/ -f1 "$logs/ids.txt" | grep -v '^DirigibleCLITests\.' | sort -u)"
+    known="$(cut -f1 "$weights" | sort -u)"
+    missing="$(comm -23 <(echo "$keys") <(echo "$known") | paste -sd' ' -)"
+    gone="$(comm -13 <(echo "$keys") <(echo "$known") | paste -sd' ' -)"
+    [[ -z "$missing$gone" ]] || stale="test-shards: stale weights: no weight: ${missing:-none}; no test: ${gone:-none}"
+fi
+
 pids=() names=()
 stop() {
     local p
@@ -112,5 +123,6 @@ for s in "${names[@]}"; do
     cat "$logs/shard-$s.log"
 done
 for m in ${messages[@]+"${messages[@]}"}; do echo "$m"; done
+[[ -z "$stale" ]] || echo "$stale"
 echo "test-shards: $total of $listed tests in $((SECONDS - start)) s"
 exit "$failed"

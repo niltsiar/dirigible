@@ -6,7 +6,7 @@
 # run-checks.sh reads as no rerun ("the test process ended before its report"), and fails the run
 # after the other shards end. Check that a failed test fails the run with its line once in the
 # output, that a report line with no suite count counts, that TEST_SHARDS sets the count, that the
-# weights file balances the shards, that a failed build runs no shard, that the build, the list,
+# weights file balances the shards and names its stale keys, that a failed build runs no shard, that the build, the list,
 # and the shards share one hold of the lock, and that a TERM leaves no test process alive.
 # A fake swift and a stub test-helper.sh stand in for the toolchain. make test-hooks runs it.
 set -uo pipefail
@@ -117,10 +117,19 @@ grep -q -- "--test-bundle-path $root/.build/debug/DirigiblePackageTests.xctest/C
     fail "pass: no one hold of the lock: $(cat "$tmp/lock.log")"
 
 # The weights file: a heavy suite gets a shard of its own; a key with no weight counts 0.5 s a test.
+# With no weights file, no stale line.
+grep -q 'stale weights' "$tmp/out" && fail "pass: a stale line with no weights file"
 printf 'DirigibleTests.BTests\t100\n' > "$root/scripts/test-shards.weights"
 run TEST_SHARDS=4
 [[ $code -eq 0 ]] || fail "weights: exit $code"
 grep -qF -- '--filter ^(DirigibleTests\.BTests)(/|$)' "$tmp/args.log" || fail "weights: BTests is not alone: $(cat "$tmp/args.log")"
+# A stale weights file shows in one line: the keys with no weight and the weight keys with no
+# test. The CLI keys need no weight.
+want='test-shards: stale weights: no weight: DirigibleAudioTests.CTests DirigibleCoreTests.freeFunction() DirigibleTests.ATests; no test: none'
+grep -qxF "$want" "$tmp/out" || fail "weights: no stale line: $(grep stale "$tmp/out")"
+printf 'DirigibleTests.BTests\t1\nDirigibleTests.ATests\t1\nDirigibleAudioTests.CTests\t1\nDirigibleCoreTests.freeFunction()\t1\nDirigibleTests.GoneTests\t1\n' > "$root/scripts/test-shards.weights"
+run TEST_SHARDS=4
+grep -qxF 'test-shards: stale weights: no weight: none; no test: DirigibleTests.GoneTests' "$tmp/out" || fail "weights: no stale key line: $(grep stale "$tmp/out")"
 rm "$root/scripts/test-shards.weights"
 
 # (f) The default is 4 shards and the CLI shard; a shard with no test does not start.

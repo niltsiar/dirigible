@@ -51,9 +51,12 @@ package final class AgentServer {
             socket: socket,
             handle: { [weak self] call in await self?.answer(call) ?? .notOpen },
             counted: { [weak self] count in
-                Task { @MainActor in
-                    guard let self, self.generation == generation, self.listener != nil else { return }
-                    self.connected = count
+                // The main queue is FIFO, so the last count of the listener is the last one set.
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self, self.generation == generation, self.listener != nil else { return }
+                        self.connected = count
+                    }
                 }
             })
         switch opening {

@@ -75,6 +75,23 @@ struct AgentServerTests {
         #expect(await probe(folder.socket) == .reply(.notOpen))
     }
 
+    /// C12: many short connections end with the count 0, so the agent mark hides. The counts go
+    /// to the main actor in their order.
+    @Test func lastCountWins() async throws {
+        let folder = try SocketFolder()
+        let server = emptyServer(folder.socket)
+        server.start()
+        defer { server.stop() }
+        let socket = folder.socket
+        await onThread {
+            for _ in 0..<100 { Client(socket)?.close() }
+        }
+        await until("the closed connections stay counted") { server.connected == 0 }
+        // More main-actor turns: a late count of 1 would show here.
+        for _ in 0..<20 { await Task.yield() }
+        #expect(server.connected == 0)
+    }
+
     /// C9: with the lock held by another server, a second server does not listen, and the first
     /// one goes on.
     @Test func secondServerDoesNotListen() async throws {

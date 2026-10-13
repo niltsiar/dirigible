@@ -66,7 +66,9 @@ final class SpeedPopUp: NSPopUpButton {
     // VoiceOver reads "Playback Speed" and "1.5 times".
     override func accessibilityValue() -> Any? { speedSpokenText(speed) }
 
-    private func show() {
+    /// Selects the item of `speed`, with the accent color off 1x. A pick that the Studio refuses
+    /// calls it to snap back.
+    func show() {
         for item in itemArray { item.attributedTitle = nil }
         selectItem(withTag: speed.rawValue)
         guard speed != .one, let item = selectedItem else { return }

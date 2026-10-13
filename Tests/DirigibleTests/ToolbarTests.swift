@@ -1,11 +1,11 @@
 import AppKit
-import DirigibleAudio
 import DirigibleCore
 import Foundation
 import SwiftUI
 import Testing
 
 @testable import DirigibleApp
+@testable import DirigibleAudio
 
 /// The pure values of the session toolbar (decision 0023, ui-shell criteria A2 to A4).
 struct ToolbarValueTests {
@@ -156,6 +156,20 @@ struct ToolbarValueTests {
         popUp.selectItem(at: try #require(Speed.allCases.firstIndex(of: .x200)))
         popUp.sendAction(popUp.action, to: popUp.target)
         await until("a pick sets the speed") { studio.speed == .x200 }
+        await model.close()
+    }
+
+    /// Code gate 1 item 6: a pick that the Studio refuses (a take records) snaps back.
+    @Test func aRefusedPickSnapsBack() async throws {
+        let (model, _, chrome) = try await open("refused")
+        let studio = try #require(model.studio)
+        let popUp = try #require(chrome.speedPopUp)
+        studio.transport = .recording(take: 1)
+        defer { studio.transport = .idle }
+        popUp.selectItem(withTag: Speed.x200.rawValue)
+        popUp.sendAction(popUp.action, to: popUp.target)
+        await until(limit: .seconds(3), "the pop-up shows 1x again") { popUp.titleOfSelectedItem == speedText(.one) }
+        #expect(studio.speed == .one)
         await model.close()
     }
 

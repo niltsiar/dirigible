@@ -283,6 +283,9 @@ import Observation
         let tag = (sender as? NSPopUpButton)?.selectedTag() ?? (sender as? NSMenuItem)?.tag
         guard let model, let tag, let speed = Speed(rawValue: tag) else { return }
         model.speed(.set(speed))
+        // The pop-up selected the pick before this action. The shown speed comes back now, and
+        // the chrome shows the new speed when the Studio takes it.
+        speedPopUp?.show()
     }
 
     /// The button of a push-on item, with no target.

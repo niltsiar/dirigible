@@ -131,6 +131,7 @@ DirigibleCoreTests.SplitClipsTests	0.0
 DirigibleCoreTests.TimelineEdgeTests	0.0
 DirigibleCoreTests.TrackMuteSoloTests	0.2
 DirigibleCoreTests.WriteGuardTests	0.0
+DirigibleCoreTests.notesTakeAVerticalTabOrAFormFeedAsALineBreak()	0.1
 DirigibleTests.AlertReturnTests	4.6
 DirigibleTests.AppDelegateTests	9.2
 DirigibleTests.AppRouteMenuTests	8.1

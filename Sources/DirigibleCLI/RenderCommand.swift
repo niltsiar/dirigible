@@ -29,7 +29,7 @@ struct Render: ParsableCommand {
         let session = try readPackage(package)
         let end = to ?? session.end.count
         guard end > from, let source = ExportSource(range: Frames(from)..<Frames(end)) else {
-            throw ValidationError(ExportText.rangeMessage(end: session.end))
+            throw ValidationError(ExportText.rangeMessage(end: session.end, spelling: .cli))
         }
         let output = URL(filePath: out)
         let interrupt = cancelOnInterrupt()
@@ -63,7 +63,9 @@ func cancelOnInterrupt() -> (source: DispatchSourceSignal, isCancelled: @Sendabl
 /// The exit of a failed or cancelled render or export. `noun` is "render", "export", or "chapters file".
 func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
     // Control-C: the exit status of the default action, with no message.
-    guard let message = ExportText.failureMessage(error, out: out, noun: noun) else { return ExitCode(128 + SIGINT) }
+    guard let message = ExportText.failureMessage(error, out: out, noun: noun, spelling: .cli) else {
+        return ExitCode(128 + SIGINT)
+    }
     return fail(message, code: packageError)
 }
 

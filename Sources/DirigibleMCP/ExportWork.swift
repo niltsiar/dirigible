@@ -28,7 +28,7 @@ package struct ExportWork: Sendable {
         let end = to ?? session.end.count
         guard end > from,
             let source = ExportSource(range: Frames(from)..<Frames(end), tracks: tracks.isEmpty ? nil : Set(tracks))
-        else { throw ToolError(ExportText.rangeMessage(end: session.end)) }
+        else { throw ToolError(ExportText.rangeMessage(end: session.end, spelling: .tool)) }
         return source
     }
 
@@ -36,14 +36,16 @@ package struct ExportWork: Sendable {
     /// writes a bad file as silence, as `dirigible render`.
     func check(_ faults: [FileID: MediaFault], in session: Session) throws(ToolError) {
         guard faults.isEmpty || allowMissing || isRender else {
-            throw ToolError(ExportText.faultMessage(faults, in: session))
+            throw ToolError(ExportText.faultMessage(faults, in: session, spelling: .tool))
         }
     }
 
     /// The text of a failed job. A cancel has the cancel text: the client gets no answer.
     func message(_ error: ExportError) -> String {
-        if case .rateNotSupported(let rate) = error, !isRender { return ExportText.rateMessage(out: out, rate: rate) }
-        return ExportText.failureMessage(error, out: out, noun: noun) ?? cancelledMessage
+        if case .rateNotSupported(let rate) = error, !isRender {
+            return ExportText.rateMessage(out: out, rate: rate, spelling: .tool)
+        }
+        return ExportText.failureMessage(error, out: out, noun: noun, spelling: .tool) ?? cancelledMessage
     }
 
     /// The stdout lines and then the stderr lines of the command, or "OK" when it prints none. An
@@ -54,7 +56,7 @@ package struct ExportWork: Sendable {
             lines = ExportText.faultLines(result.faults, in: session) + ExportText.unheardLines(session, source: source)
         } else {
             guard result.faults.isEmpty || allowMissing else {
-                throw ToolError(ExportText.readFaultMessage(result.faults, in: session, out: out))
+                throw ToolError(ExportText.readFaultMessage(result.faults, in: session, out: out, spelling: .tool))
             }
             lines =
                 (result.loudness.map { [ExportText.loudnessLine($0)] } ?? [])

@@ -66,7 +66,7 @@ let audioTools = [
         )
         let path = try outPath(a)
         let options = try ExportText.options(
-            out: path, bits: depth, bitrate: kbits, mono: folds, rate: hertz, loudness: target)
+            out: path, bits: depth, bitrate: kbits, mono: folds, rate: hertz, loudness: target, spelling: .tool)
         return .export(
             ExportWork(
                 out: path, options: options, from: first, to: end, tracks: ids.map { TrackID($0) },

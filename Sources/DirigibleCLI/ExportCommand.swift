@@ -56,7 +56,7 @@ struct Export: ParsableCommand {
     func options() throws(ValidationError) -> ExportOptions {
         do throws(ToolError) {
             return try ExportText.options(
-                out: out, bits: bits, bitrate: bitrate, mono: mono, rate: rate, loudness: loudness)
+                out: out, bits: bits, bitrate: bitrate, mono: mono, rate: rate, loudness: loudness, spelling: .cli)
         } catch {
             throw ValidationError(error.message)
         }
@@ -73,7 +73,7 @@ struct Export: ParsableCommand {
         guard end > from,
             let source = ExportSource(range: Frames(from)..<Frames(end), tracks: tracks.isEmpty ? nil : Set(tracks))
         else {
-            throw ValidationError(ExportText.rangeMessage(end: session.end))
+            throw ValidationError(ExportText.rangeMessage(end: session.end, spelling: .cli))
         }
         let faults: [FileID: MediaFault]
         do {
@@ -82,7 +82,7 @@ struct Export: ParsableCommand {
             throw fail(mediaCheckMessage(error), code: packageError)
         }
         guard faults.isEmpty || allowMissing else {
-            throw fail(ExportText.faultMessage(faults, in: session), code: packageError)
+            throw fail(ExportText.faultMessage(faults, in: session, spelling: .cli), code: packageError)
         }
         let output = URL(filePath: out)
         // The item at --out now is the one that --replace confirms.
@@ -95,7 +95,7 @@ struct Export: ParsableCommand {
                 session, source: source, options: options, to: output, replacing: confirmed, package: { package.url },
                 isCancelled: interrupt.isCancelled)
         } catch .rateNotSupported(let rate) {
-            throw fail(ExportText.rateMessage(out: out, rate: rate), code: packageError)
+            throw fail(ExportText.rateMessage(out: out, rate: rate, spelling: .cli), code: packageError)
         } catch {
             throw failure(error, out: out, noun: "export")
         }
@@ -103,7 +103,7 @@ struct Export: ParsableCommand {
         // went bad after the check. The file is written, so the error says so.
         let read = result.faults
         guard read.isEmpty || allowMissing else {
-            throw fail(ExportText.readFaultMessage(read, in: session, out: out), code: packageError)
+            throw fail(ExportText.readFaultMessage(read, in: session, out: out, spelling: .cli), code: packageError)
         }
         warn(ExportText.warnings(of: result, session: session, source: source, output: output))
         if let report = result.loudness { print(ExportText.loudnessLine(report)) }

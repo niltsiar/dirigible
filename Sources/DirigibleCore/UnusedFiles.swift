@@ -188,7 +188,8 @@ public struct UnusedFiles: Hashable, Sendable {
         do throws(SessionError) {
             for id in poolIDs(in: session) { try pruned.removeFile(id) }
         } catch {
-            throw .save(.invalidSession(error))
+            // An in-memory conflict, not a write: only a failed write is a save error.
+            throw .changedDuringPrune
         }
         return pruned
     }
@@ -361,7 +362,8 @@ public enum UnusedFilesError: Error, Hashable, Sendable {
     case backupUnreadable(Backup, SessionFileError)
     /// The save before the Trash failed, so no file moved.
     case save(SessionFileError)
-    /// An edit during the prune save uses a listed file (`Studio`). The save wrote the session
-    /// before that edit, no file moved, and the autosave of the edit writes it.
+    /// An edit after the scan conflicts with a listed file. During the prune save (`Studio`), the
+    /// save wrote the session before that edit, no file moved, and the autosave of the edit
+    /// writes it.
     case changedDuringPrune
 }

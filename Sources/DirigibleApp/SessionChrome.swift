@@ -185,11 +185,6 @@ import Observation
         if item.isEnabled != enabled { item.isEnabled = enabled }
         if id == .speed {
             if let popUp = item.view as? NSPopUpButton, popUp.isEnabled != enabled { popUp.isEnabled = enabled }
-            for menuItem in item.menuFormRepresentation?.submenu?.items ?? [] {
-                let value: NSControl.StateValue = menuItem.tag == state.shown.speed.rawValue ? .on : .off
-                if menuItem.state != value { menuItem.state = value }
-                if menuItem.isEnabled != enabled { menuItem.isEnabled = enabled }
-            }
             return
         }
         guard let button = item.view as? NSButton else { return }
@@ -262,13 +257,13 @@ import Observation
         popUp.action = #selector(pickSpeed(_:))
         if inserted { speedPopUp = popUp }
         item.view = popUp
+        // The overflow menu shows a copy of this submenu, so `validateMenuItem` sets each item.
         let submenu = NSMenu()
-        // `apply` sets each item on or off with the toolbar item.
-        submenu.autoenablesItems = false
         for speed in Speed.allCases {
             let menuItem = NSMenuItem(title: speedText(speed), action: #selector(pickSpeed(_:)), keyEquivalent: "")
             menuItem.tag = speed.rawValue
             menuItem.target = self
+            menuItem.identifier = NSUserInterfaceItemIdentifier(ToolbarItemID.speed.rawValue)
             submenu.addItem(menuItem)
         }
         let menuItem = NSMenuItem(title: ToolbarItemID.speed.label.text, action: nil, keyEquivalent: "")
@@ -314,12 +309,15 @@ import Observation
         return image.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed])) ?? image
     }
 
-    /// The overflow menu item of a push-on item is enabled when its toolbar item is.
+    /// The overflow menu item of a push-on item, or of a speed, is enabled when its toolbar item
+    /// is. A speed item is checked when it is the speed of the window.
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let model, let raw = menuItem.identifier?.rawValue, let id = ToolbarItemID(rawValue: raw) else {
             return true
         }
-        return ChromeState(model: model).enabled.contains(id)
+        let state = ChromeState(model: model)
+        if id == .speed { menuItem.state = menuItem.tag == state.shown.speed.rawValue ? .on : .off }
+        return state.enabled.contains(id)
     }
 
     /// The action of each item: a toolbar item, its view, or its overflow menu item.

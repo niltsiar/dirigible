@@ -34,6 +34,8 @@ package enum RecordAnswer: Equatable, Sendable {
     case declined
     /// The request ended after `RecordRequest.answerLimit` with no answer.
     case noAnswer
+    /// The call ended before an answer: its bridge closed, or the server stopped.
+    case ended
     /// Another request waits on the window.
     case waits
     /// The window closed, or changed during the microphone prompt, before the take started.
@@ -57,6 +59,7 @@ package enum RecordAnswer: Equatable, Sendable {
             text =
                 "The user did not answer in \(RecordRequest.answerLimit.components.seconds) s. Ask the user to look at "
                 + "the Dirigible window, then try again."
+        case .ended: text = "The request ended before the user answered: the agent server stopped. Nothing records."
         case .waits: text = "A record request for \(package) waits for the user."
         case .closed: text = "The window of \(package) closed before the take started."
         case .minimized: text = "The window of \(package) is minimized. Ask the user to show it, then try again."

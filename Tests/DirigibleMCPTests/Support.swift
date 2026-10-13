@@ -173,3 +173,56 @@ func toolText(_ answer: String?) -> (text: String, isError: Bool) {
     let content = result?["content"] as? [[String: Any]]
     return (content?.first?["text"] as? String ?? "", result?["isError"] as? Bool ?? true)
 }
+
+/// A raw client of the app socket.
+final class Client: @unchecked Sendable {
+    private var fd: Int32
+
+    init?(_ socket: URL) {
+        fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+        setNoSigPipe(fd)
+        guard withAddress(socket.path, { connect(fd, $0, $1) }) == 0 else {
+            Darwin.close(fd)
+            fd = -1
+            return nil
+        }
+    }
+
+    func send(_ line: String) { _ = writeAll(fd, Data((line + "\n").utf8)) }
+
+    /// Ends the write side: the server reads EOF, and the client can still read.
+    func shutdownWrite() { shutdown(fd, SHUT_WR) }
+
+    /// One reply line, or nil when none comes within 5 s.
+    func readLine() -> String? {
+        var buffer = Data()
+        var byte: UInt8 = 0
+        while true {
+            var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            guard poll(&entry, 1, 5_000) == 1, read(fd, &byte, 1) == 1 else { return nil }
+            if byte == UInt8(ascii: "\n") { return String(decoding: buffer, as: UTF8.self) }
+            buffer.append(byte)
+        }
+    }
+
+    /// True when bytes wait to be read now.
+    var hasData: Bool {
+        var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+        return poll(&entry, 1, 0) == 1
+    }
+
+    /// True when a read gets EOF within 5 s.
+    func readsEOF() -> Bool {
+        var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+        guard poll(&entry, 1, 5_000) == 1 else { return false }
+        var byte: UInt8 = 0
+        return read(fd, &byte, 1) == 0
+    }
+
+    func close() {
+        Darwin.close(fd)
+        fd = -1
+    }
+
+    deinit { if fd >= 0 { Darwin.close(fd) } }
+}

@@ -60,11 +60,42 @@ struct LiveToolTests {
         let before = studio.session
 
         let outcome = await send(
-            folder.socket, "clip_ripple_delete", ["package": package.path, "from": 0, "to": 48_000])
+            folder.socket, "clip_ripple_delete", ["package": package.path, "from": [0], "to": [48_000]])
 
         let text = StudioError.rippleBlocked.message(package: package.path)
         #expect(outcome == .reply(.result(text: text, isError: true)), "C3: a live ripple under a pending take ran")
         #expect(studio.session == before)
+        await studio.settle()
+    }
+
+    /// RR9: a live ripple delete of two ranges is one undo step. Control: two calls of one range
+    /// each are two steps.
+    @Test func severalRangesAreOneUndoStep() async throws {
+        let package = try LivePackage()
+        var file = try Session(contentsOf: package.url)
+        for at in [20_000, 60_000, 100_000] {
+            try file.setMarker(Marker(id: MarkerID("m\(at)"), name: "M", position: Frames(at), kind: .marker))
+        }
+        try file.write(to: package.url)
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let (before, revision) = (studio.session, studio.sessionRevision)
+        func cut(_ from: [Int], _ to: [Int]) async -> AgentBridge.Outcome {
+            await send(folder.socket, "clip_ripple_delete", ["package": package.path, "from": from, "to": to])
+        }
+
+        #expect(await cut([10_000, 50_000], [30_000, 70_000]) == ok)
+        #expect(studio.session.markers.values.map(\.position).sorted() == [10_000, 30_000, 60_000])
+        #expect(studio.sessionRevision == revision + 1, "one call is one edit")
+        try studio.undo()
+        let undone = studio.session == before
+        #expect(undone, "one undo gives back the session before the call")
+
+        let twice = studio.sessionRevision
+        #expect(await cut([50_000], [70_000]) == ok)
+        #expect(await cut([10_000], [30_000]) == ok)
+        #expect(studio.sessionRevision == twice + 2, "two calls are two edits")
         await studio.settle()
     }
 

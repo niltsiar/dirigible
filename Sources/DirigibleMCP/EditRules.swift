@@ -15,6 +15,25 @@ package enum EditRules {
         case stereo
     }
 
+    /// The ranges of a ripple delete: one `from` and one `to` for each range, paired by order.
+    package enum RippleRanges: Equatable {
+        case ranges([Range<Frames>])
+        /// No `from` and no `to`.
+        case missing
+        /// The counts of `from` and `to` differ.
+        case unpaired
+        /// The 1-based number of the first pair whose `from` is not less than its `to`: a ripple
+        /// delete of nothing is refused.
+        case notIncreasing(range: Int)
+    }
+
+    package static func rippleRanges(from: [Int], to: [Int]) -> RippleRanges {
+        if from.isEmpty, to.isEmpty { return .missing }
+        guard from.count == to.count else { return .unpaired }
+        if let index = from.indices.first(where: { from[$0] >= to[$0] }) { return .notIncreasing(range: index + 1) }
+        return .ranges(zip(from, to).map { Frames($0)..<Frames($1) })
+    }
+
     package static func isPackagePath(_ url: URL) -> Bool { url.pathExtension == "dirigible" }
 
     /// More than 0 Hz. `Session.init` traps on a rate that is not positive.
@@ -23,11 +42,6 @@ package enum EditRules {
     /// `from <= to`. `Range` traps when the lower bound is above the upper bound.
     package static func frameRange(from: Int, to: Int) -> Range<Frames>? {
         from <= to ? Frames(from)..<Frames(to) : nil
-    }
-
-    /// `from < to`: a ripple delete of nothing is refused.
-    package static func positiveRange(from: Int, to: Int) -> Range<Frames>? {
-        from < to ? Frames(from)..<Frames(to) : nil
     }
 
     /// An even number of frames, 0 or more. `Session` refuses a length over the limit.

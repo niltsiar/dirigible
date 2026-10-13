@@ -154,7 +154,7 @@ extension MCPToolTests {
             ),
             ("clip_split_at", ["package": pkg, "track": ["a"], "at": [Int]()], "\"at\" must be an array of integers"),
             ("clip_paste_clips", ["package": pkg, "clips": [String](), "at": 0], "\"clips\" must be an array"),
-            ("clip_ripple_delete", ["package": pkg, "from": 48_000, "to": 48_000], "from must be less than to."),
+            ("clip_ripple_delete", ["package": pkg, "from": [48_000], "to": [48_000]], "from must be less than to."),
             (
                 "clip_ripple_insert", ["package": pkg, "at": 0, "length": -1],
                 "\"length\" must be an integer, 0 or more."
@@ -186,5 +186,31 @@ extension MCPToolTests {
         #expect(!toolResult(answer(passed, id: 1)).isError && !toolResult(answer(passed, id: 2)).isError)
         // The even rule passes 4; the session then refuses the crossfade, because no clip touches A1.
         #expect(toolResult(answer(passed, id: 3)) == ("no clip touches the crossfade edge of clip \"A1\".", true))
+    }
+
+    /// RR7 and RR8: each bad range list of `clip_ripple_delete` gives its tool error, and the
+    /// package does not change.
+    @Test func rippleRangeRefusals() async throws {
+        let pkg = package.path
+        let array = "\"from\" must be an array of integers with one item or more"
+        let cases: [([String: Any], String)] = [
+            (["from": [0, 20], "to": [10]], "Give one to for each from."),
+            (["from": [Int](), "to": [10]], array),
+            (["from": 0, "to": [10]], array),
+            (["from": [0, 50], "to": [10, 50]], "from must be less than to (range 2)."),
+        ]
+        let before = try package.xml()
+        var lines: [String] = []
+        for (index, (arguments, _)) in cases.enumerated() {
+            var call = arguments
+            call["package"] = pkg
+            lines.append(toolCall(index, "clip_ripple_delete", call))
+        }
+        let answers = try await mcp(lines)
+        for (index, (arguments, text)) in cases.enumerated() {
+            let refused = toolResult(answer(answers, id: index))
+            #expect(refused.isError && refused.text.contains(text), "\(arguments): \(refused.text)")
+        }
+        #expect(try package.xml() == before)
     }
 }

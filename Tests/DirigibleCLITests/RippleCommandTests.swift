@@ -50,6 +50,41 @@ struct RippleCommandTests {
         #expect(try clips("guest").map(\.range) == [0..<48_000, 48_000..<152_000], "the guest closes the gap")
     }
 
+    /// RR6. Two `--from` and `--to` pairs cut both ranges in one save, as the Core edit of the
+    /// same ranges.
+    @Test func twoRangesInOneCommand() async throws {
+        var expected = try package.read()
+        try expected.rippleDelete([48_000..<96_000, 120_000..<130_000], on: ["host"])
+        let result = try await package.run(
+            "clip", "ripple-delete", "PKG", "--from", "48000", "--to", "96000", "--from", "120000", "--to", "130000",
+            "--track", "host")
+        #expect(result == CLIResult(status: 0, stdout: "", stderr: ""))
+        let same = try package.read() == expected
+        #expect(same, "the package equals the Core edit of the two ranges")
+        #expect(try clips("host").map(\.range) == [0..<48_000, 48_000..<72_000, 72_000..<142_000])
+        #expect(try await Self.markers(package) == ["before": 24_000, "inside": 48_000, "after": 86_000])
+    }
+
+    /// RR6. A call with no range exits 64 and does not save.
+    @Test func aCommandWithNoRangeExits64() async throws {
+        let before = try package.xml()
+        let result = try await package.run("clip", "ripple-delete", "PKG", "--track", "host")
+        #expect(result.status == 64 && result.stderr.contains("Give one or more --from and --to."), "\(result)")
+        #expect(try package.xml() == before)
+    }
+
+    /// RR6. A `--from` with no `--to`, or a `--to` with no `--from`, exits 64 and does not save.
+    @Test(
+        arguments: [
+            ["--from", "0", "--to", "10", "--from", "20"], ["--from", "0"], ["--to", "10"],
+        ])
+    func aRangeCountMismatchExits64(ranges: [String]) async throws {
+        let before = try package.xml()
+        let result = try await package.run(["clip", "ripple-delete", "PKG"] + ranges)
+        #expect(result.status == 64 && result.stderr.contains("Give one --to for each --from."), "\(result)")
+        #expect(try package.xml() == before)
+    }
+
     /// No `--track` ripples every track.
     @Test func rippleInsertWithNoTrackPushesEveryTrack() async throws {
         let result = try await package.run("clip", "ripple-insert", "PKG", "--at", "60000", "--length", "24000")
@@ -85,6 +120,10 @@ struct RippleCommandTests {
             // `FrameRange` or the command refuses it first; both texts start so.
             (["clip", "ripple-delete", "PKG", "--from", "96000", "--to", "48000"], "--from must "),
             (["clip", "ripple-delete", "PKG", "--from", "48000", "--to", "48000"], "--from must be less than --to."),
+            (
+                ["clip", "ripple-delete", "PKG", "--from", "0", "--to", "10", "--from", "50", "--to", "50"],
+                "--from must be less than --to (range 2)."
+            ),
             (["clip", "ripple-insert", "PKG", "--at", "0", "--length", "-1"], "--length must not be negative."),
         ] as [([String], String)])
     func aBadValueExits64(arguments: [String], reason: String) async throws {
@@ -112,6 +151,7 @@ struct RippleCommandTests {
         let before = try fixture.package.xml()
         for arguments in [
             ["clip", "ripple-delete", "PKG", "--from", "0", "--to", "48000"],
+            ["clip", "ripple-delete", "PKG", "--from", "0", "--to", "4800", "--from", "9600", "--to", "48000"],
             ["clip", "ripple-insert", "PKG", "--at", "0", "--length", "48000"],
             ["clip", "ripple-trim", "PKG", "take1-2-1", "--edge", "end", "--by", "-4800"],
         ] {

@@ -5,6 +5,9 @@ import Foundation
 /// empty (decision 0037). A split take refuses each ripple tool.
 private let scope = Param.defaulted(
     "track", "The tracks. Give none for all tracks, or one or more.", .strings(), [String]())
+private let froms = Param.required("from", "The first frame of each range: one or more.", .integers(minItems: 1))
+private let tos = Param.required(
+    "to", "The frame after the last frame of each range, one for each from, in order.", .integers(minItems: 1))
 private let at = Param.required("at", "The timeline frame of the insert.", .integer())
 private let length = Param.required("length", "The frames of silence to insert.", .integer(minimum: 0))
 private let clip = Param.required("clip", "The clip ID.", .string)
@@ -15,16 +18,22 @@ private let by = Param.required(
 let rippleTools = [
     Tool(
         "clip_ripple_delete",
-        "Remove the frames in a range and move the later clips and the markers left to close the gap. A marker in "
-            + "the range goes to its start.",
-        [Arg.from, Arg.to, scope]
+        "Remove the frames in one or more ranges and move the later clips and the markers left to close the gap. "
+            + "A marker in a range goes to its start. Ranges that overlap or touch cut as one range.",
+        [froms, tos, scope]
     ) { a throws(ToolError) in
-        guard let range = EditRules.positiveRange(from: try a[Arg.from], to: try a[Arg.to]) else {
-            throw ToolError("from must be less than to.")
+        let (from, to) = (try a[froms], try a[tos])
+        let ranges: [Range<Frames>]
+        switch EditRules.rippleRanges(from: from, to: to) {
+        case .ranges(let given): ranges = given
+        // `minItems` refuses an empty array first, so `.missing` gets the same text.
+        case .missing, .unpaired: throw ToolError("Give one to for each from.")
+        case .notIncreasing(let range):
+            throw ToolError("from must be less than to\(from.count > 1 ? " (range \(range))" : "").")
         }
         let ids = try a[scope]
         return .edit(ripple: true) { session throws(SessionError) in
-            try session.rippleDelete(range, on: EditRules.tracks(ids, of: session))
+            try session.rippleDelete(ranges, on: EditRules.tracks(ids, of: session))
             return []
         }
     },

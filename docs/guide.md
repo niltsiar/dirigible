@@ -789,7 +789,7 @@ The text of the tool is English only.
 
 ### Connect an AI agent
 
-An AI agent can read and edit a session through MCP (Model Context Protocol). Claude Code, Codex, opencode, and other MCP apps can use it. `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create`, `session_info`, and `backup_list`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool except `devices` and `apps` takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
+An AI agent can read and edit a session through MCP (Model Context Protocol). Claude Code, Codex, opencode, and other MCP apps can use it. `dirigible mcp` is an MCP server on stdin and stdout. It has one tool for each `dirigible` edit command, plus `session_create`, `session_info`, `backup_list`, `devices`, and `apps`. Some commands have no tool (the list is below). The tool name is the command words with `_` in place of each space and hyphen, for example `clip_ripple_delete`. The arguments have the option names of the command, with `_` in place of each hyphen. Each tool except `devices` and `apps` takes the absolute path of the session package in `package`, for example `/Users/me/Podcasts/Show.dirigible`.
 
 To register the server:
 

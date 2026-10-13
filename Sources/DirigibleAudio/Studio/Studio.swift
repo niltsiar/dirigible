@@ -72,6 +72,8 @@ import Observation
     /// The last autosave error. Nil after a good save.
     public internal(set) var saveError: StudioError?
     @ObservationIgnored var diskWatcher: Task<Void, Never>?
+    /// The stop of a timed take (decision 0048). Each stop cancels it.
+    @ObservationIgnored var takeTimer: Task<Void, Never>?
     /// The device writers of the take that records, by device UID.
     @ObservationIgnored var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.

@@ -3,6 +3,7 @@ import DirigibleCore
 import DirigibleMCP
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
@@ -109,32 +110,53 @@ extension ConsentTests {
 
     // MARK: C9
 
-    /// C9: the take stops after the seconds of the request and finalizes; it still runs before them.
+    /// C9: the take stops when its length ends, and finalizes. A gate holds the timer of the
+    /// length, so no wall clock races the checks.
     @Test func takeStopsAfterSeconds() async throws {
         let (model, studio) = try await window()
+        let gate = AsyncGate()
+        let length = OSAllocatedUnfairLock<Duration?>(initialState: nil)
+        studio.environment.takeLength = { duration in
+            length.withLock { $0 = duration }
+            await gate.wait()
+        }
         let answer = ask(model, seconds: 0.5)
         try click(record: true, in: try await sheet(model))
         #expect(await answer.value == .started(take: 1, tracks: ["Host"], seconds: 0.5))
-        try await Task.sleep(for: .milliseconds(100))
-        #expect(studio.transport == .recording(take: 1), "the take runs at 0.1 s")
-        await until("the take stops") { studio.transport == .idle && studio.session.recording == nil }
+        let timer = try #require(studio.takeTimer)
+        await gate.entered()
+        #expect(length.withLock { $0 } == .milliseconds(500))
+        #expect(studio.transport == .recording(take: 1), "the take runs until its length ends")
+
+        gate.open()
+        await timer.value
+
+        #expect(studio.transport == .idle && studio.session.recording == nil)
         // The counting HAL writes no audio, so the take ends with no clip; the finalize ran.
         #expect(studio.lastTake?.take == 1, "take 1 finalized")
         await model.close()
     }
 
-    /// C9: after a Stop of the user, the timer of the request does not stop the next take.
+    /// C9: after a Stop of the user, the timer of the request does not stop the next take. The
+    /// gate opens after take 2 starts.
     @Test func userStopKeepsTheNextTake() async throws {
         let (model, studio) = try await window()
+        let gate = AsyncGate()
+        studio.environment.takeLength = { _ in await gate.wait() }
         let answer = ask(model, seconds: 1)
         try click(record: true, in: try await sheet(model))
         #expect(await answer.value == .started(take: 1, tracks: ["Host"], seconds: 1))
+        let timer = try #require(studio.takeTimer)
+        await gate.entered()
         await model.stop()
         await until("the take stops") { studio.transport == .idle }
         model.armed = ["t1"]
         await model.record()
         #expect(studio.transport == .recording(take: 2))
-        try await Task.sleep(for: .milliseconds(1300))
+
+        gate.open()
+        await timer.value
+
         #expect(studio.transport == .recording(take: 2), "the old timer did not stop take 2")
         await model.stop()
         await model.close()

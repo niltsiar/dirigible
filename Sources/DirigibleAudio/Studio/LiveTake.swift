@@ -115,6 +115,9 @@ struct CaptureEnvironment: Sendable {
     /// A step of a take start before the device lookup, off the main actor. Tests hold the start
     /// with it and suspend, so no thread of the concurrency pool waits; `live` does nothing.
     var beforeLookUp: @Sendable () async -> Void = {}
+    /// The wait of a timed take from its start to its stop (decision 0048). Tests hold it with a
+    /// gate, so no wall clock races a check.
+    var takeLength: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
     /// A step at the start of each media check of `Studio.checkMedia`, off the main actor. Tests
     /// hold the check with it and suspend, so no thread of the concurrency pool waits.
     var beforeMediaCheck: @Sendable () async -> Void = {}

@@ -139,15 +139,20 @@ struct AppTakeTests {
         await until(limit: .seconds(20), "the disk watch did not tick") { studio.recordTimeLeft != nil }
         try await Task.sleep(for: .milliseconds(500))
         let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
-        let stopHost = hostNanosNow()
-        let stop = Task { try await studio.stopRecording() }
+        // The stop host is read in the job of the stop, so a main-actor hold before it does not
+        // count as time after the stop.
+        let stop = Task {
+            let host = hostNanosNow()
+            try await studio.stopRecording()
+            return host
+        }
         // Code gate round 2 F1: the device writer closes while the app writer waits.
         await until(limit: .seconds(10), "the mic did not detach while the app waits") {
             hal.calls.contains("detach mic")
         }
         #expect(!hal.calls.contains("makeTap \(Self.zoomUID)"), "the tap was held until the release")
         hal.releaseTaps()
-        try await stop.value
+        let stopHost = try await stop.value
         await micInput.wait()
         #expect(hal.calls.contains("detach app:us.zoom.xos"), "the app writer finished")
 
@@ -175,11 +180,16 @@ struct AppTakeTests {
         let gate = Gate(limit: Gate.openLimit)
         hal.holdNextDetach(in: gate)
         let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
-        let stopHost = hostNanosNow()
-        let stop = Task { try await studio.stopRecording() }
+        // The stop host is read in the job of the stop, so a main-actor hold before it does not
+        // count as time after the stop.
+        let stop = Task {
+            let host = hostNanosNow()
+            try await studio.stopRecording()
+            return host
+        }
         try await Task.sleep(for: .milliseconds(1500))
         gate.open()
-        try await stop.value
+        let stopHost = try await stop.value
         await micInput.wait()
 
         let length = try #require(clips(studio, "t1").first?.length.count)

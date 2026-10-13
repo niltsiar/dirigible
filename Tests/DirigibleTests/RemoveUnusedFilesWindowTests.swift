@@ -136,4 +136,15 @@ import Testing
         model.alert = nil
         await model.close()
     }
+
+    /// Review item 11: the sheet names each damaged backup that keeps no file, as the CLI does.
+    @Test func damagedLineNamesBackups() {
+        let backups = [TimeInterval(2_000_000_000), 2_000_000_060].map {
+            Backup(saved: Date(timeIntervalSince1970: $0))
+        }
+        let titles = backups.map { backupTitle($0.saved) }.joined(separator: ", ")
+
+        #expect(L10n.damagedLine([]) == nil)
+        #expect(L10n.damagedLine(backups) == L10n.sheetUnusedDamaged.format(titles))
+    }
 }

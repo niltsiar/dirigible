@@ -91,7 +91,7 @@ func withAddress(_ path: String, _ call: (UnsafePointer<sockaddr>, socklen_t) ->
 /// closed. `MSG_NOSIGNAL` stops SIGPIPE also when `SO_NOSIGPIPE` failed: `setsockopt` gives EINVAL
 /// on an accepted socket whose peer closed before the accept. On a non-blocking fd, a full buffer
 /// waits for room until `limit` after the call, so a peer that reads nothing holds the caller
-/// for no longer.
+/// for no longer. After false, `errno` gives the cause: ETIMEDOUT for the limit.
 func writeAll(_ fd: Int32, _ data: Data, limit: Duration = .seconds(5)) -> Bool {
     let deadline = ContinuousClock.now + limit
     return data.withUnsafeBytes { buffer in
@@ -101,7 +101,10 @@ func writeAll(_ fd: Int32, _ data: Data, limit: Duration = .seconds(5)) -> Bool 
             if written < 0, errno == EINTR { continue }
             if written < 0, errno == EAGAIN {
                 let left = ContinuousClock.now.duration(to: deadline)
-                guard left > .zero else { return false }
+                guard left > .zero else {
+                    errno = ETIMEDOUT
+                    return false
+                }
                 var entry = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
                 // Round up, so the last wait is not 0 ms.
                 _ = poll(&entry, 1, Int32((left / .milliseconds(1)).rounded(.up)))

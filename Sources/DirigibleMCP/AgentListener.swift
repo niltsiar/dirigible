@@ -1,6 +1,9 @@
 import DirigibleAudio
 import DirigibleCore
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.delineas.dirigible", category: "agents")
 
 /// One call that a bridge sent, checked on the listener queue (decision 0046).
 package struct AgentCall: Sendable {
@@ -177,8 +180,12 @@ final class AgentListener: @unchecked Sendable {
 
     private func answered(_ key: ObjectIdentifier, _ reply: AgentReply) {
         guard let connection = connections[key] else { return }
-        let sent = writeAll(connection.fd, Data((reply.line + "\n").utf8))
-        guard sent, !stopped else { return end(connection) }
+        guard writeAll(connection.fd, Data((reply.line + "\n").utf8)) else {
+            let code = errno
+            log.error("A reply to an agent did not arrive whole (errno \(code)). The connection ends.")
+            return end(connection)
+        }
+        guard !stopped else { return end(connection) }
         connection.running = false
         connection.source?.resume()
         nextCall(connection)

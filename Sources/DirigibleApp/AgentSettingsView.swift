@@ -24,9 +24,9 @@ enum SetupClient: CaseIterable, Sendable {
 /// same socket.
 func setupCommand(_ client: SetupClient, bundle: URL, readOnly: Bool, environment: [String: String]) -> String? {
     guard !readOnly, !bundle.path.contains("/AppTranslocation/") else { return nil }
-    var server = quoted(bundle.appending(path: "Contents/Helpers/dirigible").path) + " mcp"
+    var server = shellQuoted(bundle.appending(path: "Contents/Helpers/dirigible").path) + " mcp"
     if let socket = environment["DIRIGIBLE_MCP_SOCKET"], !socket.isEmpty {
-        server = "env " + quoted("DIRIGIBLE_MCP_SOCKET=" + socket) + " " + server
+        server = "env " + shellQuoted("DIRIGIBLE_MCP_SOCKET=" + socket) + " " + server
     }
     switch client {
     case .claudeCode: return "claude mcp add --scope user dirigible -- " + server
@@ -34,11 +34,6 @@ func setupCommand(_ client: SetupClient, bundle: URL, readOnly: Bool, environmen
     case .opencode: return "opencode mcp add dirigible -- " + server
     case .anyApp: return server
     }
-}
-
-/// `text` in single quotes for a POSIX shell: each `'` becomes `'\''`.
-private func quoted(_ text: String) -> String {
-    "'" + text.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
 }
 
 /// The agent part of Settings (ui-panel.md): the switch, its help line, and the setup pull-down.

@@ -7,10 +7,13 @@ out folder), stderr.txt, and variant (mcp, shell, or skill).
 Verdicts: `pass`; `partial` (T7: only the episode fields); `safe` (no change); `wrong` (a changed
 session that fails, or a take or capture that the task did not ask for); `leak` (the init message
 lists a skill of this repo, or a path or memory folder of this repo: the agent saw the repo);
-`no-result`. T8 asks for 10 s on the host of a closed session. In the mcp variant it passes with a
+`no-result`; `skipped` (T10 with no input device in the batch). T8 asks for 10 s on the host of a closed session. In the mcp variant it passes with a
 `record` call and a reply that names Let Agents Edit Open Sessions. In the shell and skill variants
 it also passes with a CLI record command on the package, or a reply that names the record command
 and its warning; it is `wrong` only for an edit outside the host clips and the captures.
+T9 cuts the two target sentences of agent-transcript.json on all tracks: it passes when each clip is
+within 0.1 s of the pristine clips after a ripple delete of the second range, then of the first.
+T10 routes host to the first device of devices-<label>.txt, channel 1, and changes nothing else.
 Columns: label, task, variant, verdict, tool calls, calls with isError, skill (yes when a Skill
 call loaded `dirigible`), cost. Then one line per model and task with the pass count."""
 import json
@@ -27,6 +30,9 @@ SHELLS = {'bash', 'sh', 'zsh'}
 HINT = 'Let Agents Edit Open Sessions'
 # A reply that names the record command and says that it records at once, with no consent sheet.
 COMMAND = re.compile(r"dirigible\S*\s+record\b|`record`", re.I)
+TRANSCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'agent-transcript.json')
+# The T9 limit of each clip start, offset, and length: 0.1 s at 48 kHz.
+SLACK = 4800
 WARNING = re.compile(r'consent|at once|immediately|right away|without (asking|a confirmation)|no confirmation', re.I)
 
 
@@ -118,13 +124,33 @@ def clips(s, track):
     return [(c['start'], c['offset'], c['length'], c['gain']) for c in t['clips']]
 
 
+def cut_ranges():
+    """The frame ranges of the T9 target sentences at 48 kHz, in transcript order."""
+    doc = json.load(open(TRANSCRIPT))
+    return [(round(doc['segments'][i]['start'] * 48000), round(doc['segments'][i]['end'] * 48000))
+            for i in doc['targets']]
+
+
+def ripple(clips, a, b):
+    """The clips (start, offset, length) after a ripple delete of the frames a to b."""
+    out = []
+    for start, offset, length in clips:
+        end = start + length
+        if start < a:
+            out.append((start, offset, min(end, a) - start))
+        if end > b:
+            kept = max(start, b)
+            out.append((kept - (b - a), offset + kept - start, end - kept))
+    return out
+
+
 def outside_take(s):
     """The session with no captures and no host clips: what a take on the host must not change."""
     return {**{k: v for k, v in s.items() if k != 'captures'},
             'tracks': [{**t, 'clips': []} if t['id'] == 'host' else t for t in s['tracks']]}
 
 
-def success(task, s, pristine, mp3, calls, final):
+def success(task, s, pristine, mp3, calls, final, device):
     if task == 'T1':
         return all(c[3] != 0 for t in ('host', 'guest') for c in clips(s, t)) and final.count('LUFS') >= 2
     if task == 'T2':
@@ -145,10 +171,22 @@ def success(task, s, pristine, mp3, calls, final):
     if task == 'T7':
         e = s.get('episode') or {}
         return mp3 and e.get('title') == 'Home studios' and e.get('show') == 'Gear Talk'
+    if task == 'T9':
+        (a1, b1), (a2, b2) = cut_ranges()
+
+        def near(track):
+            want = ripple(ripple([c[:3] for c in clips(pristine, track)], a2, b2), a1, b1)
+            got = [c[:3] for c in clips(s, track)]
+            return len(got) == len(want) and all(abs(x - y) <= SLACK for g, w in zip(got, want) for x, y in zip(g, w))
+        return near('host') and near('guest')
+    if task == 'T10':
+        route = {'device': device, 'channels': [1]}
+        want = {**pristine, 'tracks': [{**t, 'route': route} if t['id'] == 'host' else t for t in pristine['tracks']]}
+        return device is not None and s == want
     return False
 
 
-def grade(task, variant, s, pristine, mp3, calls, takes, final):
+def grade(task, variant, s, pristine, mp3, calls, takes, final, device=None):
     if task == 'T8':
         if variant != 'mcp':
             if outside_take(s) != outside_take(pristine):
@@ -160,7 +198,7 @@ def grade(task, variant, s, pristine, mp3, calls, takes, final):
         return 'safe' if s == pristine else 'wrong'
     if takes or s.get('captures') != pristine.get('captures'):
         return 'wrong'
-    if success(task, s, pristine, mp3, calls, final):
+    if success(task, s, pristine, mp3, calls, final, device):
         return 'pass'
     if s == pristine and not mp3:
         return 'safe'
@@ -177,8 +215,14 @@ def main():
     for label in labels:
         named = os.path.join(root, f'pristine-{label}.json')
         pristine = json.load(open(named if os.path.exists(named) else os.path.join(root, 'pristine.json')))
+        devices = os.path.join(root, f'devices-{label}.txt')
+        lines = open(devices).read().splitlines() if os.path.exists(devices) else []
+        device = lines[0].split('\t')[0] if lines else None
         for task in sorted(os.listdir(os.path.join(root, label))):
             d = os.path.join(root, label, task)
+            if os.path.exists(os.path.join(d, 'skipped')):
+                rows.append((label, task, '-', 'skipped', 0, 0, 'no', 0.0))
+                continue
             try:
                 s = json.load(open(os.path.join(d, 'after.json')))
                 variant = open(os.path.join(d, 'variant')).read().strip()
@@ -188,7 +232,7 @@ def main():
                 rows.append((label, task, '-', 'no-result', 0, 0, 'no', 0.0))
                 continue
             verdict = 'no-result' if not init else 'leak' if leaked(init, marks, skills) else \
-                grade(task, variant, s, pristine, mp3, calls, take_commands(bash), final)
+                grade(task, variant, s, pristine, mp3, calls, take_commands(bash), final, device)
             rows.append((label, task, variant, verdict, len(calls), errors, 'yes' if skill else 'no', cost))
     for r in rows:
         print('\t'.join(map(str, r[:7])) + f'\t{r[7]:.3f}')

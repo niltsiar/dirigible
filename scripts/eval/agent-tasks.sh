@@ -2,7 +2,10 @@
 # Run the agent eval E38 (docs/workflow/evals.md): headless Claude Code runs that edit a generated
 # session with the dirigible MCP tools, the CLI, or the bundled skill. Then grade them.
 # Usage: scripts/eval/agent-tasks.sh <dirigible binary> <results folder> <model> <label> [<task>...]
-#   The tasks are T1 to T8 (default: all). Put the results folder in the eval/ folder of the run.
+#   The tasks are T1 to T10 (default: T1 to T8). Put the results folder in the eval/ folder of the run.
+#   T9 gives the transcript of scripts/eval/agent-transcript.json. T10 routes host to the first
+#   device of `dirigible devices`, which the batch writes to <results>/devices-<label>.txt. T10
+#   runs only in the MCP variant, with the audio server: with no device, it is skipped.
 #   SHELL_CLI=1 also gives Bash, allowed for the copied CLI only (the shell variant).
 #   SKILL_LINK=<app> gives no MCP server, but Bash and the Skill tool, and links the skill folder
 #   of <app> as .claude/skills/dirigible in the task cwd (the skill variant).
@@ -29,6 +32,12 @@ probe="$repo/scripts/probe.sh"
 app=""
 [[ -z ${SKILL_LINK:-} ]] || app="$(cd "$SKILL_LINK" && pwd -P)"
 [[ -z $app || -f "$app/Contents/Resources/skills/dirigible/SKILL.md" ]] || { echo "agent-tasks.sh: no skill in $app" >&2; exit 2; }
+variant=mcp
+[[ "${SHELL_CLI:-}" == 1 ]] && variant=shell
+[[ -n $app ]] && variant=skill
+# T10 needs the audio server, so only a variant with no shell runs it.
+[[ $variant == mcp || " ${tasks[*]} " != *" T10 "* ]] || { echo "agent-tasks.sh: T10 runs only in the MCP variant" >&2; exit 2; }
+transcript="$(cd "$(dirname "$0")" && pwd -P)/agent-transcript.json"
 
 prompt() {
     case "$1" in
@@ -40,6 +49,8 @@ prompt() {
         T6) echo 'In the Dirigible session {S}, cut the part from 0:30 to 0:40 out of the episode, and keep the host and the guest in sync.' ;;
         T7) echo 'Prepare the episode in the Dirigible session {S} for publishing as an MP3 file in the folder {OUT}. The title is "Home studios" and the show is "Gear Talk".' ;;
         T8) echo 'In the Dirigible session {S}, record 10 seconds on the host track.' ;;
+        T9) echo 'In the Dirigible session {S}, cut the sentences "{CUT1}" and "{CUT2}" out of the episode on all tracks. The transcript below has word times in seconds; it is of an export of the current session from frame 0. I agree to both cuts: do not ask me again. Transcript: {TRANSCRIPT}' ;;
+        T10) echo 'In the Dirigible session {S}, record the host track from the input device "{DEVICE}", channel 1. Only set up the track: do not start a recording.' ;;
         *) echo "agent-tasks.sh: no task $1" >&2; return 2 ;;
     esac
 }
@@ -54,6 +65,15 @@ trap 'rm -rf "$base"' EXIT
 # Each batch makes a new session, so its pristine session is named by its label.
 "$bin" info "$base/Show.dirigible" --json >"$results/pristine-$label.json"
 cp "$results/pristine-$label.json" "$results/pristine-smoke-$label.json"
+"$bin" devices >"$results/devices-$label.txt"
+device="$(head -1 "$results/devices-$label.txt" | cut -f2)"
+if [[ " ${tasks[*]} " == *" T10 "* && -z $device ]]; then
+    echo "T10 skipped: no input device" >&2
+    mkdir -p "$results/$label/T10" && touch "$results/$label/T10/skipped"
+    kept=()
+    for task in "${tasks[@]}"; do [[ $task == T10 ]] || kept+=("$task"); done
+    tasks=(${kept[@]+"${kept[@]}"})
+fi
 
 # run_task <task> <label> <variant>: one claude run in a new task folder.
 run_task() {
@@ -67,6 +87,14 @@ run_task() {
     text="$(prompt "$task")"
     text="${text//\{S\}/$t/Show.dirigible}"
     text="${text//\{OUT\}/$t/out}"
+    text="${text//\{DEVICE\}/$device}"
+    if [[ $task == T9 ]]; then
+        local cuts
+        cuts="$(python3 -I -c 'import json, sys; d = json.load(open(sys.argv[1])); print("\n".join(d["segments"][i]["text"] for i in d["targets"]))' "$transcript")"
+        text="${text//\{CUT1\}/${cuts%%$'\n'*}}"
+        text="${text//\{CUT2\}/${cuts#*$'\n'}}"
+        text="${text//\{TRANSCRIPT\}/$(python3 -I -c 'import json, sys; print(json.dumps({"segments": json.load(open(sys.argv[1]))["segments"]}))' "$transcript")}"
+    fi
     local tools=(--tools "") allowed=(--allowedTools mcp__dirigible)
     printf '{"mcpServers": {"dirigible": {"command": "/usr/bin/env", "args": ["DIRIGIBLE_MCP_SOCKET=%s/no-app.sock", "%s/dirigible", "mcp"]}}}\n' \
         "$t" "$t" >"$t/mcp.json"
@@ -80,7 +108,10 @@ run_task() {
     fi
     # --setting-sources project drops the user plugins and hooks, which changed the answers.
     # --strict-mcp-config keeps the claude.ai connectors out. CLAUDE_CODE_TMPDIR sets the Bash temp folder.
-    "$probe" --no-audio "$t" /bin/sh -c 'cd cwd && exec "$@"' sh \
+    # T10 lists the devices, so it runs with the audio server.
+    local audio=(--no-audio)
+    [[ $task != T10 ]] || audio=()
+    "$probe" ${audio[@]+"${audio[@]}"} "$t" /bin/sh -c 'cd cwd && exec "$@"' sh \
         env CLAUDE_CODE_TMPDIR="$t/tmp" TMPDIR="$t/tmp" claude -p "$text" --model "$model" \
         --mcp-config "$t/mcp.json" --strict-mcp-config --setting-sources project "${tools[@]}" "${allowed[@]}" \
         --output-format stream-json --verbose --no-session-persistence \
@@ -91,18 +122,16 @@ run_task() {
     rm -rf "$t"
 }
 
-variant=mcp
-[[ "${SHELL_CLI:-}" == 1 ]] && variant=shell
-[[ -n $app ]] && variant=skill
 run_task T4 "smoke-$label" mcp
 smoke="$(python3 -I "$here/agent-grade.py" "$results" "smoke-$label" | awk -F'\t' -v l="smoke-$label" '$1 == l && $2 == "T4" { print $4 }')"
 [[ $smoke == pass ]] || { echo "agent-tasks.sh: the smoke task T4 is $smoke, not pass; no batch" >&2; exit 1; }
 pids=()
-for task in "${tasks[@]}"; do
+# A batch of only T10 with no device has no task left; bash 3.2 refuses an empty array under set -u.
+for task in ${tasks[@]+"${tasks[@]}"}; do
     run_task "$task" "$label" "$variant" &
     pids+=("$!")
 done
 failed=()
-for i in "${!pids[@]}"; do wait "${pids[$i]}" || failed+=("${tasks[$i]}"); done
+for i in ${pids[@]+"${!pids[@]}"}; do wait "${pids[$i]}" || failed+=("${tasks[$i]}"); done
 python3 -I "$here/agent-grade.py" "$results" "$label"
 [[ ${#failed[@]} -eq 0 ]] || { echo "agent-tasks.sh: the runner failed on ${failed[*]}" >&2; exit 1; }

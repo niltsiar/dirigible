@@ -14,6 +14,7 @@ echo skill >"$tmp/Fake.app/Contents/Resources/skills/dirigible/SKILL.md"
 cat >"$tmp/bin/dirigible" <<'EOF'
 #!/bin/bash
 [[ $1 == create ]] && mkdir -p "$2"
+[[ $1 == devices ]] && printf '%b' "${FAKE_DEVICES-UID-1\tFake Mic\t1\t48000\n}"
 if [[ $1 == info ]]; then
     echo '{"tracks": [{"id": "host", "name": "Ana", "clips": []}, {"id": "guest", "name": "Ben", "clips": []}], "markers": [], "batch": "'"${FAKE_BATCH:-0}"'"}'
     [[ -z ${FAKE_WARNING:-} ]] || echo "warning: a file is short" >&2
@@ -28,7 +29,8 @@ skill=missing
 # On T2, remove the out folder, so the step after the claude run fails.
 [[ $2 != *"trim the silence"* ]] || rm -rf ../out
 echo '{"type": "system", "subtype": "init", "skills": []}'
-echo "{\"type\": \"result\", \"result\": \"skill-$skill\", \"total_cost_usd\": 0}"
+# The result also has the prompt, so a test can read it.
+python3 -I -c 'import json, sys; print(json.dumps({"type": "result", "result": sys.argv[1] + " " + sys.argv[2], "total_cost_usd": 0}))' "skill-$skill" "$2"
 EOF
 chmod +x "$tmp/bin/dirigible" "$tmp/bin/claude"
 
@@ -92,6 +94,82 @@ FAKE_BATCH=1 run one T3
 FAKE_BATCH=2 run two T3
 python3 -I -B "$here/agent-grade.py" "$tmp/results" one two >"$tmp/both.log" 2>&1
 grep -qE "^one	T3	mcp	safe" "$tmp/both.log" || fail "a later batch changes the grade of an earlier one: $(cat "$tmp/both.log")"
+
+# T10 routes a device, so it runs with the audio server: only in the MCP variant, which has no shell (W13).
+SHELL_CLI=1 run shell-t10 T10
+[[ $? -eq 2 ]] || fail "a shell batch with T10 does not exit 2: $(cat "$tmp/shell-t10.log")"
+SKILL_LINK=Fake.app run skill-t10 T10
+[[ $? -eq 2 ]] || fail "a skill batch with T10 does not exit 2: $(cat "$tmp/skill-t10.log")"
+[[ ! -e "$tmp/results/shell-t10/T10" && ! -e "$tmp/results/skill-t10/T10" ]] || fail "a refused T10 batch ran T10"
+
+# The batch writes its device list, and the T10 prompt names the first device (W13).
+run devices T10
+grep -q "^UID-1	Fake Mic	1	48000$" "$tmp/results/devices-devices.txt" 2>/dev/null \
+    || fail "no device list of the batch: $(cat "$tmp/devices.log")"
+grep -q '"Fake Mic\\"' "$tmp/results/devices/T10/stream.jsonl" 2>/dev/null \
+    || fail "the T10 prompt does not name the device: $(cat "$tmp/results/devices/T10/stream.jsonl" 2>/dev/null)"
+FAKE_DEVICES= run no-device T10
+grep -q "^T10 skipped: no input device$" "$tmp/no-device.log" || fail "no skip line with no device: $(cat "$tmp/no-device.log")"
+grep -qE "^no-device	T10	-	skipped" "$tmp/no-device.log" || fail "no skipped verdict with no device: $(cat "$tmp/no-device.log")"
+
+# The T9 prompt has the transcript and the two sentences of its targets (W12).
+run transcript T9
+grep -q 'Sorry, let me say that again.' "$tmp/results/transcript/T9/stream.jsonl" 2>/dev/null \
+    && grep -q 'export of the current session from frame 0' "$tmp/results/transcript/T9/stream.jsonl" \
+    && grep -q 'words' "$tmp/results/transcript/T9/stream.jsonl" \
+    || fail "the T9 prompt has no transcript: $(cat "$tmp/results/transcript/T9/stream.jsonl" 2>/dev/null)"
+
+# The grade of T9 and T10 from hand-made results (W12, W13). T9: the two cuts from the last to
+# the first pass, the same frames from the first to the last are wrong, and no change is safe.
+# T10: the device of the batch on host channel 1 passes, a changed guest too is wrong.
+python3 -I -B - "$here" "$tmp/graded" <<'PY' || fail "the grader of T9 or T10 gives a wrong verdict"
+import json, os, subprocess, sys
+here, root = sys.argv[1], sys.argv[2]
+doc = json.load(open(os.path.join(here, 'agent-transcript.json')))
+(a1, b1), (a2, b2) = [(round(doc['segments'][i]['start'] * 48000), round(doc['segments'][i]['end'] * 48000))
+                      for i in doc['targets']]
+n = 4416000
+
+
+def track(id, clips, **more):
+    return {'id': id, 'name': id, 'layout': 'mono', 'gain': 0,
+            'clips': [{'id': f'{id}{i}', 'file': 'f', 'start': s, 'offset': o, 'length': l, 'gain': 0}
+                      for i, (s, o, l) in enumerate(clips)], **more}
+
+
+def session(clips, **guest):
+    return {'version': 1, 'sampleRate': 48000, 'captures': [], 'files': [], 'markers': [],
+            'tracks': [track('host', clips), track('guest', clips, **guest)]}
+
+
+pristine = session([(0, 0, n)])
+right = [(0, 0, a1), (a1, b1, a2 - b1), (a2 - (b1 - a1) + 2400, b2 + 2400, n - b2 - 2400)]
+first_then_second = [(0, 0, a1), (a1, b1, a2 - a1), (a2, a2 + b1 - a1 + (b2 - a2), n - b1 - (b2 - a2) - (a2 - a1))]
+routed = json.loads(json.dumps(pristine))
+routed['tracks'][0]['route'] = {'device': 'UID-1', 'channels': [1]}
+both = json.loads(json.dumps(routed))
+both['tracks'][1]['route'] = {'device': 'UID-1', 'channels': [2]}
+cases = {('t9-right', 'T9'): (session(right), 'pass'), ('t9-order', 'T9'): (session(first_then_second), 'wrong'),
+         ('t9-none', 'T9'): (pristine, 'safe'), ('t10-right', 'T10'): (routed, 'pass'),
+         ('t10-guest', 'T10'): (both, 'wrong'), ('t10-none', 'T10'): (pristine, 'safe')}
+bad = 0
+for (label, task), (after, want) in cases.items():
+    d = os.path.join(root, label, task)
+    os.makedirs(d)
+    json.dump(pristine, open(os.path.join(root, f'pristine-{label}.json'), 'w'))
+    open(os.path.join(root, f'devices-{label}.txt'), 'w').write('UID-1\tFake Mic\t1\t48000\nUID-2\tOther\t2\t48000\n')
+    json.dump(after, open(os.path.join(d, 'after.json'), 'w'))
+    open(os.path.join(d, 'stream.jsonl'), 'w').write('{"type": "system", "subtype": "init", "skills": []}\n')
+    open(os.path.join(d, 'out.txt'), 'w').write('')
+    open(os.path.join(d, 'variant'), 'w').write('mcp\n')
+    out = subprocess.run([sys.executable, '-I', os.path.join(here, 'agent-grade.py'), root, label],
+                         capture_output=True, text=True).stdout
+    got = next((line.split('\t')[3] for line in out.splitlines() if line.startswith(f'{label}\t{task}\t')), out)
+    if got != want:
+        print(f'{label} {task}: {got}, not {want}')
+        bad += 1
+sys.exit(1 if bad else 0)
+PY
 
 if [[ $failures -gt 0 ]]; then
     echo "agent-tasks tests: $failures failed"

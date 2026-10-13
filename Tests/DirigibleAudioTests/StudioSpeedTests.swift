@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -138,6 +139,17 @@ struct StudioSpeedTests {
         await studio.changeSpeed(to: .x200)
         #expect(await player.reading().running, "no new play after the change")
         await studio.perform(.playStop)
+    }
+
+    /// Code gate 2 item 5: the Studio looks the unit up once, not at each read of the chrome.
+    @Test func theUnitLookupRunsOnce() async throws {
+        let lookups = OSAllocatedUnfairLock(initialState: 0)
+        let studio = try await studio(unit: {
+            lookups.withLock { $0 += 1 }
+            return findSpeedUnit()
+        })
+        for _ in 0..<5 { _ = studio.canChangeSpeed }
+        #expect(lookups.withLock { $0 } == 1, "\(lookups.withLock { $0 }) lookups for 5 reads")
     }
 
     /// V13: with no unit, the speed stays 1 and the control is off.

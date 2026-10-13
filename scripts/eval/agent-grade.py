@@ -16,7 +16,8 @@ within 0.1 s of the pristine clips after a ripple delete of the second range, th
 T10 routes host to the device that the prompt names, channel 1, and changes nothing else: the
 first device of devices-<label>.txt, or another device with the same name.
 Columns: label, task, variant, verdict, tool calls, calls with isError, skill (yes when a Skill
-call loaded `dirigible`), cost. Then one line per model and task with the pass count."""
+call loaded `dirigible`), cost. Then one line per model and task with the pass count, of the runs
+that are not skipped."""
 import json
 import os
 import re
@@ -244,7 +245,9 @@ def main():
         by.setdefault((label.rsplit('-', 1)[0], task), []).append(verdict)
     print()
     for (model, task), v in sorted(by.items()):
-        print(f'{model}\t{task}\tpass {v.count("pass")} of {len(v)}\t' + ','.join(v))
+        # A skipped run is no attempt, so it counts in no pass count.
+        runs = sum(x != 'skipped' for x in v)
+        print(f'{model}\t{task}\tpass {v.count("pass")} of {runs}\t' + ','.join(v))
 
 
 if __name__ == '__main__':

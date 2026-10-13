@@ -69,7 +69,7 @@ struct BridgeKeepAliveTests {
     }
 
     /// Item 8: a frame that the listener cannot write ends the connection and cancels its call.
-    /// The client reads nothing, so the keep-alive frames fill the socket buffer.
+    /// The client reads nothing, so the keep-alive frames of the long call fill the socket buffer.
     @Test func aFailedFrameWriteEndsTheConnection() async throws {
         let cancelled = OSAllocatedUnfairLock(initialState: false)
         let (listener, folder) = try listener(keepAlive: .milliseconds(1)) { _, report in
@@ -80,7 +80,10 @@ struct BridgeKeepAliveTests {
         }
         defer { listener.stop() }
         let client = try #require(Client(folder.socket))
-        client.send(MCPServer.encode(["tool": "track_rename", "arguments": rename, "client": [String: String]()]))
+        client.send(
+            MCPServer.encode([
+                "tool": "loudness", "arguments": ["package": "/x.dirigible"], "client": [String: String](),
+            ]))
 
         await until("the failed frame write did not end the call") { cancelled.withLock { $0 } }
         withExtendedLifetime(client) {}

@@ -45,17 +45,25 @@ import Testing
         let undo = NSMenuItem(title: "Undo", action: #selector(UndoRoutingWindow.undo(_:)), keyEquivalent: "z")
         let redo = NSMenuItem(title: "Redo", action: #selector(UndoRoutingWindow.redo(_:)), keyEquivalent: "Z")
         let plain = (UndoManager().undoMenuItemTitle, UndoManager().redoMenuItemTitle)
+        // As the SwiftUI items of the Edit menu: their own label, which VoiceOver reads in place of
+        // the title.
+        undo.setAccessibilityLabel("Undo")
+        redo.setAccessibilityLabel("Redo")
+        func spoken(_ item: NSMenuItem) -> Comment { "C11: VoiceOver gets \(item.accessibilityLabel() ?? "nil")" }
 
         try studio.edit(agent: AgentName(title: "Claude Code", clientName: "claude-code")) { s throws(SessionError) in
             try s.renameTrack("t1", to: "Host")
         }
         #expect(window.validateMenuItem(undo))
         #expect(undo.title == L10n.undoAgent.format("Claude Code"), "C11: \(undo.title)")
+        #expect(undo.accessibilityLabel() == undo.title, spoken(undo))
         try studio.undo()
         #expect(window.validateMenuItem(redo))
         #expect(redo.title == L10n.redoAgent.format("Claude Code"))
+        #expect(redo.accessibilityLabel() == redo.title, spoken(redo))
         #expect(window.validateMenuItem(undo))
         #expect(undo.title == plain.0, "the add track of the user")
+        #expect(undo.accessibilityLabel() == plain.0, spoken(undo))
 
         try studio.edit(agent: AgentName(title: nil, clientName: "\n")) { s throws(SessionError) in
             try s.renameTrack("t1", to: "Guest")

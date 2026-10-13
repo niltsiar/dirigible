@@ -7,6 +7,7 @@
 "menu.file.clear.recent" = "Vaciar menú";
 "menu.file.revert.to" = "Volver a";
 "menu.file.revert.to.none" = "No hay copias de seguridad";
+"menu.file.remove.unused" = "Eliminar archivos sin usar…";
 "menu.file.show.clips" = "Mostrar clips en el Finder";
 "menu.track" = "Pista";
 "menu.track.add" = "Añadir pista";
@@ -162,6 +163,7 @@
 "alert.close.unsaved" = "No se pudieron guardar los últimos cambios. ¿Cerrar de todos modos?";
 "alert.close.unsaved.confirm" = "Cerrar";
 "alert.track.remove" = "¿Eliminar las pistas y sus clips?";
+"alert.unused.none" = "No hay archivos sin usar";
 "alert.track.remove.confirm" = "Eliminar";
 "alert.quit.recording" = "¿Detener la grabación y salir?";
 "alert.quit.recording.confirm" = "Detener y salir";
@@ -390,6 +392,16 @@
 "export.chapter.intro" = "Introducción";
 "sheet.export.title" = "Exportando…";
 "sheet.export.cancel" = "Cancelar";
+"sheet.unused.title" = "¿Trasladar los archivos sin usar a la Papelera?";
+"sheet.unused.name" = "Nombre";
+"sheet.unused.size" = "Tamaño";
+"sheet.unused.reason" = "Motivo";
+"sheet.unused.reason.pool" = "Ningún clip lo usa";
+"sheet.unused.reason.stray" = "No está en la sesión";
+"sheet.unused.total" = "Archivos: %lld (%@)";
+"sheet.unused.kept" = "Se conservan por una copia o Deshacer: %lld (%@)";
+"sheet.unused.footnote" = "El espacio se recupera al vaciar la Papelera.";
+"sheet.unused.move" = "Trasladar a la Papelera";
 "alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "La exportación terminó. Estos archivos faltaban o no se podían leer, y se exportaron como silencio:\n%@";
@@ -415,6 +427,8 @@
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "La exportación de %1$@ terminó: %2$@.";
 "banner.level.changed" = "Nivelado automático terminado. Clips cambiados: %lld.";
+"banner.unused.moved" = "Trasladados a la Papelera: %lld archivos (%@).";
+"banner.unused.failed" = "Estos archivos no se movieron: %@";
 "banner.level.none" = "Nivelado automático terminado. Sin cambios: los clips ya están en el nivel objetivo.";
 "banner.level.volume" = "El volumen de la pista no cambia la ganancia del clip.";
 "banner.level.limit" = "Clips en el límite de 20 dB: %lld. Comprueba que tienen voz.";

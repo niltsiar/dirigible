@@ -7,6 +7,7 @@
 "menu.file.clear.recent" = "Clear Menu";
 "menu.file.revert.to" = "Revert To";
 "menu.file.revert.to.none" = "No Backups";
+"menu.file.remove.unused" = "Remove Unused Files…";
 "menu.file.show.clips" = "Show Clips in Finder";
 "menu.track" = "Track";
 "menu.track.add" = "Add Track";
@@ -162,6 +163,7 @@
 "alert.close.unsaved" = "The last changes could not be saved. Close anyway?";
 "alert.close.unsaved.confirm" = "Close";
 "alert.track.remove" = "Remove the tracks and their clips?";
+"alert.unused.none" = "No unused files";
 "alert.track.remove.confirm" = "Remove";
 "alert.quit.recording" = "Stop the recording and quit?";
 "alert.quit.recording.confirm" = "Stop and Quit";
@@ -390,6 +392,16 @@
 "export.chapter.intro" = "Intro";
 "sheet.export.title" = "Exporting…";
 "sheet.export.cancel" = "Cancel";
+"sheet.unused.title" = "Move the unused files to the Trash?";
+"sheet.unused.name" = "Name";
+"sheet.unused.size" = "Size";
+"sheet.unused.reason" = "Reason";
+"sheet.unused.reason.pool" = "No clip uses it";
+"sheet.unused.reason.stray" = "Not in the session";
+"sheet.unused.total" = "Files: %lld (%@)";
+"sheet.unused.kept" = "Kept for a backup or Undo: %lld (%@)";
+"sheet.unused.footnote" = "The space comes back when you empty the Trash.";
+"sheet.unused.move" = "Move to Trash";
 "alert.export.missing" = "These files are missing or cannot be read. They export as silence:\n%@";
 "alert.export.confirm" = "Export";
 "alert.exported" = "The export is done. These files were missing or could not be read, and they exported as silence:\n%@";
@@ -415,6 +427,8 @@
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "The export of %1$@ is done: %2$@.";
 "banner.level.changed" = "Auto Level is done. Clips changed: %lld.";
+"banner.unused.moved" = "Moved to the Trash: %lld files (%@).";
+"banner.unused.failed" = "These files did not move: %@";
 "banner.level.none" = "Auto Level is done. No change: the clips are at the target level.";
 "banner.level.volume" = "The track volume does not change the clip gain.";
 "banner.level.limit" = "Clips at the 20 dB limit: %lld. Check that they have speech.";

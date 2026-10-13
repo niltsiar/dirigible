@@ -37,6 +37,9 @@ struct DirigibleApp: App {
                             Button(title) { app.key?.revert(to: backup) }.disabled(!menu.enabled)
                         }
                     }
+                    // No key: a rare command that moves files to the Trash (decision 0047).
+                    Button(L10n.menuFileRemoveUnused.key) { app.key?.removeUnusedFiles() }
+                        .disabled(!app.canRemoveUnusedFiles)
                 }
                 // The timeline items (decision 0017). A plain key is never disabled (probe K1).
                 CommandGroup(after: .toolbar) {

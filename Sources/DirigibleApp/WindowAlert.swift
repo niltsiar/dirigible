@@ -16,4 +16,7 @@ enum WindowAlert: Hashable {
     /// The report after an export: the paths of the files that rendered as silence (decision 0003),
     /// and the loudness of an export with a target (decision 0032).
     case exported([String], LoudnessReport?)
+    /// Remove Unused Files found no file to move (decision 0047), with the files that a backup,
+    /// an Undo step, or the clipboard keeps.
+    case noUnusedFiles(UnusedFiles.Kept)
 }

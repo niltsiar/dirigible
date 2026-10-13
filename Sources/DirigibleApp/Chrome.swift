@@ -287,6 +287,11 @@ struct ChromeState: Equatable {
         if let shown = model.levelReport, shown.revision == studio.sessionRevision {
             banners.append(.levelReport(shown.report, press: shown.press))
         }
+        if let shown = model.pruneReport, shown.revision == studio.sessionRevision {
+            let moved = shown.report.moved.map(\.item.bytes)
+            banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))
+            if !shown.report.failed.isEmpty { banners.append(.unusedFilesFailed(shown.report.failed.map(\.item.path))) }
+        }
         shown = ShownChrome(recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing)
     }
 }

@@ -115,6 +115,10 @@ import SwiftUI
     /// The last Auto Level, for its banner. The next Auto Level and the next take start remove it;
     /// the banner shows only at its session revision.
     var levelReport: LevelReportShown?
+    /// The list of File > Remove Unused Files while its sheet shows (decision 0047).
+    var unusedFiles: UnusedFiles?
+    /// The last Remove Unused Files, for its banners at its session revision.
+    var pruneReport: PruneReportShown?
     @ObservationIgnored var levelPresses = 0
     /// The running import (decision 0040). Nil: no import.
     var importJob: ImportJob?

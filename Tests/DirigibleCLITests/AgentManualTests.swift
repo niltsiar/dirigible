@@ -38,6 +38,9 @@ struct AgentManualTests {
     @Test func theManualWarnsAtTheCLIRecord() {
         let core = AgentManual.core(pathLine: AgentManual.pathLine(quoted: Self.longPath))
         #expect(Self.recordLines(in: core).count == 1, "the core has no CLI record line")
+        // A take with no --playhead starts at frame 0 and replaces the clips under it (code gate 1 item 2).
+        let line = Self.recordLines(in: core).first ?? ""
+        #expect(line.contains("--playhead <frame>") && line.contains("replaces the clips under it"), "\(line)")
         for text in [AgentManual.manual(pathLine: "x"), AgentManual.skill] + AgentManual.recipes.map(\.steps) {
             let bare = Self.recordLines(in: text).filter { !Self.warns($0) }
             #expect(bare.isEmpty, "a CLI record line with no warning: \(bare)")

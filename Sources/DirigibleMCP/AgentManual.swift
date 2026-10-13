@@ -69,9 +69,10 @@ package enum AgentManual {
         - On a package that is open in the app, an edit is one undo step there, only when Settings > Let Agents \
         Edit Open Sessions is on; else it is refused. A closed package saves at once, with no undo. "is busy in \
         Dirigible": wait a few seconds and try again, at most 3 times.
-        - `dirigible record <package> --seconds <seconds> --arm <track ID>` records at once from the routed \
-        devices, with no consent sheet. Run it only when the user asked for a recording. The `record` tool asks \
-        the user in the app; do not repeat a refused `record` call.
+        - `dirigible record <package> --seconds <seconds> --arm <track ID> --playhead <frame>` records at once \
+        from the routed devices, with no consent sheet, and replaces the clips under it. Run it only when the user \
+        asked for a recording, at the frame that the user gives. The `record` tool asks the user in the app; do not \
+        repeat a refused `record` call.
         - No tool reads the audio by time (silence, words): ask the user for the frame.
         - For work with no tool, run the CLI in a shell: `dirigible loudness <package>` (the loudness of each \
         clip), `dirigible level <package>` (-16 LUFS stereo, -19 LUFS mono), \

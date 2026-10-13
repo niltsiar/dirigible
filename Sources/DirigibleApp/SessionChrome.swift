@@ -161,7 +161,7 @@ import Observation
         }
         if let window, window.subtitle != state.subtitle { window.subtitle = state.subtitle }
         // A hidden trailing accessory still draws (probe), so the mark is added and removed.
-        if let window, window.titlebarAccessoryViewControllers.contains(agentMark) != state.agentConnected {
+        if let window, (agentMark.parent != nil) != state.agentConnected {
             if state.agentConnected {
                 window.addTitlebarAccessoryViewController(agentMark)
             } else {

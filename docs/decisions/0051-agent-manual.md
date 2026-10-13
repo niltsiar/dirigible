@@ -4,6 +4,7 @@
 - Date: 2026-10-13
 - Date accepted: 2026-10-13, after plan gates 1 and 2 of run `2026-10-13-agent-onboarding`.
 - Amends: 0041 (the server sends `instructions` and serves `prompts/list` and `prompts/get`), 0011 (CLI parity: the root flag `--instructions` and the command `skill` are not package features, so they get no tool).
+- Amended: 2026-10-13, run `2026-10-13-agent-workflows`. The manual follows the phases of the work: prepare, record, edit, produce, export. `AgentManual.Phase` owns the order and the record rule; each recipe has a phase, and the core gives one line for each phase. Seven recipes: `prepare-tracks`, `cut-a-range`, `cut-from-transcript`, `check-levels`, `add-sound`, `add-chapter`, `prepare-for-publishing`. Frames can come from a transcript. The recipes name the `loudness` and `export` tools; `level` and `import` stay CLI lines until their tools land. The core says that noise reduction and a voice profile do not exist yet.
 
 ## Context
 

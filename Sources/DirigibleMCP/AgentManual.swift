@@ -4,35 +4,78 @@ import Foundation
 /// `dirigible --instructions`, the MCP prompts, and the skill. The core goes first and stays in
 /// 2048 characters, the documented cut of Claude Code; the whole text stays in 4000.
 package enum AgentManual {
+    /// The phases of podcast work, in order. Each recipe has one, and the core gives one line for
+    /// each phase: its rule, then the names of its recipes.
+    enum Phase: CaseIterable, Sendable {
+        case prepare, record, edit, produce, export
+
+        var title: String { "\(self)".capitalized }
+
+        /// The rule of the phase in the core. Only `.record` has one, and it has no recipe.
+        var rule: String? {
+            guard self == .record else { return nil }
+            return "the `record` tool asks the user in the app; do not repeat a refused call. "
+                + "`dirigible record <package> --seconds <seconds> --arm <track ID> --playhead <frame>` records at "
+                + "once, with no consent sheet, and replaces the clips under it: run it only when the user asked for "
+                + "a recording, at the frame that the user gives."
+        }
+    }
+
     /// One task that an agent often gets. The name is the MCP prompt name; its one argument is
     /// `package`.
     struct Recipe: Sendable {
+        let phase: Phase
         let name: String
         let title: String
         let summary: String
         let steps: String
     }
 
+    /// The recipes in phase order.
     static let recipes = [
         Recipe(
-            name: "check-levels", title: "Check the levels",
-            summary: "Measure the loudness of each clip, level the session, and report the change.",
-            steps: "run `loudness`, then `level`, then `loudness` again; report each clip before and after."),
+            phase: .prepare, name: "prepare-tracks", title: "Prepare the tracks",
+            summary: "Add the tracks of a recording and route each one to an input device, an app, or a call.",
+            steps: "read `session_info`; `devices` lists the input devices (UID, name, channels) and `apps` the apps "
+                + "that can be a source; add a track with `track_add`; route it with `track_route` and `device` with "
+                + "`channels`, or `app`; for a call, `track_add_call`. Report each track and its source."),
         Recipe(
-            name: "prepare-for-publishing", title: "Prepare for publishing",
-            summary: "Set the episode details, level the session, and export an MP3 at the podcast loudness.",
-            steps: "read `session_info` and `episode_get`; ask for a missing title or show and set them with "
-                + "`episode_set`; when the session has chapters, make sure one is at frame 0; run `level`; then run "
-                + "`dirigible export <package> --out <file.mp3> --loudness podcast`; report the printed loudness line "
-                + "and the file path."),
-        Recipe(
-            name: "cut-a-range", title: "Cut a range",
+            phase: .edit, name: "cut-a-range", title: "Cut a range",
             summary: "Remove a time range from all tracks and keep them in sync.",
             steps: "`clip_ripple_delete` with `from` and `to` and no `track`; read `session_info` again."),
         Recipe(
-            name: "add-chapter", title: "Add a chapter",
+            phase: .edit, name: "cut-from-transcript", title: "Cut from a transcript",
+            summary: "Find words in a transcript with word times, and cut them from all tracks in sync.",
+            steps: "the transcript must be of an `export` of the current session from frame 0: `export` a .wav file "
+                + "and give it to a tool that gives word times, such as Whisper; for a transcript of the user, ask if "
+                + "it is of the current session. Find the words to cut, and merge ranges that overlap. frame = "
+                + "seconds x the sample rate of `session_info`, rounded. A cut on a closed package saves at once: list "
+                + "each range with its words and seconds, and get the consent of the user before the first cut, "
+                + "unless the user already agreed. Run `clip_ripple_delete` with no `track` for each range, from the "
+                + "last range to the first; report each cut in seconds."),
+        Recipe(
+            phase: .produce, name: "check-levels", title: "Check the levels",
+            summary: "Measure the loudness of each clip, level the session, and report the change.",
+            steps: "run `loudness`, then `dirigible level <package>`, then `loudness` again; report each clip before "
+                + "and after."),
+        Recipe(
+            phase: .produce, name: "add-sound", title: "Add a sound clip",
+            summary: "Import a sound clip, such as music or a jingle, at a frame, and fade it.",
+            steps: "the imported clip replaces the clips under it, so put it on a new track from `track_add`, or in a "
+                + "range of a track that has no clip; "
+                + "`dirigible import <package> <audio file> --track <track ID> --at <frame>`; `clip_fade` to fade it "
+                + "in or out; `clip_gain` to set its level."),
+        Recipe(
+            phase: .produce, name: "add-chapter", title: "Add a chapter",
             summary: "Add a chapter marker at a time.",
             steps: "`marker_set` with `kind` chapter and `at` in frames."),
+        Recipe(
+            phase: .export, name: "prepare-for-publishing", title: "Prepare for publishing",
+            summary: "Set the episode details, level the session, and export an MP3 at the podcast loudness.",
+            steps: "read `session_info` and `episode_get`; ask for a missing title or show and set them with "
+                + "`episode_set`; when the session has chapters, make sure one is at frame 0; run "
+                + "`dirigible level <package>`; then run `export` with `out` an .mp3 file and `loudness` podcast; "
+                + "report the loudness line and the file path."),
     ]
 
     /// The manual with the quoted path of the running `dirigible`, after symlinks. realpath(3), not
@@ -61,32 +104,38 @@ package enum AgentManual {
     /// The rules, from the description to the no-tool rule.
     static func core(pathLine: String) -> String {
         """
-        Dirigible is a podcast recorder and editor for macOS. These tools read and edit session packages: \
-        folders whose names end in .dirigible.
+        Dirigible records and edits podcasts on macOS. The tools read and edit session packages: folders that end \
+        in .dirigible.
 
         \(pathLine)
 
         Rules:
         - Give `package` as an absolute path. Call `session_info` first: it gives the sample rate and the IDs of \
         the tracks, clips, files, and markers. The tools take IDs, not names.
-        - Times are frames at the session rate: frame = seconds x sample rate. A `to` frame is the frame after the \
-        last frame.
+        - Times are frames: frame = seconds x sample rate, rounded. A `to` frame is the frame after the last \
+        frame. No tool reads the audio by time: take the times from the user or from a transcript.
         - A split or a ripple gives new clip IDs. After an edit, read `session_info` again and report what it shows.
-        - The ripple tools move the later clips and markers. Give no `track` to keep all tracks in sync.
-        - On a package that is open in the app, an edit is one undo step there, only when Settings > Let Agents \
-        Edit Open Sessions is on; else it is refused. A closed package saves at once, with no undo. "is busy in \
-        Dirigible": wait a few seconds and try again, at most 3 times.
-        - `dirigible record <package> --seconds <seconds> --arm <track ID> --playhead <frame>` records at once \
-        from the routed devices, with no consent sheet, and replaces the clips under it. Run it only when the user \
-        asked for a recording, at the frame that the user gives. The `record` tool asks the user in the app; do not \
-        repeat a refused `record` call.
-        - No tool reads the audio by time (silence, words): ask the user for the frame.
-        - For work with no tool, run the CLI in a shell: `dirigible loudness <package>` (the loudness of each \
-        clip), `dirigible level <package>` (-16 LUFS stereo, -19 LUFS mono), \
-        `dirigible export <package> --out <file.mp3> --loudness podcast` (also .m4a, .wav, .flac), \
-        `dirigible import <package> <audio file>`. `dirigible help <command>` gives the options. A command \
-        refuses a package that is open in the app.
+        - The ripple tools move the later clips and markers. Give no `track` to keep all tracks in sync. Cut from \
+        the last range to the first.
+        - On a package open in the app, an edit is one undo step there when Settings > Let Agents Edit Open \
+        Sessions is on; else it is refused. A closed package saves at once, with no undo. On "is busy in \
+        Dirigible", try again after a few seconds, at most 3 times.
+        - Dirigible has no noise reduction and no voice profile yet: tell the user.
+
+        Phases and recipes, in order:
+        \(phaseLines)
+        - For work with no tool, run the CLI in a shell, for example `dirigible level <package>`. \
+        `dirigible help <command>` gives the options. A command refuses a package that is open in the app.
         """
+    }
+
+    /// One line for each phase: its rule, then the names of its recipes.
+    static var phaseLines: String {
+        Phase.allCases.map { phase in
+            let names = recipes.filter { $0.phase == phase }.map(\.name)
+            let parts = [phase.rule, names.isEmpty ? nil : names.joined(separator: ", ") + "."].compactMap { $0 }
+            return "- \(phase.title): " + parts.joined(separator: " ")
+        }.joined(separator: "\n")
     }
 
     /// The core, then one line for each recipe.
@@ -99,12 +148,21 @@ package enum AgentManual {
     /// each tool from the tool table, and each recipe in full.
     package static var skill: String {
         let tools = Tool.all.map { "| \($0.name) | dirigible \($0.command) |" }.joined(separator: "\n")
-        let recipeText = recipes.map { "### \($0.title) (\($0.name))\n\n\($0.summary) Steps: \($0.steps)\n" }
+        let recipeText = Phase.allCases.map { phase in
+            let phaseRecipes = recipes.filter { $0.phase == phase }
+            let body =
+                phaseRecipes.isEmpty
+                ? "No recipe: the \(phase.title) line of the rules gives the rule.\n"
+                : phaseRecipes.map { "#### \($0.title) (\($0.name))\n\n\($0.summary) Steps: \($0.steps)\n" }
+                    .joined(separator: "\n")
+            return "### \(phase.title)\n\n" + body
+        }
         return """
             ---
             name: dirigible
             description: Read and edit Dirigible podcast sessions (.dirigible packages) with the dirigible CLI and \
-            the Dirigible MCP tools. Use it to check the levels, cut a range, add chapters, and export an episode.
+            the Dirigible MCP tools. Use it to prepare the tracks and their sources, record, edit (cut a range or \
+            the words of a transcript), produce (levels, sound clips, chapters), and export an episode.
             ---
 
             # Dirigible

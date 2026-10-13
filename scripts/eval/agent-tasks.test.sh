@@ -15,7 +15,7 @@ cat >"$tmp/bin/dirigible" <<'EOF'
 #!/bin/bash
 [[ $1 == create ]] && mkdir -p "$2"
 if [[ $1 == info ]]; then
-    echo '{"tracks": [{"id": "host", "name": "Ana", "clips": []}, {"id": "guest", "name": "Ben", "clips": []}], "markers": []}'
+    echo '{"tracks": [{"id": "host", "name": "Ana", "clips": []}, {"id": "guest", "name": "Ben", "clips": []}], "markers": [], "batch": "'"${FAKE_BATCH:-0}"'"}'
     [[ -z ${FAKE_WARNING:-} ]] || echo "warning: a file is short" >&2
 fi
 exit 0
@@ -85,6 +85,13 @@ for c in wrong:
     print('not a take:', c)
 sys.exit(1 if missed or wrong else 0)
 PY
+
+# Each batch makes its own session, so a grade of two batches compares each with its own pristine
+# session (Phase 7).
+FAKE_BATCH=1 run one T3
+FAKE_BATCH=2 run two T3
+python3 -I -B "$here/agent-grade.py" "$tmp/results" one two >"$tmp/both.log" 2>&1
+grep -qE "^one	T3	mcp	safe" "$tmp/both.log" || fail "a later batch changes the grade of an earlier one: $(cat "$tmp/both.log")"
 
 if [[ $failures -gt 0 ]]; then
     echo "agent-tasks tests: $failures failed"

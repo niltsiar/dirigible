@@ -51,7 +51,9 @@ base="$(mktemp -d /private/tmp/dirigible-e38-XXXXXX)"
 trap 'rm -rf "$base"' EXIT
 "$probe" --no-audio "$base" bash "$here/agent-session.sh" "$bin" >"$base/session.log" 2>&1 \
     || { cat "$base/session.log" >&2; exit 1; }
-"$bin" info "$base/Show.dirigible" --json >"$results/pristine.json"
+# Each batch makes a new session, so its pristine session is named by its label.
+"$bin" info "$base/Show.dirigible" --json >"$results/pristine-$label.json"
+cp "$results/pristine-$label.json" "$results/pristine-smoke-$label.json"
 
 # run_task <task> <label> <variant>: one claude run in a new task folder.
 run_task() {

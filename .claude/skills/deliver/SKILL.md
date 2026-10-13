@@ -57,7 +57,7 @@ Write `plan.md`:
 | Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
-- At each risk level, the red-first log of a slice is its control: no mutation control at slice time. Decision 0028 says when a plan raises a guard to risk. A sources change also gets a screenshot or AX check per visible criterion. A tooling control is a failing case in its `.test.sh`.
+- At each risk level, the red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. Decision 0028 says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.
 - Each gate has `maxRounds: 2`; round 2 runs only on a critical item, or with `risk: yes` on a warning.
 
 ## Phase 3: Plan gate

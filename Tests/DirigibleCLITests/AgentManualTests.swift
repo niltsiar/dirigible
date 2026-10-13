@@ -128,6 +128,8 @@ struct AgentManualTests {
         let sound = Self.steps("add-sound")
         #expect(sound.contains("`dirigible import <package> <audio file> --track <track ID> --at <frame>`"), "\(sound)")
         #expect(sound.contains("a new track from `track_add`") && sound.contains("a track that has no clip"))
+        // Import folds a stereo file on a mono track (code gate 1, Consider).
+        #expect(sound.contains("`track_add` with the layout of the file"), "\(sound)")
     }
 
     /// W9: each import at a frame warns that the clip replaces the clips under it.

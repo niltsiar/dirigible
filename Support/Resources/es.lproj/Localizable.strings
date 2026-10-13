@@ -400,7 +400,7 @@
 "sheet.unused.reason.pool" = "Ningún clip lo usa";
 "sheet.unused.reason.stray" = "No está en la sesión";
 "sheet.unused.total" = "Archivos: %lld (%@)";
-"sheet.unused.kept" = "Se conservan por una copia o Deshacer: %lld (%@)";
+"sheet.unused.kept" = "Se conservan por una copia, Deshacer o el portapapeles: %lld (%@)";
 "sheet.unused.damaged" = "Las copias dañadas no conservan ningún archivo: %@";
 "sheet.unused.footnote" = "El espacio se recupera al vaciar la Papelera.";
 "sheet.unused.move" = "Trasladar a la Papelera";

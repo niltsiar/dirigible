@@ -233,6 +233,23 @@ extension LiveExportTests {
         #expect(try outputs() == [], "the export ran")
         await studio.settle()
     }
+
+    /// Code gate 2 item 4: a render in the app reads no media state. `ExportWork.checkFiles` has
+    /// the same rule on the files; no test can fail its media check alone.
+    @Test func aRenderRunsNoMediaCheck() async throws {
+        let studio = try await package.open()
+        let checks = OSAllocatedUnfairLock(initialState: 0)
+        studio.environment.beforeMediaCheck = { checks.withLock { $0 += 1 } }
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let caf = package.folder.appending(path: "mix.caf")
+
+        let outcome = await send(folder.socket, "render", ["package": package.path, "out": caf.path])
+
+        #expect(outcome == .reply(.result(text: "OK", isError: false)))
+        #expect(checks.withLock { $0 } == 0, "the render ran a media check")
+        await studio.settle()
+    }
 }
 
 /// Holds the export of a studio once, at chunk `at`, until `release`.

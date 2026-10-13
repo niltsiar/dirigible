@@ -1,9 +1,10 @@
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleMCP
 
-/// The frames of a long call (code gate 1 of run 7b, item 2).
+/// The frames of a long call and their failures (code gate 1 of run 7b, items 2 and 8).
 @MainActor
 struct BridgeKeepAliveTests {
     let rename = ["package": "/x.dirigible", "track": "t1", "name": "A"]
@@ -47,5 +48,23 @@ struct BridgeKeepAliveTests {
             "The connection to Dirigible closed during the call. The \(tool) can still write its file: check the "
             + "output file, and read the session before you try again."
         #expect(toolText(answer) == (text, true))
+    }
+
+    /// Item 8: a frame that the listener cannot write ends the connection and cancels its call.
+    @Test func aFailedFrameWriteEndsTheConnection() async throws {
+        let cancelled = OSAllocatedUnfairLock(initialState: false)
+        let (listener, folder) = try listener { _, report in
+            report(0.5)
+            try? await Task.sleep(for: .seconds(120))
+            cancelled.withLock { $0 = Task.isCancelled }
+            return .result(text: "late", isError: false)
+        }
+        defer { listener.stop() }
+        let client = try #require(Client(folder.socket))
+        client.shutdownRead()
+        client.send(MCPServer.encode(["tool": "track_rename", "arguments": rename, "client": [String: String]()]))
+
+        await until("the failed frame write did not end the call") { cancelled.withLock { $0 } }
+        withExtendedLifetime(client) {}
     }
 }

@@ -15,14 +15,17 @@ extension SessionWindow {
     /// would drop the typed name. On while the media check or the export runs (decision 0019).
     /// Off while an agent record request waits or starts (decision 0048).
     var canRecord: Bool {
-        guard consent == nil, canStartTake, let studio = idleStudio else { return false }
+        guard consent == nil, takeRefusal == nil, let studio = idleStudio else { return false }
         return studio.session.tracks.contains { armed.contains($0.id) }
     }
 
-    /// The rules of `canRecord` that the consent sheet also keeps: no armed track is needed.
-    private var canStartTake: Bool {
-        guard exportStep == nil || exportStep == .checking, let studio = idleStudio else { return false }
-        return studio.pendingTake == nil
+    /// Why a take cannot start now, or nil: the rules of `canRecord` that the consent sheet also
+    /// keeps (no armed track is needed). The one owner of these rules.
+    private var takeRefusal: RecordStart? {
+        guard case .open(let studio) = phase else { return .closed }
+        guard exportStep == nil || exportStep == .checking else { return .busy(.dialog) }
+        guard studio.isIdle, studio.pendingTake == nil else { return .busy(.task) }
+        return nil
     }
 
     /// The armed tracks with a route, in session order: the tracks that a take records.
@@ -61,10 +64,12 @@ extension SessionWindow {
     @discardableResult
     func startTake(armed: [TrackID], playhead: Frames?, seconds: Double? = nil) async -> RecordStart {
         commitDrafts()
-        guard canStartTake, let studio = idleStudio else {
-            guard case .open = phase else { return .closed }
-            return .busy(exportStep == nil || exportStep == .checking ? .task : .dialog)
+        if let refusal = takeRefusal {
+            // A Record click of the sheet gets the alert of a refused start.
+            if case .busy = refusal { alert = .error(.busy) }
+            return refusal
         }
+        guard let studio = idleStudio else { return .closed }
         // The take form removes the name field, so its focus change cannot end a rename with no
         // typed text (run 2026-10-11-ui-polish-header code gate 1).
         renamingTrack = nil

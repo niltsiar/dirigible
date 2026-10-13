@@ -1,10 +1,10 @@
 # Mutation pass
 
-The red-first log of each slice is its control (tdd steps 4 and 7), at each risk level. No mutation control runs at slice time, and no control replays. A `risk: yes` run gets one mutation pass in Phase 7; a `risk: no` run gets none. The docstring of `.claude/skills/deliver/scripts/mutate.py` gives each flag and each result line.
+The red-first log of each slice and each fix is its control (tdd steps 4 and 7), at each risk level. No mutation control runs at slice time, and no control replays. A `risk: yes` run gets one mutation pass in Phase 7; a `risk: no` run gets none. The docstring of `.claude/skills/deliver/scripts/mutate.py` gives each flag and each result line.
 
 ## Pick the mutants
 
-- Run the pass once, on the landing tree: after the last code gate fix and the last Phase 7 fix, before the push check. A killed mutant does not run again. A fix after the pass runs one new mutant for each guard that it touched, on its changed line; no other mutant runs again. When the fix touches no guard, log a phase 7 row that says so, and give its time to `scripts/land.sh`, which refuses a pass row older than the last `Sources/` commit.
+- Run the pass once, each mutant with `--timeout`, on the landing tree: after the last code gate fix and the last Phase 7 fix, before the push check. A killed mutant does not run again. A fix after the pass runs one new mutant for each guard that it touched, on its changed line; no other mutant runs again. When the fix touches no guard, log a phase 7 row that says so, and give its time to `scripts/land.sh`, which refuses a pass row older than the last `Sources/` commit.
 - One agent reads the diff, the criteria, and the probe results. It picks one mutant for each data-safety guard of the AGENTS.md Safety rules on the changed lines, in the direction that loses data, with no cap. Then it adds one mutant for each other risk guard on the changed lines while the total is under 6. With fewer than 3, it adds another direction of the riskiest guard until there are 3 or no direction is left. With no guard on the changed lines, log a phase 7 row that says why no pass applies, and give its time to `scripts/land.sh`.
 - Prefer a removed check, a guard operator or boundary, and a constant that a probe measured. Skip logging, waits, time limits, speed (the bench owns it), UI strings, and framework setup order.
 - The mutant breaks the mechanism of the claim (a removed guard, a relaxed memory order). A mutant that only corrupts the input of the checker proves only the checker.
@@ -21,7 +21,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - Pass the assertion message of the killing test with `--expect <text>`, not a test name. A guard and its refusal message read the limit from one variable.
 - Pass `--timeout <seconds>`, a few times the green test time: a hang gives `killed (hang)`, with `--expect` only when the text came before the kill. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads, and the test reads its input with `try?`, so the assert message comes.
 - mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads, also for a survivor that runs again. A `BUILD FAILED` or a tool crash right after another mutant can come from its outputs.
-- A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`.
+- A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`: the old state of an earlier run can fail the command before it reaches the guard.
 - Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row whose decision starts with `mutation pass`: the pass row. `scripts/land.sh` refuses a risk run with no pass row.
 
 ## Read each survivor

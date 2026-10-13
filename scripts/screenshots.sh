@@ -187,6 +187,9 @@ id="${found%% *}"
 size="${found#* }"
 width="${size%% *}"
 sleep 1
+# No unit test sees a clipped Settings text, so this script checks it before the shot.
+swift "$repo/scripts/settings-fit.swift" "$pid" >/dev/null ||
+    { echo "screenshots.sh: Settings clips a text: run scripts/settings-fit.swift $pid." >&2; exit 1; }
 shot screenshot-settings.png
 
 for png in "$images"/screenshot-{edit,zoom,inspector,episode,crossfade,settings}.png; do

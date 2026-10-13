@@ -16,6 +16,7 @@
 - Amended: 2026-10-07, run 2026-10-07-mcp-cli. `dirigible mcp` serves each edit command as an MCP tool, with the English text of the command. `ParityTests` also checks that each command has its tool (see 0041).
 - Amended: 2026-10-08, run 2026-10-08-cli-bundle. The app bundle holds the tool at `Contents/Helpers/dirigible`, so a DMG user has `dirigible` and `dirigible mcp` with no developer setup.
 - Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **CLI parity** holds the parity rule. `AGENTS.md` points here.
+- Amended: 2026-10-13, run `2026-10-13-agent-onboarding`. The root flag `--instructions` prints the agent manual, and `skill show` and `skill path` give its skill. They read no package, so they have no MCP tool (see 0051).
 
 ## Context
 

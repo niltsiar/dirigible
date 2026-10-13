@@ -12,6 +12,7 @@
 - Amended: 2026-10-12, run `2026-10-12-mcp-in-app` (see 0046). Code place: the MCP files are in the library target `DirigibleMCP`, which the app can import. `DirigibleCLI` keeps `MCPCommand` and its stdin loop.
 - Amended: 2026-10-13, run `2026-10-12-mcp-in-app` (see 0046). With the Settings switch on, a call on a package that the app has open runs in the app as one undo step that names the agent. Settings copies the setup command of Claude Code, Codex, opencode, or any MCP app; `docs/research/mcp-clients.md` has the texts.
 - Amended: 2026-10-12, run `2026-10-12-mcp-in-app` (see 0046). Guard and Consequences: with the app server on, a call on a package that the app has open runs in the app as one undo step, and the edit tool descriptions say so. A call that copies files into an open package is refused with "`<path>` is open in Dirigible. Do this in the app, or close the window." With the server off, the lock refusal stays.
+- Amended: 2026-10-13, run `2026-10-13-agent-onboarding` (see 0051). The server sends `instructions` in the `initialize` result and in the `server/discover` result, and serves the recipes of the agent manual through `prompts/list` and `prompts/get`. Each tool result is still one text item.
 
 ## Context
 

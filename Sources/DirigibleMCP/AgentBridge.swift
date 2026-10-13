@@ -15,6 +15,8 @@ package final class AgentBridge {
 
     private let socket: URL
     private let timeout: Duration
+    /// The stdin of `dirigible mcp`. During a call the bridge reads it too (decision 0048).
+    private let input: LineInput?
     private var fd: Int32 = -1
     /// The read target, kept for the life of the bridge.
     private var bytes = [UInt8](repeating: 0, count: readSize)
@@ -22,8 +24,8 @@ package final class AgentBridge {
     /// The longest wait for a reply. A record request and its start fit in it (decision 0048).
     package static let replyLimit = Duration.seconds(30)
 
-    package init(socket: URL = agentSocketPath(), timeout: Duration = replyLimit) {
-        (self.socket, self.timeout) = (socket, timeout)
+    package init(socket: URL = agentSocketPath(), timeout: Duration = replyLimit, input: LineInput? = nil) {
+        (self.socket, self.timeout, self.input) = (socket, timeout, input)
     }
 
     deinit { disconnect() }
@@ -57,7 +59,8 @@ package final class AgentBridge {
                 return .noApp
             }
         }
-        guard let reply = readLine().flatMap(AgentReply.init(line:)) else {
+        // Only `record` waits for the user, so only its wait watches stdin (decision 0048).
+        guard let reply = readLine(watching: tool == "record" ? input : nil).flatMap(AgentReply.init(line:)) else {
             // A late reply must never answer the next call.
             disconnect()
             return .lost
@@ -81,18 +84,24 @@ package final class AgentBridge {
         return poll(&entry, 1, 0) == 0
     }
 
-    /// One reply line, or nil at a close, an error, or the time limit.
-    private func readLine() -> Data? {
+    /// One reply line, or nil at a close, an error, or the time limit. With `stdin`, also nil
+    /// when stdin ends or cancels the call: the agent no longer waits, and the close lets the app
+    /// end the call.
+    private func readLine(watching stdin: LineInput?) -> Data? {
         var buffer = Data()
         let deadline = ContinuousClock.now + timeout
         while true {
+            if stdin?.stopsCall() == true { return nil }
             let left = ContinuousClock.now.duration(to: deadline)
             guard left > .zero else { return nil }
-            var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            var entries = [pollfd(fd: fd, events: Int16(POLLIN), revents: 0)]
+            if let stdin { entries.append(pollfd(fd: stdin.fd, events: Int16(POLLIN), revents: 0)) }
             // Round up, so the last wait is not 0 ms.
-            let ready = poll(&entry, 1, Int32((left / .milliseconds(1)).rounded(.up)))
+            let ready = poll(&entries, nfds_t(entries.count), Int32((left / .milliseconds(1)).rounded(.up)))
             if ready < 0, errno == EINTR { continue }
             guard ready > 0 else { return nil }
+            if entries.count > 1, entries[1].revents != 0 { stdin?.fill() }
+            guard entries[0].revents != 0 else { continue }
             let count = read(fd, &bytes, readSize)
             if count < 0, errno == EINTR { continue }
             guard count > 0 else { return nil }

@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleMCP
 
@@ -93,6 +94,52 @@ struct BridgeTests {
         #expect(app.connections == 2, "the second call connects again")
     }
 
+    /// Decision 0048: during a call, a cancel of the running request or the end of stdin closes
+    /// the connection, so the app ends a record request. A cancel of another request does not.
+    @Test(arguments: ["cancel", "eof", "other"]) func stdinDuringACall(_ how: String) throws {
+        let app = try FakeApp { _ in how == "other" ? .lateReply(#"{"isError":false,"text":"late"}"#) : .hold }
+        var fds: [Int32] = [0, 0]
+        try #require(pipe(&fds) == 0)
+        let (readFD, writeFD) = (fds[0], fds[1])
+        defer { close(readFD) }
+        let socket = app.socket
+        // writeAll uses send(2), which a pipe refuses.
+        let put = { (line: String) in
+            _ = Array((line + "\n").utf8).withUnsafeBytes { write(writeFD, $0.baseAddress, $0.count) }
+        }
+        put(callLine("record", ["package": "/x.dirigible"], id: 7))
+        let answer = OSAllocatedUnfairLock<String?>(initialState: nil)
+        let done = OSAllocatedUnfairLock(initialState: false)
+        Thread.detachNewThread {
+            let input = LineInput(fd: readFD)
+            var server = MCPServer(route: AgentBridge(socket: socket, input: input).route)
+            let reply = input.next().flatMap { server.answer($0) }
+            answer.withLock { $0 = reply }
+            done.withLock { $0 = true }
+        }
+        try #require(waitUntil(5) { app.calls.count == 1 }, "the call did not reach the app")
+
+        if how == "eof" {
+            close(writeFD)
+        } else {
+            let id = how == "cancel" ? 7 : 99
+            let cancel = MCPServer.encode([
+                "jsonrpc": "2.0", "method": "notifications/cancelled", "params": ["requestId": id],
+            ])
+            put(cancel)
+        }
+
+        try #require(waitUntil(10) { done.withLock { $0 } }, "the bridge still waits")
+        if how != "eof" { close(writeFD) }
+        let text = toolText(answer.withLock { $0 })
+        if how == "other" {
+            #expect(text == ("late", false), "a cancel of another request ended the call")
+        } else {
+            #expect(text == (lostCallMessage, true))
+            #expect(waitUntil(5) { app.holdsClosed == 1 }, "the app did not see the close")
+        }
+    }
+
     /// C8: an app that closed between two calls counts as no app: the second call runs on the
     /// files.
     @Test func listenerClosedBetweenCalls() throws {
@@ -122,6 +169,8 @@ final class FakeApp: @unchecked Sendable {
         case lateReply(String)
         /// Reply, then close the connection and the listener.
         case replyAndQuit(String)
+        /// No reply: read until the bridge closes the connection, and count the close.
+        case hold
     }
 
     let socket: URL
@@ -135,6 +184,8 @@ final class FakeApp: @unchecked Sendable {
 
     var calls: [[String: Any]] { lock.withLock { received } }
     var connections: Int { lock.withLock { accepted } }
+    var holdsClosed: Int { lock.withLock { closedHolds } }
+    private var closedHolds = 0
 
     init(answer: @escaping @Sendable (Int) -> Action) throws {
         folder = try SocketFolder()
@@ -182,6 +233,10 @@ final class FakeApp: @unchecked Sendable {
                 switch answer(number) {
                 case .reply(let reply): _ = writeAll(fd, Data((reply + "\n").utf8))
                 case .close: break connection
+                case .hold:
+                    while read(fd, &bytes, bytes.count) > 0 {}
+                    lock.withLock { closedHolds += 1 }
+                    break connection
                 case .lateReply(let reply):
                     Thread.sleep(forTimeInterval: 1)
                     _ = writeAll(fd, Data((reply + "\n").utf8))
@@ -198,4 +253,14 @@ final class FakeApp: @unchecked Sendable {
         close(fd)
     }
 
+}
+
+/// Polls `condition` for up to `seconds` on the test thread.
+func waitUntil(_ seconds: Double, _ condition: () -> Bool) -> Bool {
+    let end = Date() + seconds
+    while !condition() {
+        guard Date() < end else { return false }
+        Thread.sleep(forTimeInterval: 0.01)
+    }
+    return true
 }

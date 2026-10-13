@@ -143,6 +143,13 @@ enum L10n: String, CaseIterable {
     case undoAgent = "undo.agent"
     case redoAgent = "redo.agent"
     case undoAgentUnnamed = "undo.agent.unnamed"
+    case bannerConsentExpired = "banner.consent.expired"
+    case bannerConsentExpiredUnnamed = "banner.consent.expired.unnamed"
+    case consentTitle = "consent.title"
+    case consentTitleUnnamed = "consent.title.unnamed"
+    case consentMessage = "consent.message"
+    case consentRecordOver = "consent.record.over"
+    case consentDontRecord = "consent.dont.record"
     case redoAgentUnnamed = "redo.agent.unnamed"
 
     case panelExportFormat = "panel.export.format"

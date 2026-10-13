@@ -19,7 +19,10 @@ package final class AgentBridge {
     /// The read target, kept for the life of the bridge.
     private var bytes = [UInt8](repeating: 0, count: readSize)
 
-    package init(socket: URL = agentSocketPath(), timeout: Duration = .seconds(30)) {
+    /// The longest wait for a reply. A record request and its start fit in it (decision 0048).
+    package static let replyLimit = Duration.seconds(30)
+
+    package init(socket: URL = agentSocketPath(), timeout: Duration = replyLimit) {
         (self.socket, self.timeout) = (socket, timeout)
     }
 

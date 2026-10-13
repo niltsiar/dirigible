@@ -3,13 +3,18 @@ import DirigibleCore
 import Foundation
 import Observation
 
-/// A window that an agent call can reach: its studio, and why the app refuses agent edits now
-/// (C4), or nil.
+/// A window that an agent call can reach: its studio, why the app refuses agent edits now
+/// (C4), or nil, and the consent sheet of `record` (decision 0048), or nil.
 package struct AgentTarget {
+    package typealias Record = @MainActor (RecordRequest, AgentName) async -> RecordAnswer
+
     package let studio: Studio
     package let busy: AgentBusy?
+    package let record: Record?
 
-    package init(studio: Studio, busy: AgentBusy? = nil) { (self.studio, self.busy) = (studio, busy) }
+    package init(studio: Studio, busy: AgentBusy? = nil, record: Record? = nil) {
+        (self.studio, self.busy, self.record) = (studio, busy, record)
+    }
 }
 
 /// Why the app refuses a live agent edit (C4). The CLI keeps the text of `StudioError.busy`.
@@ -19,6 +24,10 @@ package enum AgentBusy: Sendable {
     case drag
     case closing
     case quit
+    /// A record request waits for the user (decision 0048).
+    case asking
+    /// The window shows an alert, a sheet, or a panel.
+    case dialog
 
     package func message(package: String) -> String {
         let cause =
@@ -27,6 +36,8 @@ package enum AgentBusy: Sendable {
             case .drag: "a drag runs in its window"
             case .closing: "its window closes"
             case .quit: "Dirigible quits"
+            case .asking: "a record request waits for the user"
+            case .dialog: "its window shows a question"
             }
         return "\(package) is busy in Dirigible: \(cause). Try again later."
     }
@@ -115,8 +126,9 @@ package final class AgentServer {
         connected = 0
     }
 
-    private func answer(_ call: AgentCall) -> AgentReply {
+    private func answer(_ call: AgentCall) async -> AgentReply {
         guard let target = targets().first(where: { $0.studio.url.path == call.identity.path }) else { return .notOpen }
+        if case .record(let request) = call.work { return await liveRecord(request, call, target: target) }
         return liveCall(call, target: target)
     }
 }

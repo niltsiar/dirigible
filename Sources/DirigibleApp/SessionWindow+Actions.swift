@@ -12,10 +12,16 @@ extension SessionWindow {
 
     /// Off while the export question or the save panel shows: one Cancel frees it, and a take
     /// would drop the typed name. On while the media check or the export runs (decision 0019).
+    /// Off while an agent record request waits or starts (decision 0048).
     var canRecord: Bool {
-        guard exportStep == nil || exportStep == .checking else { return false }
-        guard let studio = idleStudio, studio.pendingTake == nil else { return false }
+        guard consent == nil, canStartTake, let studio = idleStudio else { return false }
         return studio.session.tracks.contains { armed.contains($0.id) }
+    }
+
+    /// The rules of `canRecord` that the consent sheet also keeps: no armed track is needed.
+    private var canStartTake: Bool {
+        guard exportStep == nil || exportStep == .checking else { return false }
+        return idleStudio?.pendingTake == nil && idleStudio != nil
     }
 
     /// The armed tracks with a route, in session order: the tracks that a take records.
@@ -43,25 +49,46 @@ extension SessionWindow {
     func record() async {
         commitDrafts()
         guard canRecord, let studio = idleStudio else { return }
+        await startTake(armed: studio.session.tracks.map(\.id).filter(armed.contains), playhead: nil)
+    }
+
+    /// The take start of Command-R and of the consent sheet (decision 0048). With no `playhead`,
+    /// the take starts at the Studio playhead; a play stops first (decision 0016). A refusal
+    /// shows its alert, as for Command-R.
+    @discardableResult
+    func startTake(armed: [TrackID], playhead: Frames?) async -> RecordStart {
+        commitDrafts()
+        guard canStartTake, let studio = idleStudio else { return .notStarted }
         // The take form removes the name field, so its focus change cannot end a rename with no
         // typed text (run 2026-10-11-ui-polish-header code gate 1).
         renamingTrack = nil
-        let armed = studio.session.tracks.map(\.id).filter(armed.contains)
+        var take: Int?
         do throws(StudioError) {
-            // The take starts at the Studio playhead; a play stops first (decision 0016).
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
-                try await studio.startRecording(armed: armed)
+                try await studio.startRecording(armed: armed, playhead: playhead)
+                // Read with no await after the start: a stop can end the take soon after it.
+                switch studio.transport {
+                case .recording(let number), .finalizing(let number): take = number
+                default: break
+                }
             }
+            // The body does not run when the window changed during the microphone prompt.
+            guard let take else { return .notStarted }
             exportReport = nil
             chapterWarnings = nil
             levelReport = nil
+            consentExpired = nil
+            return .started(take: take)
         } catch let error where studio.exportProgress != nil {
             // A refused start keeps the export, and its sheet hides a window alert until the end.
             recordRefusal = error
+            return .failed(error)
         } catch .microphoneAccess(let access) {
             alert = .microphone(access)
+            return .failed(.microphoneAccess(access))
         } catch {
             alert = .error(error)
+            return .failed(error)
         }
     }
 

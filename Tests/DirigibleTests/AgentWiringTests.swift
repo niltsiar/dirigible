@@ -109,16 +109,13 @@ import Testing
         let model = await app.open(try folder.package("mark"))
         _ = try #require(await model.opened() ? model.studio : nil)
         let mark = try #require(model.chrome?.agentMark)
-        // A hidden trailing accessory still draws (probe), so the mark is in the title bar only
-        // while an agent is connected.
-        let shown = { mark.view.window != nil && !mark.view.isHiddenOrHasHiddenAncestor }
-        #expect(!shown())
+        #expect(!shown(mark))
         app.agents.start()
         defer { app.agents.stop() }
 
         let bridge = AgentBridge(socket: socket)
         #expect(bridge.connect())
-        await until("the mark shows") { shown() }
+        await until("the mark shows") { shown(mark) }
         #expect(mark.view.toolTip == L10n.agentMarkHelp.text)
         // The title bar sizes a trailing accessory from the frame of its view: a zero frame draws
         // the mark 2 pt wide, so the user sees no mark.
@@ -127,9 +124,45 @@ import Testing
             mark.view.frame.width >= mark.view.fittingSize.width && mark.view.fittingSize.width > 20,
             "C12: the mark is \(mark.view.frame.width) pt of \(mark.view.fittingSize.width) pt")
         bridge.disconnect()
-        await until("the mark hides") { !shown() }
-        #expect(!shown(), "C12: the mark stays in the title bar after the agent left")
+        await until("the mark hides") { !shown(mark) }
+        #expect(!shown(mark), "C12: the mark stays in the title bar after the agent left")
         await model.close()
+    }
+
+    /// C12: the mark stays while one of two bridges is connected, shows in a window that opens
+    /// while an agent is connected, and leaves each window when the switch turns off.
+    @Test func agentMarkFollowsTheCountAndTheSwitch() async throws {
+        let first = await app.open(try folder.package("mark-1"))
+        _ = try #require(await first.opened() ? first.studio : nil)
+        let mark = try #require(first.chrome?.agentMark)
+        app.agents.start()
+        defer { app.agents.stop() }
+        let one = AgentBridge(socket: socket)
+        let two = AgentBridge(socket: socket)
+        #expect(one.connect())
+        #expect(two.connect())
+        await until("two bridges show the mark") { app.agents.connected == 2 && shown(mark) }
+
+        one.disconnect()
+        await until("one bridge stays") { app.agents.connected == 1 }
+        #expect(shown(mark), "C12: the mark left with one bridge still connected")
+
+        let second = await app.open(try folder.package("mark-2"))
+        _ = try #require(await second.opened() ? second.studio : nil)
+        let other = try #require(second.chrome?.agentMark)
+        await until("C12: a window that opens while an agent is connected shows the mark") { shown(other) }
+
+        app.agents.stop()
+        await until("C12: the switch off takes the mark from each window") { !shown(mark) && !shown(other) }
+        two.disconnect()
+        await second.close()
+        await first.close()
+    }
+
+    /// A hidden trailing accessory still draws (probe), so the mark is in the title bar only while
+    /// an agent is connected.
+    private func shown(_ mark: NSTitlebarAccessoryViewController) -> Bool {
+        mark.view.window != nil && !mark.view.isHiddenOrHasHiddenAncestor
     }
 
     /// C17: an agent edit moves no playhead, selection, scroll, or zoom.

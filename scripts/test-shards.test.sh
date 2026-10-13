@@ -5,7 +5,7 @@
 # line, runs fewer tests than it listed, or matches no test (exit 69) prints the text that
 # run-checks.sh reads as no rerun ("the test process ended before its report"), and fails the run
 # after the other shards end. Check that a failed test fails the run with its line once in the
-# output, that a report line with no suite count counts, that TEST_SHARDS sets the count, that the
+# output, that a report line with no suite count counts, that TEST_SHARDS sets the count with the CLI shard in it (default: the physical cores), that the
 # weights file balances the shards and names its stale keys, that a failed build runs no shard, that the build, the list,
 # and the shards share one hold of the lock, and that a TERM leaves no test process alive.
 # A fake swift and a stub test-helper.sh stand in for the toolchain. make test-hooks runs it.
@@ -99,7 +99,7 @@ run() {
 ran() { grep -cE "^(✔|✘) Test $1 (passed|failed)" "$tmp/out"; }
 
 # (a) Each listed test runs once; the CLI tests in their own shard; no app bundle or disk image test.
-run TEST_SHARDS=2
+run TEST_SHARDS=3
 [[ $code -eq 0 ]] || fail "pass: exit $code: $(cat "$tmp/out")"
 for t in 'a1\(\)' 'a2\(value:\)' 'b1\(\)' 'c1\(\)' 'freeFunction\(\)' 'd1\(\)' 'd2\(\)'; do
     [[ "$(ran "$t")" -eq 1 ]] || fail "pass: $t did not run once: $(cat "$tmp/out")"
@@ -120,7 +120,7 @@ grep -q -- "--test-bundle-path $root/.build/debug/DirigiblePackageTests.xctest/C
 # With no weights file, no stale line.
 grep -q 'stale weights' "$tmp/out" && fail "pass: a stale line with no weights file"
 printf 'DirigibleTests.BTests\t100\n' > "$root/scripts/test-shards.weights"
-run TEST_SHARDS=4
+run TEST_SHARDS=5
 [[ $code -eq 0 ]] || fail "weights: exit $code"
 grep -qF -- '--filter ^(DirigibleTests\.BTests)(/|$)' "$tmp/args.log" || fail "weights: BTests is not alone: $(cat "$tmp/args.log")"
 # A stale weights file shows in one line: the keys with no weight and the weight keys with no
@@ -128,22 +128,29 @@ grep -qF -- '--filter ^(DirigibleTests\.BTests)(/|$)' "$tmp/args.log" || fail "w
 want='test-shards: stale weights: no weight: DirigibleAudioTests.CTests DirigibleCoreTests.freeFunction() DirigibleTests.ATests; no test: none'
 grep -qxF "$want" "$tmp/out" || fail "weights: no stale line: $(grep stale "$tmp/out")"
 printf 'DirigibleTests.BTests\t1\nDirigibleTests.ATests\t1\nDirigibleAudioTests.CTests\t1\nDirigibleCoreTests.freeFunction()\t1\nDirigibleTests.GoneTests\t1\n' > "$root/scripts/test-shards.weights"
-run TEST_SHARDS=4
+run TEST_SHARDS=5
 grep -qxF 'test-shards: stale weights: no weight: none; no test: DirigibleTests.GoneTests' "$tmp/out" || fail "weights: no stale key line: $(grep stale "$tmp/out")"
 rm "$root/scripts/test-shards.weights"
 
-# (f) The default is 4 shards and the CLI shard; a shard with no test does not start.
+# (f) The default is one shard for each physical core, the CLI shard in the count: a fake sysctl
+# gives 3 cores, so 2 shards and the CLI shard.
+printf '#!/bin/bash\n[[ "$*" == "-n hw.physicalcpu" ]] && echo 3\n' > "$tmp/bin/sysctl"
+chmod +x "$tmp/bin/sysctl"
 run
 [[ $code -eq 0 ]] || fail "default: exit $code: $(cat "$tmp/out")"
-[[ "$(grep -c '^runner .*--filter' "$tmp/args.log")" -eq 5 ]] || fail "default: not 4 shards and the CLI shard: $(cat "$tmp/args.log")"
+[[ "$(grep -c '^runner .*--filter' "$tmp/args.log")" -eq 3 ]] || fail "default: not 3 runners for 3 cores: $(cat "$tmp/args.log")"
+rm "$tmp/bin/sysctl"
+# A count of 1 still keeps the CLI shard apart: 1 shard and the CLI shard.
+run TEST_SHARDS=1
+[[ $code -eq 0 && "$(grep -c '^runner .*--filter' "$tmp/args.log")" -eq 2 ]] || fail "one: exit $code: $(cat "$tmp/args.log")"
 
 # A report line with no suite count counts its tests.
-run TEST_SHARDS=2 FAKE_NOSUITE=1
+run TEST_SHARDS=3 FAKE_NOSUITE=1
 [[ $code -eq 0 ]] || fail "no suite count: exit $code: $(tail -5 "$tmp/out")"
 grep -qE '^test-shards: 7 of 7 tests in' "$tmp/out" || fail "no suite count: the count line: $(tail -3 "$tmp/out")"
 
 # (c) A failed test fails the run; the other shards run to their end; the failed line shows once.
-run TEST_SHARDS=2 FAKE_FAIL=b1
+run TEST_SHARDS=3 FAKE_FAIL=b1
 [[ $code -eq 1 ]] || fail "failed test: exit $code"
 [[ "$(grep -c '^✘ Test b1() failed after' "$tmp/out")" -eq 1 ]] || fail "failed test: the failed line: $(cat "$tmp/out")"
 [[ "$(ran 'd2\(\)')" -eq 1 ]] || fail "failed test: the CLI shard did not end"
@@ -151,13 +158,13 @@ grep -qF 'ended before its report' "$tmp/out" && fail "failed test: a rerunnable
 
 # (b), (d), (e), and a crash: a lost test is never a flake.
 for c in FAKE_CRASH=c1 FAKE_NOREPORT=c1 FAKE_SHORT=c1; do
-    run TEST_SHARDS=2 "$c"
+    run TEST_SHARDS=3 "$c"
     [[ $code -eq 1 ]] || fail "$c: exit $code"
     grep -qE '^test-shards: shard [0-9]+: the test process ended before its report' "$tmp/out" ||
         fail "$c: no report-end line: $(tail -5 "$tmp/out")"
     [[ "$(ran 'd1\(\)')" -eq 1 ]] || fail "$c: the CLI shard did not end"
 done
-run TEST_SHARDS=2 FAKE_SHORT=c1
+run TEST_SHARDS=3 FAKE_SHORT=c1
 grep -qE '^test-shards: shard [0-9]+ ran 1 of 2 tests' "$tmp/out" || fail "short: no count message: $(tail -5 "$tmp/out")"
 grep -qE '^test-shards: 6 of 7 tests in' "$tmp/out" || fail "short: the count line: $(tail -3 "$tmp/out")"
 # (e) A shard that matches no test: a wrapper of the stub gives exit 69 and a report of 0 tests
@@ -171,13 +178,13 @@ echo "✔ Test run with 0 tests in 0 suites passed after 0.001 seconds."
 exit 69
 EOF
 chmod +x "$root/scripts/test-helper.sh"
-run TEST_SHARDS=1
+run TEST_SHARDS=2
 [[ $code -eq 1 ]] || fail "no match: exit $code"
 grep -qE '^test-shards: shard 1: the test process ended before its report' "$tmp/out" || fail "no match: no report-end line: $(tail -5 "$tmp/out")"
 mv "$tmp/helper.real" "$root/scripts/test-helper.sh"
 
 # (g) A failed build runs no shard.
-run TEST_SHARDS=2 FAKE_BUILD_FAIL=1
+run TEST_SHARDS=3 FAKE_BUILD_FAIL=1
 [[ $code -ne 0 ]] || fail "build: exit 0"
 grep -q '^runner' "$tmp/args.log" && fail "build: a runner ran: $(cat "$tmp/args.log")"
 
@@ -186,7 +193,7 @@ grep -q '^runner' "$tmp/args.log" && fail "build: a runner ran: $(cat "$tmp/args
 : > "$tmp/hang.pid"
 : > "$tmp/args.log" && : > "$tmp/lock.log"
 # The lock marker skips the with-lock.sh wrap, so the TERM and the exit code are the script's own.
-(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=2 FAKE_HANG=c1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
+(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=3 FAKE_HANG=c1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
     "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1 &
 pid=$!
 for _ in $(seq 100); do [[ -s "$tmp/hang.pid" ]] && break; sleep 0.1; done

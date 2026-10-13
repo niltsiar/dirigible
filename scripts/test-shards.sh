@@ -1,10 +1,10 @@
 #!/bin/bash
 # Run all tests except AppBundleTests and DiskImageTests (make test) in shards at the same time
 # after one build. One process holds the main actor of its tests, so the main-actor suites of
-# DirigibleTests wait in one queue; shards give each its own main thread (run 2026-10-13-test-speed:
-# 600 s in two processes in sequence, 350 s in 5 shards on 4 cores).
+# DirigibleTests wait in one queue; shards give each its own main thread. On 4 cores: 600 s in two
+# processes in sequence; shards of 330 s in 4 processes, and 385 s with 3 failed waits in 3.
 # Steps: swift build --build-tests; --list-tests of the bundle; the tests split by their key (the
-# ID up to the first slash: a suite, or a free function) over TEST_SHARDS shards (default 4), with
+# ID up to the first slash: a suite, or a free function) over TEST_SHARDS - 1 shards, with
 # the largest keys first into the shard with the least seconds (scripts/test-shards.weights: the
 # seconds of each suite alone; after a big test change, run each module with test-helper.sh
 # --no-parallel and add the "passed after <s> seconds" of each test into its suite line); the CLI
@@ -21,15 +21,19 @@
 # The script holds the build lock (with-lock.sh) once for the build, the list, and the shards.
 # INT, TERM, or an exit stops each shard process; on INT (exit 130) or TERM (exit 143), it
 # prints the tail of each shard that still ran.
-# Usage: [TEST_SHARDS=<n>] scripts/test-shards.sh
+# Usage: [TEST_SHARDS=<processes, the CLI shard in the count; default: the physical cores>]
+#        scripts/test-shards.sh
 # scripts/test-shards.test.sh tests it.
 set -uo pipefail
 # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
 [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$(dirname "$0")/with-lock.sh" "$0" "$@"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root" || exit 1
-n="${TEST_SHARDS:-4}"
-[[ "$n" =~ ^[1-9][0-9]*$ ]] || { echo "test-shards: TEST_SHARDS must be a count: $n" >&2; exit 2; }
+# The count of test processes, the CLI shard in it: one for each physical core. More processes
+# than cores starve the main actor of each one.
+total="${TEST_SHARDS:-$(sysctl -n hw.physicalcpu 2>/dev/null || echo 4)}"
+[[ "$total" =~ ^[1-9][0-9]*$ ]] || { echo "test-shards: TEST_SHARDS must be a count: $total" >&2; exit 2; }
+n=$((total > 1 ? total - 1 : 1))
 helper="$root/scripts/test-helper.sh"
 bundle="$root/.build/debug/DirigiblePackageTests.xctest/Contents/MacOS/DirigiblePackageTests"
 logs="$root/.build/test-shards"

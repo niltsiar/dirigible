@@ -29,6 +29,9 @@ public struct UnusedFiles: Hashable, Sendable {
     public let kept: Kept
     /// The backups that the reader refused as damaged XML: they keep no file.
     public let damagedBackups: [Backup]
+    /// The unused pool paths that are not a regular file (a symbolic link or a folder). They stay,
+    /// so the prune never moves or follows a link to a file outside the package. Sorted.
+    public let notFiles: [String]
 
     /// Reads `Clips/`, `session.xml`, and `Backups/` of `package`. `keptFiles` are the pool paths
     /// of the files that the app clipboard of the same package uses. Throws for an unreadable
@@ -76,12 +79,18 @@ public struct UnusedFiles: Hashable, Sendable {
             .map { (.stray, $0) }
 
         var items: [Item] = []
+        var notFiles: [String] = []
         var kept = Kept(count: 0, bytes: 0)
         for (kind, path) in candidates {
             let url = clips.appending(path: path)
             let identities = FileIdentity.both(url.path)
             var info = stat()
-            let bytes = lstat(url.path, &info) == 0 ? Int64(info.st_size) : 0
+            let found = lstat(url.path, &info) == 0
+            if found && info.st_mode & S_IFMT != S_IFREG {
+                notFiles.append(path)
+                continue
+            }
+            let bytes = found ? Int64(info.st_size) : 0
             if own.hold(path, identities) { continue }
             if others.hold(path, identities) {
                 kept = Kept(count: kept.count + 1, bytes: kept.bytes + bytes)
@@ -89,10 +98,12 @@ public struct UnusedFiles: Hashable, Sendable {
             }
             items.append(Item(kind: kind, path: path, bytes: bytes, identity: FileIdentity(lstat: url.path)))
         }
-        self.init(items: items.sorted { $0.path < $1.path }, kept: kept, damagedBackups: damaged)
+        self.init(
+            items: items.sorted { $0.path < $1.path }, kept: kept, damagedBackups: damaged, notFiles: notFiles.sorted())
     }
 
-    private init(items: [Item], kept: Kept, damagedBackups: [Backup]) {
+    private init(items: [Item], kept: Kept, damagedBackups: [Backup], notFiles: [String]) {
+        self.notFiles = notFiles
         self.items = items
         self.kept = kept
         self.damagedBackups = damagedBackups
@@ -161,7 +172,7 @@ public struct UnusedFiles: Hashable, Sendable {
             guard case .pool(let id) = item.kind else { return true }
             return session.files[id] != nil && !used.contains(id)
         }
-        return UnusedFiles(items: live, kept: kept, damagedBackups: damagedBackups)
+        return UnusedFiles(items: live, kept: kept, damagedBackups: damagedBackups, notFiles: notFiles)
     }
 
     /// `session` with no pool entry of the items, or nil when there is no item.
@@ -208,11 +219,13 @@ public struct UnusedFiles: Hashable, Sendable {
         return PruneReport(moved: moved, failed: failed, dropped: dropped)
     }
 
-    /// The items that are in both scans, with the kept files and damaged backups of `other`. The
+    /// The items that are in both scans, with the kept files, damaged backups, and not-files of `other`. The
     /// confirmation of the app moves only these.
     public func intersection(_ other: UnusedFiles) -> UnusedFiles {
         let others = Set(other.items)
-        return UnusedFiles(items: items.filter(others.contains), kept: other.kept, damagedBackups: other.damagedBackups)
+        return UnusedFiles(
+            items: items.filter(others.contains), kept: other.kept, damagedBackups: other.damagedBackups,
+            notFiles: other.notFiles)
     }
 
     private static func read(_ url: URL) throws(SessionFileError) -> Session {

@@ -29,6 +29,7 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
             throw .body(error)
         }
         var lines = scan.damagedBackups.map { "Damaged backup, it keeps no file: \(backupsFolderName)/\($0.fileName)" }
+        lines += scan.notFiles.map { "Not a regular file, it stays: \(clipsFolderName)/\($0)" }
         let kept = "Kept for a backup: \(scan.kept.count) (\(scan.kept.bytes) bytes)"
         guard !dryRun else {
             lines += scan.items.map { "\($0.path)\t\($0.bytes) bytes" }

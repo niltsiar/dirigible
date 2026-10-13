@@ -6,9 +6,9 @@
 # slug of an open run, on any day, returns the same folder and changes nothing. It prints the
 # backlog section sizes, the upkeep items of ## Next, and a due architecture audit on stderr.
 # A new run gets `- Branch: <type>/<slug>` in run.md. The script refuses a third non-feature run
-# in a row (exit 2, no folder, no ledger line): the two newest done rows of the ledger have a
-# run.md branch type other than feat (the text between "- Branch: " and the first slash; no type
-# is not a feature), and <type> is not feat. With --blocks-feature, it opens the run and logs the
+# in a row (exit 2, no folder, no ledger line): the two runs with the highest PR numbers in their
+# done ledger rows (each run once) have a run.md branch type other than feat (the text between
+# "- Branch: " and the first slash; no type is not a feature), and <type> is not feat. With --blocks-feature, it opens the run and logs the
 # reason as a phase 0 row. The ledger is in .scratchpads/ of the main checkout (the git common dir).
 # Usage: new-run.sh <slug> <type> [--blocks-feature '<reason>']
 set -euo pipefail
@@ -41,8 +41,10 @@ fi
 dir="$root/runs/$run"
 # The feature guard, for a new run only.
 if [[ ! -d "$dir" && "$type" != feat ]]; then
-    last="$(awk -F'|' '{ n = $2; gsub(/ /, "", n); st = $4; gsub(/ /, "", st) } n ~ /^[0-9]{4}-/ && st == "done" { print n }' \
-        "$root/ledger.md" 2>/dev/null | tail -n 2)"
+    # The land order is the PR number of the done row (a row with no PR is older); each run once.
+    last="$(awk -F'|' '{ n = $2; gsub(/ /, "", n); st = $4; gsub(/ /, "", st) }
+        n ~ /^[0-9]{4}-/ && st == "done" { pr = match($5, /pull\/[0-9]+/) ? substr($5, RSTART + 5, RLENGTH - 5) : 0; print pr, NR, n }' \
+        "$root/ledger.md" 2>/dev/null | sort -k1,1n -k2,2n | awk '{ print $3 }' | tail -r | awk '!seen[$0]++' | head -n 2)"
     features=0
     for r in $last; do
         t="$(sed -n 's/^- Branch: \([^/]*\)\/.*/\1/p' "$root/runs/$r/run.md" 2>/dev/null | head -n 1)"

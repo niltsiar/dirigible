@@ -268,6 +268,42 @@ struct AgentServerTests {
         listener?.stop()
     }
 
+    /// Code gate 2: the late reply of a call whose connection closed never answers a call of the
+    /// next connection, which gets the freed fd number.
+    @Test func lateReplyNeverAnswersTheNextConnection() async throws {
+        let folder = try SocketFolder()
+        let gate = Gate()
+        let open = OSAllocatedUnfairLock(initialState: 0)
+        var listener: AgentListener?
+        let handle: @Sendable (AgentCall) async -> AgentReply = { call in
+            guard call.path == "/tmp/first.dirigible" else { return .result(text: "second", isError: false) }
+            await gate.wait()
+            return .result(text: "late", isError: false)
+        }
+        if case .listening(let opened) = AgentListener.open(
+            socket: folder.socket, handle: handle, counted: { count in open.withLock { $0 = count } })
+        {
+            listener = opened
+        }
+        try #require(listener != nil)
+        let first = try #require(Client(folder.socket))
+        first.send(#"{"tool":"session_info","arguments":{"package":"/tmp/first.dirigible"}}"#)
+        await until("the first call did not start") { gate.waiting }
+        first.close()
+        await until("the first connection did not end") { open.withLock { $0 } == 0 }
+        // The new connection gets the freed fd number.
+        let second = try #require(Client(folder.socket))
+        await until("the second connection is not counted") { open.withLock { $0 } == 1 }
+
+        gate.open()
+        second.send(#"{"tool":"session_info","arguments":{"package":"/tmp/second.dirigible"}}"#)
+
+        let reply = await onThread { second.readLine() }
+        #expect(reply.map { $0.contains("second") } == true, "\(reply ?? "no reply")")
+        #expect(!second.hasData, "a second reply came")
+        listener?.stop()
+    }
+
     /// C16: a bridge that closes before its reply does not stop the server: the next connection
     /// is served.
     @Test func peerClosesBeforeReply() async throws {
@@ -291,42 +327,4 @@ struct AgentServerTests {
 func mode(of path: String) -> mode_t {
     var info = stat()
     return stat(path, &info) == 0 ? info.st_mode & 0o777 : 0
-}
-
-/// A raw client of the app socket.
-final class Client: @unchecked Sendable {
-    private var fd: Int32
-
-    init?(_ socket: URL) {
-        fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-        setNoSigPipe(fd)
-        guard withAddress(socket.path, { connect(fd, $0, $1) }) == 0 else {
-            Darwin.close(fd)
-            fd = -1
-            return nil
-        }
-    }
-
-    func send(_ line: String) { _ = writeAll(fd, Data((line + "\n").utf8)) }
-
-    /// True when bytes wait to be read now.
-    var hasData: Bool {
-        var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
-        return poll(&entry, 1, 0) == 1
-    }
-
-    /// True when a read gets EOF within 5 s.
-    func readsEOF() -> Bool {
-        var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
-        guard poll(&entry, 1, 5_000) == 1 else { return false }
-        var byte: UInt8 = 0
-        return read(fd, &byte, 1) == 0
-    }
-
-    func close() {
-        Darwin.close(fd)
-        fd = -1
-    }
-
-    deinit { if fd >= 0 { Darwin.close(fd) } }
 }

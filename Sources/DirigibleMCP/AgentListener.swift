@@ -39,6 +39,7 @@ final class AgentListener: @unchecked Sendable {
     private let counted: @Sendable (Int) -> Void
     private var listenSource: DispatchSourceRead?
     private var connections: [ObjectIdentifier: Connection] = [:]
+    private var accepted = 0
     private var stopped = false
 
     /// One accepted bridge. It runs one call at a time. Its read source stays on while a call
@@ -51,7 +52,9 @@ final class AgentListener: @unchecked Sendable {
         var bytes = [UInt8](repeating: 0, count: readSize)
         /// The running call. A line that comes during the call waits in `buffer`.
         var call: Task<Void, Never>?
-        init(fd: Int32) { self.fd = fd }
+        /// Never the same for two connections, also when a new one gets a freed address.
+        let serial: Int
+        init(fd: Int32, serial: Int) { (self.fd, self.serial) = (fd, serial) }
     }
 
     /// Takes the lock beside `socket`, replaces an old socket file, binds, and listens. It runs
@@ -140,7 +143,8 @@ final class AgentListener: @unchecked Sendable {
             guard fd >= 0 else { return }
             // The fd takes O_NONBLOCK from the listener, so no read blocks the queue.
             setNoSigPipe(fd)
-            let connection = Connection(fd: fd)
+            accepted += 1
+            let connection = Connection(fd: fd, serial: accepted)
             let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
             source.setEventHandler { [weak self, unowned connection] in self?.readable(connection) }
             source.setCancelHandler { close(fd) }
@@ -165,7 +169,7 @@ final class AgentListener: @unchecked Sendable {
         let line = connection.buffer[connection.buffer.startIndex..<newline]
         connection.buffer.removeSubrange(connection.buffer.startIndex...newline)
         let checked = Self.check(Data(line))
-        let (handle, key) = (handle, ObjectIdentifier(connection))
+        let (handle, key, serial) = (handle, ObjectIdentifier(connection), connection.serial)
         // The task only waits for the main actor; the reply write runs on the queue.
         connection.call = Task { [self] in
             let reply =
@@ -173,12 +177,14 @@ final class AgentListener: @unchecked Sendable {
                 case .success(let call): await handle(call)
                 case .failure(let error): AgentReply.result(text: error.message, isError: true)
                 }
-            queue.async { self.answered(key, reply) }
+            queue.async { self.answered(key, serial, reply) }
         }
     }
 
-    private func answered(_ key: ObjectIdentifier, _ reply: AgentReply) {
-        guard let connection = connections[key] else { return }
+    /// A reply goes only to the connection that asked, while it is open: a late reply never
+    /// answers the call of another connection.
+    private func answered(_ key: ObjectIdentifier, _ serial: Int, _ reply: AgentReply) {
+        guard let connection = connections[key], connection.serial == serial else { return }
         guard writeAll(connection.fd, Data((reply.line + "\n").utf8)) else {
             let code = errno
             log.error("A reply to an agent did not arrive whole (errno \(code)). The connection ends.")

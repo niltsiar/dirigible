@@ -8,6 +8,7 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - One agent reads the diff, the criteria, and the probe results. It picks one mutant for each data-safety guard of the AGENTS.md Safety rules on the changed lines, in the direction that loses data, with no cap. Then it adds one mutant for each other risk guard on the changed lines while the total is under 6. With fewer than 3, it adds another direction of the riskiest guard until there are 3 or no direction is left. With no guard on the changed lines, log a phase 7 row that says why no pass applies, and give its time to `scripts/land.sh`.
 - Prefer a removed check, a guard operator or boundary, and a constant that a probe measured. Skip logging, waits, time limits, speed (the bench owns it), UI strings, and framework setup order.
 - The mutant breaks the mechanism of the claim (a removed guard, a relaxed memory order). A mutant that only corrupts the input of the checker proves only the checker.
+- A guard that compares measured quantities gets a mutant of an operand that widens or narrows what it measures, for example the whole bounds in place of the visible rect; its fixture makes each region differ in each dimension. A test that sets the other condition of a compound guard cannot reach this one.
 - Run each mutant under the exact conditions of the claim. Turn on a condition that is off (a compiler feature) with a temporary change that you revert.
 
 ## Run the pass
@@ -18,14 +19,14 @@ The red-first log of each slice is its control (tdd steps 4 and 7), at each risk
 - Do not nest mutate.py in its test command. After `NO TESTS` or `BUILD FAILED`, correct the filter or the mutant and run it again.
 - Warnings are errors, so mutate the source of a value, not the place that uses it.
 - Pass the assertion message of the killing test with `--expect <text>`, not a test name. A guard and its refusal message read the limit from one variable.
-- Pass `--timeout <seconds>`, a few times the green test time: a hang gives `killed (hang)`, with `--expect` only when the text came before the kill. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads.
+- Pass `--timeout <seconds>`, a few times the green test time: a hang gives `killed (hang)`, with `--expect` only when the text came before the kill. A crash or a thrown error before the assert gives `WRONG FAILURE`, so the mutant keeps the type and shape of the data that later code reads, and the test reads its input with `try?`, so the assert message comes.
 - mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads. A `BUILD FAILED` or a tool crash right after another mutant can come from its outputs.
 - A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`.
-- Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row: the pass row. With `risk: yes`, `scripts/land.sh` refuses a run with no pass row, unless its third argument names the row that says why no pass applies.
+- Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row: the pass row. `scripts/land.sh` refuses a risk run with no pass row.
 
 ## Read each survivor
 
-- The lead reads each survivor, also run with `DIRIGIBLE_SLOW_TESTS=1`, and logs it with the result `survived`. A second agent checks each claim that a mutant is equivalent.
+- The lead reads each survivor, also run with `DIRIGIBLE_SLOW_TESTS=1`, and logs it with the result `survived`; when only the slow run kills it, with the result `survived the fast suite`. A second agent checks each claim that a mutant is equivalent.
 - Equivalent: no caller can reach the mutated behavior. Log the caller reason in `decisions.tsv`, and stop. A probe that measured one effect of the mutant is not a caller reason.
 - Misaimed: the mutant does not reach the planned path. Fix the mutant once.
 - Each other survivor is the red step of a new test. Write the test; the killed log is its proof.

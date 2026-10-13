@@ -233,7 +233,7 @@ struct MCPToolTests {
         #expect(kept == before, "the new backup holds the replaced session")
     }
 
-    /// C5: 36 tools in a fixed order, each with a description and a closed schema with `package`.
+    /// C5: 37 tools in a fixed order, each with a description and a closed schema with `package`.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
         let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []

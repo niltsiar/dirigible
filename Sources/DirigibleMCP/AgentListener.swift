@@ -15,6 +15,7 @@ package struct AgentCall: Sendable {
 /// The listener of the app server (decision 0046 Owners). It owns the lock fd, the listener fd,
 /// the socket file, and the connections, and is confined to `queue`: each fd is read by a
 /// `DispatchSourceRead` there, so no `accept` or `read` runs on the main actor or in a `Task`.
+/// All listeners share the queue, so an open runs after the stop of the listener before it.
 final class AgentListener: @unchecked Sendable {
     enum Opening {
         case listening(AgentListener)
@@ -26,7 +27,8 @@ final class AgentListener: @unchecked Sendable {
     /// The longest call line. A longer line closes its connection.
     static let maximumLine = 4 << 20
 
-    private let queue = DispatchQueue(label: "Dirigible.AgentListener")
+    private static let queue = DispatchQueue(label: "Dirigible.AgentListener")
+    private let queue = AgentListener.queue
     private let socket: URL
     private let lockFD: Int32
     private let listenFD: Int32
@@ -35,7 +37,6 @@ final class AgentListener: @unchecked Sendable {
     private var listenSource: DispatchSourceRead?
     private var connections: [ObjectIdentifier: Connection] = [:]
     private var stopped = false
-    private var lockReleased = false
 
     /// One accepted bridge. It runs one call at a time: its read source is suspended while its
     /// call runs.
@@ -48,9 +49,17 @@ final class AgentListener: @unchecked Sendable {
         init(fd: Int32) { self.fd = fd }
     }
 
-    /// Takes the lock beside `socket`, replaces an old socket file, binds, and listens. It runs
-    /// no blocking call. `handle` answers each call; `counted` gets the number of connections.
+    /// Takes the lock beside `socket`, replaces an old socket file, binds, and listens, on the
+    /// queue: a stop that came before has freed its lock then. `handle` answers each call;
+    /// `counted` gets the number of connections. Never call it on the queue.
     static func open(
+        socket: URL, handle: @escaping @Sendable (AgentCall) async -> AgentReply,
+        counted: @escaping @Sendable (Int) -> Void
+    ) -> Opening {
+        queue.sync { openOnQueue(socket: socket, handle: handle, counted: counted) }
+    }
+
+    private static func openOnQueue(
         socket: URL, handle: @escaping @Sendable (AgentCall) async -> AgentReply,
         counted: @escaping @Sendable (Int) -> Void
     ) -> Opening {
@@ -96,8 +105,9 @@ final class AgentListener: @unchecked Sendable {
         (self.handle, self.counted) = (handle, counted)
     }
 
-    /// Closes the listener and removes the socket file first; each connection answers its running
-    /// call, then closes; the lock goes last (decision 0046 Life cycle).
+    /// Closes the listener, removes the socket file, and then frees the lock, so the next open
+    /// can take it. Each connection answers its running call, then closes (decision 0046 Life
+    /// cycle).
     func stop() {
         queue.async { [self] in
             guard !stopped else { return }
@@ -105,8 +115,8 @@ final class AgentListener: @unchecked Sendable {
             listenSource?.cancel()
             listenSource = nil
             unlink(socket.path)
+            close(lockFD)
             for connection in connections.values where !connection.running { end(connection) }
-            releaseLockWhenDone()
         }
     }
 
@@ -190,15 +200,6 @@ final class AgentListener: @unchecked Sendable {
         connection.source?.cancel()
         connection.source = nil
         counted(connections.count)
-        releaseLockWhenDone()
-    }
-
-    /// Closes the lock fd once, after the last connection. A second close could close a reused fd
-    /// of the app, for example a capture file.
-    private func releaseLockWhenDone() {
-        guard stopped, connections.isEmpty, !lockReleased else { return }
-        lockReleased = true
-        close(lockFD)
     }
 
     /// Parses a call line and checks its arguments as the file path does, so a bad argument gives

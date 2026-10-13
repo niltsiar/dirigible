@@ -173,18 +173,26 @@ struct ToolbarValueTests {
         await model.close()
     }
 
-    /// Code gate 1 item 7: with no speed unit, the pop-up and each item of its overflow submenu
-    /// are off.
-    @Test func noUnitTurnsTheOverflowItemsOff() async throws {
-        let (model, _, chrome) = try await open("no-unit")
+    /// Code gate 1 item 7: the overflow submenu checks the speed of the window, and with no speed
+    /// unit the pop-up and each speed item are off. The overflow menu shows a copy of the menu
+    /// form, made before the change (Phase 7 on screen: the copy kept 1x after a pick of 1.5x).
+    @Test func theOverflowCopyFollowsTheWindow() async throws {
+        let (model, _, chrome) = try await open("overflow-copy")
         let studio = try #require(model.studio)
-        studio.environment.speedUnit = { nil }
-        chrome.update()
         let item = try #require(
             chrome.toolbar.items.first { $0.itemIdentifier.rawValue == ToolbarItemID.speed.rawValue })
-        let submenu = try #require(item.menuFormRepresentation?.submenu)
+        let copy = try #require(item.menuFormRepresentation?.copy() as? NSMenuItem)
+        let submenu = try #require(copy.submenu)
+        await studio.changeSpeed(to: .x150)
+        chrome.update()
+        submenu.update()
+        let checked = submenu.items.filter { $0.state == .on }.map(\.tag)
+        #expect(checked == [Speed.x150.rawValue], "the copy checks another speed")
+        studio.environment.speedUnit = { nil }
+        chrome.update()
+        submenu.update()
         #expect(chrome.speedPopUp?.isEnabled == false)
-        #expect(!submenu.autoenablesItems && submenu.items.allSatisfy { !$0.isEnabled }, "an overflow speed item is on")
+        #expect(submenu.items.allSatisfy { !$0.isEnabled }, "an overflow speed item is on")
         await model.close()
     }
 

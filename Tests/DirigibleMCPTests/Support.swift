@@ -193,9 +193,6 @@ final class Client: @unchecked Sendable {
     /// Ends the write side: the server reads EOF, and the client can still read.
     func shutdownWrite() { shutdown(fd, SHUT_WR) }
 
-    /// Ends the read side: a write of the server then fails.
-    func shutdownRead() { shutdown(fd, SHUT_RD) }
-
     /// One reply line, or nil when none comes within 5 s.
     func readLine() -> String? {
         var buffer = Data()

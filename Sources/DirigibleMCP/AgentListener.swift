@@ -237,9 +237,11 @@ final class AgentListener: @unchecked Sendable {
     }
 
     /// A frame that does not arrive whole ends the connection, as a reply does: a part of a frame
-    /// would join the next line.
+    /// would join the next line. A bridge that reads no frame in half the keep-alive time does not
+    /// read: the wait ends then, and the queue serves the other connections.
     private func frame(_ connection: Connection) {
-        guard writeAll(connection.fd, Data((AppFrame.progressLine(connection.last) + "\n").utf8)) else {
+        let line = Data((AppFrame.progressLine(connection.last) + "\n").utf8)
+        guard writeAll(connection.fd, line, limit: keepAlive / 2) else {
             let code = errno
             log.error("A progress frame to an agent did not arrive whole (errno \(code)). The connection ends.")
             return end(connection)

@@ -20,9 +20,10 @@ struct PlayerSpeedTests {
         return package
     }
 
-    func player(_ package: MixPackage, unit: @escaping SpeedUnitLookup = findSpeedUnit) -> Player {
+    func player(_ package: MixPackage, unit: @escaping SpeedUnitLookup = findSpeedUnit, latency: Int = 0) -> Player {
         let url = package.url
-        return Player(package: { url }, output: .offline, session: package.session, speedUnit: unit)
+        return Player(
+            package: { url }, output: .offline, session: package.session, speedUnit: unit, offlineLatency: latency)
     }
 
     /// The frequency in `range` from the rising zero crossings, with a linear interpolation.
@@ -165,6 +166,23 @@ struct PlayerSpeedTests {
             let out = await player.renderOffline(frames: rate / 10)[0]
             let (old, new) = (power(out, 440), power(out, 880))
             #expect(old < new / 100, "\(between.map { "via \($0)" } ?? "seek"): 440 Hz at \(old), 880 Hz at \(new)")
+        }
+    }
+
+    /// Code gate 2 item 1: on an output with 200 ms of latency, a change from 0.75x to 2x during
+    /// the play does not move the heard frame back, at the change or after it.
+    @Test func aChangeOnALateOutputKeepsTheHeardFrame() async throws {
+        let package = try sinePackage()
+        let player = player(package, latency: 9_600)
+        await player.apply(.play(from: 0, shuttle: forward, speed: .x075), number: 1)
+        _ = await player.renderOffline(frames: rate)
+        var last = await player.reading().frame.count
+        #expect(await player.setSpeed(.x200))
+        for _ in 0..<6 {
+            let frame = await player.reading().frame.count
+            #expect(frame >= last, "the heard frame went back from \(last) to \(frame)")
+            last = frame
+            _ = await player.renderOffline(frames: rate / 20)
         }
     }
 

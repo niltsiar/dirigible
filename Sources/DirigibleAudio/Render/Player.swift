@@ -77,6 +77,9 @@ actor Player {
     private let open: MediaOpen
     /// Finds the speed unit at the first play. Tests give one that finds nothing.
     private let speedUnit: SpeedUnitLookup
+    /// The output latency of offline rendering, in session frames. Tests give one; the device
+    /// output reads its own at each play.
+    private let offlineLatency: Int
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
     let chunk: Int
     private(set) var session: Session
@@ -108,7 +111,8 @@ actor Player {
     init(
         package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
         start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() },
-        open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitLookup = findSpeedUnit
+        open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitLookup = findSpeedUnit,
+        offlineLatency: Int = 0
     ) {
         self.package = package
         self.output = output
@@ -116,6 +120,7 @@ actor Player {
         self.start = start
         self.open = open
         self.speedUnit = speedUnit
+        self.offlineLatency = offlineLatency
         chunk = max(1, session.sampleRate / 10)
         loudness = PlayerLoudness(sampleRate: session.sampleRate)
     }
@@ -157,7 +162,8 @@ actor Player {
         }
         latency =
             output == .device
-            ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded()) : 0
+            ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded())
+            : offlineLatency
         feed = Feed(
             anchor: start, shuttle: shuttle, speed: feedSpeed,
             mix: MixReader(package: url, session: session, open: open))

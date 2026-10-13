@@ -42,7 +42,7 @@ struct Record: AsyncParsableCommand {
     @Option(parsing: .unconditional, help: "The timeline frame of the take start.") var playhead = 0
 
     func validate() throws {
-        guard seconds.isFinite, seconds > 0, seconds <= 86_400 else {
+        guard EditRules.takeSeconds(seconds) != nil else {
             throw ValidationError("The seconds must be more than 0 and 86400 (24 h) or less.")
         }
         guard !arm.isEmpty else { throw ValidationError("Arm one track or more with --arm.") }

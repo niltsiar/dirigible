@@ -247,7 +247,7 @@ struct MCPToolTests {
                 "clip_paste",
                 "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
                 "clip_crossfade", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim", "backup_list",
-                "backup_revert",
+                "backup_revert", "record",
             ])
         for tool in tools {
             let schema = tool["inputSchema"] as? [String: Any] ?? [:]
@@ -316,5 +316,21 @@ struct MCPToolTests {
         #expect(toolResult(answer(answers, id: 1)) == ("a marker URL has at most 255 bytes.", true))
         #expect(toolResult(answer(answers, id: 2)) == ("a new marker needs a name and a position.", true))
         #expect(try package.xml() == before)
+    }
+
+    /// C1 (decision 0048): on package files no tool records. With no app server, `record` gives
+    /// a tool error that says how to record in the app, and the package does not change.
+    @Test func recordOnFilesIsRefused() async throws {
+        let before = try package.xml()
+        let names = try FileManager.default.contentsOfDirectory(atPath: package.path).sorted()
+        let answers = try await mcp([
+            toolCall(1, "record", ["package": package.path, "seconds": 1, "arm": ["a"]])
+        ])
+        let expected =
+            "To record, open \(package.path) in Dirigible and turn on Let Agents Edit Open Sessions in Settings. "
+            + "A take needs the consent of the user in the app."
+        #expect(toolResult(answer(answers, id: 1)) == (expected, true))
+        #expect(try package.xml() == before)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == names)
     }
 }

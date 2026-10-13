@@ -88,9 +88,10 @@ package enum AgentManual {
             + recipes.map { "- \($0.name): \($0.steps)" }.joined(separator: "\n")
     }
 
-    /// The `SKILL.md` text: the frontmatter, the core with the path rule of the bundle, and each
-    /// recipe in full.
+    /// The `SKILL.md` text: the frontmatter, the core with the path rule of the bundle, the command of
+    /// each tool from the tool table, and each recipe in full.
     package static var skill: String {
+        let tools = Tool.all.map { "| \($0.name) | dirigible \($0.command) |" }.joined(separator: "\n")
         let recipeText = recipes.map { "### \($0.title) (\($0.name))\n\n\($0.summary) Steps: \($0.steps)\n" }
         return """
             ---
@@ -102,6 +103,17 @@ package enum AgentManual {
             # Dirigible
 
             \(core(pathLine: bundledPathLine))
+
+            ## Tools and commands
+
+            With no MCP server, run the command of a tool in place of the tool. The tool arguments are options \
+            of the command, with - in place of _; some, such as clip IDs, come after the package with no option \
+            name. `dirigible help <command>` gives the exact form. For `session_info`, run \
+            `dirigible info <package> --json`.
+
+            | Tool | Command |
+            |---|---|
+            \(tools)
 
             ## Recipes
 
@@ -135,6 +147,18 @@ extension AgentManual.Recipe {
             "\(title) in the session package \(package). If no package is at that path, ask the user for the full "
             + "path. Steps: \(steps)"
         return ["description": summary, "messages": [["role": "user", "content": ["type": "text", "text": text]]]]
+    }
+}
+
+extension Tool {
+    /// The tools whose name does not follow the name rule of decision 0041.
+    static let commandNames = ["session_create": "create", "session_info": "info", "episode_get": "episode show"]
+
+    /// The `dirigible` command words of the tool: the first word, then the other words with `-`.
+    var command: String {
+        if let command = Self.commandNames[name] { return command }
+        let words = name.split(separator: "_")
+        return words.count == 1 ? name : words[0] + " " + words.dropFirst().joined(separator: "-")
     }
 }
 

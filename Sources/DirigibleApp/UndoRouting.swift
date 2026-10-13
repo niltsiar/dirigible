@@ -81,9 +81,12 @@ final class UndoRoutingWindow: NSWindow {
         switch menuItem.action {
         case #selector(undo(_:)):
             menuItem.title = undoTitle(text ? nil : model?.studio?.undoAgent, redo: false)
+            // The SwiftUI item gives VoiceOver its own label, not the title: the label carries the title.
+            menuItem.setAccessibilityLabel(menuItem.title)
             return text ? firstResponder?.undoManager?.canUndo == true : model?.canUndo == true
         case #selector(redo(_:)):
             menuItem.title = undoTitle(text ? nil : model?.studio?.redoAgent, redo: true)
+            menuItem.setAccessibilityLabel(menuItem.title)
             return text ? firstResponder?.undoManager?.canRedo == true : model?.canRedo == true
         default: return super.validateMenuItem(menuItem)
         }

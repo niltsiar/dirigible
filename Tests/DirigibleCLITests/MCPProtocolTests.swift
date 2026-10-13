@@ -164,6 +164,7 @@ extension MCPProtocolTests {
         ] {
             let prompts = result(list)["prompts"] as? [[String: Any]] ?? []
             #expect(prompts.compactMap { $0["name"] as? String } == AgentManual.recipes.map(\.name), "\(era)")
+            #expect(prompts.count == 7, "\(era): \(prompts.count) prompts")
             for prompt in prompts {
                 #expect(prompt["title"] is String && prompt["description"] is String, "\(era) \(prompt)")
                 let arguments = prompt["arguments"] as? [[String: Any]]

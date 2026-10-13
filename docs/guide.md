@@ -901,7 +901,7 @@ Example requests:
 
 An agent with a shell can also run `dirigible record`. It records at once from the routed devices, with no consent sheet. The manual tells the agent to run it only when you ask for a recording. To stop an agent that runs commands, set the permission rules of your agent.
 
-The server also gives four recipes as prompts: `check-levels`, `prepare-for-publishing`, `cut-a-range`, and `add-chapter`. In Claude Code, type `/dirigible:check-levels`; in opencode, `dirigible:check-levels`. Each prompt asks for the path of the session package. Claude Code cuts a prompt argument at a space, so for a path with a space, the agent asks you for the full path.
+The server also gives seven recipes as prompts, in the order of the work: `prepare-tracks`, `cut-a-range`, `cut-from-transcript`, `check-levels`, `add-sound`, `add-chapter`, and `prepare-for-publishing`. In Claude Code, type `/dirigible:check-levels`; in opencode, `dirigible:check-levels`. Each prompt asks for the path of the session package. Claude Code cuts a prompt argument at a space, so for a path with a space, the agent asks you for the full path.
 
 An agent that reads skills can use the Dirigible skill, also with no MCP server. The skill is in the app, and `dirigible skill path` prints its path. Link its folder into the skills folder of your agent. Claude Code reads `~/.claude/skills`; Codex, opencode, and Cursor read `~/.agents/skills`:
 

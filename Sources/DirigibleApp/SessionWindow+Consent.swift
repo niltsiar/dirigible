@@ -115,9 +115,9 @@ extension SessionWindow {
         self.consent = consent
         consentExpired = nil
         if !attention.isActive() { consent.attentionRequest = attention.request() }
-        let lifetime = consentLifetime
+        let wait = consentWait
         consent.expiry = Task { [weak self, weak consent] in
-            try? await Task.sleep(for: lifetime)
+            await wait(RecordRequest.answerLimit)
             guard !Task.isCancelled, let self, let consent else { return }
             end(consent, .noAnswer)
         }

@@ -130,8 +130,8 @@ import SwiftUI
     var consent: ConsentRequest?
     /// The agent of a request that ended with no answer, until the next edit (decision 0048).
     var consentExpired: ConsentExpiredShown?
-    /// The answer time of a request. Tests give a short one.
-    @ObservationIgnored var consentLifetime = RecordRequest.answerLimit
+    /// The wait of the answer time of a request. Tests hold it with a gate.
+    @ObservationIgnored var consentWait: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
     @ObservationIgnored var attention = ConsentAttention()
     /// The space for the finalize of the pending take, when one waits.
     private(set) var pendingSpace: (needed: Int64, free: Int64)?

@@ -154,7 +154,7 @@ import os
     /// C5: with no answer the sheet closes, nothing records, and the info banner names the agent.
     @Test func expiryClosesTheSheet() async throws {
         let (model, studio) = try await window()
-        model.consentLifetime = .milliseconds(200)
+        model.consentWait = { _ in }
         let answer = ask(model)
 
         #expect(await answer.value == .noAnswer)
@@ -185,12 +185,17 @@ import os
     /// C5: a click before the end records, and the end after the click does nothing.
     @Test func clickBeforeExpiryRecords() async throws {
         let (model, studio) = try await window()
-        model.consentLifetime = .seconds(2)
+        let gate = AsyncGate()
+        model.consentWait = { _ in await gate.wait() }
         let answer = ask(model)
         let sheet = try await sheet(model)
+        let expiry = try #require(model.consent?.expiry)
         try click(record: true, in: sheet)
         #expect(await answer.value == .started(take: 1, tracks: ["Host"], seconds: 30))
-        try await Task.sleep(for: .milliseconds(2500))
+
+        gate.open()
+        await expiry.value
+
         #expect(studio.transport == .recording(take: 1), "the end after the click stops nothing")
         #expect(model.consentExpired == nil)
         await model.stop()
@@ -231,14 +236,16 @@ import os
     /// reply is the start.
     @Test func eachEndRepliesOnce() async throws {
         let (model, studio) = try await window()
-        // Long enough for the click under load; the wait below passes it.
-        model.consentLifetime = .seconds(2)
+        let gate = AsyncGate()
+        model.consentWait = { _ in await gate.wait() }
         let prompt = holdPrompt(model, studio)
         let answer = ask(model)
         let sheet = try await sheet(model)
+        let expiry = try #require(model.consent?.expiry)
         try click(record: true, in: sheet)
         await until("the prompt waits") { prompt.asked() }
-        try await Task.sleep(for: .milliseconds(2500))
+        gate.open()
+        await expiry.value
         #expect(model.consent?.phase == .starting, "the end of the answer time does nothing during the start")
         await model.answerConsent(record: true)
 

@@ -1,5 +1,6 @@
 import AppKit
 import DirigibleCore
+import DirigibleMCP
 import SwiftUI
 
 /// The consent sheet of an agent record request (decision 0048, `ui-panel.md` of the run). No
@@ -42,7 +43,7 @@ struct ConsentSheet: View {
             consent.seconds.rounded() == consent.seconds ? .hide : .show(length: 1)
         let length = Duration.seconds(consent.seconds).formatted(
             .units(allowed: [.hours, .minutes, .seconds], width: .wide, fractionalPart: fraction))
-        let limit = Int(model.consentLifetime.components.seconds)
+        let limit = Int(RecordRequest.answerLimit.components.seconds)
         return L10n.consentMessage.format(length, list(consent.names), startText, limit)
     }
 

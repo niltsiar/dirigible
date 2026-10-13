@@ -52,6 +52,9 @@ package final class AgentServer {
     private let socket: URL
     private let targets: @MainActor () -> [AgentTarget]
     @ObservationIgnored private(set) var listener: AgentListener?
+    /// True from a stop until its listener freed the lock. A start in that time waits for it.
+    @ObservationIgnored private(set) var draining = false
+    @ObservationIgnored private var startAfterDrain = false
     /// One more for each start, so a count of a stopped listener does not change `connected`.
     @ObservationIgnored private var generation = 0
 
@@ -62,6 +65,10 @@ package final class AgentServer {
 
     package func start() {
         guard listener == nil else { return }
+        guard !draining else {
+            startAfterDrain = true
+            return
+        }
         // A second guard after MSG_NOSIGNAL and SO_NOSIGPIPE (C16). It is of the whole process,
         // and a child process of the app gets it too.
         signal(SIGPIPE, SIG_IGN)
@@ -88,10 +95,21 @@ package final class AgentServer {
         }
     }
 
-    /// Closes the listener and the socket file at once; each connection closes after its running
-    /// call answers.
+    /// Closes the listener and the socket file soon, with no wait; each connection closes after
+    /// its running call answers. A start during the stop opens when the old lock is free.
     package func stop() {
-        listener?.stop()
+        startAfterDrain = false
+        if let listener {
+            draining = true
+            listener.stop { [weak self] in
+                guard let self else { return }
+                draining = false
+                if startAfterDrain {
+                    startAfterDrain = false
+                    start()
+                }
+            }
+        }
         listener = nil
         state = .off
         connected = 0

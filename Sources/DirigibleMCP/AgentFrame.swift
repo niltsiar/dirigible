@@ -89,13 +89,24 @@ func withAddress(_ path: String, _ call: (UnsafePointer<sockaddr>, socklen_t) ->
 
 /// Writes all of `data` to the socket `fd`. False on an error, for example EPIPE from a peer that
 /// closed. `MSG_NOSIGNAL` stops SIGPIPE also when `SO_NOSIGPIPE` failed: `setsockopt` gives EINVAL
-/// on an accepted socket whose peer closed before the accept.
-func writeAll(_ fd: Int32, _ data: Data) -> Bool {
-    data.withUnsafeBytes { buffer in
+/// on an accepted socket whose peer closed before the accept. On a non-blocking fd, a full buffer
+/// waits for room until `limit` after the call, so a peer that reads nothing holds the caller
+/// for no longer.
+func writeAll(_ fd: Int32, _ data: Data, limit: Duration = .seconds(5)) -> Bool {
+    let deadline = ContinuousClock.now + limit
+    return data.withUnsafeBytes { buffer in
         var offset = 0
         while offset < buffer.count {
             let written = send(fd, buffer.baseAddress! + offset, buffer.count - offset, MSG_NOSIGNAL)
             if written < 0, errno == EINTR { continue }
+            if written < 0, errno == EAGAIN {
+                let left = ContinuousClock.now.duration(to: deadline)
+                guard left > .zero else { return false }
+                var entry = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+                // Round up, so the last wait is not 0 ms.
+                _ = poll(&entry, 1, Int32((left / .milliseconds(1)).rounded(.up)))
+                continue
+            }
             guard written > 0 else { return false }
             offset += written
         }

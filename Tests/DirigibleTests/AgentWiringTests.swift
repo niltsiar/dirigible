@@ -60,7 +60,7 @@ import Testing
 
         #expect(replied == false)
         #expect(busyAtTheQuestion == [.quit], "C4: a Quit refuses agent edits")
-        #expect(app.agents.state == .listening, "C1: a cancelled Quit keeps the server")
+        await until("C1: a cancelled Quit keeps the server") { app.agents.state == .listening }
         #expect(FileManager.default.fileExists(atPath: socket.path))
         app.setAgents(false)
         await model.close()

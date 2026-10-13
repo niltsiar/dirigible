@@ -272,6 +272,14 @@ printf '2026-10-01T03:00\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkille
 land_in "Add x" "$c/pr.md"
 code=$?
 risk_refused 'risk with a pass row before the last Sources commit' 'older than the last Sources/ commit'
+# Only a row whose decision starts with "mutation pass" is the pass row: a newer phase 7 row with
+# a log under controls/ (a pass measure row) does not hide a stale pass.
+risk_setup
+printf '2026-10-01T03:00\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' >> "$c/decisions.tsv"
+printf '%s\t7\tpass measure: 1 pick\tw\tcontrols/k1.log\tdone\n' "$(date +%FT%R)" >> "$c/decisions.tsv"
+land_in "Add x" "$c/pr.md"
+code=$?
+risk_refused 'risk with a newer pass measure row after a stale pass' 'older than the last Sources/ commit'
 risk_setup
 printf '%s\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' "$(date +%FT%R)" >> "$c/decisions.tsv"
 land_in "Add x" "$c/pr.md"
@@ -346,7 +354,7 @@ stamp_case 'renamed bundle path' 'stamp: delta check test-dmg' 'make -k check te
 # A delta with risk: yes against origin/main gives run-checks.sh CHECK_RISK=yes (1 rerun at most).
 stamp_setup
 commit_file Sources/DirigibleAudio/A.swift
-printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n%s\t7\tk1 killed\tw\tcontrols/k1.log\tkilled\n' "$(date +%FT%R)" > "$c/decisions.tsv"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n%s\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' "$(date +%FT%R)" > "$c/decisions.tsv"
 stamp origin/main
 commit_file docs/a.md
 stamp_case 'risk delta' 'stamp: delta check-docs' 'make -k check-docs'

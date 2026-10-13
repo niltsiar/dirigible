@@ -6,8 +6,9 @@
 # It refuses a working tree with changes, because the checks build the working tree and the
 # push sends only the commits. It rebases on origin/main (on a conflict, it aborts the rebase and
 # stops), runs check-governance.sh with the run folder of the body file, and with `risk: yes` from
-# check-changed.sh it needs the mutation pass row in the decisions.tsv of that folder: phase 7,
-# with a log under controls/ (a red log or a slice row is not the pass), and not older than the
+# check-changed.sh it needs the mutation pass row in the decisions.tsv of that folder: phase 7, a
+# decision that starts with "mutation pass", and a log under controls/ (a red log, a slice row, or
+# a pass measure row is not the pass). The newest pass row must not be older than the
 # author minute of the last Sources/ commit of the branch. The third argument names the row that
 # says why no pass applies. Then
 # it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
@@ -64,9 +65,9 @@ if [[ "$risk" == yes ]]; then
     if [[ -n "$why" ]]; then
         awk -F'\t' -v t="$why" '$1 == t { f = 1 } END { exit !f }' "$log" || die "no row $why in $log"
     else
-        pass="$(awk -F'\t' '$2 == "7" && /controls\// && $1 > t { t = $1 } END { print t }' "$log")"
+        pass="$(awk -F'\t' '$2 == "7" && $3 ~ /^mutation pass/ && $5 ~ /controls\// && $1 > t { t = $1 } END { print t }' "$log")"
         [[ -n "$pass" ]] ||
-            die "risk: yes, and $log has no mutation pass row (phase 7, with a log under controls/); run the pass of mutation-controls.md, or pass the time of the row that says why no pass applies"
+            die "risk: yes, and $log has no mutation pass row (phase 7, a decision that starts with \"mutation pass\", a log under controls/); run the pass of mutation-controls.md, or pass the time of the row that says why no pass applies"
         # The rebase keeps the author dates; the row time is local, so the date is too.
         last="$(git log -1 --format=%ad --date=format-local:%FT%R origin/main..HEAD -- Sources)"
         [[ "$pass" > "$last" || "$pass" == "$last" ]] ||

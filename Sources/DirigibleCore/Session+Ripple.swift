@@ -4,18 +4,38 @@ import Foundation
 /// moves. Each edit works on a copy, so a throw changes nothing. The markers follow the ripple in
 /// every scope (rule M). A track given twice ripples once.
 extension Session {
+    /// On each track of `tracks`, removes the frames in each range of `ranges`, in one edit. The
+    /// overlapping and touching ranges merge first, and the cut goes from the last merged range to
+    /// the first, so each range removes the frames that the caller gave. Each cut is as
+    /// `rippleDelete(_:on:)`. An empty range is skipped. No range or an empty track list changes
+    /// nothing.
+    public mutating func rippleDelete(_ ranges: [Range<Frames>], on tracks: [TrackID]) throws(SessionError) {
+        guard ranges.allSatisfy({ $0.lowerBound.isInRange && $0.upperBound.isInRange }) else {
+            throw .frameOutOfRange
+        }
+        let lanes = try trackIndices(tracks)
+        var merged: [Range<Frames>] = []
+        for range in ranges.filter({ !$0.isEmpty }).sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            if let last = merged.last, range.lowerBound <= last.upperBound {
+                merged[merged.count - 1] = last.lowerBound..<max(last.upperBound, range.upperBound)
+            } else {
+                merged.append(range)
+            }
+        }
+        guard !merged.isEmpty, !lanes.isEmpty else { return }
+        var copy = self
+        var taken = clipIDs
+        for range in merged.reversed() { try copy.rippleDelete(range, lanes: lanes, taken: &taken) }
+        self = copy
+    }
+
     /// On each track of `tracks`, removes the frames in `range` (the edge clips are cut by the
     /// 0003 ID rule) and moves each clip at or after `range.upperBound` left by the length of the
     /// range. Each marker at or after the range end moves left by that length, and each marker in
     /// the range goes to the range start. An empty range or an empty track list changes nothing.
+    /// It calls `rippleDelete(_:on:)` with one range.
     public mutating func rippleDelete(_ range: Range<Frames>, on tracks: [TrackID]) throws(SessionError) {
-        guard range.lowerBound.isInRange, range.upperBound.isInRange else { throw .frameOutOfRange }
-        let lanes = try trackIndices(tracks)
-        guard !range.isEmpty, !lanes.isEmpty else { return }
-        var copy = self
-        var taken = clipIDs
-        try copy.rippleDelete(range, lanes: lanes, taken: &taken)
-        self = copy
+        try rippleDelete([range], on: tracks)
     }
 
     /// On each track of `tracks`, splits the clip that holds `frame` strictly inside it, then

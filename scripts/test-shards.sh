@@ -19,7 +19,8 @@
 # normal failure. The last line is "test-shards: <run> of <listed> tests in <s> s". The exit is 0
 # only when each shard passed.
 # The script holds the build lock (with-lock.sh) once for the build, the list, and the shards.
-# INT, TERM, or an exit stops each shard process; on a stop, it prints the tail of each shard.
+# INT, TERM, or an exit stops each shard process; on INT (exit 130) or TERM (exit 143), it
+# prints the tail of each shard that still ran.
 # Usage: [TEST_SHARDS=<n>] scripts/test-shards.sh
 # scripts/test-shards.test.sh tests it.
 set -uo pipefail
@@ -72,15 +73,18 @@ stop() {
 }
 interrupted() {
     trap - INT TERM
+    local i running=()
+    for i in ${pids[@]+"${!pids[@]}"}; do kill -0 "${pids[$i]}" 2>/dev/null && running+=("${names[$i]}"); done
     stop
     local s
-    for s in ${names[@]+"${names[@]}"}; do
+    for s in ${running[@]+"${running[@]}"}; do
         echo "test-shards: shard $s stopped; the end of its log:"
         tail -n 20 "$logs/shard-$s.log"
     done
-    exit 130
+    exit "$1"
 }
-trap interrupted INT TERM
+trap 'interrupted 130' INT
+trap 'interrupted 143' TERM
 trap stop EXIT
 
 for s in $(cut -d' ' -f1 "$logs/shards.txt" | awk '!seen[$0]++'); do

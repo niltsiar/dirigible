@@ -54,11 +54,16 @@ private func liveExport(
     do throws(StudioError) {
         result = try await studio.export(source, work.options, to: work.url, replacing: confirmed, progress: report)
     } catch .export(.cancelled) {
-        // A cancel of the call: the bridge closed, so no one reads the text.
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
         if Task.isCancelled { throw ToolError(cancelledMessage) }
         throw ToolError(stopMessage(studio.exportStop, noun: work.noun))
     } catch .export(let error) {
         throw ToolError(work.message(error))
+    } catch .exportYielded {
+        throw ToolError(stopMessage(.take, noun: work.noun))
+    } catch .busy {
+        let busy: AgentBusy = studio.exportProgress != nil ? .export : studio.pendingTake != nil ? .pendingTake : .task
+        throw ToolError(busy.message(package: path))
     } catch {
         throw ToolError(error.message(package: path))
     }

@@ -51,10 +51,11 @@ package enum AgentManual {
 
     /// The path rule of the skill: a link in a skills folder points into the app.
     static let bundledPathLine = """
-        The CLI is in the app that holds this skill. Run `realpath <the folder of this file>`: it gives \
-        `<app>/Contents/Resources/skills/dirigible`, and the CLI is `<app>/Contents/Helpers/dirigible`. For a copy \
-        of this skill, use `/Applications/Dirigible.app/Contents/Helpers/dirigible`, or ask the user for the app \
-        path. Below, `dirigible` means that path.
+        The CLI is in the app that holds this skill. First run `realpath <the base folder of this skill>`: a \
+        link in a skills folder points into the app, so the result is `<app>/Contents/Resources/skills/dirigible`, \
+        and the CLI is `<app>/Contents/Helpers/dirigible`. Only when the result is not in an app (a copy of this \
+        skill), use `/Applications/Dirigible.app/Contents/Helpers/dirigible`, or ask the user for the app path. \
+        Below, `dirigible` means that path.
         """
 
     /// The rules, from the description to the no-tool rule.

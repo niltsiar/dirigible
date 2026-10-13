@@ -269,6 +269,7 @@ import SwiftUI
         if holdsRefusedEpisode() { return }
         commitDrafts()
         alert = nil
+        unusedFiles = nil
         switch phase {
         case .closing, .closed: return
         case .failed:

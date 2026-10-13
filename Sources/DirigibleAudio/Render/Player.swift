@@ -55,6 +55,8 @@ actor Player {
         /// The vari-speed factor: 1 at a tape rate or with no unit. `scheduled` counts node
         /// frames, which are source frames at any speed (probe S3).
         var speed: Double
+        /// The last change of speed with no new play, for the heard frame.
+        var step: SpeedStep?
         let mix: MixReader
         var scheduled = 0
         var fadeFrom: Session?
@@ -332,6 +334,9 @@ actor Player {
     func setSpeed(_ speed: Speed) -> Bool {
         guard speed != .one, let graph, feed.map({ $0.speed != 1 }) == true, speedUnitInGraph else { return false }
         wire(graph, speed: speed.factor)
+        let node = nodeFrames()
+        let held = Self.held(nodeFrames: node, latency: latency, speed: feed?.speed ?? 1, step: feed?.step)
+        feed?.step = SpeedStep(node: node, held: held)
         feed?.speed = speed.factor
         return true
     }
@@ -344,7 +349,7 @@ actor Player {
 
     /// The node frames that the output played since the play.
     private func heardFrames() -> Int {
-        Self.heard(nodeFrames: nodeFrames(), latency: latency, speed: feed?.speed ?? 1)
+        Self.heard(nodeFrames: nodeFrames(), latency: latency, speed: feed?.speed ?? 1, step: feed?.step)
     }
 
     /// The output frames that the node played since its play; 0 before the first render.

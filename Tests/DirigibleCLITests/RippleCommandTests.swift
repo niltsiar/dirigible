@@ -117,8 +117,7 @@ struct RippleCommandTests {
     /// C17. Each bad value exits 64 with its reason, and the package does not change.
     @Test(
         arguments: [
-            // `FrameRange` or the command refuses it first; both texts start so.
-            (["clip", "ripple-delete", "PKG", "--from", "96000", "--to", "48000"], "--from must "),
+            (["clip", "ripple-delete", "PKG", "--from", "96000", "--to", "48000"], "--from must be less than --to."),
             (["clip", "ripple-delete", "PKG", "--from", "48000", "--to", "48000"], "--from must be less than --to."),
             (
                 ["clip", "ripple-delete", "PKG", "--from", "0", "--to", "10", "--from", "50", "--to", "50"],

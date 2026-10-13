@@ -36,7 +36,7 @@ An unused pool entry whose file is not on the disk loses its entry and moves not
 - A file of a retake that the user deleted stays in `Clips/` while a clip of one of the 20 backups or of an undo entry uses it. The kept count tells the user why.
 - After a prune, a revert to a backup whose pool (not its clips) names a moved file shows the missing-media banner for that file. No audio is lost: no clip uses it.
 - The space of a package goes down only after the user empties the Trash.
-- A copy, a delete, a window close, and then `dirigible file prune` can move the files of the app clipboard. A later paste then refuses with `sourceMissing`; Finder Put Back brings the files back. The guide entry of `file prune` says so.
+- A copy, a delete, a window close, and then `dirigible file prune` can move the files of the app clipboard. A later paste then refuses with `sourceMissing`; A drag from the Trash back into `Clips/` brings the files back. macOS gives Finder Put Back only to the first file that a process moves to the Trash (`trashItem` and `NSWorkspace.recycle` both, macOS 15). The guide entry of `file prune` says so.
 - An undo step whose only change was a pool entry of a moved file becomes a step that changes nothing.
 
 ## Alternatives considered

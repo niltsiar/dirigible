@@ -534,7 +534,7 @@ After many retakes, the session package keeps audio files that no clip uses. To 
 
 The window then shows the number of moved files and their size. If a file does not move, the window names it, and the file stays in the session package.
 
-Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. A pool file that is a link or a folder also stays, and the sheet names it, with each damaged backup, which keeps no file. Remove Unused Files has no Undo: to get a file back, use **Put Back** in the Trash. The space on the disk comes back when you empty the Trash.
+Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. A pool file that is a link or a folder also stays, and the sheet names it, with each damaged backup, which keeps no file. Remove Unused Files has no Undo. To get a file back, drag it from the Trash into the `Clips` folder of the session (**File > Show Clips in Finder**). **Put Back** in the Trash works only for the first file that Dirigible or a `dirigible` command moves after it starts. The space on the disk comes back when you empty the Trash.
 
 During a take, an import, or Auto Level, the command is off. With no file to remove, an alert says so.
 

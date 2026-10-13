@@ -19,17 +19,12 @@ extension Studio {
     public func record(armed: [TrackID], playhead: Frames, for duration: Duration) async throws(StudioError)
         -> TakeResult
     {
-        // Before the start: a conversion that traps after the save of <recording> would leave a
-        // pending take.
-        let length = Self.nanos(duration)
         // The generation, not the take number, tells this take from a new one that another
-        // caller starts.
-        // The take ends at its start host time + duration, also when the stop comes late.
-        let (take, mine) = try await beginRecording(armed: armed, playhead: playhead, length: length)
-        let deadline = ContinuousClock.now + duration
-        while generation == mine, transport == .recording(take: take), ContinuousClock.now < deadline {
+        // caller starts. The timer of the timed start stops the take at its length.
+        let (take, mine) = try await beginTimed(armed: armed, playhead: playhead, duration: duration)
+        while generation == mine, transport == .recording(take: take) {
             // A cancel ends the take now, as an early end.
-            do { try await Task.sleep(for: min(.milliseconds(50), deadline - .now)) } catch { break }
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { break }
         }
         if generation == mine, transport == .recording(take: take) { try await stopRecording() }
         // Another stop ended the take; wait for its finalize. The sleep is in a task of its own,
@@ -78,17 +73,26 @@ extension Studio {
     public func startRecording(armed: [TrackID], playhead: Frames?, for duration: Duration) async throws(StudioError)
         -> Int
     {
+        try await beginTimed(armed: armed, playhead: playhead, duration: duration).take
+    }
+
+    /// The timed start of `startRecording(armed:playhead:for:)` and `record`, with the generation.
+    private func beginTimed(armed: [TrackID], playhead: Frames?, duration: Duration) async throws(StudioError) -> (
+        take: Int, generation: Int
+    ) {
+        // Before the start: a conversion that traps after the save of <recording> would leave a
+        // pending take.
         let length = Self.nanos(duration)
-        let (take, _) = try await beginRecording(armed: armed, playhead: playhead, length: length)
+        let (take, mine) = try await beginRecording(armed: armed, playhead: playhead, length: length)
         // A stop can end the take before the start returns: then no timer.
-        guard transport == .recording(take: take) else { return take }
+        guard transport == .recording(take: take) else { return (take, mine) }
         let wait = environment.takeLength
         takeTimer = Task { [weak self] in
             await wait(duration)
             guard !Task.isCancelled else { return }
             try? await self?.stopRecording()
         }
-        return take
+        return (take, mine)
     }
 
     /// The nanoseconds of `duration`, saturated, so a very long duration cannot trap.

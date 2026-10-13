@@ -164,13 +164,19 @@ public struct UnusedFiles: Hashable, Sendable {
         return ids
     }
 
-    /// The items that `session` still does not use. An edit after the scan keeps the file of a
-    /// pool entry that a clip now uses or that the pool no longer has; the next scan lists it again.
+    /// The items that `session` still does not use, by the normalized path as the move uses it.
+    /// An edit after the scan keeps a pool item that the pool no longer has, a file that a clip now
+    /// uses through any pool entry, and a stray WAV that a pool entry now names.
     public func unused(in session: Session) -> UnusedFiles {
         let used = Set(session.tracks.flatMap { $0.clips.map(\.file) })
+        let named = Set(session.files.values.map { normalized($0.path) })
+        let usedNames = Set(session.files.values.filter { used.contains($0.id) }.map { normalized($0.path) })
         let live = items.filter { item in
-            guard case .pool(let id) = item.kind else { return true }
-            return session.files[id] != nil && !used.contains(id)
+            switch item.kind {
+            case .pool(let id):
+                session.files[id] != nil && !used.contains(id) && !usedNames.contains(normalized(item.path))
+            case .stray: !named.contains(normalized(item.path))
+            }
         }
         return UnusedFiles(items: live, kept: kept, damagedBackups: damagedBackups, notFiles: notFiles)
     }
@@ -180,7 +186,7 @@ public struct UnusedFiles: Hashable, Sendable {
         guard !items.isEmpty else { return nil }
         var pruned = session
         do throws(SessionError) {
-            for case .pool(let id) in items.map(\.kind) { try pruned.removeFile(id) }
+            for id in poolIDs(in: session) { try pruned.removeFile(id) }
         } catch {
             throw .save(.invalidSession(error))
         }

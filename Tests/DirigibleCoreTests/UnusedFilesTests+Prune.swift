@@ -138,4 +138,32 @@ extension UnusedFilesTests {
         #expect(report.failed.map(\.item.path) == ["u.wav"] && report.failed.first?.fault == .replaced)
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
+
+    /// Round 2 item 1: an edit after the scan makes a pool entry name a listed stray WAV. The
+    /// prune keeps that file and that entry.
+    @Test func editThatNamesStrayKeepsIt() throws {
+        var session = try Self.session([])
+        try plant("s.wav")
+        let scan = try scan(session)
+        try session.addFile(AudioFile(id: "s", path: "s.wav", layout: .mono, length: 48_000))
+
+        let report = try scan.prune(&session, save: save) { url in Self.fakeTrashURL(url) }
+
+        #expect(report.moved.isEmpty && session.files["s"] != nil)
+    }
+
+    /// Round 2 item 1: two pool entries name one file. An edit after the scan places a clip of one
+    /// entry, so the file stays, also for the other entry.
+    @Test func sharedPathOfUsedEntryStays() throws {
+        var session = try Self.session([("y", "a.wav"), ("z", "a.wav")])
+        try plant("a.wav")
+        let scan = try scan(session)
+        try #require(Set(scan.items.map(\.kind)) == [.pool("y"), .pool("z")])
+        try session.place(Clip(id: "c", file: "z", start: 0, offset: 0, length: 1), on: "a")
+
+        let report = try scan.prune(&session, save: save) { url in Self.fakeTrashURL(url) }
+
+        #expect(report.moved.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: clips.appending(path: "a.wav").path))
+    }
 }

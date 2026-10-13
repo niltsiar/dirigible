@@ -12,6 +12,17 @@ struct ManualScanTests {
         #expect(ManualScan.spansWithNoClass(in: fixture) == ["clip_explode", "clip_trim(clip, speed)", "levle"])
     }
 
+    /// A span of more than one word names a known kind, so a misspelled command line is found
+    /// (code gate 1 item 5).
+    @Test func aBadLineIsFound() {
+        let fixture = "Run `dirigble export <package>`, then `clip ripple delete`, then `dirigible:no-such-recipe`."
+        let bad = ManualScan.spansWithNoClass(in: fixture)
+        #expect(bad == ["dirigble export <package>", "clip ripple delete", "dirigible:no-such-recipe"], "\(bad)")
+        let good =
+            "`/Applications/A.app`, `realpath <x>`, `check-levels`, `/dirigible:add-chapter`, `dirigible info <p>`"
+        #expect(ManualScan.spansWithNoClass(in: good).isEmpty, "\(ManualScan.spansWithNoClass(in: good))")
+    }
+
     @Test func eachSpanHasAClass() {
         let texts =
             [

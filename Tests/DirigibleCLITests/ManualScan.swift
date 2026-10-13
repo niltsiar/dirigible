@@ -8,8 +8,8 @@ import Foundation
 /// the data: a `name(arg, ...)` call of a tool with arguments of its schema; one lowercase or
 /// snake_case word that is a tool, a tool argument, an `enum` value of a tool schema, or a
 /// `dirigible` command word; or a `dirigible ...` command line, which
-/// `AgentManualCommandTests.eachCommandExampleParses` parses. Other spans (paths, menu names) are
-/// not words of this grammar.
+/// `AgentManualCommandTests.eachCommandExampleParses` parses; or a path, the `realpath` form of the
+/// skill, a recipe name, or a prompt name such as `/dirigible:check-levels`. Each other span fails.
 enum ManualScan {
     /// The text between each pair of backticks on one line.
     static func spans(in text: String) -> [String] { text.matches(of: /`([^`\n]+)`/).map { String($0.1) } }
@@ -31,8 +31,11 @@ enum ManualScan {
                 keys.contains($0.trimmingCharacters(in: .whitespaces))
             }
         }
-        guard span.wholeMatch(of: /[a-z][a-z0-9_]*/) != nil else { return true }
-        return words.contains(span)
+        if span.wholeMatch(of: /[a-z][a-z0-9_]*/) != nil { return words.contains(span) }
+        let recipes = AgentManual.recipes.map(\.name)
+        let path = span.contains("/") && !span.contains(" ") && !span.contains(":")
+        return path || span.hasPrefix("realpath ") || recipes.contains(span)
+            || recipes.contains { span == "dirigible:\($0)" || span == "/dirigible:\($0)" }
     }
 
     /// The tools, their argument names, the `enum` values of their schemas, and each command word.

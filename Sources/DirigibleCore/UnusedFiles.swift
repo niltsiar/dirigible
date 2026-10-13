@@ -240,7 +240,7 @@ public struct TrashFault: Hashable, Sendable {
     public let domain: String
     public let code: Int
 
-    public init(domain: String, code: Int) {
+    init(domain: String, code: Int) {
         (self.domain, self.code) = (domain, code)
     }
 

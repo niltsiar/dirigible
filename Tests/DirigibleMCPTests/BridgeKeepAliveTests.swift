@@ -20,15 +20,17 @@ struct BridgeKeepAliveTests {
 
     /// Item 2: a job that reports no new value still sends a frame in each keep-alive time, so the
     /// bridge limit does not end it. A repeated value sends no second notification to the client.
+    /// The bridge limit is more than the 5 s write limit: a stalled write of another suite can hold
+    /// the shared listener queue for that time.
     @Test func aSilentJobKeepsTheCallOpen() async throws {
         let (listener, folder) = try listener(keepAlive: .milliseconds(300)) { _, _ in
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: .seconds(8))
             return .result(text: "done", isError: false)
         }
         defer { listener.stop() }
         let (sent, socket, rename) = (Sent(), folder.socket, rename)
         let answer = await onThread {
-            var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(2)).route, send: sent.send)
+            var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(7)).route, send: sent.send)
             return server.answer(progressCall("track_rename", rename))
         }
         #expect(toolText(answer) == ("done", false), "the bridge lost a call whose job is silent")
@@ -51,9 +53,10 @@ struct BridgeKeepAliveTests {
     }
 
     /// Item 8: a frame that the listener cannot write ends the connection and cancels its call.
+    /// The client reads nothing, so the keep-alive frames fill the socket buffer.
     @Test func aFailedFrameWriteEndsTheConnection() async throws {
         let cancelled = OSAllocatedUnfairLock(initialState: false)
-        let (listener, folder) = try listener { _, report in
+        let (listener, folder) = try listener(keepAlive: .milliseconds(1)) { _, report in
             report(0.5)
             try? await Task.sleep(for: .seconds(120))
             cancelled.withLock { $0 = Task.isCancelled }
@@ -61,7 +64,6 @@ struct BridgeKeepAliveTests {
         }
         defer { listener.stop() }
         let client = try #require(Client(folder.socket))
-        client.shutdownRead()
         client.send(MCPServer.encode(["tool": "track_rename", "arguments": rename, "client": [String: String]()]))
 
         await until("the failed frame write did not end the call") { cancelled.withLock { $0 } }

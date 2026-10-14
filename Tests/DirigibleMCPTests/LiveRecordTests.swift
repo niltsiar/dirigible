@@ -96,6 +96,18 @@ struct LiveRecordTests {
         await studio.settle()
     }
 
+    /// A refused microphone access in the app names Dirigible, not the terminal of the CLI, so
+    /// the agent asks the user to allow the right app.
+    @Test func aMicrophoneRefusalNamesDirigible() {
+        for access in [MicrophoneAccess.denied, .restricted] {
+            let reply = RecordAnswer.refused(.microphoneAccess(access)).reply(package: "/p.dirigible")
+            let text =
+                "Dirigible has no microphone access. Ask the user to allow Dirigible in System Settings > "
+                + "Privacy & Security > Microphone, then ask again."
+            #expect(reply == .result(text: text, isError: true), "\(access)")
+        }
+    }
+
     /// Decision 0048: the answer limit and a start of 10 s fit in the reply limit of the bridge.
     @Test func lifetimeFitsTheBridgeLimit() {
         #expect(RecordRequest.answerLimit + .seconds(10) <= AgentBridge.replyLimit)

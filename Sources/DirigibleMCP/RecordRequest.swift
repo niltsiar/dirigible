@@ -120,6 +120,11 @@ package enum RecordAnswer: Equatable, Sendable {
         case .closed: text = "The window of \(package) closed before the take started."
         case .minimized: text = "The window of \(package) is minimized. Ask the user to show it, then try again."
         case .busy(let busy): text = busy.message(package: package)
+        // The app asked for the access, so the CLI text that names the terminal is wrong here.
+        case .refused(.microphoneAccess):
+            text =
+                "Dirigible has no microphone access. Ask the user to allow Dirigible in System Settings > "
+                + "Privacy & Security > Microphone, then ask again."
         case .refused(let error): text = error.message(package: package)
         case .grantChanged:
             text = "A track route changed during the start. Ask again: the sheet shows."

@@ -44,18 +44,28 @@ struct ToolTextTests {
     /// with the values of the constants.
     @Test func recordNamesTheWindowGrant() throws {
         let text = try #require(Tool.all.first { $0.name == "record" }).description
-        let (hours, takes) = (
-            RecordRequest.grantLifetime.components.seconds / 3600, RecordRequest.grantTakeSeconds / 3600
+        let values = (
+            RecordRequest.grantLifetime, RecordRequest.grantTakeSeconds, RecordRequest.askLimit, RecordRequest.askWindow
         )
-        let rate = "\(RecordRequest.askLimit) requests in \(RecordRequest.askWindow.components.seconds) s"
-        #expect((hours, takes, rate) == (1, 2, "3 requests in 60 s"), "the values of decision 0050")
-        for part in ["window grant", "\(hours) h,", "\(Int(takes)) h of takes", "new connection", "app track", rate] {
+        #expect(values == (.seconds(3600), 7200, 3, .seconds(60)), "the values of decision 0050")
+        let hour = RecordRequest.units(RecordRequest.grantLifetime.components.seconds / 3600, "hour")
+        let hours = RecordRequest.units(Int64(RecordRequest.grantTakeSeconds / 3600), "hour")
+        let minute = RecordRequest.units(RecordRequest.askWindow.components.seconds / 60, "minute")
+        let rate = "\(RecordRequest.askLimit) requests in \(minute)"
+        #expect((hour, hours, rate) == ("1 hour", "2 hours", "3 requests in 1 minute"))
+        #expect(RecordRequest.takeLimit == 86_400, "24 hours (0041)")
+        for part in [
+            "window grant",
+            "A grant ends \(hour) after the click, after \(hours) of takes with no sheet (the take of "
+                + "the click does not count)", "new connection", "app track", "A window takes \(rate) at most.",
+            "A take after a click can be up to \(RecordRequest.units(Int64(RecordRequest.takeLimit / 3600), "hour")) long.",
+        ] {
             #expect(text.contains(part), "\(part)")
         }
         guard case .result(let tooMany, true) = RecordAnswer.tooMany.reply(package: "p") else {
             Issue.record("tooMany is not an error")
             return
         }
-        #expect(tooMany == "Too many record requests: \(RecordRequest.askLimit) in 60 s. Wait, then ask again.")
+        #expect(tooMany == "Too many record requests: a window takes \(rate) at most. Wait, then ask again.")
     }
 }

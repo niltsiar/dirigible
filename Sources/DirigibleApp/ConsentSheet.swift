@@ -38,7 +38,11 @@ struct ConsentSheet: View {
             if consent.offersGrant {
                 VStack(alignment: .leading, spacing: 4) {
                     GrantBox(consent: consent) { model.grantBoxTurnedOn() }.fixedSize()
-                    Text(L10n.consentGrantHelp.key).font(.caption).foregroundStyle(.secondary)
+                    let hours = (
+                        grantHours(RecordRequest.grantLifetime), grantHours(.seconds(RecordRequest.grantTakeSeconds))
+                    )
+                    Text(verbatim: L10n.consentGrantHelp.format(hours.0, hours.1)).font(.caption)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -132,3 +136,9 @@ class ClickOnlyButton: NSButton {
 
 /// The grant checkbox of the sheet (decision 0050): only a click changes it, as Record.
 final class GrantCheckbox: ClickOnlyButton {}
+
+/// The hours of `duration` in the words of `locale`: "1 hour", "2 horas". The help line of the
+/// grant gets its hours from the constants of decision 0050.
+func grantHours(_ duration: Duration, _ locale: Locale = .autoupdatingCurrent) -> String {
+    duration.formatted(.units(allowed: [.hours], width: .wide).locale(locale))
+}

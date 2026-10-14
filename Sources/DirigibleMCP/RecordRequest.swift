@@ -15,6 +15,16 @@ package struct RecordRequest: Sendable, Equatable {
     package static let askLimit = 3
     package static let askWindow = Duration.seconds(60)
 
+    /// The longest take in seconds, 24 h (0041). A take after a click can be this long.
+    package static let takeLimit = 86_400.0
+    /// The rate limit in words: "3 requests in 1 minute".
+    package static var askText: String {
+        "\(askLimit) requests in \(units(askWindow.components.seconds / 60, "minute"))"
+    }
+
+    /// `count` and `unit` in English, with an s after a count other than 1: "1 hour", "2 hours".
+    package static func units(_ count: Int64, _ unit: String) -> String { "\(count) \(unit)\(count == 1 ? "" : "s")" }
+
     /// The tracks of the take, in the order of the request. One or more.
     package let armed: [TrackID]
     /// More than 0 and 86400 (24 h) or less (`EditRules.takeSeconds`).
@@ -30,7 +40,7 @@ package struct RecordRequest: Sendable, Equatable {
 extension EditRules {
     /// The length of a take in seconds: finite, more than 0, and 86400 (24 h) or less.
     package static func takeSeconds(_ seconds: Double) -> Double? {
-        seconds.isFinite && seconds > 0 && seconds <= 86_400 ? seconds : nil
+        seconds.isFinite && seconds > 0 && seconds <= RecordRequest.takeLimit ? seconds : nil
     }
 }
 
@@ -109,8 +119,7 @@ package enum RecordAnswer: Equatable, Sendable {
         case .noRoom(let minutes):
             text = "\(package) has room for \(minutes) min of a take on these tracks. Free disk space, then try again."
         case .tooMany:
-            let (limit, window) = (RecordRequest.askLimit, RecordRequest.askWindow.components.seconds)
-            text = "Too many record requests: \(limit) in \(window) s. Wait, then ask again."
+            text = "Too many record requests: a window takes \(RecordRequest.askText) at most. Wait, then ask again."
         }
         return .result(text: text, isError: true)
     }
@@ -145,12 +154,14 @@ let recordTools = [
             + "or earlier when the user clicks Stop: read session_info, and the take ended when recording is gone. The "
             + "package must be open in Dirigible, with Let Agents Edit Open Sessions on. No tool records on package files. "
             + "A window grant: when the user turns on Don't ask again until I close this window and clicks Record, later "
-            + "record calls of the same connection on the same tracks start with no sheet. A grant ends after "
-            + "\(RecordRequest.grantLifetime.components.seconds / 3600) h, after "
-            + "\(Int(RecordRequest.grantTakeSeconds / 3600)) h of takes, at the window close, or at a new connection (a "
-            + "cancel of a call or a new agent session). An app track, a record-over, and a length over the grant left "
-            + "always show the sheet. A window takes \(RecordRequest.askLimit) requests in "
-            + "\(RecordRequest.askWindow.components.seconds) s at most.",
+            + "record calls of the same connection on the same tracks start with no sheet. A grant ends "
+            + "\(RecordRequest.units(RecordRequest.grantLifetime.components.seconds / 3600, "hour")) after the click, "
+            + "after \(RecordRequest.units(Int64(RecordRequest.grantTakeSeconds / 3600), "hour")) of takes with no "
+            + "sheet (the take of the click does not count), at the window close, or at a new connection (a cancel of "
+            + "a call or a new agent session). An app track, a record-over, and a length over the grant left always "
+            + "show the sheet. A take after a click can be up to "
+            + "\(RecordRequest.units(Int64(RecordRequest.takeLimit / 3600), "hour")) long. A window takes "
+            + "\(RecordRequest.askText) at most.",
         [seconds, arm, playhead], saves: false
     ) { a throws(ToolError) in
         guard let length = EditRules.takeSeconds(try a[seconds]) else {

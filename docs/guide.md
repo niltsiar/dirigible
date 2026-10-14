@@ -849,7 +849,7 @@ By default, an agent edits only sessions that are closed in the app. To let an a
 
 #### Let an agent record
 
-An agent can ask to record. A take starts only when you click Record, or while a window grant that you gave lasts. The `record` tool takes the tracks (`arm`), the length in seconds (`seconds`, 24 hours or less), and the start (`playhead`, by default the playhead of the window). The session must be open, and Let Agents Edit Open Sessions must be on.
+An agent can ask to record. A take starts only when you click Record, or while a window grant that you gave lasts. The `record` tool takes the tracks (`arm`), the length in seconds (`seconds`; a take after your click can be up to 24 hours long), and the start (`playhead`, by default the playhead of the window). The session must be open, and Let Agents Edit Open Sessions must be on.
 
 ![The sheet "An AI agent wants to record" on the session window: the name that the agent gives, the take of 30 seconds on Host, the checkbox Don't ask again until I close this window with its help line, and the buttons Don't Record and Record.](images/screenshot-consent.png)
 
@@ -862,7 +862,7 @@ To let the agent record more takes with no sheet, turn on "Don't ask again until
 - When you click Always Ask Again in the take row.
 - When you close the window.
 - 1 hour after your click.
-- After 2 hours of takes.
+- After 2 hours of takes with no sheet. The take of your click does not count.
 - When the agent connects again, for example in a new agent session or after a cancel of a call.
 
 While an agent take records:
@@ -874,7 +874,7 @@ More rules:
 
 - The request ends after 20 seconds with no answer, and also when the agent stops waiting or you turn off Let Agents Edit Open Sessions. The sheet closes, and a banner says that an AI agent asked to record. The agent can ask again.
 - The window does not come to the front. When Dirigible is in the background, its Dock icon bounces until you switch to it.
-- The app refuses a request at once while the window shows a question or a sheet, during a take, while a take is pending, when the window is minimized, and while another request waits. It also refuses a request when the disk of the session has room for less than the take, and after 3 requests in 1 minute on the window.
+- The app refuses a request at once while the window shows a question or a sheet, during a take, while a take is pending, when the window is minimized, and while another request waits. It also refuses a request when the disk of the session has room for less than the take. A window takes 3 requests in 1 minute at most.
 - While the sheet shows, the agent cannot edit the session.
 - VoiceOver and Full Keyboard Access can press Record: that is your consent. An app that you gave Accessibility permission in System Settings can also press Record for you, for example a terminal that runs the agent. Give that permission only to apps that you trust.
 - The agent gets the take number when the take starts. To find the end, it reads `session_info`: `recording` goes when the take ends.

@@ -233,13 +233,33 @@ extension ConsentTests {
         await model.answerConsent(record: false)
         #expect(await answer.value == .declined)
         await model.close()
-        let english = try stringsTable("en")[L10n.consentGrantHelp.rawValue]
-        #expect(
-            english
-                == "Ends when you close this window, after 1 hour, after 2 hours of takes, or when the agent reconnects."
-        )
-        let spanish = try stringsTable("es")[L10n.consentGrantHelp.rawValue]
-        #expect(spanish?.contains("cuando el agente se vuelve a conectar") == true, "\(spanish ?? "")")
+    }
+
+    /// The help line gets its hours from the constants of 0050, in each language (item 5 of
+    /// code gate 2).
+    @Test func grantHelpFromTheConstants() throws {
+        for (language, expected) in [
+            (
+                "en",
+                "Ends when you close this window, 1 hour after your click, after 2 hours of takes with no sheet, or "
+                    + "when the agent reconnects. The take of your click does not count."
+            ),
+            (
+                "es",
+                "Termina cuando cierras esta ventana, 1 hora después de tu clic, después de 2 horas de tomas sin "
+                    + "preguntar o cuando el agente se vuelve a conectar. La toma de tu clic no cuenta."
+            ),
+        ] {
+            let template = try #require(try stringsTable(language)[L10n.consentGrantHelp.rawValue])
+            let words = template.replacing("%1$@", with: "").replacing("%2$@", with: "")
+            let digits = words.filter(\.isNumber)
+            #expect(digits.isEmpty, "no hours in the text: \(template)")
+            let locale = Locale(identifier: language)
+            let text = String(
+                format: template, grantHours(RecordRequest.grantLifetime, locale),
+                grantHours(.seconds(RecordRequest.grantTakeSeconds), locale))
+            #expect(text == expected)
+        }
     }
 
     /// C2: Record with the box on stores the connection and the route of each track; with the box

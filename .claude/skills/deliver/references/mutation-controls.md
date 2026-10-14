@@ -9,7 +9,7 @@ The red-first log of each slice and each fix is its control (tdd steps 4 and 7),
 - Prefer a removed check, a guard operator or boundary, and a constant that a probe measured. Skip logging, waits, time limits, speed (the bench owns it), UI strings, and framework setup order.
 - The mutant breaks the mechanism of the claim (a removed guard, a relaxed memory order). A mutant that only corrupts the input of the checker proves only the checker.
 - A guard that compares measured quantities gets a mutant of an operand that widens or narrows what it measures, for example the whole bounds in place of the visible rect; its fixture makes each region differ in each dimension. A test that sets the other condition of a compound guard cannot reach this one.
-- Run each mutant under the exact conditions of the claim. Turn on a condition that is off (a compiler feature) with another old/new pair of the mutant (`--in=<file> <old> <new>`), so mutate.py applies and restores it.
+- Run each mutant under the exact conditions of the claim. Turn on a condition that is off (a compiler feature) with another old/new pair of the mutant (`--in=<file> <old> <new>`), so mutate.py restores it.
 
 ## Run the pass
 
@@ -21,7 +21,7 @@ The red-first log of each slice and each fix is its control (tdd steps 4 and 7),
 - Pass the assertion message of the killing test with `--expect <text>`, not a test name. A guard and its refusal message read the limit from one variable.
 - Pass `--timeout <seconds>`, a few times the green test time: a hang gives `killed (hang)`, with `--expect` only when the text came before the kill. A crash or a throw before the assert gives `WRONG FAILURE`: the mutant keeps the shape of the data that later code reads, and the test reads its input with `try?`.
 - mutate.py restores only the source file, from a hash-checked copy, never from git. So the build command first deletes or builds again each shared output that its test reads, also for a survivor that runs again. A `BUILD FAILED` right after another mutant can come from its outputs.
-- A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run, for example `<run>/x-$(date +%s)`: the old state of an earlier run can fail the command before it reaches the guard.
+- A test command that acts on shared state (Mission Control, HID events, a probe) runs only when no other agent uses the screen. A test command that writes output (a session, a capture) gets a new folder on each run (`d=$(mktemp -d)` in single quotes): the old state of an earlier run can fail the command before it reaches the guard.
 - Save each log under `<run>/controls/`, and cite it in a phase 7 `decisions.tsv` row whose decision starts with `mutation pass`: the pass row. `scripts/land.sh` refuses a risk run with no pass row.
 
 ## Read each survivor

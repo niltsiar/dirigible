@@ -64,16 +64,18 @@ extension SessionWindow {
     /// The take start of Command-R and of the consent sheet (decision 0048). With no `playhead`,
     /// the take starts at the Studio playhead; a play stops first (decision 0016). With
     /// `seconds`, the Studio stops the take after them. A refusal shows its alert, as for
-    /// Command-R. `check` runs before each Studio start, also after the microphone prompt: when
-    /// it is false, no take starts (a grant take, decision 0050).
+    /// Command-R. A busy refusal shows its alert only with `alertsBusy`, the Record click of the
+    /// consent sheet: a Record click during a take, or a second click at the start, does nothing.
+    /// `check` runs before each Studio start, also after the microphone prompt: when it is false,
+    /// no take starts (a grant take, decision 0050).
     @discardableResult
     func startTake(
-        armed: [TrackID], playhead: Frames?, seconds: Double? = nil, check: (() -> Bool)? = nil
+        armed: [TrackID], playhead: Frames?, seconds: Double? = nil, alertsBusy: Bool = false,
+        check: (() -> Bool)? = nil
     ) async -> RecordStart {
         commitDrafts()
         if let refusal = takeRefusal {
-            // A Record click of the sheet gets the alert of a refused start.
-            if case .busy = refusal { alert = .error(.busy) }
+            if alertsBusy, case .busy = refusal { alert = .error(.busy) }
             return refusal
         }
         guard let studio = idleStudio else { return .closed }
@@ -113,6 +115,8 @@ extension SessionWindow {
         } catch .microphoneAccess(let access) {
             alert = .microphone(access)
             return .failed(.microphoneAccess(access))
+        } catch .busy where !alertsBusy {
+            return .failed(.busy)
         } catch {
             alert = .error(error)
             return .failed(error)

@@ -3,6 +3,7 @@ import DirigibleCore
 import DirigibleTimeline
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
@@ -205,5 +206,73 @@ import Testing
         #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .one)))
         await studio.perform(.playStop)
         await model.close()
+    }
+
+    func openWithHAL() async throws -> (SessionWindow, Studio) {
+        let model = await app.open(try await package())
+        let studio = try #require(await model.opened() ? model.studio : nil)
+        studio.environment = hal.environment
+        return (model, studio)
+    }
+
+    func stopAndClose(_ model: SessionWindow, _ studio: Studio) async {
+        await hal.feed(seconds: 0.2)
+        await model.stop()
+        await until("the take finalizes") { studio.transport == .idle }
+        await model.close()
+    }
+
+    /// Record during a take does nothing: no busy alert covers the Stop button, and the take goes
+    /// on. The busy alert is for the Record click of the consent sheet only.
+    @Test func aRecordCommandDuringATakeShowsNoAlert() async throws {
+        let (model, studio) = try await openWithHAL()
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+
+        await model.record()
+
+        #expect(model.alert == nil, "no busy alert")
+        #expect(model.canStop && studio.transport == .recording(take: 1), "the take goes on")
+        await stopAndClose(model, studio)
+    }
+
+    /// A double click on Record runs two Record actions: one take starts, and no alert shows.
+    @Test func aDoubleRecordClickStartsOneTakeWithNoAlert() async throws {
+        let (model, studio) = try await openWithHAL()
+
+        let first = Task { await model.record() }
+        let second = Task { await model.record() }
+        await first.value
+        await second.value
+
+        #expect(model.alert == nil, "no busy alert")
+        #expect(model.canStop && studio.transport == .recording(take: 1), "one take records")
+        await stopAndClose(model, studio)
+    }
+
+    /// The first-run double click: both Record actions wait for the microphone prompt, so the
+    /// second start fails busy after the grant. One take starts, and no alert shows.
+    @Test func aDoubleRecordClickAtTheMicrophonePromptStartsOneTakeWithNoAlert() async throws {
+        let (model, studio) = try await openWithHAL()
+        let prompt = OSAllocatedUnfairLock(initialState: (asks: 0, answered: false))
+        defer { prompt.withLock { $0.answered = true } }
+        studio.environment.microphoneAccess = { prompt.withLock { $0.answered } ? nil : .notDetermined }
+        model.requestMicrophoneAccess = {
+            prompt.withLock { $0.asks += 1 }
+            while !prompt.withLock({ $0.answered }) { try? await Task.sleep(for: .milliseconds(5)) }
+            return true
+        }
+
+        let first = Task { await model.record() }
+        await until("the first Record action waits for the prompt") { prompt.withLock { $0.asks } == 1 }
+        let second = Task { await model.record() }
+        await until("the second Record action waits for the prompt") { prompt.withLock { $0.asks } == 2 }
+        prompt.withLock { $0.answered = true }
+        await first.value
+        await second.value
+
+        #expect(model.alert == nil, "no busy alert")
+        #expect(model.canStop && studio.transport == .recording(take: 1), "one take records")
+        await stopAndClose(model, studio)
     }
 }

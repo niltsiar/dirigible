@@ -211,8 +211,9 @@ extension SessionWindow {
         guard canPressRecord(consent) else { return }
         consent.begin()
         // After the microphone prompt: a route that changed after the sheet showed starts no take.
-        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
-            [weak self, weak consent] in
+        let start = await startTake(
+            armed: consent.tracks, playhead: consent.start, seconds: consent.seconds, alertsBusy: true
+        ) { [weak self, weak consent] in
             guard let self, let consent, let session = self.studio?.session else { return false }
             return consent.routesShown(in: session)
         }

@@ -295,8 +295,16 @@ makes docs/decisions/0042-mine.md
 refuse 'another record with the number on origin/main' 'docs/decisions/0042-old.md has the number 0042'
 makes docs/decisions/0045-local.md
 echo local > "$repo/docs/decisions/0045-local.md"
-pass 'a record in the worktree'
+refuse 'the own record in the worktree with no reservation' 'reserve 0045 on the Decision numbers line'
+reserve '0045 local (run 2026-10-14-new-thing)'
+pass 'the own record in the worktree with its reservation'
 rm "$repo/docs/decisions/0045-local.md"
+reserve '0042 mine (run 2026-10-14-new-thing)'
+makes docs/decisions/0042-mine.md
+echo mine > "$repo/docs/decisions/0042-mine.md"
+refuse 'the own record in the worktree and another record with the number on origin/main' 'docs/decisions/0042-old.md has the number 0042'
+rm "$repo/docs/decisions/0042-mine.md"
+reserve '0044 new-thing (run 2026-10-14-new-thing)'
 makes docs/decisions/0044-new-thing.md
 printf '\nIt amends decision 0046, cites 0047 (run 10), and has 2048 characters.\n' >> "$run/plan.md"
 pass 'cited numbers with no record file path'

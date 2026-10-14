@@ -75,6 +75,28 @@ struct AgentLogTests {
         }
     }
 
+    /// A log that ends in a partial line from a failed write takes the next line whole, on a new
+    /// line (item 4 of code gate 1).
+    @Test func aPartialLineDoesNotJoinTheNext() throws {
+        let partial = "# Dirigible agent log, version 1\n\(AgentLog.header)\n2026-10-14T08:00:00+02:00\tcli"
+        try Data(partial.utf8).write(to: folder.appending(path: AgentLog.fileName))
+        #expect(AgentLog.append(entry(), to: folder) == .written)
+        let lines = try lines(folder)
+        #expect(lines[2] == "2026-10-14T08:00:00+02:00\tcli")
+        #expect(lines[3].split(separator: "\t").count == 7, "\(lines)")
+    }
+
+    /// A failed first write leaves no file, so a later append writes the version line and the
+    /// header.
+    @Test func aFailedFirstWriteBlocksNothing() throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)
+        #expect(AgentLog.append(entry(), to: folder) == .failed(EACCES))
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path).isEmpty, "no partial file")
+        #expect(AgentLog.append(entry(), to: folder) == .written)
+        #expect(try lines(folder).prefix(2) == ["# Dirigible agent log, version 1", AgentLog.header])
+    }
+
     /// A write failure gives its errno.
     @Test func aReadOnlyFolderFails() throws {
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)

@@ -145,6 +145,22 @@ struct TranscriptCutTests {
         #expect(throws: SessionError.unknownWord(old[0])) { try session.cutWords(old) }
         #expect(try session.cutWords(session.occurrences([1])) == [12_000..<20_000])
     }
+
+    /// T1 and T10 (plan gate 2 item 1): WhisperX leaves the numeral "2024" with no time. It gets no
+    /// number, so the sentence cuts as one range, and the phrase around it matches.
+    @Test func untimedWordDoesNotSplitARun() throws {
+        var session = try transcriptSession()
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 480_000), on: "host")
+        let json =
+            #"{"segments":[{"start":1,"end":3,"text":"In 2024 we won","words":[{"word":"In","start":1,"end":1.2},"#
+            + #"{"word":"2024"},{"word":"we","start":1.8,"end":2},{"word":"won","start":2.1,"end":2.5}]}]}"#
+        let report = try session.importTranscript(
+            try TranscriptFile(data: Data(json.utf8)), name: "x.json", track: "host", at: 0)
+        #expect(report.kept == 3 && report.untimed == 1)
+
+        #expect(session.words(matching: "in we won").map(\.text) == ["In", "we", "won"])
+        #expect(try session.cutWords(session.occurrences([1, 2, 3])) == [48_000..<120_000])
+    }
 }
 
 /// The text of an occurrence token.

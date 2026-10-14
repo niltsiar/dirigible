@@ -54,7 +54,8 @@ The script prints one line for each mutant:
                              keep its error lines)
 A build error in files with switches sends the mutants of those files to their own build, and the
 batch builds once more; a second failure, or an error with no such file, sends all of them. The
-copies of the files are <folder>/<index>.orig. The exits are 0 (the lines), 2 (a refusal of the
+copies of the files are <folder>/<index>.orig, and <folder>/orig.tsv lists the index and the path
+of each while the call runs (a SIGKILL or a failed restore leaves it). The exits are 0 (the lines), 2 (a refusal of the
 whole call), 3 (a failed restore), and 130 (stopped, after the restore).
 In a git tree, a run holds the lock <git dir>/dirigible-mutate.lock (a folder with the pid), so two
 runs never mutate one tree; a second run exits 2, and the lock of a dead process is taken over.
@@ -401,7 +402,11 @@ def schema(folder, names):
             out.write(originals[real])
         return parses(copy)
 
+    listing = os.path.join(folder, 'orig.tsv')
+
     def work():
+        with open(listing, 'w') as out:
+            out.writelines(f'{index}\t{real}\n' for index, real in enumerate(originals))
         while True:
             refused = {real for real in write() if real.endswith('.swift') and not parses(real)
                        and parsed_original(real)}
@@ -453,7 +458,10 @@ def schema(folder, names):
 
     backups = {real: os.path.join(folder, f'{index}.orig') for index, real in enumerate(originals)}
     digests = {real: hashlib.sha256(text.encode()).hexdigest() for real, text in originals.items()}
-    if guarded(backups, digests, work):
+    stopped = guarded(backups, digests, work)
+    if os.path.exists(listing):  # A stop can come before work() writes it.
+        os.remove(listing)  # Each file has its first hash again; only an unclean end leaves the list.
+    if stopped:
         print(f'stopped: the files are restored from {folder}')
         sys.exit(130)
 

@@ -22,7 +22,7 @@
 #   `schema: S mutants in one build; R with its own build` and
 #   `pass: N mutants; killed K; survived S; other O` (other: BUILD FAILED, WRONG FAILURE, NO TESTS,
 #   or a mutate.py refusal, which need a decision). After a SIGKILL, the refusal of the tree with
-#   changes names <batch file>.schema, which keeps the copies of the files.
+#   changes names <batch file>.schema/orig.tsv, the list of the files to restore.
 # - Stop a pass with `pkill -TERM -f "mutation-pass.sh <tree>"` (a background job ignores INT;
 #   <tree> is the absolute root: the pattern matches only it). On INT or TERM the script waits
 #   for the running mutate.py, which restores its file, and stops the batch with exit 130; the
@@ -46,8 +46,11 @@ common="$(git -C "$top" rev-parse --path-format=absolute --git-common-dir)"
 [[ "$(dirname "$common")" != "$top" ]] || { echo "mutation-pass: $1 is the main checkout; run the pass in the worktree of the run" >&2; exit 2; }
 schema="$batch.schema"
 if [[ -n "$(git -C "$top" status --porcelain)" ]]; then
-    echo "mutation-pass: $top has changes; commit them, or wait for the pass that runs there" >&2
-    [[ ! -d "$schema" ]] || echo "mutation-pass: a stopped pass keeps the copies of its files in $schema" >&2
+    if [[ -f "$schema/orig.tsv" ]]; then
+        echo "mutation-pass: $top has changes, and a pass did not restore its files; the tree was clean at the start: run git diff, then git restore the listed paths of $schema/orig.tsv" >&2
+    else
+        echo "mutation-pass: $top has changes; commit them, or wait for the pass that runs there" >&2
+    fi
     exit 2
 fi
 lock="$(git -C "$top" rev-parse --absolute-git-dir)/dirigible-mutate.lock"

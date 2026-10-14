@@ -132,6 +132,7 @@ public func removeMadeFiles(_ files: [URL]) {
 
 /// `removeMadeFiles` off the main actor, for a caller that awaits it.
 @concurrent nonisolated func removeMadeFiles(_ files: [URL]) async {
+    // The typed reference picks the synchronous overload; a plain call here would call itself.
     let remove: ([URL]) -> Void = removeMadeFiles
     remove(files)
 }

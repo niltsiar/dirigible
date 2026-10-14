@@ -11,9 +11,10 @@ struct AgentTakeNotice {
     /// package or a trailing slash cannot make Stop miss the take.
     static let idKey = "id"
 
-    /// Asks for the permission. The system shows its prompt only one time.
+    /// Asks for the permission. The system shows its prompt only one time. The system calls the
+    /// handler on its own queue, so the handler is not main-actor isolated.
     var authorize: @MainActor () -> Void = {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { _, _ in }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { @Sendable _, _ in }
     }
     var post: @MainActor (_ id: String, _ title: String, _ body: String, _ info: [String: String]) -> Void = {
         id, title, body, info in

@@ -111,6 +111,20 @@ struct TranscriptFileTests {
         #expect(!FileManager.default.fileExists(atPath: package.appending(path: "Transcripts").path))
     }
 
+    /// A link at the name of a transcript file is not the file: the save writes the file in its
+    /// place, and the package opens equal.
+    @Test func aLinkAtTheTranscriptFileNameIsReplaced() throws {
+        try transcriptSession().write(to: package)
+        let session = try transcribed()
+        let name = try #require(session.transcripts[TranscriptID(1)]?.file)
+        let folder = package.appending(path: "Transcripts")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        try FileManager.default.createSymbolicLink(
+            atPath: folder.appending(path: "\(name).xml").path, withDestinationPath: "/no/such/file.xml")
+        try session.write(to: package)
+        #expect(try Session(contentsOf: package) == session)
+    }
+
     @Test func aWordAtTheFileEndLoads() throws {
         let read = try open(transcribed(), replacing: "2 20000 30000", with: "2 999000 1000000")
         #expect(read.transcripts[TranscriptID(1)]?.words?["h"]?.all.last?.range == 999_000..<1_000_000)

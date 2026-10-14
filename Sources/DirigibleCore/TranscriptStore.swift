@@ -91,12 +91,12 @@ extension Session {
         }
     }
 
-    /// Writes the file of each transcript with words that has no file of 1 byte or more in
+    /// Writes the file of each transcript with words that has no regular file of 1 byte or more in
     /// `Transcripts/` yet: a temporary file, a full flush, a plain rename (exFAT has no
     /// `RENAME_EXCL`, decision 0016), and a flush of the folder. A file of 0 bytes is the trace of
-    /// a crash, so it is written again. The name is new and the caller holds the package lock, so
-    /// a file never changes after its first write. Call it before the replace of `session.xml`, so
-    /// a failure keeps the old session.
+    /// a crash, and a link is not the file, so the rename replaces them. The name is new and the
+    /// caller holds the package lock, so a file never changes after its first write. Call it before
+    /// the replace of `session.xml`, so a failure keeps the old session.
     func writeTranscriptFiles(in package: URL) throws(SessionFileError) {
         let folder = package.appending(path: transcriptsFolderName)
         var madeFolder = false
@@ -104,7 +104,7 @@ extension Session {
             guard let words = transcript.words else { continue }
             let target = folder.appending(path: "\(transcript.file).xml")
             var info = stat()
-            if lstat(target.path, &info) == 0, info.st_size > 0 { continue }
+            if lstat(target.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_size > 0 { continue }
             // Only a write makes the folder, so a session with no transcript gets none.
             let made = mkdir(folder.path, 0o755) == 0
             guard made || errno == EEXIST else { throw .writeFailed(step: "createDirectory", errno: errno) }

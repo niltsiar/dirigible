@@ -163,8 +163,8 @@ extension SessionWindow {
     /// `Selection.clipsToLevel(in:)`, or every clip with no selection, in one undo entry. A typed
     /// track name saves first, as at Record: the level makes the name field read-only. Each press
     /// removes the banner of the last level first. With a busy studio, it does nothing else and
-    /// shows no alert. A selection with no clip beeps. An error shows the alert. A level shows its
-    /// report in a banner.
+    /// shows no alert. A selection with no clip beeps. An error shows the alert, except a cancel
+    /// from the banner. A level shows its report in a banner.
     func level(_ mode: LevelMode) async {
         levelReport = nil
         commitDrafts()
@@ -174,13 +174,19 @@ extension SessionWindow {
             ?? Set(studio.session.tracks.flatMap { $0.clips.map(\.id) })
         guard !clips.isEmpty else { return beep() }
         do throws(StudioError) {
-            let report = try await studio.level(clips, mode)
+            let report = try await studio.level(clips, mode).report
             levelPresses += 1
             levelReport = LevelReportShown(report: report, revision: studio.sessionRevision, press: levelPresses)
+        } catch .levelCancelled {
+            // The banner Cancel: the user asked for it, so no alert.
         } catch {
             alert = .error(error)
         }
     }
+
+    /// The Cancel of the level banner: it ends the level of the user or of an agent at its next
+    /// block, with no gain change (decision 0049).
+    func cancelLevel() { studio?.cancelLevel() }
 
     /// Remove Track: a track of a pending take gives its alert (decision 0012), and a track with
     /// clips asks first (ui-polish A1). The check runs on a copy, so a refused remove asks nothing.

@@ -42,6 +42,8 @@ extension L10n {
         case .pasteYielded(let source): return errorPasteYielded.format(source)
         // The window beeps for it and shows no alert.
         case .rippleBlocked: return errorSessionOther.text
+        // The banner Cancel ends a level, so the window shows no alert for it (decision 0049).
+        case .levelCancelled: return errorSessionOther.text
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         case .artwork(let error): return message(for: error)

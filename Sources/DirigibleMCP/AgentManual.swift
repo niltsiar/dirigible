@@ -58,8 +58,7 @@ package enum AgentManual {
         Recipe(
             phase: .produce, name: "check-levels", title: "Check the levels",
             summary: "Measure the loudness of each clip, level the session, and report the change.",
-            steps: "run `loudness`, then `dirigible level <package>`, then `loudness` again; report each clip before "
-                + "and after."),
+            steps: "run `loudness`, then `level`, then `loudness` again; report each clip before and after."),
         Recipe(
             phase: .produce, name: "add-sound", title: "Add a sound clip",
             summary: "Import a sound clip, such as music or a jingle, at a frame, and fade it.",
@@ -76,7 +75,7 @@ package enum AgentManual {
             summary: "Set the episode details, level the session, and export an MP3 at the podcast loudness.",
             steps: "read `session_info` and `episode_get`; ask for a missing title or show and set them with "
                 + "`episode_set`; when the session has chapters, make sure one is at frame 0; run "
-                + "`dirigible level <package>`; then run `export` with `out` an .mp3 file and `loudness` podcast; "
+                + "`level`; then run `export` with `out` an .mp3 file and `loudness` podcast; "
                 + "report the loudness line and the file path."),
     ]
 
@@ -126,7 +125,7 @@ package enum AgentManual {
 
         Phases and recipes, in order:
         \(phaseLines)
-        - For work with no tool, run the CLI in a shell, for example `dirigible level <package>`. \
+        - For work with no tool, run the CLI in a shell, for example `dirigible take finalize <package>`. \
         `dirigible help <command>` gives the options. A command refuses a package that is open in the app.
         """
     }

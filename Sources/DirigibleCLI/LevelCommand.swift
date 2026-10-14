@@ -1,6 +1,7 @@
 import ArgumentParser
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 
 /// `dirigible level`: the auto level of the app (run 8b, decisions 0008 and 0031).
@@ -27,37 +28,13 @@ struct LevelCommand: ParsableCommand {
     @Flag(help: "Give the clips of one track one change.") var perTrack = false
 
     func run() throws {
-        let (lines, report) = try editPackage(package, writeUnchanged: false) {
-            session throws(SessionError) -> ([String], LevelReport) in
-            let all = session.tracks.flatMap(\.clips).map(\.id)
-            let chosen = clips.isEmpty ? all : clips.map { ClipID($0) }
-            if let unknown = chosen.first(where: { session.clip($0) == nil }) { throw .unknownClip(unknown) }
-            let set = Set(chosen)
-            let (leveled, levels) = autoLevel(
-                set, perTrack ? .equallyPerTrack : .eachClip, of: session, in: package.url)
-            let lines = all.filter(set.contains).map { id in
-                switch levels[id] {
-                case .leveled(_, let gain)?: "\(id)\t\(String(format: "%+.1f dB", gain.dB))"
-                case .noMeasurement?, nil: "\(id)\tnone"
-                case .unreadable?: "\(id)\tunreadable"
-                }
-            }
-            let report = LevelReport(levels, before: session)
-            session = leveled
-            return (lines, report)
+        let work = LevelWork(clips: clips, perTrack: perTrack)
+        let result = try editPackage(package, writeUnchanged: false) { session throws(SessionError) in
+            try work.run(&session, package: package.url)
         }
+        // With no cancel flag, the level always gives its lines.
+        guard let (lines, report) = result else { return }
         for line in lines { print(line) }
-        try? FileHandle.standardError.write(contentsOf: Data((Self.text(of: report) + "\n").utf8))
-    }
-
-    /// The report line: the banner text of the app without its head and the track volume sentence.
-    static func text(of report: LevelReport) -> String {
-        guard !report.isEmpty else { return "No change: the clips are at the target level." }
-        var text = "Clips changed: \(report.changed)."
-        if report.atLimit > 0 { text += " Clips at the 20 dB limit: \(report.atLimit). Check that they have speech." }
-        if report.unmeasured > 0 {
-            text += " Clips with no level to measure: \(report.unmeasured). They keep their gain."
-        }
-        return text
+        try? FileHandle.standardError.write(contentsOf: Data((report + "\n").utf8))
     }
 }

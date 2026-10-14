@@ -67,24 +67,46 @@ let levelTolerance = 0.05
 /// A clip with no measurement, a missing file, or a read fault keeps its gain. It never throws.
 /// It reads the files of all clips in parallel and blocks until the end, so never call it on the
 /// main actor or on a real-time thread.
-public func autoLevel(_ clips: Set<ClipID>, _ mode: LevelMode, of session: Session, in package: URL)
-    -> (session: Session, levels: [ClipID: ClipLevel])
-{
+///
+/// `progress` gets the frames done over the frames of all clips, under one lock, so the values
+/// never fall (decision 0049). Each iteration reads `isCancelled` first, and `clipLoudness` reads
+/// it before each block. A cancel leaves the other clips unmeasured, so the result is not a level:
+/// the caller reads its flag again after the return and keeps nothing.
+public func autoLevel(
+    _ clips: Set<ClipID>, _ mode: LevelMode, of session: Session, in package: URL,
+    progress: @escaping @Sendable (Double) -> Void = { _ in }, isCancelled: @escaping @Sendable () -> Bool = { false }
+) -> (session: Session, levels: [ClipID: ClipLevel]) {
     let found = session.tracks.flatMap { track in
         track.clips.filter { clips.contains($0.id) }.map { (clip: $0, track: track) }
     }
+    let total = Double(max(1, found.reduce(0) { $0 + $1.clip.length.count }))
     // No entry: the file is missing or does not read. A short file measures the frames it has.
-    let measured = OSAllocatedUnfairLock(initialState: [ClipID: Loudness]())
+    let state = OSAllocatedUnfairLock(initialState: (measured: [ClipID: Loudness](), done: 0))
     DispatchQueue.concurrentPerform(iterations: found.count) { index in
+        guard !isCancelled() else { return }
         let clip = found[index].clip
-        if let (value, fault) = try? clipLoudness(clip, in: session, package: package),
-            fault != .missing, fault != .unreadable
-        {
-            let loudness = mode == .eachClip ? value : value.withGain(clip.gain)
-            measured.withLock { $0[clip.id] = loudness }
+        var counted = 0
+        let step = { (frames: Int) in
+            let delta = frames - counted
+            counted = frames
+            state.withLock { state in
+                state.done += delta
+                progress(Double(state.done) / total)
+            }
         }
+        // A throw is a cancel or no free descriptor: the clip has no entry and no more progress.
+        guard
+            let (value, fault) = try? clipLoudness(
+                clip, in: session, package: package, progress: step, isCancelled: isCancelled)
+        else { return }
+        if fault != .missing, fault != .unreadable {
+            let loudness = mode == .eachClip ? value : value.withGain(clip.gain)
+            state.withLock { $0.measured[clip.id] = loudness }
+        }
+        // A missing, short, or unreadable file counts its whole length as done.
+        step(clip.length.count)
     }
-    let results = measured.withLock { $0 }
+    let results = state.withLock { $0.measured }
 
     var gains: [ClipID: Gain] = [:]
     var levels: [ClipID: ClipLevel] = [:]

@@ -281,6 +281,8 @@ Choose **Tools > Auto Level** (Command-L) to set the gain of each clip in the se
 
 Choose **Tools > Auto Level per Track** (Option-Command-L) to give the clips of one track the same change. The differences in level between them stay, unless a gain reaches the 20 dB limit.
 
+While a level runs, its banner shows **Cancel** (Command-period). Cancel stops the level, and no gain changes.
+
 The selection gives the clips:
 
 - Nothing selected: every clip of the session, also on a muted track. The commands are **Auto Level All Clips** and **Auto Level per Track (All)**.
@@ -860,7 +862,7 @@ An agent can ask to record, but only you start the take. The `record` tool takes
 - VoiceOver and Full Keyboard Access can press Record: that is your consent. An app that you gave Accessibility permission in System Settings can also press Record for you, for example a terminal that runs the agent. Give that permission only to apps that you trust.
 - The agent gets the take number when the take starts. To find the end, it reads `session_info`: `recording` goes when the take ends.
 
-The 42 tools, in groups:
+The 43 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
@@ -871,7 +873,7 @@ The 42 tools, in groups:
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
 - Backup: `backup_list`, `backup_revert`.
 - Record: `record`.
-- Audio: `loudness`, `export`, `render`. Each one gives the text of its `dirigible` command. The agent can cancel it.
+- Audio: `loudness`, `export`, `render`, `level`. Each one gives the text of its `dirigible` command. The agent can cancel it.
 - Source: `devices`, `apps`. They give the lines of `dirigible devices` and `dirigible apps`: the input devices and the apps of this Mac that can be a track source. They take no argument.
 
 `session_info` gives the JSON of `dirigible info --json` on one line. The JSON of a long edited session is too large for the agent, so a `session_info` answer over a size limit is an overview: each track with its clip count, the end frame, and the marker count. Then the agent reads the session in parts: `from` and `to` give only the clips and markers that touch that frame range, and `tracks` gives only those tracks. With a filter, the answer has only the files and captures of the clips in it.
@@ -881,11 +883,12 @@ The 42 tools, in groups:
 - A tool call on a closed session has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
 - `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another session package, with `onto`. In the terminal, `dirigible clip paste` and `dirigible clip paste-clips` take `--source` and `--onto`. The call copies the audio files of the clips into the package, or converts them at another sample rate. A long copy or conversion runs to the end and saves, also when the agent stops waiting, so the agent reads `session_info` before a retry.
 - `record` records only in the app, after you agree. On a closed session, or with Let Agents Edit Open Sessions off, it gives an error and records nothing.
-- `loudness`, `export`, and `render` can run for minutes. When the agent app asks for progress, the tool sends it, and the agent app can show it. The agent app can also cancel the call. A cancelled `export` or `render` writes no file. A cancel at the very end can come too late; then the file is there, so the agent checks the output file before it tries again.
+- `loudness`, `export`, `render`, and `level` can run for minutes. When the agent app asks for progress, the tool sends it, and the agent app can show it. The agent app can also cancel the call. A cancelled `export` or `render` writes no file, and a cancelled `level` changes no gain. A cancel at the very end can come too late; then the file is there, so the agent checks the output file before it tries again.
 - On a session that is open in Dirigible, `export` and `render` run in the app, and the window shows the export sheet. **Cancel** in the sheet stops the call, and a take start also stops it. The agent gets a text that says why.
+- On a session that is open in Dirigible, `level` runs in the app as one undo step. The banner of the level has **Cancel** (Command-period), which stops it, also for a level that you started.
 - `export` and `render` refuse an output file inside a session package, also with `replace`, so an export cannot replace a take. `out` must be an absolute path.
 - Codex stops a tool call at its time limit, 60 s in its docs, also when the call sends progress. Codex sends no cancel, so the job runs on to its end. Long calls can take more than 60 s. Add `tool_timeout_sec = 600` under `[mcp_servers.dirigible]` in `~/.codex/config.toml`.
-- These commands have no tool. `capture place`, `take finalize`, `import`, `level`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. Run these commands in the terminal.
+- These commands have no tool. `capture place`, `take finalize`, `import`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. Run these commands in the terminal.
 
 #### What you can ask an agent
 

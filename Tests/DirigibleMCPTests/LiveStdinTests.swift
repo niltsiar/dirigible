@@ -97,6 +97,16 @@ struct LiveStdinTests {
         _ = try await cancelled("loudness", ["package": package.path])
     }
 
+    /// The level of 3 s has three blocks; the cancel comes after the first one. The session stays
+    /// byte for byte.
+    @Test func aLiveCancelEndsTheLevel() async throws {
+        let package = try package()
+        let xml = package.url.appending(path: "session.xml")
+        let before = try Data(contentsOf: xml)
+        _ = try await cancelled("level", ["package": package.path])
+        #expect(try Data(contentsOf: xml) == before, "a cancelled level changed session.xml")
+    }
+
     /// The export of 3 s has three chunks; the cancel comes after the first one. No file stays.
     @Test func aLiveCancelEndsTheExport() async throws {
         let package = try package()

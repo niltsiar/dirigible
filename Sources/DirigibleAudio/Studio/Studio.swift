@@ -134,6 +134,8 @@ import Observation
     /// Why the last export stopped before its end, read after its `.export(.cancelled)`. Nil
     /// while it runs.
     @ObservationIgnored public internal(set) var exportStop: ExportStop?
+    /// The cancel flag of the running level, or nil: each level makes a clear one (decision 0049).
+    @ObservationIgnored var levelFlags: ImportFlags?
     /// True from the start of `settle()` to its end: no peak pass and no export starts.
     private(set) var settling = false
 
@@ -314,8 +316,8 @@ import Observation
     func removePoolEntries(_ files: UnusedFiles) throws(SessionError) { try history.removeUnusedFiles(files.poolIDs) }
 
     /// The one undo entry of `level`, after its write. The write saved the whole session.
-    func recordLevel(_ leveled: Session) {
-        history.edit { $0 = leveled }
+    func recordLevel(_ leveled: Session, agent: AgentName? = nil) {
+        history.edit(agent: agent) { $0 = leveled }
         saveError = nil
     }
 

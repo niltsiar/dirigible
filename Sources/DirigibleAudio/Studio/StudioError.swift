@@ -50,4 +50,6 @@ public enum StudioError: Error, Hashable, Sendable {
     case artwork(ArtworkError)
     /// Remove Unused Files could not scan or save (decision 0047). No file moved.
     case unusedFiles(UnusedFilesError)
+    /// The user or the caller cancelled a level (decision 0049). No gain changed.
+    case levelCancelled
 }

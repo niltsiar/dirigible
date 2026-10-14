@@ -98,6 +98,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try loudness(package, path: path, ids: ids, control: control)
     case .export(let work):
         return try work.run(package, path: path, control: control)
+    case .level(let work):
+        return try work.run(package, path: path, control: control)
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in

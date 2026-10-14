@@ -216,7 +216,7 @@ struct StopLevelTests {
     /// entry, and it still returns its report.
     @Test @MainActor func levelAtTheTargetIsNoEntry() async throws {
         let studio = try await studio()
-        let first = try await studio.level(["c1", "c2"], .eachClip)
+        let first = try await studio.level(["c1", "c2"], .eachClip).report
         #expect(first == LevelReport(changed: 2, atLimit: 0, unmeasured: 0), "first level: \(first)")
         Self.expectGain(studio.session, "c1", 8, "first level c1")
         let leveled = studio.session
@@ -228,7 +228,7 @@ struct StopLevelTests {
         }
 
         for mode in [LevelMode.eachClip, .equallyPerTrack] {
-            let report = try await studio.level(["c1", "c2"], mode)
+            let report = try await studio.level(["c1", "c2"], mode).report
             #expect(report == LevelReport(changed: 0, atLimit: 0, unmeasured: 0), "second level \(mode): \(report)")
             let same = studio.session == leveled
             #expect(same, "second level \(mode) changed the session")

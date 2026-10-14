@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -195,6 +196,41 @@ extension AutoLevelTests {
         #expect(
             LevelReport(levels, before: package.session) == LevelReport(changed: 1, atLimit: 0, unmeasured: 2),
             "unmeasured clips: \(LevelReport(levels, before: package.session))")
+    }
+
+    /// C17 (decision 0049): the fraction is the frames done over the frames of all clips. The
+    /// clips run in parallel, so the values do not fall, stay at most 1, and end at 1. The first
+    /// value is one block of one clip: 0.25 for `ca` or 65,536 / 192,000 for `cb`.
+    @Test func theFractionIsFramesOverAllFrames() throws {
+        let package = try MixPackage()
+        try package.addFile("a", channels: tone([(1, -30)]))
+        try package.addFile("b", channels: tone([(3, -30)]))
+        try package.addTrack("t1", layout: .stereo, clip: "ca", file: "a", start: 0, offset: 0, length: 48_000)
+        try package.addTrack("t2", layout: .stereo, clip: "cb", file: "b", start: 0, offset: 0, length: 144_000)
+        let values = OSAllocatedUnfairLock(initialState: [Double]())
+        _ = autoLevel(
+            ["ca", "cb"], .eachClip, of: package.session, in: package.url,
+            progress: { value in values.withLock { $0.append(value) } })
+        let all = values.withLock { $0 }
+        #expect(zip(all, all.dropFirst()).allSatisfy { $0 <= $1 }, "a value fell: \(all)")
+        #expect(all.allSatisfy { $0 <= 1 } && all.last == 1, "\(all)")
+        #expect((all.first ?? 1) < 0.35, "the first value is one block of one clip: \(all)")
+    }
+
+    /// A set flag stops the measure at the next block of a long clip (decision 0049): the clip of
+    /// 10 s has 8 blocks, and the flag is set after the second block.
+    @Test func aSetFlagStopsTheMeasureAtTheNextBlock() throws {
+        let package = try MixPackage()
+        try package.addFile("long", channels: tone([(10, -30)]))
+        try package.addTrack("t1", layout: .stereo, clip: "c1", file: "long", start: 0, offset: 0, length: 480_000)
+        for setAt in [0, 2] {
+            let blocks = OSAllocatedUnfairLock(initialState: 0)
+            let (session, levels) = autoLevel(
+                ["c1"], .eachClip, of: package.session, in: package.url,
+                progress: { _ in blocks.withLock { $0 += 1 } }, isCancelled: { blocks.withLock { $0 } >= setAt })
+            #expect(blocks.withLock { $0 } == setAt, "flag after block \(setAt): blocks read")
+            #expect(levels["c1"] == .unreadable && session == package.session, "flag after block \(setAt): \(levels)")
+        }
     }
 
     private func gainText(_ session: Session, _ clip: ClipID) -> String {

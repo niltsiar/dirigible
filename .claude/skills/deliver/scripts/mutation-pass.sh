@@ -35,6 +35,9 @@ here="$(cd "$(dirname "$0")" && pwd)"
 mutate="$here/mutate.py"
 batch="$(cd "$(dirname "$2")" 2>/dev/null && pwd)/$(basename "$2")"
 [[ -f "$batch" ]] || { echo "mutation-pass: no batch file $2" >&2; exit 2; }
+# The script reads the whole batch before the first mutant, so another line would run once at the start.
+other="$(grep -nvE '^[[:space:]]*(mutant[[:space:]]|#|$)' "$batch" | head -1)"
+[[ -z "$other" ]] || { echo "mutation-pass: $batch has a line that is not a mutant, a comment, or a blank line: line ${other/:/: }" >&2; exit 2; }
 top="$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)" && [[ "$top" == "$(cd "$1" && pwd -P)" ]] ||
     { echo "mutation-pass: $1 is not the root of a worktree" >&2; exit 2; }
 common="$(git -C "$top" rev-parse --path-format=absolute --git-common-dir)"

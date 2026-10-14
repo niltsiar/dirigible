@@ -113,6 +113,12 @@ kill "$(cat "$tmp/hang.pid" 2>/dev/null)" 2>/dev/null
 batch killed
 run "$tmp/tree" "$tmp/none.sh"
 [[ $code -eq 2 && -z "$(calls)" ]] || fail "no batch file: exit $code: $out"
+# The pass reads the whole batch before the first mutant, so a line other than a mutant line, a
+# comment, or a blank line would run once at the start, not between two mutants: refused.
+printf '# a comment\n\nmutant Sources/x.swift killed new log build test\nrm -rf out\nmutant Sources/x.swift killed new log build test\n' > "$tmp/other.sh"
+: > "$tmp/calls"
+run "$tmp/tree" "$tmp/other.sh"
+[[ $code -eq 2 && "$out" == *'line 4: rm -rf out'* && -z "$(calls)" ]] || fail "a line that is not a mutant: exit $code: $out"
 touch "$tmp/tree/new"
 run "$tmp/tree" "$tmp/batch.sh"
 [[ $code -eq 2 && "$out" == *'has changes'* && -z "$(calls)" ]] || fail "dirty tree: exit $code: $out"

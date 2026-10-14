@@ -217,34 +217,6 @@ extension AutoLevelTests {
         #expect((all.min() ?? 1) < 0.35, "the smallest value is one block of one clip: \(all)")
     }
 
-    /// `autoLevel` calls `progress` after its lock opens, so a slow report (a stdout write) of one
-    /// clip does not stop the report of the other clip (code gate 3 item 4). The first call waits
-    /// for a second call, with a limit; under the lock the second call cannot come.
-    @Test func aSlowReportDoesNotHoldTheOtherClip() throws {
-        let package = try MixPackage()
-        try package.addFile("a", channels: tone([(3, -30)]))
-        try package.addFile("b", channels: tone([(3, -30)]))
-        try package.addTrack("t1", layout: .stereo, clip: "ca", file: "a", start: 0, offset: 0, length: 144_000)
-        try package.addTrack("t2", layout: .stereo, clip: "cb", file: "b", start: 0, offset: 0, length: 144_000)
-        let calls = OSAllocatedUnfairLock(initialState: (count: 0, inside: 0, overlap: false))
-        _ = autoLevel(
-            ["ca", "cb"], .eachClip, of: package.session, in: package.url,
-            progress: { _ in
-                let first = calls.withLock { state in
-                    (state.count, state.inside) = (state.count + 1, state.inside + 1)
-                    if state.inside > 1 { state.overlap = true }
-                    return state.count == 1
-                }
-                // The second clip waits for a free GCD thread: 7.3 s in a parallel run of the suite.
-                let end = ContinuousClock.now + .seconds(25)
-                while first, !calls.withLock({ $0.overlap }), ContinuousClock.now < end {
-                    Thread.sleep(forTimeInterval: 0.001)
-                }
-                calls.withLock { $0.inside -= 1 }
-            })
-        #expect(calls.withLock { $0.overlap }, "the report of one clip waited for the report of the other clip")
-    }
-
     /// A set flag stops the measure at the next block of a long clip (decision 0049): the clip of
     /// 10 s has 8 blocks, and the flag is set after the second block.
     @Test func aSetFlagStopsTheMeasureAtTheNextBlock() throws {

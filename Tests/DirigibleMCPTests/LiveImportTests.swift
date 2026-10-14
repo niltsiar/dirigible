@@ -131,4 +131,27 @@ struct LiveImportTests {
         #expect(outcome == .reply(.result(text: text, isError: true)), "\(outcome)")
         #expect(try names() == ["tone.wav"], "a cancelled import left a file")
     }
+
+    /// The first stop names the cause: a take in another studio after the banner Cancel does not
+    /// change the text of the user cancel (code gate 3 round 2 item 4).
+    @Test func aTakeAfterACancelKeepsTheCancelText() async throws {
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        let studio = try await package.open()
+        studio.environment.importStep = { hold.step() }
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let (socket, arguments) = (folder.socket, arguments())
+        let call = Task { await send(socket, "import", arguments) }
+        await until("the import does not hold") { hold.isHeld }
+
+        studio.cancelImport()
+        studio.endImport(.take)
+        hold.release()
+        let outcome = await call.value
+
+        let text = "The user cancelled the import in Dirigible. No clip was added."
+        #expect(outcome == .reply(.result(text: text, isError: true)), "\(outcome)")
+        await studio.settle()
+    }
 }

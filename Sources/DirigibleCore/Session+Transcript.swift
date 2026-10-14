@@ -190,6 +190,8 @@ extension Session {
     }
 
     /// The ID of a new transcript: one more than the largest ID.
+    // shortcut: an undo, or a removeFile that empties the top transcript, lets a later import take
+    // its ID again, because session.xml keeps no counter; add one when the format next changes.
     var nextTranscriptID: TranscriptID { TranscriptID((transcripts.keys.map(\.number).max() ?? 0) + 1) }
 
     /// Adds a transcript that the reader parsed, with the rules of the import: a new ID, a storable

@@ -9,9 +9,10 @@ private let agentLog = Logger(subsystem: "com.delineas.dirigible", category: "ag
 /// The notice of an agent take (decision 0050): the take row, the VoiceOver announcement, the
 /// Dock bounce and badge.
 extension SessionWindow {
-    /// An agent take started: the row and the badge show it until the transport leaves it.
+    /// An agent take started: the row and the badge show it until the transport leaves it. A take
+    /// that ended before this call gets no notice.
     func agentTakeStarted(_ consent: ConsentRequest, take: Int) {
-        guard let studio else { return }
+        guard let studio, case .recording(take) = studio.transport else { return }
         let started = AgentTake(
             take: take, agent: consent.agent.name, tracks: consent.names, seconds: consent.seconds,
             since: studio.recordingSince ?? .now)
@@ -24,7 +25,6 @@ extension SessionWindow {
         }
         chrome?.announce(text, .high)
         app?.updateAgentBadge()
-        // Last: a take that ended before this start event ends the notice at once.
         followAgentTake(studio, take: take)
     }
 

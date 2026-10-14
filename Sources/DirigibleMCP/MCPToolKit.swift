@@ -47,7 +47,7 @@ enum ToolWork: Sendable {
     var isLong: Bool {
         switch self {
         case .loudness, .export, .level, .importFile: true
-        default: false
+        case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record: false
         }
     }
 }

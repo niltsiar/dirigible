@@ -192,7 +192,7 @@ extension L10n {
             .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip, .crossfadeOutsideFile,
             .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .fadeAtCrossfade, .laneOutOfRange, .foreignFile,
             .otherSampleRate, .unknownWord, .noWordOnTrack,
-            .wordOutsideFile:
+            .wordOutsideFile, .nothingToCut:
             return errorSessionOther.text
         }
     }

@@ -61,6 +61,16 @@ struct TranscriptImportTests {
         #expect(report.kept == 1 && report.untimed == 1 && report.skipped == 0)
     }
 
+    /// Code gate 1 item 4. A word whose start and end round to one frame has no audio: it counts
+    /// as untimed.
+    @Test func aWordOfNoFrameIsUntimed() throws {
+        var session = try transcriptSession()
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 100_000), on: "host")
+        let report = try session.importTranscript(
+            try whisper([("a", 0.1, 0.2), ("short", 1, 1.000_001)]), name: "t", track: "host", at: 0)
+        #expect(report.kept == 1 && report.untimed == 1)
+    }
+
     /// T5b. A second import of the same file replaces the old words: each word shows once.
     /// Control: an import of a later part of the file keeps the old words outside its span.
     @Test func reimportReplacesTheWords() throws {

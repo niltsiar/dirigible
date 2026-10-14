@@ -16,6 +16,17 @@ extension Session {
             throw .frameOutOfRange
         }
         let lanes = try trackIndices(tracks)
+        let merged = Self.merged(ranges)
+        guard !merged.isEmpty, !lanes.isEmpty else { return }
+        var copy = self
+        var taken = clipIDs
+        for range in merged.reversed() { try copy.rippleDelete(range, lanes: lanes, taken: &taken) }
+        self = copy
+    }
+
+    /// The ranges that the array form of `rippleDelete` cuts: no empty range, in order, and each
+    /// overlapping or touching pair as one range.
+    static func merged(_ ranges: [Range<Frames>]) -> [Range<Frames>] {
         var merged: [Range<Frames>] = []
         for range in ranges.filter({ !$0.isEmpty }).sorted(by: { $0.lowerBound < $1.lowerBound }) {
             if let last = merged.last, range.lowerBound <= last.upperBound {
@@ -24,11 +35,7 @@ extension Session {
                 merged.append(range)
             }
         }
-        guard !merged.isEmpty, !lanes.isEmpty else { return }
-        var copy = self
-        var taken = clipIDs
-        for range in merged.reversed() { try copy.rippleDelete(range, lanes: lanes, taken: &taken) }
-        self = copy
+        return merged
     }
 
     /// On each track of `tracks`, removes the frames in `range`. It calls the array form with one

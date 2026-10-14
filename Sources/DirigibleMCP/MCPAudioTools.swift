@@ -69,7 +69,7 @@ let audioTools = [
             + "clip ID, a tab, and the BS.1770 loudness with the clip gain, \"none\", \"missing\", or \"unreadable\". "
             + "It writes nothing. A cancel stops the measure.",
         [loudnessClips], saves: false
-    ) { a throws(ToolError) in .loudness(clips: try a[loudnessClips] ?? []) },
+    ) { a throws(ToolError) in .loudness(clips: try a[loudnessClips] ?? []) }.hinted(.readOnly),
     Tool(
         "export",
         "Export the session mix to WAV, AAC (.m4a), MP3, or FLAC, as dirigible export. The extension of out gives "

@@ -9,7 +9,7 @@ let sourceTools = [
         "List the input devices of this Mac: one line for each device with the UID, the name, the input channels, "
             + "and the nominal rate, split by tabs. Give the UID as device to track_route or track_add_call. It "
             + "takes no argument."
-    ) { deviceText(InputDevice.all()) },
+    ) { deviceText(InputDevice.all()) }.hinted(.readOnly),
     Tool(
         "apps",
         "List the running apps that can be a track source: one line for each app with the bundle ID, the name, and "
@@ -18,7 +18,7 @@ let sourceTools = [
     ) {
         let taps = processTapsAvailable
         return appText(taps ? RunningApp.all() : [], tapsAvailable: taps)
-    },
+    }.hinted(.readOnly),
 ]
 
 /// The lines of `dirigible devices` and the `devices` tool: the UID, the name, the input channels,

@@ -65,7 +65,7 @@ let sessionTools = [
         default: throw ToolError("Give from and to, or neither.")
         }
         return .info(tracks: try a[infoTracks]?.map { TrackID($0) }, range: range)
-    },
+    }.hinted(.readOnly),
 ]
 
 private let trackID = Param<String?>.optional("id", "The track ID. The default is a new UUID.", .string)
@@ -269,7 +269,7 @@ private let backupName = Param.required(
 let backupTools = [
     Tool("backup_list", "Give the backup file names of the session, newest first.", [], saves: false) { _ in
         .backups
-    },
+    }.hinted(.readOnly),
     Tool(
         "backup_revert", "Revert the session to a backup. It keeps a backup of the replaced session first.",
         [backupName]
@@ -325,5 +325,5 @@ let episodeTools = [
         "Read the episode fields as compact JSON, the JSON of dirigible episode show. The keys are the argument "
             + "names of episode_set, and only the set fields are in it. artwork is the path in the package.",
         [], saves: false
-    ) { _ throws(ToolError) in .episodeInfo },
+    ) { _ throws(ToolError) in .episodeInfo }.hinted(.readOnly),
 ]

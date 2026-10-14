@@ -76,7 +76,7 @@ package struct MCPServer {
             }
             return reply(id, recipe.prompt(package: package))
         case "tools/list":
-            let list = Tool.all.map { ["name": $0.name, "description": $0.description, "inputSchema": $0.inputSchema] }
+            let list = Tool.all.map(\.listing)
             return reply(id, ["tools": list], cached: true)
         case "tools/call":
             // A call that the client cancelled while it waited does not run (decision 0049).

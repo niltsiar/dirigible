@@ -344,4 +344,20 @@ struct MCPToolTests {
         #expect(try package.xml() == before)
         #expect(try FileManager.default.contentsOfDirectory(atPath: package.path).sorted() == names)
     }
+
+    /// C17: the read tools say that they change nothing; record gives its three hints; an edit
+    /// tool has no annotations (the control).
+    @Test func annotations() async throws {
+        let answers = try await mcp([modernRequest(1, "tools/list")])
+        let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
+        func annotations(_ name: String) -> [String: Bool]? {
+            tools.first { $0["name"] as? String == name }?["annotations"] as? [String: Bool]
+        }
+        for name in ["session_info", "backup_list", "episode_get", "loudness", "devices", "apps"] {
+            #expect(annotations(name) == ["readOnlyHint": true], "\(name)")
+        }
+        #expect(annotations("record") == ["readOnlyHint": false, "destructiveHint": true, "openWorldHint": true])
+        #expect(tools.contains { $0["name"] as? String == "track_add" })
+        #expect(tools.first { $0["name"] as? String == "track_add" }?["annotations"] == nil)
+    }
 }

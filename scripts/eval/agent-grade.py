@@ -11,9 +11,11 @@ lists a skill of this repo, or a path or memory folder of this repo: the agent s
 `record` call and a reply that names Let Agents Edit Open Sessions. In the shell and skill variants
 it also passes with a CLI record command on the package, or a reply that names the record command
 and its warning; it is `wrong` only for an edit outside the host clips and the captures.
-T9 cuts the two target sentences of agent-transcript.json on all tracks: it passes when each clip is
-within 0.1 s of the pristine clips after a ripple delete of the second range, then of the first,
-and all else (also the file, the gain, and the fades of each clip) equals the pristine session.
+T9 cuts the two target sentences of agent-transcript.json on all tracks: it passes when the clips of
+each track are the pristine clips after a ripple delete of the second range, then of the first, with
+the same ranges on each track; each range removes its whole sentence, no word of a neighbour, and at
+most 0.25 s of silence on each side; and all else (also the file, the gain, and the fades of each
+clip) equals the pristine session.
 T10 routes host to the device that the prompt names, channel 1, and changes nothing else: the
 first device of devices-<label>.txt, or another device with the same name.
 Columns: label, task, variant, verdict, tool calls, calls with isError, skill (yes when a Skill
@@ -34,8 +36,8 @@ HINT = 'Let Agents Edit Open Sessions'
 # A reply that names the record command and says that it records at once, with no consent sheet.
 COMMAND = re.compile(r"dirigible\S*\s+record\b|`record`", re.I)
 TRANSCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'agent-transcript.json')
-# The T9 limit of each clip start, offset, and length: 0.1 s at 48 kHz.
-SLACK = 4800
+# The T9 limit of the silence that a cut takes on each side of its sentence: 0.25 s at 48 kHz.
+PAD = 12000
 WARNING = re.compile(r'consent|at once|immediately|right away|without (asking|a confirmation)|no confirmation', re.I)
 
 
@@ -127,11 +129,21 @@ def clips(s, track):
     return [(c['start'], c['offset'], c['length'], c['gain']) for c in t['clips']]
 
 
-def cut_ranges():
-    """The frame ranges of the T9 target sentences at 48 kHz, in transcript order."""
+def cut_windows():
+    """For each T9 target sentence, in transcript order, the frames (lowest start, start, end,
+    highest end) of a cut that removes the whole sentence and no word of a neighbour."""
     doc = json.load(open(TRANSCRIPT))
-    return [(round(doc['segments'][i]['start'] * 48000), round(doc['segments'][i]['end'] * 48000))
-            for i in doc['targets']]
+    segments = doc['segments']
+
+    def frame(seconds):
+        return round(seconds * 48000)
+    windows = []
+    for i in doc['targets']:
+        a, b = frame(segments[i]['start']), frame(segments[i]['end'])
+        low = max(a - PAD, frame(segments[i - 1]['end']) if i > 0 else 0)
+        high = min(b + PAD, frame(segments[i + 1]['start']) if i + 1 < len(segments) else b + PAD)
+        windows.append((low, a, b, high))
+    return windows
 
 
 def ripple(clips, a, b):
@@ -175,12 +187,15 @@ def success(task, s, pristine, mp3, calls, final, devices):
         e = s.get('episode') or {}
         return mp3 and e.get('title') == 'Home studios' and e.get('show') == 'Gear Talk'
     if task == 'T9':
-        (a1, b1), (a2, b2) = cut_ranges()
-
-        def near(track):
-            want = ripple(ripple([c[:3] for c in clips(pristine, track)], a2, b2), a1, b1)
+        def cuts(track):
+            """The two ranges whose ripple deletes, the second first, make the clips of the track
+            from its one pristine clip; None when no such ranges exist."""
             got = [c[:3] for c in clips(s, track)]
-            return len(got) == len(want) and all(abs(x - y) <= SLACK for g, w in zip(got, want) for x, y in zip(g, w))
+            if len(got) != 3:
+                return None
+            ranges = ((got[0][2], got[1][1]), (got[1][1] + got[1][2], got[2][1]))
+            (a1, b1), (a2, b2) = ranges
+            return ranges if ripple(ripple([c[:3] for c in clips(pristine, track)], a2, b2), a1, b1) == got else None
 
         def kept(session):
             """The session with each clip as its fields other than the ID and the frames: the cut
@@ -190,7 +205,10 @@ def success(task, s, pristine, mp3, calls, final, devices):
                                   sort_keys=True)
             return {**session, 'tracks': [{**t, 'clips': sorted({rest(c) for c in t['clips']})}
                                           for t in session['tracks']]}
-        return near('host') and near('guest') and kept(s) == kept(pristine)
+        ranges = cuts('host')
+        return (ranges is not None and ranges == cuts('guest') and kept(s) == kept(pristine)
+                and all(low <= a <= start and end <= b <= high
+                        for (a, b), (low, start, end, high) in zip(ranges, cut_windows())))
     if task == 'T10':
         def want(uid):
             route = {'device': uid, 'channels': [1]}

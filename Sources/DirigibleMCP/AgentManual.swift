@@ -55,7 +55,8 @@ package enum AgentManual {
                 + "words follow the clips of the import track: edit all tracks together. Find each passage with "
                 + "`transcript_words` with `match`. A cut on a closed package saves at once: list each passage with "
                 + "its words and seconds, and get the consent of the user before the cut, unless the user already "
-                + "agreed. Run one `transcript_cut` with all the occurrences; report each cut in seconds."),
+                + "agreed. Run one `transcript_cut` with all the occurrences; report each cut in seconds. Each edit "
+                + "makes the occurrences stale: run `transcript_words` again before the next cut."),
         Recipe(
             phase: .produce, name: "check-levels", title: "Check the levels",
             summary: "Measure the loudness of each clip, level the session, and report the change.",

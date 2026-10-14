@@ -119,7 +119,7 @@ struct AgentManualTests {
             "of the current session with each track heard", "`transcript_import` with the `path`",
             "`text` only for a short transcript", "`transcript_words` with `match`",
             "words follow the clips of the import track: edit all tracks together", "before the cut",
-            "one `transcript_cut` with all the occurrences",
+            "one `transcript_cut` with all the occurrences", "run `transcript_words` again before the next cut",
         ] {
             #expect(steps.contains(text), "the transcript recipe does not say \(text)")
         }

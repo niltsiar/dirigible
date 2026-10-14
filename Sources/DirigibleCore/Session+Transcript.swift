@@ -118,14 +118,15 @@ extension Session {
     /// clamped to the clip. Each unit with a usable time gets the number of its index, from 1; a unit
     /// with no clip under it is skipped, and its number is used up, so a cut never joins words
     /// around audio of another place. A unit over file audio that an earlier clip of the import
-    /// already gave (a duplicated region) adds no anchor: its words show under both clips. A unit
+    /// already gave (a duplicated region) adds no anchor and counts as repeated: the words of the first
+    /// use show under both clips. A unit
     /// past `Frames.limit`, or with no frame between its start and its end, counts as untimed with
     /// the untimed units of the file. For each file that it anchors, the import first drops the old
     /// words (of any transcript) whose midpoint is in the span of the new words. A transcript with
     /// no word left goes. No kept word throws `.noWordOnTrack` and changes nothing.
     @discardableResult
     public mutating func importTranscript(_ file: TranscriptFile, name: String, track: TrackID, at: Frames)
-        throws(SessionError) -> (id: TranscriptID, kept: Int, skipped: Int, untimed: Int)
+        throws(SessionError) -> (id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int)
     {
         try Self.checkText(name)
         guard at.isInRange else { throw .frameOutOfRange }
@@ -139,6 +140,7 @@ extension Session {
         var untimed = file.untimed
         var number = 0
         var skipped = 0
+        var repeats = 0
         var added: [FileID: [Anchor]] = [:]
         var heard: Set<Int> = []
         for unit in file.units {
@@ -159,7 +161,10 @@ extension Session {
                 other != index && clips[other].file == clip.file
                     && (clips[other].offset..<(clips[other].offset + clips[other].length)).contains(midpoint + shift)
             }
-            guard !repeated else { continue }
+            guard !repeated else {
+                repeats += 1
+                continue
+            }
             heard.insert(index)
             let range = (max(start, clip.start) + shift)..<(min(end, clip.end) + shift)
             added[clip.file, default: []].append(Anchor(number: number, range: range, text: unit.text))
@@ -175,7 +180,7 @@ extension Session {
             }
         }
         transcripts[id] = Transcript(id: id, name: name, words: added.mapValues(Anchors.init))
-        return (id, added.values.map(\.count).reduce(0, +), skipped, untimed)
+        return (id, added.values.map(\.count).reduce(0, +), skipped, untimed, repeats)
     }
 
     /// Sets the words of `file` in transcript `id`. No word removes the file from the transcript,

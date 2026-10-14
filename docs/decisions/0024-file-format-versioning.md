@@ -16,6 +16,7 @@
 - Amended: 2026-10-11, run `2026-10-11-track-fader`. The reader clamps a gain outside `Gain.range` to the range end and keeps the session version. It still refuses a gain that is not finite.
 - Amended: 2026-10-12, run `2026-10-12-remove-unused-files` (see 0047). Only a clip holds a top-level `Clips/` WAV: a clip of `session.xml`, or of a readable backup, or of the app clipboard. A pool entry with no clip does not hold it. A new holder raises the `session.xml` version or keeps its audio out of `Clips/`. A backup of a newer version stops Remove Unused Files until that backup goes.
 - Amended: 2026-10-14, run `2026-10-13-transcript-1` (see 0055). `session.xml` is version 8 when the session has a transcript. A file of version 7 or lower with a `<transcripts>` element is refused.
+- Amended: 2026-10-14, run `2026-10-13-transcript-1` (A10, see 0055). `session.xml` version 8 holds a reference per transcript, and the words are in `Transcripts/<UUID>.xml`, format version 1. A change of that format also raises the `session.xml` version.
 
 ## Context
 
@@ -60,10 +61,11 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 
 | File | Version marker | Current | Newer version in an older build |
 |---|---|---|---|
-| `session.xml` | `version` attribute | 8 with a transcript (0055), else 7 with a marker URL or image, else 6 with episode data (0045), else 5 with a muted or soloed track (0039), else 4 with a crossfade (0036), else 3 with a fade (0035), else 2 with an app route (0029), else 1 | Refused (P3). No change to the package (P4). |
+| `session.xml` | `version` attribute | 8 with a transcript reference (0055), else 7 with a marker URL or image, else 6 with episode data (0045), else 5 with a muted or soloed track (0039), else 4 with a crossfade (0036), else 3 with a fade (0035), else 2 with an app route (0029), else 1 | Refused (P3). No change to the package (P4). |
 | `Capture/<stem>.sidecar` | magic `DRGSIDE` + digit | 1 | A per-segment "newer version" fault, not "missing or damaged". The take ends and the segment stays unplaced; "leave unreadable" does not treat it as unreadable. The sidecar and the CAF are never written, moved, or deleted. The anchor keeps the recorded time, so a newer build places the segment with `capture place`. A placement in the older build is refused. |
 | `Capture/take<n>.anchor` | magic `DRGANCH` + digit | 1 | A placement that needs the anchor gives a per-segment "newer version" fault. A placement with a track and a start does not read the anchor. A finalize of that take keeps the anchor bytes, writes no anchor, places the segments from `<recording>`, and ends the take. No newer file keeps a take pending. An anchor that the finalize cannot read (an errno other than ENOENT) keeps the take pending with a read error that names the file, before any WAV is written: the build does not write over a file that it cannot identify (P4). |
 | `Backups/session-<time>.xml` | `version` attribute of the copy | The version of the copied `session.xml` | A revert refuses it (P3). A prune never deletes it (P4). A name that does not parse stays (P10). |
+| `Transcripts/<UUID>.xml` | `version` attribute | 1 | Only a newer `session.xml` names one, and that file is refused first (P3, P7). The file is never written, moved, or deleted by an older build (P4, P10). |
 | Peak cache `*.peaks` | magic `DIRPEAKS` + UInt32 version | 1 | A miss (P5). |
 | `agent-log.tsv` | first line `# Dirigible agent log, version <n>`: that text and a decimal integer | 1 | No line is appended (P4). A first line that does not parse also gets no line. A file of 0 bytes counts as new. |
 | `.lock`, `recovery-attempt` | none (frozen, P8) | - | - |

@@ -741,6 +741,7 @@ A session is a macOS package: a folder with the extension `.dirigible` that Find
 
 - `session.xml` holds the tracks, the clips, the markers, and the chapters.
 - `Clips/` holds the audio of the clips as WAV files.
+- `Transcripts/` holds the words of each imported transcript, one file each. A change of the words writes a new file, and the old file stays until **File > Remove Unused Files** finds that no state of the session names it. When a transcript file is missing or damaged, the session still opens: `dirigible transcript words` names the transcript, and a cut asks you to import it again.
 - `Capture/` holds the audio of a take while it records, in files that survive a crash.
 - `Backups/` holds backups of `session.xml`. The name of a backup has the UTC date and time of the copied file, for example `session-20261009T081530.250Z.xml`.
 
@@ -786,7 +787,7 @@ These commands use the backups of the session in `Backups/`:
 
 This command removes the audio files that the session does not use:
 
-- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses and each WAV file in `Clips/` that the session does not name, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. A pool file that is a symbolic link or a folder stays, and the command writes "Not a regular file, it stays" for it. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
+- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses , each WAV file in `Clips/` that the session does not name, and each file in `Transcripts/` that the session, a backup, and the undo history do not name, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. A pool file that is a symbolic link or a folder stays, and the command writes "Not a regular file, it stays" for it. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
 
 These commands use a transcript with word times, in Whisper JSON or WebVTT. For example, export the session from the start as a WAV file and transcribe it with Whisper.
 

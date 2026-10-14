@@ -46,6 +46,19 @@ struct RecordCommandTests {
                 == CLIResult(status: 1, stdout: "", stderr: "Error: the device of track \"t1\" is missing.\n"))
     }
 
+    /// C18: an armed app track gets a warning line before the take. A device track gets none
+    /// (`aMissingDeviceExitsOne` is the control).
+    @Test func appTrackWarns() async throws {
+        try package.edit { session in
+            try session.addTrack("t2", name: "Guest", layout: .stereo)
+            try session.setRoute(.app(bundleID: "us.zoom.xos"), track: "t2")
+        }
+        let result = try await refused("record", "PKG", "--seconds", "1", "--arm", "t1", "--arm", "t2")
+        let warning = "Warning: Track Guest records us.zoom.xos. People in the call get no notice from Dirigible.\n"
+        #expect(result.stderr.hasPrefix(warning), "\(result.stderr)")
+        #expect(result.stderr.components(separatedBy: "Warning:").count == 2, "one line for the one app track")
+    }
+
     @Test func aLockedPackageExitsTwo() async throws {
         let result: CLIResult
         do {

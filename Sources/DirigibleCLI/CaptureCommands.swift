@@ -113,6 +113,11 @@ private func recordTake(
     _ package: PackageArgument, armed: [TrackID], playhead: Frames, duration: Duration
 ) async throws(ExitCode) {
     let studio = try await openStudio(package)
+    // A shell command records with no sheet: name each app it records (decision 0050, C18).
+    for id in armed {
+        guard let track = studio.session.track(id), case .app(let bundleID) = track.route else { continue }
+        warn("Track \(track.name) records \(bundleID). People in the call get no notice from Dirigible.")
+    }
     let result: TakeResult
     do throws(StudioError) {
         do throws(StudioError) {

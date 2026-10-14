@@ -140,6 +140,8 @@ extension SessionWindow {
     {
         // The agent stopped waiting before the main actor got the call: no sheet, no Dock bounce.
         if Task.isCancelled { return .ended }
+        // A new connection of the bridge ends the grant (decision 0050): the old one is gone.
+        if agentRecord.grant?.connection != connection { agentRecord.grant = nil }
         if let refusal = askRefusal(nil) { return refusal }
         guard case .open(let studio) = phase else { return .busy(.closing) }
         if agentRecord.tooMany(at: agentRecord.now()) { return .tooMany }

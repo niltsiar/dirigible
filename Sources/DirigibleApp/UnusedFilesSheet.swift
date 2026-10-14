@@ -10,7 +10,12 @@ struct UnusedFileRow: Identifiable, Equatable {
     /// The rows of `scan`, the largest file first.
     static func rows(_ scan: UnusedFiles) -> [UnusedFileRow] {
         scan.items.map { item in
-            let reason: L10n = if case .pool = item.kind { .sheetUnusedReasonPool } else { .sheetUnusedReasonStray }
+            let reason: L10n =
+                switch item.kind {
+                case .pool: .sheetUnusedReasonPool
+                case .stray: .sheetUnusedReasonStray
+                case .transcript: .sheetUnusedReasonTranscript
+                }
             return UnusedFileRow(id: item.path, bytes: item.bytes, reason: reason)
         }
         .sorted { ($1.bytes, $0.id) < ($0.bytes, $1.id) }

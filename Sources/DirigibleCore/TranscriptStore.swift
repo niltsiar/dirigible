@@ -3,8 +3,8 @@ import Foundation
 /// The name of a transcript file in `Transcripts/`: the text of a UUID (decision 0055). A new name
 /// comes from a new UUID, and a read name only from a canonical UUID text, so a name never holds a
 /// path.
-struct TranscriptFileName: Hashable, Sendable, CustomStringConvertible {
-    let description: String
+public struct TranscriptFileName: Hashable, Sendable, CustomStringConvertible {
+    public let description: String
 
     init() { description = UUID().uuidString }
 
@@ -78,6 +78,9 @@ enum TranscriptStore {
 }
 
 extension Session {
+    /// The file name of each transcript, loaded or not: the holders of Remove Unused Files.
+    var transcriptFiles: Set<TranscriptFileName> { Set(transcripts.values.map(\.file)) }
+
     /// Loads the words of each transcript from `Transcripts/<name>.xml` of `package`. A transcript
     /// whose file is missing, does not decode, or breaks a rule of the import keeps no words.
     mutating func loadTranscripts(from package: URL) {

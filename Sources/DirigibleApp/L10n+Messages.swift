@@ -55,6 +55,7 @@ extension L10n {
     private static func message(for error: UnusedFilesError) -> String {
         switch error {
         case .clipsUnreadable(let code): errorUnusedClips.format(Int(code))
+        case .transcriptsUnreadable(let code): errorUnusedTranscripts.format(Int(code))
         case .sessionUnreadable(let error), .save(let error): message(for: error)
         case .backupUnreadable(let backup, _): errorUnusedBackup.format(backupTitle(backup.saved))
         case .changedDuringPrune: errorUnusedChanged.text

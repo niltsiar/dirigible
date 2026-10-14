@@ -4,15 +4,19 @@ import Foundation
 /// uses, and the stray WAVs at the top level of `Clips/` that no pool path names. A file that a
 /// clip of a keeper uses stays: the `session.xml` on the disk (the prune save can make it a
 /// backup), each readable backup, and the keepers that the caller gives (the undo and redo
-/// entries, the clipboard files). The scan is the one place of this rule.
+/// entries, the clipboard files). Also each transcript file in `Transcripts/` that the session
+/// and these holders do not name (decision 0055). The scan is the one place of this rule.
 public struct UnusedFiles: Hashable, Sendable {
     public struct Item: Hashable, Sendable {
         public enum Kind: Hashable, Sendable {
             case pool(FileID)
             case stray
+            /// A file in `Transcripts/` that no holder names (decision 0055).
+            case transcript(TranscriptFileName)
         }
         public let kind: Kind
-        /// Relative to `Clips/`.
+        /// Relative to `Clips/` for `.pool` and `.stray`, and to the package for `.transcript`
+        /// ("Transcripts/<name>.xml").
         public let path: String
         public let bytes: Int64
         /// The `lstat` identity at the scan, nil for a missing file. A file that another file
@@ -99,6 +103,10 @@ public struct UnusedFiles: Hashable, Sendable {
             }
             items.append(Item(kind: kind, path: path, bytes: bytes, identity: identity))
         }
+        let holders = Set(([session] + held + keepers).flatMap(\.transcriptFiles))
+        items += try Self.transcriptItems(in: package).filter {
+            if case .transcript(let name) = $0.kind { !holders.contains(name) } else { false }
+        }
         self.init(
             items: items.sorted { $0.path < $1.path }, kept: kept, damagedBackups: damaged, notFiles: notFiles.sorted())
     }
@@ -180,6 +188,7 @@ public struct UnusedFiles: Hashable, Sendable {
             case .pool(let id):
                 session.files[id] != nil && !used.contains(id) && !usedNames.contains(normalized(item.path))
             case .stray: !named.contains(normalized(item.path))
+            case .transcript(let name): !session.transcriptFiles.contains(name)
             }
         }
         return UnusedFiles(items: live, kept: kept, damagedBackups: damagedBackups, notFiles: notFiles)
@@ -211,7 +220,10 @@ public struct UnusedFiles: Hashable, Sendable {
         var failed: [PruneReport.Failed] = []
         var dropped: [FileID] = []
         for item in items {
-            let url = clips.appending(path: item.path)
+            let url: URL =
+                if case .transcript = item.kind { package.appending(path: item.path) } else {
+                    clips.appending(path: item.path)
+                }
             let now = FileIdentity(lstat: url.path)
             guard now != nil || errno != ENOENT else {
                 if case .pool(let id) = item.kind { dropped.append(id) }
@@ -250,10 +262,10 @@ public struct UnusedFiles: Hashable, Sendable {
         return try Session(xml: data)
     }
 
-    /// True when the folder of `url`, with its links resolved, is `Clips/` or a folder in it.
-    private static func staysIn(_ realClips: String, _ url: URL) -> Bool {
+    /// True when the folder of `url`, with its links resolved, is `real` or a folder in it.
+    static func staysIn(_ real: String, _ url: URL) -> Bool {
         let folder = url.deletingLastPathComponent().resolvingSymlinksInPath().path
-        return folder == realClips || folder.hasPrefix(realClips + "/")
+        return folder == real || folder.hasPrefix(real + "/")
     }
 
     /// A regular file (not a link) with the extension `wav` in any case and no leading `.`.
@@ -362,6 +374,8 @@ public struct PruneReport: Hashable, Sendable {
 
 public enum UnusedFilesError: Error, Hashable, Sendable {
     case clipsUnreadable(errno: Int32)
+    /// `Transcripts/` gave a read error other than ENOENT (decision 0055).
+    case transcriptsUnreadable(errno: Int32)
     /// The `session.xml` on the disk does not read: the scan cannot know its clips.
     case sessionUnreadable(SessionFileError)
     /// A backup of a newer version, or with a read errno. The block stays until that backup goes.

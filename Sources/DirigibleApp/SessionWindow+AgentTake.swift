@@ -65,7 +65,7 @@ extension SessionWindow {
         case .closed: reason = "closed"
         case .minimized: reason = "minimized"
         case .busy(let busy): reason = "busy \(busy)"
-        case .refused: reason = "error"
+        case .refused(let error): reason = "error \(error)"
         case .grantChanged: reason = "route changed"
         case .noRoom(let minutes): reason = "no room \(minutes) min"
         case .tooMany: reason = "too many"

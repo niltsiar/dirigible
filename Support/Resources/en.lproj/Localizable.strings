@@ -374,7 +374,7 @@
 "consent.record.over" = "Recording replaces audio on %1$@ after %2$@.";
 "consent.dont.record" = "Don't Record";
 "consent.grant" = "Don't ask again until I close this window";
-"consent.grant.help" = "Ends when you close this window, after 1 hour, after 2 hours of takes, or when the agent reconnects.";
+"consent.grant.help" = "Ends when you close this window, %1$@ after your click, after %2$@ of takes with no sheet, or when the agent reconnects. The take of your click does not count.";
 "redo.agent.unnamed" = "Redo Agent Edit";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Chapter %lld";

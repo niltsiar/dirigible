@@ -374,7 +374,7 @@
 "consent.record.over" = "La grabación sustituye audio en %1$@ después de %2$@.";
 "consent.dont.record" = "No grabar";
 "consent.grant" = "No volver a preguntar hasta que cierre esta ventana";
-"consent.grant.help" = "Termina cuando cierras esta ventana, después de 1 hora, después de 2 horas de tomas o cuando el agente se vuelve a conectar.";
+"consent.grant.help" = "Termina cuando cierras esta ventana, %1$@ después de tu clic, después de %2$@ de tomas sin preguntar o cuando el agente se vuelve a conectar. La toma de tu clic no cuenta.";
 "redo.agent.unnamed" = "Rehacer edición de un agente";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";

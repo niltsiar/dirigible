@@ -14,8 +14,8 @@ struct ExportJob {
     let task: Task<Result<ExportResult, ExportError>, Never>
 }
 
-/// The cause of an export end before its end: Cancel in the export sheet, a take start, or the
-/// close of the window (`settle()`).
+/// The cause of an export or an import end before its end: Cancel in the export sheet or the
+/// import banner, a take start, or the close of the window (`settle()`).
 public enum ExportStop: Sendable {
     case user, take, close
 }
@@ -92,7 +92,7 @@ extension Studio {
             await self?.endExport(.take)
             for studio in others {
                 await studio.endExport(.take, yielding: true)
-                studio.endImport(yielding: true)
+                studio.endImport(.take)
             }
         }
     }
@@ -111,7 +111,7 @@ extension Studio {
                 ended = true
             }
             if studio.importRun != nil, await onVolume(studio.url, of: lock) {
-                if studio.endImport(yielding: true) { ended = true }
+                if studio.endImport(.take) { ended = true }
             }
         }
         return ended

@@ -84,7 +84,7 @@ extension Studio {
 
     /// The Cancel of the banner of an import that the window did not start: an agent import
     /// (decision 0049). The import ends at its next block, and the renamed WAV goes.
-    public func cancelImport() { endImport(yielding: false) }
+    public func cancelImport() { endImport(.user) }
 
     /// The blocking run of an import or a paste from another package (decisions 0040 and 0042):
     /// `checkIdle`, `.rippleBlocked` for a `ripple` under a pending or split take (decision 0037),
@@ -111,7 +111,7 @@ extension Studio {
         let task = Task {
             await blockingTurn(flags, stopped, cancelled: cancelled, yielded: yielded, agent: agent, work: work)
         }
-        importProgress = 0
+        (importProgress, importStop) = (0, nil)
         transport = .importing(ImportRun(name: name, kind: kind, flags: flags))
         defer { transport = .idle }
         let result = await withTaskCancellationHandler {
@@ -125,12 +125,14 @@ extension Studio {
     /// Sets the cancel flag of the running import, with no wait: a source read can stall (an
     /// online-only file), and a take never waits for it (code gate 1). The import ends at its
     /// next block and writes nothing. `settle()` calls it before its first await, and then waits
-    /// for the import turn in the write chain. With `yielding`, a take of another studio ends it
-    /// (decision 0019), and `importAudio` throws `.importYielded`. True only for the call that
-    /// sets the flag first.
+    /// for the import turn in the write chain. With `.take`, a take of another studio ends it
+    /// (decision 0019), and `importAudio` throws `.importYielded`. The call that sets the flag
+    /// first sets `importStop` and gives true.
     @discardableResult
-    func endImport(yielding: Bool = false) -> Bool {
-        importRun?.flags.cancel(yielding: yielding) ?? false
+    func endImport(_ stop: ExportStop) -> Bool {
+        guard importRun?.flags.cancel(yielding: stop == .take) == true else { return false }
+        importStop = stop
+        return true
     }
 
     /// One turn of the write chain: the Player stops, the work, the save, the undo entry, and the

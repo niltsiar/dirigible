@@ -120,11 +120,10 @@ private func liveImport(
         return .result(text: clip.rawValue, isError: false)
     } catch .audioImport(.cancelled) {
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
-        let text =
-            Task.isCancelled ? cancelledMessage : "The user cancelled the import in Dirigible. No clip was added."
+        let text = Task.isCancelled ? cancelledMessage : stopMessage(studio.importStop, noun: "import", nothing: noClip)
         return .result(text: text, isError: true)
     } catch .importYielded {
-        return .result(text: "A take started in Dirigible, so the import stopped. No clip was added.", isError: true)
+        return .result(text: stopMessage(.take, noun: "import", nothing: noClip), isError: true)
     } catch .audioImport(let error) {
         return .result(text: ImportWork.message(error, file: work.file, package: call.path), isError: true)
     } catch .busy {
@@ -135,13 +134,15 @@ private func liveImport(
     }
 }
 
-/// The text of an export that the app stopped: the agent must not export again before it asks
-/// the user.
-private func stopMessage(_ stop: ExportStop?, noun: String) -> String {
+private let noClip = "No clip was added."
+
+/// The text of an export or an import that the app stopped: the agent must not try again before
+/// it asks the user.
+private func stopMessage(_ stop: ExportStop?, noun: String, nothing: String = "No file was written.") -> String {
     switch stop {
-    case .user: "The user cancelled the \(noun) in Dirigible. No file was written."
-    case .take: "A take started in Dirigible, so the \(noun) stopped. No file was written."
-    case .close, nil: "The session window closed, so the \(noun) stopped. No file was written."
+    case .user: "The user cancelled the \(noun) in Dirigible. \(nothing)"
+    case .take: "A take started in Dirigible, so the \(noun) stopped. \(nothing)"
+    case .close, nil: "The session window closed, so the \(noun) stopped. \(nothing)"
     }
 }
 

@@ -134,6 +134,9 @@ import Observation
     /// Why the last export stopped before its end, read after its `.export(.cancelled)`. Nil
     /// while it runs.
     @ObservationIgnored public internal(set) var exportStop: ExportStop?
+    /// Why the last import stopped before its end, read after its `.audioImport(.cancelled)`. Nil
+    /// while it runs, and after a cancel of the calling task.
+    @ObservationIgnored public internal(set) var importStop: ExportStop?
     /// The cancel flag of the running level, or nil: each level makes a clear one (decision 0049).
     @ObservationIgnored var levelFlags: ImportFlags?
     /// The largest fraction of the running file import, 0 at the start of each run. The banner of
@@ -221,7 +224,7 @@ import Observation
     public func settle() async {
         // Before the first await: from now no pass, no block, and no export starts.
         settling = true
-        endImport()
+        endImport(.close)
         await endListen()
         await endExport(.close)
         await stopPlay()

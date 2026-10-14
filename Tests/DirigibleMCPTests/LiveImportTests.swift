@@ -107,4 +107,28 @@ struct LiveImportTests {
         #expect(try names() == ["tone.wav"], "a cancelled import left a file")
         await studio.settle()
     }
+
+    /// A window close during an agent import gives the agent the close text, as for an export
+    /// (code gate 3 item 2).
+    @Test func aWindowCloseGivesTheAgentTheCloseText() async throws {
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        let studio = try await package.open()
+        studio.environment.importStep = { hold.step() }
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let (socket, arguments) = (folder.socket, arguments())
+        let call = Task { await send(socket, "import", arguments) }
+        await until("the import does not hold") { hold.isHeld }
+
+        let settled = Task { await studio.settle() }
+        await until("the close did not cancel the import") { studio.importRun?.flags.isCancelled == true }
+        hold.release()
+        let outcome = await call.value
+        await settled.value
+
+        let text = "The session window closed, so the import stopped. No clip was added."
+        #expect(outcome == .reply(.result(text: text, isError: true)), "\(outcome)")
+        #expect(try names() == ["tone.wav"], "a cancelled import left a file")
+    }
 }

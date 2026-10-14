@@ -70,9 +70,12 @@ extension Session {
     /// same as or one more than the one before. The occurrences of one word at one start (one file
     /// on two tracks) are one step, named when any of them is named. A run goes from its first start
     /// to its largest end. An occurrence that is not shown now throws `.unknownWord`, and words with
-    /// no audio throw `.nothingToCut`; both change nothing.
+    /// no audio throw `.nothingToCut`; both change nothing. While a transcript did not load, a
+    /// hidden word could join a run across other speech, so the cut throws `.transcriptNotLoaded`.
     @discardableResult
     public mutating func cutWords(_ occurrences: [WordOccurrence]) throws(SessionError) -> [Range<Frames>] {
+        let unloaded = transcriptsNotLoaded.map(\.id)
+        guard unloaded.isEmpty else { throw .transcriptNotLoaded(unloaded) }
         let shown = words()
         let present = Set(shown.map(\.occurrence))
         if let missing = occurrences.first(where: { !present.contains($0) }) { throw .unknownWord(missing) }
@@ -122,10 +125,13 @@ extension Session {
     /// first use show under both clips. A unit past `Frames.limit` counts as untimed with the
     /// untimed units of the file. For each file that it anchors, the import first drops the old
     /// words (of any transcript) whose midpoint is in the span of the new words. A transcript with
-    /// no word left goes. No kept word throws `.noWordOnTrack` and changes nothing.
+    /// no word left goes. Then it drops each transcript that did not load, and returns their
+    /// names. No kept word throws `.noWordOnTrack` and changes nothing.
     @discardableResult
     public mutating func importTranscript(_ file: TranscriptFile, name: String, track: TrackID, at: Frames)
-        throws(SessionError) -> (id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int)
+        throws(SessionError) -> (
+            id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int, dropped: [String]
+        )
     {
         try Self.checkText(name)
         guard at.isInRange else { throw .frameOutOfRange }
@@ -171,6 +177,8 @@ extension Session {
         guard !added.isEmpty else { throw .noWordOnTrack(track) }
         // The ID comes before the replace, so a re-import never gives the ID of a transcript that it empties.
         let id = nextTranscriptID
+        let dropped = transcriptsNotLoaded
+        for transcript in dropped { transcripts[transcript.id] = nil }
         for (fileID, anchors) in added {
             let span = anchors.map(\.range.lowerBound).min()!...anchors.map(\.range.upperBound).max()!
             for old in transcripts.keys {
@@ -179,7 +187,7 @@ extension Session {
             }
         }
         try insertTranscript(Transcript(id: id, name: name, words: added.mapValues(Anchors.init)))
-        return (id, added.values.map(\.count).reduce(0, +), skipped, untimed, repeats)
+        return (id, added.values.map(\.count).reduce(0, +), skipped, untimed, repeats, dropped.map(\.name))
     }
 
     /// Sets the words of `file` in transcript `id`. No word removes the file from the transcript,
@@ -187,6 +195,11 @@ extension Session {
     mutating func setWords(_ anchors: [Anchor], file: FileID, transcript id: TranscriptID) {
         transcripts[id]?.words?[file] = anchors.isEmpty ? nil : Anchors(anchors)
         if transcripts[id]?.words?.isEmpty == true { transcripts[id] = nil }
+    }
+
+    /// The transcripts whose file did not load at the open, by ID (decision 0055).
+    public var transcriptsNotLoaded: [(id: TranscriptID, name: String)] {
+        transcripts.values.filter { $0.words == nil }.sorted { $0.id < $1.id }.map { ($0.id, $0.name) }
     }
 
     /// The ID of a new transcript: one more than the largest ID.
@@ -204,12 +217,17 @@ extension Session {
 
     /// Gives each transcript with no words the words that `words` returns for it, when they pass
     /// `checkWords`. The value keeps the file name of its reference, so an open and a save with no
-    /// edit keep the file (decision 0055).
+    /// edit keep the file (decision 0055). The words of a file that is not in the pool (a
+    /// `removeFile` while the transcript did not load) go, which gives a new file name; a
+    /// transcript with no word left goes.
     mutating func resolveTranscripts(_ words: (Transcript) -> [FileID: Anchors]?) {
         for transcript in transcripts.values where transcript.words == nil {
-            guard let found = words(transcript), !found.isEmpty, (try? checkWords(found)) != nil else { continue }
-            transcripts[transcript.id] = Transcript(
-                id: transcript.id, name: transcript.name, file: transcript.file, words: found)
+            guard let found = words(transcript), !found.isEmpty else { continue }
+            let kept = found.filter { files[$0.key] != nil }
+            guard (try? checkWords(kept)) != nil else { continue }
+            var loaded = Transcript(id: transcript.id, name: transcript.name, file: transcript.file, words: found)
+            loaded.words = kept
+            transcripts[transcript.id] = kept.isEmpty ? nil : loaded
         }
     }
 

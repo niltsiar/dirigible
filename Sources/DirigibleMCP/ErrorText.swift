@@ -210,6 +210,11 @@ extension SessionError {
         case .wordOutsideFile(let id): "a transcript word of file \"\(id)\" is not inside the file."
         case .nothingToCut: "the words have no audio to cut."
         case .noWordOnTrack(let id): "no word of the transcript is over a clip of track \"\(id)\"."
+        case .transcriptNotLoaded(let ids):
+            ids.count == 1
+                ? "transcript \(ids[0]) did not load: its file is missing or damaged. Import the transcript again."
+                : "transcripts \(ids.map(\.description).joined(separator: ", ")) did not load: their files are missing "
+                    + "or damaged. Import the transcripts again."
         }
     }
 }

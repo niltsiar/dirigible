@@ -143,4 +143,13 @@ struct TranscriptPasteTests {
         #expect(FileManager.default.fileExists(atPath: package.appending(path: "Transcripts/\(name).xml").path))
         #expect(try Session(contentsOf: package).words().map(\.text) == ["Hello", "world"])
     }
+
+    /// T15, T23. A paste from a source whose transcript did not load adds no transcript.
+    @Test func aTranscriptNotLoadedIsNotPasted() throws {
+        var source = try source()
+        source.transcripts[TranscriptID(1)]?.words = nil
+        var target = try target()
+        try paste(try source.excerpt(of: ["H"]), into: &target)
+        #expect(target.transcripts.isEmpty && target.track("t")?.clips.count == 1)
+    }
 }

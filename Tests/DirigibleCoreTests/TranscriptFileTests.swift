@@ -129,12 +129,6 @@ struct TranscriptFileTests {
         #expect(onlyNotLoaded(2, in: opened))
     }
 
-    /// A `<words>` of a file that is not in the pool does not load.
-    @Test func unknownFileIsNotLoaded() throws {
-        let opened = try open(transcribed(), replacing: #"<words file="h">"#, with: #"<words file="nope">"#)
-        #expect(onlyNotLoaded(1, in: opened))
-    }
-
     /// Two words of one number in one file and an empty text do not load their transcript. A
     /// transcript ID that is not a number of 1 or more, and two references of one ID, are refused.
     @Test func numbersAndIDsAreChecked() throws {

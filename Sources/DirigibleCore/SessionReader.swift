@@ -218,8 +218,8 @@ extension Episode {
 
 extension Transcript {
     /// One `<transcript>`. A line splits at its first three spaces. A number below 1, a start or an
-    /// end that is not an integer, an end before the start, and a second `<words>` of one file are
-    /// refused here; `Session.addTranscript` checks the rest.
+    /// end that is not an integer, an end before the start, a second `<words>` of one file, and a
+    /// transcript with no `<words>` are refused here; `Session.addTranscript` checks the rest.
     fileprivate init(_ node: XMLElement) throws(SessionFileError) {
         guard let number = Int(try node.string("id")), number >= 1 else {
             throw .invalidValue(element: "transcript", attribute: "id")
@@ -239,6 +239,7 @@ extension Transcript {
             }
             words[file] = Anchors(anchors)
         }
+        guard !words.isEmpty else { throw .invalidValue(element: "transcript", attribute: "words") }
         self.init(id: TranscriptID(number), name: try node.string("name"), words: words)
     }
 }

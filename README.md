@@ -112,7 +112,7 @@ This command also lets the dirigible tool run. If Dirigible is not in the Applic
 
 ## User guide
 
-The [user guide](docs/guide.md) shows how to record, edit, and export an episode. It also lists each menu command with its key. In the app, choose **Help > Dirigible Guide**.
+The [user guide](docs/guide.md) shows how to record, edit, and export an episode. It also lists each menu command with its key. In the app, choose **Help > Dirigible Guide**. Before a show, do the steps in [Before you record a show](docs/guide.md#before-you-record-a-show).
 
 ## The dirigible tool
 
@@ -124,6 +124,8 @@ ls /Applications/Dirigible.app/Contents/Helpers/dirigible && sudo ln -sf /Applic
 ```
 
 If you have no administrator rights, add this line to `~/.zprofile` in its place: `export PATH="/Applications/Dirigible.app/Contents/Helpers:$PATH"`. If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`. The guide shows the commands in [The dirigible tool](docs/guide.md#the-dirigible-tool).
+
+Open the app once before you run the tool. Until then, macOS shows a warning that Dirigible.app was not opened, and the tool does not run. Click **Done**, then do the steps in [Open Dirigible for the first time](#open-dirigible-for-the-first-time).
 
 An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a session through `dirigible mcp`. Dirigible > Settings > Copy Setup Command copies the setup command of your agent. With Let Agents Edit Open Sessions on, an agent edits an open session in the app, and each edit is one Undo step. A take of an agent starts only when you click Record in its sheet, or while a window grant that you gave lasts. See [Connect an AI agent](docs/guide.md#connect-an-ai-agent). [What you can ask an agent](docs/guide.md#what-you-can-ask-an-agent) gives example requests, the recipes, and the agent skill.
 

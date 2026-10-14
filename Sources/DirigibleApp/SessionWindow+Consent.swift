@@ -21,6 +21,8 @@ struct ConsentAttention {
     var isActive: @MainActor () -> Bool = { NSApp.isActive }
     var request: @MainActor () -> Int = { NSApp.requestUserAttention(.criticalRequest) }
     var cancel: @MainActor (Int) -> Void = { NSApp.cancelUserAttentionRequest($0) }
+    /// One bounce of the Dock icon at the start of an agent take in the background (decision 0050).
+    var inform: @MainActor () -> Void = { _ = NSApp.requestUserAttention(.informationalRequest) }
 }
 
 /// The agent of a request that ended with no answer. The banner shows until the next edit.
@@ -204,6 +206,7 @@ extension SessionWindow {
             agentRecord.grant = given
             grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: false)
         }
+        if case .started(let take) = start { agentTakeStarted(consent, take: take, byGrant: false) }
         endConsent(answer(start, consent, grant: grant))
     }
 
@@ -320,6 +323,7 @@ extension SessionWindow {
             agentRecord.grant = given
             grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: true)
         }
+        if case .started(let take) = start { agentTakeStarted(consent, take: take, byGrant: true) }
         let answer = answer(start, consent, grant: grant)
         if self.consent === consent { endConsent(answer) }
         return answer

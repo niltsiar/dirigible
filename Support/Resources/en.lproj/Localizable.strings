@@ -216,6 +216,10 @@
 "track.listen.loopback" = "No monitor sound: the output can feed this input. Choose another output.";
 "track.dropped" = "Dropped frames: %lld";
 "take.recording" = "Recording take %lld";
+"take.agent" = "Take %1$lld records %2$@ for an AI agent (it says: “%3$@”) · %4$@ left";
+"take.agent.unnamed" = "Take %1$lld records %2$@ for an AI agent · %3$@ left";
+"take.agent.always.ask" = "Always Ask Again";
+"dock.badge.recording" = "REC";
 "take.finishing" = "Finishing take %lld…";
 "take.placing" = "Placing %@…";
 "take.leveling" = "Leveling clips…";

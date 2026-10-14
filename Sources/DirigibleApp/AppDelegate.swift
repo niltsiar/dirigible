@@ -49,6 +49,8 @@ import UniformTypeIdentifiers
     /// True from the Quit decision until a cancel: no start window shows (decision 0027), and
     /// each agent edit is refused (decision 0046).
     @ObservationIgnored private(set) var terminating = false
+    /// Sets the Dock badge (decision 0050). Tests give their own.
+    @ObservationIgnored var dockBadge: @MainActor (String?) -> Void = { NSApp.dockTile.badgeLabel = $0 }
     /// The socket of the agent server. Tests give a short path of their own.
     @ObservationIgnored let agentSocket: URL
     /// The agent server (decision 0046). The Settings switch starts and stops it.

@@ -79,7 +79,18 @@ struct TakeBanner: View {
         switch studio.transport {
         case .recording(let take):
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                BannerRow(kind: .recording, text: L10n.takeRecording.format(take) + "  " + elapsed(at: context.date))
+                if let agent = model.agentRecord.take, agent.take == take {
+                    // An agent take (decision 0050): Stop, and Always Ask Again while a grant lives.
+                    BannerRow(kind: .recording, text: model.agentTakeText(agent)) {
+                        Button(L10n.transportStop.key) { Task { await model.stop() } }
+                        if model.agentRecord.grant != nil {
+                            Button(L10n.takeAgentAlwaysAsk.key) { model.alwaysAskAgain() }
+                        }
+                    }
+                } else {
+                    BannerRow(
+                        kind: .recording, text: L10n.takeRecording.format(take) + "  " + elapsed(at: context.date))
+                }
             }
         case .finalizing(let take):
             BannerRow(kind: .info, text: L10n.takeFinishing.format(take))

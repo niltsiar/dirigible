@@ -23,7 +23,8 @@ package struct RecordRequest: Sendable, Equatable {
         + "stops at seconds, and the user ends it earlier with Stop."
     /// A silent app track gives the agent no other sign.
     static let loudnessRule =
-        "After a take, run `loudness`: \"none\" for a clip means that its track got no sound; tell the user."
+        "After a take, run `loudness`: \"none\" for a clip, or a value far below the other tracks (below -50 LUFS), "
+        + "means that its track got almost no sound; tell the user."
     /// The rate limit in words: "3 requests in 1 minute".
     package static var askText: String {
         "\(askLimit) requests in \(units(askWindow.components.seconds / 60, "minute"))"

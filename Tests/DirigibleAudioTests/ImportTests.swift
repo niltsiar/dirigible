@@ -2,6 +2,7 @@ import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -174,11 +175,12 @@ struct ImportTests {
     @Test func aLoudTailProgressesWithNoStepBack() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         try writeSource(package.source("Tail.wav"), .wav16, rate: 44_100, channels: [loudTail(frames: 3 * 65_536)])
-        var values: [Double] = []
+        let box = OSAllocatedUnfairLock(initialState: [Double]())
 
         let (session, clip) = try importAudio(
             package.source("Tail.wav"), to: ImportTarget(track: "t1", start: 0), of: package.session,
-            in: package.url, level: false, progress: { values.append($0) })
+            in: package.url, level: false, progress: { value in box.withLock { $0.append(value) } })
+        let values = box.withLock { $0 }
 
         #expect(session.clip(clip)?.clip.gain != .zero, "two passes")
         #expect(zip(values, values.dropFirst()).allSatisfy { $0 <= $1 }, "progress never goes down: \(values)")
@@ -207,11 +209,12 @@ struct ImportTests {
     @Test func aQuietFileProgressesFromHalfToOne() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         try writeSource(package.source("Quiet.wav"), .wav16, rate: 44_100, channels: [sine(seconds: 3, rate: 44_100)])
-        var values: [Double] = []
+        let box = OSAllocatedUnfairLock(initialState: [Double]())
 
         _ = try importAudio(
             package.source("Quiet.wav"), to: ImportTarget(track: "t1", start: 0), of: package.session,
-            in: package.url, level: false, progress: { values.append($0) })
+            in: package.url, level: false, progress: { value in box.withLock { $0.append(value) } })
+        let values = box.withLock { $0 }
 
         #expect(values.dropLast().allSatisfy { $0 <= 0.5 } && values.last == 1, "one pass ends at 1: \(values)")
     }
@@ -220,7 +223,7 @@ struct ImportTests {
 /// `importAudio` with a free space that always passes, for the tests that do not check the disk.
 func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
-    progress: @escaping (Double) -> Void = { _ in }, isCancelled: @escaping () -> Bool = { false }
+    progress: @escaping @Sendable (Double) -> Void = { _ in }, isCancelled: @escaping @Sendable () -> Bool = { false }
 ) throws(ImportError) -> (session: Session, clip: ClipID) {
     try DirigibleAudio.importAudio(
         source, to: target, of: session, in: package, level: level, freeBytes: { .max }, progress: progress,

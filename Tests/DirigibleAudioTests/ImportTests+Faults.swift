@@ -2,6 +2,7 @@ import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -73,18 +74,20 @@ struct ImportFaultTests {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         let source = package.source("Long.wav")
         try writeSource(source, .wav16, rate: 44_100, channels: [sine(seconds: 4, rate: 44_100)])
-        var (reads, values) = (0, [Double]())
+        let (reads, box) = (OSAllocatedUnfairLock(initialState: 0), OSAllocatedUnfairLock(initialState: [Double]()))
 
         #expect(throws: ImportError.cancelled) {
             try importAudio(
                 source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
-                progress: { values.append($0) },
+                progress: { value in box.withLock { $0.append(value) } },
                 isCancelled: {
-                    reads += 1
-                    return reads >= 2
+                    reads.withLock { reads in
+                        reads += 1
+                        return reads >= 2
+                    }
                 })
         }
-        #expect(values.count == 1, "the import ends before the second block")
+        #expect(box.withLock { $0.count } == 1, "the import ends before the second block")
         #expect(package.clipsNames == [], "the cancel leaves no temporary file")
     }
 
@@ -92,13 +95,15 @@ struct ImportFaultTests {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         let source = package.source("Tail.wav")
         try writeSource(source, .wav16, rate: 44_100, channels: [loudTail(frames: 3 * 65_536)])
-        var values: [Double] = []
+        let box = OSAllocatedUnfairLock(initialState: [Double]())
 
         #expect(throws: ImportError.cancelled) {
             try importAudio(
                 source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
-                progress: { values.append($0) }, isCancelled: { values.last ?? 0 > 0.5 })
+                progress: { value in box.withLock { $0.append(value) } },
+                isCancelled: { box.withLock { $0.last ?? 0 > 0.5 } })
         }
+        let values = box.withLock { $0 }
         #expect(values.filter { $0 > 0.5 }.count == 1, "the second pass ends after the flag: \(values)")
         #expect(package.clipsNames == [], "the cancel leaves no temporary file")
     }
@@ -109,17 +114,19 @@ struct ImportFaultTests {
         let source = package.source("Voice.wav")
         try writeSource(source, .wav16, rate: 48_000, channels: [sine(seconds: 1, rate: 48_000)])
         let wav = package.clip("Voice.wav")
-        var renamed = false
+        let renamed = OSAllocatedUnfairLock(initialState: false)
 
         #expect(throws: ImportError.cancelled, "a cancel after the rename throws") {
             try importAudio(
                 source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
                 isCancelled: {
-                    renamed = renamed || FileManager.default.fileExists(atPath: wav.path)
-                    return renamed
+                    renamed.withLock { seen in
+                        seen = seen || FileManager.default.fileExists(atPath: wav.path)
+                        return seen
+                    }
                 })
         }
-        #expect(renamed, "the rename happened")
+        #expect(renamed.withLock { $0 }, "the rename happened")
         #expect(package.clipsNames == [], "the WAV goes")
     }
 
@@ -129,13 +136,15 @@ struct ImportFaultTests {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         let source = package.source("Voice.wav")
         try writeSource(source, .wav16, rate: 48_000, channels: [sine(seconds: 3, rate: 48_000)])
-        var values: [Double] = []
+        let box = OSAllocatedUnfairLock(initialState: [Double]())
 
         #expect(throws: ImportError.cancelled) {
             try importAudio(
                 source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
-                progress: { values.append($0) }, isCancelled: { values.last ?? 0 > 0.8 })
+                progress: { value in box.withLock { $0.append(value) } },
+                isCancelled: { box.withLock { $0.last ?? 0 > 0.8 } })
         }
+        let values = box.withLock { $0 }
         #expect(values.filter { $0 > 0.8 }.count == 1, "the level ends at the block after the flag: \(values)")
         #expect(package.clipsNames == [], "the WAV goes")
     }

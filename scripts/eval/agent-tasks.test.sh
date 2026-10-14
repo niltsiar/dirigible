@@ -114,11 +114,12 @@ grep -qE "^no-device	T10	-	skipped" "$tmp/no-device.log" || fail "no skipped ver
 # A skip counts in no pass count (code gate 1 item 3).
 grep -qE "	T10	pass 0 of 0	skipped$" "$tmp/no-device.log" || fail "a skipped T10 counts as a run: $(cat "$tmp/no-device.log")"
 
-# The T9 prompt has the transcript and the two sentences of its targets (W12).
+# The T9 prompt has the path of the transcript and the two sentences of its targets (W12, run
+# transcript-1: the recipe gives the path first).
 run transcript T9
 grep -q 'Sorry, let me say that again.' "$tmp/results/transcript/T9/stream.jsonl" 2>/dev/null \
     && grep -q 'export of the current session from frame 0' "$tmp/results/transcript/T9/stream.jsonl" \
-    && grep -q 'words' "$tmp/results/transcript/T9/stream.jsonl" \
+    && grep -qE 'The file [^ ]*/transcript.json is a Whisper JSON transcript' "$tmp/results/transcript/T9/stream.jsonl" \
     || fail "the T9 prompt has no transcript: $(cat "$tmp/results/transcript/T9/stream.jsonl" 2>/dev/null)"
 
 # The grade of T9 and T10 from hand-made results (W12, W13). T9: the two cuts from the last to

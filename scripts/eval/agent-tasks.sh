@@ -3,7 +3,7 @@
 # session with the dirigible MCP tools, the CLI, or the bundled skill. Then grade them.
 # Usage: scripts/eval/agent-tasks.sh <dirigible binary> <results folder> <model> <label> [<task>...]
 #   The tasks are T1 to T10 (default: T1 to T8). Put the results folder in the eval/ folder of the run.
-#   T9 gives the transcript of scripts/eval/agent-transcript.json. T10 routes host to the first
+#   T9 gives the path of a copy of the segments of scripts/eval/agent-transcript.json. T10 routes host to the first
 #   device of `dirigible devices`, which the batch writes to <results>/devices-<label>.txt. T10
 #   runs only in the MCP variant, with the audio server: with no device, it is skipped.
 #   SHELL_CLI=1 also gives Bash, allowed for the copied CLI only (the shell variant).
@@ -49,7 +49,7 @@ prompt() {
         T6) echo 'In the Dirigible session {S}, cut the part from 0:30 to 0:40 out of the episode, and keep the host and the guest in sync.' ;;
         T7) echo 'Prepare the episode in the Dirigible session {S} for publishing as an MP3 file in the folder {OUT}. The title is "Home studios" and the show is "Gear Talk".' ;;
         T8) echo 'In the Dirigible session {S}, record 10 seconds on the host track.' ;;
-        T9) echo 'In the Dirigible session {S}, cut the sentences "{CUT1}" and "{CUT2}" out of the episode on all tracks. The transcript below has word times in seconds; it is of an export of the current session from frame 0. I agree to both cuts: do not ask me again. Transcript: {TRANSCRIPT}' ;;
+        T9) echo 'In the Dirigible session {S}, cut the sentences "{CUT1}" and "{CUT2}" out of the episode on all tracks. The file {TRANSCRIPT} is a Whisper JSON transcript with word times in seconds; it is of an export of the current session from frame 0. I agree to both cuts: do not ask me again.' ;;
         T10) echo 'In the Dirigible session {S}, record the host track from the input device "{DEVICE}", channel 1. Only set up the track: do not start a recording.' ;;
         *) echo "agent-tasks.sh: no task $1" >&2; return 2 ;;
     esac
@@ -93,7 +93,10 @@ run_task() {
         cuts="$(python3 -I -c 'import json, sys; d = json.load(open(sys.argv[1])); print("\n".join(d["segments"][i]["text"] for i in d["targets"]))' "$transcript")"
         text="${text//\{CUT1\}/${cuts%%$'\n'*}}"
         text="${text//\{CUT2\}/${cuts#*$'\n'}}"
-        text="${text//\{TRANSCRIPT\}/$(python3 -I -c 'import json, sys; print(json.dumps({"segments": json.load(open(sys.argv[1]))["segments"]}))' "$transcript")}"
+        # The segments only, in a file of the task folder: the recipe gives the path first.
+        python3 -I -c 'import json, sys; print(json.dumps({"segments": json.load(open(sys.argv[1]))["segments"]}))' \
+            "$transcript" >"$t/transcript.json"
+        text="${text//\{TRANSCRIPT\}/$t/transcript.json}"
     fi
     local tools=(--tools "") allowed=(--allowedTools mcp__dirigible)
     printf '{"mcpServers": {"dirigible": {"command": "/usr/bin/env", "args": ["DIRIGIBLE_MCP_SOCKET=%s/no-app.sock", "%s/dirigible", "mcp"]}}}\n' \

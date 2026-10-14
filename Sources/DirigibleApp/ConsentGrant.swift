@@ -13,14 +13,24 @@ struct ConsentGrant {
     static let takeSeconds = 7200.0
 
     let connection: AgentConnection
-    /// The route of each grant track at the click.
-    let routes: [TrackID: Route]
+    /// The route of each grant track that the sheet showed.
+    let routes: [TrackID: DeviceRoute]
     /// The end on `ContinuousClock`, which counts the sleep of the Mac.
     let end: ContinuousClock.Instant
     /// The end on the wall clock, for the reply text.
     let wallEnd: Date
     /// The take length that the grant has left, in seconds. Only a grant take uses it.
     var secondsLeft = takeSeconds
+
+    /// Nil when a route is an app route: a grant never covers an app.
+    init?(connection: AgentConnection, routes: [TrackID: Route], end: ContinuousClock.Instant, wallEnd: Date) {
+        var devices: [TrackID: DeviceRoute] = [:]
+        for (id, route) in routes {
+            guard let device = DeviceRoute(route) else { return nil }
+            devices[id] = device
+        }
+        (self.connection, self.routes, self.end, self.wallEnd) = (connection, devices, end, wallEnd)
+    }
 
     /// True when the request can get a grant (C1): it has a connection, each track has a device
     /// route, no track has a clip after the start, and the length is 2 h or less.
@@ -38,8 +48,22 @@ struct ConsentGrant {
     ) -> Bool {
         guard connection == self.connection, now < end, seconds <= secondsLeft, over.isEmpty else { return false }
         guard Set(tracks) == Set(routes.keys), tracks.count == routes.count else { return false }
-        return tracks.allSatisfy { id in session.track(id)?.route == routes[id] }
+        return tracks.allSatisfy { id in session.track(id)?.route == routes[id]?.route }
     }
+}
+
+/// The device route of a grant track. The type has no app route.
+struct DeviceRoute: Equatable {
+    let uid: String
+    let channels: Route.Channels
+
+    /// Nil for an app route.
+    init?(_ route: Route) {
+        guard case .device(let uid, let channels) = route else { return nil }
+        (self.uid, self.channels) = (uid, channels)
+    }
+
+    var route: Route { .device(uid: uid, channels: channels) }
 }
 
 /// A take that an agent started, while it records (decision 0050): the take row, the Dock

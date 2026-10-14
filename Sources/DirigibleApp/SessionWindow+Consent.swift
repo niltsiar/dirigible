@@ -56,6 +56,8 @@ final class ConsentRequest {
     var grantChecked = false
     /// The names of the request tracks with an app route (C9).
     let appTracks: [String]
+    /// The route of each request track at the ask: the routes that the sheet shows.
+    let routes: [TrackID: Route]
     private(set) var phase = Phase.checking
     /// True when a press of Record counts (C8). The window sets it.
     var recordEnabled = false
@@ -81,11 +83,15 @@ final class ConsentRequest {
         self.connection = connection
         offersGrant = ConsentGrant.offered(tracks: tracks, over: over, seconds: seconds, connection: connection)
         appTracks = tracks.filter { if case .app = $0.route { true } else { false } }.map(\.name)
+        routes = Dictionary(uniqueKeysWithValues: tracks.compactMap { track in track.route.map { (track.id, $0) } })
         activity = LatencyActivity(reason: Self.activityReason)
     }
 
     /// Waits for the one answer. The window calls it right after the ask, with no await between.
     func wait() async -> RecordAnswer { await withCheckedContinuation { reply = $0 } }
+
+    /// True when each request track has the route of the ask in `session`.
+    func routesShown(in session: Session) -> Bool { tracks.allSatisfy { session.track($0)?.route == routes[$0] } }
 
     /// The checks passed: the sheet shows.
     func ask() { phase = .waiting }
@@ -196,15 +202,18 @@ extension SessionWindow {
         // A second guard of the click delay, after the disabled button (C8).
         guard canPressRecord(consent) else { return }
         consent.begin()
-        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds)
+        // After the microphone prompt: a route that changed after the sheet showed starts no take.
+        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
+            [weak self, weak consent] in
+            guard let self, let consent, let session = self.studio?.session else { return false }
+            return consent.routesShown(in: session)
+        }
         var grant: GrantNote?
-        if case .started = start, consent.grantChecked, let connection = consent.connection,
-            let session = studio?.session
-        {
-            let routes = consent.tracks.compactMap { id in session.track(id)?.route.map { (id, $0) } }
+        if case .started = start, consent.offersGrant, consent.grantChecked, let connection = consent.connection,
             let given = ConsentGrant(
-                connection: connection, routes: Dictionary(uniqueKeysWithValues: routes),
-                end: agentRecord.now() + ConsentGrant.lifetime, wallEnd: .now + ConsentGrant.lifetime / .seconds(1))
+                connection: connection, routes: consent.routes, end: agentRecord.now() + ConsentGrant.lifetime,
+                wallEnd: .now + ConsentGrant.lifetime / .seconds(1))
+        {
             agentRecord.grant = given
             grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: false)
         }

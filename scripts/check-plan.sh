@@ -27,10 +27,10 @@
 # - Each record file `docs/decisions/<n>-<name>.md` that plan.md names, and that is not on
 #   origin/main, is a record that the plan makes (also when the run has written it in the work
 #   tree). Its number needs an entry "<n> <title> (run <run folder>" on the `Decision numbers`
-#   line of the ledger.md beside runs/ (deliver Phase 2), so two parallel runs cannot take one
-#   number. Another record with that number in the work tree or on origin/main fails. A cited
-#   number with no record file path does not count. A run whose first phase 3 row is older than
-#   the rule is not checked.
+#   line of the ledger.md beside runs/ (line 3 of that file gives the reservation instruction), so
+#   two parallel runs cannot take one number. Another record with that number in the work tree or
+#   on origin/main fails. A cited number with no record file path does not count. A run whose
+#   first phase 3 row is older than the rule is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }

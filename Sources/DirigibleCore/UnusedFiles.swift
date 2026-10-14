@@ -23,7 +23,8 @@ public struct UnusedFiles: Hashable, Sendable {
         /// replaced at the path is another item, so an intersection drops it.
         let identity: FileIdentity?
     }
-    /// The files that a clip of a keeper uses, which the list does not have.
+    /// The files that a clip of a keeper uses, and the transcript files that only a keeper names,
+    /// which the list does not have.
     public struct Kept: Hashable, Sendable {
         public let count: Int
         public let bytes: Int64
@@ -103,9 +104,15 @@ public struct UnusedFiles: Hashable, Sendable {
             }
             items.append(Item(kind: kind, path: path, bytes: bytes, identity: identity))
         }
-        let holders = Set(([session] + held + keepers).flatMap(\.transcriptFiles))
-        items += try Self.transcriptItems(in: package).filter {
-            if case .transcript(let name) = $0.kind { !holders.contains(name) } else { false }
+        let ownNames = session.transcriptFiles
+        let heldNames = Set((held + keepers).flatMap(\.transcriptFiles))
+        for item in try Self.transcriptItems(in: package) {
+            guard case .transcript(let name) = item.kind, !ownNames.contains(name) else { continue }
+            if heldNames.contains(name) {
+                kept = Kept(count: kept.count + 1, bytes: kept.bytes + item.bytes)
+            } else {
+                items.append(item)
+            }
         }
         self.init(
             items: items.sorted { $0.path < $1.path }, kept: kept, damagedBackups: damaged, notFiles: notFiles.sorted())

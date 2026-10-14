@@ -44,7 +44,8 @@ enum TranscriptStore {
 
     /// The words of a transcript file. Another root or namespace, a version that is not 1, a line
     /// that does not split at its first three spaces into a number of 1 or more, two integers, and
-    /// a text, an end before the start, two `<words>` of one file, and no `<words>` throw here;
+    /// a text, an end before the start, a frame outside `Frames.isInRange` (the midpoint of
+    /// `Anchors` must not overflow), two `<words>` of one file, and no `<words>` throw here;
     /// `Session.checkWords` checks the rest.
     static func decode(_ data: Data) throws(SessionFileError) -> [FileID: Anchors] {
         guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
@@ -67,7 +68,9 @@ enum TranscriptStore {
                 guard fields.count == 4, let number = Int(fields[0]), number >= 1, let start = Int(fields[1]),
                     let end = Int(fields[2])
                 else { throw .invalidValue(element: "words", attribute: "line") }
-                guard start <= end else { throw .invalidSession(.wordOutsideFile(file)) }
+                guard start <= end, Frames(start).isInRange, Frames(end).isInRange else {
+                    throw .invalidSession(.wordOutsideFile(file))
+                }
                 anchors.append(Anchor(number: number, range: Frames(start)..<Frames(end), text: String(fields[3])))
             }
             words[file] = Anchors(anchors)

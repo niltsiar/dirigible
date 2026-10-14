@@ -12,7 +12,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 - For reversible work (AGENTS.md, Git), choose a default, log it in `decisions.tsv`, and continue. Its row result starts with `default`; its why and the PR body name what reverses it (`Reverse:`). `scripts/land.sh` needs no question. A privacy prompt of the verify copy: `driving-the-app.md`.
 - A row result starts with its token when one applies: `failed` or `fail` (a check failed, not a planned red), `flake`, `survived` (a mutant), `NOT VERIFIED`, or `missed unknown`. A token wins over `default`; then start the decision with `default`. A changed criterion starts the decision with `criterion change` (`log-decision.sh` checks it).
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
-- Subagents do bulk reading and return conclusions. A subagent prompt names each run file it writes (`analysis.md`, `plan.md`, `design.md`) as a required ledger file. Read each `new-run.sh` skeleton, then Edit it. If Write refuses another run file, write `<name>.txt` and `mv` it. Never return a run file only as text.
+- Subagents do bulk reading and return conclusions. A subagent prompt names each run file that it writes as a required ledger file. Read each `new-run.sh` skeleton, then Edit it. If Write refuses another run file, write `<name>.txt` and `mv` it. Never return a run file only as text.
 - A subagent waits in the foreground for a loop, a lock, a build, or a test: 10 min or less per call. Split a longer loop; a longer command returns to the lead. A background wait floods the caller.
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
@@ -57,7 +57,7 @@ Write `plan.md`:
 | Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
-- At each risk level, the red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. Decision 0028 says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.
+- The red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. Decision 0028 says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.
 - Each gate has `maxRounds: 2`; round 2 runs only on a critical item, or with `risk: yes` on a warning.
 
 ## Phase 3: Plan gate
@@ -85,10 +85,9 @@ Before the gate, run `scripts/check-changed.sh origin/main`. When its classes or
 
 Run the **interrogate** skill with target `diff` and the lenses and rounds of the class table.
 
-- Fix each "Act on" item in its own commit, a bug fix with its regression test.
-- Put each "Consider" item that you skip in `## Later`, with the reason.
+- Fix each "Act on" item and each flake in its own commit, with its regression test and the Phase 2 grep. Check a visible fix as in Phase 4 step 5.
+- Put each skipped "Consider" item in `## Later`, with the reason.
 - When a user decision reverts a fix, write its symptom in the manual checks and in `pr.md`.
-- Run the rounds as in Phase 3.
 
 ## Phase 7: Verify
 
@@ -96,7 +95,7 @@ Run the **verify-this** skill for each criterion against the real artifact (the 
 
 ## Phase 8: Reflect
 
-Run the **reflect** skill on the branch. Then move each `## Later` item that this run made due to `## Next`, and each `(taken: run <run>` item out.
+Run the **reflect** skill on the branch. Then move each `## Later` item that this run made due to `## Next`, and each taken item out (`check-governance.sh` refuses it).
 
 ## Phase 9: Land through a pull request
 

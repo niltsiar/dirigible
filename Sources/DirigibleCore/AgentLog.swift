@@ -68,17 +68,14 @@ public enum AgentLog {
         case failed(Int32)
     }
 
-    /// Appends `entry` to the log of `package`. A new file, or a file of 0 bytes, gets the
-    /// version line, the header, and the entry in one `write()`.
+    /// Appends `entry` to the log of `package`. A new file gets the version line, the header, and
+    /// the entry in one step, so a failed first write leaves no file. A file of 0 bytes gets them
+    /// in one `write()`. After a partial last line, the entry starts on a new line.
     public static func append(_ entry: Entry, to package: URL) -> Result {
         let path = package.appending(path: fileName).path
         let first = versionText + "\(version)\n" + header + "\n" + entry.line
-        let created = open(path, O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_CLOEXEC, 0o644)
-        if created >= 0 {
-            defer { close(created) }
-            return write(first, to: created)
-        }
-        guard errno == EEXIST else { return .failed(errno) }
+        let created = create(first, at: path)
+        guard created == .failed(EEXIST) else { return created }
         let fd = open(path, O_RDWR | O_APPEND | O_CLOEXEC)
         guard fd >= 0 else { return .failed(errno) }
         defer { close(fd) }
@@ -92,7 +89,23 @@ public enum AgentLog {
             !digits.isEmpty, digits.allSatisfy({ $0.isASCII && $0.isNumber }), let found = Int(digits)
         else { return .unreadable }
         guard found <= version else { return .newer(found) }
-        return write(entry.line, to: fd)
+        var last: UInt8 = 0
+        let end = lseek(fd, 0, SEEK_END)
+        guard end > 0, pread(fd, &last, 1, end - 1) == 1 else { return .failed(errno) }
+        return write((last == UInt8(ascii: "\n") ? "" : "\n") + entry.line, to: fd)
+    }
+
+    /// Writes `text` to a temporary file in the package, then renames it to `path` only when
+    /// `path` does not exist (`RENAME_EXCL`). Gives `.failed(EEXIST)` when it exists.
+    private static func create(_ text: String, at path: String) -> Result {
+        let temporary = path + ".\(getpid()).tmp"
+        defer { unlink(temporary) }
+        let fd = open(temporary, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0o644)
+        guard fd >= 0 else { return .failed(errno) }
+        let written = write(text, to: fd)
+        close(fd)
+        guard written == .written else { return written }
+        return renamex_np(temporary, path, UInt32(RENAME_EXCL)) == 0 ? .written : .failed(errno)
     }
 
     private static func write(_ text: String, to fd: Int32) -> Result {

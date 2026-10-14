@@ -15,7 +15,7 @@ public struct TranscriptFileName: Hashable, Sendable, CustomStringConvertible {
 }
 
 /// The folder of the transcript files in a package (decision 0055).
-let transcriptsFolderName = "Transcripts"
+package let transcriptsFolderName = "Transcripts"
 let transcriptNamespace = "https://github.com/niltsiar/dirigible/transcript"
 
 /// `Transcripts/<name>.xml`, format version 1 (decision 0055): one `<words>` element per file ID,

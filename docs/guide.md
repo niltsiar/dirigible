@@ -29,13 +29,14 @@ Do these steps on the Mac of the recording before the show. The Spanish menu nam
 1. Install the new version, and open it once with the steps in the Install section of the README. Choose **Dirigible > About Dirigible** and check the version.
 2. Make sure that macOS is 14.2 or later. On macOS 14.0 and 14.1, Dirigible cannot record the call app.
 3. Connect the microphones and wired headphones, then open Dirigible. Bluetooth headphones add delay to the monitor. Make the session on the disk of the Mac, not on a network disk or in iCloud Drive.
-4. Use the Zoom app or the Teams app. For Google Meet, use Chrome. Safari and FaceTime cannot be a track source. A Chrome track records all the tabs of Chrome, so close the other tabs that play sound.
+4. Use the Zoom app or the Teams app. For Google Meet, use Chrome or Firefox. Safari, Safari Technology Preview, and FaceTime cannot be a track source. A Chrome or Firefox track records all the tabs of the browser, so close the other tabs that play sound.
 5. Join the call before you record. In the audio settings of the call app, set the speaker to the output of macOS. Tell the guest that you record: Dirigible gives the call no notice.
 6. Choose **Track > Add Call Tracks** and the call app. **Host** records the default input of macOS: check the input name in the **Host** header. Add one track for each other microphone ([Set up the tracks](#set-up-the-tracks)).
 7. Choose **Record > Input Levels**. Speak into each microphone, and make sure that the meter of its track moves.
 8. Record a test take of 1 minute while the guest speaks. When macOS asks for the microphone or for System Audio Recording, click **Allow**. After **Stop**, make sure that each track, also **Guest**, shows a waveform.
 9. Connect the power cable and keep the lid open. Dirigible keeps the Mac awake during a take, but a closed lid puts a laptop to sleep. Make sure that "Record time:" in the window subtitle is longer than the show.
-10. During the show, do not change the privacy settings. Before each new take, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop), so that Record does not replace audio. If Dirigible stops during the call, make a new session and record the rest of the call. After the call, open the old session to recover its take ([After a crash](#after-a-crash)).
+10. During the show, do not change the privacy settings. Before each new take, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop), so that Record does not replace audio. To start a take, click the Dirigible session window first, then choose **Record > Record** (Command-R). Make sure that the window shows **Recording take 1** (with the number of the take). When the call app is in front, Command-R goes to the call app.
+11. If Dirigible stops during the call, open Dirigible again. The old session opens and recovers its take by itself: the window shows **Recovering the last take**. Choose **File > New Session** at once, and record the rest of the call in the new session ([After a crash](#after-a-crash)).
 
 ## Record your first episode
 
@@ -431,7 +432,7 @@ Before the show, make a short test take with the call. Then macOS asks for Syste
 
 - One app can feed one track only. Record your own microphone on another track.
 - In the audio settings of the call app, set the speaker to the output of macOS. If the call app plays to another device, the track can record almost no sound.
-- For Google Meet, use Chrome. A Chrome track records all the tabs of Chrome, so close the other tabs that play sound.
+- For Google Meet, use Chrome or Firefox. A Chrome or Firefox track records all the tabs of the browser, so close the other tabs that play sound.
 - When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
 - When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). A header of 56 to 79 pt shows an orange warning symbol: hold the pointer over it to see the text, and click it to open the settings. A lower header shows a red warning symbol with the text as its tooltip. The button opens Privacy & Security in System Settings. On macOS 15, allow Dirigible in **Privacy & Security > Screen & System Audio Recording**, in the list **System Audio Recording Only**. Dirigible tries again 10 and 40 seconds later. The warning goes when the app sound comes, for example when a muted guest speaks. The warning does not stop the take.
 - If Dirigible is on in the list **System Audio Recording Only**, and the track still shows "No sound from" after the guest spoke, stop the take. Then select Dirigible in the list, and click the minus button (**-**) to remove it. Record again, and click **Allow** when macOS asks.
@@ -584,6 +585,8 @@ If the window of a session shows "The session file is damaged." ("El archivo de 
 4. Open the `Backups` folder. The newest backup has the largest name: `session-<date>T<time>Z.xml`, with the time in UTC.
 5. Option-drag the newest backup to the package folder, to put a copy there. Rename the copy to `session.xml`.
 6. Open the session again.
+
+If Dirigible stopped during a take, the backup has no copy of that take: keep the package and the `session.xml` that you moved to the Desktop.
 
 For another error, do not change the package. Remove the cause, for example close the other window, then click **Try Again**.
 

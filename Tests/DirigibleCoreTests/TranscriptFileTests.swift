@@ -101,6 +101,16 @@ struct TranscriptFileTests {
         }
     }
 
+    /// A save with a word outside its file names the rule in its error, and writes no file.
+    @Test func aSaveWithAWordOutsideItsFileNamesTheRule() throws {
+        var session = try transcribed()
+        session.addWords([(3, 999_000..<1_000_001, "late")], file: "h")
+        #expect(throws: SessionFileError.wouldNotReadBack(.invalidSession(.wordOutsideFile("h")))) {
+            try session.write(to: package)
+        }
+        #expect(!FileManager.default.fileExists(atPath: package.appending(path: "Transcripts").path))
+    }
+
     @Test func aWordAtTheFileEndLoads() throws {
         let read = try open(transcribed(), replacing: "2 20000 30000", with: "2 999000 1000000")
         #expect(read.transcripts[TranscriptID(1)]?.words?["h"]?.all.last?.range == 999_000..<1_000_000)

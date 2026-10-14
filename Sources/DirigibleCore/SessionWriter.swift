@@ -108,8 +108,12 @@ extension Session {
 
     /// The XML of the session. A file that does not read back would lock the user out of the
     /// session, so it throws `.wouldNotReadBack` then. The read-back takes the words of each
-    /// transcript from this session by file name, with the checks of an open.
+    /// transcript from this session by file name, with the checks of an open. A word that breaks a
+    /// rule of the import gives that rule as the cause.
     func checkedData() throws(SessionFileError) -> Data {
+        for words in transcripts.values.compactMap(\.words) {
+            do throws(SessionError) { try checkWords(words) } catch { throw .wouldNotReadBack(.invalidSession(error)) }
+        }
         let data = xmlDocument().xmlData(options: .nodePrettyPrint)
         var readBack: Session
         do throws(SessionFileError) {

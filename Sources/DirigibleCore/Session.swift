@@ -62,10 +62,16 @@ public struct Session: Hashable, Sendable {
         files[file.id] = file
     }
 
+    /// Removes the file record and the transcript words of the file.
     public mutating func removeFile(_ id: FileID) throws(SessionError) {
         guard files[id] != nil else { throw .unknownFile(id) }
         guard !tracks.contains(where: { $0.clips.contains { $0.file == id } }) else { throw .fileInUse(id) }
         files[id] = nil
+        // The words of the file go too, and a transcript with no word left (decision 0055).
+        for transcript in transcripts.keys {
+            transcripts[transcript]?.words[id] = nil
+            if transcripts[transcript]?.words.isEmpty == true { transcripts[transcript] = nil }
+        }
     }
 
     /// A relative path with no ".." component, so the file stays inside `Clips/`.

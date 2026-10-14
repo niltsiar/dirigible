@@ -29,14 +29,25 @@ public struct Excerpt: Hashable, Sendable {
     public let sampleRate: Int
     /// The pool record of each file that a clip names, and no other.
     public internal(set) var files: [FileID: AudioFile]
+    /// The transcripts of the source with the words of `files` only, so a paste into another
+    /// package brings them (decision 0055).
+    var transcripts: [TranscriptID: Transcript] = [:]
 
-    init(kind: Kind, length: Frames, lanes: [Lane], sampleRate: Int, pool: [FileID: AudioFile]) {
+    init(
+        kind: Kind, length: Frames, lanes: [Lane], sampleRate: Int, pool: [FileID: AudioFile],
+        transcripts: [TranscriptID: Transcript] = [:]
+    ) {
         self.kind = kind
         self.length = length
         self.lanes = lanes
         self.sampleRate = sampleRate
         let named = Set(lanes.flatMap { $0.clips.map(\.file) })
         files = pool.filter { named.contains($0.key) }
+        self.transcripts = transcripts.compactMapValues { transcript in
+            var kept = transcript
+            kept.words = transcript.words.filter { named.contains($0.key) }
+            return kept.words.isEmpty ? nil : kept
+        }
     }
 
     /// The excerpt with each clip file replaced by the ID of its record in `records`, and those
@@ -54,6 +65,13 @@ public struct Excerpt: Hashable, Sendable {
             }
         }
         mapped.files = used
+        mapped.transcripts = transcripts.mapValues { transcript in
+            var moved = transcript
+            moved.words = Dictionary(
+                transcript.words.compactMap { file, anchors in records[file].map { ($0.id, anchors) } },
+                uniquingKeysWith: { first, _ in first })
+            return moved
+        }
         return mapped
     }
 }
@@ -77,8 +95,9 @@ extension Session {
             lanes.append(Excerpt.Lane(source: id, name: track.name, layout: track.layout, clips: clips))
         }
         return Excerpt(
-            kind: .range, length: range.upperBound - range.lowerBound, lanes: lanes, sampleRate: sampleRate, pool: files
-        )
+            kind: .range, length: range.upperBound - range.lowerBound, lanes: lanes, sampleRate: sampleRate,
+            pool: files,
+            transcripts: transcripts)
     }
 
     /// The whole clips of a clip set (decision 0038). The starts are relative to the first start,
@@ -104,7 +123,9 @@ extension Session {
                     return clip
                 })
         }
-        return Excerpt(kind: .clips, length: end - start, lanes: lanes, sampleRate: sampleRate, pool: files)
+        return Excerpt(
+            kind: .clips, length: end - start, lanes: lanes, sampleRate: sampleRate, pool: files,
+            transcripts: transcripts)
     }
 
     /// Lane i goes to `tracks[i]`. A range excerpt clears the whole block `start..<start + length`
@@ -113,7 +134,9 @@ extension Session {
     /// the first free ID of "<source id>@<start>"; the right part of a cut clip gets
     /// "<id>@<end of the cleared range>": the block end, or the end of the pasted clip. Returns
     /// the pasted IDs, lane by lane. A clip whose file record differs from the record of its ID here
-    /// throws `.foreignFile` (decision 0042). A throw changes nothing.
+    /// throws `.foreignFile` (decision 0042). The transcript words of each file that no transcript
+    /// here has come in a new transcript of each source transcript (decision 0055). A throw changes
+    /// nothing.
     @discardableResult
     public mutating func paste(_ excerpt: Excerpt, at start: Frames, on tracks: [TrackID]) throws(SessionError)
         -> [ClipID]
@@ -152,6 +175,14 @@ extension Session {
             copy.tracks[index].clips.clear(cleared) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
             copy.tracks[index].clips.insert(sorted: clips)
             pasted += clips.map(\.id)
+        }
+        // The words of each file that no transcript here has: a paste from another package. Each
+        // source transcript gets a new ID, so a paste never merges two transcripts (decision 0055).
+        for source in excerpt.transcripts.values.sorted(by: { $0.id < $1.id }) {
+            let words = source.words.filter { file, _ in !copy.transcripts.values.contains { $0.words[file] != nil } }
+            guard !words.isEmpty else { continue }
+            let id = TranscriptID((copy.transcripts.keys.map(\.number).max() ?? 0) + 1)
+            copy.transcripts[id] = Transcript(id: id, name: source.name, words: words)
         }
         self = copy
         return pasted

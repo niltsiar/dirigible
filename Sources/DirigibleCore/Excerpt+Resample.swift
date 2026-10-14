@@ -8,7 +8,8 @@ extension Excerpt {
     /// end minus the scaled start, so two touching clips still touch, and it stops at the end of
     /// the converted file. A crossfade rounds to an even count, one value for both clips of a join: the
     /// least of that count, the two media handles, and the room of each clip (0036). A crossfade
-    /// with no join drops. A fade rounds and then fits the room beside the crossfades (0035).
+    /// with no join drops. A fade rounds and then fits the room beside the crossfades (0035). Each
+    /// transcript word edge scales as a clip edge and stops at the end of the converted file (0055).
     public func resampled(to rate: Int, lengths: [FileID: Frames], gains: [FileID: Gain] = [:]) -> Excerpt {
         let old = sampleRate
         func scale(_ frames: Frames) -> Frames { Frames((2 * frames.count * rate + old) / (2 * old)) }
@@ -66,6 +67,21 @@ extension Excerpt {
                     .fitted(to: max(.zero, room), keeping: .start)
             }
             scaled.lanes[lane].clips = clips
+        }
+        // Each word edge scales as a clip edge and stops at the end of the converted file.
+        scaled.transcripts = transcripts.mapValues { transcript in
+            var moved = transcript
+            moved.words = Dictionary(
+                uniqueKeysWithValues: transcript.words.map { file, anchors in
+                    let length = scaled.files[file]?.length ?? .limit
+                    let words = anchors.all.map { anchor in
+                        let start = min(scale(anchor.range.lowerBound), length)
+                        let end = max(start, min(scale(anchor.range.upperBound), length))
+                        return Anchor(number: anchor.number, range: start..<end, text: anchor.text)
+                    }
+                    return (file, Anchors(words))
+                })
+            return moved
         }
         return scaled
     }

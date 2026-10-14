@@ -212,6 +212,39 @@ struct StopLevelTests {
         #expect(!studio.canUndo, "Cmd-L: more than one entry")
     }
 
+    /// Decision 0049: a cancel during the last block of one clip leaves the other clip measured,
+    /// and the flag check after the measure saves no partial level. Each clip of 144 000 frames
+    /// reads the flag 4 times: once before its measure, and once before each of 3 blocks of
+    /// 65 536. So step 8 is the last read, and the other clip has passed all its reads.
+    @Test @MainActor func aCancelAfterOneClipSavesNoPartialLevel() async throws {
+        let studio = try await studio()
+        let before = studio.session
+        // The hook can run on a thread of the concurrency pool, where `Gate` does not wait.
+        let semaphore = DispatchSemaphore(value: 0)
+        let steps = OSAllocatedUnfairLock(initialState: 0)
+        defer { semaphore.signal() }
+        studio.environment.loudnessBlock = {
+            let step = steps.withLock { count in
+                count += 1
+                return count
+            }
+            if step == 8 { semaphore.wait() }
+        }
+
+        let leveling = Task { try await studio.level(["c1", "c2"], .eachClip) }
+        await until(limit: .seconds(30), "the level did not reach step 8") { steps.withLock { $0 } >= 8 }
+        studio.cancelLevel()
+        semaphore.signal()
+        let result = await leveling.result
+
+        switch result {
+        case .success(let value): Issue.record("a partial level returned: \(value.report)")
+        case .failure(let error): #expect(error as? StudioError == .levelCancelled, "a partial level threw \(error)")
+        }
+        #expect(studio.session == before && !studio.canUndo, "a partial level changed the session")
+        #expect(try Session(contentsOf: url) == before, "a partial level saved")
+    }
+
     /// C5 and C13: a second level in each mode changes nothing, saves nothing, and adds no undo
     /// entry, and it still returns its report.
     @Test @MainActor func levelAtTheTargetIsNoEntry() async throws {

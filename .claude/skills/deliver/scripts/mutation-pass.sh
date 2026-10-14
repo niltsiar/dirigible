@@ -7,14 +7,20 @@
 #   changes, and a tree whose mutate.py lock a live process holds.
 # - The batch file (outside the tree, for example in the run folder) has one line for each mutant:
 #   `mutant <mutate.py arguments>`, in bash words ($'...' for a line break). The script reads it
-#   with a mutant function that runs mutate.py once.
+#   with a mutant function that writes the arguments of mutant n to <batch file>.schema/<n>
+#   (NUL-separated; the script makes the folder again on each run). The lines with --switch go to
+#   one `mutate.py --schema` call (one build for all of them). Then each other line, and each line
+#   that the schema call gives `own build`, runs one mutate.py call, in batch order.
 # - The script runs again under scripts/with-lock.sh of the tree once, so the lock calls of each
 #   build and test command run at once, and no other run builds between two mutants. No sleep
 #   between two mutants.
-# - Each mutant prints `<n>: <result line>`. A mutate.py exit 3 (a failed restore: a mutant can be
-#   in the tree) or 130 (stopped) stops the batch with that exit. The last line is
+# - Each mutant prints `<n>: <result line>`; a switch mutant with no line of a refused schema call
+#   (exit 2) prints `<n>: mutate: no result`. A mutate.py exit 3 (a failed restore: a mutant can be
+#   in the tree) or 130 (stopped) stops the batch with that exit. The last two lines are
+#   `schema: S mutants in one build; R with its own build` and
 #   `pass: N mutants; killed K; survived S; other O` (other: BUILD FAILED, WRONG FAILURE, NO TESTS,
-#   or a mutate.py refusal, which need a decision).
+#   or a mutate.py refusal, which need a decision). After a SIGKILL, the refusal of the tree with
+#   changes names <batch file>.schema, which keeps the copies of the files.
 # - Stop a pass with `pkill -TERM -f "mutation-pass.sh <tree>"` (a background job ignores INT;
 #   <tree> is the absolute root: the pattern matches only it). On INT or TERM the script waits
 #   for the running mutate.py, which restores its file, and stops the batch with exit 130; the
@@ -33,8 +39,12 @@ top="$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)" && [[ "$top" == "$(cd
     { echo "mutation-pass: $1 is not the root of a worktree" >&2; exit 2; }
 common="$(git -C "$top" rev-parse --path-format=absolute --git-common-dir)"
 [[ "$(dirname "$common")" != "$top" ]] || { echo "mutation-pass: $1 is the main checkout; run the pass in the worktree of the run" >&2; exit 2; }
-[[ -z "$(git -C "$top" status --porcelain)" ]] ||
-    { echo "mutation-pass: $top has changes; commit them, or wait for the pass that runs there" >&2; exit 2; }
+schema="$batch.schema"
+if [[ -n "$(git -C "$top" status --porcelain)" ]]; then
+    echo "mutation-pass: $top has changes; commit them, or wait for the pass that runs there" >&2
+    [[ ! -d "$schema" ]] || echo "mutation-pass: a stopped pass keeps the copies of its files in $schema" >&2
+    exit 2
+fi
 lock="$(git -C "$top" rev-parse --absolute-git-dir)/dirigible-mutate.lock"
 [[ -d "$lock" ]] && kill -0 "$(cat "$lock/pid" 2>/dev/null)" 2>/dev/null &&
     { echo "mutation-pass: a mutate.py run holds $lock; wait for it to end" >&2; exit 2; }
@@ -42,15 +52,28 @@ cd "$top" || exit 2
 # One lock hold for the batch: run again under with-lock.sh once.
 [[ -n "${MUTATION_PASS_HELD:-}" ]] || MUTATION_PASS_HELD=1 exec "$top/scripts/with-lock.sh" "$here/mutation-pass.sh" "$top" "$batch"
 
-n=0 killed=0 survived=0 other=0 stop=""
+rm -rf "$schema" && mkdir "$schema" || exit 2
+n=0 killed=0 survived=0 other=0 one=0 own=0 stop="" switch=() results=()
 trap 'stop=1' INT TERM
 output="$(mktemp)"
 trap 'rm -f "$output"' EXIT
-count() { echo "pass: $n mutants; killed $killed; survived $survived; other $other"; }
+count() {
+    echo "schema: $one mutants in one build; $own with its own build"
+    echo "pass: $n mutants; killed $killed; survived $survived; other $other"
+}
+# mutant <mutate.py arguments>: one batch line. It keeps the arguments, and the number of a --switch line.
 mutant() {
-    local child code line
-    [[ -z "$stop" ]] || { echo "mutation-pass: stopped before mutant $((n + 1))"; count; exit 130; }
+    local i=1
     n=$((n + 1))
+    printf '%s\0' "$@" > "$schema/$n"
+    while [[ "${!i:-}" =~ ^--(expect|timeout|switch)$ ]]; do
+        [[ "${!i}" != --switch ]] || { switch+=("$n"); break; }
+        i=$((i + 2))
+    done
+}
+# call <mutate.py arguments>: runs mutate.py, sets code, and stops it on INT or TERM.
+call() {
+    local child again
     python3 -I "$mutate" "$@" > "$output" 2>&1 &
     child=$!
     wait "$child"
@@ -59,23 +82,56 @@ mutant() {
         sleep 1
         ! kill -0 "$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
         wait "$child" 2>/dev/null
-        local again=$?
+        again=$?
         [[ $again -eq 127 ]] || code=$again
         [[ $code -eq 3 ]] || code=130
     fi
-    line="$(grep -m1 -E '^(killed|survived|BUILD FAILED|WRONG FAILURE|NO TESTS|stopped|mutate:)' "$output" || tail -1 "$output")"
-    echo "$n: $line"
-    case "$line" in
+}
+tally() {
+    echo "$1: $2"
+    case "$2" in
         killed*) killed=$((killed + 1)) ;;
         survived*) survived=$((survived + 1)) ;;
         *) other=$((other + 1)) ;;
     esac
-    if [[ $code -eq 3 || $code -eq 130 ]]; then
-        echo "mutation-pass: stopped after mutant $n (mutate.py exit $code)"
-        count
-        exit "$code"
-    fi
 }
 # shellcheck source=/dev/null
 source "$batch"
+total=$n n=0
+if [[ ${#switch[@]} -gt 0 ]]; then
+    call --schema "$schema" "${switch[@]}"
+    if [[ $code -eq 3 || $code -eq 130 ]]; then
+        echo "mutation-pass: stopped after the schema call (mutate.py exit $code)"
+        count
+        exit "$code"
+    fi
+    for m in "${switch[@]}"; do
+        line="$(grep -m1 "^$m " "$output")"
+        line="${line#"$m "}"
+        case "$line" in
+            'own build:'*) ;;
+            '') results[m]='mutate: no result' ;;
+            mutate:*) results[m]="$line" ;;
+            *) results[m]="$line" one=$((one + 1)) ;;
+        esac
+    done
+fi
+for ((m = 1; m <= total; m++)); do
+    [[ -z "$stop" ]] || { echo "mutation-pass: stopped before mutant $m"; count; exit 130; }
+    n=$m
+    if [[ -n "${results[m]:-}" ]]; then
+        tally "$m" "${results[m]}"
+        continue
+    fi
+    args=()
+    while IFS= read -r -d '' a; do args+=("$a"); done < "$schema/$m"
+    call "${args[@]}"
+    own=$((own + 1))
+    tally "$m" "$(grep -m1 -E '^(killed|survived|BUILD FAILED|WRONG FAILURE|NO TESTS|stopped|mutate:)' "$output" || tail -1 "$output")"
+    if [[ $code -eq 3 || $code -eq 130 ]]; then
+        echo "mutation-pass: stopped after mutant $m (mutate.py exit $code)"
+        count
+        exit "$code"
+    fi
+done
 count

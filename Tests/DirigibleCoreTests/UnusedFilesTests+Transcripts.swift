@@ -41,15 +41,32 @@ extension UnusedFilesTests {
         #expect(scan.items.map(\.kind) == [.transcript(name)] && scan.items[0].bytes > 0)
     }
 
+    /// The bytes of the transcript file of `session`.
+    func bytes(_ session: Session) throws -> Int64 {
+        let attributes = try FileManager.default.attributesOfItem(atPath: package.appending(path: path(session)).path)
+        return try #require((attributes[.size] as? NSNumber)?.int64Value)
+    }
+
+    /// A backup keeps the file, and the kept line counts it with its size.
     @Test func aBackupKeepsItsTranscriptFile() throws {
         let (session, old) = try prunedTwice()
         try backup(old)
-        #expect(try scan(session).items.isEmpty)
+        let scan = try scan(session)
+        #expect(scan.items.isEmpty)
+        #expect(scan.kept == UnusedFiles.Kept(count: 1, bytes: try bytes(old)))
     }
 
     @Test func anUndoEntryKeepsItsTranscriptFile() throws {
         let (session, old) = try prunedTwice()
-        #expect(try scan(session, keptBy: [old]).items.isEmpty)
+        let scan = try scan(session, keptBy: [old])
+        #expect(scan.items.isEmpty)
+        #expect(scan.kept == UnusedFiles.Kept(count: 1, bytes: try bytes(old)))
+    }
+
+    /// The file of the session is not a kept file, also when a keeper names it too.
+    @Test func theOwnTranscriptFileIsNotKept() throws {
+        let (session, _) = try prunedTwice()
+        #expect(try scan(session, keptBy: [session]).kept == UnusedFiles.Kept(count: 0, bytes: 0))
     }
 
     /// A transcript that did not load holds its file, so a damaged file never moves.

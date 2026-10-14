@@ -99,15 +99,28 @@ struct AgentLogTests {
         #expect(lines[3].split(separator: "\t").count == 8, "\(lines)")
     }
 
-    /// A failed first write leaves no file, so a later append writes the version line and the
-    /// header.
-    @Test func aFailedFirstWriteBlocksNothing() throws {
-        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)
-        #expect(AgentLog.append(entry(), to: folder) == .failed(EACCES))
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
-        #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path).isEmpty, "no partial file")
+    /// A short first write leaves no partial file, so the next append writes the version line,
+    /// the header, and the entry (item 1 of code gate 2).
+    @Test func aShortFirstWriteBlocksNothing() throws {
+        let short = AgentLog.append(entry(), to: folder) { text, fd in
+            _ = AgentLog.write(String(text.prefix(10)), to: fd)
+            return .failed(EIO)
+        }
+        #expect(short == .failed(EIO))
         #expect(AgentLog.append(entry(), to: folder) == .written)
-        #expect(try lines(folder).prefix(2) == ["# Dirigible agent log, version 1", AgentLog.header])
+        let lines = try lines(folder)
+        #expect(lines.prefix(2) == ["# Dirigible agent log, version 1", AgentLog.header], "\(lines)")
+        #expect(lines.count == 4)
+    }
+
+    /// An append to a log goes on when the package refuses a new file: the append makes no other
+    /// file in the package (item 1 of code gate 2: exFAT refuses `RENAME_EXCL`).
+    @Test func anAppendMakesNoOtherFile() throws {
+        #expect(AgentLog.append(entry(), to: folder) == .written)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path) }
+        #expect(AgentLog.append(entry(take: 4), to: folder) == .written)
+        #expect(try lines(folder).count == 5)
     }
 
     /// A write failure gives its errno.

@@ -75,21 +75,24 @@ public enum AgentLog {
         case failed(Int32)
     }
 
-    /// Appends `entry` to the log of `package`. A new file gets the version line, the header, and
-    /// the entry in one step, so a failed first write leaves no file. A file of 0 bytes gets them
-    /// in one `write()`. After a partial last line, the entry starts on a new line.
-    static func append(_ entry: Entry, to package: URL) -> Result {
+    /// Appends `entry` to the log of `package`. It opens the log, and only when there is no log
+    /// it makes one (`O_EXCL`) with the version line, the header, and the entry in one `write()`.
+    /// When that first write is short, it removes the file, so the next append starts clean. The
+    /// append makes no other file, so it works on each volume (exFAT has no `RENAME_EXCL`). A file
+    /// of 0 bytes gets the three lines in one `write()`. After a partial last line, the entry
+    /// starts on a new line. `writing` is the write step; tests give their own.
+    static func append(
+        _ entry: Entry, to package: URL, writing: (String, Int32) -> Result = write(_:to:)
+    ) -> Result {
         let path = package.appending(path: fileName).path
         let first = versionText + "\(version)\n" + header + "\n" + entry.line
-        let created = create(first, at: path)
-        guard created == .failed(EEXIST) else { return created }
         let fd = open(path, O_RDWR | O_APPEND | O_CLOEXEC)
-        guard fd >= 0 else { return .failed(errno) }
+        guard fd >= 0 else { return errno == ENOENT ? create(first, at: path, writing) : .failed(errno) }
         defer { close(fd) }
         var bytes = [UInt8](repeating: 0, count: 128)
         let count = pread(fd, &bytes, bytes.count, 0)
         guard count >= 0 else { return .failed(errno) }
-        if count == 0 { return write(first, to: fd) }
+        if count == 0 { return writing(first, fd) }
         guard let newline = bytes[..<count].firstIndex(of: UInt8(ascii: "\n")),
             let line = String(bytes: bytes[..<newline], encoding: .utf8), line.hasPrefix(versionText),
             case let digits = line.dropFirst(versionText.count),
@@ -99,23 +102,21 @@ public enum AgentLog {
         var last: UInt8 = 0
         let end = lseek(fd, 0, SEEK_END)
         guard end > 0, pread(fd, &last, 1, end - 1) == 1 else { return .failed(errno) }
-        return write((last == UInt8(ascii: "\n") ? "" : "\n") + entry.line, to: fd)
+        return writing((last == UInt8(ascii: "\n") ? "" : "\n") + entry.line, fd)
     }
 
-    /// Writes `text` to a temporary file in the package, then renames it to `path` only when
-    /// `path` does not exist (`RENAME_EXCL`). Gives `.failed(EEXIST)` when it exists.
-    private static func create(_ text: String, at path: String) -> Result {
-        let temporary = path + ".\(getpid()).tmp"
-        defer { unlink(temporary) }
-        let fd = open(temporary, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0o644)
+    /// Makes the log at `path` with `text`, or gives `.failed(EEXIST)` when it exists. A short
+    /// write removes the file.
+    private static func create(_ text: String, at path: String, _ writing: (String, Int32) -> Result) -> Result {
+        let fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
         guard fd >= 0 else { return .failed(errno) }
-        let written = write(text, to: fd)
+        let written = writing(text, fd)
         close(fd)
-        guard written == .written else { return written }
-        return renamex_np(temporary, path, UInt32(RENAME_EXCL)) == 0 ? .written : .failed(errno)
+        if written != .written { unlink(path) }
+        return written
     }
 
-    private static func write(_ text: String, to fd: Int32) -> Result {
+    static func write(_ text: String, to fd: Int32) -> Result {
         let data = Array(text.utf8)
         let written = data.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
         return written == data.count ? .written : .failed(written < 0 ? errno : EIO)

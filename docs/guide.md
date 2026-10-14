@@ -310,6 +310,7 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 
 - Choose **Markers > Add Marker** or **Markers > Add Chapter** to add a flag at the playhead. The number in the name counts the markers and the chapters together, for example **Marker 1**, then **Chapter 2**.
 - Control-click the time ruler and choose **Add Marker** or **Add Chapter** to add a flag at that point.
+- During a take, you cannot add a marker: **Add Marker** and **Add Chapter** are off. Write down the time of the toolbar clock, and add the marker after the take.
 - Control-click a flag and choose **Delete Marker** to delete it.
 - Click a flag to move the playhead to it. The flag becomes the current marker.
 - Drag a flag to move it. The flag becomes the current marker.

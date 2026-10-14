@@ -161,9 +161,12 @@ struct AgentManualTests {
     }
 
     /// W3: a silent call track is invisible to the agent, so after a take the agent reads the
-    /// loudness of the new clips, in the `record` text and in the transcript recipe.
+    /// loudness of the new clips, in the `record` text and in the transcript recipe. A near-silent
+    /// track gives a value far below the others, not "none".
     @Test func theRecordRuleChecksTheTakeLoudness() {
-        let rule = "After a take, run `loudness`: \"none\" for a clip means that its track got no sound; tell the user"
+        let rule =
+            "After a take, run `loudness`: \"none\" for a clip, or a value far below the other tracks (below -50 "
+            + "LUFS), means that its track got almost no sound; tell the user"
         #expect(Self.recordText.tool.contains(rule), "the record text")
         #expect(Self.steps("cut-from-transcript").contains(rule), "the transcript recipe")
     }

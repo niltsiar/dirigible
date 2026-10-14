@@ -74,7 +74,7 @@ struct TranscriptFileTests {
 
     @Test func aWordAtTheFileEndReads() throws {
         let read = try read(transcribed(), replacing: "2 20000 30000", with: "2 999000 1000000")
-        #expect(read.transcripts[TranscriptID(1)]?.words["h"]?.all.last?.range == 999_000..<1_000_000)
+        #expect(read.transcripts[TranscriptID(1)]?.words?["h"]?.all.last?.range == 999_000..<1_000_000)
     }
 
     /// A line with fewer than four fields, a field that is not an integer, a number below 1, or an
@@ -149,6 +149,15 @@ struct TranscriptFileTests {
         #expect(same, "the pruned session saves")
     }
 
+    /// T22. A `removeFile` of a file with no words keeps the file name of each transcript.
+    @Test func removeFileWithNoWordsKeepsTheName() throws {
+        var session = try transcribed()
+        try session.addFile(AudioFile(id: "x", path: "x.wav", layout: .mono, length: 1_000))
+        let before = session.transcripts
+        try session.removeFile("x")
+        #expect(session.transcripts == before)
+    }
+
     /// T13. "&", "<", a tab that the parser made one space, and a leading space round-trip.
     @Test func ampersandAndTabRoundTrip() throws {
         var session = try transcriptSession()
@@ -170,7 +179,7 @@ struct TranscriptFileTests {
         let vtt =
             "WEBVTT\n\n00:02.000 --> 00:04.000\nlong\n\n00:02.500 --> 00:03.500\ninner\n\n00:01.000 --> 00:05.000\nouter\n"
         try session.importTranscript(try TranscriptFile(data: Data(vtt.utf8)), name: "c.vtt", track: "host", at: 0)
-        #expect(session.transcripts[TranscriptID(1)]?.words["h"]?.all.map(\.number) == [1, 2, 3])
+        #expect(session.transcripts[TranscriptID(1)]?.words?["h"]?.all.map(\.number) == [1, 2, 3])
 
         let same = try Session(xml: session.checkedData()) == session
         #expect(same)

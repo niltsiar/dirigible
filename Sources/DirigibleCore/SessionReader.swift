@@ -240,7 +240,10 @@ extension Transcript {
             words[file] = Anchors(anchors)
         }
         guard !words.isEmpty else { throw .invalidValue(element: "transcript", attribute: "words") }
-        self.init(id: TranscriptID(number), name: try node.string("name"), words: words)
+        guard let file = TranscriptFileName(try node.string("file")) else {
+            throw .invalidValue(element: "transcript", attribute: "file")
+        }
+        self.init(id: TranscriptID(number), name: try node.string("name"), file: file, words: words)
     }
 }
 

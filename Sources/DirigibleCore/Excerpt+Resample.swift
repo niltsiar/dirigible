@@ -71,16 +71,18 @@ extension Excerpt {
         scaled.pastesWords = pastesWords
         scaled.transcripts = transcripts.mapValues { transcript in
             var moved = transcript
-            moved.words = Dictionary(
-                uniqueKeysWithValues: transcript.words.map { file, anchors in
-                    let length = scaled.files[file]?.length ?? .limit
-                    let words = anchors.all.map { anchor in
-                        let start = min(scale(anchor.range.lowerBound), length)
-                        let end = max(start, min(scale(anchor.range.upperBound), length))
-                        return Anchor(number: anchor.number, range: start..<end, text: anchor.text)
-                    }
-                    return (file, Anchors(words))
-                })
+            moved.words = transcript.words.map { words in
+                Dictionary(
+                    uniqueKeysWithValues: words.map { file, anchors in
+                        let length = scaled.files[file]?.length ?? .limit
+                        let words = anchors.all.map { anchor in
+                            let start = min(scale(anchor.range.lowerBound), length)
+                            let end = max(start, min(scale(anchor.range.upperBound), length))
+                            return Anchor(number: anchor.number, range: start..<end, text: anchor.text)
+                        }
+                        return (file, Anchors(words))
+                    })
+            }
             return moved
         }
         return scaled

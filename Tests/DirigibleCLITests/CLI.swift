@@ -186,6 +186,15 @@ final class TemporaryPackage {
     func read() throws -> Session { try Session(contentsOf: url) }
     func xml() throws -> Data { try Data(contentsOf: sessionXML) }
 
+    /// True when both packages hold the same session and the same words. Each transcript file
+    /// name is a new UUID, so the names differ (decision 0055).
+    func holdsTheSameSession(as other: TemporaryPackage) throws -> Bool {
+        func text(_ package: TemporaryPackage) throws -> String {
+            String(decoding: try package.xml(), as: UTF8.self).replacing(#/\sfile="[0-9A-F-]{36}"/#, with: "")
+        }
+        return try text(self) == text(other) && read().words() == other.read().words()
+    }
+
     /// Runs `dirigible` with each "PKG" argument replaced by the package path.
     func run(_ arguments: String...) async throws -> CLIResult { try await run(arguments) }
     func run(_ arguments: [String]) async throws -> CLIResult {

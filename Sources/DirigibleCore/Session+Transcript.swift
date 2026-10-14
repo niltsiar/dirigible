@@ -17,7 +17,7 @@ extension Session {
             for clip in track.clips {
                 let file = clip.offset..<(clip.offset + clip.length)
                 for transcript in transcripts.values {
-                    for anchor in transcript.words[clip.file]?.anchors(midpointIn: file) ?? [] {
+                    for anchor in transcript.words?[clip.file]?.anchors(midpointIn: file) ?? [] {
                         let start = clip.start + max(anchor.range.lowerBound, file.lowerBound) - clip.offset
                         let end = clip.start + min(anchor.range.upperBound, file.upperBound) - clip.offset
                         words.append(
@@ -174,7 +174,7 @@ extension Session {
         for (fileID, anchors) in added {
             let span = anchors.map(\.range.lowerBound).min()!...anchors.map(\.range.upperBound).max()!
             for old in transcripts.keys {
-                guard let words = transcripts[old]?.words[fileID] else { continue }
+                guard let words = transcripts[old]?.words?[fileID] else { continue }
                 setWords(words.all.filter { !span.contains($0.midpoint) }, file: fileID, transcript: old)
             }
         }
@@ -185,8 +185,8 @@ extension Session {
     /// Sets the words of `file` in transcript `id`. No word removes the file from the transcript,
     /// and a transcript with no file left goes (decision 0055).
     mutating func setWords(_ anchors: [Anchor], file: FileID, transcript id: TranscriptID) {
-        transcripts[id]?.words[file] = anchors.isEmpty ? nil : Anchors(anchors)
-        if transcripts[id]?.words.isEmpty == true { transcripts[id] = nil }
+        transcripts[id]?.words?[file] = anchors.isEmpty ? nil : Anchors(anchors)
+        if transcripts[id]?.words?.isEmpty == true { transcripts[id] = nil }
     }
 
     /// The ID of a new transcript: one more than the largest ID.
@@ -200,7 +200,7 @@ extension Session {
     mutating func addTranscript(_ transcript: Transcript) throws(SessionError) {
         guard transcripts[transcript.id] == nil else { throw .duplicateID(transcript.id.description) }
         try Self.checkText(transcript.name)
-        for (id, anchors) in transcript.words {
+        for (id, anchors) in transcript.words ?? [:] {
             guard let file = files[id] else { throw .unknownFile(id) }
             var numbers = Set<Int>()
             for anchor in anchors.all {

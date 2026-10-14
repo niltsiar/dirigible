@@ -62,7 +62,7 @@ struct TranscriptCommandTests {
         #expect(result == CLIResult(status: 0, stdout: "1\nImported 95 words.\n", stderr: ""))
         #expect(try package.read().words().count == 95)
         let xml = String(decoding: try package.xml(), as: UTF8.self)
-        #expect(xml.contains(#"<transcript id="1" name="episode.json">"#))
+        #expect(xml.contains(#"<transcript id="1" name="episode.json" file=""#))
     }
 
     /// T5: the skipped words go to stderr; the ID and the count go to stdout.

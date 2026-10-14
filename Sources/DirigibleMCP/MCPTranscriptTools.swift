@@ -8,7 +8,7 @@ private let text = Param<String?>.optional(
     "The Whisper JSON or WebVTT text, at most \(TranscriptWork.maximumText) bytes. Give it only for a short "
         + "transcript; else give path.", .string)
 private let importTrack = Param.required(
-    "track", "The track whose clips the words are spoken in. The words follow the clips of this track.", .string)
+    "track", "The track whose clips carry the words. The words follow the clips of this track.", .string)
 private let at = Param.defaulted("at", "The timeline frame of second 0 of the transcript.", .integer(), 0)
 private let name = Param<String?>.optional(
     "name", "The transcript name. The default is the file name of path, else transcript.", .string)
@@ -27,9 +27,10 @@ private let occurrences = Param.required(
 let transcriptTools = [
     Tool(
         "transcript_import",
-        "Import a Whisper JSON or WebVTT transcript of the audio on one track, and give its ID and the count of "
-            + "words. A word with no clip of the track under it, or with no time, is skipped. A new import replaces "
-            + "the words of an earlier one in the same span.",
+        "Import a Whisper JSON or WebVTT transcript of an export of the whole session; the track is the track whose "
+            + "clips carry the words. Give the transcript ID and the count of words. A word with no clip of the track "
+            + "under it, or with no time, is skipped. A new import replaces the words of an earlier one in the same "
+            + "span.",
         [path, text, importTrack, at, name]
     ) { a throws(ToolError) in
         // Each argument is checked before the source, so a bad argument gets its own text.

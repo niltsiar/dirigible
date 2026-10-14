@@ -13,12 +13,12 @@ struct TranscriptCommand: ParsableCommand {
     struct Import: ParsableCommand {
         static let configuration = CommandConfiguration(
             abstract:
-                "Import a Whisper JSON or WebVTT transcript of the audio on one track, and print its ID and the count "
-                + "of words. A word with no clip of the track under it, or with no time, is skipped. A new import "
+                "Import a Whisper JSON or WebVTT transcript of an export of the whole session; the track is the track "
+                + "whose clips carry the words. Print the transcript ID and the count of words. A word with no clip of the track under it, or with no time, is skipped. A new import "
                 + "replaces the words of an earlier one in the same span.")
         @OptionGroup var package: PackageArgument
         @Argument(help: "The transcript file, or - for stdin.") var file: String
-        @Option(help: "The track whose clips the words are spoken in.") var track: String
+        @Option(help: "The track whose clips carry the words.") var track: String
         @Option(parsing: .unconditional, help: "The timeline frame of second 0 of the transcript.") var at = 0
         @Option(help: "The transcript name. The default is the file name, else transcript.") var name: String?
 

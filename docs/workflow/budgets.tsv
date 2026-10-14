@@ -62,5 +62,5 @@ path	words	decision
 .claude/skills/writing-for-humans/	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1318	2026-10-13-test-speed eval fix cycle 2 (decisions.tsv 2026-10-13T06:06: the docs-only pick of make check-changed, +5 words)
-CODING_STANDARDS.md	290	code gate 2 of 2026-10-10-agents-md-restructure (decisions.tsv 2026-10-10T12:53): wc -w x 1.1, up to the next 10, of the final count 261
-TOTAL	31690	2026-10-14-workflow-upkeep S4 (decisions.tsv 2026-10-14T02:44: user-requested reference-app and agent manual lines, exact count) +14
+CODING_STANDARDS.md	293	2026-10-14-workflow-upkeep S4 (decisions.tsv 2026-10-14T02:44: the user-requested open-source rule, exact count)
+TOTAL	31722	2026-10-14-workflow-upkeep S4 (decisions.tsv 2026-10-14T02:44: the user-requested open-source rule, exact count) +32, after +14 for the deliver lines

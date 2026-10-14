@@ -40,7 +40,9 @@ extension Studio {
             guard isIdle else { return .failure(.busy) }
             let before = session
             // The pool change comes after the save, so a failed save leaves memory as the disk.
-            let apply = { @MainActor (files: UnusedFiles) throws(SessionError) in try self.removePoolEntries(files) }
+            let apply = { @MainActor (files: UnusedFiles, saved: Session) throws(SessionError) in
+                try self.removePoolEntries(files, saved: (before, saved))
+            }
             let done = await pruneFiles(
                 confirmed.intersection(scan), of: before, lock: lock, previous: url, recordings: recordings,
                 environment.saveSession, apply)
@@ -95,13 +97,13 @@ extension Studio {
 }
 
 /// The save and the Trash of `UnusedFiles.prune`, off the main actor. After the save and before
-/// the first move, `apply` makes the same pool change in memory with the items that move; its
-/// throw moves no file. Returns
+/// the first move, `apply` makes the same pool change in memory with the items that move and the
+/// saved session; its throw moves no file. Returns
 /// the report, and when the save ran, the package path in `packageIdentity` form and the backups.
 @concurrent nonisolated private func pruneFiles(
     _ items: UnusedFiles, of session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
     _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL,
-    _ apply: @MainActor @Sendable (UnusedFiles) throws(SessionError) -> Void
+    _ apply: @MainActor @Sendable (UnusedFiles, Session) throws(SessionError) -> Void
 ) async -> (result: Result<PruneReport, StudioError>, written: (package: URL, backups: [Backup])?) {
     dispatchPrecondition(condition: .notOnQueue(.main))
     var pruned = session
@@ -113,7 +115,7 @@ extension Studio {
                 let url = try await save(session, lock)
                 written = url
                 do throws(SessionError) {
-                    try await apply(moving)
+                    try await apply(moving, session)
                 } catch {
                     throw .invalidSession(error)
                 }

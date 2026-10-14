@@ -56,6 +56,28 @@ struct StudioPruneTests {
         await studio.settle()
     }
 
+    /// Storage gate item 1 (decision 0055): a prune of a file with words keeps the words state of
+    /// its save, so the session in memory equals `session.xml` and the next save writes no second
+    /// transcript file.
+    @Test func aPruneOfAFileWithWordsKeepsTheSavedWords() async throws {
+        try package.session.place(Clip(id: "S", file: spare, start: 4_800, offset: 0, length: 4_800), on: "t1")
+        let words = #"{"words":[{"word":"one","start":0.01,"end":0.02},{"word":"two","start":0.11,"end":0.12}]}"#
+        try package.session.importTranscript(TranscriptFile(data: Data(words.utf8)), name: "t", track: "t1", at: 0)
+        try package.session.removeClips(["S"])
+        try package.session.write(to: package.url)
+        let studio = try await open()
+
+        let report = try await studio.removeUnusedFiles(try await studio.unusedFiles())
+        defer { cleanUp(report) }
+
+        #expect(report.moved.map(\.item.path).contains(spareName))
+        let saved = try Session(contentsOf: package.url)
+        #expect(saved.words().map(\.text) == ["one"])
+        let same = studio.session == saved
+        #expect(same, "the session in memory has the words file of the save")
+        await studio.settle()
+    }
+
     /// C12: busy during an import and a level; nothing moves.
     @Test func busyRefused() async throws {
         let studio = try await open()

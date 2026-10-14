@@ -126,7 +126,8 @@ grep -q 'Sorry, let me say that again.' "$tmp/results/transcript/T9/stream.jsonl
 # the first pass, the same frames from the first to the last are wrong, and no change is safe.
 # A T9 cut that also changes a clip gain or a track name is wrong (code gate 1 item 4).
 # A T9 cut may take up to 0.25 s of the silence on each side of a sentence, but no word of a
-# neighbour and no more silence; both tracks get the same cuts (Phase 7, W12).
+# neighbour and no more silence; both tracks get the same cuts (Phase 7, W12). A transcript import
+# sets the session version to 8, and a T9 pass may import (transcript-1 Phase 7).
 # T10: the device of the batch on host channel 1 passes, also the second device with the same
 # name (code gate 1 item 2); another device or a changed guest too is wrong.
 python3 -I -B - "$here" "$tmp/graded" <<'PY' || fail "the grader of T9 or T10 gives a wrong verdict"
@@ -177,7 +178,7 @@ cases = {('t9-right', 'T9'): (session(right), 'pass'), ('t9-order', 'T9'): (sess
          ('t9-gain', 'T9'): (session(right, gain=3), 'wrong'), ('t9-rename', 'T9'): (session(right, name='Ben'), 'wrong'),
          ('t10-same-name', 'T10'): (route('UID-3'), 'pass'), ('t10-other', 'T10'): (route('UID-2'), 'wrong'),
          ('t9-padded', 'T9'): (session(padded), 'pass'), ('t9-neighbour', 'T9'): (session(neighbour), 'wrong'),
-         ('t9-silence', 'T9'): (session(silence), 'wrong'),
+         ('t9-silence', 'T9'): (session(silence), 'wrong'), ('t9-version-8', 'T9'): ({**session(right), 'version': 8}, 'pass'),
          ('t9-out-of-sync', 'T9'): ({**session(right), 'tracks': [track('host', right), track('guest', padded)]}, 'wrong')}
 bad = 0
 for (label, task), (after, want) in cases.items():

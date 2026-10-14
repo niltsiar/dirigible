@@ -104,6 +104,25 @@ struct PasteConvertTests {
         _ = try paste(free: needed)
         #expect(try names() == ["take1-mic.wav"])
     }
+
+    /// C3 (decision 0056): the second target name is taken during the conversions. The first WAV
+    /// stays, the other file keeps its bytes, and no temp is left.
+    @Test func aRenameFaultKeepsTheFirstFile() throws {
+        try p.addFile("take2-mic", channels: [impulse(44_100, at: 0)])
+        try p.session.place(Clip(id: "C", file: "take2-mic", start: 132_300, offset: 0, length: 44_100), on: "t1")
+        let clipboard = Clipboard(try p.session.excerpt(of: 0..<176_400, on: ["t1"]), package: p.url, origin: nil)
+        let (taken, other) = (q.url.appending(path: "\(clipsFolderName)/take2-mic.wav"), Data("another file".utf8))
+
+        #expect(throws: PasteError.write(file: "take2-mic.wav", errno: EEXIST)) {
+            try pasteClipboard(
+                clipboard, from: p.url, into: q.session, in: q.url, identity: nil, at: 480_000, on: .tracks(["u1"]),
+                freeBytes: { .max },
+                progress: { _ in if !FileManager.default.fileExists(atPath: taken.path) { try? other.write(to: taken) }
+                })
+        }
+        #expect(FileManager.default.contents(atPath: taken.path) == other, "the other file keeps its bytes")
+        #expect(try names() == ["take1-mic.wav", "take2-mic.wav"], "the first WAV stays, no temp is left")
+    }
 }
 
 /// Code gate 1 item 3: the session edit runs again with the real converted lengths, which can be

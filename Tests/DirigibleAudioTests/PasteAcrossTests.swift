@@ -211,6 +211,17 @@ struct PasteAcrossTests {
         #expect(try names(q) == ["take1-mic.wav"])
     }
 
+    /// C5: a flush fault of a copied file is a write fault of that file, and no new name stays.
+    @Test func aFlushFaultOfACopyIsAWriteFault() throws {
+        #expect(throws: PasteError.write(file: "take2-mic.wav", errno: EIO)) {
+            try pasteClipboard(
+                try clipboard, from: p.url, into: q.session, in: q.url, identity: PackageID(lockFileOf: q.url),
+                at: 480_000, on: .tracks(["u1", "u2"]), freeBytes: { .max },
+                flush: { $0.hasSuffix("/.take2-mic.wav.tmp") ? EIO : nil })
+        }
+        #expect(try names(q) == ["take1-mic.wav"], "no new name stays")
+    }
+
     /// The `copyfile` callback: no call after the return. The test counts the calls in its own
     /// flag closure, which the callback reads at each call.
     @Test func theCopyCallbackStopsAtTheReturn() throws {

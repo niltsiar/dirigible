@@ -77,6 +77,9 @@ run 0.3.9 "$two"
 setup earlier && origin_tag 0.3.8.1 "$two"
 refused 'a commit before the newest tag' 0.3.9 "$one" 1 'does not hold v0.3.8.1'
 
+setup same && origin_tag 0.3.8.1 "$two"
+refused 'a commit that already has a version' 0.3.8.2 "$two" 1 'already has the tag v0.3.8.1'
+
 setup side
 git -C "$d/work" checkout -q -b side && git -C "$d/work" commit -q --allow-empty -m side
 refused 'a commit off origin/main' 0.3.9 "$(git -C "$d/work" rev-parse HEAD)" 1 'not on origin/main'

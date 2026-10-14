@@ -232,15 +232,15 @@ import Testing
         view.ruler.menu(for: try rulerMouse(.rightMouseDown, x, 10, in: view))
     }
 
-    /// Add Marker and Add Chapter of the ruler menu add nothing during a take, so they are off
-    /// then. Control: on with no take.
-    @Test func theRulerMenuTurnsTheAddItemsOffDuringATake() async throws {
+    /// The ruler menu at the flag reads the rule of the Markers menu, so its items are off during a
+    /// take. Control: on with no take.
+    @Test func theRulerMenuTurnsItsItemsOffDuringATake() async throws {
         let (model, studio, window, view) = try await lanes()
-        #expect(try #require(try menu(view, 400)).items.prefix(2).map(\.isEnabled) == [true, true], "no take")
+        #expect(try #require(try menu(view, 200)).items.map(\.isEnabled) == [true, true, true], "no take")
 
         studio.transport = .recording(take: 1)
         defer { studio.transport = .idle }
-        #expect(try #require(try menu(view, 400)).items.prefix(2).map(\.isEnabled) == [false, false], "during a take")
+        #expect(try #require(try menu(view, 200)).items.map(\.isEnabled) == [false, false, false], "during a take")
         window.close()
         await model.close()
     }

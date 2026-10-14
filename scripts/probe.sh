@@ -31,7 +31,8 @@
 # An app in a probe: the user can have it open. Open only an app that is not running (check with
 # `pgrep -x <name>` first), record the PID of the app that you open, and at the end quit only that
 # PID. Never quit an app by name (`pkill -x`, `killall`, `quit app` in osascript): a probe once
-# quit the QuickTime Player of the user. The sandbox cannot enforce this rule.
+# quit the QuickTime Player of the user. The sandbox cannot enforce this rule. The hook
+# .claude/hooks/git-guardrails.sh blocks these forms in the Bash command text only, not in a script.
 set -euo pipefail
 
 no_audio=""

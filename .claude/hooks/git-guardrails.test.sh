@@ -321,6 +321,32 @@ message="$("$hook" < "$input" 2>&1 >/dev/null)"
   "$message" != *'deliver flow'* ]] ||
   { echo "FAIL: the Finder block message: $message"; failures=$((failures + 1)); }
 
+# A quit by name also quits the copy of the user, with its unsaved work (AGT-120).
+expect block 'killall Dirigible'
+expect block 'killall -9 Dirigible'
+expect block '/usr/bin/killall Dirigible'
+expect block 'sudo killall Dirigible'
+expect block 'make app && killall Dirigible'
+expect block 'pgrep Dirigible | xargs killall'
+expect block 'pkill -x Dirigible'
+expect block 'pkill -9 -x Dirigible'
+expect block 'pkill -ix dirigible'
+expect block 'pkill -xf Dirigible'
+expect block '/usr/bin/pkill -x Dirigible'
+expect allow 'pkill -INT -f mutate.py'
+expect allow 'pkill -TERM -f "mutation-pass.sh --run x"'
+expect allow 'pkill -f "scripts/probe.sh .scratchpads/p -x"'
+expect allow 'pgrep -x Dirigible'
+expect allow 'kill 4242'
+expect allow 'grep -n skillall notes.md'
+plutil -create xml1 "$input"
+plutil -insert tool_input -dictionary "$input"
+plutil -insert tool_input.command -string 'killall Dirigible' "$input"
+plutil -convert json "$input"
+message="$("$hook" < "$input" 2>&1 >/dev/null)"
+[[ "$message" == *'pgrep'* && "$message" == *'only that PID'* && "$message" != *'deliver flow'* ]] ||
+  { echo "FAIL: the quit-by-name block message: $message"; failures=$((failures + 1)); }
+
 # A quoted main is the same push to main.
 expect block "git push origin 'main'"
 expect block 'git push origin "main"'

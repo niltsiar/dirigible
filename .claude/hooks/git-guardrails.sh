@@ -213,6 +213,14 @@ if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' 
     "Drive another app through System Events (tell process). An Automation prompt is the user's: leave it, and name it in the report."
 fi
 
+# A quit by name (killall, pkill -x) also quits the copy of the user, with its unsaved work
+# (AGT-120). A bare pkill -f (the mutation stop of deliver Phase 7) stays allowed. A text rule does
+# not see a quit in a script file.
+if grep -qE '(^|[^[:alnum:]_.-])(killall( |$)|pkill( +-[^ ]+)* +-[a-zA-Z]*x)' <<< "$NORMALIZED"; then
+  block "quits each process with a name (killall, pkill -x), so it also quits the copy of the user, with its unsaved work" \
+    "Find the PID with pgrep, record the PID of the process that the probe started, and quit only that PID (kill <pid>)."
+fi
+
 # A message path other than .scratchpads/commit-msg.txt (absolute, relative, ~, or $HOME) can name
 # the file of another work tree, so a commit takes the message of another agent. git -C changes
 # the directory first, so the relative path is per tree.

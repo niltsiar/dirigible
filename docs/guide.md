@@ -849,18 +849,54 @@ By default, an agent edits only sessions that are closed in the app. To let an a
 
 #### Let an agent record
 
-An agent can ask to record, but only you start the take. The `record` tool takes the tracks (`arm`), the length in seconds (`seconds`, 24 hours or less), and the start (`playhead`, by default the playhead of the window). The session must be open, and Let Agents Edit Open Sessions must be on.
+An agent can ask to record. A take starts only when you click Record, or while a window grant that you gave lasts. The `record` tool takes the tracks (`arm`), the length in seconds (`seconds`, 24 hours or less), and the start (`playhead`, by default the playhead of the window). The session must be open, and Let Agents Edit Open Sessions must be on.
 
-1. The agent calls `record`. A sheet opens on the session window. It names the agent, the tracks, the length, and the start. When a track has audio after the start, a line says that the take records over it.
-2. Click Record to start the take, or click Don't Record. Escape is Don't Record. Return, Tab, and Space cannot press Record, so a key that you type when the sheet opens cannot start a take.
+![The sheet "An AI agent wants to record" on the session window: the name that the agent gives, the take of 30 seconds on Host, the checkbox Don't ask again until I close this window with its help line, and the buttons Don't Record and Record.](images/screenshot-consent.png)
+
+1. The agent calls `record`. A sheet opens on the session window. Its title is "An AI agent wants to record". The line under the title gives the name that the agent gives, in quotes: any app can give any name. The sheet names the tracks, the length, and the start. When a track has audio after the start, a line says that the take records over it. When a track records an app, a line says that the people in the call get no notice from Dirigible.
+2. Click Record to start the take, or click Don't Record. Record is off until the sheet was in front for 1 second, so a click that you aimed at another window cannot start a take. Escape is Don't Record. Return, Tab, and Space cannot press Record.
 3. The take stops after its length, or earlier when you click Stop.
 
-- The request ends after 20 seconds with no answer, and also when the agent stops waiting or you turn off Let Agents Edit Open Sessions. The sheet closes, and a banner says that the agent asked to record. The agent can ask again.
+To let the agent record more takes with no sheet, turn on "Don't ask again until I close this window" before you click Record. The checkbox shows only when each track records a device, no track has audio after the start, and the take is 2 hours or less. Then a later request of the same agent connection, on the same tracks with the same devices and channels, starts with no sheet. A request with an app track, a take that records over audio, or a length over the time left always shows the sheet. The grant ends:
+
+- When you click Always Ask Again in the take row.
+- When you close the window.
+- 1 hour after your click.
+- After 2 hours of takes.
+- When the agent connects again, for example in a new agent session or after a cancel of a call.
+
+While an agent take records:
+
+- The take row of the window says, for example, "Take 3 records Host for an AI agent (it says: “Claude Code”) · 0:25 left". It has Stop, and Always Ask Again while a grant lasts. VoiceOver reads the row when the take starts.
+- The Dock icon shows REC. When Dirigible is in the background, the Dock icon bounces one time, and a notification shows the take with Stop. Stop in the notification stops only that agent take. The first time that you turn on the checkbox, macOS asks if Dirigible can send notifications.
+
+More rules:
+
+- The request ends after 20 seconds with no answer, and also when the agent stops waiting or you turn off Let Agents Edit Open Sessions. The sheet closes, and a banner says that an AI agent asked to record. The agent can ask again.
 - The window does not come to the front. When Dirigible is in the background, its Dock icon bounces until you switch to it.
-- The app refuses a request at once while the window shows a question or a sheet, during a take, while a take is pending, when the window is minimized, and while another request waits.
+- The app refuses a request at once while the window shows a question or a sheet, during a take, while a take is pending, when the window is minimized, and while another request waits. It also refuses a request when the disk of the session has room for less than the take, and after 3 requests in 1 minute on the window.
 - While the sheet shows, the agent cannot edit the session.
 - VoiceOver and Full Keyboard Access can press Record: that is your consent. An app that you gave Accessibility permission in System Settings can also press Record for you, for example a terminal that runs the agent. Give that permission only to apps that you trust.
 - The agent gets the take number when the take starts. To find the end, it reads `session_info`: `recording` goes when the take ends.
+- Each end of a request adds one line to `agent-log.tsv` in the session package: the time, the event (`click`, `grant`, `declined`, or `no-answer`), the take, the agent name, the connection number, the tracks, and the seconds. Undo and a backup revert do not change the file.
+
+##### Make your agent ask first
+
+The sheet guards only the `record` tool. An agent that runs `dirigible record` in a shell records with no sheet. The command only writes a warning for each app track. To make your agent app ask you before both, add an ask rule:
+
+- Claude Code, in `~/.claude/settings.json`. An ask rule wins over an allow rule. The `*` at the start also matches the full path of the command.
+
+  ```json
+  { "permissions": { "ask": ["Bash(*dirigible record *)", "mcp__dirigible__record"] } }
+  ```
+
+- opencode, in `~/.config/opencode/opencode.json`. The last pattern that matches wins, so put the `bash` pattern after each broad `allow` pattern. `opencode run --auto` approves each ask. We checked that opencode reads these rules, but we did not run a call against them.
+
+  ```json
+  { "permission": { "bash": { "*dirigible record *": "ask" }, "dirigible_record": "ask" } }
+  ```
+
+A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
 The 44 tools, in groups:
 
@@ -932,7 +968,7 @@ The screenshots of the README and of this guide come from a script. The script m
 3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`. The script builds the app first.
 4. Do not move the pointer or other windows over the Dirigible window until the script stops.
 
-The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, `docs/images/screenshot-crossfade.png`, and `docs/images/screenshot-settings.png`. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, when the display scale is not 2x (Retina), and when the Settings window clips a text (`scripts/settings-fit.swift`). The images of the session window are 2360 x 1544 pixels.
+The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, `docs/images/screenshot-crossfade.png`, and `docs/images/screenshot-settings.png`. The script does not make `docs/images/screenshot-consent.png`, the sheet of an agent record request. Make it in the verify copy (`scripts/verify-copy.sh`): open a session with a Host track on the built-in microphone, send one `record` call of 30 seconds through `dirigible mcp`, and capture the window while the sheet shows. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, when the display scale is not 2x (Retina), and when the Settings window clips a text (`scripts/settings-fit.swift`). The images of the session window are 2360 x 1544 pixels.
 
 ### Make the banner again
 

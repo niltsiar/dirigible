@@ -78,7 +78,7 @@ public enum AgentLog {
     /// Appends `entry` to the log of `package`. A new file gets the version line, the header, and
     /// the entry in one step, so a failed first write leaves no file. A file of 0 bytes gets them
     /// in one `write()`. After a partial last line, the entry starts on a new line.
-    public static func append(_ entry: Entry, to package: URL) -> Result {
+    static func append(_ entry: Entry, to package: URL) -> Result {
         let path = package.appending(path: fileName).path
         let first = versionText + "\(version)\n" + header + "\n" + entry.line
         let created = create(first, at: path)
@@ -142,5 +142,5 @@ public enum AgentLogWriter {
     }
 
     /// Waits until each queued write ended. For the tests.
-    public static func drain() { queue.sync {} }
+    package static func drain() { queue.sync {} }
 }

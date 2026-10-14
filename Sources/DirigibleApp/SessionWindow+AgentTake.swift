@@ -2,6 +2,9 @@ import AppKit
 import DirigibleAudio
 import DirigibleCore
 import DirigibleMCP
+import os
+
+private let agentLog = Logger(subsystem: "com.delineas.dirigible", category: "agent-log")
 
 /// The notice of an agent take (decision 0050): the take row, the VoiceOver announcement, the
 /// Dock bounce and badge.
@@ -40,6 +43,27 @@ extension SessionWindow {
                     return self.followAgentTake(studio, take: take)
                 }
                 self.agentTakeEnded(take)
+            }
+        }
+    }
+
+    /// Appends the end of an agent request to the agent log of the package (C16). The URL comes
+    /// from the studio at each end, so a rename moves the log. Only these four ends get a line.
+    func logAgentEnd(_ consent: ConsentRequest, _ answer: RecordAnswer) {
+        let (event, take): (AgentLog.Event, Int?)
+        switch answer {
+        case .started(let number, _, _, let grant): (event, take) = (grant?.noSheet == true ? .grant : .click, number)
+        case .declined: (event, take) = (.declined, nil)
+        case .noAnswer: (event, take) = (.noAnswer, nil)
+        default: return
+        }
+        guard let studio else { return }
+        let entry = AgentLog.Entry(
+            time: .now, event: event, take: take, agent: consent.agent.name, connection: consent.connection?.serial,
+            tracks: consent.names, seconds: consent.seconds)
+        AgentLogWriter.append(entry, to: studio.url, holding: studio) { result in
+            if result != .written {
+                agentLog.error("No agent log line: \(String(describing: result), privacy: .public)")
             }
         }
     }

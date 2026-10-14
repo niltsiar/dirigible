@@ -9,17 +9,19 @@ import Testing
 
 /// The agent log of the window (decision 0050, C16): each end of an agent request adds one line.
 extension ConsentTests {
-    /// The event fields of the agent log of `model`, after each queued write.
-    func loggedEvents(_ model: SessionWindow) throws -> [String] {
+    /// The fields at `column` of the agent log of `model` (by default the event), after each
+    /// queued write.
+    func loggedEvents(_ model: SessionWindow, column: Int = 1) throws -> [String] {
         AgentLogWriter.drain()
         let file = model.url.appending(path: AgentLog.fileName)
         guard FileManager.default.fileExists(atPath: file.path) else { return [] }
         let lines = try String(contentsOf: file, encoding: .utf8).split(separator: "\n").dropFirst(2)
-        return lines.map { String($0.split(separator: "\t")[1]) }
+        return lines.map { String($0.split(separator: "\t")[column]) }
     }
 
     /// `click`, `grant`, `declined`, `no-answer`, and `refused` (here an unknown track, refused
-    /// before a sheet) each add one line; a take of the person (Command-R) adds none.
+    /// before a sheet, with the cause in the reason) each add one line; a take of the person
+    /// (Command-R) adds none.
     @Test(arguments: ["click", "grant", "declined", "no-answer", "refused", "person"])
     func eachEndAddsOneLine(_ end: String) async throws {
         let (model, studio) = try await window()
@@ -49,6 +51,11 @@ extension ConsentTests {
         await model.stop()
         await until("the take ends") { studio.transport == .idle }
         #expect(try loggedEvents(model) == expected)
+        if end == "refused" {
+            let reason = try loggedEvents(model, column: 7)
+            #expect(
+                reason.count == 1 && reason[0].hasPrefix("error ") && reason[0].contains("unknownTrack"), "\(reason)")
+        }
         await model.close()
     }
 

@@ -20,7 +20,22 @@ Dirigible shows its menus and windows in English or Spanish. By default, it uses
 
 ### What Dirigible does not do yet
 
-- Safari and FaceTime cannot be a track source: they play their audio from system processes outside the app.
+- Safari and FaceTime cannot be a track source, and the **Apps** list does not show them: they play their audio from system processes outside the app.
+
+## Before you record a show
+
+Do these steps on the Mac of the recording before the show. The Spanish menu names are in [Menu commands and keys](#menu-commands-and-keys).
+
+1. Install the new version, and open it once with the steps in the Install section of the README. Choose **Dirigible > About Dirigible** and check the version.
+2. Make sure that macOS is 14.2 or later. On macOS 14.0 and 14.1, Dirigible cannot record the call app.
+3. Connect the microphones and wired headphones, then open Dirigible. Bluetooth headphones add delay to the monitor. Make the session on the disk of the Mac, not on a network disk or in iCloud Drive.
+4. Use the Zoom app or the Teams app. For Google Meet, use Chrome. Safari and FaceTime cannot be a track source. A Chrome track records all the tabs of Chrome, so close the other tabs that play sound.
+5. Join the call before you record. In the audio settings of the call app, set the speaker to the output of macOS. Tell the guest that you record: Dirigible gives the call no notice.
+6. Choose **Track > Add Call Tracks** and the call app. **Host** records the default input of macOS: check the input name in the **Host** header. Add one track for each other microphone ([Set up the tracks](#set-up-the-tracks)).
+7. Choose **Record > Input Levels**. Speak into each microphone, and make sure that the meter of its track moves.
+8. Record a test take of 1 minute while the guest speaks. When macOS asks for the microphone or for System Audio Recording, click **Allow**. After **Stop**, make sure that each track, also **Guest**, shows a waveform.
+9. Connect the power cable and keep the lid open. Dirigible keeps the Mac awake during a take, but a closed lid puts a laptop to sleep. Make sure that "Record time:" in the window subtitle is longer than the show.
+10. During the show, do not change the privacy settings. Before each new take, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop), so that Record does not replace audio. If Dirigible stops during the call, make a new session and record the rest of the call. After the call, open the old session to recover its take ([After a crash](#after-a-crash)).
 
 ## Record your first episode
 
@@ -63,7 +78,7 @@ A track records only when its arm button is on. Click the button to turn it on o
 
 1. Choose **Record > Record** (Command-R). The window shows **Recording take 1** and the time.
 2. Record the interview. The armed tracks show the audio in red as it records. A red line shows the record head. The time in the toolbar shows the record head. The header of each track shows its name and its input (if it has one) as text until the take is finished. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
-3. Choose **Transport > Stop** (Command-Period). The window shows **Finishing take 1**, then **Take 1 is finished.**
+3. Choose **Transport > Stop** (Command-Period). The window shows **Finishing take 1**, then **Take 1 is finished.** Space also stops the take. After a long take, **Finishing take 1** can last some minutes. Do not force Dirigible to quit.
 
 A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. After a take, the playhead is at the end of the take.
 
@@ -337,7 +352,7 @@ A session with a chapter link or a chapter image does not open in a version of D
 - Choose **Track > Add Track** to add a mono track with no input.
 - Choose **Track > Add Call Tracks** and a call app to add two mono tracks: **Host** records channel 1 of your default input device, and **Guest** records the app. Choose **No App** (**Sin app**) to give **Guest** no input. When no app runs, the menu shows **No Apps Running** (**No hay apps abiertas**). One Undo removes both tracks. A new track that would use the input of an armed track keeps its input, but it is not armed.
 - To change the name of a track, double-click its name, type the name, and press Return. Or select the track, choose **Track > Rename Track** (Return), and type the name.
-- Use the input menu of a track to choose a device and its channels. One channel gives a mono track, and a pair of channels gives a stereo track. **No Input** removes the input.
+- Use the input menu of a track to choose a device and its channels. One channel gives a mono track, and a pair of channels gives a stereo track. **No Input** removes the input. When two devices have the same name, the menu and the header add a number to the second one, for example "USB Mic 2". The number follows the device order of macOS, so speak into each microphone to know which is which.
 - To remove tracks, select them and choose **Track > Remove Track**. You can also Control-click the header of a track and choose **Remove Track**. When the header is selected, the menu removes all selected tracks. Else the header becomes the selection, and the menu removes only its track. When a track has clips, Dirigible asks first: click **Remove** (**Eliminar**) or press Return to remove the tracks, or click **Cancel** to keep them. **Edit > Undo** gives the tracks back until you close the window.
 - To change the width of the track headers, drag their right edge. Double-click the edge to go back to the standard width.
 
@@ -407,7 +422,7 @@ The Monitor button (the headphones, after the arm button) in the track header do
 
 Dirigible can record the sound of another app, for example a Zoom, Teams, or Slack call, on its own track. This needs macOS 14.2 or later.
 
-1. Open the call app.
+1. Open the call app, and join the call before you record. The **Apps** list shows an app only when it uses audio.
 2. Choose **Track > Add Call Tracks**, then the call app. Or, on the guest track, open the input menu, and under **Apps** choose the call app. A mono track records a mono mix of the app, and a stereo track records a stereo mix.
 3. Put on headphones, so the guest does not leak into your microphone track. When the output is the built-in speakers and an armed track records an app, the window shows the banner "Use headphones". It does not stop a take.
 4. Record. The first time, macOS asks for access to System Audio Recording. Click **Allow**.
@@ -415,9 +430,11 @@ Dirigible can record the sound of another app, for example a Zoom, Teams, or Sla
 Before the show, make a short test take with the call. Then macOS asks for System Audio Recording before the real take. After **Stop**, make sure that the app track has a waveform. After each update of Dirigible, macOS can ask again for the microphone and System Audio Recording, so make a test take after each install.
 
 - One app can feed one track only. Record your own microphone on another track.
+- In the audio settings of the call app, set the speaker to the output of macOS. If the call app plays to another device, the track can record almost no sound.
+- For Google Meet, use Chrome. A Chrome track records all the tabs of Chrome, so close the other tabs that play sound.
 - When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
-- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). A header of 56 to 79 pt shows an orange warning symbol: hold the pointer over it to see the text, and click it to open the settings. A lower header shows a red warning symbol with the text as its tooltip. The button opens Privacy & Security in System Settings. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later. The warning goes when the app sound comes, for example when a muted guest speaks. The warning does not stop the take.
-- If Dirigible is on in the **System Audio Recording** list and the track still shows "No sound from", select Dirigible in the list and click the minus button (**-**) to remove it. Then record again, and click **Allow** when macOS asks.
+- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). A header of 56 to 79 pt shows an orange warning symbol: hold the pointer over it to see the text, and click it to open the settings. A lower header shows a red warning symbol with the text as its tooltip. The button opens Privacy & Security in System Settings. On macOS 15, allow Dirigible in **Privacy & Security > Screen & System Audio Recording**, in the list **System Audio Recording Only**. Dirigible tries again 10 and 40 seconds later. The warning goes when the app sound comes, for example when a muted guest speaks. The warning does not stop the take.
+- If Dirigible is on in the list **System Audio Recording Only**, and the track still shows "No sound from" after the guest spoke, stop the take. Then select Dirigible in the list, and click the minus button (**-**) to remove it. Record again, and click **Allow** when macOS asks.
 - If the guest drops out of the call, keep recording. The track records the guest again when the call comes back.
 - On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
 - In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input. `dirigible track add-call <package> --device <UID> --channels 1 --app <bundle ID>` adds the **Host** and **Guest** tracks.
@@ -497,6 +514,7 @@ If a device goes away during a take, its tracks show **Device lost**. The other 
 
 ### When the disk is almost full
 
+- When a track is armed, the window subtitle shows the record time that is left on the disk, for example "Record time: 5 hrs, 20 min".
 - The window shows a banner when less than 60 minutes of record time is left on the disk. During a take, the banner shows at less than 10 minutes.
 - Record does not start when less than 1 GB is free on the disk of the session.
 - If the disk becomes almost full during a take, Dirigible stops the take and keeps the audio.
@@ -558,7 +576,7 @@ During a take, an import, or Auto Level, the command is off. With no file to rem
 
 ### When a session does not open
 
-If the window of a session shows an error and only **Try Again**, Dirigible cannot read the file `session.xml` in the session package. `dirigible backup revert` also reads `session.xml` first, so it does not help. Put the newest backup in place of `session.xml`. This is the only case where you change a file inside the package:
+If the window of a session shows "The session file is damaged." ("El archivo de la sesión está dañado.") and **Try Again**, Dirigible cannot read the file `session.xml` in the session package. `dirigible backup revert` also reads `session.xml` first, so it does not help. Put the newest backup in place of `session.xml`. This is the only case where you change a file inside the package:
 
 1. Quit Dirigible.
 2. In Finder, Control-click the session and choose **Show Package Contents**.
@@ -566,6 +584,8 @@ If the window of a session shows an error and only **Try Again**, Dirigible cann
 4. Open the `Backups` folder. The newest backup has the largest name: `session-<date>T<time>Z.xml`, with the time in UTC.
 5. Option-drag the newest backup to the package folder, to put a copy there. Rename the copy to `session.xml`.
 6. Open the session again.
+
+For another error, do not change the package. Remove the cause, for example close the other window, then click **Try Again**.
 
 ## Menu commands and keys
 
@@ -770,7 +790,7 @@ sudo mkdir -p /usr/local/bin
 ls /Applications/Dirigible.app/Contents/Helpers/dirigible && sudo ln -sf /Applications/Dirigible.app/Contents/Helpers/dirigible /usr/local/bin/dirigible
 ```
 
-If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`.
+If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`. Open the app once before you run the tool: until then, macOS shows a warning and the tool does not run.
 
 From a clone of the repository, run it with `swift run`:
 
@@ -880,7 +900,7 @@ An agent can ask to record. A take starts only when you click Record, or while a
 
 1. The agent calls `record`. A sheet opens on the session window. Its title is "An AI agent wants to record". The line under the title gives the name that the agent gives, in quotes: any app can give any name. The sheet names the tracks, the length, and the start. When a track has audio after the start, a line says that the take records over it. When a track records an app, a line says that the people in the call get no notice from Dirigible.
 2. Click Record to start the take, or click Don't Record. Record is off until the sheet was in front for 1 second, so a click that you aimed at another window cannot start a take. Escape is Don't Record. Return, Tab, and Space cannot press Record.
-3. The take stops after its length, or earlier when you click Stop.
+3. The take stops after its length, or earlier when you click Stop. For a show, ask the agent for a length well past the planned end, or start the take yourself with **Record > Record** (Command-R): that take has no length.
 
 To let the agent record more takes with no sheet, turn on "Don't ask again until I close this window" before you click Record. The checkbox shows only when each track records a device, no track has audio after the start, and the take is 2 hours or less. Then a later request of the same agent connection, on the same tracks with the same devices and channels, starts with no sheet. A request with an app track, a take that records over audio, or a length over the time left always shows the sheet. The grant ends:
 

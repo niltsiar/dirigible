@@ -69,7 +69,7 @@ public func importAudio(
     guard free >= needed else { throw .space(file: name, needed: needed, free: free) }
 
     let clips = package.appending(path: clipsFolderName)
-    let stem = importStem(of: source, in: session, package: package)
+    let stem = importStem(of: source, in: session, package: package, taken: [])
     let wav = "\(clipsFolderName)/\(stem).wav"
     let temporary = clips.appending(path: temporaryWAV(of: stem))
     var renamed = false
@@ -170,8 +170,9 @@ func convertToWAV(
 /// The stem of the WAV and the IDs of an import of `source` (decision 0040): the file name with no
 /// extension, with no leading "." and no character that a session or an exFAT volume cannot
 /// store, or "Imported" when nothing is left. A stem that a file ID, a clip ID, a pool path, a
-/// name in `Clips/`, or a segment stem in `Capture/` uses, in any case, gets " 2", " 3", and so on.
-func importStem(of source: URL, in session: Session, package: URL) -> String {
+/// name in `Clips/`, a segment stem in `Capture/`, or a stem in `taken` uses, in any case, gets
+/// " 2", " 3", and so on.
+func importStem(of source: URL, in session: Session, package: URL, taken: Set<String>) -> String {
     var base = String(
         String.UnicodeScalarView(
             source.deletingPathExtension().lastPathComponent.unicodeScalars.filter {
@@ -186,7 +187,7 @@ func importStem(of source: URL, in session: Session, package: URL) -> String {
     let pool: [String] = session.files.values.flatMap { [$0.id.rawValue, $0.path] }
     let names: [String] =
         pool + session.tracks.flatMap(\.clips).map(\.id.rawValue) + listing(clipsFolderName) + segments
-    let used = Set(names.map { $0.lowercased() })
+    let used = Set((names + taken).map { $0.lowercased() })
     var (stem, number) = (base, 2)
     while used.contains(stem.lowercased()) || used.contains("\(stem).wav".lowercased()) {
         stem = "\(base) \(number)"

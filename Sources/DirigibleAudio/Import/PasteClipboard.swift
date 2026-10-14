@@ -139,7 +139,9 @@ struct PastePlan {
             var records: [FileID: AudioFile] = [:]
             for id in excerpt.files.keys.sorted() {
                 guard let record = excerpt.files[id] else { continue }
-                let stem = stems?[id] ?? importStem(of: URL(filePath: record.path), in: self.session, package: package)
+                let stem =
+                    stems?[id]
+                    ?? importStem(of: URL(filePath: record.path), in: self.session, package: package, taken: [])
                 let copy = AudioFile(
                     id: FileID(stem), path: "\(stem).wav", layout: record.layout, length: lengths[id] ?? record.length)
                 try self.session.addFile(copy)

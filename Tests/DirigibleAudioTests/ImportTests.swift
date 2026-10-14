@@ -151,8 +151,9 @@ struct ImportTests {
         #expect(first.clip == "Interview" && second.clip == "Interview 3", "a pool name and a Clips/ name are used")
         #expect(second.session.files["Interview 3"]?.path == "Interview 3.wav")
         let session = Session(sampleRate: 48_000)
-        #expect(importStem(of: URL(filePath: "/x/.a:b.mp3"), in: session, package: package.url) == "ab")
-        #expect(importStem(of: URL(filePath: "/x/\u{1}.wav"), in: session, package: package.url) == "Imported")
+        #expect(importStem(of: URL(filePath: "/x/.a:b.mp3"), in: session, package: package.url, taken: []) == "ab")
+        #expect(
+            importStem(of: URL(filePath: "/x/\u{1}.wav"), in: session, package: package.url, taken: []) == "Imported")
     }
 
     /// Code gate 1 items 2 and 3: a stem never takes the name of a capture segment, and it has no
@@ -165,10 +166,11 @@ struct ImportTests {
         let session = Session(sampleRate: 48_000)
 
         #expect(
-            importStem(of: URL(filePath: "/x/take1-1-1.wav"), in: session, package: package.url) == "take1-1-1 2",
+            importStem(of: URL(filePath: "/x/take1-1-1.wav"), in: session, package: package.url, taken: [])
+                == "take1-1-1 2",
             "a capture segment name is used")
         #expect(
-            importStem(of: URL(filePath: "/x/a?b*c<d>e|f\"g\\h.mp3"), in: session, package: package.url)
+            importStem(of: URL(filePath: "/x/a?b*c<d>e|f\"g\\h.mp3"), in: session, package: package.url, taken: [])
                 == "abcdefgh", "exFAT characters go")
     }
 

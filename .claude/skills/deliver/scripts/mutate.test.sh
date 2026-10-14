@@ -265,6 +265,18 @@ reset_schema
 marg 1 --switch expr s.swift 10 '11 +' "$tmp/l1" "$sbuild" "$stest"
 schema 1
 has '^1 own build: .*parse' parse; builds 0 parse; same parse
+# The parse is in Swift 6 mode: a bare-slash regex that Swift 5 mode refuses (as in SessionWriter.swift)
+# keeps the switch. A file whose original does not parse keeps it too: the build decides.
+reset_schema
+printf '%s\n' 'func f(_ name: String) -> Bool {' \
+  '    guard let match = name.wholeMatch(of: /\.session\.xml\.(.+)\.tmp/), let n = Int(String(match.1)) else { return false }' \
+  '    return n > 0' '}' 'let e = 50' > "$tmp/r.swift"
+printf 'let q = (\nlet g = 60\n' > "$tmp/u.swift"
+ptest="[[ \${DIRIGIBLE_MUTANT:-} == '' ]]"
+marg 1 --switch expr r.swift 50 51 "$tmp/l1" "echo b >> '$tmp/builds'" "$ptest"
+marg 2 --switch expr u.swift 60 61 "$tmp/l2" "echo b >> '$tmp/builds'" "$ptest"
+schema 1 2
+has '^1 killed: ' 'Swift 6 parse'; has '^2 killed: ' 'original does not parse'; builds 1 'Swift 6 parse'
 
 # A build error in a file (an absolute path, the batch names it relative) sends the mutants of that
 # file to their own build, and the batch builds again; a second failure sends all.

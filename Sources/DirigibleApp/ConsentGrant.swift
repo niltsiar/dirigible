@@ -42,6 +42,19 @@ struct ConsentGrant {
     }
 }
 
+/// A take that an agent started, while it records (decision 0050): the take row, the Dock
+/// badge, and the agent log read it.
+struct AgentTake: Equatable {
+    let take: Int
+    let agent: String?
+    let tracks: [String]
+    let seconds: Double
+    let since: ContinuousClock.Instant
+    /// True for a grant take, false for a click take.
+    let byGrant: Bool
+    let connection: AgentConnection?
+}
+
 /// The agent record state of a window that outlives one request (decision 0050).
 struct AgentRecordState {
     /// The most requests that show a sheet or start a grant take on a window in `askWindow`.
@@ -49,6 +62,8 @@ struct AgentRecordState {
     static let askWindow = Duration.seconds(60)
 
     var grant: ConsentGrant?
+    /// The agent take that records now, or nil (C12).
+    var take: AgentTake?
     /// The times of the requests that showed a sheet or started a grant take (C11).
     var asks: [ContinuousClock.Instant] = []
     /// The clock of the grant end, the rate limit, and the key time. Tests give their own.

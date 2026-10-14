@@ -216,6 +216,10 @@
 "track.listen.loopback" = "Sin sonido de monitor: la salida puede llegar a esta entrada. Elige otra salida.";
 "track.dropped" = "Tramas perdidas: %lld";
 "take.recording" = "Grabando la toma %lld";
+"take.agent" = "La toma %1$lld graba %2$@ para un agente de IA (dice: “%3$@”) · quedan %4$@";
+"take.agent.unnamed" = "La toma %1$lld graba %2$@ para un agente de IA · quedan %3$@";
+"take.agent.always.ask" = "Preguntar siempre";
+"dock.badge.recording" = "REC";
 "take.finishing" = "Terminando la toma %lld…";
 "take.placing" = "Colocando %@…";
 "take.leveling" = "Nivelando clips…";

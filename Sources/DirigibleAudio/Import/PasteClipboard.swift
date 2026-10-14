@@ -164,7 +164,8 @@ public func cloneWorks(_ file: URL, into folder: URL) -> Bool {
 }
 
 /// The file half of `pasteClipboard`: the checks, the copies or conversions (at `rate`), the
-/// read-back, `beforeRenames` with the frames and the gain of each converted file, and the renames.
+/// read-back, `beforeRenames` with the frames and the gain of each converted file, and the renames,
+/// with `NewClipFiles` (decision 0056).
 private func copyFiles(
     _ copies: [(record: AudioFile, copy: AudioFile)], from source: URL, to package: URL,
     rate: (target: Int, source: Int)?,
@@ -172,7 +173,6 @@ private func copyFiles(
     isCancelled: @escaping () -> Bool, flush: @escaping (String) -> Int32?,
     beforeRenames: ([FileID: (length: Frames, gain: Gain)]) throws(PasteError) -> Void
 ) throws(PasteError) {
-    let clips = package.appending(path: clipsFolderName)
     var sizes: [Int64] = []
     var clones: [Bool] = []
     var needed: Int64 = 0
@@ -191,20 +191,19 @@ private func copyFiles(
         if let rate {
             let frames = (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(record.length.count)
             let converted = (frames * Int64(rate.target) + Int64(rate.source) - 1) / Int64(rate.source)
-            needed += converted * Int64(copy.layout.channelCount) * 3
+            needed += wavFileBytes(frames: converted, channels: copy.layout.channelCount)
         } else if !clones[clones.count - 1] {
             needed += Int64(info.st_size)
         }
     }
     // One check for all files, so a paste cannot pass file by file and fill the disk late.
-    if needed > 0 {
-        let free = freeBytes()
-        guard free >= needed + diskMargin else { throw .space(needed: needed + diskMargin, free: free) }
+    var files: NewClipFiles
+    do throws(NewClipFault) {
+        files = try NewClipFiles(in: package, bytes: needed, freeBytes: freeBytes, flush: flush)
+    } catch {
+        throw PasteError(error)
     }
-    if mkdir(clips.path, 0o755) != 0, errno != EEXIST { throw .write(file: clipsFolderName, errno: errno) }
-    var temporaries: [URL] = []
-    var renamed = 0
-    defer { for url in temporaries.dropFirst(renamed) { unlink(url.path) } }
+    defer { files.discard() }
     let total = max(sizes.reduce(0, +), 1)
     var done: Int64 = 0
     var converted: [FileID: (length: Frames, gain: Gain)] = [:]
@@ -212,8 +211,7 @@ private func copyFiles(
         let size = sizes[index]
         guard !isCancelled() else { throw .cancelled }
         let from = source.appending(path: "\(clipsFolderName)/\(record.path)")
-        let temporary = clips.appending(path: temporaryWAV(of: (copy.path as NSString).deletingPathExtension))
-        temporaries.append(temporary)
+        let temporary = files.add(stem: (copy.path as NSString).deletingPathExtension)
         let base = done
         if let rate = rate?.target {
             let share = { (fraction: Double) in progress((Double(base) + fraction * Double(size)) / Double(total)) }
@@ -226,6 +224,7 @@ private func copyFiles(
                 if code == ECANCELED { throw .cancelled }
                 throw copyFault(code, from: from, record: record, copy: copy)
             }
+            // Its data is on disk before the rename; a conversion flushes in `ClipConversion`.
             if let code = flush(temporary.path) { throw .write(file: copy.path, errno: code) }
             guard let read = try? AVAudioFile(forReading: temporary),
                 // At least the record length, as `openMedia` reads it: a record can be shorter.
@@ -238,16 +237,7 @@ private func copyFiles(
     }
     try beforeRenames(converted)
     guard !isCancelled() else { throw .cancelled }
-    for ((_, copy), temporary) in zip(copies, temporaries) {
-        do throws(ExportError) {
-            try moveNew(temporary, to: clips.appending(path: copy.path))
-        } catch {
-            if case .moveFailed(let code) = error { throw .write(file: copy.path, errno: code) }
-            throw .write(file: copy.path, errno: EEXIST)
-        }
-        renamed += 1
-    }
-    if let code = flush(clips.path) { throw .write(file: clipsFolderName, errno: code) }
+    do throws(NewClipFault) { try files.commit() } catch { throw PasteError(error) }
 }
 
 /// One conversion of a pool WAV into `temporary` at `rate`, through the conversion of import

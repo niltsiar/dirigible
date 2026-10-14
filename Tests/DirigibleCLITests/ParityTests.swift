@@ -134,6 +134,21 @@ struct ParityTests {
         }
     }
 
+    /// The guide line of the commands with no tool names no command that has a tool, so the guide
+    /// does not send a user to the terminal for a tool that exists (run 7b, C15).
+    @Test func theGuideNamesNoToolAsACommandWithNoTool() throws {
+        let guide = try String(
+            contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
+            encoding: .utf8)
+        let line = guide.split(separator: "\n").first { $0.hasPrefix("- These commands have no tool.") } ?? ""
+        let commands = leafCommands(of: Dirigible.self)
+        let named = line.matches(of: /`([^`]+)`/).map { String($0.1) }.filter(commands.contains)
+        #expect(named.count >= 5, "the scan found too few commands: \(named)")
+        for command in named where Self.toolExemptions[command] == nil {
+            Issue.record("docs/guide.md lists \(command) as a command with no tool, but it has a tool")
+        }
+    }
+
     /// The guide section for people that names what the agent manual gives (decision 0051, C10).
     @Test func theGuideNamesEachRecipe() throws {
         let section = try Self.guideSection("#### What you can ask an agent")

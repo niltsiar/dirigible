@@ -40,11 +40,22 @@ struct ToolTextTests {
                 == "p is busy in Dirigible: a take, an import, a level, or a close runs. Try again later.")
     }
 
-    /// Decision 0050 (C19): the record text names the window grant, its ends, and the rate limit.
+    /// Decision 0050 (C19): the record text names the window grant, its ends, and the rate limit,
+    /// with the values of the constants.
     @Test func recordNamesTheWindowGrant() throws {
         let text = try #require(Tool.all.first { $0.name == "record" }).description
-        for part in ["window grant", "1 h", "2 h", "new connection", "app track", "3 requests"] {
+        let (hours, takes) = (
+            RecordRequest.grantLifetime.components.seconds / 3600, RecordRequest.grantTakeSeconds / 3600
+        )
+        let rate = "\(RecordRequest.askLimit) requests in \(RecordRequest.askWindow.components.seconds) s"
+        #expect((hours, takes, rate) == (1, 2, "3 requests in 60 s"), "the values of decision 0050")
+        for part in ["window grant", "\(hours) h,", "\(Int(takes)) h of takes", "new connection", "app track", rate] {
             #expect(text.contains(part), "\(part)")
         }
+        guard case .result(let tooMany, true) = RecordAnswer.tooMany.reply(package: "p") else {
+            Issue.record("tooMany is not an error")
+            return
+        }
+        #expect(tooMany == "Too many record requests: \(RecordRequest.askLimit) in 60 s. Wait, then ask again.")
     }
 }

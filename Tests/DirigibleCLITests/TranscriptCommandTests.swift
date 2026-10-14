@@ -172,7 +172,7 @@ struct TranscriptCommandTests {
 
     /// The error text of a token that an edit made stale.
     static func stale(_ token: String) -> String {
-        "no word \(token) on the timeline: an edit changed it. Read the words again, then cut."
+        "no word \(token) on the timeline: it is not there now, or an edit changed it. Read the words again, then cut."
     }
 
     /// Code gate 1 item 5: a cut splits the clip, so the tokens of the second phrase from the same

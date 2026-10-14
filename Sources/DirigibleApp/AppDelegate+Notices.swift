@@ -17,15 +17,12 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
     ) async {
         guard response.actionIdentifier == AgentTakeNotice.stopAction else { return }
-        let info = response.notification.request.content.userInfo
-        guard let path = info[AgentTakeNotice.packageKey] as? String,
-            let take = (info[AgentTakeNotice.takeKey] as? String).flatMap(Int.init)
-        else { return }
-        await noticeStop(URL(filePath: path), take: take)
+        guard let id = AgentTakeNotice.id(of: response.notification.request.content.userInfo) else { return }
+        await noticeStop(id)
     }
 
     /// Stop of a notification: it ends only that agent take, while it records.
-    func noticeStop(_ package: URL, take: Int) async {
-        await windows[package]?.stopAgentTake(take)
+    func noticeStop(_ id: String) async {
+        for window in windows.values where window.agentRecord.take?.noticeID == id { await window.stopAgentTake(id) }
     }
 }

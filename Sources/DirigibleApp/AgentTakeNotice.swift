@@ -7,9 +7,9 @@ import UserNotifications
 struct AgentTakeNotice {
     static let category = "agent-take"
     static let stopAction = "stop"
-    /// The user info keys: the package path and the take number.
-    static let packageKey = "package"
-    static let takeKey = "take"
+    /// The user info key of the notice ID. The ID does not come from the path, so a move of the
+    /// package or a trailing slash cannot make Stop miss the take.
+    static let idKey = "id"
 
     /// Asks for the permission. The system shows its prompt only one time.
     var authorize: @MainActor () -> Void = {
@@ -27,6 +27,6 @@ struct AgentTakeNotice {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [$0])
     }
 
-    /// The identifier of the notification of `take` in `package`.
-    static func id(_ package: URL, take: Int) -> String { "\(category) \(take) \(package.path)" }
+    /// The notice ID of the user info of a notification.
+    static func id(of info: [AnyHashable: Any]) -> String? { info[idKey] as? String }
 }

@@ -95,6 +95,13 @@ struct TranscriptFileTests {
         }
     }
 
+    /// Code gate 1 item 7. A `<transcript>` with no `<words>` is refused: no edit writes one.
+    @Test func aTranscriptWithNoWordsIsRefused() throws {
+        #expect(throws: SessionFileError.invalidValue(element: "transcript", attribute: "words")) {
+            try read(transcribed(), replacing: #"<words file="g">1 40000 50000 yes</words>"#, with: "")
+        }
+    }
+
     /// A `<words>` of a file that is not in the pool is refused.
     @Test func unknownFileIsRefused() throws {
         #expect(throws: SessionFileError.invalidSession(.unknownFile("nope"))) {

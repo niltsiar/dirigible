@@ -5,7 +5,7 @@ description: "Deliver one goal end to end: analyze, plan, gate, implement test-f
 
 # Deliver
 
-One run takes one goal (a requirement, a slice of one, or a bug) to a merged pull request on `main`. Every step writes to the run ledger for the next agent. Open a todo list with the phases. Do not skip a phase; a short phase still leaves its artifact.
+One run takes one goal (a requirement, a slice of one, or a bug) to a merged pull request on `main`. Every step writes to the run ledger. Open a todo list with the phases. Do not skip a phase; a short phase still leaves its artifact.
 
 ## Autonomy rules
 
@@ -20,7 +20,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 
 ## Phase 0: Open the run
 
-1. Read `.scratchpads/ledger.md`, the `## Next` section of the backlog, and the last `run.md`. The **reflect** skill reads `learnings.md`.
+1. Read `.scratchpads/ledger.md`, `## Next` of the backlog, and the last `run.md`. The **reflect** skill reads `learnings.md`.
 2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume an open run on its branch: read its `run.md` and `decisions.tsv`, and continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
 3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug> <type>`.
 4. Run `make check` on `main` only when `main` has commits that no run landed. If it is red, the fix is the goal.
@@ -85,17 +85,17 @@ Before the gate, run `scripts/check-changed.sh origin/main`. When its classes or
 
 Run the **interrogate** skill with target `diff` and the lenses and rounds of the class table.
 
-- Fix each "Act on" item and each flake in its own commit, with its regression test and the Phase 2 grep. Check a visible fix as in Phase 4 step 5.
+- Fix each "Act on" item and each flake in its own commit: a behavior fix with its regression test, a rule fix with the Phase 2 grep. Check a visible fix as in Phase 4 step 5.
 - Put each skipped "Consider" item in `## Later`, with the reason.
 - When a user decision reverts a fix, write its symptom in the manual checks and in `pr.md`.
 
 ## Phase 7: Verify
 
-Run the **verify-this** skill for each criterion against the real artifact (the built app, real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` gets a `decisions.tsv` row with the result `NOT VERIFIED` and sends you back to Phase 4 for a test-first fix, whose red-first log is its control; first stop the mutation pass (`pkill -TERM -f "mutation-pass.sh <absolute-worktree>"` restores the file; exit 143). If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once, with logs in `<run>/logs/`: each eval that `scripts/evals-for.sh --quoted origin/main` prints, `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs its bench until it passes and runs no pairs), with `risk: yes` the mutation pass of `references/mutation-controls.md` (each mutant with `--timeout`, its logs in `<run>/controls/`), `scripts/check-governance.sh origin/main <run>`, then the push check `make check-changed BASE=origin/main > <run>/logs/push-check.log 2>&1` with `run_in_background`. A `test-shards:` time over two times that of the newest landed `push-check.log` with a `test-shards:` line (else the baseline of this run) is a plan change. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. Tell the user the state of each background step over 15 min. A later `Sources/` change runs the pairs and the push check again (for the pass, see `references/mutation-controls.md`). A later doc change runs its evals again.
+Run the **verify-this** skill for each criterion against the real artifact (the built app, real files, measured levels), and record each verdict in `run.md`. `NOT VERIFIED` gets a `decisions.tsv` row with the result `NOT VERIFIED` and sends you back to Phase 4 for a test-first fix, whose red-first log is its control; first stop the mutation pass (`pkill -TERM -f "mutation-pass.sh <absolute-worktree>"` restores the file; exit 143). If the window changed, make the screenshots again (`docs/guide.md`, For contributors). After the last Phase 7 fix, run once, with logs in `<run>/logs/`: each eval that `scripts/evals-for.sh --quoted origin/main` prints, `scripts/bench-pairs.sh` for each optimized budget (`references/performance-criteria.md`; a slice runs its bench until it passes and runs no pairs), with `risk: yes` the mutation pass of `references/mutation-controls.md` (each mutant with `--timeout`, its logs in `<run>/controls/`), `scripts/check-governance.sh origin/main <run>`, then the push check `make check-changed BASE=origin/main > <run>/logs/push-check.log 2>&1` with `run_in_background`. A `test-shards:` time over two times that of the newest landed `push-check.log` with a `test-shards:` line (else the baseline of this run) is a plan change. Commit nothing until it ends: `scripts/land.sh` reuses its stamp. Tell the user the state of each background step over 15 min. A later `Sources/` change runs the pairs and the push check again (the pass: `references/mutation-controls.md`). A later doc change runs its evals again.
 
 ## Phase 8: Reflect
 
-Run the **reflect** skill on the branch. Then move each `## Later` item that this run made due to `## Next`, and each taken item out (`check-governance.sh` refuses it).
+Run the **reflect** skill on the branch. Then move each `## Later` item that this run made due to `## Next`, and each taken item out (`check-governance.sh` fails the land).
 
 ## Phase 9: Land through a pull request
 

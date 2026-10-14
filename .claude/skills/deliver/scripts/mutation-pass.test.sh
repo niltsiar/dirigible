@@ -151,9 +151,19 @@ run "$tmp/tree" "$tmp/batch.sh"
 [[ $code -eq 0 ]] || fail "schema: exit $code: $out"
 [[ "$(calls)" == 'schema:1,2,4:1,2,3,4 killed survived' ]] || fail "schema: calls [$(calls)]"
 [[ "$(wc -l < "$tmp/locks" | tr -d ' ')" == 1 ]] || fail "schema: lock takes [$(cat "$tmp/locks")]"
-[[ "$(grep -E '^[0-9]+: ' <<<"$out" | paste -sd'|' -)" == '1: killed: l1|2: survived: l2|3: killed|4: survived' ]] || fail "schema: result lines: $out"
+[[ "$(grep -E '^[0-9]+: ' <<<"$out" | paste -sd'|' -)" == '1: killed: l1|2: survived: l2|3: killed|4: own build: its span overlaps the span of mutant 1|4: survived' ]] || fail "schema: result lines: $out"
 [[ "$(tail -2 <<<"$out" | paste -sd'|' -)" == 'schema: 2 mutants in one build; 2 with its own build|pass: 4 mutants; killed 2; survived 2; other 0' ]] || fail "schema: last lines: $out"
 [[ "$(tr '\0' ' ' < "$tmp/batch.sh.schema/2")" == '--timeout 5 --switch stmt Sources/x.swift survived new log build test ' ]] || fail "schema: argument file 2: $(tr '\0' ' ' < "$tmp/batch.sh.schema/2")"
+
+# A mutant whose baseline failed counts as other with its reason and does not run again: a kill
+# needs a passing baseline.
+printf 'mutant --switch expr Sources/x.swift killed new log build test\nmutant --switch expr Sources/x.swift survived new log build test\n' > "$tmp/baseline.sh"
+printf '1 own build: the baseline failed (b/baseline-1.log)\n2 survived: l2\n' > "$tmp/schema.out"
+: > "$tmp/calls"
+run "$tmp/tree" "$tmp/baseline.sh"
+[[ "$(calls)" == 'schema:1,2:1,2' ]] || fail "baseline: calls [$(calls)]"
+grep -qx '1: own build: the baseline failed (b/baseline-1.log)' <<<"$out" || fail "baseline: no reason line: $out"
+grep -qx 'pass: 2 mutants; killed 0; survived 1; other 1' <<<"$out" || fail "baseline: count: $out"
 
 # A second run of the batch with one switch line less: the folder is new, so the old file 4 is gone,
 # and the call names only its own switch lines.

@@ -66,19 +66,26 @@ struct AppTapTests {
         }
     }
 
-    /// Safari and FaceTime play their audio from system processes, so a tap of the app records
-    /// silence: the list leaves them out.
+    /// Safari, Safari Technology Preview, and FaceTime play their audio from system processes, so
+    /// a tap of the app records silence: the list leaves them out.
     @Test func theAppListLeavesOutSafariAndFaceTime() throws {
         let apps = try AppFixture()
         let safari = apps.root.appending(path: "Safari.app")
+        let preview = apps.root.appending(path: "Safari Technology Preview.app")
         let faceTime = apps.root.appending(path: "FaceTime.app")
         try AppFixture.bundle(safari, "com.apple.Safari", "Safari")
+        try AppFixture.bundle(preview, "com.apple.SafariTechnologyPreview", "Safari Technology Preview")
         try AppFixture.bundle(faceTime, "com.apple.FaceTime", "FaceTime")
-        let urls = ["com.apple.Safari": safari, "com.apple.FaceTime": faceTime]
+        let urls = [
+            "com.apple.Safari": safari, "com.apple.SafariTechnologyPreview": preview, "com.apple.FaceTime": faceTime,
+        ]
         let processes =
             apps.processes + [
                 AudioProcess(
                     id: 240, bundleID: "com.apple.Safari", path: safari.path + "/Contents/MacOS/S", playing: true),
+                AudioProcess(
+                    id: 245, bundleID: "com.apple.SafariTechnologyPreview", path: preview.path + "/Contents/MacOS/P",
+                    playing: true),
                 AudioProcess(
                     id: 250, bundleID: "com.apple.FaceTime", path: faceTime.path + "/Contents/MacOS/F", playing: false),
             ]

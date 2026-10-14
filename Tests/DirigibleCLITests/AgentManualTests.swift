@@ -94,29 +94,35 @@ struct AgentManualTests {
         #expect(titles.count == order.count && titles == titles.sorted(), "the skill has no phase sections in order")
     }
 
-    /// W8: frames come from the user or from a transcript, and a cut goes from the last range.
+    /// W8: frames come from the user or from a transcript. RR11: a cut gives all its ranges in one
+    /// call.
     @Test func theTimeRuleAllowsATranscript() {
         #expect(!Self.core.contains("ask the user for the frame"))
         let time = Self.core.split(separator: "\n").first { $0.hasPrefix("- Times are frames") } ?? ""
         #expect(
             time.contains("frame = seconds x sample rate, rounded") && time.contains("from a transcript"), "\(time)")
         let ripple = Self.core.split(separator: "\n").first { $0.hasPrefix("- The ripple tools") } ?? ""
-        #expect(ripple.contains("Cut from the last range to the first."), "\(ripple)")
+        #expect(ripple.contains("Give all the ranges of a cut in one call."), "\(ripple)")
+        #expect(!ripple.contains("from the last range"), "\(ripple)")
     }
 
-    /// W8: the transcript is of the current session with each track heard, the ranges merge, the
-    /// user agrees before the first cut, and the cuts go from the last range to the first. A cut
-    /// ripples each track, so a track that the export left out stops the recipe (code gate 1 item 1).
-    @Test func theTranscriptRecipeCutsFromTheLast() {
+    /// W8 and RR11: the transcript is of the current session with each track heard, the user
+    /// agrees before the cut, and one call cuts all the ranges, so the recipe has no merge and no
+    /// order. A cut ripples each track, so a track that the export left out stops the recipe (code
+    /// gate 1 item 1). The range recipe says that `from` and `to` are arrays.
+    @Test func theTranscriptRecipeCutsInOneCall() {
         let steps = Self.steps("cut-from-transcript")
         for text in [
             "of the current session from frame 0 with each track heard", "muted or not soloed, stop and ask the user",
-            "of the current session with each track heard", "merge ranges that overlap",
-            "the sample rate of `session_info`",
-            "before the first cut", "`clip_ripple_delete` with no `track`", "from the last range to the first",
+            "of the current session with each track heard", "the sample rate of `session_info`",
+            "before the cut", "one `clip_ripple_delete` with no `track` and all the ranges",
         ] {
             #expect(steps.contains(text), "the transcript recipe does not say \(text)")
         }
+        for text in ["merge", "from the last range", "for each range"] {
+            #expect(!steps.contains(text), "the transcript recipe still says \(text)")
+        }
+        #expect(Self.steps("cut-a-range").contains("`from` and `to` are arrays"), "the range recipe")
     }
 
     /// W9: the recipe of the tracks names the source tools, and the sound recipe imports at a frame.

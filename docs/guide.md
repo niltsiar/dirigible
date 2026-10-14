@@ -897,7 +897,7 @@ The manual follows the order of the work: prepare, record, edit, produce, and ex
 - "Rename Track 1 to Ana and Track 2 to Ben."
 - "Record 10 seconds on the host track." The agent asks with the `record` tool, and you click Record in the app.
 - "Cut 0:30 to 0:40, and keep the host and the guest in sync."
-- "Here is a transcript with word times of an export of this session. Cut each false start." The agent shows each range and asks before the first cut.
+- "Here is a transcript with word times of an export of this session. Cut each false start." The agent shows each range and asks before the cut. It cuts all the ranges in one call, so one undo in the app gives them all back.
 - "Check the levels of all clips."
 - "Add the jingle on a new track at the start, and fade it out."
 - "Add the chapter Gear talk at minute 1."

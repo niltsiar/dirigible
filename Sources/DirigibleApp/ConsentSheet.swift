@@ -23,6 +23,13 @@ struct ConsentSheet: View {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
             }
+            if consent.offersGrant {
+                VStack(alignment: .leading, spacing: 4) {
+                    GrantBox(consent: consent).fixedSize()
+                    Text(L10n.consentGrantHelp.key).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             HStack {
                 Spacer()
                 Button(L10n.consentDontRecord.key, role: .cancel) { Task { await model.answerConsent(record: false) } }
@@ -75,8 +82,34 @@ private struct RecordButton: NSViewRepresentable {
     }
 }
 
+/// The grant checkbox (decision 0050): an AppKit switch that refuses the key focus, so Tab and
+/// Space cannot change it with Keyboard navigation on. Only a click changes it.
+private struct GrantBox: NSViewRepresentable {
+    let consent: ConsentRequest
+
+    func makeNSView(context: Context) -> GrantCheckbox {
+        let box = GrantCheckbox(
+            checkboxWithTitle: L10n.consentGrant.text, target: context.coordinator, action: #selector(Click.toggle(_:)))
+        box.state = consent.grantChecked ? .on : .off
+        return box
+    }
+
+    func updateNSView(_ box: GrantCheckbox, context: Context) { context.coordinator.consent = consent }
+
+    func makeCoordinator() -> Click { Click(consent) }
+
+    @MainActor final class Click: NSObject {
+        weak var consent: ConsentRequest?
+        init(_ consent: ConsentRequest) { self.consent = consent }
+        @objc func toggle(_ box: NSButton) { consent?.grantChecked = box.state == .on }
+    }
+}
+
 /// A button that never takes the key focus, so no key presses it.
-final class ClickOnlyButton: NSButton {
+class ClickOnlyButton: NSButton {
     override var acceptsFirstResponder: Bool { false }
     override func becomeFirstResponder() -> Bool { false }
 }
+
+/// The grant checkbox of the sheet (decision 0050): only a click changes it, as Record.
+final class GrantCheckbox: ClickOnlyButton {}

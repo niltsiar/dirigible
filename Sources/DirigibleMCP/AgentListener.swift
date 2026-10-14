@@ -13,6 +13,26 @@ package struct AgentCall: Sendable {
     let identity: URL
     let work: ToolWork
     let agent: AgentName
+    /// The bridge connection that sent the call. A window grant binds to it (decision 0050).
+    let connection: AgentConnection
+}
+
+/// The serial of one bridge connection (decisions 0046 and 0050). One counter for the process
+/// gives it, so it never repeats in the process, also after a server stop and start.
+package struct AgentConnection: Hashable, Sendable {
+    package let serial: UInt64
+
+    package init(serial: UInt64) { self.serial = serial }
+
+    private static let counter = OSAllocatedUnfairLock(initialState: UInt64(0))
+
+    static func next() -> AgentConnection {
+        AgentConnection(
+            serial: counter.withLock {
+                $0 += 1
+                return $0
+            })
+    }
 }
 
 /// The listener of the app server (decision 0046 Owners). It owns the lock fd, the listener fd,
@@ -44,7 +64,6 @@ final class AgentListener: @unchecked Sendable {
     private var listenSource: DispatchSourceRead?
     /// Keyed by a serial that never repeats, so a late reply can never find a new connection.
     private var connections: [UInt64: Connection] = [:]
-    private var accepted: UInt64 = 0
     private var stopped = false
 
     /// One accepted bridge. It runs one call at a time. Its read source stays on while a call
@@ -163,8 +182,7 @@ final class AgentListener: @unchecked Sendable {
             guard fd >= 0 else { return }
             // The fd takes O_NONBLOCK from the listener, so no read blocks the queue.
             setNoSigPipe(fd)
-            accepted += 1
-            let connection = Connection(fd: fd, serial: accepted)
+            let connection = Connection(fd: fd, serial: AgentConnection.next().serial)
             let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
             source.setEventHandler { [weak self, unowned connection] in self?.readable(connection) }
             source.setCancelHandler { close(fd) }
@@ -194,7 +212,7 @@ final class AgentListener: @unchecked Sendable {
         guard connection.call == nil, let newline = connection.buffer.firstIndex(of: UInt8(ascii: "\n")) else { return }
         let line = connection.buffer[connection.buffer.startIndex..<newline]
         connection.buffer.removeSubrange(connection.buffer.startIndex...newline)
-        let checked = Self.check(Data(line))
+        let checked = Self.check(Data(line), connection: AgentConnection(serial: connection.serial))
         connection.calls += 1
         (connection.running, connection.gate, connection.last) = (connection.calls, ProgressGate(), 0)
         let (handle, serial, number) = (handle, connection.serial, connection.calls)
@@ -280,7 +298,7 @@ final class AgentListener: @unchecked Sendable {
 
     /// Parses a call line and checks its arguments as the file path does, so a bad argument gives
     /// the same text. It computes the package identity here, off the main actor (C6).
-    static func check(_ line: Data) -> Result<AgentCall, ToolError> {
+    static func check(_ line: Data, connection: AgentConnection) -> Result<AgentCall, ToolError> {
         guard let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
             let name = object["tool"] as? String, let arguments = object["arguments"] as? [String: Any]
         else { return .failure(ToolError("The call from dirigible mcp is not valid.")) }
@@ -298,7 +316,7 @@ final class AgentListener: @unchecked Sendable {
             return .success(
                 AgentCall(
                     path: checked.path, identity: packageIdentity(checked.package), work: work,
-                    agent: AgentName(title: client.title, clientName: client.name)))
+                    agent: AgentName(title: client.title, clientName: client.name), connection: connection))
         } catch {
             return .failure(error)
         }

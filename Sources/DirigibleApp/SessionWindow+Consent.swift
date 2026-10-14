@@ -11,6 +11,8 @@ enum RecordStart: Equatable {
     case busy(AgentBusy)
     /// The window is not open, or it changed during the microphone prompt.
     case closed
+    /// The check of the start was false: the routes of a grant take changed (decision 0050).
+    case changed
     case failed(StudioError)
 }
 
@@ -44,6 +46,11 @@ final class ConsentRequest {
     let seconds: Double
     /// The names of the request tracks with a clip after the start (C15).
     let over: [String]
+    /// The bridge connection of the call, or nil (decision 0050).
+    let connection: AgentConnection?
+    /// True when the sheet shows the grant checkbox (C1), and the state of that checkbox.
+    let offersGrant: Bool
+    var grantChecked = false
     private(set) var phase = Phase.waiting
     /// Keeps the timer of the answer time on time while App Nap could slow a hidden app. It lets
     /// the system sleep (probe P3).
@@ -52,9 +59,14 @@ final class ConsentRequest {
     @ObservationIgnored var attentionRequest: Int?
     @ObservationIgnored private var reply: CheckedContinuation<RecordAnswer, Never>?
 
-    init(agent: AgentName, tracks: [Track], start: Frames, seconds: Double, over: [String]) {
+    init(
+        agent: AgentName, tracks: [Track], start: Frames, seconds: Double, over: [String],
+        connection: AgentConnection? = nil
+    ) {
         (self.agent, self.start, self.seconds, self.over) = (agent, start, seconds, over)
         (self.tracks, names) = (tracks.map(\.id), tracks.map(\.name))
+        self.connection = connection
+        offersGrant = ConsentGrant.offered(tracks: tracks, over: over, seconds: seconds, connection: connection)
         activity = LatencyActivity(reason: Self.activityReason)
     }
 
@@ -98,11 +110,14 @@ extension SessionWindow {
     /// agent record or export cannot show (decisions 0048 and 0049).
     var showsDialog: Bool { alert != nil || exportStep != nil || window?.attachedSheet != nil }
 
-    /// An agent asks to record (decision 0048). A refusal answers at once; else the sheet shows,
-    /// and the answer comes after Record and the start, Don't Record, the end of the answer time,
-    /// or a close. The window does not come to the front: in the background, the Dock asks for
+    /// An agent asks to record (decision 0048). A refusal answers at once; a request that the
+    /// window grant covers starts with no sheet (decision 0050); else the sheet shows, and the
+    /// answer comes after Record and the start, Don't Record, the end of the answer time, or a
+    /// close. The window does not come to the front: in the background, the Dock asks for
     /// attention.
-    func askRecord(_ request: RecordRequest, agent: AgentName) async -> RecordAnswer {
+    func askRecord(_ request: RecordRequest, agent: AgentName, connection: AgentConnection? = nil) async
+        -> RecordAnswer
+    {
         // The agent stopped waiting before the main actor got the call: no sheet, no Dock bounce.
         if Task.isCancelled { return .ended }
         if consent != nil { return .busy(.asking) }
@@ -117,7 +132,8 @@ extension SessionWindow {
         let start = request.playhead ?? studio.playhead
         let consent = ConsentRequest(
             agent: agent, tracks: tracks, start: start, seconds: request.seconds,
-            over: recordOverTracks(studio.session, request.armed, from: start))
+            over: recordOverTracks(studio.session, request.armed, from: start), connection: connection)
+        if grantCovers(consent) { return await grantTake(consent) }
         self.consent = consent
         consentExpired = nil
         if !attention.isActive() { consent.attentionRequest = attention.request() }
@@ -143,19 +159,69 @@ extension SessionWindow {
         guard let consent, consent.phase == .waiting else { return }
         guard record else { return endConsent(.declined) }
         consent.begin()
-        switch await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
-        case .started(let take):
-            endConsent(.started(take: take, tracks: consent.names, seconds: consent.seconds))
-        case .busy(let busy): endConsent(.busy(busy))
-        case .closed: endConsent(.closed)
-        case .failed(let error): endConsent(.refused(error))
+        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds)
+        var grant: GrantNote?
+        if case .started = start, consent.grantChecked, let connection = consent.connection,
+            let session = studio?.session
+        {
+            let routes = consent.tracks.compactMap { id in session.track(id)?.route.map { (id, $0) } }
+            let given = ConsentGrant(
+                connection: connection, routes: Dictionary(uniqueKeysWithValues: routes),
+                end: agentRecord.now() + ConsentGrant.lifetime, wallEnd: .now + ConsentGrant.lifetime / .seconds(1))
+            agentRecord.grant = given
+            grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: false)
         }
+        endConsent(answer(start, consent, grant: grant))
     }
 
+    /// Always Ask Again: the next request of the agent shows the sheet (decision 0050).
+    func alwaysAskAgain() { agentRecord.grant = nil }
+
     /// Close and Quit: a waiting request ends as closed. A request that starts answers with its
-    /// start.
+    /// start. The window grant ends.
     func closeConsent() {
+        agentRecord.grant = nil
         if consent?.phase == .waiting { endConsent(.closed) }
+    }
+
+    /// True when the window grant covers the request now (decision 0050).
+    private func grantCovers(_ consent: ConsentRequest) -> Bool {
+        guard let grant = agentRecord.grant, let session = studio?.session else { return false }
+        return grant.covers(
+            consent.tracks, seconds: consent.seconds, connection: consent.connection, in: session,
+            over: recordOverTracks(session, consent.tracks, from: consent.start), now: agentRecord.now())
+    }
+
+    /// A grant take: no sheet and no answer time. The request holds the window busy for agents
+    /// during the start, and the grant check runs again after the microphone prompt.
+    private func grantTake(_ consent: ConsentRequest) async -> RecordAnswer {
+        self.consent = consent
+        consentExpired = nil
+        consent.begin()
+        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
+            [weak self, weak consent] in
+            guard let self, let consent else { return false }
+            return grantCovers(consent)
+        }
+        var grant: GrantNote?
+        if case .started = start, var given = agentRecord.grant {
+            given.secondsLeft -= consent.seconds
+            agentRecord.grant = given
+            grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: true)
+        }
+        let answer = answer(start, consent, grant: grant)
+        if self.consent === consent { endConsent(answer) }
+        return answer
+    }
+
+    private func answer(_ start: RecordStart, _ consent: ConsentRequest, grant: GrantNote?) -> RecordAnswer {
+        switch start {
+        case .started(let take): .started(take: take, tracks: consent.names, seconds: consent.seconds, grant: grant)
+        case .busy(let busy): .busy(busy)
+        case .closed: .closed
+        case .changed: .grantChanged
+        case .failed(let error): .refused(error)
+        }
     }
 
     /// Ends a waiting request with no answer of the user, and shows the info banner.

@@ -368,6 +368,8 @@
 "consent.message" = "Una toma de %1$@ en %2$@, desde %3$@. No se graba nada hasta que pulses Grabar. Esta solicitud termina en %4$lld s.";
 "consent.record.over" = "La grabación sustituye audio en %1$@ después de %2$@.";
 "consent.dont.record" = "No grabar";
+"consent.grant" = "No volver a preguntar hasta que cierre esta ventana";
+"consent.grant.help" = "Termina cuando cierras esta ventana, después de 1 hora, después de 2 horas de tomas o cuando el agente se vuelve a conectar.";
 "redo.agent.unnamed" = "Rehacer edición de un agente";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";

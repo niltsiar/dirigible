@@ -62,9 +62,12 @@ extension SessionWindow {
     /// The take start of Command-R and of the consent sheet (decision 0048). With no `playhead`,
     /// the take starts at the Studio playhead; a play stops first (decision 0016). With
     /// `seconds`, the Studio stops the take after them. A refusal shows its alert, as for
-    /// Command-R.
+    /// Command-R. `check` runs before each Studio start, also after the microphone prompt: when
+    /// it is false, no take starts (a grant take, decision 0050).
     @discardableResult
-    func startTake(armed: [TrackID], playhead: Frames?, seconds: Double? = nil) async -> RecordStart {
+    func startTake(
+        armed: [TrackID], playhead: Frames?, seconds: Double? = nil, check: (() -> Bool)? = nil
+    ) async -> RecordStart {
         commitDrafts()
         if let refusal = takeRefusal {
             // A Record click of the sheet gets the alert of a refused start.
@@ -76,8 +79,13 @@ extension SessionWindow {
         // typed text (run 2026-10-11-ui-polish-header code gate 1).
         renamingTrack = nil
         var take: Int?
+        var changed = false
         do throws(StudioError) {
             try await withMicrophoneAccess(studio) { () async throws(StudioError) in
+                if let check, !check() {
+                    changed = true
+                    return
+                }
                 if let seconds {
                     take = try await studio.startRecording(armed: armed, playhead: playhead, for: .seconds(seconds))
                     return
@@ -90,7 +98,7 @@ extension SessionWindow {
                 }
             }
             // The body does not run when the window changed during the microphone prompt.
-            guard let take else { return .closed }
+            guard let take else { return changed ? .changed : .closed }
             exportReport = nil
             chapterWarnings = nil
             levelReport = nil

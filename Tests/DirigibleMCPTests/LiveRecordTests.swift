@@ -21,7 +21,7 @@ struct LiveRecordTests {
             [
                 AgentTarget(
                     studio: studio,
-                    record: { request, agent in
+                    record: { request, agent, _ in
                         asked.append((request, agent))
                         return .started(take: 3, tracks: ["Host"], seconds: 1.5)
                     })
@@ -41,6 +41,34 @@ struct LiveRecordTests {
         await studio.settle()
     }
 
+    /// Decision 0050: the window gets the connection of the call. Two connections give two
+    /// serials, each more than 0.
+    @Test func recordGetsTheConnection() async throws {
+        let package = try LivePackage()
+        let studio = try await package.open()
+        var connections: [AgentConnection] = []
+        let folder = try SocketFolder()
+        let server = AgentServer(socket: folder.socket) {
+            [
+                AgentTarget(
+                    studio: studio,
+                    record: { _, _, connection in
+                        connections.append(connection)
+                        return .declined
+                    })
+            ]
+        }
+        server.start()
+        defer { server.stop() }
+
+        _ = await send(folder.socket, "record", ["package": package.path, "seconds": 1, "arm": ["t1"]])
+        _ = await send(folder.socket, "record", ["package": package.path, "seconds": 1, "arm": ["t1"]])
+
+        #expect(connections.count == 2 && connections.allSatisfy { $0.serial > 0 }, "\(connections)")
+        #expect(connections.first != connections.last, "each send is a new connection")
+        await studio.settle()
+    }
+
     /// A busy window refuses the request with its busy text, and the window is not asked.
     @Test func busyWindowIsNotAsked() async throws {
         let package = try LivePackage()
@@ -51,7 +79,7 @@ struct LiveRecordTests {
             [
                 AgentTarget(
                     studio: studio, busy: .asking,
-                    record: { _, _ in
+                    record: { _, _, _ in
                         asked += 1
                         return .declined
                     })

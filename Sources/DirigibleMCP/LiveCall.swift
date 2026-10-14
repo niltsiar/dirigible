@@ -64,5 +64,5 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
 func liveRecord(_ request: RecordRequest, _ call: AgentCall, target: AgentTarget) async -> AgentReply {
     if let busy = target.busy { return RecordAnswer.busy(busy).reply(package: call.path) }
     guard let record = target.record else { return .notOpen }
-    return await record(request, call.agent).reply(package: call.path)
+    return await record(request, call.agent, call.connection).reply(package: call.path)
 }

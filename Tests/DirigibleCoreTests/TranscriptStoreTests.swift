@@ -6,6 +6,21 @@ import Testing
 /// The transcript files of decision 0055 (run transcript-1, A10; criteria T13, T22, and T23).
 struct TranscriptStoreTests {
     let one = TranscriptID(1)
+    let package = FileManager.default.temporaryDirectory.appending(path: "TranscriptStore-\(UUID())/E.dirigible")
+    var folder: URL { package.appending(path: "Transcripts") }
+
+    /// The names in `Transcripts/` that do not start with ".".
+    func files() throws -> Set<String> {
+        Set(try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { !$0.hasPrefix(".") })
+    }
+
+    /// The inode of the file of transcript 1 of `session`.
+    func inode(_ session: Session) throws -> ino_t {
+        let name = try #require(session.transcripts[one]?.file)
+        var info = stat()
+        try #require(lstat(folder.appending(path: "\(name).xml").path, &info) == 0)
+        return info.st_ino
+    }
 
     /// Clip "H" over file "h" and clip "G" over file "g", and transcript 1 with words in both files.
     func session() throws -> Session {
@@ -88,5 +103,102 @@ struct TranscriptStoreTests {
             #expect(TranscriptFileName(text) == nil, "\(text)")
         }
         #expect(TranscriptFileName(TranscriptFileName().description) != nil)
+    }
+
+    /// T13. A failed transcript file write throws before the replace, so `session.xml` keeps
+    /// its bytes.
+    @Test func aFailedTranscriptWriteKeepsTheOldSession() throws {
+        var session = try session()
+        session.transcripts = [:]
+        try session.write(to: package)
+        let before = try Data(contentsOf: package.appending(path: "session.xml"))
+        try Data("not a folder".utf8).write(to: folder)
+
+        #expect(throws: SessionFileError.self) { try self.session().write(to: package) }
+        #expect(try Data(contentsOf: package.appending(path: "session.xml")) == before)
+    }
+
+    /// T22. A second save with no change of the words writes no transcript file.
+    @Test func anAutosaveWritesNoTranscriptFile() throws {
+        var session = try session()
+        try session.write(to: package)
+        let first = try inode(session)
+        try session.setGain(Gain(dB: -3)!, track: "host")
+        try session.write(to: package)
+        #expect(try inode(session) == first)
+        #expect(try files().count == 1)
+    }
+
+    /// T22. A change of the words writes a new file, and the old file stays.
+    @Test func aChangeOfTheWordsWritesANewFile() throws {
+        var session = try session()
+        try session.write(to: package)
+        let old = try #require(session.transcripts[one]?.file)
+        try session.removeClips(["G"])
+        try session.removeFile("g")
+        try session.write(to: package)
+        let new = try #require(session.transcripts[one]?.file)
+        #expect(try files() == ["\(old).xml", "\(new).xml"])
+        #expect(try Session(contentsOf: package).words().map(\.text) == ["Hello", "there"])
+    }
+
+    /// A temporary file of a crashed transcript write goes at the next sweep; a transcript file
+    /// stays.
+    @Test func aTemporaryTranscriptFileIsSwept() throws {
+        let session = try session()
+        try session.write(to: package)
+        let temporary = folder.appending(path: ".session.xml.\(UUID().uuidString).tmp")
+        try Data("part".utf8).write(to: temporary)
+        session.removeTemporaryFiles(in: package)
+        #expect(!FileManager.default.fileExists(atPath: temporary.path))
+        #expect(try files().count == 1)
+    }
+
+    /// T13. A session with no transcript makes no `Transcripts/` folder.
+    @Test func noTranscriptMakesNoTranscriptsFolder() throws {
+        var session = try session()
+        session.transcripts = [:]
+        try session.write(to: package)
+        #expect(!FileManager.default.fileExists(atPath: folder.path))
+    }
+
+    /// T13. A file of 0 bytes at the name (a crash before the data reached the disk) is written
+    /// again.
+    @Test func anEmptyFileAtTheNameIsWrittenAgain() throws {
+        let session = try session()
+        try session.write(to: package)
+        let name = try #require(session.transcripts[one]?.file)
+        try Data().write(to: folder.appending(path: "\(name).xml"))
+        try session.write(to: package)
+        let same = try Session(contentsOf: package) == session
+        #expect(same)
+    }
+
+    /// T22. An open and a save with no edit keep the name and the file.
+    @Test func anOpenAndSaveKeepsTheFile() throws {
+        let session = try session()
+        try session.write(to: package)
+        let first = try inode(session)
+        let opened = try Session(contentsOf: package)
+        #expect(opened.transcripts[one]?.file == session.transcripts[one]?.file)
+        try opened.write(to: package)
+        #expect(try inode(opened) == first)
+        let same = try Session(contentsOf: package) == session
+        #expect(same)
+    }
+
+    /// T13 (0043). A revert to a backup loads the words of the backup from the package.
+    @Test func aRevertLoadsTheWords() throws {
+        let session = try session()
+        try session.write(to: package)
+        let backup = try #require(try Backup.keep(in: package))
+        var later = session
+        later.transcripts = [:]
+        let lock = try PackageLock(package)
+        let reverted = try withExtendedLifetime(lock) {
+            try later.write(under: lock, backups: .none)
+            return try backup.readForRevert(under: lock)
+        }
+        #expect(reverted.words() == session.words() && !reverted.words().isEmpty)
     }
 }

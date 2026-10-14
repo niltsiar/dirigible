@@ -178,7 +178,7 @@ extension Session {
                 setWords(words.all.filter { !span.contains($0.midpoint) }, file: fileID, transcript: old)
             }
         }
-        transcripts[id] = Transcript(id: id, name: name, words: added.mapValues(Anchors.init))
+        try insertTranscript(Transcript(id: id, name: name, words: added.mapValues(Anchors.init)))
         return (id, added.values.map(\.count).reduce(0, +), skipped, untimed, repeats)
     }
 
@@ -194,26 +194,39 @@ extension Session {
     // its ID again, because session.xml keeps no counter; add one when the format next changes.
     var nextTranscriptID: TranscriptID { TranscriptID((transcripts.keys.map(\.number).max() ?? 0) + 1) }
 
-    /// Adds a transcript that the reader parsed, with the rules of the import: a new ID, a storable
-    /// name, files of the pool, each number once in a file, a storable text that is not empty, and
-    /// each word inside its file.
-    mutating func addTranscript(_ transcript: Transcript) throws(SessionError) {
+    /// Puts a new transcript in the store: a new ID and a storable name. The reader, the import,
+    /// and the paste call it once per transcript.
+    mutating func insertTranscript(_ transcript: Transcript) throws(SessionError) {
         guard transcripts[transcript.id] == nil else { throw .duplicateID(transcript.id.description) }
         try Self.checkText(transcript.name)
-        for (id, anchors) in transcript.words ?? [:] {
+        transcripts[transcript.id] = transcript
+    }
+
+    /// Gives each transcript with no words the words that `words` returns for it, when they pass
+    /// `checkWords`. The value keeps the file name of its reference, so an open and a save with no
+    /// edit keep the file (decision 0055).
+    mutating func resolveTranscripts(_ words: (Transcript) -> [FileID: Anchors]?) {
+        for transcript in transcripts.values where transcript.words == nil {
+            guard let found = words(transcript), !found.isEmpty, (try? checkWords(found)) != nil else { continue }
+            transcripts[transcript.id] = Transcript(
+                id: transcript.id, name: transcript.name, file: transcript.file, words: found)
+        }
+    }
+
+    /// The rules of the import for the words of a transcript: files of the pool, each number once
+    /// in a file, a storable text that is not empty, and each word inside its file.
+    func checkWords(_ words: [FileID: Anchors]) throws(SessionError) {
+        for (id, anchors) in words {
             guard let file = files[id] else { throw .unknownFile(id) }
             var numbers = Set<Int>()
             for anchor in anchors.all {
                 guard !anchor.text.isEmpty else { throw .invalidText(anchor.text) }
                 try Self.checkText(anchor.text)
-                guard numbers.insert(anchor.number).inserted else {
-                    throw .duplicateID("\(transcript.id).\(anchor.number)")
-                }
+                guard numbers.insert(anchor.number).inserted else { throw .duplicateID("\(id).\(anchor.number)") }
                 guard anchor.range.lowerBound >= .zero, anchor.range.upperBound <= file.length else {
                     throw .wordOutsideFile(id)
                 }
             }
         }
-        transcripts[transcript.id] = transcript
     }
 }

@@ -43,7 +43,7 @@ struct TranscriptPasteTests {
         #expect(target.words().map(\.text) == ["Hello", "world"])
         #expect(target.words().map(\.range) == [48_000..<96_000, 96_000..<144_000])
         #expect(target.transcripts[TranscriptID(1)]?.name == "episode.json")
-        let same = try Session(xml: target.checkedData()) == target
+        let same = try target.reopened() == target
         #expect(same, "the target saves")
     }
 
@@ -126,7 +126,21 @@ struct TranscriptPasteTests {
         try paste(try source.excerpt(of: ["H"]), into: &target)
 
         #expect(target.transcripts[TranscriptID(1)]?.words?["h2"]?.all.map(\.number) == [1, 2])
-        let same = try Session(xml: target.checkedData()) == target
+        let same = try target.reopened() == target
         #expect(same)
+    }
+
+    /// T15, T22. The pasted words land in a transcript file of the target package, and the next
+    /// open loads them.
+    @Test func pastedWordsSurviveASaveAndAReopen() throws {
+        var target = try target(rate: 44_100, length: 441_000)
+        try paste(try source().excerpt(of: ["H"]), into: &target)
+        let package = FileManager.default.temporaryDirectory.appending(path: "TranscriptPaste-\(UUID())/E.dirigible")
+        defer { try? FileManager.default.removeItem(at: package.deletingLastPathComponent()) }
+        try target.write(to: package)
+
+        let name = try #require(target.transcripts[TranscriptID(1)]?.file)
+        #expect(FileManager.default.fileExists(atPath: package.appending(path: "Transcripts/\(name).xml").path))
+        #expect(try Session(contentsOf: package).words().map(\.text) == ["Hello", "world"])
     }
 }

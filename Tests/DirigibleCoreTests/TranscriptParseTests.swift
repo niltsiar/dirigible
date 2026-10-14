@@ -60,11 +60,11 @@ struct TranscriptParseTests {
         let json = try parse(
             #"{"words":[{"word":"a","start":2,"end":1},{"word":"b","start":-1,"end":1},"#
                 + #"{"word":"c","start":3,"end":3},{"word":"d","start":4,"end":5}]}"#)
-        #expect(json.units.map(\.text) == ["d"] && json.untimed == 3, "a word with no length has no time")
+        #expect(json.units.map(\.text) == ["c", "d"] && json.untimed == 2, "a word with no length keeps its text")
         let vtt = try parse(
             "WEBVTT\n\n00:01.000 --> 00:00.500\nback\n\n00:0x.000 --> 00:02.000\nbad\n\n00:03.000 --> 00:03.000\nnone\n\n"
                 + "00:03.000 --> 00:04.000\ngood\n")
-        #expect(vtt.units.map(\.text) == ["good"] && vtt.untimed == 3)
+        #expect(vtt.units.map(\.text) == ["none", "good"] && vtt.untimed == 2)
     }
 
     /// T3. One word with a bad time keeps the file; a file with only bad times is refused.

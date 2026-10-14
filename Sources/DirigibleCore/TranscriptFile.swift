@@ -20,8 +20,8 @@ public struct TranscriptFile: Hashable, Sendable {
 
     /// The units with a usable time and a text, in file order.
     public let units: [Unit]
-    /// The count of units with no usable time: none (an unaligned WhisperX word), end at or before
-    /// start, negative, or not finite.
+    /// The count of units with no usable time: none (an unaligned WhisperX word), end before start,
+    /// negative, or not finite. A unit with no length keeps its text, so a match finds it.
     public let untimed: Int
     /// True when no unit has word times: WebVTT cues, or Whisper segments with no words. A cut then
     /// removes whole cues.
@@ -37,7 +37,7 @@ public struct TranscriptFile: Hashable, Sendable {
         for (start, end, text) in raw {
             let text = Self.cleaned(text)
             guard !text.isEmpty else { continue }
-            guard let start, let end, start.isFinite, end.isFinite, start >= 0, end > start else {
+            guard let start, let end, start.isFinite, end.isFinite, start >= 0, end >= start else {
                 untimed += 1
                 continue
             }

@@ -330,6 +330,20 @@ schema
 sout="$("$mutate" --schema "$tmp/none" 1 2>&1)"
 [[ $? -eq 2 ]] || fail "no folder: $sout"
 
+# orig.tsv lists the index and path of each copy while files hold switches: it stays after a
+# SIGKILL, and an ended call removes it.
+[[ ! -e "$sdir/orig.tsv" ]] || fail "orig.tsv is left after an ended call"
+reset_schema
+rm -f "$tmp/pid"
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "[[ \${DIRIGIBLE_MUTANT:-} != 1 ]] || { sleep 35 & echo \$! > '$tmp/pid'; wait; }"
+"$mutate" --schema "$sdir" 1 > "$tmp/kill.out" 2>&1 &
+runner=$!
+for _ in $(seq 300); do [[ -s "$tmp/pid" ]] && break; sleep 0.1; done
+kill -KILL "$runner"; wait "$runner" 2>/dev/null
+kill "$(cat "$tmp/pid")" 2>/dev/null
+[[ "$(cat "$sdir/orig.tsv" 2>/dev/null)" == "0	$(cd "$tmp" && pwd -P)/s.swift" ]] || fail "orig.tsv after SIGKILL: [$(cat "$sdir/orig.tsv" 2>/dev/null)]"
+cp "$sdir/0.orig" "$src"; same 'the copy of orig.tsv'
+
 # A stop during a mutant test restores each file, ends the test, and exits 130.
 for sig in TERM INT HUP; do
   reset_schema

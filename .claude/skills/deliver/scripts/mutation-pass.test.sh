@@ -205,10 +205,16 @@ code=$?
 [[ "$(calls)" == 'schema:1,2:1,2,3' ]] || fail "schema TERM: calls [$(calls)]"
 kill "$(cat "$tmp/hang.pid" 2>/dev/null)" 2>/dev/null
 
-# A tree with changes and a schema folder of the batch: the refusal names the folder.
+# A tree with changes after a pass that did not restore (a SIGKILL leaves orig.tsv): the refusal
+# names the list and the steps that undo it. A schema folder with no orig.tsv (a pass that ended)
+# gives the plain refusal.
 touch "$tmp/tree/new"
 run "$tmp/tree" "$tmp/batch.sh"
-[[ $code -eq 2 && "$out" == *"$tmp/batch.sh.schema"* ]] || fail "dirty tree with a schema folder: exit $code: $out"
+[[ $code -eq 2 && "$out" == *'commit them'* && "$out" != *'git restore'* ]] || fail "dirty tree after an ended pass: exit $code: $out"
+printf '0\t%s\n' "$tmp/tree/Sources/x.swift" > "$tmp/batch.sh.schema/orig.tsv"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 2 && "$out" == *'clean at the start'*'git diff'*'git restore'*"$tmp/batch.sh.schema/orig.tsv"* && "$out" != *'commit them'* ]] ||
+  fail "dirty tree after a killed pass: exit $code: $out"
 rm "$tmp/tree/new"
 
 [[ $failures -eq 0 ]] && echo "mutation-pass tests: all passed"

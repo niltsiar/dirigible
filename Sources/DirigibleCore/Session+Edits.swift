@@ -178,8 +178,9 @@ extension Session {
         }
         // The words of each file that no transcript here has: a paste from another package. Each
         // source transcript gets a new ID, so a paste never merges two transcripts (decision 0055).
+        let covered = Set(transcripts.values.flatMap(\.words.keys))
         for source in excerpt.transcripts.values.sorted(by: { $0.id < $1.id }) {
-            let words = source.words.filter { file, _ in !copy.transcripts.values.contains { $0.words[file] != nil } }
+            let words = source.words.filter { file, _ in !covered.contains(file) }
             guard !words.isEmpty else { continue }
             let id = copy.nextTranscriptID
             copy.transcripts[id] = Transcript(id: id, name: source.name, words: words)

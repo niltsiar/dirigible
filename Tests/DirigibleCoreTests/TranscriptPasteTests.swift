@@ -66,6 +66,17 @@ struct TranscriptPasteTests {
         #expect(target.words().map(\.range) == [44_100..<88_200, 88_200..<132_300])
     }
 
+    /// Code gate 2 item 3. A resample after the map keeps the words of a paste from another
+    /// package.
+    @Test func aResampleAfterTheMapKeepsTheWords() throws {
+        var target = try target(rate: 44_100, length: 441_000)
+        let record = try #require(target.files["h2"])
+        let mapped = try source().excerpt(of: ["H"]).mapped(to: ["h": record])
+        try target.paste(mapped.resampled(to: 44_100, lengths: ["h2": 441_000]), at: 0, on: ["t"])
+
+        #expect(target.words().map(\.text) == ["Hello", "world"])
+    }
+
     /// T15. A paste in one package adds no anchor: the words of the file show under the new clip.
     @Test func pasteInOnePackageAddsNoAnchor() throws {
         var session = try source()

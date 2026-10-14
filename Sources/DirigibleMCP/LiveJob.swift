@@ -37,6 +37,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         }
     case .level(let work):
         return await liveLevel(work, studio: studio, call: call, report: report)
+    case .importFile(let work):
+        return await liveImport(work, studio: studio, call: call, report: report)
     // `AgentServer` sends only long work here.
     default: return .notOpen
     }
@@ -106,6 +108,33 @@ private func liveExport(
     return try work.text(of: result, session: session, source: source)
 }
 
+/// `import` through `Studio.importAudio`: one undo step with the agent name. The banner Cancel or
+/// a cancel of the call ends it with no clip and no new WAV (decision 0049).
+@MainActor
+private func liveImport(
+    _ work: ImportWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    do throws(StudioError) {
+        let clip = try await studio.importAudio(
+            work.url, to: work.target, level: work.level, agent: call.agent, progress: report)
+        return .result(text: clip.rawValue, isError: false)
+    } catch .audioImport(.cancelled) {
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+        let text =
+            Task.isCancelled ? cancelledMessage : "The user cancelled the import in Dirigible. No clip was added."
+        return .result(text: text, isError: true)
+    } catch .importYielded {
+        return .result(text: "A take started in Dirigible, so the import stopped. No clip was added.", isError: true)
+    } catch .audioImport(let error) {
+        return .result(text: ImportWork.message(error, file: work.file, package: call.path), isError: true)
+    } catch .busy {
+        let busy: AgentBusy = studio.pendingTake != nil ? .pendingTake : .task
+        return .result(text: busy.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
+    }
+}
+
 /// The text of an export that the app stopped: the agent must not export again before it asks
 /// the user.
 private func stopMessage(_ stop: ExportStop?, noun: String) -> String {
@@ -123,6 +152,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .export(let export):
         "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
+    case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     default: "Dirigible stopped its agent server, so the loudness measure stopped."
     }
 }

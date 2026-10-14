@@ -92,6 +92,13 @@ extension SessionWindow {
         if let job = importJob, job.file == file { importJob?.progress = max(job.progress, fraction) }
     }
 
-    /// The Cancel button of the banner. The import ends within one block.
-    func cancelImport() { importJob?.task?.cancel() }
+    /// The Cancel button of the banner. The import ends within one block. An import that the
+    /// window did not start, an agent import, ends through the studio (decision 0049).
+    func cancelImport() {
+        if let task = importJob?.task { task.cancel() } else { studio?.cancelImport() }
+    }
+
+    /// The fraction of the import bar: the job of the window first, which a chain resets for each
+    /// file and a paste or an image fills, else the import of an agent in the studio.
+    var importBarProgress: Double { importJob?.progress ?? studio?.importProgress ?? 0 }
 }

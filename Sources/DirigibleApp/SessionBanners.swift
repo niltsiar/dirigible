@@ -96,7 +96,7 @@ struct TakeBanner: View {
             let text = run.bannerText
             BannerRow(kind: .info, text: text) {
                 // VoiceOver reads the bar with the banner text (ui-panel.md item 7).
-                ProgressView(value: model.importJob?.progress ?? 0).frame(width: 160)
+                ProgressView(value: model.importBarProgress).frame(width: 160)
                     .accessibilityLabel(Text(verbatim: text))
                 // Command-period is the Mac key of Cancel; a focused field does not take it.
                 Button(L10n.importCancel.key) { model.cancelImport() }.keyboardShortcut(".", modifiers: .command)

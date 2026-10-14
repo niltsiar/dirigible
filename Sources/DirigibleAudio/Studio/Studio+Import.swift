@@ -47,41 +47,71 @@ extension Studio {
     /// runs on a utility GCD thread; meanwhile every other entry point throws `.busy`. It throws
     /// `.busy` during a pending take and during `settle()`. `progress` gets the fraction on the
     /// main actor. A cancel of the calling task, `settle()`, or a take in another studio ends it
-    /// within one block: then it throws `.audioImport(.cancelled)`, or `.importYielded` for the
-    /// take. A throw changes nothing in memory; after the rename, the WAV stays as an unused file.
-    /// The transport is `.idle` after every exit.
+    /// within one block, also in the level step: then it throws `.audioImport(.cancelled)`, or
+    /// `.importYielded` for the take, and the renamed WAV goes (decision 0049). A throw changes
+    /// nothing in memory; after a failed save, the WAV stays as an unused file. The transport is
+    /// `.idle` after every exit. With no `level`, the clip keeps the gain of the conversion.
+    /// `agent` names the agent of an MCP import in its undo entry. `importProgress` also gets the
+    /// fraction, for the banner of an agent import.
     public func importAudio(
-        _ source: URL, to target: ImportTarget, progress: @escaping @MainActor @Sendable (Double) -> Void
+        _ source: URL, to target: ImportTarget, level: Bool = true, agent: AgentName? = nil,
+        progress: @escaping @MainActor @Sendable (Double) -> Void
     ) async throws(StudioError) -> ClipID {
         let environment = environment
         return try await blockingRun(
             name: source.lastPathComponent, kind: .file, cancelled: .audioImport(.cancelled),
-            yielded: .importYielded(file: source.lastPathComponent)
+            yielded: .importYielded(file: source.lastPathComponent), agent: agent
         ) { session, lock, flags in
-            await convertImport(
-                source, target, of: session, lock: lock, environment: environment, flags: flags,
-                progress: { fraction in Task { @MainActor in progress(fraction) } }
-            ).map { ($0.session, $0.clip) }
+            let done = await convertImport(
+                source, target, of: session, lock: lock, level: level, environment: environment, flags: flags,
+                progress: { fraction in
+                    Task { @MainActor [weak self] in
+                        self?.importProgressed(flags, fraction)
+                        progress(fraction)
+                    }
+                })
+            await environment.importWorkDone()
+            return done.map { ($0.session, $0.clip, made: [$0.wav]) }
         }
     }
+
+    /// A progress hop of the import run of `flags`. Hops can arrive out of order, so it keeps the
+    /// largest fraction of the run; a hop of an older run changes nothing.
+    func importProgressed(_ flags: ImportFlags, _ fraction: Double) {
+        guard importRun?.flags === flags else { return }
+        importProgress = max(importProgress, fraction)
+    }
+
+    /// The Cancel of the banner of an import that the window did not start: an agent import
+    /// (decision 0049). The import ends at its next block, and the renamed WAV goes.
+    public func cancelImport() { endImport(yielding: false) }
 
     /// The blocking run of an import or a paste from another package (decisions 0040 and 0042):
     /// `checkIdle`, `.rippleBlocked` for a `ripple` under a pending or split take (decision 0037),
     /// `.busy` during a pending take and during `settle()`, the stop of play, the
     /// transport `.importing`, and `work` in one turn of the write chain. A cancel of the calling
-    /// task sets the flag. `work` gets the session of its turn, the lock, and the flags; after it,
-    /// a set flag writes nothing and throws `cancelled`, or `yielded` for a take in another
-    /// studio. Else the run saves, records one undo entry, and loads the peaks of new files.
+    /// task sets the flag. `work` gets the session of its turn, the lock, and the flags, and gives
+    /// the files that it made; after it, a set flag removes them with `removeMadeFiles`, writes
+    /// nothing, and throws `cancelled`, or `yielded` for a take in another studio (decision 0049).
+    /// Else the run saves, records one undo entry with `agent`, and loads the peaks of new files.
+    /// `importProgress` starts at 0 for each run.
     func blockingRun<Value: Sendable>(
         name: String, kind: ImportRun.Kind, cancelled: StudioError, yielded: StudioError, ripple: Bool = false,
-        work: @escaping @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value), StudioError>
+        agent: AgentName? = nil,
+        work:
+            @escaping @Sendable (Session, PackageLock, ImportFlags) async -> Result<
+                (Session, Value, made: [URL]), StudioError
+            >
     ) async throws(StudioError) -> Value {
         try checkIdle()
         if ripple { try checkRipple() }
         guard pendingTake == nil, !settling else { throw .busy }
         let stopped = endPlayForTake()
         let flags = ImportFlags()
-        let task = Task { await blockingTurn(flags, stopped, cancelled: cancelled, yielded: yielded, work: work) }
+        let task = Task {
+            await blockingTurn(flags, stopped, cancelled: cancelled, yielded: yielded, agent: agent, work: work)
+        }
+        importProgress = 0
         transport = .importing(ImportRun(name: name, kind: kind, flags: flags))
         defer { transport = .idle }
         let result = await withTaskCancellationHandler {
@@ -104,19 +134,23 @@ extension Studio {
     }
 
     /// One turn of the write chain: the Player stops, the work, the save, the undo entry, and the
-    /// peaks of the new files. A flag that is set after the work writes nothing.
+    /// peaks of the new files. A flag that is set after the work removes the made files and writes
+    /// nothing.
     private func blockingTurn<Value: Sendable>(
-        _ flags: ImportFlags, _ stopped: Int?, cancelled: StudioError, yielded: StudioError,
-        work: @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value), StudioError>
+        _ flags: ImportFlags, _ stopped: Int?, cancelled: StudioError, yielded: StudioError, agent: AgentName?,
+        work: @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value, made: [URL]), StudioError>
     ) async -> Result<Value, StudioError> {
         await serialized { () async -> Result<Value, StudioError> in
             _ = await takePlayhead(stopped, nil)  // The Player stops.
             let before = session
             let done = await work(before, lock, flags)
-            if flags.isCancelled { return .failure(flags.isYielded ? yielded : cancelled) }
+            if flags.isCancelled {
+                if case .success(let result) = done { await removeMadeFiles(result.made) }
+                return .failure(flags.isYielded ? yielded : cancelled)
+            }
             let (edited, value): (Session, Value)
             switch done {
-            case .success(let result): (edited, value) = result
+            case .success(let result): (edited, value) = (result.0, result.1)
             case .failure(let error): return .failure(error)
             }
             switch await writeSession(
@@ -125,7 +159,7 @@ extension Studio {
             case .success(let written):
                 url = written.package
                 backups = written.backups
-                recordLevel(edited)
+                recordLevel(edited, agent: agent)
                 poolChanged(from: before.files)
                 return .success(value)
             case .failure(let error):
@@ -138,22 +172,22 @@ extension Studio {
 /// `importAudio` on a utility GCD thread, in the package that `lock` holds now. A Swift task that
 /// a caller awaits takes the priority of that caller, so the block loop does not run in one.
 @concurrent nonisolated func convertImport(
-    _ source: URL, _ target: ImportTarget, of session: Session, lock: PackageLock, environment: CaptureEnvironment,
-    flags: ImportFlags, progress: @escaping @Sendable (Double) -> Void
-) async -> Result<(session: Session, clip: ClipID), StudioError> {
-    @Sendable func run() -> Result<(session: Session, clip: ClipID), StudioError> {
+    _ source: URL, _ target: ImportTarget, of session: Session, lock: PackageLock, level: Bool,
+    environment: CaptureEnvironment, flags: ImportFlags, progress: @escaping @Sendable (Double) -> Void
+) async -> Result<(session: Session, clip: ClipID, wav: URL), StudioError> {
+    @Sendable func run() -> Result<(session: Session, clip: ClipID, wav: URL), StudioError> {
         dispatchPrecondition(condition: .notOnQueue(.main))
         let package: URL
         do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
         do throws(ImportError) {
-            return .success(
-                try importAudio(
-                    source, to: target, of: session, in: package, freeBytes: { environment.freeBytes(lock) },
-                    progress: progress,
-                    isCancelled: {
-                        environment.importStep()
-                        return flags.isCancelled
-                    }))
+            let imported = try importAudio(
+                source, to: target, of: session, in: package, level: level,
+                freeBytes: { environment.freeBytes(lock) }, progress: progress,
+                isCancelled: {
+                    environment.importStep()
+                    return flags.isCancelled
+                })
+            return .success((imported.session, imported.clip, importedWAV(imported.clip, in: package)))
         } catch {
             return .failure(.audioImport(error))
         }

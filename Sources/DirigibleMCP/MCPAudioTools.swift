@@ -37,6 +37,14 @@ private let perTrack = Param.defaulted(
     "per_track", "Give the clips of one track one change, so the gain differences between them stay.", .boolean,
     false)
 
+private let importFile = Param.required(
+    "file", "The absolute path of the audio file: WAV, AIFF, FLAC, MP3, or M4A.", .string)
+private let importTrack = Param<String?>.optional(
+    "track", "The ID of the track. The default is a new last track with the name and the layout of the file.",
+    .string)
+private let importAt = Param.defaulted("at", "The timeline frame of the clip start.", .integer(), 0)
+private let noLevel = Param.defaulted("no_level", "Keep the gain of the conversion: no auto level.", .boolean, false)
+
 /// The end of the description of a tool that writes a file: a late cancel can leave the file.
 private let cancelNote =
     " A cancel stops it, and no file is written; a cancel at the end can be late, so check the output file."
@@ -102,6 +110,17 @@ let audioTools = [
             + "changes no gain writes nothing. A cancel stops it, and no gain changes.",
         [chosenClips, perTrack]
     ) { a throws(ToolError) in .level(LevelWork(clips: try a[chosenClips] ?? [], perTrack: try a[perTrack])) },
+    Tool(
+        "import",
+        "Import an audio file into a track, as dirigible import: the file becomes a 24-bit WAV at the session rate in "
+            + "Clips/, and a clip at the frame at that overwrites the clips under it, with the gain of Auto Level "
+            + "unless no_level. The text is the clip ID. A cancel stops it, and no clip is added.",
+        [importFile, importTrack, importAt, noLevel]
+    ) { a throws(ToolError) in
+        let (path, track, start, keeps) = (try a[importFile], try a[importTrack], try a[importAt], try a[noLevel])
+        guard path.hasPrefix("/") else { throw ToolError("The argument \"file\" must be an absolute path.") }
+        return .importFile(ImportWork(file: path, track: track, at: start, level: !keeps))
+    },
 ]
 
 /// The clips of `dirigible loudness` and the `loudness` tool: each clip, track by track in

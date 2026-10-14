@@ -64,8 +64,8 @@ package enum AgentManual {
             summary: "Import a sound clip, such as music or a jingle, at a frame, and fade it.",
             steps: "the imported clip replaces the clips under it, so put it on a new track from `track_add` with the "
                 + "layout of the file, or in a range of a track that has no clip; "
-                + "`dirigible import <package> <audio file> --track <track ID> --at <frame>`; `clip_fade` to fade it "
-                + "in or out; `clip_gain` to set its level."),
+                + "`import` with `file` (an absolute path), `track`, and `at` (a frame); `clip_fade` to fade it in or "
+                + "out; `clip_gain` to set its level."),
         Recipe(
             phase: .produce, name: "add-chapter", title: "Add a chapter",
             summary: "Add a chapter marker at a time.",

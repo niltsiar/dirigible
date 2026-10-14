@@ -31,11 +31,13 @@ public enum ImportError: Error, Hashable, Sendable {
 /// The order: the download check (`isDownloaded`, before any read), the source checks, the target
 /// checks, the disk check (`freeBytes`, the free bytes of the volume of the package lock), the
 /// conversion into `.<stem>.wav.tmp`, the session edits, the rename, the flush of `Clips/`, and the
-/// level. A throw before the rename leaves no new file. After the rename, a cancel or a flush fault
-/// throws and keeps the WAV as an unused file: the caller can have a session that names it.
-/// `isCancelled` is read before each block of 65,536 frames, before the read-back, and after the
-/// rename. A cancel during the level does not stop it: the caller reads its flag again after the
-/// return.
+/// level. A throw before the rename leaves no new file. After the rename, a flush fault throws and
+/// keeps the WAV as an unused file: the caller can have a session that names it. A cancel after
+/// the rename, also during the level, removes the WAV with `removeMadeFiles` and throws
+/// `.cancelled` (decision 0049). `isCancelled` is read before each block of 65,536 frames, before
+/// the read-back, after the rename, at each block of the level, and last before the return. A
+/// caller that reads its flag again after the return removes the WAV itself. With `level`, the
+/// conversion gives 0...0.8 of `progress` and the level 0.8...1.
 public func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
     freeBytes: () -> Int64, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
@@ -72,9 +74,10 @@ public func importAudio(
     let temporary = clips.appending(path: temporaryWAV(of: stem))
     var renamed = false
     defer { if !renamed { unlink(temporary.path) } }
+    let share = level ? 0.8 : 1
     let converted = try convertToWAV(
         input, descriptor: descriptor, source: source, package: package, wav: wav, channels: layout.channelCount,
-        rate: rate, into: temporary, progress: progress, isCancelled: isCancelled)
+        rate: rate, into: temporary, progress: { progress($0 * share) }, isCancelled: isCancelled)
     guard let (length, gain) = converted else { throw isCancelled() ? .cancelled : .notAudio(file: name) }
 
     let (track, file, clip) = (target.track ?? TrackID(), FileID(stem), ClipID(stem))
@@ -95,10 +98,42 @@ public func importAudio(
     if let code = fullFlush(path: clips.path) {
         throw .write(file: name, .writeFailed(file: clipsFolderName, status: code))
     }
-    // The level reads the renamed file. A cancel skips it (about 0.4 s for each hour of stereo).
-    guard !isCancelled() else { throw .cancelled }
-    if level { imported = autoLevel([clip], .eachClip, of: imported, in: package).session }
+    // The level reads the renamed file, and stops at a cancel (about 0.4 s for each hour of stereo).
+    if !isCancelled(), level {
+        // The level of one clip calls them on one thread while this thread waits, so no two calls
+        // run at the same time.
+        nonisolated(unsafe) let report = progress
+        nonisolated(unsafe) let cancelled = isCancelled
+        imported =
+            autoLevel(
+                [clip], .eachClip, of: imported, in: package, progress: { report(share + $0 * (1 - share)) },
+                isCancelled: { cancelled() }
+            ).session
+    }
+    guard !isCancelled() else {
+        removeMadeFiles([package.appending(path: wav)])
+        throw .cancelled
+    }
     return (imported, clip)
+}
+
+/// The WAV that `importAudio` made for `clip`: the clip, its file, and its WAV share the stem.
+public func importedWAV(_ clip: ClipID, in package: URL) -> URL {
+    package.appending(path: clipsFolderName).appending(path: "\(clip.rawValue).wav")
+}
+
+/// Removes the files that a cancelled run made after their rename (decision 0049): the WAV of an
+/// import. A failed save, a flush fault, and Undo keep them (decision 0040). Each owner of the
+/// last cancel read of a run calls it: `importAudio`, the cancel branch of `blockingTurn`, and the
+/// work on the files of the `import` tool.
+public func removeMadeFiles(_ files: [URL]) {
+    for file in files { unlink(file.path) }
+}
+
+/// `removeMadeFiles` off the main actor, for a caller that awaits it.
+@concurrent nonisolated func removeMadeFiles(_ files: [URL]) async {
+    let remove: ([URL]) -> Void = removeMadeFiles
+    remove(files)
 }
 
 /// Opens `source` for a conversion: a descriptor, held open so that a read error with no errno can

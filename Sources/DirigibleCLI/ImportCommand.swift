@@ -42,20 +42,10 @@ struct ImportCommand: ParsableCommand {
 
     /// The error line and the exit code of an import that changed nothing.
     func failure(_ error: ImportError) -> ExitCode {
-        switch error {
-        case .notAudio: fail("\(file) is not an audio file that Dirigible can read.", code: editRefused)
-        case .notDownloaded: fail("\(file) is not on this Mac. Download the file first.", code: editRefused)
-        case .tooManyChannels(_, let channels):
-            fail("\(file) has \(channels) channels; Dirigible imports only mono and stereo files.", code: editRefused)
-        case .unreadable(_, let code):
-            fail("cannot read \(file): \(String(cString: strerror(code))).", code: editRefused)
-        case .space(_, let needed, let free):
-            fail(
-                "the import needs \(needed) bytes free on the disk of \(package.path); \(free) bytes are free.",
-                code: packageError)
-        case .write(_, let error): fail(StudioError.finalize(error).message(package: package.path), code: packageError)
-        case .session(let error): fail(error.message, code: editRefused)
-        case .cancelled: fail("the import was cancelled.", code: packageError)
+        let message = ImportWork.message(error, file: file, package: package.path)
+        return switch error {
+        case .notAudio, .notDownloaded, .tooManyChannels, .unreadable, .session: fail(message, code: editRefused)
+        case .space, .write, .cancelled: fail(message, code: packageError)
         }
     }
 }

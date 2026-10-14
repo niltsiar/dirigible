@@ -59,7 +59,6 @@ struct ParityTests {
         "file add": "It adds a file record and does not read the audio. An agent that needs it runs the CLI.",
         "capture place": "Long audio work that needs progress and cancel (Release 3).",
         "take finalize": "Long audio work that needs progress and cancel (Release 3).",
-        "import": "Long audio work that needs progress and cancel (Release 3).",
         "peaks": "Long audio work that needs progress and cancel (Release 3).",
         "chapters export": "It writes a file outside the package and edits nothing; session_info gives the markers.",
         "mcp": "It is the MCP server.",

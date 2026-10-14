@@ -40,11 +40,13 @@ enum ToolWork: Sendable {
     case export(ExportWork)
     /// `level`: an edit under the lock, as `dirigible level`.
     case level(LevelWork)
+    /// `import`: a conversion and an edit under the lock, as `dirigible import`.
+    case importFile(ImportWork)
 
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export, .level: true
+        case .loudness, .export, .level, .importFile: true
         default: false
         }
     }

@@ -77,7 +77,8 @@ private func isTrue(_ value: Any?) -> Bool {
 /// A3 and A15: the regular apps of `processes`, by name. The app of a process is the longest
 /// bundle ID that `isPart` takes and whose app (from `appURL`) is regular, else the outermost
 /// `.app` of its path that is regular (W6b). So a helper with its own agent bundle counts for
-/// its app. A process with no regular app is not listed.
+/// its app. A process with no regular app is not listed, and neither are Safari and FaceTime:
+/// they play their audio from system processes, so a tap of the app records silence.
 func appList(_ processes: [AudioProcess], appURL: (String) -> URL?) -> [RunningApp] {
     var bundles: [String: AppBundle?] = [:]
     func bundle(_ url: URL) -> AppBundle? {
@@ -105,7 +106,8 @@ func appList(_ processes: [AudioProcess], appURL: (String) -> URL?) -> [RunningA
 
     var groups: [(url: URL, bundle: AppBundle, processes: [AudioProcess])] = []
     for process in processes {
-        guard let (url, found) = owner(of: process) else { continue }
+        guard let (url, found) = owner(of: process), !["com.apple.Safari", "com.apple.FaceTime"].contains(found.id)
+        else { continue }
         if let index = groups.firstIndex(where: { $0.bundle.id == found.id }) {
             groups[index].processes.append(process)
         } else {

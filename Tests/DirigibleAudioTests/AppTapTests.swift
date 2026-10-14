@@ -66,6 +66,28 @@ struct AppTapTests {
         }
     }
 
+    /// Safari and FaceTime play their audio from system processes, so a tap of the app records
+    /// silence: the list leaves them out.
+    @Test func theAppListLeavesOutSafariAndFaceTime() throws {
+        let apps = try AppFixture()
+        let safari = apps.root.appending(path: "Safari.app")
+        let faceTime = apps.root.appending(path: "FaceTime.app")
+        try AppFixture.bundle(safari, "com.apple.Safari", "Safari")
+        try AppFixture.bundle(faceTime, "com.apple.FaceTime", "FaceTime")
+        let urls = ["com.apple.Safari": safari, "com.apple.FaceTime": faceTime]
+        let processes =
+            apps.processes + [
+                AudioProcess(
+                    id: 240, bundleID: "com.apple.Safari", path: safari.path + "/Contents/MacOS/S", playing: true),
+                AudioProcess(
+                    id: 250, bundleID: "com.apple.FaceTime", path: faceTime.path + "/Contents/MacOS/F", playing: false),
+            ]
+
+        let list = appList(processes) { urls[$0] ?? apps.url(of: $0) }
+
+        #expect(list.map(\.bundleID) == ["com.google.Chrome", "com.microsoft.teams2", "us.zoom.xos"])
+    }
+
     /// A10: `InputDevice.all()` and the route menu never list a tap aggregate of Dirigible, which
     /// the creating process sees (probe P9d). Other `com.` UIDs stay.
     @Test func theDeviceListHidesTheTapAggregates() throws {
@@ -132,7 +154,7 @@ struct AppFixture {
 
     func url(of bundleID: String) -> URL? { urls[bundleID] }
 
-    private static func bundle(
+    static func bundle(
         _ url: URL, _ id: String, _ name: String, type: String = "APPL", extra: [String: Any] = [:]
     ) throws {
         let contents = url.appending(path: "Contents")

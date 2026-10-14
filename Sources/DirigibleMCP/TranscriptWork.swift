@@ -31,7 +31,8 @@ package enum TranscriptWork {
     /// skipped word. The command prints the first two on stdout and the others on stderr.
     /// With `cues`, each line names cues, because a cut removes a cue with no word times whole.
     package static func importLines(
-        _ report: (id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int), cues: Bool
+        _ report: (id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int, dropped: [String]),
+        cues: Bool
     ) -> [String] {
         let noun = cues ? "cue" : "word"
         func units(_ count: Int) -> String { count == 1 ? "1 \(noun)" : "\(count) \(noun)s" }
@@ -46,6 +47,7 @@ package enum TranscriptWork {
         if report.repeated > 0 {
             lines.append("Skipped \(units(report.repeated)) over audio that an earlier clip already gave.")
         }
+        for name in report.dropped { lines.append("Dropped the transcript \(name): its file was missing or damaged.") }
         return lines
     }
 
@@ -66,9 +68,11 @@ package enum TranscriptWork {
         ranges.map { "\($0.lowerBound) \($0.upperBound)" }
     }
 
-    /// The text of `transcript words`: one row for each shown word, "<occurrence>\t<start>\t<end>\t
-    /// <track>\t<text>", at most `query.limit` rows, then a line with the count of the rest. With
-    /// `json`, `{"more": <count>, "words": [...]}`. An unknown track gives the error text.
+    /// The text of `transcript words`: a line for each transcript that did not load, then one row
+    /// for each shown word, "<occurrence>\t<start>\t<end>\t<track>\t<text>", at most `query.limit`
+    /// rows, then a line with the count of the rest. With `json`, `{"more": <count>, "words": [...]}`
+    /// and, when a transcript did not load, `"notLoaded"` with those lines. An unknown track gives
+    /// the error text.
     package static func wordsText(_ session: Session, _ query: TranscriptQuery) throws(ToolError) -> String {
         if let track = query.track, session.track(track) == nil {
             throw ToolError(SessionError.unknownTrack(track).message)
@@ -76,6 +80,9 @@ package enum TranscriptWork {
         let all = session.words(in: query.range, matching: query.match, on: query.track.map { [$0] })
         let shown = all.prefix(query.limit)
         let more = all.count - shown.count
+        let notLoaded = session.transcriptsNotLoaded.map {
+            "Transcript \($0.id) (\($0.name)) did not load: its file is missing or damaged. Import the transcript again."
+        }
         if query.json {
             let rows: [[String: Any]] = shown.map {
                 [
@@ -83,13 +90,14 @@ package enum TranscriptWork {
                     "end": $0.range.upperBound.count, "track": $0.track.rawValue, "text": $0.text,
                 ]
             }
-            return MCPServer.encode(["more": more, "words": rows])
+            let object: [String: Any] = ["more": more, "words": rows]
+            return MCPServer.encode(notLoaded.isEmpty ? object : object.merging(["notLoaded": notLoaded]) { $1 })
         }
-        guard !all.isEmpty else { return "No words." }
+        guard !all.isEmpty else { return (notLoaded + ["No words."]).joined(separator: "\n") }
         let lines = shown.map {
             "\($0.occurrence)\t\($0.range.lowerBound)\t\($0.range.upperBound)\t\($0.track)\t\($0.text)"
         }
-        return (lines + (more > 0 ? ["\(more) more words: narrow with from, to, or match."] : []))
+        return (notLoaded + lines + (more > 0 ? ["\(more) more words: narrow with from, to, or match."] : []))
             .joined(separator: "\n")
     }
 }

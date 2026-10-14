@@ -248,4 +248,28 @@ struct TranscriptCommandTests {
             #expect(help.stdout.contains("  \(command) "), "dirigible transcript --help does not list \(command)")
         }
     }
+
+    /// T23: when the file of a transcript is missing, `words` names the transcript, and `cut`
+    /// exits 1 with the text that says to import it again.
+    @Test func wordsReportsATranscriptNotLoaded() async throws {
+        _ = try await package.run("transcript", "import", "PKG", Self.fixture.path, "--track", "host")
+        let token = Self.occurrences(try await package.run("transcript", "words", "PKG", "--limit", "1"))[0]
+        let folder = package.url.appending(path: "Transcripts")
+        for name in try FileManager.default.contentsOfDirectory(atPath: folder.path) {
+            try FileManager.default.removeItem(at: folder.appending(path: name))
+        }
+        let line = "Transcript 1 (agent-transcript.json) did not load: its file is missing or damaged. "
+        #expect(
+            try await package.run("transcript", "words", "PKG")
+                == CLIResult(status: 0, stdout: line + "Import the transcript again.\nNo words.\n", stderr: ""))
+        let before = try package.xml()
+        #expect(
+            try await package.run("transcript", "cut", "PKG", token)
+                == CLIResult(
+                    status: 1, stdout: "",
+                    stderr:
+                        "Error: transcript 1 did not load: its file is missing or damaged. Import the transcript again.\n"
+                ))
+        #expect(try package.xml() == before)
+    }
 }

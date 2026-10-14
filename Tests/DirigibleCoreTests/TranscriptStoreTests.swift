@@ -201,4 +201,76 @@ struct TranscriptStoreTests {
         }
         #expect(reverted.words() == session.words() && !reverted.words().isEmpty)
     }
+
+    /// `session` saved, and the file of transcript 1 deleted.
+    func saveAndDeleteTheFile(_ session: Session) throws {
+        try session.write(to: package)
+        try FileManager.default.removeItem(
+            at: folder.appending(path: "\(try #require(session.transcripts[one]?.file)).xml"))
+    }
+
+    /// T23. A session whose transcript file is missing opens; the transcript shows no word and is
+    /// reported; a file that comes back loads at the next open.
+    @Test func aMissingTranscriptFileIsReported() throws {
+        let session = try session()
+        try session.write(to: package)
+        let url = folder.appending(path: "\(try #require(session.transcripts[one]?.file)).xml")
+        let data = try Data(contentsOf: url)
+        try FileManager.default.removeItem(at: url)
+
+        let opened = try Session(contentsOf: package)
+        #expect(opened.words().isEmpty)
+        #expect(opened.transcriptsNotLoaded.map(\.id) == [one] && opened.transcriptsNotLoaded.map(\.name) == ["t1"])
+        try data.write(to: url)
+        let same = try Session(contentsOf: package) == session
+        #expect(same, "the file came back")
+    }
+
+    /// T23. A save of a session with a transcript that did not load writes its reference again.
+    @Test func theReferenceSurvivesASave() throws {
+        let session = try session()
+        try saveAndDeleteTheFile(session)
+        var opened = try Session(contentsOf: package)
+        try opened.setGain(Gain(dB: -3)!, track: "host")
+        try opened.write(to: package)
+        let text = try String(contentsOf: package.appending(path: "session.xml"), encoding: .utf8)
+        let name = try #require(session.transcripts[one]?.file)
+        #expect(text.contains(#"file="\#(name)""#) && text.contains(#"version="8""#))
+        #expect(try Session(contentsOf: package).transcriptsNotLoaded.map(\.id) == [one])
+    }
+
+    /// T23 (0024 P7). A transcript file of a newer format does not load.
+    @Test func aNewerTranscriptFileIsNotLoaded() throws {
+        let session = try session()
+        try session.write(to: package)
+        let url = folder.appending(path: "\(try #require(session.transcripts[one]?.file)).xml")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        #expect(text.contains(#"version="1""#))
+        try Data(text.replacing(#"version="1""#, with: #"version="2""#).utf8).write(to: url)
+        #expect(try Session(contentsOf: package).transcriptsNotLoaded.map(\.id) == [one])
+    }
+
+    /// T23. A file removed while its transcript did not load: the next load drops the words of
+    /// that file with a new file name, and a transcript with no word left goes.
+    @Test func aTranscriptOfARemovedFileStillLoads() throws {
+        var session = try session()
+        session.addWords([(1, 60_000..<70_000, "only")], file: "g", transcript: 2)
+        try session.write(to: package)
+        let names = try session.transcripts.mapValues { try Data(contentsOf: folder.appending(path: "\($0.file).xml")) }
+        for transcript in session.transcripts.values {
+            try FileManager.default.removeItem(at: folder.appending(path: "\(transcript.file).xml"))
+        }
+        var opened = try Session(contentsOf: package)
+        try opened.removeClips(["G"])
+        try opened.removeFile("g")
+        try opened.write(to: package)
+        for (id, data) in names {
+            try data.write(to: folder.appending(path: "\(try #require(session.transcripts[id]?.file)).xml"))
+        }
+
+        let loaded = try Session(contentsOf: package)
+        #expect(loaded.transcripts.keys.map(\.number) == [1], "transcript 2 had words only in g")
+        #expect(loaded.words().map(\.text) == ["Hello", "there"])
+        #expect(loaded.transcripts[one]?.file != session.transcripts[one]?.file, "the pruned words get a new name")
+    }
 }

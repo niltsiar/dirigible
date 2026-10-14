@@ -142,4 +142,19 @@ struct TranscriptImportTests {
         #expect(host.id.number == 1 && guest.id.number == 2)
         #expect(session.transcripts[guest.id]?.name == "guest.json")
     }
+
+    /// T23. An import drops each transcript that did not load and names it; its new ID is not the
+    /// ID of the dropped transcript, and a cut works again.
+    @Test func anImportDropsATranscriptNotLoaded() throws {
+        var session = try transcriptSession()
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 100_000), on: "host")
+        session.addWords([(1, 10_000..<20_000, "old")], file: "h")
+        session.transcripts[TranscriptID(1)]?.words = nil
+
+        let report = try session.importTranscript(try whisper([("new", 1, 1.5)]), name: "n", track: "host", at: 0)
+
+        #expect(report.id == TranscriptID(2) && report.dropped == ["t1"])
+        #expect(session.transcripts.keys.map(\.number) == [2] && session.transcriptsNotLoaded.isEmpty)
+        #expect(try session.cutWords(session.occurrences([1], transcript: 2)) == [48_000..<72_000])
+    }
 }

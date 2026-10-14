@@ -190,4 +190,20 @@ struct WordOccurrenceTests {
             #expect(WordOccurrence(bad) == nil, "\(bad) is refused")
         }
     }
+
+    /// T23. While a transcript did not load, a cut is refused: a hidden word could join a run
+    /// across the speech of another speaker. The error names the transcript, and nothing changes.
+    @Test func aCutWithATranscriptNotLoadedIsRefused() throws {
+        var session = try transcriptSession()
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 100_000), on: "host")
+        session.addWords([(1, 10_000..<20_000, "one")], file: "h")
+        session.addWords([(1, 30_000..<40_000, "two")], file: "h", transcript: 2)
+        session.transcripts[TranscriptID(2)]?.words = nil
+        let before = session
+
+        #expect(throws: SessionError.transcriptNotLoaded([TranscriptID(2)])) {
+            try session.cutWords(session.occurrences([1]))
+        }
+        #expect(session == before)
+    }
 }

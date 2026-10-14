@@ -313,4 +313,7 @@ public enum SessionError: Error, Hashable, Sendable {
     case wordOutsideFile(FileID)
     /// A cut names only words with no audio (decision 0055).
     case nothingToCut
+    /// The files of these transcripts did not load, so a cut could join words across hidden ones
+    /// (decision 0055).
+    case transcriptNotLoaded([TranscriptID])
 }

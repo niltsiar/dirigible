@@ -35,8 +35,35 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         } catch {
             return .result(text: error.message, isError: true)
         }
+    case .level(let work):
+        return await liveLevel(work, studio: studio, call: call, report: report)
     // `AgentServer` sends only long work here.
     default: return .notOpen
+    }
+}
+
+/// `level` through `Studio.level`: one undo step with the agent name. The banner Cancel or a
+/// cancel of the call ends it with no gain change (decision 0049).
+@MainActor
+private func liveLevel(
+    _ work: LevelWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    let ids: [ClipID]
+    do throws(SessionError) { ids = try work.chosen(in: studio.session) } catch {
+        return .result(text: error.message, isError: true)
+    }
+    do throws(StudioError) {
+        let (summary, levels) = try await studio.level(Set(ids), work.mode, agent: call.agent, progress: report)
+        let text = (LevelWork.lines(ids, levels) + [LevelWork.text(of: summary)]).joined(separator: "\n")
+        return .result(text: text, isError: false)
+    } catch .levelCancelled {
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+        let text = Task.isCancelled ? cancelledMessage : "The user cancelled the level in Dirigible. No gain changed."
+        return .result(text: text, isError: true)
+    } catch .busy {
+        return .result(text: AgentBusy.task.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
     }
 }
 
@@ -92,10 +119,12 @@ private func stopMessage(_ stop: ExportStop?, noun: String) -> String {
 /// The text of a long call that a stop of the agent server ended: the user turned the server off,
 /// or quits.
 func serverStopMessage(_ work: ToolWork) -> String {
-    guard case .export(let export) = work else {
-        return "Dirigible stopped its agent server, so the loudness measure stopped."
+    switch work {
+    case .export(let export):
+        "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
+    case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
+    default: "Dirigible stopped its agent server, so the loudness measure stopped."
     }
-    return "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
 }
 
 /// The busy cause of an export that `Studio.export` refuses: a running export or a take that is

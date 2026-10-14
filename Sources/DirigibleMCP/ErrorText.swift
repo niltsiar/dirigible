@@ -272,6 +272,8 @@ extension StudioError {
         case .artwork(let error): error.message
         // `file prune` calls `UnusedFiles` with no Studio.
         case .unusedFiles(let error): error.message(package: package)
+        // No command levels through Studio; `dirigible level` calls `autoLevel`.
+        case .levelCancelled: "the level was cancelled."
         }
     }
 }

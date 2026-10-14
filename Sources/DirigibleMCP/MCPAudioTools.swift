@@ -31,6 +31,12 @@ private let allowMissing = Param.defaulted(
     "allow_missing", "Export the clips of a missing, short, or unreadable file as silence, with a warning.", .boolean,
     false)
 
+private let chosenClips = Param<[String]?>.optional(
+    "clips", "The IDs of the clips to level. The default is every clip.", .strings())
+private let perTrack = Param.defaulted(
+    "per_track", "Give the clips of one track one change, so the gain differences between them stay.", .boolean,
+    false)
+
 /// The end of the description of a tool that writes a file: a late cancel can leave the file.
 private let cancelNote =
     " A cancel stops it, and no file is written; a cancel at the end can be late, so check the output file."
@@ -88,6 +94,14 @@ let audioTools = [
             ExportWork(
                 out: path, options: .render, from: first, to: end, tracks: [], replace: false, allowMissing: true))
     },
+    Tool(
+        "level",
+        "Set the gain of each clip to the loudness target of its track layout, as dirigible level: -16 LUFS for a "
+            + "stereo track and -19 LUFS for a mono track, within -20...20 dB. The text is one line for each clip, "
+            + "the clip ID, a tab, and the new gain, \"none\", or \"unreadable\", then the report line. A level that "
+            + "changes no gain writes nothing. A cancel stops it, and no gain changes.",
+        [chosenClips, perTrack]
+    ) { a throws(ToolError) in .level(LevelWork(clips: try a[chosenClips] ?? [], perTrack: try a[perTrack])) },
 ]
 
 /// The clips of `dirigible loudness` and the `loudness` tool: each clip, track by track in

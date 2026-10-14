@@ -86,7 +86,10 @@ struct TakeBanner: View {
         case .placing(let segment):
             BannerRow(kind: .info, text: L10n.takePlacing.format(segment.stem))
         case .leveling:
-            BannerRow(kind: .info, text: L10n.takeLeveling.text)
+            BannerRow(kind: .info, text: L10n.takeLeveling.text) {
+                // Also an agent level (decision 0049). Command-period is the Mac key of Cancel.
+                Button(L10n.importCancel.key) { model.cancelLevel() }.keyboardShortcut(".", modifiers: .command)
+            }
         case .importing where model.importJob?.visible == false:
             EmptyView()  // A paste shows its banner after 0.5 s.
         case .importing(let run):

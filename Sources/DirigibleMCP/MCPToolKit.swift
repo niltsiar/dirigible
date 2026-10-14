@@ -38,11 +38,13 @@ enum ToolWork: Sendable {
     case loudness(clips: [String])
     /// `export` and `render`: no lock, as `dirigible export` and `dirigible render`.
     case export(ExportWork)
+    /// `level`: an edit under the lock, as `dirigible level`.
+    case level(LevelWork)
 
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export: true
+        case .loudness, .export, .level: true
         default: false
         }
     }

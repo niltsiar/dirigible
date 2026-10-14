@@ -68,6 +68,7 @@ extension Excerpt {
             }
             scaled.lanes[lane].clips = clips
         }
+        scaled.pastesWords = pastesWords
         scaled.transcripts = transcripts.mapValues { transcript in
             var moved = transcript
             moved.words = Dictionary(

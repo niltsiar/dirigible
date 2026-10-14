@@ -138,9 +138,8 @@ extension Session {
     /// the first free ID of "<source id>@<start>"; the right part of a cut clip gets
     /// "<id>@<end of the cleared range>": the block end, or the end of the pasted clip. Returns
     /// the pasted IDs, lane by lane. A clip whose file record differs from the record of its ID here
-    /// throws `.foreignFile` (decision 0042). After `Excerpt.mapped`, the transcript words of each
-    /// file that no transcript here has come in a new transcript of each source transcript
-    /// (decision 0055). A throw changes
+    /// throws `.foreignFile` (decision 0042). After `Excerpt.mapped`, the transcript words of the
+    /// excerpt come in a new transcript of each source transcript (decision 0055). A throw changes
     /// nothing.
     @discardableResult
     public mutating func paste(_ excerpt: Excerpt, at start: Frames, on tracks: [TrackID]) throws(SessionError)
@@ -181,14 +180,12 @@ extension Session {
             copy.tracks[index].clips.insert(sorted: clips)
             pasted += clips.map(\.id)
         }
-        // The words of each file that no transcript here has: a paste from another package. Each
-        // source transcript gets a new ID, so a paste never merges two transcripts (decision 0055).
-        let covered = Set(transcripts.values.flatMap(\.words.keys))
-        for source in excerpt.transcripts.values.sorted(by: { $0.id < $1.id }) where excerpt.pastesWords {
-            let words = source.words.filter { file, _ in !covered.contains(file) }
-            guard !words.isEmpty else { continue }
+        // Only a paste from another package adds words: its files are new records here. Each source
+        // transcript gets a new ID, so a paste never merges two transcripts (decision 0055).
+        for source in excerpt.transcripts.values.sorted(by: { $0.id < $1.id })
+        where excerpt.pastesWords && !source.words.isEmpty {
             let id = copy.nextTranscriptID
-            copy.transcripts[id] = Transcript(id: id, name: source.name, words: words)
+            copy.transcripts[id] = Transcript(id: id, name: source.name, words: source.words)
         }
         self = copy
         return pasted

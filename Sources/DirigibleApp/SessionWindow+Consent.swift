@@ -14,6 +14,14 @@ enum RecordStart: Equatable {
     /// The check of the start was false: the routes of a grant take changed (decision 0050).
     case changed
     case failed(StudioError)
+
+    /// A guard or the Studio refused the start because the window or the Studio is busy.
+    var isBusy: Bool {
+        switch self {
+        case .busy, .failed(.busy): true
+        default: false
+        }
+    }
 }
 
 /// The Dock attention of a record request (decision 0048). Tests give their own.
@@ -211,12 +219,13 @@ extension SessionWindow {
         guard canPressRecord(consent) else { return }
         consent.begin()
         // After the microphone prompt: a route that changed after the sheet showed starts no take.
-        let start = await startTake(
-            armed: consent.tracks, playhead: consent.start, seconds: consent.seconds, alertsBusy: true
-        ) { [weak self, weak consent] in
+        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
+            [weak self, weak consent] in
             guard let self, let consent, let session = self.studio?.session else { return false }
             return consent.routesShown(in: session)
         }
+        // An export sheet shows a refused start itself (`recordRefusal`).
+        if start.isBusy, studio?.exportProgress == nil { alert = .error(.busy) }
         var grant: GrantNote?
         if case .started = start, consent.offersGrant, consent.grantChecked, let connection = consent.connection,
             let given = ConsentGrant(
@@ -344,6 +353,7 @@ extension SessionWindow {
             grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: true)
         }
         if case .started(let take) = start { agentTakeStarted(consent, take: take) }
+        if start.isBusy { beep() }
         let answer = answer(start, consent, grant: grant)
         if self.consent === consent { endConsent(answer) }
         return answer

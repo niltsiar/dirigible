@@ -58,26 +58,20 @@ extension SessionWindow {
         guard !consentHoldsRecord, let tracks = studio?.session.tracks.map(\.id).filter(armed.contains), !tracks.isEmpty
         else { return }
         endCheckingConsent()
-        await startTake(armed: tracks, playhead: nil)
+        if await startTake(armed: tracks, playhead: nil).isBusy { beep() }
     }
 
     /// The take start of Command-R and of the consent sheet (decision 0048). With no `playhead`,
     /// the take starts at the Studio playhead; a play stops first (decision 0016). With
-    /// `seconds`, the Studio stops the take after them. A refusal shows its alert, as for
-    /// Command-R. A busy refusal shows its alert only with `alertsBusy`, the Record click of the
-    /// consent sheet: a Record click during a take, or a second click at the start, does nothing.
+    /// `seconds`, the Studio stops the take after them. A refusal shows its alert, but a busy
+    /// refusal shows none: the caller gives its signal, so no alert covers a live take.
     /// `check` runs before each Studio start, also after the microphone prompt: when it is false,
     /// no take starts (a grant take, decision 0050).
-    @discardableResult
     func startTake(
-        armed: [TrackID], playhead: Frames?, seconds: Double? = nil, alertsBusy: Bool = false,
-        check: (() -> Bool)? = nil
+        armed: [TrackID], playhead: Frames?, seconds: Double? = nil, check: (() -> Bool)? = nil
     ) async -> RecordStart {
         commitDrafts()
-        if let refusal = takeRefusal {
-            if alertsBusy, case .busy = refusal { alert = .error(.busy) }
-            return refusal
-        }
+        if let refusal = takeRefusal { return refusal }
         guard let studio = idleStudio else { return .closed }
         // The take form removes the name field, so its focus change cannot end a rename with no
         // typed text (run 2026-10-11-ui-polish-header code gate 1).
@@ -115,7 +109,7 @@ extension SessionWindow {
         } catch .microphoneAccess(let access) {
             alert = .microphone(access)
             return .failed(.microphoneAccess(access))
-        } catch .busy where !alertsBusy {
+        } catch .busy {
             return .failed(.busy)
         } catch {
             alert = .error(error)

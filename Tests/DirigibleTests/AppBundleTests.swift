@@ -90,9 +90,8 @@ struct AppBundleTests {
             (
                 "track.state.no.sound",
                 // The pane name differs on macOS 14 and 15, so the text names the button, not the pane.
-                "No sound from %1$@. If %1$@ plays sound, open the privacy settings and allow Dirigible to record system "
-                    + "audio.",
-                "No hay sonido de %1$@. Si %1$@ reproduce sonido, abre los ajustes de privacidad y permite que Dirigible "
+                "No sound from %1$@. If %1$@ plays sound, click Privacy… and allow Dirigible to record system audio.",
+                "No hay sonido de %1$@. Si %1$@ reproduce sonido, haz clic en Privacidad… y permite que Dirigible "
                     + "grabe el audio del sistema."
             ),
             ("track.no.sound.settings", "Open Privacy Settings", "Abrir los ajustes de privacidad"),

@@ -210,7 +210,7 @@
 "track.state.write.failed" = "Write error";
 "track.state.retry.stopped" = "Stopped retrying. Turn Input Levels off and on.";
 "track.state.waiting.app" = "Waiting for %@";
-"track.state.no.sound" = "No sound from %1$@. If %1$@ plays sound, open the privacy settings and allow Dirigible to record system audio.";
+"track.state.no.sound" = "No sound from %1$@. If %1$@ plays sound, click Privacy… and allow Dirigible to record system audio.";
 "track.state.no.sound.short" = "No sound from %@";
 "track.listen.quiet" = "No monitor sound. Turn Monitor Track off and on.";
 "track.listen.quiet.short" = "No monitor sound";

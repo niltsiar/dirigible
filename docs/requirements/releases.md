@@ -148,10 +148,9 @@ Run order. The research for this order is in `docs/research/podcast-features.md`
 
 ## Versions
 
-The app version is `0.<release>.<run>`, from the release and the run number of this file. Release 3 run 4 is `0.3.4`, and Release 4 starts at `0.4.0`.
+The app version is `0.<release>.<run>`, from the release and the run number of this file, with the fourth number of bullet 1. Release 3 run 4 is `0.3.4`, and Release 4 starts at `0.4.0`.
 
-- A merge that changes app code (`Sources/`, `Package.swift`, `Package.resolved`, `Support/`) and is not a numbered run gets a fourth number when the lead tags it: `0.3.4.1`, `0.3.4.2`. The fourth number counts the tags, not the merges. The next numbered run resets it.
-- A version never goes down. Runs land in parallel, so a run can land after a run with a higher number. Such a run takes the next fourth number on the newest tag: run 7 after `v0.3.8.1` is `0.3.8.2`, not `0.3.7.1`.
+- A version never goes down. A merge that changes app code (`Sources/`, `Package.swift`, `Package.resolved`, `Support/`) gets the next fourth number on the newest tag when the lead tags it, if it is not a numbered run or if it lands after a higher run (runs land in parallel): `0.3.4.1`, `0.3.4.2`; run 7 after `v0.3.8.1` is `0.3.8.2`, not `0.3.7.1`. The fourth number counts the tags, not the merges. The next numbered run resets it.
 - The source of the version is an annotated tag `v<version>` on `main`. A lightweight tag does not count. There is no GitHub release.
 - After the land, the lead tags the next merge that ships app code. One tag can cover earlier untagged app-code merges. Push the tag before `make dmg`, and build the DMG from a checkout of `main` at the tagged commit. A DMG built before the tag gets the describe version in its name and in the app.
 - `scripts/land.sh` merges with a rebase, so `main` has no merge commit, and the head commit of the pull request is not on `main`. Tag the commit that `gh pr view <n> --json mergeCommit -q .mergeCommit.oid` prints: the last commit of the pull request on `main`.

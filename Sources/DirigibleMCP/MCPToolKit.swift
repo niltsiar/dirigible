@@ -250,9 +250,41 @@ struct Tool: Sendable {
         case local(@Sendable () -> String)
     }
 
+    /// The MCP annotations of a tool (decision 0050). A client treats them as untrusted hints.
+    enum Hints: Sendable {
+        case none
+        /// The tool reads and changes nothing.
+        case readOnly
+        /// The tool records audio: it changes the package, and it records the world.
+        case records
+
+        var annotations: [String: Bool]? {
+            switch self {
+            case .none: nil
+            case .readOnly: ["readOnlyHint": true]
+            case .records: ["readOnlyHint": false, "destructiveHint": true, "openWorldHint": true]
+            }
+        }
+    }
+
     let name: String
     let description: String
     let body: Body
+    private(set) var hints = Hints.none
+
+    /// This tool with `hints`.
+    func hinted(_ hints: Hints) -> Tool {
+        var tool = self
+        tool.hints = hints
+        return tool
+    }
+
+    /// The entry of the tool in `tools/list`.
+    var listing: [String: Any] {
+        var entry: [String: Any] = ["name": name, "description": description, "inputSchema": inputSchema]
+        if let annotations = hints.annotations { entry["annotations"] = annotations }
+        return entry
+    }
 
     /// The parameters after `package`. A local tool has none.
     var params: [any ParamInfo] {

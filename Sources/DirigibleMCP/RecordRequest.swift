@@ -148,5 +148,5 @@ let recordTools = [
         return .record(
             RecordRequest(
                 armed: try a[arm].map { TrackID($0) }, seconds: length, playhead: try a[playhead].map { Frames($0) }))
-    }
+    }.hinted(.records)
 ]

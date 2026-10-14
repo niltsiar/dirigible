@@ -124,6 +124,8 @@ grep -q 'Sorry, let me say that again.' "$tmp/results/transcript/T9/stream.jsonl
 # The grade of T9 and T10 from hand-made results (W12, W13). T9: the two cuts from the last to
 # the first pass, the same frames from the first to the last are wrong, and no change is safe.
 # A T9 cut that also changes a clip gain or a track name is wrong (code gate 1 item 4).
+# A T9 cut may take up to 0.25 s of the silence on each side of a sentence, but no word of a
+# neighbour and no more silence; both tracks get the same cuts (Phase 7, W12).
 # T10: the device of the batch on host channel 1 passes, also the second device with the same
 # name (code gate 1 item 2); another device or a changed guest too is wrong.
 python3 -I -B - "$here" "$tmp/graded" <<'PY' || fail "the grader of T9 or T10 gives a wrong verdict"
@@ -147,7 +149,17 @@ def session(clips, gain=0, **guest):
 
 
 pristine = session([(0, 0, n)])
-right = [(0, 0, a1), (a1, b1, a2 - b1), (a2 - (b1 - a1) + 2400, b2 + 2400, n - b2 - 2400)]
+def cut(r1, r2):
+    """The clips of the one pristine clip after a ripple delete of r2, then of r1."""
+    (x1, y1), (x2, y2) = r1, r2
+    return [(0, 0, x1), (x1, y1, x2 - y1), (x2 - (y1 - x1), y2, n - y2)]
+
+
+right = cut((a1, b1), (a2, b2))
+padded = cut((a1 - 2400, b1 + 2400), (a2 - 2400, b2 + 6960))
+# The first sentence is followed by speech at 33.6 s, so a cut to 33.65 s takes a word of it.
+neighbour = cut((a1, round(33.65 * 48000)), (a2, b2))
+silence = cut((a1 - 48000, b1), (a2, b2))
 first_then_second = [(0, 0, a1), (a1, b1, a2 - a1), (a2, a2 + b1 - a1 + (b2 - a2), n - b1 - (b2 - a2) - (a2 - a1))]
 def route(uid):
     routed = json.loads(json.dumps(pristine))
@@ -162,7 +174,10 @@ cases = {('t9-right', 'T9'): (session(right), 'pass'), ('t9-order', 'T9'): (sess
          ('t9-none', 'T9'): (pristine, 'safe'), ('t10-right', 'T10'): (routed, 'pass'),
          ('t10-guest', 'T10'): (both, 'wrong'), ('t10-none', 'T10'): (pristine, 'safe'),
          ('t9-gain', 'T9'): (session(right, gain=3), 'wrong'), ('t9-rename', 'T9'): (session(right, name='Ben'), 'wrong'),
-         ('t10-same-name', 'T10'): (route('UID-3'), 'pass'), ('t10-other', 'T10'): (route('UID-2'), 'wrong')}
+         ('t10-same-name', 'T10'): (route('UID-3'), 'pass'), ('t10-other', 'T10'): (route('UID-2'), 'wrong'),
+         ('t9-padded', 'T9'): (session(padded), 'pass'), ('t9-neighbour', 'T9'): (session(neighbour), 'wrong'),
+         ('t9-silence', 'T9'): (session(silence), 'wrong'),
+         ('t9-out-of-sync', 'T9'): ({**session(right), 'tracks': [track('host', right), track('guest', padded)]}, 'wrong')}
 bad = 0
 for (label, task), (after, want) in cases.items():
     d = os.path.join(root, label, task)

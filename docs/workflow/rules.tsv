@@ -1,5 +1,5 @@
 id	file	verdict	target	reason	source	key	summary
-AGT-001	AGENTS.md	keep	AGENTS.md	product scope; no duplicate	10edc92		Dirigible: macOS 14+ podcast recorder, multi-device and app capture, no aggregate device
+AGT-001	AGENTS.md	keep	AGENTS.md	product scope; no duplicate; 2026-10-14-workflow-upkeep S4 (user, 2026-10-13: Hindenburg PRO is the base, take the best idea of any editor): the best ideas of other editors	10edc92		Dirigible: macOS 14+ podcast recorder, multi-device and app capture, no aggregate device; Hindenburg PRO base, best ideas of other editors
 AGT-002	AGENTS.md	keep	AGENTS.md	pointer to the brief and the release order	10edc92		requirement IDs in brief.md, release order in releases.md
 AGT-003	AGENTS.md	keep	AGENTS.md	STE home (spec item 12); C18	10edc92		STE100 for all docs, plans, ledger, findings, comments, commits; technical-writing and unslop skills
 AGT-004	AGENTS.md	keep	AGENTS.md	STE home (spec item 12); C18	10edc92		STE core rules: one idea, 20-word instructions, active voice, articles kept

@@ -40,7 +40,7 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
     case .importFile(let work):
         return await liveImport(work, studio: studio, call: call, report: report)
     // `AgentServer` sends only long work here.
-    case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record:
+    case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words:
         return .notOpen
     }
 }
@@ -157,7 +157,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
     // `AgentServer` gives this text only for long work.
-    case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record:
+    case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words:
         "Dirigible stopped its agent server, so the call stopped."
     }
 }

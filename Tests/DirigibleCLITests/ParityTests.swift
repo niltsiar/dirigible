@@ -43,6 +43,8 @@ struct ParityTests {
         "rippleInsert": ["clip ripple-insert"],
         "rippleTrim": ["clip ripple-trim"],
         "removeUnusedFiles": ["file prune"],
+        "importTranscript": ["transcript import"],
+        "cutWords": ["transcript cut"],
     ]
 
     static let exemptions: [String: String] = [

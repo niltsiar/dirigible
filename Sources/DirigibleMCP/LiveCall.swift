@@ -43,6 +43,12 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .episodeInfo:
             // EpisodeView holds only strings, numbers, and a flag, so the encode does not fail.
             return .result(text: (try? EpisodeView(studio.session.episode).json(pretty: false)) ?? "{}", isError: false)
+        case .words(let query):
+            do throws(ToolError) {
+                return .result(text: try TranscriptWork.wordsText(studio.session, query), isError: false)
+            } catch {
+                return .result(text: error.message, isError: true)
+            }
         case .backups:
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)

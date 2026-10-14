@@ -30,6 +30,8 @@ enum ToolWork: Sendable {
     case marker(MarkerWork)
     /// `episode_get`: no lock, as `session_info`.
     case episodeInfo
+    /// `transcript_words`: no lock, as `dirigible transcript words` (decision 0055).
+    case words(TranscriptQuery)
     /// `file_prune`: the scan, and with `dryRun` false the moves to the Trash, under the lock.
     case prune(dryRun: Bool)
     /// `record`: only the app records, after the consent of the user (decision 0048).

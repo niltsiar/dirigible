@@ -154,6 +154,15 @@ extension PasteError {
     }
 }
 
+extension TranscriptFileError {
+    package var message: String {
+        switch self {
+        case .unreadable: "the file is neither WebVTT nor Whisper JSON."
+        case .noTimedWord: "no word has a usable time."
+        }
+    }
+}
+
 extension SessionError {
     /// No `default` case: a new error case does not compile until it has a message.
     package var message: String {

@@ -343,6 +343,40 @@ struct LiveToolTests {
         #expect(studio.sessionRevision == revision + 1, "one undo entry")
         await studio.settle()
     }
+
+    /// T10 in the app (run transcript-1): a live import and a live cut of two runs are one edit
+    /// each, and one undo of the cut gives back the session before it.
+    @Test func transcriptCutIsOneUndoStep() async throws {
+        let package = try LivePackage()
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        try studio.edit { session throws(SessionError) in
+            try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 480_000))
+            try session.place(Clip(id: "A", file: "f", start: 0, offset: 0, length: 480_000), on: "t1")
+        }
+        let revision = studio.sessionRevision
+        let text =
+            #"{"words":[{"word":"a","start":1,"end":2},{"word":"b","start":2,"end":3},"#
+            + #"{"word":"c","start":4,"end":5},{"word":"d","start":5,"end":6}]}"#
+        func call(_ tool: String, _ arguments: [String: any Sendable]) async -> String {
+            replyText(await send(folder.socket, tool, arguments.merging(["package": package.path]) { $1 }))
+        }
+
+        #expect(await call("transcript_import", ["text": text, "track": "t1"]) == "1\nImported 4 words.")
+        let rows =
+            await call("transcript_words", ["match": "a b"]) + "\n" + (await call("transcript_words", ["match": "d"]))
+        let named = rows.split(separator: "\n").map { String($0.split(separator: "\t")[0]) }
+        let before = studio.session
+
+        #expect(await call("transcript_cut", ["occurrences": named]) == "48000 144000\n240000 288000")
+        #expect(studio.sessionRevision == revision + 2, "the import and the cut are one edit each")
+        #expect(studio.session.words().map(\.text) == ["c"])
+        try studio.undo()
+        let undone = studio.session == before
+        #expect(undone, "one undo gives back the session before the cut")
+        await studio.settle()
+    }
 }
 
 /// The text of a reply, or an empty text and an issue.

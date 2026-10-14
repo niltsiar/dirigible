@@ -210,6 +210,26 @@ struct ImportFaultTests {
         }
         #expect(package.clipsNames == [])
     }
+
+    /// C3 (decision 0056): an import never replaces a file in `Clips/`. Another file at the name
+    /// during the conversion: the import throws a write fault with EEXIST, that file keeps its
+    /// bytes, and no temp stays.
+    @Test func anImportNeverReplacesAWAV() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        let source = package.source("Voice.wav")
+        try writeSource(source, .wav16, rate: 48_000, channels: [sine(seconds: 1, rate: 48_000)])
+        try FileManager.default.createDirectory(
+            at: package.url.appending(path: clipsFolderName), withIntermediateDirectories: true)
+        let (wav, other) = (package.clip("Voice.wav"), Data("another file".utf8))
+
+        #expect(throws: ImportError.write(file: "Voice.wav", .writeFailed(file: "Clips/Voice.wav", status: EEXIST))) {
+            try importAudio(
+                source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url, level: false,
+                progress: { _ in if !FileManager.default.fileExists(atPath: wav.path) { try? other.write(to: wav) } })
+        }
+        #expect(FileManager.default.contents(atPath: wav.path) == other, "the other file keeps its bytes")
+        #expect(package.clipsNames == ["Voice.wav"], "no temp stays")
+    }
 }
 
 /// A 16-bit PCM WAV of silence with `channels` channels at 48 kHz, written byte by byte, so a

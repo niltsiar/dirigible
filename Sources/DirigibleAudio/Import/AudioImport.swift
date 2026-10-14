@@ -30,8 +30,10 @@ public enum ImportError: Error, Hashable, Sendable {
 ///
 /// The order: the download check (`isDownloaded`, before any read), the source checks, the target
 /// checks, the disk check (`freeBytes`, the free bytes of the volume of the package lock), the
-/// conversion into `.<stem>.wav.tmp`, the session edits, the rename, the flush of `Clips/`, and the
-/// level. A throw before the rename leaves no new file. After the rename, a flush fault throws and
+/// `mkdir` of `Clips/`, the conversion into `.<stem>.wav.tmp`, the session edits, the rename, the
+/// flush of `Clips/`, and the level. `NewClipFiles` owns the file steps (decision 0056). The rename
+/// never replaces a file: another file at the name throws a write fault with EEXIST and keeps its
+/// bytes. A throw before the rename leaves no new file. After the rename, a flush fault throws and
 /// keeps the WAV as an unused file: the caller can have a session that names it. A cancel after
 /// the rename, also during the level, removes the WAV with `removeMadeFiles` and throws
 /// `.cancelled` (decision 0049). `isCancelled` is read before each block of 65,536 frames, before
@@ -62,18 +64,17 @@ public func importAudio(
     }
     guard target.start >= .zero else { throw .session(.frameOutOfRange) }
     let (sourceRate, rate) = (input.fileFormat.sampleRate, Double(session.sampleRate))
-    // The placement rule (decision 0021): 3 bytes for each sample of the WAV, and the margin.
     let frames = Int64((Double(input.length) * rate / sourceRate).rounded(.up))
-    let needed = frames * Int64(layout.channelCount) * 3 + diskMargin
-    let free = freeBytes()
-    guard free >= needed else { throw .space(file: name, needed: needed, free: free) }
-
-    let clips = package.appending(path: clipsFolderName)
-    let stem = importStem(of: source, in: session, package: package, taken: [])
+    var files: NewClipFiles
+    do throws(NewClipFault) {
+        files = try NewClipFiles(
+            in: package, bytes: wavFileBytes(frames: frames, channels: layout.channelCount), freeBytes: freeBytes)
+    } catch {
+        throw ImportError(error, file: name)
+    }
+    defer { files.discard() }
+    let (stem, temporary) = files.add(stemOf: source, in: session)
     let wav = "\(clipsFolderName)/\(stem).wav"
-    let temporary = clips.appending(path: temporaryWAV(of: stem))
-    var renamed = false
-    defer { if !renamed { unlink(temporary.path) } }
     let share = level ? 0.8 : 1
     let converted = try convertToWAV(
         input, descriptor: descriptor, source: source, package: package, wav: wav, channels: layout.channelCount,
@@ -91,13 +92,7 @@ public func importAudio(
     } catch {
         throw .session(error)
     }
-    guard rename(temporary.path, package.appending(path: wav).path) == 0 else {
-        throw .write(file: name, .writeFailed(file: wav, status: errno))
-    }
-    renamed = true
-    if let code = fullFlush(path: clips.path) {
-        throw .write(file: name, .writeFailed(file: clipsFolderName, status: code))
-    }
+    do throws(NewClipFault) { try files.commit() } catch { throw ImportError(error, file: name) }
     // The level reads the renamed file, and stops at a cancel (about 0.4 s for each hour of stereo).
     if !isCancelled(), level {
         imported =

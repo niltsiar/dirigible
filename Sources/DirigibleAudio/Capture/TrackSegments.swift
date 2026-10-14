@@ -54,7 +54,9 @@ struct TrackSegments {
 
     /// The 24-bit WAV bytes of every track for the device frames so far. ponytail: it counts
     /// a track with an error too, so the disk rule stops a little early.
-    var wavBytes: Int64 { deviceFrames * Int64(outputs.reduce(0) { $0 + $1.channels.count }) * 3 }
+    var wavBytes: Int64 {
+        wavFileBytes(frames: deviceFrames, channels: outputs.reduce(0) { $0 + $1.channels.count })
+    }
 
     func hasRoutedChannels(_ device: InputDevice) -> Bool {
         outputs.allSatisfy { $0.channels.allSatisfy { $0 <= device.channelCount } }

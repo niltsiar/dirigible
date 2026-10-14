@@ -17,8 +17,13 @@ extension SessionWindow {
             since: studio.recordingSince ?? .now, byGrant: byGrant, connection: consent.connection)
         agentRecord.take = started
         followAgentTake(studio, take: take)
-        if !attention.isActive() { attention.inform() }
-        chrome?.announce(agentTakeText(started), .high)
+        let text = agentTakeText(started)
+        if !attention.isActive() {
+            attention.inform()
+            let info = [AgentTakeNotice.packageKey: url.path, AgentTakeNotice.takeKey: "\(take)"]
+            notice.post(AgentTakeNotice.id(url, take: take), url.deletingPathExtension().lastPathComponent, text, info)
+        }
+        chrome?.announce(text, .high)
         app?.updateAgentBadge()
     }
 
@@ -68,7 +73,17 @@ extension SessionWindow {
         }
     }
 
+    /// Stop of the notification of `take`: it stops only that agent take, while it records.
+    func stopAgentTake(_ take: Int) async {
+        guard agentRecord.take?.take == take, studio?.transport == .recording(take: take) else { return }
+        await stop()
+    }
+
+    /// The first turn-on of the grant checkbox asks for the notification permission (C14).
+    func grantBoxTurnedOn() { notice.authorize() }
+
     private func agentTakeEnded(_ take: Int) {
+        notice.remove(AgentTakeNotice.id(url, take: take))
         guard agentRecord.take?.take == take else { return }
         agentRecord.take = nil
         app?.updateAgentBadge()

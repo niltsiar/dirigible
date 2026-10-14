@@ -2,7 +2,7 @@ import Foundation
 
 /// The agent manual (decision 0051): the one owner of the MCP `instructions`, the text of
 /// `dirigible --instructions`, the MCP prompts, and the skill. The core goes first and stays in
-/// 2048 characters, the documented cut of Claude Code; the whole text stays in 4000.
+/// 2048 characters, the documented cut of Claude Code; the whole text stays in 6000.
 package enum AgentManual {
     /// The phases of podcast work, in order. Each recipe has one, and the core gives one line for
     /// each phase: its rule, then the names of its recipes.

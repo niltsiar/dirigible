@@ -81,15 +81,18 @@ import Testing
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
-    /// Add Marker and Add Chapter add nothing during a take, so they are off then. Control: on
-    /// with no take.
-    @Test func aTakeTurnsTheMarkerItemsOff() {
-        let take = LaneMenu.groups(
-            selection: false, clips: false, clipboard: false, split: false, canEdit: false, canRipple: false)
-        #expect(take.map { $0.map(\.enabled) } == [[false, false]], "during a take")
-        let idle = LaneMenu.groups(
-            selection: false, clips: false, clipboard: false, split: false, canEdit: true, canRipple: true)
-        #expect(idle.last?.map(\.enabled) == [true, true], "no take")
+    /// The lane menu reads the rule of the Markers menu, so the marker items are off during a take.
+    /// Control: on with no take.
+    @Test func aTakeTurnsTheMarkerItemsOff() async throws {
+        let (model, studio, window, view) = try await lanes()
+        let marker = [L10n.menuMarkersAdd.text, L10n.menuMarkersAddChapter.text]
+        #expect(Array(titles(try menu(view, 120, 10)).suffix(2)) == marker, "no take")
+
+        studio.transport = .recording(take: 1)
+        defer { studio.transport = .idle }
+        #expect(titles(try menu(view, 120, 10)) == marker.map { $0 + " (off)" }, "during a take")
+        window.close()
+        await model.close()
     }
 
     /// C20: a pending or split take hides Cut, Insert, and Delete and Close Gap. Control: a shown

@@ -5,9 +5,10 @@ import DirigibleTimeline
 
 /// The context menu of the lanes (decision 0037, `ui-panel.md` 4): three groups of the Edit and
 /// Markers commands, with no Undo item and no keys. An item that does not apply hides, but Cut, Copy,
-/// and Paste dim. During a take only the marker group shows, and its items dim. A pending or split
-/// take hides the ripple items (Cut, Insert, and Delete and Close Gap). A clip set has no Delete and
-/// Close Gap; its Cut is no ripple, so it shows also under a pending or split take (decision 0038).
+/// and Paste dim. During a take only the marker group shows; it dims by the Markers menu rule. A
+/// pending or split take hides the ripple items (Cut, Insert, and Delete and Close Gap). A clip set
+/// has no Delete and Close Gap; its Cut is no ripple, so it shows also under a pending or split take
+/// (decision 0038).
 enum LaneMenu {
     struct Item: Equatable {
         let command: TimelineCommand
@@ -34,7 +35,7 @@ enum LaneMenu {
                 selection ? Item(command: .fade, enabled: true) : nil,
             ],
         ]
-        let markers = [Item(command: .addMarker, enabled: canEdit), Item(command: .addChapter, enabled: canEdit)]
+        let markers = [Item(command: .addMarker, enabled: true), Item(command: .addChapter, enabled: true)]
         return ((canEdit ? edits.map { $0.compactMap { $0 } } : []) + [markers]).filter { !$0.isEmpty }
     }
 }
@@ -63,7 +64,9 @@ extension TimelineScrollView {
             for item in group {
                 guard let title = TimelineCommand.menuItems[item.command]?.title else { continue }
                 let menuItem = NSMenuItem(title: title.text, action: #selector(laneMenuItem(_:)), keyEquivalent: "")
-                (menuItem.target, menuItem.representedObject, menuItem.isEnabled) = (self, item.command, item.enabled)
+                (menuItem.target, menuItem.representedObject, menuItem.isEnabled) = (
+                    self, item.command, item.enabled && model.isOn(item.command)
+                )
                 menu.addItem(menuItem)
             }
         }

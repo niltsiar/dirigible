@@ -235,11 +235,14 @@ final class TimelineRuler: NSRulerView {
         else { return nil }
         let menu = NSMenu()
         menu.autoenablesItems = false
-        let canAdd = model?.canEdit == true
+        let isOn = { (command: TimelineCommand) in self.model?.isOn(command) == true }
         let items: [(L10n, Selector, Any, Bool)] = [
-            (.menuMarkersAdd, #selector(addMarkerItem(_:)), target.frame.count, canAdd),
-            (.menuMarkersAddChapter, #selector(addChapterItem(_:)), target.frame.count, canAdd),
-            (.menuMarkersDelete, #selector(deleteMarkerItem(_:)), target.marker?.rawValue ?? "", target.marker != nil),
+            (.menuMarkersAdd, #selector(addMarkerItem(_:)), target.frame.count, isOn(.addMarker)),
+            (.menuMarkersAddChapter, #selector(addChapterItem(_:)), target.frame.count, isOn(.addChapter)),
+            (
+                .menuMarkersDelete, #selector(deleteMarkerItem(_:)), target.marker?.rawValue ?? "",
+                target.marker != nil && isOn(.deleteMarker)
+            ),
         ]
         for (title, action, object, enabled) in items {
             let item = NSMenuItem(title: title.text, action: action, keyEquivalent: "")

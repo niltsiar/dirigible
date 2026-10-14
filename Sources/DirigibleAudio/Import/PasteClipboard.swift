@@ -56,13 +56,14 @@ public enum PasteError: Error, Hashable, Sendable {
 /// `session.xml`. A throw before the first rename leaves no new name in `Clips/`; after it, nothing
 /// deletes a renamed WAV (0040). For another package it blocks: never call it on the main actor.
 /// `isCancelled` is read in each copy callback, before each conversion block, between the files, and
-/// before the renames.
+/// before the renames. `flush` flushes each copied file and `Clips/`; nil is `fullFlush`.
 public func pasteClipboard(
     _ clipboard: Clipboard, from source: URL, into session: Session, in package: URL, identity: PackageID?,
     at start: Frames, on target: PasteTarget, insert: Bool = false, freeBytes: () -> Int64,
     canClone: (URL, URL) -> Bool = { cloneWorks($0, into: $1) }, progress: @escaping (Double) -> Void = { _ in },
-    isCancelled: @escaping () -> Bool = { false }
+    isCancelled: @escaping () -> Bool = { false }, flush: ((String) -> Int32?)? = nil
 ) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
+    let flush = flush ?? { fullFlush(path: $0) }
     let excerpt = clipboard.excerpt
     let same = PackageID.same(clipboard.origin, identity)
     let rate = session.sampleRate
@@ -88,7 +89,7 @@ public func pasteClipboard(
     try copyFiles(
         plan.copies, from: source, to: package, rate: converts ? (rate, excerpt.sampleRate) : nil, freeBytes: freeBytes,
         canClone: canClone,
-        progress: progress, isCancelled: isCancelled
+        progress: progress, isCancelled: isCancelled, flush: flush
     ) { (converted: [FileID: (length: Frames, gain: Gain)]) throws(PasteError) in
         guard converts else { return }
         // The real lengths differ from the prediction (the converter floors, and a record can be
@@ -168,7 +169,7 @@ private func copyFiles(
     _ copies: [(record: AudioFile, copy: AudioFile)], from source: URL, to package: URL,
     rate: (target: Int, source: Int)?,
     freeBytes: () -> Int64, canClone: (URL, URL) -> Bool, progress: @escaping (Double) -> Void,
-    isCancelled: @escaping () -> Bool,
+    isCancelled: @escaping () -> Bool, flush: @escaping (String) -> Int32?,
     beforeRenames: ([FileID: (length: Frames, gain: Gain)]) throws(PasteError) -> Void
 ) throws(PasteError) {
     let clips = package.appending(path: clipsFolderName)
@@ -225,7 +226,7 @@ private func copyFiles(
                 if code == ECANCELED { throw .cancelled }
                 throw copyFault(code, from: from, record: record, copy: copy)
             }
-            if let code = fullFlush(path: temporary.path) { throw .write(file: copy.path, errno: code) }
+            if let code = flush(temporary.path) { throw .write(file: copy.path, errno: code) }
             guard let read = try? AVAudioFile(forReading: temporary),
                 // At least the record length, as `openMedia` reads it: a record can be shorter.
                 read.length >= AVAudioFramePosition(copy.length.count),
@@ -246,7 +247,7 @@ private func copyFiles(
         }
         renamed += 1
     }
-    if let code = fullFlush(path: clips.path) { throw .write(file: clipsFolderName, errno: code) }
+    if let code = flush(clips.path) { throw .write(file: clipsFolderName, errno: code) }
 }
 
 /// One conversion of a pool WAV into `temporary` at `rate`, through the conversion of import

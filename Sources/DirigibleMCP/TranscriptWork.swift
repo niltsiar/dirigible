@@ -29,24 +29,22 @@ package enum TranscriptWork {
 
     /// The lines of an import: the ID and the count of kept words, then a line for each kind of
     /// skipped word. The command prints the first two on stdout and the others on stderr.
-    /// With `cues`, the count names cues, because a cut removes a whole cue.
+    /// With `cues`, each line names cues, because a cut removes a cue with no word times whole.
     package static func importLines(
         _ report: (id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int), cues: Bool
-    )
-        -> [String]
-    {
-        func words(_ count: Int) -> String { count == 1 ? "1 word" : "\(count) words" }
-        let kept =
-            cues
-            ? "Imported \(report.kept == 1 ? "1 cue" : "\(report.kept) cues") (no word times): a cut removes whole cues."
-            : "Imported \(words(report.kept))."
-        var lines = [report.id.description, kept]
+    ) -> [String] {
+        let noun = cues ? "cue" : "word"
+        func units(_ count: Int) -> String { count == 1 ? "1 \(noun)" : "\(count) \(noun)s" }
+        var lines = [
+            report.id.description,
+            "Imported \(units(report.kept))" + (cues ? ": a cut removes a whole cue when it has no word times." : "."),
+        ]
         if report.skipped > 0 {
-            lines.append("Skipped \(words(report.skipped)) with no clip under \(report.skipped == 1 ? "it" : "them").")
+            lines.append("Skipped \(units(report.skipped)) with no clip under \(report.skipped == 1 ? "it" : "them").")
         }
-        if report.untimed > 0 { lines.append("Skipped \(words(report.untimed)) with no time.") }
+        if report.untimed > 0 { lines.append("Skipped \(units(report.untimed)) with no time.") }
         if report.repeated > 0 {
-            lines.append("Skipped \(words(report.repeated)) over audio that an earlier clip already gave.")
+            lines.append("Skipped \(units(report.repeated)) over audio that an earlier clip already gave.")
         }
         return lines
     }

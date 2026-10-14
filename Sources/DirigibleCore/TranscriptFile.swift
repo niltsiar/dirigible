@@ -23,8 +23,8 @@ public struct TranscriptFile: Hashable, Sendable {
     /// The count of units with no usable time: none (an unaligned WhisperX word), end before start,
     /// negative, or not finite. A unit with no length keeps its text, so a match finds it.
     public let untimed: Int
-    /// True when no unit has word times: WebVTT cues, or Whisper segments with no words. A cut then
-    /// removes whole cues.
+    /// True when a unit has no word times: WebVTT cues, or a Whisper segment with no words, as a
+    /// WhisperX segment that did not align. A cut removes such a unit whole.
     public let cues: Bool
 
     /// `WEBVTT` after an optional byte order mark is WebVTT, else Whisper JSON.
@@ -72,7 +72,7 @@ public struct TranscriptFile: Hashable, Sendable {
         let words: [Word]?
     }
 
-    /// The units, and true when no unit is a word.
+    /// The units, and true when a unit is a segment with no words.
     private static func whisper(_ data: Data) throws(TranscriptFileError) -> ([(Double?, Double?, String)], Bool) {
         guard let file = try? JSONDecoder().decode(Whisper.self, from: data) else { throw .unreadable }
         // The API gives segments with no words and the words at the top level: the words win.
@@ -84,7 +84,7 @@ public struct TranscriptFile: Hashable, Sendable {
             }
             return words.map { ($0.start, $0.end, $0.word) }
         }
-        return (units, !segments.contains { !($0.words ?? []).isEmpty })
+        return (units, segments.contains { ($0.words ?? []).isEmpty })
     }
 
     /// One unit per cue: the text lines joined, with each `<...>` tag removed. A NOTE, STYLE, or

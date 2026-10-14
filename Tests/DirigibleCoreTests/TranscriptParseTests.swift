@@ -32,7 +32,7 @@ struct TranscriptParseTests {
                 + #"{"start":5,"end":6,"text":"x","words":[{"word":"Four","start":5.1,"end":5.5}]}]}"#)
         #expect(file.units.map(\.text) == ["One two.", "Three", "Four"])
         #expect(file.units.map(\.start) == [1, 3, 5.1])
-        #expect(!file.cues, "one segment has words")
+        #expect(file.cues, "two segments have no word times")
         #expect(try parse(#"{"segments":[{"start":1,"end":2,"text":"One."}]}"#).cues, "no segment has words")
     }
 

@@ -272,7 +272,7 @@ extension ConsentTests {
         await model.close()
     }
 
-    /// C11: 3 requests that showed a sheet in 60 s; a 4th at 59.9 s is refused, at 60.1 s it
+    /// C11: 3 requests that showed a sheet in 1 minute; a 4th at 59.9 s is refused, at 60.1 s it
     /// shows the sheet.
     @Test(arguments: [59.9, 60.1]) func fourthAskInAMinuteIsRefused(after: Double) async throws {
         let (model, _) = try await window()
@@ -297,7 +297,9 @@ extension ConsentTests {
                 Issue.record("not an error")
                 return
             }
-            #expect(text == "Too many record requests: 3 in 60 s. Wait, then ask again.")
+            #expect(
+                text == "Too many record requests: a window takes 3 requests in 1 minute at most. Wait, then ask again."
+            )
             #expect(model.consent == nil, "no sheet")
         } else {
             _ = try await sheet(model)

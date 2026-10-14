@@ -68,7 +68,6 @@ extension Excerpt {
             }
             scaled.lanes[lane].clips = clips
         }
-        // Each word edge scales as a clip edge and stops at the end of the converted file.
         scaled.transcripts = transcripts.mapValues { transcript in
             var moved = transcript
             moved.words = Dictionary(

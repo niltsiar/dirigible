@@ -62,12 +62,12 @@ public struct Session: Hashable, Sendable {
         files[file.id] = file
     }
 
-    /// Removes the file record and the transcript words of the file.
+    /// Removes the file record and the transcript words of the file, and a transcript with no word
+    /// left (decision 0055).
     public mutating func removeFile(_ id: FileID) throws(SessionError) {
         guard files[id] != nil else { throw .unknownFile(id) }
         guard !tracks.contains(where: { $0.clips.contains { $0.file == id } }) else { throw .fileInUse(id) }
         files[id] = nil
-        // The words of the file go too, and a transcript with no word left (decision 0055).
         for transcript in transcripts.keys {
             transcripts[transcript]?.words[id] = nil
             if transcripts[transcript]?.words.isEmpty == true { transcripts[transcript] = nil }
@@ -186,9 +186,10 @@ public struct Session: Hashable, Sendable {
     }
 
     /// The `session.xml` version that holds this session (decision 0024 P6): 8 with a transcript
-    /// (decision 0055), else 7 with a marker URL or
-    /// image (run 2026-10-11-chapters-in-file), else 6 with episode data (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
-    /// (decision 0035), else 2 with an app route (decision 0029), else 1.
+    /// (decision 0055), else 7 with a marker URL or image (run 2026-10-11-chapters-in-file), else 6
+    /// with episode data (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4
+    /// with a crossfade (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route
+    /// (decision 0029), else 1.
     public var fileVersion: Int {
         if !transcripts.isEmpty { return 8 }
         if markers.values.contains(where: { $0.url != nil || $0.image != nil }) { return 7 }

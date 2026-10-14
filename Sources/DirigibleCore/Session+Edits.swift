@@ -181,7 +181,7 @@ extension Session {
         for source in excerpt.transcripts.values.sorted(by: { $0.id < $1.id }) {
             let words = source.words.filter { file, _ in !copy.transcripts.values.contains { $0.words[file] != nil } }
             guard !words.isEmpty else { continue }
-            let id = TranscriptID((copy.transcripts.keys.map(\.number).max() ?? 0) + 1)
+            let id = copy.nextTranscriptID
             copy.transcripts[id] = Transcript(id: id, name: source.name, words: words)
         }
         self = copy

@@ -24,6 +24,12 @@
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
 #   `no behavior change` needs no field. A review file older than the rule is not checked; one
 #   older than the nit rule needs no field for a nit.
+# - Each record file `docs/decisions/<n>-<name>.md` that plan.md names, and that is in neither the
+#   work tree nor origin/main, is a record that the plan makes. Its number needs an entry
+#   "<n> <title> (run <run folder>" on the `Decision numbers` line of the ledger.md beside runs/
+#   (deliver Phase 2), so two parallel runs cannot take one number. Another record with that
+#   number in the work tree or on origin/main fails. A cited number with no record file path does
+#   not count. A run whose first phase 3 row is older than the rule is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -114,6 +120,26 @@ else
             grep -qF "$copy" "$run/plan.md" || say "$name: plan.md does not name $copy; research findings go to docs/research"
         fi
     done
+    # 2026-10-14, the commit that added the number rule: a run with an older plan gate passed without it.
+    first3="$(awk -F'\t' '$2 == "3" { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
+    if [[ -z "$first3" || ! "$first3" < 2026-10-14T03:00 ]]; then
+        root="$(cd "$(dirname "$0")/.." && pwd)"
+        ledger="$(dirname "$(dirname "$run")")/ledger.md"
+        folder="$(basename "$run")"
+        for record in $(grep -oE 'docs/decisions/0[0-9]{3}-[a-z0-9-]+\.md' "$run/plan.md" | sort -u); do
+            n="${record#docs/decisions/}" n="${n%%-*}"
+            held="$( (cd "$root" && ls docs/decisions/"$n"-*.md 2>/dev/null; git ls-tree --name-only origin/main docs/decisions/ 2>/dev/null) |
+                grep "^docs/decisions/$n-" | sort -u || true)"
+            grep -qxF "$record" <<<"$held" && continue
+            if [[ -n "$held" ]]; then
+                say "plan.md makes $record, but $(head -1 <<<"$held") has the number $n; reserve the next free number"
+            elif [[ ! -f "$ledger" ]]; then
+                say "plan.md makes $record, and there is no ledger.md at $ledger to reserve $n"
+            elif ! grep -m1 '^Decision numbers' "$ledger" | grep -qE "(^|[:,] )$n [^,(]*\(run $folder[,)]"; then
+                say "plan.md makes $record: reserve $n on the Decision numbers line of $ledger as \"$n <title> (run $folder)\"; a number that another run holds is taken"
+            fi
+        done
+    fi
 fi
 # 2026-10-05, the commit that added the field rule: an older review file has no fields.
 cutoff=1791222684

@@ -262,6 +262,52 @@ good
 printf '\n## Not the section\n\n1. An item with no field.\n' >> "$run/plan.md"
 pass 'a numbered item outside the Plan gate changes section'
 
+# The decision number of a record that the plan makes. A fixture repo holds a copy of the script,
+# docs/decisions/0042-old.md on origin/main, and .scratchpads/ledger.md beside runs/.
+repo="$tmp/repo"
+mkdir -p "$repo/scripts" "$repo/docs/decisions" "$repo/.scratchpads/runs"
+cp "$script" "$repo/scripts/"
+echo old > "$repo/docs/decisions/0042-old.md"
+git -C "$repo" init -q && git -C "$repo" add docs \
+  && git -C "$repo" -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -q -m one \
+  && git -C "$repo" update-ref refs/remotes/origin/main HEAD
+rm "$repo/docs/decisions/0042-old.md" # only origin/main has it now
+saved_script="$script" saved_run="$run"
+script="$repo/scripts/check-plan.sh" run="$repo/.scratchpads/runs/2026-10-14-new-thing"
+ledger="$repo/.scratchpads/ledger.md"
+reserve() { printf '# Run ledger\n\nDecision numbers taken or reserved (reserve at Phase 2): 0042 old (run 2026-10-01-old, landed), %s\n' "$1" > "$ledger"; }
+makes() { good && printf -- '\n- Modules: `%s` (the new record).\n' "$1" >> "$run/plan.md"; }
+
+reserve '0043 other-title (run 2026-10-13-other)'
+makes docs/decisions/0044-new-thing.md
+refuse 'a new record with no ledger entry' 'reserve 0044 on the Decision numbers line'
+reserve '0044 new-thing (run 2026-10-13-other)'
+makes docs/decisions/0044-new-thing.md
+refuse 'a number that another run holds' 'reserve 0044 on the Decision numbers line'
+reserve '0044 new-thing (run 2026-10-14-new-thing)'
+makes docs/decisions/0044-new-thing.md
+pass 'a number reserved for this run'
+reserve '0044 new-thing (run 2026-10-14-new-thing, landed)'
+pass 'a reserved entry with a note after the run folder'
+makes docs/decisions/0042-old.md
+pass 'a record on origin/main'
+makes docs/decisions/0042-mine.md
+refuse 'another record with the number on origin/main' 'docs/decisions/0042-old.md has the number 0042'
+makes docs/decisions/0045-local.md
+echo local > "$repo/docs/decisions/0045-local.md"
+pass 'a record in the worktree'
+rm "$repo/docs/decisions/0045-local.md"
+makes docs/decisions/0044-new-thing.md
+printf '\nIt amends decision 0046, cites 0047 (run 10), and has 2048 characters.\n' >> "$run/plan.md"
+pass 'cited numbers with no record file path'
+rm "$ledger"
+makes docs/decisions/0044-new-thing.md
+refuse 'no ledger' 'no ledger.md'
+makes docs/decisions/0044-new-thing.md
+row 3 'plan gate round 1'
+pass 'a run whose plan gate came before the rule'
+script="$saved_script" run="$saved_run"
+
 out="$("$script" 2>&1)"
 code=$?
 [[ $code -eq 2 && "$out" == usage:* ]] || fail "no argument: exit $code: $out"

@@ -77,6 +77,19 @@ struct TranscriptPasteTests {
         #expect(session.words().map(\.text) == ["Hello", "world", "Hello", "world"])
     }
 
+    /// Code gate 1 item 2. A copy, an undo of the import, and a paste in one package bring back no
+    /// word: only a paste from another package adds words.
+    @Test func pasteInOnePackageAfterAnUndoAddsNoWord() throws {
+        var history = History(try source())
+        let excerpt = try history.session.excerpt(of: ["H"])
+        try history.edit { (session: inout Session) throws(SessionError) in session.transcripts = [:] }
+        try history.edit { (session: inout Session) throws(SessionError) in
+            _ = try session.paste(excerpt, at: 480_000, on: ["host"])
+        }
+
+        #expect(history.session.transcripts.isEmpty)
+    }
+
     /// T15 (plan gate 1 item 9). A target with transcript 1 gets the pasted transcript as number 2,
     /// with its name and word numbers.
     @Test func pasteIntoATargetWithTranscriptOneMakesANewID() throws {

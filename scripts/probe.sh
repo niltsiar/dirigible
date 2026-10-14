@@ -27,6 +27,11 @@
 # then blocks (a semaphore), use `Task.detached`, or the probe hangs.
 # The sandbox refuses writes under /Volumes, so `hdiutil create -srcfolder` fails with "Operation
 # not permitted". Create a blank image and attach it with `-mountpoint` in the probe folder.
+#
+# An app in a probe: the user can have it open. Open only an app that is not running (check with
+# `pgrep -x <name>` first), record the PID of the app that you open, and at the end quit only that
+# PID. Never quit an app by name (`pkill -x`, `killall`, `quit app` in osascript): a probe once
+# quit the QuickTime Player of the user. The sandbox cannot enforce this rule.
 set -euo pipefail
 
 no_audio=""

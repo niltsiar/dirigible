@@ -82,5 +82,9 @@ mkdir "$tmp/nogit"
 expect_version nogit '^0\.0\.0$'
 rm -rf "$tmp"
 
+# tag-release.sh makes the tags that version.sh reads. It has no Makefile line of its own (a
+# Makefile change makes the push class bundle): its test runs here.
+bash "$here/tag-release.test.sh" || failures=$((failures + 1))
+
 [[ $failures -eq 0 ]] && echo "bundle.test.sh: all checks passed"
 exit "$failures"

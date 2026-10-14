@@ -243,6 +243,24 @@ extension ConsentTests {
         await model.close()
     }
 
+    /// C4: a request on a new connection ends the grant, so the take row loses Always Ask Again and
+    /// the old connection gets the sheet again.
+    @Test func newConnectionEndsTheGrant() async throws {
+        let (model, studio) = try await window()
+        try await giveGrant(model, studio)
+        let other = ask(model, seconds: 0.3, connection: AgentConnection(serial: 8))
+        _ = try await sheet(model)
+        #expect(model.agentRecord.grant == nil, "a new connection ends the grant")
+        await model.answerConsent(record: false)
+        #expect(await other.value == .declined)
+        await until("the sheet goes") { model.window?.attachedSheet == nil }
+        let again = ask(model, seconds: 0.3, connection: Self.seven)
+        _ = try await sheet(model)
+        await model.answerConsent(record: false)
+        #expect(await again.value == .declined)
+        await model.close()
+    }
+
     /// C4: a new window on the same package shows the sheet for the same connection.
     @Test func closeEndsTheGrant() async throws {
         // The block drops the first studio, so its package lock goes before the next open.

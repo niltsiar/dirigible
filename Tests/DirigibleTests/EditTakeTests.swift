@@ -222,38 +222,46 @@ import os
         await model.close()
     }
 
-    /// Record during a take does nothing: no busy alert covers the Stop button, and the take goes
-    /// on. The busy alert is for the Record click of the consent sheet only.
+    /// Record during a take beeps: no busy alert covers the Stop button, and the take goes on.
+    /// The busy alert is for the Record click of the consent sheet only.
     @Test func aRecordCommandDuringATakeShowsNoAlert() async throws {
         let (model, studio) = try await openWithHAL()
+        var beeps = 0
+        model.beep = { beeps += 1 }
         await model.record()
-        #expect(studio.transport == .recording(take: 1))
+        #expect(studio.transport == .recording(take: 1) && beeps == 0)
 
         await model.record()
 
-        #expect(model.alert == nil, "no busy alert")
+        #expect(model.alert == nil && beeps == 1, "a beep, no busy alert")
         #expect(model.canStop && studio.transport == .recording(take: 1), "the take goes on")
         await stopAndClose(model, studio)
     }
 
-    /// A double click on Record runs two Record actions: one take starts, and no alert shows.
+    /// A double click on Record runs two Record actions: one take starts, the second beeps, and
+    /// no alert shows.
     @Test func aDoubleRecordClickStartsOneTakeWithNoAlert() async throws {
         let (model, studio) = try await openWithHAL()
+        var beeps = 0
+        model.beep = { beeps += 1 }
 
         let first = Task { await model.record() }
         let second = Task { await model.record() }
         await first.value
         await second.value
 
-        #expect(model.alert == nil, "no busy alert")
+        #expect(model.alert == nil && beeps == 1, "a beep, no busy alert")
         #expect(model.canStop && studio.transport == .recording(take: 1), "one take records")
         await stopAndClose(model, studio)
     }
 
     /// The first-run double click: both Record actions wait for the microphone prompt, so the
-    /// second start fails busy after the grant. One take starts, and no alert shows.
+    /// second start fails busy after the grant. One take starts, the second beeps, and no alert
+    /// shows.
     @Test func aDoubleRecordClickAtTheMicrophonePromptStartsOneTakeWithNoAlert() async throws {
         let (model, studio) = try await openWithHAL()
+        var beeps = 0
+        model.beep = { beeps += 1 }
         let prompt = OSAllocatedUnfairLock(initialState: (asks: 0, answered: false))
         defer { prompt.withLock { $0.answered = true } }
         studio.environment.microphoneAccess = { prompt.withLock { $0.answered } ? nil : .notDetermined }
@@ -271,7 +279,7 @@ import os
         await first.value
         await second.value
 
-        #expect(model.alert == nil, "no busy alert")
+        #expect(model.alert == nil && beeps == 1, "a beep, no busy alert")
         #expect(model.canStop && studio.transport == .recording(take: 1), "one take records")
         await stopAndClose(model, studio)
     }

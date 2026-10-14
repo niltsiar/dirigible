@@ -52,10 +52,12 @@ extension ConsentTests {
     }
 
     /// A start that a guard refuses after the Record click (here a level runs) gives the agent
-    /// the busy cause, not "closed". The window shows the alert of a refused start, and nothing
-    /// records.
+    /// the busy cause, not "closed". The window shows the alert of a refused start with no beep,
+    /// and nothing records.
     @Test func busyStartRepliesBusy() async throws {
         let (model, studio) = try await window()
+        var beeps = 0
+        model.beep = { beeps += 1 }
         let answer = ask(model)
         let sheet = try await sheet(model)
         studio.transport = .leveling
@@ -64,7 +66,29 @@ extension ConsentTests {
 
         #expect(await answer.value == .busy(.task))
         #expect(model.alert == .error(.busy) && studio.session.recording == nil && model.consent == nil)
+        #expect(beeps == 0, "one signal: the alert")
         model.alert = nil
+        studio.transport = .idle
+        await model.close()
+    }
+
+    /// A grant take that a level makes busy during the microphone prompt beeps and shows no
+    /// alert, as Command-R does. Nothing records.
+    @Test func busyGrantTakeBeeps() async throws {
+        let (model, studio) = try await window()
+        try await giveGrant(model, studio)
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        let prompt = holdPrompt(model, studio)
+        let answer = ask(model, seconds: 0.3, connection: Self.seven)
+        await until("the prompt waits") { prompt.asked() }
+        studio.transport = .leveling
+
+        prompt.give()
+
+        let value = await answer.value
+        #expect(value == .refused(.busy), "\(value)")
+        #expect(beeps == 1 && model.alert == nil && studio.session.recording == nil, "a beep, no busy alert")
         studio.transport = .idle
         await model.close()
     }

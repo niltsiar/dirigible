@@ -16,7 +16,7 @@ Prefer an integration test: call a module through its public API with real input
 3. **Write the failing test first.** The test encodes intended behavior, not the current implementation. Assert a literal expected value or an observable effect: a file on disk, a sample count, a level in dBFS within a stated tolerance, a parsed XML element. Derive a value that the user reads in a sentence ("less than N min") from that sentence, not from a review fix, and test its exact boundary. Test a trigger (a command, a key) in each start state: the window closed or shown, the focus in each control. Read `references/test-harness.md` when the test drives the UI, compares a `CGFloat`, or holds the pool, a preference, or a seam.
 4. **Run the new test before the fix.** Confirm a run-time failure, not a compile error, for the intended reason (stub a new API), or correct the test. Save the red output to a log.
 5. **Make the smallest production change** that satisfies the test.
-6. **Run the tests.** Run the slice tests: `make check-changed FILTER='<tests of the slice>' > <run>/logs/<name>.log 2>&1`. The push check before the land runs all tests.
+6. **Run the tests.** Run the slice tests: `make check-changed FILTER='<tests of the slice>' > <run>/logs/<name>.log 2>&1`. The push check runs all tests.
 7. **Commit.** A failing test and its fix go in one commit, with the red log path in `decisions.tsv`.
 
 ## No failing test
@@ -32,13 +32,13 @@ Prefer no new test over a bad test: one that mostly tests mocks, encodes impleme
 - Compare two large values into a `Bool` with a short message: a failed `#expect` or `#require` prints both values and can hang the run.
 - When a test refuses or blocks a user action, also assert that the user input stays (typed text, open alert, selection, clipboard). "The model did not change" alone passes when the input is lost. If the plan expects lost input, raise a plan finding in place of the test.
 - A test that expects a refusal (a nonzero exit, a throw, a refused edit) also asserts its reason (the rule message or error case): a broken fixture also fails.
-- A refusal of a path also asserts that the path does not exist afterwards. The script checks before its first side effect (`mkdir -p`) and resolves the path again (`pwd -P`) after it.
+- Assert that a refused path does not exist before or after `mkdir -p`. Take no expected value from the code under test (a copied literal, the same call); resolve paths with `realpath`.
 - A test that asserts "nothing changed after X" first proves, in the same observation, that X reached the output. A wait or sleep passes when X never happened. A test of "X during Y" also asserts that Y goes on.
 - A test that asserts unchanged files compares the bytes or a hash of each file, not names, sizes, or dates: the likely damage is a rewrite in place with the same size. Its control changes one byte at a fixed offset.
 - Compare processed audio with a stated tolerance, never exact float equality.
 - Put a slow test behind `DIRIGIBLE_SLOW_TESTS=1`. `make test-slow` runs it.
 - Add one seeded random test beside the literal tests, with values built through the public edits and no new library: the round-trip (write, read, `==`) for a writer and reader pair; else its strongest property: inverse (edit, then undo), invariant (output under a limit), or oracle (a simpler reference).
-- Read `references/waits-and-limits.md` when a test waits, holds a gate or OS resource, stops work, or asserts a thread or priority.
+- Read `references/waits-and-limits.md` when a test waits, sets a product timer, holds a gate or OS resource, stops work, or asserts a thread or priority.
 - Read `references/flake-triage.md` when a test fails only sometimes or with other wait-limit failures, or when you change a shared helper or the suite speed.
 
 ## Final response

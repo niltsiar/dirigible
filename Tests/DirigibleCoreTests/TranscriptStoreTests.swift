@@ -250,6 +250,30 @@ struct TranscriptStoreTests {
         #expect(try Session(contentsOf: package).transcriptsNotLoaded.map(\.id) == [one])
     }
 
+    /// A damaged transcript file with frames near Int.max: the session opens, and the transcript
+    /// does not load.
+    @Test func aFrameOutsideTheFrameRangeIsNotLoaded() throws {
+        let session = try session()
+        try session.write(to: package)
+        let url = folder.appending(path: "\(try #require(session.transcripts[one]?.file)).xml")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let damaged = text.replacing("1 10000 20000 Hello", with: "1 \(Int.max - 1) \(Int.max) Hello")
+            .replacing("2 20000 30000 there", with: "2 \(Int.max - 3) \(Int.max - 2) there")
+        #expect(damaged.contains(" \(Int.max) Hello") && damaged.contains(" \(Int.max - 2) there"))
+        try Data(damaged.utf8).write(to: url)
+
+        let opened = try Session(contentsOf: package)
+        #expect(opened.transcriptsNotLoaded.map(\.id) == [one] && opened.words().isEmpty)
+        #expect(throws: SessionFileError.invalidSession(.wordOutsideFile("h"))) {
+            try TranscriptStore.decode(Data(damaged.utf8))
+        }
+        let below = text.replacing("1 10000 20000 Hello", with: "1 -1 20000 Hello")
+        #expect(below.contains("1 -1 20000 Hello"))
+        #expect(throws: SessionFileError.invalidSession(.wordOutsideFile("h"))) {
+            try TranscriptStore.decode(Data(below.utf8))
+        }
+    }
+
     /// T23. A file removed while its transcript did not load: the next load drops the words of
     /// that file with a new file name, and a transcript with no word left goes.
     @Test func aTranscriptOfARemovedFileStillLoads() throws {

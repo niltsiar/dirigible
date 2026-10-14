@@ -162,10 +162,13 @@ extension Session {
                 if transcripts[id]?.words.isEmpty == true { transcripts[id] = nil }
             }
         }
-        let id = TranscriptID((transcripts.keys.map(\.number).max() ?? 0) + 1)
+        let id = nextTranscriptID
         transcripts[id] = Transcript(id: id, name: name, words: added.mapValues(Anchors.init))
         return (id, added.values.map(\.count).reduce(0, +), skipped, untimed)
     }
+
+    /// The ID of a new transcript: one more than the largest ID.
+    var nextTranscriptID: TranscriptID { TranscriptID((transcripts.keys.map(\.number).max() ?? 0) + 1) }
 
     /// Adds a transcript that the reader parsed, with the rules of the import: a new ID, a storable
     /// name, files of the pool, each number once in a file, a storable text that is not empty, and

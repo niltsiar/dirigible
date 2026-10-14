@@ -233,6 +233,21 @@ extension AutoLevelTests {
         }
     }
 
+    /// A set flag skips each clip before its file opens (decision 0049), so a clip with a missing
+    /// file reports no progress.
+    @Test func aSetFlagSkipsAClipBeforeItsFile() throws {
+        let package = try MixPackage()
+        try package.addFile("gone", channels: tone([(1, -30)]))
+        try package.addTrack("t1", layout: .stereo, clip: "c1", file: "gone", start: 0, offset: 0, length: 48_000)
+        try FileManager.default.removeItem(at: package.url.appending(path: "\(clipsFolderName)/gone.wav"))
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        let (session, levels) = autoLevel(
+            ["c1"], .eachClip, of: package.session, in: package.url,
+            progress: { _ in calls.withLock { $0 += 1 } }, isCancelled: { true })
+        #expect(calls.withLock { $0 } == 0, "set flag, missing file: progress calls")
+        #expect(levels["c1"] == .unreadable && session == package.session, "set flag, missing file: \(levels)")
+    }
+
     private func gainText(_ session: Session, _ clip: ClipID) -> String {
         session.clip(clip).map { "\($0.clip.gain.dB)" } ?? "nil"
     }

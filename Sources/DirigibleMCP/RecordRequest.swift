@@ -7,6 +7,13 @@ import Foundation
 package struct RecordRequest: Sendable, Equatable {
     /// The time that the user has to answer. It and the take start fit in `AgentBridge.replyLimit`.
     package static let answerLimit = Duration.seconds(20)
+    /// The time of a window grant from the click (decision 0050).
+    package static let grantLifetime = Duration.seconds(3600)
+    /// The take length of all grant takes, and the longest request that can get a grant.
+    package static let grantTakeSeconds = 7200.0
+    /// The most requests that show a sheet or start a grant take on a window in `askWindow`.
+    package static let askLimit = 3
+    package static let askWindow = Duration.seconds(60)
 
     /// The tracks of the take, in the order of the request. One or more.
     package let armed: [TrackID]
@@ -69,7 +76,7 @@ package enum RecordAnswer: Equatable, Sendable {
     /// The disk of the package has room for `minutes` of a take on the request tracks, less than
     /// the length (decision 0050).
     case noRoom(minutes: Int)
-    /// The window got `AgentRecordState.askLimit` requests in the last 60 s (decision 0050).
+    /// The window got `RecordRequest.askLimit` requests in the last `askWindow` (decision 0050).
     case tooMany
 
     package func reply(package: String) -> AgentReply {
@@ -101,7 +108,9 @@ package enum RecordAnswer: Equatable, Sendable {
             text = "A track route changed during the start. Ask again: the sheet shows."
         case .noRoom(let minutes):
             text = "\(package) has room for \(minutes) min of a take on these tracks. Free disk space, then try again."
-        case .tooMany: text = "Too many record requests: 3 in 60 s. Wait, then ask again."
+        case .tooMany:
+            let (limit, window) = (RecordRequest.askLimit, RecordRequest.askWindow.components.seconds)
+            text = "Too many record requests: \(limit) in \(window) s. Wait, then ask again."
         }
         return .result(text: text, isError: true)
     }
@@ -136,10 +145,12 @@ let recordTools = [
             + "or earlier when the user clicks Stop: read session_info, and the take ended when recording is gone. The "
             + "package must be open in Dirigible, with Let Agents Edit Open Sessions on. No tool records on package files. "
             + "A window grant: when the user turns on Don't ask again until I close this window and clicks Record, later "
-            + "record calls of the same connection on the same tracks start with no sheet. A grant ends after 1 h, after "
-            + "2 h of takes, at the window close, or at a new connection (a cancel of a call or a new agent session). An "
-            + "app track, a record-over, and a length over the grant left always show the sheet. A window takes 3 "
-            + "requests in 60 s at most.",
+            + "record calls of the same connection on the same tracks start with no sheet. A grant ends after "
+            + "\(RecordRequest.grantLifetime.components.seconds / 3600) h, after "
+            + "\(Int(RecordRequest.grantTakeSeconds / 3600)) h of takes, at the window close, or at a new connection (a "
+            + "cancel of a call or a new agent session). An app track, a record-over, and a length over the grant left "
+            + "always show the sheet. A window takes \(RecordRequest.askLimit) requests in "
+            + "\(RecordRequest.askWindow.components.seconds) s at most.",
         [seconds, arm, playhead], saves: false
     ) { a throws(ToolError) in
         guard let length = EditRules.takeSeconds(try a[seconds]) else {

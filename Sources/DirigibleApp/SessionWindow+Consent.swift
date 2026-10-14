@@ -211,8 +211,8 @@ extension SessionWindow {
         var grant: GrantNote?
         if case .started = start, consent.offersGrant, consent.grantChecked, let connection = consent.connection,
             let given = ConsentGrant(
-                connection: connection, routes: consent.routes, end: agentRecord.now() + ConsentGrant.lifetime,
-                wallEnd: .now + ConsentGrant.lifetime / .seconds(1))
+                connection: connection, routes: consent.routes, end: agentRecord.now() + RecordRequest.grantLifetime,
+                wallEnd: .now + RecordRequest.grantLifetime / .seconds(1))
         {
             agentRecord.grant = given
             grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: false)

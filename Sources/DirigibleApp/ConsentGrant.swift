@@ -7,11 +7,6 @@ import Foundation
 /// this window" on. Later requests of the same connection on the same tracks with the same
 /// routes start with no sheet, until the end or until the take length is used.
 struct ConsentGrant {
-    /// The time from the click to the end of the grant.
-    static let lifetime = Duration.seconds(3600)
-    /// The take length of all grant takes, and the longest request that can get a grant.
-    static let takeSeconds = 7200.0
-
     let connection: AgentConnection
     /// The route of each grant track that the sheet showed.
     let routes: [TrackID: DeviceRoute]
@@ -20,7 +15,7 @@ struct ConsentGrant {
     /// The end on the wall clock, for the reply text.
     let wallEnd: Date
     /// The take length that the grant has left, in seconds. Only a grant take uses it.
-    var secondsLeft = takeSeconds
+    var secondsLeft = RecordRequest.grantTakeSeconds
 
     /// Nil when a route is an app route: a grant never covers an app.
     init?(connection: AgentConnection, routes: [TrackID: Route], end: ContinuousClock.Instant, wallEnd: Date) {
@@ -35,7 +30,7 @@ struct ConsentGrant {
     /// True when the request can get a grant (C1): it has a connection, each track has a device
     /// route, no track has a clip after the start, and the length is 2 h or less.
     static func offered(tracks: [Track], over: [String], seconds: Double, connection: AgentConnection?) -> Bool {
-        guard connection != nil, over.isEmpty, seconds <= takeSeconds else { return false }
+        guard connection != nil, over.isEmpty, seconds <= RecordRequest.grantTakeSeconds else { return false }
         return tracks.allSatisfy { if case .device = $0.route { true } else { false } }
     }
 
@@ -80,10 +75,6 @@ struct AgentTake: Equatable {
 
 /// The agent record state of a window that outlives one request (decision 0050).
 struct AgentRecordState {
-    /// The most requests that show a sheet or start a grant take on a window in `askWindow`.
-    static let askLimit = 3
-    static let askWindow = Duration.seconds(60)
-
     var grant: ConsentGrant?
     /// The agent take that records now, or nil (C12).
     var take: AgentTake?
@@ -103,9 +94,10 @@ struct AgentRecordState {
         await studio.remainingRecordTime(armed: tracks)
     }
 
-    /// True when `askLimit` requests came in the last `askWindow`. It drops the older times.
+    /// True when `RecordRequest.askLimit` requests came in the last `askWindow`. It drops the older
+    /// times.
     mutating func tooMany(at now: ContinuousClock.Instant) -> Bool {
-        asks.removeAll { now - $0 >= Self.askWindow }
-        return asks.count >= Self.askLimit
+        asks.removeAll { now - $0 >= RecordRequest.askWindow }
+        return asks.count >= RecordRequest.askLimit
     }
 }

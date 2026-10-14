@@ -68,7 +68,8 @@ extension Studio {
             await pasteOffMain(
                 clipboard, from: path, into: session, lock: lock, at: start, on: target, insert: insert,
                 environment: environment, flags: flags, name: name,
-                progress: { fraction in Task { @MainActor in progress(fraction) } })
+                progress: { fraction in Task { @MainActor in progress(fraction) } }
+            ).map { ($0.0, $0.1, made: []) }
         }
     }
 }

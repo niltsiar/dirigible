@@ -132,7 +132,7 @@ struct AgentManualTests {
             #expect(prepare.contains("`\(tool)`"), "prepare-tracks does not name \(tool)")
         }
         let sound = Self.steps("add-sound")
-        #expect(sound.contains("`dirigible import <package> <audio file> --track <track ID> --at <frame>`"), "\(sound)")
+        #expect(sound.contains("`import` with `file` (an absolute path), `track`, and `at` (a frame)"), "\(sound)")
         #expect(sound.contains("a new track from `track_add`") && sound.contains("a track that has no clip"))
         // Import folds a stereo file on a mono track (code gate 1, Consider).
         #expect(sound.contains("`track_add` with the layout of the file"), "\(sound)")
@@ -147,7 +147,7 @@ struct AgentManualTests {
             lines.allSatisfy(Self.warnsAtImport),
             "an import line with no warning: \(lines.filter { !Self.warnsAtImport($0) })")
         // The negative control: the example with no warning is found.
-        let fixture = "- add-sound: `dirigible import <package> <audio file> --track <track ID> --at <frame>`."
+        let fixture = "- add-sound: `import` with `file`, `track`, and `at`."
         #expect(Self.importLines(in: fixture).count == 1 && !Self.warnsAtImport(fixture))
     }
 
@@ -166,18 +166,25 @@ struct AgentManualTests {
     @Test func theRecipesUseTheLongTools() {
         for name in ["check-levels", "prepare-for-publishing"] {
             let steps = Self.steps(name)
-            #expect(steps.contains("`loudness`"), "\(name) does not name the loudness tool")
-            let bad = ManualScan.commandLines(in: steps).filter {
-                $0.hasPrefix("dirigible loudness") || $0.hasPrefix("dirigible export")
+            #expect(steps.contains("`loudness`") && steps.contains("`level`"), "\(name) does not name its tools")
+        }
+        for recipe in AgentManual.recipes {
+            let bad = ManualScan.commandLines(in: recipe.steps).filter { line in
+                ["loudness", "export", "level", "import"].contains { line.hasPrefix("dirigible \($0)") }
             }
-            #expect(bad.isEmpty, "\(name): \(bad)")
+            #expect(bad.isEmpty, "\(recipe.name): \(bad)")
         }
         #expect(Self.steps("prepare-for-publishing").contains("`export`"))
+        #expect(Self.steps("add-sound").contains("`import`"))
     }
 
+    /// The lines that import at a frame: the `import` tool with `at`, or `dirigible import` with `--at`.
     static func importLines(in text: String) -> [String] {
         text.split(separator: "\n").map(String.init).filter { line in
-            ManualScan.commandLines(in: line).contains { $0.hasPrefix("dirigible import ") && $0.contains("--at") }
+            (line.contains("`import`") && line.contains("`at`"))
+                || ManualScan.commandLines(in: line).contains {
+                    $0.hasPrefix("dirigible import ") && $0.contains("--at")
+                }
         }
     }
 

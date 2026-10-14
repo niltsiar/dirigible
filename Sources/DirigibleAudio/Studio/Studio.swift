@@ -136,6 +136,9 @@ import Observation
     @ObservationIgnored public internal(set) var exportStop: ExportStop?
     /// The cancel flag of the running level, or nil: each level makes a clear one (decision 0049).
     @ObservationIgnored var levelFlags: ImportFlags?
+    /// The largest fraction of the running file import, 0 at the start of each run. The banner of
+    /// an agent import shows it (decision 0049).
+    public internal(set) var importProgress = 0.0
     /// True from the start of `settle()` to its end: no peak pass and no export starts.
     private(set) var settling = false
 

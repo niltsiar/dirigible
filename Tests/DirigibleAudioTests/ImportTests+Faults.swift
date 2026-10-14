@@ -103,19 +103,68 @@ struct ImportFaultTests {
         #expect(package.clipsNames == [], "the cancel leaves no temporary file")
     }
 
-    /// A cancel after the rename skips the level and keeps the WAV as an unused file: the caller
-    /// can have a session that names it (decision 0040).
-    @Test func aCancelAfterTheRenameSkipsTheLevel() throws {
+    /// A cancel after the rename removes the WAV (decision 0049): no session names it.
+    @Test func aCancelAfterTheRenameRemovesTheWAV() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         let source = package.source("Voice.wav")
         try writeSource(source, .wav16, rate: 48_000, channels: [sine(seconds: 1, rate: 48_000)])
         let wav = package.clip("Voice.wav")
+        var renamed = false
 
         #expect(throws: ImportError.cancelled, "a cancel after the rename throws") {
             try importAudio(
                 source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
-                isCancelled: { FileManager.default.fileExists(atPath: wav.path) })
+                isCancelled: {
+                    renamed = renamed || FileManager.default.fileExists(atPath: wav.path)
+                    return renamed
+                })
         }
+        #expect(renamed, "the rename happened")
+        #expect(package.clipsNames == [], "the WAV goes")
+    }
+
+    /// C4: a cancel in the level step stops the level at its next block and removes the WAV. The
+    /// conversion gives 0...0.8 and the level 0.8...1; the source of 3 s is three level blocks.
+    @Test func aCancelInTheLevelStepRemovesTheWAV() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        let source = package.source("Voice.wav")
+        try writeSource(source, .wav16, rate: 48_000, channels: [sine(seconds: 3, rate: 48_000)])
+        var values: [Double] = []
+
+        #expect(throws: ImportError.cancelled) {
+            try importAudio(
+                source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
+                progress: { values.append($0) }, isCancelled: { values.last ?? 0 > 0.8 })
+        }
+        #expect(values.filter { $0 > 0.8 }.count == 1, "the level ends at the block after the flag: \(values)")
+        #expect(package.clipsNames == [], "the WAV goes")
+    }
+
+    /// C4: a flush fault after the rename keeps the WAV as an unused file (decision 0040). With
+    /// `Clips/` at mode 0300, the WAV is made and renamed, but the folder does not open to flush.
+    @Test func aFlushFaultKeepsTheWAV() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        let source = package.source("Voice.wav")
+        try writeSource(source, .wav16, rate: 48_000, channels: [sine(seconds: 1, rate: 48_000)])
+        let clips = package.url.appending(path: clipsFolderName)
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        chmod(clips.path, 0o300)
+        defer { chmod(clips.path, 0o755) }
+
+        var thrown: ImportError?
+        do throws(ImportError) {
+            _ = try importAudio(
+                source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url,
+                freeBytes: { .max })
+        } catch {
+            thrown = error
+        }
+        chmod(clips.path, 0o755)
+        guard case .write(_, .writeFailed(let file, _))? = thrown else {
+            Issue.record("not a flush fault: \(String(describing: thrown))")
+            return
+        }
+        #expect(file == clipsFolderName, "the flush of Clips/ failed")
         #expect(package.clipsNames == ["Voice.wav"], "the WAV stays")
     }
 

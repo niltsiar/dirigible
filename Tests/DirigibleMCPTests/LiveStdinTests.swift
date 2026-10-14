@@ -12,11 +12,15 @@ import Testing
 struct LiveStdinTests {
     /// The stdout lines of the server, and the hold of its job.
     final class Run: @unchecked Sendable {
+        /// The job holds after the first progress line with a value of `holdAt` or more.
+        let holdAt: Double
         private let lock = NSLock()
         private var lines: [String] = []
         private var holding = false
         private var ended = false
         private let hold = DispatchSemaphore(value: 0)
+
+        init(holdAt: Double = 0) { self.holdAt = holdAt }
 
         func send(_ line: String) { lock.withLock { lines.append(line) } }
         var all: [[String: Any]] {
@@ -31,7 +35,7 @@ struct LiveStdinTests {
         /// The step of the job: after the first progress line, it waits once for `release`.
         func step() {
             let first = lock.withLock {
-                guard !holding, lines.contains(where: { $0.contains("notifications/progress") }) else { return false }
+                guard !holding, lines.contains(where: { Self.progress(of: $0) ?? -1 >= holdAt }) else { return false }
                 holding = true
                 return true
             }
@@ -39,6 +43,13 @@ struct LiveStdinTests {
         }
 
         func release() { hold.signal() }
+
+        /// The value of a progress line, or nil for another line.
+        static func progress(of line: String) -> Double? {
+            let object = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any]
+            guard object?["method"] as? String == "notifications/progress" else { return nil }
+            return (object?["params"] as? [String: Any])?["progress"] as? Double
+        }
     }
 
     /// Runs the server loop of `dirigible mcp` on a new thread, on the read end of `stdin`.
@@ -68,8 +79,10 @@ struct LiveStdinTests {
 
     /// Runs a `name` call with id 2 and a token, cancels it after its first progress line, then
     /// sends a `ping` with id 3. Gives the stdout lines.
-    private func cancelled(_ name: String, _ arguments: [String: Any]) async throws -> [[String: Any]] {
-        let (stdin, run) = (Pipe(), Run())
+    private func cancelled(_ name: String, _ arguments: [String: Any], holdAt: Double = 0) async throws
+        -> [[String: Any]]
+    {
+        let (stdin, run) = (Pipe(), Run(holdAt: holdAt))
         defer { run.release() }
         serve(stdin, run)
         try write(
@@ -105,6 +118,21 @@ struct LiveStdinTests {
         let before = try Data(contentsOf: xml)
         _ = try await cancelled("level", ["package": package.path])
         #expect(try Data(contentsOf: xml) == before, "a cancelled level changed session.xml")
+    }
+
+    /// C21: the import holds at a progress over 80, in its level step, after the rename. The
+    /// cancel then removes the WAV, and the session stays byte for byte.
+    @Test func aLiveCancelEndsTheImport() async throws {
+        let package = try package()
+        let xml = package.url.appending(path: "session.xml")
+        let before = try Data(contentsOf: xml)
+        let clips = package.url.appending(path: "Clips")
+        let source = package.folder.appending(path: "Voice.wav")
+        try FileManager.default.copyItem(at: clips.appending(path: "tone.wav"), to: source)
+        _ = try await cancelled("import", ["package": package.path, "file": source.path], holdAt: 81)
+        #expect(try Data(contentsOf: xml) == before, "a cancelled import changed session.xml")
+        let left = try FileManager.default.contentsOfDirectory(atPath: clips.path)
+        #expect(left == ["tone.wav"], "a cancelled import left \(left)")
     }
 
     /// The export of 3 s has three chunks; the cancel comes after the first one. No file stays.

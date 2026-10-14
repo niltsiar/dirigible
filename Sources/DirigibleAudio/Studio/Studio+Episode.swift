@@ -32,7 +32,7 @@ extension Studio {
         try await blockingRun(
             name: name, kind: .file, cancelled: .audioImport(.cancelled), yielded: .importYielded(file: name)
         ) { session, lock, _ in
-            await imageOffMain(source, into: session, lock: lock, apply: apply)
+            await imageOffMain(source, into: session, lock: lock, apply: apply).map { ($0.0, $0.1, made: []) }
         }
     }
 }

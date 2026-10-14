@@ -47,6 +47,17 @@ struct TranscriptPasteTests {
         #expect(same, "the target saves")
     }
 
+    /// Code gate 1 item 1. Two transcripts of one file both arrive, each under its own new ID.
+    @Test func pasteBringsEachTranscriptOfAFile() throws {
+        var source = try source()
+        source.addWords([(1, 200_000..<240_000, "again")], file: "h", transcript: 2)
+        var target = try target()
+        try paste(try source.excerpt(of: ["H"]), into: &target)
+
+        #expect(target.transcripts.keys.map(\.number).sorted() == [1, 2])
+        #expect(target.words().map(\.text) == ["Hello", "world", "again"])
+    }
+
     /// T15. 48 kHz to 44.1 kHz scales each edge with the rule of `Excerpt.resampled`.
     @Test func pasteAtAnotherRateScalesTheWords() throws {
         var target = try target(rate: 44_100, length: 441_000)

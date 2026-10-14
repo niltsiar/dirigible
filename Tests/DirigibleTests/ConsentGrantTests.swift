@@ -265,7 +265,8 @@ extension ConsentTests {
         await again.close()
     }
 
-    /// C5: a covered request keeps the refusals of 0048: a pending take, a minimized window.
+    /// C5: a covered request keeps the refusals of 0048, C10, and C11: a take that runs, a
+    /// minimized window, no disk room, and the rate limit.
     @Test func grantKeepsTheRefusals() async throws {
         let (model, studio) = try await window()
         try await giveGrant(model, studio)
@@ -276,6 +277,13 @@ extension ConsentTests {
         await until("the window is minimized") { model.window?.isMiniaturized == true }
         #expect(await ask(model, seconds: 0.3, connection: Self.seven).value == .minimized)
         model.window?.deminiaturize(nil)
+        await until("the window shows") { model.window?.isMiniaturized == false }
+        let free = diskMargin + Int64(0.2 * 48_000 * 7)
+        studio.environment.freeBytes = { _ in free }
+        #expect(await ask(model, seconds: 0.3, connection: Self.seven).value == .noRoom(minutes: 0))
+        studio.environment.freeBytes = { _ in .max / 2 }
+        model.agentRecord.asks = Array(repeating: model.agentRecord.now(), count: 3)
+        #expect(await ask(model, seconds: 0.3, connection: Self.seven).value == .tooMany)
         #expect(model.agentRecord.grant?.secondsLeft == 7200, "a refusal uses no length")
         await model.close()
     }

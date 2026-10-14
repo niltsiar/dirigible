@@ -30,12 +30,13 @@ struct ConsentExpiredShown: Equatable {
 }
 
 /// One record request of an agent (decision 0048). The window resolves the tracks and the start
-/// at the ask, so the take records what the sheet shows. `begin()` moves to `starting` and stops
-/// the end of the answer time in one step. `finish` gives the reply once, stops the timer, and
-/// ends the activity token.
+/// at the ask, so the take records what the sheet shows. It is `checking` while the app reads the
+/// disk room (decision 0050), `waiting` while the sheet shows, and `starting` after Record.
+/// `begin()` moves to `starting` and stops the end of the answer time in one step. `finish` gives
+/// the reply once, stops the timer, and ends the activity token.
 @MainActor @Observable
 final class ConsentRequest {
-    enum Phase { case waiting, starting }
+    enum Phase { case checking, waiting, starting }
 
     static let activityReason = "An agent asks the user to record."
 
@@ -51,7 +52,17 @@ final class ConsentRequest {
     /// True when the sheet shows the grant checkbox (C1), and the state of that checkbox.
     let offersGrant: Bool
     var grantChecked = false
-    private(set) var phase = Phase.waiting
+    /// The names of the request tracks with an app route (C9).
+    let appTracks: [String]
+    private(set) var phase = Phase.checking
+    /// True when a press of Record counts (C8). The window sets it.
+    var recordEnabled = false
+    /// The time that the sheet window became key, or nil while it is not key.
+    @ObservationIgnored var keySince: ContinuousClock.Instant?
+    /// The wait that enables Record after the click delay.
+    @ObservationIgnored var keyWait: Task<Void, Never>?
+    /// The observers of the key state of the sheet window.
+    @ObservationIgnored var keyObservers: [any NSObjectProtocol] = []
     /// Keeps the timer of the answer time on time while App Nap could slow a hidden app. It lets
     /// the system sleep (probe P3).
     @ObservationIgnored private(set) var activity: LatencyActivity?
@@ -67,11 +78,15 @@ final class ConsentRequest {
         (self.tracks, names) = (tracks.map(\.id), tracks.map(\.name))
         self.connection = connection
         offersGrant = ConsentGrant.offered(tracks: tracks, over: over, seconds: seconds, connection: connection)
+        appTracks = tracks.filter { if case .app = $0.route { true } else { false } }.map(\.name)
         activity = LatencyActivity(reason: Self.activityReason)
     }
 
     /// Waits for the one answer. The window calls it right after the ask, with no await between.
     func wait() async -> RecordAnswer { await withCheckedContinuation { reply = $0 } }
+
+    /// The checks passed: the sheet shows.
+    func ask() { phase = .waiting }
 
     func begin() {
         phase = .starting
@@ -80,6 +95,9 @@ final class ConsentRequest {
 
     func finish(_ answer: RecordAnswer) {
         expiry?.cancel()
+        keyWait?.cancel()
+        for observer in keyObservers { NotificationCenter.default.removeObserver(observer) }
+        keyObservers = []
         activity = nil
         reply?.resume(returning: answer)
         reply = nil
@@ -120,11 +138,9 @@ extension SessionWindow {
     {
         // The agent stopped waiting before the main actor got the call: no sheet, no Dock bounce.
         if Task.isCancelled { return .ended }
-        if consent != nil { return .busy(.asking) }
+        if let refusal = askRefusal(nil) { return refusal }
         guard case .open(let studio) = phase else { return .busy(.closing) }
-        if window?.isMiniaturized == true { return .minimized }
-        if showsDialog { return .busy(.dialog) }
-        guard studio.isIdle, studio.pendingTake == nil, importJob == nil else { return .busy(.task) }
+        if agentRecord.tooMany(at: agentRecord.now()) { return .tooMany }
         let tracks: [Track]
         do throws(StudioError) { tracks = try consentTracks(request.armed, in: studio.session) } catch {
             return .refused(error)
@@ -133,8 +149,23 @@ extension SessionWindow {
         let consent = ConsentRequest(
             agent: agent, tracks: tracks, start: start, seconds: request.seconds,
             over: recordOverTracks(studio.session, request.armed, from: start), connection: connection)
-        if grantCovers(consent) { return await grantTake(consent) }
+        // The request holds the window busy for agents during the read of the disk room.
         self.consent = consent
+        let left = await agentRecord.readRecordTime(studio, consent.tracks)
+        if let refusal = askRefusal(consent) ?? (Task.isCancelled ? .ended : nil) {
+            if self.consent === consent { endConsent(refusal) }
+            return refusal
+        }
+        if let left, left < .seconds(consent.seconds) {
+            let refusal = RecordAnswer.noRoom(minutes: Int(left / .seconds(60)))
+            endConsent(refusal)
+            return refusal
+        }
+        agentRecord.asks.append(agentRecord.now())
+        if grantCovers(consent) { return await grantTake(consent) }
+        consent.ask()
+        consent.recordEnabled = agentRecord.clickDelay <= .zero
+        if agentRecord.followsKey { observeKey(consent) }
         consentExpired = nil
         if !attention.isActive() { consent.attentionRequest = attention.request() }
         let wait = consentWait
@@ -158,6 +189,8 @@ extension SessionWindow {
     func answerConsent(record: Bool) async {
         guard let consent, consent.phase == .waiting else { return }
         guard record else { return endConsent(.declined) }
+        // A second guard of the click delay, after the disabled button (C8).
+        guard canPressRecord(consent) else { return }
         consent.begin()
         let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds)
         var grant: GrantNote?
@@ -177,11 +210,90 @@ extension SessionWindow {
     /// Always Ask Again: the next request of the agent shows the sheet (decision 0050).
     func alwaysAskAgain() { agentRecord.grant = nil }
 
-    /// Close and Quit: a waiting request ends as closed. A request that starts answers with its
-    /// start. The window grant ends.
+    /// Close and Quit: a request that checks or waits ends as closed. A request that starts
+    /// answers with its start. The window grant ends.
     func closeConsent() {
         agentRecord.grant = nil
-        if consent?.phase == .waiting { endConsent(.closed) }
+        if let consent, consent.phase != .starting { endConsent(.closed) }
+    }
+
+    /// True while a request waits or starts: then Command-R is off. A request that the app checks
+    /// does not hold it (decision 0050).
+    var consentHoldsRecord: Bool { consent.map { $0.phase != .checking } ?? false }
+
+    /// Command-R during the check of a request: the request ends, and the agent gets busy.
+    func endCheckingConsent() {
+        if consent?.phase == .checking { endConsent(.busy(.task)) }
+    }
+
+    /// The guards of 0048, before and after each await of `askRecord`. After an await, `request`
+    /// is the request of the call: when the window does not have it any more (Command-R or a
+    /// close ended it), the call is busy or closed.
+    private func askRefusal(_ request: ConsentRequest?) -> RecordAnswer? {
+        if let request {
+            guard consent === request else {
+                if case .open = phase { return .busy(.task) }
+                return .closed
+            }
+        } else if consent != nil {
+            return .busy(.asking)
+        }
+        guard case .open(let studio) = phase else { return .busy(.closing) }
+        if window?.isMiniaturized == true { return .minimized }
+        if showsDialog { return .busy(.dialog) }
+        guard studio.isIdle, studio.pendingTake == nil, importJob == nil else { return .busy(.task) }
+        return nil
+    }
+
+    /// True when a press of Record counts: the sheet window was key for the click delay with no
+    /// break (C8).
+    func canPressRecord(_ consent: ConsentRequest) -> Bool {
+        let delay = agentRecord.clickDelay
+        guard delay > .zero else { return true }
+        guard let since = consent.keySince else { return false }
+        return agentRecord.now() - since >= delay
+    }
+
+    /// Follows the key state of the sheet window. SwiftUI shows the sheet after `consent` is
+    /// set, so the observers take each window and compare it with the sheet at the delivery.
+    private func observeKey(_ consent: ConsentRequest) {
+        let names = [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification]
+        consent.keyObservers = names.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
+                [weak self, weak consent] note in
+                let object = (note.object as AnyObject?).map(ObjectIdentifier.init)
+                let became = note.name == NSWindow.didBecomeKeyNotification
+                MainActor.assumeIsolated {
+                    guard let self, let consent, let object,
+                        object == self.window?.attachedSheet.map(ObjectIdentifier.init)
+                    else { return }
+                    self.sheetKey(consent, became: became)
+                }
+            }
+        }
+    }
+
+    /// The sheet shows: when it is key already, the key time starts now.
+    func consentSheetShown() {
+        guard agentRecord.followsKey, let consent, consent.keySince == nil, window?.attachedSheet?.isKeyWindow == true
+        else { return }
+        sheetKey(consent, became: true)
+    }
+
+    /// The sheet window became key or resigned: Record is disabled, and enabled again after the
+    /// click delay of key time.
+    func sheetKey(_ consent: ConsentRequest, became: Bool) {
+        guard consent.phase == .waiting else { return }
+        consent.keyWait?.cancel()
+        consent.keySince = became ? agentRecord.now() : nil
+        consent.recordEnabled = canPressRecord(consent)
+        guard became, !consent.recordEnabled, let since = consent.keySince else { return }
+        let (wait, end) = (agentRecord.delayWait, since + agentRecord.clickDelay)
+        consent.keyWait = Task { [weak self, weak consent] in
+            await wait(end)
+            guard !Task.isCancelled, let self, let consent, consent.keySince == since else { return }
+            consent.recordEnabled = canPressRecord(consent)
+        }
     }
 
     /// True when the window grant covers the request now (decision 0050).
@@ -195,7 +307,6 @@ extension SessionWindow {
     /// A grant take: no sheet and no answer time. The request holds the window busy for agents
     /// during the start, and the grant check runs again after the microphone prompt.
     private func grantTake(_ consent: ConsentRequest) async -> RecordAnswer {
-        self.consent = consent
         consentExpired = nil
         consent.begin()
         let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {

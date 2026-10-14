@@ -361,10 +361,11 @@
 "undo.agent" = "Deshacer edición de %@";
 "redo.agent" = "Rehacer edición de %@";
 "undo.agent.unnamed" = "Deshacer edición de un agente";
-"banner.consent.expired" = "%@ pidió grabar. La solicitud terminó sin respuesta.";
+"banner.consent.expired" = "Un agente de IA (dice: “%@”) pidió grabar. La solicitud terminó sin respuesta.";
 "banner.consent.expired.unnamed" = "Un agente de IA pidió grabar. La solicitud terminó sin respuesta.";
-"consent.title" = "“%@” quiere grabar";
-"consent.title.unnamed" = "Un agente de IA quiere grabar";
+"consent.title" = "Un agente de IA quiere grabar";
+"consent.agent.line" = "Dice que es “%@”.";
+"consent.app.tracks" = "Esta toma graba %@. Las personas de la llamada no reciben ningún aviso de Dirigible.";
 "consent.message" = "Una toma de %1$@ en %2$@, desde %3$@. No se graba nada hasta que pulses Grabar. Esta solicitud termina en %4$lld s.";
 "consent.record.over" = "La grabación sustituye audio en %1$@ después de %2$@.";
 "consent.dont.record" = "No grabar";

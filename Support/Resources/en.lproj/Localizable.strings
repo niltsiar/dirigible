@@ -361,10 +361,11 @@
 "undo.agent" = "Undo %@ Edit";
 "redo.agent" = "Redo %@ Edit";
 "undo.agent.unnamed" = "Undo Agent Edit";
-"banner.consent.expired" = "%@ asked to record. The request ended with no answer.";
+"banner.consent.expired" = "An AI agent (it says: “%@”) asked to record. The request ended with no answer.";
 "banner.consent.expired.unnamed" = "An AI agent asked to record. The request ended with no answer.";
-"consent.title" = "“%@” wants to record";
-"consent.title.unnamed" = "An AI agent wants to record";
+"consent.title" = "An AI agent wants to record";
+"consent.agent.line" = "It says it is “%@”.";
+"consent.app.tracks" = "This take records %@. People in the call get no notice from Dirigible.";
 "consent.message" = "A take of %1$@ on %2$@, from %3$@. Nothing records until you click Record. This request ends in %4$lld s.";
 "consent.record.over" = "Recording replaces audio on %1$@ after %2$@.";
 "consent.dont.record" = "Don't Record";

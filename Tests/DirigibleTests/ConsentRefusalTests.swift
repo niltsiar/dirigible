@@ -196,4 +196,126 @@ extension ConsentTests {
         #expect(recordOverTracks(session, ["t1", "t2"], from: 2000).isEmpty, "no clip after the start")
         #expect(recordOverTracks(session, ["t2"], from: 499) == ["Guest"], "a clip that ends after the start")
     }
+
+    // MARK: Decision 0050: C10, C11, C15
+
+    /// The free bytes that give `seconds` of a take on one mono track at 48 kHz.
+    func freeBytes(forSeconds seconds: Double) -> Int64 { diskMargin + Int64(seconds * 48_000 * 7) }
+
+    /// C10: with room for 60 s, a request of 61 s is refused at once with no sheet; 59 s shows
+    /// the sheet.
+    @Test func noRoomIsRefused() async throws {
+        let (model, studio) = try await window()
+        let free = freeBytes(forSeconds: 60)
+        studio.environment.freeBytes = { _ in free }
+
+        let refused = await ask(model, seconds: 61).value
+
+        #expect(refused == .noRoom(minutes: 1), "\(refused)")
+        #expect(model.consent == nil && model.window?.attachedSheet == nil, "no sheet")
+        guard case .result(let text, true) = refused.reply(package: "p.dirigible") else {
+            Issue.record("not an error")
+            return
+        }
+        #expect(text == "p.dirigible has room for 1 min of a take on these tracks. Free disk space, then try again.")
+        let answer = ask(model, seconds: 59)
+        _ = try await sheet(model)
+        await model.answerConsent(record: false)
+        #expect(await answer.value == .declined)
+        await model.close()
+    }
+
+    /// C10: a cancel during the free-space read shows no sheet.
+    @Test func cancelDuringTheDiskReadShowsNoSheet() async throws {
+        let (model, _) = try await window()
+        let gate = AsyncGate()
+        model.agentRecord.readRecordTime = { _, _ in
+            await gate.wait()
+            return .seconds(3600)
+        }
+        let answer = ask(model)
+        await gate.entered()
+        #expect(model.consent?.phase == .checking, "the request checks the disk")
+
+        answer.cancel()
+        gate.open()
+
+        #expect(await answer.value == .ended)
+        #expect(model.consent == nil && model.window?.attachedSheet == nil, "no sheet")
+        await model.close()
+    }
+
+    /// C10: during the free-space read, Command-R stays on and starts the take of the person;
+    /// the agent gets the busy reply, and no sheet or grant take.
+    @Test func personTakeDuringTheDiskRead() async throws {
+        let (model, studio) = try await window()
+        let gate = AsyncGate()
+        model.agentRecord.readRecordTime = { _, _ in
+            await gate.wait()
+            return .seconds(3600)
+        }
+        model.armed = ["t1"]
+        let answer = ask(model)
+        await gate.entered()
+        #expect(model.consent?.phase == .checking)
+        let target = try #require(app.agentTargets().first { $0.studio === studio })
+        #expect(target.busy == .asking, "agent edits are busy during the check")
+        #expect(model.canRecord, "Command-R and the Record menu item stay on")
+
+        await model.record()
+        gate.open()
+
+        #expect(studio.transport == .recording(take: 1), "the take of the person starts")
+        #expect(await answer.value == .busy(.task))
+        #expect(model.consent == nil && model.window?.attachedSheet == nil && model.alert == nil)
+        await model.stop()
+        await model.close()
+    }
+
+    /// C11: 3 requests that showed a sheet in 60 s; a 4th at 59.9 s is refused, at 60.1 s it
+    /// shows the sheet.
+    @Test(arguments: [59.9, 60.1]) func fourthAskInAMinuteIsRefused(after: Double) async throws {
+        let (model, _) = try await window()
+        let start = ContinuousClock.now
+        var now = start
+        model.agentRecord.now = { now }
+        for _ in 0..<3 {
+            let answer = ask(model)
+            _ = try await sheet(model)
+            await model.answerConsent(record: false)
+            #expect(await answer.value == .declined)
+            await until("the sheet goes") { model.window?.attachedSheet == nil }
+        }
+        now = start + .seconds(after)
+
+        let answer = ask(model)
+
+        if after < 60 {
+            let value = await answer.value
+            #expect(value == .tooMany, "\(value)")
+            guard case .result(let text, true) = value.reply(package: "p") else {
+                Issue.record("not an error")
+                return
+            }
+            #expect(text == "Too many record requests: 3 in 60 s. Wait, then ask again.")
+            #expect(model.consent == nil, "no sheet")
+        } else {
+            _ = try await sheet(model)
+            await model.answerConsent(record: false)
+            #expect(await answer.value == .declined)
+        }
+        await model.close()
+    }
+
+    /// C15: a `record` call during a take of the person is busy, and the take goes on.
+    @Test func recordDuringPersonTakeIsBusy() async throws {
+        let (model, studio) = try await window()
+        model.armed = ["t1"]
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+        #expect(await ask(model).value == .busy(.task))
+        #expect(studio.transport == .recording(take: 1), "the take goes on")
+        await model.stop()
+        await model.close()
+    }
 }

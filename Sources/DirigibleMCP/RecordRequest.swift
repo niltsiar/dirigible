@@ -66,6 +66,11 @@ package enum RecordAnswer: Equatable, Sendable {
     case refused(StudioError)
     /// A route of a grant track changed during the microphone prompt of a grant take.
     case grantChanged
+    /// The disk of the package has room for `minutes` of a take on the request tracks, less than
+    /// the length (decision 0050).
+    case noRoom(minutes: Int)
+    /// The window got `AgentRecordState.askLimit` requests in the last 60 s (decision 0050).
+    case tooMany
 
     package func reply(package: String) -> AgentReply {
         let text: String
@@ -94,6 +99,9 @@ package enum RecordAnswer: Equatable, Sendable {
         case .refused(let error): text = error.message(package: package)
         case .grantChanged:
             text = "The tracks of the window grant changed during the start. Ask again: the sheet shows."
+        case .noRoom(let minutes):
+            text = "\(package) has room for \(minutes) min of a take on these tracks. Free disk space, then try again."
+        case .tooMany: text = "Too many record requests: 3 in 60 s. Wait, then ask again."
         }
         return .result(text: text, isError: true)
     }
@@ -126,7 +134,12 @@ let recordTools = [
             + "starts only when the user clicks Record. The call waits \(Int(RecordRequest.answerLimit.components.seconds)) s "
             + "or less for the answer, and gives the take number when the take starts. The take stops after seconds, "
             + "or earlier when the user clicks Stop: read session_info, and the take ended when recording is gone. The "
-            + "package must be open in Dirigible, with Let Agents Edit Open Sessions on. No tool records on package files.",
+            + "package must be open in Dirigible, with Let Agents Edit Open Sessions on. No tool records on package files. "
+            + "A window grant: when the user turns on Don't ask again until I close this window and clicks Record, later "
+            + "record calls of the same connection on the same tracks start with no sheet. A grant ends after 1 h, after "
+            + "2 h of takes, at the window close, or at a new connection (a cancel of a call or a new agent session). An "
+            + "app track, a record-over, and a length over the grant left always show the sheet. A window takes 3 "
+            + "requests in 60 s at most.",
         [seconds, arm, playhead], saves: false
     ) { a throws(ToolError) in
         guard let length = EditRules.takeSeconds(try a[seconds]) else {

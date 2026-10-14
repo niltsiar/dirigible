@@ -190,5 +190,151 @@ expect '0:killed' 'the lock of a dead holder' 'a = 1' 'a = 2'
 [[ ! -e "$lock" ]] || { echo "FAIL: the lock is left after the run"; failures=$((failures + 1)); }
 cd "$tmp" || exit 1
 
+# --switch on a one-mutant call: the text change runs as before.
+printf 'a = 1\nb = 1\n' > "$file"
+before="$(shasum -a 256 "$file")"
+test="grep -q 'a = 1' '$file'"
+check '0:killed' '--switch on one mutant' --switch expr "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" "$test"
+check '2:mutate' '--switch with another form' --switch block "$file" 'a = 1' 'a = 2' "$tmp/log" "$build" "$test"
+
+# --schema <folder> <n>...: the switch mutants of a batch in one build. Each <folder>/<n> holds the
+# mutate.py arguments of mutant n, NUL-separated. The files are named relative to the tree ($tmp).
+sdir="$tmp/schema"
+src="$tmp/s.swift" src2="$tmp/t.swift"
+reset_schema() {
+  rm -rf "$sdir"; mkdir -p "$sdir"
+  printf 'let a = 10\nlet b = 20\nlet c = 30\n' > "$src"
+  printf 'let d = 40\n' > "$src2"
+  sbefore="$(shasum -a 256 "$src" "$src2")"
+  : > "$tmp/builds"; : > "$tmp/runs"
+}
+sbuild="echo b >> '$tmp/builds'; cp '$src' '$tmp/seen'; grep -q 'private let dirigibleMutant' '$src'"
+# The test kills mutant n when a file has the switch of n, except mutant 2, and logs the ID it sees.
+stest="echo \${DIRIGIBLE_MUTANT:-unset} >> '$tmp/runs'; [[ \${DIRIGIBLE_MUTANT:-2} == 2 ]] || ! grep -qE \"dirigibleMutant == \$DIRIGIBLE_MUTANT [?{]\" '$src' '$src2'"
+marg() { local n="$1"; shift; printf '%s\0' "$@" > "$sdir/$n"; }
+schema() { sout="$("$mutate" --schema "$sdir" "$@" 2>&1)"; scode=$?; }
+fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
+has() { grep -qE -- "$1" <<<"$sout" || fail "$2: no line /$1/ in: $sout"; }
+same() { [[ "$(shasum -a 256 "$src" "$src2")" == "$sbefore" ]] || fail "$1: a source file changed"; }
+builds() { [[ "$(wc -l < "$tmp/builds" | tr -d ' ')" == "$1" ]] || fail "$2: $(wc -l < "$tmp/builds" | tr -d ' ') builds, not $1"; }
+runs() { [[ "$(paste -sd' ' - < "$tmp/runs")" == "$1" ]] || fail "$2: runs [$(paste -sd' ' - < "$tmp/runs")], not [$1]"; }
+
+# Three switch mutants: one build, one baseline run with no ID, then one run for each ID.
+reset_schema
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "$stest"
+marg 2 --switch expr s.swift 20 21 "$tmp/l2" "$sbuild" "$stest"
+marg 3 --switch expr s.swift 30 31 "$tmp/l3" "$sbuild" "$stest"
+schema 1 2 3
+[[ $scode -eq 0 ]] || fail "schema: exit $scode: $sout"
+has "^1 killed: $tmp/l1\$" schema; has "^2 survived: $tmp/l2\$" schema; has "^3 killed: $tmp/l3\$" schema
+builds 1 schema; runs 'unset 1 2 3' schema; same schema
+grep -qx '# result: survived' "$tmp/l2" || fail "schema: no result in the log of mutant 2"
+
+# Two mutants on one span make one chain; each runs its own branch.
+reset_schema
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "$stest"
+marg 3 --switch expr s.swift 10 12 "$tmp/l3" "$sbuild" "$stest"
+schema 1 3
+has "^1 killed: " chain; has "^3 killed: " chain; builds 1 chain; same chain
+grep -qF 'let a = (dirigibleMutant == 1 ? (11) : (dirigibleMutant == 3 ? (12) : (10)))' "$tmp/seen" || fail "chain: the wrap is $(head -1 "$tmp/seen")"
+# The statement form.
+reset_schema
+marg 1 --switch stmt s.swift 'let b = 20' 'let b = 21' "$tmp/l1" "$sbuild" "$stest"
+schema 1
+has "^1 killed: " stmt
+[[ "$(sed -n 2,6p "$tmp/seen" | paste -sd'|' -)" == 'if dirigibleMutant == 1 {|let b = 21|} else {|let b = 20|}' ]] || fail "stmt: the wrap is $(cat "$tmp/seen")"
+
+# Before the build: a span in another span, an empty expr new text, and another build command get
+# their own build; a build command with a pipe and an old text that is not in the file once are
+# refused; the others run.
+reset_schema
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "$stest"
+marg 2 --switch expr s.swift 'a = 10' 'a = 11' "$tmp/l2" "$sbuild" "$stest"
+marg 3 --switch expr s.swift 20 '' "$tmp/l3" "$sbuild" "$stest"
+marg 4 --switch expr t.swift 40 41 "$tmp/l4" "$sbuild # other" "$stest"
+marg 5 --switch expr s.swift 30 31 "$tmp/l5" "$sbuild | tail -3" "$stest"
+marg 6 --switch expr s.swift 99 98 "$tmp/l6" "$sbuild" "$stest"
+marg 7 --switch expr s.swift 30 31 "$tmp/l7" "$sbuild" "$stest"
+schema 1 2 3 4 5 6 7
+has '^1 killed: ' refusals; has '^2 own build: .*mutant 1' refusals; has '^3 own build: .*empty' refusals
+has '^4 own build: .*build command' refusals; has '^5 mutate: .*pipe' refusals; has '^6 mutate: .*0 times' refusals
+has '^7 killed: ' refusals; builds 1 refusals; runs 'unset 1 7' refusals; same refusals
+
+# A wrap that swiftc -parse refuses gets its own build, before any batch build.
+reset_schema
+marg 1 --switch expr s.swift 10 '11 +' "$tmp/l1" "$sbuild" "$stest"
+schema 1
+has '^1 own build: .*parse' parse; builds 0 parse; same parse
+
+# A build error in a file (an absolute path, the batch names it relative) sends the mutants of that
+# file to their own build, and the batch builds again; a second failure sends all.
+reset_schema
+ebuild="echo b >> '$tmp/builds'; ! grep -qF '(41)' '$src2' || { echo '$(cd "$tmp" && pwd -P)/t.swift:1:9: error: bad'; exit 1; }"
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$ebuild" "$stest"
+marg 2 --switch expr t.swift 40 41 "$tmp/l2" "$ebuild" "$stest"
+schema 1 2
+has '^1 killed: ' 'build error'; has '^2 own build: .*build' 'build error'; builds 2 'build error'; same 'build error'
+reset_schema
+ebuild="echo b >> '$tmp/builds'; echo '$src:1:9: error: bad'; exit 1"
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$ebuild" "$stest"
+marg 2 --switch expr t.swift 40 41 "$tmp/l2" "$ebuild" "$stest"
+schema 1 2
+has '^1 own build: ' 'second build error'; has '^2 own build: ' 'second build error'; builds 2 'second build error'
+reset_schema
+ebuild="echo b >> '$tmp/builds'; echo 'error: no file'; exit 1"
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$ebuild" "$stest"
+marg 2 --switch expr t.swift 40 41 "$tmp/l2" "$ebuild" "$stest"
+schema 1 2
+has '^1 own build: ' 'error with no file'; has '^2 own build: ' 'error with no file'; builds 1 'error with no file'; same 'error with no file'
+
+# A baseline that fails, or that runs past the largest --timeout of its mutants, sends the mutants
+# of that test command to their own build.
+reset_schema
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "[[ -n \${DIRIGIBLE_MUTANT:-} ]]"
+marg 2 --timeout 1 --switch expr s.swift 20 21 "$tmp/l2" "$sbuild" "[[ -n \${DIRIGIBLE_MUTANT:-} ]] || sleep 30"
+marg 3 --switch expr s.swift 30 31 "$tmp/l3" "$sbuild" "$stest"
+started=$SECONDS
+schema 1 2 3
+has '^1 own build: .*baseline' baseline; has '^2 own build: .*baseline' baseline; has '^3 killed: ' baseline
+(( SECONDS - started < 10 )) || fail "baseline: the hung baseline ran $((SECONDS - started)) s"
+
+# --expect and --timeout give the result words of one mutant.
+reset_schema
+rtest="case \${DIRIGIBLE_MUTANT:-} in 1) echo 'other failure'; exit 1 ;; 2) sleep 30 | cat ;; 3) echo '✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.' ;; esac"
+marg 1 --expect 'expected a = 10' --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "$rtest"
+marg 2 --timeout 1 --switch expr s.swift 20 21 "$tmp/l2" "$sbuild" "$rtest"
+marg 3 --switch expr s.swift 30 31 "$tmp/l3" "$sbuild" "$rtest"
+schema 1 2 3
+has '^1 WRONG FAILURE: ' results; has '^2 killed \(hang\): ' results; has '^3 NO TESTS: ' results; same results
+
+# The call reads only the files that it names; a whole-call refusal exits 2.
+reset_schema
+marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "$stest"
+marg 9 --switch expr s.swift 30 31 "$tmp/l9" "$sbuild" "$stest"
+schema 1
+has '^1 killed: ' 'named files'; ! grep -q '^9 ' <<<"$sout" || fail "named files: mutant 9 ran: $sout"; runs 'unset 1' 'named files'
+schema
+[[ $scode -eq 2 ]] || fail "no names: exit $scode"
+sout="$("$mutate" --schema "$tmp/none" 1 2>&1)"
+[[ $? -eq 2 ]] || fail "no folder: $sout"
+
+# A stop during a mutant test restores each file, ends the test, and exits 130.
+for sig in TERM INT HUP; do
+  reset_schema
+  rm -f "$tmp/pid"
+  marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "[[ \${DIRIGIBLE_MUTANT:-} != 1 ]] || { sleep 34 & echo \$! > '$tmp/pid'; wait; }"
+  marg 2 --switch expr t.swift 40 41 "$tmp/l2" "$sbuild" "$stest"
+  "$mutate" --schema "$sdir" 1 2 > "$tmp/stop.out" 2>&1 &
+  runner=$!
+  for _ in $(seq 300); do [[ -s "$tmp/pid" ]] && break; sleep 0.1; done
+  [[ -s "$tmp/pid" ]] || fail "schema SIG$sig: the test did not start"
+  kill -"$sig" "$runner"
+  wait "$runner"
+  code=$?
+  [[ $code -eq 130 ]] && grep -q '^stopped' "$tmp/stop.out" || fail "schema SIG$sig: exit $code: $(cat "$tmp/stop.out")"
+  same "schema SIG$sig"
+  ended "$(cat "$tmp/pid")" || { fail "schema SIG$sig: the test still runs"; kill "$(cat "$tmp/pid")"; }
+done
+
 [[ $failures -eq 0 ]] && echo "mutate tests: all passed"
 exit $((failures > 0))

@@ -71,6 +71,25 @@ struct TranscriptImportTests {
         #expect(report.kept == 1 && report.untimed == 1)
     }
 
+    /// Code gate 1 item 6. One file under two clips of the import track: a split shows each word
+    /// once; a duplicated region shows each word once under each clip, and a phrase matches there.
+    @Test func oneFileUnderTwoClipsGivesEachWordOnce() throws {
+        var split = try transcriptSession()
+        try split.place(Clip(id: "A", file: "h", start: 0, offset: 0, length: 48_000), on: "host")
+        try split.place(Clip(id: "B", file: "h", start: 48_000, offset: 48_000, length: 48_000), on: "host")
+        try split.importTranscript(
+            try whisper([("hello", 0.5, 0.7), ("world", 1.2, 1.4)]), name: "t", track: "host", at: 0)
+        #expect(split.words().map(\.text) == ["hello", "world"])
+
+        var twice = try transcriptSession()
+        try twice.place(Clip(id: "A", file: "h", start: 0, offset: 0, length: 96_000), on: "host")
+        try twice.place(Clip(id: "C", file: "h", start: 192_000, offset: 0, length: 96_000), on: "host")
+        let spoken = [("hello", 0.5, 0.7), ("world", 1.2, 1.4), ("hello", 4.5, 4.7), ("world", 5.2, 5.4)]
+        try twice.importTranscript(try whisper(spoken), name: "t", track: "host", at: 0)
+        #expect(twice.words().map(\.text) == ["hello", "world", "hello", "world"])
+        #expect(twice.words(matching: "hello world").map(\.occurrence.clip) == ["A", "A", "C", "C"])
+    }
+
     /// T5b. A second import of the same file replaces the old words: each word shows once.
     /// Control: an import of a later part of the file keeps the old words outside its span.
     @Test func reimportReplacesTheWords() throws {

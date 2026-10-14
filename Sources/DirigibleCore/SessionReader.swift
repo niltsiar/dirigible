@@ -1,8 +1,9 @@
 import Foundation
 
 extension Session {
-    /// Reads `session.xml` from the package. The reader parses the XML into domain values, then
-    /// builds the session through the same edits that the app uses, so each rule has one check.
+    /// Reads `session.xml` from the package, then the words of each transcript from
+    /// `Transcripts/` (decision 0055). The reader parses the XML into domain values, then builds
+    /// the session through the same edits that the app uses, so each rule has one check.
     public init(contentsOf package: URL) throws(SessionFileError) {
         let data: Data
         do {
@@ -11,6 +12,7 @@ extension Session {
             throw .readFailed(errno: posixCode(of: error))
         }
         try self.init(xml: data)
+        loadTranscripts(from: package)
     }
 
     /// `newest` is the newest version that the reader accepts. A test gives a lower one to act as
@@ -67,7 +69,7 @@ extension Session {
             }
             try setRecording(recording)
             if let episode { setEpisode(episode) }
-            for transcript in transcripts { try addTranscript(transcript) }
+            for transcript in transcripts { try insertTranscript(transcript) }
         } catch {
             throw .invalidSession(error)
         }
@@ -217,33 +219,16 @@ extension Episode {
 }
 
 extension Transcript {
-    /// One `<transcript>`. A line splits at its first three spaces. A number below 1, a start or an
-    /// end that is not an integer, an end before the start, a second `<words>` of one file, and a
-    /// transcript with no `<words>` are refused here; `Session.addTranscript` checks the rest.
+    /// One `<transcript>` reference, with no words: `Session.resolveTranscripts` gives them. An ID
+    /// below 1 and a `file` that is not the canonical text of a UUID are refused here.
     fileprivate init(_ node: XMLElement) throws(SessionFileError) {
         guard let number = Int(try node.string("id")), number >= 1 else {
             throw .invalidValue(element: "transcript", attribute: "id")
         }
-        var words: [FileID: Anchors] = [:]
-        for element in node.sessionElements("words") {
-            let file = FileID(try element.string("file"))
-            guard words[file] == nil else { throw .invalidSession(.duplicateID(file.rawValue)) }
-            var anchors: [Anchor] = []
-            for line in (element.stringValue ?? "").split(separator: "\n", omittingEmptySubsequences: false) {
-                let fields = line.split(separator: " ", maxSplits: 3, omittingEmptySubsequences: false)
-                guard fields.count == 4, let number = Int(fields[0]), number >= 1, let start = Int(fields[1]),
-                    let end = Int(fields[2])
-                else { throw .invalidValue(element: "words", attribute: "line") }
-                guard start <= end else { throw .invalidSession(.wordOutsideFile(file)) }
-                anchors.append(Anchor(number: number, range: Frames(start)..<Frames(end), text: String(fields[3])))
-            }
-            words[file] = Anchors(anchors)
-        }
-        guard !words.isEmpty else { throw .invalidValue(element: "transcript", attribute: "words") }
         guard let file = TranscriptFileName(try node.string("file")) else {
             throw .invalidValue(element: "transcript", attribute: "file")
         }
-        self.init(id: TranscriptID(number), name: try node.string("name"), file: file, words: words)
+        self.init(id: TranscriptID(number), name: try node.string("name"), file: file, words: nil)
     }
 }
 

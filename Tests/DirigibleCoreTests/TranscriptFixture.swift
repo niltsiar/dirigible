@@ -26,6 +26,15 @@ extension Session {
         transcripts[id] = stored
     }
 
+    /// The session after a save to a new package and an open (decision 0055: the words go in
+    /// `Transcripts/`).
+    func reopened() throws -> Session {
+        let package = FileManager.default.temporaryDirectory.appending(path: "Transcript-\(UUID())/E.dirigible")
+        defer { try? FileManager.default.removeItem(at: package.deletingLastPathComponent()) }
+        try write(to: package)
+        return try Session(contentsOf: package)
+    }
+
     /// The word numbers under `clip`, in timeline order.
     func numbers(under clip: ClipID) -> [Int] {
         words().filter { $0.occurrence.clip == clip }.map(\.occurrence.word.number)

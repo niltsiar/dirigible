@@ -62,7 +62,7 @@ public struct Backup: Hashable, Comparable, Sendable {
     /// (decision 0043). Apply the result with `Session.reverted(to:)`.
     public func readForRevert(under lock: PackageLock) throws(RevertReadError) -> Session {
         let package: URL
-        let target: Session
+        var target: Session
         do throws(SessionFileError) {
             package = try lock.package()
             let data: Data
@@ -72,6 +72,7 @@ public struct Backup: Hashable, Comparable, Sendable {
                 throw .readFailed(errno: posixCode(of: error))
             }
             target = try Session(xml: data)
+            target.loadTranscripts(from: package)
         } catch {
             throw .backup(error)
         }

@@ -48,7 +48,8 @@ package let sessionVersion = 8
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
-    /// they do not exist. The old file stays until the new file is complete and on the disk.
+    /// they do not exist. The new transcript files go first (decision 0055). The old file stays
+    /// until the new file is complete and on the disk.
     public func write(to package: URL) throws(SessionFileError) {
         let data = try checkedData()
         let isNew = !FileManager.default.fileExists(atPath: package.path)
@@ -58,6 +59,7 @@ extension Session {
         } catch {
             throw .writeFailed(step: "createDirectory", errno: posixCode(of: error))
         }
+        try writeTranscriptFiles(in: package)
         try replaceDurably(package.appending(path: "session.xml"), with: data)
         // A new package is an entry in its parent folder, which a power loss can lose too.
         if isNew { try flush(package.deletingLastPathComponent().path) }
@@ -97,6 +99,7 @@ extension Session {
         let package = try lock.package()
         let clips = package.appending(path: clipsFolderName)
         guard mkdir(clips.path, 0o755) == 0 || errno == EEXIST else { throw posixError("createDirectory") }
+        try writeTranscriptFiles(in: package)
         // A backup fault never fails the save.
         try? backups.keepIfDue(in: package, newSize: Int64(data.count))
         try replaceDurably(package.appending(path: "session.xml"), with: data)
@@ -104,21 +107,25 @@ extension Session {
     }
 
     /// The XML of the session. A file that does not read back would lock the user out of the
-    /// session, so it throws `.wouldNotReadBack` then.
+    /// session, so it throws `.wouldNotReadBack` then. The read-back takes the words of each
+    /// transcript from this session by file name, with the checks of an open.
     func checkedData() throws(SessionFileError) -> Data {
         let data = xmlDocument().xmlData(options: .nodePrettyPrint)
-        let readBack: Session
+        var readBack: Session
         do throws(SessionFileError) {
             readBack = try Session(xml: data)
         } catch {
             throw .wouldNotReadBack(error)
+        }
+        readBack.resolveTranscripts { read in
+            transcripts[read.id].flatMap { $0.file == read.file ? $0.words : nil }
         }
         guard readBack == self else { throw .wouldNotReadBack(nil) }
         return data
     }
 
     /// Deletes the leftover temporary files of a crash: the `.session.xml.<UUID>.tmp` files of a
-    /// save and of a backup, each `Clips/.<stem>.wav.tmp` of an import or a finalize that no
+    /// save, of a backup, and of a transcript file, each `Clips/.<stem>.wav.tmp` of an import or a finalize that no
     /// file of the pool names, and each `Artwork/.<name>.tmp` of an artwork import. Call it only
     /// under the package lock: without the lock it can delete the file of a save, an import, or a
     /// finalize in progress.
@@ -126,7 +133,7 @@ extension Session {
         func names(_ folder: URL) -> [String] {
             (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
         }
-        for folder in [package, Backup.folder(of: package)] {
+        for folder in [package, Backup.folder(of: package), package.appending(path: transcriptsFolderName)] {
             for name in names(folder) where isTemporaryName(name) { unlink(folder.appending(path: name).path) }
         }
         let pool = Set(
@@ -238,21 +245,15 @@ extension Session {
 }
 
 extension Session {
-    /// `<transcripts>` (decision 0055): one `<words>` element per file, one line per word,
-    /// "number start end text", in the order of `Anchors`.
+    /// `<transcripts>` (decision 0055): one reference per transcript, loaded or not. The words
+    /// are in `Transcripts/<file>.xml`.
     fileprivate func transcriptsElement() -> XMLElement {
         let list = element("transcripts")
         for transcript in transcripts.values.sorted(by: { $0.id < $1.id }) {
-            let node = element(
-                "transcript", ("id", transcript.id.description), ("name", transcript.name),
-                ("file", transcript.file.description))
-            for (file, anchors) in (transcript.words ?? [:]).sorted(by: { $0.key < $1.key }) {
-                let lines = anchors.all.map { "\($0.number) \($0.range.lowerBound) \($0.range.upperBound) \($0.text)" }
-                let words = XMLElement(name: "words", stringValue: lines.joined(separator: "\n"))
-                add(("file", file.rawValue), to: words)
-                node.addChild(words)
-            }
-            list.addChild(node)
+            list.addChild(
+                element(
+                    "transcript", ("id", transcript.id.description), ("name", transcript.name),
+                    ("file", transcript.file.description)))
         }
         return list
     }

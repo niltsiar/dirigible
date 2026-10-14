@@ -187,7 +187,7 @@ extension Session {
         for source in excerpt.transcripts.values.sorted(by: { $0.id < $1.id })
         where excerpt.pastesWords && source.words?.isEmpty == false {
             let id = copy.nextTranscriptID
-            copy.transcripts[id] = Transcript(id: id, name: source.name, words: source.words)
+            try copy.insertTranscript(Transcript(id: id, name: source.name, words: source.words))
         }
         self = copy
         return pasted

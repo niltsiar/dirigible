@@ -222,6 +222,38 @@ struct FullDiskTests {
         #expect(try Self.visibleFiles(volume) == ["mix.wav"])
     }
 
+    /// A session with a transcript saves on exFAT, which gives ENOTSUP for `RENAME_EXCL` (0016
+    /// X1): each transcript file lands through a plain rename (decision 0055, run transcript-1
+    /// criteria T13 and T22).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aTranscriptSessionSavesOnExFAT() throws {
+        let folder = try TemporaryFolder()
+        let image = folder.url.appending(path: "exfat.dmg")
+        let volume = folder.url.appending(path: "volume")
+        try Self.hdiutil("create", "-size", "20m", "-fs", "ExFAT", "-volname", "DirWords", image.path)
+        try Self.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { Self.run(["detach", volume.path, "-force"]) }
+        let package = volume.appending(path: "E.dirigible")
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("host", name: "Host", layout: .mono)
+        try session.addFile(AudioFile(id: "h", path: "h.wav", layout: .mono, length: 480_000))
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 480_000), on: "host")
+        try session.write(to: package)
+        let words = #"{"words":[{"word":"Hello","start":1,"end":1.5},{"word":"again","start":2,"end":2.5}]}"#
+        try session.importTranscript(TranscriptFile(data: Data(words.utf8)), name: "t.json", track: "host", at: 0)
+
+        let lock = try PackageLock(package)
+        try withExtendedLifetime(lock) {
+            try session.write(under: lock)
+            let late = #"{"words":[{"word":"later","start":5,"end":5.5}]}"#
+            try session.importTranscript(TranscriptFile(data: Data(late.utf8)), name: "u.json", track: "host", at: 0)
+            try session.write(under: lock)
+        }
+        #expect(try Session(contentsOf: package).words().map(\.text) == ["Hello", "again", "later"])
+        let files = try FileManager.default.contentsOfDirectory(atPath: package.appending(path: "Transcripts").path)
+        #expect(files.filter { !$0.hasPrefix(".") }.count == 2, "\(files)")
+    }
+
     /// A 10 s stereo WAV 24 export (2.88 MB) to a volume with 400 KB free throws `.diskFull`
     /// and keeps the old target (export run criterion 15).
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

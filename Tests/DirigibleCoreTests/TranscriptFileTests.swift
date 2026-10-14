@@ -3,8 +3,11 @@ import Testing
 
 @testable import DirigibleCore
 
-/// `session.xml` version 8 with transcripts (run transcript-1, criteria T13 and T14; decision 0055).
+/// `session.xml` version 8 with transcript references, and the files of the words in
+/// `Transcripts/` (run transcript-1, criteria T13 and T14; decision 0055).
 struct TranscriptFileTests {
+    let package = FileManager.default.temporaryDirectory.appending(path: "TranscriptFile-\(UUID())/E.dirigible")
+
     /// A session with a clip on each track and the words of two transcripts.
     func transcribed() throws -> Session {
         var session = try transcriptSession()
@@ -22,16 +25,34 @@ struct TranscriptFileTests {
         return try Session(xml: Data(text.replacing(old, with: new, maxReplacements: 1).utf8))
     }
 
-    /// T13. A session with a transcript writes version 8 and reads back equal, also from the disk.
+    /// `session` saved, with `old` replaced by `new` once in the file of transcript `id`, then opened.
+    func open(_ session: Session, replacing old: String, with new: String, in id: Int = 1) throws -> Session {
+        try session.write(to: package)
+        let name = try #require(session.transcripts[TranscriptID(id)]?.file)
+        let url = package.appending(path: "Transcripts/\(name).xml")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        #expect(text.contains(old), "the fixture holds \(old)")
+        try Data(text.replacing(old, with: new, maxReplacements: 1).utf8).write(to: url)
+        return try Session(contentsOf: package)
+    }
+
+    /// True when transcript `id` of `session` did not load, and the other transcript loaded.
+    func onlyNotLoaded(_ id: Int, in session: Session) -> Bool {
+        session.transcripts.mapValues { $0.words == nil } == [TranscriptID(id): true, TranscriptID(3 - id): false]
+    }
+
+    /// T13. A session with a transcript writes version 8 with a reference, the words go in
+    /// `Transcripts/<name>.xml`, and the package opens equal.
     @Test func aTranscriptWritesVersion8() throws {
         let session = try transcribed()
-        let package = FileManager.default.temporaryDirectory.appending(path: "TranscriptFile-\(UUID())/E.dirigible")
-        defer { try? FileManager.default.removeItem(at: package.deletingLastPathComponent()) }
         try session.write(to: package)
 
         let text = try String(contentsOf: package.appending(path: "session.xml"), encoding: .utf8)
-        #expect(text.contains(#"version="8""#))
-        #expect(text.contains("<words file=\"h\">1 10000 20000 Welcome\n2 20000 30000 R&amp;B &lt;now&gt;</words>"))
+        let name = try #require(session.transcripts[TranscriptID(1)]?.file)
+        #expect(text.contains(#"version="8""#) && !text.contains("<words"))
+        #expect(text.contains(#"<transcript id="1" name="t1" file="\#(name)""#))
+        let file = try String(contentsOf: package.appending(path: "Transcripts/\(name).xml"), encoding: .utf8)
+        #expect(file.contains("<words file=\"h\">1 10000 20000 Welcome\n2 20000 30000 R&amp;B &lt;now&gt;</words>"))
         let same = try Session(contentsOf: package) == session
         #expect(same)
     }
@@ -59,65 +80,68 @@ struct TranscriptFileTests {
         }
     }
 
-    /// A word past the end of its file is refused; a word that ends at the file end reads.
-    @Test func aWordPastTheFileEndIsRefused() throws {
-        #expect(throws: SessionFileError.invalidSession(.wordOutsideFile("h"))) {
-            try read(transcribed(), replacing: "2 20000 30000", with: "2 20000 1000001")
-        }
-        #expect(throws: SessionFileError.invalidSession(.wordOutsideFile("h"))) {
-            try read(transcribed(), replacing: "2 20000 30000", with: "2 -1 30000")
-        }
-        #expect(throws: SessionFileError.invalidSession(.wordOutsideFile("h"))) {
-            try read(transcribed(), replacing: "2 20000 30000", with: "2 30001 30000")
-        }
-    }
-
-    @Test func aWordAtTheFileEndReads() throws {
-        let read = try read(transcribed(), replacing: "2 20000 30000", with: "2 999000 1000000")
-        #expect(read.transcripts[TranscriptID(1)]?.words?["h"]?.all.last?.range == 999_000..<1_000_000)
-    }
-
-    /// A line with fewer than four fields, a field that is not an integer, a number below 1, or an
-    /// empty line is refused.
-    @Test func malformedLineIsRefused() throws {
-        for line in ["2 20000 30000", "2 20000 x R&amp;B", "x 20000 30000 R&amp;B", "0 20000 30000 R", "\n"] {
-            #expect(throws: SessionFileError.invalidValue(element: "words", attribute: "line"), "\(line)") {
-                try read(transcribed(), replacing: "2 20000 30000 R&amp;B &lt;now&gt;", with: line)
+    /// A reference whose `file` is not the canonical text of a UUID is refused, so it never names
+    /// a path outside `Transcripts/`.
+    @Test func aFileNameWithAPathIsRefused() throws {
+        let session = try transcribed()
+        let name = try #require(session.transcripts[TranscriptID(1)]?.file.description)
+        for bad in ["../x", name.lowercased(), "\(name).xml", ""] {
+            #expect(throws: SessionFileError.invalidValue(element: "transcript", attribute: "file"), "\(bad)") {
+                try read(session, replacing: #"file="\#(name)""#, with: #"file="\#(bad)""#)
             }
         }
     }
 
-    /// Two `<words>` of one file in one transcript are refused.
+    /// A word past the end of its file does not load its transcript; a word that ends at the file
+    /// end loads.
+    @Test func aWordPastTheFileEndIsNotLoaded() throws {
+        for line in ["2 20000 1000001", "2 -1 30000", "2 30001 30000"] {
+            let opened = try open(transcribed(), replacing: "2 20000 30000", with: line)
+            #expect(onlyNotLoaded(1, in: opened), "\(line)")
+        }
+    }
+
+    @Test func aWordAtTheFileEndLoads() throws {
+        let read = try open(transcribed(), replacing: "2 20000 30000", with: "2 999000 1000000")
+        #expect(read.transcripts[TranscriptID(1)]?.words?["h"]?.all.last?.range == 999_000..<1_000_000)
+    }
+
+    /// A line with fewer than four fields, a field that is not an integer, a number below 1, or an
+    /// empty line does not load its transcript.
+    @Test func malformedLineIsNotLoaded() throws {
+        for line in ["2 20000 30000", "2 20000 x R&amp;B", "x 20000 30000 R&amp;B", "0 20000 30000 R", "\n"] {
+            let opened = try open(transcribed(), replacing: "2 20000 30000 R&amp;B &lt;now&gt;", with: line)
+            #expect(onlyNotLoaded(1, in: opened), "\(line)")
+        }
+    }
+
+    /// Two `<words>` of one file in one transcript file do not load.
     @Test func oneWordsElementPerFile() throws {
-        #expect(throws: SessionFileError.invalidSession(.duplicateID("h"))) {
-            try read(
-                transcribed(), replacing: "</words>", with: "</words><words file=\"h\">3 60000 70000 more</words>")
-        }
+        let opened = try open(
+            transcribed(), replacing: "</words>", with: "</words><words file=\"h\">3 60000 70000 more</words>")
+        #expect(onlyNotLoaded(1, in: opened))
     }
 
-    /// Code gate 1 item 7. A `<transcript>` with no `<words>` is refused: no edit writes one.
-    @Test func aTranscriptWithNoWordsIsRefused() throws {
-        #expect(throws: SessionFileError.invalidValue(element: "transcript", attribute: "words")) {
-            try read(transcribed(), replacing: #"<words file="g">1 40000 50000 yes</words>"#, with: "")
-        }
+    /// Code gate 1 item 7. A transcript file with no `<words>` does not load: no edit writes one.
+    @Test func aTranscriptWithNoWordsIsNotLoaded() throws {
+        let opened = try open(
+            transcribed(), replacing: #"<words file="g">1 40000 50000 yes</words>"#, with: "", in: 2)
+        #expect(onlyNotLoaded(2, in: opened))
     }
 
-    /// A `<words>` of a file that is not in the pool is refused.
-    @Test func unknownFileIsRefused() throws {
-        #expect(throws: SessionFileError.invalidSession(.unknownFile("nope"))) {
-            try read(transcribed(), replacing: #"<words file="h">"#, with: #"<words file="nope">"#)
-        }
+    /// A `<words>` of a file that is not in the pool does not load.
+    @Test func unknownFileIsNotLoaded() throws {
+        let opened = try open(transcribed(), replacing: #"<words file="h">"#, with: #"<words file="nope">"#)
+        #expect(onlyNotLoaded(1, in: opened))
     }
 
-    /// Two words of one number in one file, an empty text, a transcript ID that is not a number
-    /// of 1 or more, and two transcripts of one ID are refused.
+    /// Two words of one number in one file and an empty text do not load their transcript. A
+    /// transcript ID that is not a number of 1 or more, and two references of one ID, are refused.
     @Test func numbersAndIDsAreChecked() throws {
-        #expect(throws: SessionFileError.invalidSession(.duplicateID("1.1"))) {
-            try read(transcribed(), replacing: "2 20000 30000", with: "1 20000 30000")
-        }
-        #expect(throws: SessionFileError.invalidSession(.invalidText(""))) {
-            try read(transcribed(), replacing: "2 20000 30000 R&amp;B &lt;now&gt;", with: "2 20000 30000 ")
-        }
+        let duplicate = try open(transcribed(), replacing: "2 20000 30000", with: "1 20000 30000")
+        #expect(onlyNotLoaded(1, in: duplicate))
+        let empty = try open(transcribed(), replacing: "2 20000 30000 R&amp;B &lt;now&gt;", with: "2 20000 30000 ")
+        #expect(onlyNotLoaded(1, in: empty))
         for id in ["0", "x"] {
             #expect(throws: SessionFileError.invalidValue(element: "transcript", attribute: "id")) {
                 try read(transcribed(), replacing: #"<transcript id="2""#, with: "<transcript id=\"\(id)\"")
@@ -126,6 +150,15 @@ struct TranscriptFileTests {
         #expect(throws: SessionFileError.invalidSession(.duplicateID("1"))) {
             try read(transcribed(), replacing: #"<transcript id="2""#, with: #"<transcript id="1""#)
         }
+    }
+
+    /// T22. A `removeFile` of a file with no words keeps the file name of each transcript.
+    @Test func removeFileWithNoWordsKeepsTheName() throws {
+        var session = try transcribed()
+        try session.addFile(AudioFile(id: "x", path: "x.wav", layout: .mono, length: 1_000))
+        let before = session.transcripts
+        try session.removeFile("x")
+        #expect(session.transcripts == before)
     }
 
     /// T14 (0047). Remove Unused Files takes the words of a removed file from the session and from
@@ -145,17 +178,8 @@ struct TranscriptFileTests {
             #expect(value.transcripts.keys.map(\.number) == [1], "transcript 2 goes with file g")
             #expect(value.transcripts[TranscriptID(1)] == session.transcripts[TranscriptID(1)], "the h words stay")
         }
-        let same = try Session(xml: history.session.checkedData()) == history.session
+        let same = try history.session.reopened() == history.session
         #expect(same, "the pruned session saves")
-    }
-
-    /// T22. A `removeFile` of a file with no words keeps the file name of each transcript.
-    @Test func removeFileWithNoWordsKeepsTheName() throws {
-        var session = try transcribed()
-        try session.addFile(AudioFile(id: "x", path: "x.wav", layout: .mono, length: 1_000))
-        let before = session.transcripts
-        try session.removeFile("x")
-        #expect(session.transcripts == before)
     }
 
     /// T13. "&", "<", a tab that the parser made one space, and a leading space round-trip.
@@ -167,7 +191,7 @@ struct TranscriptFileTests {
         session.addWords([(9, 30_000..<40_000, " lead")], file: "h", transcript: 3)
         #expect(session.words().map(\.text) == ["R&B <x>", " lead"])
 
-        let same = try Session(xml: session.checkedData()) == session
+        let same = try session.reopened() == session
         #expect(same)
     }
 
@@ -181,7 +205,7 @@ struct TranscriptFileTests {
         try session.importTranscript(try TranscriptFile(data: Data(vtt.utf8)), name: "c.vtt", track: "host", at: 0)
         #expect(session.transcripts[TranscriptID(1)]?.words?["h"]?.all.map(\.number) == [1, 2, 3])
 
-        let same = try Session(xml: session.checkedData()) == session
+        let same = try session.reopened() == session
         #expect(same)
     }
 
@@ -206,7 +230,7 @@ struct TranscriptFileTests {
             let named = shown.indices.filter { _ in Bool.random(using: &random) }.map { shown[$0].occurrence }
             try session.cutWords(named)
 
-            let same = try Session(xml: session.checkedData()) == session
+            let same = try session.reopened() == session
             #expect(same)
         }
     }

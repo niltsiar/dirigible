@@ -129,6 +129,45 @@ struct AgentManualTests {
         #expect(Self.steps("cut-a-range").contains("`from` and `to` are arrays"), "the range recipe")
     }
 
+    /// The `record` text, or "" when the tool is missing.
+    static var recordText: (tool: String, seconds: String) {
+        let tool = Tool.all.first { $0.name == "record" }
+        let schema = tool?.listing["inputSchema"] as? [String: Any]
+        let seconds = (schema?["properties"] as? [String: Any])?["seconds"] as? [String: Any]
+        return (tool?.description ?? "", seconds?["description"] as? String ?? "")
+    }
+
+    /// C1: an agent take stops at its `seconds`, so the `record` text and its `seconds` ask for a
+    /// length past the planned end of a live talk.
+    @Test func theRecordRuleAsksForALengthPastThePlan() {
+        let rule = "For a live talk, ask for a length well past the planned end, for example the plan plus 1 hour"
+        #expect(Self.recordText.tool.contains(rule), "the record text")
+        #expect(Self.recordText.seconds.contains(rule), "the seconds text")
+    }
+
+    /// W1: a transcript with no word times gives cues, and a cut removes each whole cue.
+    @Test func theTranscriptRecipeStopsAtCues() {
+        let steps = Self.steps("cut-from-transcript")
+        #expect(steps.contains("Ask the tool for word times (Whisper: word timestamps on)"), "word times")
+        #expect(
+            steps.contains(
+                "When `transcript_import` reports cues, stop and ask the user: a cut removes each whole cue"),
+            "cues")
+    }
+
+    /// N5: two imports of one transcript on two tracks break each cut into single words.
+    @Test func theTranscriptRecipeImportsOnce() {
+        #expect(Self.steps("cut-from-transcript").contains("Import the transcript once, on one track"))
+    }
+
+    /// W3: a silent call track is invisible to the agent, so after a take the agent reads the
+    /// loudness of the new clips, in the `record` text and in the transcript recipe.
+    @Test func theRecordRuleChecksTheTakeLoudness() {
+        let rule = "After a take, run `loudness`: \"none\" for a clip means that its track got no sound; tell the user"
+        #expect(Self.recordText.tool.contains(rule), "the record text")
+        #expect(Self.steps("cut-from-transcript").contains(rule), "the transcript recipe")
+    }
+
     /// W9: the recipe of the tracks names the source tools, and the sound recipe imports at a frame.
     @Test func thePrepareAndSoundRecipesNameTheirTools() {
         let prepare = Self.steps("prepare-tracks")

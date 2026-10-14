@@ -811,7 +811,7 @@ These commands use a transcript with word times, in Whisper JSON or WebVTT. For 
 - `dirigible transcript words Demo.dirigible --match "let me say that again"` writes the words of that phrase, one row each: the occurrence, the start frame, the end frame, the track, and the text, with a tab between them. Case and punctuation do not count. `--from` and `--to` give the words of a frame range, and `--track` the words of one track. It writes at most 200 rows (`--limit`), then a line with the count of the rest. `--json` writes JSON.
 - `dirigible transcript cut Demo.dirigible <occurrence> <occurrence>` cuts the words from all tracks in one edit and closes the gaps, as `clip ripple-delete` does. Words next to each other cut as one range. It writes the frames of each cut range. Each edit, also a cut, changes the occurrences of the words after it: run `dirigible transcript words` again before the next cut. A stale occurrence gives exit 1 and cuts nothing.
 
-The words follow the clips of the import track: a move, a trim, or a cut moves the words with the audio. An edit of another track alone does not move them, so edit all tracks together. The session file keeps the words. A session with a transcript does not open in a version of Dirigible from before the transcripts.
+The words follow the clips of the import track: a move, a trim, or a cut moves the words with the audio. An edit of another track alone does not move them, so edit all tracks together. The package keeps the words, in the `Transcripts` folder. A session with a transcript does not open in a version of Dirigible from before the transcripts.
 
 The text of the tool is English only.
 

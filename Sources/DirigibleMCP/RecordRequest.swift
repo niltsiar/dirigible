@@ -17,6 +17,13 @@ package struct RecordRequest: Sendable, Equatable {
 
     /// The longest take in seconds, 24 h (0041). A take after a click can be this long.
     package static let takeLimit = 86_400.0
+    /// A take stops at its length, also while the talk goes on.
+    static let lengthRule =
+        "For a live talk, ask for a length well past the planned end, for example the plan plus 1 hour: the take "
+        + "stops at seconds, and the user ends it earlier with Stop."
+    /// A silent app track gives the agent no other sign.
+    static let loudnessRule =
+        "After a take, run `loudness`: \"none\" for a clip means that its track got no sound; tell the user."
     /// The rate limit in words: "3 requests in 1 minute".
     package static var askText: String {
         "\(askLimit) requests in \(units(askWindow.components.seconds / 60, "minute"))"
@@ -139,7 +146,8 @@ extension Kind where T == Double {
     }
 }
 
-private let seconds = Param.required("seconds", "The length of the take in seconds, 86400 (24 h) or less.", .number)
+private let seconds = Param.required(
+    "seconds", "The length of the take in seconds, 86400 (24 h) or less. " + RecordRequest.lengthRule, .number)
 private let arm = Param.required("arm", "The track IDs to record.", .strings(minItems: 1))
 private let playhead = Param<Int?>.optional(
     "playhead", "The timeline frame of the take start. The default is the playhead of the window.",
@@ -151,7 +159,8 @@ let recordTools = [
         "Ask the user to record a take. Dirigible shows a consent sheet on the window of the package, and the take "
             + "starts only when the user clicks Record. The call waits \(Int(RecordRequest.answerLimit.components.seconds)) s "
             + "or less for the answer, and gives the take number when the take starts. The take stops after seconds, "
-            + "or earlier when the user clicks Stop: read session_info, and the take ended when recording is gone. The "
+            + "or earlier when the user clicks Stop: read session_info, and the take ended when recording is gone. "
+            + RecordRequest.lengthRule + " " + RecordRequest.loudnessRule + " The "
             + "package must be open in Dirigible, with Let Agents Edit Open Sessions on. No tool records on package files. "
             + "A window grant: when the user turns on Don't ask again until I close this window and clicks Record, later "
             + "record calls of the same connection on the same tracks start with no sheet. A grant ends "

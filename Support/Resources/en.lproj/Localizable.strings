@@ -126,6 +126,7 @@
 "error.artwork.large" = "The artwork can be at most %1$lld x %1$lld pixels. This image is %2$lld x %2$lld pixels.";
 "error.artwork.write" = "Dirigible cannot copy the artwork into the session (error %lld). Check the disk and try again.";
 "error.unused.clips" = "The Clips folder of the session cannot be read (error %lld). No file moved.";
+"error.unused.transcripts" = "The Transcripts folder of the session cannot be read (error %lld). No file moved.";
 "error.unused.backup" = "The backup of %@ cannot be read, or a newer version of Dirigible made it. No file moves until that backup goes.";
 "error.unused.changed" = "An edit during Remove Unused Files uses a file of the list. No file moved. Try again.";
 "error.episode.line" = "Type one line, with no tab and no control character.";
@@ -418,6 +419,7 @@
 "sheet.unused.reason" = "Reason";
 "sheet.unused.reason.pool" = "No clip uses it";
 "sheet.unused.reason.stray" = "Not in the session";
+"sheet.unused.reason.transcript" = "No transcript uses it";
 "sheet.unused.total" = "Files: %lld (%@)";
 "sheet.unused.kept" = "Kept for a backup, Undo, or the clipboard: %lld (%@)";
 "sheet.unused.damaged" = "Damaged backups keep no file: %@";

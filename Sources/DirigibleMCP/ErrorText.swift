@@ -315,6 +315,8 @@ extension UnusedFilesError {
         switch self {
         case .clipsUnreadable(let code):
             "cannot read \(package)/\(clipsFolderName): \(String(cString: strerror(code)))."
+        case .transcriptsUnreadable(let code):
+            "cannot read \(package)/Transcripts: \(String(cString: strerror(code)))."
         case .sessionUnreadable(let error): error.message(package: package)
         case .backupUnreadable(let backup, let error):
             error.message(package: package, file: "\(backupsFolderName)/\(backup.fileName)")

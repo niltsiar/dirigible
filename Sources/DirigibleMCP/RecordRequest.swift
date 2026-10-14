@@ -64,7 +64,7 @@ package enum RecordAnswer: Equatable, Sendable {
     case busy(AgentBusy)
     /// The request or the start was refused with this error, as `dirigible record` refuses it.
     case refused(StudioError)
-    /// A route of a grant track changed during the microphone prompt of a grant take.
+    /// A route of a request track changed after the sheet showed it, or after the grant check.
     case grantChanged
     /// The disk of the package has room for `minutes` of a take on the request tracks, less than
     /// the length (decision 0050).
@@ -98,7 +98,7 @@ package enum RecordAnswer: Equatable, Sendable {
         case .busy(let busy): text = busy.message(package: package)
         case .refused(let error): text = error.message(package: package)
         case .grantChanged:
-            text = "The tracks of the window grant changed during the start. Ask again: the sheet shows."
+            text = "A track route changed during the start. Ask again: the sheet shows."
         case .noRoom(let minutes):
             text = "\(package) has room for \(minutes) min of a take on these tracks. Free disk space, then try again."
         case .tooMany: text = "Too many record requests: 3 in 60 s. Wait, then ask again."

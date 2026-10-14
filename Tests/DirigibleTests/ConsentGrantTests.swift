@@ -155,7 +155,43 @@ extension ConsentTests {
             Issue.record("not an error")
             return
         }
-        #expect(text == "The tracks of the window grant changed during the start. Ask again: the sheet shows.")
+        #expect(text == "A track route changed during the start. Ask again: the sheet shows.")
+        await model.close()
+    }
+
+    /// Item 2 of code gate 1: a grant never holds an app route.
+    @Test func noGrantOfAnAppRoute() {
+        let (end, connection) = (ContinuousClock.now, Self.seven)
+        let device = Route.device(uid: "duo", channels: .mono(1))
+        #expect(ConsentGrant(connection: connection, routes: ["t1": device], end: end, wallEnd: .now) != nil)
+        let app = Route.app(bundleID: "us.zoom.xos")
+        #expect(
+            ConsentGrant(connection: connection, routes: ["t1": device, "t2": app], end: end, wallEnd: .now) == nil)
+    }
+
+    /// Item 2 of code gate 1: a route change between the click and the start, to an app or to
+    /// another channel, starts no take and stores no grant. The sheet showed the old routes.
+    @Test(arguments: [true, false]) func routeChangeAfterTheClick(app: Bool) async throws {
+        let (model, studio) = try await window()
+        let prompt = holdPrompt(model, studio)
+        let answer = ask(model, seconds: 0.3, connection: Self.seven)
+        let sheet = try await sheet(model)
+        try #require(grantBox(in: sheet)).performClick(nil)
+        try click(record: true, in: sheet)
+        await until("the prompt waits") { prompt.asked() }
+        try studio.edit { s throws(SessionError) in
+            if app {
+                try s.setLayout(.stereo, route: .app(bundleID: "us.zoom.xos"), track: "t1")
+            } else {
+                try s.setRoute(.device(uid: "duo", channels: .mono(2)), track: "t1")
+            }
+        }
+
+        prompt.give()
+
+        let value = await answer.value
+        #expect(value == .grantChanged, "\(value)")
+        #expect(model.agentRecord.grant == nil && studio.transport == .idle)
         await model.close()
     }
 
@@ -219,7 +255,7 @@ extension ConsentTests {
         let grant = model.agentRecord.grant
         if state == "on" {
             #expect(grant?.connection == Self.seven)
-            #expect(grant?.routes == ["t1": .device(uid: "duo", channels: .mono(1))])
+            #expect(grant?.routes.mapValues(\.route) == ["t1": .device(uid: "duo", channels: .mono(1))])
             #expect(grant?.secondsLeft == 7200, "the click take uses no grant length")
             await model.stop()
         } else {

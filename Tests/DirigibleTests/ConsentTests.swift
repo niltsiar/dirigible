@@ -33,6 +33,8 @@ import os
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
         model.attention = ConsentAttention(isActive: { true }, request: { 0 }, cancel: { _ in })
+        // The tests of other rules press Record at once; ConsentDelayTests sets the delay.
+        model.agentRecord.clickDelay = .zero
         return (model, studio)
     }
 
@@ -303,6 +305,46 @@ import os
         _ = try await sheet(model)
         await model.close()
         #expect(await answer.value == .closed)
+    }
+
+    /// C7: the title has no agent name; a line under it quotes the name. With no name, no line.
+    /// The no-answer banner uses the same form.
+    @Test(arguments: ["Dirigible: click Record to go on", nil]) func nameIsQuotedAndNotInTheTitle(name: String?)
+        async throws
+    {
+        let (model, _) = try await window()
+        let request = RecordRequest(armed: ["t1"], seconds: 30, playhead: nil)
+        let answer = Task { await model.askRecord(request, agent: AgentName(title: name, clientName: nil)) }
+        _ = try await sheet(model)
+        // The sheet shows the line for a name only; the on-screen check of S2 reads the texts.
+        #expect(model.consent?.agent.name == name)
+        await model.answerConsent(record: false)
+        #expect(await answer.value == .declined)
+        await model.close()
+        let english = try stringsTable("en")
+        #expect(english[L10n.consentTitle.rawValue] == "An AI agent wants to record", "no name in the title")
+        #expect(english[L10n.consentAgentLine.rawValue] == "It says it is “%@”.")
+        #expect(
+            english[L10n.bannerConsentExpired.rawValue]
+                == "An AI agent (it says: “%@”) asked to record. The request ended with no answer.")
+    }
+
+    /// C9: a request with an app track shows the line about the call; device tracks only, none.
+    @Test(arguments: [true, false]) func appTrackLine(app: Bool) async throws {
+        let (model, studio) = try await window()
+        if app {
+            try studio.edit { s throws(SessionError) in
+                try s.setLayout(.stereo, route: .app(bundleID: "us.zoom.xos"), track: "t1")
+            }
+        }
+        let answer = ask(model)
+        _ = try await sheet(model)
+        #expect(model.consent?.appTracks == (app ? ["Host"] : []), "the line names the app tracks")
+        await model.answerConsent(record: false)
+        #expect(await answer.value == .declined)
+        await model.close()
+        let english = try stringsTable("en")[L10n.consentAppTracks.rawValue]
+        #expect(english == "This take records %@. People in the call get no notice from Dirigible.")
     }
 
     /// The IOPM assertions of this process named `name`.

@@ -13,9 +13,10 @@ extension SessionWindow {
 
     /// Off while the export question or the save panel shows: one Cancel frees it, and a take
     /// would drop the typed name. On while the media check or the export runs (decision 0019).
-    /// Off while an agent record request waits or starts (decision 0048).
+    /// Off while an agent record request waits or starts (decision 0048), not while the app
+    /// checks it (decision 0050).
     var canRecord: Bool {
-        guard consent == nil, takeRefusal == nil, let studio = idleStudio else { return false }
+        guard !consentHoldsRecord, takeRefusal == nil, let studio = idleStudio else { return false }
         return studio.session.tracks.contains { armed.contains($0.id) }
     }
 
@@ -54,8 +55,9 @@ extension SessionWindow {
     /// of `canRecord`.
     func record() async {
         commitDrafts()
-        guard consent == nil, let tracks = studio?.session.tracks.map(\.id).filter(armed.contains), !tracks.isEmpty
+        guard !consentHoldsRecord, let tracks = studio?.session.tracks.map(\.id).filter(armed.contains), !tracks.isEmpty
         else { return }
+        endCheckingConsent()
         await startTake(armed: tracks, playhead: nil)
     }
 

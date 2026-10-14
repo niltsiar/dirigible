@@ -39,4 +39,12 @@ struct ToolTextTests {
             AgentBusy.task.message(package: "p")
                 == "p is busy in Dirigible: a take, an import, a level, or a close runs. Try again later.")
     }
+
+    /// Decision 0050 (C19): the record text names the window grant, its ends, and the rate limit.
+    @Test func recordNamesTheWindowGrant() throws {
+        let text = try #require(Tool.all.first { $0.name == "record" }).description
+        for part in ["window grant", "1 h", "2 h", "new connection", "app track", "3 requests"] {
+            #expect(text.contains(part), "\(part)")
+        }
+    }
 }

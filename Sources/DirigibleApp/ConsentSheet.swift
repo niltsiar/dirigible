@@ -13,8 +13,20 @@ struct ConsentSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(verbatim: title).font(.headline)
+            // The name is self-reported, so it is not in the title (decision 0050).
+            Text(L10n.consentTitle.key).font(.headline)
+            if let name = consent.agent.name {
+                Text(verbatim: L10n.consentAgentLine.format(name)).fixedSize(horizontal: false, vertical: true)
+            }
             Text(verbatim: message).fixedSize(horizontal: false, vertical: true)
+            if !consent.appTracks.isEmpty {
+                Label {
+                    Text(verbatim: L10n.consentAppTracks.format(list(consent.appTracks)))
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+            }
             if !consent.over.isEmpty {
                 Label {
                     Text(verbatim: L10n.consentRecordOver.format(list(consent.over), startText))
@@ -34,15 +46,13 @@ struct ConsentSheet: View {
                 Spacer()
                 Button(L10n.consentDontRecord.key, role: .cancel) { Task { await model.answerConsent(record: false) } }
                     .keyboardShortcut(.cancelAction)
-                RecordButton(model: model).fixedSize()
+                // SwiftUI sets the enabled state of a hosted control from its environment.
+                RecordButton(model: model).fixedSize().disabled(!consent.recordEnabled)
             }
         }
         .padding(20)
         .frame(width: 420)
-    }
-
-    private var title: String {
-        consent.agent.name.map { L10n.consentTitle.format($0) } ?? L10n.consentTitleUnnamed.text
+        .onAppear { model.consentSheetShown() }
     }
 
     private var message: String {
@@ -61,7 +71,7 @@ struct ConsentSheet: View {
 
 /// Record of the consent sheet: an AppKit button that refuses the key focus, so Tab and Space
 /// cannot press it with Keyboard navigation on. `.focusable(false)` and `refusesFirstResponder`
-/// do not stop `makeFirstResponder`.
+/// do not stop `makeFirstResponder`. It is disabled until the click delay ends (decision 0050).
 private struct RecordButton: NSViewRepresentable {
     let model: SessionWindow
 

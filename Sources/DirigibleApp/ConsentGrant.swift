@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import DirigibleMCP
 import Foundation
@@ -43,7 +44,30 @@ struct ConsentGrant {
 
 /// The agent record state of a window that outlives one request (decision 0050).
 struct AgentRecordState {
+    /// The most requests that show a sheet or start a grant take on a window in `askWindow`.
+    static let askLimit = 3
+    static let askWindow = Duration.seconds(60)
+
     var grant: ConsentGrant?
-    /// The clock of the grant end. Tests give their own.
+    /// The times of the requests that showed a sheet or started a grant take (C11).
+    var asks: [ContinuousClock.Instant] = []
+    /// The clock of the grant end, the rate limit, and the key time. Tests give their own.
     var now: () -> ContinuousClock.Instant = { .now }
+    /// The key time of the sheet before Record is enabled (C8). Tests of other rules give zero.
+    var clickDelay = Duration.seconds(1)
+    /// False in tests that give the key state of the sheet themselves: the key events of a test
+    /// process are not under the control of the test.
+    var followsKey = true
+    /// Waits until an instant of `now`: the end of the click delay. Tests give their own.
+    var delayWait: @MainActor (ContinuousClock.Instant) async -> Void = { try? await Task.sleep(until: $0) }
+    /// The record time left of the request tracks (C10). Tests give their own.
+    var readRecordTime: @MainActor (Studio, [TrackID]) async -> Duration? = { studio, tracks in
+        await studio.remainingRecordTime(armed: tracks)
+    }
+
+    /// True when `askLimit` requests came in the last `askWindow`. It drops the older times.
+    mutating func tooMany(at now: ContinuousClock.Instant) -> Bool {
+        asks.removeAll { now - $0 >= Self.askWindow }
+        return asks.count >= Self.askLimit
+    }
 }

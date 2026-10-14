@@ -208,7 +208,7 @@ extension SessionWindow {
             agentRecord.grant = given
             grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: false)
         }
-        if case .started(let take) = start { agentTakeStarted(consent, take: take, byGrant: false) }
+        if case .started(let take) = start { agentTakeStarted(consent, take: take) }
         endConsent(answer(start, consent, grant: grant))
     }
 
@@ -325,7 +325,7 @@ extension SessionWindow {
             agentRecord.grant = given
             grant = GrantNote(end: given.wallEnd, secondsLeft: given.secondsLeft, noSheet: true)
         }
-        if case .started(let take) = start { agentTakeStarted(consent, take: take, byGrant: true) }
+        if case .started(let take) = start { agentTakeStarted(consent, take: take) }
         let answer = answer(start, consent, grant: grant)
         if self.consent === consent { endConsent(answer) }
         return answer

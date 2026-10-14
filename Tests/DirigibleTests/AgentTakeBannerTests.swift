@@ -41,7 +41,7 @@ extension ConsentTests {
         let (model, studio) = try await window()
         _ = try await clickTake(model, grant: grant)
         let take = try #require(model.agentRecord.take)
-        #expect(take.take == 1 && take.tracks == ["Host"] && take.agent == "Claude Code" && !take.byGrant)
+        #expect(take.take == 1 && take.tracks == ["Host"] && take.agent == "Claude Code")
         let row = model.agentTakeText(take, now: take.since + .seconds(1))
         #expect(row == L10n.takeAgent.format(1, "Host", "Claude Code", "0:04"), "\(row)")
         // The row shows Stop, and Always Ask Again while a grant lives. The tree of the SwiftUI

@@ -2,6 +2,19 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
+/// Why a level changes nothing: the session refuses it, or a cancel stops it.
+package enum LevelFailure: Error {
+    case session(SessionError)
+    case cancelled
+
+    package var message: String {
+        switch self {
+        case .session(let error): error.message
+        case .cancelled: "the level was cancelled."
+        }
+    }
+}
+
 /// The work of a `level` call or command after its arguments are checked (decisions 0041 and
 /// 0049). It is the one owner of the clip choice, the steps on the files, and the texts of
 /// `dirigible level` and the `level` tool. In the app, `liveJob` runs `Studio.level`.
@@ -23,15 +36,16 @@ package struct LevelWork: Sendable {
 
     /// The level of the chosen clips in `session`: the stdout lines and the report line of the
     /// command. The flag is read last before the caller saves: a cancel keeps `session` as it was
-    /// and gives nil.
+    /// and throws `.cancelled`.
     package func run(
         _ session: inout Session, package: URL, progress: @escaping @Sendable (Double) -> Void = { _ in },
         isCancelled: @escaping @Sendable () -> Bool = { false }
-    ) throws(SessionError) -> (lines: [String], report: String)? {
-        let ids = try chosen(in: session)
+    ) throws(LevelFailure) -> (lines: [String], report: String) {
+        let ids: [ClipID]
+        do throws(SessionError) { ids = try chosen(in: session) } catch { throw .session(error) }
         let (leveled, levels) = autoLevel(
             Set(ids), mode, of: session, in: package, progress: progress, isCancelled: isCancelled)
-        guard !isCancelled() else { return nil }
+        guard !isCancelled() else { throw .cancelled }
         let report = LevelReport(levels, before: session)
         session = leveled
         return (Self.lines(ids, levels), Self.text(of: report))
@@ -62,16 +76,17 @@ package struct LevelWork: Sendable {
     /// The job of a tool call on the files, under the package lock. A level that changes no gain
     /// writes nothing.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
-        do throws(EditFailure<SessionError>) {
+        do throws(EditFailure<LevelFailure>) {
             let result = try editPackageCore(package, ripple: false, writeUnchanged: false) {
-                session, _ throws(SessionError) in
+                session, _ throws(LevelFailure) in
                 try run(
                     &session, package: package, progress: { control.report($0) },
                     isCancelled: { control.isCancelled() })
             }
-            // A cancelled call gets no answer, so no one reads this text.
-            guard let result else { return cancelledMessage }
             return (result.lines + [result.report]).joined(separator: "\n")
+        } catch .body(.cancelled) {
+            // A cancelled call gets no answer, so no one reads this text.
+            throw ToolError(cancelledMessage)
         } catch {
             throw ToolError(error.message(package: path))
         }

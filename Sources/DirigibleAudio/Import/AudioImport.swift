@@ -127,11 +127,7 @@ public func removeMadeFiles(_ files: [URL]) {
 }
 
 /// `removeMadeFiles` off the main actor, for a caller that awaits it.
-@concurrent nonisolated func removeMadeFiles(_ files: [URL]) async {
-    // The typed reference picks the synchronous overload; a plain call here would call itself.
-    let remove: ([URL]) -> Void = removeMadeFiles
-    remove(files)
-}
+@concurrent nonisolated func removeMadeFilesOffMain(_ files: [URL]) async { removeMadeFiles(files) }
 
 /// Opens `source` for a conversion: a descriptor, held open so that a read error with no errno can
 /// be checked on the same file, and the `AVAudioFile`. The caller closes the descriptor.

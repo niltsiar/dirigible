@@ -39,6 +39,17 @@ extension EditFailure where Body == SessionError {
     }
 }
 
+extension EditFailure where Body == LevelFailure {
+    package func message(package: String) -> String {
+        switch self {
+        case .file(let error): error.message(package: package)
+        case .pendingTake: pendingTakeMessage(package)
+        case .splitTake: splitTakeMessage(package)
+        case .body(let error): error.message
+        }
+    }
+}
+
 extension EditFailure where Body == PasteError {
     package func message(package: String) -> String {
         switch self {

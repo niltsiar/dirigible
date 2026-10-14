@@ -15,7 +15,7 @@ T9 cuts the two target sentences of agent-transcript.json on all tracks: it pass
 each track are the pristine clips after a ripple delete of the second range, then of the first, with
 the same ranges on each track; each range removes its whole sentence, no word of a neighbour, and at
 most 0.25 s of silence on each side; and all else (also the file, the gain, and the fades of each
-clip) equals the pristine session.
+clip) equals the pristine session, but for the version.
 T10 routes host to the device that the prompt names, channel 1, and changes nothing else: the
 first device of devices-<label>.txt, or another device with the same name.
 Columns: label, task, variant, verdict, tool calls, calls with isError, skill (yes when a Skill
@@ -198,12 +198,12 @@ def success(task, s, pristine, mp3, calls, final, devices):
             return ranges if ripple(ripple([c[:3] for c in clips(pristine, track)], a2, b2), a1, b1) == got else None
 
         def kept(session):
-            """The session with each clip as its fields other than the ID and the frames: the cut
-            changes only those."""
+            """The session with no version, and each clip as its fields other than the ID and the
+            frames: the cut changes only those, and a transcript import sets version 8."""
             def rest(c):
                 return json.dumps({k: v for k, v in c.items() if k not in ('id', 'start', 'offset', 'length')},
                                   sort_keys=True)
-            return {**session, 'tracks': [{**t, 'clips': sorted({rest(c) for c in t['clips']})}
+            return {**{k: v for k, v in session.items() if k != 'version'}, 'tracks': [{**t, 'clips': sorted({rest(c) for c in t['clips']})}
                                           for t in session['tracks']]}
         ranges = cuts('host')
         return (ranges is not None and ranges == cuts('guest') and kept(s) == kept(pristine)

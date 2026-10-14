@@ -38,7 +38,7 @@ struct StudioImportCancelTests {
         gate.open()
 
         #expect(await import1.value == .audioImport(.cancelled))
-        #expect(fixture.clipsNames == names, "the WAV stays: \(fixture.clipsNames)")
+        #expect(fixture.clipsNames == names, "the cancel left the WAV: \(fixture.clipsNames)")
         #expect(fixture.xml == xml && !studio.canUndo, "a cancelled import saved")
     }
 

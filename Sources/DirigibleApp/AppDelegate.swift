@@ -314,6 +314,7 @@ import UniformTypeIdentifiers
     /// Open events come before this call (probe P7).
     func applicationDidFinishLaunching(_ notification: Notification) {
         watchKeys()
+        watchNotices()
         startAgentsIfOn()
         Task { await openAtLaunch() }
     }

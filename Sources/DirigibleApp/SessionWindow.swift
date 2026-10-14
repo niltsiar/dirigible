@@ -133,6 +133,7 @@ import SwiftUI
     /// The wait of the answer time of a request. Tests hold it with a gate.
     @ObservationIgnored var consentWait: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
     @ObservationIgnored var attention = ConsentAttention()
+    @ObservationIgnored var notice = AgentTakeNotice()
     /// The window grant of an agent and its clock (decision 0050).
     var agentRecord = AgentRecordState()
     /// The space for the finalize of the pending take, when one waits.

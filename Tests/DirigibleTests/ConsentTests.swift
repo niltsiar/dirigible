@@ -33,6 +33,8 @@ import os
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
         model.attention = ConsentAttention(isActive: { true }, request: { 0 }, cancel: { _ in })
+        // A test process has no bundle for the notification center.
+        model.notice = AgentTakeNotice(authorize: {}, post: { _, _, _, _ in }, remove: { _ in })
         // The tests of other rules press Record at once; ConsentDelayTests sets the delay.
         model.agentRecord.clickDelay = .zero
         return (model, studio)

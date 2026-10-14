@@ -37,7 +37,7 @@ struct ConsentSheet: View {
             }
             if consent.offersGrant {
                 VStack(alignment: .leading, spacing: 4) {
-                    GrantBox(consent: consent).fixedSize()
+                    GrantBox(consent: consent) { model.grantBoxTurnedOn() }.fixedSize()
                     Text(L10n.consentGrantHelp.key).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -96,6 +96,7 @@ private struct RecordButton: NSViewRepresentable {
 /// Space cannot change it with Keyboard navigation on. Only a click changes it.
 private struct GrantBox: NSViewRepresentable {
     let consent: ConsentRequest
+    let turnedOn: @MainActor () -> Void
 
     func makeNSView(context: Context) -> GrantCheckbox {
         let box = GrantCheckbox(
@@ -104,14 +105,22 @@ private struct GrantBox: NSViewRepresentable {
         return box
     }
 
-    func updateNSView(_ box: GrantCheckbox, context: Context) { context.coordinator.consent = consent }
+    func updateNSView(_ box: GrantCheckbox, context: Context) {
+        (context.coordinator.consent, context.coordinator.turnedOn) = (consent, turnedOn)
+    }
 
-    func makeCoordinator() -> Click { Click(consent) }
+    func makeCoordinator() -> Click { Click(consent, turnedOn) }
 
     @MainActor final class Click: NSObject {
         weak var consent: ConsentRequest?
-        init(_ consent: ConsentRequest) { self.consent = consent }
-        @objc func toggle(_ box: NSButton) { consent?.grantChecked = box.state == .on }
+        var turnedOn: @MainActor () -> Void
+        init(_ consent: ConsentRequest, _ turnedOn: @escaping @MainActor () -> Void) {
+            (self.consent, self.turnedOn) = (consent, turnedOn)
+        }
+        @objc func toggle(_ box: NSButton) {
+            consent?.grantChecked = box.state == .on
+            if box.state == .on { turnedOn() }
+        }
     }
 }
 

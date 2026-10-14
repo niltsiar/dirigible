@@ -199,8 +199,9 @@ extension AutoLevelTests {
     }
 
     /// C17 (decision 0049): the fraction is the frames done over the frames of all clips. The
-    /// clips run in parallel, so the values do not fall, stay at most 1, and end at 1. The first
-    /// value is one block of one clip: 0.25 for `ca` or 65,536 / 192,000 for `cb`.
+    /// clips run in parallel, and each report runs after the lock opens, so the values can come out
+    /// of order. They stay at most 1, and the largest is 1. The smallest is one block of one clip:
+    /// 0.25 for `ca` or 65,536 / 192,000 for `cb`.
     @Test func theFractionIsFramesOverAllFrames() throws {
         let package = try MixPackage()
         try package.addFile("a", channels: tone([(1, -30)]))
@@ -212,9 +213,36 @@ extension AutoLevelTests {
             ["ca", "cb"], .eachClip, of: package.session, in: package.url,
             progress: { value in values.withLock { $0.append(value) } })
         let all = values.withLock { $0 }
-        #expect(zip(all, all.dropFirst()).allSatisfy { $0 <= $1 }, "a value fell: \(all)")
-        #expect(all.allSatisfy { $0 <= 1 } && all.last == 1, "\(all)")
-        #expect((all.first ?? 1) < 0.35, "the first value is one block of one clip: \(all)")
+        #expect(all.allSatisfy { $0 <= 1 } && all.max() == 1, "\(all)")
+        #expect((all.min() ?? 1) < 0.35, "the smallest value is one block of one clip: \(all)")
+    }
+
+    /// `autoLevel` calls `progress` after its lock opens, so a slow report (a stdout write) of one
+    /// clip does not stop the report of the other clip (code gate 3 item 4). The first call waits
+    /// for a second call, with a limit; under the lock the second call cannot come.
+    @Test func aSlowReportDoesNotHoldTheOtherClip() throws {
+        let package = try MixPackage()
+        try package.addFile("a", channels: tone([(3, -30)]))
+        try package.addFile("b", channels: tone([(3, -30)]))
+        try package.addTrack("t1", layout: .stereo, clip: "ca", file: "a", start: 0, offset: 0, length: 144_000)
+        try package.addTrack("t2", layout: .stereo, clip: "cb", file: "b", start: 0, offset: 0, length: 144_000)
+        let calls = OSAllocatedUnfairLock(initialState: (count: 0, inside: 0, overlap: false))
+        _ = autoLevel(
+            ["ca", "cb"], .eachClip, of: package.session, in: package.url,
+            progress: { _ in
+                let first = calls.withLock { state in
+                    (state.count, state.inside) = (state.count + 1, state.inside + 1)
+                    if state.inside > 1 { state.overlap = true }
+                    return state.count == 1
+                }
+                // The second clip waits for a free GCD thread: 7.3 s in a parallel run of the suite.
+                let end = ContinuousClock.now + .seconds(25)
+                while first, !calls.withLock({ $0.overlap }), ContinuousClock.now < end {
+                    Thread.sleep(forTimeInterval: 0.001)
+                }
+                calls.withLock { $0.inside -= 1 }
+            })
+        #expect(calls.withLock { $0.overlap }, "the report of one clip waited for the report of the other clip")
     }
 
     /// A set flag stops the measure at the next block of a long clip (decision 0049): the clip of

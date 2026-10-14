@@ -68,8 +68,9 @@ let levelTolerance = 0.05
 /// It reads the files of all clips in parallel and blocks until the end, so never call it on the
 /// main actor or on a real-time thread.
 ///
-/// `progress` gets the frames done over the frames of all clips, under one lock, so the values
-/// never fall (decision 0049). Each iteration reads `isCancelled` first, and `clipLoudness` reads
+/// `progress` gets the frames done over the frames of all clips (decision 0049). It runs on the
+/// threads of the clips, after the lock opens, so a value can come after a larger one: the caller
+/// keeps the largest. Each iteration reads `isCancelled` first, and `clipLoudness` reads
 /// it before each block. A cancel leaves the other clips unmeasured, so the result is not a level:
 /// the caller reads its flag again after the return and keeps nothing.
 public func autoLevel(
@@ -89,10 +90,12 @@ public func autoLevel(
         let step = { (frames: Int) in
             let delta = frames - counted
             counted = frames
-            state.withLock { state in
+            // The report can write to stdout, so it runs after the lock opens.
+            let done = state.withLock { state in
                 state.done += delta
-                progress(Double(state.done) / total)
+                return state.done
             }
+            progress(Double(done) / total)
         }
         // A throw is a cancel or no free descriptor: the clip has no entry and no more progress.
         guard

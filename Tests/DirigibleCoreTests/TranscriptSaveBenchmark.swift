@@ -3,15 +3,17 @@ import Testing
 
 @testable import DirigibleCore
 
-/// T13b (decision 0055): a 3 h session with a transcript of 27 000 words. One edit (a gain change)
-/// through `History.edit` compares two sessions in 5 ms or less, and `checkedData` (the XML and its
-/// read-back) plus the write to the disk take 300 ms or less, optimized
-/// (`make bench FILTER=TranscriptSaveBenchmark`). A miss is a plan change to candidate B.
+/// T13b (decision 0055): a 3 h session with a transcript of 27 000 words, optimized
+/// (`make bench FILTER=TranscriptSaveBenchmark`): (a) one edit (a gain change) through
+/// `History.edit` compares two sessions in 5 ms or less; (b) its autosave writes no transcript
+/// file, and `checkedData` plus the write take 300 ms or less; (c) the first save after a change of
+/// the words (encode, check, write) takes 300 ms or less; (d) an open (read, decode) takes 300 ms
+/// or less.
 struct TranscriptSaveBenchmark {
     #if DEBUG
-        static let budgets = (compare: Duration.milliseconds(100), save: Duration.seconds(3))
+        static let budgets = (compare: Duration.milliseconds(100), file: Duration.seconds(3))
     #else
-        static let budgets = (compare: Duration.milliseconds(5), save: Duration.milliseconds(300))
+        static let budgets = (compare: Duration.milliseconds(5), file: Duration.milliseconds(300))
     #endif
 
     /// 3 h at 48 kHz on one track, a word each 0.4 s.
@@ -29,14 +31,21 @@ struct TranscriptSaveBenchmark {
         return session
     }
 
+    /// The p90 of 10 runs.
+    static func p90(_ times: [Duration]) -> Duration { times.sorted()[8] }
+
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func anEditAndASaveOfThreeHours() throws {
-        let session = try Self.session()
+    func theTranscriptFilePathsOfThreeHours() throws {
+        var session = try Self.session()
         #expect(session.words().count == 27_000)
         let package = FileManager.default.temporaryDirectory.appending(path: "TranscriptSave-\(UUID())/E.dirigible")
         defer { try? FileManager.default.removeItem(at: package.deletingLastPathComponent()) }
+        let transcripts = package.appending(path: "Transcripts")
+        try session.write(to: package)
         var compares: [Duration] = []
-        var saves: [Duration] = []
+        var autosaves: [Duration] = []
+        var changes: [Duration] = []
+        var opens: [Duration] = []
         for n in 0..<10 {
             var history = History(session)
             let start = ContinuousClock.now
@@ -44,13 +53,34 @@ struct TranscriptSaveBenchmark {
                 try session.setGain(Gain(dB: Double(n % 3) - 1)!, track: "host")
             }
             compares.append(ContinuousClock.now - start)
-            let save = ContinuousClock.now
+            let files = try FileManager.default.contentsOfDirectory(atPath: transcripts.path)
+            let autosave = ContinuousClock.now
             try history.session.write(to: package)
-            saves.append(ContinuousClock.now - save)
+            autosaves.append(ContinuousClock.now - autosave)
+            #expect(try FileManager.default.contentsOfDirectory(atPath: transcripts.path) == files)
+
+            session = history.session
+            let id = TranscriptID(1)
+            let words = try #require(session.transcripts[id]?.words?["h"]?.all)
+            session.setWords(Array(words.dropLast()), file: "h", transcript: id)
+            let change = ContinuousClock.now
+            try session.write(to: package)
+            changes.append(ContinuousClock.now - change)
+
+            let open = ContinuousClock.now
+            let opened = try Session(contentsOf: package)
+            opens.append(ContinuousClock.now - open)
+            #expect(opened.transcriptsNotLoaded.isEmpty)
         }
-        let (compare, write) = (compares.sorted()[8], saves.sorted()[8])
-        print("bench report: TranscriptSaveBenchmark edit p90 \(compare), save p90 \(write)")
+        let (compare, autosave, change, open) = (
+            Self.p90(compares), Self.p90(autosaves), Self.p90(changes), Self.p90(opens)
+        )
+        print(
+            "bench report: TranscriptSaveBenchmark edit p90 \(compare), autosave p90 \(autosave), "
+                + "words change save p90 \(change), open p90 \(open)")
         expectWithinBudget(compare, Self.budgets.compare, "the edit of 27 000 words takes \(compare)")
-        expectWithinBudget(write, Self.budgets.save, "the save of 27 000 words takes \(write)")
+        expectWithinBudget(autosave, Self.budgets.file, "the autosave takes \(autosave)")
+        expectWithinBudget(change, Self.budgets.file, "the first save after a change of the words takes \(change)")
+        expectWithinBudget(open, Self.budgets.file, "the open takes \(open)")
     }
 }

@@ -50,6 +50,8 @@ struct AgentTake: Equatable {
     let tracks: [String]
     let seconds: Double
     let since: ContinuousClock.Instant
+    /// The ID of the notification of the take, from the start to the end.
+    let noticeID = UUID().uuidString
 }
 
 /// The agent record state of a window that outlives one request (decision 0050).

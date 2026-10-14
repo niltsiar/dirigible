@@ -20,8 +20,8 @@ extension SessionWindow {
         let text = agentTakeText(started)
         if !attention.isActive() {
             attention.inform()
-            let info = [AgentTakeNotice.packageKey: url.path, AgentTakeNotice.takeKey: "\(take)"]
-            notice.post(AgentTakeNotice.id(url, take: take), url.deletingPathExtension().lastPathComponent, text, info)
+            let info = [AgentTakeNotice.idKey: started.noticeID]
+            notice.post(started.noticeID, url.deletingPathExtension().lastPathComponent, text, info)
         }
         chrome?.announce(text, .high)
         app?.updateAgentBadge()
@@ -73,9 +73,10 @@ extension SessionWindow {
         }
     }
 
-    /// Stop of the notification of `take`: it stops only that agent take, while it records.
-    func stopAgentTake(_ take: Int) async {
-        guard agentRecord.take?.take == take, studio?.transport == .recording(take: take) else { return }
+    /// Stop of the notification `id`: it stops only that agent take, while it records.
+    func stopAgentTake(_ id: String) async {
+        guard let take = agentRecord.take, take.noticeID == id, studio?.transport == .recording(take: take.take)
+        else { return }
         await stop()
     }
 
@@ -84,8 +85,8 @@ extension SessionWindow {
     func grantBoxTurnedOn() { notice.authorize() }
 
     private func agentTakeEnded(_ take: Int) {
-        notice.remove(AgentTakeNotice.id(url, take: take))
-        guard agentRecord.take?.take == take else { return }
+        guard let ended = agentRecord.take, ended.take == take else { return }
+        notice.remove(ended.noticeID)
         agentRecord.take = nil
         app?.updateAgentBadge()
     }

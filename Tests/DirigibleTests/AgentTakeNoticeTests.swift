@@ -39,38 +39,44 @@ extension ConsentTests {
             let take = try #require(model.agentRecord.take)
             let post = try #require(notices.posts.first)
             #expect(notices.posts.count == 1)
-            #expect(post.id == AgentTakeNotice.id(model.url, take: 1) && post.title == "consent")
+            #expect(post.id == take.noticeID && post.title == "consent")
             #expect(post.body == model.agentTakeText(take, now: take.since))
-            #expect(post.info == [AgentTakeNotice.packageKey: model.url.path, AgentTakeNotice.takeKey: "1"])
+            #expect(post.info == [AgentTakeNotice.idKey: take.noticeID])
         }
         await model.stop()
         await model.close()
     }
 
-    /// Stop of the notification ends that agent take, and the take end removes the notification.
+    /// Stop of the notification ends that agent take, also after a move of the package, and the
+    /// take end removes the notification.
     @Test func noticeStopEndsTheTake() async throws {
         let (model, studio) = try await window()
         let notices = watchNotices(model, active: false)
         _ = try await clickTake(model, seconds: 30)
-        await app.noticeStop(model.url, take: 1)
+        // The user info goes through the decode of the delegate, as from the notification center.
+        let posted = try #require(notices.posts.first)
+        app.rekey(model, to: folder.url.appending(path: "moved.dirigible"))
+        let id = try #require(AgentTakeNotice.id(of: posted.info))
+        await app.noticeStop(id)
+        #expect(studio.transport != .recording(take: 1), "Stop of the notification stopped the take")
         await until("the take ends") { studio.transport == .idle && model.agentRecord.take == nil }
-        #expect(notices.removed == [AgentTakeNotice.id(model.url, take: 1)])
+        #expect(notices.removed == [posted.id])
         await model.close()
     }
 
     /// The Stop of the notification of agent take 1 does not stop take 2 of the person.
     @Test func oldStopKeepsAPersonTake() async throws {
         let (model, studio) = try await window()
-        _ = watchNotices(model, active: false)
+        let notices = watchNotices(model, active: false)
         _ = try await clickTake(model)
+        let first = try #require(notices.posts.first?.id)
         await model.stop()
         await until("the agent take ends") { studio.transport == .idle && model.agentRecord.take == nil }
         model.armed = ["t1"]
         await model.record()
         #expect(studio.transport == .recording(take: 2))
 
-        await app.noticeStop(model.url, take: 1)
-        await app.noticeStop(model.url, take: 2)
+        await app.noticeStop(first)
         #expect(studio.transport == .recording(take: 2), "the take of the person goes on")
         await model.stop()
         await model.close()

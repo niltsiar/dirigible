@@ -91,9 +91,28 @@ struct Anchors: Hashable, Sendable {
     }
 }
 
-/// An imported transcript: its anchors by file (decision 0055).
+/// An imported transcript: its anchors by file, and the name of the file that holds them in
+/// `Transcripts/` (decision 0055).
 struct Transcript: Hashable, Sendable {
     let id: TranscriptID
     var name: String
-    var words: [FileID: Anchors]
+    /// A change of the words gives a new name, so a file never changes after its first write.
+    private(set) var file: TranscriptFileName
+    /// Nil while the file of the words did not load.
+    var words: [FileID: Anchors]? {
+        didSet { if words != oldValue { file = TranscriptFileName() } }
+    }
+
+    /// A new transcript, with a new file name.
+    init(id: TranscriptID, name: String, words: [FileID: Anchors]?) {
+        self.init(id: id, name: name, file: TranscriptFileName(), words: words)
+    }
+
+    /// The reader and the load give the name of the reference, so an open and a save keep the file.
+    init(id: TranscriptID, name: String, file: TranscriptFileName, words: [FileID: Anchors]?) {
+        self.id = id
+        self.name = name
+        self.file = file
+        self.words = words
+    }
 }

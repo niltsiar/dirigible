@@ -32,7 +32,7 @@ struct TranscriptImportTests {
             try whisper([("over", 1.0, 1.25), ("in", 2.0, 2.5)]), name: "t", track: "host", at: 50_000)
 
         #expect(report.kept == 2 && report.skipped == 0 && report.untimed == 0)
-        let anchors = session.transcripts[report.id]?.words["h"]?.all
+        let anchors = session.transcripts[report.id]?.words?["h"]?.all
         #expect(anchors?.map(\.range) == [20_000..<30_000, 66_000..<90_000], "file frames, clamped to the clip")
         #expect(session.words().map(\.range) == [100_000..<110_000, 146_000..<170_000])
     }

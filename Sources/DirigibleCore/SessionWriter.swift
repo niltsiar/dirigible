@@ -243,8 +243,10 @@ extension Session {
     fileprivate func transcriptsElement() -> XMLElement {
         let list = element("transcripts")
         for transcript in transcripts.values.sorted(by: { $0.id < $1.id }) {
-            let node = element("transcript", ("id", transcript.id.description), ("name", transcript.name))
-            for (file, anchors) in transcript.words.sorted(by: { $0.key < $1.key }) {
+            let node = element(
+                "transcript", ("id", transcript.id.description), ("name", transcript.name),
+                ("file", transcript.file.description))
+            for (file, anchors) in (transcript.words ?? [:]).sorted(by: { $0.key < $1.key }) {
                 let lines = anchors.all.map { "\($0.number) \($0.range.lowerBound) \($0.range.upperBound) \($0.text)" }
                 let words = XMLElement(name: "words", stringValue: lines.joined(separator: "\n"))
                 add(("file", file.rawValue), to: words)

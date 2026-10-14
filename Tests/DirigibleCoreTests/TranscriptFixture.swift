@@ -20,7 +20,9 @@ extension Session {
         let id = TranscriptID(transcript)
         var stored = transcripts[id] ?? Transcript(id: id, name: "t\(transcript)", words: [:])
         let added = words.map { Anchor(number: $0.0, range: $0.1, text: $0.2) }
-        stored.words[file] = Anchors((stored.words[file]?.all ?? []) + added)
+        var all = stored.words ?? [:]
+        all[file] = Anchors((all[file]?.all ?? []) + added)
+        stored.words = all
         transcripts[id] = stored
     }
 

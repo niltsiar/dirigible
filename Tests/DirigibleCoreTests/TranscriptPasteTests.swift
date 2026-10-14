@@ -121,11 +121,11 @@ struct TranscriptPasteTests {
         var source = try source()
         source.transcripts = [:]
         source.addWords([(2, 1_001..<1_003, "b"), (1, 1_002..<1_004, "a")], file: "h")
-        #expect(source.transcripts[TranscriptID(1)]?.words["h"]?.all.map(\.number) == [2, 1])
+        #expect(source.transcripts[TranscriptID(1)]?.words?["h"]?.all.map(\.number) == [2, 1])
         var target = try target(rate: 44_100, length: 441_000)
         try paste(try source.excerpt(of: ["H"]), into: &target)
 
-        #expect(target.transcripts[TranscriptID(1)]?.words["h2"]?.all.map(\.number) == [1, 2])
+        #expect(target.transcripts[TranscriptID(1)]?.words?["h2"]?.all.map(\.number) == [1, 2])
         let same = try Session(xml: target.checkedData()) == target
         #expect(same)
     }

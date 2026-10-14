@@ -37,7 +37,7 @@ struct MCPTranscriptToolTests {
         let cut = try await call([("transcript_cut", ["occurrences": named])], on: tool)
         let cliCut = try await cli.run(["transcript", "cut", "PKG"] + named)
         #expect(cut.map(\.text) == [String(cliCut.stdout.dropLast())] && !cut[0].isError)
-        #expect(try tool.xml() == cli.xml(), "the tools and the commands give the same session.xml")
+        #expect(try tool.holdsTheSameSession(as: cli), "the tools and the commands give the same session.xml")
 
         let stale = try await call([("transcript_cut", ["occurrences": named])], on: tool)
         let cliStale = try await cli.run(["transcript", "cut", "PKG"] + named)
@@ -58,9 +58,9 @@ struct MCPTranscriptToolTests {
             try await call([("transcript_import", ["text": text, "track": "host"])], on: unnamed),
         ]
         #expect(results.map { $0[0].text } == Array(repeating: "1\nImported 95 words.", count: 3))
-        #expect(try byPath.xml() == byText.xml(), "the text and the path give the same session.xml")
+        #expect(try byPath.holdsTheSameSession(as: byText), "the text and the path give the same session.xml")
         let xml = String(decoding: try unnamed.xml(), as: UTF8.self)
-        #expect(xml.contains(#"<transcript id="1" name="transcript">"#))
+        #expect(xml.contains(#"<transcript id="1" name="transcript" file=""#))
     }
 
     /// T21: both `path` and `text`, or neither, is refused with no change; a bad file names its

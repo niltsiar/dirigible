@@ -153,7 +153,7 @@ struct TranscriptCutTests {
         try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 100_000), on: "host")
         session.addWords([(1, 10_000..<20_000, "a")], file: "h")
         let old = session.occurrences([1])
-        session.transcripts[TranscriptID(1)]?.words["h"] = Anchors([
+        session.transcripts[TranscriptID(1)]?.words?["h"] = Anchors([
             Anchor(number: 1, range: 12_000..<20_000, text: "a")
         ])
 

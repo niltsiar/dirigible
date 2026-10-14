@@ -48,8 +48,8 @@ public struct Excerpt: Hashable, Sendable {
         files = pool.filter { named.contains($0.key) }
         self.transcripts = transcripts.compactMapValues { transcript in
             var kept = transcript
-            kept.words = transcript.words.filter { named.contains($0.key) }
-            return kept.words.isEmpty ? nil : kept
+            kept.words = transcript.words?.filter { named.contains($0.key) }
+            return kept.words?.isEmpty == false ? kept : nil
         }
     }
 
@@ -71,9 +71,11 @@ public struct Excerpt: Hashable, Sendable {
         mapped.pastesWords = true
         mapped.transcripts = transcripts.mapValues { transcript in
             var moved = transcript
-            moved.words = Dictionary(
-                transcript.words.compactMap { file, anchors in records[file].map { ($0.id, anchors) } },
-                uniquingKeysWith: { first, _ in first })
+            moved.words = transcript.words.map { words in
+                Dictionary(
+                    words.compactMap { file, anchors in records[file].map { ($0.id, anchors) } },
+                    uniquingKeysWith: { first, _ in first })
+            }
             return moved
         }
         return mapped
@@ -183,7 +185,7 @@ extension Session {
         // Only a paste from another package adds words: its files are new records here. Each source
         // transcript gets a new ID, so a paste never merges two transcripts (decision 0055).
         for source in excerpt.transcripts.values.sorted(by: { $0.id < $1.id })
-        where excerpt.pastesWords && !source.words.isEmpty {
+        where excerpt.pastesWords && source.words?.isEmpty == false {
             let id = copy.nextTranscriptID
             copy.transcripts[id] = Transcript(id: id, name: source.name, words: source.words)
         }

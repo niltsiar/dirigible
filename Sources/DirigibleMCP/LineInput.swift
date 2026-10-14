@@ -53,13 +53,19 @@ package final class LineInput {
 
     /// True when a buffered `notifications/cancelled` names `requestID`.
     private func cancels(_ requestID: NSObject) -> Bool {
-        buffer.split(separator: UInt8(ascii: "\n")).contains { line in
+        // A client that sends many lines at once fills the buffer: a parse of each line on each
+        // call is quadratic, so parse only when a cancel can be in the buffer.
+        guard buffer.range(of: Self.cancelMethod) != nil else { return false }
+        return buffer.split(separator: UInt8(ascii: "\n")).contains { line in
             guard let message = Self.object(line), message["method"] as? String == "notifications/cancelled",
                 let params = message["params"] as? [String: Any]
             else { return false }
             return (params["requestId"] as? NSObject)?.isEqual(requestID) == true
         }
     }
+
+    // No slash: a JSON writer can escape "/" as "\/".
+    private static let cancelMethod = Data("cancelled".utf8)
 
     private static func object(_ line: Data) -> [String: Any]? {
         (try? JSONSerialization.jsonObject(with: line)) as? [String: Any]

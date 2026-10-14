@@ -183,12 +183,13 @@ public struct UnusedFiles: Hashable, Sendable {
         let used = Set(session.tracks.flatMap { $0.clips.map(\.file) })
         let named = Set(session.files.values.map { normalized($0.path) })
         let usedNames = Set(session.files.values.filter { used.contains($0.id) }.map { normalized($0.path) })
+        let transcriptFiles = session.transcriptFiles
         let live = items.filter { item in
             switch item.kind {
             case .pool(let id):
                 session.files[id] != nil && !used.contains(id) && !usedNames.contains(normalized(item.path))
             case .stray: !named.contains(normalized(item.path))
-            case .transcript(let name): !session.transcriptFiles.contains(name)
+            case .transcript(let name): !transcriptFiles.contains(name)
             }
         }
         return UnusedFiles(items: live, kept: kept, damagedBackups: damagedBackups, notFiles: notFiles)

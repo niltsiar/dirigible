@@ -14,7 +14,7 @@ Prefer an integration test: call a module through its public API with real input
 3. **Write the failing test first.** The test encodes intended behavior, not the current implementation. Assert a literal expected value or an observable effect: a file on disk, a sample count, a level in dBFS within a stated tolerance, a parsed XML element. Derive a value that the user reads in a sentence ("less than N min") from that sentence, not from a review fix, and test its exact boundary. Test a trigger (a command, a key) in each start state: the window closed or shown, the focus in each control. Read `references/test-harness.md` when the test drives the UI, compares a `CGFloat`, or holds the pool, a preference, or a seam.
 4. **Run the new test before the fix.** Confirm a run-time failure, not a compile error, for the intended reason (stub a new API), or correct the test. Save the red output to a log.
 5. **Make the smallest production change** that satisfies the test.
-6. **Run the slice tests:** `make check-changed FILTER='<tests of the slice>' > <run>/logs/<name>.log 2>&1`. The push check runs all tests.
+6. **Run the slice tests:** `make check-changed FILTER='<tests of the slice>' > <run>/logs/<name>.log 2>&1`: red before the fix, green after it. The push check runs all tests.
 7. **Commit.** A failing test and its fix go in one commit, with the red log path in `decisions.tsv`.
 
 ## No failing test

@@ -71,7 +71,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interro
 
 1. Each slice follows the **tdd** skill. No other check runs before a commit. Commit the slice before a file of the next slice.
 2. Use Conventional Commits (`AGENTS.md`).
-3. After each slice, log a row and tick `run.md` with the minutes. Only the push check runs the full suite.
+3. After each slice, log a row and tick `run.md` with the minutes. Only the push check (`make check-changed BASE=origin/main`) runs the full suite.
 4. If the plan proves wrong, stop, update `plan.md`, and log why.
 5. A slice that changes what a user sees or does updates `docs/guide.md`; a new or changed MCP tool, `dirigible` command, or recipe updates the agent manual (0051). Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `<verdict>, on screen, <screenshot path>`.
 

@@ -147,7 +147,7 @@ extension Studio {
             let before = session
             let done = await work(before, lock, flags)
             if flags.isCancelled {
-                if case .success(let result) = done { await removeMadeFiles(result.made) }
+                if case .success(let result) = done { await removeMadeFilesOffMain(result.made) }
                 return .failure(flags.isYielded ? yielded : cancelled)
             }
             let (edited, value): (Session, Value)

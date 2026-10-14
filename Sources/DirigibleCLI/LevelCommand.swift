@@ -29,12 +29,20 @@ struct LevelCommand: ParsableCommand {
 
     func run() throws {
         let work = LevelWork(clips: clips, perTrack: perTrack)
-        let result = try editPackage(package, writeUnchanged: false) { session throws(SessionError) in
+        let (lines, report) = try editPackage(package, writeUnchanged: false, refused: failure) {
+            session, _ throws(LevelFailure) in
             try work.run(&session, package: package.url)
         }
-        // With no cancel flag, the level always gives its lines.
-        guard let (lines, report) = result else { return }
         for line in lines { print(line) }
         try? FileHandle.standardError.write(contentsOf: Data((report + "\n").utf8))
+    }
+
+    /// The error line and the exit code of a level that changes nothing. The command has no cancel
+    /// flag, so only the tool gets `.cancelled`.
+    func failure(_ error: LevelFailure) -> ExitCode {
+        switch error {
+        case .session: fail(error.message, code: editRefused)
+        case .cancelled: fail(error.message, code: packageError)
+        }
     }
 }

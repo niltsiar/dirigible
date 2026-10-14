@@ -9,8 +9,8 @@ struct AgentManualTests {
     /// A quoted path of 202 characters, longer than a real install path.
     static let longPath = "'/" + String(repeating: "a", count: 199) + "'"
 
-    /// The documented cut of Claude Code is 2048 characters (C4).
-    static func fitsTheClientLimits(core: String, whole: String) -> Bool { core.count <= 2048 && whole.count <= 4000 }
+    /// The documented cut of Claude Code is 2048 characters (C4). The whole text is a context-cost cap.
+    static func fitsTheClientLimits(core: String, whole: String) -> Bool { core.count <= 2048 && whole.count <= 6000 }
 
     @Test func theCoreFitsTheClientLimit() {
         let pathLine = AgentManual.pathLine(quoted: Self.longPath)
@@ -20,9 +20,9 @@ struct AgentManualTests {
         #expect(whole.hasPrefix(core) && core.contains("For work with no tool"), "the no-tool rule is in the core")
         // The boundary pair of the limit.
         let text = { (count: Int) in String(repeating: "x", count: count) }
-        #expect(Self.fitsTheClientLimits(core: text(2048), whole: text(4000)))
-        #expect(!Self.fitsTheClientLimits(core: text(2049), whole: text(4000)))
-        #expect(!Self.fitsTheClientLimits(core: text(2048), whole: text(4001)))
+        #expect(Self.fitsTheClientLimits(core: text(2048), whole: text(6000)))
+        #expect(!Self.fitsTheClientLimits(core: text(2049), whole: text(6000)))
+        #expect(!Self.fitsTheClientLimits(core: text(2048), whole: text(6001)))
     }
 
     @Test func thePathIsNamedOnce() {

@@ -135,7 +135,7 @@ import Observation
     /// while it runs.
     @ObservationIgnored public internal(set) var exportStop: ExportStop?
     /// Why the last import stopped before its end, read after its `.audioImport(.cancelled)`. Nil
-    /// while it runs, and after a cancel of the calling task.
+    /// until a stop, and after a cancel of the calling task.
     @ObservationIgnored public internal(set) var importStop: ExportStop?
     /// The cancel flag of the running level, or nil: each level makes a clear one (decision 0049).
     @ObservationIgnored var levelFlags: ImportFlags?

@@ -18,6 +18,7 @@
 - Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **CLI parity** holds the parity rule. `AGENTS.md` points here.
 - Amended: 2026-10-13, run `2026-10-13-agent-onboarding`. The root flag `--instructions` prints the agent manual, and `skill show` and `skill path` give its skill. They read no package, so they have no MCP tool (see 0051).
 - Amended: 2026-10-13, run `2026-10-13-ripple-ranges`. `clip ripple-delete` takes `--from` and `--to` more than once, paired by order, and cuts all the ranges in one save. No range, or a count of `--to` that is not the count of `--from`, exits 64. The tool `clip_ripple_delete` takes `from` and `to` as arrays (see 0037).
+- Amended: 2026-10-14, run `2026-10-13-transcript-1` (see 0055). `transcript import`, `transcript words`, and `transcript cut`. `transcript import` reads stdin with `-`. A file that is not a transcript exits 1. A malformed word occurrence exits 64.
 
 ## Context
 

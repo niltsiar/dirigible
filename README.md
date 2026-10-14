@@ -21,6 +21,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Make a session smaller after many retakes with **File > Remove Unused Files**. It shows the list and the size first, and moves the files to the Trash.
 - Import WAV, AIFF, FLAC, MP3, and M4A files into a track, by the menu or a drag from Finder. Dirigible copies each file into the session at its sample rate and levels it.
 - Edit with the keyboard or the mouse: cut, copy, paste, delete, split, nudge, move, and trim. Ripple delete, insert, and ripple trim keep all tracks and the markers in sync. Command-click clips on several tracks and drag them together. Each edit is one undo step.
+- Import a Whisper JSON or WebVTT transcript with the dirigible tool or an AI agent, find a phrase, and cut its words from all tracks in one edit.
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.
 - Read the loudness of the mix in the meter below the tracks while you play.
 - Play forward and backward with the J, K, and L keys, at slow and fast speeds.

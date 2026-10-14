@@ -788,6 +788,14 @@ This command removes the audio files that the session does not use:
 
 - `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses and each WAV file in `Clips/` that the session does not name, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. A pool file that is a symbolic link or a folder stays, and the command writes "Not a regular file, it stays" for it. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
 
+These commands use a transcript with word times, in Whisper JSON or WebVTT. For example, export the session from the start as a WAV file and transcribe it with Whisper.
+
+- `dirigible transcript import Demo.dirigible episode.json --track <track>` imports the words of the audio on one track, and writes the transcript ID and the count of words. The times start at the start of the timeline: `--at <frame>` moves them. `-` in place of the file reads stdin. A word with no clip of the track under it, or with no time, is skipped, and a line on stderr gives the count. A file that is not a transcript gives exit 1. A new import replaces the words of an earlier one in the same span.
+- `dirigible transcript words Demo.dirigible --match "let me say that again"` writes the words of that phrase, one row each: the occurrence, the start frame, the end frame, the track, and the text, with a tab between them. Case and punctuation do not count. `--from` and `--to` give the words of a frame range, and `--track` the words of one track. It writes at most 200 rows (`--limit`), then a line with the count of the rest. `--json` writes JSON.
+- `dirigible transcript cut Demo.dirigible <occurrence> <occurrence>` cuts the words from all tracks in one edit and closes the gaps, as `clip ripple-delete` does. Words next to each other cut as one range. It writes the frames of each cut range. A word that an earlier edit removed gives exit 1.
+
+The words follow the clips of the import track: a move, a trim, or a cut moves the words with the audio. An edit of another track alone does not move them, so edit all tracks together. The session file keeps the words. A session with a transcript does not open in a version of Dirigible from before the transcripts.
+
 The text of the tool is English only.
 
 ### Connect an AI agent
@@ -938,7 +946,7 @@ The manual follows the order of the work: prepare, record, edit, produce, and ex
 - "Rename Track 1 to Ana and Track 2 to Ben."
 - "Record 10 seconds on the host track." The agent asks with the `record` tool, and you click Record in the app.
 - "Cut 0:30 to 0:40, and keep the host and the guest in sync."
-- "Here is a transcript with word times of an export of this session. Cut each false start." The agent shows each range and asks before the cut. It cuts all the ranges in one call, so one undo in the app gives them all back.
+- "Here is the Whisper transcript ~/episode.json of an export of this session. Cut each false start." The agent imports the transcript with `transcript_import` and finds the words with `transcript_words`. It shows each passage and asks before the cut. It cuts all the words in one `transcript_cut` call, so one undo in the app gives them all back. Give the path of the file: an agent can send the text of a short transcript only, at most 256 KiB. The words follow the clips of the import track, so edit all tracks together.
 - "Check the levels of all clips."
 - "Add the jingle on a new track at the start, and fade it out."
 - "Add the chapter Gear talk at minute 1."

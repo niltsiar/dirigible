@@ -232,6 +232,19 @@ import Testing
         view.ruler.menu(for: try rulerMouse(.rightMouseDown, x, 10, in: view))
     }
 
+    /// Add Marker and Add Chapter of the ruler menu add nothing during a take, so they are off
+    /// then. Control: on with no take.
+    @Test func theRulerMenuTurnsTheAddItemsOffDuringATake() async throws {
+        let (model, studio, window, view) = try await lanes()
+        #expect(try #require(try menu(view, 400)).items.prefix(2).map(\.isEnabled) == [true, true], "no take")
+
+        studio.transport = .recording(take: 1)
+        defer { studio.transport = .idle }
+        #expect(try #require(try menu(view, 400)).items.prefix(2).map(\.isEnabled) == [false, false], "during a take")
+        window.close()
+        await model.close()
+    }
+
     /// Criterion 13: Add Marker and Add Chapter at the clicked frame, not at the playhead; Delete
     /// Marker only on a flag. Each item is one undo entry.
     @Test func theRulerMenuAddsAtTheClickAndDeletesTheFlag() async throws {

@@ -81,6 +81,17 @@ import Testing
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
+    /// Add Marker and Add Chapter add nothing during a take, so they are off then. Control: on
+    /// with no take.
+    @Test func aTakeTurnsTheMarkerItemsOff() {
+        let take = LaneMenu.groups(
+            selection: false, clips: false, clipboard: false, split: false, canEdit: false, canRipple: false)
+        #expect(take.map { $0.map(\.enabled) } == [[false, false]], "during a take")
+        let idle = LaneMenu.groups(
+            selection: false, clips: false, clipboard: false, split: false, canEdit: true, canRipple: true)
+        #expect(idle.last?.map(\.enabled) == [true, true], "no take")
+    }
+
     /// C20: a pending or split take hides Cut, Insert, and Delete and Close Gap. Control: a shown
     /// ripple item.
     @Test func aPendingTakeHidesTheRippleItems() {

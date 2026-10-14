@@ -110,4 +110,60 @@ extension Session {
         try rippleDelete(ranges, on: tracks.map(\.id))
         return ranges
     }
+
+    /// Imports `file`, a transcript of an export from timeline frame `at`, through the clips of
+    /// `track` (decision 0055). A unit goes to the clip of `track` under its midpoint, as file frames
+    /// clamped to the clip. Each unit with a usable time gets the number of its index, from 1; a unit
+    /// with no clip under it is skipped, and its number is used up, so a cut never joins words
+    /// around audio of another place. A unit past `Frames.limit` counts as untimed with the
+    /// untimed units of the file. For each file that it anchors, the import first drops the old
+    /// words (of any transcript) whose midpoint is in the span of the new words. A transcript with
+    /// no word left goes. No kept word throws `.noWordOnTrack` and changes nothing.
+    @discardableResult
+    public mutating func importTranscript(_ file: TranscriptFile, name: String, track: TrackID, at: Frames)
+        throws(SessionError) -> (id: TranscriptID, kept: Int, skipped: Int, untimed: Int)
+    {
+        try Self.checkText(name)
+        guard at.isInRange else { throw .frameOutOfRange }
+        let clips = tracks[try trackIndex(track)].clips
+        func frame(_ seconds: Double) -> Frames? {
+            let frames = (seconds * Double(sampleRate)).rounded()
+            guard frames <= Double(Frames.limit.count) else { return nil }
+            let frame = Frames(Int(frames)) + at
+            return frame.isInRange ? frame : nil
+        }
+        var untimed = file.untimed
+        var number = 0
+        var skipped = 0
+        var added: [FileID: [Anchor]] = [:]
+        for unit in file.units {
+            guard let start = frame(unit.start), let end = frame(unit.end) else {
+                untimed += 1
+                continue
+            }
+            number += 1
+            let midpoint = Frames((start.count + end.count) / 2)
+            guard let index = clips.index(holding: midpoint) else {
+                skipped += 1
+                continue
+            }
+            let clip = clips[index]
+            let shift = clip.offset - clip.start
+            let range = (max(start, clip.start) + shift)..<(min(end, clip.end) + shift)
+            added[clip.file, default: []].append(Anchor(number: number, range: range, text: unit.text))
+        }
+        guard !added.isEmpty else { throw .noWordOnTrack(track) }
+        for (fileID, anchors) in added {
+            let span = anchors.map(\.range.lowerBound).min()!...anchors.map(\.range.upperBound).max()!
+            for id in transcripts.keys {
+                guard let old = transcripts[id]?.words[fileID] else { continue }
+                let kept = old.all.filter { !span.contains($0.midpoint) }
+                transcripts[id]?.words[fileID] = kept.isEmpty ? nil : Anchors(kept)
+                if transcripts[id]?.words.isEmpty == true { transcripts[id] = nil }
+            }
+        }
+        let id = TranscriptID((transcripts.keys.map(\.number).max() ?? 0) + 1)
+        transcripts[id] = Transcript(id: id, name: name, words: added.mapValues(Anchors.init))
+        return (id, added.values.map(\.count).reduce(0, +), skipped, untimed)
+    }
 }

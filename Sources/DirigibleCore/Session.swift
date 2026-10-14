@@ -301,4 +301,6 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A cut names a word that is not on the timeline now, or whose anchor starts at another file
     /// frame (decision 0055).
     case unknownWord(WordOccurrence)
+    /// An import found no word over a clip of the track (decision 0055).
+    case noWordOnTrack(TrackID)
 }

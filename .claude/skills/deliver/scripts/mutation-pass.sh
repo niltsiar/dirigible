@@ -10,7 +10,9 @@
 #   with a mutant function that writes the arguments of mutant n to <batch file>.schema/<n>
 #   (NUL-separated; the script makes the folder again on each run). The lines with --switch go to
 #   one `mutate.py --schema` call (one build for all of them). Then each other line, and each line
-#   that the schema call gives `own build`, runs one mutate.py call, in batch order.
+#   that the schema call gives `own build`, runs one mutate.py call, in batch order, after the line
+#   `<n>: own build: <reason>`. A mutant whose baseline failed does not run again: its reason line
+#   counts as other. The batch has only mutant lines, comments, and blank lines.
 # - The script runs again under scripts/with-lock.sh of the tree once, so the lock calls of each
 #   build and test command run at once, and no other run builds between two mutants. No sleep
 #   between two mutants.
@@ -56,7 +58,7 @@ cd "$top" || exit 2
 [[ -n "${MUTATION_PASS_HELD:-}" ]] || MUTATION_PASS_HELD=1 exec "$top/scripts/with-lock.sh" "$here/mutation-pass.sh" "$top" "$batch"
 
 rm -rf "$schema" && mkdir "$schema" || exit 2
-n=0 killed=0 survived=0 other=0 one=0 own=0 stop="" switch=() results=()
+n=0 killed=0 survived=0 other=0 one=0 own=0 stop="" switch=() results=() reasons=()
 trap 'stop=1' INT TERM
 output="$(mktemp)"
 trap 'rm -f "$output"' EXIT
@@ -112,7 +114,9 @@ if [[ ${#switch[@]} -gt 0 ]]; then
         line="$(grep -m1 "^$m " "$output")"
         line="${line#"$m "}"
         case "$line" in
-            'own build:'*) ;;
+            # A kill needs a passing baseline, so this mutant does not run again: it counts as other.
+            'own build: the baseline failed'*) results[m]="$line" ;;
+            'own build:'*) reasons[m]="$line" ;;
             '') results[m]='mutate: no result' ;;
             mutate:*) results[m]="$line" ;;
             *) results[m]="$line" one=$((one + 1)) ;;
@@ -126,6 +130,7 @@ for ((m = 1; m <= total; m++)); do
         tally "$m" "${results[m]}"
         continue
     fi
+    [[ -z "${reasons[m]:-}" ]] || echo "$m: ${reasons[m]}"
     args=()
     while IFS= read -r -d '' a; do args+=("$a"); done < "$schema/$m"
     call "${args[@]}"

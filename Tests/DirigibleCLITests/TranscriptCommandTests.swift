@@ -78,6 +78,22 @@ struct TranscriptCommandTests {
                     stderr: "Skipped 1 word with no clip under it.\nSkipped 1 word with no time.\n"))
     }
 
+    /// Code gate 2 item 2: a word with no length stays matchable text, and a cut of only that word
+    /// exits 1 with the nothing-to-cut text and changes nothing.
+    @Test func cutOfAWordWithNoLengthExits1() async throws {
+        let file = package.folder.appending(path: "t.json")
+        try Data(#"{"words":[{"word":"a","start":1,"end":1.5},{"word":"zero","start":2,"end":2}]}"#.utf8).write(
+            to: file)
+        _ = try await package.run("transcript", "import", "PKG", file.path, "--track", "host")
+        let word = Self.occurrences(try await package.run("transcript", "words", "PKG", "--match", "zero"))
+        let before = try package.xml()
+
+        #expect(
+            try await package.run(["transcript", "cut", "PKG"] + word)
+                == CLIResult(status: 1, stdout: "", stderr: "Error: the words have no audio to cut.\n"))
+        #expect(try package.xml() == before)
+    }
+
     /// Code gate 2 item 1: room tone from one host file under two gaps, with other guest speech over
     /// each. The second region repeats audio that the first gave, so its word is dropped and counted.
     @Test func importCountsTheRepeatedWords() async throws {

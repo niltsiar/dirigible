@@ -118,10 +118,9 @@ extension Session {
     /// clamped to the clip. Each unit with a usable time gets the number of its index, from 1; a unit
     /// with no clip under it is skipped, and its number is used up, so a cut never joins words
     /// around audio of another place. A unit over file audio that an earlier clip of the import
-    /// already gave (a duplicated region) adds no anchor and counts as repeated: the words of the first
-    /// use show under both clips. A unit
-    /// past `Frames.limit`, or with no frame between its start and its end, counts as untimed with
-    /// the untimed units of the file. For each file that it anchors, the import first drops the old
+    /// already gave (a duplicated region) adds no anchor and counts as repeated: the words of the
+    /// first use show under both clips. A unit past `Frames.limit` counts as untimed with the
+    /// untimed units of the file. For each file that it anchors, the import first drops the old
     /// words (of any transcript) whose midpoint is in the span of the new words. A transcript with
     /// no word left goes. No kept word throws `.noWordOnTrack` and changes nothing.
     @discardableResult
@@ -144,7 +143,7 @@ extension Session {
         var added: [FileID: [Anchor]] = [:]
         var heard: Set<Int> = []
         for unit in file.units {
-            guard let start = frame(unit.start), let end = frame(unit.end), end > start else {
+            guard let start = frame(unit.start), let end = frame(unit.end) else {
                 untimed += 1
                 continue
             }

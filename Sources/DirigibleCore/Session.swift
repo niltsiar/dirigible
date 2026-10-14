@@ -13,6 +13,8 @@ public struct Session: Hashable, Sendable {
     public internal(set) var recording: Recording?
     /// The episode metadata of the exports (decision 0045). Empty by default.
     public private(set) var episode = Episode()
+    /// The imported transcripts (decision 0055). `words` shows them.
+    var transcripts: [TranscriptID: Transcript] = [:]
 
     public init(sampleRate: Int) {
         precondition(sampleRate > 0, "A sample rate is positive")
@@ -296,4 +298,7 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A paste of an excerpt at this sample rate into a session at another rate: the excerpt needs
     /// `Excerpt.resampled` first (decision 0042).
     case otherSampleRate(Int)
+    /// A cut names a word that is not on the timeline now, or whose anchor starts at another file
+    /// frame (decision 0055).
+    case unknownWord(WordOccurrence)
 }

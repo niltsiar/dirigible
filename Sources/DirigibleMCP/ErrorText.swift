@@ -195,6 +195,7 @@ extension SessionError {
         case .laneOutOfRange(let id): "the lane offset moves clip \"\(id)\" past the first or the last track."
         case .otherSampleRate(let rate): "the excerpt is at \(rate) Hz, another rate than this session."
         case .foreignFile(let id): "file \"\(id)\" of the excerpt is another file in this session."
+        case .unknownWord(let occurrence): "no word \(occurrence) on the timeline."
         }
     }
 }

@@ -4,8 +4,9 @@
 # Usage: scripts/tag-release.sh <version> <commit> <message>
 # - <version> is 3 or 4 numbers with dots, with no v (0.3.9, 0.3.8.2); else it exits 2.
 # - It exits 1 with no tag for a version that is not higher (sort -V) than the newest v<digit> tag
-#   of origin, for a commit that is not on origin/main, and for a commit that does not hold the
-#   commit of the newest tag (a higher version holds the code of each lower one). It reads the
+#   of origin, for a commit that is not on origin/main, for a commit that does not hold the
+#   commit of the newest tag (a higher version holds the code of each lower one), and for a commit
+#   that already has a v<digit> tag (one commit has one version). It reads the
 #   tags of origin with git ls-remote, so a local tag that origin does not have does not count.
 # - The tag is annotated, because scripts/version.sh ignores a lightweight tag. Before the push,
 #   git describe --exact-match of the commit must print the tag. When that check or the push
@@ -30,6 +31,8 @@ git merge-base --is-ancestor "$commit" origin/main ||
     { echo "tag-release: $commit is not on origin/main" >&2; exit 1; }
 [[ -z "$newest" ]] || git merge-base --is-ancestor "refs/tags/v$newest^{commit}" "$commit" ||
     { echo "tag-release: $commit does not hold v$newest; tag a commit after it" >&2; exit 1; }
+held="$(git tag --points-at "$commit" --list 'v[0-9]*' | head -1)"
+[[ -z "$held" ]] || { echo "tag-release: $commit already has the tag $held; one commit has one version" >&2; exit 1; }
 git rev-parse -q --verify "refs/tags/v$version" >/dev/null &&
     { echo "tag-release: a local tag v$version that origin does not have exists; remove it with git tag -d v$version, then run again" >&2; exit 1; }
 

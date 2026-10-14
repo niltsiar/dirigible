@@ -258,7 +258,7 @@ struct TranscriptCommandTests {
         for name in try FileManager.default.contentsOfDirectory(atPath: folder.path) {
             try FileManager.default.removeItem(at: folder.appending(path: name))
         }
-        let line = "Transcript 1 (agent-transcript.json) did not load: its file is missing or damaged. "
+        let line = "Transcript 1 (agent-transcript.json): its file is missing or damaged, so its words do not show. "
         #expect(
             try await package.run("transcript", "words", "PKG")
                 == CLIResult(status: 0, stdout: line + "Import the transcript again.\nNo words.\n", stderr: ""))

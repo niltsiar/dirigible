@@ -81,7 +81,8 @@ package enum TranscriptWork {
         let shown = all.prefix(query.limit)
         let more = all.count - shown.count
         let notLoaded = session.transcriptsNotLoaded.map {
-            "Transcript \($0.id) (\($0.name)) did not load: its file is missing or damaged. Import the transcript again."
+            "Transcript \($0.id) (\($0.name)): its file is missing or damaged, so its words do not show. Import the "
+                + "transcript again."
         }
         if query.json {
             let rows: [[String: Any]] = shown.map {

@@ -90,6 +90,19 @@ struct TranscriptImportTests {
         #expect(twice.words(matching: "hello world").map(\.occurrence.clip) == ["A", "A", "C", "C"])
     }
 
+    /// Code gate 1 item 10. A re-import that empties the last transcript gets a new ID, so a token
+    /// of the removed transcript never names a word of the new one.
+    @Test func aReimportNeverGivesAnIDAgain() throws {
+        var session = try transcriptSession()
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 480_000), on: "host")
+        try session.importTranscript(try whisper([("a", 0.5, 0.7)]), name: "t", track: "host", at: 0)
+        let later = try whisper([("b", 5, 5.5)])
+        try session.importTranscript(later, name: "t", track: "host", at: 0)
+        let again = try session.importTranscript(later, name: "t", track: "host", at: 0)
+
+        #expect(again.id.number == 3 && session.transcripts.keys.map(\.number).sorted() == [1, 3])
+    }
+
     /// T5b. A second import of the same file replaces the old words: each word shows once.
     /// Control: an import of a later part of the file keeps the old words outside its span.
     @Test func reimportReplacesTheWords() throws {

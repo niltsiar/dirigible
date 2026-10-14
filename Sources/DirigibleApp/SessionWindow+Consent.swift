@@ -352,6 +352,7 @@ extension SessionWindow {
         guard let consent else { return }
         self.consent = nil
         if let id = consent.attentionRequest { attention.cancel(id) }
+        logAgentEnd(consent, answer)
         consent.finish(answer)
     }
 }

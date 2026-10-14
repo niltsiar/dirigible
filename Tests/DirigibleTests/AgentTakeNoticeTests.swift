@@ -64,7 +64,8 @@ extension ConsentTests {
         await model.close()
     }
 
-    /// An agent take that ended before its start event leaves no badge and no notification.
+    /// An agent take that ended before its start event gets no notification, no badge, and no
+    /// announcement (item 3 of code gate 2).
     @Test func takeEndBeforeTheStartEvent() async throws {
         let (model, studio) = try await window()
         let dock = watchDock(model)
@@ -73,9 +74,9 @@ extension ConsentTests {
         let consent = ConsentRequest(agent: agent, tracks: [host], start: 0, seconds: 1, over: [])
         #expect(studio.transport == .idle)
         model.agentTakeStarted(consent, take: 1)
-        await until("the take ends") { model.agentRecord.take == nil }
-        #expect(dock.badges.last == .some(nil), "\(dock.badges)")
-        #expect(notices.posts.count == 1 && notices.removed == notices.posts.map(\.id))
+        #expect(model.agentRecord.take == nil)
+        #expect(dock.badges.allSatisfy { $0 == nil }, "\(dock.badges)")
+        #expect(notices.posts.isEmpty && dock.announced.isEmpty)
         await model.close()
     }
 

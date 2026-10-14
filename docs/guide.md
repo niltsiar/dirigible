@@ -57,7 +57,7 @@ A track records only when its arm button is on. Click the button to turn it on o
 2. If macOS asks for access to the microphone, click **Allow**.
 3. Speak into each microphone. The meter in the header of its track moves. After 3 s, the header also shows the loudness of the last 3 s, in LUFS (for example **-17**), when the header is 262 pt or wider, or the lane is tall enough for two lines.
 
-**Input Levels** shows the level of each armed track. It does not send the sound to your headphones. To hear a microphone in your headphones, use **Track > Monitor Track** ([Hear a track while you record](#hear-a-track-while-you-record)).
+**Input Levels** shows the level of each armed microphone track. An app track shows no level before you record: make a short test take to check it ([Record a call or another app](#record-a-call-or-another-app)). **Input Levels** does not send the sound to your headphones. To hear a microphone in your headphones, use **Track > Monitor Track** ([Hear a track while you record](#hear-a-track-while-you-record)).
 
 ### Record a take
 
@@ -412,9 +412,13 @@ Dirigible can record the sound of another app, for example a Zoom, Teams, or Sla
 3. Put on headphones, so the guest does not leak into your microphone track. When the output is the built-in speakers and an armed track records an app, the window shows the banner "Use headphones". It does not stop a take.
 4. Record. The first time, macOS asks for access to System Audio Recording. Click **Allow**.
 
+Before the show, make a short test take with the call. Then macOS asks for System Audio Recording before the real take. After **Stop**, make sure that the app track has a waveform. After each update of Dirigible, macOS can ask again for the microphone and System Audio Recording, so make a test take after each install.
+
 - One app can feed one track only. Record your own microphone on another track.
 - When the app does not run, the track shows "Waiting for" and the app name, and records silence. When the app starts, the track records it.
-- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). A header of 56 to 79 pt shows an orange warning symbol: hold the pointer over it to see the text, and click it to open the settings. A lower header shows a red warning symbol with the text as its tooltip. The button opens Privacy & Security in System Settings. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later.
+- When the track gets only silence for 5 seconds while the app plays sound, the track shows "No sound from" and the app name, with the button **Privacy…** (full name **Open Privacy Settings**). A header of 56 to 79 pt shows an orange warning symbol: hold the pointer over it to see the text, and click it to open the settings. A lower header shows a red warning symbol with the text as its tooltip. The button opens Privacy & Security in System Settings. Allow Dirigible in **Privacy & Security > System Audio Recording**. Dirigible tries again 10 and 40 seconds later. The warning goes when the app sound comes, for example when a muted guest speaks. The warning does not stop the take.
+- If Dirigible is on in the **System Audio Recording** list and the track still shows "No sound from", select Dirigible in the list and click the minus button (**-**) to remove it. Then record again, and click **Allow** when macOS asks.
+- If the guest drops out of the call, keep recording. The track records the guest again when the call comes back.
 - On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
 - In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input. `dirigible track add-call <package> --device <UID> --channels 1 --app <bundle ID>` adds the **Host** and **Guest** tracks.
 
@@ -551,6 +555,17 @@ The window then shows the number of moved files and their size. If a file does n
 Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. A pool file that is a link or a folder also stays, and the sheet names it, with each damaged backup, which keeps no file. Remove Unused Files has no Undo. To get a file back, drag it from the Trash into the `Clips` folder of the session (**File > Show Clips in Finder**). **Put Back** in the Trash works only for the first file that Dirigible or a `dirigible` command moves after it starts. The space on the disk comes back when you empty the Trash.
 
 During a take, an import, or Auto Level, the command is off. With no file to remove, an alert says so.
+
+### When a session does not open
+
+If the window of a session shows an error and only **Try Again**, Dirigible cannot read the file `session.xml` in the session package. `dirigible backup revert` also reads `session.xml` first, so it does not help. Put the newest backup in place of `session.xml`. This is the only case where you change a file inside the package:
+
+1. Quit Dirigible.
+2. In Finder, Control-click the session and choose **Show Package Contents**.
+3. Move `session.xml` to the Desktop. Keep it for the bug report.
+4. Open the `Backups` folder. The newest backup has the largest name: `session-<date>T<time>Z.xml`, with the time in UTC.
+5. Option-drag the newest backup to the package folder, to put a copy there. Rename the copy to `session.xml`.
+6. Open the session again.
 
 ## Menu commands and keys
 

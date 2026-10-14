@@ -283,7 +283,10 @@ makes docs/decisions/0044-new-thing.md
 refuse 'a new record with no ledger entry' 'reserve 0044 on the Decision numbers line'
 reserve '0044 new-thing (run 2026-10-13-other)'
 makes docs/decisions/0044-new-thing.md
-refuse 'a number that another run holds' 'reserve 0044 on the Decision numbers line'
+refuse 'a number that another run holds' 'reserved for another run: 0044 new-thing (run 2026-10-13-other)'
+reserve '0044 y (run 2026-10-13-other), 0044 new-thing (run 2026-10-14-new-thing)'
+makes docs/decisions/0044-new-thing.md
+refuse 'a second entry for a number that another run holds' 'reserved for another run: 0044 y (run 2026-10-13-other)'
 reserve '0044 new-thing (run 2026-10-14-new-thing)'
 makes docs/decisions/0044-new-thing.md
 pass 'a number reserved for this run'

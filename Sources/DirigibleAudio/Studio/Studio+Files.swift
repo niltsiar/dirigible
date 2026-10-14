@@ -98,8 +98,8 @@ extension Studio {
 
 /// The save and the Trash of `UnusedFiles.prune`, off the main actor. After the save and before
 /// the first move, `apply` makes the same pool change in memory with the items that move and the
-/// saved session; its throw moves no file. Returns
-/// the report, and when the save ran, the package path in `packageIdentity` form and the backups.
+/// saved session; its throw moves no file. Returns the report, and when the save ran, the package
+/// path in `packageIdentity` form and the backups.
 @concurrent nonisolated private func pruneFiles(
     _ items: UnusedFiles, of session: Session, lock: PackageLock, previous: URL, recordings: ActiveRecordings?,
     _ save: @Sendable (Session, PackageLock) async throws(SessionFileError) -> URL,

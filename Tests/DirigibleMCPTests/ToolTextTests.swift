@@ -16,6 +16,16 @@ struct ToolTextTests {
         #expect(!Tool.all.contains { $0.description.contains("No undo: each call saves the package.") })
     }
 
+    /// A late cancel of `level` or `import` keeps the change, so the text tells the agent to read the
+    /// session before a retry (decision 0049, code gate 3 item 1).
+    @Test(arguments: ["level", "import"])
+    func anEditCancelTextTellsTheAgentToReadTheSession(name: String) throws {
+        let tool = try #require(Tool.all.first { $0.name == name })
+        #expect(
+            tool.description.contains("A cancel at the end can be late, so read session_info before a retry."),
+            "\(tool.description)")
+    }
+
     /// The CLI keeps its busy text; a live edit names why the app refuses it (C4).
     @Test func busyTextsNameTheCause() {
         #expect(StudioError.busy.message(package: "p") == "p is busy with a take.")

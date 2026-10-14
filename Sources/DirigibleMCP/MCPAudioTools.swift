@@ -49,6 +49,11 @@ private let noLevel = Param.defaulted("no_level", "Keep the gain of the conversi
 private let cancelNote =
     " A cancel stops it, and no file is written; a cancel at the end can be late, so check the output file."
 
+/// The end of the description of a tool that edits the session: a late cancel keeps the change.
+private func editCancelNote(_ nothing: String) -> String {
+    " A cancel stops it, and \(nothing). A cancel at the end can be late, so read session_info before a retry."
+}
+
 /// Refuses a relative `out` first: the option checks resolve a relative path against the working
 /// folder of the server, which can differ from the folder of the agent.
 private func outPath(_ arguments: Arguments, _ param: Param<String> = out) throws(ToolError) -> String {
@@ -107,14 +112,14 @@ let audioTools = [
         "Set the gain of each clip to the loudness target of its track layout, as dirigible level: -16 LUFS for a "
             + "stereo track and -19 LUFS for a mono track, within -20...20 dB. The text is one line for each clip, "
             + "the clip ID, a tab, and the new gain, \"none\", or \"unreadable\", then the report line. A level that "
-            + "changes no gain writes nothing. A cancel stops it, and no gain changes.",
+            + "changes no gain writes nothing." + editCancelNote("no gain changes"),
         [chosenClips, perTrack]
     ) { a throws(ToolError) in .level(LevelWork(clips: try a[chosenClips] ?? [], perTrack: try a[perTrack])) },
     Tool(
         "import",
         "Import an audio file into a track, as dirigible import: the file becomes a 24-bit WAV at the session rate in "
             + "Clips/, and a clip at the frame at that overwrites the clips under it, with the gain of Auto Level "
-            + "unless no_level. The text is the clip ID. A cancel stops it, and no clip is added.",
+            + "unless no_level. The text is the clip ID." + editCancelNote("no clip is added"),
         [importFile, importTrack, importAt, noLevel]
     ) { a throws(ToolError) in
         let (path, track, start, keeps) = (try a[importFile], try a[importTrack], try a[importAt], try a[noLevel])

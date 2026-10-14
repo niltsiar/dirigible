@@ -107,19 +107,23 @@ struct AgentManualTests {
     }
 
     /// W8 and RR11: the transcript is of the current session with each track heard, the user
-    /// agrees before the cut, and one call cuts all the ranges, so the recipe has no merge and no
+    /// agrees before the cut, and one call cuts all the words, so the recipe has no merge and no
     /// order. A cut ripples each track, so a track that the export left out stops the recipe (code
-    /// gate 1 item 1). The range recipe says that `from` and `to` are arrays.
+    /// gate 1 item 1). Run transcript-1 T18: the transcript tools replace the frame math, `path`
+    /// goes first, and the recipe states the limit of the import track. The range recipe says that
+    /// `from` and `to` are arrays.
     @Test func theTranscriptRecipeCutsInOneCall() {
         let steps = Self.steps("cut-from-transcript")
         for text in [
             "of the current session from frame 0 with each track heard", "muted or not soloed, stop and ask the user",
-            "of the current session with each track heard", "the sample rate of `session_info`",
-            "before the cut", "one `clip_ripple_delete` with no `track` and all the ranges",
+            "of the current session with each track heard", "`transcript_import` with the `path`",
+            "`text` only for a short transcript", "`transcript_words` with `match`",
+            "words follow the clips of the import track: edit all tracks together", "before the cut",
+            "one `transcript_cut` with all the occurrences",
         ] {
             #expect(steps.contains(text), "the transcript recipe does not say \(text)")
         }
-        for text in ["merge", "from the last range", "for each range"] {
+        for text in ["merge", "from the last range", "for each range", "clip_ripple_delete", "sample rate"] {
             #expect(!steps.contains(text), "the transcript recipe still says \(text)")
         }
         #expect(Self.steps("cut-a-range").contains("`from` and `to` are arrays"), "the range recipe")

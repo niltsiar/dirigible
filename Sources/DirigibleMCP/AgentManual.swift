@@ -50,11 +50,12 @@ package enum AgentManual {
             steps: "the transcript must be of an `export` of the current session from frame 0 with each track heard: "
                 + "`export` a .wav file for a tool that gives word times, such as Whisper; if the export says that a "
                 + "track is muted or not soloed, stop and ask the user. For a transcript of the user, ask if it is of "
-                + "the current session with each track heard. Find the words to cut. "
-                + "Use the sample rate of `session_info`. A cut on a closed package saves at once: list "
-                + "each range with its words and seconds, and get the consent of the user before the cut, "
-                + "unless the user already agreed. Run one `clip_ripple_delete` with no `track` and all the ranges "
-                + "in `from` and `to`; report each cut in seconds."),
+                + "the current session with each track heard. Run `transcript_import` with the `path` of the "
+                + "Whisper JSON or WebVTT file and a `track`; give `text` only for a short transcript. The "
+                + "words follow the clips of the import track: edit all tracks together. Find each passage with "
+                + "`transcript_words` with `match`. A cut on a closed package saves at once: list each passage with "
+                + "its words and seconds, and get the consent of the user before the cut, unless the user already "
+                + "agreed. Run one `transcript_cut` with all the occurrences; report each cut in seconds."),
         Recipe(
             phase: .produce, name: "check-levels", title: "Check the levels",
             summary: "Measure the loudness of each clip, level the session, and report the change.",

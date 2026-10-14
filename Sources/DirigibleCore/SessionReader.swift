@@ -41,6 +41,11 @@ extension Session {
             guard version >= 6 else { throw .invalidValue(element: "episode", attribute: "version") }
             return try Episode(node)
         }
+        var transcripts: [Transcript] = []
+        if let list = root.sessionElements("transcripts").first {
+            guard version >= 8 else { throw .invalidValue(element: "transcripts", attribute: "version") }
+            for node in list.sessionElements("transcript") { transcripts.append(try Transcript(node)) }
+        }
 
         self.init(sampleRate: sampleRate)
         do throws(SessionError) {
@@ -62,6 +67,7 @@ extension Session {
             }
             try setRecording(recording)
             if let episode { setEpisode(episode) }
+            for transcript in transcripts { try addTranscript(transcript) }
         } catch {
             throw .invalidSession(error)
         }
@@ -207,6 +213,33 @@ extension Episode {
         feedURL = try parse("feedURL", WebURL.init)
         guid = try parse("guid", EpisodeLine.init)
         artwork = try parse("artwork", ArtworkName.init)
+    }
+}
+
+extension Transcript {
+    /// One `<transcript>`. A line splits at its first three spaces. A number below 1, a start or an
+    /// end that is not an integer, an end before the start, and a second `<words>` of one file are
+    /// refused here; `Session.addTranscript` checks the rest.
+    fileprivate init(_ node: XMLElement) throws(SessionFileError) {
+        guard let number = Int(try node.string("id")), number >= 1 else {
+            throw .invalidValue(element: "transcript", attribute: "id")
+        }
+        var words: [FileID: Anchors] = [:]
+        for element in node.sessionElements("words") {
+            let file = FileID(try element.string("file"))
+            guard words[file] == nil else { throw .invalidSession(.duplicateID(file.rawValue)) }
+            var anchors: [Anchor] = []
+            for line in (element.stringValue ?? "").split(separator: "\n", omittingEmptySubsequences: false) {
+                let fields = line.split(separator: " ", maxSplits: 3, omittingEmptySubsequences: false)
+                guard fields.count == 4, let number = Int(fields[0]), number >= 1, let start = Int(fields[1]),
+                    let end = Int(fields[2])
+                else { throw .invalidValue(element: "words", attribute: "line") }
+                guard start <= end else { throw .invalidSession(.wordOutsideFile(file)) }
+                anchors.append(Anchor(number: number, range: Frames(start)..<Frames(end), text: String(fields[3])))
+            }
+            words[file] = Anchors(anchors)
+        }
+        self.init(id: TranscriptID(number), name: try node.string("name"), words: words)
     }
 }
 

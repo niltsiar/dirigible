@@ -1,0 +1,56 @@
+import Foundation
+import Testing
+
+@testable import DirigibleCore
+
+/// T13b (decision 0055): a 3 h session with a transcript of 27 000 words. One edit (a gain change)
+/// through `History.edit` compares two sessions in 5 ms or less, and `checkedData` (the XML and its
+/// read-back) plus the write to the disk take 300 ms or less, optimized
+/// (`make bench FILTER=TranscriptSaveBenchmark`). A miss is a plan change to candidate B.
+struct TranscriptSaveBenchmark {
+    #if DEBUG
+        static let budgets = (compare: Duration.milliseconds(100), save: Duration.seconds(3))
+    #else
+        static let budgets = (compare: Duration.milliseconds(5), save: Duration.milliseconds(300))
+    #endif
+
+    /// 3 h at 48 kHz on one track, a word each 0.4 s.
+    static func session() throws -> Session {
+        let length = Frames(3 * 3_600 * 48_000)
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("host", name: "Host", layout: .mono)
+        try session.addFile(AudioFile(id: "h", path: "h.wav", layout: .mono, length: length))
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: length), on: "host")
+        let words = (0..<27_000).map { n in
+            #"{"word":"word\#(n % 97)","start":\#(Double(n) * 0.4),"end":\#(Double(n) * 0.4 + 0.3)}"#
+        }
+        let file = try TranscriptFile(data: Data(#"{"words":[\#(words.joined(separator: ","))]}"#.utf8))
+        try session.importTranscript(file, name: "episode.json", track: "host", at: 0)
+        return session
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func anEditAndASaveOfThreeHours() throws {
+        let session = try Self.session()
+        #expect(session.words().count == 27_000)
+        let package = FileManager.default.temporaryDirectory.appending(path: "TranscriptSave-\(UUID())/E.dirigible")
+        defer { try? FileManager.default.removeItem(at: package.deletingLastPathComponent()) }
+        var compares: [Duration] = []
+        var saves: [Duration] = []
+        for n in 0..<10 {
+            var history = History(session)
+            let start = ContinuousClock.now
+            try history.edit { (session: inout Session) throws(SessionError) in
+                try session.setGain(Gain(dB: Double(n % 3) - 1)!, track: "host")
+            }
+            compares.append(ContinuousClock.now - start)
+            let save = ContinuousClock.now
+            try history.session.write(to: package)
+            saves.append(ContinuousClock.now - save)
+        }
+        let (compare, write) = (compares.sorted()[8], saves.sorted()[8])
+        print("bench report: TranscriptSaveBenchmark edit p90 \(compare), save p90 \(write)")
+        expectWithinBudget(compare, Self.budgets.compare, "the edit of 27 000 words takes \(compare)")
+        expectWithinBudget(write, Self.budgets.save, "the save of 27 000 words takes \(write)")
+    }
+}

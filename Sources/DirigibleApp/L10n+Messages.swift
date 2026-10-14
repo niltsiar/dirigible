@@ -191,7 +191,8 @@ extension L10n {
             .markerURLTooLong,
             .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip, .crossfadeOutsideFile,
             .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .fadeAtCrossfade, .laneOutOfRange, .foreignFile,
-            .otherSampleRate, .unknownWord, .noWordOnTrack:
+            .otherSampleRate, .unknownWord, .noWordOnTrack,
+            .wordOutsideFile:
             return errorSessionOther.text
         }
     }

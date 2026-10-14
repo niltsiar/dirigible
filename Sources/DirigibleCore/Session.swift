@@ -179,10 +179,12 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 7 with a marker URL or
+    /// The `session.xml` version that holds this session (decision 0024 P6): 8 with a transcript
+    /// (decision 0055), else 7 with a marker URL or
     /// image (run 2026-10-11-chapters-in-file), else 6 with episode data (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
     /// (decision 0035), else 2 with an app route (decision 0029), else 1.
     public var fileVersion: Int {
+        if !transcripts.isEmpty { return 8 }
         if markers.values.contains(where: { $0.url != nil || $0.image != nil }) { return 7 }
         if !episode.isEmpty { return 6 }
         if tracks.contains(where: { $0.isMuted || $0.isSoloed }) { return 5 }
@@ -303,4 +305,6 @@ public enum SessionError: Error, Hashable, Sendable {
     case unknownWord(WordOccurrence)
     /// An import found no word over a clip of the track (decision 0055).
     case noWordOnTrack(TrackID)
+    /// A word of this file starts before 0 or ends past the file length (decision 0055).
+    case wordOutsideFile(FileID)
 }

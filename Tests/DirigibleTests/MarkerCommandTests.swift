@@ -51,6 +51,17 @@ import Testing
         await model.close()
     }
 
+    /// Add Marker and Add Chapter add nothing during a take, so their items are off then.
+    @Test func theAddItemsAreOffDuringATake() async throws {
+        let (model, studio, _) = try await open()
+        #expect(model.isOn(.addMarker) && model.isOn(.addChapter), "no take: the items are on")
+
+        studio.transport = .recording(take: 1)
+        defer { studio.transport = .idle }
+        #expect(!model.isOn(.addMarker) && !model.isOn(.addChapter), "during a take: the items are off")
+        await model.close()
+    }
+
     /// N counts the markers and the chapters. The test process has no app strings, so the test
     /// reads N from `newMarkerName`. Controls: a count of the markers only gives Marker 1; a count
     /// + 2 gives Chapter 2.

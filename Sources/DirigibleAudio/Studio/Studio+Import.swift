@@ -26,11 +26,12 @@ final class ImportFlags: Sendable {
     var isCancelled: Bool { state.withLock { $0.cancelled } }
     var isYielded: Bool { state.withLock { $0.yielded } }
 
-    /// Sets the flag. True only for the call that sets it first.
+    /// Sets the flag. True only for the call that sets it first; only that call sets the yield, so
+    /// the first stop names the cause.
     @discardableResult
     func cancel(yielding: Bool) -> Bool {
         state.withLock { state in
-            defer { state = (true, state.yielded || yielding) }
+            defer { state = (true, state.cancelled ? state.yielded : yielding) }
             return !state.cancelled
         }
     }

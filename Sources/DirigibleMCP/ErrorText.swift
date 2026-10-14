@@ -196,6 +196,7 @@ extension SessionError {
         case .otherSampleRate(let rate): "the excerpt is at \(rate) Hz, another rate than this session."
         case .foreignFile(let id): "file \"\(id)\" of the excerpt is another file in this session."
         case .unknownWord(let occurrence): "no word \(occurrence) on the timeline."
+        case .wordOutsideFile(let id): "a transcript word of file \"\(id)\" is not inside the file."
         case .noWordOnTrack(let id): "no word of the transcript is over a clip of track \"\(id)\"."
         }
     }

@@ -166,4 +166,27 @@ extension Session {
         transcripts[id] = Transcript(id: id, name: name, words: added.mapValues(Anchors.init))
         return (id, added.values.map(\.count).reduce(0, +), skipped, untimed)
     }
+
+    /// Adds a transcript that the reader parsed, with the rules of the import: a new ID, a storable
+    /// name, files of the pool, each number once in a file, a storable text that is not empty, and
+    /// each word inside its file.
+    mutating func addTranscript(_ transcript: Transcript) throws(SessionError) {
+        guard transcripts[transcript.id] == nil else { throw .duplicateID(transcript.id.description) }
+        try Self.checkText(transcript.name)
+        for (id, anchors) in transcript.words {
+            guard let file = files[id] else { throw .unknownFile(id) }
+            var numbers = Set<Int>()
+            for anchor in anchors.all {
+                guard !anchor.text.isEmpty else { throw .invalidText(anchor.text) }
+                try Self.checkText(anchor.text)
+                guard numbers.insert(anchor.number).inserted else {
+                    throw .duplicateID("\(transcript.id).\(anchor.number)")
+                }
+                guard anchor.range.lowerBound >= .zero, anchor.range.upperBound <= file.length else {
+                    throw .wordOutsideFile(id)
+                }
+            }
+        }
+        transcripts[transcript.id] = transcript
+    }
 }

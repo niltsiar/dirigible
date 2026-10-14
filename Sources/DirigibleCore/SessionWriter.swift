@@ -44,7 +44,7 @@ package let artworkFolderName = "Artwork"
 package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
 /// The newest `session.xml` version that this build reads (decision 0024). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 7
+package let sessionVersion = 8
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -220,6 +220,7 @@ extension Session {
         }
         root.addChild(markerList)
         if !episode.isEmpty { root.addChild(episodeElement(episode)) }
+        if !transcripts.isEmpty { root.addChild(transcriptsElement()) }
 
         if let recording {
             let node = element(
@@ -233,6 +234,25 @@ extension Session {
         document.characterEncoding = "UTF-8"
         document.version = "1.0"
         return document
+    }
+}
+
+extension Session {
+    /// `<transcripts>` (decision 0055): one `<words>` element per file, one line per word,
+    /// "number start end text", in the order of `Anchors`.
+    fileprivate func transcriptsElement() -> XMLElement {
+        let list = element("transcripts")
+        for transcript in transcripts.values.sorted(by: { $0.id < $1.id }) {
+            let node = element("transcript", ("id", transcript.id.description), ("name", transcript.name))
+            for (file, anchors) in transcript.words.sorted(by: { $0.key < $1.key }) {
+                let lines = anchors.all.map { "\($0.number) \($0.range.lowerBound) \($0.range.upperBound) \($0.text)" }
+                let words = XMLElement(name: "words", stringValue: lines.joined(separator: "\n"))
+                add(("file", file.rawValue), to: words)
+                node.addChild(words)
+            }
+            list.addChild(node)
+        }
+        return list
     }
 }
 

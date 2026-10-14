@@ -23,6 +23,6 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 
     /// Stop of a notification: it ends only that agent take, while it records.
     func noticeStop(_ id: String) async {
-        for window in windows.values where window.agentRecord.take?.noticeID == id { await window.stopAgentTake(id) }
+        for window in windows.values { await window.stopAgentTake(id) }
     }
 }

@@ -29,9 +29,16 @@ package enum TranscriptWork {
 
     /// The lines of an import: the ID and the count of kept words, then a line for each kind of
     /// skipped word. The command prints the first two on stdout and the others on stderr.
-    package static func importLines(_ report: (id: TranscriptID, kept: Int, skipped: Int, untimed: Int)) -> [String] {
+    /// With `cues`, the count names cues, because a cut removes a whole cue.
+    package static func importLines(_ report: (id: TranscriptID, kept: Int, skipped: Int, untimed: Int), cues: Bool)
+        -> [String]
+    {
         func words(_ count: Int) -> String { count == 1 ? "1 word" : "\(count) words" }
-        var lines = [report.id.description, "Imported \(words(report.kept))."]
+        let kept =
+            cues
+            ? "Imported \(report.kept == 1 ? "1 cue" : "\(report.kept) cues") (no word times): a cut removes whole cues."
+            : "Imported \(words(report.kept))."
+        var lines = [report.id.description, kept]
         if report.skipped > 0 {
             lines.append("Skipped \(words(report.skipped)) with no clip under \(report.skipped == 1 ? "it" : "them").")
         }

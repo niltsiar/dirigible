@@ -14,7 +14,7 @@ struct TranscriptParseTests {
         let url = URL(filePath: #filePath).deletingLastPathComponent()
             .appending(path: "../../scripts/eval/agent-transcript.json")
         let file = try TranscriptFile(data: Data(contentsOf: url))
-        #expect(file.units.count == 95 && file.untimed == 0)
+        #expect(file.units.count == 95 && file.untimed == 0 && !file.cues)
         #expect(
             file.units.prefix(2) == [
                 .init(start: 6.0, end: 6.42, text: "Welcome"), .init(start: 6.5, end: 6.75, text: "to"),
@@ -32,6 +32,8 @@ struct TranscriptParseTests {
                 + #"{"start":5,"end":6,"text":"x","words":[{"word":"Four","start":5.1,"end":5.5}]}]}"#)
         #expect(file.units.map(\.text) == ["One two.", "Three", "Four"])
         #expect(file.units.map(\.start) == [1, 3, 5.1])
+        #expect(!file.cues, "one segment has words")
+        #expect(try parse(#"{"segments":[{"start":1,"end":2,"text":"One."}]}"#).cues, "no segment has words")
     }
 
     /// T1. The top-level words of the API win over its segments, which have no words.
@@ -92,6 +94,7 @@ struct TranscriptParseTests {
             file.units == [
                 .init(start: 1, end: 2.5, text: "Hi there everyone & you"), .init(start: 3, end: 4, text: "Hello"),
             ])
+        #expect(file.cues)
     }
 
     /// T2. mm:ss.ttt and hh:mm:ss.ttt, CRLF lines.

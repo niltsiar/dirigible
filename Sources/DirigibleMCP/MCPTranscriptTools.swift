@@ -49,7 +49,8 @@ let transcriptTools = [
         }
         let title = given ?? source
         return .edit { session throws(SessionError) in
-            TranscriptWork.importLines(try session.importTranscript(file, name: title, track: track, at: frame))
+            TranscriptWork.importLines(
+                try session.importTranscript(file, name: title, track: track, at: frame), cues: file.cues)
         }
     },
     Tool(

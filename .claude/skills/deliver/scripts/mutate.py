@@ -46,7 +46,8 @@ The script prints one line for each mutant:
   <n> <result>: <log>        a result of one mutant (WRONG FAILURE prints no compared lines)
   <n> own build: <reason>    the mutant needs its own build (one mutant call): no --switch, an
                              empty expr new text, another build command, a span that overlaps
-                             another span in part, a wrap that swiftc -parse refuses, an error
+                             another span in part, a wrap that swiftc -parse refuses (Swift 6
+                             mode; a file whose original does not parse is left to the build), an error
                              line of the build in its file, or a failed baseline of its test
   <n> mutate: <reason>       a refused mutant: incomplete arguments, an old text that is not in
                              its file once, or a build command with a pipe (the build log must
@@ -388,10 +389,22 @@ def schema(folder, names):
 
     build_log = os.path.join(folder, 'build.log')
 
+    def parses(path):
+        # Swift 6 mode, as the package: Swift 5 mode refuses a bare-slash regex literal.
+        return not subprocess.run(['xcrun', 'swiftc', '-parse', '-swift-version', '6', path],
+                                  capture_output=True).returncode
+
+    def parsed_original(real):
+        """True when the original text parses: only then can a parse error come from a switch."""
+        copy = os.path.join(folder, 'original.swift')
+        with open(copy, 'w') as out:
+            out.write(originals[real])
+        return parses(copy)
+
     def work():
         while True:
-            refused = {real for real in write() if real.endswith('.swift') and subprocess.run(
-                ['xcrun', 'swiftc', '-parse', real], capture_output=True).returncode}
+            refused = {real for real in write() if real.endswith('.swift') and not parses(real)
+                       and parsed_original(real)}
             if not refused:
                 break
             demote(users(refused), 'swiftc -parse refuses its switch in ' + ', '.join(sorted(refused)))

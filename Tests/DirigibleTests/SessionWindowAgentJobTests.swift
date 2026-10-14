@@ -15,7 +15,7 @@ import Testing
 
     init() throws { folder = try TemporaryFolder() }
 
-    /// Opens the window, and holds each level of its studio before its second block.
+    /// Opens the window, and holds a level of its studio before its second block.
     func open() async throws -> (SessionWindow, Studio, BlockHold) {
         let (model, studio, _, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 1, seconds: 10, noise: true))

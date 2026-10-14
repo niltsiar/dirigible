@@ -41,8 +41,8 @@ public enum ImportError: Error, Hashable, Sendable {
 public func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
     freeBytes: () -> Int64, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
-    progress: @escaping (Double) -> Void = { _ in },
-    isCancelled: @escaping () -> Bool = { false }
+    progress: @escaping @Sendable (Double) -> Void = { _ in },
+    isCancelled: @escaping @Sendable () -> Bool = { false }
 ) throws(ImportError) -> (session: Session, clip: ClipID) {
     let name = source.lastPathComponent
     guard isDownloaded(source) else { throw .notDownloaded(file: name) }
@@ -100,14 +100,10 @@ public func importAudio(
     }
     // The level reads the renamed file, and stops at a cancel (about 0.4 s for each hour of stereo).
     if !isCancelled(), level {
-        // The level of one clip calls them on one thread while this thread waits, so no two calls
-        // run at the same time.
-        nonisolated(unsafe) let report = progress
-        nonisolated(unsafe) let cancelled = isCancelled
         imported =
             autoLevel(
-                [clip], .eachClip, of: imported, in: package, progress: { report(share + $0 * (1 - share)) },
-                isCancelled: { cancelled() }
+                [clip], .eachClip, of: imported, in: package, progress: { progress(share + $0 * (1 - share)) },
+                isCancelled: isCancelled
             ).session
     }
     guard !isCancelled() else {

@@ -77,8 +77,9 @@ import os
         #expect(routeLabel(uid: "duo", devices: [duo]) == "Duo")
     }
 
-    /// Two mics of one model have one name: the second and later ones get " 2", " 3" in the order
-    /// of the device list, in the input menu and in the route label.
+    /// Two mics of one model have one name: the second and later ones in UID order get the lowest
+    /// free " 2", " 3", in the input menu and in the route label. A replug that changes the order of
+    /// the device list keeps each name.
     @Test func aRepeatedDeviceNameGetsANumber() throws {
         func device(_ uid: String, _ name: String) throws -> InputDevice {
             try #require(
@@ -94,6 +95,10 @@ import os
         #expect(deviceNames([other, a]) == ["Duo", "USB Mic"], "no repeat")
         #expect(routeLabel(uid: "b", devices: [a, other, b]) == "USB Mic 2")
         #expect(routeLabel(uid: "a", devices: [a, other, b]) == "USB Mic")
+        #expect(deviceNames([b, other, a]) == ["USB Mic 2", "Duo", "USB Mic"], "a replug changes the list order")
+        #expect(routeLabel(uid: "b", devices: [b, other, a]) == "USB Mic 2")
+        let named = try device("d", "USB Mic 2")
+        #expect(deviceNames([a, b, named]) == ["USB Mic", "USB Mic 3", "USB Mic 2"], "a device has the number")
     }
 
     // MARK: Criterion 15

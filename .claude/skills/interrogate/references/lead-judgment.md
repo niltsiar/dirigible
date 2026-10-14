@@ -21,7 +21,7 @@ Do not dismiss a finding because it is uncomfortable: the review exists to catch
 
 ## Verdict calibration
 
-A good verdict is useful, not complete: the user fixes the "Act on" items and ships with confidence. More than 5 "Act on" items usually means that you did not filter hard enough. Show each dismissed finding and why, so the user can override your judgment.
+A good verdict is useful, not complete: the user fixes the "Act on" items and ships with confidence. More than 5 "Act on" items usually means weak filtering. Show each dismissed finding and why, so the user can override your judgment.
 
 ## Invariant and Siblings
 
@@ -30,7 +30,7 @@ Each "Act on" item and taken nit, except a `no behavior change` nit, needs two f
 - **Invariant:** the broken invariant, named by the state, not the operation: "each use of the package path is the path the lock holds", not "each write goes to the locked path".
 - **Siblings:** grep the target for every read, write, and stored copy of that state, and each setter of it and of the trigger state. For a defect class (a tool failure read as success), list each instance. A copy that changes only at a write is a sibling. List each existing guard of the same invariant (an earlier check in a loop, a check before the close). With no sibling, write "none, grepped <what>". Prove each sibling that the fix leaves unchanged with a test, log, or control.
 
-Pass both fields to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer the symptom names. When a fix relaxes a guard, drops a wait, moves a read across an `await`, or adds a state (a block rule, a marker file, an output line), name what the old code must still keep out, and list each reader, start state, and exit under Siblings.
+Pass both fields to the fixer with the fix line. One commit fixes the finding and each sibling path. Accept a fix only when it covers each consumer the symptom names. When a fix relaxes or narrows a guard, drops a wait, moves a read across an `await`, or adds a state (a block rule, a marker file, an output line), name what the old code must still keep out or let through, and list each reader, start state, and exit under Siblings.
 
 ## Rounds
 

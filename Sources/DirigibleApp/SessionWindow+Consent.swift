@@ -144,6 +144,14 @@ extension SessionWindow {
     func askRecord(_ request: RecordRequest, agent: AgentName, connection: AgentConnection? = nil) async
         -> RecordAnswer
     {
+        let answer = await answerRecord(request, agent: agent, connection: connection)
+        logAgentEnd(request, agent: agent, connection: connection, answer)
+        return answer
+    }
+
+    private func answerRecord(_ request: RecordRequest, agent: AgentName, connection: AgentConnection?) async
+        -> RecordAnswer
+    {
         // The agent stopped waiting before the main actor got the call: no sheet, no Dock bounce.
         if Task.isCancelled { return .ended }
         // A new connection of the bridge ends the grant (decision 0050): the old one is gone.
@@ -361,7 +369,6 @@ extension SessionWindow {
         guard let consent else { return }
         self.consent = nil
         if let id = consent.attentionRequest { attention.cancel(id) }
-        logAgentEnd(consent, answer)
         consent.finish(answer)
     }
 }

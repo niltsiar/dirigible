@@ -8,7 +8,7 @@ public enum AgentLog {
     public static let fileName = "agent-log.tsv"
     public static let version = 1
     static let versionText = "# Dirigible agent log, version "
-    static let header = "time\tevent\ttake\tagent\tconnection\ttracks\tseconds"
+    static let header = "time\tevent\ttake\tagent\tconnection\ttracks\tseconds\treason"
 
     /// How an agent record request ended.
     public enum Event: String, Sendable {
@@ -18,6 +18,8 @@ public enum AgentLog {
         case grant
         case declined
         case noAnswer = "no-answer"
+        /// The app refused the request, or it ended with no sheet answer: the reason says why.
+        case refused
     }
 
     /// One line of the log.
@@ -32,18 +34,23 @@ public enum AgentLog {
         public let connection: UInt64?
         public let tracks: [String]
         public let seconds: Double
+        /// Why a `refused` request ended, or nil.
+        public let reason: String?
 
         public init(
-            time: Date, event: Event, take: Int?, agent: String?, connection: UInt64?, tracks: [String], seconds: Double
+            time: Date, event: Event, take: Int?, agent: String?, connection: UInt64?, tracks: [String],
+            seconds: Double, reason: String? = nil
         ) {
             (self.time, self.event, self.take, self.agent) = (time, event, take, agent)
-            (self.connection, self.tracks, self.seconds) = (connection, tracks, seconds)
+            (self.connection, self.tracks, self.seconds, self.reason) = (connection, tracks, seconds, reason)
         }
 
-        /// The line with its line break. A tab or a line break in a text becomes a space.
+        /// The line with its line break. A tab or a line break in a text becomes a space. A text
+        /// that starts with =, +, -, or @ gets a leading ', so a spreadsheet does not read a formula.
         var line: String {
             func clean(_ text: String) -> String {
-                String(text.map { $0 == "\t" || $0.isNewline ? " " : $0 })
+                let flat = String(text.map { $0 == "\t" || $0.isNewline ? " " : $0 })
+                return flat.first.map { "=+-@".contains($0) } == true ? "'" + flat : flat
             }
             let time = ISO8601DateFormatter.string(
                 from: time, timeZone: .current, formatOptions: [.withInternetDateTime])
@@ -51,7 +58,7 @@ public enum AgentLog {
             let fields = [
                 time, event.rawValue, take.map(String.init) ?? "-", agent.map(clean) ?? "-",
                 connection.map(String.init) ?? "-",
-                clean(tracks.joined(separator: ", ")), length,
+                clean(tracks.joined(separator: ", ")), length, reason.map(clean) ?? "-",
             ]
             return fields.joined(separator: "\t") + "\n"
         }

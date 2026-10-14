@@ -18,9 +18,9 @@ extension ConsentTests {
         return lines.map { String($0.split(separator: "\t")[1]) }
     }
 
-    /// `click`, `grant`, `declined`, and `no-answer` each add one line; a take of the person
-    /// (Command-R) adds none.
-    @Test(arguments: ["click", "grant", "declined", "no-answer", "person"])
+    /// `click`, `grant`, `declined`, `no-answer`, and `refused` (here an unknown track, refused
+    /// before a sheet) each add one line; a take of the person (Command-R) adds none.
+    @Test(arguments: ["click", "grant", "declined", "no-answer", "refused", "person"])
     func eachEndAddsOneLine(_ end: String) async throws {
         let (model, studio) = try await window()
         var expected = [end]
@@ -39,6 +39,8 @@ extension ConsentTests {
         case "no-answer":
             model.consentWait = { _ in }
             #expect(await ask(model).value == .noAnswer)
+        case "refused":
+            #expect(await ask(model, ["x"]).value == .refused(.session(.unknownTrack("x"))))
         default:
             model.armed = ["t1"]
             await model.record()

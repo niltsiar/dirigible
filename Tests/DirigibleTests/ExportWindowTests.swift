@@ -390,5 +390,5 @@ import os
         (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
     }
     sheet.contentView?.layoutSubtreeIfNeeded()
-    return sheet.contentView.map(buttons)?.first { ($0.keyEquivalent == "\u{1b}") == cancel }
+    return sheet.contentView.map(buttons)?.first { !($0 is GrantCheckbox) && ($0.keyEquivalent == "\u{1b}") == cancel }
 }

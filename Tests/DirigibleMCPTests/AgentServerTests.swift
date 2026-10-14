@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 import Testing
@@ -24,7 +25,9 @@ struct AgentServerTests {
     @Test func aDirectSourceCallIsRefused() {
         func refusal(_ arguments: [String: Any]) -> String? {
             let line = MCPServer.encode(["tool": "devices", "arguments": arguments])
-            guard case .failure(let error) = AgentListener.check(Data(line.utf8)) else { return nil }
+            guard
+                case .failure(let error) = AgentListener.check(Data(line.utf8), connection: AgentConnection(serial: 1))
+            else { return nil }
             return error.message
         }
         #expect(refusal([:]) == "The tool devices does not run in the app.")

@@ -37,10 +37,11 @@ import os
     }
 
     func ask(
-        _ model: SessionWindow, _ armed: [TrackID] = ["t1"], seconds: Double = 30, playhead: Frames? = nil
+        _ model: SessionWindow, _ armed: [TrackID] = ["t1"], seconds: Double = 30, playhead: Frames? = nil,
+        connection: AgentConnection? = nil
     ) -> Task<RecordAnswer, Never> {
         let request = RecordRequest(armed: armed, seconds: seconds, playhead: playhead)
-        return Task { await model.askRecord(request, agent: agent) }
+        return Task { await model.askRecord(request, agent: agent, connection: connection) }
     }
 
     /// Waits for the sheet of a waiting request and gives it.

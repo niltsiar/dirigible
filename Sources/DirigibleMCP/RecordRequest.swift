@@ -27,10 +27,32 @@ extension EditRules {
     }
 }
 
+/// The window grant after a take start (decision 0050): its end on the wall clock, the take
+/// length that it has left, and true when the take started with no sheet.
+package struct GrantNote: Equatable, Sendable {
+    package let end: Date
+    package let secondsLeft: Double
+    package let noSheet: Bool
+
+    package init(end: Date, secondsLeft: Double, noSheet: Bool) {
+        (self.end, self.secondsLeft, self.noSheet) = (end, secondsLeft, noSheet)
+    }
+
+    /// The text of the grant in a reply. The time is HH:MM in the time zone of the Mac.
+    var text: String {
+        let format = DateFormatter()
+        (format.locale, format.dateFormat) = (Locale(identifier: "en_US_POSIX"), "HH:mm")
+        return "a window grant of the user covers this connection until \(format.string(from: end)), the window "
+            + "close, or a new connection, with \(Int(secondsLeft / 60)) min of takes left. A cancel of a call or a "
+            + "new agent session makes a new connection."
+    }
+}
+
 /// The end of one record request in the app (decision 0048). `reply` gives its English text.
 package enum RecordAnswer: Equatable, Sendable {
-    /// The user clicked Record, and take `take` started on the tracks with these names.
-    case started(take: Int, tracks: [String], seconds: Double)
+    /// Take `take` started on the tracks with these names, after a click or under a window grant
+    /// (`grant`, decision 0050).
+    case started(take: Int, tracks: [String], seconds: Double, grant: GrantNote? = nil)
     case declined
     /// The request ended after `RecordRequest.answerLimit` with no answer.
     case noAnswer
@@ -42,15 +64,23 @@ package enum RecordAnswer: Equatable, Sendable {
     case busy(AgentBusy)
     /// The request or the start was refused with this error, as `dirigible record` refuses it.
     case refused(StudioError)
+    /// A route of a grant track changed during the microphone prompt of a grant take.
+    case grantChanged
 
     package func reply(package: String) -> AgentReply {
         let text: String
         switch self {
-        case .started(let take, let tracks, let seconds):
+        case .started(let take, let tracks, let seconds, let grant):
             let length = seconds.rounded() == seconds ? "\(Int(seconds))" : "\(seconds)"
+            let start = "Take \(take) records on \(tracks.joined(separator: ", ")) for \(length) s"
+            let lead =
+                switch grant {
+                case nil: start + ". "
+                case let grant? where grant.noSheet: start + " with no sheet: " + grant.text + " "
+                case let grant?: start + ". A" + grant.text.dropFirst() + " "
+                }
             return .result(
-                text: "Take \(take) records on \(tracks.joined(separator: ", ")) for \(length) s. The user can stop it "
-                    + "earlier. Read session_info: the take ended when recording is gone.",
+                text: lead + "The user can stop it earlier. Read session_info: the take ended when recording is gone.",
                 isError: false)
         case .declined: text = "The user did not record."
         case .noAnswer:
@@ -62,6 +92,8 @@ package enum RecordAnswer: Equatable, Sendable {
         case .minimized: text = "The window of \(package) is minimized. Ask the user to show it, then try again."
         case .busy(let busy): text = busy.message(package: package)
         case .refused(let error): text = error.message(package: package)
+        case .grantChanged:
+            text = "The tracks of the window grant changed during the start. Ask again: the sheet shows."
         }
         return .result(text: text, isError: true)
     }

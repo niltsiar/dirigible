@@ -155,6 +155,8 @@ enum L10n: String, CaseIterable {
     case consentMessage = "consent.message"
     case consentRecordOver = "consent.record.over"
     case consentDontRecord = "consent.dont.record"
+    case consentGrant = "consent.grant"
+    case consentGrantHelp = "consent.grant.help"
     case redoAgentUnnamed = "redo.agent.unnamed"
 
     case panelExportFormat = "panel.export.format"

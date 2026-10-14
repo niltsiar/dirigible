@@ -58,12 +58,10 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         let names = Backup.all(in: package).map(\.fileName)
         return names.isEmpty ? "No backups." : names.joined(separator: "\n")
     case .episodeInfo:
-        let session: Session
-        do throws(SessionFileError) { session = try Session(contentsOf: package) } catch {
-            throw ToolError(error.message(package: path))
-        }
         // EpisodeView holds only strings, numbers, and a flag, so the encode does not fail.
-        return (try? EpisodeView(session.episode).json(pretty: false)) ?? "{}"
+        return (try? EpisodeView(try read(package, path: path).episode).json(pretty: false)) ?? "{}"
+    case .words(let query):
+        return try TranscriptWork.wordsText(try read(package, path: path), query)
     case .episode(let work):
         do throws(EditFailure<ArtworkError>) {
             try editPackageCore(package, ripple: false) { session, _ throws(ArtworkError) in
@@ -114,14 +112,16 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
     }
 }
 
-/// `session_info`: the compact JSON of `info --json`, read with no lock, as `dirigible info`.
-private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range<Frames>?) throws(ToolError) -> String {
-    let session: Session
-    do throws(SessionFileError) {
-        session = try Session(contentsOf: package)
-    } catch {
+/// The session of `package`, read with no lock.
+private func read(_ package: URL, path: String) throws(ToolError) -> Session {
+    do throws(SessionFileError) { return try Session(contentsOf: package) } catch {
         throw ToolError(error.message(package: path))
     }
+}
+
+/// `session_info`: the compact JSON of `info --json`, read with no lock, as `dirigible info`.
+private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range<Frames>?) throws(ToolError) -> String {
+    let session = try read(package, path: path)
     try checkTracks(tracks, in: session)
     let media: [FileID: MediaFault]
     do throws(POSIXError) {

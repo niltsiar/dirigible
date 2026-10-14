@@ -20,7 +20,7 @@ Dirigible shows its menus and windows in English or Spanish. By default, it uses
 
 ### What Dirigible does not do yet
 
-- Safari and FaceTime cannot be a track source, and the **Apps** list does not show them: they play their audio from system processes outside the app.
+- Safari, Safari Technology Preview, and FaceTime cannot be a track source, and the **Apps** list does not show them: they play their audio from system processes outside the app.
 
 ## Before you record a show
 

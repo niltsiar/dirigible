@@ -37,8 +37,11 @@ public struct History: Hashable, Sendable {
     /// Removes the pool entries `ids(session)` from the session and from each undo and redo entry,
     /// with no new entry, so no undo brings back a pool entry of a file in the Trash (decision 0047
     /// D3). The revision goes up by one. Throws `.fileInUse` and changes nothing when a clip of the
-    /// session or of an entry uses an ID.
-    public mutating func removeUnusedFiles(_ ids: (Session) -> Set<FileID>) throws(SessionError) {
+    /// session or of an entry uses an ID. When the session still equals `saved.before`, it becomes
+    /// `saved.pruned`, so the saved transcript file names stay and the next save writes no copy.
+    public mutating func removeUnusedFiles(
+        _ ids: (Session) -> Set<FileID>, saved: (before: Session, pruned: Session)? = nil
+    ) throws(SessionError) {
         func removed(_ value: Session) throws(SessionError) -> Session {
             var copy = value
             for id in ids(value) where copy.files[id] != nil { try copy.removeFile(id) }
@@ -47,7 +50,9 @@ public struct History: Hashable, Sendable {
         func removed(_ entry: Entry) throws(SessionError) -> Entry {
             Entry(session: try removed(entry.session), agent: entry.agent)
         }
-        let (current, undo, redo) = (try removed(session), try undoStack.map(removed), try redoStack.map(removed))
+        let current: Session
+        if let saved, saved.before == session { current = saved.pruned } else { current = try removed(session) }
+        let (undo, redo) = (try undoStack.map(removed), try redoStack.map(removed))
         (session, undoStack, redoStack) = (current, undo, redo)
         revision += 1
     }

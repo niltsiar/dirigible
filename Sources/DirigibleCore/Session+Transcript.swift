@@ -117,8 +117,10 @@ extension Session {
     /// `track` (decision 0055). A unit goes to the clip of `track` under its midpoint, as file frames
     /// clamped to the clip. Each unit with a usable time gets the number of its index, from 1; a unit
     /// with no clip under it is skipped, and its number is used up, so a cut never joins words
-    /// around audio of another place. A unit past `Frames.limit`, or with no frame between its
-    /// start and its end, counts as untimed with the untimed units of the file. For each file that it anchors, the import first drops the old
+    /// around audio of another place. A unit over file audio that an earlier clip of the import
+    /// already gave (a duplicated region) adds no anchor: its words show under both clips. A unit
+    /// past `Frames.limit`, or with no frame between its start and its end, counts as untimed with
+    /// the untimed units of the file. For each file that it anchors, the import first drops the old
     /// words (of any transcript) whose midpoint is in the span of the new words. A transcript with
     /// no word left goes. No kept word throws `.noWordOnTrack` and changes nothing.
     @discardableResult
@@ -138,6 +140,7 @@ extension Session {
         var number = 0
         var skipped = 0
         var added: [FileID: [Anchor]] = [:]
+        var heard: Set<Int> = []
         for unit in file.units {
             guard let start = frame(unit.start), let end = frame(unit.end), end > start else {
                 untimed += 1
@@ -151,6 +154,13 @@ extension Session {
             }
             let clip = clips[index]
             let shift = clip.offset - clip.start
+            // A repeat of audio that another clip of the file gave already shows there: no second anchor.
+            let repeated = heard.contains { other in
+                other != index && clips[other].file == clip.file
+                    && (clips[other].offset..<(clips[other].offset + clips[other].length)).contains(midpoint + shift)
+            }
+            guard !repeated else { continue }
+            heard.insert(index)
             let range = (max(start, clip.start) + shift)..<(min(end, clip.end) + shift)
             added[clip.file, default: []].append(Anchor(number: number, range: range, text: unit.text))
         }

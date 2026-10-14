@@ -281,7 +281,7 @@ Choose **Tools > Auto Level** (Command-L) to set the gain of each clip in the se
 
 Choose **Tools > Auto Level per Track** (Option-Command-L) to give the clips of one track the same change. The differences in level between them stay, unless a gain reaches the 20 dB limit.
 
-While a level runs, its banner shows **Cancel** (Command-period). Cancel stops the level, and no gain changes.
+While a level runs, its banner shows **Cancel** (Command-period). Cancel stops the level, and no gain changes. A Cancel at the very end can come too late; then the change stays, and **Edit > Undo** removes it.
 
 The selection gives the clips:
 
@@ -348,7 +348,7 @@ Choose **File > Import Audio** (Command-T) and select a WAV, AIFF, FLAC, MP3, or
 - A stereo file on a mono track becomes one channel. A mono file on a stereo track plays on both channels. Dirigible does not import a file with more than 2 channels.
 - The clip replaces the audio under it on its track.
 - Dirigible levels the clip as **Tools > Auto Level** does, and selects it. One **Edit > Undo** removes the clip, its level, and a new track.
-- A banner shows the name of the file and the progress. Click **Cancel** in the banner or press Command-period to stop the import: the session does not change. VoiceOver reads the banner when it appears, and reads the progress bar with the banner text. You cannot record or edit until the import ends.
+- A banner shows the name of the file and the progress. Click **Cancel** in the banner or press Command-period to stop the import: the session does not change. A Cancel at the very end can come too late; then the change stays, and **Edit > Undo** removes it. VoiceOver reads the banner when it appears, and reads the progress bar with the banner text. You cannot record or edit until the import ends.
 
 You can also drag audio files from Finder onto the tracks. During the drag, a line shows where the clips start. The target track gets a colored border, or a **New Track** row shows where Dirigible adds the tracks.
 

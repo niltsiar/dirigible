@@ -77,6 +77,25 @@ import os
         #expect(routeLabel(uid: "duo", devices: [duo]) == "Duo")
     }
 
+    /// Two mics of one model have one name: the second and later ones get " 2", " 3" in the order
+    /// of the device list, in the input menu and in the route label.
+    @Test func aRepeatedDeviceNameGetsANumber() throws {
+        func device(_ uid: String, _ name: String) throws -> InputDevice {
+            try #require(
+                InputDevice(
+                    uid: uid, name: name, nominalRate: 48_000, availableRates: [48_000...48_000],
+                    channelsPerBuffer: [1], latency: 0))
+        }
+        let (a, b, c) = (try device("a", "USB Mic"), try device("b", "USB Mic"), try device("c", "USB Mic"))
+        let other = try device("o", "Duo")
+
+        #expect(deviceNames([a, other, b]) == ["USB Mic", "Duo", "USB Mic 2"], "two equal names")
+        #expect(deviceNames([a, b, other, c]) == ["USB Mic", "USB Mic 2", "Duo", "USB Mic 3"], "three equal names")
+        #expect(deviceNames([other, a]) == ["Duo", "USB Mic"], "no repeat")
+        #expect(routeLabel(uid: "b", devices: [a, other, b]) == "USB Mic 2")
+        #expect(routeLabel(uid: "a", devices: [a, other, b]) == "USB Mic")
+    }
+
     // MARK: Criterion 15
 
     @Test func theToggleAndTheArmSetDriveTheMonitor() async throws {

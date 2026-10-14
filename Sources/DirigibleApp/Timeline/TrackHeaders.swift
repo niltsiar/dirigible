@@ -258,8 +258,8 @@ private struct TrackRow: View {
 
     @ViewBuilder private var routeItems: some View {
         Button(L10n.trackRouteNone.key) { model.setRoute(nil, device: nil, track: track.id) }
-        ForEach(model.devices, id: \.uid) { device in
-            Section(device.name) {
+        ForEach(Array(zip(model.devices, deviceNames(model.devices))), id: \.0.uid) { device, name in
+            Section(name) {
                 ForEach(routeOptions(channelCount: device.channelCount), id: \.self) { channels in
                     Button(channelsText(channels)) { model.setRoute(channels, device: device, track: track.id) }
                 }
@@ -355,9 +355,22 @@ struct HeaderRowStyle: Equatable {
     }
 }
 
-/// The device of a route: its name, or the "missing" text when it is not in `devices`.
+/// The device of a route: its name from `deviceNames`, or the "missing" text when it is not in
+/// `devices`.
 func routeLabel(uid: String, devices: [InputDevice]) -> String {
-    devices.first { $0.uid == uid }?.name ?? L10n.trackRouteMissing.text
+    guard let index = devices.firstIndex(where: { $0.uid == uid }) else { return L10n.trackRouteMissing.text }
+    return deviceNames(devices)[index]
+}
+
+/// The shown name of each device, in list order: the second and later devices with one name get
+/// " 2", " 3", so two mics of one model differ.
+func deviceNames(_ devices: [InputDevice]) -> [String] {
+    var counts: [String: Int] = [:]
+    return devices.map { device in
+        let count = counts[device.name, default: 0] + 1
+        counts[device.name] = count
+        return count == 1 ? device.name : "\(device.name) \(count)"
+    }
 }
 
 private func channelsText(_ channels: Route.Channels) -> String {

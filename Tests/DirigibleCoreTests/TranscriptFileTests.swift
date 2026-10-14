@@ -121,6 +121,27 @@ struct TranscriptFileTests {
         }
     }
 
+    /// T14 (0047). Remove Unused Files takes the words of a removed file from the session and from
+    /// each undo entry; transcript 2, with words only in that file, goes. The words of a used file
+    /// stay, and the session saves.
+    @Test func pruneDropsTheWordsOfARemovedFile() throws {
+        var session = try transcribed()
+        try session.removeClips(["G"])
+        var history = History(session)
+        try history.edit { (session: inout Session) throws(SessionError) in
+            try session.setGain(Gain(dB: -3)!, track: "host")
+        }
+        try history.removeUnusedFiles { _ in ["g"] }
+
+        #expect(history.entries.count == 1)
+        for value in [history.session] + history.entries {
+            #expect(value.transcripts.keys.map(\.number) == [1], "transcript 2 goes with file g")
+            #expect(value.transcripts[TranscriptID(1)] == session.transcripts[TranscriptID(1)], "the h words stay")
+        }
+        let same = try Session(xml: history.session.checkedData()) == history.session
+        #expect(same, "the pruned session saves")
+    }
+
     /// T13. "&", "<", a tab that the parser made one space, and a leading space round-trip.
     @Test func ampersandAndTabRoundTrip() throws {
         var session = try transcriptSession()

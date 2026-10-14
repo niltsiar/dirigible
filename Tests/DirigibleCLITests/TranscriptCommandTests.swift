@@ -117,8 +117,28 @@ struct TranscriptCommandTests {
 
         #expect(
             try await package.run(["transcript", "cut", "PKG"] + word)
-                == CLIResult(status: 1, stdout: "", stderr: "Error: no word \(word[0]) on the timeline.\n"))
+                == CLIResult(status: 1, stdout: "", stderr: "Error: \(Self.stale(word[0]))\n"))
         #expect(try package.xml() == before)
+    }
+
+    /// The error text of a token that an edit made stale.
+    static func stale(_ token: String) -> String {
+        "no word \(token) on the timeline: an edit changed it. Read the words again, then cut."
+    }
+
+    /// Code gate 1 item 5: a cut splits the clip, so the tokens of the second phrase from the same
+    /// read are stale; the error says to read the words again, and a second read cuts.
+    @Test func twoCutsFromOneReadNeedASecondRead() async throws {
+        _ = try await package.run("transcript", "import", "PKG", Self.fixture.path, "--track", "host")
+        let phrase = "Oops, I lost my notes for a second."
+        let first = Self.occurrences(try await package.run("transcript", "words", "PKG", "--match", "Welcome"))
+        let second = Self.occurrences(try await package.run("transcript", "words", "PKG", "--match", phrase))
+        #expect(try await package.run(["transcript", "cut", "PKG"] + first).status == 0)
+
+        let stale = try await package.run(["transcript", "cut", "PKG"] + second)
+        #expect(stale == CLIResult(status: 1, stdout: "", stderr: "Error: \(Self.stale(second[0]))\n"))
+        let again = Self.occurrences(try await package.run("transcript", "words", "PKG", "--match", phrase))
+        #expect(try await package.run(["transcript", "cut", "PKG"] + again).status == 0)
     }
 
     /// T12: --match keeps whole words of one track, with case and punctuation ignored.

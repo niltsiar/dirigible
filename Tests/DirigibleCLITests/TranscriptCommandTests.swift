@@ -78,6 +78,24 @@ struct TranscriptCommandTests {
                     stderr: "Skipped 1 word with no clip under it.\nSkipped 1 word with no time.\n"))
     }
 
+    /// Code gate 2 item 1: room tone from one host file under two gaps, with other guest speech over
+    /// each. The second region repeats audio that the first gave, so its word is dropped and counted.
+    @Test func importCountsTheRepeatedWords() async throws {
+        try package.edit { session in
+            try session.clear(0..<4_800_000, on: ["host"])
+            try session.place(Clip(id: "R1", file: "h", start: 0, offset: 0, length: 480_000), on: "host")
+            try session.place(Clip(id: "R2", file: "h", start: 2_400_000, offset: 0, length: 480_000), on: "host")
+        }
+        let file = package.folder.appending(path: "t.json")
+        try Data(#"{"words":[{"word":"um","start":1,"end":1.5},{"word":"yes","start":51,"end":51.5}]}"#.utf8)
+            .write(to: file)
+        #expect(
+            try await package.run("transcript", "import", "PKG", file.path, "--track", "host")
+                == CLIResult(
+                    status: 0, stdout: "1\nImported 1 word.\n",
+                    stderr: "Skipped 1 word over audio that an earlier clip already gave.\n"))
+    }
+
     /// Code gate 1 item 9: a WebVTT import reports cues, because a cut removes a whole cue.
     @Test func importReportsCues() async throws {
         let file = package.folder.appending(path: "t.vtt")

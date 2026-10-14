@@ -79,7 +79,7 @@ package enum TranscriptWork {
         let lines = shown.map {
             "\($0.occurrence)\t\($0.range.lowerBound)\t\($0.range.upperBound)\t\($0.track)\t\($0.text)"
         }
-        return (lines + (more > 0 ? ["\(more) more words: give --from and --to, or --match."] : []))
+        return (lines + (more > 0 ? ["\(more) more words: narrow with from, to, or match."] : []))
             .joined(separator: "\n")
     }
 }

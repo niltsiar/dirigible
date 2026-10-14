@@ -186,7 +186,7 @@ struct TranscriptCommandTests {
 
         let all = try await package.run("transcript", "words", "PKG")
         let lines = all.stdout.split(separator: "\n")
-        #expect(lines.count == 201 && lines.last == "8800 more words: give --from and --to, or --match.")
+        #expect(lines.count == 201 && lines.last == "8800 more words: narrow with from, to, or match.")
         let match = try await package.run("transcript", "words", "PKG", "--match", "alpha beta gamma delta")
         #expect(match.stdout.split(separator: "\n").count == 4 && match.stdout.utf8.count < 1_024)
         #expect(try await package.run("transcript", "words", "PKG", "--limit", "0").status == 64)

@@ -30,13 +30,26 @@ struct AgentLogTests {
         let lines = try lines(folder)
         #expect(lines.count == 5 && lines.last == "", "\(lines)")
         #expect(lines[0] == "# Dirigible agent log, version 1")
-        #expect(lines[1] == "time\tevent\ttake\tagent\tconnection\ttracks\tseconds")
+        #expect(lines[1] == "time\tevent\ttake\tagent\tconnection\ttracks\tseconds\treason")
         let time = ISO8601DateFormatter.string(
             from: Date(timeIntervalSince1970: 1_800_000_000), timeZone: .current, formatOptions: [.withInternetDateTime]
         )
-        #expect(lines[2] == "\(time)\tclick\t3\tClaude Code\t7\tHost, Guest\t90")
-        #expect(lines[3] == "\(time)\tdeclined\t-\ta b c\t7\tHost, Guest\t90", "a tab or a line break becomes a space")
-        #expect(lines[2].split(separator: "\t").count == 7, "seven fields")
+        #expect(lines[2] == "\(time)\tclick\t3\tClaude Code\t7\tHost, Guest\t90\t-")
+        #expect(
+            lines[3] == "\(time)\tdeclined\t-\ta b c\t7\tHost, Guest\t90\t-", "a tab or a line break becomes a space")
+        #expect(lines[2].split(separator: "\t").count == 8, "eight fields")
+    }
+
+    /// A refusal has its reason. A text field that a spreadsheet reads as a formula gets a
+    /// leading ' (item 6 of code gate 1).
+    @Test func aRefusalWithAFormulaName() throws {
+        let refused = AgentLog.Entry(
+            time: Date(timeIntervalSince1970: 1_800_000_000), event: .refused, take: nil, agent: "=HYPERLINK(1)",
+            connection: 7, tracks: ["+Host", "@Guest"], seconds: 90, reason: "too many")
+        #expect(AgentLog.append(refused, to: folder) == .written)
+        let fields = try lines(folder)[2].split(separator: "\t").map(String.init)
+        #expect(
+            Array(fields.dropFirst()) == ["refused", "-", "'=HYPERLINK(1)", "7", "'+Host, @Guest", "90", "too many"])
     }
 
     /// Decision 0024 P4: a newer file gets no line; a first line that does not parse gets none.
@@ -83,7 +96,7 @@ struct AgentLogTests {
         #expect(AgentLog.append(entry(), to: folder) == .written)
         let lines = try lines(folder)
         #expect(lines[2] == "2026-10-14T08:00:00+02:00\tcli")
-        #expect(lines[3].split(separator: "\t").count == 7, "\(lines)")
+        #expect(lines[3].split(separator: "\t").count == 8, "\(lines)")
     }
 
     /// A failed first write leaves no file, so a later append writes the version line and the

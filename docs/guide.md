@@ -878,7 +878,7 @@ More rules:
 - While the sheet shows, the agent cannot edit the session.
 - VoiceOver and Full Keyboard Access can press Record: that is your consent. An app that you gave Accessibility permission in System Settings can also press Record for you, for example a terminal that runs the agent. Give that permission only to apps that you trust.
 - The agent gets the take number when the take starts. To find the end, it reads `session_info`: `recording` goes when the take ends.
-- Each end of a request adds one line to `agent-log.tsv` in the session package: the time, the event (`click`, `grant`, `declined`, or `no-answer`), the take, the agent name, the connection number, the tracks, and the seconds. Undo and a backup revert do not change the file.
+- Each end of a request adds one line to `agent-log.tsv` in the session package: the time, the event (`click`, `grant`, `declined`, `no-answer`, or `refused`), the take, the agent name, the connection number, the tracks, the seconds, and the reason of a refusal. Undo and a backup revert do not change the file.
 
 ##### Make your agent ask first
 

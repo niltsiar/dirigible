@@ -52,20 +52,28 @@ extension SessionWindow {
         }
     }
 
-    /// Appends the end of an agent request to the agent log of the package (C16). The URL comes
-    /// from the studio at each end, so a rename moves the log. Only these four ends get a line.
-    func logAgentEnd(_ consent: ConsentRequest, _ answer: RecordAnswer) {
-        let (event, take): (AgentLog.Event, Int?)
+    /// Appends the end of each agent request to the agent log of the package (C16). The URL comes
+    /// from the studio at each end, so a rename moves the log. A closed window writes no line.
+    func logAgentEnd(_ request: RecordRequest, agent: AgentName, connection: AgentConnection?, _ answer: RecordAnswer) {
+        guard let studio else { return }
+        var (event, take, reason): (AgentLog.Event, Int?, String?) = (.refused, nil, nil)
         switch answer {
         case .started(let number, _, _, let grant): (event, take) = (grant?.noSheet == true ? .grant : .click, number)
-        case .declined: (event, take) = (.declined, nil)
-        case .noAnswer: (event, take) = (.noAnswer, nil)
-        default: return
+        case .declined: event = .declined
+        case .noAnswer: event = .noAnswer
+        case .ended: reason = "ended"
+        case .closed: reason = "closed"
+        case .minimized: reason = "minimized"
+        case .busy(let busy): reason = "busy \(busy)"
+        case .refused: reason = "error"
+        case .grantChanged: reason = "route changed"
+        case .noRoom(let minutes): reason = "no room \(minutes) min"
+        case .tooMany: reason = "too many"
         }
-        guard let studio else { return }
         let entry = AgentLog.Entry(
-            time: .now, event: event, take: take, agent: consent.agent.name, connection: consent.connection?.serial,
-            tracks: consent.names, seconds: consent.seconds)
+            time: .now, event: event, take: take, agent: agent.name, connection: connection?.serial,
+            tracks: request.armed.map { studio.session.track($0)?.name ?? $0.rawValue }, seconds: request.seconds,
+            reason: reason)
         AgentLogWriter.append(entry, to: studio.url, holding: studio) { result in
             if result != .written {
                 agentLog.error("No agent log line: \(String(describing: result), privacy: .public)")

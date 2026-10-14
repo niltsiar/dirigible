@@ -314,4 +314,6 @@ public enum SessionError: Error, Hashable, Sendable {
     case noWordOnTrack(TrackID)
     /// A word of this file starts before 0 or ends past the file length (decision 0055).
     case wordOutsideFile(FileID)
+    /// A cut names only words with no audio (decision 0055).
+    case nothingToCut
 }

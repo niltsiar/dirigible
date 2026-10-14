@@ -206,6 +206,7 @@ extension SessionError {
         case .foreignFile(let id): "file \"\(id)\" of the excerpt is another file in this session."
         case .unknownWord(let occurrence): "no word \(occurrence) on the timeline."
         case .wordOutsideFile(let id): "a transcript word of file \"\(id)\" is not inside the file."
+        case .nothingToCut: "the words have no audio to cut."
         case .noWordOnTrack(let id): "no word of the transcript is over a clip of track \"\(id)\"."
         }
     }

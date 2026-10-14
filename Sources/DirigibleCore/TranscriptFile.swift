@@ -20,7 +20,7 @@ public struct TranscriptFile: Hashable, Sendable {
 
     /// The units with a usable time and a text, in file order.
     public let units: [Unit]
-    /// The count of units with no usable time: none (an unaligned WhisperX word), end before start,
+    /// The count of units with no usable time: none (an unaligned WhisperX word), end at or before start,
     /// negative, or not finite.
     public let untimed: Int
 
@@ -34,7 +34,7 @@ public struct TranscriptFile: Hashable, Sendable {
         for (start, end, text) in raw {
             let text = Self.cleaned(text)
             guard !text.isEmpty else { continue }
-            guard let start, let end, start.isFinite, end.isFinite, start >= 0, end >= start else {
+            guard let start, let end, start.isFinite, end.isFinite, start >= 0, end > start else {
                 untimed += 1
                 continue
             }

@@ -65,12 +65,12 @@ extension Session {
     }
 
     /// Cuts the audio of `occurrences` from all tracks in one ripple delete, and returns the ranges
-    /// of the runs, before the ripple delete merges the touching ones. A run is a sequence of named
+    /// that it cut: the ranges of the runs, with overlapping and touching ones merged. A run is a sequence of named
     /// words with no other shown word between them on any track, of one transcript, each number the
     /// same as or one more than the one before. The occurrences of one word at one start (one file
     /// on two tracks) are one step, named when any of them is named. A run goes from its first start
-    /// to its largest end. An occurrence that is not shown now throws `.unknownWord` and changes
-    /// nothing.
+    /// to its largest end. An occurrence that is not shown now throws `.unknownWord`, and words with
+    /// no audio throw `.nothingToCut`; both change nothing.
     @discardableResult
     public mutating func cutWords(_ occurrences: [WordOccurrence]) throws(SessionError) -> [Range<Frames>] {
         let shown = words()
@@ -107,16 +107,18 @@ extension Session {
             }
             previous = step.word
         }
-        try rippleDelete(ranges, on: tracks.map(\.id))
-        return ranges
+        let cut = Self.merged(ranges)
+        guard !cut.isEmpty else { throw .nothingToCut }
+        try rippleDelete(cut, on: tracks.map(\.id))
+        return cut
     }
 
     /// Imports `file`, a transcript of an export from timeline frame `at`, through the clips of
     /// `track` (decision 0055). A unit goes to the clip of `track` under its midpoint, as file frames
     /// clamped to the clip. Each unit with a usable time gets the number of its index, from 1; a unit
     /// with no clip under it is skipped, and its number is used up, so a cut never joins words
-    /// around audio of another place. A unit past `Frames.limit` counts as untimed with the
-    /// untimed units of the file. For each file that it anchors, the import first drops the old
+    /// around audio of another place. A unit past `Frames.limit`, or with no frame between its
+    /// start and its end, counts as untimed with the untimed units of the file. For each file that it anchors, the import first drops the old
     /// words (of any transcript) whose midpoint is in the span of the new words. A transcript with
     /// no word left goes. No kept word throws `.noWordOnTrack` and changes nothing.
     @discardableResult
@@ -137,7 +139,7 @@ extension Session {
         var skipped = 0
         var added: [FileID: [Anchor]] = [:]
         for unit in file.units {
-            guard let start = frame(unit.start), let end = frame(unit.end) else {
+            guard let start = frame(unit.start), let end = frame(unit.end), end > start else {
                 untimed += 1
                 continue
             }

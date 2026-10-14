@@ -86,7 +86,8 @@ struct TranscriptCutTests {
     }
 
     /// T10 limit (plan gate 2 item 5): a skipped word between two touching words splits the runs,
-    /// and the ripple delete merges the two ranges, as one range would cut.
+    /// and the cut merges the two ranges, as one range would cut (code gate 1 item 4: the result is
+    /// the merged range).
     @Test func skippedWordBetweenTouchingNeighboursMerges() throws {
         var session = try transcriptSession()
         try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 100_000), on: "host")
@@ -94,7 +95,7 @@ struct TranscriptCutTests {
         var oneRange = session
         try oneRange.rippleDelete([10_000..<30_000], on: ["host", "guest"])
 
-        #expect(try session.cutWords(session.occurrences([1, 3])) == [10_000..<20_000, 20_000..<30_000])
+        #expect(try session.cutWords(session.occurrences([1, 3])) == [10_000..<30_000])
         let same = session == oneRange
         #expect(same, "the touching ranges cut as one range")
     }
@@ -111,6 +112,20 @@ struct TranscriptCutTests {
 
         #expect(try session.cutWords(session.occurrences([1, 2, 3])) == [10_000..<40_000])
         #expect(session.words().isEmpty)
+    }
+
+    /// Code gate 1 item 4. A cut of words with no length throws and changes nothing; the ranges of
+    /// two runs that overlap come back as one range, as the ripple delete cuts them.
+    @Test func cutReportsOnlyAudioThatItRemoves() throws {
+        var session = try transcriptSession()
+        try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 100_000), on: "host")
+        session.addWords([(1, 10_000..<30_000, "a"), (3, 20_000..<40_000, "b"), (5, 60_000..<60_000, "c")], file: "h")
+        let before = session
+
+        #expect(throws: SessionError.nothingToCut) { try session.cutWords(session.occurrences([5])) }
+        let same = session == before
+        #expect(same, "a refused cut changes nothing")
+        #expect(try session.cutWords(session.occurrences([1, 3, 5])) == [10_000..<40_000])
     }
 
     /// T11. An occurrence that the last cut removed, and one of an unknown clip, are refused with

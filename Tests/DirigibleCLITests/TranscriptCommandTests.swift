@@ -112,15 +112,19 @@ struct TranscriptCommandTests {
                     stderr: "Skipped 1 word over audio that an earlier clip already gave.\n"))
     }
 
-    /// Code gate 1 item 9: a WebVTT import reports cues, because a cut removes a whole cue.
+    /// Code gate 1 item 9 and gate 2 item 5: a WebVTT import reports cues in each line, because a
+    /// cut removes a whole cue.
     @Test func importReportsCues() async throws {
         let file = package.folder.appending(path: "t.vtt")
-        try Data("WEBVTT\n\n00:01.000 --> 00:02.000\nHello there.\n\n00:02.000 --> 00:03.000\nBye.\n".utf8).write(
-            to: file)
+        let vtt =
+            "WEBVTT\n\n00:01.000 --> 00:02.000\nHello there.\n\n00:02.000 --> 00:03.000\nBye.\n\n"
+            + "00:0x.000 --> 00:04.000\nBad time.\n"
+        try Data(vtt.utf8).write(to: file)
         #expect(
             try await package.run("transcript", "import", "PKG", file.path, "--track", "host")
                 == CLIResult(
-                    status: 0, stdout: "1\nImported 2 cues (no word times): a cut removes whole cues.\n", stderr: ""))
+                    status: 0, stdout: "1\nImported 2 cues: a cut removes a whole cue when it has no word times.\n",
+                    stderr: "Skipped 1 cue with no time.\n"))
     }
 
     /// T3: a file that is not a transcript, and one with no timed word, exit 1 with the file and the

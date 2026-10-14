@@ -68,10 +68,7 @@ public struct Session: Hashable, Sendable {
         guard files[id] != nil else { throw .unknownFile(id) }
         guard !tracks.contains(where: { $0.clips.contains { $0.file == id } }) else { throw .fileInUse(id) }
         files[id] = nil
-        for transcript in transcripts.keys {
-            transcripts[transcript]?.words[id] = nil
-            if transcripts[transcript]?.words.isEmpty == true { transcripts[transcript] = nil }
-        }
+        for transcript in transcripts.keys { setWords([], file: id, transcript: transcript) }
     }
 
     /// A relative path with no ".." component, so the file stays inside `Clips/`.

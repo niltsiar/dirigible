@@ -165,18 +165,24 @@ extension Session {
             added[clip.file, default: []].append(Anchor(number: number, range: range, text: unit.text))
         }
         guard !added.isEmpty else { throw .noWordOnTrack(track) }
+        // The ID comes before the replace, so a re-import never gives the ID of a transcript that it empties.
+        let id = nextTranscriptID
         for (fileID, anchors) in added {
             let span = anchors.map(\.range.lowerBound).min()!...anchors.map(\.range.upperBound).max()!
-            for id in transcripts.keys {
-                guard let old = transcripts[id]?.words[fileID] else { continue }
-                let kept = old.all.filter { !span.contains($0.midpoint) }
-                transcripts[id]?.words[fileID] = kept.isEmpty ? nil : Anchors(kept)
-                if transcripts[id]?.words.isEmpty == true { transcripts[id] = nil }
+            for old in transcripts.keys {
+                guard let words = transcripts[old]?.words[fileID] else { continue }
+                setWords(words.all.filter { !span.contains($0.midpoint) }, file: fileID, transcript: old)
             }
         }
-        let id = nextTranscriptID
         transcripts[id] = Transcript(id: id, name: name, words: added.mapValues(Anchors.init))
         return (id, added.values.map(\.count).reduce(0, +), skipped, untimed)
+    }
+
+    /// Sets the words of `file` in transcript `id`. No word removes the file from the transcript,
+    /// and a transcript with no file left goes (decision 0055).
+    mutating func setWords(_ anchors: [Anchor], file: FileID, transcript id: TranscriptID) {
+        transcripts[id]?.words[file] = anchors.isEmpty ? nil : Anchors(anchors)
+        if transcripts[id]?.words.isEmpty == true { transcripts[id] = nil }
     }
 
     /// The ID of a new transcript: one more than the largest ID.

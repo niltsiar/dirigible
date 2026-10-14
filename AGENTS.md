@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Dirigible is a native macOS podcast recorder and editor for macOS 14 Sonoma and later, modeled on Hindenburg PRO. It records several audio devices and other apps (for example a call in Teams or Zoom) at the same time, each to its own track, without an aggregate device. The brief and its requirement IDs are in `docs/requirements/brief.md`. The release order is in `docs/requirements/releases.md`.
+Dirigible is a native macOS podcast recorder and editor for macOS 14 Sonoma and later, modeled on Hindenburg PRO, with the best ideas of other editors. It records several audio devices and other apps (for example a call in Teams or Zoom) at the same time, each to its own track, without an aggregate device. The brief and its requirement IDs are in `docs/requirements/brief.md`. The release order is in `docs/requirements/releases.md`.
 
 ## Communication
 
@@ -13,7 +13,7 @@ The toolchain is Xcode 26 with Swift 6.2, with no Xcode project (decision 0001).
 
 | Command | What it does |
 |---|---|
-| `make setup` | Enables the git hooks. Run it once per clone. |
+| `make setup` | Enables the git hooks. Run once per clone. |
 | `make build` | Debug build. |
 | `make test` | All tests except `AppBundleTests` and `DiskImageTests`, in parallel shards after one build. Only the push check runs it; a slice runs `make check-changed FILTER=...`. A bare `swift test` fails these two on purpose. |
 | `make lint` | `swift format lint --strict`. |
@@ -34,7 +34,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Run ledger in .scratchpads/
 
-- `.scratchpads/` is gitignored. It keeps the working memory of the agents between sessions.
+- `.scratchpads/` is gitignored. It keeps the memory of the agents between sessions.
 - At the start of a session, read the files that step 1 of deliver Phase 0 names.
 - The `decisions.tsv` of a run is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>`, also in a subagent. With `<run folder> --from <file>`, the file has the five fields on five lines. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.

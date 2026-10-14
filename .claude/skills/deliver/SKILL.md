@@ -30,7 +30,7 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 
 Write `analysis.md`:
 
-- The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO behaves, with sources.
+- The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO (the base) and other editors behave, with sources.
 - Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value.
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion. Try to meet the original conditions (a probe for a test runs in the test runner), and log the probe. Replay a new check on past inputs, and log the replay.
@@ -73,7 +73,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interro
 2. Use Conventional Commits (see `AGENTS.md`).
 3. After each slice, log a row and tick `run.md` with the minutes. Only the push check (`make check-changed BASE=origin/main`) runs the full suite.
 4. If the plan proves wrong, stop, update `plan.md`, and log why.
-5. A slice that changes what a user sees or does updates `docs/guide.md`. Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `<verdict>, on screen, <screenshot path>`.
+5. A slice that changes what a user sees or does updates `docs/guide.md`; a tool, command, or workflow change updates the agent manual (0051). Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `<verdict>, on screen, <screenshot path>`.
 
 ## Phase 5: Clean up
 
@@ -99,7 +99,7 @@ Run the **reflect** skill on the branch. Then move each `## Later` item that thi
 
 ## Phase 9: Land through a pull request
 
-1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md`. Run it with `run_in_background`. Read its output for the `pr:` and `range:` lines.
+1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md` with `run_in_background`. Read its output for the `pr:` and `range:` lines.
 2. If the land stops on a conflict, resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge. Record the conflict and the branch in `run.md`.
 3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 

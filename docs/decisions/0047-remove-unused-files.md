@@ -4,6 +4,7 @@
 - Date: 2026-10-12
 - Accepted: 2026-10-12, after plan gates 1 and 2 of run `2026-10-12-remove-unused-files`.
 - Amends: 0043 (a clip of a backup keeps its file in `Clips/`), 0024 (Only a clip holds a top-level `Clips/` WAV: a clip of `session.xml`, or of a readable backup, or of the app clipboard. A pool entry with no clip does not hold it. A new holder raises the `session.xml` version or keeps its audio out of `Clips/`), 0021 (the WAV that an undo of a placement or a revert leaves in `Clips/` is a stray WAV that the prune can move, unless an undo or redo entry uses it), 0046 (`file_prune` on a package that the app has open gives the "open in Dirigible" error).
+- Amended: 2026-10-14, run `2026-10-13-transcript-1` (see 0055). `Session.removeFile` also removes the transcript words of the file, and a transcript with no word left, so the prune and the strip of the undo entries remove them too.
 
 ## Context
 

@@ -277,26 +277,27 @@ def one(args):
         sys.exit(2)
     log = mutant.log
     backups = {name: log + '.orig' + (str(n) if n else '') for n, name in enumerate(mutant.edits)}
-    state = {'built': False, 'status': 1, 'start': 0}
+    built, status, start = False, 1, 0
 
     def work():
+        nonlocal built, status, start
         for name, text in texts.items():
             with open(name, 'w') as out:
                 out.write(text)
         with open(log, 'w') as out:
             mutant.header(out)
-            state['built'] = run(mutant.build, out) == 0
+            built = run(mutant.build, out) == 0
             out.flush()
-            state['start'] = out.tell()
-            if state['built']:
-                state['status'] = run(mutant.test, out, mutant.timeout)
+            start = out.tell()
+            if built:
+                status = run(mutant.test, out, mutant.timeout)
 
     if guarded(backups, digests, work):
         with open(log, 'a') as out:
             out.write('# result: stopped\n')
         print(f'stopped: {log}')
         sys.exit(130)
-    result, code, compared = verdict(log, state['start'], state['built'], state['status'], mutant.expected)
+    result, code, compared = verdict(log, start, built, status, mutant.expected)
     print(f'{result}: {log}')
     if compared:
         # The compared failure lines, so the next --expect copies their printed form.
@@ -324,14 +325,15 @@ def schema(folder, names):
             mutant = Mutant(open(os.path.join(folder, n), 'rb').read().decode().split('\0')[:-1])
             if re.search(r'(?<!\|)\|(?!\|)', mutant.build):
                 raise Refused('the build command has a pipe; a switch build keeps each error line in its log')
-            mutant.spans = []  # (real path, start, end, new)
+            mutant.spans, texts = [], {}  # spans: (real path, start, end, new)
             for name, pairs in mutant.edits.items():
                 real = os.path.realpath(name)
-                originals.setdefault(real, open(real, 'rb').read().decode())
+                texts[real] = originals.get(real) or open(real, 'rb').read().decode()
                 for old, new in pairs:
-                    once(originals[real], old, name)
-                    start = originals[real].index(old)
+                    once(texts[real], old, name)
+                    start = texts[real].index(old)
                     mutant.spans.append((real, start, start + len(old), new))
+            originals.update(texts)  # Only the files of a mutant that is not refused.
         except Refused as refused:
             print(f'{n} mutate: {refused.args[0] if refused.args else "the arguments are not complete"}', flush=True)
             continue

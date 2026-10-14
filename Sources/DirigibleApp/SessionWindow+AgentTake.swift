@@ -16,7 +16,6 @@ extension SessionWindow {
             take: take, agent: consent.agent.name, tracks: consent.names, seconds: consent.seconds,
             since: studio.recordingSince ?? .now)
         agentRecord.take = started
-        followAgentTake(studio, take: take)
         let text = agentTakeText(started)
         if !attention.isActive() {
             attention.inform()
@@ -25,6 +24,8 @@ extension SessionWindow {
         }
         chrome?.announce(text, .high)
         app?.updateAgentBadge()
+        // Last: a take that ended before this start event ends the notice at once.
+        followAgentTake(studio, take: take)
     }
 
     /// The text of the take row of an agent take, with the time left.
@@ -37,17 +38,16 @@ extension SessionWindow {
         return L10n.takeAgent.format(take.take, tracks, agent, time)
     }
 
-    /// Clears the agent take when the transport leaves it.
+    /// Clears the agent take when the transport leaves it, also when it left it before the call.
     private func followAgentTake(_ studio: Studio, take: Int) {
+        guard self.studio === studio, case .recording(take) = studio.transport else { return agentTakeEnded(take) }
         withObservationTracking {
             _ = studio.transport
         } onChange: { [weak self, weak studio] in
             Task { @MainActor in
                 guard let self else { return }
-                if let studio, self.studio === studio, case .recording(take) = studio.transport {
-                    return self.followAgentTake(studio, take: take)
-                }
-                self.agentTakeEnded(take)
+                guard let studio else { return self.agentTakeEnded(take) }
+                self.followAgentTake(studio, take: take)
             }
         }
     }

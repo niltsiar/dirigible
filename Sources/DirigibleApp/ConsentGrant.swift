@@ -43,16 +43,13 @@ struct ConsentGrant {
 }
 
 /// A take that an agent started, while it records (decision 0050): the take row, the Dock
-/// badge, and the agent log read it.
+/// badge, and the notification read it.
 struct AgentTake: Equatable {
     let take: Int
     let agent: String?
     let tracks: [String]
     let seconds: Double
     let since: ContinuousClock.Instant
-    /// True for a grant take, false for a click take.
-    let byGrant: Bool
-    let connection: AgentConnection?
 }
 
 /// The agent record state of a window that outlives one request (decision 0050).

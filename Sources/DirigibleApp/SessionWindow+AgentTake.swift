@@ -10,11 +10,11 @@ private let agentLog = Logger(subsystem: "com.delineas.dirigible", category: "ag
 /// Dock bounce and badge.
 extension SessionWindow {
     /// An agent take started: the row and the badge show it until the transport leaves it.
-    func agentTakeStarted(_ consent: ConsentRequest, take: Int, byGrant: Bool) {
+    func agentTakeStarted(_ consent: ConsentRequest, take: Int) {
         guard let studio else { return }
         let started = AgentTake(
             take: take, agent: consent.agent.name, tracks: consent.names, seconds: consent.seconds,
-            since: studio.recordingSince ?? .now, byGrant: byGrant, connection: consent.connection)
+            since: studio.recordingSince ?? .now)
         agentRecord.take = started
         followAgentTake(studio, take: take)
         let text = agentTakeText(started)
@@ -79,7 +79,8 @@ extension SessionWindow {
         await stop()
     }
 
-    /// The first turn-on of the grant checkbox asks for the notification permission (C14).
+    /// A turn-on of the grant checkbox asks for the notification permission (C14). The system
+    /// shows its prompt only one time.
     func grantBoxTurnedOn() { notice.authorize() }
 
     private func agentTakeEnded(_ take: Int) {

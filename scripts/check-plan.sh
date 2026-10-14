@@ -138,8 +138,15 @@ else
                 continue
             elif [[ ! -f "$ledger" ]]; then
                 say "plan.md makes $record, and there is no ledger.md at $ledger to reserve $n"
-            elif ! grep -m1 '^Decision numbers' "$ledger" | grep -qE "(^|[:,] )$n [^,(]*\(run $folder[,)]"; then
-                say "plan.md makes $record: reserve $n on the Decision numbers line of $ledger as \"$n <title> (run $folder)\"; a number that another run holds is taken"
+            else
+                # Each entry of the number on the line; one that names another run folder owns it.
+                entries="$(grep -m1 '^Decision numbers' "$ledger" | grep -oE "(^|[:,] )$n [^,(]*\([^)]*\)" | sed -E 's/^[:,]? //' || true)"
+                other="$(grep -vE "\(run $folder[,)]" <<<"$entries" | grep . | head -1 || true)"
+                if [[ -n "$other" ]]; then
+                    say "plan.md makes $record, but $n is reserved for another run: $other; take the next free number"
+                elif [[ -z "$entries" ]]; then
+                    say "plan.md makes $record: reserve $n on the Decision numbers line of $ledger as \"$n <title> (run $folder)\""
+                fi
             fi
         done
     fi

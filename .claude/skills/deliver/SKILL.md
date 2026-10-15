@@ -58,7 +58,7 @@ Write `plan.md`:
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
 - The red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. Decision 0028 says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.
-- Each gate has `maxRounds: 2`; round 2 runs only on a critical item, or with `risk: yes` on a warning.
+- Each gate has `maxRounds: 2`; round 2 runs only on a critical item. The lead fixes each warning, and the fix check covers it.
 
 ## Phase 3: Plan gate
 

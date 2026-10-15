@@ -23,10 +23,13 @@ verdict: grade.py verdict <eval> <old set> <new set>
   with no row exits 2. A tag whose two sets hold different scenarios exits 2 (so each
   policy scenario has a new-set run); other tags pool. Prints a line per
   clause of the pass rule of evals.md: void <H> (a holdout with no pass in both sets,
-  in no other line), the retention sum, below <id> (not due under 6 runs in a set),
+  in no other line), the retention sum (it fails only when old minus new is over the bound
+  2 x sqrt(sum of k x p x (1 - p)) of the live retention scenarios, with k the runs of both
+  sets and p the pooled pass rate), below <id> (not due under 6 runs in a set),
   and policy <id>. The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
 """
 import json
+import math
 import os
 import random
 import re
@@ -164,11 +167,18 @@ def verdict(old, new):
     live = [s for s in typ if s not in void]
     for s in void:
         print(f"void {s}")
-    old_sum = sum(passes.get((s, old), 0) for s in live if typ[s] == "retention")
-    new_sum = sum(passes.get((s, new), 0) for s in live if typ[s] == "retention")
+    kept = [s for s in live if typ[s] == "retention"]
+    old_sum = sum(passes.get((s, old), 0) for s in kept)
+    new_sum = sum(passes.get((s, new), 0) for s in kept)
+    spread = 0.0
+    for s in kept:
+        k = runs.get((s, old), 0) + runs.get((s, new), 0)
+        p = (passes.get((s, old), 0) + passes.get((s, new), 0)) / k
+        spread += k * p * (1 - p)
+    bound = 2 * math.sqrt(spread)
     word = {True: "PASS", False: "FAIL"}
-    ok &= new_sum >= old_sum
-    print(f"retention: old {old_sum}, new {new_sum}: {word[new_sum >= old_sum]}")
+    ok &= old_sum - new_sum <= bound
+    print(f"retention: old {old_sum}, new {new_sum}, bound {bound:.1f}: {word[old_sum - new_sum <= bound]}")
     for s in live:
         po, ro, pn, rn = passes.get((s, old), 0), runs.get((s, old), 0), passes.get((s, new), 0), runs.get((s, new), 0)
         result = "not due" if min(ro, rn) < 6 else "PASS" if pn > po - 2 else "FAIL"

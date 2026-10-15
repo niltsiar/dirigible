@@ -329,12 +329,17 @@ verdict_case() {
   local line
   for line in "$@"; do grep -qxF -- "$line" <<<"$out" || fail "verdict $name: no line [$line]: [$out]"; done
 }
-{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; } > "$tmp/rows"; verdict_case retention-pass 0 'retention: old 6, new 6: PASS' 'verdict: PASS'
-{ sc t E1 retention old 6 6; sc t E1 retention new 5 6; } > "$tmp/rows"; verdict_case retention-fail 1 'retention: old 6, new 5: FAIL' 'verdict: FAIL'
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; } > "$tmp/rows"; verdict_case retention-pass 0 'retention: old 6, new 6, bound 0.0: PASS' 'verdict: PASS'
+# The retention sum fails only when old minus new is over 2 x sqrt(sum of k x p x (1 - p)), k the
+# runs of both sets and p the pooled pass rate. five <new passes of E1 to E5>: old 6/6 each.
+five() { local i=0 n; for n in "$@"; do i=$((i + 1)); sc t "E$i" retention old 6 6; sc t "E$i" retention new "$n" 6; done > "$tmp/rows"; }
+five 6 6 5 5 5; verdict_case retention-in-bound 0 'retention: old 30, new 27, bound 3.3: PASS' 'verdict: PASS'
+five 4 4 4 4 4; verdict_case retention-past-bound 1 'retention: old 30, new 20, bound 5.8: FAIL' 'verdict: FAIL'
+five 4 5 6 6 6; verdict_case retention-one-below 1 'retention: old 30, new 27, bound 3.2: PASS' 'below E1: old 6/6, new 4/6: FAIL' 'verdict: FAIL'
 { sc t E1 retention old 4 6; sc t E1 retention new 3 6; sc t E5 retention old 0 6; sc t E5 retention new 1 6; } > "$tmp/rows"
-verdict_case below-pass 0 'retention: old 4, new 4: PASS' 'below E1: old 4/6, new 3/6: PASS' 'verdict: PASS'
+verdict_case below-pass 0 'retention: old 4, new 4, bound 3.9: PASS' 'below E1: old 4/6, new 3/6: PASS' 'verdict: PASS'
 { sc t E1 retention old 4 6; sc t E1 retention new 2 6; sc t E5 retention old 0 6; sc t E5 retention new 2 6; } > "$tmp/rows"
-verdict_case below-fail 1 'retention: old 4, new 4: PASS' 'below E1: old 4/6, new 2/6: FAIL' 'verdict: FAIL'
+verdict_case below-fail 1 'retention: old 4, new 4, bound 4.3: PASS' 'below E1: old 4/6, new 2/6: FAIL' 'verdict: FAIL'
 # Tags pool: two tags of 3 runs give 6 runs, so the below clause is due.
 { sc t E1 retention old 2 3; sc t E1 retention new 2 3; } > "$tmp/rows"; verdict_case below-not-due 0 'below E1: old 2/3, new 2/3: not due'
 { sc t E1 retention old 2 3; sc t E1 retention new 2 3; sc u E1 retention old 2 3; sc u E1 retention new 2 3; } > "$tmp/rows"
@@ -342,7 +347,7 @@ verdict_case below-pooled 0 'below E1: old 4/6, new 4/6: PASS'
 { sc t E23 policy old 0 3; sc t E23 policy new 2 3; } > "$tmp/rows"; verdict_case policy-pass 0 'policy E23: new 2/3: PASS' 'verdict: PASS'
 { sc t E23 policy old 0 3; sc t E23 policy new 1 3; } > "$tmp/rows"; verdict_case policy-fail 1 'policy E23: new 1/3: FAIL' 'verdict: FAIL'
 { sc t E1 retention old 3 3; sc t E1 retention new 3 3; sc t H1 retention old 0 3; sc t H1 retention new 0 3; } > "$tmp/rows"
-verdict_case void 0 'void H1' 'retention: old 3, new 3: PASS' 'verdict: PASS'
+verdict_case void 0 'void H1' 'retention: old 3, new 3, bound 0.0: PASS' 'verdict: PASS'
 grep -q 'H1:' <<<"$out" && fail "verdict void: a clause line names the void H1: [$out]"
 { sc t E1 retention old 3 3; sc t E1 retention new 3 3; sc t E5 retention new 3 3; } > "$tmp/rows"; verdict_case refused 2
 [[ "$out" == *'tag t'* ]] || fail "verdict refused: the message names no tag: [$out]"

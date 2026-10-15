@@ -135,6 +135,7 @@ good; printf -- '---\ndescription: X.\n---\n\nname: x-reviewer\n' > "$tmp/.claud
 good; sed -i '' "s/agentType: 'x-reviewer'/agentType: \"x-reviewer\"/" "$tmp/.claude/workflows/review-panel.js"; expect pass 'agentType in double quotes'
 good; sed -i '' "s/agentType: 'x-reviewer'/agentType: name/" "$tmp/.claude/workflows/review-panel.js"; expect fail 'panel with no literal agentType' 'review-panel.js: no literal agentType'
 good; budget AGENTS.md 1; expect fail 'file over its budget row' 'budgets.tsv: AGENTS.md is over its row'
+good; printf 'QUOTA\t9000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"; expect pass 'a QUOTA row'
 good; sed -i '' '/^\.claude\/skills\/s\/SKILL\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'SKILL.md with no budget row' 'budgets.tsv: no row for .claude/skills/s/SKILL.md'
 good; sed -i '' '/^\.claude\/skills\/s\/references\/r\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'references file with no budget row' 'budgets.tsv: no row for .claude/skills/s/references/r.md'
 good; sed -i '' '/^\.claude\/agents\/x-reviewer\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'agent file with no budget row' 'budgets.tsv: no row for .claude/agents/x-reviewer.md'

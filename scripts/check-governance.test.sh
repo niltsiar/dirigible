@@ -61,6 +61,14 @@ pass 'a new row with free text'
 new_repo; g switch -q main; g rm -q docs/workflow/budgets.tsv; g commit -q -m rm; g switch -q -C feat/x
 row 120 'raised'; commit
 pass 'no budgets.tsv in the base'
+# A branch raises TOTAL by at most 50 words, unless it changes the QUOTA row (a consolidation run).
+totals() { printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\nTOTAL\t%s\tdecisions.tsv 2026-10-01T02:43\n%s' "$1" "$2" > "$budgets"; }
+new_repo; totals 250 ''; commit
+pass 'a TOTAL raise of 50 words'
+new_repo; totals 251 ''; commit
+refuse 'a TOTAL raise of 51 words with no QUOTA change' 'TOTAL goes up by 51 words'
+new_repo; totals 251 $'QUOTA\t201\tdecisions.tsv 2026-10-01T02:43\n'; commit
+pass 'a TOTAL raise of 51 words with a QUOTA change'
 new_repo; row 120 'raised'; commit
 out="$(cd "$tmp/r" && "$script" does-not-exist 2>&1)" && fail 'a bad base exits 0'
 [[ "$out" == *does-not-exist* ]] || fail "a bad base: no reason: $out"

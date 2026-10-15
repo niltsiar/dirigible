@@ -20,7 +20,7 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 
 - Run reflect after each run (`.claude/skills/reflect/SKILL.md`).
 - Run a workflow upkeep run when `## Next` has 8 upkeep items (reflect rule 6).
-- Run an architecture run after each 5 product runs, and one before the UI polish run of each release. `new-run.sh` prints the reminder.
+- Run an architecture run after each 5 product runs, and one before the UI polish run of each release. A product run has a branch of type `feat`, `fix`, or `perf`, and no `hardening` in its slug. `new-run.sh` prints the reminder.
 - The architecture run audits `Sources/` and the tooling: `scripts/`, `.claude/hooks`, `.claude/skills/*/scripts`, `.githooks`, and the `Makefile`.
 - Audit the tooling for a script with no caller, a stale path or pointer, a comment that no longer matches the code, and a copied helper.
 - Audit the tooling for a script with no `.test.sh` case, a failing or skipped test case, and a file near 400 lines.

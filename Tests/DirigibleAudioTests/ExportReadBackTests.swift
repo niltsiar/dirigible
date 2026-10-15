@@ -216,6 +216,43 @@ struct ReadBackExportTests {
         try Self.expectReport(export, equals: decoded)
     }
 
+    /// A decode that ends before the written signal would report the values of a prefix, so the
+    /// export fails with `.writeFailed` and leaves nothing.
+    @Test func aReadBackThatEndsEarlyIsAWriteFault() throws {
+        let package = try ExportTests.package(tone([(20, -30)]))
+        let source = try #require(ExportSource(range: 0..<960_000))
+        var tuning = ExportTuning()
+        tuning.afterWrite = { url in
+            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0
+            try? FileHandle(forWritingTo: url).truncate(atOffset: size / 2)
+        }
+        let options = ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .hz44100, loudness: .podcast)
+
+        #expect {
+            try exportMix(
+                package.session, source: source, options: options,
+                to: package.folder.url.appending(path: "mix.wav"), package: { package.url }, tuning: tuning)
+        } throws: {
+            if case ExportError.writeFailed = $0 { true } else { false }
+        }
+
+        try MP3ExportTests.expectNoOutput(package)
+    }
+
+    /// Core Audio fails on the padding after the last MP3 packet of some files at 44.1 kHz from a
+    /// 48 kHz session (160 kbit/s, 1,000,003 frames): the decode has all the audio when it fails,
+    /// so the export succeeds and the report has the values of the file.
+    @Test func anMP3ExportKeepsItsReadBackWhenTheLastPacketDoesNotDecode() throws {
+        let tone = ExportTests.tone(frames: 1_000_003, rms: -30)
+        let options = ExportOptions(format: .mp3(.k160), layout: .stereo, rate: .hz44100, loudness: .podcast)
+
+        let export = try SearchedExportTests.export([tone, tone], options, to: "mix.mp3")
+
+        #expect(export.readBacks == 1, "\(export.readBacks) read-backs")
+        let report = try #require(export.result.loudness)
+        #expect(report.output != nil && report.truePeak != nil, "\(report)")
+    }
+
     /// A file that Core Audio cannot open fails the export with `.writeFailed`, and leaves nothing.
     @Test func aReadBackFailureIsAWriteFault() throws {
         let package = try ExportTests.package(tone([(20, -30)]))

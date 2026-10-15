@@ -18,7 +18,7 @@ Each learning gets a cause key `<ID>/<class>`, by step 1 of `references/synthesi
 5. The lens panel reviews the diff of an upkeep run once, before the merge.
 6. When `## Next` has 8 or more upkeep items, the next run is a workflow upkeep run (deliver), which applies them all.
 7. A reflect run or an upkeep run removes at most one rule. A duplicate line gets a `merge` row whose target is the kept ID. A stale or no-op line gets a `delete` row whose reason gives the evidence. Skip it when no line qualifies. This is the only removal rule; other docs point here.
-8. An upkeep run runs once, for the batch, each scenario that `scripts/evals-for.sh --quoted <base>` prints, before and after the change. A scenario that passed before the change and fails after it reverts its change. A changed file with no scenario gets one first, or the commit body says why none applies.
+8. An upkeep run runs once, for the batch, each scenario that `scripts/evals-for.sh --quoted <base>` prints, before and after the change. A scenario that passed before the change and fails after it reverts its change, unless it is a holdout. A changed file with no scenario gets one first, or the commit body says why none applies.
 
 ## Process
 

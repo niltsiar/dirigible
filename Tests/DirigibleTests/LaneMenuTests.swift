@@ -189,6 +189,22 @@ import Testing
         await model.close()
     }
 
+    /// Run split-no-cut criterion C5: a right-click on c1@48000 selects its range, and Split shows
+    /// when the playhead is inside the clip. Control: with the playhead after the clip, Split hides.
+    @Test func aRightClickOnAClipShowsSplitWithThePlayheadInIt() async throws {
+        let (model, studio, _, view) = try await lanes()
+        func commands(_ menu: NSMenu) -> [TimelineCommand] {
+            menu.items.compactMap { $0.representedObject as? TimelineCommand }
+        }
+
+        await studio.perform(.seek(.frame(60_000)))
+        #expect(commands(try menu(view, 120, 10)).contains(.split))
+        model.timeline.selection = .none
+        await studio.perform(.seek(.frame(200_000)))
+        #expect(!commands(try menu(view, 120, 10)).contains(.split))
+        await model.close()
+    }
+
     /// U8: inside the selection and in a gap, the Marks stay. Control: a right-click that selects
     /// the clip under it.
     @Test func aRightClickInTheSelectionKeepsIt() async throws {

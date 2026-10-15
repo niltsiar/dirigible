@@ -227,6 +227,8 @@ good; sed -i '' 's/(F01, F03)/(F01, F03, F09)/' "$tmp/docs/requirements/releases
 good; setcol F02 5 'Release 5'; expect fail 'a Release 5 state with no Release 5 section' 'features.md: F02 has the state Release 5, but the open Release 5 section does not name it'
 good; sed -i '' 's/(F02)/(F01)/' "$tmp/docs/requirements/releases.md"; expect fail 'an open release section that does not name its feature' 'features.md: F02 has the state Release 4, but the open Release 4 section does not name it'
 good; sed -i '' 's/(F02)/(F02, F03)/' "$tmp/docs/requirements/releases.md"; expect fail 'an open release section that names a Later feature' 'releases.md: the Release 4 section names F03, whose state is Later'
+good; sed -i '' 's/^Status: closed$/Status: closed 2026-11-02/' "$tmp/docs/requirements/releases.md"; expect pass 'a closed release section with a date after the status'
+good; sed -i '' 's/^Status: closed$/Status: closedown/' "$tmp/docs/requirements/releases.md"; expect fail 'a status line that only starts with closed' 'releases.md: the Release 1 section names F03, whose state is Later'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

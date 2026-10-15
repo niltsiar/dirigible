@@ -198,9 +198,11 @@ struct ExportTuning {
 }
 
 /// The bands of the progress value (decision 0032). Pass 1 takes 0...0.15, the trial passes of the
-/// first round share 0.15...0.3, the write takes 0.3...0.9 (0.15...0.9 with no trial pass, and up
-/// to 1 with no read-back), and the read-back takes 0.9...0.95. Each retry round shares a part of
-/// 0.95...1. A band that no step uses is skipped, so the value never goes down.
+/// first round share 0.15...0.3, and the write takes 0.3...0.75 (0.15...0.75 with no trial pass,
+/// and up to 1 with no read-back). The read-back and each retry round share 0.75...1 in equal
+/// bands. A retry round gives 40 percent of its band to the trial passes, 50 percent to the write,
+/// and 10 percent to the read-back. A band that no step uses is skipped, so the value never goes
+/// down.
 struct ProgressBands {
     let readsBack: Bool
     let limits: LoudnessSearch.Limits
@@ -208,26 +210,26 @@ struct ProgressBands {
     let measure = 0.0...0.15
 
     func trial(round: Int, index: Int) -> ClosedRange<Double> {
-        let (low, share) = round == 0 ? (0.15, 0.15) : (retryStart(round), 0.4 * retryWidth)
+        let (low, share) = round == 0 ? (0.15, 0.15) : (roundStart(round), 0.4 * roundWidth)
         let count = Double(max(limits.trialPasses, 1))
         return low + share * Double(index) / count...low + share * Double(index + 1) / count
     }
 
     func write(round: Int, afterTrials: Bool) -> ClosedRange<Double> {
-        if round == 0 { return (afterTrials ? 0.3 : 0.15)...(readsBack ? 0.9 : 1) }
-        let low = retryStart(round)
-        return (low + (afterTrials ? 0.4 : 0) * retryWidth)...(low + 0.9 * retryWidth)
+        if round == 0 { return (afterTrials ? 0.3 : 0.15)...(readsBack ? 0.75 : 1) }
+        let low = roundStart(round)
+        return (low + (afterTrials ? 0.4 : 0) * roundWidth)...(low + 0.9 * roundWidth)
     }
 
     func readBack(round: Int) -> ClosedRange<Double> {
-        if round == 0 { return 0.9...0.95 }
-        let low = retryStart(round)
-        return (low + 0.9 * retryWidth)...(low + retryWidth)
+        let low = roundStart(round)
+        return round == 0 ? low...(low + roundWidth) : (low + 0.9 * roundWidth)...(low + roundWidth)
     }
 
-    private var retryWidth: Double { 0.05 / Double(max(limits.retryRounds, 1)) }
+    private var roundWidth: Double { 0.25 / Double(1 + limits.retryRounds) }
 
-    private func retryStart(_ round: Int) -> Double { 0.95 + retryWidth * Double(round - 1) }
+    /// Round 0 is the read-back of the first write, and round k is the k-th retry round.
+    private func roundStart(_ round: Int) -> Double { 0.75 + roundWidth * Double(round) }
 }
 
 /// The gain, the limiter at the ceiling of the search, and the meters of one pass over the mix.

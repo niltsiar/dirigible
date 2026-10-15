@@ -21,9 +21,9 @@ import Foundation
 /// Before each chapter image, at each chunk, and once after the close it reads `isCancelled()`. An
 /// MP3 with chapter images also reads it once before the tag. At each chunk it reads
 /// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
-/// percent changes: pass 1 maps to 0...0.15, the trial passes to 0.15...0.3, the write to
-/// 0.3...0.9 (0.15...0.9 with no trial pass, and up to 1 with no read-back), the read-back to
-/// 0.9...0.95, and each retry round to a part of 0.95...1. The call of 1.0 comes after the last
+/// percent changes: pass 1 maps to 0...0.15, the trial passes to 0.15...0.3, and the write to
+/// 0.3...0.75 (0.15...0.75 with no trial pass, and up to 1 with no read-back). The read-back and
+/// each retry round share 0.75...1 in equal bands. The call of 1.0 comes after the last
 /// write and before the close, or after the read-back. It writes `.<name>.<UUID>.tmp` in the
 /// folder of `url` and closes it. An AAC export of a session with episode fields or chapters then
 /// copies it to `.<name>.<UUID>.tag.tmp` with the iTunes atoms and the chapter tracks (decision

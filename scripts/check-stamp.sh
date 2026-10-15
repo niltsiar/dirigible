@@ -59,22 +59,17 @@ read)
         echo "$reason"
         exit 1
     fi
-    # A line whose commit is not one of this branch (or <base>) costs no git call: the lines of
-    # the file grow with each check, the lines of this branch do not.
+    # A line whose commit is not on this branch costs no git call: the lines of the file grow with
+    # each check, the lines of this branch do not. The base commit itself needs the ancestry test.
     mine=$'\n'"$(git rev-list HEAD --not "$base")"$'\n'
     # The newest line first.
     while read -r commit line_base targets; do
-        if [[ $commit != "$base" && $mine != *$'\n'"$commit"$'\n'* ]]; then
-            [[ $line_base != "$base" ]] || reason="not an ancestor"
-            continue
+        if [[ $mine == *$'\n'"$commit"$'\n'* ]] || { [[ $commit == "$base" ]] && git merge-base --is-ancestor "$commit" HEAD 2>/dev/null; }; then
+            base_ok "$line_base" || continue
+            echo "$commit $targets"
+            exit 0
         fi
-        if ! git merge-base --is-ancestor "$commit" HEAD 2>/dev/null; then
-            [[ $line_base != "$base" ]] || reason="not an ancestor"
-            continue
-        fi
-        base_ok "$line_base" || continue
-        echo "$commit $targets"
-        exit 0
+        [[ $line_base != "$base" ]] || reason="not an ancestor"
     done < <(tail -r "$file")
     echo "$reason"
     exit 1

@@ -61,14 +61,26 @@ pass 'a new row with free text'
 new_repo; g switch -q main; g rm -q docs/workflow/budgets.tsv; g commit -q -m rm; g switch -q -C feat/x
 row 120 'raised'; commit
 pass 'no budgets.tsv in the base'
-# A branch raises TOTAL by at most 50 words, unless it changes the QUOTA row (a consolidation run).
+# A branch raises TOTAL by at most 50 words, unless its QUOTA row holds a value at or above the new
+# TOTAL (a consolidation run). A lower QUOTA or a deleted QUOTA row does not lift the cap.
 totals() { printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\nTOTAL\t%s\tdecisions.tsv 2026-10-01T02:43\n%s' "$1" "$2" > "$budgets"; }
+base_quota() { g switch -q main; printf 'QUOTA\t200\tbaseline\n' >> "$budgets"; g commit -qam quota; g switch -q -C feat/x; }
 new_repo; totals 250 ''; commit
 pass 'a TOTAL raise of 50 words'
 new_repo; totals 251 ''; commit
 refuse 'a TOTAL raise of 51 words with no QUOTA change' 'TOTAL goes up by 51 words'
-new_repo; totals 251 $'QUOTA\t201\tdecisions.tsv 2026-10-01T02:43\n'; commit
-pass 'a TOTAL raise of 51 words with a QUOTA change'
+out="$(cd "$tmp/r" && "$script" main 2>&1)"
+[[ "$out" != *'change the QUOTA row'* ]] || fail "the cap message tells the agent to change the QUOTA row: $out"
+new_repo; totals 251 $'QUOTA\t251\tdecisions.tsv 2026-10-01T02:43\n'; commit
+pass 'a TOTAL raise of 51 words with a new QUOTA row at the new TOTAL'
+new_repo; base_quota; totals 251 $'QUOTA\t251\tdecisions.tsv 2026-10-01T02:43\n'; commit
+pass 'a TOTAL raise of 51 words with a QUOTA row raised to the new TOTAL'
+new_repo; base_quota; totals 251 $'QUOTA\t199\tdecisions.tsv 2026-10-01T02:43\n'; commit
+refuse 'a TOTAL raise of 51 words with a lower QUOTA' 'TOTAL goes up by 51 words'
+new_repo; base_quota; totals 251 $'QUOTA\t201\tdecisions.tsv 2026-10-01T02:43\n'; commit
+refuse 'a TOTAL raise of 51 words with a raised QUOTA below the new TOTAL' 'TOTAL goes up by 51 words'
+new_repo; base_quota; totals 251 ''; commit
+refuse 'a TOTAL raise of 51 words with the QUOTA row deleted' 'TOTAL goes up by 51 words'
 new_repo; row 120 'raised'; commit
 out="$(cd "$tmp/r" && "$script" does-not-exist 2>&1)" && fail 'a bad base exits 0'
 [[ "$out" == *does-not-exist* ]] || fail "a bad base: no reason: $out"

@@ -60,7 +60,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F39 | Audio Unit plug-ins | Hindenburg PRO, GarageBand, Logic Pro | Later | - |
 | F40 | Loudness meter (ITU-R BS.1770, EBU R128) | Hindenburg PRO, Logic Pro | done, Release 2 run 9b | R10 |
 | F41 | Mono or stereo per track and for the mix | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 5 | R11, R15 |
-| F42 | Remove remote-guest bleed from the local mic track, offline after the recording | Hindenburg PRO | Later | R14 |
+| F42 | Remove remote-guest bleed from the local mic track, offline after the recording | Hindenburg PRO | Later (the reference can be the clean file that the guest recorded, after F74 aligns it) | R14 |
 | F43 | Headphone check: warn when the output is the built-in speakers during recording | brief R14 | done, Release 2 run 6 | R14 |
 | F50 | Export mix to WAV | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 5 | R11 |
 | F51 | Export mix to AAC (.m4a) | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 5 | R11 |
@@ -85,7 +85,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F71 | Connected clips: a clip anchored to a clip on another track | FCP | Later | R7 |
 | F72 | Track role (dialogue, music, effects) with a color | FCP | Release 7 | R10 |
 | F73 | Stem export: one file per track or per role, all from the same start | FCP | Release 7 | R11 |
-| F74 | Sync a clip to another track by its audio waveform | FCP | Release 6 | R7 |
+| F74 | Sync a clip to another track by its audio waveform | FCP | Release 6 (also an outside recording with its own clock) | R7 |
 | F75 | Gain envelope per clip; a range gain makes ramps | FCP | Release 7 | R7 |
 | F76 | Session index: a list of clips, markers, and chapters with search | FCP | Release 6 | R7 |
 | F77 | Hum removal at 50 or 60 Hz | FCP | Release 4 | R8 |

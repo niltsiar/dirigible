@@ -185,7 +185,15 @@ Goal: edit the timeline faster: pre-roll, replace and fill, and the timeline edi
 2. **Replace, room-tone fill, and duplicate (F21).** Each with a menu item, a key, a `dirigible` command, and an MCP tool. Run: `2026-10-13-replace-roomtone-split` L2 and L3.
 3. **Timeline edits (F81, F69, F70, F80).** Close gaps, roll and slip trims, a follow track in a ripple, and drag modes. The run splits at its plan.
 4. **Session index and waveform zoom (F76, F78).** A list of clips, markers, and chapters with search, and a vertical zoom of the waveforms.
-5. **Sync by waveform (F74).** Align a clip to another track by its audio waveform.
+5. **Sync by waveform (F74).** F74 lands in two steps.
+   - **L1 Waveform sync.** Align a clip to another track by its audio waveform.
+   - **L2 Drift fit.** F74 also aligns an outside recording that has its own clock. Examples: the file that a remote guest recorded on the guest computer, a backup recorder, or camera audio. An outside recording has no shared host clock, so F74 measures the drift from the audio. The drift fit is a cross-correlation at several points across the clip, a line fit of offset and rate, and one resample. The line fit is the fit of 0004, but from the audio. F74 reads the original file of the outside recording. It does the rate conversion and the drift correction in one resample, as Finalize does (0004). A drift of 50 ppm is about 180 ms in one hour. Edge cases for the analysis of the run:
+     - A pause or a gap in the outside recording: one fit for each segment.
+     - 44.1 kHz against 48 kHz.
+     - Call-track dropouts with no correlation peak: the fit rejects outliers.
+     - A clean microphone against a codec-degraded copy of the call.
+     - Several remote people in one call track: each outside recording aligns on its own, against the segments where that person talks alone.
+     - The original file is gone: the F74 run picks the source of the resample.
 
 ## Release 7: mix and organization
 

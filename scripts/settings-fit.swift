@@ -1,8 +1,7 @@
 // Check that the Settings window of a running Dirigible shows each text whole: each static text is
 // inside the window with a 16 pt margin at the sides and the bottom, and the window is at most
 // 720 x 400 pt. No unit test can see a clip: the test process has no app strings, and an offscreen
-// render draws no SwiftUI text. screenshots.sh runs this check in English. For Spanish, start the
-// verify copy with `--args -AppleLanguages "(es)"`, open Settings, and run this script.
+// render draws no SwiftUI text. screenshots.sh runs this check in the language of its argument.
 // The terminal app needs the Accessibility permission (as for ax.swift).
 //
 // usage: settings-fit.swift <pid>   one line per text (FIT or CLIP) and the window size; exit 1

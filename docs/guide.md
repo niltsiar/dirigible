@@ -1016,7 +1016,7 @@ The screenshots of the README and of this guide come from a script. The script m
 
 1. Give the terminal app the Screen Recording and Accessibility permissions.
 2. Quit Dirigible. The script does not start while a copy of the app runs.
-3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`. The script builds the app first.
+3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`. The script builds the app first. A second argument, a language folder of `Support/Resources` such as `de`, makes the images in that language in `<folder>/images`; only the English run writes `docs/images`.
 4. Do not move the pointer or other windows over the Dirigible window until the script stops.
 
 The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, `docs/images/screenshot-crossfade.png`, and `docs/images/screenshot-settings.png`. The script does not make `docs/images/screenshot-consent.png`, the sheet of an agent record request. Make it in the verify copy (`scripts/verify-copy.sh`): open a session with a Host track on the built-in microphone, send one `record` call of 30 seconds through `dirigible mcp`, and capture the window while the sheet shows. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, when the display scale is not 2x (Retina), and when the Settings window clips a text (`scripts/settings-fit.swift`). The images of the session window are 2360 x 1544 pixels.

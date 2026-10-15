@@ -40,15 +40,18 @@ extension Session {
 
     /// Adds the file `stem` at "<stem>.wav", made from `run.span` of `run.file`: the span length,
     /// the capture of the source, and the words of the span (decision 0056). It refuses an unknown
-    /// source (`.unknownFile`), an empty span or a span past the source (`.frameOutOfRange`), a taken
-    /// ID, an equal record too, or a path that another record has in any case (`.duplicateID`), and
-    /// each refusal of `addFile`. A throw changes nothing. No layout check: the caller owns it.
+    /// source (`.unknownFile`), an empty span or a span past the source (`.frameOutOfRange`), a
+    /// transcript that did not load (`.transcriptNotLoaded`), a taken ID, an equal record too, or a
+    /// path that another record has in any case (`.duplicateID`), and each refusal of `addFile`. A
+    /// throw changes nothing. No layout check: the caller owns it.
     @discardableResult
     mutating func addDerivedFile(from run: ClipRun, stem: String, layout: ChannelLayout) throws(SessionError) -> FileID
     {
         guard let source = files[run.file] else { throw .unknownFile(run.file) }
         let span = run.span
         guard !span.isEmpty, span.lowerBound >= .zero, span.upperBound <= source.length else { throw .frameOutOfRange }
+        let unloaded = transcriptsNotLoaded.map(\.id)
+        guard unloaded.isEmpty else { throw .transcriptNotLoaded(unloaded) }
         let id = FileID(stem)
         guard files[id] == nil else { throw .duplicateID(stem) }
         let path = "\(stem).wav"

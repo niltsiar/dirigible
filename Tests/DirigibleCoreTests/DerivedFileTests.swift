@@ -155,6 +155,22 @@ struct DerivedFileTests {
         #expect(session == before)
     }
 
+    /// While a transcript did not load, its words for the span are unknown, so the call is refused
+    /// and names the transcript, as a cut does. Nothing changes.
+    @Test func aTranscriptNotLoadedIsRefused() throws {
+        var session = try session(length: 1_000_000, clips: [])
+        session.addWords([(1, 120_000..<130_000, "one")], file: "f")
+        session.addWords([(1, 150_000..<160_000, "two")], file: "f", transcript: 2)
+        session.transcripts[TranscriptID(2)]?.words = nil
+        let before = session
+
+        #expect(throws: SessionError.transcriptNotLoaded([TranscriptID(2)])) {
+            try session.addDerivedFile(
+                from: ClipRun(file: "f", span: 100_000..<200_000, clips: []), stem: "f NR", layout: .mono)
+        }
+        #expect(session == before)
+    }
+
     /// C11. Each word whose midpoint is in the span goes to the new file, clamped to the span and
     /// shifted to its start, with the same transcript and number. A midpoint at the span end stays out.
     @Test func aDerivedFileKeepsTheWords() throws {

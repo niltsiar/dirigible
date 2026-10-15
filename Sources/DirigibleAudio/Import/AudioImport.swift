@@ -73,7 +73,13 @@ public func importAudio(
         throw ImportError(error, file: name)
     }
     defer { files.discard() }
-    let (stem, temporary) = files.add(stemOf: source, in: session)
+    let stem: String
+    let temporary: URL
+    do throws(NewClipFault) {
+        (stem, temporary) = try files.add(stemOf: source, in: session)
+    } catch {
+        throw ImportError(error, file: name)
+    }
     let wav = "\(clipsFolderName)/\(stem).wav"
     let share = level ? 0.8 : 1
     let converted = try convertToWAV(

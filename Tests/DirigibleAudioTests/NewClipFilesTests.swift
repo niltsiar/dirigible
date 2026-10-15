@@ -22,7 +22,7 @@ struct NewClipFilesTests {
         try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
         try Data("taken".utf8).write(to: clips.appending(path: "b.wav"))
         var files = try NewClipFiles(in: folder.url, bytes: 0, freeBytes: { 0 })
-        for stem in ["a", "b", "c"] { try Data(stem.utf8).write(to: files.add(stem: stem)) }
+        for stem in ["a", "b", "c"] { try Data(stem.utf8).write(to: try files.add(stem: stem)) }
 
         var thrown: NewClipFault?
         do throws(NewClipFault) { try files.commit() } catch { thrown = error }
@@ -62,7 +62,7 @@ struct NewClipFilesTests {
         func write() throws {
             var files = try NewClipFiles(in: folder.url, bytes: 0, freeBytes: { 0 })
             defer { files.discard() }
-            for stem in ["a", "b"] { try Data(stem.utf8).write(to: files.add(stem: stem)) }
+            for stem in ["a", "b"] { try Data(stem.utf8).write(to: try files.add(stem: stem)) }
             #expect(names == [".a.wav.tmp", ".b.wav.tmp", "old.wav"], "the temps are there before the throw")
             throw Stop()
         }
@@ -71,24 +71,24 @@ struct NewClipFilesTests {
         #expect(names == ["old.wav"] && bytes("old.wav") == Data("old".utf8))
     }
 
-    /// C2: two equal stems, in any case, would write one temp, so the second add stops the process.
-    @Test func equalStemsAreRefused() async {
-        let result = await #expect(processExitsWith: .failure, observing: [\.standardErrorContent]) {
-            let package = FileManager.default.temporaryDirectory.appending(path: "NewClipFiles-\(UUID().uuidString)")
-            try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
-            var files = try NewClipFiles(in: package, bytes: 0, freeBytes: { 0 })
-            try FileManager.default.removeItem(at: package)
-            _ = files.add(stem: "a")
-            _ = files.add(stem: "A")
-        }
-        let text = result.map { String(decoding: $0.standardErrorContent, as: UTF8.self) } ?? ""
-        #expect(text.contains("Each stem of a batch is new"), "the precondition stops it: \(text)")
+    /// C2: two equal stems, in any case, would write one temp, so the second add throws and the
+    /// batch stays whole: the first temp is removed by the discard.
+    @Test func equalStemsAreRefused() throws {
+        var files = try NewClipFiles(in: folder.url, bytes: 0, freeBytes: { 0 })
+        try Data("a".utf8).write(to: files.add(stem: "a"))
+
+        var thrown: NewClipFault?
+        do throws(NewClipFault) { _ = try files.add(stem: "A") } catch { thrown = error }
+        files.discard()
+
+        #expect(thrown == .taken(stem: "A"))
+        #expect(files.stems == ["a"] && names == [], "the refused add changed nothing and the temp is gone: \(names)")
     }
 
     /// C4: `made` lists the renamed files in commit order, and `discard` keeps them.
     @Test func madeListsTheRenamedFiles() throws {
         var files = try NewClipFiles(in: folder.url, bytes: 0, freeBytes: { 0 })
-        for stem in ["b", "a"] { try Data(stem.utf8).write(to: files.add(stem: stem)) }
+        for stem in ["b", "a"] { try Data(stem.utf8).write(to: try files.add(stem: stem)) }
         #expect(files.made == [])
 
         try files.commit()
@@ -103,7 +103,7 @@ struct NewClipFilesTests {
         let folderPath = clips.path
         var files = try NewClipFiles(
             in: folder.url, bytes: 0, freeBytes: { 0 }, flush: { $0 == folderPath ? EIO : nil })
-        for stem in ["a", "b"] { try Data(stem.utf8).write(to: files.add(stem: stem)) }
+        for stem in ["a", "b"] { try Data(stem.utf8).write(to: try files.add(stem: stem)) }
 
         var thrown: NewClipFault?
         do throws(NewClipFault) { try files.commit() } catch { thrown = error }
@@ -118,8 +118,8 @@ struct NewClipFilesTests {
         var files = try NewClipFiles(in: folder.url, bytes: 0, freeBytes: { 0 })
         let session = Session(sampleRate: 48_000)
 
-        let first = files.add(stemOf: URL(filePath: "/x/a.wav"), in: session)
-        let second = files.add(stemOf: URL(filePath: "/x/A.mp3"), in: session)
+        let first = try files.add(stemOf: URL(filePath: "/x/a.wav"), in: session)
+        let second = try files.add(stemOf: URL(filePath: "/x/A.mp3"), in: session)
 
         #expect(first.stem == "a" && second.stem == "A 2")
         #expect(second.temporary == clips.appending(path: ".A 2.wav.tmp") && files.stems == ["a", "a 2"])
@@ -139,6 +139,10 @@ struct NewClipFilesTests {
             (
                 .move(file: "a.wav", errno: EEXIST),
                 .write(file: "Voice.mp3", .writeFailed(file: "Clips/a.wav", status: EEXIST)),
+                .write(file: "a.wav", errno: EEXIST)
+            ),
+            (
+                .taken(stem: "a"), .write(file: "Voice.mp3", .writeFailed(file: "Clips/a.wav", status: EEXIST)),
                 .write(file: "a.wav", errno: EEXIST)
             ),
         ]
@@ -162,7 +166,7 @@ struct NewClipFilesTests {
             for stem in taken { try Data("taken \(stem)".utf8).write(to: clips.appending(path: "\(stem).wav")) }
             let fault = Bool.random(using: &random)
             var files = try NewClipFiles(in: package, bytes: 0, freeBytes: { 0 }, flush: { _ in fault ? EIO : nil })
-            for stem in stems { try Data(stem.utf8).write(to: files.add(stem: stem)) }
+            for stem in stems { try Data(stem.utf8).write(to: try files.add(stem: stem)) }
 
             try? files.commit()
             files.discard()

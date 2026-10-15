@@ -15,6 +15,8 @@ enum NewClipFault: Error, Hashable {
     case move(file: String, errno: Int32)
     /// The flush of the `Clips/` folder gave this errno.
     case flush(errno: Int32)
+    /// The batch has this stem already, in any case: two equal stems write one temp.
+    case taken(stem: String)
 }
 
 /// The new WAV files in `Clips/` of one edit (decision 0056): one space check, the temp names
@@ -52,16 +54,15 @@ struct NewClipFiles: ~Copyable {
 
     /// The stem of `source` by the stem rule of 0040, with the stems of this batch taken, and its
     /// temp URL.
-    mutating func add(stemOf source: URL, in session: Session) -> (stem: String, temporary: URL) {
+    mutating func add(stemOf source: URL, in session: Session) throws(NewClipFault) -> (stem: String, temporary: URL) {
         let stem = importStem(of: source, in: session, package: package, taken: stems)
-        return (stem, add(stem: stem))
+        return (stem, try add(stem: stem))
     }
 
-    /// The temp URL of a stem that the caller planned. A stem of this batch, in any case, stops the
-    /// process: two equal stems write one temp.
-    mutating func add(stem: String) -> URL {
-        let inserted = stems.insert(stem.lowercased()).inserted
-        precondition(inserted, "Each stem of a batch is new")
+    /// The temp URL of a stem that the caller planned. A stem of this batch, in any case, throws
+    /// `.taken` and changes nothing.
+    mutating func add(stem: String) throws(NewClipFault) -> URL {
+        guard stems.insert(stem.lowercased()).inserted else { throw .taken(stem: stem) }
         order.append(stem)
         return clips.appending(path: temporaryWAV(of: stem))
     }
@@ -97,6 +98,8 @@ extension ImportError {
             self = .write(file: file, .writeFailed(file: clipsFolderName, status: code))
         case .move(let name, let code):
             self = .write(file: file, .writeFailed(file: "\(clipsFolderName)/\(name)", status: code))
+        case .taken(let stem):
+            self = .write(file: file, .writeFailed(file: "\(clipsFolderName)/\(stem).wav", status: EEXIST))
         }
     }
 }
@@ -107,6 +110,7 @@ extension PasteError {
         case .space(let needed, let free): self = .space(needed: needed, free: free)
         case .folder(let code), .flush(let code): self = .write(file: clipsFolderName, errno: code)
         case .move(let name, let code): self = .write(file: name, errno: code)
+        case .taken(let stem): self = .write(file: "\(stem).wav", errno: EEXIST)
         }
     }
 }

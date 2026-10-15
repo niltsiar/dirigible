@@ -30,7 +30,8 @@ func speedSpokenText(_ speed: Speed, locale: Locale = .current, format: String =
 
 /// The toolbar pop-up of the vari-speed (decision 0052, ui-panel): its title is the readout, 1x in
 /// the normal text color and another speed in the accent color. One width for the widest value
-/// in English and Spanish, so the toolbar does not move. The tag of each item is the raw value.
+/// with a decimal point or a decimal comma, so the toolbar does not move. The tag of each item is the
+/// raw value.
 final class SpeedPopUp: NSPopUpButton {
     /// The changes of the shown speed, for the tests: the pop-up changes only on a speed change.
     private(set) var changes = 0
